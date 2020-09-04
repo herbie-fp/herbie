@@ -11,9 +11,6 @@
 (module+ internals 
   (provide define-representation register-generator! register-representation!))
 
-(define *reprs-with-rules* (make-parameter '()))
-(define *needed-reprs* (make-parameter '()))
-
 ;; Structs
 
 (struct representation
@@ -48,16 +45,10 @@
 ;; that all the correct rules are generated but it'll collect more reprs than is necessary.
 ;; TODO: Find a better place to put this. Watch out for problems with multithreading / parameters. 
 (define (get-representation name)
-  (cond
-   [(hash-has-key? representations name) ; check existing
-    (define repr (hash-ref representations name))
-    (*needed-reprs* (set-add (*needed-reprs*) repr))
-    repr]
-   [(generate-repr name)  ; ask plugins to try generating this repr
-    (define repr (hash-ref representations name))
-    (*needed-reprs* (set-add (*needed-reprs*) repr))
-    repr]
-   [else (error 'get-representation "Unknown representation ~a" name)])) ; else, fail
+  (if (or (hash-has-key? representations name) ; check existing
+          (generate-repr name)) ; ask plugins to try generating this repr
+    (hash-ref representations name)
+    (error 'get-representation "Unknown representation ~a" name))) ; else fail
 
 (define (register-representation! name type repr? . args)
   (hash-set! representations name
@@ -155,6 +146,9 @@
 (define (special-value? x repr)
   ((representation-special-values repr) x))
 
-;; Global precision tacking
+;; Global precision tracking
 (define *output-repr* (make-parameter (get-representation 'binary64)))
 (define *var-reprs* (make-parameter '()))
+
+(define *reprs-with-rules* (make-parameter '()))
+(define *needed-reprs* (make-parameter (list (get-representation 'bool))))

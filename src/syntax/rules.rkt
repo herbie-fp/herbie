@@ -106,10 +106,7 @@
       (match-define (list rname input output) r)
       (rule (gen-unique-rule-name rname) input output var-ctx 
             (type-of-rule input output var-ctx))))
-  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
-  (update-rules rules* groups)
-  (update-simplify-rules rules* groups)
-  (update-fp-safe-simplify-rules rules* groups))
+  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
       
 (define-syntax define-ruleset
   (syntax-rules ()
@@ -171,15 +168,32 @@
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~s args))))
 
+;; Add existing rules in rulesets to 'active' rules
+
+(define (add-rules-from-rulesets repr)
+  (define repr-name (representation-name repr))
+  (define valid? (disjoin (curry equal? repr-name) (curry set-member? (*reprs-with-rules*))))
+  (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
+  (for ([set (*rulesets*)])
+    (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
+    (when (andmap valid? types)
+      (define rules* (filter (λ (r) (valid? (rule-otype r))) rules))
+      (unless (empty? rules*)   ; only add the ruleset if it contains one
+        (update-rules rules* groups)
+        (update-simplify-rules rules* groups)
+        (update-fp-safe-simplify-rules rules* groups)))))
+
 ;; Generate a set of rules by replacing a generic type with a repr
-(define (generate-rules-for type repr-name)
-  (define repr (get-representation repr-name))
+(define (generate-rules-for type repr)
+  (define repr-name (representation-name repr))
+  (define typename (type-name type))
+  (define valid? (disjoin (curry equal? typename) (curry set-member? (*reprs-with-rules*))))
   (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
   (for ([set templated-rulesets]
        #:when (or (empty? (third set)) ; no type ctx
-                  (ormap (λ (p) (equal? (cdr p) type)) (third set))))
-    (match-define (list (list rules ...) (list groups ...) (list (cons vars types) ...)) set)
-    (define ctx (for/list ([v vars] [t types]) (cons v (if (equal? t type) repr-name t))))
+                  (andmap (λ (p) (valid? (cdr p))) (third set))))
+    (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
+    (define ctx (for/list ([v vars] [t types]) (cons v (if (equal? t typename) repr-name t))))
     (define var-reprs (for/list ([(var prec) (in-dict ctx)]) (cons var (get-representation prec))))
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
@@ -202,10 +216,9 @@
 
 (define (generate-missing-rules)
   (for ([repr (*needed-reprs*)] 
-       #:unless (or (set-member? (*reprs-with-rules*) repr)
-                    (equal? (representation-name repr) 'bool)))
-    (generate-rules-for (type-name (representation-type repr))
-                        (representation-name repr))))
+       #:unless (set-member? (*reprs-with-rules*) repr))
+    (generate-rules-for (representation-type repr) repr)
+    (add-rules-from-rulesets repr)))
 
 ; Commutativity
 (define-ruleset* commutativity (arithmetic simplify fp-safe)

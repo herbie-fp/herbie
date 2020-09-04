@@ -572,23 +572,23 @@
          name)))
 
 (define (generate-conversions convs)
-  (for ([conv convs])
-   (with-handlers ([exn:fail? (λ (e) (error 'generate-conversions "Invalid conversion: ~a" conv))])
-      (define-values (iprec oprec)
-        (let ([split (string-split (symbol->string conv) "->")])
-          (values (string->symbol (first split))
-                  (string->symbol (last split)))))
-      (define irepr (get-representation iprec))
-      (define orepr (get-representation oprec))
-      (unless (hash-has-key? parametric-operators conv)
-        (printf "~a not found. Generating default implementation\n" conv)
-        (register-operator! conv conv (list iprec) oprec  ; fallback implementation
-          (list
-            (cons 'fl (compose (representation-bf->repr orepr) (representation-repr->bf irepr)))
-            (cons 'bf identity) (cons 'ival #f)
-            (cons 'nonffi (compose (representation-bf->repr orepr) (representation-repr->bf irepr))))))
-      ;; TODO: add to 'necessary' reprs
-    )))
+  (define reprs
+    (for/fold ([reprs '()]) ([conv convs])
+      (with-handlers ([exn:fail? (λ (e) (error 'generate-conversions "Invalid conversion: ~a" conv))])
+        (define-values (iprec oprec)
+          (let ([split (string-split (symbol->string conv) "->")])
+            (values (string->symbol (first split))
+                    (string->symbol (last split)))))
+        (define irepr (get-representation iprec))
+        (define orepr (get-representation oprec))
+        (unless (hash-has-key? parametric-operators conv)
+          (define impl (compose (representation-bf->repr orepr) (representation-repr->bf irepr)))
+          (printf "~a not found. Generating default implementation\n" conv)
+          (register-operator! conv conv (list iprec) oprec  ; fallback implementation
+            (list (cons 'fl impl) (cons 'bf identity) (cons 'ival #f)
+                  (cons 'nonffi impl))))
+        (set-union reprs (list irepr orepr)))))
+  (*needed-reprs* (append reprs (*needed-reprs*))))
 
 (define-operator (cast cast.f64 binary64) binary64
   [fl identity] [bf identity] [ival #f]
