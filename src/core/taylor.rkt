@@ -7,7 +7,7 @@
 (require "reduce.rkt")
 (require (only-in "simplify.rkt" differentiate-exprs differentiate-expr))
 
-(provide approximate iterate-diagonal)
+(provide approximate taylor)
 
 (define (approximate expr vars #:transform [tforms #f]
                      #:terms [terms 3] #:iters [iters 5])
@@ -197,10 +197,9 @@
     [else
       (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
       (define get-op (lambda (op) (get-parametric-operator op repr repr)))
-      (list (get-op '/) (list (get-op '*)
-                              (build-derivative var expr n)
-                              (list (get-op 'pow) (list (get-op '-) var around) n))
-                        (factorial n))]))
+      (list (get-op '/) 
+            (list 'subst (build-derivative var expr n) var around)
+            (factorial n))]))
 
 (define (contains-derivative-or-subst? expr)
   (cond
@@ -220,7 +219,7 @@
     (list (binary-op-with-repr '/ expr)
           (make-sum (cons expr
                           (for/list ([n (in-range 0 i)])
-                            (list (unary-op-with-repr '- expr) (make-term (get-term n) (list var) (list n))))))
+                            (list (unary-op-with-repr '- expr) (make-term (hash-ref term-cache n) (list var) (list n))))))
           (make-term 1 (list var) (list i))))  
 
   (define (get-term n)
@@ -238,6 +237,7 @@
          ;; update max-computable if necessary
          (cond
            [(contains-derivative-or-subst? derivative)
+            (printf "max computable ~a of ~a for term ~a" i derivative expr)
             (set! max-computable i)
             (hash-set! term-cache i (make-last-term i))]
            [else
