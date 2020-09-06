@@ -1,11 +1,9 @@
 #lang racket
 
 (require math/number-theory)
-(require "../common.rkt" "../interface.rkt")
-(require "../function-definitions.rkt")
-(require "../programs.rkt")
-(require "reduce.rkt")
-(require (only-in "simplify.rkt" differentiate-exprs differentiate-expr))
+(require "../common.rkt" "../interface.rkt" "../function-definitions.rkt" "../programs.rkt"
+         "simplify.rkt" "../syntax/rules.rkt")
+(require "reduce.rkt") ;; to be removed on replacing with egg-taylor
 
 (provide approximate taylor)
 
@@ -82,7 +80,7 @@
 
   ; We must now iterate through the coefficients in `corrected` order.
   (define res
-  (differentiate-expr
+  (simplify-expr
    (make-sum
     ; We'll track how many non-trivial zeros we've seen
     ; and all the useful terms we've seen so far
@@ -103,7 +101,8 @@
                                                (reverse
                                                 (for/list ([var vars] [tform tforms])
                                                   ((cdr tform) var)))
-                                               expts) res) (+ 1 i)))))))))))
+                                               expts) res) (+ 1 i)))))))))
+    #:rules (*simplify-rules*)))
   (printf "result ~a\n" res)
   res)
 
@@ -184,8 +183,6 @@
   (hash-set! logcache 1 '((1 -1 1)))))
 
 (define (build-derivative var expr n)
-  (when (list? var)
-        (error (format "var should be a symbol. got:  ~a" var)))
   (if (equal? n 0)
       expr
       (list 'd (build-derivative var expr (- n 1)) var)))
@@ -228,9 +225,11 @@
        0]
       [(>= n current-max)
        (define new-derivatives
-         (differentiate-exprs
-           (for/list ([i (in-range current-max (+ current-max batch-size))])
-             (taylor-term var expr i 0))))
+         (simplify-batch
+           (differentiate-exprs
+             (for/list ([i (in-range current-max (+ current-max batch-size))])
+               (taylor-term var expr i 0)))
+             #:rules (*simplify-rules*)))
        (for ([i (in-range current-max (+ current-max batch-size))]
              [derivative new-derivatives]
              #:break (and max-computable (> i max-computable)))

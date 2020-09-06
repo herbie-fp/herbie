@@ -21,7 +21,9 @@
             ((subst (subst (/.f64 c d) c 4) d 5) . 4/5)
             ((subst (d (sin.f64 x) x) x PI.f64) . -1)
             ((subst (d (-.f64 (pow.f64 x 3) (*.f64 7 (pow.f64 x 2))) x) x 1)
-             . -11)))
+             . -11)
+            ((subst (d (log.f64 (/.f64 (-.f64 x 1) (+.f64 x 1))) x) x 0)
+             . -2)))
 
   (for ([pair derivatives])
        (check-equal? (differentiate-expr (car pair)) (cdr pair))))
