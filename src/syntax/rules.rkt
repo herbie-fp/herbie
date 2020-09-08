@@ -182,7 +182,7 @@
   (define valid? (disjoin (curry equal? typename)
                           (curry set-member? (map representation-name (*reprs-with-rules*)))))
   (set! reprs-with-templated-rules (set-add reprs-with-templated-rules repr)) ; update
-  (for ([set templated-rulesets]
+  (for ([set (reverse templated-rulesets)] ; preserve rule order
        #:when (or (empty? (third set)) ; no type ctx
                   (andmap (λ (p) (valid? (cdr p))) (third set))))
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)

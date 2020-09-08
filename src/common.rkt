@@ -245,4 +245,4 @@
     [stx* stx*]))
 
 (define (sym-append . args)
-  (string->symbol (apply string-append (map symbol->string args))))
+  (string->symbol (apply string-append (map ~s args))))

@@ -378,7 +378,7 @@
      (cond
       [(not full?) `(,op ,body*)]
       [(list? body*) `(cast (! :precision ,(string->symbol iprec) ,body*))]
-      [else body*])]
+      [else body*])] ; constants and variables should not have casts and precision changes
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
@@ -432,7 +432,8 @@
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
       [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
-  
+
+; Updates the repr of an expression if needed
 (define (apply-repr-change-expr expr)
   (let loop ([expr expr] [prec #f])
     (match expr
@@ -443,8 +444,8 @@
       (define prec* (if prec prec oprec))
       (define body* (loop body iprec))
       (cond
-       [(not body*) #f]
-       [(equal? iprec prec*) body*]
+       [(not body*) #f] ; propagate failed repr-change
+       [(equal? iprec prec*) body*] ; remove non-conversions
        [else
         (define new-conv (get-repr-conv iprec prec*)) ; try to find a single conversion
         (if new-conv
@@ -470,15 +471,19 @@
       (define var-prec (representation-name (dict-ref (*var-reprs*) expr)))
       (cond
        [(equal? var-prec prec) expr]
-       [else
+       [else ; insert a cast if the variable precision is not the same
         (define cast (get-repr-conv var-prec prec))
         (list cast expr)])]
      [(? (curry hash-has-key? parametric-constants-reverse))
       (define prec* (if prec prec (constant-info expr 'type)))
-      (if (equal? (constant-info expr 'type) prec*)
+      (if (equal? (constant-info expr 'type) prec*) ; update constants if precision no longer matches
           expr
-          (let ([c* (hash-ref parametric-constants-reverse expr expr)])
-            (get-parametric-constant c* prec)))]
+          (let* ([c-unparam (hash-ref parametric-constants-reverse expr expr)]
+                 [c* (get-parametric-constant c-unparam prec)])
+            (if c*
+                c*
+                (let ([conv (get-repr-conv (constant-info expr 'type) prec*)])
+                  (and conv (list conv expr))))))] ; if constant does not exist in repr, add conversion
      [_ expr])))
       
 (define (apply-repr-change prog)
