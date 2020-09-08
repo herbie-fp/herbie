@@ -16,7 +16,7 @@
     (define impl (compose (representation-bf->repr orepr) (representation-repr->bf irepr)))
     (eprintf "~a not found, falling back to default implementation... \n" conv)
     (register-operator! conv conv (list iprec) oprec  ; fallback implementation
-      (list (cons 'fl impl) (cons 'bf identity) (cons 'ival #f)
+      (list (cons 'fl impl) (cons 'bf identity) (cons 'ival identity)
             (cons 'nonffi impl))))
 
   (define repr-rewrite (sym-append '<- iprec))
@@ -35,9 +35,8 @@
 (define (generate-conversions convs)
   (define reprs
     (for/fold ([reprs '()]) ([conv convs])
-      (define-values (prec1 prec2)
-        (let ([split (regexp-match #px"^([\\S]+)/([\\S]+)$" (symbol->string conv))])
-          (values (string->symbol (second split)) (string->symbol (last split)))))
+      (define prec1 (first conv))
+      (define prec2 (last conv))
       (generate-conversion-1way prec1 prec2)
       (generate-conversion-1way prec2 prec1)
       (define repr1 (get-representation prec1))

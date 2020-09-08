@@ -113,8 +113,8 @@
     (unless (list? (syntax-e conversions))
       (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))
     (for ([conv (syntax-e* conversions)]
-          #:unless (regexp-match? #px"^[\\S]+(/)[\\S]+$" (symbol->string conv)))
-      (error! conversions "Invalid conversion ~a; Valid example: binary64/binary32"))))
+          #:unless (and (list? conv) (= (length conv) 2)))
+      (error! conversions "Invalid conversion ~a; Valid example: (binary64 binary32)" conv))))
 
 (define (check-program* stx error!)
   (match stx

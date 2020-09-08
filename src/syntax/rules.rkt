@@ -34,23 +34,13 @@
 
 ;; Update parameters
 
-(define (update-all-rules rules groups)
-  (when (ormap (curry flag-set? 'rules) groups)
-    (all-rules (append (all-rules) rules))))
-
-(define (update-simplify-rules rules groups)
-  (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
-    (simplify-rules (append (simplify-rules) rules))))
-
-(define (update-fp-safe-simplify-rules rules groups)
-  (when (and (ormap (curry flag-set? 'rules) groups)
-             (set-member? groups 'fp-safe) (set-member? groups 'simplify))
-    (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))
-
 (define (update-rules rules groups)
-  (update-all-rules rules groups)
-  (update-simplify-rules rules groups)
-  (update-fp-safe-simplify-rules rules groups))
+  (when (ormap (curry flag-set? 'rules) groups) ; update all
+    (all-rules (append (all-rules) rules))
+    (when (set-member? groups 'simplify) ; update simplify
+      (simplify-rules (append (simplify-rules) rules))  
+      (when (set-member? groups 'fp-safe)  ; update fp-safe
+        (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
@@ -74,6 +64,18 @@
     (for/list ([ruleset (*rulesets*)])
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
+
+(define (reprs-in-expr expr)
+  (remove-duplicates
+    (let loop ([expr expr])
+      (match expr
+      [(list 'if cond ift iff)
+        (append (loop cond) (loop ift) (loop iff))]
+      [(list op args ...)
+        (define itypes (operator-info op 'itype))
+        (append (if (list? itypes) itypes (list itypes))
+                (append-map loop args))]
+      [_ '()]))))
 
 (define (type-of-rule input output ctx)
   (cond   ; special case for 'if', return the 'type-of-rule' of the ift branch
@@ -159,13 +161,17 @@
 
 (define (add-rules-from-rulesets repr)
   (define repr-name (representation-name repr))
-  (define valid? (disjoin (curry equal? repr-name)
-                          (curry set-member? (map representation-name (*reprs-with-rules*)))))
+  (define valid? (disjoin (curry set-member? (map representation-name (*reprs-with-rules*)))
+                          (curry equal? repr-name)))
   (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
   (for ([set (*rulesets*)])
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
     (when (and (andmap valid? types) (ormap (curry equal? repr-name) types))
-      (define rules* (filter (λ (r) (valid? (rule-otype r))) rules))
+      (define rules*
+        (filter (λ (r) (and (valid? (rule-otype r))
+                            (andmap valid? (reprs-in-expr (rule-input r)))
+                            (andmap valid? (reprs-in-expr (rule-output r)))))
+                rules))
       (unless (empty? rules*)   ; only add the ruleset if it contains one
         (update-rules rules* groups)))))
 
