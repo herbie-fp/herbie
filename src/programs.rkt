@@ -118,6 +118,8 @@
       (error "Bad location: cannot enter " expr "any further.")]
      [else
       (match expr
+        [(list 'if cond ift iff)
+         (loop (list-ref expr (car loc)) repr (cdr loc))]
         [(list (? operator? op) args ...)
          (define ireprs (cons repr (map get-representation (operator-info op 'itype))))
          (loop (list-ref expr (car loc)) (list-ref ireprs (car loc)) (cdr loc))]
