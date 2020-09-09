@@ -4,8 +4,19 @@
          (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
 (provide generate-conversions)
 
+(define/contract (string-replace* str changes)
+  (-> string? (listof (cons/c string? string?)) string?)
+  (let loop ([str str] [changes changes])
+    (match changes
+      [(? null?) str]
+      [_ (let ([change (car changes)])
+           (loop (string-replace str (car change) (cdr change)) (cdr changes)))])))
+
 (define (generate-conversion-1way iprec oprec)
-  (define conv (sym-append iprec '-> oprec))
+  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
+  (define iprec* (string->symbol (string-replace* (~a iprec) replace-table))) ; fixed point workaround
+  (define oprec* (string->symbol (string-replace* (~a oprec) replace-table)))
+  (define conv (sym-append iprec* '-> oprec*))
   (define-values (irepr orepr)
     (with-handlers ([exn:fail?
                      (λ (e) (error 'generate-conversion-1way
@@ -19,13 +30,13 @@
       (list (cons 'fl impl) (cons 'bf identity) (cons 'ival identity)
             (cons 'nonffi impl))))
 
-  (define repr-rewrite (sym-append '<- iprec))
+  (define repr-rewrite (sym-append '<- iprec*))
   (unless (hash-has-key? parametric-operators repr-rewrite)
     (register-operator! repr-rewrite repr-rewrite (list iprec) iprec
       (list (cons 'fl identity) (cons 'bf identity) (cons 'ival identity)
             (cons 'nonffi identity))))
 
-  (define rulename (sym-append 'rewrite '- oprec '/ iprec))
+  (define rulename (sym-append 'rewrite '- oprec* '/ iprec*))
   (unless (ormap (λ (rs) (equal? (rule-name (caar rs)) rulename)) (*rulesets*))
     (register-ruleset! rulename '(arithmetic) (list (cons 'a oprec))
       (list

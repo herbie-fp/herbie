@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt")
+(require "common.rkt" "float.rkt" "interface.rkt" "syntax/types.rkt" "syntax/syntax.rkt")
 
 (module+ test (require rackunit))
 
@@ -322,9 +322,8 @@
          (define op* (get-parametric-operator '- atype))
          (values (list op* arg*) (operator-info op* 'otype))]
         [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-         (define-values (iprec oprec)
-           (let ([split (string-split (symbol->string op) "->")])
-             (values (string->symbol (first split)) (string->symbol (last split)))))
+         (define iprec (first (operator-info op 'itype)))
+         (define oprec (operator-info op 'otype))
          (define-values (body* rtype) (loop body iprec))
          (values (list op body*) oprec)]
         [(list (and (or 're 'im) op) arg)
@@ -372,12 +371,13 @@
      (define iff* (expand-parametric-reverse iff repr full?))
      (list 'if cond* ift* iff*)]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-     (define iprec (first (string-split (symbol->string op) "->")))
-     (define repr* (get-representation (string->symbol iprec)))
+     (define iprec (first (operator-info op 'itype)))
+     (define oprec (operator-info op 'otype))
+     (define repr* (get-representation iprec))
      (define body* (expand-parametric-reverse body repr* full?))
      (cond
       [(not full?) `(,op ,body*)]
-      [(list? body*) `(cast (! :precision ,(string->symbol iprec) ,body*))]
+      [(list? body*) `(cast (! :precision ,iprec ,body*))]
       [else body*])] ; constants and variables should not have casts and precision changes
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
@@ -438,9 +438,8 @@
   (let loop ([expr expr] [prec #f])
     (match expr
      [(list (? repr-conv? op) body)
-      (define-values (iprec oprec)
-        (let ([split (string-split (symbol->string op) "->")])
-          (values (string->symbol (first split)) (string->symbol (last split)))))
+      (define iprec (first (operator-info op 'itype)))
+      (define oprec (operator-info op 'otype))
       (define prec* (if prec prec oprec))
       (define body* (loop body iprec))
       (cond
@@ -453,9 +452,7 @@
             (let ([second-conv (get-repr-conv oprec prec*)]) ; try a two-step conversion
               (and second-conv (list second-conv (list op body*)))))])]
      [(list (? rewrite-repr-op? op) body)
-      (define prec* 
-        (string->symbol 
-          (second (regexp-match #px"<-([\\S]+)" (symbol->string op)))))
+      (define prec* (operator-info op 'otype))
       (loop body prec*)]
      [(list (? operator? op) args ...) 
       (define prec* (if prec prec (operator-info op 'otype)))
@@ -473,7 +470,7 @@
        [(equal? var-prec prec) expr]
        [else ; insert a cast if the variable precision is not the same
         (define cast (get-repr-conv var-prec prec))
-        (list cast expr)])]
+        (and cast (list cast expr))])]
      [(? (curry hash-has-key? parametric-constants-reverse))
       (define prec* (if prec prec (constant-info expr 'type)))
       (if (equal? (constant-info expr 'type) prec*) ; update constants if precision no longer matches

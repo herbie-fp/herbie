@@ -129,6 +129,11 @@
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
+    ; Store parameters on failure
+    (set! rulesets (*rulesets*))
+    (set! unknown-d-ops (*unknown-d-ops*))
+    (set! unknown-f-ops (*unknown-f-ops*))
+    (set! loaded-ops (*loaded-ops*))
     (parameterize ([*timeline-disabled* false])
       (timeline-event! 'end))
     (test-failure test (bf-precision)
