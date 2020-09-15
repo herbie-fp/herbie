@@ -6,7 +6,7 @@
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
-                            *rulesets* generate-rules-for))
+                            *rulesets* generate-rules-for *templated-reprs*))
 
 ;; Rulesets
 (define *rulesets* (make-parameter '()))
@@ -144,8 +144,8 @@
 ;; Templated rulesets defined by types. These are used to generate duplicate rules that
 ;; are valid in any representation of the same underlying type.
 
-(define templated-rulesets '()) ; one global list
-(define reprs-with-templated-rules '())
+(define *templated-rulesets* (make-parameter '()))
+(define *templated-reprs* (make-parameter '()))
 
 (define-syntax define-ruleset*
   (syntax-rules ()
@@ -154,8 +154,8 @@
     [(_ name groups #:type ([var type] ...) [rname input output] ...)
      (begin
       (define name (list (rule 'rname 'input 'output '((var . type) ...) 'unknown) ...))
-      (set! templated-rulesets (cons (list name 'groups '((var . type) ...)) 
-                                     templated-rulesets)))]))
+      (*templated-rulesets* (cons (list name 'groups '((var . type) ...)) 
+                                  (*templated-rulesets*))))]))
 
 ;; Add existing rules in rulesets to 'active' rules
 
@@ -181,8 +181,8 @@
   (define typename (type-name type))
   (define valid? (disjoin (curry equal? typename)
                           (curry set-member? (map representation-name (*reprs-with-rules*)))))
-  (set! reprs-with-templated-rules (set-add reprs-with-templated-rules repr)) ; update
-  (for ([set (reverse templated-rulesets)] ; preserve rule order
+  (*templated-reprs* (set-add (*templated-reprs*) repr)) ; update
+  (for ([set (reverse (*templated-rulesets*))] ; preserve rule order
        #:when (or (empty? (third set)) ; no type ctx
                   (andmap (λ (p) (valid? (cdr p))) (third set))))
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
@@ -207,7 +207,7 @@
 
 (define (generate-missing-rules)
   (for ([repr (*needed-reprs*)])
-    (unless (set-member? reprs-with-templated-rules repr)
+    (unless (set-member? (*templated-reprs*) repr)
       (generate-rules-for (representation-type repr) repr))
     (unless (set-member? (*reprs-with-rules*) repr)
       (add-rules-from-rulesets repr))))

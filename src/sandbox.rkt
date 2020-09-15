@@ -33,8 +33,9 @@
 ;; This is a messy fix to save the parameters, but it seems to defeat the purpose of parameters.
 ;; Is it better to not to use parameters? What happens if Herbie is run with multithreading?
 ;; TODO: someone with beter knowledge of Racket threads / parameters, please fix
-(define (restore-state rulesets unknown-d-ops unknown-f-ops loaded-ops)
+(define (restore-state rulesets templated-reprs unknown-d-ops unknown-f-ops loaded-ops)
   (*rulesets* rulesets)
+  (*templated-reprs* templated-reprs)
   (*unknown-d-ops* unknown-d-ops)
   (*unknown-f-ops* unknown-f-ops)
   (*loaded-ops* loaded-ops))
@@ -50,11 +51,14 @@
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
 
-  (*needed-reprs* (set-union (*needed-reprs*) (list output-repr (get-representation 'bool))))
   (define rulesets '())
+  (define templated-reprs '())
   (define unknown-d-ops '())
   (define unknown-f-ops '())
   (define loaded-ops '())
+
+  (*needed-reprs* (set-union (*needed-reprs*) (list output-repr (get-representation 'bool))))
+  (generate-conversions (test-conversions test))
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))]
@@ -65,7 +69,6 @@
       (match debug-level
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
-      (generate-conversions (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
         (define alt
           (run-improve (test-program test)
@@ -76,6 +79,7 @@
 
         ; Store parameters
         (set! rulesets (*rulesets*))
+        (set! templated-reprs (*templated-reprs*))
         (set! unknown-d-ops (*unknown-d-ops*))
         (set! unknown-f-ops (*unknown-f-ops*))
         (set! loaded-ops (*loaded-ops*))
@@ -131,6 +135,7 @@
   (define (on-exception start-time e)
     ; Store parameters on failure
     (set! rulesets (*rulesets*))
+    (set! templated-reprs (*templated-reprs*))
     (set! unknown-d-ops (*unknown-d-ops*))
     (set! unknown-f-ops (*unknown-f-ops*))
     (set! loaded-ops (*loaded-ops*))
@@ -153,7 +158,7 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (begin
-        (restore-state rulesets unknown-d-ops unknown-f-ops loaded-ops)
+        (restore-state rulesets templated-reprs unknown-d-ops unknown-f-ops loaded-ops)
         (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
