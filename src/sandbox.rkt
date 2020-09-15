@@ -57,8 +57,7 @@
   (define unknown-f-ops '())
   (define loaded-ops '())
 
-  (*needed-reprs* (set-union (*needed-reprs*) (list output-repr (get-representation 'bool))))
-  (generate-conversions (test-conversions test))
+  (*needed-reprs* (list output-repr (get-representation 'bool)))
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))]
@@ -69,6 +68,8 @@
       (match debug-level
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
+
+      (generate-conversions (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
         (define alt
           (run-improve (test-program test)
