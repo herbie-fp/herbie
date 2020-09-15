@@ -269,6 +269,11 @@
   [distribute-frac-neg    (/ (neg a) b)           (neg (/ a b))]
   [distribute-neg-frac    (neg (/ a b))           (/ (neg a) b)])
 
+(define-ruleset* cancel-sign-fp-safe (arithmetic simplify fp-safe)
+  #:type ([a real] [b real] [c real])
+  [cancel-sign-sub      (- a (* (neg b) c))     (+ a (* b c))]
+  [cancel-sign-sub-inv  (- a (* b c))           (+ a (* (neg b) c))])
+
 ; Difference of squares
 (define-ruleset* difference-of-squares-canonicalize (polynomials simplify)
   #:type ([a real] [b real])
@@ -365,7 +370,8 @@
 
 (define-ruleset* squares-reduce-fp-sound (arithmetic simplify fp-sound)
   #:type ([x real])
-  [sqr-neg           (* (neg x) (neg x))        (* x x)])
+  [sqr-neg           (* (neg x) (neg x))        (* x x)]
+  [sqr-abs           (* (fabs x) (fabs x))      (* x x)])
 
 (define-ruleset* squares-transform (arithmetic)
   #:type ([x real] [y real])
@@ -380,9 +386,11 @@
 ; Cube root
 (define-ruleset* cubes-reduce (arithmetic simplify)
   #:type ([x real])
-  [rem-cube-cbrt     (pow (cbrt x) 3) x]
-  [rem-cbrt-cube     (cbrt (pow x 3)) x]
-  [cube-neg          (pow (neg x) 3)    (neg (pow x 3))])
+  [rem-cube-cbrt    (pow (cbrt x) 3)                    x]
+  [rem-cbrt-cube    (cbrt (pow x 3))                    x]
+  [rem-3cbrt-lft    (* (* (cbrt x) (cbrt x)) (cbrt x))  x]
+  [rem-3cbrt-rft    (* (cbrt x) (* (cbrt x) (cbrt x)))  x]
+  [cube-neg         (pow (neg x) 3)                     (neg (pow x 3))])
 
 (define-ruleset* cubes-distribute (arithmetic simplify)
   #:type ([x real] [y real])
