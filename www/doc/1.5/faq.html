@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie FAQ</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>Common Errors and Warnings</h1>
+  </header>
+
+  <p><a href="../../">Herbie</a> automatically transforms floating
+  point expressions into more accurate forms. This page troubleshoots
+  common Herbie errors, warnings, and known issues.</p>
+
+
+  <h2>Common errors</h2>
+
+  <p>
+    Herbie error messages refer to this second for additional
+    information and debugging tips.
+  </p>
+
+  <h3 id="invalid-syntax">Invalid syntax</h3>
+
+  <p>
+    This error means you mis-formatted Herbie's input. Common errors
+    include misspelled function names and parenthesized expressions
+    that should not be parenthesized. For example, in
+    <code>(- (exp (x)) 1)</code>, the expression <code>x</code> is a
+    variable so shouldn't be parenthesized. <code>(- (exp x) 1)</code>
+    would be the correct way to write that expression.
+    The <a href="input.html">input format</a> documentation has more
+    details on Herbie's syntax.
+  </p>
+
+  <h3 id="sample-valid-points">Cannot sample enough valid points</h3>
+
+  <p>This error occurs when Herbie is unable to find enough valid
+  points. For example, the expression <code>(acos (+ 1000 x))</code>
+  is invalid unless <code>(&lt;= -1001 x -999)</code>, a rather narrow
+  range. The simplest fix is to increase
+  the <a href="options.html"><code>--num-analysis</code> flag</a>.
+  Specifying the range of valid points as
+  a <a href="input.html#preconditions">precondition</a> can also help.
+  </p>
+
+  <h3 id="no-valid-values">No valid values</h3>
+
+  <p>This error indicates that your input has no valid inputs, usually
+  due to an overly restriction precondition. For example, the
+  precondition <code>(&lt 3 x 2)</code> excludes all inputs. The
+  solution is to fix the precondition or input program.</p>
+
+  <h3 id="mpfr-prec-limit">Exceeded MPFR precision limit</h3>
+
+  <p>This rare error indicates that Herbie could not compute a "ground
+  truth" for your expression. For some expressions, like <code>(sin
+  (exp x))</code>, calculating a correct output for large input values
+  requires exponentially many bits. Herbie raises this error when more
+  than 10,000 bits are required.</p>
+
+
+  <h2>Common warnings</h2>
+
+  <p>Herbie warnings refer to this section for explanations and common
+  actions to take.</p>
+
+  <h3 id="ground-truth">Could not determine a ground truth</h3>
+
+  <p>
+    Herbie raises this warning when some inputs require more than
+    10 000 bits to compute an exact ground truth. For example, to
+    compute <code>(/ (exp x) (exp x))</code> for very
+    large <code>x</code>, absurdly large exponents would be required.
+    Herbie discards such inputs and raises this warning. If you see
+    this warning, you should add a restrictive precondition, such
+    as <code>:pre (&lt; -100 x 100)</code>, to prevent large inputs.
+  </p>
+
+  <h3 id="native-ops">Native <var>operation</var> not supported on your system</h3>
+
+  <p>
+    Microsoft's <code>math.h</code> does not provide implementations
+    of the Bessel functions. Herbie provides fallback implementations
+    which print this warning. You can disable the fallback with
+    the <code>--disable precision:fallback</code> option; Herbie will
+    then not use those functions.
+  </p>
+
+  <h3 id="value-to-string">Could uniquely print <var>val</var></h3>
+
+  <p>
+    Herbie will raise this warning when it needs more than 10,000 bits
+    to produce a string representation for a given value. This is
+    likely the result of a bug in a third-party plugin.
+  </p>
+
+  <h3 id="egg-herbie">Falling back on regraph because egg-herbie package not installed</h3>
+
+  <p>
+    Herbie can use either the <code>egg-herbie</code>
+    or <code>regraph</code> package to simplify
+    expressions; <code>egg-herbie</code> is much faster, but uses
+    compiled binaries that cannot be installed on some systems. Herbie
+    will then fall back to <code>regraph</code>, and get similar
+    results but run roughly twice as long.
+    Install <code>egg-herbie</code> with <code>raco</code>.
+  </p>
+
+
+  <h2>Known bugs</h2>
+
+  <p>Bugs that cannot be directly fixed are documented in this section.</p>
+
+  <h3>Missing reports chart on Chrome</h3>
+
+  <p>
+    When using Chrome to view web pages on your local machine, Herbie
+    reports cannot draw the arrow chart due to security restrictions.
+    <a href="http://www.chrome-allow-file-access-from-file.com/">Run
+    Chrome with <code>--allow-file-access-from-files</code></a> to fix
+    this error.
+  </p>
+
+</body>
+</html>
