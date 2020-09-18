@@ -57,36 +57,38 @@
     
   out)
 
+(define-syntax-rule (regraph method)
+  (dynamic-require 'regraph 'method))
+
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
   (timeline-push! 'method "regraph")
-  (local-require regraph)
 
   (define start-time (current-inexact-milliseconds))
   (define (log rg iter)
-    (define cnt (regraph-count rg))
-    (define cost (regraph-cost rg))
+    (define cnt ((regraph regraph-count) rg))
+    (define cost ((regraph regraph-cost) rg))
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
 
-  (define rg (make-regraph (map munge exprs) #:limit (*node-limit*)))
+  (define rg ((regraph make-regraph) (map munge exprs) #:limit (*node-limit*)))
 
   (define phases
-    (list (rule-phase (map (compose munge rule-input) rls)
-                      (map (compose munge rule-output) rls))
-          (and precompute? (precompute-phase eval-application))
-          prune-phase
-          extractor-phase))
+    (list ((regraph rule-phase) (map (compose munge rule-input) rls)
+                                (map (compose munge rule-output) rls))
+          (and precompute? ((regraph precompute-phase) eval-application))
+          (regraph prune-phase)
+          (regraph extractor-phase)))
 
   (for/and ([iter (in-naturals 0)])
     (log rg iter)
-    (define initial-cnt (regraph-count rg))
+    (define initial-cnt ((regraph regraph-count) rg))
     ;; Iterates the egraph by applying each of the given rules to the egraph
     (for ([phase phases] #:when phase) (phase rg))
-    (and (< initial-cnt (regraph-count rg) (*node-limit*))))
+    (and (< initial-cnt ((regraph regraph-count) rg) (*node-limit*))))
 
   (log rg "done")
-  (map unmunge (regraph-extract rg)))
+  (map unmunge ((regraph regraph-extract) rg)))
 
 (define-syntax-rule (egg method)
   (dynamic-require 'egg-herbie 'method))
