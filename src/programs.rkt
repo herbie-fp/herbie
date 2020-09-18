@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt" "timeline.rkt")
 
 (module+ test (require rackunit))
 
@@ -121,10 +121,10 @@
   (define real->precision (match mode
     ['bf (λ (repr x) (->bf x repr))]
     ['fl (λ (repr x) (real->repr x repr))]
-    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]
-    ['nonffi (λ (repr x) x)]))
+    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]))
   
-  (define vars (program-variables (first progs)))
+  (define vars 
+    (if (empty? progs) '() (program-variables (first progs))))
   (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
 
   (define exprs '())
@@ -133,7 +133,10 @@
      (for/list ([var vars] [i (in-naturals)])
        (cons var i))))
 
+  (define size 0)
+
   (define (munge prog repr)
+    (set! size (+ 1 size))
     (define expr
       (match prog
         [(? real?) (list (const (real->precision repr prog)))]
@@ -161,12 +164,14 @@
                  (define n (+ (length exprs) (length vars)))
                  (set! exprs (cons expr exprs))
                  n)))
-  
+
   (define names
     (for/list ([prog progs])
       (munge (program-body prog) repr)))
   (define l1 (length vars))
   (define lt (+ (length exprs) l1))
+
+  (timeline-push! 'compiler size lt)
   (define exprvec (list->vector (reverse exprs)))
   (λ args
     (define v (make-vector lt))

@@ -126,14 +126,14 @@
          (expr-supports? (program-body precondition) 'ival)
          (andmap (compose (curryr expr-supports? 'ival) program-body) programs)
          (not (empty? reprs)))
-    (timeline-log! 'method 'search)
+    (timeline-push! 'method "search")
     (define hyperrects (list->vector (get-hyperrects precondition programs reprs repr)))
     (when (empty? hyperrects)
       (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
     (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
     (λ () (sample-multi-bounded hyperrects weights reprs))]
    [else
-    (timeline-log! 'method 'random)
+    (timeline-push! 'method "random")
     (λ () (map random-generate reprs))]))
 
 (module+ test

@@ -111,7 +111,8 @@
   (call-with-output-file (build-path dir "profile.json") (curry write-json profile) #:exists 'replace)
 
   (call-with-output-file (build-path dir "timeline.html")
-    (curryr make-summary-html info timeline) #:exists 'replace)
+    #:exists 'replace
+    (λ (out) (make-timeline "Herbie run" timeline out #:info info)))
 
   ; Delete old files
   (let* ([expected-dirs (map string->path (filter identity (map table-row-link (report-info-tests info))))]

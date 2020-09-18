@@ -192,20 +192,10 @@
                [alt->done? (hash-remove* alt->done? altns)]))
 
 (define (atab-add-altns atab altns repr)
-  (define prog-set (list->set (map alt-program (hash-keys (alt-table-alt->points atab)))))
-  (define altns*
-    (filter
-     (negate (compose (curry set-member? prog-set) alt-program))
-     (remove-duplicates altns #:key alt-program)))
-  (timeline-log! 'filtered (list (length altns) (length altns*)))
-  (cond
-   [(null? altns*)
-    atab]
-   [else
-    (define progs (map alt-program altns*))
-    (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))
-    (for/fold ([atab atab]) ([altn (in-list altns*)] [errs (in-vector errss)])
-      (atab-add-altn atab altn errs repr))]))
+  (define progs (map alt-program altns))
+  (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))
+  (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-vector errss)])
+    (atab-add-altn atab altn errs repr)))
 
 (define (atab-add-altn atab altn errs repr)
   (define cost (alt-cost altn))

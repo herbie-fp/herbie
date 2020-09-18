@@ -1,7 +1,7 @@
 #lang racket
-(require "config.rkt" "float.rkt" racket/hash)
+(require "config.rkt" "float.rkt" racket/hash json)
 (provide timeline-event! timeline-log! timeline-push! timeline-adjust!
-         timeline-load! timeline-extract timeline->json
+         timeline-load! timeline-extract
          timeline-merge timeline-relink *timeline-disabled*)
 (module+ debug (provide *timeline*))
 
@@ -14,18 +14,22 @@
 
 (define (timeline-event! type)
   (unless (*timeline-disabled*)
-    (define initial (hash 'type type 'time (current-inexact-milliseconds)))
+    (define initial (hash 'type (~a type) 'time (current-inexact-milliseconds)))
     (define b (make-hash (hash->list initial))) ; convert to mutable hash
     (set-box! *timeline* (cons b (unbox *timeline*)))))
 
-(define (timeline-log! key value)
+(define/contract (timeline-log! key value)
+  (-> symbol? jsexpr? void?)
+
   (unless (*timeline-disabled*)
     (define h (car (unbox *timeline*)))
     (when (hash-has-key? h key)
       (error 'timeline "Attempting to log key ~a to timeline twice (value ~a)" key value))
     (hash-set! h key value)))
 
-(define (timeline-push! key . values)
+(define/contract (timeline-push! key . values)
+  (-> symbol? jsexpr? ... void?)
+
   (unless (*timeline-disabled*)
     (define val (if (= (length values) 1) (car values) values))
     (define (try-cons x)
@@ -34,52 +38,25 @@
           (error 'timeline "Attempting to push onto a timeline non-list ~a (value ~a)" key x)))
     (hash-update! (car (unbox *timeline*)) key  try-cons '())))
 
-(define (timeline-adjust! type key value)
+(define (timeline-adjust! type key . values)
+  (-> symbol? symbol? jsexpr? ... void?)
+
   (unless (*timeline-disabled*)
     (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) type))
-      (hash-set! cell key value)
-      true)))
+      (hash-set! cell key values)
+      true)
+    (void)))
 
 (define (timeline-load! value)
   (set! *timeline* value))
 
-(define (timeline-extract)
-  (reverse (unbox *timeline*)))
-
-(define (timeline->json timeline repr)
-  (for/list ([event timeline] [next (cdr timeline)])
-    (for/hash ([(k v) (in-dict event)])
-      (define v*
-        (match k
-          ['type (~a v)]
-          ['time (- (dict-ref next 'time) v)]
-          ['method (list (~a v))]
-          ['locations
-           (for/list ([(expr error) (in-dict v)])
-             (hash 'expr (~a expr) 'error error))]
-          ['rules
-           (for/hash ([(rule count) (in-dict v)])
-             (values rule count))]
-          ['times
-           (for/list ([(expr times) (in-dict v)])
-             (cons (~a expr) times))]
-          ['outcomes
-           (for/list ([(outcome number) (in-dict v)])
-             (match-define (cons count time) number)
-             (match-define (list prog category prec) outcome)
-             (hash 'count count 'time time
-                   'program (~a prog) 'category (~a category) 'precision prec))]
-          ['bstep
-           (define n->js (curryr value->json repr))
-           (map (λ (x) (map (curryr apply '()) (list n->js n->js identity n->js) x)) v)]
-          [(or 'accuracy 'oracle 'baseline 'name)
-           (list v)]
-          ['link (list (path->string v))]
-          ['sampling (reverse v)]
-          [(or 'filtered 'inputs 'outputs 'kept 'min-error 'egraph)
-           v]))
-
-      (values k v*))))
+(define (timeline-extract repr)
+  (define end (hash 'time (current-inexact-milliseconds)))
+  (reverse
+   (for/list ([evt (unbox *timeline*)] [next (cons end (unbox *timeline*))])
+     (define evt* (hash-copy evt))
+     (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
+     evt*)))
 
 (define (timeline-relink link timeline)
   (for/list ([event (in-list timeline)])
@@ -104,23 +81,17 @@
           ['method (append v (dict-ref data k '()))]
           ['rules (hash-union v (dict-ref data k #hash()) #:combine +)]
           ['times (sort (append v (dict-ref data k '())) > #:key cadr)]
+          ['compiler
+           (list
+            (list (apply + (map first (append (dict-ref data k '()) v)))
+                  (apply + (map second (append (dict-ref data k '()) v)))))]
           ['outcomes
-           (define (key x) (map (curry hash-ref x) '(program category precision)))
-           (for/list ([rows (group-by key (append v (dict-ref data k '())))])
-             (hash 'program (dict-ref (car rows) 'program)
-                   'category (dict-ref (car rows) 'category)
-                   'precision (dict-ref (car rows) 'precision)
-                   'count (apply + (map (curryr dict-ref 'count) rows))
-                   'time (apply + (map (curryr dict-ref 'time) rows))))]
+           (hash-union v (dict-ref data k #hash()) #:combine (curry map +))]
           [(or 'accuracy 'oracle 'baseline 'name 'link)
            (append v (dict-ref data k '()))]
-          ['filtered
-           (match-define (list from1 to1) v)
-           (match-define (list from2 to2) (dict-ref data k '(0 0)))
-           (list (+ from1 from2) (+ to1 to2))]
           ['sampling
            (if (dict-has-key? data k)
-               (let loop ([l1 v] [l2 (dict-ref data k)])
+               (let loop ([l1 (sort v < #:key first)] [l2 (sort (dict-ref data k) < #:key first)])
                  (match-define (list n1 wt1 wo1 wf1) (car l1))
                  (match-define (list n2 wt2 wo2 wf2) (car l2))
                  (define rec (list n1 (+ wt1 wt2) (+ wo1 wo2) (+ wf1 wf2)))
