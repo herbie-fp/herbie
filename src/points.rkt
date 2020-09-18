@@ -36,24 +36,25 @@
 (define (point-logger name dict prog)
   (define start (current-inexact-milliseconds))
   (define (log! . args)
-    (define key
+    (match-define (list category prec)
       (match args
         [`(exit ,prec ,pt)
-         (define key (list name 'exit prec))
+         (define key (list 'exit prec))
          (warn 'ground-truth #:url "faq.html#ground-truth"
                "could not determine a ground truth for program ~a" name
                #:extra (for/list ([var (program-variables prog)] [val pt])
                          (format "~a = ~a" var val)))
          key]
         [`(overflowed ,prec ,pt)
-         (list name 'overflowed prec)]
-        [`(sampled ,prec ,pt #f) (list name 'false prec)]
-        [`(sampled ,prec ,pt #t) (list name 'true prec)]
-        [`(sampled ,prec ,pt ,_) (list name 'valid prec)]
-        [`(infinite ,prec ,pt ,_) (list name 'invalid prec)]
-        [`(nan ,prec ,pt) (list name 'nan prec)]))
+         (list 'overflowed prec)]
+        [`(sampled ,prec ,pt #f) (list 'false prec)]
+        [`(sampled ,prec ,pt #t) (list 'true prec)]
+        [`(sampled ,prec ,pt ,_) (list 'valid prec)]
+        [`(infinite ,prec ,pt ,_) (list 'invalid prec)]
+        [`(nan ,prec ,pt) (list 'nan prec)]))
+    (define key (string->symbol (format "~a/~a/~a" name prec category)))
     (define dt (- (current-inexact-milliseconds) start))
-    (hash-update! dict key (λ (x) (cons (+ (car x) 1) (+ (cdr x) dt))) (cons 0 0)))
+    (hash-update! dict key (curry map + (list dt 1)) (list 0 0)))
   (if dict log! void))
 
 (define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
@@ -90,7 +91,7 @@
 (define (prepare-points-intervals prog precondition repr sampler)
   (define log (make-hash))
   (timeline-log! 'outcomes log)
-  (timeline-log! 'method 'intervals)
+  (timeline-push! 'method "intervals")
 
   (define pre-fn (eval-prog precondition 'ival repr))
   (define body-fn (eval-prog prog 'ival repr))
@@ -243,7 +244,7 @@
 
 ;; This is the obsolete version for the "halfpoint" method
 (define (prepare-points-halfpoints prog precondition repr sampler)
-  (timeline-log! 'method 'halfpoints)
+  (timeline-push! 'method "halfpoints")
   (let loop ([pts '()] [exs '()] [num-loops 0])
     (define npts (length pts))
     (cond
