@@ -11,8 +11,6 @@
                      #:terms [terms 3] #:iters [iters 5])
   "Take a Taylor expansion in multiple variables, with at most `terms` terms."
 
-  (printf "approximate ~a\n" expr)
-  (printf "vars ~a\n" vars)
   (when (not tforms)
     (set! tforms (map (const (cons identity identity)) vars)))
   (set! expr
@@ -103,7 +101,6 @@
                                                   ((cdr tform) var)))
                                                expts) res) (+ 1 i)))))))))
     #:rules (*simplify-rules*)))
-  (printf "result ~a\n" res)
   res)
 
 (define (unary-op-with-repr op child)
@@ -225,20 +222,24 @@
        0]
       [(>= n current-max)
        (define new-derivatives
-         (simplify-batch
-           (differentiate-exprs
-             (for/list ([i (in-range current-max (+ current-max batch-size))])
-               (taylor-term var expr i 0)))
-             #:rules (*simplify-rules*)))
+         (parameterize ([*node-limit* 500])
+          (simplify-batch
+            (parameterize ([*node-limit* 5000])
+              (differentiate-exprs
+                (for/list ([i (in-range current-max (+ current-max batch-size))])
+                  (taylor-term var expr i 0))))
+              #:rules (*simplify-rules*))))
        (for ([i (in-range current-max (+ current-max batch-size))]
              [derivative new-derivatives]
              #:break (and max-computable (> i max-computable)))
          ;; update max-computable if necessary
          (cond
            [(contains-derivative-or-subst? derivative)
-            (printf "max computable ~a of ~a for term ~a" i derivative expr)
-            (set! max-computable i)
-            (hash-set! term-cache i (make-last-term i))]
+            (if (equal? current-max 0)
+                (begin (set! max-computable 0)
+                       (hash-set! term-cache 0 expr))
+                (begin (set! max-computable i)
+                       (hash-set! term-cache i 0)))]
            [else
             (hash-set! term-cache i derivative)]))
        (set! current-max (+ current-max batch-size))
