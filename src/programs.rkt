@@ -11,7 +11,7 @@
          expr-supports?
          location-hash
          location? expr?
-         location-do location-get
+         location-do location-get location-do-multiple
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression
          desugar-program resugar-program)
@@ -101,6 +101,12 @@
       (if (= idx 0)
           (cons (location-do (cdr loc) (car lst) f) (cdr lst))
           (cons (car lst) (loop (- idx 1) (cdr lst)))))]))
+
+(define (location-do-multiple loc prog f)
+  (define val (location-get loc prog))
+  (define variants (f val))
+  (for/list ([v variants])
+    (location-do loc prog (lambda (x) v))))
 
 (define (location-get loc prog)
   ; Clever continuation usage to early-return

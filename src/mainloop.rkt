@@ -143,24 +143,26 @@
         (inf ,invert-x ,invert-x)
         (-inf ,ninvert-x ,ninvert-x))))
 
-
   (define expr (location-get loc (alt-program altn)))
   (define vars (free-variables expr))
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
           (not (set-member? '(binary64 binary32) ; currently taylor/reduce breaks with posits
                             (repr-of expr (*output-repr*) (*var-reprs*)))))
       (list altn)
-      (for/list ([transform-type transforms-to-try])
-        (match-define (list name f finv) transform-type)
-        (define transformer (map (const (cons f finv)) vars))
-        (alt
-         (location-do loc 
-                      (alt-program altn) 
-                      (λ (x)
-                        (approximate x
-                                     vars #:transform transformer)))
-         `(taylor ,name ,loc)
-         (list altn)))))
+      (let*
+        ([transformers-list
+          (for/list ([transform-type transforms-to-try])
+            (match-define (list name f finv) transform-type)
+            (map (const (cons f finv)) vars))]
+         [expr-transforms (location-do-multiple loc
+                              (alt-program altn)
+                              (λ (x)
+                                (approximate x
+                                            vars #:transform transformers-list)))])
+          (for/list ([transform-type transforms-to-try]
+                     [res expr-transforms])
+            (match-define (list name f finv) transform-type)
+            (alt res `(taylor ,name ,loc) (list altn))))))
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
