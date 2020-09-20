@@ -56,6 +56,8 @@
    [(? constant?) (constant-info expr 'type)]
    [(? variable?) (representation-name (dict-ref env expr))]
    [(list 'if cond ift iff) (repr-of ift env)]
+   [(list 'd subexpr var) (repr-of subexpr repr env)]
+   [(list 'subst subexpr var val) (repr-of subexpr repr env)] ;; we assume subst isn't changing reprs
    [(list op args ...) (operator-info op 'otype)]))
 
 ;; Converting constants

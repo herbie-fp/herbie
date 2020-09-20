@@ -5,9 +5,85 @@
          "simplify.rkt" "../syntax/rules.rkt")
 (require "reduce.rkt") ;; to be removed on replacing with egg-taylor
 
-(provide approximate taylor)
+(provide approximate taylor get-batch)
+
+(define (get-term-from-coeffs coeffs vars expr)
+  (let loop ([term expr] [vars vars] [coeffs coeffs])
+    (cond
+      [(empty? vars)
+        term]
+      [else
+        (loop (taylor-term (first vars) term (first coeffs) 0) (rest vars) (rest coeffs))])))
+
+(define (get-batch coeffs-list vars expr)
+  (define terms
+    (for/list ([coeffs coeffs-list])
+      (get-term-from-coeffs coeffs vars expr)))
+
+  (define new-derivatives
+    (parameterize ([*node-limit* 500])
+      (simplify-batch
+        (parameterize ([*node-limit* 5000])
+          (differentiate-exprs
+            terms))
+          #:rules (*simplify-rules*))))
+      
+  (for/list ([derivative new-derivatives])
+    (if (contains-derivative-or-subst? derivative)
+        0
+        derivative)))
+  
+
+(define (build-terms batch-results coeffs-list vars)
+  (for/list ([res batch-results] [coeffs coeffs-list] #:when (not (equal? res 0)))
+    (make-term res vars coeffs)))
+
 
 (define (approximate expr vars #:transform [tforms #f]
+                     #:terms [terms 3] #:iters [iters 5])
+  "Take a Taylor expansion in multiple variables, with at most `terms` terms."
+
+  (when (not tforms)
+    (set! tforms (map (const (cons identity identity)) vars)))
+  (set! expr
+        (for/fold ([expr expr]) ([var vars] [tform tforms])
+          (replace-expression expr var ((car tform) var))))
+  (define tform-vars
+    (reverse
+      (for/list ([var vars] [tform tforms])
+        ((cdr tform) var))))
+
+  (define (transform-back exprs)
+    (for/list ([expr exprs])
+      (for/fold ([expr expr]) ([var vars] [tform tforms])
+        (replace-expression expr var ((cdr tform) var)))))
+
+  (debug #:from 'approximate "Taking taylor expansion of" expr "in" vars "around" 0)
+
+
+
+  (define first-coeffs
+    (for/list ([i (in-range terms)])
+      (iterate-diagonal (length vars) i)))
+  (define rest-coeffs
+    (for/list ([i (in-range terms (+ terms iters))])
+      (iterate-diagonal (length vars) i)))
+    
+  (define first-terms
+    (build-terms
+      (transform-back (get-batch first-coeffs vars expr))
+      first-coeffs tform-vars))
+
+  (define rest-terms
+    (if (>= (length first-terms) terms)
+        empty
+        (build-terms
+          (transform-back (get-batch rest-coeffs vars expr))
+          rest-coeffs tform-vars)))
+
+  (simplify-expr (make-sum (append first-terms rest-terms)) #:rules (*simplify-rules*)))
+
+(define (approximate-old expr vars #:transform [tforms #f]
                      #:terms [terms 3] #:iters [iters 5])
   "Take a Taylor expansion in multiple variables, with at most `terms` terms."
 
@@ -189,9 +265,7 @@
     [(equal? n 0)
      (list 'subst expr var around)]
     [else
-      (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
-      (define get-op (lambda (op) (get-parametric-operator op repr repr)))
-      (list (get-op '/) 
+      (list (binary-op-with-repr '/ expr)
             (list 'subst (build-derivative var expr n) var around)
             (factorial n))]))
 
