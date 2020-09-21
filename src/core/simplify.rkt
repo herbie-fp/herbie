@@ -38,7 +38,9 @@
 
 (define/contract (differentiate-exprs exprs)
   (-> (listof expr?) expr?)
-  (simplify-batch exprs #:rules (append #;(*simplify-rules*) (*differentiation-rules*)) #:precompute true))
+  (simplify-batch
+    (simplify-batch exprs #:rules (*differentiation-rules*) #:precompute true)
+    #:rules (append (*differentiation-rules*) (*simplify-rules*)) #:precompute true))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)

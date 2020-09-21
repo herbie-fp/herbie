@@ -58,6 +58,7 @@
    [(list 'if cond ift iff) (repr-of ift env)]
    [(list 'd subexpr var) (repr-of subexpr repr env)]
    [(list 'subst subexpr var val) (repr-of subexpr repr env)] ;; we assume subst isn't changing reprs
+   [(list 'lim num denom cnum cdenom var val) (repr-of num)]
    [(list op args ...) (operator-info op 'otype)]))
 
 ;; Converting constants
@@ -308,6 +309,14 @@
          (define-values (var* _b) (loop var prec))
          (define-values (value* _c) (loop value prec))
          (values (list 'subst term* var* value*) rtype)]
+        [(list 'lim numerator denominator subst1 subst2 var value)
+         (define-values (num* rtype) (loop numerator prec))
+         (define-values (denom* _a) (loop denominator prec))
+         (define-values (subst1* _b) (loop subst1 prec))
+         (define-values (subst2* _c) (loop subst2 prec))
+         (define-values (var* _d) (loop var prec))
+         (define-values (value* _e) (loop value prec))
+         (values (list 'lim num* denom* subst1* subst2* var* value*) rtype)]
         [(list '! props ... body)
          (define props* (apply hash-set* (hash) props))
          (cond

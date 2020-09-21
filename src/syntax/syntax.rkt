@@ -564,19 +564,22 @@
 
 ;; Differentiation and substitution
 
-(define throw-derive-error
-        (lambda (a b) (error "derivative operator should not exist outside of e-graph")))
+(define throw-fake-operator-error
+        (lambda (a b) (error "fake operator should not exist outside of e-graph")))
 (define-operator (d d real real) real
   [itype 'real] [otype 'real]
-  [fl throw-derive-error] [bf throw-derive-error]
-  [ival throw-derive-error] [nonffi throw-derive-error])
+  [fl throw-fake-operator-error] [bf throw-fake-operator-error]
+  [ival throw-fake-operator-error] [nonffi throw-fake-operator-error])
 
-(define throw-subst-error
-        (lambda (a b c) (error "substitution operator should not exist outside of e-graph")))
 (define-operator (subst subst real real real) real
   [itype 'real] [otype 'real]
-  [fl throw-derive-error] [bf throw-derive-error]
-  [ival throw-derive-error] [nonffi throw-derive-error])
+  [fl throw-fake-operator-error] [bf throw-fake-operator-error]
+  [ival throw-fake-operator-error] [nonffi throw-fake-operator-error])
+
+(define-operator (lim lim real real real real real real) real
+  [itype 'real] [otype 'real]
+  [fl throw-fake-operator-error] [bf throw-fake-operator-error]
+  [ival throw-fake-operator-error] [nonffi throw-fake-operator-error])
 
 
 (define (operator? op)

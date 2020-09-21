@@ -769,9 +769,17 @@
   [d-tan            (d (tan a) x)        (* (/ 1 (pow (cos a) 2))
                                             (d a x))])
 
+;; subst is of the form (subst expression variable value)
+;; limit is of the form (limit numerator denominator
+;;                             numerator-substituted denominator-substituted variable value)
 (define-ruleset* substitution (derivative)
-  #:type ([a real] [b real] [c real] [x real] [y real])
-  [subst-variable (subst a a x)          x])
+  #:type ([a real] [b real] [x real] [y real])
+  [subst-variable        (subst a a x)          x]
+  [subst-to-limit        (subst (/ a b) x y)    (lim a b (subst a x y) (subst b x y) x y)]
+  [limit-indefinite-zero (lim a b 0 0 x y)      (lim (d a x) (d b x)
+                                                     (subst (d a x) x y)
+                                                     (subst (d b x) x y)
+                                                     x y)])
 
 ;; generate substitution rules for all operators other than differentiation and subst
 (define (generate-subst-in-rule op-name num-children)

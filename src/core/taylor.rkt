@@ -23,12 +23,10 @@
           (get-term-from-coeffs coeffs vars expr)))))
 
   (define new-derivatives
-    (parameterize ([*node-limit* 500])
-      (simplify-batch
-        (parameterize ([*node-limit* 5000])
-          (differentiate-exprs
-            terms))
-          #:rules (*simplify-rules*))))
+    (differentiate-exprs
+        terms))
+
+  (pretty-print new-derivatives)
 
   (define filtered 
     (for/list ([derivative new-derivatives])
@@ -309,13 +307,9 @@
        0]
       [(>= n current-max)
        (define new-derivatives
-         (parameterize ([*node-limit* 500])
-          (simplify-batch
-            (parameterize ([*node-limit* 5000])
-              (differentiate-exprs
-                (for/list ([i (in-range current-max (+ current-max batch-size))])
-                  (taylor-term var expr i 0))))
-              #:rules (*simplify-rules*))))
+        (differentiate-exprs
+          (for/list ([i (in-range current-max (+ current-max batch-size))])
+            (taylor-term var expr i 0))))
        (for ([i (in-range current-max (+ current-max batch-size))]
              [derivative new-derivatives]
              #:break (and max-computable (> i max-computable)))
