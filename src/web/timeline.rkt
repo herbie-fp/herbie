@@ -221,9 +221,10 @@
   (match-define (list (list sizes compileds) ...) compiler)
   (define size (apply + sizes))
   (define compiled (apply + compileds))
+  (define ratio (if (zero? size) 0 (- 1 (/ compiled size))))  ; 0/0 -> 0% saved
   `((dt "Compiler")
     (dd (p "Compiled " ,(~a size) " to " ,(~a compiled) " computations "
-           "(" ,(format-percent (- 1 (/ compiled size))) " saved)"))))
+           "(" ,(format-percent ratio) " saved)"))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
