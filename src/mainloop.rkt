@@ -61,21 +61,23 @@
 
 ;; Setting up
 (define (setup-prog! prog
-                     #:precondition [precondition 'TRUE]
+                     #:precondition [precondition #f]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (*output-repr* (get-representation precision))
   (*var-reprs* (map (curryr cons (*output-repr*)) (program-variables prog)))
   (*start-prog* prog)
   (rollback-improve!)
-  (check-unused-variables (program-variables prog) (program-body precondition) (program-body prog))
+  (define precondition-prog
+    (or precondition (list 'λ (program-variables prog) 'TRUE)))
+  (check-unused-variables (program-variables prog) (program-body precondition-prog) (program-body prog))
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
   (timeline-event! 'analyze)
-  (*sampler* (make-sampler (*output-repr*) precondition (or specification prog)))
+  (*sampler* (make-sampler (*output-repr*) precondition-prog (or specification prog)))
   (timeline-event! 'sample)
-  (*pcontext* (prepare-points (or specification prog) precondition (*output-repr*) (*sampler*)))
+  (*pcontext* (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*)))
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
   (define alt (make-alt prog))
   (^table^ (make-alt-table (*pcontext*) alt (*output-repr*)))
@@ -97,34 +99,35 @@
 
 ;; Begin iteration
 (define (choose-alt! n)
-  (if (>= n (length (atab-all-alts (^table^))))
-      (printf "We don't have that many alts!\n")
-      (let-values ([(picked table*) (atab-pick-alt (^table^) #:picking-func (curryr list-ref n)
-						   #:only-fresh #f)])
-	(^next-alt^ picked)
-	(^table^ table*)
-	(void))))
+  (unless (< n (length (atab-all-alts (^table^))))
+    (raise-user-error 'choose-alt! "Couldn't select the ~ath alt of ~a (not enough alts)"
+                      n (length (atab-all-alts (^table^)))))
+  (define-values (picked table*)
+    (atab-pick-alt (^table^) #:picking-func (curryr list-ref n) #:only-fresh #f))
+  (^next-alt^ picked)
+  (^table^ table*)
+  (void))
 
-(define (best-alt alts repr)
-  (argmin (λ (alt) (errors-score (errors (alt-program alt) (*pcontext*) repr)))
-		   alts))
+(define (score-alt alt)
+  (errors-score (errors (alt-program alt) (*pcontext*) (*output-repr*))))
 
 (define (choose-best-alt!)
-  (let-values ([(picked table*) (atab-pick-alt (^table^)
-                                  #:picking-func (curryr best-alt (*output-repr*))
-                                  #:only-fresh #t)])
-    (^next-alt^ picked)
-    (^table^ table*)
-    (debug #:from 'pick #:depth 4 "Picked " picked)
-    (void)))
+  (define-values (picked table*)
+    (atab-pick-alt (^table^) #:picking-func (curry argmin score-alt) #:only-fresh #t))
+  (^next-alt^ picked)
+  (^table^ table*)
+  (debug #:from 'pick #:depth 4 "Picked " picked)
+  (void))
 
 ;; Invoke the subsystems individually
 (define (localize!)
+  (unless (^next-alt^)
+    (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
   (define locs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
   (for/list ([(err loc) (in-dict locs)])
     (timeline-push! 'locations
-                    (location-get loc (alt-program (^next-alt^)))
+                    (~a (location-get loc (alt-program (^next-alt^))))
                     (errors-score err)))
   (^locs^ (map cdr locs))
   (void))
@@ -169,6 +172,8 @@
         (if valid? (cons altn* alts) alts))))
 
 (define (gen-series!)
+  (unless (^locs^)
+    (raise-user-error 'gen-series! "No locations selected. Run (localize!) or modify (^locs^)"))
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
 
@@ -181,7 +186,7 @@
          (begin0
              (taylor-alt (^next-alt^) location)
            (timeline-push! 'times
-                           (location-get location (alt-program (^next-alt^)))
+                           (~a (location-get location (alt-program (^next-alt^))))
                            (- (current-inexact-milliseconds) tnow))))))
     
     (timeline-log! 'inputs (length (^locs^)))
@@ -192,9 +197,12 @@
   (void))
 
 (define (gen-rewrites!)
+  (unless (^locs^)
+    (raise-user-error 'gen-rewrites! "No locations selected. Run (localize!) or modify (^locs^)"))
+
   (timeline-event! 'rewrite)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
-  (timeline-log! 'method (object-name rewrite))
+  (timeline-push! 'method (~a (object-name rewrite)))
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 
   (define changelists
@@ -204,16 +212,13 @@
              (define tnow (current-inexact-milliseconds))
              (define expr (location-get location (alt-program altn)))
              (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root location)
-               (timeline-push! 'times expr (- (current-inexact-milliseconds) tnow))))))
+               (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
   (define rules-used
     (append-map (curry map change-rule) changelists))
   (define rule-counts
-    (sort
-     (hash->list
-      (for/hash ([rgroup (group-by identity rules-used)])
-        (values (rule-name (first rgroup)) (length rgroup))))
-     > #:key cdr))
+    (for/hash ([rgroup (group-by identity rules-used)])
+      (values (rule-name (first rgroup)) (length rgroup))))
 
   (define (repr-rewrite-alt altn)
     (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
@@ -238,6 +243,9 @@
       (add1 (apply + (map num-nodes (cdr expr))))))
 
 (define (simplify!)
+  (unless (^children^)
+    (raise-user-error 'simplify! "No candidates generated. Run (gen-series!) or (gen-rewrites!)"))
+
   (when (flag-set? 'generate 'simplify)
     (timeline-event! 'simplify)
 
@@ -292,6 +300,9 @@
 
 ;; Finish iteration
 (define (finalize-iter!)
+  (unless (^children^)
+    (raise-user-error 'finalize-iter! "No candidates generated. Run (gen-series!) or (gen-rewrites!)"))
+
   (timeline-event! 'prune)
   (define new-alts (^children^))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
@@ -360,50 +371,44 @@
 
 ;; Run a complete iteration
 (define (run-iter!)
-  (if (^next-alt^)
-      (begin (printf "An iteration is already in progress!\n")
-	     (printf "Finish it up manually, or by running (finish-iter!)\n")
-	     (printf "Or, you can just run (rollback-iter!) to roll it back and start it over.\n"))
-      (begin (debug #:from 'progress #:depth 3 "picking best candidate")
-	     (choose-best-alt!)
-	     (debug #:from 'progress #:depth 3 "localizing error")
-	     (localize!)
-	     (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-	     (gen-rewrites!)
-	     (debug #:from 'progress #:depth 3 "generating series expansions")
-	     (gen-series!)
-	     (debug #:from 'progress #:depth 3 "simplifying candidates")
-	     (simplify!)
-	     (debug #:from 'progress #:depth 3 "adding candidates to table")
-	     (finalize-iter!)))
-  (void))
+  (when (^next-alt^)
+    (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
+                      "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
+  (debug #:from 'progress #:depth 3 "picking best candidate")
+  (choose-best-alt!)
+  (debug #:from 'progress #:depth 3 "localizing error")
+  (localize!)
+  (debug #:from 'progress #:depth 3 "generating rewritten candidates")
+  (gen-rewrites!)
+  (debug #:from 'progress #:depth 3 "generating series expansions")
+  (gen-series!)
+  (debug #:from 'progress #:depth 3 "simplifying candidates")
+  (simplify!)
+  (debug #:from 'progress #:depth 3 "adding candidates to table")
+  (finalize-iter!))
 
 (define (run-improve prog iters
-                     #:precondition [precondition 'TRUE]
+                     #:precondition [precondition #f]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (define repr (get-representation precision))
-  (define alt
-    (setup-prog! prog #:specification specification #:precondition precondition #:precision precision))
-  (cond
-   [(and (flag-set? 'setup 'early-exit)
-         (< (errors-score (errors (alt-program alt) (*pcontext*) repr)) 0.1))
-    (debug #:from 'progress #:depth 1 "Initial program already accurate, stopping.")
-    alt]
-   [else
-    (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-    (when (flag-set? 'setup 'simplify)
-      (^children^ (atab-all-alts (^table^)))
-      (simplify!)
-      (finalize-iter!))
-    (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-      (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-      (run-iter!))
-    (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
-    (get-final-combination repr)]))
+  (setup-prog! prog
+               #:specification specification
+               #:precondition precondition
+               #:precision precision)
+  (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
+  (when (flag-set? 'setup 'simplify)
+    (^children^ (atab-all-alts (^table^)))
+    (simplify!)
+    (finalize-iter!))
+  (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+    (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
+    (run-iter!))
+  (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+  (extract!))
 
-(define (get-final-combination repr)
+(define (extract!)
+  (define repr (*output-repr*))
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* all-alts)
   (define joined-alt
@@ -415,7 +420,7 @@
       (timeline-event! 'bsearch)
       (combine-alts option repr (*sampler*))]
      [else
-      (best-alt all-alts repr)]))
+      (argmin score-alt all-alts)]))
   (timeline-event! 'simplify)
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))

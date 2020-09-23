@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Plugins</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>Plugins</h1>
+  </header>
+
+  <p><a href="../../">Herbie</a> plugins define new functions, add
+  rewrite rules, and even implement number representations.</p>
+
+  <p>Herbie plugins are installed separately. Herbie then
+  automatically loads and uses them.</p>
+  
+  <h2>Posit arithmetic</h2>
+
+  <p>The <kbd>softposit-herbie</kbd> plugin implements support
+  for <a href="https://posithub.org/">posit</a> arithmetic. Install it
+  with:</p>
+
+  <pre class="shell">raco pkg install --auto softposit-herbie</pre>
+
+  <p>This plugin uses the SoftPosit library, only supported on Linux.
+  Even then is reported to misbehave on some machines. The plugin
+  support arithmetic operations, <code>sqrt</code>, and quires.</p>
+
+  <p>Once <kbd>softposit-herbie</kbd> is installed,
+  specify <code>:precision posit16</code> to inform Herbie that it
+  should assume the core's inputs and outputs are posit numbers. Other
+  posit sizes (with 8 or 32 bits) and also quires (for 8, 16, and 32
+  bit posits) are available, but are poorly supported.</p>
+
+
+  <h2 id="complex">Complex Numbers</h2>
+
+  <p>The <kbd>complex-herbie</kbd> plugin implements support for
+  complex numbers. Install it with:</p>
+
+  <pre class="shell">raco pkg install --auto complex-herbie</pre>
+
+  <p>Herbie input parameters are always real numbers; complex
+  numbers must be constructed with <code>complex</code>. The
+  functions <code>re</code>, <code>im</code>, and <code>conj</code>
+  are available on complex numbers, along with the arithmetic
+  operators, <code>exp</code>, <code>log</code>, <code>pow</code>,
+  and <code>sqrt</code>. Complex and real operations use the same
+  syntax, but cannot be mixed: <code>(+ (complex 1 2) 1)</code> is not
+  valid. Herbie reports type errors in such situations.</p>
+
+  <p>Complex operations are implemented by
+  <a href="https://docs.racket-lang.org/reference/numbers.html#%28tech._complex._number%29">Racket</a>,
+  so results may differ (slightly) from complex numbers in some other
+  language, especially for non-finite complex numbers. In the future,
+  we hope to support complex-number arguments and fully support all
+  complex-number operations.</p>
+
+  
+  <h2>Developing plugins</h2>
+
+  <p>The plugin functionality is currently highly experimental; if you
+  would like to develop your own plugins, please write to
+  the <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">mailing
+  list</a>.</p>
+  
+</body>
+</html>
