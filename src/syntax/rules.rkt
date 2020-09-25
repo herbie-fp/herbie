@@ -7,7 +7,7 @@
 
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*
-                           *differentiation-rules*)
+                           *differentiation-rules* *trigonometry-rules* fake-operators)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
                             *rulesets* generate-rules-for))
 
@@ -19,6 +19,7 @@
 (define simplify-rules (make-parameter '()))
 (define differentiation-rules (make-parameter '()))
 (define fp-safe-simplify-rules (make-parameter '()))
+(define trigonometry-rules (make-parameter '()))
 
 ;; Exported parameters to update and access rules
 (define *rules*
@@ -36,6 +37,11 @@
                           identity
                           (λ (_) (generate-missing-rules) (differentiation-rules))))
 
+(define *trigonometry-rules*
+  (make-derived-parameter trigonometry-rules
+                          identity
+                          (λ (_) (generate-missing-rules) (trigonometry-rules))))
+
 (define *fp-safe-simplify-rules*
   (make-derived-parameter fp-safe-simplify-rules 
                           identity 
@@ -48,24 +54,31 @@
     (update-rules-rules rules groups)
     (update-simplify-rules rules groups)
     (update-differentiation-rules rules groups)
+    (update-trigonometry-rules rules groups)
     (update-fp-safe-simplify-rules rules groups)))
 
 (define (update-rules-rules rules groups)
   (when (ormap (curry flag-set? 'rules) groups)
-    (all-rules (append (all-rules) rules))))
+    (all-rules (append rules (all-rules)))))
 
 (define (update-simplify-rules rules groups)
   (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
-    (simplify-rules (append (simplify-rules) rules))))
+    (simplify-rules (append rules (simplify-rules)))))
 
 (define (update-differentiation-rules rules groups)
   (when (set-member? groups 'derivative)
-    (differentiation-rules (append (differentiation-rules) rules))))
+    (differentiation-rules (append rules (differentiation-rules)))))
+
+(define (update-trigonometry-rules rules groups)
+  (when (set-member? groups 'trigonometry)
+    (trigonometry-rules (append rules (trigonometry-rules)))))
 
 (define (update-fp-safe-simplify-rules rules groups)
   (when (and (ormap (curry flag-set? 'rules) groups)
              (set-member? groups 'fp-safe) (set-member? groups 'simplify))
-    (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))
+    (fp-safe-simplify-rules (append rules (fp-safe-simplify-rules)))))
+
+
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
@@ -763,7 +776,7 @@
   [d-log            (d (log a) x)        (/ (d a x) a)]
   [d-power          (d (pow a b) x)      (* (pow a b)
                                             (+ (* (d a x)
-                                               (/ b a))
+                                                  (/ b a))
                                             (* (d b x)
                                                (log a))))]
   [d-sqrt           (d (sqrt a) x)       (/ (d a x) (* 2 (sqrt a)))]

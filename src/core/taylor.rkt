@@ -26,8 +26,6 @@
     (differentiate-exprs
         terms))
 
-  (pretty-print new-derivatives)
-
   (define filtered 
     (for/list ([derivative new-derivatives])
       (if (derivative-failed? derivative)

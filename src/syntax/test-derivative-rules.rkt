@@ -1,9 +1,7 @@
 #lang racket
 
-(require "rules.rkt")
-(require "../core/simplify.rkt")
-
-(module+ test (require rackunit))
+(module+ test (require rackunit)
+              (require "rules.rkt" "../programs.rkt" "../core/simplify.rkt" "../interface.rkt"))
 
 
 
@@ -11,39 +9,50 @@
   (define derivatives
           `(((d a a) . 1)
             ((d y x) . 0)
-            ((d (+.f64 1 (*.f64 2 x)) x) . 2)
-            ((d (+.f64 1 (*.f64 y x)) x) . y)
-            ((d (pow.f64 x 3) x) . (*.f64 x (*.f64 x 3)))
-            ((d (-.f64 (pow.f64 x 3) (*.f64 7 (pow.f64 x 2))) x)
-             . (*.f64 x (+.f64 (*.f64 x 3) -14)))
-            ((subst (+.f64 a a) a 4) . 8)
+            ((d (+ 1 (* 2 x)) x) . 2)
+            ((d (+ 1 (* y x)) x) . y)
+            ((d (pow x 3) x) . (* x (* x 3)))
+            ((d (- (pow x 3) (* 7 (pow x 2))) x)
+             . (* x (+ (* x 3) -14)))
+            ((subst (+ a a) a 4) . 8)
             ((subst c a 4) . c)
-            ((subst (subst (/.f64 c d) c 4) d 5) . 4/5)
-            ((subst (d (sin.f64 x) x) x PI.f64) . -1)
-            ((subst (d (-.f64 (pow.f64 x 3) (*.f64 7 (pow.f64 x 2))) x) x 1)
+            ((subst (subst (/ c d) c 4) d 5) . 4/5)
+            ((subst (d (sin x) x) x PI) . -1)
+            ((subst (d (- (pow x 3) (* 7 (pow x 2))) x) x 1)
              . -11)
-            ((subst (d (log.f64 (/.f64 (-.f64 x 1) (+.f64 x 1))) x) x 0)
+            ((subst (d (log (/ (- x 1) (+ x 1))) x) x 0)
              . -2)
             ;; test limit functionality
-            ((subst (/.f64 (+.f64 x 4) (+.f64 a 2)) x 2)
-             . (/.f64 6 (+.f64 a 2)))
-            ((lim (d (sin.f64 x) x) (d x x) 
-                  (subst (d (sin.f64 x) x) x 0)
+            ((subst (/ (+ x 4) (+ a 2)) x 2)
+             . (/ 6 (+ a 2)))
+            ((lim (d (sin x) x) (d x x) 
+                  (subst (d (sin x) x) x 0)
                   (subst (d x x) x 0)
                   x 0) . 1)
-            ((subst (/.f64 (sin.f64 x) x) x 0) . 1)
-            ((subst (/.f64 (+.f64 x (sin.f64 x)) (+.f64 x (tan.f64 x))) x 0)
+            ((subst (/ (sin x) x) x 0) . 1)
+            ((subst (/ (+ x (sin x)) (+ x (tan x))) x 0)
              . 1)
-            ((lim (+.f64 x (sin.f64 x)) (+.f64 x (tan.f64 x))
-                  (subst (+.f64 x (sin.f64 x)) x 0)
-                  (subst (+.f64 x (tan.f64 x)) x 0)
-                  x 0)
-              . 1)
-            
+            ;; This next one doesn't work- the reason is the derivative of pow involves a constant division by zero
+            ;; The division by zero could be eliminated by simplify, but the simplify quits early due to an unsound union
+            #;((subst (/ (* 2 (pow x 2)) (pow x 2)) x 0)
+             . 2)
             ))
 
-  (for ([rule (*differentiation-rules*)])
+  (define vars `(x y a b c d))
+  (define var-reprs
+    (apply hash
+      (apply append
+        (for/list ([v vars])
+          (list v (*output-repr*))))))
+
+  (define derivatives-in-repr
+    (for/list ([pair derivatives])
+      (cons
+        (desugar-program (car pair) (*output-repr*) var-reprs #:full #f)
+        (desugar-program (cdr pair) (*output-repr*) var-reprs #:full #f))))
+
+  #;(for ([rule (*differentiation-rules*)])
     (println (format "~a     ~a" (rule-input rule) (rule-output rule))))
 
-  (for ([pair derivatives])
+  (for ([pair derivatives-in-repr])
        (check-equal? (differentiate-expr (car pair)) (cdr pair))))
