@@ -308,9 +308,8 @@
          (define op* (get-parametric-operator '- atype))
          (values (list op* arg*) (operator-info op* 'otype))]
         [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-         (define-values (iprec oprec)
-           (let ([split (string-split (symbol->string op) "->")])
-             (values (first split) (last split))))
+         (define iprec (first (operator-info op 'itype)))
+         (define oprec (operator-info op 'otype))
          (define-values (body* rtype) (loop body iprec))
          (values (list op body*) oprec)]
         [(list (and (or 're 'im) op) arg)
@@ -341,11 +340,8 @@
          (define prec* (if (set-member? '(TRUE FALSE) expr) 'bool prec))
          (define constant* (get-parametric-constant expr prec*))
          (values constant* (constant-info constant* 'type))]
-        [(? variable?) 
-         (values 
-           expr 
-           (if (equal? (representation-name (dict-ref var-reprs expr)) 'bool) 
-               'bool prec))])))
+        [(? variable?)
+         (values expr (representation-name (dict-ref var-reprs expr)))])))
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
@@ -358,11 +354,11 @@
      (define iff* (expand-parametric-reverse iff repr full?))
      (list 'if cond* ift* iff*)]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-     (define iprec (first (string-split (symbol->string op) "->")))
-     (define repr* (get-representation (string->symbol iprec)))
+     (define iprec (first (operator-info op 'itype)))
+     (define repr* (get-representation iprec))
      (define body* (expand-parametric-reverse body repr* full?))
      (if full? 
-        `(cast (! :precision ,(string->symbol iprec) ,body*))
+        `(cast (! :precision ,iprec ,body*))
         `(,op ,body*))]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
