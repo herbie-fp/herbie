@@ -119,7 +119,6 @@
     name]))
 
 ;; Rulesets defined by reprs. These rulesets are unique
-
 (define (register-ruleset! name groups var-ctx rules)
   (define rules*
     (for/list ([r rules])
@@ -746,15 +745,20 @@
   [erfc-erf         (erf x)              (- 1 (erfc x))])
 
 (define-ruleset* derive-rules (derivative)
-  #:type ([x real] [a real] [b real])
+  #:type ([x real] [a real] [b real] [c real] [d real] [h real])
   [d-variable       (d x x)              1]
   [d-neg            (d (neg a) x)        (neg (d a x))]
   [d-add            (d (+ a b) x)        (+ (d a x) (d b x))]
   [d-sub            (d (- a b) x)        (- (d a x) (d b x))]
   [d-mul            (d (* a b) x)        (+ (* a (d b x))
                                             (* b (d a x)))]
-  [d-div            (d (/ a b) x)        (/ (- (* b (d a x)) (* a (d b x)))
-                                            (* b b))]
+  [d-div            (d (/ a b) x)        (try-/ a b
+                                            (- (* b (d a x)) (* a (d b x)))
+                                            (* b b) (took-derivative 0 x))]
+  [d-try-div        (d (try-/ c d a b h) x)
+                                         (try-/ c d
+                                                (- (* b (d a x)) (* a (d b x)))
+                                                (* b b) (took-derivative h x))]
   ;; todo add with check that a is non-zero- also the other power rules might need it
   [d-log            (d (log a) x)        (/ (d a x) a)]
   [d-power          (d (pow a b) x)      (* (pow a b)
@@ -772,14 +776,26 @@
 ;; subst is of the form (subst expression variable value)
 ;; limit is of the form (limit numerator denominator
 ;;                             numerator-substituted denominator-substituted variable value)
+;; try-/ is a wrapper which prevents 1 / 0 ocurring in the egraph
+;; try-/ is of the form (try-/ numerator-original denominator-original numerator denominator substitution-and-derivative-hist)
 (define-ruleset* substitution (derivative)
-  #:type ([a real] [b real] [x real] [y real])
+  #:type ([a real] [b real] [c real] [d real] [h real] [x real] [y real])
   [subst-variable        (subst a a x)          x]
+  [subst-try-/           (subst (/ a b) x y)    (try-/ a b (subst a x y) (subst b x y) (took-substitution 0 x y))]
+  [subst-in-try-/        (subst (try-/ a b c d h) x y)
+                                                (try-/ a b (subst c x y) (subst d x y) (took-substitution h x y))]
   [subst-to-limit        (subst (/ a b) x y)    (lim a b (subst a x y) (subst b x y) x y)]
+  [subst-try-to-limit    (subst (try-/ a b c d h) x y)
+                                                (lim c d
+                                                     (subst c x y) (subst d x y)
+                                                     x y)]
   [limit-indefinite-zero (lim a b 0 0 x y)      (lim (d a x) (d b x)
                                                      (subst (d a x) x y)
                                                      (subst (d b x) x y)
                                                      x y)])
+
+(define fake-operators
+  (set 'd 'lim 'try-/ 'subst 'took-substitution 'took-derivative))
 
 ;; generate substitution rules for all operators other than differentiation and subst
 (define (generate-subst-in-rule op-name num-children)
@@ -802,8 +818,8 @@
   (apply
     append
     (for/list ([op-name (table-keys operators)]
-               #:when (and (not (equal? op-name 'd))
-                           (not (equal? op-name 'subst))))
+               #:when (and (not (set-member? fake-operators op-name))
+                           (not (equal? (substring (symbol->string op-name) 0 1) "/"))))
       (define itype (table-ref operators op-name 'itype))
       (cond
         [(list? itype)

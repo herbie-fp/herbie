@@ -25,11 +25,25 @@
             ((subst (d (log.f64 (/.f64 (-.f64 x 1) (+.f64 x 1))) x) x 0)
              . -2)
             ;; test limit functionality
+            ((subst (/.f64 (+.f64 x 4) (+.f64 a 2)) x 2)
+             . (/.f64 6 (+.f64 a 2)))
             ((lim (d (sin.f64 x) x) (d x x) 
                   (subst (d (sin.f64 x) x) x 0)
                   (subst (d x x) x 0)
                   x 0) . 1)
-            ((subst (/.f64 (sin.f64 x) x) x 0) . 1)))
+            ((subst (/.f64 (sin.f64 x) x) x 0) . 1)
+            ((subst (/.f64 (+.f64 x (sin.f64 x)) (+.f64 x (tan.f64 x))) x 0)
+             . 1)
+            ((lim (+.f64 x (sin.f64 x)) (+.f64 x (tan.f64 x))
+                  (subst (+.f64 x (sin.f64 x)) x 0)
+                  (subst (+.f64 x (tan.f64 x)) x 0)
+                  x 0)
+              . 1)
+            
+            ))
+
+  (for ([rule (*differentiation-rules*)])
+    (println (format "~a     ~a" (rule-input rule) (rule-output rule))))
 
   (for ([pair derivatives])
        (check-equal? (differentiate-expr (car pair)) (cdr pair))))

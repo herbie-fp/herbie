@@ -30,7 +30,7 @@
 
   (define filtered 
     (for/list ([derivative new-derivatives])
-      (if (contains-derivative-or-subst? derivative)
+      (if (derivative-failed? derivative)
           0
           derivative)))
 
@@ -190,14 +190,6 @@
     #:rules (*simplify-rules*)))
   res)
 
-(define (unary-op-with-repr op child)
-  (define repr (repr-of child (*output-repr*) (*var-reprs*)))
-  (get-parametric-operator op repr))
-
-(define (binary-op-with-repr op child)
-  (define repr (repr-of child (*output-repr*) (*var-reprs*)))
-  (get-parametric-operator op repr repr))
-
 (define (make-sum terms)
   (match terms
    ['() 0]
@@ -280,10 +272,16 @@
             (list 'subst (build-derivative var expr n) var around)
             (factorial n))]))
 
-(define (contains-derivative-or-subst? expr)
+(define (derivative-failed? expr)
   (cond
     [(list? expr)
-     (or (equal? (first expr) 'd) (equal? (first expr) 'subst) (ormap contains-derivative-or-subst? (rest expr)))]
+      (or
+        (equal? (first expr) 'd)
+        (equal? (first expr) 'subst)
+        (equal? (first expr) 'lim)
+        (and (equal? (substring (symbol->string (first expr)) 0 1) "/")
+             (equal? (third expr) 0))
+        (ormap derivative-failed? (rest expr)))]
     [else #f]))
 
 (define (taylor var expr)
@@ -315,7 +313,7 @@
              #:break (and max-computable (> i max-computable)))
          ;; update max-computable if necessary
          (cond
-           [(contains-derivative-or-subst? derivative)
+           [(derivative-failed? derivative)
             (if (equal? current-max 0)
                 (begin (set! max-computable 0)
                        (hash-set! term-cache 0 expr))

@@ -14,7 +14,8 @@
          location-do location-get location-do-multiple
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression
-         desugar-program resugar-program)
+         desugar-program resugar-program
+         unary-op-with-repr binary-op-with-repr)
 
 (define expr? (or/c list? symbol? value? real?))
 
@@ -58,6 +59,9 @@
    [(list 'if cond ift iff) (repr-of ift env)]
    [(list 'd subexpr var) (repr-of subexpr repr env)]
    [(list 'subst subexpr var val) (repr-of subexpr repr env)] ;; we assume subst isn't changing reprs
+   [(list 'try-/ a b sub1 sub2 hist) (repr-of a repr env)]
+   [(list 'took-substitution hist var value) (repr-of value repr env)]
+   [(list 'took-derivative hist var) (repr-of var repr env)]
    [(list 'lim num denom cnum cdenom var val) (repr-of num)]
    [(list op args ...) (operator-info op 'otype)]))
 
@@ -259,6 +263,14 @@
    '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
 
 
+(define (unary-op-with-repr op child)
+  (define repr (repr-of child (*output-repr*) (*var-reprs*)))
+  (get-parametric-operator op repr))
+
+(define (binary-op-with-repr op child)
+  (define repr (repr-of child (*output-repr*) (*var-reprs*)))
+  (get-parametric-operator op repr repr))
+
 (define (unfold-let expr)
   (match expr
     [`(let ([,vars ,vals] ...) ,body)
@@ -317,6 +329,22 @@
          (define-values (var* _d) (loop var prec))
          (define-values (value* _e) (loop value prec))
          (values (list 'lim num* denom* subst1* subst2* var* value*) rtype)]
+        [(list 'try-/ numerator denominator subst1 subst2 hist)
+         (define-values (num* rtype) (loop numerator prec))
+         (define-values (denom* _a) (loop denominator prec))
+         (define-values (subst1* _b) (loop subst1 prec))
+         (define-values (subst2* _c) (loop subst2 prec))
+         (define-values (hist* _d) (loop hist prec))
+         (values (list 'try-/ num* denom* subst1* subst2* hist*) rtype)]
+        [(list 'took-substitution hist var value)
+         (define-values (hist* _a) (loop hist prec))
+         (define-values (var* _b) (loop var prec))
+         (define-values (value* rtype) (loop value prec))
+         (values (list 'took-substitution hist* var* value*) rtype)]
+        [(list 'took-derivative hist var)
+         (define-values (hist* _a) (loop hist prec))
+         (define-values (var* rtype) (loop var prec))
+         (values (list 'took-derivative hist* var*) rtype)]
         [(list '! props ... body)
          (define props* (apply hash-set* (hash) props))
          (cond

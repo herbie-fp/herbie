@@ -576,6 +576,21 @@
   [fl throw-fake-operator-error] [bf throw-fake-operator-error]
   [ival throw-fake-operator-error] [nonffi throw-fake-operator-error])
 
+(define-operator (try-/ try-/ real real real real) real
+  [itype 'real] [otype 'real]
+  [fl throw-fake-operator-error] [bf throw-fake-operator-error]
+  [ival throw-fake-operator-error] [nonffi throw-fake-operator-error])
+
+(define-operator (took-derivative real real) real
+  [itype 'real] [otype 'real]
+  [fl throw-fake-operator-error] [bf throw-fake-operator-error]
+  [ival throw-fake-operator-error] [nonffi throw-fake-operator-error])
+
+(define-operator (took-substitution real real real) real
+  [itype 'real] [otype 'real]
+  [fl throw-fake-operator-error] [bf throw-fake-operator-error]
+  [ival throw-fake-operator-error] [nonffi throw-fake-operator-error])
+
 (define-operator (lim lim real real real real real real) real
   [itype 'real] [otype 'real]
   [fl throw-fake-operator-error] [bf throw-fake-operator-error]

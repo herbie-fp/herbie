@@ -38,9 +38,21 @@
 
 (define/contract (differentiate-exprs exprs)
   (-> (listof expr?) expr?)
-  (simplify-batch
-    (simplify-batch exprs #:rules (*differentiation-rules*) #:precompute true)
-    #:rules (append (*differentiation-rules*) (*simplify-rules*)) #:precompute true))
+  (map convert-try-/
+    (simplify-batch
+      (map convert-try-/
+        (simplify-batch exprs #:rules (*differentiation-rules*) #:precompute true))
+        #:rules (append (*differentiation-rules*) (*simplify-rules*)) #:precompute true)))
+
+(define (convert-try-/ expr)
+  (cond
+    [(list? expr)
+     (if (equal? (first expr) 'try-/)
+         (list (binary-op-with-repr '/ (fourth expr))
+               (convert-try-/ (fourth expr))
+               (convert-try-/ (fifth expr)))
+         (map convert-try-/ expr))]
+    [else expr]))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
@@ -102,7 +114,6 @@
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
   #;(timeline-log! 'method 'egg-herbie)
   (define irules (rules->irules rls))
-
 
   ((egg egraph-run)
    (lambda (egg-graph)
