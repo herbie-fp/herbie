@@ -40,12 +40,11 @@
   (-> (listof expr?) expr?)
 
   (define differentiation-result
-    (map convert-try-/
-        (simplify-batch exprs #:rules (append (*trigonometry-rules*) (*differentiation-rules*)) #:precompute true)))
-
+    (simplify-batch exprs #:rules (append (*trigonometry-rules*) (*differentiation-rules*)) #:precompute true))
+  (pretty-print differentiation-result)
   (map convert-try-/
     (simplify-batch
-        differentiation-result      
+        (map convert-try-/ differentiation-result)
         #:rules (append (*differentiation-rules*) (*simplify-rules*)) #:precompute true)))
 
 (define (convert-try-/ expr)

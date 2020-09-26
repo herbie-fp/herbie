@@ -274,9 +274,7 @@
   (cond
     [(list? expr)
       (or
-        (equal? (first expr) 'd)
-        (equal? (first expr) 'subst)
-        (equal? (first expr) 'lim)
+        (set-member? fake-operators expr)
         (and (equal? (substring (symbol->string (first expr)) 0 1) "/")
              (equal? (third expr) 0))
         (ormap derivative-failed? (rest expr)))]

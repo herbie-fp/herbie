@@ -32,10 +32,33 @@
             ((subst (/ (sin x) x) x 0) . 1)
             ((subst (/ (+ x (sin x)) (+ x (tan x))) x 0)
              . 1)
+            ((subst (d (/ (+ x (sin x)) (+ x (tan x))) x) x 0)
+             . 0)
+            #;((d (d (/ (+ x (sin x)) (+ x (tan x))) x) x)
+             . 0)
             ;; This next one doesn't work- the reason is the derivative of pow involves a constant division by zero
             ;; The division by zero could be eliminated by simplify, but the simplify quits early due to an unsound union
             #;((subst (/ (* 2 (pow x 2)) (pow x 2)) x 0)
              . 2)
+          ((d
+            (/
+       (* (+ x (sin x)) (+ 1 (/ 1 (pow (cos x) 2))))
+       (+ x (tan x))) x)
+          . 0)
+
+          #;((/ (- (*
+                    (+ x (tan x))
+                    (d (* (+ x (sin x)) (+ 1 (/ 1 (pow (cos x) 2)))) x))
+                 (*
+                    (* (+ x (sin x)) (+ 1 (/ 1 (pow (cos x) 2))))
+                    (d (+ x (tan x)) x)))
+                (* (+ x (tan x)) (+ x (tan x))))
+                . 0)
+              
+
+
+
+
             ))
 
   (define vars `(x y a b c d))
@@ -51,7 +74,7 @@
         (desugar-program (car pair) (*output-repr*) var-reprs #:full #f)
         (desugar-program (cdr pair) (*output-repr*) var-reprs #:full #f))))
 
-  #;(for ([rule (*differentiation-rules*)])
+  (for ([rule (*differentiation-rules*)])
     (println (format "~a     ~a" (rule-input rule) (rule-output rule))))
 
   (for ([pair derivatives-in-repr])

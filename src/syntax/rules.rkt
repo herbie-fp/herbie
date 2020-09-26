@@ -765,25 +765,24 @@
   [d-sub            (d (- a b) x)        (- (d a x) (d b x))]
   [d-mul            (d (* a b) x)        (+ (* a (d b x))
                                             (* b (d a x)))]
-  [d-div            (d (/ a b) x)        (try-/ a b
-                                            (- (* b (d a x)) (* a (d b x)))
-                                            (* b b) (took-derivative 0 x))]
+  [d-div            (d (/ a b) x)        (/ 
+                                           (- (* b (d a x)) (* a (d b x)))
+                                           (* b b))]
   [d-try-div        (d (try-/ c d a b h) x)
                                          (try-/ c d
                                                 (- (* b (d a x)) (* a (d b x)))
                                                 (* b b) (took-derivative h x))]
-  ;; todo add with check that a is non-zero- also the other power rules might need it
-  [d-log            (d (log a) x)        (/ (d a x) a)]
+  [d-log            (d (log a) x)        (try-/ (log a) 0 (d a x) a (took-derivative 0 x))]
   [d-power          (d (pow a b) x)      (* (pow a b)
                                             (+ (* (d a x)
-                                                  (/ b a))
-                                            (* (d b x)
-                                               (log a))))]
-  [d-sqrt           (d (sqrt a) x)       (/ (d a x) (* 2 (sqrt a)))]
+                                                  (try-/ (pow a b) 0 b a (took-derivative 0 x)))
+                                               (* (d b x)
+                                                  (log a))))]
+  [d-sqrt           (d (sqrt a) x)       (try-/ (sqrt a) 0 (d a x) (* 2 (sqrt a)) (took-derivative 0 x))]
   [d-exp            (d (exp a) x)        (* (exp a) (d a x))]
   [d-sin            (d (sin a) x)        (* (cos a) (d a x))]
   [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))]
-  [d-tan            (d (tan a) x)        (* (/ 1 (pow (cos a) 2))
+  [d-tan            (d (tan a) x)        (* (try-/ (tan a) 0 1 (pow (cos a) 2) (took-derivative 0 x))
                                             (d a x))])
 
 ;; subst is of the form (subst expression variable value)
@@ -845,3 +844,4 @@
 
 (register-ruleset! "subst-in-rules" '(derivative)
                    (list (cons 'a 'real) (cons 'b 'real)) subst-in-rules)
+

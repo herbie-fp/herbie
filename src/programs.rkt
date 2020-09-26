@@ -56,13 +56,13 @@
    [(? value?) (representation-name repr)]
    [(? constant?) (constant-info expr 'type)]
    [(? variable?) (representation-name (dict-ref env expr))]
-   [(list 'if cond ift iff) (repr-of ift env)]
+   [(list 'if cond ift iff) (repr-of ift repr env)]
    [(list 'd subexpr var) (repr-of subexpr repr env)]
    [(list 'subst subexpr var val) (repr-of subexpr repr env)] ;; we assume subst isn't changing reprs
    [(list 'try-/ a b sub1 sub2 hist) (repr-of a repr env)]
    [(list 'took-substitution hist var value) (repr-of value repr env)]
    [(list 'took-derivative hist var) (repr-of var repr env)]
-   [(list 'lim num denom cnum cdenom var val) (repr-of num)]
+   [(list 'lim num denom cnum cdenom var val) (repr-of num repr env)]
    [(list op args ...) (operator-info op 'otype)]))
 
 ;; Converting constants
