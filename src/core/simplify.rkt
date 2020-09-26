@@ -51,9 +51,9 @@
   (cond
     [(list? expr)
      (if (equal? (first expr) 'try-/)
-         (list (binary-op-with-repr '/ (fourth expr))
-               (convert-try-/ (fourth expr))
-               (convert-try-/ (fifth expr)))
+         (list (binary-op-with-repr '/ (third expr))
+               (convert-try-/ (third expr))
+               (convert-try-/ (fourth expr)))
          (map convert-try-/ expr))]
     [else expr]))
 

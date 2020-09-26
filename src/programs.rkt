@@ -59,7 +59,7 @@
    [(list 'if cond ift iff) (repr-of ift repr env)]
    [(list 'd subexpr var) (repr-of subexpr repr env)]
    [(list 'subst subexpr var val) (repr-of subexpr repr env)] ;; we assume subst isn't changing reprs
-   [(list 'try-/ a b sub1 sub2 hist) (repr-of a repr env)]
+   [(list 'try-/ a sub1 sub2 hist) (repr-of a repr env)]
    [(list 'took-substitution hist var value) (repr-of value repr env)]
    [(list 'took-derivative hist var) (repr-of var repr env)]
    [(list 'lim num denom cnum cdenom var val) (repr-of num repr env)]
@@ -329,13 +329,12 @@
          (define-values (var* _d) (loop var prec))
          (define-values (value* _e) (loop value prec))
          (values (list 'lim num* denom* subst1* subst2* var* value*) rtype)]
-        [(list 'try-/ numerator denominator subst1 subst2 hist)
-         (define-values (num* rtype) (loop numerator prec))
-         (define-values (denom* _a) (loop denominator prec))
+        [(list 'try-/ original subst1 subst2 hist)
+         (define-values (original* rtype) (loop original prec))
          (define-values (subst1* _b) (loop subst1 prec))
          (define-values (subst2* _c) (loop subst2 prec))
          (define-values (hist* _d) (loop hist prec))
-         (values (list 'try-/ num* denom* subst1* subst2* hist*) rtype)]
+         (values (list 'try-/ original* subst1* subst2* hist*) rtype)]
         [(list 'took-substitution hist var value)
          (define-values (hist* _a) (loop hist prec))
          (define-values (var* _b) (loop var prec))

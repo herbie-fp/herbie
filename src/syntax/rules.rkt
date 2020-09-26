@@ -768,36 +768,51 @@
   [d-div            (d (/ a b) x)        (/ 
                                            (- (* b (d a x)) (* a (d b x)))
                                            (* b b))]
-  [d-try-div        (d (try-/ c d a b h) x)
-                                         (try-/ c d
+  [d-try-div        (d (try-/ c a b h) x)
+                                         (try-/ c
                                                 (- (* b (d a x)) (* a (d b x)))
                                                 (* b b) (took-derivative h x))]
-  [d-log            (d (log a) x)        (try-/ (log a) 0 (d a x) a (took-derivative 0 x))]
+  [d-log            (d (log a) x)        (try-/ (log a) (d a x) a (took-derivative 0 x))]
   [d-power          (d (pow a b) x)      (* (pow a b)
                                             (+ (* (d a x)
-                                                  (try-/ (pow a b) 0 b a (took-derivative 0 x)))
+                                                  (try-/ (pow a b) b a (took-derivative 0 x)))
                                                (* (d b x)
                                                   (log a))))]
-  [d-sqrt           (d (sqrt a) x)       (try-/ (sqrt a) 0 (d a x) (* 2 (sqrt a)) (took-derivative 0 x))]
+  [d-sqrt           (d (sqrt a) x)       (try-/ (sqrt a) (d a x) (* 2 (sqrt a)) (took-derivative 0 x))]
   [d-exp            (d (exp a) x)        (* (exp a) (d a x))]
   [d-sin            (d (sin a) x)        (* (cos a) (d a x))]
   [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))]
-  [d-tan            (d (tan a) x)        (* (try-/ (tan a) 0 1 (pow (cos a) 2) (took-derivative 0 x))
+  [d-tan            (d (tan a) x)        (* (try-/ (tan a) 1 (pow (cos a) 2) (took-derivative 0 x))
                                             (d a x))])
+
+#;(define-ruleset* light-simplification (derivative)
+  #:type ([x real] [y real] [z real])
+  [commutativity-addition       (+ x y)                       (+ y x)]
+  [commutativity-multiplication (* x y)                       (* y x)]
+  [subtract-to-add              (- x y)                       (+ x (* -1 y))]
+  [like-terms                   (+ (* x y) (* x z))           (* x (+ y z))]
+  [like-terms-single            (+ x (* x z))                 (* x (+ 1 z))]
+  [like-terms-single-single     (+ x x)                       (* 2 x)]
+  [add-zero                     (+ x 0)                       x]
+  [multiply-by-zero             (* x 0)                       0]
+  [multiply-one                 (* x 1)                       x]
+  [divide-power                 (/ x y)                       (* x (pow y -1))]
+  [power-multiply               (pow (pow x y) z)             (pow x (* y z))]
+  [power-combine                (* (pow x y) (pow x z))       (pow x (+ y z))])
 
 ;; subst is of the form (subst expression variable value)
 ;; limit is of the form (limit numerator denominator
 ;;                             numerator-substituted denominator-substituted variable value)
 ;; try-/ is a wrapper which prevents 1 / 0 ocurring in the egraph
-;; try-/ is of the form (try-/ numerator-original denominator-original numerator denominator substitution-and-derivative-hist)
+;; try-/ is of the form (try-/ original-expr numerator denominator substitution-and-derivative-hist)
 (define-ruleset* substitution (derivative)
   #:type ([a real] [b real] [c real] [d real] [h real] [x real] [y real])
   [subst-variable        (subst a a x)          x]
-  [subst-try-/           (subst (/ a b) x y)    (try-/ a b (subst a x y) (subst b x y) (took-substitution 0 x y))]
-  [subst-in-try-/        (subst (try-/ a b c d h) x y)
-                                                (try-/ a b (subst c x y) (subst d x y) (took-substitution h x y))]
+  [subst-try-/           (subst (/ a b) x y)    (try-/ a (subst a x y) (subst b x y) (took-substitution 0 x y))]
+  [subst-in-try-/        (subst (try-/ a c d h) x y)
+                                                (try-/ a (subst c x y) (subst d x y) (took-substitution h x y))]
   [subst-to-limit        (subst (/ a b) x y)    (lim a b (subst a x y) (subst b x y) x y)]
-  [subst-try-to-limit    (subst (try-/ a b c d h) x y)
+  [subst-try-to-limit    (subst (try-/ a c d h) x y)
                                                 (lim c d
                                                      (subst c x y) (subst d x y)
                                                      x y)]
