@@ -68,13 +68,7 @@
           (note . ,note)
           (tests . ,(map simplify-test tests))))]))
 
-  ; 'write-json' possibly segfaults. Extremely hard to recreate. Happens sometime after the
-  ; tests finish and before 'results.html' is generated. Since 'read-json' has issues, the best
-  ; bet is here. Bypassing just in case.
-  ; See: 'read-json-files' in 'src/web/run.rkt'
-  (define out (open-output-file file #:mode 'binary #:exists 'replace))
-  (write-bytes (jsexpr->bytes data) out)
-  (close-output-port out))
+  (call-with-output-file file (curry write-json data) #:exists 'replace))
 
 (define (flags->list flags)
   (for*/list ([rec (hash->list flags)] [fl (cdr rec)])
