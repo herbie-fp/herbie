@@ -6,14 +6,36 @@
 
 
 (module+ test
+  (define big `(*
+     (+ x (tan x))
+     (-
+      (*
+       (+ x (tan x))
+       (-
+        (*
+         (+ x (sin x))
+         (/
+          (* (* (sin x) (cos x)) -2)
+          (pow (cos x) 4)))
+        (* (+ x (tan x)) (sin x))))
+      (*
+       (-
+        (* (+ x (tan x)) (+ 1 (cos x)))
+        (*
+         (+ 1 (/ 1 (pow (cos x) 2)))
+         (+ x (sin x))))
+       (+ 2 (/ 2 (pow (cos x) 2)))))))
+  (define small `(*
+    (* (+ x (tan x)) (+ x (tan x)))
+    (* (+ x (tan x)) (+ x (tan x)))))
   (define derivatives
-          `(((d a a) . 1)
+          `(((d a a) . 1) 
             ((d y x) . 0)
             ((d (+ 1 (* 2 x)) x) . 2)
             ((d (+ 1 (* y x)) x) . y)
-            ((d (pow x 3) x) . (* x (* x 3)))
+            ((d (pow x 3) x) . (* 3 (* x x)))
             ((d (- (pow x 3) (* 7 (pow x 2))) x)
-             . (* x (+ (* x 3) -14)))
+             . (* x (+ (* 3 x) -14)))
             ((subst (+ a a) a 4) . 8)
             ((subst c a 4) . c)
             ((subst (subst (/ c d) c 4) d 5) . 4/5)
@@ -34,6 +56,17 @@
              . 1)
             ((subst (d (/ (+ x (sin x)) (+ x (tan x))) x) x 0)
              . 0)
+            ((subst (d (d (d (d (pow (+ x (tan x)) 4) x) x) x) x) x 0)
+             . 384)
+            ((lim 
+                (d ,big x)
+                (d ,small x)
+               0
+               0
+               x
+               0)
+              . -1/2)
+            
             ((subst (d (d (/ (+ x (sin x)) (+ x (tan x))) x) x) x 0)
              . -1/2)
             ;; This next one doesn't work- the reason is the derivative of pow involves a constant division by zero
@@ -41,6 +74,7 @@
             #;((subst (/ (* 2 (pow x 2)) (pow x 2)) x 0)
              . 2)
             ))
+
 
   (define vars `(x y a b c d))
   (define var-reprs

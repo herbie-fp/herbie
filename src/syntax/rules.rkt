@@ -7,7 +7,7 @@
 
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*
-                           *differentiation-rules* *trigonometry-rules* fake-operators)
+                           *differentiation-rules* *trig-reduce-rules* fake-operators)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
                             *rulesets* generate-rules-for))
 
@@ -19,7 +19,7 @@
 (define simplify-rules (make-parameter '()))
 (define differentiation-rules (make-parameter '()))
 (define fp-safe-simplify-rules (make-parameter '()))
-(define trigonometry-rules (make-parameter '()))
+(define trig-reduce-rules (make-parameter '()))
 
 ;; Exported parameters to update and access rules
 (define *rules*
@@ -37,10 +37,10 @@
                           identity
                           (λ (_) (generate-missing-rules) (differentiation-rules))))
 
-(define *trigonometry-rules*
-  (make-derived-parameter trigonometry-rules
+(define *trig-reduce-rules*
+  (make-derived-parameter trig-reduce-rules
                           identity
-                          (λ (_) (generate-missing-rules) (trigonometry-rules))))
+                          (λ (_) (generate-missing-rules) (trig-reduce-rules))))
 
 (define *fp-safe-simplify-rules*
   (make-derived-parameter fp-safe-simplify-rules 
@@ -54,7 +54,7 @@
     (update-rules-rules rules groups)
     (update-simplify-rules rules groups)
     (update-differentiation-rules rules groups)
-    (update-trigonometry-rules rules groups)
+    (update-trig-reduce-rules rules groups)
     (update-fp-safe-simplify-rules rules groups)))
 
 (define (update-rules-rules rules groups)
@@ -69,9 +69,9 @@
   (when (set-member? groups 'derivative)
     (differentiation-rules (append rules (differentiation-rules)))))
 
-(define (update-trigonometry-rules rules groups)
-  (when (set-member? groups 'trigonometry)
-    (trigonometry-rules (append rules (trigonometry-rules)))))
+(define (update-trig-reduce-rules rules groups)
+  (when (set-member? groups 'trig-reduce)
+    (trig-reduce-rules (append rules (trig-reduce-rules)))))
 
 (define (update-fp-safe-simplify-rules rules groups)
   (when (and (ormap (curry flag-set? 'rules) groups)
@@ -513,7 +513,7 @@
   [neg-log      (neg (log a))          (log (/ 1 a))])
 
 ; Trigonometry
-(define-ruleset* trig-reduce (trigonometry simplify)
+(define-ruleset* trig-reduce (trigonometry simplify trig-reduce)
   #:type ([a real] [b real] [x real])
   [cos-sin-sum (+ (* (cos a) (cos a)) (* (sin a) (sin a))) 1]
   [1-sub-cos   (- 1 (* (cos a) (cos a)))   (* (sin a) (sin a))]
@@ -551,12 +551,12 @@
   [hang-m-tan  (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))
                (tan (/ (- a b) 2))])
 
-(define-ruleset* trig-reduce-fp-sound (trigonometry simplify fp-safe)
+(define-ruleset* trig-reduce-fp-sound (trigonometry simplify fp-safe trig-reduce)
   [sin-0       (sin 0)               0]
   [cos-0       (cos 0)               1]
   [tan-0       (tan 0)               0])
 
-(define-ruleset* trig-reduce-fp-sound-nan (trigonometry simplify fp-safe-nan)
+(define-ruleset* trig-reduce-fp-sound-nan (trigonometry simplify fp-safe-nan trig-reduce)
   #:type ([x real])
   [sin-neg     (sin (neg x))           (neg (sin x))]
   [cos-neg     (cos (neg x))           (cos x)]
@@ -765,15 +765,16 @@
   [d-sub            (d (- a b) x)        (- (d a x) (d b x))]
   [d-mul            (d (* a b) x)        (+ (* a (d b x))
                                             (* b (d a x)))]
-  [d-div            (d (/ a b) x)        (/ 
+  [d-div            (d (/ a b) x)        (/
                                            (- (* b (d a x)) (* a (d b x)))
                                            (* b b))]
   [d-try-div        (d (try-/ c a b h) x)
-                                         (try-/ c
+                                           (try-/ c
                                                 (- (* b (d a x)) (* a (d b x)))
                                                 (* b b) (took-derivative h x))]
   [d-log            (d (log a) x)        (try-/ (log a) (d a x) a (took-derivative 0 x))]
-  [d-power          (d (pow a b) x)      (* (pow a b)
+  [d-power-constant (d (pow a b) x)      (* (d a x) (* b (pow a (- b 1))))] ;; has condition in egg-herbie!
+  [d-power-general  (d (pow a b) x)      (* (pow a b)
                                             (+ (* (d a x)
                                                   (try-/ (pow a b) b a (took-derivative 0 x)))
                                                (* (d b x)
@@ -782,23 +783,21 @@
   [d-exp            (d (exp a) x)        (* (exp a) (d a x))]
   [d-sin            (d (sin a) x)        (* (cos a) (d a x))]
   [d-cos            (d (cos a) x)        (* (- (sin a)) (d a x))]
-  [d-tan            (d (tan a) x)        (* (try-/ (tan a) 1 (pow (cos a) 2) (took-derivative 0 x))
+  [d-tan            (d (tan a) x)        (* (/ 1 (pow (cos a) 2))
                                             (d a x))])
 
-#;(define-ruleset* light-simplification (derivative)
-  #:type ([x real] [y real] [z real])
-  [commutativity-addition       (+ x y)                       (+ y x)]
-  [commutativity-multiplication (* x y)                       (* y x)]
-  [subtract-to-add              (- x y)                       (+ x (* -1 y))]
-  [like-terms                   (+ (* x y) (* x z))           (* x (+ y z))]
-  [like-terms-single            (+ x (* x z))                 (* x (+ 1 z))]
-  [like-terms-single-single     (+ x x)                       (* 2 x)]
-  [add-zero                     (+ x 0)                       x]
-  [multiply-by-zero             (* x 0)                       0]
-  [multiply-one                 (* x 1)                       x]
-  [divide-power                 (/ x y)                       (* x (pow y -1))]
-  [power-multiply               (pow (pow x y) z)             (pow x (* y z))]
-  [power-combine                (* (pow x y) (pow x z))       (pow x (+ y z))])
+
+(define-ruleset* light-simplification (derivative)
+  #:type ([x real] [y real] [z real] [h real])
+  [light-times-zero  (* 0 x)              0]
+  [light-simplify1   (* x 0)              0] 
+  [light-simplify2   (+ x 0)              x]
+  [light-simplify2   (+ 0 x)              x]
+  [light-simplify2   (- x 0)              x]
+  [light-simplify2   (- 0 x)              (neg x)]
+  [neg-neg           (neg (neg x))        x]
+  [light-simplify3   (* 1 x)              x]
+  [light-simplify3   (* x 1)              x])
 
 ;; subst is of the form (subst expression variable value)
 ;; limit is of the form (limit numerator denominator
