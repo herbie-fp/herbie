@@ -1,7 +1,7 @@
 #lang racket
 
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
-         "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt"
+         "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt" "conversions.rkt"
          "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "sampling.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt")
 
@@ -65,6 +65,8 @@
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (*output-repr* (get-representation precision))
+  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
+    (*needed-reprs* (list (*output-repr*) (get-representation 'bool))))
   (*var-reprs* (map (curryr cons (*output-repr*)) (program-variables prog)))
   (*start-prog* prog)
   (rollback-improve!)
@@ -96,6 +98,10 @@
        (~r #:min-width 4 n)
        (program-body (alt-program alt)))))
   (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
+
+(define (add-conversion! prec1 prec2)
+  (define single-conv (list (list prec1 prec2)))
+  (generate-conversions single-conv))
 
 ;; Begin iteration
 (define (choose-alt! n)

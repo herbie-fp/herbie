@@ -161,17 +161,19 @@
 
 (define (add-rules-from-rulesets repr)
   (define repr-name (representation-name repr))
-  (define valid? (disjoin (curry set-member? (map representation-name (*reprs-with-rules*)))
-                          (curry equal? repr-name)))
   (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
+  (define valid? (curry set-member? (map representation-name (*reprs-with-rules*))))
+
+  (define (valid-rule r)
+    (define in-reprs (reprs-in-expr (rule-input r)))
+    (define out-reprs (reprs-in-expr (rule-output r)))
+    (define all-reprs (remove-duplicates (append (list (rule-otype r)) in-reprs out-reprs)))
+    (and (andmap valid? all-reprs) (ormap (curry equal? repr-name) all-reprs)))
+
   (for ([set (*rulesets*)])
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
-    (when (and (andmap valid? types) (ormap (curry equal? repr-name) types))
-      (define rules*
-        (filter (λ (r) (and (valid? (rule-otype r))
-                            (andmap valid? (reprs-in-expr (rule-input r)))
-                            (andmap valid? (reprs-in-expr (rule-output r)))))
-                rules))
+    (when (andmap valid? types)
+      (define rules* (filter valid-rule rules))
       (unless (empty? rules*)   ; only add the ruleset if it contains one
         (update-rules rules* groups)))))
 
