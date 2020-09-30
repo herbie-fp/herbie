@@ -76,17 +76,13 @@
             #:exists 'replace
             (λ (out) (make-page page out result #f))))))))
 
-; As of 9/25/20 on Racket 7.8, 'read-json' segfaults for unknown reasons.
-; Solution: Read the file into a byte string and convert to a jsexpr using bytes->jsexpr
-; TODO: check this again at a later time.
 (define (read-json-files info dir name)
   (filter
    identity
    (for/list ([res (report-info-tests info)])
      (define out
-       (with-handlers ([exn? (const #f)])
-         (let ([path (build-path dir (table-row-link res) name)])
-            (bytes->jsexpr (port->bytes (open-input-file path) #:close #t)))))
+      (with-handlers ([exn? (const #f)])
+        (call-with-input-file (build-path dir (table-row-link res) name) read-json)))
      (and out (not (eof-object? out)) (cons (table-row-link res) out)))))
 
 (define (merge-timeline-jsons tl)
