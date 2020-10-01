@@ -167,7 +167,7 @@
   (define (valid-rule r)
     (define in-reprs (reprs-in-expr (rule-input r)))
     (define out-reprs (reprs-in-expr (rule-output r)))
-    (define all-reprs (remove-duplicates (append (list (rule-otype r)) in-reprs out-reprs)))
+    (define all-reprs (set-union (list (rule-otype r)) in-reprs out-reprs))
     (and (andmap valid? all-reprs) (ormap (curry equal? repr-name) all-reprs)))
 
   (for ([set (*rulesets*)])

@@ -97,10 +97,10 @@
 
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))
-    (unless (list? (syntax-e cite))
-      (error! cite "Invalid :cite ~a; must be a list" cite))
-    (for ([citation (syntax-e cite)] #:unless (identifier? citation))
-      (error! citation "Invalid citation ~a; must be a variable name" citation)))
+    (if (list? (syntax-e cite))
+        (for ([citation (syntax-e cite)] #:unless (identifier? citation))
+          (error! citation "Invalid citation ~a; must be a variable name" citation))
+        (error! cite "Invalid :cite ~a; must be a list" cite)))   
 
   (when (dict-has-key? prop-dict ':pre)
     (check-expression* (dict-ref prop-dict ':pre) vars error!))
@@ -110,11 +110,11 @@
     
   (when (dict-has-key? prop-dict ':herbie-conversions)
     (define conversions (dict-ref prop-dict ':herbie-conversions))
-    (unless (list? (syntax-e conversions))
-      (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))
-    (for ([conv (syntax-e* conversions)]
+    (if (list? (syntax-e conversions))
+        (for ([conv (syntax-e* conversions)]
           #:unless (and (list? conv) (= (length conv) 2)))
-      (error! conversions "Invalid conversion ~a; Valid example: (binary64 binary32)" conv))))
+          (error! conversions "Invalid conversion ~a; Valid example: (binary64 binary32)" conv))
+        (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))))
 
 (define (check-program* stx error!)
   (match stx
