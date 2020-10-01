@@ -129,6 +129,11 @@
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
+    (set! reprs-encountered (*reprs-with-rules*))
+    (set! rulesets (*rulesets*))
+    (set! all-rules (*rules*))
+    (set! simplify-rules (*simplify-rules*))
+    (set! fp-safe-rules (*fp-safe-simplify-rules*))
     (test-failure test (bf-precision)
                   (- (current-inexact-milliseconds) start-time) (timeline-extract output-repr)
                   warning-log e))
@@ -150,6 +155,7 @@
         (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
+        (update-rules reprs-encountered rulesets all-rules simplify-rules fp-safe-rules)
         (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
 
 (define (dummy-table-row result status link)

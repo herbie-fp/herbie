@@ -104,6 +104,9 @@
             out*
             (loop out*)))))
 
+  ;; 9/29/20: warfa segfaults when killing worker threads. Can't recreate locally.
+  ;; Cause unknown. Seems to disappear in a later branch. Weird stuff
+  ;; TODO: Check on this later.
   (for-each place-kill workers)
 
   (map cdr (sort outs < #:key car)))

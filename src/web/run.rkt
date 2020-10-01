@@ -81,8 +81,8 @@
    identity
    (for/list ([res (report-info-tests info)])
      (define out
-       (with-handlers ([(const #t) (const #f)])
-         (call-with-input-file (build-path dir (table-row-link res) name) read-json)))
+      (with-handlers ([exn? (const #f)])
+        (call-with-input-file (build-path dir (table-row-link res) name) read-json)))
      (and out (not (eof-object? out)) (cons (table-row-link res) out)))))
 
 (define (merge-timeline-jsons tl)
