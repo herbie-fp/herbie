@@ -44,7 +44,7 @@
    [(? constant?) 
     (type-name (representation-type (get-representation (constant-info expr 'type))))]
    [(? variable?) (type-name (representation-type (dict-ref env expr)))]
-   [(list 'if cond ift iff) (type-of ift env)]
+   [(list 'if cond ift iff) (type-of ift repr env)]
    [(list op args ...) ; repr-name -> repr -> type
     (type-name (representation-type (get-representation (operator-info op 'otype))))]))
 
@@ -56,7 +56,7 @@
    [(? value?) (representation-name repr)]
    [(? constant?) (constant-info expr 'type)]
    [(? variable?) (representation-name (dict-ref env expr))]
-   [(list 'if cond ift iff) (repr-of ift env)]
+   [(list 'if cond ift iff) (repr-of ift repr env)]
    [(list op args ...) (operator-info op 'otype)]))
 
 ;; Converting constants
@@ -361,11 +361,8 @@
          (define prec* (if (set-member? '(TRUE FALSE) expr) 'bool prec))
          (define constant* (get-parametric-constant expr prec*))
          (values constant* (constant-info constant* 'type))]
-        [(? variable?) 
-         (values 
-           expr 
-           (if (equal? (representation-name (dict-ref var-reprs expr)) 'bool) 
-               'bool prec))])))
+        [(? variable?)
+         (values expr (representation-name (dict-ref var-reprs expr)))])))
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated

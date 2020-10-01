@@ -161,6 +161,7 @@
         (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
+        (restore-state rulesets templated-reprs unknown-d-ops unknown-f-ops loaded-ops)
         (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
 
 (define (dummy-table-row result status link)

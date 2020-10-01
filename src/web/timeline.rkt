@@ -221,7 +221,7 @@
   (match-define (list (list sizes compileds) ...) compiler)
   (define size (apply + sizes))
   (define compiled (apply + compileds))
-  (define ratio (if (zero? size) 0 (- 1 (/ compiled size))))  ; 0/0 -> 0% saved
+  (define ratio (if (zero? size) 0 (- 1 (/ compiled size))))  ; 0/0 means 0% improvement
   `((dt "Compiler")
     (dd (p "Compiled " ,(~a size) " to " ,(~a compiled) " computations "
            "(" ,(format-percent ratio) " saved)"))))
