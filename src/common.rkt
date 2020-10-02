@@ -9,7 +9,7 @@
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double sample-single
          parse-flag get-seed set-seed!
-         quasisyntax dict syntax-e*
+         quasisyntax syntax-e* dict sym-append
          format-time format-bits in-sorted-dict web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -251,3 +251,6 @@
   (match (syntax-e stx)
     [(list elems ...) (map syntax-e* elems)]
     [stx* stx*]))
+
+(define (sym-append . args)
+  (string->symbol (apply string-append (map ~a args))))

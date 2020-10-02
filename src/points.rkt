@@ -102,10 +102,12 @@
 
       (define pre
         (or (equal? (program-body precondition) 'TRUE)
-            (ival-eval pre-fn pt (get-representation 'bool) #:log (point-logger 'pre log precondition))))
+            (ival-eval pre-fn pt (get-representation 'bool) #:precision (bf-precision)
+                       #:log (point-logger 'pre log precondition))))
 
       (define ex
-        (and pre (ival-eval body-fn pt repr #:log (point-logger 'body log prog))))
+        (and pre (ival-eval body-fn pt repr #:precision (bf-precision)
+                            #:log (point-logger 'body log prog))))
 
       (define success
         ;; +nan.0 is the "error" return code for ival-eval

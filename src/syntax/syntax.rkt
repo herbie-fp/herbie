@@ -7,7 +7,7 @@
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-d-ops* *unknown-f-ops* *loaded-ops*
-         repr-conv?)
+         repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
   (provide operators constants define-constant define-operator infix-joiner
@@ -17,8 +17,6 @@
 
 (define *unknown-d-ops* (make-parameter '()))
 (define *unknown-f-ops* (make-parameter '()))
-
-(define *loaded-ops* (make-parameter '()))
 
 ;; Constants's values are defined as functions to allow them to
 ;; depend on (bf-precision) and (flag 'precision 'double).
@@ -33,7 +31,11 @@
 (define parametric-constants (make-hash))
 (define parametric-constants-reverse (make-hash))
 
-(define (constant-info constant field) (table-ref constants constant field))
+(define (constant-info constant field)
+  (with-handlers ([exn:fail?
+                   (λ (e) (error 'constant-info "Unknown constant or field: ~a ~a"
+                                                constant field))])
+    (table-ref constants constant field)))
 
 (define (register-constant! constant name ctype attrib-dict)
   (table-set! constants name
@@ -128,11 +130,17 @@
 (define parametric-operators (make-hash))
 (define parametric-operators-reverse (make-hash))
 
-(define (operator-info operator field) (table-ref operators operator field))
+(define (operator-info operator field)
+  (with-handlers ([exn:fail? 
+                   (λ (e) (error 'operator-info "Unknown operator or field: ~a ~a"
+                                                operator field))])
+    (table-ref operators operator field)))
 
 (define (operator-remove! operator)
-  (table-remove! operators operator)
-  (*loaded-ops* (set-remove (*loaded-ops*) operator)))
+  (table-remove! operators operator))
+
+(define (*loaded-ops*)
+  (hash-keys parametric-operators-reverse))
 
 (register-reset
  (λ ()
@@ -141,7 +149,6 @@
        (operator-remove! op)))))
 
 (define (register-operator! operator name atypes rtype attrib-dict)
-  (*loaded-ops* (cons name (*loaded-ops*)))
   (table-set! operators name
               (make-hash (append (list (cons 'itype atypes) (cons 'otype rtype)) attrib-dict)))
   (hash-update! parametric-operators operator 
@@ -170,9 +177,6 @@
           (andmap (curry equal? atypes) actual-types)
           (equal? atypes actual-types))
       true-name)))
-
-(define (repr-conv? expr)
-  (regexp-match? #rx"[A-Za-z0-9_]+(->)[A-Za-z0-9_]+" (symbol->string expr)))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; TODO: hopefully will be fixed when the way operators are declared
@@ -554,6 +558,20 @@
 
 ;; Miscellaneous operators ;;
 
+(define (repr-conv? expr)
+  (regexp-match? #px"^[\\S]+(->)[\\S]+$" (symbol->string expr)))
+
+(define (rewrite-repr-op? expr)
+  (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr)))
+
+(define (get-repr-conv iprec oprec)
+  (for/or ([(name sig) (in-hash parametric-operators)]
+           #:when (repr-conv? name))
+    (match-define (list* true-name rtype atypes) (car sig))
+    (and (equal? rtype oprec)
+         (equal? (first atypes) iprec)
+         name)))
+
 (define-operator (cast cast.f64 binary64) binary64
   [fl identity] [bf identity] [ival #f]
   [nonffi identity])
@@ -562,8 +580,20 @@
   [fl identity] [bf identity] [ival #f]
   [nonffi identity])
 
+(define-operator (binary64->binary32 binary64->binary32 binary64) binary32
+  [fl (curryr real->single-flonum)] [bf identity] [ival #f]
+  [nonffi (curryr real->single-flonum)])
+
+(define-operator (binary32->binary64 binary32->binary64 binary32) binary64
+  [fl (curryr real->double-flonum)] [bf identity] [ival #f]
+  [nonffi (curryr real->double-flonum)])
+
+;; Expression predicates ;;
+
 (define (operator? op)
-  (and (symbol? op) (not (equal? op 'if)) (or (hash-has-key? parametric-operators op) (dict-has-key? (cdr operators) op))))
+  (and (symbol? op) (not (equal? op 'if))
+       (or (hash-has-key? parametric-operators op)
+           (dict-has-key? (cdr operators) op))))
 
 (define (constant? var)
   (or (real? var) (value? var) (and (symbol? var) (or (hash-has-key? parametric-constants var) 

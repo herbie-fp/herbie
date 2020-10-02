@@ -1,7 +1,7 @@
 #lang racket
 
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
-         "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt"
+         "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt" "conversions.rkt"
          "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "sampling.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt")
 
@@ -65,6 +65,8 @@
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (*output-repr* (get-representation precision))
+  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
+    (*needed-reprs* (list (*output-repr*) (get-representation 'bool))))
   (*var-reprs* (map (curryr cons (*output-repr*)) (program-variables prog)))
   (*start-prog* prog)
   (rollback-improve!)
@@ -96,6 +98,10 @@
        (~r #:min-width 4 n)
        (program-body (alt-program alt)))))
   (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
+
+(define (add-conversion! prec1 prec2)
+  (define single-conv (list (list prec1 prec2)))
+  (generate-conversions single-conv))
 
 ;; Begin iteration
 (define (choose-alt! n)
@@ -141,27 +147,35 @@
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
 
+; taylor uses older format, resugaring and desugaring needed
+; not all taylor transforms are valid in a given repr, return false on failure
+(define (taylor-expr expr repr vars transformer)
+  (define expr* (resugar-program expr repr #:full #f))
+  (with-handlers ([exn:fail? (const #f)]) 
+    (let ([approx (approximate expr* vars #:transform transformer)])
+      (desugar-program approx repr (*var-reprs*) #:full #f))))
+
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
+  (define repr (location-repr loc (alt-program altn) (*output-repr*) (*var-reprs*)))
   (define vars (free-variables expr))
   (if (or (null? vars) ;; `approximate` cannot be called with a null vars list
           (not (set-member? '(binary64 binary32) ; currently taylor/reduce breaks with posits
                             (repr-of expr (*output-repr*) (*var-reprs*)))))
       (list altn)
-      (for/list ([transform-type transforms-to-try])
+      (for/fold ([alts '()] #:result (reverse alts)) ; filter out failed taylor transforms
+                ([transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
         (define transformer (map (const (cons f finv)) vars))
-        (alt
-         (location-do loc 
-                      (alt-program altn) 
-                      (λ (x) ; taylor uses older format, resugaring and desugaring needed
-                        (desugar-program
-                            (approximate (resugar-program x (*output-repr*) #:full #f)
-                                         vars #:transform transformer)
-                            (*output-repr*) (*var-reprs*)
-                            #:full #f)))
-         `(taylor ,name ,loc)
-         (list altn)))))
+        (define valid? #t)
+        (define altn*
+          (alt (location-do loc (alt-program altn) 
+                            (λ (x) (let ([expr* (taylor-expr x repr vars transformer)])
+                                      (unless expr* (set! valid? #f))
+                                      expr*)))
+              `(taylor ,name ,loc)
+              (list altn)))
+        (if valid? (cons altn* alts) alts))))
 
 (define (gen-series!)
   (unless (^locs^)
@@ -212,10 +226,15 @@
     (for/hash ([rgroup (group-by identity rules-used)])
       (values (rule-name (first rgroup)) (length rgroup))))
 
+  (define (repr-rewrite-alt altn)
+    (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
+
   (define rewritten
-    (for/list ([cl changelists])
-      (for/fold ([altn altn]) ([cng cl])
-        (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))
+    (filter (λ (altn) (program-body (alt-program altn)))
+      (map repr-rewrite-alt
+        (for/list ([cl changelists])
+          (for/fold ([altn altn]) ([cng cl])
+            (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))))
 
   (timeline-log! 'inputs (length (^locs^)))
   (timeline-log! 'rules rule-counts)

@@ -153,18 +153,10 @@
     [_ expr]))
 
 (module+ test
-  (require "../interface.rkt" (submod "../syntax/rules.rkt" internals))
+  (require "../interface.rkt" "../syntax/rules.rkt")
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x a b c)))
-  (generate-rules-for 'real 'binary64)
-  (generate-rules-for 'real 'binary32)
-  
-  (define all-simplify-rules
-    (for/append ([rec (*rulesets*)])
-      (match-define (list rules groups _) rec)
-      (if 
-       (set-member? groups 'simplify)
-       rules
-       '())))
+  (*needed-reprs* (list (get-representation 'binary64) (get-representation 'binary32)))
+  (define all-simplify-rules (*simplify-rules*))
 
   ;; check that no rules in simplify match on bare variables
   ;; this would be bad because we don't want to match type-specific operators on a value of a different type

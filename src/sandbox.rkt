@@ -2,8 +2,8 @@
 (require profile math/bigfloat racket/engine json)
 (require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "interface.rkt" "datafile.rkt" "syntax/read.rkt" 
-         "syntax/rules.rkt" (submod "syntax/rules.rkt" internals) "profile.rkt")
+         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
+         (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -28,35 +28,16 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-;; Here's the dilemma: The mainloop is run within a new thread meaning any rules added will be forgotten after
-;; every run. This is a messy fix to save the generated rules and update the same parameters in this thread, but
-;; it seems to defeat the purpose of parameters. Is it better to not to use parameters? What happens if Herbie
-;; is run with multithreading?
-;; TODO: someone with beter knowledge of Racket threads / parameters, please fix
-(define (update-rules reprs rulesets all simplify fp-safe)
-  (*reprs-with-rules* reprs)
-  (*rulesets* rulesets)
-  (*rules* all)
-  (*simplify-rules* simplify)
-  (*fp-safe-simplify-rules* fp-safe))
-
 (define (get-test-result test
                          #:seed [seed #f]
                          #:profile [profile? #f]
                          #:debug [debug? #f]
                          #:debug-port [debug-port #f]
                          #:debug-level [debug-level #f])
-
   (define timeline #f)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
-
-  ;; Needed to restore rules
-  (define reprs-encountered '())
-  (define rulesets '())
-  (define all-rules '())
-  (define simplify-rules '())
-  (define fp-safe-rules '())
+  (*needed-reprs* (list output-repr (get-representation 'bool)))
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))]
@@ -67,6 +48,8 @@
       (match debug-level
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
+
+      (generate-conversions (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
         (define alt
           (run-improve (test-program test)
@@ -74,13 +57,6 @@
                        #:precondition (test-precondition test)
                        #:specification (test-specification test)
                        #:precision output-prec))
-
-        ; Store this thread's set of rules, reprs
-        (set! reprs-encountered (*reprs-with-rules*))
-        (set! rulesets (*rulesets*))
-        (set! all-rules (*rules*))
-        (set! simplify-rules (*simplify-rules*))
-        (set! fp-safe-rules (*fp-safe-simplify-rules*))
 
         (define context (*pcontext*))
         (when seed (set-seed! seed))
@@ -129,11 +105,8 @@
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
-    (set! reprs-encountered (*reprs-with-rules*))
-    (set! rulesets (*rulesets*))
-    (set! all-rules (*rules*))
-    (set! simplify-rules (*simplify-rules*))
-    (set! fp-safe-rules (*fp-safe-simplify-rules*))
+    (parameterize ([*timeline-disabled* false])
+      (timeline-event! 'end))
     (test-failure test (bf-precision)
                   (- (current-inexact-milliseconds) start-time) (timeline-extract output-repr)
                   warning-log e))
@@ -150,12 +123,10 @@
 
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
-      (begin ; update state
-        (update-rules reprs-encountered rulesets all-rules simplify-rules fp-safe-rules)
+      (begin
         (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
-        (update-rules reprs-encountered rulesets all-rules simplify-rules fp-safe-rules)
         (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
 
 (define (dummy-table-row result status link)

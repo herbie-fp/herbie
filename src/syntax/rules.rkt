@@ -6,7 +6,7 @@
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
-                            *rulesets* generate-rules-for))
+                            *rulesets* generate-rules-for *templated-reprs*))
 
 ;; Rulesets
 (define *rulesets* (make-parameter '()))
@@ -35,17 +35,12 @@
 ;; Update parameters
 
 (define (update-rules rules groups)
-  (when (ormap (curry flag-set? 'rules) groups)
-    (all-rules (append (all-rules) rules))))
-
-(define (update-simplify-rules rules groups)
-  (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
-    (simplify-rules (append (simplify-rules) rules))))
-
-(define (update-fp-safe-simplify-rules rules groups)
-  (when (and (ormap (curry flag-set? 'rules) groups)
-             (set-member? groups 'fp-safe) (set-member? groups 'simplify))
-    (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))
+  (when (ormap (curry flag-set? 'rules) groups) ; update all
+    (all-rules (append (all-rules) rules))
+    (when (set-member? groups 'simplify) ; update simplify
+      (simplify-rules (append (simplify-rules) rules))  
+      (when (set-member? groups 'fp-safe)  ; update fp-safe
+        (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
@@ -65,10 +60,22 @@
 (register-reset
  #:priority 10 ; Must be higher than priority for pruning operators
  (λ ()
-   (*rulesets* 
+   (*rulesets*
     (for/list ([ruleset (*rulesets*)])
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
+
+(define (reprs-in-expr expr)
+  (remove-duplicates
+    (let loop ([expr expr])
+      (match expr
+      [(list 'if cond ift iff)
+        (append (loop cond) (loop ift) (loop iff))]
+      [(list op args ...)
+        (define itypes (operator-info op 'itype))
+        (append (if (list? itypes) itypes (list itypes))
+                (append-map loop args))]
+      [_ '()]))))
 
 (define (type-of-rule input output ctx)
   (cond   ; special case for 'if', return the 'type-of-rule' of the ift branch
@@ -106,10 +113,7 @@
       (match-define (list rname input output) r)
       (rule (gen-unique-rule-name rname) input output var-ctx 
             (type-of-rule input output var-ctx))))
-  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
-  (update-rules rules* groups)
-  (update-simplify-rules rules* groups)
-  (update-fp-safe-simplify-rules rules* groups))
+  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
       
 (define-syntax define-ruleset
   (syntax-rules ()
@@ -140,7 +144,8 @@
 ;; Templated rulesets defined by types. These are used to generate duplicate rules that
 ;; are valid in any representation of the same underlying type.
 
-(define templated-rulesets '()) ; one global list
+(define *templated-rulesets* (make-parameter '()))
+(define *templated-reprs* (make-parameter '()))
 
 (define-syntax define-ruleset*
   (syntax-rules ()
@@ -149,21 +154,41 @@
     [(_ name groups #:type ([var type] ...) [rname input output] ...)
      (begin
       (define name (list (rule 'rname 'input 'output '((var . type) ...) 'unknown) ...))
-      (set! templated-rulesets (cons (list name 'groups '((var . type) ...)) 
-                                     templated-rulesets)))]))
+      (*templated-rulesets* (cons (list name 'groups '((var . type) ...)) 
+                                  (*templated-rulesets*))))]))
 
-(define (sym-append . args)
-  (string->symbol (apply string-append (map ~s args))))
+;; Add existing rules in rulesets to 'active' rules
+
+(define (add-rules-from-rulesets repr)
+  (define repr-name (representation-name repr))
+  (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
+  (define valid? (curry set-member? (map representation-name (*reprs-with-rules*))))
+
+  (define (valid-rule r)
+    (define in-reprs (reprs-in-expr (rule-input r)))
+    (define out-reprs (reprs-in-expr (rule-output r)))
+    (define all-reprs (set-union (list (rule-otype r)) in-reprs out-reprs))
+    (and (andmap valid? all-reprs) (ormap (curry equal? repr-name) all-reprs)))
+
+  (for ([set (*rulesets*)])
+    (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
+    (when (andmap valid? types)
+      (define rules* (filter valid-rule rules))
+      (unless (empty? rules*)   ; only add the ruleset if it contains one
+        (update-rules rules* groups)))))
 
 ;; Generate a set of rules by replacing a generic type with a repr
-(define (generate-rules-for type repr-name)
-  (define repr (get-representation repr-name))
-  (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
-  (for ([set templated-rulesets]
+(define (generate-rules-for type repr)
+  (define repr-name (representation-name repr))
+  (define typename (type-name type))
+  (define valid? (disjoin (curry equal? typename)
+                          (curry set-member? (map representation-name (*reprs-with-rules*)))))
+  (*templated-reprs* (set-add (*templated-reprs*) repr)) ; update
+  (for ([set (reverse (*templated-rulesets*))] ; preserve rule order
        #:when (or (empty? (third set)) ; no type ctx
-                  (ormap (λ (p) (equal? (cdr p) type)) (third set))))
-    (match-define (list (list rules ...) (list groups ...) (list (cons vars types) ...)) set)
-    (define ctx (for/list ([v vars] [t types]) (cons v (if (equal? t type) repr-name t))))
+                  (andmap (λ (p) (valid? (cdr p))) (third set))))
+    (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
+    (define ctx (for/list ([v vars] [t types]) (cons v (if (equal? t typename) repr-name t))))
     (define var-reprs (for/list ([(var prec) (in-dict ctx)]) (cons var (get-representation prec))))
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
@@ -178,18 +203,16 @@
                     rules*)
               rules*))))      ; else, assume the expression(s) are not supported in the repr
     (unless (empty? rules*)   ; only add the ruleset if it contains one
-      (update-rules rules* groups)
-      (update-simplify-rules rules* groups)
-      (update-fp-safe-simplify-rules rules* groups))))
+      (*rulesets* (cons (list rules* groups ctx) (*rulesets*))))))
 
 ;; Generate rules for new reprs
 
 (define (generate-missing-rules)
-  (for ([repr (*needed-reprs*)] 
-       #:unless (or (set-member? (*reprs-with-rules*) repr)
-                    (equal? (representation-name repr) 'bool)))
-    (generate-rules-for (type-name (representation-type repr))
-                        (representation-name repr))))
+  (for ([repr (*needed-reprs*)])
+    (unless (set-member? (*templated-reprs*) repr)
+      (generate-rules-for (representation-type repr) repr))
+    (unless (set-member? (*reprs-with-rules*) repr)
+      (add-rules-from-rulesets repr))))
 
 ; Commutativity
 (define-ruleset* commutativity (arithmetic simplify fp-safe)

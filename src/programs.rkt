@@ -11,10 +11,11 @@
          expr-supports?
          location-hash
          location? expr?
-         location-do location-get
+         location-do location-get location-repr
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression
-         desugar-program resugar-program)
+         desugar-program resugar-program
+         apply-repr-change)
 
 (define expr? (or/c list? symbol? value? real?))
 
@@ -104,6 +105,26 @@
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))
+
+(define (location-repr loc prog repr var-reprs)
+  (let loop ([expr prog] [repr repr] [loc loc])
+    (cond
+     [(null? loc)
+      (get-representation
+        (if (operator? expr)
+            (operator-info expr 'otype)
+            (repr-of expr repr var-reprs)))]
+     [(not (pair? expr))
+      (error "Bad location: cannot enter " expr "any further.")]
+     [else
+      (match expr
+        [(list 'if cond ift iff)
+         (loop (list-ref expr (car loc)) repr (cdr loc))]
+        [(list (? operator? op) args ...)
+         (define ireprs (cons repr (map get-representation (operator-info op 'itype))))
+         (loop (list-ref expr (car loc)) (list-ref ireprs (car loc)) (cdr loc))]
+        [(list (or 'λ 'lambda) (list vars ...) body)
+         (loop (list-ref expr (car loc)) repr (cdr loc))])])))
 
 (define (eval-prog prog mode repr)
   (define f (batch-eval-progs (list prog) mode repr))
@@ -355,11 +376,13 @@
      (list 'if cond* ift* iff*)]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
      (define iprec (first (operator-info op 'itype)))
+     (define oprec (operator-info op 'otype))
      (define repr* (get-representation iprec))
      (define body* (expand-parametric-reverse body repr* full?))
-     (if full? 
-        `(cast (! :precision ,iprec ,body*))
-        `(,op ,body*))]
+     (cond
+      [(not full?) `(,op ,body*)]
+      [(list? body*) `(cast (! :precision ,iprec ,body*))]
+      [else body*])] ; constants and variables should not have casts and precision changes
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
@@ -413,3 +436,57 @@
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
       [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
+
+; Updates the repr of an expression if needed
+(define (apply-repr-change-expr expr)
+  (let loop ([expr expr] [prec #f])
+    (match expr
+     [(list (? repr-conv? op) body)
+      (define iprec (first (operator-info op 'itype)))
+      (define oprec (operator-info op 'otype))
+      (define prec* (if prec prec oprec))
+      (define body* (loop body iprec))
+      (cond
+       [(not body*) #f] ; propagate failed repr-change
+       [(equal? iprec prec*) body*] ; remove non-conversions
+       [else
+        (define new-conv (get-repr-conv iprec prec*)) ; try to find a single conversion
+        (if new-conv
+            (list new-conv body*)
+            (let ([second-conv (get-repr-conv oprec prec*)]) ; try a two-step conversion
+              (and second-conv (list second-conv (list op body*)))))])]
+     [(list (? rewrite-repr-op? op) body)
+      (define prec* (operator-info op 'otype))
+      (loop body prec*)]
+     [(list (? operator? op) args ...) 
+      (define prec* (if prec prec (operator-info op 'otype)))
+      (if (equal? (operator-info op 'otype) prec*)
+          (let ([args* (map loop args (operator-info op 'itype))])
+            (and (andmap identity args*) (cons op args*)))
+          (let ([op* (apply get-parametric-operator 
+                            (hash-ref parametric-operators-reverse op)
+                            (make-list (length args) prec*))]
+                [args* (map (curryr loop prec*) args)])
+            (and op* (andmap identity args*) (cons op* args*))))]
+     [(? variable?)
+      (define var-prec (representation-name (dict-ref (*var-reprs*) expr)))
+      (cond
+       [(equal? var-prec prec) expr]
+       [else ; insert a cast if the variable precision is not the same
+        (define cast (get-repr-conv var-prec prec))
+        (and cast (list cast expr))])]
+     [(? (curry hash-has-key? parametric-constants-reverse))
+      (define prec* (if prec prec (constant-info expr 'type)))
+      (if (equal? (constant-info expr 'type) prec*) ; update constants if precision no longer matches
+          expr
+          (let* ([c-unparam (hash-ref parametric-constants-reverse expr expr)]
+                 [c* (get-parametric-constant c-unparam prec)])
+            (if c*
+                c*
+                (let ([conv (get-repr-conv (constant-info expr 'type) prec*)])
+                  (and conv (list conv expr))))))] ; if constant does not exist in repr, add conversion
+     [_ expr])))
+      
+(define (apply-repr-change prog)
+  (match-define (list (and (or 'λ 'lambda) lam) (list args ...) body) prog)
+  `(,lam ,args ,(apply-repr-change-expr body)))
