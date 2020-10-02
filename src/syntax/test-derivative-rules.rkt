@@ -28,6 +28,7 @@
   (define small `(*
     (* (+ x (tan x)) (+ x (tan x)))
     (* (+ x (tan x)) (+ x (tan x)))))
+
   (define derivatives
           `(((d a a) . 1) 
             ((d y x) . 0)
@@ -58,7 +59,7 @@
              . 0)
             ((subst (d (d (d (d (pow (+ x (tan x)) 4) x) x) x) x) x 0)
              . 384)
-            #;((lim 
+            ((lim 
                 (d ,big x)
                 (d ,small x)
                0
@@ -71,7 +72,7 @@
              . -1/2)
             ((subst (/ (* 2 (pow x 2)) (pow x 2)) x 0)
              . 2)
-            ((lim (* 18 (pow x 10)) (pow x 4) 0 0 x 0)
+            ((subst (/ (* 2 (pow x 10)) (pow x 7)) x 0)
              . 0)
             ))
 
@@ -89,9 +90,9 @@
         (desugar-program (car pair) (*output-repr*) var-reprs #:full #f)
         (desugar-program (cdr pair) (*output-repr*) var-reprs #:full #f))))
 
-  (pretty-print derivatives-in-repr)
+  #;(pretty-print derivatives-in-repr)
 
-  (for ([rule (*differentiation-rules*)])
+  #;(for ([rule (*differentiation-rules*)])
     (println (format "~a     ~a" (rule-input rule) (rule-output rule))))
 
   (for ([pair derivatives-in-repr])
