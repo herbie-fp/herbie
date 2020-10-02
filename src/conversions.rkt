@@ -42,7 +42,6 @@
       (list
         (list rulename 'a  `(,conv (,repr-rewrite a)))))))
 
-
 (define (generate-conversions convs)
   (define reprs
     (for/fold ([reprs '()]) ([conv convs])
@@ -50,7 +49,5 @@
       (define prec2 (last conv))
       (generate-conversion-1way prec1 prec2)
       (generate-conversion-1way prec2 prec1)
-      (define repr1 (get-representation prec1))
-      (define repr2 (get-representation prec2))
-      (set-union reprs (list repr1 repr2))))
+      (set-union reprs (list (get-representation prec1) (get-representation prec2)))))
   (*needed-reprs* (set-union reprs (*needed-reprs*))))

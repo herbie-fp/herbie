@@ -18,8 +18,6 @@
 (define *unknown-d-ops* (make-parameter '()))
 (define *unknown-f-ops* (make-parameter '()))
 
-(define *loaded-ops* (make-parameter '()))
-
 ;; Constants's values are defined as functions to allow them to
 ;; depend on (bf-precision) and (flag 'precision 'double).
 
@@ -139,8 +137,10 @@
     (table-ref operators operator field)))
 
 (define (operator-remove! operator)
-  (table-remove! operators operator)
-  (*loaded-ops* (set-remove (*loaded-ops*) operator)))
+  (table-remove! operators operator))
+
+(define (*loaded-ops*)
+  (hash-keys parametric-operators-reverse))
 
 (register-reset
  (λ ()
@@ -149,7 +149,6 @@
        (operator-remove! op)))))
 
 (define (register-operator! operator name atypes rtype attrib-dict)
-  (*loaded-ops* (cons name (*loaded-ops*)))
   (table-set! operators name
               (make-hash (append (list (cons 'itype atypes) (cons 'otype rtype)) attrib-dict)))
   (hash-update! parametric-operators operator 

@@ -2,7 +2,7 @@
 (require profile math/bigfloat racket/engine json)
 (require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "profile.rkt"
+         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
          (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
@@ -28,35 +28,15 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-;; Here's the dilemma: There are a few parameters that are updated within the mainloop. However,
-;; the mainloop runs in a separate thread and thus the parameters are reset after every run.
-;; This is a messy fix to save the parameters, but it seems to defeat the purpose of parameters.
-;; Is it better to not to use parameters? What happens if Herbie is run with multithreading?
-;; TODO: someone with beter knowledge of Racket threads / parameters, please fix
-(define (restore-state rulesets templated-reprs unknown-d-ops unknown-f-ops loaded-ops)
-  (*rulesets* rulesets)
-  (*templated-reprs* templated-reprs)
-  (*unknown-d-ops* unknown-d-ops)
-  (*unknown-f-ops* unknown-f-ops)
-  (*loaded-ops* loaded-ops))
-
 (define (get-test-result test
                          #:seed [seed #f]
                          #:profile [profile? #f]
                          #:debug [debug? #f]
                          #:debug-port [debug-port #f]
                          #:debug-level [debug-level #f])
-
   (define timeline #f)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
-
-  (define rulesets '())
-  (define templated-reprs '())
-  (define unknown-d-ops '())
-  (define unknown-f-ops '())
-  (define loaded-ops '())
-
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 
   (define (compute-result test)
@@ -77,13 +57,6 @@
                        #:precondition (test-precondition test)
                        #:specification (test-specification test)
                        #:precision output-prec))
-
-        ; Store parameters
-        (set! rulesets (*rulesets*))
-        (set! templated-reprs (*templated-reprs*))
-        (set! unknown-d-ops (*unknown-d-ops*))
-        (set! unknown-f-ops (*unknown-f-ops*))
-        (set! loaded-ops (*loaded-ops*))
 
         (define context (*pcontext*))
         (when seed (set-seed! seed))
@@ -132,12 +105,6 @@
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
-    ; Store parameters on failure
-    (set! rulesets (*rulesets*))
-    (set! templated-reprs (*templated-reprs*))
-    (set! unknown-d-ops (*unknown-d-ops*))
-    (set! unknown-f-ops (*unknown-f-ops*))
-    (set! loaded-ops (*loaded-ops*))
     (parameterize ([*timeline-disabled* false])
       (timeline-event! 'end))
     (test-failure test (bf-precision)
@@ -157,11 +124,9 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (begin
-        (restore-state rulesets templated-reprs unknown-d-ops unknown-f-ops loaded-ops)
         (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
-        (restore-state rulesets templated-reprs unknown-d-ops unknown-f-ops loaded-ops)
         (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
 
 (define (dummy-table-row result status link)
