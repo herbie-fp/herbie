@@ -58,7 +58,7 @@
              . 0)
             ((subst (d (d (d (d (pow (+ x (tan x)) 4) x) x) x) x) x 0)
              . 384)
-            ((lim 
+            #;((lim 
                 (d ,big x)
                 (d ,small x)
                0
@@ -69,10 +69,10 @@
             
             ((subst (d (d (/ (+ x (sin x)) (+ x (tan x))) x) x) x 0)
              . -1/2)
-            ;; This next one doesn't work- the reason is the derivative of pow involves a constant division by zero
-            ;; The division by zero could be eliminated by simplify, but the simplify quits early due to an unsound union
-            #;((subst (/ (* 2 (pow x 2)) (pow x 2)) x 0)
+            ((subst (/ (* 2 (pow x 2)) (pow x 2)) x 0)
              . 2)
+            ((lim (* 18 (pow x 10)) (pow x 4) 0 0 x 0)
+             . 0)
             ))
 
 
@@ -88,6 +88,8 @@
       (cons
         (desugar-program (car pair) (*output-repr*) var-reprs #:full #f)
         (desugar-program (cdr pair) (*output-repr*) var-reprs #:full #f))))
+
+  (pretty-print derivatives-in-repr)
 
   (for ([rule (*differentiation-rules*)])
     (println (format "~a     ~a" (rule-input rule) (rule-output rule))))
