@@ -274,7 +274,7 @@
   (cond
     [(list? expr)
       (or
-        (set-member? fake-operators expr)
+        (set-member? fake-operators (first expr))
         (and (equal? (substring (symbol->string (first expr)) 0 1) "/")
              (equal? (third expr) 0))
         (ormap derivative-failed? (rest expr)))]
@@ -690,4 +690,6 @@
 
 (module+ test
   (require rackunit)
+  (check-equal? (derivative-failed? `(/ 2 (subst 2 x 0))) #t)
+  (check-equal? (derivative-failed? `(/ 2 0)) #t)
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
