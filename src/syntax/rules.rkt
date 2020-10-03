@@ -788,16 +788,31 @@
 
 
 (define-ruleset* light-simplification (derivative)
-  #:type ([x real] [y real] [z real] [h real])
-  [light-times-zero  (* 0 x)              0]
-  [light-simplify1   (* x 0)              0] 
-  [light-simplify2   (+ x 0)              x]
-  [light-simplify2   (+ 0 x)              x]
-  [light-simplify2   (- x 0)              x]
-  [light-simplify2   (- 0 x)              (neg x)]
-  [neg-neg           (neg (neg x))        x]
-  [light-simplify3   (* 1 x)              x]
-  [light-simplify3   (* x 1)              x])
+  #:type ([x real] [y real] [z real] [a real] [b real] [h real])
+  [light-times-zero        (* 0 x)              0]
+  [light-simplify1         (* x 0)              0]
+  [light-divide-1          (/ x 1)              x] 
+  [light-simplify2         (+ x 0)              x]
+  [light-simplify2         (+ 0 x)              x]
+  [light-simplify2         (- x 0)              x]
+  [light-simplify2         (- 0 x)              (neg x)]
+  [light-cancel-div        (* a (/ x a))        x]
+  [light-to-pow            (* x x)              (pow x 2)]
+  [light-pow-bump-l        (* (pow x a) x)      (pow x (+ a 1))]
+  [light-pow-bump-r        (* x (pow x a))      (pow x (+ a 1))]
+  [light-pow-combine       (* (pow x a) (pow x b)) (pow x (+ a b))]
+  [neg-neg                 (neg (neg x))        x]
+  [light-simplify3         (* 1 x)              x]
+  [light-simplify3         (* x 1)              x]
+  [consolidate-/-/-b       (/ a (/ x y))        (/ (* a y) x)]
+  [consolidate-/-/-b       (/ (/ x y) a)        (/ x (* a y))]
+  [consolidate-+-/r        (+ (/ y z) x)        (/ (+ (* x z) y) z)]
+  [consolidate-+-/l        (+ x (/ y z))        (/ (+ (* x z) y) z)]
+  [consolidate-+-/         (+ (/ x y) (/ a b))  (/ (+ (* x b) (* a y)) (* y b))]
+  [consolidate---/r        (- (/ y z) x)        (/ (- y (* x z)) z)]
+  [consolidate---/l        (- x (/ y z))        (/ (- (* x z) y) z)]
+  [consolidate---/         (- (/ x y) (/ a b))  (/ (- (* x b) (* a y)) (* y b))])
+  
 
 ;; subst is of the form (subst expression variable value)
 ;; limit is of the form (limit numerator denominator

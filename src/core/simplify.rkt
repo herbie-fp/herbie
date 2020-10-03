@@ -41,10 +41,8 @@
 
   (define differentiation-result
     (simplify-batch exprs #:rules (append (*trig-reduce-rules*) (*differentiation-rules*)) #:precompute true))
-  (map convert-try-/
-    (simplify-batch
-        (map convert-try-/ differentiation-result)
-        #:rules (*simplify-rules*) #:precompute true)))
+
+  (map convert-try-/ differentiation-result))
 
 (define (convert-try-/ expr)
   (cond
