@@ -40,7 +40,7 @@
   (-> (listof expr?) expr?)
 
   (define differentiation-result
-    (parameterize ([*node-limit* (* (*node-limit*) 10)])
+    (parameterize ([*node-limit* (* (*node-limit*) 20)])
       (simplify-batch exprs #:rules (append (*trig-reduce-rules*) (*differentiation-rules*)) #:precompute true)))
 
   (map convert-try-/ differentiation-result))
@@ -48,7 +48,8 @@
 (define (convert-try-/ expr)
   (cond
     [(list? expr)
-     (if (equal? (first expr) 'try-/)
+     (if (and (> (string-length (symbol->string (first expr))) 4)
+              (equal? (substring (symbol->string (first expr)) 0 5) "try-/"))
          (list (binary-op-with-repr '/ (third expr))
                (convert-try-/ (third expr))
                (convert-try-/ (fourth expr)))

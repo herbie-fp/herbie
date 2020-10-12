@@ -62,7 +62,7 @@
    [(list 'try-/ a sub1 sub2 hist) (repr-of a repr env)]
    [(list 'took-substitution hist var value) (repr-of value repr env)]
    [(list 'took-derivative hist var) (repr-of var repr env)]
-   [(list 'lim num denom cnum cdenom var val) (repr-of num repr env)]
+   [(list 'lim div cnum cdenom var val approx-count) (repr-of div repr env)]
    [(list op args ...) (operator-info op 'otype)]))
 
 ;; Converting constants
@@ -321,14 +321,14 @@
          (define-values (var* _b) (loop var prec))
          (define-values (value* _c) (loop value prec))
          (values (list 'subst term* var* value*) rtype)]
-        [(list 'lim numerator denominator subst1 subst2 var value)
-         (define-values (num* rtype) (loop numerator prec))
-         (define-values (denom* _a) (loop denominator prec))
+        [(list 'lim div subst1 subst2 var value approx-count)
+         (define-values (div* rtype) (loop div prec))
          (define-values (subst1* _b) (loop subst1 prec))
          (define-values (subst2* _c) (loop subst2 prec))
          (define-values (var* _d) (loop var prec))
          (define-values (value* _e) (loop value prec))
-         (values (list 'lim num* denom* subst1* subst2* var* value*) rtype)]
+         (define-values (approx* _a) (loop approx-count prec))
+         (values (list 'lim div* subst1* subst2* var* value* approx*) rtype)]
         [(list 'try-/ original subst1 subst2 hist)
          (define-values (original* rtype) (loop original prec))
          (define-values (subst1* _b) (loop subst1 prec))

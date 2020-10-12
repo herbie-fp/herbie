@@ -814,56 +814,25 @@
 ;; try-/ is of the form (try-/ original-expr numerator denominator substitution-and-derivative-hist)
 (define-ruleset* substitution (derivative)
   #:type ([a real] [b real] [c real] [d real] [h real] [x real] [y real])
-  [subst-variable        (subst a a x)          x]
-  [subst-try-/           (subst (/ a b) x y)    (try-/ a (subst a x y) (subst b x y) (took-substitution 0 x y))]
-  [subst-in-try-/        (subst (try-/ a c d h) x y)
-                                                (try-/ a (subst c x y) (subst d x y) (took-substitution h x y))]
-  [subst-to-limit        (subst (/ a b) x y)    (lim a b (subst a x y) (subst b x y) x y)]
+  
+  [subst-expr            (subst a x y)          0] ;; rule in rust- extract and perform substitution
+  [subst-to-limit        (subst (/ a b) x y)    (lim (/ a b) (subst a x y) (subst b x y) x y 0)]
   [subst-try-to-limit    (subst (try-/ a c d h) x y)
-                                                (lim c d
+                                                (lim (/ c d)
                                                      (subst c x y) (subst d x y)
-                                                     x y)]
-  [limit-indefinite-zero (lim a b 0 0 x y)      (lim (d a x) (d b x)
-                                                     (subst (d a x) x y)
-                                                     (subst (d b x) x y)
-                                                     x y)])
+                                                     x y 0)]
+  [limit-indefinite-zero (lim (/ a b) 0 0 x y c)      (lim (/ (d a x) (d b x))
+                                                           (subst (d a x) x y)
+                                                           (subst (d b x) x y)
+                                                           x y c)]
+  [limit-approximate     (lim (/ a b) d 0 x y c)     (lim (/ a (d b x))
+                                                          (subst a x y)
+                                                          (subst (d b x) x y)
+                                                          x y (+ c 1))];; condition in rust: d constant, d != 0
+  [limit-evaluate        (lim h       a b x y c)     (* (/ a b) (/ 1 (pow x c)))];; condition in rust: b constant, b != 0
+  )
 
 (define fake-operators
   (set 'd 'lim 'try-/ 'subst 'took-substitution 'took-derivative))
 
-;; generate substitution rules for all operators other than differentiation and subst
-(define (generate-subst-in-rule op-name num-children)
-  (when (> num-children 20)
-        (error "operator with too many children"))
-  (define rule-match
-    (cons op-name
-          (for/list ([n (in-range 97 (+ 97 num-children))])
-                    (string->symbol (string (integer->char n))))))
-  (define rule-rewrite
-    (cons op-name
-          (for/list ([s (rest rule-match)])
-            (list `subst s `y `z))))
-  
-  (list (string->symbol (string-append "subst-in-" (symbol->string op-name)))
-        `(subst ,rule-match y z)
-        rule-rewrite))
-
-(define subst-in-rules
-  (apply
-    append
-    (for/list ([op-name (table-keys operators)]
-               #:when (and (not (set-member? fake-operators op-name))
-                           (not (equal? (substring (symbol->string op-name) 0 1) "/"))))
-      (define itype (table-ref operators op-name 'itype))
-      (cond
-        [(list? itype)
-         (list (generate-subst-in-rule op-name (length itype)))]
-        [else ;; for v-ary functions, generate matches for the first 3 number of args
-         (list
-              (generate-subst-in-rule op-name 1)
-              (generate-subst-in-rule op-name 2)
-              (generate-subst-in-rule op-name 3))]))))
-
-(register-ruleset! "subst-in-rules" '(derivative)
-                   (list (cons 'a 'real) (cons 'b 'real)) subst-in-rules)
 

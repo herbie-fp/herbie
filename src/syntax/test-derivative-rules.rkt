@@ -3,32 +3,7 @@
 (module+ test (require rackunit)
               (require "rules.rkt" "../programs.rkt" "../core/simplify.rkt" "../interface.rkt"))
 
-
-
 (module+ test
-  (define big `(*
-     (+ x (tan x))
-     (-
-      (*
-       (+ x (tan x))
-       (-
-        (*
-         (+ x (sin x))
-         (/
-          (* (* (sin x) (cos x)) -2)
-          (pow (cos x) 4)))
-        (* (+ x (tan x)) (sin x))))
-      (*
-       (-
-        (* (+ x (tan x)) (+ 1 (cos x)))
-        (*
-         (+ 1 (/ 1 (pow (cos x) 2)))
-         (+ x (sin x))))
-       (+ 2 (/ 2 (pow (cos x) 2)))))))
-  (define small `(*
-    (* (+ x (tan x)) (+ x (tan x)))
-    (* (+ x (tan x)) (+ x (tan x)))))
-
   (define derivatives
           `(((d a a) . 1) 
             ((d y x) . 0)
@@ -60,14 +35,6 @@
              . 0)
             ((subst (d (d (d (d (pow (+ x (tan x)) 4) x) x) x) x) x 0)
              . 384)
-            ((lim 
-                (d ,big x)
-                (d ,small x)
-               0
-               0
-               x
-               0)
-              . -1/2)
             
             ((subst (d (d (/ (+ x (sin x)) (+ x (tan x))) x) x) x 0)
              . -1/2)
@@ -81,9 +48,11 @@
              . x)
             ((subst (d (- (/ 1 x) (/ 1 (tan x))) x) x 0)
              . 1/3)
-            ;; problematic expression- the limit seems also to be 0 and we don't find taylor expansion
-            #;((subst (d (d (d (- (/ 1 x) (/ 1 (tan x))) x) x) x) x 0)
-             . 1/3)
+
+            ;; here we approximate the third derivative
+            ((subst (d (d (d (- (/ 1 x) (/ 1 (tan x))) x) x) x) x 0)
+             . 18/23)
+            
             ))
 
 
@@ -103,7 +72,7 @@
   #;(pretty-print derivatives-in-repr)
 
   #;(for ([rule (*differentiation-rules*)])
-    (println (format "~a     ~a" (rule-input rule) (rule-output rule))))
+    (println (format "~a  ~a     ~a" (rule-name rule) (rule-input rule) (rule-output rule))))
 
   (for ([pair derivatives-in-repr])
        (check-equal? (differentiate-expr (car pair)) (cdr pair))))
