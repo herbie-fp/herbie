@@ -40,7 +40,7 @@
   (-> (listof expr?) expr?)
 
   (define differentiation-result
-    (parameterize ([*node-limit* (* (*node-limit*) 20)])
+    (parameterize ([*node-limit* (* (*node-limit*) 5)])
       (simplify-batch exprs #:rules (append (*trig-reduce-rules*) (*differentiation-rules*)) #:precompute true)))
 
   (map convert-try-/ differentiation-result))

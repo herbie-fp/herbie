@@ -794,6 +794,7 @@
   [light-divide-1          (/ x 1)              x] 
   [light-simplify2         (+ x 0)              x]
   [light-cancel-div        (* a (/ x a))        x]
+  [light-pow-1             (pow x 1)            x]
   [light-to-pow            (* x x)              (pow x 2)]
   [light-pow-bump-l        (* (pow x a) x)      (pow x (+ a 1))]
   [light-pow-bump-r        (* x (pow x a))      (pow x (+ a 1))]
@@ -825,7 +826,7 @@
                                                            (subst (d a x) x y)
                                                            (subst (d b x) x y)
                                                            x y c)]
-  [limit-approximate     (lim (/ a b) d 0 x y c)     (lim (/ a (d b x))
+  #;[limit-approximate     (lim (/ a b) d 0 x y c)     (lim (/ a (d b x))
                                                           (subst a x y)
                                                           (subst (d b x) x y)
                                                           x y (+ c 1))];; condition in rust: d constant, d != 0
