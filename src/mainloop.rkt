@@ -89,7 +89,7 @@
 (define (list-alts)
   (printf "Key: [.] = done, [>] = chosen\n")
   (let ([ndone-alts (atab-not-done-alts (^table^))])
-    (for ([alt (atab-all-alts (^table^))]
+    (for ([alt (atab-active-alts (^table^))]
 	  [n (in-naturals)])
       (printf "~a ~a ~a\n"
        (cond [(equal? alt (^next-alt^)) ">"]
@@ -105,9 +105,9 @@
 
 ;; Begin iteration
 (define (choose-alt! n)
-  (unless (< n (length (atab-all-alts (^table^))))
+  (unless (< n (length (atab-active-alts (^table^))))
     (raise-user-error 'choose-alt! "Couldn't select the ~ath alt of ~a (not enough alts)"
-                      n (length (atab-all-alts (^table^)))))
+                      n (length (atab-active-alts (^table^)))))
   (define-values (picked table*)
     (atab-pick-alt (^table^) #:picking-func (curryr list-ref n) #:only-fresh #f))
   (^next-alt^ picked)
@@ -312,10 +312,10 @@
   (timeline-event! 'prune)
   (define new-alts (^children^))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
-  (define orig-done-alts (set-subtract (atab-all-alts (^table^)) (atab-not-done-alts (^table^))))
+  (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
   (^table^ (atab-add-altns (^table^) (^children^) (*output-repr*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
-  (define final-done-alts (set-subtract (atab-all-alts (^table^)) (atab-not-done-alts (^table^))))
+  (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
   (timeline-log! 'inputs (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts)))
   (timeline-log! 'outputs (+ (length final-fresh-alts) (length final-done-alts)))
@@ -404,7 +404,7 @@
                #:precision precision)
   (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
   (when (flag-set? 'setup 'simplify)
-    (^children^ (atab-all-alts (^table^)))
+    (^children^ (atab-active-alts (^table^)))
     (simplify!)
     (finalize-iter!))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
