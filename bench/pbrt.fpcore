@@ -1,0 +1,30 @@
+(FPCore (cosTheta_i cosTheta_O sinTheta_i sinTheta_O v)
+ :name "hair, Mp, upper"
+ :precision binary32
+ :pre (and (<= -1 cosTheta_i 1) (<= -1 cosTheta_O 1)
+           (<= -1 sinTheta_i 1) (<= -1 sinTheta_O 1)
+           (> v 0.1))
+ (let ([a (/ (* cosTheta_i cosTheta_O) v)]
+       [b (/ (* sinTheta_i sinTheta_O) v)])
+  (/ (* (exp (- b)) a) (* (sinh (/ 1 v)) 2 v))))
+
+(FPCore (cosTheta_i cosTheta_O sinTheta_i sinTheta_O v)
+ :name "hair, Mp, lower"
+ :precision binary32
+ :pre (and (<= -1 cosTheta_i 1) (<= -1 cosTheta_O 1)
+           (<= -1 sinTheta_i 1) (<= -1 sinTheta_O 1)
+           (<= v 0.1))
+ (let ([a (/ (* cosTheta_i cosTheta_O) v)]
+       [b (/ (* sinTheta_i sinTheta_O) v)])
+  (exp (+ (- a b (/ 1 v)) 0.6931f0 (log (/ 1 (* 2 v)))))))
+
+
+(FPCore (sinTheta_O h eta)
+ :name "hair, gamma for a refracted ray"
+ :precision binary32
+ :pre (and (<= -1 sinTheta_O 1)
+           (<= -1 h 1)
+           (<= 0 eta 10))
+ (let* ([sqr_sinTheta_O (* sinTheta_O sinTheta_O)]
+        [cosThetaO (sqrt (- 1 sqr_sinTheta_O))])
+  (asin (/ h (sqrt (- (* eta eta) (/ sqr_sinTheta_O cosThetaO)))))))
