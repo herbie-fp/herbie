@@ -420,7 +420,8 @@
   (define joined-alt
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
-           (equal? (type-name (representation-type repr)) 'real))
+           (equal? (type-name (representation-type repr)) 'real)
+           (not (null? (program-variables (alt-program (car all-alts))))))
       (timeline-event! 'regimes)
       (define option (infer-splitpoints all-alts repr))
       (timeline-event! 'bsearch)
