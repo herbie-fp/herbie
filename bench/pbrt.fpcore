@@ -28,3 +28,52 @@
  (let* ([sqr_sinTheta_O (* sinTheta_O sinTheta_O)]
         [cosThetaO (sqrt (- 1 sqr_sinTheta_O))])
   (asin (/ h (sqrt (- (* eta eta) (/ sqr_sinTheta_O cosThetaO)))))))
+
+;; Light sampling functions
+
+(FPCore (ux uy maxCos)
+ :name "UniformSampleCone, x"
+ :precision binary32
+ :pre (and (<= 0 ux 1)
+           (<= 0 uy 1)
+           (<= 0 maxCos 1))
+ (let* ([cosTheta (+ (- 1 ux) (* ux maxCos))]
+        [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
+        [phi (* uy 2 PI)])
+  (* (cos phi) sinTheta)))
+
+(FPCore (ux uy maxCos)
+ :name "UniformSampleCone, y"
+ :precision binary32
+ :pre (and (<= 0 ux 1)
+           (<= 0 uy 1)
+           (<= 0 maxCos 1))
+ (let* ([cosTheta (+ (- 1 ux) (* ux maxCos))]
+        [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
+        [phi (* uy 2 PI)])
+  (* (sin phi) sinTheta)))
+
+(FPCore (ux uy maxCos)
+ :name "UniformSampleCone, z"
+ :precision binary32
+ :pre (and (<= 0 ux 1)
+           (<= 0 uy 1)
+           (<= 0 maxCos 1))
+ (let* ([cosTheta (+ (- 1 ux) (* ux maxCos))]
+        [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
+        [phi (* uy 2 PI)])
+  cosTheta))
+
+;; Unsure on reasonable bounds for xi, yi, zi
+(FPCore (xi yi zi ux uy maxCos)
+ :name "UniformSampleCone 2"
+ :precision binary32
+ :pre (and (<= -1e4 xi 1e4) (<= -1e4 yi 1e4) (<= -1e4 zi 1e4)
+           (<= 0 ux 1) (<= 0 uy 1)
+           (<= 0 maxCos 1))
+ (let* ([cosTheta (+ (* (- 1 ux) maxCos ux))] ; (lerp ux maxCos 1)
+        [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
+        [phi (* uy 2 PI)])
+  (+ (* (cos phi) sinTheta xi)
+     (* (sin phi) sinTheta yi)
+     (* cosTheta zi))))
