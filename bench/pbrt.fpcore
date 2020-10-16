@@ -77,3 +77,75 @@
   (+ (* (cos phi) sinTheta xi)
      (* (sin phi) sinTheta yi)
      (* cosTheta zi))))
+
+(FPCore (normAngle u n0_i n1_i)
+ :name "Curve intersection, scale width based on ribbon orientation"
+ :precision binary32
+ :pre (and (<= 0 normAngle (/ PI 2))
+           (<= 0 n0_i 1) (<= 0 n1_i 1)
+           (<= 0 u 1))
+ (let* ([invSinNormAngle (/ 1 (sin normAngle))]
+        [sin0 (* (sin (* (- 1 u) normAngle)) invSinNormAngle)]
+        [sin1 (* (sin (* u normAngle)) invSinNormAngle)])
+  (+ (* sin0 n0_i) (* sin1 n1_i))))
+
+(FPCore (x tau)
+ :name "Lanczos kernel"
+ :precision binary32
+ :pre (and (<= 1e-5 x 1) (<= 1 tau 5))
+ (let ([xp (* x PI)])
+  (* (/ (sin (* xp tau)) (* xp tau))
+     (/ (sin xp) xp))))
+
+(FPCore (cosTheta_i u1 u2)
+ :name "Beckmann Sampler, near normal, slope_x"
+ :precision binary32
+ :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
+           (<= 0 u1 1) (<= 0 u2 1))
+ (let ([r (sqrt (- (log (- 1 u1))))]
+       [sinPhi (sin (* 2 PI u2))]
+       [cosPhi (cos (* 2 PI u2))])
+  (* r cosPhi)))
+
+(FPCore (cosTheta_i u1 u2)
+ :name "Beckmann Sampler, near normal, slope_y"
+ :precision binary32
+ :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
+           (<= 0 u1 1) (<= 0 u2 1))
+ (let ([r (sqrt (- (log (- 1 u1))))]
+       [sinPhi (sin (* 2 PI u2))]
+       [cosPhi (cos (* 2 PI u2))])
+  (* r sinPhi)))
+
+(FPCore (cosTheta_i u1 u2)
+ :name "Trowbridge-Reitz Sampler, near normal, slope_x"
+ :precision binary32
+ :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
+           (<= 0 u1 1) (<= 0 u2 1))
+ (let ([r (sqrt (/ u1 (- 1 u1)))]
+       [phi (* 6.28318530718 u2)])
+  (* r (cos phi))))
+
+(FPCore (cosTheta_i u1 u2)
+ :name "Trowbridge-Reitz Sampler, near normal, slope_y"
+ :precision binary32
+ :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
+           (<= 0 u1 1) (<= 0 u2 1))
+ (let ([r (sqrt (/ u1 (- 1 u1)))]
+       [phi (* 6.28318530718 u2)])
+  (* r (sin phi))))
+
+(FPCore (u0 u1 alphax alphay)
+ :name "Trowbridge-Reitz Sampler, sample surface normal, cosTheta"
+ :precision binary32
+ :pre (and (<= 0 u0 1) (<= 0 u1 0.5)
+           (<= 0.0001 alphax 1)
+           (<= 0.0001 alphay 1))
+ (let* ([phi (atan (* (/ alphay alphax) (tan (+ (* 2 PI u1) (* 0.5 PI)))))]
+        [sinPhi (sin phi)]
+        [cosPhi (cos phi)]
+        [alphax2 (* alphax alphax)]
+        [alphay2 (* alphay alphay)]
+        [alpha2 (/ 1 (+ (/ (* cosPhi cosPhi) alphax2) (/ (* sinPhi sinPhi) alphay2)))]
+        [tanTheta2 (/ (* alpha2 u0) (- 1 u0))])
+  (/ 1 (sqrt (+ 1 tanTheta2)))))
