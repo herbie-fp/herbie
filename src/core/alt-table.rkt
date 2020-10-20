@@ -136,13 +136,8 @@
      (values pnt (point-rec berr (min (alt-cost altn) cost) (cons altn altns))))
    #:combine (λ (a b) b)))
 
-(define (expr-cost expr)
-  (if (list? expr)
-      (apply + 1 (map expr-cost (cdr expr)))
-      1))
-
-(define (alt-cost prog)
-  (expr-cost (program-body (alt-program prog))))
+(define (alt-cost altn)
+  (program-cost (alt-program altn)))
 
 (define (minimize-alts atab)
   (define (get-essential pnts->alts)
