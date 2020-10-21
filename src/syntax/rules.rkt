@@ -35,12 +35,11 @@
 ;; Update parameters
 
 ;; Note on rules
-;; fp-safe-nan-simplify ⊂ fp-safe-simplify ⊂ simplify ⊂ all
+;; fp-safe-simplify ⊂ simplify ⊂ all
 ;;
 ;; all                    requires at least one tag of an active group of rules
 ;; simplify               same req. as all + 'simplify' tag
 ;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag       ('fp-safe' does not imply 'simplify')
-;; fp-safe-nan-simplify   same req. as simplify + 'fp-safe-nan' tag   ('fp-safe-nan' does imply 'fp-safe' but not 'simplify')
 ;;
 
 (define (update-rules rules groups)
@@ -48,7 +47,7 @@
     (all-rules (append (all-rules) rules))
     (when (set-member? groups 'simplify) ; update simplify
       (simplify-rules (append (simplify-rules) rules))  
-      (when (not (set-empty? (set-intersect groups (list 'fp-safe 'fp-safe-nan))))  ; update fp-safe
+      (when (set-member? groups 'fp-safe) ; update fp-safe
         (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
