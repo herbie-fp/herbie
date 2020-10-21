@@ -34,12 +34,21 @@
 
 ;; Update parameters
 
+;; Note on rules
+;; fp-safe-nan-simplify ⊂ fp-safe-simplify ⊂ simplify ⊂ all
+;;
+;; all                    requires at least one tag of an active group of rules
+;; simplify               same req. as all + 'simplify' tag
+;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag       ('fp-safe' does not imply 'simplify')
+;; fp-safe-nan-simplify   same req. as simplify + 'fp-safe-nan' tag   ('fp-safe-nan' does imply 'fp-safe' but not 'simplify')
+;;
+
 (define (update-rules rules groups)
   (when (ormap (curry flag-set? 'rules) groups) ; update all
     (all-rules (append (all-rules) rules))
     (when (set-member? groups 'simplify) ; update simplify
       (simplify-rules (append (simplify-rules) rules))  
-      (when (set-member? groups 'fp-safe)  ; update fp-safe
+      (when (not (set-empty? (set-intersect groups (list 'fp-safe 'fp-safe-nan))))  ; update fp-safe
         (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
@@ -368,7 +377,7 @@
   [rem-square-sqrt   (* (sqrt x) (sqrt x))     x]
   [rem-sqrt-square   (sqrt (* x x))     (fabs x)])
 
-(define-ruleset* squares-reduce-fp-sound (arithmetic simplify fp-sound)
+(define-ruleset* squares-reduce-fp-sound (arithmetic simplify fp-safe)
   #:type ([x real])
   [sqr-neg           (* (neg x) (neg x))        (* x x)]
   [sqr-abs           (* (fabs x) (fabs x))      (* x x)])
@@ -491,7 +500,7 @@
   [pow1/3           (cbrt a)                    (pow a 1/3)]
   [pow3             (* (* a a) a)               (pow a 3)])
 
-(define-ruleset* pow-transform-fp-safe-nan (exponents fp-safe-nan)
+(define-ruleset* pow-transform-fp-safe-nan (exponents simplify fp-safe-nan)
   #:type ([a real])
   [pow-base-0       (pow 0 a)                   0])
 
@@ -505,9 +514,7 @@
   [log-prod     (log (* a b))       (+ (log a) (log b))]
   [log-div      (log (/ a b))       (- (log a) (log b))]
   [log-rec      (log (/ 1 a))       (neg (log a))]
-  [log-pow      (log (pow a b))     (* b (log a))])
-
-(define-ruleset* log-distribute-fp-safe (exponents simplify)
+  [log-pow      (log (pow a b))     (* b (log a))]
   [log-E        (log E)             1])
 
 (define-ruleset* log-factor (exponents)
@@ -609,7 +616,7 @@
   [tan-hang-m  (tan (/ (- a b) 2))
                (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))])
 
-(define-ruleset* trig-expand-fp-safe (trignometry)
+(define-ruleset* trig-expand-fp-safe (trignometry fp-safe)
   #:type ([x real])
   [sqr-sin-b   (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
   [sqr-cos-b   (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))])
