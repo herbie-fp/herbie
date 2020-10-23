@@ -34,12 +34,20 @@
 
 ;; Update parameters
 
+;; Note on rules
+;; fp-safe-simplify ⊂ simplify ⊂ all
+;;
+;; all                    requires at least one tag of an active group of rules
+;; simplify               same req. as all + 'simplify' tag
+;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag       ('fp-safe' does not imply 'simplify')
+;;
+
 (define (update-rules rules groups)
   (when (ormap (curry flag-set? 'rules) groups) ; update all
     (all-rules (append (all-rules) rules))
     (when (set-member? groups 'simplify) ; update simplify
       (simplify-rules (append (simplify-rules) rules))  
-      (when (set-member? groups 'fp-safe)  ; update fp-safe
+      (when (set-member? groups 'fp-safe) ; update fp-safe
         (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
 
 (struct rule (name input output itypes otype) ; Input and output are patterns
@@ -269,6 +277,11 @@
   [distribute-frac-neg    (/ (neg a) b)           (neg (/ a b))]
   [distribute-neg-frac    (neg (/ a b))           (/ (neg a) b)])
 
+(define-ruleset* cancel-sign-fp-safe (arithmetic simplify fp-safe)
+  #:type ([a real] [b real] [c real])
+  [cancel-sign-sub      (- a (* (neg b) c))     (+ a (* b c))]
+  [cancel-sign-sub-inv  (- a (* b c))           (+ a (* (neg b) c))])
+
 ; Difference of squares
 (define-ruleset* difference-of-squares-canonicalize (polynomials simplify)
   #:type ([a real] [b real])
@@ -363,9 +376,10 @@
   [rem-square-sqrt   (* (sqrt x) (sqrt x))     x]
   [rem-sqrt-square   (sqrt (* x x))     (fabs x)])
 
-(define-ruleset* squares-reduce-fp-sound (arithmetic simplify fp-sound)
+(define-ruleset* squares-reduce-fp-sound (arithmetic simplify fp-safe)
   #:type ([x real])
-  [sqr-neg           (* (neg x) (neg x))        (* x x)])
+  [sqr-neg           (* (neg x) (neg x))        (* x x)]
+  [sqr-abs           (* (fabs x) (fabs x))      (* x x)])
 
 (define-ruleset* squares-transform (arithmetic)
   #:type ([x real] [y real])
@@ -380,9 +394,11 @@
 ; Cube root
 (define-ruleset* cubes-reduce (arithmetic simplify)
   #:type ([x real])
-  [rem-cube-cbrt     (pow (cbrt x) 3) x]
-  [rem-cbrt-cube     (cbrt (pow x 3)) x]
-  [cube-neg          (pow (neg x) 3)    (neg (pow x 3))])
+  [rem-cube-cbrt    (pow (cbrt x) 3)                    x]
+  [rem-cbrt-cube    (cbrt (pow x 3))                    x]
+  [rem-3cbrt-lft    (* (* (cbrt x) (cbrt x)) (cbrt x))  x]
+  [rem-3cbrt-rft    (* (cbrt x) (* (cbrt x) (cbrt x)))  x]
+  [cube-neg         (pow (neg x) 3)                     (neg (pow x 3))])
 
 (define-ruleset* cubes-distribute (arithmetic simplify)
   #:type ([x real] [y real])
@@ -483,7 +499,7 @@
   [pow1/3           (cbrt a)                    (pow a 1/3)]
   [pow3             (* (* a a) a)               (pow a 3)])
 
-(define-ruleset* pow-transform-fp-safe-nan (exponents fp-safe-nan)
+(define-ruleset* pow-transform-fp-safe-nan (exponents simplify fp-safe-nan)
   #:type ([a real])
   [pow-base-0       (pow 0 a)                   0])
 
@@ -497,9 +513,7 @@
   [log-prod     (log (* a b))       (+ (log a) (log b))]
   [log-div      (log (/ a b))       (- (log a) (log b))]
   [log-rec      (log (/ 1 a))       (neg (log a))]
-  [log-pow      (log (pow a b))     (* b (log a))])
-
-(define-ruleset* log-distribute-fp-safe (exponents simplify)
+  [log-pow      (log (pow a b))     (* b (log a))]
   [log-E        (log E)             1])
 
 (define-ruleset* log-factor (exponents)
@@ -601,7 +615,7 @@
   [tan-hang-m  (tan (/ (- a b) 2))
                (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))])
 
-(define-ruleset* trig-expand-fp-safe (trignometry)
+(define-ruleset* trig-expand-fp-safe (trignometry fp-safe)
   #:type ([x real])
   [sqr-sin-b   (* (sin x) (sin x))       (- 1 (* (cos x) (cos x)))]
   [sqr-cos-b   (* (cos x) (cos x))       (- 1 (* (sin x) (sin x)))])
