@@ -149,10 +149,12 @@
        (operator-remove! op)))))
 
 (define (register-operator! operator name atypes rtype attrib-dict)
+  (define itypes (dict-ref attrib-dict 'itype atypes))
+  (define otype (dict-ref attrib-dict 'otype rtype))
   (table-set! operators name
-              (make-hash (append (list (cons 'itype atypes) (cons 'otype rtype)) attrib-dict)))
+              (make-hash (append (list (cons 'itype itypes) (cons 'otype otype)) attrib-dict)))
   (hash-update! parametric-operators operator 
-                (curry cons (list* name rtype (operator-info name 'itype))) '())
+                (curry cons (list* name otype (operator-info name 'itype))) '())
   (hash-set! parametric-operators-reverse name operator))
 
 (define-syntax-rule (define-operator (operator name atypes ...) rtype [key value] ...)
