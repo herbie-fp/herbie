@@ -39,9 +39,14 @@
 (define/contract (differentiate-exprs exprs)
   (-> (listof expr?) expr?)
 
+  (define simplify-result
+    (simplify-batch exprs #:rules (*simplify-rules*) #:precompute true))
+  (println "simplify result")
+  (pretty-print simplify-result)
+
   (define differentiation-result
     (parameterize ([*node-limit* (* (*node-limit*) 5)])
-      (simplify-batch exprs #:rules (append (*trig-reduce-rules*) (*differentiation-rules*)) #:precompute true)))
+      (simplify-batch simplify-result #:rules (append (*trig-reduce-rules*) (*differentiation-rules*)) #:precompute true)))
 
   (map convert-try-/ differentiation-result))
 

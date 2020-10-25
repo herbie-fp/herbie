@@ -802,11 +802,18 @@
   [neg-neg                 (neg (neg x))        x]
   [light-simplify3         (* 1 x)              x]
   [light-simplify3         (* x 1)              x]
-  [neg-div                 (neg (/ a b))        (/ (neg a) b)]
+  [neg-div                 (neg (/ a b))        (/ (neg a) b)])
+
+(define-ruleset* consolidate-fractions (arithmetic simplify)
+  #:type ([x real] [y real] [z real] [a real] [b real] [c real])
   [consolidate-/-/-b       (/ a (/ x y))        (/ (* a y) x)]
   [consolidate-/-/-b       (/ (/ x y) a)        (/ x (* a y))]
   [consolidate-+-/-l       (+ (/ y z) x)        (/ (+ (* x z) y) z)]
-  [consolidate-+-/         (+ (/ x y) (/ a b))  (/ (+ (* x b) (* a y)) (* y b))])
+  [consolidate-neg-/       (neg (/ x y))        (/ (neg x) y)]
+  [consolidate-+-/         (+ (/ x y) (/ a b))  (/ (+ (* x b) (* a y)) (* y b))]
+  [consolidate-mult-outside (* a (/ b c))       (/ (* a b) c)]
+  [consolidate-mult-two     (* (/ a b) (/ x y)) (/ (+ (* a y) (* x b)) (* b y))]
+  [consolidate-tan         (tan x)              (/ (sin x) (cos x))])
 
 ;; subst is of the form (subst expression variable value)
 ;; limit is of the form (limit numerator denominator
@@ -826,11 +833,11 @@
                                                            (subst (d a x) x y)
                                                            (subst (d b x) x y)
                                                            x y c)]
-  #;[limit-approximate     (lim (/ a b) d 0 x y c)     (lim (/ a (d b x))
+  [limit-approximate     (lim (/ a b) d 0 x y c)     (lim (/ a (d b x))
                                                           (subst a x y)
                                                           (subst (d b x) x y)
-                                                          x y (+ c 1))];; condition in rust: d constant, d != 0
-  [limit-evaluate        (lim h       a b x y c)     (* (/ a b) (/ 1 (pow x c)))];; condition in rust: b constant, b != 0
+                                                          x y (+ c 1))] ;; condition in rust: d constant, d != 0
+  [limit-evaluate        (lim h       a b x y c)     (* (/ a b) (/ 1 (pow x c)))] ;; condition in rust: b constant, b != 0
   )
 
 (define fake-operators

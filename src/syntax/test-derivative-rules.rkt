@@ -11,7 +11,7 @@
             ((d (+ 1 (* y x)) x) . y)
             ((d (pow x 3) x) . (* 3 (pow x 2)))
             ((d (- (pow x 3) (* 7 (pow x 2))) x)
-             . (- (* 3 (pow x 2)) (* 7 (* 2 x))))
+             . (+ (* x (- x 7)) (* x (+ x (- x 7)))))
             ((subst (+ a a) a 4) . 8)
             ((subst c a 4) . c)
             ((subst (subst (/ c d) c 4) d 5) . 4/5)
@@ -49,8 +49,13 @@
             ((subst (d (- (/ 1 x) (/ 1 (tan x))) x) x 0)
              . 1/3)
 
+            ((/ (+ (/ 1 x) 1)
+                (- (/ 1 x) 1))
+             . (/ (+ 1 x)
+                 (- 1 x)))
+
             ;; here we approximate the third derivative
-            #;((subst (d (d (d (- (/ 1 x) (/ 1 (tan x))) x) x) x) x 0)
+            ((subst (d (d (d (- (/ 1 x) (/ 1 (tan x))) x) x) x) x 0)
              . 18/23)
             
             ))
