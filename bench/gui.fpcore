@@ -1,0 +1,51 @@
+;; from racket/gui https://github.com/racket/gui/commit/e8decf79852b9dac06ebd91a9aae5c0c3b215c34
+(FPCore (a b angle)
+  :name "ab-angle->ABCF A"
+  (+ (sqrt (* a (sin (* (/ angle 180) PI)))) (sqrt (* b (cos (* (/ angle 180) PI))))))
+
+(FPCore (a b angle)
+  :name "ab-angle->ABCF B"
+  (* 2 (- (sqrt b) (sqrt a)) (sin (* PI (/ angle 180))) (cos (* PI (/ angle 180)))))
+
+(FPCore (a b angle)
+  :name "ab-angle->ABCF C"
+  (+  (sqrt (* a (cos (* PI (/ angle 180))))) (sqrt (* b (sin (* PI (/ angle 180)))))))
+
+(FPCore (a b angle)
+  :name "ab-angle->ABCF D"
+  (- (* a a b b)))
+
+
+(FPCore (A B C)
+  :name "ABCF->ab-angle angle"
+  (let ([r (sqrt (+ (sqrt (- A C)) (sqrt B)))])
+    (* 180
+      (/ (atan (* (/ B) (- C A r))) PI))))
+
+(FPCore (A B C F)
+  :name "ABCF->ab-angle a"
+  (let* ([B2-4AC (- (sqrt B) (* 4 A C))]
+         [q (* 2 (* B2-4AC F))]
+         [r (sqrt (+ (sqrt (- A C)) (sqrt B)))])
+         (/ (- (sqrt (* q (+ (+ A C) r))))
+            B2-4AC)))
+
+
+(FPCore (A B C F)
+  :name "ABCF->ab-angle b"
+  (let* ([B2-4AC (- (sqrt B) (* 4 A C))]
+         [q (* 2 (* B2-4AC F))]
+         [r (sqrt (+ (sqrt (- A C)) (sqrt B)))])
+         (/ (- (sqrt (* q (+ (- A C) r))))
+            B2-4AC)))
+
+(FPCore (eh ew t )
+ :name "Example from Robby"
+ (let ([t1 (atan (/ eh ew (tan t)))])
+  (fabs (+ (* ew (sin t) (cos t1)) (* eh (cos t) (sin t1))))))
+
+(FPCore (eh ew t)
+  :name "Example 2 from Robby"
+  (let ([t2 (atan (/ (* (- eh) (tan t)) ew))])
+    (fabs (- (* ew (cos t) (cos t2)) (* eh (sin t) (sin t2))))))
+  
