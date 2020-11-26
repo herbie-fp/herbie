@@ -48,7 +48,7 @@
             expr)))
 
 (define (convert-file file-name output-file existing-set is-version-10)
-  (define file-port (open-input-file (build-path (current-directory) file-name)))
+  (define file-port (open-input-file file-name))
   (define tests (hash-ref (read-json file-port) 'tests))
   (define exprs-unfiltered
     (for/list ([test tests])
@@ -63,7 +63,7 @@
   exprs)
   
 
-(define (convert-files bench-folder json-files expr-set is-version-10)
+(define (convert-files json-files output-files expr-set is-version-10)
   (unless (empty? json-files)
     (define json-file (first json-files))
     
@@ -72,22 +72,19 @@
        (file-name-from-path (string->path json-file)) ".fpcore"))
     
     (define output-file
-      (open-output-file (build-path
-                         (current-directory)
-                         bench-folder
-                         sub-path)
+      (open-output-file (first output-files)
                         #:exists 'replace))
     (fprintf (current-output-port) "Creating file ~a\n" (path->string sub-path))
     
     (define new-expr-set
       (set-union expr-set (convert-file json-file output-file expr-set is-version-10)))
     
-    (convert-files bench-folder (rest json-files) new-expr-set #f)))
+    (convert-files (rest json-files) (rest output-files) new-expr-set #f)))
   
 (module+ main
   (define rebuilding? #f)
   (command-line 
    #:program "convert-demo"
-   #:args (bench-folder . json-files)
-   (convert-files bench-folder json-files (set) #t)))
+   #:args (input-json output-json)
+   (convert-files (list input-json) (list output-json) (set) #t)))
 

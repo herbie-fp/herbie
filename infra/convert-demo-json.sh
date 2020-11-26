@@ -7,15 +7,16 @@ if [ "$#" -ne 1 ]; then
 fi
 
 echo "Converting user submitted data into benchmark suite"
-if [ -f "bench/demosubmissions" ] ; then
-    rm "bench/demosubmissions"
+if [ -d "bench/demosubmissions" ] ; then
+    rm -r "bench/demosubmissions"
 fi
 
 mkdir "bench/demosubmissions"
 
-for f in "$1"; do
-  name=$(basename "$f" .json)
-  racket infra/convert-demo.rkt "$1/$f" "bench/demosubmissions/$name-unsorted.fpcore"
-  racket infra/sort-fpcore.rkt "bench/demosubmissions/$name-unsorted.fpcore" "bench/demo/$name.fpcore"
-  rm "bench/demosubmissions/$name-unsorted.fpcore"
+for f in "$1"/*.json; do
+    name=$(basename "$f" .json)
+    echo "Converting $f"
+    racket infra/convert-demo.rkt "$f" "bench/demosubmissions/$name-unsorted.fpcore"
+    racket infra/sort-fpcore.rkt "bench/demosubmissions/$name-unsorted.fpcore" "bench/demosubmissions/$name.fpcore"
+    rm "bench/demosubmissions/$name-unsorted.fpcore"
 done
