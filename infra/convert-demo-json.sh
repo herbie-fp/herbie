@@ -1,12 +1,21 @@
 #!/bin/bash
 
-echo "Converting user submitted data into benchmark suite"
-rm -rf "bench/demo"
-mkdir "bench/demo"
-racket infra/convert-demo.rkt "bench/demo" "infra/v10.json" "infra/v11.json" "infra/v12.json" "infra/v13.json"
+if [ "$#" -ne 1 ]; then
+    echo "Usage: supply the directory which contains the demo json files (v10.json, ect)"
+    echo "These files will be converted to fpcore and placed in bench/demosubmissions"
+    exit 0
+fi
 
-racket infra/sort-fpcore.rkt "bench/demo/v10.fpcore" "bench/demo/v10-s.fpcore"
-racket infra/sort-fpcore.rkt "bench/demo/v11.fpcore" "bench/demo/v11-s.fpcore"
-racket infra/sort-fpcore.rkt "bench/demo/v12.fpcore" "bench/demo/v12-s.fpcore"
-racket infra/sort-fpcore.rkt "bench/demo/v13.fpcore" "bench/demo/v13-s.fpcore"
-rm bench/demo/v10.fpcore bench/demo/v11.fpcore bench/demo/v12.fpcore bench/demo/v13.fpcore
+echo "Converting user submitted data into benchmark suite"
+if [ -f "bench/demosubmissions" ] ; then
+    rm "bench/demosubmissions"
+fi
+
+mkdir "bench/demosubmissions"
+
+for f in "$1"; do
+  name=$(basename "$f" .json)
+  racket infra/convert-demo.rkt "$1/$f" "bench/demosubmissions/$name-unsorted.fpcore"
+  racket infra/sort-fpcore.rkt "bench/demosubmissions/$name-unsorted.fpcore" "bench/demo/$name.fpcore"
+  rm "bench/demosubmissions/$name-unsorted.fpcore"
+done
