@@ -163,14 +163,14 @@
           (not (set-member? '(binary64 binary32) ; currently taylor/reduce breaks with posits
                             (repr-of expr (*output-repr*) (*var-reprs*)))))
       (list altn)
-      (for/fold ([alts '()] #:result (reverse alts)) ; filter out failed taylor transforms
-                ([transform-type transforms-to-try])
+      (for*/fold ([alts '()] #:result (reverse alts)) ; filter out failed taylor transforms
+          ([var vars] [transform-type transforms-to-try])
         (match-define (list name f finv) transform-type)
-        (define transformer (map (const (cons f finv)) vars))
+        (define transformer (list (cons f finv)))
         (define valid? #t)
         (define altn*
           (alt (location-do loc (alt-program altn) 
-                            (λ (x) (let ([expr* (taylor-expr x repr vars transformer)])
+                            (λ (x) (let ([expr* (taylor-expr x repr (list var) transformer)])
                                       (unless expr* (set! valid? #f))
                                       expr*)))
               `(taylor ,name ,loc)
