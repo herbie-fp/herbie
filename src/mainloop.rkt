@@ -152,7 +152,7 @@
 (define (taylor-expr expr repr vars transformer)
   (define expr* (resugar-program expr repr #:full #f))
   (with-handlers ([exn:fail? (const #f)]) 
-    (let ([approx (approximate expr* vars #:transform transformer)])
+    (let ([approx (approximate expr* vars #:transform transformer #:terms 2)])
       (desugar-program approx repr (*var-reprs*) #:full #f))))
 
 (define (taylor-alt altn loc)
