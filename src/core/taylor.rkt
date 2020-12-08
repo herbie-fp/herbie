@@ -6,7 +6,31 @@
 (require "../programs.rkt")
 (require "reduce.rkt")
 
-(provide approximate)
+(provide approximate approximate2)
+
+(define (approximate2 expr var #:transform [tform #f] #:iters [iters 5])
+  (define expr* (simplify (replace-expression expr var ((car tform) var))))
+  (match-define (cons offset coeffs) (taylor var expr*))
+
+  (debug #:from 'approximate "Taking taylor expansion of" expr* "in" var "around" 0)
+  
+  (define i 0)
+  (define terms '())
+
+  (define (next [iter 0])
+    (define coeff (simplify (coeffs i)))
+    (set! i (+ i 1))
+    (match coeff
+     [0
+      (if (< iter iters)
+          (next (+ iter 1))
+          (simplify (make-sum (reverse terms))))]
+     [_
+      (define term (simplify `(* ,coeff ,(make-monomial var (- i offset 1)))))
+      (set! terms (cons term terms))
+      (simplify (make-sum (reverse terms)))]))
+
+  next)
 
 (define (approximate expr vars #:transform [tforms #f]
                      #:terms [terms 3] #:iters [iters 5])
@@ -168,7 +192,6 @@
 
 (define (taylor var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (debug #:from 'taylor "Taking taylor expansion of" expr* "in" var)
   (define expr
     (if (and (list? expr*) (not (set-member? taylor-expansion-known (car expr*))))
         ((get-expander taylor-expansion-known) expr*)
