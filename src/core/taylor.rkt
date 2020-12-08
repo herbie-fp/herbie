@@ -334,19 +334,18 @@
   "This gets tricky, because the function might have a pole at 0.
    This happens if the inverted series doesn't have a constant term,
    so we extract that case out."
-  (match (cons (normalize-series num) (normalize-series denom))
-    [(cons (cons noff a) (cons doff b))
-     (let ([hash (make-hash)])
-       (hash-set! hash 0 (simplify `(/ ,(a 0) ,(b 0))))
-       (letrec ([f (λ (n)
-                      (hash-ref! hash n
-                                 (λ ()
-                                    (simplify
-                                     `(- (/ ,(a n) ,(b 0))
-                                         (+ ,@(for/list ([i (range n)])
-                                                `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))]
-                [offset (- noff doff)])
-         (cons offset f)))]))
+  (match-define (cons noff a) (normalize-series num))
+  (match-define (cons doff b) (normalize-series denom))
+  (define hash (make-hash))
+  (hash-set! hash 0 (simplify `(/ ,(a 0) ,(b 0))))
+  (define (f n)
+    (hash-ref! hash n
+               (λ ()
+                 (simplify
+                  `(- (/ ,(a n) ,(b 0))
+                      (+ ,@(for/list ([i (range n)])
+                             `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
+  (cons (- noff doff) f))
 
 (define (taylor-sqrt num)
   (let* ([num* (normalize-series num)]
