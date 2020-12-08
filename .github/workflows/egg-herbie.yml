@@ -1,0 +1,29 @@
+name: Build egg-herbie on all three OSes
+
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@master
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+      - run: cd egg-herbie && cargo clippy --tests
+        continue-on-error: true
+      - run: cd egg-herbie && cargo test
+      - run: cd egg-herbie && cargo fmt -- --check
+      - run: cd egg-herbie && cargo build --release
+      - run: cd egg-herbie && raco test ./
