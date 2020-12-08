@@ -7,6 +7,7 @@
 (provide
  (contract-out
   (make-alt-table (pcontext? alt? any/c . -> . alt-table?))
+  (atab-active-alts (alt-table? . -> . (listof alt?)))
   (atab-all-alts (alt-table? . -> . (listof alt?)))
   (atab-not-done-alts (alt-table? . -> . (listof alt?)))
   (atab-add-altns (alt-table? (listof alt?) any/c . -> . alt-table?))
@@ -23,7 +24,7 @@
 
 ;; Public API
 
-(struct alt-table (point->alts alt->points alt->done? context) #:prefab)
+(struct alt-table (point->alts alt->points alt->done? context all) #:prefab)
 
 (define atab-context alt-table-context)
 
@@ -36,7 +37,8 @@
                  (cons pt (point-rec err (alt-cost initial-alt) (list initial-alt)))))
              (hash initial-alt (for/list ([(pt ex) (in-pcontext context)]) pt))
              (hash initial-alt #f)
-             context))
+             context
+             (mutable-set initial-alt)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
            #:only-fresh [only-fresh? #t])
@@ -49,10 +51,13 @@
 (define (atab-peek-alt atab #:picking-func [pick car] #:only-fresh [only-fresh? #f])
   (pick (if only-fresh?
       (atab-not-done-alts atab)
-      (atab-all-alts atab))))
+      (atab-active-alts atab))))
+
+(define (atab-active-alts atab)
+  (hash-keys (alt-table-alt->points atab)))
 
 (define (atab-all-alts atab)
-  (hash-keys (alt-table-alt->points atab)))
+  (set->list (alt-table-all atab)))
 
 (define (atab-completed? atab)
   (andmap identity (hash-values (alt-table-alt->done? atab))))
@@ -76,7 +81,8 @@
            #:when (pred pt))
         (values pt ex)))
           mk-pcontext)])
-      (minimize-alts (alt-table point->alts alt->points alt->done? context)))))
+      (minimize-alts (alt-table point->alts alt->points alt->done?
+                                context (alt-table-all atab))))))
 
 ;; Helper Functions
 
@@ -130,13 +136,8 @@
      (values pnt (point-rec berr (min (alt-cost altn) cost) (cons altn altns))))
    #:combine (λ (a b) b)))
 
-(define (expr-cost expr)
-  (if (list? expr)
-      (apply + 1 (map expr-cost (cdr expr)))
-      1))
-
-(define (alt-cost prog)
-  (expr-cost (program-body (alt-program prog))))
+(define (alt-cost altn)
+  (program-cost (alt-program altn)))
 
 (define (minimize-alts atab)
   (define (get-essential pnts->alts)
@@ -170,7 +171,7 @@
       (loop atab*))))))
 
 (define (rm-alts atab . altns)
-  (match-define (alt-table point->alts alt->points alt->done? _) atab)
+  (match-define (alt-table point->alts alt->points alt->done? _ _) atab)
   (define rel-points
     (remove-duplicates
      (apply append (map (curry hash-ref (alt-table-alt->points atab)) altns))))
@@ -192,24 +193,14 @@
                [alt->done? (hash-remove* alt->done? altns)]))
 
 (define (atab-add-altns atab altns repr)
-  (define prog-set (list->set (map alt-program (hash-keys (alt-table-alt->points atab)))))
-  (define altns*
-    (filter
-     (negate (compose (curry set-member? prog-set) alt-program))
-     (remove-duplicates altns #:key alt-program)))
-  (timeline-log! 'filtered (list (length altns) (length altns*)))
-  (cond
-   [(null? altns*)
-    atab]
-   [else
-    (define progs (map alt-program altns*))
-    (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))
-    (for/fold ([atab atab]) ([altn (in-list altns*)] [errs (in-vector errss)])
-      (atab-add-altn atab altn errs repr))]))
+  (define progs (map alt-program altns))
+  (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))
+  (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-vector errss)])
+    (atab-add-altn atab altn errs repr)))
 
 (define (atab-add-altn atab altn errs repr)
   (define cost (alt-cost altn))
-  (match-define (alt-table point->alts alt->points _ _) atab)
+  (match-define (alt-table point->alts alt->points _ _ all-alts) atab)
   (define-values (best-pnts tied-pnts) (best-and-tied-at-points atab altn errs))
   (cond
    [(and (null? best-pnts)
@@ -222,7 +213,9 @@
     (define pnts->alts*1 (override-at-pnts point->alts best-pnts altn errs))
     (define pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn))
     (define alts->done?* (hash-set (alt-table-alt->done? atab) altn #f))
-    (minimize-alts (alt-table pnts->alts*2 alts->pnts*2 alts->done?* (alt-table-context atab)))]))
+    (set-add! all-alts altn)
+    (minimize-alts (alt-table pnts->alts*2 alts->pnts*2 alts->done?*
+                              (alt-table-context atab) all-alts))]))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))

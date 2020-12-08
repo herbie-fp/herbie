@@ -104,8 +104,8 @@
       (check-rule-fp-safe rule)))))
 
 (module+ test
-  (generate-rules-for 'real 'binary64)
-  (generate-rules-for 'real 'binary32)
+  (*needed-reprs* (list (get-representation 'binary64) (get-representation 'binary32)))
+  (define _ (*simplify-rules*))  ; force an update
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
 
     (define ground-truth

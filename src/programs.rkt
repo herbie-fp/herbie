@@ -1,20 +1,22 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt" "timeline.rkt")
 
 (module+ test (require rackunit))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
+         program-cost expr-cost
          type-of repr-of
          expr-supports?
          location-hash
          location? expr?
-         location-do location-get
+         location-do location-get location-repr
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression
-         desugar-program resugar-program)
+         desugar-program resugar-program
+         apply-repr-change)
 
 (define expr? (or/c list? symbol? value? real?))
 
@@ -32,6 +34,15 @@
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   vars)
 
+(define (program-cost prog)
+  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
+  (expr-cost body))
+
+(define/match (expr-cost expr)
+  [((list 'if cond ift iff)) (+ 1 (expr-cost cond) (max (expr-cost ift) (expr-cost iff)))]
+  [((list op args ...)) (apply + 1 (map expr-cost args))]
+  [(_) 1])
+
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
 ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
@@ -43,7 +54,7 @@
    [(? constant?) 
     (type-name (representation-type (get-representation (constant-info expr 'type))))]
    [(? variable?) (type-name (representation-type (dict-ref env expr)))]
-   [(list 'if cond ift iff) (type-of ift env)]
+   [(list 'if cond ift iff) (type-of ift repr env)]
    [(list op args ...) ; repr-name -> repr -> type
     (type-name (representation-type (get-representation (operator-info op 'otype))))]))
 
@@ -55,7 +66,7 @@
    [(? value?) (representation-name repr)]
    [(? constant?) (constant-info expr 'type)]
    [(? variable?) (representation-name (dict-ref env expr))]
-   [(list 'if cond ift iff) (repr-of ift env)]
+   [(list 'if cond ift iff) (repr-of ift repr env)]
    [(list op args ...) (operator-info op 'otype)]))
 
 ;; Converting constants
@@ -105,6 +116,26 @@
   (let/ec return
     (location-do loc prog return)))
 
+(define (location-repr loc prog repr var-reprs)
+  (let loop ([expr prog] [repr repr] [loc loc])
+    (cond
+     [(null? loc)
+      (get-representation
+        (if (operator? expr)
+            (operator-info expr 'otype)
+            (repr-of expr repr var-reprs)))]
+     [(not (pair? expr))
+      (error "Bad location: cannot enter " expr "any further.")]
+     [else
+      (match expr
+        [(list 'if cond ift iff)
+         (loop (list-ref expr (car loc)) repr (cdr loc))]
+        [(list (? operator? op) args ...)
+         (define ireprs (cons repr (map get-representation (operator-info op 'itype))))
+         (loop (list-ref expr (car loc)) (list-ref ireprs (car loc)) (cdr loc))]
+        [(list (or 'λ 'lambda) (list vars ...) body)
+         (loop (list-ref expr (car loc)) repr (cdr loc))])])))
+
 (define (eval-prog prog mode repr)
   (define f (batch-eval-progs (list prog) mode repr))
   (λ args (vector-ref (apply f args) 0)))
@@ -121,10 +152,10 @@
   (define real->precision (match mode
     ['bf (λ (repr x) (->bf x repr))]
     ['fl (λ (repr x) (real->repr x repr))]
-    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]
-    ['nonffi (λ (repr x) x)]))
+    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]))
   
-  (define vars (program-variables (first progs)))
+  (define vars 
+    (if (empty? progs) '() (program-variables (first progs))))
   (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
 
   (define exprs '())
@@ -133,7 +164,10 @@
      (for/list ([var vars] [i (in-naturals)])
        (cons var i))))
 
+  (define size 0)
+
   (define (munge prog repr)
+    (set! size (+ 1 size))
     (define expr
       (match prog
         [(? real?) (list (const (real->precision repr prog)))]
@@ -161,12 +195,14 @@
                  (define n (+ (length exprs) (length vars)))
                  (set! exprs (cons expr exprs))
                  n)))
-  
+
   (define names
     (for/list ([prog progs])
       (munge (program-body prog) repr)))
   (define l1 (length vars))
   (define lt (+ (length exprs) l1))
+
+  (timeline-push! 'compiler size lt)
   (define exprvec (list->vector (reverse exprs)))
   (λ args
     (define v (make-vector lt))
@@ -303,9 +339,8 @@
          (define op* (get-parametric-operator '- atype))
          (values (list op* arg*) (operator-info op* 'otype))]
         [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-         (define-values (iprec oprec)
-           (let ([split (string-split (symbol->string op) "->")])
-             (values (first split) (last split))))
+         (define iprec (first (operator-info op 'itype)))
+         (define oprec (operator-info op 'otype))
          (define-values (body* rtype) (loop body iprec))
          (values (list op body*) oprec)]
         [(list (and (or 're 'im) op) arg)
@@ -336,11 +371,8 @@
          (define prec* (if (set-member? '(TRUE FALSE) expr) 'bool prec))
          (define constant* (get-parametric-constant expr prec*))
          (values constant* (constant-info constant* 'type))]
-        [(? variable?) 
-         (values 
-           expr 
-           (if (equal? (representation-name (dict-ref var-reprs expr)) 'bool) 
-               'bool prec))])))
+        [(? variable?)
+         (values expr (representation-name (dict-ref var-reprs expr)))])))
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
@@ -353,12 +385,14 @@
      (define iff* (expand-parametric-reverse iff repr full?))
      (list 'if cond* ift* iff*)]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-     (define iprec (first (string-split (symbol->string op) "->")))
-     (define repr* (get-representation (string->symbol iprec)))
+     (define iprec (first (operator-info op 'itype)))
+     (define oprec (operator-info op 'otype))
+     (define repr* (get-representation iprec))
      (define body* (expand-parametric-reverse body repr* full?))
-     (if full? 
-        `(cast (! :precision ,(string->symbol iprec) ,body*))
-        `(,op ,body*))]
+     (cond
+      [(not full?) `(,op ,body*)]
+      [(list? body*) `(cast (! :precision ,iprec ,body*))]
+      [else body*])] ; constants and variables should not have casts and precision changes
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
@@ -412,3 +446,57 @@
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
       [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
+
+; Updates the repr of an expression if needed
+(define (apply-repr-change-expr expr)
+  (let loop ([expr expr] [prec #f])
+    (match expr
+     [(list (? repr-conv? op) body)
+      (define iprec (first (operator-info op 'itype)))
+      (define oprec (operator-info op 'otype))
+      (define prec* (if prec prec oprec))
+      (define body* (loop body iprec))
+      (cond
+       [(not body*) #f] ; propagate failed repr-change
+       [(equal? iprec prec*) body*] ; remove non-conversions
+       [else
+        (define new-conv (get-repr-conv iprec prec*)) ; try to find a single conversion
+        (if new-conv
+            (list new-conv body*)
+            (let ([second-conv (get-repr-conv oprec prec*)]) ; try a two-step conversion
+              (and second-conv (list second-conv (list op body*)))))])]
+     [(list (? rewrite-repr-op? op) body)
+      (define prec* (operator-info op 'otype))
+      (loop body prec*)]
+     [(list (? operator? op) args ...) 
+      (define prec* (if prec prec (operator-info op 'otype)))
+      (if (equal? (operator-info op 'otype) prec*)
+          (let ([args* (map loop args (operator-info op 'itype))])
+            (and (andmap identity args*) (cons op args*)))
+          (let ([op* (apply get-parametric-operator 
+                            (hash-ref parametric-operators-reverse op)
+                            (make-list (length args) prec*))]
+                [args* (map (curryr loop prec*) args)])
+            (and op* (andmap identity args*) (cons op* args*))))]
+     [(? variable?)
+      (define var-prec (representation-name (dict-ref (*var-reprs*) expr)))
+      (cond
+       [(equal? var-prec prec) expr]
+       [else ; insert a cast if the variable precision is not the same
+        (define cast (get-repr-conv var-prec prec))
+        (and cast (list cast expr))])]
+     [(? (curry hash-has-key? parametric-constants-reverse))
+      (define prec* (if prec prec (constant-info expr 'type)))
+      (if (equal? (constant-info expr 'type) prec*) ; update constants if precision no longer matches
+          expr
+          (let* ([c-unparam (hash-ref parametric-constants-reverse expr expr)]
+                 [c* (get-parametric-constant c-unparam prec)])
+            (if c*
+                c*
+                (let ([conv (get-repr-conv (constant-info expr 'type) prec*)])
+                  (and conv (list conv expr))))))] ; if constant does not exist in repr, add conversion
+     [_ expr])))
+      
+(define (apply-repr-change prog)
+  (match-define (list (and (or 'λ 'lambda) lam) (list args ...) body) prog)
+  `(,lam ,args ,(apply-repr-change-expr body)))

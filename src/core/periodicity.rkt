@@ -52,16 +52,12 @@
   (for/list ([rec al])
     (cons (car rec) (f (cdr rec)))))
 
-(define (eval-const-expr expr)
-  ;; When we are in nonffi mode, we don't use repr, so pass in #f
-  ((eval-prog `(λ () ,expr) 'nonffi #f)))
-
 (define (default-combine expr loc special)
   (cond
    [special special]
    [(andmap constant-value? (cdr expr))
     (annotation expr loc 'constant
-                (eval-const-expr (cons (car expr) (map coeffs (cdr expr)))))]
+                (apply eval-application (car expr) (map coeffs (cdr expr))))]
    [(and (andmap periodic? (cdr expr)) (= 3 (length expr)))
     (annotation expr loc 'interesting
 		(apply alist-merge lcm

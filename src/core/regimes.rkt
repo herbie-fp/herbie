@@ -211,13 +211,14 @@
                      [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
           (prepare-points start-prog
-                          `(λ ,(program-variables start-prog) (,eq-repr ,(caadr start-prog) ,v))
+                          `(λ ,(program-variables start-prog)
+                              (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
                           repr
                           (λ () (cons v (sampler)))))
         (< (errors-score (errors prog1 ctx repr))
            (errors-score (errors prog2 ctx repr)))))
     (define pt (binary-search-floats pred v1 v2 repr))
-    (timeline-push! 'bstep v1 v2 iters pt)
+    (timeline-push! 'bstep (value->json v1 repr) (value->json v2 repr) iters (value->json pt repr))
     pt)
 
   (define (sidx->spoint sidx next-sidx)

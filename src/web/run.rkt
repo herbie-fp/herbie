@@ -81,8 +81,8 @@
    identity
    (for/list ([res (report-info-tests info)])
      (define out
-       (with-handlers ([(const #t) (const #f)])
-         (call-with-input-file (build-path dir (table-row-link res) name) read-json)))
+      (with-handlers ([exn? (const #f)])
+        (call-with-input-file (build-path dir (table-row-link res) name) read-json)))
      (and out (not (eof-object? out)) (cons (table-row-link res) out)))))
 
 (define (merge-timeline-jsons tl)
@@ -111,7 +111,8 @@
   (call-with-output-file (build-path dir "profile.json") (curry write-json profile) #:exists 'replace)
 
   (call-with-output-file (build-path dir "timeline.html")
-    (curryr make-summary-html info timeline) #:exists 'replace)
+    #:exists 'replace
+    (λ (out) (make-timeline "Herbie run" timeline out #:info info)))
 
   ; Delete old files
   (let* ([expected-dirs (map string->path (filter identity (map table-row-link (report-info-tests info))))]

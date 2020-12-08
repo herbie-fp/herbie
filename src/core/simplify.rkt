@@ -57,42 +57,45 @@
     
   out)
 
+(define-syntax-rule (regraph method)
+  (dynamic-require 'regraph 'method))
+
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
-  (local-require regraph)
+  (timeline-push! 'method "regraph")
 
   (define start-time (current-inexact-milliseconds))
   (define (log rg iter)
-    (define cnt (regraph-count rg))
-    (define cost (regraph-cost rg))
+    (define cnt ((regraph regraph-count) rg))
+    (define cost ((regraph regraph-cost) rg))
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
 
-  (define rg (make-regraph (map munge exprs) #:limit (*node-limit*)))
+  (define rg ((regraph make-regraph) (map munge exprs) #:limit (*node-limit*)))
 
   (define phases
-    (list (rule-phase (map (compose munge rule-input) rls)
-                      (map (compose munge rule-output) rls))
-          (and precompute? (precompute-phase eval-application))
-          prune-phase
-          extractor-phase))
+    (list ((regraph rule-phase) (map (compose munge rule-input) rls)
+                                (map (compose munge rule-output) rls))
+          (and precompute? ((regraph precompute-phase) eval-application))
+          (regraph prune-phase)
+          (regraph extractor-phase)))
 
   (for/and ([iter (in-naturals 0)])
     (log rg iter)
-    (define initial-cnt (regraph-count rg))
+    (define initial-cnt ((regraph regraph-count) rg))
     ;; Iterates the egraph by applying each of the given rules to the egraph
     (for ([phase phases] #:when phase) (phase rg))
-    (and (< initial-cnt (regraph-count rg) (*node-limit*))))
+    (and (< initial-cnt ((regraph regraph-count) rg) (*node-limit*))))
 
   (log rg "done")
-  (map unmunge (regraph-extract rg)))
+  (map unmunge ((regraph regraph-extract) rg)))
 
 (define-syntax-rule (egg method)
   (dynamic-require 'egg-herbie 'method))
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
-  (timeline-log! 'method 'egg-herbie)
+  (timeline-push! 'method "egg-herbie")
   (define irules (rules->irules rls))
 
   ((egg egraph-run)
@@ -150,18 +153,10 @@
     [_ expr]))
 
 (module+ test
-  (require "../interface.rkt" (submod "../syntax/rules.rkt" internals))
+  (require "../interface.rkt" "../syntax/rules.rkt")
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x a b c)))
-  (generate-rules-for 'real 'binary64)
-  (generate-rules-for 'real 'binary32)
-  
-  (define all-simplify-rules
-    (for/append ([rec (*rulesets*)])
-      (match-define (list rules groups _) rec)
-      (if 
-       (set-member? groups 'simplify)
-       rules
-       '())))
+  (*needed-reprs* (list (get-representation 'binary64) (get-representation 'binary32)))
+  (define all-simplify-rules (*simplify-rules*))
 
   ;; check that no rules in simplify match on bare variables
   ;; this would be bad because we don't want to match type-specific operators on a value of a different type
