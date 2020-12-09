@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v0.5
+        uses: Bogdanp/setup-racket@v0.12
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1
         with:
