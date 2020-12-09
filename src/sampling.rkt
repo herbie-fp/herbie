@@ -128,7 +128,7 @@
          (not (empty? reprs)))
     (timeline-push! 'method "search")
     (define hyperrects (list->vector (get-hyperrects precondition programs reprs repr)))
-    (when (empty? hyperrects)
+    (when (vector-empty? hyperrects)
       (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
     (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
     (λ () (sample-multi-bounded hyperrects weights reprs))]
