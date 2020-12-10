@@ -14,7 +14,7 @@
          location? expr?
          location-do location-get location-repr
          batch-eval-progs eval-prog eval-application
-         free-variables replace-expression
+         free-variables replace-expression replace-vars
          desugar-program resugar-program
          apply-repr-change)
 
