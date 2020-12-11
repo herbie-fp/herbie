@@ -25,10 +25,5 @@
             (index-of vars b)
             '()
             'real)))
-
-  (define starting-points (for/list ([v vars] [i (in-naturals)]) i))
-  (define ids (simplify-batch starting-points #:rules rules*))
-  (define hash (make-hash))
-  (for ([id ids] [var vars])
-    (hash-update! hash id (curry cons var) '()))
-  (hash-values hash))
+  (define groups (simplify-batch (range (length vars)) #:rules rules*))
+  (map car (group-by cdr (map cons vars groups))))
