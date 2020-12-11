@@ -23,7 +23,7 @@
      (eprintf "The precision:double option has been removed.\n")
      (eprintf "  Please use :precision binary32 and :precision binary64 instead.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
-    [_
+    [(_ _)
      (void)]))
 
 (define (enable-flag! category flag)
