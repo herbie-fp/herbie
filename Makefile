@@ -7,6 +7,10 @@ help:
 install:
 	cargo build --release --manifest-path=egg-herbie/Cargo.toml
 	-raco pkg remove --auto herbie && echo "Warning: uninstalling herbie and reinstalling local version"
+	-raco pkg remove --auto egg-herbie && echo "Warning: uninstalling egg-herbie and reinstalling local version"
+	-raco pkg remove --auto egg-herbie-linux && echo "Warning: uninstalling egg-herbie and reinstalling local version"
+	-raco pkg remove --auto egg-herbie-windows && echo "Warning: uninstalling egg-herbie and reinstalling local version"
+	-raco pkg remove --auto egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version"
 	raco pkg install ./egg-herbie
 	raco pkg install --skip-installed --name herbie src/
 	raco pkg update --name herbie src/
