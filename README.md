@@ -23,6 +23,9 @@ Linux. Install it with:
 This will install a `herbie` binary to somewhere under `~/.racket`.
 You can also download the source and run `src/herbie.rkt` directly.
 
+Alternatively, Herbie and Herbie's Rust components can be built from source and installed
+  using `make install` in the herbie directory.
+
 Running Herbie
 --------------
 
