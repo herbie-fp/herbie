@@ -1,6 +1,8 @@
 #lang racket
 (require "common.rkt" "programs.rkt" "core/simplify.rkt" "syntax/rules.rkt")
 
+(provide connected-components)
+
 (define (get-swaps vars expr)
   (define swapt
     (for/list ([swap (in-combinations vars 2)])
@@ -12,7 +14,7 @@
              #:when (equal? swap* orig))
     swap))
 
-(define (connected-components expr swaps)
+(define (connected-components expr)
   (define vars (program-variables expr))
   (define body (program-body expr))
 
