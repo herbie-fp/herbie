@@ -12,7 +12,7 @@
              #:when (equal? swap* orig))
     swap))
 
-(define (connected-components expr swaps)
+(define (connected-components expr)
   (define vars (program-variables expr))
   (define body (program-body expr))
 
