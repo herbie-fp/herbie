@@ -6,13 +6,18 @@
 (provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
           real->repr repr->real
-          value? special-value?)
+          value? special-value?
+          (struct-out symmetry-group))
 
 (module+ internals 
   (provide define-representation register-generator! register-representation!))
 
 (define *reprs-with-rules* (make-parameter '()))
 (define *needed-reprs* (make-parameter '()))
+
+;; Herbie preprocess structs
+
+(struct symmetry-group (variables))
 
 ;; Structs
 
