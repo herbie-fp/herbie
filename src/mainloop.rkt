@@ -78,7 +78,7 @@
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
   (timeline-event! 'analyze)
-  (define symmetry-groups (connected-components (or specification prog)))
+  (define symmetry-groups (filter (lambda (group) (> (length group) 1)) (connected-components (or specification prog))))
   (define preprocess-structs (map symmetry-group symmetry-groups))
   (*herbie-preprocess* preprocess-structs)
   (*sampler* (make-sampler (*output-repr*) precondition-prog (list (or specification prog)) (*herbie-preprocess*)))
