@@ -118,7 +118,7 @@
     (cond
       [(empty? current)
        empty]
-      [(equal? (first indicies) index)
+      [(and (not (empty? indicies)) (equal? (first indicies) index))
        (cons (first values) (loop (rest current) (rest indicies) (rest values) (+ index 1)))]
       [else
        (cons (first current) (loop (rest current) indicies values (+ index 1)))])))

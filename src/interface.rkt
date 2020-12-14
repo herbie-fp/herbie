@@ -5,6 +5,7 @@
 
 (provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
+          *herbie-preprocess*
           real->repr repr->real
           value? special-value?
           (struct-out symmetry-group))
@@ -14,10 +15,6 @@
 
 (define *reprs-with-rules* (make-parameter '()))
 (define *needed-reprs* (make-parameter '()))
-
-;; Herbie preprocess structs
-
-(struct symmetry-group (variables))
 
 ;; Structs
 
@@ -157,3 +154,10 @@
 ;; Global precision tracking
 (define *output-repr* (make-parameter (get-representation 'binary64)))
 (define *var-reprs* (make-parameter '()))
+
+;; Herbie preprocess structs
+(struct symmetry-group (variables))
+
+
+;; Tracks list of preprocess structs Herbie decides to apply
+(define *herbie-preprocess* (make-parameter empty))

@@ -61,7 +61,7 @@
       (define-values (newpoints newexacts) (get-p&es newcontext))
       (define result
         (test-success orig-test #f #f #f #f start-alt end-alt
-                      #f #f #f #f
+                      #f #f #f #f #f
                       newpoints newexacts
                       (errors (alt-program start-alt) newcontext output-repr)
                       (errors (alt-program end-alt) newcontext output-repr)

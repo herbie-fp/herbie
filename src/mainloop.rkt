@@ -46,7 +46,6 @@
   (shellstate-simplified (^shell-state^)))
 
 (define *sampler* (make-parameter #f))
-(define *herbie-preprocess* (make-parameter empty))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
