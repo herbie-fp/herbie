@@ -41,7 +41,7 @@
 (define (timeline-adjust! type key . values)
   (-> symbol? symbol? jsexpr? ... void?)
   (unless (*timeline-disabled*)
-    (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) type))
+    (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) (~a type)))
       (hash-set! cell key values)
       true)
     (void)))
