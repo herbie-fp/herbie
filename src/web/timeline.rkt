@@ -60,7 +60,8 @@
          ,@(dict-call curr render-phase-algorithm 'method)
          ,@(dict-call curr render-phase-locations 'locations)
          ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline 'name 'link)
-         ,@(dict-call curr render-phase-pruning 'kept 'min-error)
+         ,@(dict-call curr render-phase-pruning 'kept)
+         ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
          ,@(dict-call curr render-phase-counts 'inputs 'outputs)
          ,@(dict-call curr render-phase-times #:extra n 'times)
@@ -168,8 +169,8 @@
                            (td ,(format-percent (* fraction 100)))
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
               '())))))
-  
-(define (render-phase-pruning kept min-error)
+
+(define (render-phase-pruning kept)
   (define (altnum kind [col #f])
     (define rec (hash-ref kept kind))
     (match col [#f (first rec)] [0 (- (first rec) (second rec))] [1 (second rec)]))
@@ -190,8 +191,11 @@
           (tr (th "Total")
               (td ,(~a (apply + (map (curryr altnum 0) '(new fresh picked done)))))
               (td ,(~a (apply + (map (curryr altnum 1) '(new fresh picked done)))))
-              (td ,(~a (apply + (map altnum '(new fresh picked done))))))))
-        (p "Merged error: " ,(format-bits min-error) "b"))))
+              (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
+
+(define (render-phase-error min-error)
+  `((dt "Error")
+    (dd ,(format-bits min-error) "b")))
 
 (define (render-phase-rules rules)
   (define by-count (make-hash))
