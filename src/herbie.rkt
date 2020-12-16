@@ -119,7 +119,7 @@
    #:args files
    (match files
      ['()
-      (eprintf "Please specify a Herbie tool, such as `herbie shell`.\n")
+      (eprintf "Please specify a Herbie tool, such as `herbie web`.\n")
       (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
      [(cons tool _)
       (eprintf "Unknown Herbie tool `~a`. See a list of available tools with `herbie --help`.\n" tool)

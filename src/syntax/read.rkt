@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
-         "syntax-check.rkt" "type-check.rkt")
+         "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
@@ -83,10 +83,11 @@
         (parse-test test override-ctx)))))
 
 (define (load-directory dir override-ctx)
-  (for/append ([fname (in-directory dir)]
-               #:when (file-exists? fname)
-               #:when (equal? (filename-extension fname) #"fpcore"))
-    (load-file fname override-ctx)))
+  (apply append
+         (for/list ([fname (in-directory dir)]
+                    #:when (file-exists? fname)
+                    #:when (equal? (filename-extension fname) #"fpcore"))
+           (load-file fname override-ctx))))
 
 (define (load-tests path [override-ctx '()])
   (define path* (if (string? path) (string->path path) path))

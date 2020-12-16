@@ -60,8 +60,7 @@
   (search-space true* false* other*))
 
 (define (find-intervals ival-fn rects #:reprs reprs #:fuel [depth 128])
-  (define num-vars (length (first rects)))
-  (if (= num-vars 0)
+  (if (or (null? rects) (null? (first rects)))
       (map (curryr cons 'other) rects)
       (let loop ([space (apply make-search-space rects)] [n 0])
         (match-define (search-space true false other) space)
@@ -74,7 +73,7 @@
         (define wf (- 1 wt wo))
         (timeline-push! 'sampling n wt wo wf)
 
-        (define n* (remainder n num-vars))
+        (define n* (remainder n (length (first rects))))
         (if (or (>= n depth) (empty? (search-space-other space)))
             (append (search-space-true space) (search-space-other space))
             (loop (search-step ival-fn space reprs n*) (+ n 1))))))
