@@ -7,6 +7,7 @@
 
 ;; This is a box so we can get a reference outside the engine, and so
 ;; access its value even in a timeout.
+;; Important: Use 'eq?' based hash tables, process may freeze otherwise
 (define *timeline* (box '()))
 (define *timeline-disabled* (make-parameter true))
 
@@ -14,8 +15,8 @@
 
 (define (timeline-event! type)
   (unless (*timeline-disabled*)
-    (define initial (hash 'type (~a type) 'time (current-inexact-milliseconds)))
-    (define b (make-hash (hash->list initial))) ; convert to mutable hash
+    (define initial (hasheq 'type (~a type) 'time (current-inexact-milliseconds)))
+    (define b (make-hasheq (hash->list initial))) ; convert to mutable hash
     (set-box! *timeline* (cons b (unbox *timeline*)))))
 
 (define/contract (timeline-log! key value)
@@ -29,7 +30,6 @@
 
 (define/contract (timeline-push! key . values)
   (-> symbol? jsexpr? ... void?)
-
   (unless (*timeline-disabled*)
     (define val (if (= (length values) 1) (car values) values))
     (define (try-cons x)
@@ -40,9 +40,8 @@
 
 (define (timeline-adjust! type key . values)
   (-> symbol? symbol? jsexpr? ... void?)
-
   (unless (*timeline-disabled*)
-    (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) type))
+    (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) (~a type)))
       (hash-set! cell key values)
       true)
     (void)))
@@ -51,7 +50,7 @@
   (set! *timeline* value))
 
 (define (timeline-extract repr)
-  (define end (hash 'time (current-inexact-milliseconds)))
+  (define end (hasheq 'time (current-inexact-milliseconds)))
   (reverse
    (for/list ([evt (unbox *timeline*)] [next (cons end (unbox *timeline*))])
      (define evt* (hash-copy evt))
@@ -60,7 +59,7 @@
 
 (define (timeline-relink link timeline)
   (for/list ([event (in-list timeline)])
-    (for/hash ([(k v) (in-hash event)])
+    (for/hasheq ([(k v) (in-hash event)])
       (if (equal? k 'link)
           (values k (map (λ (p) (path->string (build-path link p))) v))
           (values k v)))))

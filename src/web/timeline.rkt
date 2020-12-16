@@ -55,12 +55,13 @@
   `(div ([class ,(format "timeline-block timeline-~a" type)] [id ,(format "timeline~a" n)])
         (h3 ,(~a type)
             (span ([class "time"])
-                  ,(format-time time) " (" ,(format-percent (/ time total-time)) ")"))
+                  ,(format-time time) " (" ,(format-percent time total-time) ")"))
         (dl
          ,@(dict-call curr render-phase-algorithm 'method)
          ,@(dict-call curr render-phase-locations 'locations)
          ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline 'name 'link)
-         ,@(dict-call curr render-phase-pruning 'kept 'min-error)
+         ,@(dict-call curr render-phase-pruning 'kept)
+         ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
          ,@(dict-call curr render-phase-counts 'inputs 'outputs)
          ,@(dict-call curr render-phase-times #:extra n 'times)
@@ -118,11 +119,11 @@
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
 
-(define (format-percent num)
+(define (format-percent num den)
   (string-append
-   (if (infinite? num)
-       (if (> num 0) "+∞" "-∞")
-       (~r (* num 100) #:precision 1))
+   (if (zero? den)
+       (cond [(positive? num) "+∞"] [(zero? num) "0"] [(zero? num) "-∞"])
+       (~r (* (/ num den) 100) #:precision 1))
    "%"))
 
 (define (average . values)
@@ -135,9 +136,9 @@
          (tr (th "True") (th "Other") (th "False") (th "Iter"))
          ,@(for/list ([rec (in-list (sort sampling < #:key first))])
              (match-define (list n wt wo wf) rec)
-             `(tr (td ,(format-percent (/ wt total)))
-                  (td ,(format-percent (/ wo total)))
-                  (td ,(format-percent (/ wf total)))
+             `(tr (td ,(format-percent wt total))
+                  (td ,(format-percent wo total))
+                  (td ,(format-percent wf total))
                   (td ,(~a n))))))))
 
 (define (render-phase-accuracy accuracy oracle baseline name link)
@@ -145,9 +146,7 @@
     (sort
      (for/list ([acc accuracy] [ora oracle] [bas baseline] [name name] [link link])
        (list (- acc ora)
-             (if (= bas ora)
-                 (if (= bas acc) 1 -inf.0)
-                 (/ (- bas acc) (- bas ora)))
+             (- bas acc)
              link
              name))
      > #:key first))
@@ -157,19 +156,19 @@
 
   `((dt "Accuracy")
     (dd (p "Total " ,(format-bits (apply + bits)) "b" " remaining"
-            " (" ,(format-percent (/ (apply + bits) total-remaining)) ")"
+            " (" ,(format-percent (apply + bits) total-remaining) ")"
         (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits))) "b"
-           " (" ,(format-percent (/ (apply + (filter (curry > 1) bits)) total-remaining)) ")")
+           " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
         ,@(if (> (length rows) 1)
               `((table ([class "times"])
                   ,@(for/list ([row (in-list rows)] [_ (in-range 5)])
-                      (match-define (list left fraction link name) row)
+                      (match-define (list left gained link name) row)
                       `(tr (td ,(format-bits left) "b")
-                           (td ,(format-percent (* fraction 100)))
+                           (td ,(format-percent gained (+ left gained)))
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
               '())))))
-  
-(define (render-phase-pruning kept min-error)
+
+(define (render-phase-pruning kept)
   (define (altnum kind [col #f])
     (define rec (hash-ref kept kind))
     (match col [#f (first rec)] [0 (- (first rec) (second rec))] [1 (second rec)]))
@@ -190,8 +189,11 @@
           (tr (th "Total")
               (td ,(~a (apply + (map (curryr altnum 0) '(new fresh picked done)))))
               (td ,(~a (apply + (map (curryr altnum 1) '(new fresh picked done)))))
-              (td ,(~a (apply + (map altnum '(new fresh picked done))))))))
-        (p "Merged error: " ,(format-bits min-error) "b"))))
+              (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
+
+(define (render-phase-error min-error)
+  `((dt "Error")
+    (dd ,(format-bits min-error) "b")))
 
 (define (render-phase-rules rules)
   (define by-count (make-hash))
@@ -221,10 +223,9 @@
   (match-define (list (list sizes compileds) ...) compiler)
   (define size (apply + sizes))
   (define compiled (apply + compileds))
-  (define ratio (if (zero? size) 0 (- 1 (/ compiled size))))  ; 0/0 means 0% improvement
   `((dt "Compiler")
     (dd (p "Compiled " ,(~a size) " to " ,(~a compiled) " computations "
-           "(" ,(format-percent ratio) " saved)"))))
+           "(" ,(format-percent (- size compiled) size) " saved)"))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")

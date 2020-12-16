@@ -11,17 +11,28 @@
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define default-flags
-  #hash([precision . (double fallback)]
+  #hash([precision . (fallback)]
         [setup . (simplify search)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special bools branches)]))
 
+(define (check-flag-deprecated! category flag)
+  (match* (category flag)
+    [('precision 'double)
+     (eprintf "The precision:double option has been removed.\n")
+     (eprintf "  Please use :precision binary32 and :precision binary64 instead.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+    [(_ _)
+     (void)]))
+
 (define (enable-flag! category flag)
+  (check-flag-deprecated! category flag)
   (define (update cat-flags) (set-add cat-flags flag))
   (*flags* (dict-update (*flags*) category update)))
 
 (define (disable-flag! category flag)
+  (check-flag-deprecated! category flag)
   (define (update cat-flags) (set-remove cat-flags flag))
   (*flags* (dict-update (*flags*) category update)))
 

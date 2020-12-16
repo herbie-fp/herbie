@@ -6,7 +6,7 @@
 (provide constant? variable? operator? operator-info constant-info get-operator-itype
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
-         *unknown-d-ops* *unknown-f-ops* *loaded-ops*
+         *unknown-ops* *loaded-ops*
          repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
@@ -15,18 +15,13 @@
 
 (module+ test (require rackunit))
 
-(define *unknown-d-ops* (make-parameter '()))
-(define *unknown-f-ops* (make-parameter '()))
-
-;; Constants's values are defined as functions to allow them to
-;; depend on (bf-precision) and (flag 'precision 'double).
+;; Constants' values are functions because they may depend on (bf-precision)
 
 (define-table constants
   [type type-name?]
   [bf (->* () bigvalue?)]
   [fl (->* () value?)]
-  [ival (or/c (->* () ival?) #f)]
-  [nonffi (->* () value?)])
+  [ival (or/c (->* () ival?) #f)])
 
 (define parametric-constants (make-hash))
 (define parametric-constants-reverse (make-hash))
@@ -55,63 +50,53 @@
 (define-constant (PI PI.f64) binary64
   [bf (λ () pi.bf)]
   [fl (λ () pi)]
-  [ival ival-pi]
-  [nonffi (λ () pi)])
+  [ival ival-pi])
 
 (define-constant (E E.f64) binary64
   [bf (λ () (bfexp 1.bf))]
   [fl (λ () (exp 1.0))]
-  [ival ival-e]
-  [nonffi (λ () (exp 1.0))])
+  [ival ival-e])
 
 (define-constant (INFINITY INFINITY.f64) binary64
   [bf (λ () +inf.bf)]
   [fl (λ () +inf.0)]
-  [ival (λ () (mk-ival +inf.bf))]
-  [nonffi (λ () +inf.0)])
+  [ival (λ () (mk-ival +inf.bf))])
 
 (define-constant (NAN NAN.f64) binary64
   [bf (λ () +nan.bf)]
   [fl (λ () +nan.0)]
-  [ival (λ () (mk-ival +nan.bf))]
-  [nonffi (λ () +nan.0)]) 
+  [ival (λ () (mk-ival +nan.bf))]) 
 
 ;; binary32 ;;
 (define-constant (PI PI.f32) binary32
   [bf (λ () pi.bf)]
   [fl (λ () pi.f)]
-  [ival ival-pi]
-  [nonffi (λ () pi.f)])
+  [ival ival-pi])
 
 (define-constant (E E.f32) binary32
   [bf (λ () (bfexp 1.bf))]
   [fl (λ () (exp 1.0))]
-  [ival ival-e]
-  [nonffi (λ () (exp 1.0))])
+  [ival ival-e])
 
 (define-constant (INFINITY INFINITY.f32) binary32
   [bf (λ () +inf.bf)]
   [fl (λ () +inf.0)]
-  [ival (λ () (mk-ival +inf.bf))]
-  [nonffi (λ () +inf.0)])
+  [ival (λ () (mk-ival +inf.bf))])
 
 (define-constant (NAN NAN.f32) binary32
   [bf (λ () +nan.bf)]
   [fl (λ () +nan.0)]
-  [ival (λ () (mk-ival +nan.bf))]
-  [nonffi (λ () +nan.0)]) 
+  [ival (λ () (mk-ival +nan.bf))]) 
 
 ;; bool ;;
 (define-constant (TRUE TRUE) bool
   [bf (const true)]
   [fl (const true)]
-  [nonffi (const true)]
   [ival (λ () (ival-bool true))])
 
 (define-constant (FALSE FALSE) bool
   [bf (const false)]
   [fl (const false)]
-  [nonffi (const false)]
   [ival (λ () (ival-bool false))])
 
 ;; TODO: The contracts for operators are tricky because the number of arguments is unknown
@@ -142,17 +127,13 @@
 (define (*loaded-ops*)
   (hash-keys parametric-operators-reverse))
 
-(register-reset
- (λ ()
-   (unless (flag-set? 'precision 'fallback)
-     (for ([op (if (flag-set? 'precision 'double) (*unknown-d-ops*) (*unknown-f-ops*))])
-       (operator-remove! op)))))
-
 (define (register-operator! operator name atypes rtype attrib-dict)
+  (define itypes (dict-ref attrib-dict 'itype atypes))
+  (define otype (dict-ref attrib-dict 'otype rtype))
   (table-set! operators name
-              (make-hash (append (list (cons 'itype atypes) (cons 'otype rtype)) attrib-dict)))
+              (make-hash (append (list (cons 'itype itypes) (cons 'otype otype)) attrib-dict)))
   (hash-update! parametric-operators operator 
-                (curry cons (list* name rtype (operator-info name 'itype))) '())
+                (curry cons (list* name otype (operator-info name 'itype))) '())
   (hash-set! parametric-operators-reverse name operator))
 
 (define-syntax-rule (define-operator (operator name atypes ...) rtype [key value] ...)
@@ -230,6 +211,13 @@
   [fl /] [bf bf/] [ival ival-div]
   [nonffi /])
 
+(define *unknown-ops* (make-parameter '()))
+
+(register-reset
+ (λ ()
+   (unless (flag-set? 'precision 'fallback)
+     (for-each operator-remove! (*unknown-ops*)))))
+
 (require ffi/unsafe)
 (define-syntax (define-operator/libm stx)
   (syntax-case stx (real libm)
@@ -245,9 +233,9 @@
               ['double (apply (operator-info 'opf64 'nonffi) args)]
               ['float (apply (operator-info 'opf32 'nonffi) args)]))
            (define double-proc (get-ffi-obj 'id_d #f (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
-                                            (lambda () (*unknown-d-ops* (cons 'opf64 (*unknown-d-ops*))) (curry fallback #'double))))
+                                            (lambda () (*unknown-ops* (cons 'opf64 (*unknown-ops*))) (curry fallback #'double))))
            (define float-proc (get-ffi-obj 'id_f #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
-                                           (lambda () (*unknown-f-ops* (cons 'opf32 (*unknown-f-ops*))) (curry fallback #'float))))
+                                           (lambda () (*unknown-ops* (cons 'opf32 (*unknown-ops*))) (curry fallback #'float))))
            (define-operator (op opf64 #,@(build-list num-args (λ (_) #'binary64))) binary64
              [fl (λ args (apply double-proc args))]
              [key value] ...)
