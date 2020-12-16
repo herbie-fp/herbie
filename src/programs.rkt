@@ -48,14 +48,14 @@
 ;; standards, this will have to have more information passed in
 (define (type-of expr repr env)
   (match expr
-   [(? real?) 'real]
-   [(? value?) (type-name (representation-type repr))]
+   [(? real?) (get-type 'real)]
+   [(? value?) (representation-type repr)]
    [(? constant?) 
-    (type-name (representation-type (get-representation (constant-info expr 'type))))]
-   [(? variable?) (type-name (representation-type (dict-ref env expr)))]
+    (representation-type (get-representation (constant-info expr 'type)))]
+   [(? variable?) (representation-type (dict-ref env expr))]
    [(list 'if cond ift iff) (type-of ift repr env)]
    [(list op args ...) ; repr-name -> repr -> type
-    (type-name (representation-type (get-representation (operator-info op 'otype))))]))
+    (representation-type (get-representation (operator-info op 'otype)))]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications

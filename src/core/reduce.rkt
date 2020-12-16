@@ -2,7 +2,7 @@
 
 (require "../common.rkt" "../programs.rkt" "matcher.rkt" "../interface.rkt"
          "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt"
-         "../syntax/sugar.rkt")
+         "../syntax/sugar.rkt" "../syntax/types.rkt")
 
 (provide simplify)
 
@@ -278,7 +278,7 @@
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
     [`(,power . ,x)
-     (match (type-of (desugar-program x (*output-repr*) (*var-reprs*) #:full #f)
-                     (*output-repr*) (*var-reprs*))
+     (define base* (desugar-program x (*output-repr*) (*var-reprs*) #:full #f))
+     (match (type-name (type-of base* (*output-repr*) (*var-reprs*)))
        ['real `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))

@@ -62,7 +62,7 @@
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-of e repr (*var-reprs*)) 'real))
+   (λ (e) (equal? (type-name (type-of e repr (*var-reprs*))) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
