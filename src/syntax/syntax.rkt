@@ -21,8 +21,7 @@
   [type type-name?]
   [bf (->* () bigvalue?)]
   [fl (->* () value?)]
-  [ival (or/c (->* () ival?) #f)]
-  [nonffi (->* () value?)])
+  [ival (or/c (->* () ival?) #f)])
 
 (define parametric-constants (make-hash))
 (define parametric-constants-reverse (make-hash))
@@ -51,63 +50,53 @@
 (define-constant (PI PI.f64) binary64
   [bf (λ () pi.bf)]
   [fl (λ () pi)]
-  [ival ival-pi]
-  [nonffi (λ () pi)])
+  [ival ival-pi])
 
 (define-constant (E E.f64) binary64
   [bf (λ () (bfexp 1.bf))]
   [fl (λ () (exp 1.0))]
-  [ival ival-e]
-  [nonffi (λ () (exp 1.0))])
+  [ival ival-e])
 
 (define-constant (INFINITY INFINITY.f64) binary64
   [bf (λ () +inf.bf)]
   [fl (λ () +inf.0)]
-  [ival (λ () (mk-ival +inf.bf))]
-  [nonffi (λ () +inf.0)])
+  [ival (λ () (mk-ival +inf.bf))])
 
 (define-constant (NAN NAN.f64) binary64
   [bf (λ () +nan.bf)]
   [fl (λ () +nan.0)]
-  [ival (λ () (mk-ival +nan.bf))]
-  [nonffi (λ () +nan.0)]) 
+  [ival (λ () (mk-ival +nan.bf))]) 
 
 ;; binary32 ;;
 (define-constant (PI PI.f32) binary32
   [bf (λ () pi.bf)]
   [fl (λ () pi.f)]
-  [ival ival-pi]
-  [nonffi (λ () pi.f)])
+  [ival ival-pi])
 
 (define-constant (E E.f32) binary32
   [bf (λ () (bfexp 1.bf))]
   [fl (λ () (exp 1.0))]
-  [ival ival-e]
-  [nonffi (λ () (exp 1.0))])
+  [ival ival-e])
 
 (define-constant (INFINITY INFINITY.f32) binary32
   [bf (λ () +inf.bf)]
   [fl (λ () +inf.0)]
-  [ival (λ () (mk-ival +inf.bf))]
-  [nonffi (λ () +inf.0)])
+  [ival (λ () (mk-ival +inf.bf))])
 
 (define-constant (NAN NAN.f32) binary32
   [bf (λ () +nan.bf)]
   [fl (λ () +nan.0)]
-  [ival (λ () (mk-ival +nan.bf))]
-  [nonffi (λ () +nan.0)]) 
+  [ival (λ () (mk-ival +nan.bf))]) 
 
 ;; bool ;;
 (define-constant (TRUE TRUE) bool
   [bf (const true)]
   [fl (const true)]
-  [nonffi (const true)]
   [ival (λ () (ival-bool true))])
 
 (define-constant (FALSE FALSE) bool
   [bf (const false)]
   [fl (const false)]
-  [nonffi (const false)]
   [ival (λ () (ival-bool false))])
 
 ;; TODO: The contracts for operators are tricky because the number of arguments is unknown
