@@ -5,7 +5,7 @@
 (module+ test (require rackunit))
 
 (provide reap define-table table-ref table-set! table-remove!
-         for/append string-prefix call-with-output-files
+         string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
          argmins argmaxs index-of set-disjoint? comparator sample-double sample-single
          parse-flag get-seed set-seed!
@@ -43,18 +43,6 @@
 
 (define (table-remove! tbl key)
   (hash-remove! (cdr tbl) key))
-
-;; More various helpful values
-
-(define-syntax-rule (for/append (defs ...)
-                                bodies ...)
-  (apply append
-         (for/list (defs ...)
-           bodies ...)))
-
-(module+ test
-  (check-equal? (for/append ([v (in-range 5)]) (list v v v))
-                '(0 0 0 1 1 1 2 2 2 3 3 3 4 4 4)))
 
 ;; Utility list functions
 
