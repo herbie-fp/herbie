@@ -3,7 +3,8 @@
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
          "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt" "conversions.rkt"
          "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "sampling.rkt"
-         "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt")
+         "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
+         "syntax/sugar.rkt")
 
 (provide (all-defined-out))
 
