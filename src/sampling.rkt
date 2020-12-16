@@ -113,8 +113,33 @@
     [else
      hyperrects-analysis]))
 
+(define (list-set-multiple list indicies values)
+  (let loop ([current list] [indicies indicies] [values values] [index 0])
+    (cond
+      [(empty? current)
+       empty]
+      [(and (not (empty? indicies)) (equal? (first indicies) index))
+       (cons (first values) (loop (rest current) (rest indicies) (rest values) (+ index 1)))]
+      [else
+       (cons (first current) (loop (rest current) indicies values (+ index 1)))])))
+
+(define (sort-group variables point sort-group)
+  (define indicies
+    (sort (map (lambda (var) (index-of variables var)) (symmetry-group-variables sort-group)) <))
+  (define sorted
+    (sort (map (curry list-ref point) indicies) <))
+  (list-set-multiple point indicies sorted))
+
+(define (apply-preprocess variables sampled-point preprocess-structs)
+  (cond
+    [(empty? preprocess-structs)
+     sampled-point]
+    ;; Add more preprocess cases here- for now, only symmetry-group exists
+    [else
+     (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs)) (rest preprocess-structs))]))
+
 ; These definitions in place, we finally generate the points.
-(define (make-sampler repr precondition . programs)
+(define (make-sampler repr precondition programs preprocess-structs)
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
 
   (unless (for/and ([repr reprs]) (> (bf-precision) (representation-total-bits repr)))
@@ -131,10 +156,10 @@
     (when (vector-empty? hyperrects)
       (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
     (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
-    (λ () (sample-multi-bounded hyperrects weights reprs))]
+    (λ () (apply-preprocess (program-variables precondition) (sample-multi-bounded hyperrects weights reprs) preprocess-structs))]
    [else
     (timeline-push! 'method "random")
-    (λ () (map random-generate reprs))]))
+    (λ () (apply-preprocess (program-variables precondition) (map random-generate reprs) preprocess-structs))]))
 
 (module+ test
   (define repr (get-representation 'binary64))

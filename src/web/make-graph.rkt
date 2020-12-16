@@ -47,10 +47,18 @@
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
+(define (render-preprocess-struct preprocess)
+  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) " ") "]"))
+  (render-large vars "=" (string-append "sort(" vars ")")))
+
+(define (render-preprocess preprocess-structs)
+  `(section ([id "preprocess"])
+    ,@(map render-preprocess-struct preprocess-structs)))
+
 (define (make-graph result out fpcore? profile?)
   (match-define
    (test-success test bits time timeline warnings
-                 start-alt end-alt points exacts start-est-error end-est-error
+                 start-alt end-alt preprocess points exacts start-est-error end-est-error
                  newpoints newexacts start-error end-error target-error
                  baseline-error oracle-error all-alts)
    result)
@@ -95,6 +103,8 @@
        ,(render-large "Precision" `(kbd ,(~a (representation-name repr)))))
 
       ,(render-warnings warnings)
+
+      ,(render-preprocess preprocess)
 
       ,(render-program test #:to (alt-program end-alt))
 

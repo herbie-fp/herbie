@@ -32,7 +32,7 @@
           the-test))
     (match (get-test-result the-test* #:seed seed)
       [(test-success test bits time timeline warnings
-                     start-alt end-alt points exacts start-est-error end-est-error
+                     start-alt end-alt preprocess points exacts start-est-error end-est-error
                      newpoints newexacts start-error end-error target-error
                      baseline-error oracle-error all-alts)
        (printf "[ ~as]   ~a→~a\t~a\n"

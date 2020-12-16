@@ -4,7 +4,7 @@
          "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt" "conversions.rkt"
          "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "sampling.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
-         "syntax/sugar.rkt")
+         "syntax/sugar.rkt" "symmetry.rkt")
 
 (provide (all-defined-out))
 
@@ -78,7 +78,11 @@
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
   (timeline-event! 'analyze)
-  (*sampler* (make-sampler (*output-repr*) precondition-prog (or specification prog)))
+  (define symmetry-groups (filter (lambda (group) (> (length group) 1)) (connected-components (or specification prog))))
+  (define preprocess-structs (map symmetry-group symmetry-groups))
+  (*herbie-preprocess* preprocess-structs)
+  (*sampler* (make-sampler (*output-repr*) precondition-prog (list (or specification prog)) (*herbie-preprocess*)))
+  
   (timeline-event! 'sample)
   (*pcontext* (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*)))
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")

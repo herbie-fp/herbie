@@ -15,7 +15,7 @@
 ;; These cannot move between threads!
 (struct test-result (test bits time timeline warnings))
 (struct test-success test-result
-  (start-alt end-alt points exacts start-est-error end-est-error
+  (start-alt end-alt preprocess points exacts start-est-error end-est-error
    newpoints newexacts start-error end-error target-error
    baseline-error oracle-error all-alts))
 (struct test-failure test-result (exn))
@@ -92,7 +92,8 @@
                       (bf-precision)
                       (- (current-inexact-milliseconds) start-time)
                       (timeline-extract output-repr)
-                      warning-log (make-alt (test-program test)) alt points exacts
+                      warning-log (make-alt (test-program test)) alt
+                      (*herbie-preprocess*) points exacts
                       (errors (test-program test) context output-repr)
                       (errors (alt-program alt) context output-repr)
                       newpoints newexacts

@@ -1,6 +1,8 @@
 #lang racket
 (require "common.rkt" "programs.rkt" "core/simplify.rkt" "syntax/rules.rkt")
 
+(provide connected-components)
+
 (define (get-swaps vars expr)
   (define swapt
     (for/list ([swap (in-combinations vars 2)])
@@ -26,4 +28,4 @@
             '()
             'real)))
   (define groups (simplify-batch (range (length vars)) #:rules rules*))
-  (map car (group-by cdr (map cons vars groups))))
+  (map (lambda (group) (map car group)) (group-by cdr (map cons vars groups))))
