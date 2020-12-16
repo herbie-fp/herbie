@@ -7,6 +7,7 @@
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
+         program-cost expr-cost
          type-of repr-of
          expr-supports?
          location-hash
@@ -32,6 +33,15 @@
   (-> expr? (listof symbol?))
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   vars)
+
+(define (program-cost prog)
+  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
+  (expr-cost body))
+
+(define/match (expr-cost expr)
+  [((list 'if cond ift iff)) (+ 1 (expr-cost cond) (max (expr-cost ift) (expr-cost iff)))]
+  [((list op args ...)) (apply + 1 (map expr-cost args))]
+  [(_) 1])
 
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
