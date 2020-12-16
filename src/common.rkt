@@ -7,7 +7,7 @@
 (provide reap define-table table-ref table-set! table-remove!
          string-prefix call-with-output-files
          take-up-to flip-lists list/true find-duplicates all-partitions
-         argmins argmaxs index-of set-disjoint? comparator sample-double sample-single
+         argmins argmaxs index-of set-disjoint? comparator
          parse-flag get-seed set-seed!
          quasisyntax syntax-e* dict sym-append
          format-time format-bits in-sorted-dict web-resource
@@ -228,12 +228,6 @@
 (define ((comparator test) . args)
   (for/and ([left args] [right (cdr args)])
     (test left right)))
-
-(define (sample-double)
-  (floating-point-bytes->real (integer->integer-bytes (random-bits 64) 8 #f)))
-
-(define (sample-single)
-  (floating-point-bytes->real (integer->integer-bytes (random-bits 32) 4 #f)))
 
 (define (syntax-e* stx)
   (match (syntax-e stx)

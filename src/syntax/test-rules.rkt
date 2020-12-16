@@ -74,10 +74,8 @@
   (define repr (get-representation otype))
   (define (make-point)
     (for/list ([v fv])
-      (match (dict-ref (rule-itypes test-rule) v)
-        [(or 'binary64 'binary32) (random-generate repr)]
-        ['bool (if (< (random) .5) false true)]
-        ['complex (make-rectangular (sample-double) (sample-double))])))
+      (define repr (get-representation (dict-ref (rule-itypes test-rule) v)))
+      (random-generate repr)))
   (define point-sequence (in-producer make-point))
   (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
   (define prog1 (eval-prog `(λ ,fv ,p1) 'fl repr))
