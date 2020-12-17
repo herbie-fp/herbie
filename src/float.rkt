@@ -44,17 +44,27 @@
 
 
 (define (largest-ordinary-value repr)
+  (define inf-in-repr ((representation-bf->repr repr) +inf.bf))
   ((representation-repr->bf repr)
    ((representation-ordinal->repr repr)
-    (- ((representation-repr->ordinal repr) ((representation-bf->repr repr) +inf.bf)) 1))))
+    (if (bfinfinite? ((representation-repr->bf repr) inf-in-repr))
+        (- ((representation-repr->ordinal repr) inf-in-repr) 1)  ;; actually corresponds to +inf.0 (binary64)
+        ((representation-repr->ordinal repr) inf-in-repr))))) ;; just the max val (fixed point)
+        
+(define (has-infinite-value? repr)
+  (let ([repr->bf (representation-repr->bf repr)]
+        [bf->repr (representation-bf->repr repr)])
+    (bfinfinite? (repr->bf (bf->repr +inf.bf)))))
 
 (define (bound-ordinary-values repr)
-  (parameterize ([bf-rounding-mode 'nearest])
-    (let loop ([ordinal (bigfloat->ordinal (largest-ordinary-value repr))] [stepsize 1])
-      (define bfval (ordinal->bigfloat ordinal))
-      (if (bfinfinite? ((representation-repr->bf repr) ((representation-bf->repr repr) bfval)))
-          bfval
-          (loop (+ ordinal stepsize) (* stepsize 2))))))
+  (if (has-infinite-value? repr)
+      (parameterize ([bf-rounding-mode 'nearest])
+        (let loop ([ordinal (bigfloat->ordinal (largest-ordinary-value repr))] [stepsize 1])
+          (define bfval (ordinal->bigfloat ordinal))
+          (if (bfinfinite? ((representation-repr->bf repr) ((representation-bf->repr repr) bfval)))
+              bfval
+              (loop (+ ordinal stepsize) (* stepsize 2)))))
+      (largest-ordinary-value repr)))
 
 (module+ test
   (define binary64 (get-representation 'binary64))

@@ -3,7 +3,8 @@
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
          "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt" "conversions.rkt"
          "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "sampling.rkt"
-         "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt")
+         "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
+         "syntax/sugar.rkt")
 
 (provide (all-defined-out))
 
@@ -98,10 +99,6 @@
        (~r #:min-width 4 n)
        (program-body (alt-program alt)))))
   (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
-
-(define (add-conversion! prec1 prec2)
-  (define single-conv (list (list prec1 prec2)))
-  (generate-conversions single-conv))
 
 ;; Begin iteration
 (define (choose-alt! n)
@@ -251,10 +248,6 @@
   (^children^ (append (^children^) rewritten))
   (^gened-rewrites^ #t)
   (void))
-
-(define (num-nodes expr)
-  (if (not (list? expr)) 1
-      (add1 (apply + (map num-nodes (cdr expr))))))
 
 (define (simplify!)
   (unless (^children^)

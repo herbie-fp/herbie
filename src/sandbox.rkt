@@ -3,7 +3,8 @@
 (require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
-         (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt")
+         (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt"
+         "syntax/sugar.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)

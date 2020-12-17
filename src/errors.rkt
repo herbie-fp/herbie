@@ -14,7 +14,7 @@
 (struct exn:fail:user:herbie:syntax exn:fail:user:herbie (locations)
   #:extra-constructor-name make-exn:fail:user:herbie:syntax)
 
-(struct exn:fail:user:herbie:sampling exn:fail:user (url)
+(struct exn:fail:user:herbie:sampling exn:fail:user:herbie ()
   #:extra-constructor-name make-exn:fail:user:herbie:sampling)
 
 (define (raise-herbie-error message #:url [url #f] . args)
