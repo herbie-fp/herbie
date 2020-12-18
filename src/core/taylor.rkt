@@ -26,8 +26,9 @@
           (next (+ iter 1))
           (simplify (make-sum (reverse terms))))]
      [_
-      (define term (simplify `(* ,coeff ,(make-monomial ((cdr tform) var) (- i offset 1)))))
-      (set! terms (cons term terms))
+      (define term `(* ,coeff ,(make-monomial var (- i offset 1))))
+      (define term* (simplify (replace-expression term var ((cdr tform) var))))
+      (set! terms (cons term* terms))
       (simplify (make-sum (reverse terms)))]))
 
   next)
