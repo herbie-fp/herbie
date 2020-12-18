@@ -98,7 +98,9 @@
 
   (define-values (points exacts)
     (let loop ([sampled 0] [skipped 0] [points '()] [exacts '()])
-      (define pt (sampler))
+      (define sampler-result (sampler))
+      (define pt (second sampler-result))
+      (define processed-point (first sampler-result))
 
       (define pre
         (or (equal? (program-body precondition) 'TRUE)
@@ -106,7 +108,7 @@
                        #:log (point-logger 'pre log precondition))))
 
       (define ex
-        (and pre (ival-eval body-fn pt repr #:precision (bf-precision)
+        (and pre (ival-eval body-fn processed-point repr #:precision (bf-precision)
                             #:log (point-logger 'body log prog))))
 
       (define success
@@ -117,13 +119,12 @@
        [(and success (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
             (values points exacts)
-            (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
+            (loop (+ 1 sampled) 0 (cons processed-point points) (cons ex exacts)))]
        [else
         (unless (< skipped (- (*max-skipped-points*) 1))
           (raise-herbie-error "Cannot sample enough valid points."
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exacts)])))
-
   (mk-pcontext points exacts))
 
 (define (prepare-points prog precondition repr sampler)
@@ -262,7 +263,7 @@
       (debug #:from 'points #:depth 4
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
-      (define pts1 (for/list ([n (in-range num)]) (sampler)))
+      (define pts1 (for/list ([n (in-range num)]) (first (sampler))))
       (define exs1 (make-exacts-halfpoints prog pts1 precondition repr))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")

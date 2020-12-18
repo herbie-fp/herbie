@@ -214,7 +214,10 @@
                           `(λ ,(program-variables start-prog)
                               (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
                           repr
-                          (λ () (cons v (sampler)))))
+                          (λ ()
+                            (let ([res (sampler)])
+                              (list (cons v (first res))
+                                    (cons v (second res)))))))
         (< (errors-score (errors prog1 ctx repr))
            (errors-score (errors prog2 ctx repr)))))
     (define pt (binary-search-floats pred v1 v2 repr))

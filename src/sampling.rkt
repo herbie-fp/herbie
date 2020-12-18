@@ -133,12 +133,13 @@
 (define (apply-preprocess variables sampled-point preprocess-structs)
   (cond
     [(empty? preprocess-structs)
-     sampled-point]
+     (list sampled-point sampled-point)]
     ;; Add more preprocess cases here- for now, only symmetry-group exists
     [else
-     (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs)) (rest preprocess-structs))]))
+     (list (first (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs)) (rest preprocess-structs))) sampled-point)]))
 
 ; These definitions in place, we finally generate the points.
+; A sampler returns two points- one without preprocessing and one with preprocessing
 (define (make-sampler repr precondition programs preprocess-structs)
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
 
