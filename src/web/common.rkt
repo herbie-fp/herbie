@@ -54,7 +54,16 @@
     ("FPCore" . ,fpcore->string)
     ("C" . ,(curryr core->c "code"))))
 
-(define (render-program #:to [result #f] test)
+(define (render-preprocess-struct preprocess)
+  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) " ") "]"))
+  (render-large vars "=" (string-append "sort(" vars ")")))
+
+(define (render-preprocess preprocess-structs)
+  `(div ([id "preprocess"])
+        (div ([class "program math"])
+             ,@(map render-preprocess-struct preprocess-structs))))
+
+(define (render-program #:to [result #f] preprocess test)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
 
@@ -88,6 +97,10 @@
           `(div ([id "precondition"])
              (div ([class "program math"])
                   "\\[" ,(expr->tex (resugar-program (program-body (test-precondition test)) output-repr)) "\\]")))
+     ,(if (empty? preprocess)
+          ""
+          (render-preprocess preprocess))
+           
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([lang (in-dict-keys versions)])

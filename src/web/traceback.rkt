@@ -40,7 +40,7 @@
             (p "Use the " (code "--timeout") " flag to change the timeout."))]
          [_ ""])
 
-      ,(render-program test)
+      ,(render-program empty test)
 
       ,(match exn
         [(? exn:fail:user:herbie?) ""]
