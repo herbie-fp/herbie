@@ -148,15 +148,12 @@
 ; not all taylor transforms are valid in a given repr, return false on failure
 (define (taylor-expr expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
-  ;(with-handlers ([exn:fail? (const #f)]) 
+  (with-handlers ([exn:fail? (const #f)]) 
     (define genexpr (approximate2 expr* var #:transform (cons f finv)))
-    (λ () (desugar-program (genexpr) repr (*var-reprs*) #:full #f)));)
+    (λ () (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
 
 (define (exact-min x y)
   (if (<= x y) x y))
-
-(define (much-< x y)
-  (< x (/ y 2)))
 
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
@@ -170,17 +167,17 @@
           (match-define (list name f finv) transform-type)
           (define genexpr (taylor-expr expr repr var f finv))
 
-          #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
+          (define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
           (let loop ([last (for/list ([(p e) (in-pcontext (*pcontext*))]) +inf.0)] [i 0])
             (define expr* (location-do loc (alt-program altn) (const (genexpr))))
+            #;(eprintf "~a ~~ ~a[~a]: ~a\n" var name i (program-body expr*))
             (when expr*
               (define errs (errors expr* (*pcontext*) (*output-repr*)))
               (define altn* (alt expr* `(taylor ,name ,loc) (list altn)))
-              (when (ormap much-< errs last)
-                #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
-                (sow altn*)
-                (when (< i 3)
-                  (loop (map exact-min errs last) (+ i 1))))))))))
+              (sow altn*)
+              #;(eprintf "Better on ~a\n" (count (λ (pt x y) (and (< x y) (list pt x y))) pts errs last))
+              (when (and (ormap < errs last) (< i 5))
+                (loop (map exact-min errs last) (+ i 1)))))))))
 
 (define (gen-series!)
   (unless (^locs^)
