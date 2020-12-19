@@ -149,7 +149,7 @@
 (define (taylor-expr expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
   (with-handlers ([exn:fail? (const #f)]) 
-    (define genexpr (approximate2 expr* var #:transform (cons f finv)))
+    (define genexpr (approximate expr* var #:transform (cons f finv)))
     (λ () (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
 
 (define (exact-min x y)
