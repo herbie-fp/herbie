@@ -6,7 +6,7 @@
 
 (provide reap define-table table-ref table-set! table-remove!
          string-prefix call-with-output-files
-         take-up-to flip-lists list/true find-duplicates all-partitions
+         take-up-to flip-lists list/true find-duplicates
          argmins argmaxs index-of set-disjoint? comparator
          parse-flag get-seed set-seed!
          quasisyntax syntax-e* dict sym-append
@@ -216,14 +216,6 @@
   (if name
       (build-path web-resource-path name)
       web-resource-path))
-
-(define (all-partitions n #:from [k 1])
-  (cond
-   [(= n 0) '(())]
-   [(< n k) '()]
-   [else
-    (append (map (curry cons k) (all-partitions (- n k) #:from k))
-            (all-partitions n #:from (+ k 1)))]))
 
 (define ((comparator test) . args)
   (for/and ([left args] [right (cdr args)])

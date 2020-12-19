@@ -8,7 +8,7 @@
 
 (provide approximate)
 
-(define (approximate expr var #:transform [tform #f] #:iters [iters 5])
+(define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
   (match-define (cons offset coeffs) (taylor var expr*))
 
@@ -322,43 +322,6 @@
                                       (* 3 ,(f 0)))))))])
       (cons (/ offset* 3) f))))
 
-(define (rle l)
-  (for/list ([run (group-by identity l)])
-    (cons (length run) (car run))))
-
-(define (taylor-exp coeffs)
-  (let* ([hash (make-hash)])
-    (hash-set! hash 0 (simplify `(exp ,(coeffs 0))))
-    (cons 0
-          (λ (n)
-            (hash-ref! hash n
-                       (λ ()
-                         (simplify
-                          `(* (exp ,(coeffs 0))
-                              (+
-                               ,@(for/list ([p (map rle (all-partitions n))])
-                                   `(*
-                                     ,@(for/list ([(count num) (in-dict p)])
-                                         `(/ (pow ,(coeffs num) ,count)
-                                             ,(factorial count))))))))))))))
-
-(define (taylor-sin coeffs)
-  (let ([hash (make-hash)])
-    (hash-set! hash 0 0)
-    (cons 0
-          (λ (n)
-            (hash-ref! hash n
-                       (λ ()
-                         (simplify
-                          `(+
-                            ,@(for/list ([p (map rle (all-partitions n))])
-                                (if (= (modulo (apply + (map car p)) 2) 1)
-                                    `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                        ,@(for/list ([(count num) (in-dict p)])
-                                            `(/ (pow ,(coeffs num) ,count)
-                                                ,(factorial count))))
-                                    0))))))))))
-
 (define (taylor-pow coeffs n)
   (match n ;; Russian peasant multiplication
     [(? negative?) (taylor-pow (taylor-invert coeffs) (- n))]
@@ -371,6 +334,61 @@
      (define half (taylor-pow coeffs (/ (- n 1) 2)))
      (taylor-mult coeffs (taylor-mult half half))]))
 
+(define (all-partitions n options)
+  (match options
+    ['() (if (= n 0) '(()) '())]
+    [(cons k options*)
+     (reap [sow]
+       (for* ([i (in-range (/ (+ n 1) k))])
+         (define head (cons i k))
+         (if (= i 0)
+             (map sow (all-partitions n options*))
+             (for ([pt (all-partitions (- n (* k i)) options*)])
+               (sow (cons head pt))))))]))
+
+(define (taylor-exp coeffs)
+  (let* ([hash (make-hash)])
+    (hash-set! hash 0 (simplify `(exp ,(coeffs 0))))
+    (cons 0
+          (λ (n)
+            (hash-ref! hash n
+                       (λ ()
+                         (define coeffs* (list->vector (map coeffs (range (+ n 1)))))
+                         (define nums
+                           (for/list ([i (in-range (+ n 1))] [coeff (in-vector coeffs*)]
+                                      #:unless (= coeff 0))
+                             i))
+                         (simplify
+                          `(* (exp ,(coeffs 0))
+                              (+
+                               ,@(for/list ([p (all-partitions n (sort nums >))])
+                                   `(*
+                                     ,@(for/list ([(count num) (in-dict p)])
+                                         `(/ (pow ,(vector-ref coeffs* num) ,count)
+                                             ,(factorial count))))))))))))))
+
+(define (taylor-sin coeffs)
+  (let ([hash (make-hash)])
+    (hash-set! hash 0 0)
+    (cons 0
+          (λ (n)
+            (hash-ref! hash n
+                       (λ ()
+                         (define coeffs* (list->vector (map coeffs (range (+ n 1)))))
+                         (define nums
+                           (for/list ([i (in-range (+ n 1))] [coeff (in-vector coeffs*)]
+                                      #:unless (= coeff 0))
+                             i))
+                         (simplify
+                          `(+
+                            ,@(for/list ([p (all-partitions n (sort nums >))])
+                                (if (= (modulo (apply + (map car p)) 2) 1)
+                                    `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
+                                        ,@(for/list ([(count num) (in-dict p)])
+                                            `(/ (pow ,(vector-ref coeffs* num) ,count)
+                                                ,(factorial count))))
+                                    0))))))))))
+
 (define (taylor-cos coeffs)
   (let ([hash (make-hash)])
     (hash-set! hash 0 1)
@@ -378,13 +396,18 @@
           (λ (n)
             (hash-ref! hash n
                        (λ ()
+                         (define coeffs* (list->vector (map coeffs (range (+ n 1)))))
+                         (define nums
+                           (for/list ([i (in-range (+ n 1))] [coeff (in-vector coeffs*)]
+                                      #:unless (= coeff 0))
+                             i))
                          (simplify
                           `(+
-                            ,@(for/list ([p (map rle (all-partitions n))])
+                            ,@(for/list ([p (all-partitions n (sort nums >))])
                                 (if (= (modulo (apply + (map car p)) 2) 0)
                                     `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
                                         ,@(for/list ([(count num) (in-dict p)])
-                                            `(/ (pow ,(coeffs num) ,count)
+                                            `(/ (pow ,(vector-ref coeffs* num) ,count)
                                                 ,(factorial count))))
                                     0))))))))))
 
