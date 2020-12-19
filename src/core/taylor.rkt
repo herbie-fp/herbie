@@ -356,7 +356,7 @@
                          (define coeffs* (list->vector (map coeffs (range (+ n 1)))))
                          (define nums
                            (for/list ([i (in-range (+ n 1))] [coeff (in-vector coeffs*)]
-                                      #:unless (= coeff 0))
+                                      #:unless (equal? coeff 0))
                              i))
                          (simplify
                           `(* (exp ,(coeffs 0))
@@ -377,7 +377,7 @@
                          (define coeffs* (list->vector (map coeffs (range (+ n 1)))))
                          (define nums
                            (for/list ([i (in-range (+ n 1))] [coeff (in-vector coeffs*)]
-                                      #:unless (= coeff 0))
+                                      #:unless (equal? coeff 0))
                              i))
                          (simplify
                           `(+
@@ -399,7 +399,7 @@
                          (define coeffs* (list->vector (map coeffs (range (+ n 1)))))
                          (define nums
                            (for/list ([i (in-range (+ n 1))] [coeff (in-vector coeffs*)]
-                                      #:unless (= coeff 0))
+                                      #:unless (equal? coeff 0))
                              i))
                          (simplify
                           `(+
