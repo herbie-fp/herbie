@@ -41,7 +41,8 @@
      repr
      `((λ ,fv ,(desugar-program (dict-ref *conditions* name 'TRUE) repr (*var-reprs*)))
        (λ ,fv ,p1)
-       (λ ,fv ,p2))))
+       (λ ,fv ,p2))
+     empty))
 
   (define points (for/list ([n (in-range num-test-points)]) (make-point)))
   (define prog1 (ground-truth fv p1 repr))
