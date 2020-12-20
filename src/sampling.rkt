@@ -1,10 +1,11 @@
 #lang racket
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
-(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt" "float.rkt"
-         "interface.rkt" "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt")
+(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt"
+         "float.rkt" "alternative.rkt" "interface.rkt" "points.rkt"
+         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt")
 (module+ test (require rackunit))
-(provide make-sampler)
+(provide make-sampler remove-unecessary-preprocessing)
 
 (define (precondition->hyperrects precondition reprs repr)
   ;; FPBench needs unparameterized operators
@@ -113,30 +114,23 @@
     [else
      hyperrects-analysis]))
 
-(define (list-set-multiple list indicies values)
-  (let loop ([current list] [indicies indicies] [values values] [index 0])
-    (cond
-      [(empty? current)
-       empty]
-      [(and (not (empty? indicies)) (equal? (first indicies) index))
-       (cons (first values) (loop (rest current) (rest indicies) (rest values) (+ index 1)))]
-      [else
-       (cons (first current) (loop (rest current) indicies values (+ index 1)))])))
+(define (preprocessing-<=? alt preprocessing-one preprocessing-two)
+  (<= (errors-score (errors (alt-program alt) (*pcontext*) (*output-repr*) #:processing preprocessing-one))
+      (errors-score (errors (alt-program alt) (*pcontext*) (*output-repr*) #:processing preprocessing-two))))
 
-(define (sort-group variables point sort-group)
-  (define indicies
-    (sort (map (lambda (var) (index-of variables var)) (symmetry-group-variables sort-group)) <))
-  (define sorted
-    (sort (map (curry list-ref point) indicies) <))
-  (list-set-multiple point indicies sorted))
+(define (drop-at ls index)
+  (define-values (front back) (split-at ls index))
+  (append front (rest back)))
 
-(define (apply-preprocess variables sampled-point preprocess-structs)
-  (cond
-    [(empty? preprocess-structs)
-     (list sampled-point sampled-point)]
-    ;; Add more preprocess cases here- for now, only symmetry-group exists
-    [else
-     (list (first (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs)) (rest preprocess-structs))) sampled-point)]))
+(define (remove-unecessary-preprocessing alt preprocessing)
+  (define dropped
+    (for/or ([i (in-range (length preprocessing))])
+      (if (preprocessing-<=? alt (drop-at preprocessing i) preprocessing)
+          (drop-at preprocessing i)
+          #f)))
+  (if dropped
+      (remove-unecessary-preprocessing alt dropped)
+      preprocessing))
 
 ; These definitions in place, we finally generate the points.
 ; A sampler returns two points- one without preprocessing and one with preprocessing

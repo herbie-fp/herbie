@@ -431,5 +431,6 @@
             ,(simplify-expr (program-body (alt-program joined-alt))
                             #:rules (*fp-safe-simplify-rules*)))
          'final-simplify (list joined-alt)))
+  (*herbie-preprocess* (remove-unecessary-preprocessing cleaned-alt (*herbie-preprocess*)))
   (timeline-event! 'end)
   cleaned-alt)

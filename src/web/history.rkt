@@ -11,10 +11,10 @@
   (define preds (splitpoints->point-preds splitpoints alts repr))
 
   (for/list ([pred preds])
-    (define-values (pts* exs*)
+    (define-values (pts* exs* un*)
       (for/lists (pts exs)
-          ([(pt ex) (in-pcontext pcontext)] #:when (pred pt))
-        (values pt ex)))
+          ([(pt ex un) (in-pcontext-with-unprocessed pcontext)] #:when (pred pt))
+        (values pt ex un)))
 
     ;; TODO: The (if) here just corrects for the possibility that we
     ;; might have sampled new points that include no points in a given
@@ -22,7 +22,7 @@
     ;; actually have many points in each regime. That would require
     ;; breaking some abstraction boundaries right now so we haven't
     ;; done it yet.
-    (if (null? pts*) pcontext (mk-pcontext pts* exs*))))
+    (if (null? pts*) pcontext (mk-pcontext pts* exs* un*))))
 
 (struct interval (alt-idx start-point end-point expr))
 
