@@ -353,9 +353,9 @@
           (λ (n)
             (hash-ref! hash n
                        (λ ()
-                         (define coeffs* (list->vector (map coeffs (range (+ n 1)))))
+                         (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
                          (define nums
-                           (for/list ([i (in-range (+ n 1))] [coeff (in-vector coeffs*)]
+                           (for/list ([i (in-range 1 (+ n 1))] [coeff (in-vector coeffs*)]
                                       #:unless (equal? coeff 0))
                              i))
                          (simplify
@@ -364,7 +364,7 @@
                                ,@(for/list ([p (all-partitions n (sort nums >))])
                                    `(*
                                      ,@(for/list ([(count num) (in-dict p)])
-                                         `(/ (pow ,(vector-ref coeffs* num) ,count)
+                                         `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
                                              ,(factorial count))))))))))))))
 
 (define (taylor-sin coeffs)
