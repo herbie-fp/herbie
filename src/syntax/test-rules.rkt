@@ -39,7 +39,7 @@
   (define make-point
     (make-sampler
      repr
-     (λ ,fv ,(desugar-program (dict-ref *conditions* name 'TRUE) repr (*var-reprs*)))
+     `(λ ,fv ,(desugar-program (dict-ref *conditions* name 'TRUE) repr (*var-reprs*)))
      `((λ ,fv ,p1)
        (λ ,fv ,p2))
      empty))
