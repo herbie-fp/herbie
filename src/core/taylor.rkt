@@ -374,9 +374,9 @@
           (λ (n)
             (hash-ref! hash n
                        (λ ()
-                         (define coeffs* (list->vector (map coeffs (range (+ n 1)))))
+                         (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
                          (define nums
-                           (for/list ([i (in-range (+ n 1))] [coeff (in-vector coeffs*)]
+                           (for/list ([i (in-range 1 (+ n 1))] [coeff (in-vector coeffs*)]
                                       #:unless (equal? coeff 0))
                              i))
                          (simplify
@@ -385,7 +385,7 @@
                                 (if (= (modulo (apply + (map car p)) 2) 1)
                                     `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
                                         ,@(for/list ([(count num) (in-dict p)])
-                                            `(/ (pow ,(vector-ref coeffs* num) ,count)
+                                            `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
                                                 ,(factorial count))))
                                     0))))))))))
 
@@ -396,9 +396,9 @@
           (λ (n)
             (hash-ref! hash n
                        (λ ()
-                         (define coeffs* (list->vector (map coeffs (range (+ n 1)))))
+                         (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
                          (define nums
-                           (for/list ([i (in-range (+ n 1))] [coeff (in-vector coeffs*)]
+                           (for/list ([i (in-range 1 (+ n 1))] [coeff (in-vector coeffs*)]
                                       #:unless (equal? coeff 0))
                              i))
                          (simplify
@@ -407,7 +407,7 @@
                                 (if (= (modulo (apply + (map car p)) 2) 0)
                                     `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
                                         ,@(for/list ([(count num) (in-dict p)])
-                                            `(/ (pow ,(vector-ref coeffs* num) ,count)
+                                            `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
                                                 ,(factorial count))))
                                     0))))))))))
 
