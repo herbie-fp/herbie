@@ -285,7 +285,7 @@ function setup_state(state, form) {
             if (form.math.value) {
                 if (!check_errors()) return evt.preventDefault();
                 var fpcore = dump_fpcore(form.math.value, form.pre.value, form.prec.value);
-                form.fpcore.textContent = fpcore;
+                form.fpcore.value = fpcore;
             }
             setup_state("fpcore", form);
         });
@@ -321,11 +321,11 @@ function onload() {
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('fpcore')) {
-        form.fpcore.textContent = params.get('fpcore');
+        form.fpcore.value = params.get('fpcore');
         STATE = "fpcore";
     } else if (form.pre.value || form.prec.selectedIndex) STATE = "extra";
     else if (form.math.value) STATE = "math";
-    else if (form.fpcore.textContent) STATE = "fpcore";
+    else if (form.fpcore.value) STATE = "fpcore";
     else STATE = "math";
 
     setup_state(STATE, form);
@@ -334,11 +334,15 @@ function onload() {
     form.pre.addEventListener("keyup", check_errors);
 
     form.form.addEventListener("submit", function(evt) {
+        var fpcore;
         if (STATE != "fpcore") {
             if (!check_errors()) return evt.preventDefault();
-            var fpcore = dump_fpcore(form.math.value, form.pre.value, form.prec.value);
-            form.fpcore.textContent = fpcore;
+            fpcore = dump_fpcore(form.math.value, form.pre.value, form.prec.value);
+        } else {
+            fpcore = form.fpcore.value;
         }
+        form.fpcore.value = fpcore;
+        console.log(STATE, fpcore);
 
         var url = document.getElementById("formula").getAttribute("data-progress");
         if (url) {

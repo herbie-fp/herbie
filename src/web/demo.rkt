@@ -110,7 +110,7 @@
              (select ([name "precision"] [id "precision"])
                (option ([value "binary64"]) "Double-precision floats")
                (option ([value "binary32"]) "Single-precision floats")))
-           (button ([type "submit"] [tabindex "-1"]))
+           (button ([type "submit"] [tabindex "-1"]) "Improve with Herbie")
            (ul ([id "errors"]))
            (pre ([id "progress"] [style "display: none;"])))
 
@@ -123,8 +123,8 @@
         "")
 
     `(p ([id "lisp-instructions"])
-        "Please enter formulas as" (a ([href "http://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
-        "expressions, including the top-level " (code "FPCore") " form, "
+        "Please enter formulas as " (a ([href "http://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
+        " expressions, including the top-level " (code "FPCore") " form, "
         "using only the following supported functions:")
     `(p ([id "mathjs-instructions"] [style "display: none;"])
         "Use ordinary mathematical syntax (parsed by "
