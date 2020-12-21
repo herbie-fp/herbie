@@ -47,19 +47,6 @@
 
 (define *sampler* (make-parameter #f))
 
-(define (check-unused-variables vars precondition expr)
-  ;; Fun story: you might want variables in the precondition that
-  ;; don't appear in the `expr`, because that can allow you to do
-  ;; non-uniform sampling. For example, if you have the precondition
-  ;; `(< x y)`, where `y` is otherwise unused, then `x` is sampled
-  ;; non-uniformly (biased toward small values).
-  (define used (set-union (free-variables expr) (free-variables precondition)))
-  (unless (set=? vars used)
-    (define unused (set-subtract vars used))
-    (warn 'unused-variable
-          "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
-          (string-join (map ~a unused) ", "))))
-
 ;; Setting up
 (define (setup-prog! prog
                      #:precondition [precondition #f]
@@ -73,7 +60,6 @@
   (rollback-improve!)
   (define precondition-prog
     (or precondition (list 'λ (program-variables prog) 'TRUE)))
-  (check-unused-variables (program-variables prog) (program-body precondition-prog) (program-body prog))
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
