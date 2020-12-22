@@ -1,0 +1,52 @@
+name: Integration Tests for the Herbie Tools
+
+on: [push]
+
+env:
+  RUST_BACKTRACE: full
+
+jobs:
+  shell:
+    name: "The shell tool"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: raco pkg install --name herbie --no-cache --auto src/
+      - run: <bench/tutorial.fpcore racket src/herbie.rkt shell \
+             | awk 'BEGIN { s = 0 } /:herbie-time/ { s += 1 } END { exit (s != 3) }'
+  improve:
+    name: "The improve tool"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: raco pkg install --name herbie --no-cache --auto src/
+      - run: racket src/herbie.rkt improve bench/tutorial.fpcore /tmp/test.fpcore
+      - run: test `grep -c :herbie-time /tmp/test.fpcore` -eq 3
+  report:
+    name: "The report tool"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: raco pkg install --name herbie --no-cache --auto src/
+      - run: racket src/herbie.rkt report bench/tutorial.fpcore /tmp/out/
+      - run: test -d /tmp/out/
+        name: "Test that report created a directory"
+      - run: test -f /tmp/out/results.html
+        name: "Test that report created a results.html"
+      - run: test -f /tmp/out/results.json
+        name: "Test that report created a results.json"
