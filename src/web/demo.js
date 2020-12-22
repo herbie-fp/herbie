@@ -116,11 +116,11 @@ function dump_fpcore(formula, pre, precision) {
     }
 
     var name = formula.replace("\\", "\\\\").replace("\"", "\\\"");
-    var fpcore = "(FPCore (" + dnames.join(" ") + ") :name \"" + name + "\"";
-    if (pre) fpcore += " :pre " + precondition;
-    if (precision) fpcore += " :precision " + precision;
+    var fpcore = "(FPCore (" + dnames.join(" ") + ")\n  :name \"" + name + "\"";
+    if (pre) fpcore += "\n  :pre " + precondition;
+    if (precision) fpcore += "\n  :precision " + precision;
 
-    return fpcore + " "  + body + ")";
+    return fpcore + "\n  "  + body + ")";
 }
 
 function is_comparison(name) {
@@ -210,14 +210,19 @@ function get_errors() {
 }
 
 function check_errors() {
-    var input = document.querySelector("#formula input[name=formula-math]");
-    var pre = document.querySelector("#formula input[name=pre-math]");
+    var input = document.querySelector("[name=formula-math]");
+    var pre = document.querySelector("[name=pre]");
     var errors = get_errors([input.value, "real"], [pre.value || "TRUE", "bool"]);
 
-    if (input.value && errors.length > 0) {
+    if (!input.value) {
+        document.getElementById("errors").innerHTML = "";
+        return false;
+    } else if (errors.length > 0) {
         document.getElementById("errors").innerHTML = "<li>" + errors.join("</li><li>") + "</li>";
+        return false;
     } else {
         document.getElementById("errors").innerHTML = "";
+        return true;
     }
 }
 
@@ -232,52 +237,119 @@ function hide_extra_fields() {
     $a.textContent = "Additional options »";
     $a.classList.add("show-extra");
     $extra.parentNode.insertBefore($a, $extra.nextSibling);
-    $extra.style.display = "none";
+    //$extra.style.display = "none";
     $a.addEventListener("click", function() {
         $extra.style.display = "block";
         $a.style.display = "none";
     });
 }
 
+var STATE = null;
+
+function Form(form) {
+    this.form = form;
+
+    this.fpcore = form.querySelector("[name=formula]");
+    this.math = form.querySelector("[name=formula-math]");
+    this.extra_fields = form.querySelector(".extra-fields");
+
+    this.math_doc = document.getElementById("mathjs-instructions");
+    this.lisp_doc = document.getElementById("lisp-instructions");
+
+    this.extra_links = form.querySelector(".extra-links");
+    this.pre = form.querySelector("[name=pre]");
+    this.prec = form.querySelector("[name=precision]");
+    this.button = form.querySelector("[type=submit]")
+}
+
+function setup_state(state, form) {
+    window.STATE = state;
+    form.fpcore.removeAttribute("disabled");
+    form.math.removeAttribute("disabled");
+    form.pre.removeAttribute("disabled");
+    form.prec.removeAttribute("disabled");
+
+    if (!form.a_extra) {
+        form.a_extra = document.createElement("a");
+        form.a_extra.textContent = "Additional options";
+        form.a_extra.addEventListener("click", function() {
+            setup_state("extra", form);
+        });
+        form.extra_links.appendChild(form.a_extra);
+    }
+
+    if (!form.a_fpcore) {
+        form.a_fpcore = document.createElement("a");
+        form.a_fpcore.textContent = "FPCore input";
+        form.a_fpcore.addEventListener("click", function(evt) {
+            if (form.math.value) {
+                if (!check_errors()) return evt.preventDefault();
+                var fpcore = dump_fpcore(form.math.value, form.pre.value, form.prec.value);
+                form.fpcore.value = fpcore;
+            }
+            setup_state("fpcore", form);
+        });
+        form.extra_links.appendChild(form.a_fpcore);
+    }
+    
+    if (state == "math") {
+        form.fpcore.style.display = "none";
+        form.math.style.display = "block";
+        form.extra_fields.style.display = "none";
+        form.a_extra.style.display = "inline";
+        form.a_fpcore.style.display = "inline";
+        form.button.classList.add("hidden");
+    } else if (state == "extra") {
+        form.fpcore.style.display = "none";
+        form.math.style.display = "block";
+        form.extra_fields.style.display = "block";
+        form.a_extra.style.display = "none";
+        form.a_fpcore.style.display = "inline";
+        form.button.classList.add("hidden");
+    } else {
+        form.fpcore.style.display = "block";
+        form.math.style.display = "none";
+        form.extra_fields.style.display = "none";
+        form.a_extra.style.display = "none";
+        form.a_fpcore.style.display = "none";
+        form.button.classList.remove("hidden");
+    }
+}
+
 function onload() {
-    var form = document.getElementById("formula");
-    var input = document.querySelector("#formula input[name=formula]");
-    input.setAttribute("name", "formula-math");
-    input.setAttribute("placeholder", "sqrt(x + 1) - sqrt(x)");
-    input.removeAttribute("disabled");
-    var pre = document.querySelector("#formula input[name=pre]");
-    pre.setAttribute("name", "pre-math");
-    pre.setAttribute("placeholder", "TRUE");
-    pre.removeAttribute("disabled");
-    var prec = document.querySelector("#formula select[name=precision]");
-    var hinput = document.createElement("input");
-    hinput.type = "hidden";
-    hinput.setAttribute("name", "formula");
-    form.appendChild(hinput);
-    hide_extra_fields();
+    var form = new Form(document.getElementById("formula"));
 
-    document.getElementById("mathjs-instructions").style.display = "block";
-    document.getElementById("lisp-instructions").style.display = "none";
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('fpcore')) {
+        form.fpcore.value = params.get('fpcore');
+        STATE = "fpcore";
+    } else if (form.pre.value || form.prec.selectedIndex) STATE = "extra";
+    else if (form.math.value) STATE = "math";
+    else if (form.fpcore.value) STATE = "fpcore";
+    else STATE = "math";
 
-    input.addEventListener("keyup", check_errors);
-    pre.addEventListener("keyup", check_errors);
+    setup_state(STATE, form);
 
-    form.addEventListener("submit", function(evt) {
-        var errors = get_errors([input.value, "real"], [pre.value || "TRUE", "bool"]);
-        if (errors.length > 0) {
-            document.getElementById("errors").innerHTML = "<li>" + errors.join("</li><li>") + "</li>";
-            evt.preventDefault();
-            return false;
+    form.math.addEventListener("keyup", check_errors);
+    form.pre.addEventListener("keyup", check_errors);
+
+    form.form.addEventListener("submit", function(evt) {
+        var fpcore;
+        if (STATE != "fpcore") {
+            if (!check_errors()) return evt.preventDefault();
+            fpcore = dump_fpcore(form.math.value, form.pre.value, form.prec.value);
         } else {
-            document.getElementById("errors").innerHTML = "";
+            fpcore = form.fpcore.value;
         }
-
-        var fpcore = dump_fpcore(input.value, pre.value, prec.value);
-        hinput.setAttribute("value", fpcore);
+        form.fpcore.value = fpcore;
+        console.log(STATE, fpcore);
 
         var url = document.getElementById("formula").getAttribute("data-progress");
         if (url) {
-            input.disabled = "true";
+            form.math.disabled = "true";
+            form.fpcore.disabled = "true";
+            form.pre.disabled = "true";
+            form.prec.disabled = "true";
             ajax_submit(url, fpcore);
             evt.preventDefault();
             return false;

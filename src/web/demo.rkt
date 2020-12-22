@@ -100,8 +100,9 @@
     `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
     `(form ([action ,(url improve)] [method "post"] [id "formula"]
             [data-progress ,(url improve-start)])
-           (input ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
-           (pre ([id "progress"] [style "display: none;"]))
+           (textarea ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
+           (input ([name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"]))
+           (div ([class "extra-links"]))
            (div ([class "extra-fields"])
              (label ([for "pre"]) "Precondition")
              (input ([name "pre"] [id "pre"] [placeholder "TRUE"]))
@@ -109,8 +110,9 @@
              (select ([name "precision"] [id "precision"])
                (option ([value "binary64"]) "Double-precision floats")
                (option ([value "binary32"]) "Single-precision floats")))
+           (button ([type "submit"] [tabindex "-1"]) "Improve with Herbie")
            (ul ([id "errors"]))
-           (button ([type "submit"] [tabindex "-1"])))
+           (pre ([id "progress"] [style "display: none;"])))
 
     (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "
@@ -121,8 +123,8 @@
         "")
 
     `(p ([id "lisp-instructions"])
-        "Please enter formulas as" (a ([href "http://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
-        "expressions, including the top-level " (code "FPCore") " form, "
+        "Please enter formulas as " (a ([href "http://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
+        " expressions, including the top-level " (code "FPCore") " form, "
         "using only the following supported functions:")
     `(p ([id "mathjs-instructions"] [style "display: none;"])
         "Use ordinary mathematical syntax (parsed by "
