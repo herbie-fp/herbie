@@ -38,17 +38,37 @@
 
   <h2>Improvement to core algorithm</h2>
   <ul>
+    <li>A new multiprecision tuner allows Herbie to generate
+    expressions with multiple precisions.</li>
+    <li>The series expansion engine was substantially improved, which
+    both reduces timeouts and improves results substantially.</li>
+    <li>A new symmetric expressions engine detects cases where
+    variables can be sorted to improve precision.</li>
+    <li>A new "retirement community" data structure allows Herbie to
+    consider more candidate programs, and thus produces better,
+    simpler results.</li>
   </ul>
 
   <h2>Usability improvements</h2>
   <ul>
+    <li>You can now give Herbie FPCore input in the web interface.</li>
   </ul>
 
   <h2>Code Cleanup</h2>
   <ul>
-    <li>The <kbd>setup:early-exit</kbd> has been deprecated, and no
+    <li>The Herbie timeline data structure (which powers "Metrics"
+    pages) has been dramatically improved, making it easier to add
+    more metrics in the future.</li>
+    <li>The Herbie interactive main loop has been simplified, making
+    it easier to understand and reproduce Herbie bugs.</li>
+    <li>The <code>egg-herbie</code> support package has been merged
+    into Herbie proper. This means that if you want to install Herbie
+    from source, you will now need a Rust compiler.</li>
+    <li>The <kbd>precision:double</kbd> flag has been deprecated, and no
+    longer does anything. Use the <code>:precision</code> flag instead.</li>
+    <li>The <kbd>setup:early-exit</kbd> flag has been deprecated, and no
     longer does anything. Herbie is fast enough now that it's not that
-    important any more!
+    important any more!</li>
   </ul>
   
   <h2>Try it out!</h2>
