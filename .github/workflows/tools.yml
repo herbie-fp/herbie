@@ -17,8 +17,9 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: raco pkg install --name herbie --no-cache --auto src/
-      - run: <bench/tutorial.fpcore racket src/herbie.rkt shell \
-             | awk 'BEGIN { s = 0 } /:herbie-time/ { s += 1 } END { exit (s != 3) }'
+      - run: <bench/tutorial.fpcore racket src/herbie.rkt shell >/tmp/out.fpcore
+      - run: test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
+        name: "Test that shell output had three :herbie-time lines"
   improve:
     name: "The improve tool"
     runs-on: ubuntu-latest
@@ -30,8 +31,9 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: raco pkg install --name herbie --no-cache --auto src/
-      - run: racket src/herbie.rkt improve bench/tutorial.fpcore /tmp/test.fpcore
-      - run: test `grep -c :herbie-time /tmp/test.fpcore` -eq 3
+      - run: racket src/herbie.rkt improve bench/tutorial.fpcore /tmp/out.fpcore
+      - run: test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
+        name: "Test that improve output had three :herbie-time lines"
   report:
     name: "The report tool"
     runs-on: ubuntu-latest
