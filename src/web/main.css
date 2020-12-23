@@ -46,16 +46,20 @@ ul {padding-left: 1em;}
 a {color: #2A6496; text-decoration: none}
 a:hover {text-decoration: underline; color: #295785}
 
-#formula input[autofocus] { width: 100%; font-size: 125%; }
+#formula textarea, #formula input { width: 100%; font-size: 125%; }
+#formula textarea { font-family: monospace; height: 7em; }
 .extra-fields { margin-top: 1em; }
-.show-extra {
-    display: block; text-align: right; margin-top: .5em;
-    cursor: pointer;
+.extra-links {
+    display: block; text-align: right; margin-top: .5em; cursor: pointer;
 }
-#formula button[type=submit] { visibility: hidden; height: 0; }
-label { display: inline-block; width: 20%; line-height: 3; }
-input, select { width: 80%; }
+.extra-links a:after {
+     content: "•"; color: black; display: inline-block; padding: 0 1ex;
+}
+.extra-links a:last-child:after { content: "»"; padding-right: 0;}
+#formula .extra-fields label { display: inline-block; width: 20%; line-height: 3; }
+#formula .extra-fields input, .extra-fields select { width: 80%; font-size: 100%; }
 #errors li { color: #800; }
+#formula button[type=submit].hidden { visibility: hidden; height: 0; }
 #progress {
     font-size: 14px; font-family: sans-serif; background-color: #f1f1f1;
     padding-left: 0; overflow: scroll; overflow-y: auto;
