@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/date json)
-(require "common.rkt")
+(require "common.rkt" "interface.rkt")
 
 (provide
  (struct-out table-row) (struct-out report-info)
@@ -9,8 +9,8 @@
 
 
 (struct table-row
-  (name status pre precision vars input output spec target-prog
-        start result target start-est result-est
+  (name status pre preprocess precision vars input output spec
+        target-prog start result target start-est result-est
         time bits link) #:prefab)
 
 (struct report-info
@@ -31,12 +31,13 @@
 (define (write-datafile file info)
   (define (simplify-test test)
     (match test
-      [(table-row name status pre prec vars input output spec target-prog
+      [(table-row name status pre preprocess prec vars input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
                   time bits link)
        (make-hash
         `((name . ,name)
           (pre . ,(~s pre))
+          (preprocess . ,(~s (map preprocess->sexp preprocess)))
           (prec . ,(~s prec))
           (status . ,status)
           (start . ,start-bits)
@@ -100,6 +101,7 @@
                          [string-lst (parse-string string-lst)]))
                      (table-row (get 'name) (get 'status)
                                 (parse-string (hash-ref test 'pre "TRUE"))
+                                (map sexp->preprocess (parse-string (hash-ref test 'herbie-preprocess "()")))
                                 (string->symbol (hash-ref test 'prec "binary64"))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (parse-string (hash-ref test 'spec "#f"))

@@ -63,6 +63,7 @@
 ;; Setting up
 (define (setup-prog! prog
                      #:precondition [precondition #f]
+                     #:preprocess [preprocess empty]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (*output-repr* (get-representation precision))
@@ -79,7 +80,7 @@
   ;; If the specification is given, it is used for sampling points
   (timeline-event! 'analyze)
   (define symmetry-groups (filter (lambda (group) (> (length group) 1)) (connected-components (or specification prog))))
-  (define preprocess-structs (map symmetry-group symmetry-groups))
+  (define preprocess-structs (append preprocess (map symmetry-group symmetry-groups)))
   (*herbie-preprocess* preprocess-structs)
   (*sampler* (make-sampler (*output-repr*) precondition-prog (list (or specification prog)) (*herbie-preprocess*)))
   
@@ -400,12 +401,14 @@
 
 (define (run-improve prog iters
                      #:precondition [precondition #f]
+                     #:preprocess [preprocess empty]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog
                #:specification specification
                #:precondition precondition
+               #:preprocess preprocess
                #:precision precision)
   (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
   (when (flag-set? 'setup 'simplify)

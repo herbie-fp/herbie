@@ -5,10 +5,9 @@
 
 (provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
-          *herbie-preprocess*
+          *herbie-preprocess* sexp->preprocess preprocess->sexp (struct-out symmetry-group)
           real->repr repr->real
-          value? special-value?
-          (struct-out symmetry-group))
+          value? special-value?)
 
 (module+ internals 
   (provide define-representation register-generator! register-representation!))
@@ -161,3 +160,11 @@
 
 ;; Tracks list of preprocess structs Herbie decides to apply
 (define *herbie-preprocess* (make-parameter empty))
+
+(define (preprocess->sexp preprocess)
+  `(sort ,@(symmetry-group-variables preprocess)))
+
+(define (sexp->preprocess sexp)
+  (match sexp
+    [(list 'sort vars ...) (symmetry-group vars)]
+    [else (error (format "unknown preprocess ~a" sexp))]))

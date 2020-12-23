@@ -56,6 +56,7 @@
           (run-improve (test-program test)
                        (*num-iterations*)
                        #:precondition (test-precondition test)
+                       #:preprocess (test-preprocess test)
                        #:specification (test-specification test)
                        #:precision output-prec))
 
@@ -136,6 +137,7 @@
   (define repr (test-output-repr test))
   (table-row (test-name test) status
              (resugar-program (program-body (test-precondition test)) repr)
+             (if (test-success? result) (test-success-preprocess result) empty)
              (test-output-prec test)
              (test-vars test)
              (resugar-program (test-input test) repr) #f
@@ -202,5 +204,6 @@
      :name ,(table-row-name row)
      :precision ,(table-row-precision row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
+     ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
      ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
      ,(table-row-output row)))

@@ -8,7 +8,7 @@
          test-precondition test-output-repr)
 
 
-(struct test (name vars input output expected spec pre
+(struct test (name vars input output expected spec pre preprocess
                    output-prec var-precs conversions) #:prefab)
 
 (define (test-program test)
@@ -66,6 +66,7 @@
         (dict-ref prop-dict* ':herbie-expected #t)
         (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs)
         (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs)
+        (map sexp->preprocess (dict-ref prop-dict* ':herbie-preprocess empty))
         (representation-name default-repr)
         (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)
         (dict-ref prop-dict* ':herbie-conversions '())))
