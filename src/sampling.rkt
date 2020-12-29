@@ -151,10 +151,10 @@
     (when (vector-empty? hyperrects)
       (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
     (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
-    (λ () (apply-preprocess (program-variables precondition) (sample-multi-bounded hyperrects weights reprs) preprocess-structs))]
+    (λ () (apply-preprocess (program-variables precondition) (sample-multi-bounded hyperrects weights reprs) preprocess-structs repr))]
    [else
     (timeline-push! 'method "random")
-    (λ () (apply-preprocess (program-variables precondition) (map random-generate reprs) preprocess-structs))]))
+    (λ () (apply-preprocess (program-variables precondition) (map random-generate reprs) preprocess-structs repr))]))
 
 (module+ test
   (define repr (get-representation 'binary64))

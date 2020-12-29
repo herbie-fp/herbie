@@ -150,20 +150,23 @@
       [else
        (cons (first current) (loop (rest current) indicies values (+ index 1)))])))
 
-(define (sort-group variables point sort-group)
+(define (<-repr repr a b)
+  (< (repr->real a) (repr->real b)))
+
+(define (sort-group variables point sort-group repr)
   (define indicies
-    (sort (map (lambda (var) (index-of variables var)) (symmetry-group-variables sort-group)) <))
+    (sort (map (lambda (var) (index-of variables var)) (symmetry-group-variables sort-group)) (curry <-repr repr)))
   (define sorted
     (sort (map (curry list-ref point) indicies) <))
   (list-set-multiple point indicies sorted))
 
-(define (apply-preprocess variables sampled-point preprocess-structs)
+(define (apply-preprocess variables sampled-point preprocess-structs repr)
   (cond
     [(empty? preprocess-structs)
      (list sampled-point sampled-point)]
     ;; Add more preprocess cases here- for now, only symmetry-group exists
     [else
-     (list (first (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs)) (rest preprocess-structs))) sampled-point)]))
+     (list (first (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs))) sampled-point)]))
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
@@ -198,7 +201,7 @@
   (for/list ([(point exact unprocessed) (in-pcontext-with-unprocessed pcontext)])
     (define processed
       (if processing
-          (first (apply-preprocess (program-variables prog) unprocessed processing))
+          (first (apply-preprocess (program-variables prog) unprocessed processing repr))
           point))
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog processed) (raise e))])
       (point-error (apply fn processed) exact repr))))
