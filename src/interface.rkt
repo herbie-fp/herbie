@@ -155,7 +155,7 @@
 (define *var-reprs* (make-parameter '()))
 
 ;; Herbie preprocess structs
-(struct symmetry-group (variables))
+(struct symmetry-group (variables) #:transparent)
 
 
 ;; Tracks list of preprocess structs Herbie decides to apply
