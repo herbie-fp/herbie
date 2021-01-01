@@ -151,7 +151,7 @@
        (cons (first current) (loop (rest current) indicies values (+ index 1)))])))
 
 (define (<-repr repr a b)
-  (< (repr->real a) (repr->real b)))
+  (< (repr->real a repr) (repr->real b repr)))
 
 (define (sort-group variables point sort-group repr)
   (define indicies
