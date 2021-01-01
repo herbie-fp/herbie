@@ -184,12 +184,11 @@
                            (~a (location-get location (alt-program (^next-alt^))))
                            (- (current-inexact-milliseconds) tnow))))))
     
-    (timeline-log! 'inputs (length (^locs^)))
-    (timeline-log! 'outputs (length series-expansions))
+    (timeline-push! 'alts (length (^locs^)) (length series-expansions))
 
     (^gened-series^ series-expansions)
     (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
-    (timeline-log! 'min-error (errors-score (atab-min-errors table*))))
+    (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
   (void))
 
 (define (gen-rewrites!)
@@ -214,8 +213,8 @@
   (define rules-used
     (append-map (curry map change-rule) changelists))
   (define rule-counts
-    (for/hash ([rgroup (group-by identity rules-used)])
-      (values (rule-name (first rgroup)) (length rgroup))))
+    (for ([rgroup (group-by identity rules-used)])
+      (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
 
   (define (repr-rewrite-alt altn)
     (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
@@ -227,13 +226,11 @@
           (for/fold ([altn altn]) ([cng cl])
             (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))))
 
-  (timeline-log! 'inputs (length (^locs^)))
-  (timeline-log! 'rules rule-counts)
-  (timeline-log! 'outputs (length rewritten))
+  (timeline-push! 'alts (length (^locs^)) (length rewritten))
 
   (^gened-rewrites^ rewritten)
   (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
-  (timeline-log! 'min-error (errors-score (atab-min-errors table*)))
+  (timeline-push! 'min-error (errors-score (atab-min-errors table*)))
   (void))
 
 (define (simplify!)
@@ -286,8 +283,7 @@
               (alt child* (list 'simplify loc) (list child))
               child))))
 
-    (timeline-log! 'inputs (length locs-list))
-    (timeline-log! 'outputs (length simplified))
+    (timeline-push! 'alts (length locs-list) (length simplified))
 
     (^gened-simplify^ simplified))
   (void))
@@ -306,8 +302,9 @@
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
-  (timeline-log! 'inputs (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts)))
-  (timeline-log! 'outputs (+ (length final-fresh-alts) (length final-done-alts)))
+  (timeline-push! 'alts
+                  (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
+                  (+ (length final-fresh-alts) (length final-done-alts)))
 
   (define data
     (hash 'new (list (length new-alts)
@@ -319,9 +316,9 @@
                          (if (set-member? final-done-alts (^next-alt^)) 1 0)))
           'picked (list (if (^next-alt^) 1 0)
                         (if (and (^next-alt^) (set-member? final-done-alts (^next-alt^))) 1 0))))
-  (timeline-log! 'kept data)
+  (timeline-push! 'kept data)
 
-  (timeline-log! 'min-error (errors-score (atab-min-errors (^table^))))
+  (timeline-push! 'min-error (errors-score (atab-min-errors (^table^))))
   (rollback-iter!)
   (void))
 
