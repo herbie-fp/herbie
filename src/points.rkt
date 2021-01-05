@@ -166,7 +166,7 @@
      (list sampled-point sampled-point)]
     ;; Add more preprocess cases here- for now, only symmetry-group exists
     [else
-     (list (first (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs))) sampled-point)]))
+     (list (first (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs) repr)) sampled-point)]))
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
