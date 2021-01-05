@@ -155,9 +155,9 @@
 
 (define (sort-group variables point sort-group repr)
   (define indicies
-    (sort (map (lambda (var) (index-of variables var)) (symmetry-group-variables sort-group)) (curry <-repr repr)))
+    (sort (map (lambda (var) (index-of variables var)) (symmetry-group-variables sort-group)) <))
   (define sorted
-    (sort (map (curry list-ref point) indicies) <))
+    (sort (map (curry list-ref point) indicies) (curry <-repr repr)))
   (list-set-multiple point indicies sorted))
 
 (define (apply-preprocess variables sampled-point preprocess-structs repr)
