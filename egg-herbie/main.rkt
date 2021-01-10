@@ -6,21 +6,17 @@
 
 (module+ test (require rackunit))
 
-(provide egraph-run egraph-add-exprs egraph-run-iter
+(provide egraph-run egraph-add-exprs egraph-run
          egraph-get-simplest egg-expr->expr egg-add-exn?
-         make-ffi-rules free-ffi-rules egraph-get-cost egraph-get-size)
+         make-ffi-rules free-ffi-rules egraph-get-cost egraph-get-size
+         (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
 ;; interface struct for accepting rules
 (struct irule (name input output) #:prefab)
-
-(define (egraph-get-size egraph-data)
-  (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
-
-(define (egraph-get-cost egraph-data node-id)
-  (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id))
+(struct iteration-data (num-nodes num-eclasses))
 
 (define (egraph-get-simplest egraph-data node-id)
   (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id))
@@ -47,11 +43,22 @@
     (free (FFIRule-right rule))
     (free rule)))
 
-(define (egraph-run-iter egraph-data node-limit ffi-rules precompute?)
-  (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
+(define (convert-iteration-data egraphiters)
+  (for/list [(iter egraphiters)]
+    (iteration-data (EGraphIter-numnodes iter) (EGraphIter-numeclasses iter))))
+
+(define (free-iteration-data egraphiters)
+  (for [(iter egraphiters)]
+    (free iter)))
+
+(define (egraph-run egraph-data node-limit ffi-rules precompute?)
+  (define egraphiters (egraph_run (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
+  (define res (convert-iteration-data egraphiters))
+  (free-egraphiters egraphiters)
+  res)
 
 (define (run-rules-recursive egraph-data node-limit ffi-rules precompute? last-count)
-  (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?)
+  (egraph_run (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?)
   (define cnt (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
   (if (and (< cnt node-limit) (> cnt last-count))
       (run-rules-recursive egraph-data node-limit ffi-rules precompute? cnt)
