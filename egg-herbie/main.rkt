@@ -6,7 +6,7 @@
 
 (module+ test (require rackunit))
 
-(provide egraph-run egraph-add-exprs egraph-run
+(provide egraph-run egraph-add-exprs with-egraph
          egraph-get-simplest egg-expr->expr egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost egraph-get-size
          (struct-out iteration-data))
@@ -44,12 +44,15 @@
     (free rule)))
 
 (define (convert-iteration-data egraphiters)
-  (for/list [(iter egraphiters)]
-    (iteration-data (EGraphIter-numnodes iter) (EGraphIter-numeclasses iter))))
+  (cond
+    [egraphiters
+     (cons (iteration-data (EGraphIter-numnodes egraphiters) (EGraphIter-numeclasses egraphiters))
+           (convert-iteration-data (ptr-add egraphiters 1 _EGraphIter)))]
+    [else empty]))
 
-(define (free-iteration-data egraphiters)
-  (for [(iter egraphiters)]
-    (free iter)))
+;; TODO implement
+(define (free-egraphiters egraphiters)
+  void)
 
 (define (egraph-run egraph-data node-limit ffi-rules precompute?)
   (define egraphiters (egraph_run (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
@@ -57,19 +60,9 @@
   (free-egraphiters egraphiters)
   res)
 
-(define (run-rules-recursive egraph-data node-limit ffi-rules precompute? last-count)
-  (egraph_run (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?)
-  (define cnt (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
-  (if (and (< cnt node-limit) (> cnt last-count))
-      (run-rules-recursive egraph-data node-limit ffi-rules precompute? cnt)
-      (void)))
-
-(define (egraph-run-rules egraph-data node-limit rules precompute?)
-  (run-rules-recursive egraph-data node-limit (make-ffi-rules rules) precompute? 0))
-
 
 ;; calls the function on a new egraph, and cleans up
-(define (egraph-run egraph-function)
+(define (with-egraph egraph-function)
   (define egraph (egraph-data (egraph_create) (make-hash) (make-hash)))
   (define res (egraph-function egraph))
   (egraph_destroy (egraph-data-egraph-pointer egraph))
@@ -189,7 +182,7 @@
           (cons '(if TRUE x y) "(if real (TRUE real) h1 h0)")))
 
   (define nil
-    (egraph-run
+    (with-egraph
      (lambda (egg-graph)
       (for/list ([expr-pair test-exprs])
         (let* ([out (expr->egg-expr (car expr-pair) egg-graph)]
@@ -207,7 +200,7 @@
      '(+ 3/2 1.4)))
 
   (define extended-results
-   (egraph-run
+   (with-egraph
     (lambda (egg-graph)
       (for/list ([expr
                   extended-expr-list])

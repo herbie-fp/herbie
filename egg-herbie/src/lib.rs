@@ -1,7 +1,7 @@
 pub mod math;
 pub mod rules;
 
-use egg::Id;
+use egg::{Id, Iteration};
 use math::*;
 
 use std::ffi::{CStr, CString};
@@ -60,7 +60,7 @@ pub struct EGraphAddResult {
 #[repr(C)]
 pub struct EGraphIter {
     numnodes: u32,
-    numiters: u32,
+    numclasses: u32,
 }
 
 // a struct for loading rules from external source
@@ -83,6 +83,22 @@ where
             std::process::abort()
         }
     }
+}
+
+fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
+    EGraphIter {
+        numnodes: iter.egraph_nodes as u32,
+        numclasses: iter.egraph_classes as u32
+    }
+}
+
+unsafe fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
+    let mut result: Vec<EGraphIter> = runner.iterations.iter()
+                                                       .map(|iter| convert_iter(&iter))
+                                                       .collect();
+    let ptr = result.as_mut_ptr();
+    std::mem::forget(result);
+    ptr
 }
 
 #[no_mangle]
@@ -131,13 +147,13 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_run_iter(
+pub unsafe extern "C" fn egraph_run(
     ptr: *mut Context,
     limit: u32,
     rules_array_ptr: *const *mut FFIRule,
     is_constant_folding_enabled: bool,
     rules_array_length: u32,
-) {
+) -> *const EGraphIter {
     ffirun(|| {
         let ctx = &mut *ptr;
         let mut runner = ctx
@@ -145,10 +161,7 @@ pub unsafe extern "C" fn egraph_run_iter(
             .take()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
-        if runner.stop_reason.is_some() {
-            // we've already run, just fake an iteration
-            ctx.iteration += 1;
-        } else {
+        if !runner.stop_reason.is_some() {
             let length: usize = rules_array_length as usize;
             let ffi_rules: &[*mut FFIRule] = slice::from_raw_parts(rules_array_ptr, length);
             let mut ffi_tuples: Vec<(&str, &str, &str)> = vec![];
@@ -175,8 +188,11 @@ pub unsafe extern "C" fn egraph_run_iter(
                     }
                 })
                 .run(&rules);
+            
         }
+        let res = runner_egraphiters(&runner);
         ctx.runner = Some(runner);
+        res
     })
 }
 

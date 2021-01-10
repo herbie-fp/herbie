@@ -98,7 +98,7 @@
   (timeline-push! 'method "egg-herbie")
   (define irules (rules->irules rls))
 
-  ((egg egraph-run)
+  ((egg with-egraph)
    (lambda (egg-graph)
      ((egg egraph-add-exprs)
       egg-graph
@@ -121,7 +121,9 @@
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
-  ((egg egraph-run) egg-graph node-limit ffi-rules precompute?)
+  (define iteration-data ((egg egraph-run) egg-graph node-limit ffi-rules precompute?))
+  (println iteration-data)
+  
   #;(for/and ([iter (in-naturals 0)])
     (define old-cnt ((egg egraph-get-size )egg-graph))
     ((egg egraph-run-iter) egg-graph node-limit ffi-rules precompute?)

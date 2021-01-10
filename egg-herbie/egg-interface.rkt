@@ -6,7 +6,9 @@
 
 (provide egraph_create egraph_destroy egraph_add_expr
          egraph_addresult_destroy egraph_run egraph_get_simplest
+         _EGraphIter
          (struct-out EGraphAddResult)
+         (struct-out EGraphIter)
          (struct-out FFIRule))
 
 
@@ -53,7 +55,7 @@
                                 (ffi-rules : (_list i _FFIRule-pointer))
                                 _bool
                                 (_uint = (length ffi-rules))
-                                -> (_list j _EGraphIter)))
+                                -> _EGraphIter-pointer))
 
 ;; node number -> s-expr string
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer _uint -> _string/utf-8))
