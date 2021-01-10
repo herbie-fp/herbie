@@ -121,7 +121,8 @@
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
-  (for/and ([iter (in-naturals 0)])
+  ((egg egraph-run) egg-graph node-limit ffi-rules precompute?)
+  #;(for/and ([iter (in-naturals 0)])
     (define old-cnt ((egg egraph-get-size )egg-graph))
     ((egg egraph-run-iter) egg-graph node-limit ffi-rules precompute?)
     (timeline-cost iter)

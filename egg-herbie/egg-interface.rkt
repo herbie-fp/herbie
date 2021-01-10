@@ -5,8 +5,8 @@
 (require racket/runtime-path)
 
 (provide egraph_create egraph_destroy egraph_add_expr
-         egraph_addresult_destroy egraph_run_iter egraph_get_simplest
-         egraph_get_cost egraph_get_size (struct-out EGraphAddResult)
+         egraph_addresult_destroy egraph_run egraph_get_simplest
+         (struct-out EGraphAddResult)
          (struct-out FFIRule))
 
 
@@ -24,6 +24,10 @@
 (define-cstruct _EGraphAddResult
   ([id _uint]
    [successp _bool]))
+
+(define-cstruct _EGraphIter
+  ([numnodes _uint]
+   [numeclasses _uint]))
 
 (define-cstruct _FFIRule ; The pointers are pointers to strings, but types hidden for allocation
   ([name _pointer]
@@ -44,15 +48,12 @@
 
 
 ;; egraph pointer, a node limit, a pointer to an array of ffirule, a bool for constant folding, and the size of the ffirule array
-(define-eggmath egraph_run_iter (_fun _egraph-pointer
-                                      _uint
-                                      (ffi-rules : (_list i _FFIRule-pointer))
-                                      _bool
-                                      (_uint = (length ffi-rules))
-                                      -> _void))
+(define-eggmath egraph_run (_fun _egraph-pointer
+                                 _uint
+                                (ffi-rules : (_list i _FFIRule-pointer))
+                                _bool
+                                (_uint = (length ffi-rules))
+                                -> (_list j _EGraphIter)))
 
 ;; node number -> s-expr string
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer _uint -> _string/utf-8))
-
-(define-eggmath egraph_get_cost (_fun _egraph-pointer _uint -> _uint))
-(define-eggmath egraph_get_size (_fun _egraph-pointer -> _uint))

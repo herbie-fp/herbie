@@ -45,11 +45,22 @@ pub unsafe extern "C" fn egraph_addresult_destroy(ptr: *mut EGraphAddResult) {
     std::mem::drop(Box::from_raw(ptr))
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn egraph_egraphiter_destroy(ptr: *mut EGraphIter) {
+    std::mem::drop(Box::from_raw(ptr))
+}
+
 // a struct to report failure if the add fails
 #[repr(C)]
 pub struct EGraphAddResult {
     id: u32,
     successp: bool,
+}
+
+#[repr(C)]
+pub struct EGraphIter {
+    numnodes: u32,
+    numiters: u32,
 }
 
 // a struct for loading rules from external source
