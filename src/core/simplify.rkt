@@ -113,7 +113,7 @@
   (define ffi-rules ((egg make-ffi-rules) irules))
   (define start-time (current-inexact-milliseconds))
 
-  (define (timeline-cost iter)
+  #;(define (timeline-cost iter)
     (define cost
       (apply +
              (map (lambda (node-id) ((egg egraph-get-cost) egg-graph node-id)) node-ids)))
