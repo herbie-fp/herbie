@@ -7,6 +7,7 @@ use math::*;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::{slice, sync::atomic::Ordering};
+use std::cmp::{min};
 
 unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
     match CStr::from_ptr(c_string).to_str() {
@@ -62,6 +63,7 @@ pub struct EGraphAddResult {
 pub struct EGraphIter {
     numnodes: u32,
     numclasses: u32,
+    time: f64,
 }
 
 // a struct for loading rules from external source
@@ -89,7 +91,8 @@ where
 fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
     EGraphIter {
         numnodes: iter.egraph_nodes as u32,
-        numclasses: iter.egraph_classes as u32
+        numclasses: iter.egraph_classes as u32,
+        time: iter.total_time
     }
 }
 
@@ -198,13 +201,13 @@ pub unsafe extern "C" fn egraph_run(
     })
 }
 
-fn find_extracted(runner: &Runner, id: u32) -> &Extracted {
+fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
     let id = runner.egraph.find(Id::from(id as usize));
     let desired_iter = if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
-        // go back one more iter, add egg can duplicate the final iter in the case of an error
-        runner.iterations.len().saturating_sub(3)
+        // go back one more iter, egg can duplicate the final iter in the case of an error
+        min(runner.iterations.len().saturating_sub(3), iter as usize)
     } else {
-        runner.iterations.len().saturating_sub(1)
+        min(runner.iterations.len().saturating_sub(1), iter as usize)
     };
 
     runner.iterations[desired_iter]
@@ -217,7 +220,7 @@ fn find_extracted(runner: &Runner, id: u32) -> &Extracted {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_simplest(ptr: *mut Context, node_id: u32) -> *const c_char {
+pub unsafe extern "C" fn egraph_get_simplest(ptr: *mut Context, node_id: u32, iter: u32) -> *const c_char {
     ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
@@ -225,7 +228,7 @@ pub unsafe extern "C" fn egraph_get_simplest(ptr: *mut Context, node_id: u32) ->
             .as_ref()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
-        let ext = find_extracted(runner, node_id);
+        let ext = find_extracted(runner, node_id, iter);
 
         let best_str = CString::new(ext.best.to_string()).unwrap();
         let best_str_pointer = best_str.as_ptr();
@@ -235,7 +238,7 @@ pub unsafe extern "C" fn egraph_get_simplest(ptr: *mut Context, node_id: u32) ->
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32) -> u32 {
+pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: u32) -> u32 {
     ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
@@ -243,7 +246,7 @@ pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32) -> u32
             .as_ref()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
-        let ext = find_extracted(runner, node_id);
+        let ext = find_extracted(runner, node_id, iter);
         ext.cost as u32
     })
 }

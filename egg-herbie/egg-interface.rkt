@@ -6,7 +6,7 @@
 
 (provide egraph_create egraph_destroy egraph_add_expr
          egraph_addresult_destroy egraph_run egraph_get_simplest
-         _EGraphIter destroy_egraphiters
+         _EGraphIter destroy_egraphiters egraph_get_cost
          (struct-out EGraphAddResult)
          (struct-out EGraphIter)
          (struct-out FFIRule))
@@ -29,7 +29,8 @@
 
 (define-cstruct _EGraphIter
   ([numnodes _uint]
-   [numeclasses _uint]))
+   [numeclasses _uint]
+   [time _double]))
 
 (define-cstruct _FFIRule ; The pointers are pointers to strings, but types hidden for allocation
   ([name _pointer]
@@ -61,4 +62,12 @@
                                 -> (values iters len)))
 
 ;; node number -> s-expr string
-(define-eggmath egraph_get_simplest (_fun _egraph-pointer _uint -> _string/utf-8))
+(define-eggmath egraph_get_simplest (_fun _egraph-pointer
+                                         _uint ;; node id
+                                         _uint ;; iteration
+                                         -> _string/utf-8))
+
+(define-eggmath egraph_get_cost (_fun _egraph-pointer
+                                     _uint ;; node id
+                                     _uint ;; iteration
+                                     -> _uint))
