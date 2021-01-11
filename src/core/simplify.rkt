@@ -104,9 +104,9 @@
       egg-graph
       exprs
       (lambda (node-ids)
-        (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true))
+        (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
         (map
-         (lambda (id) ((egg egg-expr->expr) ((egg egraph-get-simplest) egg-graph id) egg-graph))
+         (lambda (id) ((egg egg-expr->expr) ((egg egraph-get-simplest) egg-graph id (- (length iter-data) 1)) egg-graph))
          node-ids))))))
 
 (define (egg-run-rules egg-graph node-limit irules node-ids precompute?)
@@ -114,19 +114,30 @@
   (define start-time (current-inexact-milliseconds))
 
   #;(define (timeline-cost iter)
-    (define cost
-      (apply +
-             (map (lambda (node-id) ((egg egraph-get-cost) egg-graph node-id)) node-ids)))
+    
     (define cnt ((egg egraph-get-size) egg-graph))
-    (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
+    
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
   (define iteration-data ((egg egraph-run) egg-graph node-limit ffi-rules precompute?))
 
-  (for ([iter iteration-data] [counter (in-naturals 0)])
-       (timeline-push! 'egraph counter (iteration-data-num-nodes iter) 0 0)) ;; TODO fill in cost and time
+  (let loop
+    ([iter iteration-data] [counter 0] [time 0])
+    (cond
+      [(empty? iter)
+       void]
+      [else
+       (define cnt ((egg iteration-data-num-nodes) (first iter)))
+       (define cost
+           (apply +
+                  (map (lambda (node-id) ((egg egraph-get-cost) egg-graph node-id counter)) node-ids)))
+       (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
+       (define new-time (+ time ((egg iteration-data-time) (first iter))))
+       (timeline-push! 'egraph counter cnt cost new-time)
+       (loop (rest iter) (+ counter 1) new-time)]))
 
-  ((egg free-ffi-rules) ffi-rules))
+  ((egg free-ffi-rules) ffi-rules)
+  iteration-data)
 
 (define (munge expr)
   ;; Despite the name, `expr` might be an expression OR a pattern

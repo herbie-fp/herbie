@@ -8,7 +8,7 @@
 
 (provide egraph-run egraph-add-exprs with-egraph
          egraph-get-simplest egg-expr->expr egg-add-exn?
-         make-ffi-rules free-ffi-rules
+         make-ffi-rules free-ffi-rules egraph-get-cost
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -16,10 +16,15 @@
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
 ;; interface struct for accepting rules
 (struct irule (name input output) #:prefab)
-(struct iteration-data (num-nodes num-eclasses))
+(struct iteration-data (num-nodes num-eclasses time))
 
-(define (egraph-get-simplest egraph-data node-id)
-  (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id))
+
+(define (egraph-get-simplest egraph-data node-id iteration)
+  (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+
+(define (egraph-get-cost egraph-data node-id iteration)
+  (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
+    
 
 (define (make-raw-string s)
   (define b (string->bytes/utf-8 s))
@@ -46,7 +51,7 @@
 (define (convert-iteration-data egraphiters size)
   (cond
     [(> size 0)
-     (cons (iteration-data (EGraphIter-numnodes egraphiters) (EGraphIter-numeclasses egraphiters))
+     (cons (iteration-data (EGraphIter-numnodes egraphiters) (EGraphIter-numeclasses egraphiters) (EGraphIter-time egraphiters))
            (convert-iteration-data (ptr-add egraphiters 1 _EGraphIter) (- size 1)))]
     [else empty]))
 
