@@ -6,7 +6,7 @@
 
 (provide egraph_create egraph_destroy egraph_add_expr
          egraph_addresult_destroy egraph_run egraph_get_simplest
-         _EGraphIter
+         _EGraphIter destroy_egraphiters
          (struct-out EGraphAddResult)
          (struct-out EGraphIter)
          (struct-out FFIRule))
@@ -47,6 +47,8 @@
 (define-eggmath egraph_add_expr (_fun _egraph-pointer _string/utf-8 -> _EGraphAddResult-pointer))
 
 (define-eggmath egraph_addresult_destroy (_fun _EGraphAddResult-pointer -> _void))
+
+(define-eggmath destroy_egraphiters (_fun _uint _EGraphIter-pointer -> _void))
 
 
 (define-eggmath egraph_run (_fun _egraph-pointer
