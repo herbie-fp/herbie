@@ -46,8 +46,9 @@ pub unsafe extern "C" fn egraph_addresult_destroy(ptr: *mut EGraphAddResult) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_egraphiter_destroy(ptr: *mut EGraphIter) {
-    std::mem::drop(Box::from_raw(ptr))
+pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
+    let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
+    std::mem::drop(array)
 }
 
 // a struct to report failure if the add fails

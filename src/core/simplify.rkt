@@ -122,15 +122,9 @@
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
   (define iteration-data ((egg egraph-run) egg-graph node-limit ffi-rules precompute?))
-  (println iteration-data)
-  
-  #;(for/and ([iter (in-naturals 0)])
-    (define old-cnt ((egg egraph-get-size )egg-graph))
-    ((egg egraph-run-iter) egg-graph node-limit ffi-rules precompute?)
-    (timeline-cost iter)
-    (define cnt ((egg egraph-get-size) egg-graph))
-    (define is_stop (or (>= cnt node-limit) (<= cnt old-cnt)))
-    (not is_stop))
+
+  (for ([iter iteration-data] [counter (in-naturals 0)])
+       (timeline-push! 'egraph counter (iteration-data-num-nodes iter) 0 0)) ;; TODO fill in cost and time
 
   ((egg free-ffi-rules) ffi-rules))
 
