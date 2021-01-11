@@ -49,13 +49,14 @@
 (define-eggmath egraph_addresult_destroy (_fun _EGraphAddResult-pointer -> _void))
 
 
-;; egraph pointer, a node limit, a pointer to an array of ffirule, a bool for constant folding, and the size of the ffirule array
 (define-eggmath egraph_run (_fun _egraph-pointer
-                                 _uint
-                                (ffi-rules : (_list i _FFIRule-pointer))
-                                _bool
+                                 (len : (_ptr o _uint)) ;; pointer to size of resulting array
+                                 _uint ;; node limit
+                                (ffi-rules : (_list i _FFIRule-pointer)) ;; ffi rules
+                                _bool ;; constant folding enabled?
                                 (_uint = (length ffi-rules))
-                                -> _EGraphIter-pointer))
+                                -> (iters : _EGraphIter-pointer)
+                                -> (values iters len)))
 
 ;; node number -> s-expr string
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer _uint -> _string/utf-8))

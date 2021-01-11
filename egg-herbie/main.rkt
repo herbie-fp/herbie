@@ -43,11 +43,12 @@
     (free (FFIRule-right rule))
     (free rule)))
 
-(define (convert-iteration-data egraphiters)
+(define (convert-iteration-data egraphiters size)
+  (println egraphiters)
   (cond
-    [egraphiters
+    [(> size 0)
      (cons (iteration-data (EGraphIter-numnodes egraphiters) (EGraphIter-numeclasses egraphiters))
-           (convert-iteration-data (ptr-add egraphiters 1 _EGraphIter)))]
+           (convert-iteration-data (ptr-add egraphiters 1 _EGraphIter) (- size 1)))]
     [else empty]))
 
 ;; TODO implement
@@ -55,8 +56,9 @@
   void)
 
 (define (egraph-run egraph-data node-limit ffi-rules precompute?)
-  (define egraphiters (egraph_run (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
-  (define res (convert-iteration-data egraphiters))
+  (define-values (egraphiters res-len) (egraph_run (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
+  (println res-len)
+  (define res (convert-iteration-data egraphiters res-len))
   (free-egraphiters egraphiters)
   res)
 

@@ -149,6 +149,7 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_run(
     ptr: *mut Context,
+    output_size: *mut u32,
     limit: u32,
     rules_array_ptr: *const *mut FFIRule,
     is_constant_folding_enabled: bool,
@@ -188,8 +189,8 @@ pub unsafe extern "C" fn egraph_run(
                     }
                 })
                 .run(&rules);
-            
         }
+        std::ptr::write(output_size, runner.iterations.len() as u32);
         let res = runner_egraphiters(&runner);
         ctx.runner = Some(runner);
         res
