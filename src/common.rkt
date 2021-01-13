@@ -5,7 +5,7 @@
 (module+ test (require rackunit))
 
 (provide reap define-table table-ref table-set! table-remove!
-         string-prefix call-with-output-files
+         call-with-output-files
          take-up-to flip-lists list/true find-duplicates
          argmins argmaxs index-of set-disjoint? comparator
          parse-flag get-seed set-seed!
@@ -49,11 +49,6 @@
 (define (take-up-to l k)
   (for/list ([x l] [i (in-range k)])
     x))
-
-(define (string-prefix s length)
-  (if (<= (string-length s) length)
-      s
-      (substring s 0 length)))
 
 (module+ test
   (check-equal? (take-up-to '(a b c d e f) 3) '(a b c))

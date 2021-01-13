@@ -298,11 +298,11 @@
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint sp-prev)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
-    (for/list ([point-idx (in-naturals)] [point-entry (in-list sp-prev)])
+    (for/vector #:length num-points ([point-idx (in-naturals)] [point-entry (in-vector sp-prev)])
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
-        (for ([prev-split-idx (in-range 0 point-idx)] [prev-entry (in-list sp-prev)]
+        (for ([prev-split-idx (in-range 0 point-idx)] [prev-entry (in-vector sp-prev)]
               #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
@@ -322,7 +322,7 @@
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
   (define initial
-    (for/list ([point-idx (in-range num-points)])
+    (for/vector #:length num-points ([point-idx (in-range num-points)])
       (argmin cse-cost
               ;; Consider all the candidates we could put in this region
               (map (λ (cand-idx cand-psums)
@@ -340,7 +340,7 @@
             (loop next)))))
 
   ;; Extract the splitpoints from our data structure, and reverse it.
-  (reverse (cse-indices (last final))))
+  (reverse (cse-indices (vector-ref final (- num-points 1)))))
 
 (define (valid-splitpoints? splitpoints)
   (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1)

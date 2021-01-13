@@ -59,17 +59,33 @@
                 (get-representation (list-ref args (add1 (index-of args ':precision))))
                 default-repr))))
 
+  (define body* (desugar-program body default-repr var-reprs))
+  (define pre* (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs))
+  (check-unused-variables arg-names body* pre*)
+
   (test (~a (dict-ref prop-dict* ':name body))
         arg-names
-        (desugar-program body default-repr var-reprs)
+        body*
         (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs)
         (dict-ref prop-dict* ':herbie-expected #t)
         (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs)
-        (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs)
+        pre*
         (representation-name default-repr)
         (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)
         (dict-ref prop-dict* ':herbie-conversions '())))
         
+(define (check-unused-variables vars precondition expr)
+  ;; Fun story: you might want variables in the precondition that
+  ;; don't appear in the `expr`, because that can allow you to do
+  ;; non-uniform sampling. For example, if you have the precondition
+  ;; `(< x y)`, where `y` is otherwise unused, then `x` is sampled
+  ;; non-uniformly (biased toward small values).
+  (define used (set-union (free-variables expr) (free-variables precondition)))
+  (unless (set=? vars used)
+    (define unused (set-subtract vars used))
+    (warn 'unused-variable
+          "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
+          (string-join (map ~a unused) ", "))))
 
 (define (load-stdin override-ctx)
   (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
