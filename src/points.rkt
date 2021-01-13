@@ -36,9 +36,10 @@
       (append (map test-program tests) (map test-precondition tests))))
   (check = (count (compose not (curryr expr-supports? 'ival) program-body) exprs) 0))
 
-(define (point-logger name dict prog)
+(define (point-logger name prog)
   (define start (current-inexact-milliseconds))
   (define (log! . args)
+    (define now (current-inexact-milliseconds))
     (match-define (list category prec)
       (match args
         [`(exit ,prec ,pt)
@@ -55,10 +56,10 @@
         [`(sampled ,prec ,pt ,_) (list 'valid prec)]
         [`(infinite ,prec ,pt ,_) (list 'invalid prec)]
         [`(nan ,prec ,pt) (list 'nan prec)]))
-    (define key (string->symbol (format "~a/~a/~a" name prec category)))
-    (define dt (- (current-inexact-milliseconds) start))
-    (hash-update! dict key (curry map + (list dt 1)) (list 0 0)))
-  (if dict log! void))
+    (define dt (- now start))
+    (timeline-push! 'outcomes (~a name) prec (~a category) dt 1)
+    (set! start now))
+  log!)
 
 (define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
   (define <-bf (representation-bf->repr repr))
@@ -92,8 +93,6 @@
           (loop precision*))])))
 
 (define (prepare-points-intervals prog precondition repr sampler)
-  (define log (make-hash))
-  (timeline-log! 'outcomes log)
   (timeline-push! 'method "intervals")
 
   (define pre-fn (eval-prog precondition 'ival repr))
@@ -108,11 +107,11 @@
       (define pre
         (or (equal? (program-body precondition) 'TRUE)
             (ival-eval pre-fn pt (get-representation 'bool) #:precision (bf-precision)
-                       #:log (point-logger 'pre log precondition))))
+                       #:log (point-logger 'pre precondition))))
 
       (define ex
         (and pre (ival-eval body-fn processed-point repr #:precision (bf-precision)
-                            #:log (point-logger 'body log prog))))
+                            #:log (point-logger 'body prog))))
 
       (define success
         ;; +nan.0 is the "error" return code for ival-eval
@@ -128,6 +127,7 @@
           (raise-herbie-error "Cannot sample enough valid points."
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exacts unprocessed)])))
+  (timeline-compact! 'outcomes)
   (mk-pcontext points exacts unprocessed))
 
 (define (prepare-points prog precondition repr sampler)

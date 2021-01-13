@@ -67,9 +67,9 @@
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
 
-(define (gather-additive-terms expr #:full [expand #f] #:label [label #f] )
+(define (gather-additive-terms expr #:label [label #f] )
   (define (recurse subexpr #:label [label #f])
-    (gather-additive-terms subexpr #:full expand #:label label))
+    (gather-additive-terms subexpr #:label label))
 
   (let ([label (or label expr)])
     (match expr
@@ -83,20 +83,15 @@
                (map negate-term (append-map recurse args)))]
 
       [`(* ,args ...)
-       (if (or (not expand) (memq label expand))
-           (for/list ([term-list (apply cartesian-product (map recurse args))])
-             (list* (apply * (map car term-list))
-                    (simplify-node (cons '* (map cadr term-list)))
-                    (cons label (append-map cddr term-list))))
-           `((1 ,label)))]
+       (for/list ([term-list (apply cartesian-product (map recurse args))])
+         (list* (apply * (map car term-list))
+                (simplify-node (cons '* (map cadr term-list)))
+                (cons label (append-map cddr term-list))))]
       [`(/ ,arg) ; Prevent fall-through to the next case
        `((1 ,expr))]
       [`(/ ,arg ,args ...)
-       (if (or (not expand) (memq label expand))
-           (let ([nums (recurse arg)])
-             (for/list ([term nums])
-               (list* (car term) (simplify-node (list* '/ (cadr term) args)) (cons label (cddr term)))))
-           `((1 ,expr)))]
+       (for/list ([term (recurse arg)])
+         (list* (car term) (simplify-node (list* '/ (cadr term) args)) (cons label (cddr term))))]
 
       [`(pow ,arg ,(? integer? n))
        (cond
@@ -169,20 +164,6 @@
                   (cons (* a (car term)) (cdr term))))]))]
     [else
      `(1 (1 . ,expr))]))
-
-(define (combining-labels terms)
-  (remove-duplicates
-   (reap [sow]
-         (let ([h (make-hash)])
-           (for ([term terms])
-             (cond
-              [(hash-has-key? h (cadr term))
-               (map sow (cddr term))
-               (map sow (hash-ref h (cadr term)))
-               (hash-set! h (cadr term) '())]
-              [else
-               (hash-set! h (cadr term) (cddr term))]))))
-   eq?))
 
 (define (combine-aterms terms)
   (let ([h (make-hash)])

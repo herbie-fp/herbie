@@ -1,6 +1,6 @@
 #lang racket
 (require "config.rkt")
-(provide *debug* *debug-port* *debug-pref-range* debug set-debug-level!)
+(provide *debug-port* debug set-debug-level!)
 
 ;; Sets how powerful, and therefore how computationally expensive, the
 ;; debug system is.
