@@ -5,7 +5,6 @@
 
 (provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
-          *herbie-preprocess* sexp->preprocess preprocess->sexp (struct-out symmetry-group)
           real->repr repr->real
           value? special-value?)
 
@@ -153,18 +152,3 @@
 ;; Global precision tracking
 (define *output-repr* (make-parameter (get-representation 'binary64)))
 (define *var-reprs* (make-parameter '()))
-
-;; Herbie preprocess structs
-(struct symmetry-group (variables) #:prefab)
-
-
-;; Tracks list of preprocess structs Herbie decides to apply
-(define *herbie-preprocess* (make-parameter empty))
-
-(define (preprocess->sexp preprocess)
-  `(sort ,@(symmetry-group-variables preprocess)))
-
-(define (sexp->preprocess sexp)
-  (match sexp
-    [(list 'sort vars ...) (symmetry-group vars)]
-    [else (error (format "unknown preprocess ~a" sexp))]))

@@ -1,7 +1,8 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) 
          (only-in fpbench fpcore? supported-by-lang? core->c core->tex expr->tex))
-(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt" "../syntax/sugar.rkt")
+(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
+         "../interface.rkt" "../preprocess.rkt" "../syntax/sugar.rkt")
 (provide render-menu render-warnings render-large render-program program->fpcore render-reproduction js-tex-include)
 
 (define (program->fpcore prog)

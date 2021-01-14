@@ -4,7 +4,7 @@
          "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt" "conversions.rkt"
          "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "sampling.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
-         "syntax/sugar.rkt" "symmetry.rkt")
+         "syntax/sugar.rkt" "preprocess.rkt" "symmetry.rkt")
 
 (provide (all-defined-out))
 

@@ -2,7 +2,7 @@
 
 (require math/bigfloat rival math/base)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "interface.rkt")
+         "interface.rkt" "preprocess.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext in-pcontext-with-unprocessed pcontext?
          prepare-points errors batch-errors errors-score apply-preprocess
