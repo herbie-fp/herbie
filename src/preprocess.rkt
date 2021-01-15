@@ -1,6 +1,10 @@
 #lang racket
 
-(provide (struct-out symmetry-group) preprocess->sexp sexp->preprocess *herbie-preprocess*)
+(require rival)
+(require "interface.rkt" "programs.rkt" "float.rkt")
+
+(provide (struct-out symmetry-group) preprocess->sexp sexp->preprocess
+         *herbie-preprocess* apply-preprocess ival-preprocesses)
 
 ;; Tracks list of preprocess structs Herbie decides to apply
 (define *herbie-preprocess* (make-parameter empty))
@@ -16,3 +20,57 @@
   (match sexp
     [(list 'sort vars ...) (symmetry-group vars)]
     [else (error (format "unknown preprocess ~a" sexp))]))
+
+
+;; index-value-pairs is a sorted list of (index, value)
+(define (list-set-multiple list index-value-pairs)
+  (let loop ([current list] [todo index-value-pairs] [index 0])
+    (cond
+      [(empty? current)
+       empty]
+      [(and (not (empty? todo)) (equal? (first (first todo)) index))
+       (cons (second (first todo)) (loop (rest current) (rest todo) (+ index 1)))]
+      [else
+       (cons (first current) (loop (rest current) todo (+ index 1)))])))
+
+(define (<-repr repr a b)
+  (< (repr->real a repr) (repr->real b repr)))
+
+(define (apply-to-group variables point group-variables group-function)
+  (define indicies
+    (map (lambda (var) (index-of variables var)) (symmetry-group-variables sort-group)))
+  (define values
+    (group-function (map (curry list-ref point) indicies)))
+  (define sorted (sort (map list indicies values) (lambda (a b) (< (first a) (first b)))))
+  (list-set-multiple point sorted))
+
+(define (sort-group variables point sort-group repr)
+  (apply-to-group variables point (symmetry-group-variables sort-group)
+                  (lambda (group)
+                    (sort group (curry <-repr repr)))))
+
+(define (apply-preprocess variables sampled-point preprocess-structs repr)
+  (cond
+    [(empty? preprocess-structs)
+     (list sampled-point sampled-point)]
+    ;; Add more preprocess cases here- for now, only symmetry-group exists
+    [else
+     (list (first (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs) repr)) sampled-point)]))
+
+
+(define (ival-preprocess ivals precondition preprocess-struct)
+  (apply-to-group (program-variables precondition) ivals (symmetry-group-variables preprocess-struct)
+                  (lambda (group-ivals)
+                    (ival-sort group-ivals))))
+
+
+(define (ival-preprocesses precondition preprocess-structs repr)
+  (lambda ivals
+    (let loop ([current ivals]
+               [todo preprocess-structs])
+      (cond
+        [(empty? todo)
+         current]
+        [else
+         (loop (ival-preprocess current precondition (first todo))
+               (rest todo))]))))

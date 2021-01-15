@@ -5,7 +5,7 @@
          "interface.rkt" "preprocess.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext in-pcontext-with-unprocessed pcontext?
-         prepare-points errors batch-errors errors-score apply-preprocess
+         prepare-points errors batch-errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
 (module+ test (require rackunit))
@@ -138,35 +138,6 @@
            (expr-supports? (program-body prog) 'ival))
     (prepare-points-intervals prog precondition repr sampler)
     (prepare-points-halfpoints prog precondition repr sampler)))
-
-
-(define (list-set-multiple list indicies values)
-  (let loop ([current list] [indicies indicies] [values values] [index 0])
-    (cond
-      [(empty? current)
-       empty]
-      [(and (not (empty? indicies)) (equal? (first indicies) index))
-       (cons (first values) (loop (rest current) (rest indicies) (rest values) (+ index 1)))]
-      [else
-       (cons (first current) (loop (rest current) indicies values (+ index 1)))])))
-
-(define (<-repr repr a b)
-  (< (repr->real a repr) (repr->real b repr)))
-
-(define (sort-group variables point sort-group repr)
-  (define indicies
-    (sort (map (lambda (var) (index-of variables var)) (symmetry-group-variables sort-group)) <))
-  (define sorted
-    (sort (map (curry list-ref point) indicies) (curry <-repr repr)))
-  (list-set-multiple point indicies sorted))
-
-(define (apply-preprocess variables sampled-point preprocess-structs repr)
-  (cond
-    [(empty? preprocess-structs)
-     (list sampled-point sampled-point)]
-    ;; Add more preprocess cases here- for now, only symmetry-group exists
-    [else
-     (list (first (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs) repr)) sampled-point)]))
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)

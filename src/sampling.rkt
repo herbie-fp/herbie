@@ -3,7 +3,8 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt"
          "float.rkt" "alternative.rkt" "interface.rkt" "points.rkt"
-         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt")
+         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
+         "preprocess.rkt")
 (module+ test (require rackunit))
 (provide make-sampler remove-unecessary-preprocessing)
 
@@ -104,12 +105,14 @@
               (map (compose ival-not ival-error?) ival-bodies))))
     x))
 
-(define (get-hyperrects precondition programs reprs repr)
+(define (get-hyperrects preprocess-structs precondition programs reprs repr)
   (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
   (cond
     [(flag-set? 'setup 'search)
      (define search-func
-       (compose (valid-result? repr) (batch-eval-progs (cons precondition programs) 'ival repr)))
+       (compose (valid-result? repr)
+                (batch-eval-progs (cons precondition programs) 'ival repr)
+                (ival-preprocesses precondition preprocess-structs repr)))
      (find-intervals search-func hyperrects-analysis #:reprs reprs #:fuel (*max-find-range-depth*))]
     [else
      hyperrects-analysis]))
@@ -147,7 +150,7 @@
          (andmap (compose (curryr expr-supports? 'ival) program-body) programs)
          (not (empty? reprs)))
     (timeline-push! 'method "search")
-    (define hyperrects (list->vector (get-hyperrects precondition programs reprs repr)))
+    (define hyperrects (list->vector (get-hyperrects preprocess-structs precondition programs reprs repr)))
     (when (vector-empty? hyperrects)
       (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
     (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
