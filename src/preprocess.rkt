@@ -70,7 +70,7 @@
                [todo preprocess-structs])
       (cond
         [(empty? todo)
-         current]
+         (apply values current)]
         [else
          (loop (ival-preprocess current precondition (first todo))
                (rest todo))]))))
