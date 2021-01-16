@@ -57,7 +57,7 @@
                    [*var-reprs* (map (curryr cons output-repr) (test-vars orig-test))])
       (define newcontext
         (parameterize ([*num-points* (*reeval-pts*)])
-          (prepare-points (test-specification orig-test) (test-precondition orig-test) output-repr)))
+          (car (prepare-points (test-specification orig-test) (test-precondition orig-test) output-repr (test-preprocess orig-test)))))
       (define start-alt (make-alt (test-program orig-test)))
       (define end-alt (make-alt `(λ ,(test-vars orig-test) ,(table-row-output row))))
       (define-values (newpoints newexacts) (get-p&es newcontext))

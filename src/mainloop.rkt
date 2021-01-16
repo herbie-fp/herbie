@@ -68,7 +68,9 @@
   (*sampler* (make-sampler (*output-repr*) precondition-prog (list (or specification prog)) (*herbie-preprocess*)))
   
   (timeline-event! 'sample)
-  (*pcontext* (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*)))
+  (define contexts (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*) preprocess-structs))
+  (*pcontext* (car contexts))
+  (*pcontext-unprocessed* (cdr contexts))
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
   (define alt (make-alt prog))
   (^table^ (make-alt-table (*pcontext*) alt (*output-repr*)))

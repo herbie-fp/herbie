@@ -52,10 +52,10 @@
 (define (apply-preprocess variables sampled-point preprocess-structs repr)
   (cond
     [(empty? preprocess-structs)
-     (list sampled-point sampled-point)]
+     sampled-point]
     ;; Add more preprocess cases here- for now, only symmetry-group exists
     [else
-     (list (first (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs) repr)) sampled-point)]))
+     (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs) repr)]))
 
 
 (define (ival-preprocess ivals precondition preprocess-struct)

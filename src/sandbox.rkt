@@ -65,7 +65,7 @@
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*))))
+            (car (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*) empty))))
         (define fns
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))

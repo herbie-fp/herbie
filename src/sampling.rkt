@@ -118,23 +118,29 @@
      hyperrects-analysis]))
 
 (define (preprocessing-<=? alt preprocessing-one preprocessing-two)
-  (<= (errors-score (errors (alt-program alt) (*pcontext*) (*output-repr*) #:processing preprocessing-one))
-      (errors-score (errors (alt-program alt) (*pcontext*) (*output-repr*) #:processing preprocessing-two))))
+  (<= (errors-score (errors (alt-program alt) (*pcontext-unprocessed*) (*output-repr*) #:processing preprocessing-one))
+      (errors-score (errors (alt-program alt) (*pcontext-unprocessed*) (*output-repr*) #:processing preprocessing-two))))
 
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))
   (append front (rest back)))
 
-(define (remove-unecessary-preprocessing alt preprocessing)
-  (define dropped
-    (for/or ([i (in-range (length preprocessing))])
-      (if (preprocessing-<=? alt (drop-at preprocessing i) preprocessing)
-          (drop-at preprocessing i)
-          #f)))
-  (if dropped
-      (remove-unecessary-preprocessing alt dropped)
-      preprocessing))
 
+; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
+(define (remove-unecessary-preprocessing alt preprocessing)
+  (define result
+    (let loop ([preprocessing preprocessing] [i 0])
+      (cond
+        [(>= i (length preprocessing))
+         preprocessing]
+        [(preprocessing-<=? alt (drop-at preprocessing i) preprocessing)
+         (loop (drop-at preprocessing i) i)]
+        [else
+         (loop preprocessing (+ i 1))])))
+  (if (< (length result) (length preprocessing))
+      (remove-unecessary-preprocessing alt result)
+      result))
+    
 ; These definitions in place, we finally generate the points.
 ; A sampler returns two points- one without preprocessing and one with preprocessing
 (define (make-sampler repr precondition programs preprocess-structs)
@@ -154,10 +160,10 @@
     (when (vector-empty? hyperrects)
       (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
     (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
-    (λ () (apply-preprocess (program-variables precondition) (sample-multi-bounded hyperrects weights reprs) preprocess-structs repr))]
+    (λ () (sample-multi-bounded hyperrects weights reprs))]
    [else
     (timeline-push! 'method "random")
-    (λ () (apply-preprocess (program-variables precondition) (map random-generate reprs) preprocess-structs repr))]))
+    (λ () (map random-generate reprs))]))
 
 (module+ test
   (define repr (get-representation 'binary64))

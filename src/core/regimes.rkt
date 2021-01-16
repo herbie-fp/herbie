@@ -120,10 +120,10 @@
 
 (define (sort-context-on-expr context expr variables repr)
   (define fn (eval-prog `(λ ,variables ,expr) 'fl repr))
-  (let ([p&e (sort (for/list ([(pt ex unprocessed) (in-pcontext-with-unprocessed context)]) (list pt ex unprocessed))
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (list pt ex))
 		   (λ (x1 x2) (</total x1 x2 repr))
                    #:key (λ (pts) (apply fn (first pts))))])
-    (mk-pcontext (map first p&e) (map second p&e) (map third p&e))))
+    (mk-pcontext (map first p&e) (map second p&e))))
 
 (define (option-on-expr alts expr repr)
   (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
@@ -150,7 +150,7 @@
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x) 1)]
-                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0) '((0.5) (4.0)))]
+                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
                  [*var-reprs* (list (cons 'x (get-representation 'binary64)))]
                  [*output-repr* (get-representation 'binary64)])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
@@ -210,14 +210,13 @@
                      [*timeline-disabled* true]
                      [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
-          (prepare-points start-prog
+          (car
+           (prepare-points start-prog
                           `(λ ,(program-variables start-prog)
                               (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
                           repr
-                          (λ ()
-                            (let ([res (sampler)])
-                              (list (cons v (first res))
-                                    (cons v (second res)))))))
+                          (λ () (cons v (sampler)))
+                          empty)))
         (< (errors-score (errors prog1 ctx repr))
            (errors-score (errors prog2 ctx repr)))))
     (define pt (binary-search-floats pred v1 v2 repr))

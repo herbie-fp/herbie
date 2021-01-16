@@ -4,7 +4,7 @@
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "interface.rkt" "preprocess.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext in-pcontext-with-unprocessed pcontext?
+(provide *pcontext* *pcontext-unprocessed* in-pcontext mk-pcontext pcontext?
          prepare-points errors batch-errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
@@ -12,20 +12,18 @@
 (module+ internals (provide ival-eval))
 
 (define *pcontext* (make-parameter #f))
+(define *pcontext-unprocessed* (make-parameter #f))
 
-(struct pcontext (points exacts unprocessed-points))
+(struct pcontext (points exacts))
 
 (define (in-pcontext context)
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
 
-(define (in-pcontext-with-unprocessed context)
-  (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context)) (in-vector (pcontext-unprocessed-points context))))
-
-(define/contract (mk-pcontext points exacts unprocessed-points)
+(define/contract (mk-pcontext points exacts)
   ;; TODO: The second argument type should be any of the possible input types,
   ;; not just any type in general (maybe the first argument too?)
-  (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) (non-empty-listof (listof any/c)) pcontext?)
-  (pcontext (list->vector points) (list->vector exacts) (list->vector unprocessed-points)))
+  (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
+  (pcontext (list->vector points) (list->vector exacts)))
 
 (module+ test
   (require "syntax/read.rkt")
@@ -92,7 +90,7 @@
           (begin (log! 'exit precision pt) +nan.0)
           (loop precision*))])))
 
-(define (prepare-points-intervals prog precondition repr sampler)
+(define (prepare-points-intervals prog precondition repr sampler preprocess-structs)
   (timeline-push! 'method "intervals")
 
   (define pre-fn (eval-prog precondition 'ival repr))
@@ -100,13 +98,13 @@
 
   (define-values (points exacts unprocessed)
     (let loop ([sampled 0] [skipped 0] [points '()] [exacts '()] [unprocessed '()])
-      (define sampler-result (sampler))
-      (define pt (second sampler-result))
-      (define processed-point (first sampler-result))
+      (define pt (sampler))
+      (define processed-point
+        (apply-preprocess (program-variables precondition) pt preprocess-structs repr))
 
       (define pre
         (or (equal? (program-body precondition) 'TRUE)
-            (ival-eval pre-fn pt (get-representation 'bool) #:precision (bf-precision)
+            (ival-eval pre-fn processed-point (get-representation 'bool) #:precision (bf-precision)
                        #:log (point-logger 'pre precondition))))
 
       (define ex
@@ -128,15 +126,15 @@
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exacts unprocessed)])))
   (timeline-compact! 'outcomes)
-  (mk-pcontext points exacts unprocessed))
+  (cons (mk-pcontext points exacts) (mk-pcontext unprocessed exacts)))
 
-(define (prepare-points prog precondition repr sampler)
+(define (prepare-points prog precondition repr sampler preprocess-structs)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
   (if (and (expr-supports? (program-body precondition) 'ival)
            (expr-supports? (program-body prog) 'ival))
-    (prepare-points-intervals prog precondition repr sampler)
+    (prepare-points-intervals prog precondition repr sampler preprocess-structs)
     (prepare-points-halfpoints prog precondition repr sampler)))
 
 (define (point-error out exact repr)
@@ -169,10 +167,10 @@
 
 (define (errors prog pcontext repr #:processing [processing #f])
   (define fn (eval-prog prog 'fl repr))
-  (for/list ([(point exact unprocessed) (in-pcontext-with-unprocessed pcontext)])
+  (for/list ([(point exact) (in-pcontext pcontext)])
     (define processed
       (if processing
-          (first (apply-preprocess (program-variables prog) unprocessed processing repr))
+          (apply-preprocess (program-variables prog) point processing repr)
           point))
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog processed) (raise e))])
       (point-error (apply fn processed) exact repr))))
@@ -264,14 +262,15 @@
                           #:url "faq.html#sample-valid-points")]
      [(>= npts (*num-points*))
       (debug #:from 'points #:depth 4 "Sampled" npts "points with exact outputs")
-      (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*)) (take-up-to pts (*num-points*)))]
+      (cons (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*))) ;; TODO this should be the processed version
+            (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*))))]
      [else
       (define num-vars (length (program-variables prog)))
       (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
       (debug #:from 'points #:depth 4
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
-      (define pts1 (for/list ([n (in-range num)]) (second (sampler))))
+      (define pts1 (for/list ([n (in-range num)]) (sampler)))
       (define exs1 (make-exacts-halfpoints prog pts1 precondition repr))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")
