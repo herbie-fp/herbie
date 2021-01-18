@@ -127,19 +127,22 @@
 
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unecessary-preprocessing alt preprocessing)
-  (define result
-    (let loop ([preprocessing preprocessing] [i 0])
+(define (remove-unecessary-preprocessing alt preprocessing #:removed [removed empty])
+  (define-values (result newly-removed)
+    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
       (cond
         [(>= i (length preprocessing))
-         preprocessing]
+         (values preprocessing removed)]
         [(preprocessing-<=? alt (drop-at preprocessing i) preprocessing)
-         (loop (drop-at preprocessing i) i)]
+         (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
         [else
-         (loop preprocessing (+ i 1))])))
-  (if (< (length result) (length preprocessing))
-      (remove-unecessary-preprocessing alt result)
-      result))
+         (loop preprocessing (+ i 1) removed)])))
+  (cond
+    [(< (length result) (length preprocessing))
+     (remove-unecessary-preprocessing alt result #:removed newly-removed)]
+    [else
+     (timeline-push! 'remove-preprocessing (format "~a" (map preprocess->sexp newly-removed)))
+     result]))
     
 ; These definitions in place, we finally generate the points.
 ; A sampler returns two points- one without preprocessing and one with preprocessing

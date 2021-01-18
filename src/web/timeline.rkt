@@ -69,6 +69,7 @@
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-sampling 'sampling)
          ,@(dict-call curr render-phase-symmetry 'symmetry)
+         ,@(dict-call curr render-phase-remove-preprocessing 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-compiler 'compiler)
          )))
@@ -148,6 +149,10 @@
 (define (render-phase-symmetry symmetry-info)
   `((dt "Symmetry")
     (dd ,@(map render-symmetry-group (first symmetry-info)))))
+
+(define (render-phase-remove-preprocessing removed-info)
+  `((dt "Removed")
+    (dd ,@(map (lambda (s) `(p ,s)) removed-info))))
 
 (define (render-phase-accuracy accuracy oracle baseline name link)
   (define rows
