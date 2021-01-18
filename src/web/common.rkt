@@ -57,7 +57,7 @@
 
 (define (render-preprocess-struct preprocess)
   (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) " ") "]"))
-  (render-large vars "=" (string-append "sort(" vars ")")))
+  (render-large vars "=" (string-append "\\mathsf{sort}(" vars ")")))
 
 (define (render-preprocess preprocess-structs)
   `(div ([id "preprocess"])
