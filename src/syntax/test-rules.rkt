@@ -44,7 +44,7 @@
        (λ ,fv ,p2))
      empty))
 
-  (define points (for/list ([n (in-range num-test-points)]) (first (make-point))))
+  (define points (for/list ([n (in-range num-test-points)]) (make-point)))
   (define prog1 (ground-truth fv p1 repr))
   (define prog2 (ground-truth fv p2 repr))
 
