@@ -68,6 +68,7 @@
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-sampling 'sampling)
+         ,@(dict-call curr render-phase-symmetry 'symmetry)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-compiler 'compiler)
          )))
@@ -140,6 +141,13 @@
                   (td ,(format-percent wo total))
                   (td ,(format-percent wf total))
                   (td ,(~a n))))))))
+
+(define (render-symmetry-group group)
+  `(p "sort(" ,(string-join group " ") ")"))
+
+(define (render-phase-symmetry symmetry-info)
+  `((dt "Symmetry")
+    (dd ,@(map render-symmetry-group (first symmetry-info)))))
 
 (define (render-phase-accuracy accuracy oracle baseline name link)
   (define rows

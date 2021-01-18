@@ -1,6 +1,6 @@
 #lang racket
 
-(require rival)
+(require rival math/private/bigfloat/mpfr)
 (require "interface.rkt" "programs.rkt" "float.rkt")
 
 (provide (struct-out symmetry-group) preprocess->sexp sexp->preprocess
@@ -38,14 +38,14 @@
 
 (define (apply-to-group variables point group-variables group-function)
   (define indicies
-    (map (lambda (var) (index-of variables var)) (symmetry-group-variables sort-group)))
+    (map (lambda (var) (index-of variables var)) group-variables))
   (define values
     (group-function (map (curry list-ref point) indicies)))
   (define sorted (sort (map list indicies values) (lambda (a b) (< (first a) (first b)))))
   (list-set-multiple point sorted))
 
-(define (sort-group variables point sort-group repr)
-  (apply-to-group variables point (symmetry-group-variables sort-group)
+(define (sort-group variables point preprocess repr)
+  (apply-to-group variables point (symmetry-group-variables preprocess)
                   (lambda (group)
                     (sort group (curry <-repr repr)))))
 
@@ -61,7 +61,7 @@
 (define (ival-preprocess ivals precondition preprocess-struct)
   (apply-to-group (program-variables precondition) ivals (symmetry-group-variables preprocess-struct)
                   (lambda (group-ivals)
-                    (ival-sort group-ivals))))
+                    (ival-sort group-ivals bflt?))))
 
 
 (define (ival-preprocesses precondition preprocess-structs repr)
