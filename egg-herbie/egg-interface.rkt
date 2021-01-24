@@ -7,6 +7,7 @@
 (provide egraph_create egraph_destroy egraph_add_expr
          egraph_addresult_destroy egraph_run egraph_get_simplest
          _EGraphIter destroy_egraphiters egraph_get_cost
+         egraph_is_unsound_detected
          (struct-out EGraphAddResult)
          (struct-out EGraphIter)
          (struct-out FFIRule))
