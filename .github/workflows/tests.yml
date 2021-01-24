@@ -16,7 +16,7 @@ jobs:
         uses: Bogdanp/setup-racket@v0.5
       - uses: actions/checkout@master
       - name: "Install dependencies"
-        run: raco pkg install --name herbie --no-cache --auto src/
+        run: make install
       - run: raco test src/ infra/
 
   hamming:
