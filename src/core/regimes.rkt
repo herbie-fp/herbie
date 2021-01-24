@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
-(require "../syntax/types.rkt" "../interface.rkt" "../errors.rkt")
+(require "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 
 (module+ test
@@ -201,7 +201,7 @@
 
   (define repr-name (representation-name repr))
   (define eq-repr (get-parametric-operator '== repr-name repr-name))
-
+  
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
     (define (pred v)
@@ -215,7 +215,7 @@
                           `(λ ,(program-variables start-prog)
                               (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
                           repr
-                          (λ () (cons v (apply-preprocess (program-variables start-prog) (sampler) (*herbie-preprocess*) repr))) 
+                          (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts))) (sampler) (*herbie-preprocess*) repr)))
                           empty)))
         (< (errors-score (errors prog1 ctx repr))
            (errors-score (errors prog2 ctx repr)))))

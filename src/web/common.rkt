@@ -56,13 +56,13 @@
     ("C" . ,(curryr core->c "code"))))
 
 (define (render-preprocess-struct preprocess)
-  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) " ") "]"))
-  (render-large vars "=" (string-append "\\mathsf{sort}(" vars ")")))
+  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) " \\, ") "]"))
+  `(div ([class "program math"])
+        "\\[" ,vars "=" ,(string-append "\\mathsf{sort}(" vars ")") "\\]"))
 
 (define (render-preprocess preprocess-structs)
   `(div ([id "preprocess"])
-        (div ([class "program math"])
-             ,@(map render-preprocess-struct preprocess-structs))))
+        ,@(map render-preprocess-struct preprocess-structs)))
 
 (define (render-program #:to [result #f] preprocess test)
   (define output-prec (test-output-prec test))

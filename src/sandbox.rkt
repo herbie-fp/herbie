@@ -65,7 +65,7 @@
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (car (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*) empty))))
+            (car (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*) (*herbie-preprocess*)))))
         (define fns
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))
@@ -137,7 +137,7 @@
   (define repr (test-output-repr test))
   (table-row (test-name test) status
              (resugar-program (program-body (test-precondition test)) repr)
-             (if (test-success? result) (test-success-preprocess result) empty)
+             (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
              (test-output-prec test)
              (test-vars test)
              (resugar-program (test-input test) repr) #f

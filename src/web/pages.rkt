@@ -32,6 +32,7 @@
    e))
 
 (define (make-page page out result profile?)
+  
   (define test (test-result-test result))
   (define repr (test-output-repr test))
   (match page
