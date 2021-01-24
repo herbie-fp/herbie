@@ -52,6 +52,8 @@
 (define-eggmath destroy_egraphiters (_fun _uint _EGraphIter-pointer -> _void))
 
 
+(define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _bool))
+
 (define-eggmath egraph_run (_fun _egraph-pointer
                                  (len : (_ptr o _uint)) ;; pointer to size of resulting array
                                  _uint ;; node limit

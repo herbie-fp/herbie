@@ -126,6 +126,9 @@
       exprs
       (lambda (node-ids)
         (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
+        (when ((egg egraph-is-unsound-detected) egg-graph)
+          (warn 'unsound-rules #:url "faq.html#unsound-rules"
+               "Unsound rule application detected in e-graph. Results from simplify may not be sound." n))
         (map
          (lambda (id)
            (for/list ([iter (in-range (length iter-data))])
