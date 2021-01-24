@@ -283,19 +283,16 @@
                  #:when true [loc locs])
         (location-get loc (alt-program child))))
 
-    (define simplifications
+    (define simplifications-opotions
       (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true))
 
     (define simplify-hash
-      (make-immutable-hash (map cons to-simplify simplifications)))
+      (make-immutable-hash (map cons to-simplify simplifications-options)))
 
     (define simplified
-      (for/list ([child (^children^)] [locs locs-list])
-        (for/fold ([child child]) ([loc locs])
-          (define child* (location-do loc (alt-program child) (λ (expr) (hash-ref simplify-hash expr))))
-          (if (not (equal? (alt-program child) child*))
-              (alt child* (list 'simplify loc) (list child))
-              child))))
+      (apply append
+             (for/list ([child (^children^)] [locs locs-list])
+               (make-simplification-combinations child locs simplify-hash))))
 
     (timeline-log! 'inputs (length locs-list))
     (timeline-log! 'outputs (length simplified))
