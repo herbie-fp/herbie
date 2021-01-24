@@ -215,7 +215,7 @@
                           `(λ ,(program-variables start-prog)
                               (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
                           repr
-                          (λ () (cons v (sampler)))
+                          (λ () (cons v (apply-preprocess (program-variables start-prog) (sampler) (*herbie-preprocess*) repr))) 
                           empty)))
         (< (errors-score (errors prog1 ctx repr))
            (errors-score (errors prog2 ctx repr)))))
