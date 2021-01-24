@@ -56,7 +56,7 @@
     ("C" . ,(curryr core->c "code"))))
 
 (define (render-preprocess-struct preprocess)
-  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) " \\, ") "]"))
+  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) " \\; ") "]"))
   `(div ([class "program math"])
         "\\[" ,vars "=" ,(string-append "\\mathsf{sort}(" vars ")") "\\]"))
 
