@@ -40,7 +40,7 @@
 ;; make all combinations of the alt using the simplification options available
 (define (make-simplification-combinations child locs simplify-hash)
   (define location-options
-    (cartesian-product
+    (apply cartesian-product
      (for/list ([loc locs])
        (hash-ref simplify-hash (location-get loc (alt-program child))))))
   

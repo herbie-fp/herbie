@@ -296,7 +296,6 @@
 
     (timeline-log! 'inputs (length locs-list))
     (timeline-log! 'outputs (length simplified))
-
     (^children^ simplified))
   (^simplified^ #t)
   (void))
