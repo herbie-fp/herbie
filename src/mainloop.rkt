@@ -283,11 +283,11 @@
                  #:when true [loc locs])
         (location-get loc (alt-program child))))
 
-    (define simplifications-opotions
+    (define simplification-options
       (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true))
 
     (define simplify-hash
-      (make-immutable-hash (map cons to-simplify simplifications-options)))
+      (make-immutable-hash (map cons to-simplify simplification-options)))
 
     (define simplified
       (apply append

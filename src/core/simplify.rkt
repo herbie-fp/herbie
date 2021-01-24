@@ -1,9 +1,10 @@
 #lang racket
 
 (require pkg/lib)
-(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt" "../syntax/rules.rkt")
+(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
+         "../syntax/rules.rkt" "../alternative.rkt")
 
-(provide simplify-expr simplify-batch)
+(provide simplify-expr simplify-batch make-simplification-combinations)
 (module+ test (require rackunit))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie
@@ -46,7 +47,7 @@
   (for/list ([option location-options])
     (for/fold ([child child]) ([replacement option] [loc locs])
               (define child* (location-do loc (alt-program child) (lambda (expr) replacement)))
-              (if (not (equal? (alt-program child child*)))
+              (if (not (equal? (alt-program child) child*))
                   (alt child* (list 'simplify loc) (list child))
                   child))))
 
@@ -127,7 +128,7 @@
         (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
         (map
          (lambda (id)
-           (for/list ([iter (in-range (range (length iter-data)))])
+           (for/list ([iter (in-range (length iter-data))])
                       ((egg egg-expr->expr)
                        ((egg egraph-get-simplest) egg-graph id iter)
                        egg-graph)))
