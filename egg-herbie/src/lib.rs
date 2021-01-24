@@ -4,10 +4,10 @@ pub mod rules;
 use egg::{Id, Iteration};
 use math::*;
 
+use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::{slice, sync::atomic::Ordering};
-use std::cmp::{min};
 
 unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
     match CStr::from_ptr(c_string).to_str() {
@@ -92,14 +92,16 @@ fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
     EGraphIter {
         numnodes: iter.egraph_nodes as u32,
         numclasses: iter.egraph_classes as u32,
-        time: iter.total_time
+        time: iter.total_time,
     }
 }
 
 unsafe fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
-    let mut result: Vec<EGraphIter> = runner.iterations.iter()
-                                                       .map(|iter| convert_iter(&iter))
-                                                       .collect();
+    let mut result: Vec<EGraphIter> = runner
+        .iterations
+        .iter()
+        .map(|iter| convert_iter(&iter))
+        .collect();
     let ptr = result.as_mut_ptr();
     std::mem::forget(result);
     ptr
@@ -220,7 +222,11 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_simplest(ptr: *mut Context, node_id: u32, iter: u32) -> *const c_char {
+pub unsafe extern "C" fn egraph_get_simplest(
+    ptr: *mut Context,
+    node_id: u32,
+    iter: u32,
+) -> *const c_char {
     ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
