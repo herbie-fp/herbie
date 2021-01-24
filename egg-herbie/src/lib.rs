@@ -238,6 +238,18 @@ pub unsafe extern "C" fn egraph_get_simplest(ptr: *mut Context, node_id: u32, it
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        runner.egraph.analysis.unsound.load(Ordering::SeqCst)
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: u32) -> u32 {
     ffirun(|| {
         let ctx = &*ptr;

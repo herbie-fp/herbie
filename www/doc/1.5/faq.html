@@ -112,6 +112,15 @@
     Install <code>egg-herbie</code> with <code>raco</code>.
   </p>
 
+  <h3 id="unsound-rules">Unsound rule application detected</h3>
+  
+  <p>
+    Herbie uses a set of algebraic rewrite rules in order to simplify expressions.
+    Herbie can sometimes detect when these rewrite rules produce a contradiction.
+    Specifically, if it proves two constants or variables are equal, the rewrite rules
+    have been applied in an unsound way.
+  </p>
+
 
   <h2>Known bugs</h2>
 

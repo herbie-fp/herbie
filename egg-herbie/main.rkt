@@ -24,7 +24,9 @@
 
 (define (egraph-get-cost egraph-data node-id iteration)
   (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
-    
+
+(define (egraph-is-unsound-detected egraph-data)
+  (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))  
 
 (define (make-raw-string s)
   (define b (string->bytes/utf-8 s))
