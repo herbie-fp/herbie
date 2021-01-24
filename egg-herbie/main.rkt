@@ -9,6 +9,7 @@
 (provide egraph-run egraph-add-exprs with-egraph
          egraph-get-simplest egg-expr->expr egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost
+         egraph-is-unsound-detected
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
