@@ -135,7 +135,7 @@
   (if (and (expr-supports? (program-body precondition) 'ival)
            (expr-supports? (program-body prog) 'ival))
     (prepare-points-intervals prog precondition repr sampler preprocess-structs)
-    (prepare-points-halfpoints prog precondition repr sampler)))
+    (prepare-points-halfpoints prog precondition repr sampler preprocess-structs)))
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
@@ -229,14 +229,14 @@
           (make-exacts-walkup prog (select-every nth pts) precondition repr)
           (loop (floor (/ nth 2)))))))
 
-(define (filter-p&e pts exacts)
+(define (filter-p&e pts processed exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
-  (for/lists (ps es)
-      ([pt pts] [ex exacts]
+  (for/lists (ps pr es)
+      ([pt pts] [processed processed] [ex exacts]
        #:unless (and (real? ex) (nan? ex))
        #:when (ordinary-value? ex (*output-repr*))
-       #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
-    (values pt ex)))
+       #:when (andmap (curryr ordinary-value? (*output-repr*)) processed))
+    (values pt processed ex)))
 
 
 (define (extract-sampled-points allvars precondition)
@@ -252,9 +252,9 @@
 
 ;; This is the obsolete version for the "halfpoint" method
 ;; TODO: It currently ignores preprocessing, just using the unprocessed version of the point
-(define (prepare-points-halfpoints prog precondition repr sampler)
+(define (prepare-points-halfpoints prog precondition repr sampler preprocess-structs)
   (timeline-push! 'method "halfpoints")
-  (let loop ([pts '()] [exs '()] [num-loops 0])
+  (let loop ([pts '()] [processed '()] [exs '()] [num-loops 0])
     (define npts (length pts))
     (cond
      [(> num-loops 200)
@@ -262,7 +262,7 @@
                           #:url "faq.html#sample-valid-points")]
      [(>= npts (*num-points*))
       (debug #:from 'points #:depth 4 "Sampled" npts "points with exact outputs")
-      (cons (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*))) ;; TODO this should be the processed version
+      (cons (mk-pcontext (take-up-to processed (*num-points*)) (take-up-to exs (*num-points*)))
             (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*))))]
      [else
       (define num-vars (length (program-variables prog)))
@@ -271,8 +271,10 @@
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
       (define pts1 (for/list ([n (in-range num)]) (sampler)))
-      (define exs1 (make-exacts-halfpoints prog pts1 precondition repr))
+      (define processed1 (for/list ([pt pts1])
+                                  (apply-preprocess (program-variables precondition) pt preprocess-structs repr)))
+      (define exs1 (make-exacts-halfpoints prog processed1 precondition repr))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")
-      (define-values (pts* exs*) (filter-p&e pts1 exs1))
-      (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])))
+      (define-values (pts* processed* exs*) (filter-p&e pts1 processed1 exs1))
+      (loop (append pts* pts) (append processed* processed) (append exs* exs) (+ 1 num-loops))])))
