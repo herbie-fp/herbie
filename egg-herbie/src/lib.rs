@@ -140,16 +140,19 @@ pub unsafe extern "C" fn egraph_add_expr(
     })
 }
 
+unsafe fn ptr_to_string(ptr: *const i8) -> String {
+    let bytes = CStr::from_ptr(ptr).to_bytes();
+    String::from_utf8(bytes.to_vec()).unwrap()
+}
+
 // todo don't just unwrap, also make sure the rules are validly parsed
 unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
     let rule = &mut *rule_ptr;
-    let bytes1 = CStr::from_ptr(rule.name).to_bytes();
-    let string_result1 = String::from_utf8(bytes1.to_vec()).unwrap();
-    let bytes2 = CStr::from_ptr(rule.left).to_bytes();
-    let string_result2 = String::from_utf8(bytes2.to_vec()).unwrap();
-    let bytes3 = CStr::from_ptr(rule.right).to_bytes();
-    let string_result3 = String::from_utf8(bytes3.to_vec()).unwrap();
-    (string_result1, string_result2, string_result3)
+    (
+        ptr_to_string(rule.name),
+        ptr_to_string(rule.left),
+        ptr_to_string(rule.right),
+    )
 }
 
 #[no_mangle]
@@ -252,6 +255,23 @@ pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
             .as_ref()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
         runner.egraph.analysis.unsound.load(Ordering::SeqCst)
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *const i8) -> u32 {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        let string = ptr_to_string(name);
+        runner
+            .iterations
+            .iter()
+            .map(|iter| *iter.applied.get(&string).unwrap_or(&0) as u32)
+            .sum()
     })
 }
 
