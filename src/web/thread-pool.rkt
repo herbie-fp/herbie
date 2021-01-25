@@ -7,14 +7,13 @@
 (provide get-test-results)
 
 (define (graph-folder-path tname index)
-  (format "~a-~a" index (string-prefix (string-replace tname #px"\\W+" "") 50)))
+  (define replaced (string-replace tname #px"\\W+" ""))
+  (format "~a-~a" index (substring replaced 0 (min (string-length replaced) 50))))
 
 (define (run-test index test #:seed seed #:profile profile? #:debug debug? #:dir dir)
   (cond
    [dir
-    (define dirname
-      (format "~a-~a" index (string-prefix (string-replace (test-name test) #px"\\W+" "") 50)))
-
+    (define dirname (graph-folder-path (test-name test) index))
     (define rdir  (build-path dir dirname))
     (when (not (directory-exists? rdir)) (make-directory rdir))
 

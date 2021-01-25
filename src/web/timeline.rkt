@@ -63,7 +63,7 @@
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
-         ,@(dict-call curr render-phase-counts 'inputs 'outputs)
+         ,@(dict-call curr render-phase-counts 'alts)
          ,@(dict-call curr render-phase-times #:extra n 'times)
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-egraph 'egraph)
@@ -168,7 +168,8 @@
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
               '())))))
 
-(define (render-phase-pruning kept)
+(define (render-phase-pruning kept-data)
+  (match-define (list kept) kept-data)
   (define (altnum kind [col #f])
     (define rec (hash-ref kept kind))
     (match col [#f (first rec)] [0 (- (first rec) (second rec))] [1 (second rec)]))
@@ -191,13 +192,15 @@
               (td ,(~a (apply + (map (curryr altnum 1) '(new fresh picked done)))))
               (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
 
-(define (render-phase-error min-error)
+(define (render-phase-error min-error-table)
+  (match-define (list min-error) min-error-table)
   `((dt "Error")
     (dd ,(format-bits min-error) "b")))
 
 (define (render-phase-rules rules)
   (define by-count (make-hash))
-  (for ([(rule count) (in-dict rules)])
+  (for ([row (in-list rules)])
+    (match-define (list rule count) row)
     (dict-update! by-count count (curry cons rule) '()))
 
   `((dt "Rules")
@@ -206,7 +209,8 @@
               `(tr (td ,(~a count) "×")
                    (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
 
-(define (render-phase-counts inputs outputs)
+(define (render-phase-counts alts)
+  (match-define (list (list inputs outputs)) alts)
   `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
 
 (define (render-phase-times n times)
@@ -230,13 +234,8 @@
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
     (dd (table ([class "times"])
-         ,@(for/list ([data (sort (hash->list outcomes) > #:key second)])
-             (match-define
-              (list (app symbol->string
-                         (regexp #rx"^(.+)/([0-9]+)/(.*)$"
-                                 (list _ prog (app string->number precision) category)))
-                    time count)
-              data)
+         ,@(for/list ([data (sort outcomes > #:key fourth)])
+             (match-define (list prog precision category time count) data)
              `(tr (td ,(format-time time)) (td ,(~a count) "×") (td ,(~a prog))
                   (td ,(~a precision)) (td ,(~a category))))))))
 

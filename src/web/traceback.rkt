@@ -49,9 +49,7 @@
            (section ([id "backtrace"])
              (h1 "Backtrace")
              ,(render-traceback exn)))]
-        [_ ""])
-
-     ,(render-reproduction test)))
+        [_ ""])))
    out))
 
 (define (render-syntax-errors exn)
