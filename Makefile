@@ -11,7 +11,7 @@ install:
 	raco pkg remove --force egg-herbie-windows && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
-	raco pkg install --skip-installed --name herbie src/
+	raco pkg install --skip-installed --auto --name herbie src/
 	raco pkg update --name herbie src/
 
 nightly: install
