@@ -287,7 +287,7 @@
 
     (define simplified
       (apply append
-             (for/list ([child (^children^)] [locs locs-list])
+             (for/list ([child (in-list children)] [locs locs-list])
                (make-simplification-combinations child locs simplify-hash))))
 
     (timeline-push! 'alts (length locs-list) (length simplified))
