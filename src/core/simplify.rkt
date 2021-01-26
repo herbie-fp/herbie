@@ -37,7 +37,7 @@
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
-  (first (simplify-batch (list expr) #:rules rls #:precompute precompute?)))
+  (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
 
 (define/contract (simplify-batch exprs #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
