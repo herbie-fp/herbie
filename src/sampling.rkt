@@ -141,7 +141,7 @@
     [(< (length result) (length preprocessing))
      (remove-unecessary-preprocessing alt result #:removed newly-removed)]
     [else
-     (timeline-push! 'remove-preprocessing (format "~a" (map preprocess->sexp newly-removed)))
+     (timeline-push! 'remove-preprocessing (map (compose ~a preprocess->sexp) newly-removed))
      result]))
     
 ; These definitions in place, we finally generate the points.

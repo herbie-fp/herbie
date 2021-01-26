@@ -1,6 +1,6 @@
 #lang racket
 
-(require rival math/private/bigfloat/mpfr)
+(require rival math/bigfloat)
 (require "interface.rkt" "programs.rkt" "float.rkt")
 
 (provide (struct-out symmetry-group) preprocess->sexp sexp->preprocess
@@ -61,7 +61,7 @@
 (define (ival-preprocess ivals precondition preprocess-struct)
   (apply-to-group (program-variables precondition) ivals (symmetry-group-variables preprocess-struct)
                   (lambda (group-ivals)
-                    (ival-sort group-ivals bflt?))))
+                    (ival-sort group-ivals bf<))))
 
 
 (define (ival-preprocesses precondition preprocess-structs repr)

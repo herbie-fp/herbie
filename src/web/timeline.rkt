@@ -144,7 +144,7 @@
                   (td ,(~a n))))))))
 
 (define (render-symmetry-group group)
-  `(p "sort(" ,(string-join group " ") ")"))
+  `(p "sort(" ,(string-join group ", ") ")"))
 
 (define (render-phase-symmetry symmetry-info)
   `((dt "Symmetry")
@@ -152,7 +152,7 @@
 
 (define (render-phase-remove-preprocessing removed-info)
   `((dt "Removed")
-    (dd ,@(map (lambda (s) `(p ,s)) removed-info))))
+    (dd ,@(map (lambda (s) `(p ,s)) (first removed-info)))))
 
 (define (render-phase-accuracy accuracy oracle baseline name link)
   (define rows
