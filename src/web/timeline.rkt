@@ -151,8 +151,10 @@
     (dd ,@(map render-symmetry-group (first symmetry-info)))))
 
 (define (render-phase-remove-preprocessing removed-info)
+  (if (> 0 (length (first removed-info)))
   `((dt "Removed")
-    (dd ,@(map (lambda (s) `(p ,s)) (first removed-info)))))
+    (dd ,@(map (lambda (s) `(p ,s)) (first removed-info))))
+  empty))
 
 (define (render-phase-accuracy accuracy oracle baseline name link)
   (define rows
