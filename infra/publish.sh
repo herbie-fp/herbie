@@ -13,6 +13,9 @@ upload () {
          -exec gzip -f {} \;
     rsync --recursive "$DIR" --exclude reports/ "$RHOST:$RHOSTDIR/$RDIR"
     ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RDIR" -R
+    if command -v nightly-results &>/dev/null; then
+        nightly-results url https://herbie.uwplse.org/reports/"$RDIR"/
+    fi
 }
 
 index () {

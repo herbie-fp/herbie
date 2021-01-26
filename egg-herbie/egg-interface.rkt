@@ -7,6 +7,7 @@
 (provide egraph_create egraph_destroy egraph_add_expr
          egraph_addresult_destroy egraph_run egraph_get_simplest
          _EGraphIter destroy_egraphiters egraph_get_cost
+         egraph_is_unsound_detected egraph_get_times_applied
          (struct-out EGraphAddResult)
          (struct-out EGraphIter)
          (struct-out FFIRule))
@@ -52,6 +53,8 @@
 (define-eggmath destroy_egraphiters (_fun _uint _EGraphIter-pointer -> _void))
 
 
+(define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _bool))
+
 (define-eggmath egraph_run (_fun _egraph-pointer
                                  (len : (_ptr o _uint)) ;; pointer to size of resulting array
                                  _uint ;; node limit
@@ -71,3 +74,8 @@
                                      _uint ;; node id
                                      _uint ;; iteration
                                      -> _uint))
+
+(define-eggmath egraph_get_times_applied (_fun _egraph-pointer
+                                               _pointer ;; name of the rule
+                                               -> _uint))
+                                               

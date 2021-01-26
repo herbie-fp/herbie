@@ -1,0 +1,75 @@
+name: Integration Tests for the Herbie Tools
+
+on: [push]
+
+env:
+  RUST_BACKTRACE: full
+
+jobs:
+  shell:
+    name: "The shell tool"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      - run: <bench/tutorial.fpcore racket src/herbie.rkt shell >/tmp/out.fpcore
+      - run: test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
+        name: "Test that shell output had three :herbie-time lines"
+  improve:
+    name: "The improve tool"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      - run: racket src/herbie.rkt improve bench/tutorial.fpcore /tmp/out.fpcore
+      - run: test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
+        name: "Test that improve output had three :herbie-time lines"
+  report:
+    name: "The report tool"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      - run: racket src/herbie.rkt report bench/tutorial.fpcore /tmp/out/
+      - run: test -d /tmp/out/
+        name: "Test that report created a directory"
+      - run: test -f /tmp/out/results.html
+        name: "Test that report created a results.html"
+      - run: test -f /tmp/out/results.json
+        name: "Test that report created a results.json"

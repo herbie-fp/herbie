@@ -4,10 +4,10 @@ pub mod rules;
 use egg::{Id, Iteration};
 use math::*;
 
+use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::{slice, sync::atomic::Ordering};
-use std::cmp::{min};
 
 unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
     match CStr::from_ptr(c_string).to_str() {
@@ -92,14 +92,16 @@ fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
     EGraphIter {
         numnodes: iter.egraph_nodes as u32,
         numclasses: iter.egraph_classes as u32,
-        time: iter.total_time
+        time: iter.total_time,
     }
 }
 
 unsafe fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
-    let mut result: Vec<EGraphIter> = runner.iterations.iter()
-                                                       .map(|iter| convert_iter(&iter))
-                                                       .collect();
+    let mut result: Vec<EGraphIter> = runner
+        .iterations
+        .iter()
+        .map(|iter| convert_iter(&iter))
+        .collect();
     let ptr = result.as_mut_ptr();
     std::mem::forget(result);
     ptr
@@ -138,16 +140,19 @@ pub unsafe extern "C" fn egraph_add_expr(
     })
 }
 
+unsafe fn ptr_to_string(ptr: *const i8) -> String {
+    let bytes = CStr::from_ptr(ptr).to_bytes();
+    String::from_utf8(bytes.to_vec()).unwrap()
+}
+
 // todo don't just unwrap, also make sure the rules are validly parsed
 unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
     let rule = &mut *rule_ptr;
-    let bytes1 = CStr::from_ptr(rule.name).to_bytes();
-    let string_result1 = String::from_utf8(bytes1.to_vec()).unwrap();
-    let bytes2 = CStr::from_ptr(rule.left).to_bytes();
-    let string_result2 = String::from_utf8(bytes2.to_vec()).unwrap();
-    let bytes3 = CStr::from_ptr(rule.right).to_bytes();
-    let string_result3 = String::from_utf8(bytes3.to_vec()).unwrap();
-    (string_result1, string_result2, string_result3)
+    (
+        ptr_to_string(rule.name),
+        ptr_to_string(rule.left),
+        ptr_to_string(rule.right),
+    )
 }
 
 #[no_mangle]
@@ -220,7 +225,11 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_simplest(ptr: *mut Context, node_id: u32, iter: u32) -> *const c_char {
+pub unsafe extern "C" fn egraph_get_simplest(
+    ptr: *mut Context,
+    node_id: u32,
+    iter: u32,
+) -> *const c_char {
     ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
@@ -234,6 +243,35 @@ pub unsafe extern "C" fn egraph_get_simplest(ptr: *mut Context, node_id: u32, it
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
         best_str_pointer
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        runner.egraph.analysis.unsound.load(Ordering::SeqCst)
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *const i8) -> u32 {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        let string = ptr_to_string(name);
+        runner
+            .iterations
+            .iter()
+            .map(|iter| *iter.applied.get(&string).unwrap_or(&0) as u32)
+            .sum()
     })
 }
 

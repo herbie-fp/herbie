@@ -9,6 +9,7 @@
 (provide egraph-run egraph-add-exprs with-egraph
          egraph-get-simplest egg-expr->expr egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost
+         egraph-is-unsound-detected egraph-get-times-applied
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -24,7 +25,9 @@
 
 (define (egraph-get-cost egraph-data node-id iteration)
   (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
-    
+
+(define (egraph-is-unsound-detected egraph-data)
+  (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))  
 
 (define (make-raw-string s)
   (define b (string->bytes/utf-8 s))
@@ -33,6 +36,10 @@
   (memcpy ptr b n)
   (ptr-set! ptr _byte n 0)
   ptr)
+
+(define (egraph-get-times-applied egraph-data rule-name)
+  (egraph_get_times_applied (egraph-data-egraph-pointer egraph-data)
+                            (make-raw-string (symbol->string rule-name))))
 
 (define (make-ffi-rules rules)
   (for/list [(rule rules)]

@@ -1,9 +1,10 @@
 #lang racket
 
 (require pkg/lib)
-(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt" "../syntax/rules.rkt")
+(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
+         "../syntax/rules.rkt" "../alternative.rkt")
 
-(provide simplify-expr simplify-batch)
+(provide simplify-expr simplify-batch make-simplification-combinations)
 (module+ test (require rackunit))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie
@@ -35,12 +36,29 @@
       (list)))
 
 
+;; given an alt, locations, and a hash from expr -> simplification options
+;; make all combinations of the alt using the simplification options available
+(define (make-simplification-combinations child locs simplify-hash)
+  (define location-options
+    (apply cartesian-product
+     (for/list ([loc locs])
+       (hash-ref simplify-hash (location-get loc (alt-program child))))))
+  
+  (for/list ([option location-options])
+    (for/fold ([child child]) ([replacement option] [loc locs])
+              (define child* (location-do loc (alt-program child) (lambda (expr) replacement)))
+              (if (not (equal? (alt-program child) child*))
+                  (alt child* (list 'simplify loc) (list child))
+                  child))))
+
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
   (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
 
+;; for each expression, returns a list of simplified versions corresponding to egraph iterations
+;; the last expression is the simplest unless something went wrong due to unsoundness
 (define/contract (simplify-batch exprs #:rules rls #:precompute [precompute? false])
-  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
 
   (define driver
     (cond
@@ -52,8 +70,11 @@
       simplify-batch-regraph]))
 
   (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
-  (define out (driver exprs #:rules rls #:precompute precompute?))
-  (debug #:from 'simplify "Simplified to:\n  " (string-join (map ~a out) "\n  "))
+  (define resulting-lists (driver exprs #:rules rls #:precompute precompute?))
+  (define out
+    (for/list ([results resulting-lists] [expr exprs])
+             (remove-duplicates (cons expr results))))
+  (debug #:from 'simplify "Simplified to:\n  " (string-join (map ~a (map last out)) "\n  "))
     
   out)
 
@@ -61,7 +82,7 @@
   (dynamic-require 'regraph 'method))
 
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
-  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
   (timeline-push! 'method "regraph")
 
   (define start-time (current-inexact-milliseconds))
@@ -88,13 +109,13 @@
     (and (< initial-cnt ((regraph regraph-count) rg) (*node-limit*))))
 
   (log rg "done")
-  (map unmunge ((regraph regraph-extract) rg)))
+  (map list (map unmunge ((regraph regraph-extract) rg))))
 
 (define-syntax-rule (egg method)
   (dynamic-require 'egg-herbie 'method))
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
-  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof expr?))
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
   (timeline-push! 'method "egg-herbie")
   (define irules (rules->irules rls))
 
@@ -105,8 +126,20 @@
       exprs
       (lambda (node-ids)
         (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
+        
+        (when ((egg egraph-is-unsound-detected) egg-graph)
+          (warn 'unsound-rules #:url "faq.html#unsound-rules"
+               "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
+        
+        (for ([rule rls])
+             (timeline-push! 'rules (~a (rule-name rule)) ((egg egraph-get-times-applied) egg-graph (rule-name rule))))
+        
         (map
-         (lambda (id) ((egg egg-expr->expr) ((egg egraph-get-simplest) egg-graph id (- (length iter-data) 1)) egg-graph))
+         (lambda (id)
+           (for/list ([iter (in-range (length iter-data))])
+                      ((egg egg-expr->expr)
+                       ((egg egraph-get-simplest) egg-graph id iter)
+                       egg-graph)))
          node-ids))))))
 
 (define (egg-run-rules egg-graph node-limit irules node-ids precompute?)

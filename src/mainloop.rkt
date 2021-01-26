@@ -16,7 +16,7 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs children gened-series gened-rewrites simplified)
+  (table next-alt locs gened-series gened-rewrites gened-simplify simplified)
   #:mutable)
 
 (define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f)))
@@ -30,9 +30,6 @@
 (define (^next-alt^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-next-alt! (^shell-state^) newval))
   (shellstate-next-alt (^shell-state^)))
-(define (^children^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-children! (^shell-state^) newval))
-  (shellstate-children (^shell-state^)))
 
 ;; Keep track of state for (finish-iter!)
 (define (^gened-series^ [newval 'none])
@@ -41,24 +38,11 @@
 (define (^gened-rewrites^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-gened-rewrites! (^shell-state^) newval))
   (shellstate-gened-rewrites (^shell-state^)))
-(define (^simplified^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-simplified! (^shell-state^) newval))
-  (shellstate-simplified (^shell-state^)))
+(define (^gened-simplify^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-gened-simplify! (^shell-state^) newval))
+  (shellstate-gened-simplify (^shell-state^)))
 
 (define *sampler* (make-parameter #f))
-
-(define (check-unused-variables vars precondition expr)
-  ;; Fun story: you might want variables in the precondition that
-  ;; don't appear in the `expr`, because that can allow you to do
-  ;; non-uniform sampling. For example, if you have the precondition
-  ;; `(< x y)`, where `y` is otherwise unused, then `x` is sampled
-  ;; non-uniformly (biased toward small values).
-  (define used (set-union (free-variables expr) (free-variables precondition)))
-  (unless (set=? vars used)
-    (define unused (set-subtract vars used))
-    (warn 'unused-variable
-          "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
-          (string-join (map ~a unused) ", "))))
 
 ;; Setting up
 (define (setup-prog! prog
@@ -73,7 +57,6 @@
   (rollback-improve!)
   (define precondition-prog
     (or precondition (list 'λ (program-variables prog) 'TRUE)))
-  (check-unused-variables (program-variables prog) (program-body precondition-prog) (program-body prog))
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
@@ -185,6 +168,7 @@
 (define (gen-series!)
   (unless (^locs^)
     (raise-user-error 'gen-series! "No locations selected. Run (localize!) or modify (^locs^)"))
+  (^gened-series^ '())
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
 
@@ -200,16 +184,17 @@
                            (~a (location-get location (alt-program (^next-alt^))))
                            (- (current-inexact-milliseconds) tnow))))))
     
-    (timeline-log! 'inputs (length (^locs^)))
-    (timeline-log! 'outputs (length series-expansions))
+    (timeline-push! 'alts (length (^locs^)) (length series-expansions))
 
-    (^children^ (append (^children^) series-expansions)))
-  (^gened-series^ #t)
+    (^gened-series^ series-expansions)
+    (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
+    (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
   (void))
 
 (define (gen-rewrites!)
   (unless (^locs^)
     (raise-user-error 'gen-rewrites! "No locations selected. Run (localize!) or modify (^locs^)"))
+  (^gened-rewrites^ '())
 
   (timeline-event! 'rewrite)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
@@ -228,8 +213,8 @@
   (define rules-used
     (append-map (curry map change-rule) changelists))
   (define rule-counts
-    (for/hash ([rgroup (group-by identity rules-used)])
-      (values (rule-name (first rgroup)) (length rgroup))))
+    (for ([rgroup (group-by identity rules-used)])
+      (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
 
   (define (repr-rewrite-alt altn)
     (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
@@ -241,23 +226,24 @@
           (for/fold ([altn altn]) ([cng cl])
             (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))))
 
-  (timeline-log! 'inputs (length (^locs^)))
-  (timeline-log! 'rules rule-counts)
-  (timeline-log! 'outputs (length rewritten))
+  (timeline-push! 'alts (length (^locs^)) (length rewritten))
 
-  (^children^ (append (^children^) rewritten))
-  (^gened-rewrites^ #t)
+  (^gened-rewrites^ rewritten)
+  (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
+  (timeline-push! 'min-error (errors-score (atab-min-errors table*)))
   (void))
 
 (define (simplify!)
-  (unless (^children^)
+  (unless (or (^gened-series^) (^gened-rewrites^))
     (raise-user-error 'simplify! "No candidates generated. Run (gen-series!) or (gen-rewrites!)"))
+  (^gened-simplify^ '())
 
   (when (flag-set? 'generate 'simplify)
     (timeline-event! 'simplify)
+    (define children (append (or (^gened-series^) empty) (or (^gened-rewrites^) empty)))
 
     (define locs-list
-      (for/list ([child (^children^)] [n (in-naturals 1)])
+      (for/list ([child (in-list children)] [n (in-naturals 1)])
         ;; We want to avoid simplifying if possible, so we only
         ;; simplify things produced by function calls in the rule
         ;; pattern. This means no simplification if the rule output as
@@ -279,47 +265,42 @@
           [_ (list '(2))])))
 
     (define to-simplify
-      (for/list ([child (^children^)] [locs locs-list]
+      (for/list ([child (in-list children)] [locs locs-list]
                  #:when true [loc locs])
         (location-get loc (alt-program child))))
 
-    (define simplifications
+    (define simplification-options
       (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true))
 
     (define simplify-hash
-      (make-immutable-hash (map cons to-simplify simplifications)))
+      (make-immutable-hash (map cons to-simplify simplification-options)))
 
     (define simplified
-      (for/list ([child (^children^)] [locs locs-list])
-        (for/fold ([child child]) ([loc locs])
-          (define child* (location-do loc (alt-program child) (λ (expr) (hash-ref simplify-hash expr))))
-          (if (not (equal? (alt-program child) child*))
-              (alt child* (list 'simplify loc) (list child))
-              child))))
+      (apply append
+             (for/list ([child (in-list children)] [locs locs-list])
+               (make-simplification-combinations child locs simplify-hash))))
+    (timeline-push! 'alts (length locs-list) (length simplified))
 
-    (timeline-log! 'inputs (length locs-list))
-    (timeline-log! 'outputs (length simplified))
-
-    (^children^ simplified))
-  (^simplified^ #t)
+    (^gened-simplify^ simplified))
   (void))
 
 
 ;; Finish iteration
 (define (finalize-iter!)
-  (unless (^children^)
-    (raise-user-error 'finalize-iter! "No candidates generated. Run (gen-series!) or (gen-rewrites!)"))
+  (unless (^gened-simplify^)
+    (raise-user-error 'finalize-iter! "No candidates simplified. Run (simplify!)"))
 
   (timeline-event! 'prune)
-  (define new-alts (^children^))
+  (define new-alts (^gened-simplify^))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-  (^table^ (atab-add-altns (^table^) (^children^) (*output-repr*)))
+  (^table^ (atab-add-altns (^table^) (^gened-simplify^) (*output-repr*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
-  (timeline-log! 'inputs (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts)))
-  (timeline-log! 'outputs (+ (length final-fresh-alts) (length final-done-alts)))
+  (timeline-push! 'alts
+                  (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
+                  (+ (length final-fresh-alts) (length final-done-alts)))
 
   (define data
     (hash 'new (list (length new-alts)
@@ -331,9 +312,9 @@
                          (if (set-member? final-done-alts (^next-alt^)) 1 0)))
           'picked (list (if (^next-alt^) 1 0)
                         (if (and (^next-alt^) (set-member? final-done-alts (^next-alt^))) 1 0))))
-  (timeline-log! 'kept data)
+  (timeline-push! 'kept data)
 
-  (timeline-log! 'min-error (errors-score (atab-min-errors (^table^))))
+  (timeline-push! 'min-error (errors-score (atab-min-errors (^table^))))
   (rollback-iter!)
   (void))
 
@@ -354,7 +335,7 @@
   (when (not (^gened-rewrites^))
     (debug #:from 'progress #:depth 3 "generating rewritten candidates")
     (gen-rewrites!))
-  (when (not (^simplified^))
+  (when (not (^gened-simplify^))
     (debug #:from 'progress #:depth 3 "simplifying candidates")
     (simplify!))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
@@ -362,12 +343,11 @@
   (void))
 
 (define (rollback-iter!)
-  (^children^ '())
   (^locs^ #f)
   (^next-alt^ #f)
   (^gened-rewrites^ #f)
   (^gened-series^ #f)
-  (^simplified^ #f)
+  (^gened-simplify^ #f)
   (void))
 
 (define (rollback-improve!)
@@ -405,7 +385,7 @@
                #:precision precision)
   (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
   (when (flag-set? 'setup 'simplify)
-    (^children^ (atab-active-alts (^table^)))
+    (^gened-rewrites^ (atab-active-alts (^table^)))
     (simplify!)
     (finalize-iter!))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
