@@ -1,7 +1,8 @@
 #lang racket
 
 (provide (struct-out change) (struct-out alt) make-alt alt?
-         alt-program alt-add-event *start-prog* *all-alts*)
+         alt-program alt-add-event *start-prog* *all-alts*
+         alt-equal?)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -17,6 +18,9 @@
 
 (define (make-alt prog)
   (alt prog 'start '()))
+
+(define (alt-equal? x y)
+  (equal? (alt-program x) (alt-program y)))
 
 (define (alt-add-event altn event)
   (alt (alt-program altn) event (list altn)))
