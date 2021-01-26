@@ -194,8 +194,7 @@
 
 
 (define (atab-add-altns atab altns repr)
-  (define altns* (filter-not (compose program-has-nan? alt-program)
-                             (remove-duplicates altns alt-equal?)))
+  (define altns* (remove-duplicates altns alt-equal?))
   (define progs (map alt-program altns*))
   (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))
   (for/fold ([atab atab]) ([altn (in-list altns*)] [errs (in-vector errss)])
