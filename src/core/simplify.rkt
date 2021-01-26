@@ -176,7 +176,7 @@
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
-    (simplify-batch args #:rules (*simplify-rules*) #:precompute true))
+    (map last (simplify-batch args #:rules (*simplify-rules*) #:precompute true)))
 
   (define test-exprs
     #hash([1 . 1]
