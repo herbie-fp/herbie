@@ -21,7 +21,6 @@
     [(list 'sort vars ...) (symmetry-group vars)]
     [else (error (format "unknown preprocess ~a" sexp))]))
 
-
 ;; index-value-pairs is a sorted list of (index, value)
 (define (list-set-multiple list index-value-pairs)
   (let loop ([current list] [todo index-value-pairs] [index 0])
