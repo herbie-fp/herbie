@@ -4,7 +4,7 @@
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
          (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt"
-         "syntax/sugar.rkt")
+         "syntax/sugar.rkt" "preprocess.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -15,7 +15,7 @@
 ;; These cannot move between threads!
 (struct test-result (test bits time timeline warnings))
 (struct test-success test-result
-  (start-alt end-alt points exacts start-est-error end-est-error
+  (start-alt end-alt preprocess points exacts start-est-error end-est-error
    newpoints newexacts start-error end-error target-error
    baseline-error oracle-error all-alts))
 (struct test-failure test-result (exn))
@@ -56,6 +56,7 @@
           (run-improve (test-program test)
                        (*num-iterations*)
                        #:precondition (test-precondition test)
+                       #:preprocess (test-preprocess test)
                        #:specification (test-specification test)
                        #:precision output-prec))
 
@@ -64,7 +65,7 @@
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*))))
+            (car (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*) (*herbie-preprocess*)))))
         (define fns
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))
@@ -92,7 +93,8 @@
                       (bf-precision)
                       (- (current-inexact-milliseconds) start-time)
                       (timeline-extract output-repr)
-                      warning-log (make-alt (test-program test)) alt points exacts
+                      warning-log (make-alt (test-program test)) alt
+                      (*herbie-preprocess*) points exacts
                       (errors (test-program test) context output-repr)
                       (errors (alt-program alt) context output-repr)
                       newpoints newexacts
@@ -135,6 +137,7 @@
   (define repr (test-output-repr test))
   (table-row (test-name test) status
              (resugar-program (program-body (test-precondition test)) repr)
+             (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
              (test-output-prec test)
              (test-vars test)
              (resugar-program (test-input test) repr) #f
@@ -201,5 +204,6 @@
      :name ,(table-row-name row)
      :precision ,(table-row-precision row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
+     ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
      ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
      ,(table-row-output row)))

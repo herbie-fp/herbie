@@ -4,7 +4,7 @@
          "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt" "conversions.rkt"
          "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "sampling.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
-         "syntax/sugar.rkt")
+         "syntax/sugar.rkt" "preprocess.rkt" "symmetry.rkt")
 
 (provide (all-defined-out))
 
@@ -47,6 +47,7 @@
 ;; Setting up
 (define (setup-prog! prog
                      #:precondition [precondition #f]
+                     #:preprocess [preprocess empty]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (*output-repr* (get-representation precision))
@@ -61,9 +62,18 @@
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
   (timeline-event! 'analyze)
-  (*sampler* (make-sampler (*output-repr*) precondition-prog (or specification prog)))
+  (define symmetry-groups (map symmetry-group
+                               (filter (lambda (group) (> (length group) 1)) (connected-components (or specification prog)))))
+  ;; make variables strings for the json
+  (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
+  (define preprocess-structs (append preprocess symmetry-groups))
+  (*herbie-preprocess* preprocess-structs)
+  (*sampler* (make-sampler (*output-repr*) precondition-prog (list (or specification prog)) (*herbie-preprocess*)))
+  
   (timeline-event! 'sample)
-  (*pcontext* (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*)))
+  (define contexts (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*) preprocess-structs))
+  (*pcontext* (car contexts))
+  (*pcontext-unprocessed* (cdr contexts))
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
   (define alt (make-alt prog))
   (^table^ (make-alt-table (*pcontext*) alt (*output-repr*)))
@@ -380,12 +390,14 @@
 
 (define (run-improve prog iters
                      #:precondition [precondition #f]
+                     #:preprocess [preprocess empty]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
   (setup-prog! prog
                #:specification specification
                #:precondition precondition
+               #:preprocess preprocess
                #:precision precision)
   (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
   (when (flag-set? 'setup 'simplify)
@@ -419,5 +431,6 @@
             ,(simplify-expr (program-body (alt-program joined-alt))
                             #:rules (*fp-safe-simplify-rules*)))
          'final-simplify (list joined-alt)))
+  (*herbie-preprocess* (remove-unecessary-preprocessing cleaned-alt (*herbie-preprocess*)))
   (timeline-event! 'end)
   cleaned-alt)

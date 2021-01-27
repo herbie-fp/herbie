@@ -79,7 +79,7 @@
       (λ () (for/lists (pts exs)
           ([(pt ex) (in-atab-pcontext atab)]
            #:when (pred pt))
-        (values pt ex)))
+        (values pt ex pt)))
           mk-pcontext)])
       (minimize-alts (alt-table point->alts alt->points alt->done?
                                 context (alt-table-all atab))))))

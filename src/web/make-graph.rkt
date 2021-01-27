@@ -50,7 +50,7 @@
 (define (make-graph result out fpcore? profile?)
   (match-define
    (test-success test bits time timeline warnings
-                 start-alt end-alt points exacts start-est-error end-est-error
+                 start-alt end-alt preprocess points exacts start-est-error end-est-error
                  newpoints newexacts start-error end-error target-error
                  baseline-error oracle-error all-alts)
    result)
@@ -96,7 +96,7 @@
 
       ,(render-warnings warnings)
 
-      ,(render-program test #:to (alt-program end-alt))
+      ,(render-program preprocess test #:to (alt-program end-alt))
 
       (section ([id "graphs"])
        (h1 "Error")

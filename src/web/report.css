@@ -159,6 +159,8 @@ section h1 {
 #language { position: absolute; right: 1em; }
 #precondition { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
 #precondition:before { content: "Precondition"; float: left; color: #444; }
+#preprocess { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
+#preprocess:before { content: "Preprocess"; float: left; color: #444; }
 
 /* Error graphs */
 

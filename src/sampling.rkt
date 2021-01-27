@@ -1,10 +1,12 @@
 #lang racket
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
-(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt" "float.rkt"
-         "interface.rkt" "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt")
+(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt"
+         "float.rkt" "alternative.rkt" "interface.rkt" "points.rkt"
+         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
+         "preprocess.rkt")
 (module+ test (require rackunit))
-(provide make-sampler)
+(provide make-sampler remove-unecessary-preprocessing)
 
 (define (precondition->hyperrects precondition reprs repr)
   ;; FPBench needs unparameterized operators
@@ -103,18 +105,48 @@
               (map (compose ival-not ival-error?) ival-bodies))))
     x))
 
-(define (get-hyperrects precondition programs reprs repr)
+(define (get-hyperrects preprocess-structs precondition programs reprs repr)
   (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
   (cond
     [(flag-set? 'setup 'search)
      (define search-func
-       (compose (valid-result? repr) (batch-eval-progs (cons precondition programs) 'ival repr)))
+       (compose (valid-result? repr)
+                (batch-eval-progs (cons precondition programs) 'ival repr)
+                (ival-preprocesses precondition preprocess-structs repr)))
      (find-intervals search-func hyperrects-analysis #:reprs reprs #:fuel (*max-find-range-depth*))]
     [else
      hyperrects-analysis]))
 
+(define (preprocessing-<=? alt preprocessing-one preprocessing-two)
+  (<= (errors-score (errors (alt-program alt) (*pcontext-unprocessed*) (*output-repr*) #:processing preprocessing-one))
+      (errors-score (errors (alt-program alt) (*pcontext-unprocessed*) (*output-repr*) #:processing preprocessing-two))))
+
+(define (drop-at ls index)
+  (define-values (front back) (split-at ls index))
+  (append front (rest back)))
+
+
+; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
+(define (remove-unecessary-preprocessing alt preprocessing #:removed [removed empty])
+  (define-values (result newly-removed)
+    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
+      (cond
+        [(>= i (length preprocessing))
+         (values preprocessing removed)]
+        [(preprocessing-<=? alt (drop-at preprocessing i) preprocessing)
+         (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
+        [else
+         (loop preprocessing (+ i 1) removed)])))
+  (cond
+    [(< (length result) (length preprocessing))
+     (remove-unecessary-preprocessing alt result #:removed newly-removed)]
+    [else
+     (timeline-push! 'remove-preprocessing (map (compose ~a preprocess->sexp) newly-removed))
+     result]))
+    
 ; These definitions in place, we finally generate the points.
-(define (make-sampler repr precondition . programs)
+; A sampler returns two points- one without preprocessing and one with preprocessing
+(define (make-sampler repr precondition programs preprocess-structs)
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
 
   (unless (for/and ([repr reprs]) (> (bf-precision) (representation-total-bits repr)))
@@ -127,7 +159,7 @@
          (andmap (compose (curryr expr-supports? 'ival) program-body) programs)
          (not (empty? reprs)))
     (timeline-push! 'method "search")
-    (define hyperrects (list->vector (get-hyperrects precondition programs reprs repr)))
+    (define hyperrects (list->vector (get-hyperrects preprocess-structs precondition programs reprs repr)))
     (when (vector-empty? hyperrects)
       (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
     (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))

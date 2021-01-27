@@ -1,7 +1,8 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) 
          (only-in fpbench fpcore? supported-by-lang? core->c core->tex expr->tex))
-(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt" "../interface.rkt" "../syntax/sugar.rkt")
+(require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
+         "../interface.rkt" "../preprocess.rkt" "../syntax/sugar.rkt")
 (provide render-menu render-warnings render-large render-program program->fpcore render-reproduction js-tex-include)
 
 (define (program->fpcore prog)
@@ -54,7 +55,16 @@
     ("FPCore" . ,fpcore->string)
     ("C" . ,(curryr core->c "code"))))
 
-(define (render-program #:to [result #f] test)
+(define (render-preprocess-struct preprocess)
+  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) ", ") "]"))
+  `(div ([class "program math"])
+        "\\[" ,vars "=" ,(string-append "\\mathsf{sort}(" vars ")") "\\]"))
+
+(define (render-preprocess preprocess-structs)
+  `(div ([id "preprocess"])
+        ,@(map render-preprocess-struct preprocess-structs)))
+
+(define (render-program #:to [result #f] preprocess test)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
 
@@ -88,6 +98,10 @@
           `(div ([id "precondition"])
              (div ([class "program math"])
                   "\\[" ,(expr->tex (resugar-program (program-body (test-precondition test)) output-repr)) "\\]")))
+     ,(if (empty? preprocess)
+          ""
+          (render-preprocess preprocess))
+           
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([lang (in-dict-keys versions)])

@@ -68,6 +68,8 @@
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-sampling 'sampling)
+         ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
+         ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-compiler 'compiler)
          )))
@@ -140,6 +142,12 @@
                   (td ,(format-percent wo total))
                   (td ,(format-percent wf total))
                   (td ,(~a n))))))))
+
+(define (simple-render-phase info name)
+  (if (> (length (first info)) 0)
+  `((dt ,name)
+    (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
+  empty))
 
 (define (render-phase-accuracy accuracy oracle baseline name link)
   (define rows

@@ -13,7 +13,7 @@
   (for/list ([pred preds])
     (define-values (pts* exs*)
       (for/lists (pts exs)
-          ([(pt ex) (in-pcontext pcontext)] #:when (pred pt))
+        ([(pt ex) (in-pcontext pcontext)] #:when (pred pt))
         (values pt ex)))
 
     ;; TODO: The (if) here just corrects for the possibility that we

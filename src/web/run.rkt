@@ -17,7 +17,8 @@
       (test (table-row-name row) (table-row-vars row)
             (table-row-input row) (table-row-output row)
             (table-row-target-prog row) (table-row-spec row)
-            (table-row-pre row) (table-row-precision row)
+            (table-row-pre row) (table-row-preprocess row)
+            (table-row-precision row)
             (map (curryr cons (table-row-precision row)) (table-row-vars row)))))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
@@ -48,20 +49,21 @@
       (test (table-row-name row) (table-row-vars row)
             (table-row-input row) (table-row-target-prog row)
             #f (table-row-spec row)
-            (table-row-pre row) (table-row-precision row)
+            (table-row-pre row) (table-row-preprocess row)
+            (table-row-precision row)
             (map (curryr cons (table-row-precision row)) (table-row-vars row))))
     (define output-repr (test-output-repr orig-test))
     (parameterize ([*timeline-disabled* true] [*output-repr* output-repr]
                    [*var-reprs* (map (curryr cons output-repr) (test-vars orig-test))])
       (define newcontext
         (parameterize ([*num-points* (*reeval-pts*)])
-          (prepare-points (test-specification orig-test) (test-precondition orig-test) output-repr)))
+          (car (prepare-points (test-specification orig-test) (test-precondition orig-test) output-repr (test-preprocess orig-test)))))
       (define start-alt (make-alt (test-program orig-test)))
       (define end-alt (make-alt `(λ ,(test-vars orig-test) ,(table-row-output row))))
       (define-values (newpoints newexacts) (get-p&es newcontext))
       (define result
         (test-success orig-test #f #f #f #f start-alt end-alt
-                      #f #f #f #f
+                      #f #f #f #f #f
                       newpoints newexacts
                       (errors (alt-program start-alt) newcontext output-repr)
                       (errors (alt-program end-alt) newcontext output-repr)

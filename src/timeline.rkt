@@ -112,6 +112,8 @@
 (define-timeline baseline [baseline])
 (define-timeline alts [input +] [output +])
 (define-timeline sampling #:custom merge-sampling-tables)
+(define-timeline symmetry #:unmergable)
+(define-timeline remove-preprocessing #:unmergable)
 (define-timeline locations #:unmergable)
 (define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)

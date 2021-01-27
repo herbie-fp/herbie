@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
-(require "../syntax/types.rkt" "../interface.rkt" "../errors.rkt")
+(require "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt")
 (require "../points.rkt" "../float.rkt") ; For binary search
 
 (module+ test
@@ -120,10 +120,10 @@
 
 (define (sort-context-on-expr context expr variables repr)
   (define fn (eval-prog `(λ ,variables ,expr) 'fl repr))
-  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (cons pt ex))
+  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (list pt ex))
 		   (λ (x1 x2) (</total x1 x2 repr))
-                   #:key (λ (pts) (apply fn (car pts))))])
-    (mk-pcontext (map car p&e) (map cdr p&e))))
+                   #:key (λ (pts) (apply fn (first pts))))])
+    (mk-pcontext (map first p&e) (map second p&e))))
 
 (define (option-on-expr alts expr repr)
   (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
@@ -201,7 +201,7 @@
 
   (define repr-name (representation-name repr))
   (define eq-repr (get-parametric-operator '== repr-name repr-name))
-
+  
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
     (define (pred v)
@@ -210,11 +210,13 @@
                      [*timeline-disabled* true]
                      [*var-reprs* (dict-set (*var-reprs*) var repr)])
         (define ctx
-          (prepare-points start-prog
+          (car
+           (prepare-points start-prog
                           `(λ ,(program-variables start-prog)
                               (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
                           repr
-                          (λ () (cons v (sampler)))))
+                          (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts))) (sampler) (*herbie-preprocess*) repr)))
+                          empty)))
         (< (errors-score (errors prog1 ctx repr))
            (errors-score (errors prog2 ctx repr)))))
     (define pt (binary-search-floats pred v1 v2 repr))

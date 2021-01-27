@@ -14,7 +14,7 @@
          location? expr?
          location-do location-get location-repr
          batch-eval-progs eval-prog eval-application
-         free-variables replace-expression
+         free-variables replace-expression replace-vars
          apply-repr-change)
 
 (define expr? (or/c list? symbol? value? real?))
@@ -103,6 +103,13 @@
     [(? variable?) (list prog)]
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
+
+(define (replace-vars dict expr)
+  (cond
+    [(dict-has-key? dict expr) (dict-ref dict expr)]
+    [(list? expr)
+     (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
+    [#t expr]))
 
 (define/contract (location-do loc prog f)
   (-> location? expr? (-> expr? expr?) expr?)

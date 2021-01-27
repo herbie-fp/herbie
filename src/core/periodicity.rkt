@@ -181,14 +181,16 @@
 			 (if (or (> (apply max (map cdr (lp-periods ploc))) *max-period-coeff*))
 			     altn
 			     (let ([context
-				    (prepare-points
-				     program
-                                     `(λ ,(program-variables program)
-                                        (and ,@(for/list ([(var period) (lp-periods ploc)])
-                                                 `(<= 0 ,var ,(* 2 pi var)))))
-                                     (*output-repr*))])
+                 (car
+                  (prepare-points
+                    program
+                    `(λ ,(program-variables program)
+                       (and ,@(for/list ([(var period) (lp-periods ploc)])
+                                        `(<= 0 ,var ,(* 2 pi var)))))
+                    (*output-repr*)
+                    empty))])
 			       (parameterize ([*pcontext* context])
-				 (improve-func (make-alt program)))))))
+                        (improve-func (make-alt program)))))))
 		     plocs)]
 	 ;; Substitute (mod x period) for x in any conditionals
 	 [oexprs (map coerce-conditions

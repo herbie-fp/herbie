@@ -2,16 +2,17 @@
 
 (require math/bigfloat rival math/base)
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "interface.rkt")
+         "interface.rkt" "preprocess.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext pcontext? prepare-points
-         errors batch-errors errors-score
+(provide *pcontext* *pcontext-unprocessed* in-pcontext mk-pcontext pcontext?
+         prepare-points errors batch-errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
 (module+ test (require rackunit))
 (module+ internals (provide ival-eval))
 
 (define *pcontext* (make-parameter #f))
+(define *pcontext-unprocessed* (make-parameter #f))
 
 (struct pcontext (points exacts))
 
@@ -89,23 +90,25 @@
           (begin (log! 'exit precision pt) +nan.0)
           (loop precision*))])))
 
-(define (prepare-points-intervals prog precondition repr sampler)
+(define (prepare-points-intervals prog precondition repr sampler preprocess-structs)
   (timeline-push! 'method "intervals")
 
   (define pre-fn (eval-prog precondition 'ival repr))
   (define body-fn (eval-prog prog 'ival repr))
 
-  (define-values (points exacts)
-    (let loop ([sampled 0] [skipped 0] [points '()] [exacts '()])
+  (define-values (points exacts unprocessed)
+    (let loop ([sampled 0] [skipped 0] [points '()] [exacts '()] [unprocessed '()])
       (define pt (sampler))
+      (define processed-point
+        (apply-preprocess (program-variables precondition) pt preprocess-structs repr))
 
       (define pre
         (or (equal? (program-body precondition) 'TRUE)
-            (ival-eval pre-fn pt (get-representation 'bool) #:precision (bf-precision)
+            (ival-eval pre-fn processed-point (get-representation 'bool) #:precision (bf-precision)
                        #:log (point-logger 'pre precondition))))
 
       (define ex
-        (and pre (ival-eval body-fn pt repr #:precision (bf-precision)
+        (and pre (ival-eval body-fn processed-point repr #:precision (bf-precision)
                             #:log (point-logger 'body prog))))
 
       (define success
@@ -115,25 +118,24 @@
       (cond
        [(and success (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
         (if (>= sampled (- (*num-points*) 1))
-            (values points exacts)
-            (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
+            (values points exacts unprocessed)
+            (loop (+ 1 sampled) 0 (cons processed-point points) (cons ex exacts) (cons pt unprocessed)))]
        [else
         (unless (< skipped (- (*max-skipped-points*) 1))
           (raise-herbie-error "Cannot sample enough valid points."
                               #:url "faq.html#sample-valid-points"))
-        (loop sampled (+ 1 skipped) points exacts)])))
-
+        (loop sampled (+ 1 skipped) points exacts unprocessed)])))
   (timeline-compact! 'outcomes)
-  (mk-pcontext points exacts))
+  (cons (mk-pcontext points exacts) (mk-pcontext unprocessed exacts)))
 
-(define (prepare-points prog precondition repr sampler)
+(define (prepare-points prog precondition repr sampler preprocess-structs)
   "Given a program, return two lists:
    a list of input points (each a list of flonums)
    and a list of exact values for those points (each a flonum)"
   (if (and (expr-supports? (program-body precondition) 'ival)
            (expr-supports? (program-body prog) 'ival))
-    (prepare-points-intervals prog precondition repr sampler)
-    (prepare-points-halfpoints prog precondition repr sampler)))
+    (prepare-points-intervals prog precondition repr sampler preprocess-structs)
+    (prepare-points-halfpoints prog precondition repr sampler preprocess-structs)))
 
 (define (point-error out exact repr)
   (if (ordinary-value? out repr)
@@ -163,11 +165,15 @@
   (apply (if (flag-set? 'reduce 'avg-error) avg max)
          (map ulps->bits e)))
 
-(define (errors prog pcontext repr)
+(define (errors prog pcontext repr #:processing [processing #f])
   (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
-      (point-error (apply fn point) exact repr))))
+    (define processed
+      (if processing
+          (apply-preprocess (program-variables prog) point processing repr)
+          point))
+    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog processed) (raise e))])
+      (point-error (apply fn processed) exact repr))))
 
 (define (batch-errors progs pcontext repr)
   (define fn (batch-eval-progs progs 'fl repr))
@@ -223,14 +229,14 @@
           (make-exacts-walkup prog (select-every nth pts) precondition repr)
           (loop (floor (/ nth 2)))))))
 
-(define (filter-p&e pts exacts)
+(define (filter-p&e pts processed exacts)
   "Take only the points and exacts for which the exact value and the point coords are ordinary"
-  (for/lists (ps es)
-      ([pt pts] [ex exacts]
+  (for/lists (ps pr es)
+      ([pt pts] [processed processed] [ex exacts]
        #:unless (and (real? ex) (nan? ex))
        #:when (ordinary-value? ex (*output-repr*))
-       #:when (andmap (curryr ordinary-value? (*output-repr*)) pt))
-    (values pt ex)))
+       #:when (andmap (curryr ordinary-value? (*output-repr*)) processed))
+    (values pt processed ex)))
 
 
 (define (extract-sampled-points allvars precondition)
@@ -245,9 +251,10 @@
     [_ #f]))
 
 ;; This is the obsolete version for the "halfpoint" method
-(define (prepare-points-halfpoints prog precondition repr sampler)
+;; TODO: It currently ignores preprocessing, just using the unprocessed version of the point
+(define (prepare-points-halfpoints prog precondition repr sampler preprocess-structs)
   (timeline-push! 'method "halfpoints")
-  (let loop ([pts '()] [exs '()] [num-loops 0])
+  (let loop ([pts '()] [processed '()] [exs '()] [num-loops 0])
     (define npts (length pts))
     (cond
      [(> num-loops 200)
@@ -255,7 +262,8 @@
                           #:url "faq.html#sample-valid-points")]
      [(>= npts (*num-points*))
       (debug #:from 'points #:depth 4 "Sampled" npts "points with exact outputs")
-      (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*)))]
+      (cons (mk-pcontext (take-up-to processed (*num-points*)) (take-up-to exs (*num-points*)))
+            (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*))))]
      [else
       (define num-vars (length (program-variables prog)))
       (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point
@@ -263,8 +271,10 @@
              "Sampling" num "additional inputs,"
              "on iter" num-loops "have" npts "/" (*num-points*))
       (define pts1 (for/list ([n (in-range num)]) (sampler)))
-      (define exs1 (make-exacts-halfpoints prog pts1 precondition repr))
+      (define processed1 (for/list ([pt pts1])
+                                  (apply-preprocess (program-variables precondition) pt preprocess-structs repr)))
+      (define exs1 (make-exacts-halfpoints prog processed1 precondition repr))
       (debug #:from 'points #:depth 4
              "Filtering points with unrepresentable outputs")
-      (define-values (pts* exs*) (filter-p&e pts1 exs1))
-      (loop (append pts* pts) (append exs* exs) (+ 1 num-loops))])))
+      (define-values (pts* processed* exs*) (filter-p&e pts1 processed1 exs1))
+      (loop (append pts* pts) (append processed* processed) (append exs* exs) (+ 1 num-loops))])))
