@@ -151,7 +151,7 @@
     (dd ,@(map render-symmetry-group (first symmetry-info)))))
 
 (define (render-phase-remove-preprocessing removed-info)
-  (if (> 0 (length (first removed-info)))
+  (if (> (length (first removed-info)) 0)
   `((dt "Removed")
     (dd ,@(map (lambda (s) `(p ,s)) (first removed-info))))
   empty))
