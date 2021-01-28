@@ -36,7 +36,7 @@
       (list)))
 
 
-;; given an alt, locations, and a hash from expr -> simplification options
+;; given an alt, locations, and a hash from expr to simplification options
 ;; make all combinations of the alt using the simplification options available
 (define (make-simplification-combinations child locs simplify-hash)
   (define location-options
@@ -44,12 +44,15 @@
      (for/list ([loc locs])
        (hash-ref simplify-hash (location-get loc (alt-program child))))))
   
-  (for/list ([option location-options])
-    (for/fold ([child child]) ([replacement option] [loc locs])
-              (define child* (location-do loc (alt-program child) (lambda (expr) replacement)))
-              (if (not (equal? (alt-program child) child*))
-                  (alt child* (list 'simplify loc) (list child))
-                  child))))
+  (define options
+    (for/list ([option location-options])
+              (for/fold ([child child]) ([replacement option] [loc locs])
+                        (define child* (location-do loc (alt-program child) (lambda (expr) replacement)))
+                        (if (not (equal? (alt-program child) child*))
+                            (alt child* (list 'simplify loc) (list child))
+                            child))))
+  ;; omit the original expression
+  (filter (lambda (option) (not (alt-equal? option child))) options))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
