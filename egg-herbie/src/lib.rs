@@ -190,6 +190,7 @@ pub unsafe extern "C" fn egraph_run(
             runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
             runner = runner
                 .with_node_limit(limit as usize)
+                .with_iter_limit(100_000_000) // should never hit
                 .with_hook(|r| {
                     if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
                         Err("Unsoundness detected".into())
