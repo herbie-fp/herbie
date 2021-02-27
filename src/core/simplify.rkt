@@ -165,9 +165,12 @@
           node-ids))
         
         (for/list ([iterations all-iterations] [expr exprs])
-                  (define proof (if prove?
+                  ;; TODO make this only prove if prove? is true
+                  (define proof (if #t
                                     ((egg egraph-get-proof) egg-graph expr (last iterations))
                                     ""))
+                  (when (equal? proof "")
+                        (error "Failed to produce proof"))
                   (simplify-result iterations proof)))))))
 
 (define (egg-run-rules egg-graph node-limit irules node-ids precompute?)
