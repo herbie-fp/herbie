@@ -1,7 +1,7 @@
 pub mod math;
 pub mod rules;
 
-use egg::{Id, Iteration};
+use egg::{Id, Iteration, NodeExpr};
 use math::*;
 
 use std::cmp::min;
@@ -25,6 +25,7 @@ unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
 pub struct Context {
     iteration: usize,
     runner: Option<Runner>,
+    rules: Vec<Rewrite>
 }
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
@@ -33,6 +34,7 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
         iteration: 0,
         runner: Some(Runner::new(Default::default())),
+        rules: vec![],
     }))
 }
 
@@ -186,6 +188,7 @@ pub unsafe extern "C" fn egraph_run(
             }
 
             let rules: Vec<Rewrite> = rules::mk_rules(&ffi_tuples);
+            ctx.rules = rules;
 
             runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
             runner = runner
@@ -198,7 +201,7 @@ pub unsafe extern "C" fn egraph_run(
                         Ok(())
                     }
                 })
-                .run(&rules);
+                .run(&ctx.rules);
         }
         std::ptr::write(output_size, runner.iterations.len() as u32);
         let res = runner_egraphiters(&runner);
@@ -244,6 +247,60 @@ pub unsafe extern "C" fn egraph_get_simplest(
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
         best_str_pointer
+    })
+}
+
+unsafe fn make_empty_string() -> *const c_char {
+    let best_str = CString::new("".to_string()).unwrap();
+    let best_str_pointer = best_str.as_ptr();
+    std::mem::forget(best_str);
+    best_str_pointer   
+}
+
+// TODO free memory of resulting string through ffi
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_proof(
+    ptr: *mut Context,
+    expr: *const c_char,
+    goal: *const c_char) -> *const c_char {
+    ffirun(|| {
+        let ctx = &mut *ptr;
+        let mut runner = ctx
+            .runner
+            .take()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        assert_eq!(ctx.iteration, 0);
+
+        let expr_rec = match cstring_to_recexpr(expr) {
+            None => {
+                return make_empty_string();
+            },
+            Some(rec_expr) => rec_expr
+        };
+
+        let goal_rec = match cstring_to_recexpr(goal) {
+            None => {
+                return make_empty_string();
+            },
+            Some(rec_expr) => rec_expr
+        };
+
+        let rule_slice = &ctx.rules.iter().collect::<Vec<&Rewrite>>()[..];
+        let proof = runner.produce_proof(rule_slice, &expr_rec, &goal_rec);
+        match proof {
+            Some(steps) => {
+                let strings = NodeExpr::<Math>::to_strings::<ConstantFold>(rule_slice, &steps);
+                let joined = strings.join("\n");
+                let best_str = CString::new(joined).unwrap();
+                let best_str_pointer = best_str.as_ptr();
+                std::mem::forget(best_str);
+                best_str_pointer
+            }
+            None => {
+                make_empty_string()
+            }
+        }
     })
 }
 

@@ -10,6 +10,7 @@
          egraph-get-simplest egg-expr->expr egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost
          egraph-is-unsound-detected egraph-get-times-applied
+         egraph-get-proof
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -18,7 +19,6 @@
 ;; interface struct for accepting rules
 (struct irule (name input output) #:prefab)
 (struct iteration-data (num-nodes num-eclasses time))
-
 
 (define (egraph-get-simplest egraph-data node-id iteration)
   (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
@@ -143,6 +143,11 @@
       new-key]))
 
 (struct egg-add-exn exn:fail ())
+
+(define (egraph-get-proof egraph-data expr goal)
+  (define egg-expr (expr->egg-expr expr egraph-data))
+  (define egg-goal (expr->egg-expr goal egraph-data))
+  (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
 
 ;; result function is a function that takes the ids of the nodes
 ;; egraph-add-exprs returns the result of result-function

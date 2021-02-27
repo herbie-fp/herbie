@@ -70,6 +70,7 @@
          ,@(dict-call curr render-phase-sampling 'sampling)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-compiler 'compiler)
+         ,@(dict-call curr render-phase-proof 'proof)
          )))
 
 (define (if-cons test x l)
@@ -79,6 +80,11 @@
   (if (andmap (curry dict-has-key? d) args)
       (apply f (if-cons (not (void? extra)) extra (map (curry dict-ref d) args)))
       default))
+
+(define (render-phase-proof proof)
+  `((dt "Proof")
+    (dd (table ([class "times"])
+        (tr (td (code ,(first proof))))))))
 
 (define (render-phase-algorithm algorithm)
   `((dt "Algorithm")

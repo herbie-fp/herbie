@@ -8,6 +8,7 @@
          egraph_addresult_destroy egraph_run egraph_get_simplest
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
+         egraph_get_proof
          (struct-out EGraphAddResult)
          (struct-out EGraphIter)
          (struct-out FFIRule))
@@ -69,6 +70,11 @@
                                          _uint ;; node id
                                          _uint ;; iteration
                                          -> _string/utf-8))
+
+(define-eggmath egraph_get_proof (_fun _egraph-pointer
+                                       _string/utf-8
+                                       _string/utf-8
+                                       -> _string/utf-8))
 
 (define-eggmath egraph_get_cost (_fun _egraph-pointer
                                      _uint ;; node id

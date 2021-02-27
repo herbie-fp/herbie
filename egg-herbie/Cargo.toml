@@ -6,7 +6,7 @@ edition = "2018"
 
 
 [dependencies]
-egg = "0.6"
+egg = { git = "https://github.com/oflatt/egg", branch = "produce-proof" }
 
 log = "0.4"
 indexmap = "1"

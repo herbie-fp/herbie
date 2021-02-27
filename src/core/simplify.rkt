@@ -4,7 +4,8 @@
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt")
 
-(provide simplify-expr simplify-batch make-simplification-combinations)
+(provide simplify-expr simplify-expr-with-proof simplify-batch make-simplification-combinations
+         (struct-out simplify-result))
 (module+ test (require rackunit))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie
@@ -28,6 +29,7 @@
 
 ;; prefab struct used to send rules to egg-herbie
 (struct irule (name input output) #:prefab)
+(struct simplify-result (iterations proof))
 
 (define (rules->irules rules)
   (if use-egg-math?
@@ -54,14 +56,26 @@
   ;; omit the original expression
   (filter (lambda (option) (not (alt-equal? option child))) options))
 
+
+(define/contract (simplify-expr-with-proof expr #:rules rls #:precompute [precompute? false])
+  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) (cons/c expr? string?))
+  (define result (first (simplify-batch (list expr) #:rules rls #:precompute precompute? #:prove true)))
+
+  (timeline-push! 'proof (simplify-result-proof result))
+    
+  (cons (last (simplify-result-iterations result)) (simplify-result-proof result)))
+
+
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
-  (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
+  (last (simplify-result-iterations
+          (first (simplify-batch (list expr) #:rules rls #:precompute precompute?)))))
+
 
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
-(define/contract (simplify-batch exprs #:rules rls #:precompute [precompute? false])
-  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
+(define/contract (simplify-batch exprs #:rules rls #:precompute [precompute? false] #:prove [prove? false])
+  (->* ((listof expr?) #:rules (listof rule?)) (#:precompute boolean? #:prove boolean?) (listof simplify-result?))
 
   (define driver
     (cond
@@ -73,19 +87,21 @@
       simplify-batch-regraph]))
 
   (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
-  (define resulting-lists (driver exprs #:rules rls #:precompute precompute?))
+  (define simplify-results (driver exprs #:rules rls #:precompute precompute? #:prove prove?))
   (define out
-    (for/list ([results resulting-lists] [expr exprs])
-             (remove-duplicates (cons expr results))))
-  (debug #:from 'simplify "Simplified to:\n  " (string-join (map ~a (map last out)) "\n  "))
+    (for/list ([result simplify-results] [expr exprs])
+             (simplify-result (remove-duplicates (cons expr (simplify-result-iterations result)))
+                              (simplify-result-proof result))))
+  (debug #:from 'simplify "Simplified to:\n  "
+         (string-join (map ~a (map (compose last simplify-result-iterations) out)) "\n  "))
     
   out)
 
 (define-syntax-rule (regraph method)
   (dynamic-require 'regraph 'method))
 
-(define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
-  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
+(define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute? #:prove prove?)
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prove boolean? (listof simplify-result?))
   (timeline-push! 'method "regraph")
 
   (define start-time (current-inexact-milliseconds))
@@ -112,13 +128,14 @@
     (and (< initial-cnt ((regraph regraph-count) rg) (*node-limit*))))
 
   (log rg "done")
-  (map list (map unmunge ((regraph regraph-extract) rg))))
+  (map (lambda (a) (simplify-result a ""))
+       (map list (map unmunge ((regraph regraph-extract) rg)))))
 
 (define-syntax-rule (egg method)
   (dynamic-require 'egg-herbie 'method))
 
-(define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
-  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
+(define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute? #:prove prove?)
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prove boolean? (listof simplify-result?))
   (timeline-push! 'method "egg-herbie")
   (define irules (rules->irules rls))
 
@@ -137,13 +154,19 @@
         (for ([rule rls])
              (timeline-push! 'rules (~a (rule-name rule)) ((egg egraph-get-times-applied) egg-graph (rule-name rule))))
         
-        (map
-         (lambda (id)
-           (for/list ([iter (in-range (length iter-data))])
+        (define all-iterations
+          (map (lambda (id)
+                 (for/list ([iter (in-range (length iter-data))])
                       ((egg egg-expr->expr)
                        ((egg egraph-get-simplest) egg-graph id iter)
                        egg-graph)))
-         node-ids))))))
+          node-ids))
+        
+        (for/list ([iterations all-iterations] [expr exprs])
+                  (define proof (if prove?
+                                    ((egg egraph-get-proof) egg-graph expr (last iterations))
+                                    ""))
+                  (simplify-result iterations proof)))))))
 
 (define (egg-run-rules egg-graph node-limit irules node-ids precompute?)
   (define ffi-rules ((egg make-ffi-rules) irules))

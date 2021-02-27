@@ -9,7 +9,7 @@ pub fn mk_rules(tuples: &[(&str, &str, &str)]) -> Vec<Rewrite> {
         .map(|(name, left, right)| {
             let left = Pattern::from_str(left).unwrap();
             let right = Pattern::from_str(right).unwrap();
-            Rewrite::new(*name, *name, left, right).unwrap()
+            Rewrite::new(*name, left, right).unwrap()
         })
         .collect()
 }

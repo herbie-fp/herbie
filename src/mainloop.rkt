@@ -270,7 +270,7 @@
         (location-get loc (alt-program child))))
 
     (define simplification-options
-      (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true))
+      (map simplify-result-iterations (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true)))
 
     (define simplify-hash
       (make-immutable-hash (map cons to-simplify simplification-options)))
@@ -412,8 +412,8 @@
   (timeline-event! 'simplify)
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
-            ,(simplify-expr (program-body (alt-program joined-alt))
-                            #:rules (*fp-safe-simplify-rules*)))
+            ,(car (simplify-expr-with-proof (program-body (alt-program joined-alt))
+                                            #:rules (*fp-safe-simplify-rules*))))
          'final-simplify (list joined-alt)))
   (timeline-event! 'end)
   cleaned-alt)
