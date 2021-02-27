@@ -62,6 +62,8 @@
   (define result (first (simplify-batch (list expr) #:rules rls #:precompute precompute? #:prove true)))
 
   (timeline-push! 'proof (simplify-result-proof result))
+  (when (equal? (simplify-result-proof result) "")
+        (error "Failed to prove two expressions equal from egraph"))
     
   (cons (last (simplify-result-iterations result)) (simplify-result-proof result)))
 
