@@ -212,12 +212,7 @@ pub unsafe extern "C" fn egraph_run(
 
 fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
     let id = runner.egraph.find(Id::from(id as usize));
-    let desired_iter = if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
-        // go back one more iter, egg can duplicate the final iter in the case of an error
-        min(runner.iterations.len().saturating_sub(3), iter as usize)
-    } else {
-        min(runner.iterations.len().saturating_sub(1), iter as usize)
-    };
+    let desired_iter = min(runner.iterations.len().saturating_sub(1), iter as usize);
 
     runner.iterations[desired_iter]
         .data
@@ -264,6 +259,7 @@ pub unsafe extern "C" fn egraph_get_proof(
     expr: *const c_char,
     goal: *const c_char) -> *const c_char {
     ffirun(|| {
+        println!("function call");
         let ctx = &mut *ptr;
         let mut runner = ctx
             .runner
@@ -285,6 +281,8 @@ pub unsafe extern "C" fn egraph_get_proof(
             },
             Some(rec_expr) => rec_expr
         };
+
+        println!("Prove {} to {}", expr_rec.pretty(100), goal_rec.pretty(100));
 
         let rule_slice = &ctx.rules.iter().collect::<Vec<&Rewrite>>()[..];
         let proof = runner.produce_proof(rule_slice, &expr_rec, &goal_rec);

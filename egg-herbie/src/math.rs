@@ -1,5 +1,4 @@
 use egg::*;
-
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use num_bigint::BigInt;
@@ -95,6 +94,14 @@ impl Analysis<Math> for ConstantFold {
             }
         };
 
+        let mut missing_child = false;
+        enode.for_each(|n| if egraph[n].data == None {
+            missing_child = true;
+        });
+        if missing_child {
+            return None;
+        }
+
         Some((
             match enode {
                 Math::Constant(c) => c.clone(),
@@ -149,7 +156,11 @@ impl Analysis<Math> for ConstantFold {
             {
                 let mut pattern: PatternAst<Math> = Default::default();
                 enode.for_each(|child| {
-                    pattern.add(ENodeOrVar::ENode(Math::Constant(x(&child).unwrap())));
+                    if let Some(constant) = x(&child) {
+                        pattern.add(ENodeOrVar::ENode(Math::Constant(constant)));
+                    } else {
+                        panic!("Child didn't have constant");
+                    }
                 });
                 let mut counter = 0;
                 let mut head = enode.clone();

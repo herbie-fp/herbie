@@ -166,11 +166,14 @@
         
         (for/list ([iterations all-iterations] [expr exprs])
                   ;; TODO make this only prove if prove? is true
+                  (println "running proof")
                   (define proof (if #t
                                     ((egg egraph-get-proof) egg-graph expr (last iterations))
                                     ""))
                   (when (equal? proof "")
-                        (error "Failed to produce proof"))
+                        (error (string-append
+                                "Failed to produce proof for "
+                                (~a expr) " to " (~a (last iterations)))))
                   (simplify-result iterations proof)))))))
 
 (define (egg-run-rules egg-graph node-limit irules node-ids precompute?)
