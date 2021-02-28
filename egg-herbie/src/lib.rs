@@ -261,10 +261,6 @@ pub unsafe extern "C" fn egraph_get_proof(
     ffirun(|| {
         println!("function call");
         let ctx = &mut *ptr;
-        let mut runner = ctx
-            .runner
-            .take()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
         assert_eq!(ctx.iteration, 0);
 
@@ -282,10 +278,16 @@ pub unsafe extern "C" fn egraph_get_proof(
             Some(rec_expr) => rec_expr
         };
 
+        let mut runner = ctx
+            .runner
+            .take()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
         println!("Prove {} to {}", expr_rec.pretty(100), goal_rec.pretty(100));
 
         let rule_slice = &ctx.rules.iter().collect::<Vec<&Rewrite>>()[..];
         let proof = runner.produce_proof(rule_slice, &expr_rec, &goal_rec);
+        ctx.runner = Some(runner);
         match proof {
             Some(steps) => {
                 let strings = NodeExpr::<Math>::to_strings::<ConstantFold>(rule_slice, &steps);
