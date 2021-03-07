@@ -39,10 +39,15 @@
 ;; given an alt, locations, and a hash from expr to simplification options
 ;; make all combinations of the alt using the simplification options available
 (define (make-simplification-combinations child locs simplify-hash)
-  (define location-options
+  ;; use this for simplify streaming
+  #;(define location-options
     (apply cartesian-product
      (for/list ([loc locs])
        (hash-ref simplify-hash (location-get loc (alt-program child))))))
+  (define location-options
+    (apply cartesian-product
+     (for/list ([loc locs])
+       (list (last (hash-ref simplify-hash (location-get loc (alt-program child))))))))
   
   (define options
     (for/list ([option location-options])
