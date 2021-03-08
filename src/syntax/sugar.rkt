@@ -48,9 +48,13 @@
          (define props* (apply hash-set* (hash) props))
          (cond
            [(hash-has-key? props* ':precision)
-            (define-values (body* _) (loop body (hash-ref props* ':precision)))
-            (values body* prec)]
+            ; need to insert a cast
+            (loop (cons 'cast expr) prec)]
            [else (loop body prec)])]
+        [(list 'cast (list '! ':precision iprec iexpr))
+         (define conv (get-repr-conv iprec prec))
+         (define-values (iexpr* _) (loop iexpr iprec))
+         (values (list conv iexpr*) prec)]
         [(list (or 'neg '-) arg) ; unary minus
          (define-values (arg* atype) (loop arg prec))
          (define op* (get-parametric-operator '- atype))
@@ -89,7 +93,13 @@
          (define constant* (get-parametric-constant expr prec*))
          (values constant* (constant-info constant* 'type))]
         [(? variable?)
-         (values expr (representation-name (dict-ref var-reprs expr)))])))
+         (define vprec (representation-name (dict-ref var-reprs expr)))
+         (cond
+          [(equal? vprec 'bool) (values expr 'bool)]
+          [(equal? vprec prec) (values expr prec)]
+          [else
+           (define conv (get-repr-conv vprec prec))
+           (values (list conv expr) prec)])])))
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
