@@ -1,13 +1,14 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt" "timeline.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt"
+         "timeline.rkt" "cost.rkt")
 
 (module+ test (require rackunit))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
-         program-cost expr-cost
+         program-cost
          type-of repr-of
          expr-supports? expr-contains?
          location-hash
@@ -36,21 +37,6 @@
 (define (program-cost prog)
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   (expr-cost body))
-
-(define (expr-cost expr)
-  (let loop ([expr expr] [repr (*output-repr*)])
-    (match expr
-     [(list 'if cond ift iff)
-      (+ 1 (loop cond repr) (max (loop ift repr) (loop iff repr)))]
-     [(list op args ...)
-      (define ireprs (operator-info op 'itype))
-      (define ireprs*
-        (if (list? ireprs)
-            (map get-representation ireprs)
-            (make-list (length args) (get-representation ireprs))))
-      (apply + (operator-cost op (representation-total-bits repr))
-               (map loop args ireprs*))]
-     [_ (representation-total-bits repr)])))
 
 ;; Returns type name
 ;; Fast version does not recurse into functions applications

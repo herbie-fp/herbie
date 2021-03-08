@@ -7,7 +7,6 @@
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-ops* *loaded-ops*
-         operator-cost
          repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
@@ -576,29 +575,6 @@
 (define-operator (binary32->binary64 binary32->binary64 binary32) binary64
   [fl (curryr real->double-flonum)] [bf identity] [ival #f]
   [nonffi (curryr real->double-flonum)])
-
-(define (operator-cost op bits)
-  (* bits
-    (match (hash-ref parametric-operators-reverse op)
-     ['+     1]
-     ['-     1]
-     ['neg   1]
-     ['*     1]
-     ['/     1]
-     ['abs   1]
-     ['=     1]
-     ['>     3]
-     ['<     3]
-     ['>=    3]
-     ['<=    3]
-
-     ['not       1]
-     ['and       1]
-     ['or        1]
-     ['if        3]
-
-     [(? repr-conv?) 2]
-     [_         100])))
 
 ;; Expression predicates ;;
 
