@@ -24,16 +24,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        racket-version: [ '7.5', '7.9', '8.0' ]
         precision: [ 'binary32', 'binary64' ]
-        racket-variant: [ 'BC', 'CS' ]
     steps:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v0.5
         with:
-          version: 8.0
-          variant: ${{ matrix.racket-variant }}
+          version: ${{ matrix.racket-version }}
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: raco pkg install --name herbie --no-cache --auto src/
