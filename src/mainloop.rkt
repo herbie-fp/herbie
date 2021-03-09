@@ -46,6 +46,19 @@
   (shellstate-gened-simplify (^shell-state^)))
 
 (define *sampler* (make-parameter #f))
+(define *pareto-pick-limit* (make-parameter 5))
+
+;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
+(define (starting-alts altn)
+  (define prec (representation-name (*output-repr*)))
+  (define prog (alt-program altn))
+  (filter (λ (altn) (program-body (alt-program altn)))
+    (for/list ([(k v) (in-hash (*conversions*))]
+              #:unless (equal? k prec)
+              #:when (set-member? v prec))
+      (define rewrite (get-rewrite-operator k))
+      (define prog* `(λ ,(program-variables prog) (,rewrite ,(program-body prog))))
+      (alt (apply-repr-change prog*) 'start '()))))
 
 ;; Setting up
 (define (setup-prog! prog
@@ -81,6 +94,11 @@
   (*current-atab-iface* (if (*pareto-mode*) pareto-atab-iface std-atab-iface))
   (define alt (make-alt prog))
   (^table^ (make-alt-table (*pcontext*) alt (*output-repr*)))
+
+  ; Add starting alt in every precision
+  (when (*pareto-mode*)
+    (define alts (starting-alts alt))
+    (^table^ (atab-add-altns (^table^) alts (*output-repr*))))
   alt)
 
 ;; Information
@@ -110,6 +128,28 @@
 
 (define (score-alt alt)
   (errors-score (errors (alt-program alt) (*pcontext*) (*output-repr*))))
+
+; Pareto mode alt picking
+(define (choose-mult-alts)
+  (define altns (filter (compose list? program-body alt-program)
+                        (atab-not-done-alts (^table^))))
+  (cond
+   [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
+   [else
+    (define best (argmin score-alt altns))
+    (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key alt-cost))
+    (define simplest (car altns*))
+    (define altns** (cdr altns*))
+    (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
+    (append
+      (list best simplest)
+      (for/list ([i (in-range 1 (- (*pareto-pick-limit*) 1))])
+        (list-ref altns** (- (* i div-size) 1))))]))
+
+(define (choose-alts)
+  (if (*pareto-mode*)
+      (choose-mult-alts)
+      (list (argmin score-alt (atab-not-done-alts (^table^))))))
 
 (define (choose-best-alt!)
   (define-values (picked table*)
@@ -404,14 +444,28 @@
   (when (^next-alt^)
     (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
-  (debug #:from 'progress #:depth 3 "picking best candidate")
-  (choose-best-alt!)
-  (debug #:from 'progress #:depth 3 "localizing error")
-  (localize!)
-  (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-  (gen-rewrites!)
-  (debug #:from 'progress #:depth 3 "generating series expansions")
-  (gen-series!)
+  (debug #:from 'progress #:depth 3 "Picking candidate(s)")
+  (define-values (rewritten series)
+    (for/fold ([rewritten '()] [series '()])
+              ([picked (choose-alts)] [i (in-naturals 1)])
+      (debug #:from 'pick #:depth 4 (format "Picked [~a] " i) picked)
+      (define (picking-func x)
+        (for/first ([v x] #:when (alt-equal? v picked)) v))
+      (define-values (_ table*)
+        (atab-pick-alt (^table^) #:picking-func picking-func #:only-fresh #t))
+      (^next-alt^ picked)
+      (^table^ table*)
+
+      (debug #:from 'progress #:depth 3 "localizing error")
+      (localize!)
+      (debug #:from 'progress #:depth 3 "generating rewritten candidates")
+      (gen-rewrites!)
+      (debug #:from 'progress #:depth 3 "generating series expansions")
+      (gen-series!)
+      (values (append (^gened-rewrites^) rewritten)
+              (append (^gened-series^) series))))
+  (^gened-rewrites^ rewritten)
+  (^gened-series^ series)
   (debug #:from 'progress #:depth 3 "simplifying candidates")
   (simplify!)
   (debug #:from 'progress #:depth 3 "adding candidates to table")
@@ -442,18 +496,27 @@
 (define (extract!)
   (define repr (*output-repr*))
   (define all-alts (atab-all-alts (^table^)))
-  (*all-alts* all-alts)
+  (*all-alts* (atab-active-alts (^table^)))
+
+  ; Constant alts
+  (define const-alts
+    (let ([prog (alt-program (car all-alts))])
+      (list (make-alt `(λ ,(program-variables prog) 1))
+            (make-alt `(λ ,(program-variables prog) 0))
+            (make-alt `(λ ,(program-variables prog) -1)))))
+  (define all-alts* (append all-alts const-alts))
+
   (define joined-alt
     (cond
-     [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
+     [(and (flag-set? 'reduce 'regimes) (> (length all-alts*) 1)
            (equal? (type-name (representation-type repr)) 'real)
-           (not (null? (program-variables (alt-program (car all-alts))))))
+           (not (null? (program-variables (alt-program (car all-alts*))))))
       (timeline-event! 'regimes)
-      (define option (infer-splitpoints all-alts repr))
+      (define option (infer-splitpoints all-alts* repr))
       (timeline-event! 'bsearch)
       (combine-alts option repr (*sampler*))]
      [else
-      (argmin score-alt all-alts)]))
+      (argmin score-alt all-alts*)]))
   (timeline-event! 'simplify)
   (define cleaned-alt
     (alt `(λ ,(program-variables (alt-program joined-alt))
