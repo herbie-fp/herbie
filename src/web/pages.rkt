@@ -32,7 +32,6 @@
    e))
 
 (define (make-page page out result profile?)
-  
   (define test (test-result-test result))
   (define repr (test-output-repr test))
   (match page
@@ -53,10 +52,10 @@
      (make-points-plot result out (string->number idx) (string->symbol letter))]))
 
 (define (get-interactive-js result repr)
-  (define start-fpcore 
-    (program->fpcore (resugar-program (alt-program (test-success-start-alt result)) repr)))
-  (define end-fpcore
-    (program->fpcore (resugar-program (alt-program (test-success-end-alt result)) repr)))
+  (define start-prog (alt-program (test-success-start-alt result)))
+  (define end-prog (alt-program (car (test-success-end-alts result))))
+  (define start-fpcore (program->fpcore (resugar-program start-prog repr)))
+  (define end-fpcore (program->fpcore (resugar-program end-prog repr)))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
        (supported-by-lang? start-fpcore "js")
        (supported-by-lang? end-fpcore "js")

@@ -50,11 +50,15 @@
 (define (make-graph result out fpcore? profile?)
   (match-define
    (test-success test bits time timeline warnings
-                 start-alt end-alt preprocess points exacts start-est-error end-est-error
-                 newpoints newexacts start-error end-error target-error
-                 baseline-error oracle-error all-alts)
+                 start-alt end-alts preprocess points exacts start-est-error end-est-error
+                 newpoints newexacts start-error end-errors target-error
+                 baseline-error oracle-error costs all-alts)
    result)
   (define repr (test-output-repr test))
+  (define end-alt (car end-alts))
+  (define end-error (car end-errors))
+  (define other-alts (cdr end-alts))
+  (define other-errors (cdr end-errors))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -93,6 +97,9 @@
                               (format-bits (apply max (map ulps->bits end-error)) #:unit #f)))
        ,(render-large "Time" (format-time time))
        ,(render-large "Precision" `(kbd ,(~a (representation-name repr)))))
+       ,(if (*pareto-mode*)
+            (render-large "Cost" `(kbd ,(format-bits (car costs) #:unit #f)))
+            "")
 
       ,(render-warnings warnings)
 
@@ -141,7 +148,21 @@
        (h1 "Derivation")
        (ol ([class "history"])
         ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
-            (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) repr))))
+            (render-history end-alt (mk-pcontext newpoints newexacts)
+                            (mk-pcontext points exacts) repr))))
+
+      ,@(for/list ([alt other-alts] [cost (cdr costs)] [errs other-errors] [idx (in-naturals 1)])
+          (define name (format "Alternative ~a" idx))
+          `(section ([id "alternatives"] [style "margin: 2em 0;"])
+            ,(if (= idx 1) `(h1 "Alternatives") "")
+            (table
+              (tr (th ([style "font-weight:bold"]) ,name))
+              (tr (th "Error") (td ,(format-bits (errors-score errs))))
+              (tr (th "Cost") (td ,(format-bits cost))))
+            (div ([class "math"]) "\\[" ,(core->tex
+                                          (program->fpcore
+                                            (resugar-program (alt-program alt) repr)))
+                                        "\\]")))
 
       ,(render-reproduction test)))
     out))

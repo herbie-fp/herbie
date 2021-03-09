@@ -296,21 +296,22 @@
 
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
-  (define split-var? (equal? var (regime-var (test-success-end-alt result))))
+  (define end-alt (car (test-success-end-alts result)))
+  (define split-var? (equal? var (regime-var end-alt)))
   (define repr (test-output-repr (test-result-test result)))
   (define pts (test-success-newpoints result))
   (herbie-plot
    #:port out #:kind 'png
    repr
    (error-axes pts repr #:axis idx)
-   (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
+   (map error-mark (if split-var? (regime-splitpoints end-alt) '()))))
 
 (define (make-points-plot result out idx letter)
   (define-values (theme accessor)
     (match letter
       ['r (values *red-theme*   test-success-start-error)]
       ['g (values *green-theme* test-success-target-error)]
-      ['b (values *blue-theme*  test-success-end-error)]))
+      ['b (values *blue-theme*  (compose car test-success-end-errors))]))
 
   (define repr (test-output-repr (test-result-test result)))
   (define pts (test-success-newpoints result))
@@ -351,7 +352,7 @@
     (define point-alt-idxs (make-point-alt-idxs result))
     (define newpoints (test-success-newpoints result))
     (define baseline-errs (test-success-baseline-error result))
-    (define herbie-errs (test-success-end-error result))
+    (define herbie-errs (car (test-success-end-errors result)))
     (define oracle-errs (test-success-oracle-error result))
     (define point-colors (herbie-ratio-point-colors newpoints baseline-errs herbie-errs oracle-errs))
     (for* ([i (range (- (length vars) 1))] [j (range 1 (length vars))])

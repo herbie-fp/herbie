@@ -534,5 +534,4 @@
   (define best (argmin score-alt cleaned-alts))
   (*herbie-preprocess* (remove-unecessary-preprocessing best (*herbie-preprocess*)))
   (define rest (filter-not (curry alt-equal? best) cleaned-alts))
-  (define final-alts (cons best (sort rest > #:key alt-cost)))
-  (car final-alts))
+  (cons best (sort rest > #:key alt-cost)))

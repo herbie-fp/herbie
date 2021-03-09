@@ -15,9 +15,10 @@
 ;; These cannot move between threads!
 (struct test-result (test bits time timeline warnings))
 (struct test-success test-result
-  (start-alt end-alt preprocess points exacts start-est-error end-est-error
-   newpoints newexacts start-error end-error target-error
-   baseline-error oracle-error all-alts))
+  (start-alt end-alts preprocess points exacts
+   start-est-error end-est-error newpoints newexacts
+   start-error end-errors target-error
+   baseline-error oracle-error end-costs all-alts))
 (struct test-failure test-result (exn))
 (struct test-timeout test-result ())
 
@@ -56,7 +57,7 @@
 
       (generate-conversions (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
-        (define alt
+        (define alts
           (run-improve (test-program test)
                        (*num-iterations*)
                        #:precondition (test-precondition test)
@@ -69,27 +70,29 @@
         (timeline-event! 'sample)
         (define newcontext
           (parameterize ([*num-points* (*reeval-pts*)])
-            (car (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*) (*herbie-preprocess*)))))
+            (car (prepare-points (test-specification test) (test-precondition test) output-repr
+                                 (*sampler*) (*herbie-preprocess*)))))
         (define fns
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))
 
-        (define end-errs (errors (alt-program alt) newcontext output-repr))
+        (define end-errss (map (λ (x) (errors (alt-program x) newcontext output-repr)) alts))
         (define baseline-errs (baseline-error fns context newcontext output-repr))
         (define oracle-errs (oracle-error fns newcontext output-repr))
+        (define end-score (errors-score (car end-errss)))
 
         (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
-        (timeline-adjust! 'regimes 'accuracy (errors-score end-errs))
+        (timeline-adjust! 'regimes 'accuracy end-score)
         (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
         (timeline-adjust! 'regimes 'name (test-name test))
         (timeline-adjust! 'regimes 'link ".")
 
         (debug #:from 'regime-testing #:depth 1
-               "End program error score:" (errors-score end-errs))
+               "End program error score:" end-score)
         (when (test-output test)
           (debug #:from 'regime-testing #:depth 1
-                 "Target error score:" (errors-score
-                                         (errors (test-target test) newcontext output-repr))))
+                 "Target error score:"
+                 (errors-score (errors (test-target test) newcontext output-repr))))
 
         (define-values (points exacts) (get-p&es context))
         (define-values (newpoints newexacts) (get-p&es newcontext))
@@ -97,18 +100,19 @@
                       (bf-precision)
                       (- (current-inexact-milliseconds) start-time)
                       (timeline-extract output-repr)
-                      warning-log (make-alt (test-program test)) alt
+                      warning-log (make-alt (test-program test)) alts
                       (*herbie-preprocess*) points exacts
                       (errors (test-program test) context output-repr)
-                      (errors (alt-program alt) context output-repr)
+                      (errors (alt-program (car alts)) context output-repr)
                       newpoints newexacts
                       (errors (test-program test) newcontext output-repr)
-                      end-errs
+                      end-errss
                       (if (test-output test)
                           (errors (test-target test) newcontext output-repr)
                           #f)
                       baseline-errs
                       oracle-errs
+                      (map alt-cost alts)
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
@@ -163,11 +167,12 @@
    [(test-success? result)
     (define name (test-name test))
     (define start-errors  (test-success-start-error  result))
-    (define end-errors    (test-success-end-error    result))
+    (define end-errorss   (test-success-end-errors   result))
     (define target-errors (test-success-target-error result))
+    (define output-prog (alt-program (car (test-success-end-alts result))))
 
     (define start-score (errors-score start-errors))
-    (define end-score (errors-score end-errors))
+    (define end-score (errors-score (car end-errorss)))
     (define target-score (and target-errors (errors-score target-errors)))
     (define est-start-score (errors-score (test-success-start-est-error result)))
     (define est-end-score (errors-score (test-success-end-est-error result)))
@@ -187,9 +192,7 @@
            [else "uni-start"])))
 
     (struct-copy table-row (dummy-table-row result status link)
-                 [output (resugar-program
-                           (program-body (alt-program (test-success-end-alt result)))
-                           (test-output-repr test))]
+                 [output (resugar-program output-prog (test-output-repr test))]
                  [start start-score] [result end-score] [target target-score]
                  [start-est est-start-score] [result-est est-end-score])]
    [(test-failure? result)
