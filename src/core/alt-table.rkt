@@ -5,22 +5,18 @@
          "../timeline.rkt" "../programs.rkt")
 
 (provide
- (contract-out
-  (make-alt-table (pcontext? alt? any/c . -> . alt-table?))
-  (atab-active-alts (alt-table? . -> . (listof alt?)))
-  (atab-all-alts (alt-table? . -> . (listof alt?)))
-  (atab-not-done-alts (alt-table? . -> . (listof alt?)))
-  (atab-add-altns (alt-table? (listof alt?) any/c . -> . alt-table?))
-  (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
-                             #:only-fresh boolean?
-                             . -> . (values alt? alt-table?)))
-  (atab-peek-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
-                             #:only-fresh boolean?
-                             . -> . (values alt? alt-table?)))
-  (atab-completed? (alt-table? . -> . boolean?))
-  (atab-context (alt-table? . -> . pcontext?))
-  (atab-min-errors (alt-table? . -> . (listof real?)))
-  (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
+  *current-atab-iface* std-atab-iface pareto-atab-iface
+  (rename-out [atab-make make-alt-table]
+              [atab-active atab-active-alts]
+              [atab-all atab-all-alts]
+              [atab-not-done atab-not-done-alts]
+              [atab-add atab-add-altns]
+              [atab-pick atab-pick-alt]
+              [atab-peek atab-peek-alt]
+              [atab-complete? atab-completed?]
+              [atab-ctx atab-context]
+              [atab-min-errs atab-min-errors]
+              [atab-split split-atab]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;; Standard alt table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -429,6 +425,15 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
+(define (patab-add-altns atab altns repr)
+  (define altns*
+    (filter-not (compose program-has-nan? alt-program) 
+                (remove-duplicates altns alt-equal?)))
+  (define progs (map alt-program altns))
+  (define errss (apply vector-map list (batch-errors progs (palt-table-context atab) repr)))
+  (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-vector errss)])
+    (patab-add-altn atab altn errs repr)))
+
 (define (patab-add-altn atab altn errs repr)
   (define cost (alt-cost altn))
   (match-define (palt-table point->alts alt->points alt->done? alt->cost _ all-alts) atab)
@@ -452,8 +457,8 @@
     (define alt->cost* (hash-set alt->cost altn cost))
     (when (not (for/or ([x (in-mutable-set all-alts)]) (alt-equal? altn x)))
       (set-add! all-alts altn)) ; only add if unique
-    (minimize-alts (palt-table pnts->alts*2 alts->pnts*2 alts->done?*
-                              alt->cost* (palt-table-context atab) all-alts))]))
+    (pminimize-alts (palt-table pnts->alts*2 alts->pnts*2 alts->done?*
+                                alt->cost* (palt-table-context atab) all-alts))]))
 
 (define (patab-not-done-alts atab)
   (filter (negate (curry hash-ref (palt-table-alt->done? atab)))
@@ -467,3 +472,57 @@
         (cond [(not best) err]
               [(< err best) err]
               [(>= err best) best])))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Exported API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(struct atab-iface (make active all not-done add pick peek completed? context min-errors split))
+
+(define std-atab-iface
+  (atab-iface
+    make-alt-table
+    atab-active-alts
+    atab-all-alts
+    atab-not-done-alts
+    atab-add-altns
+    atab-pick-alt
+    atab-peek-alt
+    atab-completed?
+    atab-context
+    atab-min-errors
+    split-atab))
+
+(define pareto-atab-iface
+  (atab-iface
+    make-palt-table
+    patab-active-alts
+    patab-all-alts
+    patab-not-done-alts
+    patab-add-altns
+    patab-pick-alt
+    patab-peek-alt
+    patab-completed?
+    patab-context
+    patab-min-errors
+    (λ (atab preds) (list atab)))) ; unimplemented
+
+(define *current-atab-iface* (make-parameter std-atab-iface))
+
+(define-syntax-rule (atab-iface-proc name atab-name)
+  (define (name . args)
+    (apply (atab-name (*current-atab-iface*)) args)))
+
+;; Local names of API (weird names to avoid duplicates)
+(atab-iface-proc atab-make atab-iface-make)
+(atab-iface-proc atab-active atab-iface-active)
+(atab-iface-proc atab-all atab-iface-all)
+(atab-iface-proc atab-not-done atab-iface-not-done)
+(atab-iface-proc atab-add atab-iface-add)
+(atab-iface-proc atab-peek atab-iface-peek)
+(atab-iface-proc atab-complete? atab-iface-completed?)
+(atab-iface-proc atab-ctx atab-iface-context)
+(atab-iface-proc atab-min-errs atab-iface-min-errors)
+(atab-iface-proc atab-split atab-iface-split)
+
+(define (atab-pick atab #:picking-func [pick car] #:only-fresh [only-fresh? #t])
+  ((atab-iface-pick (*current-atab-iface*)) atab
+      #:picking-func pick #:only-fresh only-fresh?))

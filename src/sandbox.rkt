@@ -42,7 +42,8 @@
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))]
-                   [*timeline-disabled* false] [*warnings-disabled* true])
+                   [*timeline-disabled* false]
+                   [*warnings-disabled* true])
       (define start-time (current-inexact-milliseconds))
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator

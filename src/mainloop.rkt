@@ -43,7 +43,7 @@
   (shellstate-gened-simplify (^shell-state^)))
 
 (define *sampler* (make-parameter #f))
-    
+
 ;; Setting up
 (define (setup-prog! prog
                      #:precondition [precondition #f]
@@ -75,6 +75,7 @@
   (*pcontext* (car contexts))
   (*pcontext-unprocessed* (cdr contexts))
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
+  (*current-atab-iface* (if (*pareto-mode*) pareto-atab-iface std-atab-iface))
   (define alt (make-alt prog))
   (^table^ (make-alt-table (*pcontext*) alt (*output-repr*)))
   alt)
