@@ -16,14 +16,17 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs gened-series gened-rewrites gened-simplify simplified)
+  (table next-alt locs lowlocs gened-series gened-rewrites gened-simplify simplified)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
   (shellstate-locs (^shell-state^)))
+(define (^lowlocs^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-lowlocs! (^shell-state^) newval))
+  (shellstate-lowlocs (^shell-state^)))
 (define (^table^ [newval 'none])
   (when (not (equal? newval 'none))  (set-shellstate-table! (^shell-state^) newval))
   (shellstate-table (^shell-state^)))
@@ -121,12 +124,21 @@
   (unless (^next-alt^)
     (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
-  (define locs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
-  (for/list ([(err loc) (in-dict locs)])
+  (define-values (locs lowlocs)
+    (localize-error (alt-program (^next-alt^)) (*output-repr*)))
+
+  (for ([(err loc) (in-dict locs)])
     (timeline-push! 'locations
                     (~a (location-get loc (alt-program (^next-alt^))))
                     (errors-score err)))
   (^locs^ (map cdr locs))
+
+  (when (*pareto-mode*) ; Pareto mode uses low-error locations
+    (for ([(err loc) (in-dict lowlocs)])
+      (timeline-push! 'locations
+                      (~a (location-get loc (alt-program (^next-alt^))))
+                      (errors-score err))))
+  (^lowlocs^ (map cdr (if (*pareto-mode*) lowlocs (list))))
   (void))
 
 (define transforms-to-try
@@ -221,8 +233,24 @@
              (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root location)
                (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
+  (define reprchange-rules
+    (if (*pareto-mode*)
+        (filter (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?)) (*rules*))
+        (list)))
+
+  ; Empty in normal mode
+  (define changelists-low-locs
+    (apply append
+      (for/list ([location (^lowlocs^)] [n (in-naturals 1)])
+        (debug #:from 'progress #:depth 4 "[" n "/" (length (^lowlocs^)) "] rewriting at" location)
+              (define tnow (current-inexact-milliseconds))
+              (define expr (location-get location (alt-program altn)))
+              (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules #:root location)
+                (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+
+  (define changelists* (append changelists changelists-low-locs))
   (define rules-used
-    (append-map (curry map change-rule) changelists))
+    (append-map (curry map change-rule) changelists*))
   (define rule-counts
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
@@ -233,7 +261,7 @@
   (define rewritten
     (filter (λ (altn) (program-body (alt-program altn)))
       (map repr-rewrite-alt
-        (for/list ([cl changelists])
+        (for/list ([cl changelists*])
           (for/fold ([altn altn]) ([cng cl])
             (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))))
 
