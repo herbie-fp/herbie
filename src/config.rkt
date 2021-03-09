@@ -79,6 +79,8 @@
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
 
+(define *pareto-mode* (make-parameter #f))
+
 ;;; About Herbie:
 
 (define (run-command cmd)

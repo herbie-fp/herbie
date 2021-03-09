@@ -2,9 +2,9 @@
 
 (require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
          "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt" "conversions.rkt"
-         "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt" "sampling.rkt"
+         "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
          "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
-         "syntax/sugar.rkt" "preprocess.rkt" "symmetry.rkt")
+         "syntax/sugar.rkt" "preprocess.rkt" "symmetry.rkt" "sampling.rkt")
 
 (provide (all-defined-out))
 
@@ -43,7 +43,7 @@
   (shellstate-gened-simplify (^shell-state^)))
 
 (define *sampler* (make-parameter #f))
-
+    
 ;; Setting up
 (define (setup-prog! prog
                      #:precondition [precondition #f]

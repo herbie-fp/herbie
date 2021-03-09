@@ -48,6 +48,8 @@
     (*node-limit* (string->number num))]
    [("--num-analysis") num "The number of input analysis iterations to use"
     (*max-find-range-depth* (string->number num))]
+   [("--pherbie") "Enables Pareto-Herbie (Pherbie)"
+    (*pareto-mode* #t)]
    #:multi
    [("-o" "--disable") flag "Disable a flag (formatted category:name)"
     (define tf (parse-flag flag))
