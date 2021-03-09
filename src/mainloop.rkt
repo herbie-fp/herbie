@@ -196,7 +196,7 @@
   (define expr* (resugar-program expr repr #:full #f))
   (with-handlers ([exn:fail? (const #f)]) 
     (define genexpr (approximate expr* var #:transform (cons f finv)))
-    (λ () (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
+    (λ (x) (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
 
 (define (exact-min x y)
   (if (<= x y) x y))
@@ -208,25 +208,22 @@
   (define expr (location-get loc (alt-program altn)))
   (define repr (get-representation (repr-of expr (*output-repr*) (*var-reprs*))))
   (define vars (free-variables expr))
-  ;; currently taylor/reduce breaks with posits 
-  (if (not (set-member? '(binary64 binary32) (representation-name repr)))
-      (list altn)
-      (reap [sow]
-        (for* ([var vars] [transform-type transforms-to-try])
-          (match-define (list name f finv) transform-type)
-          (define genexpr (taylor-expr expr repr var f finv))
+  (reap [sow]
+    (for* ([var vars] [transform-type transforms-to-try])
+      (match-define (list name f finv) transform-type)
+      (define genexpr (taylor-expr expr repr var f finv))
 
-          #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
-          (let loop ([last (for/list ([(p e) (in-pcontext (*pcontext*))]) +inf.0)] [i 0])
-            (define expr* (location-do loc (alt-program altn) (const (genexpr))))
-            (when expr*
-              (define errs (errors expr* (*pcontext*) (*output-repr*)))
-              (define altn* (alt expr* `(taylor ,name ,loc) (list altn)))
-              (when (ormap much-< errs last)
-                #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
-                (sow altn*)
-                (when (< i 3)
-                  (loop (map exact-min errs last) (+ i 1))))))))))
+      #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
+      (let loop ([last (for/list ([(p e) (in-pcontext (*pcontext*))]) +inf.0)] [i 0])
+        (define expr* (location-do loc (alt-program altn) genexpr))
+        (when expr*
+          (define errs (errors expr* (*pcontext*) (*output-repr*)))
+          (define altn* (alt expr* `(taylor ,name ,loc) (list altn)))
+          (when (ormap much-< errs last)
+            #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
+            (sow altn*)
+            (when (< i 3)
+              (loop (map exact-min errs last) (+ i 1)))))))))
 
 (define (gen-series!)
   (unless (^locs^)
@@ -513,7 +510,7 @@
            (not (null? (program-variables (alt-program (car all-alts*))))))
       (cond
        [(*pareto-mode*)
-        (pareto-regimes all-alts* repr (*sampler*))]
+        (pareto-regimes (sort all-alts* < #:key alt-cost) repr (*sampler*))]
        [else
         (timeline-event! 'regimes)
         (define option (infer-splitpoints all-alts* repr))
@@ -527,8 +524,10 @@
       (map (compose program-body alt-program) joined-alts)
       #:rules (*fp-safe-simplify-rules*) #:precompute #t))
   (define cleaned-alts
-    (for/list ([altn joined-alts] [prog progs*])
-      (alt `(λ ,(program-variables (alt-program altn)) ,prog) 'final-simplify (list altn))))
+    (remove-duplicates
+      (for/list ([altn joined-alts] [prog progs*])
+        (alt `(λ ,(program-variables (alt-program altn)) ,prog) 'final-simplify (list altn)))
+      alt-equal?))
   (timeline-event! 'end)
 
   (define best (argmin score-alt cleaned-alts))
