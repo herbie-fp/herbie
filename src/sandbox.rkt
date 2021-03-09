@@ -22,7 +22,10 @@
 (struct test-timeout test-result ())
 
 (define *reeval-pts* (make-parameter 8000))
-(define *timeout* (make-parameter (* 1000 60 5/2)))
+(define *timeout* (make-parameter #f))
+
+(define std-timeout (* 1000 60 5/2))
+(define pareto-timeout (* 1000 60 60 2))
 
 (define (get-p&es context)
   (for/lists (pts exs)
@@ -125,13 +128,19 @@
            #:render (λ (p order) (write-json (profile->json p)))))
         (compute-result test)))
 
+  (define timeout
+    (cond
+     [(*timeout*) (*timeout*)]
+     [(*pareto-mode*) pareto-timeout]
+     [else std-timeout]))
+
   (define eng (engine in-engine))
-  (if (engine-run (*timeout*) eng)
+  (if (engine-run timeout eng)
       (begin
         (engine-result eng))
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
-        (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
+        (test-timeout test (bf-precision) timeout (timeline-extract output-repr) '()))))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))

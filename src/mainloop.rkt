@@ -506,23 +506,33 @@
             (make-alt `(λ ,(program-variables prog) -1)))))
   (define all-alts* (append all-alts const-alts))
 
-  (define joined-alt
+  (define joined-alts
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts*) 1)
            (equal? (type-name (representation-type repr)) 'real)
            (not (null? (program-variables (alt-program (car all-alts*))))))
-      (timeline-event! 'regimes)
-      (define option (infer-splitpoints all-alts* repr))
-      (timeline-event! 'bsearch)
-      (combine-alts option repr (*sampler*))]
+      (cond
+       [(*pareto-mode*)
+        (pareto-regimes all-alts* repr (*sampler*))]
+       [else
+        (timeline-event! 'regimes)
+        (define option (infer-splitpoints all-alts* repr))
+        (timeline-event! 'bsearch)
+        (list (combine-alts option repr (*sampler*)))])]
      [else
-      (argmin score-alt all-alts*)]))
+      (list (argmin score-alt all-alts*))]))
   (timeline-event! 'simplify)
-  (define cleaned-alt
-    (alt `(λ ,(program-variables (alt-program joined-alt))
-            ,(simplify-expr (program-body (alt-program joined-alt))
-                            #:rules (*fp-safe-simplify-rules*)))
-         'final-simplify (list joined-alt)))
-  (*herbie-preprocess* (remove-unecessary-preprocessing cleaned-alt (*herbie-preprocess*)))
+  (define progs*
+    (simplify-batch
+      (map (compose program-body alt-program) joined-alts)
+      #:rules (*fp-safe-simplify-rules*) #:precompute #t))
+  (define cleaned-alts
+    (for/list ([altn joined-alts] [prog progs*])
+      (alt `(λ ,(program-variables (alt-program altn)) ,prog) 'final-simplify (list altn))))
   (timeline-event! 'end)
-  cleaned-alt)
+
+  (define best (argmin score-alt cleaned-alts))
+  (*herbie-preprocess* (remove-unecessary-preprocessing best (*herbie-preprocess*)))
+  (define rest (filter-not (curry alt-equal? best) cleaned-alts))
+  (define final-alts (cons best (sort rest > #:key alt-cost)))
+  (car final-alts))

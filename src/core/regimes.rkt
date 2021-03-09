@@ -7,7 +7,8 @@
 (module+ test
   (require rackunit))
 
-(provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts)
+(provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
+         pareto-regimes)
 
 (struct option (split-indices alts pts expr errors) #:transparent
 	#:methods gen:custom-write
@@ -363,6 +364,21 @@
                              (<=/total val (sp-point right) repr)))
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))
+
+(define (pareto-regimes sorted repr sampler)
+  (let loop ([alts sorted] [idx 0])
+    (debug "Computing regimes starting at alt" (+ idx 1) "of"
+            (length sorted) #:from 'regime #:depth 2)
+    (cond
+      [(null? alts) '()]
+      [(= (length alts) 1) (list (car alts))]
+      [else
+      (timeline-event! 'regimes)
+      (define opt (infer-splitpoints alts repr))
+      (timeline-event! 'bsearch)
+      (define branched-alt (combine-alts opt repr sampler))
+      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
+      (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/ x y))]
