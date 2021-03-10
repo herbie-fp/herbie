@@ -59,6 +59,7 @@
   (define end-error (car end-errors))
   (define other-alts (cdr end-alts))
   (define other-errors (cdr end-errors))
+  (define alt-plots? (< (* (length other-alts) (length (test-vars test))) 100))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -114,6 +115,11 @@
               (define split-var? (equal? var (regime-var end-alt)))
               (define title "The X axis uses an exponential scale")
               `(figure ([id ,(format "fig-~a" idx)] [class ,(if split-var? "default" "")])
+                ,@(reverse ; buttons are sorted R/L
+                    (for/list ([alt other-alts] [idx2 (in-naturals)] #:when alt-plots?)
+                      (let ([name (format "Other~a" idx2)])
+                        `(img ([width "800"] [height "300"] [title ,title] [data-name ,name]
+                               [src ,(format "plot-~ao~a.png" idx idx2)])))))
                 (img ([width "800"] [height "300"] [title ,title]
                       [src ,(format "plot-~a.png" idx)]))
                 (img ([width "800"] [height "300"] [title ,title] [data-name "Input"]
@@ -125,7 +131,10 @@
                 (img ([width "800"] [height "300"] [title ,title] [data-name "Result"]
                       [src ,(format "plot-~ab.png" idx)]))
                 (figcaption (p "Bits error versus " (var ,(~a var)))))]
-             [else ""]))))
+             [else ""]))
+       ,(if alt-plots?
+             ""
+             `(p "Too many alternatives generated, ignoring plots"))))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive start-alt (car points))

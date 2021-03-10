@@ -12,13 +12,21 @@
 (define (all-pages result)
   (define test (test-result-test result))
   (define good? (test-success? result))
+  (define others
+    (if good?
+      (let ([other (cdr (test-success-end-alts result))]
+            [vars (test-vars test)])
+        (if (and good? (< (* (length other) (length vars)) 100))
+            (build-list (length other) (λ (x) (format "o~a" x)))
+            '()))
+      '()))
 
   (define pages
     `("graph.html"
       ,(and good? "interactive.js")
       "timeline.html" "timeline.json"
       ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
-                   #:when good? [type '("" "r" "g" "b")]
+                   #:when good? [type (append (list "" "r" "g" "b") others)]
                    #:unless (and (equal? type "g") (not (test-output test)))
                    ;; Don't generate a plot with only one X value else plotting throws an exception
                    #:when (> (unique-values (test-success-newpoints result) idx) 1))
@@ -49,7 +57,9 @@
     [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
      (make-axis-plot result out (string->number idx))]
     [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
-     (make-points-plot result out (string->number idx) (string->symbol letter))]))
+     (make-points-plot result out (string->number idx) (string->symbol letter))]
+    [(regexp #rx"^plot-([0-9]+)(o[0-9]+).png$" (list _ idx letter))
+     (make-points-plot result out (string->number idx) letter)]))
 
 (define (get-interactive-js result repr)
   (define start-prog (alt-program (test-success-start-alt result)))

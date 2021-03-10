@@ -12,6 +12,7 @@
 (define *red-theme* (color-theme "pink" "red" "darkred"))
 (define *blue-theme* (color-theme "lightblue" "blue" "navy"))
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
+(define *gray-theme* (color-theme "gray" "gray" "gray"))
 
 ;;  Repr conversions
 
@@ -309,9 +310,13 @@
 (define (make-points-plot result out idx letter)
   (define-values (theme accessor)
     (match letter
-      ['r (values *red-theme*   test-success-start-error)]
-      ['g (values *green-theme* test-success-target-error)]
-      ['b (values *blue-theme*  (compose car test-success-end-errors))]))
+     ['r (values *red-theme*   test-success-start-error)]
+     ['g (values *green-theme* test-success-target-error)]
+     ['b (values *blue-theme*  (compose car test-success-end-errors))]
+     [(? (conjoin string? (curryr string-prefix? "o")))
+      (define num (+ (string->number (substring letter 1)) 1))
+      (values *gray-theme*
+              (λ (x) (list-ref (test-success-end-errors x) num)))]))
 
   (define repr (test-output-repr (test-result-test result)))
   (define pts (test-success-newpoints result))
