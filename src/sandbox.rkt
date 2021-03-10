@@ -140,8 +140,7 @@
 
   (define eng (engine in-engine))
   (if (engine-run timeout eng)
-      (begin
-        (engine-result eng))
+      (engine-result eng)
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
         (test-timeout test (bf-precision) timeout (timeline-extract output-repr) '()))))
