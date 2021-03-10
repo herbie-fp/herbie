@@ -97,10 +97,10 @@
                               (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
                               (format-bits (apply max (map ulps->bits end-error)) #:unit #f)))
        ,(render-large "Time" (format-time time))
-       ,(render-large "Precision" `(kbd ,(~a (representation-name repr)))))
+       ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
        ,(if (*pareto-mode*)
             (render-large "Cost" `(kbd ,(format-bits (car costs) #:unit #f)))
-            "")
+            ""))
 
       ,(render-warnings warnings)
 
@@ -172,6 +172,13 @@
                                           (program->fpcore
                                             (resugar-program (alt-program alt) repr)))
                                         "\\]")))
+                                      
+      ,(if (not (null? other-alts))
+          `(section ([id "cost-accuracy"])
+            (h1 "Error")
+            (img ([width "800"] [height "300"] [title "cost-accuracy"]
+                  [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
+            "")
 
       ,(render-reproduction test)))
     out))

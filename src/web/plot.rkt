@@ -6,7 +6,7 @@
          "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
-(provide make-axis-plot make-points-plot)
+(provide make-axis-plot make-points-plot make-cost-accuracy-plot)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
@@ -327,6 +327,36 @@
    repr
    (error-points err pts repr #:axis idx #:color theme)
    (error-avg err pts repr #:axis idx #:color theme)))
+
+;;; Cost vs. Accuracy (internal, single benchmark)
+(define (make-cost-accuracy-plot result out)
+  (define repr (test-output-repr (test-result-test result)))
+  (define bits (representation-total-bits repr))
+  (define costs (test-success-end-costs result))
+  (define xmax (argmax identity costs))
+  (define xmin (argmax identity costs))
+  (define errs (map errors-score (test-success-end-errors result)))
+
+  (parameterize ([plot-width 800] [plot-height 300]
+                 [plot-background-alpha 0]
+                 [plot-font-size 10]
+                 [plot-x-tick-label-anchor 'top]
+                 [plot-x-label "Cost"]
+                 [plot-x-far-axis? #t]
+                 [plot-x-far-ticks no-ticks]
+                 [plot-y-ticks (linear-ticks #:number 9 #:base 32 #:divisors '(2 4 8))]
+                 [plot-y-far-axis? #t]
+                 [plot-y-axis? #t]
+                 [plot-y-label "Error (bits)"])
+    (define pnts (points (map vector costs errs)
+                         #:sym 'fullcircle
+                         #:size 9
+                         #:fill-color "red"))
+    (plot-file (list pnts (y-tick-lines))
+               out 'png
+               #:x-min 0 #:x-max (+ xmax xmin)
+               #:y-min 0 #:y-max bits)))
+
 
 (define (make-alt-plots point-alt-idxs alt-idxs title out result)
   (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))

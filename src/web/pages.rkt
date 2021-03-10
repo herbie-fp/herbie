@@ -30,7 +30,8 @@
                    #:unless (and (equal? type "g") (not (test-output test)))
                    ;; Don't generate a plot with only one X value else plotting throws an exception
                    #:when (> (unique-values (test-success-newpoints result) idx) 1))
-          (format "plot-~a~a.png" idx type))))
+          (format "plot-~a~a.png" idx type))
+      ,(and good? (> (length (test-success-end-alts result)) 2) "cost-accuracy.png")))
   (filter identity pages))
 
 (define ((page-error-handler result page) e)
@@ -54,6 +55,8 @@
      (make-timeline (test-name test) (test-result-timeline result) out)]
     ["timeline.json"
      (write-json (test-result-timeline result) out)]
+    ["cost-accuracy.png"
+     (make-cost-accuracy-plot result out)]
     [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
      (make-axis-plot result out (string->number idx))]
     [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
