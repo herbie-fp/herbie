@@ -32,9 +32,9 @@
           the-test))
     (match (get-test-result the-test* #:seed seed)
       [(test-success test bits time timeline warnings
-                     start-alt end-alt preprocess points exacts start-est-error end-est-error
+                     start-alt end-alts preprocess points exacts start-est-error end-est-error
                      newpoints newexacts start-error end-error target-error
-                     baseline-error oracle-error all-alts)
+                     baseline-error oracle-error costs all-alts)
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
                (~r (errors-score start-error) #:min-width 2 #:precision 0)
@@ -50,7 +50,7 @@
          (printf "\nInput (~a bits):\n" (errors-score start-error))
          (pretty-print (alt-program start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))
-         (pretty-print (alt-program end-alt) (current-output-port) 1)
+         (pretty-print (alt-program (car end-alts)) (current-output-port) 1)
          (when (test-output test)
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
            (pretty-print (test-output test) (current-output-port) 1)))
