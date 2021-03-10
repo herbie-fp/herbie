@@ -176,9 +176,16 @@
 ;; (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
   (let ([midpoint (midpoint p1 p2 repr)])
-    (cond [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
-	  [(pred midpoint) (binary-search-floats pred midpoint p2 repr)]
-	  [else (binary-search-floats pred p1 midpoint repr)])))
+    (cond
+     ; Avoid sampling on [+max, nan] at all costs
+     [(nan? midpoint) p1]
+     [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
+	   [else
+      (define cmp (pred midpoint))
+      (cond ; cmp usually equals 0 if sampling failed
+       [(negative? cmp) (binary-search-floats pred midpoint p2 repr)]
+       [(positive? cmp) (binary-search-floats pred p1 midpoint repr)]
+       [else midpoint])])))
 
 (define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
@@ -207,20 +214,21 @@
     (define iters 0)
     (define (pred v)
       (set! iters (+ 1 iters))
-      (parameterize ([*num-points* (*binary-search-test-points*)]
-                     [*timeline-disabled* true]
-                     [*var-reprs* (dict-set (*var-reprs*) var repr)])
-        (define ctx
-          (car
-           (prepare-points start-prog
-                          `(λ ,(program-variables start-prog)
-                              (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
-                          repr
-                          (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts))) (sampler) (*herbie-preprocess*) repr)))
-                          empty)))
-        (< (errors-score (errors prog1 ctx repr))
-           (errors-score (errors prog2 ctx repr)))))
-    (define pt (binary-search-floats pred v1 v2 repr))
+      (with-handlers ([exn:fail:user:herbie? (const 0)])
+        (parameterize ([*num-points* (*binary-search-test-points*)]
+                       [*timeline-disabled* true]
+                       [*var-reprs* (dict-set (*var-reprs*) var repr)])
+          (define ctx
+            (car
+            (prepare-points start-prog
+                            `(λ ,(program-variables start-prog)
+                                (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
+                            repr
+                            (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts))) (sampler) (*herbie-preprocess*) repr)))
+                            empty)))
+          (- (errors-score (errors prog1 ctx repr))
+             (errors-score (errors prog2 ctx repr))))))
+      (define pt (binary-search-floats pred v1 v2 repr))
     (timeline-push! 'bstep (value->json v1 repr) (value->json v2 repr) iters (value->json pt repr))
     pt)
 
