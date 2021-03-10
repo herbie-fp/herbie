@@ -2,11 +2,12 @@
 
 (require math/bigfloat math/flonum plot/no-gui)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
+         "../syntax/syntax.rkt" "../syntax/types.rkt" "../syntax/read.rkt"
+         "../alternative.rkt" "../interface.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
-(provide make-axis-plot make-points-plot make-cost-accuracy-plot)
+(provide make-axis-plot make-points-plot make-cost-accuracy-plot
+         make-full-cost-accuracy-plot)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
@@ -337,6 +338,9 @@
   (define xmin (argmax identity costs))
   (define errs (map errors-score (test-success-end-errors result)))
 
+  (define cost0 (test-success-start-cost result))
+  (define err0 (errors-score (test-success-start-error result)))
+
   (parameterize ([plot-width 800] [plot-height 300]
                  [plot-background-alpha 0]
                  [plot-font-size 10]
@@ -352,10 +356,40 @@
                          #:sym 'fullcircle
                          #:size 9
                          #:fill-color "red"))
-    (plot-file (list pnts (y-tick-lines))
+    (define spnt (points (list (vector cost0 err0))
+                         #:sym 'fullsquare
+                         #:color "black"
+                         #:size 15))
+    (plot-file (list spnt pnts (y-tick-lines))
                out 'png
                #:x-min 0 #:x-max (+ xmax xmin)
                #:y-min 0 #:y-max bits)))
+
+(define (make-full-cost-accuracy-plot y-max start pts out)
+  (match-define (list (cons costs scores) ...) pts)
+  (define x-max (argmax identity costs))
+  (parameterize ([plot-width 800] [plot-height 300]
+                 [plot-background-alpha 0]
+                 [plot-font-size 10]
+                 [plot-x-tick-label-anchor 'top]
+                 [plot-x-label "Cost"]
+                 [plot-x-far-axis? #t]
+                 [plot-x-far-ticks no-ticks]
+                 [plot-y-ticks (linear-ticks #:number 9)]
+                 [plot-y-far-axis? #t]
+                 [plot-y-axis? #t]
+                 [plot-y-label "Accuracy (bits)"])
+    (define spnt (points (list (vector (car start) (cdr start)))
+                         #:sym 'fullsquare
+                         #:color "black"
+                         #:size 15))
+    (define curve (lines (map vector (map car pts) (map cdr pts))
+                         #:color "red"
+                         #:width 4))
+    (plot-file (list spnt curve (y-tick-lines))
+               out 'png
+               #:x-min 0 #:x-max x-max
+               #:y-min 0 #:y-max y-max)))
 
 
 (define (make-alt-plots point-alt-idxs alt-idxs title out result)

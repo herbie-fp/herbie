@@ -106,7 +106,7 @@
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
   (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
   (call-with-output-file (build-path dir "results.html")
-    (curryr make-report-page info) #:exists 'replace)
+    (curryr make-report-page info dir) #:exists 'replace)
   (define timeline (merge-timeline-jsons (read-json-files info dir "timeline.json")))
   (call-with-output-file (build-path dir "timeline.json") (curry write-json timeline) #:exists 'replace)
   (define profile (merge-profile-jsons (read-json-files info dir "profile.json")))

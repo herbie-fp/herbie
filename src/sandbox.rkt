@@ -18,7 +18,7 @@
   (start-alt end-alts preprocess points exacts
    start-est-error end-est-error newpoints newexacts
    start-error end-errors target-error
-   baseline-error oracle-error end-costs all-alts))
+   baseline-error oracle-error start-cost end-costs all-alts))
 (struct test-failure test-result (exn))
 (struct test-timeout test-result ())
 
@@ -112,6 +112,7 @@
                           #f)
                       baseline-errs
                       oracle-errs
+                      (alt-cost (make-alt (test-program test)))
                       (map alt-cost alts)
                       (*all-alts*)))))
 
@@ -157,24 +158,30 @@
              (resugar-program (test-spec test) repr)
              (and (test-output test) (resugar-program (test-output test) repr))
              #f #f #f #f #f (test-result-time result)
-             (test-result-bits result) link))
+             (test-result-bits result) link '()))
 
 (define (get-table-data result link)
   (define test (test-result-test result))
-
   (cond
    [(test-success? result)
     (define name (test-name test))
-    (define start-errors  (test-success-start-error  result))
-    (define end-errorss   (test-success-end-errors   result))
+    (define start-errors  (test-success-start-error result))
+    (define end-errorss   (test-success-end-errors result))
     (define target-errors (test-success-target-error result))
-    (define output-prog (alt-program (car (test-success-end-alts result))))
+    (define start-prog    (alt-program (test-success-start-alt result)))
+    (define output-prog   (alt-program (car (test-success-end-alts result))))
+    (define costs         (test-success-end-costs result))
 
     (define start-score (errors-score start-errors))
-    (define end-score (errors-score (car end-errorss)))
+    (define end-scores (map errors-score end-errorss))
+    (define end-score (car end-scores))
     (define target-score (and target-errors (errors-score target-errors)))
     (define est-start-score (errors-score (test-success-start-est-error result)))
     (define est-end-score (errors-score (test-success-end-est-error result)))
+
+    (define cost&accuracy
+      (list (list (program-cost start-prog) start-score)
+            (map list costs end-scores)))
 
     (define status
       (if target-score
@@ -193,7 +200,8 @@
     (struct-copy table-row (dummy-table-row result status link)
                  [output (resugar-program output-prog (test-output-repr test))]
                  [start start-score] [result end-score] [target target-score]
-                 [start-est est-start-score] [result-est est-end-score])]
+                 [start-est est-start-score] [result-est est-end-score]
+                 [cost-accuracy cost&accuracy])]
    [(test-failure? result)
     (define status (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash"))
     (dummy-table-row result status link)]

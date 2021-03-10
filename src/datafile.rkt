@@ -11,7 +11,7 @@
 (struct table-row
   (name status pre preprocess precision vars input output spec
         target-prog start result target start-est result-est
-        time bits link) #:prefab)
+        time bits link cost-accuracy) #:prefab)
 
 (struct report-info
   (date commit branch hostname seed flags points iterations note tests) #:prefab #:mutable)
@@ -33,7 +33,7 @@
     (match test
       [(table-row name status pre preprocess prec vars input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
-                  time bits link)
+                  time bits link cost-accuracy)
        (make-hash
         `((name . ,name)
           (pre . ,(~s pre))
@@ -52,7 +52,8 @@
           (target-prog . ,(~s target-prog))
           (time . ,time)
           (bits . ,bits)
-          (link . ,(~a link))))]))
+          (link . ,(~a link))
+          (cost-accuracy . ,cost-accuracy)))]))
   
   (define data
     (match info
@@ -108,5 +109,5 @@
                                 (parse-string (hash-ref test 'target-prog "#f"))
                                 (get 'start) (get 'end) (get 'target)
                                 (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
-                                
-                                (get 'time) (get 'bits) (get 'link)))))))
+                                (get 'time) (get 'bits) (get 'link)
+                                (get 'cost-accuracy)))))))

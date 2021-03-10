@@ -34,7 +34,7 @@
       [(test-success test bits time timeline warnings
                      start-alt end-alts preprocess points exacts start-est-error end-est-error
                      newpoints newexacts start-error end-error target-error
-                     baseline-error oracle-error costs all-alts)
+                     baseline-error oracle-error start-cost costs all-alts)
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
                (~r (errors-score start-error) #:min-width 2 #:precision 0)
