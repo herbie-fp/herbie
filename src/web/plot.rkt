@@ -334,12 +334,13 @@
   (define repr (test-output-repr (test-result-test result)))
   (define bits (representation-total-bits repr))
   (define costs (test-success-end-costs result))
-  (define xmax (argmax identity costs))
-  (define xmin (argmax identity costs))
   (define errs (map errors-score (test-success-end-errors result)))
 
   (define cost0 (test-success-start-cost result))
   (define err0 (errors-score (test-success-start-error result)))
+
+  (define xmax (argmax identity (cons cost0 costs)))
+  (define xmin (argmax identity (cons cost0 costs)))
 
   (parameterize ([plot-width 800] [plot-height 300]
                  [plot-background-alpha 0]
@@ -365,9 +366,10 @@
                #:x-min 0 #:x-max (+ xmax xmin)
                #:y-min 0 #:y-max bits)))
 
+;;; Cost vs. Accuracy (internal, entire suite)
 (define (make-full-cost-accuracy-plot y-max start pts out)
   (match-define (list (cons costs scores) ...) pts)
-  (define x-max (argmax identity costs))
+  (define x-max (argmax identity (cons (car start) costs)))
   (parameterize ([plot-width 800] [plot-height 300]
                  [plot-background-alpha 0]
                  [plot-font-size 10]

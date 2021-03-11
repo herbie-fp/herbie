@@ -9,9 +9,9 @@
 
 
 (struct table-row
-  (name status pre preprocess precision vars input output spec
-        target-prog start result target start-est result-est
-        time bits link cost-accuracy) #:prefab)
+  (name status pre preprocess precision conversions vars
+        input output spec target-prog start result target
+        start-est result-est time bits link cost-accuracy) #:prefab)
 
 (struct report-info
   (date commit branch hostname seed flags points iterations note tests) #:prefab #:mutable)
@@ -31,19 +31,23 @@
 (define (write-datafile file info)
   (define (simplify-test test)
     (match test
-      [(table-row name status pre preprocess prec vars input output spec target-prog
+      [(table-row name status pre preprocess prec conversions vars
+                  input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
                   time bits link cost-accuracy)
        (define cost-accuracy*
-        (list (first cost-accuracy)
-              (second cost-accuracy)
-              (for/list ([entry (third cost-accuracy)])
-                (list (first entry) (second entry) (~s (third entry))))))
+         (if (null? cost-accuracy)
+             '()
+             (list (first cost-accuracy)
+                   (second cost-accuracy)
+                   (for/list ([entry (third cost-accuracy)])
+                    (list (first entry) (second entry) (~s (third entry)))))))
        (make-hash
         `((name . ,name)
           (pre . ,(~s pre))
           (preprocess . ,(~s (map preprocess->sexp preprocess)))
           (prec . ,(~s prec))
+          (conversions . ,(~a conversions))
           (status . ,status)
           (start . ,start-bits)
           (end . ,end-bits)
@@ -109,6 +113,7 @@
                                 (parse-string (hash-ref test 'pre "TRUE"))
                                 (map sexp->preprocess (parse-string (hash-ref test 'herbie-preprocess "()")))
                                 (string->symbol (hash-ref test 'prec "binary64"))
+                                (parse-string (get 'conversions))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (parse-string (hash-ref test 'spec "#f"))
                                 (parse-string (hash-ref test 'target-prog "#f"))

@@ -6,10 +6,15 @@
 
 (provide make-report-page)
 
+(define (try-list-accessor acc fail)
+  (λ (l) (if (null? l) fail (acc l))))
+
 (define (trs->pareto trs)
   (define cas (map table-row-cost-accuracy trs))
-  (define starts (map first cas))
-  (define ptss (map (λ (ca) (cons (second ca) (third ca))) cas))
+  (define starts (map (try-list-accessor first (list 0 0)) cas))
+  (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
+                                       (list (list 0 0)))
+                    cas))
   (define precs (map table-row-precision trs))
 
   (define start

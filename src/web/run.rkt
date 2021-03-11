@@ -22,7 +22,7 @@
         (table-row-preprocess row)
         (table-row-precision row)
         (map (curryr cons (table-row-precision row)) (table-row-vars row))
-        '()))
+        (table-row-conversions row)))
   
 (define (make-report bench-dirs #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
@@ -54,7 +54,8 @@
         ([(pt ex) (in-pcontext context)])
       (values pt ex)))
 
-  (for ([row (report-info-tests data)] [index (in-naturals)])
+  (for ([row (report-info-tests data)] [index (in-naturals)]
+        #:unless (set-member? '("error" "crash") (table-row-status row)))
     (set-seed! (report-info-seed data))
     (define orig-test (extract-test row))
     (define output-repr (get-representation (test-output-prec orig-test)))
