@@ -1,7 +1,7 @@
 #lang racket
 
-(require "../src/common.rkt" "../src/points.rkt" "../src/plugin.rkt")
-(require "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt")
+(require "../src/common.rkt" "../src/points.rkt" "../src/plugin.rkt"
+         "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt")
 
 ;; Load all the plugins
 (load-herbie-plugins)
@@ -76,5 +76,9 @@
     (when given-seed (set-seed! given-seed))]
    [("--precision") prec "Which precision to use for tests"
     (*precision* (string->symbol prec))]
+   [("--pareto") "Enables Pherbie"
+    (*pareto-mode* #t)
+    (*num-iterations* 2)   ; keep iters low
+    (*timeout* (* 1000 60 10))]
    #:args bench-dir
    (exit (if (apply run-tests bench-dir) 0 1))))
