@@ -166,7 +166,6 @@
         
         (for/list ([iterations all-iterations] [expr exprs])
                   ;; TODO make this only prove if prove? is true
-                  (println "running proof")
                   (define proof (if #t
                                     ((egg egraph-get-proof) egg-graph expr (last iterations))
                                     ""))
