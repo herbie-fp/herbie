@@ -194,7 +194,7 @@
 ; not all taylor transforms are valid in a given repr, return false on failure
 (define (taylor-expr expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
-  (with-handlers ([exn:fail? (const #f)]) 
+  (with-handlers ([exn:fail? (const #f)]) ; in case taylor fails
     (define genexpr (approximate expr* var #:transform (cons f finv)))
     (λ (x) (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
 
@@ -204,6 +204,20 @@
 (define (much-< x y)
   (< x (/ y 2)))
 
+;; Taylor is problematic since it doesn't know what reprs are
+;; There are two types of errors that occur due to this inconsistency
+;;  - reduce:
+;;      the internal simplifier will try to desugar an subexpression
+;;      with an operator/precision mismatch
+;;  - external:
+;;      Taylor is successful in generating an expression but
+;;      external desugaring fails because of an unsupported/mismatched
+;;      operator
+(define (taylor-fail-desugaring expr)
+  (debug #:from 'progress #:depth 5 "Series expansion (desugaring failure)")
+  (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
+  (const #f))
+
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
   (define repr (get-representation (repr-of expr (*output-repr*) (*var-reprs*))))
@@ -212,18 +226,25 @@
     (for* ([var vars] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define genexpr (taylor-expr expr repr var f finv))
-
-      #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
-      (let loop ([last (for/list ([(p e) (in-pcontext (*pcontext*))]) +inf.0)] [i 0])
-        (define expr* (location-do loc (alt-program altn) genexpr))
-        (when expr*
-          (define errs (errors expr* (*pcontext*) (*output-repr*)))
-          (define altn* (alt expr* `(taylor ,name ,loc) (list altn)))
-          (when (ormap much-< errs last)
-            #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
-            (sow altn*)
-            (when (< i 3)
-              (loop (map exact-min errs last) (+ i 1)))))))))
+      (cond
+       [genexpr  ; taylor successful
+        #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
+        (let loop ([last (for/list ([(p e) (in-pcontext (*pcontext*))]) +inf.0)] [i 0])
+          (define expr*
+            (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
+              (location-do loc (alt-program altn) genexpr)))
+          (when expr*
+            (define errs (errors expr* (*pcontext*) (*output-repr*)))
+            (define altn* (alt expr* `(taylor ,name ,loc) (list altn)))
+            (when (ormap much-< errs last)
+              #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
+              (sow altn*)
+              (when (< i 3)
+                (loop (map exact-min errs last) (+ i 1))))))]
+       [else  ; taylor failed
+        (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
+        (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
+        (sow altn)]))))
 
 (define (gen-series!)
   (unless (^locs^)

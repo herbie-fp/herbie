@@ -98,4 +98,4 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: raco pkg install --name herbie --no-cache --auto src/
-      - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 --pherbie bench/hamming/
+      - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 --pareto bench/hamming/
