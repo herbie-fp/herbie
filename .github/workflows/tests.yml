@@ -83,10 +83,11 @@ jobs:
   pherbie-hamming:
     name: "Integration tests (Pherbie, Hamming)"
     runs-on: ubuntu-latest
+    needs: [ 'hamming' ]
     strategy:
       matrix: # this takes a while: don't run too many
         racket-version: [ '7.7' ]
-        precision: [ 'binary32' 'binary64' ]
+        precision: [ 'binary32', 'binary64' ]
     steps:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
