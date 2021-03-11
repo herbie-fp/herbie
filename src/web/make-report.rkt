@@ -9,7 +9,7 @@
 (define (trs->pareto trs)
   (define cas (map table-row-cost-accuracy trs))
   (define starts (map first cas))
-  (define ptss (map second cas))
+  (define ptss (map (λ (ca) (cons (second ca) (third ca))) cas))
   (define precs (map table-row-precision trs))
 
   (define start

@@ -169,7 +169,7 @@
     (define end-errorss   (test-success-end-errors result))
     (define target-errors (test-success-target-error result))
     (define start-prog    (alt-program (test-success-start-alt result)))
-    (define output-prog   (alt-program (car (test-success-end-alts result))))
+    (define end-progs     (map alt-program (test-success-end-alts result)))
     (define costs         (test-success-end-costs result))
 
     (define start-score (errors-score start-errors))
@@ -178,10 +178,12 @@
     (define target-score (and target-errors (errors-score target-errors)))
     (define est-start-score (errors-score (test-success-start-est-error result)))
     (define est-end-score (errors-score (test-success-end-est-error result)))
+    (define end-exprs (map (λ (p) (program-body (resugar-program p (test-output-repr test)))) end-progs))
 
     (define cost&accuracy
       (list (list (program-cost start-prog) start-score)
-            (map list costs end-scores)))
+            (list (car costs) (car end-scores))
+            (map list (cdr costs) (cdr end-scores) (cdr end-exprs))))
 
     (define status
       (if target-score
@@ -198,7 +200,7 @@
            [else "uni-start"])))
 
     (struct-copy table-row (dummy-table-row result status link)
-                 [output (resugar-program output-prog (test-output-repr test))]
+                 [output (car end-exprs)]
                  [start start-score] [result end-score] [target target-score]
                  [start-est est-start-score] [result-est est-end-score]
                  [cost-accuracy cost&accuracy])]

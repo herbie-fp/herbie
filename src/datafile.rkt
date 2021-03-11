@@ -34,6 +34,11 @@
       [(table-row name status pre preprocess prec vars input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
                   time bits link cost-accuracy)
+       (define cost-accuracy*
+        (list (first cost-accuracy)
+              (second cost-accuracy)
+              (for/list ([entry (third cost-accuracy)])
+                (list (first entry) (second entry) (~s (third entry))))))
        (make-hash
         `((name . ,name)
           (pre . ,(~s pre))
@@ -53,7 +58,7 @@
           (time . ,time)
           (bits . ,bits)
           (link . ,(~a link))
-          (cost-accuracy . ,cost-accuracy)))]))
+          (cost-accuracy . ,cost-accuracy*)))]))
   
   (define data
     (match info
