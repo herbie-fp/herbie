@@ -193,15 +193,17 @@ impl Analysis<Math> for ConstantFold {
         }
     }
 
-    fn modify(egraph: &mut EGraph, id: Id) {
-        let class = &mut egraph[id];
+    fn modify(egraph: &mut EGraph, class_id: Id) {
+        let class = &mut egraph[class_id];
         if let Some((c, node)) = class.data.clone() {
             let added = egraph.add(Math::Constant(c.clone()));
-            let (id, did_something) = egraph.union(id, added);
+            let (id, did_something) = egraph.union(class_id, added);
             if did_something {
                 let mut const_pattern: PatternAst<Math> = Default::default();
                 const_pattern.add(ENodeOrVar::ENode(Math::Constant(c)));
                 egraph.add_union_proof(
+                    class_id,
+                    added,
                     node,
                     const_pattern,
                     Default::default(),

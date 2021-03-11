@@ -5,6 +5,7 @@ help:
 	@echo "Then type 'racket src/herbie.rkt web' to run it."
 
 install:
+	cd ./egg-herbie && cargo update
 	cargo build --release --manifest-path=egg-herbie/Cargo.toml
 	raco pkg remove --force egg-herbie && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force egg-herbie-linux && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :

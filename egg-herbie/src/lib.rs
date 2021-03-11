@@ -259,7 +259,6 @@ pub unsafe extern "C" fn egraph_get_proof(
     expr: *const c_char,
     goal: *const c_char) -> *const c_char {
     ffirun(|| {
-        println!("function call");
         let ctx = &mut *ptr;
 
         assert_eq!(ctx.iteration, 0);
@@ -282,8 +281,6 @@ pub unsafe extern "C" fn egraph_get_proof(
             .runner
             .take()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
-
-        println!("Prove {} to {}", expr_rec.pretty(100), goal_rec.pretty(100));
 
         let rule_slice = &ctx.rules.iter().collect::<Vec<&Rewrite>>()[..];
         let proof = runner.produce_proof(rule_slice, &expr_rec, &goal_rec);
