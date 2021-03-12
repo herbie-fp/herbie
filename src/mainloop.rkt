@@ -514,7 +514,6 @@
 (define (extract!)
   (define repr (*output-repr*))
   (define all-alts (atab-all-alts (^table^)))
-  (*all-alts* (atab-active-alts (^table^)))
 
   ; Constant alts
   (define const-alts
@@ -522,7 +521,9 @@
       (list (make-alt `(λ ,(program-variables prog) 1))
             (make-alt `(λ ,(program-variables prog) 0))
             (make-alt `(λ ,(program-variables prog) -1)))))
+
   (define all-alts* (append all-alts const-alts))
+  (*all-alts* (append const-alts (atab-active-alts (^table^))))
 
   (define joined-alts
     (cond
