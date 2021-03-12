@@ -7,13 +7,16 @@
 (load-herbie-plugins)
 
 (define *precision* (make-parameter #f))
+(define *ignore-target* (make-parameter #f))
 
 (define (test-successful? test input-bits target-bits output-bits)
-  (match* ((test-output test) (test-expected test))
-    [(_ #f) #t]
-    [(_ (? number? n)) (>= n output-bits)]
-    [(#f #t) (>= input-bits output-bits)]
-    [(_ #t) (>= target-bits (- output-bits 1))]))
+  (if (*ignore-target*)
+      #t
+      (match* ((test-output test) (test-expected test))
+       [(_ #f) #t]
+       [(_ (? number? n)) (>= n output-bits)]
+       [(#f #t) (>= input-bits output-bits)]
+       [(_ #t) (>= target-bits (- output-bits 1))])))
 
 (define (run-tests . bench-dirs)
   (define override-ctx (if (*precision*) `((:precision . ,(*precision*))) '())) ; desugar programs correctly
@@ -78,6 +81,7 @@
     (*precision* (string->symbol prec))]
    [("--pareto") "Enables Pherbie"
     (*pareto-mode* #t)
+    (*ignore-target* #t)
     (*num-iterations* 2)   ; keep iters low
     (*timeout* (* 1000 60 10))]
    #:args bench-dir

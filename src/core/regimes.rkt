@@ -178,7 +178,8 @@
   (let ([midpoint (midpoint p1 p2 repr)])
     (cond
      ; Avoid sampling on [+max, nan] at all costs
-     [(nan? midpoint) p1]
+     ; [(nan? midpoint) p1]
+     ; (this is handled by catching all sampling errors)
      [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
 	   [else
       (define cmp (pred midpoint))
