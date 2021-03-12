@@ -91,7 +91,6 @@
   (*pcontext* (car contexts))
   (*pcontext-unprocessed* (cdr contexts))
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-  (*current-atab-iface* (if (*pareto-mode*) pareto-atab-iface std-atab-iface))
   (define alt (make-alt prog))
   (^table^ (make-alt-table (*pcontext*) alt (*output-repr*)))
 
