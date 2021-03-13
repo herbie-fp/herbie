@@ -178,12 +178,15 @@
   (let ([midpoint (midpoint p1 p2 repr)])
     (cond
      ; Avoid sampling on [+max, nan] at all costs
+     ; (only works for floats, problematic since p1 and p2 are repr values)
+     ; (this is handled by catching all sampling errors, so we can comment this out)
      ; [(nan? midpoint) p1]
-     ; (this is handled by catching all sampling errors)
      [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
 	   [else
+      ; cmp usually equals 0 if sampling failed
+      ; if so, give up and return the current midpoint
       (define cmp (pred midpoint))
-      (cond ; cmp usually equals 0 if sampling failed
+      (cond
        [(negative? cmp) (binary-search-floats pred midpoint p2 repr)]
        [(positive? cmp) (binary-search-floats pred p1 midpoint repr)]
        [else midpoint])])))
@@ -215,18 +218,19 @@
     (define iters 0)
     (define (pred v)
       (set! iters (+ 1 iters))
-      (with-handlers ([exn:fail:user:herbie? (const 0)])
+      (with-handlers ([exn:fail:user:herbie? (const 0)]) ; couldn't sample points
         (parameterize ([*num-points* (*binary-search-test-points*)]
                        [*timeline-disabled* true]
                        [*var-reprs* (dict-set (*var-reprs*) var repr)])
           (define ctx
             (car
-            (prepare-points start-prog
-                            `(λ ,(program-variables start-prog)
-                                (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
-                            repr
-                            (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts))) (sampler) (*herbie-preprocess*) repr)))
-                            empty)))
+             (prepare-points start-prog
+                             `(λ ,(program-variables start-prog)
+                                  (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
+                             repr
+                             (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
+                                                             (sampler) (*herbie-preprocess*) repr)))
+                             empty)))
           (- (errors-score (errors prog1 ctx repr))
              (errors-score (errors prog2 ctx repr))))))
       (define pt (binary-search-floats pred v1 v2 repr))

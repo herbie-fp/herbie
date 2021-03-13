@@ -213,9 +213,10 @@
 ;;      external desugaring fails because of an unsupported/mismatched
 ;;      operator
 (define (taylor-fail-desugaring expr)
-  (debug #:from 'progress #:depth 5 "Series expansion (desugaring failure)")
-  (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
-  (const #f))
+  (λ _
+    (debug #:from 'progress #:depth 5 "Series expansion (desugaring failure)")
+    (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
+    #f))
 
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))

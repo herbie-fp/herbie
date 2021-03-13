@@ -31,8 +31,21 @@
 
 (define in-atab-pcontext (compose in-pcontext atab-context))
 
+(define (backup-alt-cost altn)
+  (let loop ([prog (program-body (alt-program altn))])
+    (match prog
+     [(list elems ...) (apply + (map loop elems))]
+     [_ 1])))
+
+; In normal mode, cost is not considered so we return a constant
+; The alt table becomes "degenerate"
+(define (alt-cost* altn)
+  (if (*pareto-mode*)
+      (alt-cost altn)
+      1))
+
 (define (make-alt-table context initial-alt repr)
-  (define cost (alt-cost initial-alt))
+  (define cost (alt-cost* initial-alt))
   (alt-table (make-immutable-hash
                (for/list ([(pt ex) (in-pcontext context)]
                           [err (errors (alt-program initial-alt) context repr)])
@@ -165,7 +178,9 @@
   (define (worst atab altns)
     (let* ([alts->pnts (curry hash-ref (alt-table-alt->points atab))]
            [alts->done? (curry hash-ref (alt-table-alt->done? atab))]
-           [alt->cost (curry hash-ref (alt-table-alt->cost atab))]
+           [alt->cost (if (*pareto-mode*)
+                          (curry hash-ref (alt-table-alt->cost atab))
+                          backup-alt-cost)]
       ; There must always be a not-done tied alt,
       ; since before adding any alts there weren't any tied alts
            [undone-altns (filter (compose not alts->done?) altns)])
@@ -213,21 +228,28 @@
   (for/fold ([atab atab]) ([altn (in-list altns*)] [errs (in-vector errss)])
     (atab-add-altn atab altn errs repr)))
 
+(define (worse-than? point->alts altn cost tied-pnts tied-errs)
+  (cond
+   [(*pareto-mode*)
+    (for/and ([pt tied-pnts] [err tied-errs])
+      (let* ([cost-table (hash-ref point->alts pt)]
+             [maxcost (argmax identity (hash-keys cost-table))]
+             [maxerr (cost-rec-berr (hash-ref cost-table maxcost))])
+        (and (>= cost maxcost) (>= err maxerr))))]
+   [else
+    (for/and ([pt tied-pnts] [err tied-errs])
+      (let* ([cost-table (hash-ref point->alts pt)]
+             [altns (cost-rec-altns (hash-ref cost-table 1))]
+             [maxcost (argmax identity (map backup-alt-cost altns))])
+        (>= (backup-alt-cost altn) maxcost)))]))
+
 (define (atab-add-altn atab altn errs repr)
-  ; In normal mode, cost is not considered so we return a constant;
-  ; the alt table becomes "degenerate"
-  (define cost (if (*pareto-mode*) (alt-cost altn) 1))
+  (define cost (if (*pareto-mode*) (alt-cost* altn) 1))
   (match-define (alt-table point->alts alt->points alt->done? alt->cost _ all-alts) atab)
   (define-values (best-pnts tied-pnts tied-errs) (best-and-tied-at-points atab altn cost errs))
   (cond
-   [(and (null? best-pnts)
-         (or
-           (ormap (curry alt-equal? altn) (hash-keys alt->points))
-           (for/and ([pt tied-pnts] [err tied-errs])
-             (let* ([cost-table (hash-ref point->alts pt)]
-                    [maxcost (argmax identity (hash-keys cost-table))]
-                    [maxerr (cost-rec-berr (hash-ref cost-table maxcost))])
-               (and (>= cost maxcost) (>= err maxerr))))))
+   [(or (set-member? (hash-keys alt->points) altn)  ; bail early if already in table
+        (and (null? best-pnts) (worse-than? point->alts altn cost tied-pnts tied-errs)))
     atab]
    [else
     (define alts->pnts*1 (remove-chnged-pnts point->alts alt->points alt->cost best-pnts cost))
@@ -291,7 +313,7 @@
   (hash-for-each (alt-table-alt->points atab)
                  (λ (k v)
                     (let ([cnt (for/list ([pt v])
-                                 (let ([cost (alt-cost k)]
+                                 (let ([cost (alt-cost* k)]
                                        [cost-hash (hash-ref (alt-table-point->alts atab) pt)])
                                    (length (cost-rec-altns (hash-ref cost-hash cost)))))])
                       (when (not (= (apply min cnt) 1))
