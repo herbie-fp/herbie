@@ -82,23 +82,28 @@
 ;; in 'preds', and only contains points which satisfy that pred.
 (define (split-atab atab preds)
   (for/list ([pred preds])
-    (let* ([point->alts (make-immutable-hash (for/list ([(pt ex) (in-atab-pcontext atab)]
-              #:when (pred pt))
-                 (cons pt (hash-ref (alt-table-point->alts atab) pt))))]
-     [alt->points (make-immutable-hash (filter (compose (negate null?) cdr)
-                 (for/list ([(alt points)
-                 (in-hash (alt-table-alt->points atab))])
-                   (cons alt (filter pred points)))))]
-     [alt->done? (make-immutable-hash (for/list ([alt (in-hash-keys alt->points)])
-                (cons alt (hash-ref (alt-table-alt->done? atab) alt))))]
-     [context (call-with-values
-      (λ () (for/lists (pts exs)
-          ([(pt ex) (in-atab-pcontext atab)]
-           #:when (pred pt))
-        (values pt ex)))
-          mk-pcontext)])
-      (minimize-alts (alt-table point->alts alt->points alt->done?
-                                context (alt-table-all atab))))))
+    (define-values (pts exs)
+      (for/lists (pts exs)
+        ([(pt ex) (in-atab-pcontext atab)] #:when (pred pt))
+          (values pt ex)))
+    (define point->alts
+      (for/hash ([pt pts])
+        (values pt (hash-ref (alt-table-point->alts atab) pt))))
+    (define alt->points
+      (make-immutable-hash
+        (filter-not (compose null? cdr)
+          (for/list ([(alt pnts) (in-hash (alt-table-alt->points atab))])
+            (cons alt (filter (curry set-member? pts) pnts))))))
+    (define alt->done?
+      (for/hash ([alt (in-hash-keys alt->points)])
+        (values alt (hash-ref (alt-table-alt->done? atab) alt))))
+    (define alt->cost
+      (for/hash ([alt (in-hash-keys alt->points)])
+        (values alt (hash-ref (alt-table-alt->cost atab) alt))))
+    (define context (mk-pcontext pts exs))
+    (minimize-alts
+      (alt-table point->alts alt->points alt->done? alt->cost
+                 context (alt-table-all atab)))))
 
 ;; Helper Functions
 
