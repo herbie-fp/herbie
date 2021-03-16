@@ -191,25 +191,26 @@
   [nonffi /])
  
 ;; binary32 4-function ;;
-(define-operator (+ +.f32 binary32 binary32) binary32 
-  [fl +] [bf bf+] [ival ival-add]
-  [nonffi +])
+(when (single-flonum-available?)
+  (define-operator (+ +.f32 binary32 binary32) binary32 
+    [fl +] [bf bf+] [ival ival-add]
+    [nonffi +])
 
-(define-operator (- -.f32 binary32 binary32) binary32
-  [fl -] [bf bf-] [ival ival-sub]
-  [nonffi -])
+  (define-operator (- -.f32 binary32 binary32) binary32
+    [fl -] [bf bf-] [ival ival-sub]
+    [nonffi -])
 
-(define-operator (- neg.f32 binary32) binary32
-  [fl -] [bf bf-] [ival ival-neg]
-  [nonffi -])
+  (define-operator (- neg.f32 binary32) binary32
+    [fl -] [bf bf-] [ival ival-neg]
+    [nonffi -])
 
-(define-operator (* *.f32 binary32 binary32) binary32
-  [fl *] [bf bf*] [ival ival-mult]
-  [nonffi *])
+  (define-operator (* *.f32 binary32 binary32) binary32
+    [fl *] [bf bf*] [ival ival-mult]
+    [nonffi *])
 
-(define-operator (/ /.f32 binary32 binary32) binary32
-  [fl /] [bf bf/] [ival ival-div]
-  [nonffi /])
+  (define-operator (/ /.f32 binary32 binary32) binary32
+    [fl /] [bf bf/] [ival ival-div]
+    [nonffi /]))
 
 (define *unknown-ops* (make-parameter '()))
 
