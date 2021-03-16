@@ -1,7 +1,7 @@
 #lang racket
 
-(require "../src/common.rkt" "../src/points.rkt" "../src/plugin.rkt")
-(require "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt")
+(require "../src/common.rkt" "../src/interface.rkt" "../src/points.rkt" "../src/plugin.rkt"
+         "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt")
 
 ;; Load all the plugins
 (load-herbie-plugins)
@@ -76,4 +76,6 @@
    [("--precision") prec "Which precision to use for tests"
     (*precision* (string->symbol prec))]
    #:args bench-dir
-   (exit (if (apply run-tests bench-dir) 0 1))))
+   (if (representation-name? (*precision*))
+       (exit (if (apply run-tests bench-dir) 0 1))
+       (printf "Unknown precision: ~a. Ignoring test.\n" (*precision*)))))

@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "syntax/types.rkt")
+(require "syntax/types.rkt" "errors.rkt")
 
 (provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
@@ -51,7 +51,8 @@
   (if (or (hash-has-key? representations name) ; check existing
           (generate-repr name)) ; ask plugins to try generating this repr
     (hash-ref representations name)
-    (error 'get-representation "Unknown representation ~a" name))) ; else fail
+    (raise-herbie-error "Could not find builtin or plugin support for ~a representation"
+                        name))) ; else fail
 
 (define (register-representation! name type repr? . args)
   (hash-set! representations name
@@ -120,13 +121,16 @@
                (if (bf< x2 x) (single-flonum-step y 1) y)
                (if (bf> x2 x) (single-flonum-step y -1) y))]))
 
-(define-representation (binary32 real single-flonum?)
-  bigfloat->single-flonum
-  bf
-  ordinal->single-flonum
-  single-flonum->ordinal
-  32
-  (disjoin nan? infinite?))
+; Only load native float representation if its available
+; (requires Racket 7.9 or earlier and 32-bit floats)
+(when (single-flonum-available?)
+  (register-representation! 'binary32 'real single-flonum?
+    bigfloat->single-flonum
+    bf
+    ordinal->single-flonum
+    single-flonum->ordinal
+    32
+    (disjoin nan? infinite?)))
 
 ;; repr <==> real
 
