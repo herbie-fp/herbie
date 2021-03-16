@@ -7,4 +7,7 @@ float sub_f32(float, float);
 float mul_f32(float, float);
 float div_f32(float, float);
 
+int f32_to_ordinal(float);
+float ordinal_to_f32(int);
+
 #endif

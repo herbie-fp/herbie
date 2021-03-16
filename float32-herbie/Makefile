@@ -6,7 +6,7 @@ float32-arith.so: build/float.o
 
 build/float.o:
 	mkdir -p build/
-	gcc -c -Wall -Werror -fpic -o build/float32.o src/float32.c
+	gcc -c -O3 -Wall -Werror -fpic -o build/float32.o src/float32.c
 
 clean:
 	rm -r build/

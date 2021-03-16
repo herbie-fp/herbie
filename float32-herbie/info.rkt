@@ -6,7 +6,7 @@
 (define version "1.0")
 (define pkg-authors '("Brett Saiki"))
 
-(define deps '("generic-flonum"))
+(define deps '("math" "rival" "herbie"))
 (define pre-install-collection "install.rkt")
 (define compile-omit-files '("install.rkt"))
 (define move-foreign-libs '("float32-arith.so"))
