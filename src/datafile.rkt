@@ -113,7 +113,7 @@
                                 (parse-string (hash-ref test 'pre "TRUE"))
                                 (map sexp->preprocess (parse-string (hash-ref test 'herbie-preprocess "()")))
                                 (string->symbol (hash-ref test 'prec "binary64"))
-                                (parse-string (hash-ref test 'conversions '()))
+                                (parse-string (hash-ref test 'conversions "()"))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (parse-string (hash-ref test 'spec "#f"))
                                 (parse-string (hash-ref test 'target-prog "#f"))
