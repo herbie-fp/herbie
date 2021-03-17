@@ -120,4 +120,4 @@
                                 (get 'start) (get 'end) (get 'target)
                                 (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
                                 (get 'time) (get 'bits) (get 'link)
-                                (get 'cost-accuracy)))))))
+                                (parse-string (hash-ref test 'cost-accuracy "()"))))))))
