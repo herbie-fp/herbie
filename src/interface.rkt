@@ -90,7 +90,7 @@
   64
   (disjoin nan? infinite?))
 
-(define-representation (binary32 real flonum?)
+(define-representation (binary32 real float32?)
   bigfloat->float32
   bf
   (shift 31 ordinal->float32)

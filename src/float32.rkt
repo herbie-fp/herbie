@@ -1,21 +1,14 @@
 #lang racket
 
-(require racket/flonum math/bigfloat)
+(require math/bigfloat)
 
 ; Racket CS made single-flonums a little confusing
 ; All single-precision code is here for clarity
 
-(provide 
-  (contract-out
-   [single-flonum-supported?  (-> boolean?)]
-   [->float32                 (-> real? flonum?)]
-   [float32->ordinal          (-> flonum? exact-integer?)]
-   [ordinal->float32          (-> exact-integer? flonum?)]
-   [bigfloat->float32         (-> bigfloat? flonum?)]
-   [fl32+                     (-> real? ... flonum?)]
-   [fl32-                     (-> real? real? ... flonum?)]
-   [fl32*                     (-> real? ... flonum?)]
-   [fl32/                     (-> real? real? ... flonum?)]))
+(provide single-flonum-available? float32?
+         float32->ordinal ordinal->float32
+         bigfloat->float32 ->float32
+         fl32+ fl32- fl32* fl32/)
 
 (define (at-least-racket-8?)
   (>= (string->number (substring (version) 0 1)) 8))
@@ -25,10 +18,25 @@
 (define (single-flonum-supported?)
   (or (single-flonum-available?) (at-least-racket-8?)))
 
+; Contracts are problematic (BC, < 8.0): values not
+; necessarily single flonums. Bug in Herbie?
+(define float32?
+  (if (single-flonum-available?)
+      single-flonum?
+      flonum?))
+
+; Need a placeholder for < 8.0
+(define cast-single
+  (cond
+   [(at-least-racket-8?)
+    (local-require racket/flonum)
+    flsingle]
+   [else identity]))
+
 (define (->float32 x)
   (if (single-flonum-available?)
       (real->single-flonum x)
-      (flsingle (exact->inexact x))))
+      (cast-single (exact->inexact x))))
 
 (define (float32->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f))
@@ -64,7 +72,7 @@
 ;               (if (bf> x2 x) (flaot32-step y -1) y))]))
 
 (define-syntax-rule (float32-fun name op)
-  (define name (if (single-flonum-available?) op (compose ->float32 op))))
+  (define name (compose ->float32 op)))
 
 (define-syntax-rule (float32-funs [name op] ...)
   (begin (float32-fun name op) ...))
