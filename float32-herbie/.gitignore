@@ -1,7 +1,0 @@
-# C binary
-*.o
-*.so
-
-# Racket binary
-*.zo
-*.dep

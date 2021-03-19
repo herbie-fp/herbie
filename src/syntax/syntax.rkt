@@ -1,7 +1,7 @@
 #lang racket
 
-(require math/flonum math/base math/bigfloat math/special-functions)
-(require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt" rival)
+(require math/flonum math/base math/bigfloat math/special-functions rival)
+(require "../common.rkt" "../interface.rkt" "../errors.rkt" "../float32.rkt" "types.rkt")
 
 (provide constant? variable? operator? operator-info constant-info get-operator-itype
          get-parametric-operator parametric-operators parametric-operators-reverse
@@ -191,26 +191,25 @@
   [nonffi /])
  
 ;; binary32 4-function ;;
-(when (single-flonum-available?)
-  (define-operator (+ +.f32 binary32 binary32) binary32 
-    [fl +] [bf bf+] [ival ival-add]
-    [nonffi +])
+(define-operator (+ +.f32 binary32 binary32) binary32 
+  [fl fl32+] [bf bf+] [ival ival-add]
+  [nonffi fl32+])
 
-  (define-operator (- -.f32 binary32 binary32) binary32
-    [fl -] [bf bf-] [ival ival-sub]
-    [nonffi -])
+(define-operator (- -.f32 binary32 binary32) binary32
+  [fl fl32-] [bf bf-] [ival ival-sub]
+  [nonffi fl32-])
 
-  (define-operator (- neg.f32 binary32) binary32
-    [fl -] [bf bf-] [ival ival-neg]
-    [nonffi -])
+(define-operator (- neg.f32 binary32) binary32
+  [fl fl32-] [bf bf-] [ival ival-neg]
+  [nonffi fl32-])
 
-  (define-operator (* *.f32 binary32 binary32) binary32
-    [fl *] [bf bf*] [ival ival-mult]
-    [nonffi *])
+(define-operator (* *.f32 binary32 binary32) binary32
+  [fl fl32*] [bf bf*] [ival ival-mult]
+  [nonffi fl32*])
 
-  (define-operator (/ /.f32 binary32 binary32) binary32
-    [fl /] [bf bf/] [ival ival-div]
-    [nonffi /]))
+(define-operator (/ /.f32 binary32 binary32) binary32
+  [fl fl32/] [bf bf/] [ival ival-div]
+  [nonffi fl32/])
 
 (define *unknown-ops* (make-parameter '()))
 
@@ -570,12 +569,12 @@
   [nonffi identity])
 
 (define-operator (binary64->binary32 binary64->binary32 binary64) binary32
-  [fl (curryr real->single-flonum)] [bf identity] [ival #f]
-  [nonffi (curryr real->single-flonum)])
+  [fl (curryr ->float32)] [bf identity] [ival #f]
+  [nonffi (curryr ->float32)])
 
 (define-operator (binary32->binary64 binary32->binary64 binary32) binary64
-  [fl (curryr real->double-flonum)] [bf identity] [ival #f]
-  [nonffi (curryr real->double-flonum)])
+  [fl identity] [bf identity] [ival #f]
+  [nonffi identity])
 
 ;; Expression predicates ;;
 

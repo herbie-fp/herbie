@@ -1,0 +1,83 @@
+#lang racket
+
+(require racket/flonum math/bigfloat)
+
+; Racket CS made single-flonums a little confusing
+; All single-precision code is here for clarity
+
+(provide 
+  (contract-out
+   [single-flonum-supported?  (-> boolean?)]
+   [->float32                 (-> real? flonum?)]
+   [float32->ordinal          (-> flonum? exact-integer?)]
+   [ordinal->float32          (-> exact-integer? flonum?)]
+   [bigfloat->float32         (-> bigfloat? flonum?)]
+   [fl32+                     (-> real? ... flonum?)]
+   [fl32-                     (-> real? real? ... flonum?)]
+   [fl32*                     (-> real? ... flonum?)]
+   [fl32/                     (-> real? real? ... flonum?)]))
+
+(define (at-least-racket-8?)
+  (>= (string->number (substring (version) 0 1)) 8))
+
+; Returns true if single flonum is available directly (BC)
+; or through emulation (CS, >= 8.0)
+(define (single-flonum-supported?)
+  (or (single-flonum-available?) (at-least-racket-8?)))
+
+(define (->float32 x)
+  (if (single-flonum-available?)
+      (real->single-flonum x)
+      (flsingle (exact->inexact x))))
+
+(define (float32->bit-field x)
+  (integer-bytes->integer (real->floating-point-bytes x 4) #f))
+
+(define (float32->ordinal x)
+  (if (negative? x)
+      (- (float32->bit-field (- 0.0f0 x)))
+      (float32->bit-field (abs x))))
+
+(define (bit-field->float32 x)
+  (->float32 (floating-point-bytes->real (integer->integer-bytes x 4 #f) #f)))
+
+(define (ordinal->float32 x)
+  (if (negative? x)
+      (- (bit-field->float32 (- x)))
+      (bit-field->float32 x)))
+
+(define (float32-step x n)
+  (ordinal->float32 (+ (float32->ordinal x) n)))
+
+(define (bigfloat->float32 x)
+  (define loprec (parameterize ([bf-precision 24]) (bf+ 0.bf x)))
+  (->float32 (bigfloat->flonum loprec)))
+
+; Assuming nearest anyway
+;  (define x2 (bf y))
+;  (match (bf-rounding-mode)
+;    ['nearest y]
+;    ['up   (if (bf< x2 x) (float32-step y 1) y)]
+;    ['down (if (bf> x2 x) (float32-step y -1) y)]
+;    ['zero (if (bf< x 0.bf)
+;               (if (bf< x2 x) (float32-step y 1) y)
+;               (if (bf> x2 x) (flaot32-step y -1) y))]))
+
+(define-syntax-rule (float32-fun name op)
+  (define name (if (single-flonum-available?) op (compose ->float32 op))))
+
+(define-syntax-rule (float32-funs [name op] ...)
+  (begin (float32-fun name op) ...))
+
+(float32-funs
+  [fl32+  +]
+  [fl32-  -]
+  [fl32*  *]
+  [fl32/  /])
+    
+(module+ test
+  (require rackunit)
+  (check-equal? (fl32+ 1.0 2.0) 3.0)
+  (check-equal? (fl32- 1.0 2.0) -1.0)
+  (check-equal? (fl32* 1.0 2.0) 2.0)
+  (check-equal? (fl32/ 1.0 2.0) 0.5))
