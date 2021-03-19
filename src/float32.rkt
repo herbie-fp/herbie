@@ -27,11 +27,9 @@
 
 ; Need a placeholder for < 8.0
 (define cast-single
-  (cond
-   [(at-least-racket-8?)
+  (let ([flsingle identity])
     (local-require racket/flonum)
-    flsingle]
-   [else identity]))
+    flsingle))
 
 (define (->float32 x)
   (if (single-flonum-available?)
