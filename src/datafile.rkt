@@ -62,7 +62,7 @@
           (time . ,time)
           (bits . ,bits)
           (link . ,(~a link))
-          (cost-accuracy . ,cost-accuracy*)))]))
+          (cost-accuracy . ,(~a cost-accuracy*))))]))
   
   (define data
     (match info
