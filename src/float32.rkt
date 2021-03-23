@@ -41,7 +41,7 @@
 
 (define (float32->ordinal x)
   (if (negative? x)
-      (- (float32->bit-field (- 0.0f0 x)))
+      (- (float32->bit-field (- x)))
       (float32->bit-field (abs x))))
 
 (define (bit-field->float32 x)
@@ -57,17 +57,15 @@
 
 (define (bigfloat->float32 x)
   (define loprec (parameterize ([bf-precision 24]) (bf+ 0.bf x)))
-  (->float32 (bigfloat->flonum loprec)))
-
-; Assuming nearest anyway
-;  (define x2 (bf y))
-;  (match (bf-rounding-mode)
-;    ['nearest y]
-;    ['up   (if (bf< x2 x) (float32-step y 1) y)]
-;    ['down (if (bf> x2 x) (float32-step y -1) y)]
-;    ['zero (if (bf< x 0.bf)
-;               (if (bf< x2 x) (float32-step y 1) y)
-;               (if (bf> x2 x) (flaot32-step y -1) y))]))
+  (define y (->float32 (bigfloat->flonum loprec)))
+  (define x2 (bf y))
+  (match (bf-rounding-mode)
+   ['nearest y]
+   ['up     (if (bf< x2 x) (float32-step y 1) y)]
+   ['down   (if (bf> x2 x) (float32-step y -1) y)]
+   ['zero   (if (bf< x 0.bf)
+                (if (bf< x2 x) (float32-step y 1) y)
+                (if (bf> x2 x) (float32-step y -1) y))]))
 
 (define-syntax-rule (float32-fun name op)
   (define name (compose ->float32 op)))
