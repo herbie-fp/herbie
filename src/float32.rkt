@@ -3,7 +3,7 @@
 (require math/bigfloat)
 
 ; Racket CS made single-flonums a little confusing
-; All single-precision code is here for clarity
+; All single-precision code is here to make things easier
 
 (provide single-flonum-available? float32?
          float32->ordinal ordinal->float32
@@ -83,7 +83,7 @@
     
 (module+ test
   (require rackunit)
-  (check-equal? (fl32+ 1.0 2.0) 3.0)
-  (check-equal? (fl32- 1.0 2.0) -1.0)
-  (check-equal? (fl32* 1.0 2.0) 2.0)
-  (check-equal? (fl32/ 1.0 2.0) 0.5))
+  (check-equal? (fl32+ 1.0 2.0) (->float32 3.0))
+  (check-equal? (fl32- 1.0 2.0) (->float32 -1.0))
+  (check-equal? (fl32* 1.0 2.0) (->float32 2.0))
+  (check-equal? (fl32/ 1.0 2.0) (->float32 0.5)))
