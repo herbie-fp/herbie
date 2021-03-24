@@ -76,9 +76,4 @@
    [("--precision") prec "Which precision to use for tests"
     (*precision* (string->symbol prec))]
    #:args bench-dir
-   (cond
-    [(representation-name? (*precision*))
-     (exit (if (apply run-tests bench-dir) 0 1))]
-    [else
-     (printf "Unknown precision: ~a. Ignoring test.\n" (*precision*))
-     (exit 1)])))
+   (exit (if (apply run-tests bench-dir) 0 1))))
