@@ -34,7 +34,8 @@
 (define (backup-alt-cost altn)
   (let loop ([prog (program-body (alt-program altn))])
     (match prog
-     [(list elems ...) (apply + (map loop elems))]
+     [(list 'if cond ift iff) (+ 1 (loop cond) (max (loop ift) (loop iff)))]
+     [(list op args ...) (apply + 1 (map loop args))]
      [_ 1])))
 
 ; In normal mode, cost is not considered so we return a constant
@@ -134,12 +135,12 @@
 
 (define (remove-chnged-pnts point->alts alt->points alt->cost chnged-pnts cost)
   (define chnged-entries (map (curry hash-ref point->alts) chnged-pnts))
-  (define chnged-altns (mutable-set))
-  (for* ([cost-hash chnged-entries]
-         [rec (hash-values cost-hash)]
-         [altn (cost-rec-altns rec)])
-    (when (equal? (hash-ref alt->cost altn) cost)
-      (set-add! chnged-altns altn)))
+  (define chnged-altns
+    (for/fold ([s (mutable-set)]) ([entry chnged-entries])
+      (let ([rec (hash-ref entry cost)])
+        (for ([altn (cost-rec-altns rec)])
+          (set-add! s altn))
+        s))) 
   (hash-union
    alt->points
    (for/hash ([altn (in-set chnged-altns)])
@@ -149,12 +150,13 @@
 (define (override-at-pnts points->alts pnts altn cost errs)
   (define pnt->errs
     (for/hash ([(pnt ex) (in-pcontext (*pcontext*))] [err errs])
-                        (values pnt err)))
+      (values pnt err)))
   (hash-union
-   points->alts
-   (for/hash ([pnt pnts])
-     (values pnt (hash cost (cost-rec (hash-ref pnt->errs pnt) (list altn)))))
-   #:combine (λ (a b) (hash-union a b #:combine (λ (x y) y)))))
+    points->alts
+    (for/hash ([pnt pnts])
+      (values pnt (hash cost (cost-rec (hash-ref pnt->errs pnt)
+                                       (list altn)))))
+    #:combine (λ (a b) (hash-union a b #:combine (λ (x y) y)))))
 
 (define (append-at-pnts points->alts pnts altn cost)
   (hash-union
@@ -177,7 +179,7 @@
          [else (error "This point has no alts which are best at it!" rec)])))
     (set->list essential))
 
-  (define (get-tied-alts essential-alts alts->pnts pnts->alts)
+  (define (get-tied-alts essential-alts alts->pnts)
     (remove* essential-alts (hash-keys alts->pnts)))
 
   (define (worst atab altns)
@@ -197,7 +199,7 @@
     (let* ([alts->pnts (alt-table-alt->points cur-atab)]
            [pnts->alts (alt-table-point->alts cur-atab)]
            [essential-alts (get-essential pnts->alts)]
-           [tied-alts (get-tied-alts essential-alts alts->pnts pnts->alts)])
+           [tied-alts (get-tied-alts essential-alts alts->pnts)])
       (if (null? tied-alts)
           cur-atab
           (loop (rm-alts cur-atab (worst cur-atab tied-alts)))))))
@@ -242,18 +244,19 @@
              [maxerr (cost-rec-berr (hash-ref cost-table maxcost))])
         (and (>= cost maxcost) (>= err maxerr))))]
    [else
-    (for/and ([pt tied-pnts] [err tied-errs])
+    (define cost (backup-alt-cost altn))
+    (for/and ([pt tied-pnts])
       (let* ([cost-table (hash-ref point->alts pt)]
              [altns (cost-rec-altns (hash-ref cost-table 1))]
-             [maxcost (argmax identity (map backup-alt-cost altns))])
-        (>= (backup-alt-cost altn) maxcost)))]))
+             [mincost (argmin identity (map backup-alt-cost altns))])
+        (>= cost mincost)))]))
 
 (define (atab-add-altn atab altn errs repr)
-  (define cost (if (*pareto-mode*) (alt-cost* altn) 1))
+  (define cost (alt-cost* altn))
   (match-define (alt-table point->alts alt->points alt->done? alt->cost _ all-alts) atab)
   (define-values (best-pnts tied-pnts tied-errs) (best-and-tied-at-points atab altn cost errs))
   (cond
-   [(or (set-member? (hash-keys alt->points) altn)  ; bail early if already in table
+   [(or (ormap (curry alt-equal? altn) (set->list all-alts))  ; bail early if already in table
         (and (null? best-pnts) (worse-than? point->alts altn cost tied-pnts tied-errs)))
     atab]
    [else
