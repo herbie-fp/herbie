@@ -323,9 +323,14 @@
           (for/fold ([altn altn]) ([cng cl])
             (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))))
 
-  (timeline-push! 'alts (length (^locs^)) (length rewritten))
+  (define rewritten*
+    (if (and (*pareto-mode*) (> (length rewritten) 1000))
+        (take rewritten 1000)
+        rewritten))
+        
+  (timeline-push! 'alts (length (^locs^)) (length rewritten*))
 
-  (^gened-rewrites^ rewritten)
+  (^gened-rewrites^ rewritten*)
   (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
   (timeline-push! 'min-error (errors-score (atab-min-errors table*)))
   (void))

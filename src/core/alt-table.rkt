@@ -135,12 +135,11 @@
 
 (define (remove-chnged-pnts point->alts alt->points alt->cost chnged-pnts cost)
   (define chnged-entries (map (curry hash-ref point->alts) chnged-pnts))
-  (define chnged-altns
-    (for/fold ([s (mutable-set)]) ([entry chnged-entries])
-      (let ([rec (hash-ref entry cost)])
-        (for ([altn (cost-rec-altns rec)])
-          (set-add! s altn))
-        s))) 
+  (define chnged-altns (mutable-set))
+  (for ([entry chnged-entries]
+       #:when (set-member? (hash-keys entry) cost))
+    (for ([altn (cost-rec-altns (hash-ref entry cost))])
+      (set-add! chnged-altns altn)))
   (hash-union
    alt->points
    (for/hash ([altn (in-set chnged-altns)])
@@ -239,10 +238,11 @@
   (cond
    [(*pareto-mode*)
     (for/and ([pt tied-pnts] [err tied-errs])
-      (let* ([cost-table (hash-ref point->alts pt)]
-             [maxcost (argmax identity (hash-keys cost-table))]
-             [maxerr (cost-rec-berr (hash-ref cost-table maxcost))])
-        (and (>= cost maxcost) (>= err maxerr))))]
+      (let* ([cost-hash (hash-ref point->alts pt)]
+             [less (filter (curryr < cost) (hash-keys cost-hash))]
+             [err-acc (compose cost-rec-berr (curry hash-ref cost-hash))])
+        (and (not (null? less))
+             (> err (err-acc (argmax identity less))))))]
    [else
     (define cost (backup-alt-cost altn))
     (for/and ([pt tied-pnts])
