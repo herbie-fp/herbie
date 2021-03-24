@@ -32,11 +32,10 @@
      [(list 'if cond ift iff)
       (+ 1 (loop cond repr) (max (loop ift repr) (loop iff repr)))]
      [(list op args ...)
-      (define ireprs (operator-info op 'itype))
-      (define ireprs*
-        (if (list? ireprs)
-            (map get-representation ireprs)
-            (make-list (length args) (get-representation ireprs))))
+      (define ireprs
+        (match (operator-info op 'itype)
+         [(? representation-name? a) (map (const (get-representation a)) args)]
+         [(? list? as) (map get-representation as)]))
       (apply + (operator-cost op (representation-total-bits repr))
-               (map loop args ireprs*))]
+               (map loop args ireprs))]
      [_ (representation-total-bits repr)])))
