@@ -32,8 +32,8 @@
 (define in-atab-pcontext (compose in-pcontext atab-context))
 
 (define (backup-alt-cost altn)
-  (let loop ([prog (program-body (alt-program altn))])
-    (match prog
+  (let loop ([expr (program-body (alt-program altn))])
+    (match expr
      [(list 'if cond ift iff) (+ 1 (loop cond) (max (loop ift) (loop iff)))]
      [(list op args ...) (apply + 1 (map loop args))]
      [_ 1])))
@@ -114,8 +114,6 @@
 
 ;; Implementation
 
-(struct point-rec (berr cost altns) #:prefab)
-
 (define (best-and-tied-at-points atab altn cost errs)
   (define point->alt (alt-table-point->alts atab))
   (reap [best! tied! tied-errs!]
@@ -153,8 +151,7 @@
     points->alts
     (for/hash ([pnt pnts])
       (values pnt (hash-set (hash-ref points->alts pnt) cost
-                            (cost-rec (hash-ref pnt->errs pnt)
-                                      (list altn)))))
+                            (cost-rec (hash-ref pnt->errs pnt) (list altn)))))
     #:combine (λ (a b) b)))
 
 (define (append-at-pnts points->alts pnts altn cost)
@@ -163,7 +160,8 @@
    (for/hash ([pnt pnts])
      (define cost-hash (hash-ref points->alts pnt))
      (match-define (cost-rec berr altns) (hash-ref cost-hash cost))
-     (values pnt (hash-set cost-hash cost (cost-rec berr (cons altn altns)))))
+     (values pnt (hash-set cost-hash cost
+                           (cost-rec berr (cons altn altns)))))
    #:combine (λ (a b) b)))
 
 (define (minimize-alts atab)
@@ -207,7 +205,7 @@
   (match-define (alt-table point->alts alt->points alt->done? alt->cost _ _) atab)
   (define rel-points
     (remove-duplicates
-     (apply append (map (curry hash-ref (alt-table-alt->points atab)) altns))))
+     (append-map (curry hash-ref (alt-table-alt->points atab)) altns)))
 
   (define pnts->alts*
     (hash-union
@@ -326,6 +324,11 @@
                       (when (not (= (apply min cnt) 1))
                         (error (string-append "Minimality invariant violated. " message)))))))
 
+; In normal mode, ensure that for each point, the hash contains a single cost
+(define (check-normal-mode-flatness atab)
+  (for ([(pt ch) (in-hash (alt-table-point->alts atab))])
+    (when (not (= (length (hash-keys ch)) 1))
+      (error "Point to alternative hash table not flat"))))
 
 (define (assert-points-orphaned alts->pnts opnts all-pnts #:message [msg ""])
   (hash-for-each alts->pnts
