@@ -42,14 +42,6 @@
 ;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag       ('fp-safe' does not imply 'simplify')
 ;;
 
-(define (update-rules rules groups)
-  (when (ormap (curry flag-set? 'rules) groups) ; update all
-    (all-rules (append (all-rules) rules))
-    (when (set-member? groups 'simplify) ; update simplify
-      (simplify-rules (append (simplify-rules) rules))  
-      (when (set-member? groups 'fp-safe) ; update fp-safe
-        (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
-
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
@@ -72,6 +64,14 @@
     (for/list ([ruleset (*rulesets*)])
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
+
+(define (update-rules rules groups)
+  (when (ormap (curry flag-set? 'rules) groups) ; update all
+    (all-rules (append (all-rules) rules))
+    (when (set-member? groups 'simplify) ; update simplify
+      (simplify-rules (append (simplify-rules) rules))  
+      (when (set-member? groups 'fp-safe) ; update fp-safe
+        (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
 
 (define (reprs-in-expr expr)
   (remove-duplicates
@@ -97,29 +97,13 @@
       (error 'type-of-rule "Could not compute type of rule ~a -> ~a"
               input output)]))
 
-;; Name generation
-
-(define rule-names (mutable-set))
-(define collision-count 1)
-
-(define (gen-unique-rule-name name) 
-  (cond
-   [(set-member? rule-names name)
-    (define name* (string->symbol (format "~a_~a" name collision-count)))
-    (set-add! rule-names name*)
-    (set! collision-count (add1 collision-count))
-    name*]
-   [else
-    (set-add! rule-names name)
-    name]))
-
 ;; Rulesets defined by reprs. These rulesets are unique
 
 (define (register-ruleset! name groups var-ctx rules)
   (define rules*
     (for/list ([r rules])
       (match-define (list rname input output) r)
-      (rule (gen-unique-rule-name rname) input output var-ctx 
+      (rule rname input output var-ctx 
             (type-of-rule input output var-ctx))))
   (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
       
@@ -200,7 +184,7 @@
     (define var-reprs (for/list ([(var prec) (in-dict ctx)]) (cons var (get-representation prec))))
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
-        (let ([name* (gen-unique-rule-name (sym-append (rule-name r) '_ repr-name))]
+        (let ([name* (sym-append (rule-name r) '_ repr-name)]
               [input* (with-handlers ([exn:fail? (const #f)])
                         (desugar-program (rule-input r) repr var-reprs #:full #f))]
               [output* (with-handlers ([exn:fail? (const #f)])
