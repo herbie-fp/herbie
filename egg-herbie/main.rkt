@@ -20,7 +20,10 @@
 (struct iteration-data (num-nodes num-eclasses time))
 
 (define (egraph-get-simplest egraph-data node-id iteration)
-  (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+  (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+  (define str (cast ptr _pointer _string/utf-8))
+  (destroy_string ptr)
+  str)
 
 (define (egraph-get-cost egraph-data node-id iteration)
   (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))

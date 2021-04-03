@@ -53,6 +53,11 @@ pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
     std::mem::drop(array)
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
+    let _str = CString::from_raw(ptr);
+}
+
 // a struct to report failure if the add fails
 #[repr(C)]
 pub struct EGraphAddResult {
