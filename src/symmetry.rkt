@@ -27,7 +27,7 @@
             (index-of vars b)
             '()
             'real)))
-  (define groups (simplify-batch (range (length vars)) #:precompute true #:rules rules*))
+  (define groups (simplify-batch (range (length vars)) #:precompute false #:rules rules*))
   (map (lambda (group) (map car group)) (group-by cdr (map cons vars groups))))
 
 
