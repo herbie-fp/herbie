@@ -19,7 +19,6 @@
 (struct irule (name input output) #:prefab)
 (struct iteration-data (num-nodes num-eclasses time))
 
-
 (define (egraph-get-simplest egraph-data node-id iteration)
   (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
 
