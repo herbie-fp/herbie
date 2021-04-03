@@ -183,15 +183,21 @@
   (define exprc 0)
   (define varc (length vars))
 
-  ;; Local cache of operator info
+  ;; Local cache of operator, constants, and numbers
   (define cached-ops (make-hash))
+  (define cached-consts (make-hash))
+  (define cached-nums (make-hash))
 
   (define (munge prog repr)
     (set! size (+ 1 size))
     (define expr
       (match prog
-       [(? real?) (list (const (real->precision repr prog)))]
-       [(? constant?) (list (constant-info prog mode))]
+       [(? real?)
+        (list (hash-ref! cached-nums (cons prog repr)
+                         (λ () (const (real->precision repr prog)))))]
+       [(? constant?)
+        (list (hash-ref! cached-consts prog
+                         (λ () (constant-info prog mode))))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
         (list (operator-info 'if mode)
