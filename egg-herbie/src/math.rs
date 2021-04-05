@@ -38,6 +38,7 @@ impl IterationData<Math, ConstantFold> for IterData {
     }
 }
 
+
 // operators from FPCore
 define_language! {
     pub enum Math {
@@ -77,6 +78,7 @@ impl Default for ConstantFold {
         }
     }
 }
+
 
 impl Analysis<Math> for ConstantFold {
     type Data = Option<(Constant, PatternAst<Math>)>;
@@ -199,6 +201,7 @@ impl Analysis<Math> for ConstantFold {
             let added = egraph.add(Math::Constant(c.clone()));
             let (id, did_something) = egraph.union(class_id, added);
             if did_something {
+
                 let mut const_pattern: PatternAst<Math> = Default::default();
                 const_pattern.add(ENodeOrVar::ENode(Math::Constant(c)));
                 egraph.add_union_proof(
@@ -210,7 +213,7 @@ impl Analysis<Math> for ConstantFold {
                     "metadata-eval".to_string(),
                 );
             }
-            if egraph.analysis.prune {
+            if false {
                 egraph[id].nodes.retain(|n| n.is_leaf())
             }
         }
