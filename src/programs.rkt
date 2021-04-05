@@ -204,11 +204,14 @@
                      (λ ()
                       (define atypes
                         (match (operator-info op 'itype)
-                         [(? representation-name? a) (make-list (length args) a)]
-                         [(? list? as) as]))
-                      (define impl (operator-info op mode))
-                      (cons impl (map get-representation atypes)))))
-        (cons (car op-info) (map munge args (cdr op-info)))]
+                         [(? representation-name? a) (list #f (get-representation a))]
+                         [(? list? as) (map get-representation as)]))
+                      (cons (operator-info op mode) atypes))))
+        (define atypes
+          (if (cadr op-info) ; handle variadic operators
+              (cdr op-info)
+              (make-list (length args) (caddr op-info))))
+        (cons (car op-info) (map munge args atypes))]
        [_ (raise-argument-error 'eval-prog "expr?" prog)]))
     (hash-ref! exprhash expr
               (λ ()
