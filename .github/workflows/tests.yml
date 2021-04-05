@@ -14,9 +14,16 @@ jobs:
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
-        run: raco pkg install --name herbie --no-cache --auto src/
+        run: make install
       - run: raco test src/ infra/
 
   hamming:
@@ -33,9 +40,16 @@ jobs:
         uses: Bogdanp/setup-racket@v0.5
         with:
           version: ${{ matrix.racket-version }}
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
-        run: raco pkg install --name herbie --no-cache --auto src/
+        run: make install
       - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 bench/hamming/
 
   softposit:
@@ -47,9 +61,16 @@ jobs:
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
-        run: raco pkg install --name herbie --no-cache --auto src/
+        run: make install
       - name: "Check out softposit-herbie master"
         uses: actions/checkout@master
         with:
@@ -68,9 +89,16 @@ jobs:
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
-        run: raco pkg install --name herbie --no-cache --auto src/
+        run: make install
       - name: "Check out complex-herbie master"
         uses: actions/checkout@master
         with:

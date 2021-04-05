@@ -6,24 +6,27 @@
 
 (module+ test (require rackunit))
 
-(provide egraph-run egraph-add-exprs egraph-run-iter
+(provide egraph-run egraph-add-exprs with-egraph
          egraph-get-simplest egg-expr->expr egg-add-exn?
-         make-ffi-rules free-ffi-rules egraph-get-cost egraph-get-size)
+         make-ffi-rules free-ffi-rules egraph-get-cost
+         egraph-is-unsound-detected egraph-get-times-applied
+         (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
 ;; interface struct for accepting rules
 (struct irule (name input output) #:prefab)
+(struct iteration-data (num-nodes num-eclasses time))
 
-(define (egraph-get-size egraph-data)
-  (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
+(define (egraph-get-simplest egraph-data node-id iteration)
+  (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
 
-(define (egraph-get-cost egraph-data node-id)
-  (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id))
+(define (egraph-get-cost egraph-data node-id iteration)
+  (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
 
-(define (egraph-get-simplest egraph-data node-id)
-  (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id))
+(define (egraph-is-unsound-detected egraph-data)
+  (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))  
 
 (define (make-raw-string s)
   (define b (string->bytes/utf-8 s))
@@ -32,6 +35,10 @@
   (memcpy ptr b n)
   (ptr-set! ptr _byte n 0)
   ptr)
+
+(define (egraph-get-times-applied egraph-data rule-name)
+  (egraph_get_times_applied (egraph-data-egraph-pointer egraph-data)
+                            (make-raw-string (symbol->string rule-name))))
 
 (define (make-ffi-rules rules)
   (for/list [(rule rules)]
@@ -47,22 +54,23 @@
     (free (FFIRule-right rule))
     (free rule)))
 
-(define (egraph-run-iter egraph-data node-limit ffi-rules precompute?)
-  (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
+(define (convert-iteration-data egraphiters size)
+  (cond
+    [(> size 0)
+     (cons (iteration-data (EGraphIter-numnodes egraphiters) (EGraphIter-numeclasses egraphiters) (EGraphIter-time egraphiters))
+           (convert-iteration-data (ptr-add egraphiters 1 _EGraphIter) (- size 1)))]
+    [else empty]))
 
-(define (run-rules-recursive egraph-data node-limit ffi-rules precompute? last-count)
-  (egraph_run_iter (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?)
-  (define cnt (egraph_get_size (egraph-data-egraph-pointer egraph-data)))
-  (if (and (< cnt node-limit) (> cnt last-count))
-      (run-rules-recursive egraph-data node-limit ffi-rules precompute? cnt)
-      (void)))
 
-(define (egraph-run-rules egraph-data node-limit rules precompute?)
-  (run-rules-recursive egraph-data node-limit (make-ffi-rules rules) precompute? 0))
+(define (egraph-run egraph-data node-limit ffi-rules precompute?)
+  (define-values (egraphiters res-len) (egraph_run (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
+  (define res (convert-iteration-data egraphiters res-len))
+  (destroy_egraphiters res-len egraphiters)
+  res)
 
 
 ;; calls the function on a new egraph, and cleans up
-(define (egraph-run egraph-function)
+(define (with-egraph egraph-function)
   (define egraph (egraph-data (egraph_create) (make-hash) (make-hash)))
   (define res (egraph-function egraph))
   (egraph_destroy (egraph-data-egraph-pointer egraph))
@@ -182,7 +190,7 @@
           (cons '(if TRUE x y) "(if real (TRUE real) h1 h0)")))
 
   (define nil
-    (egraph-run
+    (with-egraph
      (lambda (egg-graph)
       (for/list ([expr-pair test-exprs])
         (let* ([out (expr->egg-expr (car expr-pair) egg-graph)]
@@ -200,7 +208,7 @@
      '(+ 3/2 1.4)))
 
   (define extended-results
-   (egraph-run
+   (with-egraph
     (lambda (egg-graph)
       (for/list ([expr
                   extended-expr-list])

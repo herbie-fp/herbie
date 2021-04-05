@@ -14,9 +14,16 @@ jobs:
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
-        run: raco pkg install --name herbie --no-cache --auto src/
+        run: make install
       - run: <bench/tutorial.fpcore racket src/herbie.rkt shell >/tmp/out.fpcore
       - run: test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
         name: "Test that shell output had three :herbie-time lines"
@@ -28,9 +35,16 @@ jobs:
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
-        run: raco pkg install --name herbie --no-cache --auto src/
+        run: make install
       - run: racket src/herbie.rkt improve bench/tutorial.fpcore /tmp/out.fpcore
       - run: test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
         name: "Test that improve output had three :herbie-time lines"
@@ -42,9 +56,16 @@ jobs:
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v0.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
-        run: raco pkg install --name herbie --no-cache --auto src/
+        run: make install
       - run: racket src/herbie.rkt report bench/tutorial.fpcore /tmp/out/
       - run: test -d /tmp/out/
         name: "Test that report created a directory"
