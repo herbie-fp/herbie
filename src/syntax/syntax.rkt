@@ -70,22 +70,22 @@
 ;; binary32 ;;
 (define-constant (PI PI.f32) binary32
   [bf (λ () pi.bf)]
-  [fl (λ () pi.f)]
+  [fl (λ () (->float32 pi))]
   [ival ival-pi])
 
 (define-constant (E E.f32) binary32
   [bf (λ () (bfexp 1.bf))]
-  [fl (λ () (exp 1.0))]
+  [fl (λ () (->float32 (exp 1.0)))]
   [ival ival-e])
 
 (define-constant (INFINITY INFINITY.f32) binary32
   [bf (λ () +inf.bf)]
-  [fl (λ () +inf.0)]
+  [fl (λ () (->float32 +inf.0))]
   [ival (λ () (mk-ival +inf.bf))])
 
 (define-constant (NAN NAN.f32) binary32
   [bf (λ () +nan.bf)]
-  [fl (λ () +nan.0)]
+  [fl (λ () (->float32 +nan.0))]
   [ival (λ () (mk-ival +nan.bf))]) 
 
 ;; bool ;;
@@ -192,24 +192,19 @@
  
 ;; binary32 4-function ;;
 (define-operator (+ +.f32 binary32 binary32) binary32 
-  [fl fl32+] [bf bf+] [ival ival-add]
-  [nonffi fl32+])
+  [fl fl32+] [bf bf+] [ival ival-add] [nonffi +])
 
 (define-operator (- -.f32 binary32 binary32) binary32
-  [fl fl32-] [bf bf-] [ival ival-sub]
-  [nonffi fl32-])
+  [fl fl32-] [bf bf-] [ival ival-sub] [nonffi -])
 
 (define-operator (- neg.f32 binary32) binary32
-  [fl fl32-] [bf bf-] [ival ival-neg]
-  [nonffi fl32-])
+  [fl fl32-] [bf bf-] [ival ival-neg] [nonffi -])
 
 (define-operator (* *.f32 binary32 binary32) binary32
-  [fl fl32*] [bf bf*] [ival ival-mult]
-  [nonffi fl32*])
+  [fl fl32*] [bf bf*] [ival ival-mult] [nonffi *])
 
 (define-operator (/ /.f32 binary32 binary32) binary32
-  [fl fl32/] [bf bf/] [ival ival-div]
-  [nonffi fl32/])
+  [fl fl32/] [bf bf/] [ival ival-div] [nonffi /])
 
 (define *unknown-ops* (make-parameter '()))
 
@@ -240,7 +235,7 @@
              [fl (λ args (apply double-proc args))]
              [key value] ...)
            (define-operator (op opf32 #,@(build-list num-args (λ (_) #'binary32))) binary32
-             [fl (λ args (apply float-proc args))]
+             [fl (λ args (->float32 (apply float-proc args)))]
              [key value] ...)
        ))]))
 

@@ -5,10 +5,19 @@
 ; Racket CS made single-flonums a little confusing
 ; All single-precision code is here to make things easier
 
-(provide single-flonum-supported? float32?
-         float32->ordinal ordinal->float32
-         bigfloat->float32 ->float32
-         fl32+ fl32- fl32* fl32/)
+(provide 
+  (contract-out
+   [single-flonum-supported? (-> boolean?)]
+   [float32? (-> any/c boolean?)]
+   [->float32 (-> real? float32?)]
+   [float32->ordinal (-> float32? exact-integer?)]
+   [ordinal->float32 (-> exact-integer? float32?)]
+   [bigfloat->float32 (-> bigfloat? float32?)]
+   [fl32+ (-> float32? ... float32?)]
+   [fl32- (-> float32? float32? ... float32?)]
+   [fl32* (-> float32? ... float32?)]
+   [fl32/ (-> float32? float32? ... float32?)]))
+
 
 (define at-least-racket-8?
   (>= (string->number (substring (version) 0 1)) 8))
