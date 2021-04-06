@@ -192,6 +192,7 @@
                [alt->points (hash-remove* alt->points altns)]
                [alt->done? (hash-remove* alt->done? altns)]))
 
+
 (define (atab-add-altns atab altns repr)
   (define progs (map alt-program altns))
   (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))
