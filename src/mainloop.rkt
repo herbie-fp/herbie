@@ -543,14 +543,15 @@
      [else
       (list (argmin score-alt all-alts*))]))
   (timeline-event! 'simplify)
-  (define progs*
+  (define progss*
     (simplify-batch
       (map (compose program-body alt-program) joined-alts)
       #:rules (*fp-safe-simplify-rules*) #:precompute #t))
   (define cleaned-alts
     (remove-duplicates
-      (for/list ([altn joined-alts] [prog progs*])
-        (alt `(λ ,(program-variables (alt-program altn)) ,prog) 'final-simplify (list altn)))
+      (for/list ([altn joined-alts] [progs progss*])
+        (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
+              'final-simplify (list altn)))
       alt-equal?))
   (timeline-event! 'end)
 
