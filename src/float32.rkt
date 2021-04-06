@@ -5,25 +5,25 @@
 ; Racket CS made single-flonums a little confusing
 ; All single-precision code is here to make things easier
 
-(provide single-flonum-available? float32?
+(provide single-flonum-supported? float32?
          float32->ordinal ordinal->float32
          bigfloat->float32 ->float32
          fl32+ fl32- fl32* fl32/)
 
-(define (at-least-racket-8?)
+(define at-least-racket-8?
   (>= (string->number (substring (version) 0 1)) 8))
 
 ; Returns true if single flonum is available directly (BC)
 ; or through emulation (CS, >= 8.0)
 (define (single-flonum-supported?)
-  (or (single-flonum-available?) (at-least-racket-8?)))
+  (or (single-flonum-available?) at-least-racket-8?))
 
 ; Contracts are problematic (BC, < 8.0): values not
 ; necessarily single flonums. Bug in Herbie?
 (define float32?
-  (if (single-flonum-available?)
-      single-flonum?
-      flonum?))
+  (if at-least-racket-8?
+      flonum?
+      single-flonum?))
 
 ; Need a placeholder for < 8.0
 (define cast-single
@@ -32,12 +32,12 @@
     flsingle))
 
 (define (->float32 x)
-  (if (single-flonum-available?)
-      (real->single-flonum x)
-      (cast-single (exact->inexact x))))
+  (if at-least-racket-8?
+      (cast-single (exact->inexact x))
+      (real->single-flonum x)))
 
 (define (float32->bit-field x)
-  (integer-bytes->integer (real->floating-point-bytes x 4) #f))
+  (integer-bytes->integer (real->floating-point-bytes x 4) #f #f))
 
 (define (float32->ordinal x)
   (if (negative? x)
@@ -45,7 +45,7 @@
       (float32->bit-field (abs x))))
 
 (define (bit-field->float32 x)
-  (->float32 (floating-point-bytes->real (integer->integer-bytes x 4 #f) #f)))
+  (->float32 (floating-point-bytes->real (integer->integer-bytes x 4 #f #f) #f)))
 
 (define (ordinal->float32 x)
   (if (negative? x)

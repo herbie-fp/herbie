@@ -90,13 +90,15 @@
   64
   (disjoin nan? infinite?))
 
-(define-representation (binary32 real float32?)
-  bigfloat->float32
-  bf
-  (shift 31 ordinal->float32)
-  (unshift 31 float32->ordinal)
-  32
-  (disjoin nan? infinite?))
+;; BC or CS (>= 8.0)
+(when (single-flonum-supported?)
+  (register-representation! 'binary32 'real float32?
+    bigfloat->float32
+    bf
+    (shift 31 ordinal->float32)
+    (unshift 31 float32->ordinal)
+    32
+    (disjoin nan? infinite?)))
 
 ;; repr <==> real
 
