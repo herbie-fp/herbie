@@ -1,5 +1,6 @@
 <!doctype html>
 <html>
+
 <head>
   <meta charset="utf-8" />
   <title>Installing Herbie</title>
@@ -7,12 +8,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script type="text/javascript" src="toc.js"></script>
 </head>
+
 <body>
   <header>
     <a href="../../"><img class="logo" src="../../logo.png" /></a>
     <h1>Installing Herbie</h1>
   </header>
-  
+
   <p>
     <a href="../../">Herbie</a> supports Linux, macOS, and Windows. It
     can be installed from a package or from source. To start, install
@@ -26,7 +28,7 @@
   <p>
     Install Racket, version 7.0 or later, either using
     the <a href="http://download.racket-lang.org/racket-v7.7.html">official
-    installer</a> or distro-provided packages. Versions 7.5 and later
+      installer</a> or distro-provided packages. Versions 7.5 and later
     are significantly faster, and we recommend upgrading.
   </p>
 
@@ -37,7 +39,7 @@
   <pre class="shell">racket
 Welcome to Racket v7.7.
 > (exit)</pre>
-  
+
   <h2>Installing Herbie from a package</h2>
 
   <p>Once Racket is installed, install Herbie from a package with:</p>
@@ -65,7 +67,14 @@ Welcome to Racket v7.7.
   <h2>Installing Herbie from source</h2>
 
   <p>
-    Once Racket is installed, download the Herbie source
+    Install Rust, using <a href="https://rustup.rs/">rustup</a> or via
+    some other means. Also install Racket, version 7.0 or later, either using
+    the <a href="http://download.racket-lang.org/racket-v7.7.html">official
+      installer</a> or distro-provided packages.
+    </p>
+    
+    <p>
+      Once Racket and Rust are installed, download the Herbie source
     <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
   </p>
 
@@ -99,7 +108,7 @@ Welcome to Racket v7.7.
     your executable path. Once Herbie is installed and working
     correctly, check out the <a href="tutorial.html">tutorial</a>.
   </p>
-  
+
   <!-- End of copy -->
 
   <h2>Installing Herbie with Docker</h2>
@@ -110,11 +119,12 @@ Welcome to Racket v7.7.
     in Docker is more limited; we do not recommend using Herbie
     through Docker without prior Docker experience.
   </p>
-  
+
   <p>
     The <a href="docker.html">Docker documentation</a> describes how
     to install and run the official <code>uwplse/herbie</code> image.
   </p>
 
 </body>
+
 </html>

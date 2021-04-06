@@ -224,6 +224,7 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
+
 (define (atab-add-altns atab altns repr)
   (define altns* (filter-not (compose program-has-nan? alt-program)
                              (remove-duplicates altns alt-equal?)))
