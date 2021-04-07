@@ -99,7 +99,8 @@
           [(equal? vprec prec) (values expr prec)]
           [else
            (define conv (get-repr-conv vprec prec))
-           (values (list conv expr) prec)])])))
+           (unless conv (error 'expand-parametric "Conversion does not exist: ~a -> ~a\n" vprec prec))
+           (values (list conv expr) prec)])]))) 
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
