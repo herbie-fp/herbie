@@ -109,7 +109,7 @@
                           #f)
                       baseline-errs
                       oracle-errs
-                      (alt-cost (make-alt (test-program test)))
+                      (program-cost (test-program test))
                       (map alt-cost alts)
                       (*all-alts*)))))
 
