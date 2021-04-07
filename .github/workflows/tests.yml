@@ -114,7 +114,7 @@ jobs:
     needs: [ 'hamming' ]
     strategy:
       matrix: # this takes a while: don't run too many
-        racket-version: [ '7.7' ]
+        racket-version: [ '7.9' ]
         precision: [ 'binary32', 'binary64' ]
     steps:
       - name: "Install Packages"
@@ -125,5 +125,5 @@ jobs:
           version: ${{ matrix.racket-version }}
       - uses: actions/checkout@master
       - name: "Install dependencies"
-        run: raco pkg install --name herbie --no-cache --auto src/
+        run: make install
       - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 --pareto bench/hamming/
