@@ -16,7 +16,7 @@
          location-do location-get location-repr
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression replace-vars
-         apply-repr-change program-has-nan?)
+         apply-repr-change)
 
 (define expr? (or/c list? symbol? value? real?))
 
@@ -77,15 +77,6 @@
     (match expr
      [(list elems ...) (ormap loop elems)]
      [term (pred term)])))
-
-(define (program-has-nan? prog)
-  (match-define (list (and (or 'λ 'lambda) lam) (list args ...) body) prog)
-  (let loop ([expr body])
-    (match expr
-     [(list op args ...) (ormap loop args)]
-     [(? (curry hash-has-key? parametric-constants-reverse))
-      (equal? (hash-ref parametric-constants-reverse expr) 'NAN)]
-     [_ #f])))
 
 ;; Converting constants
 
@@ -332,13 +323,13 @@
       (define iprec (first (operator-info op 'itype)))
       (define prec* (operator-info rr 'otype))
       (if (equal? prec* iprec)
-      (if prec
+          (if prec
               (loop body iprec) ; if the conversions are inverses and not the top
               (list op (loop body iprec)))
           (if prec
               (loop (list op body) prec*)
-          (let* ([conv (get-repr-conv prec* (representation-name (*output-repr*)))]
-                 [body* (loop body prec*)])
+              (let* ([conv (get-repr-conv prec* (representation-name (*output-repr*)))]
+                     [body* (loop body prec*)])
                 (and conv body* (list conv body*)))))]
      [(list (? rewrite-repr-op? op) body)
       (define iprec (operator-info op 'otype))
