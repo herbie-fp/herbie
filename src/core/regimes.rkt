@@ -7,7 +7,8 @@
 (module+ test
   (require rackunit))
 
-(provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts)
+(provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
+         pareto-regimes)
 
 (struct option (split-indices alts pts expr errors) #:transparent
 	#:methods gen:custom-write
@@ -175,9 +176,20 @@
 ;; (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
   (let ([midpoint (midpoint p1 p2 repr)])
-    (cond [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
-	  [(pred midpoint) (binary-search-floats pred midpoint p2 repr)]
-	  [else (binary-search-floats pred p1 midpoint repr)])))
+    (cond
+     ; Avoid sampling on [+max, nan] at all costs
+     ; (only works for floats, problematic since p1 and p2 are repr values)
+     ; (this is handled by catching all sampling errors, so we can comment this out)
+     ; [(nan? midpoint) p1]
+     [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
+	   [else
+      ; cmp usually equals 0 if sampling failed
+      ; if so, give up and return the current midpoint
+      (define cmp (pred midpoint))
+      (cond
+       [(negative? cmp) (binary-search-floats pred midpoint p2 repr)]
+       [(positive? cmp) (binary-search-floats pred p1 midpoint repr)]
+       [else midpoint])])))
 
 (define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
@@ -206,20 +218,22 @@
     (define iters 0)
     (define (pred v)
       (set! iters (+ 1 iters))
-      (parameterize ([*num-points* (*binary-search-test-points*)]
-                     [*timeline-disabled* true]
-                     [*var-reprs* (dict-set (*var-reprs*) var repr)])
-        (define ctx
-          (car
-           (prepare-points start-prog
-                          `(λ ,(program-variables start-prog)
-                              (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
-                          repr
-                          (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts))) (sampler) (*herbie-preprocess*) repr)))
-                          empty)))
-        (< (errors-score (errors prog1 ctx repr))
-           (errors-score (errors prog2 ctx repr)))))
-    (define pt (binary-search-floats pred v1 v2 repr))
+      (with-handlers ([exn:fail:user:herbie? (const 0)]) ; couldn't sample points
+        (parameterize ([*num-points* (*binary-search-test-points*)]
+                       [*timeline-disabled* true]
+                       [*var-reprs* (dict-set (*var-reprs*) var repr)])
+          (define ctx
+            (car
+             (prepare-points start-prog
+                             `(λ ,(program-variables start-prog)
+                                  (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
+                             repr
+                             (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
+                                                             (sampler) (*herbie-preprocess*) repr)))
+                             empty)))
+          (- (errors-score (errors prog1 ctx repr))
+             (errors-score (errors prog2 ctx repr))))))
+      (define pt (binary-search-floats pred v1 v2 repr))
     (timeline-push! 'bstep (value->json v1 repr) (value->json v2 repr) iters (value->json pt repr))
     pt)
 
@@ -363,6 +377,21 @@
                              (<=/total val (sp-point right) repr)))
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))
+
+(define (pareto-regimes sorted repr sampler)
+  (let loop ([alts sorted] [idx 0])
+    (debug "Computing regimes starting at alt" (+ idx 1) "of"
+            (length sorted) #:from 'regime #:depth 2)
+    (cond
+      [(null? alts) '()]
+      [(= (length alts) 1) (list (car alts))]
+      [else
+      (timeline-event! 'regimes)
+      (define opt (infer-splitpoints alts repr))
+      (timeline-event! 'bsearch)
+      (define branched-alt (combine-alts opt repr sampler))
+      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
+      (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/ x y))]

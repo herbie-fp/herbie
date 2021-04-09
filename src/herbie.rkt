@@ -29,6 +29,9 @@
   (define report-note #f)
   (define report-debug? #f)
 
+  (define pareto-timeout (* 1000 60 60 2))
+  (define timeout-set? #f)
+
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
 
@@ -36,6 +39,7 @@
    #:program "herbie"
    #:once-each
    [("--timeout") s "Timeout for each test (in seconds)"
+    (set! timeout-set? #t)
     (*timeout* (* 1000 (string->number s)))]
    [("--seed") int "The random seed to use in point generation"
     (define given-seed (read (open-input-string int)))
@@ -48,6 +52,9 @@
     (*node-limit* (string->number num))]
    [("--num-analysis") num "The number of input analysis iterations to use"
     (*max-find-range-depth* (string->number num))]
+   [("--pareto") "Enables Pareto-Herbie (Pherbie)"
+    (*pareto-mode* #t)
+    (unless timeout-set? (*timeout* pareto-timeout))]
    #:multi
    [("-o" "--disable") flag "Disable a flag (formatted category:name)"
     (define tf (parse-flag flag))

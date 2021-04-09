@@ -82,6 +82,10 @@
             (when (ormap (curry < 1) err)
               (for-each (compose sow (curry cons err)) locs)))))
 
-  (take-up-to
-   (sort locs > #:key (compose errors-score car))
-   (*localize-expressions-limit*)))
+  (values
+    (take-up-to ; high error locs
+      (sort locs > #:key (compose errors-score car))
+      (*localize-expressions-limit*))
+    (take-up-to ; low error locs
+      (sort locs > #:key (compose errors-score car))
+      (*localize-expressions-limit*))))

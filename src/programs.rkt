@@ -1,15 +1,16 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt" "timeline.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt"
+         "timeline.rkt" "cost.rkt")
 
 (module+ test (require rackunit))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
-         program-cost expr-cost
+         program-cost
          type-of repr-of
-         expr-supports?
+         expr-supports? expr-contains?
          location-hash
          location? expr?
          location-do location-get location-repr
@@ -36,11 +37,6 @@
 (define (program-cost prog)
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   (expr-cost body))
-
-(define/match (expr-cost expr)
-  [((list 'if cond ift iff)) (+ 1 (expr-cost cond) (max (expr-cost ift) (expr-cost iff)))]
-  [((list op args ...)) (apply + 1 (map expr-cost args))]
-  [(_) 1])
 
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
@@ -75,6 +71,12 @@
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
       [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
+
+(define (expr-contains? expr pred)
+  (let loop ([expr expr])
+    (match expr
+     [(list elems ...) (ormap loop elems)]
+     [term (pred term)])))
 
 ;; Converting constants
 
@@ -320,16 +322,52 @@
       (define body* (loop body iprec))
       (cond
        [(not body*) #f] ; propagate failed repr-change
-       [(equal? iprec prec*) body*] ; remove non-conversions
        [else
         (define new-conv (get-repr-conv iprec prec*)) ; try to find a single conversion
         (if new-conv
             (list new-conv body*)
             (let ([second-conv (get-repr-conv oprec prec*)]) ; try a two-step conversion
               (and second-conv (list second-conv (list op body*)))))])]
+     [(list (? rewrite-repr-op? rr) (list (? repr-conv? op) body))  ; repr change on a conversion
+      (define iprec (first (operator-info op 'itype)))
+      (define prec* (operator-info rr 'otype))
+      (if (equal? prec* iprec)
+          (if prec
+              (loop body iprec) ; if the conversions are inverses and not the top
+              (list op (loop body iprec)))
+          (if prec
+              (loop (list op body) prec*)
+              (let* ([conv (get-repr-conv prec* (representation-name (*output-repr*)))]
+                     [body* (loop body prec*)])
+                (and conv body* (list conv body*)))))]
      [(list (? rewrite-repr-op? op) body)
-      (define prec* (operator-info op 'otype))
-      (loop body prec*)]
+      (define iprec (operator-info op 'otype))
+      (define oprec (if prec prec (representation-name (*output-repr*))))
+      (cond
+       [(equal? iprec oprec)
+        (loop body iprec)]
+       [else
+        (define conv (get-repr-conv iprec oprec))
+        (define body* (loop body iprec))
+        (and conv body* (list conv body*))])]
+     [(list 'if con ift iff)
+      (define prec* (if prec prec (representation-name (*output-repr*))))
+      (define con*
+        (let loop2 ([con con])
+          (cond
+           [(set-member? '(TRUE 'FALSE) con)
+            con]
+           [else
+            (match-define (list op args ...) con)
+            (define cprec (operator-info op 'itype))
+            (cond
+             [(equal? cprec 'bool)
+              `(,op ,@(map loop2 args))]
+             [else
+              `(,op ,@(map (curryr loop cprec) args))])])))
+      (define ift* (loop ift prec*))
+      (define iff* (loop iff prec*))
+      (and ift* iff* `(if ,con* ,ift* ,iff*))]
      [(list (? operator? op) args ...) 
       (define prec* (if prec prec (operator-info op 'otype)))
       (if (equal? (operator-info op 'otype) prec*)

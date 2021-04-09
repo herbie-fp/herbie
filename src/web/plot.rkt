@@ -2,16 +2,18 @@
 
 (require math/bigfloat math/flonum plot/no-gui)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
+         "../syntax/syntax.rkt" "../syntax/types.rkt" "../syntax/read.rkt"
+         "../alternative.rkt" "../interface.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
-(provide make-axis-plot make-points-plot)
+(provide make-axis-plot make-points-plot make-cost-accuracy-plot
+         make-full-cost-accuracy-plot)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
 (define *blue-theme* (color-theme "lightblue" "blue" "navy"))
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
+(define *gray-theme* (color-theme "gray" "gray" "gray"))
 
 ;;  Repr conversions
 
@@ -296,21 +298,26 @@
 
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
-  (define split-var? (equal? var (regime-var (test-success-end-alt result))))
+  (define end-alt (car (test-success-end-alts result)))
+  (define split-var? (equal? var (regime-var end-alt)))
   (define repr (test-output-repr (test-result-test result)))
   (define pts (test-success-newpoints result))
   (herbie-plot
    #:port out #:kind 'png
    repr
    (error-axes pts repr #:axis idx)
-   (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
+   (map error-mark (if split-var? (regime-splitpoints end-alt) '()))))
 
 (define (make-points-plot result out idx letter)
   (define-values (theme accessor)
     (match letter
-      ['r (values *red-theme*   test-success-start-error)]
-      ['g (values *green-theme* test-success-target-error)]
-      ['b (values *blue-theme*  test-success-end-error)]))
+     ['r (values *red-theme*   test-success-start-error)]
+     ['g (values *green-theme* test-success-target-error)]
+     ['b (values *blue-theme*  (compose car test-success-end-errors))]
+     [(? (conjoin string? (curryr string-prefix? "o")))
+      (define num (+ (string->number (substring letter 1)) 1))
+      (values *gray-theme*
+              (λ (x) (list-ref (test-success-end-errors x) num)))]))
 
   (define repr (test-output-repr (test-result-test result)))
   (define pts (test-success-newpoints result))
@@ -321,6 +328,71 @@
    repr
    (error-points err pts repr #:axis idx #:color theme)
    (error-avg err pts repr #:axis idx #:color theme)))
+
+;;; Cost vs. Accuracy (internal, single benchmark)
+(define (make-cost-accuracy-plot result out)
+  (define repr (test-output-repr (test-result-test result)))
+  (define bits (representation-total-bits repr))
+  (define costs (test-success-end-costs result))
+  (define errs (map errors-score (test-success-end-errors result)))
+
+  (define cost0 (test-success-start-cost result))
+  (define err0 (errors-score (test-success-start-error result)))
+
+  (define xmax (argmax identity (cons cost0 costs)))
+  (define xmin (argmax identity (cons cost0 costs)))
+
+  (parameterize ([plot-width 800] [plot-height 300]
+                 [plot-background-alpha 0]
+                 [plot-font-size 10]
+                 [plot-x-tick-label-anchor 'top]
+                 [plot-x-label "Cost"]
+                 [plot-x-far-axis? #t]
+                 [plot-x-far-ticks no-ticks]
+                 [plot-y-ticks (linear-ticks #:number 9 #:base 32 #:divisors '(2 4 8))]
+                 [plot-y-far-axis? #t]
+                 [plot-y-axis? #t]
+                 [plot-y-label "Error (bits)"])
+    (define pnts (points (map vector costs errs)
+                         #:sym 'fullcircle
+                         #:size 9
+                         #:fill-color "red"))
+    (define spnt (points (list (vector cost0 err0))
+                         #:sym 'fullsquare
+                         #:color "black"
+                         #:size 15))
+    (plot-file (list spnt pnts (y-tick-lines))
+               out 'png
+               #:x-min 0 #:x-max (+ xmax xmin)
+               #:y-min 0 #:y-max bits)))
+
+;;; Cost vs. Accuracy (internal, entire suite)
+(define (make-full-cost-accuracy-plot y-max start pts out)
+  (match-define (list (cons costs scores) ...) pts)
+  (define x-max (argmax identity (cons (car start) costs)))
+  (parameterize ([plot-width 800] [plot-height 300]
+                 [plot-background-alpha 0]
+                 [plot-font-size 10]
+                 [plot-x-tick-label-anchor 'top]
+                 [plot-x-label "Cost"]
+                 [plot-x-far-axis? #t]
+                 [plot-x-far-ticks no-ticks]
+                 [plot-y-ticks (linear-ticks #:number 9)]
+                 [plot-y-far-axis? #t]
+                 [plot-y-axis? #t]
+                 [plot-y-label "Accuracy (bits)"])
+    (define spnt (points (list (vector (car start) (cdr start)))
+                         #:sym 'fullsquare
+                         #:color "black"
+                         #:size 15))
+    (define curve (lines (map vector (map car pts) (map cdr pts))
+                         #:color "red"
+                         #:width 4))
+    (plot-file (list spnt curve (y-tick-lines))
+               out 'png
+               #:x-min 0 #:x-max x-max
+               #:y-min 0 #:y-max y-max)))
+
 
 (define (make-alt-plots point-alt-idxs alt-idxs title out result)
   (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
@@ -351,7 +423,7 @@
     (define point-alt-idxs (make-point-alt-idxs result))
     (define newpoints (test-success-newpoints result))
     (define baseline-errs (test-success-baseline-error result))
-    (define herbie-errs (test-success-end-error result))
+    (define herbie-errs (car (test-success-end-errors result)))
     (define oracle-errs (test-success-oracle-error result))
     (define point-colors (herbie-ratio-point-colors newpoints baseline-errs herbie-errs oracle-errs))
     (for* ([i (range (- (length vars) 1))] [j (range 1 (length vars))])

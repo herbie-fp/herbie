@@ -4,7 +4,7 @@
 (require "../common.rkt" "../programs.rkt" "../sampling.rkt"
          (submod "../points.rkt" internals))
 (require "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
-(require "../programs.rkt" "../float.rkt" "sugar.rkt")
+(require "../programs.rkt" "../float.rkt" "../float32.rkt" "sugar.rkt")
 
 (define num-test-points 1000)
 
@@ -87,7 +87,7 @@
   (for ([pt points] [v1 ex1] [v2 ex2])
     (with-check-info (['point (map list fv pt)])
       (match otype
-       ['binary32 (check-equal? (real->single-flonum v1) (real->single-flonum v2))] ; casting problems
+       ['binary32 (check-equal? (->float32 v1) (->float32 v2))] ; casting problems
        [else (check-equal? v1 v2)]))))
 
 (module+ main

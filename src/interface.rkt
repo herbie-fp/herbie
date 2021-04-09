@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "syntax/types.rkt")
+(require "syntax/types.rkt" "errors.rkt" "float32.rkt")
 
 (provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
@@ -51,7 +51,8 @@
   (if (or (hash-has-key? representations name) ; check existing
           (generate-repr name)) ; ask plugins to try generating this repr
     (hash-ref representations name)
-    (error 'get-representation "Unknown representation ~a" name))) ; else fail
+    (raise-herbie-error "Could not find builtin or plugin support for ~a representation"
+                        name))) ; else fail
 
 (define (register-representation! name type repr? . args)
   (hash-set! representations name
@@ -89,44 +90,15 @@
   64
   (disjoin nan? infinite?))
 
-(define (single-flonum->bit-field x)
-  (integer-bytes->integer (real->floating-point-bytes x 4) #f))
-
-(define (single-flonum->ordinal x)
-  (cond
-    [(< x 0.0f0) (- (single-flonum->bit-field (- 0.0f0 x)))]
-    [else (single-flonum->bit-field (abs x))]))
-
-(define (bit-field->single-flonum x)
-  (real->single-flonum (floating-point-bytes->real (integer->integer-bytes x 4 #f) #f)))
-
-(define (ordinal->single-flonum x)
-  (cond
-    [(< x 0) (- (bit-field->single-flonum (- x)))]
-    [else (bit-field->single-flonum x)]))
-
-(define (single-flonum-step x n)
-  (ordinal->single-flonum (+ (single-flonum->ordinal x) n)))
-
-(define (bigfloat->single-flonum x)
-  (define loprec (parameterize ([bf-precision 24]) (bf+ 0.bf x)))
-  (define y (real->single-flonum (bigfloat->flonum loprec)))
-  (define x2 (bf y))
-  (match (bf-rounding-mode)
-    ['nearest y]
-    ['up   (if (bf< x2 x) (single-flonum-step y 1) y)]
-    ['down (if (bf> x2 x) (single-flonum-step y -1) y)]
-    ['zero (if (bf< x 0.bf)
-               (if (bf< x2 x) (single-flonum-step y 1) y)
-               (if (bf> x2 x) (single-flonum-step y -1) y))]))
-
-(define-representation (binary32 real single-flonum?)
-  bigfloat->single-flonum
-  bf
-  ordinal->single-flonum
-  single-flonum->ordinal
-  32
-  (disjoin nan? infinite?))
+;; BC or CS (>= 8.0)
+(when (single-flonum-supported?)
+  (register-representation! 'binary32 'real float32?
+    bigfloat->float32
+    bf
+    (shift 31 ordinal->float32)
+    (unshift 31 float32->ordinal)
+    32
+    (disjoin nan? infinite?)))
 
 ;; repr <==> real
 

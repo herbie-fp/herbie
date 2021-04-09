@@ -1,25 +1,36 @@
 #lang racket
 
 (require json)
-(require "../common.rkt" "../syntax/read.rkt" "../datafile.rkt")
-(require "make-report.rkt" "thread-pool.rkt" "timeline.rkt" "../timeline.rkt" "../profile.rkt")
+(require "../common.rkt" "../syntax/read.rkt" "../syntax/sugar.rkt" "../datafile.rkt"
+         "../interface.rkt" "../profile.rkt" "../timeline.rkt" "../sampling.rkt"
+         "make-report.rkt" "thread-pool.rkt" "timeline.rkt")
 
 (provide make-report rerun-report replot-report)
 
+(define (extract-test row)
+  (define vars (table-row-vars row))
+  (define prec (table-row-precision row))
+  (define var-precs (map (curryr cons prec) vars))
+  (define repr (get-representation prec))
+  (define var-reprs (map (curryr cons repr) vars))
+  (test (table-row-name row) (table-row-vars row)
+        (desugar-program (table-row-input row) repr var-reprs)
+        (desugar-program (table-row-output row) repr var-reprs)
+        (table-row-target-prog row) 
+        (desugar-program (table-row-spec row) repr var-reprs)
+        (desugar-program (table-row-pre row) repr var-reprs)
+        (table-row-preprocess row)
+        (table-row-precision row)
+        (map (curryr cons (table-row-precision row)) (table-row-vars row))
+        (table-row-conversions row)))
+  
 (define (make-report bench-dirs #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
   (run-tests tests #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads))
 
 (define (rerun-report json-file #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
   (define data (read-datafile json-file))
-  (define tests
-    (for/list ([row (report-info-tests data)])
-      (test (table-row-name row) (table-row-vars row)
-            (table-row-input row) (table-row-output row)
-            (table-row-target-prog row) (table-row-spec row)
-            (table-row-pre row) (table-row-preprocess row)
-            (table-row-precision row)
-            (map (curryr cons (table-row-precision row)) (table-row-vars row)))))
+  (define tests (map extract-test (report-info-tests data)))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
@@ -43,34 +54,53 @@
         ([(pt ex) (in-pcontext context)])
       (values pt ex)))
 
-  (for ([row (report-info-tests data)] [index (in-naturals)])
+  (for ([row (report-info-tests data)] [index (in-naturals)]
+        #:unless (set-member? '("error" "crash") (table-row-status row)))
     (set-seed! (report-info-seed data))
-    (define orig-test
-      (test (table-row-name row) (table-row-vars row)
-            (table-row-input row) (table-row-target-prog row)
-            #f (table-row-spec row)
-            (table-row-pre row) (table-row-preprocess row)
-            (table-row-precision row)
-            (map (curryr cons (table-row-precision row)) (table-row-vars row))))
-    (define output-repr (test-output-repr orig-test))
+    (define orig-test (extract-test row))
+    (define output-repr (get-representation (test-output-prec orig-test)))
     (parameterize ([*timeline-disabled* true] [*output-repr* output-repr]
                    [*var-reprs* (map (curryr cons output-repr) (test-vars orig-test))])
+      (define sampler
+        (make-sampler (*output-repr*) (test-precondition orig-test)
+                      (list (test-specification orig-test))
+                      (test-preprocess orig-test)))
       (define newcontext
         (parameterize ([*num-points* (*reeval-pts*)])
-          (car (prepare-points (test-specification orig-test) (test-precondition orig-test) output-repr (test-preprocess orig-test)))))
+          (car (prepare-points (test-specification orig-test)
+                               (test-precondition orig-test)
+                               output-repr sampler
+                               (test-preprocess orig-test)))))
       (define start-alt (make-alt (test-program orig-test)))
-      (define end-alt (make-alt `(λ ,(test-vars orig-test) ,(table-row-output row))))
+      (define end-alt (make-alt `(λ ,(test-vars orig-test) ,(test-output orig-test))))
       (define-values (newpoints newexacts) (get-p&es newcontext))
+
+      ; Pherbie specific
+      (define ca (table-row-cost-accuracy row))
+      (define start-cost (first (first ca)))
+      (define end-cost (first (second ca)))
+      (define other-costs (map first (third ca)))
+      (define other-progs (map second (third ca)))
+      (define other-progs*
+        (for/list ([prog other-progs])
+          `(λ ,(test-vars orig-test) ,(desugar-program prog output-repr (*var-reprs*)))))
+
+      (define end-errs (errors (alt-program end-alt) newcontext output-repr))
+      (define other-errs (map (curryr errors newcontext output-repr) other-progs*))
+
       (define result
-        (test-success orig-test #f #f #f #f start-alt end-alt
+        (test-success orig-test #f #f #f #f
+                      start-alt (cons end-alt (map make-alt other-progs*))
                       #f #f #f #f #f
                       newpoints newexacts
                       (errors (alt-program start-alt) newcontext output-repr)
-                      (errors (alt-program end-alt) newcontext output-repr)
+                      (cons end-errs other-errs)
                       (if (test-output orig-test)
                           (errors (test-target orig-test) newcontext output-repr)
                           #f)
-                      #f #f #f))
+                      #f #f
+                      (alt-cost start-alt) (cons end-cost other-costs)
+                      #f))
       (define images (filter (curryr string-suffix? ".png") (all-pages result)))
       (for ([page images])
         (with-handlers ([exn:fail? (page-error-handler result page)])
@@ -106,7 +136,7 @@
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
   (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
   (call-with-output-file (build-path dir "results.html")
-    (curryr make-report-page info) #:exists 'replace)
+    (curryr make-report-page info dir) #:exists 'replace)
   (define timeline (merge-timeline-jsons (read-json-files info dir "timeline.json")))
   (call-with-output-file (build-path dir "timeline.json") (curry write-json timeline) #:exists 'replace)
   (define profile (merge-profile-jsons (read-json-files info dir "profile.json")))

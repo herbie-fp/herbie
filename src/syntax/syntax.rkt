@@ -1,7 +1,7 @@
 #lang racket
 
-(require math/flonum math/base math/bigfloat math/special-functions)
-(require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt" rival)
+(require math/flonum math/base math/bigfloat math/special-functions rival)
+(require "../common.rkt" "../interface.rkt" "../errors.rkt" "../float32.rkt" "types.rkt")
 
 (provide constant? variable? operator? operator-info constant-info get-operator-itype
          get-parametric-operator parametric-operators parametric-operators-reverse
@@ -70,22 +70,22 @@
 ;; binary32 ;;
 (define-constant (PI PI.f32) binary32
   [bf (λ () pi.bf)]
-  [fl (λ () pi.f)]
+  [fl (λ () (->float32 pi))]
   [ival ival-pi])
 
 (define-constant (E E.f32) binary32
   [bf (λ () (bfexp 1.bf))]
-  [fl (λ () (exp 1.0))]
+  [fl (λ () (->float32 (exp 1.0)))]
   [ival ival-e])
 
 (define-constant (INFINITY INFINITY.f32) binary32
   [bf (λ () +inf.bf)]
-  [fl (λ () +inf.0)]
+  [fl (λ () (->float32 +inf.0))]
   [ival (λ () (mk-ival +inf.bf))])
 
 (define-constant (NAN NAN.f32) binary32
   [bf (λ () +nan.bf)]
-  [fl (λ () +nan.0)]
+  [fl (λ () (->float32 +nan.0))]
   [ival (λ () (mk-ival +nan.bf))]) 
 
 ;; bool ;;
@@ -192,24 +192,19 @@
  
 ;; binary32 4-function ;;
 (define-operator (+ +.f32 binary32 binary32) binary32 
-  [fl +] [bf bf+] [ival ival-add]
-  [nonffi +])
+  [fl fl32+] [bf bf+] [ival ival-add] [nonffi +])
 
 (define-operator (- -.f32 binary32 binary32) binary32
-  [fl -] [bf bf-] [ival ival-sub]
-  [nonffi -])
+  [fl fl32-] [bf bf-] [ival ival-sub] [nonffi -])
 
 (define-operator (- neg.f32 binary32) binary32
-  [fl -] [bf bf-] [ival ival-neg]
-  [nonffi -])
+  [fl fl32-] [bf bf-] [ival ival-neg] [nonffi -])
 
 (define-operator (* *.f32 binary32 binary32) binary32
-  [fl *] [bf bf*] [ival ival-mult]
-  [nonffi *])
+  [fl fl32*] [bf bf*] [ival ival-mult] [nonffi *])
 
 (define-operator (/ /.f32 binary32 binary32) binary32
-  [fl /] [bf bf/] [ival ival-div]
-  [nonffi /])
+  [fl fl32/] [bf bf/] [ival ival-div] [nonffi /])
 
 (define *unknown-ops* (make-parameter '()))
 
@@ -240,7 +235,7 @@
              [fl (λ args (apply double-proc args))]
              [key value] ...)
            (define-operator (op opf32 #,@(build-list num-args (λ (_) #'binary32))) binary32
-             [fl (λ args (apply float-proc args))]
+             [fl (λ args (->float32 (apply float-proc args)))]
              [key value] ...)
        ))]))
 
@@ -547,10 +542,10 @@
 ;; Miscellaneous operators ;;
 
 (define (repr-conv? expr)
-  (regexp-match? #px"^[\\S]+(->)[\\S]+$" (symbol->string expr)))
+  (and (symbol? expr) (regexp-match? #px"^[\\S]+(->)[\\S]+$" (symbol->string expr))))
 
 (define (rewrite-repr-op? expr)
-  (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr)))
+  (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
 
 (define (get-repr-conv iprec oprec)
   (for/or ([(name sig) (in-hash parametric-operators)]
@@ -569,12 +564,12 @@
   [nonffi identity])
 
 (define-operator (binary64->binary32 binary64->binary32 binary64) binary32
-  [fl (curryr real->single-flonum)] [bf identity] [ival #f]
-  [nonffi (curryr real->single-flonum)])
+  [fl (curryr ->float32)] [bf identity] [ival #f]
+  [nonffi (curryr ->float32)])
 
 (define-operator (binary32->binary64 binary32->binary64 binary32) binary64
-  [fl (curryr real->double-flonum)] [bf identity] [ival #f]
-  [nonffi (curryr real->double-flonum)])
+  [fl identity] [bf identity] [ival #f]
+  [nonffi identity])
 
 ;; Expression predicates ;;
 
