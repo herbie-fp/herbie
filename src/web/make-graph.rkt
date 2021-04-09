@@ -50,11 +50,16 @@
 (define (make-graph result out fpcore? profile?)
   (match-define
    (test-success test bits time timeline warnings
-                 start-alt end-alt preprocess points exacts start-est-error end-est-error
-                 newpoints newexacts start-error end-error target-error
-                 baseline-error oracle-error all-alts)
+                 start-alt end-alts preprocess points exacts start-est-error end-est-error
+                 newpoints newexacts start-error end-errors target-error
+                 baseline-error oracle-error start-cost costs all-alts)
    result)
   (define repr (test-output-repr test))
+  (define end-alt (car end-alts))
+  (define end-error (car end-errors))
+  (define other-alts (cdr end-alts))
+  (define other-errors (cdr end-errors))
+  (define alt-plots? (< (* (length other-alts) (length (test-vars test))) 100))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -92,7 +97,10 @@
                               (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
                               (format-bits (apply max (map ulps->bits end-error)) #:unit #f)))
        ,(render-large "Time" (format-time time))
-       ,(render-large "Precision" `(kbd ,(~a (representation-name repr)))))
+       ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
+       ,(if (*pareto-mode*)
+            (render-large "Cost" `(kbd ,(format-bits (car costs) #:unit #f)))
+            ""))
 
       ,(render-warnings warnings)
 
@@ -107,6 +115,11 @@
               (define split-var? (equal? var (regime-var end-alt)))
               (define title "The X axis uses an exponential scale")
               `(figure ([id ,(format "fig-~a" idx)] [class ,(if split-var? "default" "")])
+                ,@(reverse ; buttons are sorted R/L
+                    (for/list ([alt other-alts] [idx2 (in-naturals)] #:when alt-plots?)
+                      (let ([name (format "Other~a" idx2)])
+                        `(img ([width "800"] [height "300"] [title ,title] [data-name ,name]
+                               [src ,(format "plot-~ao~a.png" idx idx2)])))))
                 (img ([width "800"] [height "300"] [title ,title]
                       [src ,(format "plot-~a.png" idx)]))
                 (img ([width "800"] [height "300"] [title ,title] [data-name "Input"]
@@ -118,7 +131,10 @@
                 (img ([width "800"] [height "300"] [title ,title] [data-name "Result"]
                       [src ,(format "plot-~ab.png" idx)]))
                 (figcaption (p "Bits error versus " (var ,(~a var)))))]
-             [else ""]))))
+             [else ""]))
+       ,(if alt-plots?
+             ""
+             `(p "Too many alternatives generated, ignoring plots"))))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive start-alt (car points))
@@ -141,7 +157,27 @@
        (h1 "Derivation")
        (ol ([class "history"])
         ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
-            (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) repr))))
+            (render-history end-alt (mk-pcontext newpoints newexacts)
+                            (mk-pcontext points exacts) repr))))
+      (section ([id "alternatives"] [style "margin: 2em 0;"])
+       `(h1 "Alternatives")
+      ,@(for/list ([alt other-alts] [cost (cdr costs)] [errs other-errors] [idx (in-naturals 1)])
+          `(table
+            (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" idx)))
+            (tr (th "Error") (td ,(format-bits (errors-score errs))))
+            (tr (th "Cost") (td ,(format-bits cost))))
+          `(div ([class "math"])
+              "\\[" ,(core->tex
+                      (program->fpcore
+                        (resugar-program (alt-program alt) repr)))
+              "\\]")))
+                                      
+      ,(if (not (null? other-alts))
+          `(section ([id "cost-accuracy"])
+            (h1 "Error")
+            (img ([width "800"] [height "300"] [title "cost-accuracy"]
+                  [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
+            "")
 
       ,(render-reproduction test)))
     out))

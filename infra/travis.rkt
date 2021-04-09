@@ -1,19 +1,22 @@
 #lang racket
 
-(require "../src/common.rkt" "../src/interface.rkt" "../src/points.rkt" "../src/plugin.rkt"
+(require "../src/common.rkt" "../src/points.rkt" "../src/plugin.rkt"
          "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt")
 
 ;; Load all the plugins
 (load-herbie-plugins)
 
 (define *precision* (make-parameter #f))
+(define *ignore-target* (make-parameter #f))
 
 (define (test-successful? test input-bits target-bits output-bits)
-  (match* ((test-output test) (test-expected test))
-    [(_ #f) #t]
-    [(_ (? number? n)) (>= n output-bits)]
-    [(#f #t) (>= input-bits output-bits)]
-    [(_ #t) (>= target-bits (- output-bits 1))]))
+  (if (*ignore-target*)
+      #t
+      (match* ((test-output test) (test-expected test))
+       [(_ #f) #t]
+       [(_ (? number? n)) (>= n output-bits)]
+       [(#f #t) (>= input-bits output-bits)]
+       [(_ #t) (>= target-bits (- output-bits 1))])))
 
 (define (run-tests . bench-dirs)
   (define override-ctx (if (*precision*) `((:precision . ,(*precision*))) '())) ; desugar programs correctly
@@ -32,9 +35,10 @@
           the-test))
     (match (get-test-result the-test* #:seed seed)
       [(test-success test bits time timeline warnings
-                     start-alt end-alt preprocess points exacts start-est-error end-est-error
-                     newpoints newexacts start-error end-error target-error
-                     baseline-error oracle-error all-alts)
+                     start-alt end-alts preprocess points exacts start-est-error end-est-error
+                     newpoints newexacts start-error end-errors target-error
+                     baseline-error oracle-error start-cost costs all-alts)
+       (define end-error (car end-errors))
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
                (~r (errors-score start-error) #:min-width 2 #:precision 0)
@@ -50,7 +54,7 @@
          (printf "\nInput (~a bits):\n" (errors-score start-error))
          (pretty-print (alt-program start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))
-         (pretty-print (alt-program end-alt) (current-output-port) 1)
+         (pretty-print (alt-program (car end-alts)) (current-output-port) 1)
          (when (test-output test)
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
            (pretty-print (test-output test) (current-output-port) 1)))
@@ -75,5 +79,10 @@
     (when given-seed (set-seed! given-seed))]
    [("--precision") prec "Which precision to use for tests"
     (*precision* (string->symbol prec))]
+   [("--pareto") "Enables Pherbie"
+    (*pareto-mode* #t)
+    (*ignore-target* #t)
+    (*num-iterations* 2)   ; keep iters low
+    (*timeout* (* 1000 60 10))]
    #:args bench-dir
    (exit (if (apply run-tests bench-dir) 0 1))))

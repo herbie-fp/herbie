@@ -12,17 +12,26 @@
 (define (all-pages result)
   (define test (test-result-test result))
   (define good? (test-success? result))
+  (define others
+    (if good?
+      (let ([other (cdr (test-success-end-alts result))]
+            [vars (test-vars test)])
+        (if (and good? (< (* (length other) (length vars)) 100))
+            (build-list (length other) (λ (x) (format "o~a" x)))
+            '()))
+      '()))
 
   (define pages
     `("graph.html"
       ,(and good? "interactive.js")
       "timeline.html" "timeline.json"
       ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
-                   #:when good? [type '("" "r" "g" "b")]
+                   #:when good? [type (append (list "" "r" "g" "b") others)]
                    #:unless (and (equal? type "g") (not (test-output test)))
                    ;; Don't generate a plot with only one X value else plotting throws an exception
                    #:when (> (unique-values (test-success-newpoints result) idx) 1))
-          (format "plot-~a~a.png" idx type))))
+          (format "plot-~a~a.png" idx type))
+      ,(and good? (> (length (test-success-end-alts result)) 2) "cost-accuracy.png")))
   (filter identity pages))
 
 (define ((page-error-handler result page) e)
@@ -32,7 +41,6 @@
    e))
 
 (define (make-page page out result profile?)
-  
   (define test (test-result-test result))
   (define repr (test-output-repr test))
   (match page
@@ -47,16 +55,20 @@
      (make-timeline (test-name test) (test-result-timeline result) out)]
     ["timeline.json"
      (write-json (test-result-timeline result) out)]
+    ["cost-accuracy.png"
+     (make-cost-accuracy-plot result out)]
     [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
      (make-axis-plot result out (string->number idx))]
     [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
-     (make-points-plot result out (string->number idx) (string->symbol letter))]))
+     (make-points-plot result out (string->number idx) (string->symbol letter))]
+    [(regexp #rx"^plot-([0-9]+)(o[0-9]+).png$" (list _ idx letter))
+     (make-points-plot result out (string->number idx) letter)]))
 
 (define (get-interactive-js result repr)
-  (define start-fpcore 
-    (program->fpcore (resugar-program (alt-program (test-success-start-alt result)) repr)))
-  (define end-fpcore
-    (program->fpcore (resugar-program (alt-program (test-success-end-alt result)) repr)))
+  (define start-prog (alt-program (test-success-start-alt result)))
+  (define end-prog (alt-program (car (test-success-end-alts result))))
+  (define start-fpcore (program->fpcore (resugar-program start-prog repr)))
+  (define end-fpcore (program->fpcore (resugar-program end-prog repr)))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
        (supported-by-lang? start-fpcore "js")
        (supported-by-lang? end-fpcore "js")

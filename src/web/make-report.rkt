@@ -1,9 +1,32 @@
 #lang racket
 
 (require (only-in xml write-xexpr))
-(require "../common.rkt" "../datafile.rkt" "common.rkt")
+(require "../common.rkt" "../datafile.rkt" "../interface.rkt" "../pareto.rkt"
+         "common.rkt" "plot.rkt")
 
 (provide make-report-page)
+
+(define (try-list-accessor acc fail)
+  (λ (l) (if (null? l) fail (acc l))))
+
+(define (trs->pareto trs)
+  (define cas (map table-row-cost-accuracy trs))
+  (define starts (map (try-list-accessor first (list 0 0)) cas))
+  (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
+                                       (list (list 0 0)))
+                    cas))
+  (define precs (map table-row-precision trs))
+
+  (define start
+    (for/fold ([x 0] [y 0] #:result (cons x y)) ([s starts])
+      (values (+ x (first s)) (+ y (second s)))))
+  (define ptss*
+    (for/list ([pts ptss])
+      (for/list ([pt pts])
+        (cons (first pt) (second pt)))))
+  (define precs->bits (compose representation-total-bits get-representation))
+  (define ymax (apply + (map precs->bits precs)))
+  (values start (generate-pareto-curve ptss*) ymax))
 
 (define (badge-label result)
   (match (table-row-status result)
@@ -12,8 +35,18 @@
     ["timeout" "TIME"]
     [_ (format-bits (- (table-row-start result) (table-row-result result)) #:sign #t)]))
 
-(define (make-report-page out info)
+(define (make-report-page out info dir)
   (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
+
+  (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
+  (cond
+   [(> (length pareto-points) 1) ; generate the scatterplot if necessary
+    (call-with-output-file (build-path dir "cost-accuracy.png")
+      #:exists 'replace
+      (λ (out) (make-full-cost-accuracy-plot pareto-max pareto-start pareto-points out)))]
+   [else
+    (when (file-exists? (build-path dir "cost-accuracy.png"))
+      (delete-file (build-path dir "cost-accuracy.png")))])
 
   (define table-labels
     '("Test" "Start" "Result" "Target" "Time"))
@@ -109,5 +142,10 @@
                        (a ((id ,(format "link~a" id))
                            (href ,(format "~a/graph.html" (table-row-link result))))
                           "»"))
-                     "")))))))
+                     "")))))
+     ,(if (> (length pareto-points) 1)
+         `(div ([id "scatterplot"] [style "margin-top: 2.5em"])
+             (img ([width "800"] [height "300"] [title "cost-accuracy"]
+                   [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
+           "")))
    out))

@@ -111,6 +111,13 @@
       used. A number can be passed to this option to use that many
       threads, or <code>yes</code> can be passed to tell Herbie to use
       all of the hardware threads.</dd>
+
+    <dt><code>--pareto</code></dt>
+    <dd>Enables multi-objective improvement. Herbie will attempt to simultaneously
+    optimize for both accuracy and expression cost. Rather than generating
+    a single "ideal" output expression, Herbie will generate many output expressions.
+    This mode is still considered experimental. This WILL take a long time to run.
+    If you encounter timeouts, it is recommended to increase the timeout to several hours.
   </dl>
 
   <h2>Web shell options</h2>

@@ -107,3 +107,23 @@ jobs:
       - name: "Install Complex support"
         run: raco pkg install --no-cache --auto --name complex-herbie plugin/
       - run: racket infra/travis.rkt --seed 0 plugin/test.fpcore
+
+  pherbie-hamming:
+    name: "Integration tests (Pherbie, Hamming)"
+    runs-on: ubuntu-latest
+    needs: [ 'hamming' ]
+    strategy:
+      matrix: # this takes a while: don't run too many
+        racket-version: [ '7.9' ]
+        precision: [ 'binary32', 'binary64' ]
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v0.5
+        with:
+          version: ${{ matrix.racket-version }}
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 --pareto bench/hamming/

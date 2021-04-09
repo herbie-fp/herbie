@@ -542,10 +542,10 @@
 ;; Miscellaneous operators ;;
 
 (define (repr-conv? expr)
-  (regexp-match? #px"^[\\S]+(->)[\\S]+$" (symbol->string expr)))
+  (and (symbol? expr) (regexp-match? #px"^[\\S]+(->)[\\S]+$" (symbol->string expr))))
 
 (define (rewrite-repr-op? expr)
-  (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr)))
+  (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
 
 (define (get-repr-conv iprec oprec)
   (for/or ([(name sig) (in-hash parametric-operators)]
