@@ -74,11 +74,14 @@
   (register-ruleset! rulename4 '(arithmetic simplify) (list (cons 'a prec2))
     (list (list rulename4 `(,conv1 (,conv2 a)) 'a))))
 
+;; First, generate the repr 
 (define (generate-conversions convs)
   (define reprs
     (for/fold ([reprs '()]) ([conv convs])
       (define prec1 (first conv))
       (define prec2 (last conv))
+      (generate-repr prec1) ; manually generate the representation
+      (generate-repr prec2)
       (generate-conversion prec1 prec2)
       (hash-update! (*conversions*) prec1 (λ (x) (cons prec2 x)) '())
       (hash-update! (*conversions*) prec2 (λ (x) (cons prec1 x)) '())
