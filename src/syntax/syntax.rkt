@@ -132,8 +132,9 @@
   (define otype (dict-ref attrib-dict 'otype rtype))
   (table-set! operators name
               (make-hash (append (list (cons 'itype itypes) (cons 'otype otype)) attrib-dict)))
-  (hash-update! parametric-operators operator 
-                (curry cons (list* name otype (operator-info name 'itype))) '())
+  (hash-update! parametric-operators operator
+                (λ (h) (hash-set h itypes (cons name otype)))
+                (hash))
   (hash-set! parametric-operators-reverse name operator))
 
 (define-syntax-rule (define-operator (operator name atypes ...) rtype [key value] ...)
@@ -151,13 +152,12 @@
     (current-continuation-marks))))
 
 (define (get-parametric-operator name . actual-types)
-  (for/or ([sig (hash-ref parametric-operators name)])
-    (match-define (list* true-name rtype atypes) sig)
-    (and
-      (if (representation-name? atypes)
-          (andmap (curry equal? atypes) actual-types)
-          (equal? atypes actual-types))
-      true-name)))
+  (let ([op-info (hash-ref parametric-operators name)])
+    (or (car (hash-ref op-info actual-types (cons #f #f))) ; dumb way to car the value
+        (car (hash-ref op-info (car actual-types) (cons #f #f)))
+        (error 'get-parametric-operator
+              "parametric operator with op ~a and type(s) ~a not found"
+              name actual-types))))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; TODO: hopefully will be fixed when the way operators are declared
@@ -165,7 +165,7 @@
 (define (get-operator-itype op) 
   (operator-info
     (if (hash-has-key? parametric-operators op)
-        (car (last (hash-ref parametric-operators op)))
+        (car (first (hash-values (hash-ref parametric-operators op))))
         op)
     'itype))
 
