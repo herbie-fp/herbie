@@ -151,13 +151,15 @@
     (format "couldn't find ~a and no default implementation defined" 'operator)
     (current-continuation-marks))))
 
-(define (get-parametric-operator name . actual-types)
+(define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (let ([op-info (hash-ref parametric-operators name)])
-    (or (car (hash-ref op-info actual-types (cons #f #f))) ; dumb way to car the value
+    (or (car (hash-ref op-info actual-types (cons #f #f))) ; dumb way to fail with #f
         (car (hash-ref op-info (car actual-types) (cons #f #f)))
-        (error 'get-parametric-operator
-              "parametric operator with op ~a and type(s) ~a not found"
-              name actual-types))))
+        (if fail-fast?
+            (error 'get-parametric-operator
+                   "parametric operator with op ~a and input types ~a not found"
+                   name actual-types)
+            #f))))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; TODO: hopefully will be fixed when the way operators are declared

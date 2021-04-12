@@ -71,7 +71,7 @@
         (expression->type body env type error!)])]
     [#`(- #,arg)
      (define actual-type (expression->type arg env type error!))
-     (define op* (get-parametric-operator '- actual-type))
+     (define op* (get-parametric-operator '- actual-type #:fail-fast? #f))
      (if op*
          (operator-info op* 'otype)
          (begin
@@ -108,7 +108,7 @@
      'complex]
     [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
-     (define op* (apply get-parametric-operator op actual-types))
+     (define op* (apply get-parametric-operator op actual-types #:fail-fast? #f))
      (if op*
          (operator-info op* 'otype)
          (begin
