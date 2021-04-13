@@ -550,12 +550,11 @@
   (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
 
 (define (get-repr-conv iprec oprec)
-  (for/or ([(name sig) (in-hash parametric-operators)]
-           #:when (repr-conv? name))
-    (match-define (list* true-name rtype atypes) (car sig))
-    (and (equal? rtype oprec)
-         (equal? (first atypes) iprec)
-         name)))
+  (for/or ([(op table) (in-hash parametric-operators)] #:when (repr-conv? op))
+    (for/first ([(atypes info) (in-hash table)] #:when #t)
+      (and (equal? (cdr info) oprec)
+           (equal? (car atypes) iprec)
+           (car info)))))
 
 (define-operator (cast cast.f64 binary64) binary64
   [fl identity] [bf identity] [ival #f]
