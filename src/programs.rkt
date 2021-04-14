@@ -45,7 +45,7 @@
 (define (type-of expr repr env)
   (match expr
    [(? real?) (get-type 'real)]
-   [(? value?) (representation-type repr)]
+   [(? (representation-repr? repr)) (representation-type repr)]
    [(? constant?) 
     (representation-type (get-representation (constant-info expr 'type)))]
    [(? variable?) (representation-type (dict-ref env expr))]
@@ -58,7 +58,7 @@
 (define (repr-of expr repr env)
   (match expr
    [(? real?) (representation-name repr)]
-   [(? value?) (representation-name repr)]
+   [(? (representation-repr? repr)) (representation-name repr)]
    [(? constant?) (constant-info expr 'type)]
    [(? variable?) (representation-name (dict-ref env expr))]
    [(list 'if cond ift iff) (repr-of ift repr env)]

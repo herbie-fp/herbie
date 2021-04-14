@@ -50,6 +50,7 @@
 (define (get-representation name)
   (hash-ref representations name
             (λ () (raise-herbie-error "Could not find support for ~a representation" name))))
+
 (define (register-representation! name type repr? . args)
   (hash-set! representations name
             (apply representation name (get-type type) repr? args)))
@@ -110,7 +111,8 @@
 ;; Predicates
 
 (define (value? x)
-  (for/or ([(name repr) (in-hash representations)]) ((representation-repr? repr) x)))
+  (for/or ([(name repr) (in-hash representations)])
+    ((representation-repr? repr) x)))
 
 (define (special-value? x repr)
   ((representation-special-values repr) x))
