@@ -188,6 +188,9 @@
   ;; Local cache of operator info
   (define cached-ops (make-hash))
 
+  ;; Known representations
+  (define bool-repr (get-representation 'bool))
+
   (define (munge prog repr)
     (set! size (+ 1 size))
     (define expr
@@ -197,7 +200,7 @@
        [(? variable?) prog]
        [`(if ,c ,t ,f)
         (list (operator-info 'if mode)
-              (munge c (get-representation 'bool))
+              (munge c bool-repr)
               (munge t repr)
               (munge f repr))]
        [(list op args ...)
@@ -223,7 +226,7 @@
 
   (define progc (length progs))
   (define names
-    (for/list ([prog progs] [i (in-naturals 1)])
+    (for/list ([prog progs])
       (munge (program-body prog) repr)))
   (define lt (+ exprc varc))
 
