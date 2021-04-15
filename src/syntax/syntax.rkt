@@ -15,7 +15,44 @@
 
 (module+ test (require rackunit))
 
-;; Constants' values are functions because they may depend on (bf-precision)
+;; Abstract constant table
+;; Implementations inherit attributes
+
+(define-table real-constants
+  [bf (->* () bigvalue?)]
+  [ival (or/c (->* () ival?) #f)])
+
+(define (register-real-constant! name attrib-dict)
+  (table-set! real-constants name (make-hash attrib-dict)))
+
+(define-syntax-rule (define-real-constant name [key value] ...)
+  (register-real-constant! 'name (list (cons 'key value) ...)))
+
+(define-real-constant PI
+  [bf (λ () pi.bf)] 
+  [ival ival-pi])
+
+(define-real-constant E
+  [bf (λ () (exp 1.0))] 
+  [ival ival-e])
+
+(define-real-constant INFINITY
+  [bf (λ () +inf.bf)]
+  [ival (λ () (mk-ival +inf.bf))])
+
+(define-real-constant NAN
+  [bf (λ () +nan.bf)]
+  [ival (λ () (mk-ival +nan.bf))])
+
+(define-real-constant TRUE
+  [bf (const true)]
+  [ival (const (ival-bool true))])
+
+(define-real-constant FALSE
+  [bf (const false)]
+  [ival (const (ival-bool false))])
+
+;; Constant implementations
 
 (define-table constants
   [type type-name?]
@@ -32,9 +69,17 @@
                                                 constant field))])
     (table-ref constants constant field)))
 
+(define (dict-merge dict dict2)
+  (for/fold ([dict dict]) ([(key value) (in-dict dict2)])
+    (dict-set dict key value)))
+
 (define (register-constant! constant name ctype attrib-dict)
+  (define default-attrib (table-ref-all real-constants constant))
+  (unless default-attrib
+    (error 'register-constant! "Real constant does not exist: ~a" constant))
+  (define attrib-dict* (dict-merge default-attrib attrib-dict))
   (table-set! constants name
-              (make-hash (cons (cons 'type ctype) attrib-dict)))
+              (make-hash (cons (cons 'type ctype) attrib-dict*)))
   (hash-update! parametric-constants constant (curry cons (list* name ctype)) '())
   (hash-set! parametric-constants-reverse name constant))
 
@@ -48,56 +93,36 @@
 
 ;; binary64 ;;
 (define-constant (PI PI.f64) binary64
-  [bf (λ () pi.bf)]
-  [fl (λ () pi)]
-  [ival ival-pi])
+  [fl (λ () pi)])
 
 (define-constant (E E.f64) binary64
-  [bf (λ () (bfexp 1.bf))]
-  [fl (λ () (exp 1.0))]
-  [ival ival-e])
+  [fl (λ () (exp 1.0))])
 
 (define-constant (INFINITY INFINITY.f64) binary64
-  [bf (λ () +inf.bf)]
-  [fl (λ () +inf.0)]
-  [ival (λ () (mk-ival +inf.bf))])
+  [fl (λ () +inf.0)])
 
 (define-constant (NAN NAN.f64) binary64
-  [bf (λ () +nan.bf)]
-  [fl (λ () +nan.0)]
-  [ival (λ () (mk-ival +nan.bf))]) 
+  [fl (λ () +nan.0)])
 
 ;; binary32 ;;
 (define-constant (PI PI.f32) binary32
-  [bf (λ () pi.bf)]
-  [fl (λ () (->float32 pi))]
-  [ival ival-pi])
+  [fl (λ () pi)])
 
 (define-constant (E E.f32) binary32
-  [bf (λ () (bfexp 1.bf))]
-  [fl (λ () (->float32 (exp 1.0)))]
-  [ival ival-e])
+  [fl (λ () (exp 1.0))])
 
 (define-constant (INFINITY INFINITY.f32) binary32
-  [bf (λ () +inf.bf)]
-  [fl (λ () (->float32 +inf.0))]
-  [ival (λ () (mk-ival +inf.bf))])
+  [fl (λ () +inf.0)])
 
 (define-constant (NAN NAN.f32) binary32
-  [bf (λ () +nan.bf)]
-  [fl (λ () (->float32 +nan.0))]
-  [ival (λ () (mk-ival +nan.bf))]) 
+  [fl (λ () +nan.0)])
 
 ;; bool ;;
 (define-constant (TRUE TRUE) bool
-  [bf (const true)]
-  [fl (const true)]
-  [ival (λ () (ival-bool true))])
+  [fl (const true)])
 
 (define-constant (FALSE FALSE) bool
-  [bf (const false)]
-  [fl (const false)]
-  [ival (λ () (ival-bool false))])
+  [fl (const false)])
 
 ;; TODO: The contracts for operators are tricky because the number of arguments is unknown
 ;; There's no easy way to write such a contract in Racket, so I only constrain the output type.
