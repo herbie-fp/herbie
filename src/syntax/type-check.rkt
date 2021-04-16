@@ -71,18 +71,16 @@
         (expression->type body env type error!)])]
     [#`(- #,arg)
      (define actual-type (expression->type arg env type error!))
-     (define op* (get-parametric-operator '- actual-type))
+     (define op* (get-parametric-operator '- actual-type #:fail-fast? #f))
      (if op*
          (operator-info op* 'otype)
          (begin
           (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
-                   (for/list ([sig (hash-ref parametric-operators '-)])
-                     (match sig
-                       [(list _ rtype atypes ...)
-                        (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " "))]
-                       [(list* _ rtype atype)
-                        (format "(- <~a> ...)" atype)]))
+                   (for/list ([(atypes info) (hash-ref parametric-operators '-)])
+                     (if (list? atypes)
+                         (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " "))
+                         (format "(- <~a> ...)" atypes)))
                    " or "))
           #f))]    
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
@@ -110,18 +108,16 @@
      'complex]
     [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
-     (define op* (apply get-parametric-operator op actual-types))
+     (define op* (apply get-parametric-operator op actual-types #:fail-fast? #f))
      (if op*
          (operator-info op* 'otype)
          (begin
           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
                   (string-join
-                    (for/list ([sig (hash-ref parametric-operators op)])
-                      (match sig
-                        [(list _ rtype atypes ...)
-                        (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))]
-                        [(list* _ rtype atype)
-                        (format "(~a <~a> ...)" op atype)]))
+                    (for/list ([(atypes info) (hash-ref parametric-operators '-)])
+                     (if (list? atypes)
+                         (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))
+                         (format "(~a <~a> ...)" op atypes)))
                     " or ")
                   op (string-join (map (curry format "<~a>") actual-types) " "))
           #f))]))

@@ -132,8 +132,9 @@
   (define otype (dict-ref attrib-dict 'otype rtype))
   (table-set! operators name
               (make-hash (append (list (cons 'itype itypes) (cons 'otype otype)) attrib-dict)))
-  (hash-update! parametric-operators operator 
-                (curry cons (list* name otype (operator-info name 'itype))) '())
+  (hash-update! parametric-operators operator
+                (λ (h) (hash-set h itypes (cons name otype)))
+                (hash))
   (hash-set! parametric-operators-reverse name operator))
 
 (define-syntax-rule (define-operator (operator name atypes ...) rtype [key value] ...)
@@ -150,14 +151,15 @@
     (format "couldn't find ~a and no default implementation defined" 'operator)
     (current-continuation-marks))))
 
-(define (get-parametric-operator name . actual-types)
-  (for/or ([sig (hash-ref parametric-operators name)])
-    (match-define (list* true-name rtype atypes) sig)
-    (and
-      (if (representation-name? atypes)
-          (andmap (curry equal? atypes) actual-types)
-          (equal? atypes actual-types))
-      true-name)))
+(define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
+  (let ([op-info (hash-ref parametric-operators name)])
+    (or (car (hash-ref op-info actual-types (cons #f #f))) ; dumb way to fail with #f
+        (car (hash-ref op-info (car actual-types) (cons #f #f)))
+        (if fail-fast?
+            (error 'get-parametric-operator
+                   "parametric operator with op ~a and input types ~a not found"
+                   name actual-types)
+            #f))))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; TODO: hopefully will be fixed when the way operators are declared
@@ -165,7 +167,7 @@
 (define (get-operator-itype op) 
   (operator-info
     (if (hash-has-key? parametric-operators op)
-        (car (last (hash-ref parametric-operators op)))
+        (car (first (hash-values (hash-ref parametric-operators op))))
         op)
     'itype))
 
@@ -548,12 +550,11 @@
   (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
 
 (define (get-repr-conv iprec oprec)
-  (for/or ([(name sig) (in-hash parametric-operators)]
-           #:when (repr-conv? name))
-    (match-define (list* true-name rtype atypes) (car sig))
-    (and (equal? rtype oprec)
-         (equal? (first atypes) iprec)
-         name)))
+  (for/or ([(op table) (in-hash parametric-operators)] #:when (repr-conv? op))
+    (for/first ([(atypes info) (in-hash table)] #:when #t)
+      (and (equal? (cdr info) oprec)
+           (equal? (car atypes) iprec)
+           (car info)))))
 
 (define-operator (cast cast.f64 binary64) binary64
   [fl identity] [bf identity] [ival #f]
@@ -579,8 +580,10 @@
            (dict-has-key? (cdr operators) op))))
 
 (define (constant? var)
-  (or (real? var) (value? var) (and (symbol? var) (or (hash-has-key? parametric-constants var) 
-                                                      (dict-has-key? (cdr constants) var)))))
+  (or (real? var)
+      (and (symbol? var)
+           (or (hash-has-key? parametric-constants var) 
+               (dict-has-key? (cdr constants) var)))))
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))

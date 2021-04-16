@@ -45,7 +45,7 @@
 (define (type-of expr repr env)
   (match expr
    [(? real?) (get-type 'real)]
-   [(? value?) (representation-type repr)]
+   [(? (representation-repr? repr)) (representation-type repr)]
    [(? constant?) 
     (representation-type (get-representation (constant-info expr 'type)))]
    [(? variable?) (representation-type (dict-ref env expr))]
@@ -58,7 +58,7 @@
 (define (repr-of expr repr env)
   (match expr
    [(? real?) (representation-name repr)]
-   [(? value?) (representation-name repr)]
+   [(? (representation-repr? repr)) (representation-name repr)]
    [(? constant?) (constant-info expr 'type)]
    [(? variable?) (representation-name (dict-ref env expr))]
    [(list 'if cond ift iff) (repr-of ift repr env)]
@@ -170,61 +170,73 @@
     ['fl (λ (repr x) (real->repr x repr))]
     ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]))
   
-  (define vars 
-    (if (empty? progs) '() (program-variables (first progs))))
+  (define vars (if (empty? progs) '() (program-variables (first progs))))
   (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
 
+  ;; Expression cache
   (define exprs '())
   (define exprhash
     (make-hash
      (for/list ([var vars] [i (in-naturals)])
        (cons var i))))
 
+  ; Counts
   (define size 0)
+  (define exprc 0)
+  (define varc (length vars))
+
+  ;; Local cache of operator info
+  (define cached-ops (make-hash))
+
+  ;; Known representations
+  (define bool-repr (get-representation 'bool))
 
   (define (munge prog repr)
     (set! size (+ 1 size))
     (define expr
       (match prog
-        [(? real?) (list (const (real->precision repr prog)))]
-        [(? constant?) (list (constant-info prog mode))]
-        [(? variable?) prog]
-        [`(if ,c ,t ,f)
-         (list (operator-info 'if mode)
-               (munge c (get-representation 'bool))
-               (munge t repr)
-               (munge f repr))]
-        [(list op args ...)
-         (define atypes
-           (match (operator-info op 'itype)
-             [(? representation-name? a) (map (const a) args)] ; must be first
-             [(? list? as) as]))
-         (unless (= (length atypes) (length args))
-           (raise-argument-error 'eval-prog "expr?" prog))
-         (cons (operator-info op mode)
-               (for/list ([arg args] [type atypes])
-                 (munge arg (get-representation type))))]
-        [_ (raise-argument-error 'eval-prog "expr?" prog)]))
-
+       [(? real?) (list (const (real->precision repr prog)))]
+       [(? constant?) (list (constant-info prog mode))]
+       [(? variable?) prog]
+       [`(if ,c ,t ,f)
+        (list (operator-info 'if mode)
+              (munge c bool-repr)
+              (munge t repr)
+              (munge f repr))]
+       [(list op args ...)
+        (define op-info
+          (hash-ref! cached-ops op
+                     (λ ()
+                      (define atypes
+                        (match (operator-info op 'itype)
+                         [(? representation-name? a) (list #f (get-representation a))]
+                         [(? list? as) (map get-representation as)]))
+                      (cons (operator-info op mode) atypes))))
+        (define atypes
+          (if (cadr op-info) ; handle variadic operators
+              (cdr op-info)
+              (make-list (length args) (caddr op-info))))
+        (cons (car op-info) (map munge args atypes))]
+       [_ (raise-argument-error 'eval-prog "expr?" prog)]))
     (hash-ref! exprhash expr
-               (λ ()
-                 (define n (+ (length exprs) (length vars)))
-                 (set! exprs (cons expr exprs))
-                 n)))
+              (λ ()
+                (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
+                  (set! exprc (+ 1 exprc))
+                  (set! exprs (cons expr exprs))))))
 
+  (define progc (length progs))
   (define names
     (for/list ([prog progs])
       (munge (program-body prog) repr)))
-  (define l1 (length vars))
-  (define lt (+ (length exprs) l1))
+  (define lt (+ exprc varc))
 
   (timeline-push! 'compiler size lt)
   (define exprvec (list->vector (reverse exprs)))
   (λ args
     (define v (make-vector lt))
-    (for ([arg (in-list args)] [n (in-naturals)] [var (in-list vars)] [repr (in-list var-reprs)])
+    (for ([arg (in-list args)] [n (in-naturals)] [repr (in-list var-reprs)])
       (vector-set! v n (real->precision repr arg)))
-    (for ([expr (in-vector exprvec)] [n (in-naturals l1)])
+    (for ([expr (in-vector exprvec)] [n (in-naturals varc)])
       (define tl
         (for/list ([arg (in-list (cdr expr))])
           (vector-ref v arg)))

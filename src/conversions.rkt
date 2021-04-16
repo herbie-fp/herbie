@@ -1,6 +1,7 @@
 #lang racket
 
-(require "common.rkt" "interface.rkt" "syntax/rules.rkt" "syntax/syntax.rkt"
+(require "common.rkt" "interface.rkt" "errors.rkt"
+         "syntax/rules.rkt" "syntax/syntax.rkt"
          (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
 (provide generate-conversions get-rewrite-operator *conversions*)
 
@@ -74,13 +75,18 @@
   (register-ruleset! rulename4 '(arithmetic simplify) (list (cons 'a prec2))
     (list (list rulename4 `(,conv1 (,conv2 a)) 'a))))
 
+;; First, generate the repr 
 (define (generate-conversions convs)
   (define reprs
     (for/fold ([reprs '()]) ([conv convs])
       (define prec1 (first conv))
       (define prec2 (last conv))
-      (generate-conversion prec1 prec2)
+      (when (set-member? (hash-ref (*conversions*) prec1 '()) prec2)
+        (warn 'conversions "Duplicate conversion (~a ~a)\n" prec1 prec2))
       (hash-update! (*conversions*) prec1 (λ (x) (cons prec2 x)) '())
       (hash-update! (*conversions*) prec2 (λ (x) (cons prec1 x)) '())
+      (generate-repr prec1) ; manually generate the representation
+      (generate-repr prec2)
+      (generate-conversion prec1 prec2)
       (set-union reprs (list (get-representation prec1) (get-representation prec2)))))
   (*needed-reprs* (set-union reprs (*needed-reprs*))))

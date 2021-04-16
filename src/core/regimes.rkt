@@ -140,11 +140,14 @@
     (for/list ([alt alts]) (errors (alt-program alt) pcontext* repr)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
   (define split-indices (err-lsts->split-indices bit-err-lsts can-split?))
-  (option split-indices alts pts expr (pick-errors split-indices pts err-lsts)))
+  (option split-indices alts pts expr (pick-errors split-indices pts err-lsts repr)))
 
-(define/contract (pick-errors split-indices pts err-lsts)
-  (-> (listof si?) (listof (listof value?)) (listof (listof real?))
-      (listof nonnegative-integer?))
+(define/contract (pick-errors split-indices pts err-lsts repr)
+  (->i ([sis (listof si?)] 
+        [vss (r) (listof (listof (representation-repr? r)))]
+        [errss (listof (listof real?))]
+        [r representation?])
+       [idxs (listof nonnegative-integer?)])
   (for/list ([i (in-naturals)] [pt pts] [errs (flip-lists err-lsts)])
     (for/first ([si split-indices] #:when (< i (si-pidx si)))
       (list-ref errs (si-cidx si)))))

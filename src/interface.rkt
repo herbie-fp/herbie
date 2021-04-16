@@ -6,7 +6,8 @@
 (provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
           real->repr repr->real
-          value? special-value?)
+          value? special-value?
+          generate-repr)
 
 (module+ internals 
   (provide define-representation register-generator! register-representation!))
@@ -40,19 +41,15 @@
   (-> (-> any/c boolean?))
   (set! repr-generators (cons proc repr-generators)))
 
+;; Queries each plugin to generate the representation
 (define (generate-repr repr-name)
-  (for/or ([proc repr-generators])
-    (proc repr-name)))
+  (or (hash-has-key? representations repr-name)
+      (for/or ([proc repr-generators])
+        (proc repr-name))))
 
-;; The set of reprs that Herbie comes across is collected here. This is the best place to guarantee 
-;; that all the correct rules are generated but it'll collect more reprs than is necessary.
-;; TODO: Find a better place to put this. Watch out for problems with multithreading / parameters. 
 (define (get-representation name)
-  (if (or (hash-has-key? representations name) ; check existing
-          (generate-repr name)) ; ask plugins to try generating this repr
-    (hash-ref representations name)
-    (raise-herbie-error "Could not find builtin or plugin support for ~a representation"
-                        name))) ; else fail
+  (hash-ref representations name
+            (λ () (raise-herbie-error "Could not find support for ~a representation" name))))
 
 (define (register-representation! name type repr? . args)
   (hash-set! representations name
@@ -62,9 +59,7 @@
   (register-representation! 'name 'type repr? args ...))
 
 (define (representation-name? x)
-  (with-handlers ([exn:fail? (const #f)])
-    (get-representation x)
-    true))
+  (hash-has-key? representations x))
 
 (define-representation (bool bool boolean?)
   identity
@@ -116,7 +111,8 @@
 ;; Predicates
 
 (define (value? x)
-  (for/or ([(name repr) (in-hash representations)]) ((representation-repr? repr) x)))
+  (for/or ([(name repr) (in-hash representations)])
+    ((representation-repr? repr) x)))
 
 (define (special-value? x repr)
   ((representation-special-values repr) x))
