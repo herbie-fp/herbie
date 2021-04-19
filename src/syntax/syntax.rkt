@@ -3,7 +3,7 @@
 (require math/flonum math/base math/bigfloat math/special-functions rival)
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "../float32.rkt" "types.rkt")
 
-(provide constant? variable? operator? operator-info constant-info get-operator-itype
+(provide constant? variable? operator? operator-info constant-info get-operator-arity
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-ops* *loaded-ops*
@@ -215,14 +215,21 @@
             #f))))
 
 ;; mainly useful for getting arg count of an unparameterized operator
-;; TODO: hopefully will be fixed when the way operators are declared
-;; gets overhauled
-(define (get-operator-itype op) 
-  (operator-info
-    (if (hash-has-key? parametric-operators op)
-        (car (first (hash-values (hash-ref parametric-operators op))))
-        op)
-    'itype))
+;; returns an arity range, (#f . #f) if the op is variadic
+(define (get-operator-arity op)
+  (define aritys
+    (for/list ([(itypes info) (in-hash (hash-ref parametric-operators op))])
+      (if (representation-name? itypes) #f (length itypes))))
+  (for/fold ([range (cons #t #t)]) ([arity (remove-duplicates aritys)])
+    (match (cons arity range)
+     [(cons #f (cons #t #t)) (cons #f #f)]
+     [(cons #f (cons _ _))   (cons #f #f)]
+     [(cons x (cons #t #t))  (cons x x)]
+     [(cons x (cons l h))
+      (cond [(< x l) (cons x h)]
+            [(> x h) (cons l x)]
+            [else    (cons l h)])])))
+  
 
 ;; binary64 4-function ;;
 (define-operator (- neg.f64 binary64) binary64 [fl -])
@@ -583,12 +590,10 @@
 ;; Conversions
 
 (define-real-operator binary64->binary32 [bf identity] [ival identity] [nonffi (curryr ->float32)])
-(define-operator (binary64->binary32 binary64->binary32 binary64)
-  binary32 [fl (curryr ->float32)])
+(define-operator (binary64->binary32 binary64->binary32 binary64) binary32 [fl (curryr ->float32)])
 
 (define-real-operator binary32->binary64 [bf identity] [ival identity] [nonffi identity])
-(define-operator (binary32->binary64 binary32->binary64 binary32)
-  binary64 [fl identity])
+(define-operator (binary32->binary64 binary32->binary64 binary32) binary64 [fl identity])
 
 ;; Expression predicates ;;
 
