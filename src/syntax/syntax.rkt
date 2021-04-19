@@ -10,8 +10,12 @@
          repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
-  (provide operators constants define-constant define-operator infix-joiner
-           register-constant! register-operator!))
+  (provide operators constants infix-joiner
+           define-constant define-operator
+           register-constant! register-operator!
+           define-real-constant define-real-operator
+           register-real-constant! register-real-operator!))
+
 
 (module+ test (require rackunit))
 
