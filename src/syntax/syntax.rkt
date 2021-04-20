@@ -37,7 +37,7 @@
   [ival ival-pi])
 
 (define-real-constant E
-  [bf (λ () (exp 1.0))] 
+  [bf (λ () (bfexp 1.bf))]
   [ival ival-e])
 
 (define-real-constant INFINITY
@@ -97,29 +97,29 @@
 
 ;; binary64 ;;
 (define-constant (PI PI.f64) binary64
-  [fl (λ () pi)])
+  [fl (const pi)])
 
 (define-constant (E E.f64) binary64
-  [fl (λ () (exp 1.0))])
+  [fl (const (exp 1.0))])
 
 (define-constant (INFINITY INFINITY.f64) binary64
-  [fl (λ () +inf.0)])
+  [fl (const +inf.0)])
 
 (define-constant (NAN NAN.f64) binary64
-  [fl (λ () +nan.0)])
+  [fl (const +nan.0)])
 
 ;; binary32 ;;
 (define-constant (PI PI.f32) binary32
-  [fl (λ () pi)])
+  [fl (const (->float32 pi))])
 
 (define-constant (E E.f32) binary32
-  [fl (λ () (exp 1.0))])
+  [fl (const (->float32 (exp 1.0)))])
 
 (define-constant (INFINITY INFINITY.f32) binary32
-  [fl (λ () +inf.0)])
+  [fl (const (->float32 +inf.0))])
 
 (define-constant (NAN NAN.f32) binary32
-  [fl (λ () +nan.0)])
+  [fl (const (->float32 +nan.0))])
 
 ;; bool ;;
 (define-constant (TRUE TRUE) bool
@@ -488,11 +488,10 @@
   [libm y1 y1f] [bf bfbesy1] [ival #f]
   [nonffi (from-bigfloat bfbesy1)])
 
-(define (if-fn test if-true if-false) (if test if-true if-false))
-(define (and-fn . as) (andmap identity as))
-(define (or-fn  . as) (ormap identity as))
-
 ;; If
+
+(define (if-fn test if-true if-false) (if test if-true if-false))
+
 (define-real-operator if [bf if-fn] [ival ival-if] [nonffi if-fn])
 (define-operator (if if bool real real) real [fl if-fn]) ; types not used
 
@@ -558,6 +557,10 @@
   [fl (comparator >=)])
 
 ;; logical operators ;;
+
+(define (and-fn . as) (andmap identity as))
+(define (or-fn  . as) (ormap identity as))
+
 (define-real-operator not [bf not] [ival ival-not] [nonffi not])
 (define-operator (not not bool) bool [fl not])
 
