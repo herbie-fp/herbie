@@ -1,7 +1,8 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt"
+         "syntax.rkt" "function.rkt")
 (provide assert-program!)
 
 (define (check-expression* stx vars error!)
@@ -47,7 +48,7 @@
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (if (hash-has-key? parametric-operators f)
-         (let ([arity (get-operator-arity f)]) ;; variary is (#f . #f)
+         (let ([arity (get-operator-arity f)]) ;; variary is #f
            (unless (or (not arity) (= arity (length args)))
              (error! stx "Operator ~a given ~a arguments (expects ~a)"
                      f (length args) arity)))

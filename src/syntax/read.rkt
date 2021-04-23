@@ -1,7 +1,8 @@
 #lang racket
 
 (require "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
-         "syntax-check.rkt" "type-check.rkt" "sugar.rkt" "../preprocess.rkt")
+         "syntax-check.rkt" "type-check.rkt" "sugar.rkt" "function.rkt"
+         "../preprocess.rkt")
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
@@ -35,6 +36,7 @@
       (values name args props body)]
      [(list 'FPCore (list args ...) props ... body)
       (values #f args props body)]))
+
   ;; TODO(interface): Currently, this code doesn't fire because annotations aren't
   ;; allowed for variables because of the syntax checker yet. This should run correctly
   ;; once the syntax checker is updated to the FPBench 1.1 standard.
@@ -56,7 +58,8 @@
        [(list (cons prop val) rest ...)
         (loop (dict-set* prop-dict prop val) rest)])))
   
-  (define default-repr (get-representation (dict-ref prop-dict* ':precision 'binary64)))
+  (define default-prec (dict-ref prop-dict* ':precision 'binary64))
+  (define default-repr (get-representation default-prec))
   (define var-reprs 
     (for/list ([arg args] [arg-name arg-names])
       (cons arg-name
@@ -64,8 +67,14 @@
                 (get-representation (list-ref args (add1 (index-of args ':precision))))
                 default-repr))))
 
+  ;; Named fpcores need to be added to function table
+  (when func-name
+    (hash-set! (*functions*) func-name
+               (list args default-prec body)))
+
   (define name (if func-name func-name (dict-ref prop-dict* ':name body)))
-  (define body* (desugar-program body default-repr var-reprs))
+  (define inlined (inline-functions body))
+  (define body* (desugar-program inlined default-repr var-reprs))
   (define pre* (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs))
   (check-unused-variables arg-names body* pre*)
 
@@ -74,7 +83,7 @@
         body*
         (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs)
         (dict-ref prop-dict* ':herbie-expected #t)
-        (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs)
+        (desugar-program (dict-ref prop-dict* ':spec inlined) default-repr var-reprs)
         pre*
         (map sexp->preprocess (dict-ref prop-dict* ':herbie-preprocess empty))
         (representation-name default-repr)
