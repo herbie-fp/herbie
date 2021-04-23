@@ -29,7 +29,12 @@
 (define (parse-test stx [override-ctx '()])
   (assert-program! stx)
   (assert-program-typed! stx)
-  (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
+  (define-values (func-name args props body)
+    (match (syntax->datum stx)
+     [(list 'FPCore name (list args ...) props ... body)
+      (values name args props body)]
+     [(list 'FPCore (list args ...) props ... body)
+      (values #f args props body)]))
   ;; TODO(interface): Currently, this code doesn't fire because annotations aren't
   ;; allowed for variables because of the syntax checker yet. This should run correctly
   ;; once the syntax checker is updated to the FPBench 1.1 standard.
@@ -59,11 +64,12 @@
                 (get-representation (list-ref args (add1 (index-of args ':precision))))
                 default-repr))))
 
+  (define name (if func-name func-name (dict-ref prop-dict* ':name body)))
   (define body* (desugar-program body default-repr var-reprs))
   (define pre* (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs))
   (check-unused-variables arg-names body* pre*)
 
-  (test (~a (dict-ref prop-dict* ':name body))
+  (test (~a name)
         arg-names
         body*
         (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs)

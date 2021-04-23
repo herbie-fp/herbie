@@ -4,7 +4,12 @@
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
-  (match-define (list (app syntax-e 'FPCore) (app syntax-e (list vars ...)) props ... body) (syntax-e stx))
+  (define-values (vars props body)
+    (match (syntax-e stx)
+     [(list (app syntax-e 'FPCore) (app syntax-e name) (app syntax-e (list vars ...)) props ... body)
+      (values vars props body)]
+     [(list (app syntax-e 'FPCore) (app syntax-e (list vars ...)) props ... body)
+      (values vars props body)]))
   (define props*
     (let loop ([props props])
       (match props
