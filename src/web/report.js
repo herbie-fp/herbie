@@ -319,13 +319,32 @@ var Profile = new Component("#profile", {
     }
 })
 
-function histogram(id, data) {
-    var width = 676;
-    var height = 60
+function fixlabel(s) {
+    var badchars = 0;
+    var text = "";
+    for (var i = 0; i < s.length; i++) {
+        if (s.charAt(i).match(/[1-9]/)) {
+            if (badchars >= 2) text += "0";
+            else text += s.charAt(i);
+            badchars++;
+        } else if (s.charAt(i) == "0") {
+            if (badchars > 0) badchars++;
+        } else {
+            text += s.charAt(i);
+        }
+    }
+    return "" + (+text);
+}
+
+function histogram(id, data, options) {
+    var width = options?.width ?? 676;
+    var height = options?.height ?? 60;
     var margin = 5;
     var labels = 10;
     var ticks = 5;
     var bucketwidth = 25;
+
+    var proportional = options?.proportional ?? true;
 
     var canvas = document.getElementById(id);
     if (data.length == 0) { return canvas.remove(); } // Early exit
@@ -347,8 +366,9 @@ function histogram(id, data) {
     buckets.fill(0);
     for (var i = 0; i < data.length; i++) {
         var j = Math.floor(data[i] / xma * buckets.length);
-        buckets[Math.min(j, buckets.length-1)] += data[i];
-        sum += data[i];
+        var x = proportional ? data[i] : 1;
+        buckets[Math.min(j, buckets.length-1)] += x;
+        sum += x;
     }
     var yma = Math.max.apply(null, buckets);
     
@@ -374,7 +394,8 @@ function histogram(id, data) {
         ctx.beginPath();
         ctx.moveTo(pos / xma * width + margin, labels + margin + height);
         ctx.lineTo(pos / xma * width + margin, labels + margin + height + ticks);
-        ctx.fillText(pos, pos / xma * width + margin, labels + margin + height + ticks + margin);
+        var label = fixlabel("" + pos);
+        ctx.fillText(label, pos / xma * width + margin, labels + margin + height + ticks + margin);
         ctx.stroke();
     }
 }
