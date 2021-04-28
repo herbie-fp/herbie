@@ -147,6 +147,7 @@
 (define-syntax-rule (define-operator name [key value] ...)
   (register-operator! 'name (list (cons 'key value) ...)))
 
+;; Slower fallback for (- x) and (- x y)
 (define (ival-sub/neg x [y #f])
   (if y (ival-sub x y) (ival-neg x)))
 
@@ -236,16 +237,16 @@
   
 
 ;; binary64 4-function ;;
-(define-operator-impl (- neg.f64 binary64) binary64 [fl -])
+(define-operator-impl (- neg.f64 binary64) binary64 [fl -] [ival ival-neg])
 (define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
-(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
+(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -] [ival ival-sub])
 (define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
 (define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
  
 ;; binary32 4-function ;;
-(define-operator-impl (- neg.f32 binary32) binary32 [fl -])
+(define-operator-impl (- neg.f32 binary32) binary32 [fl -] [ival ival-neg])
 (define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl +])
-(define-operator-impl (- -.f32 binary32 binary32) binary32 [fl -])
+(define-operator-impl (- -.f32 binary32 binary32) binary32 [fl -] [ival ival-sub])
 (define-operator-impl (* *.f32 binary32 binary32) binary32 [fl *])
 (define-operator-impl (/ /.f32 binary32 binary32) binary32 [fl /])
 

@@ -57,9 +57,10 @@
     (bfinfinite? (repr->bf (bf->repr +inf.bf)))))
 
 ;; If the representation uses saturation instead of overflow
+;; if x * x != inf when x is +max, probably saturated
 (define (probably-saturated? ordinal repr)
   (define bfval (ordinal->bigfloat ordinal))
-  (define bfval2 (bf* bfval 2.bf))
+  (define bfval2 (bf* bfval bfval)) ;; squaring is probably good enough
   (define ->repr (representation-bf->repr repr))
   (define ->ordinal (representation-repr->ordinal repr))
   (= (->ordinal (->repr bfval))

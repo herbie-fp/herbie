@@ -225,7 +225,7 @@
 
 (define ((inv-comparator test) . args)
   (for/or ([left args] [right (cdr args)])
-    (not (test left right))))
+    ((negate test) left right)))
 
 
 (define (syntax-e* stx)
