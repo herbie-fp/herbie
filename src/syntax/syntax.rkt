@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/flonum math/base math/bigfloat math/special-functions rival)
+(require racket/flonum math/base math/bigfloat math/special-functions rival)
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "../float32.rkt" "types.rkt")
 
 (provide constant? variable? operator? operator-info constant-info get-operator-arity
@@ -204,8 +204,7 @@
            (map (λ (x y) (equal? (prec->type x) y)) itypes itypes*))))
 
 (define (register-operator-impl! operator name atypes rtype attrib-dict)
-  (define inherit (dict-ref attrib-dict 'inherit operator)) ; possibly override operator we inherit from
-  (define default-attrib (table-ref-all operators inherit))
+  (define default-attrib (table-ref-all operators operator))
   (unless default-attrib
     (error 'register-operator-impl! "Real operator does not exist: ~a" operator))
   ;; merge inherited and explicit attributes
@@ -257,18 +256,18 @@
     (if (type-name? itypes) #f (length itypes))))
   
 ;; binary64 4-function ;;
-(define-operator-impl (- neg.f64 binary64) binary64 [fl -] [inherit 'neg])
-(define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
-(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
-(define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
-(define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
+(define-operator-impl (neg neg.f64 binary64) binary64 [fl fl-])
+(define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl fl+])
+(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl fl-])
+(define-operator-impl (* *.f64 binary64 binary64) binary64 [fl fl*])
+(define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl fl/])
  
 ;; binary32 4-function ;;
-(define-operator-impl (- neg.f32 binary32) binary32 [fl -] [inherit 'neg])
-(define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl +])
-(define-operator-impl (- -.f32 binary32 binary32) binary32 [fl -])
-(define-operator-impl (* *.f32 binary32 binary32) binary32 [fl *])
-(define-operator-impl (/ /.f32 binary32 binary32) binary32 [fl /])
+(define-operator-impl (neg neg.f32 binary32) binary32 [fl fl32-])
+(define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl fl32+])
+(define-operator-impl (- -.f32 binary32 binary32) binary32 [fl fl32-])
+(define-operator-impl (* *.f32 binary32 binary32) binary32 [fl fl32*])
+(define-operator-impl (/ /.f32 binary32 binary32) binary32 [fl fl32/])
 
 (define *unknown-ops* (make-parameter '()))
 
@@ -642,11 +641,11 @@
 
 ;; Conversions
 
-(define-operator-impl (binary64->binary32 binary64->binary32 binary64) binary32
-  [fl (curryr ->float32)] [inherit 'cast])
+(define-operator-impl (cast binary64->binary32 binary64) binary32
+  [fl (curryr ->float32)])
 
-(define-operator-impl (binary32->binary64 binary32->binary64 binary32) binary64
-  [fl identity] [inherit 'cast])
+(define-operator-impl (cast binary32->binary64 binary32) binary64
+  [fl identity])
 
 ;; Expression predicates ;;
 

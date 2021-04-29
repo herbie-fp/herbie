@@ -71,17 +71,18 @@
         (expression->type body env type error!)])]
     [#`(- #,arg)
      (define actual-type (expression->type arg env type error!))
-     (define op* (get-parametric-operator '- actual-type #:fail-fast? #f))
+     (define op* (get-parametric-operator 'neg actual-type #:fail-fast? #f))
      (if op*
          (operator-info op* 'otype)
          (begin
           (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
-                   (for/list ([(atypes info) (hash-ref parametric-operators '-)])
+                   (for/list ([(atypes info) (hash-ref parametric-operators 'neg)])
                      (if (list? atypes)
                          (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " "))
                          (format "(- <~a> ...)" atypes)))
-                   " or "))
+                   " or ")
+                  actual-type)
           #f))]    
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
      (define t #f)

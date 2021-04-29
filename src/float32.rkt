@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat)
+(require racket/flonum math/bigfloat)
 
 ; Racket CS made single-flonums a little confusing
 ; All single-precision code is here to make things easier
@@ -83,10 +83,10 @@
   (begin (float32-fun name op) ...))
 
 (float32-funs
-  [fl32+  +]
-  [fl32-  -]
-  [fl32*  *]
-  [fl32/  /])
+  [fl32+  fl+]
+  [fl32-  fl-]
+  [fl32*  fl*]
+  [fl32/  fl/])
     
 (module+ test
   (require rackunit)
