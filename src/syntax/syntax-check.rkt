@@ -50,7 +50,7 @@
          (let ([arity (get-operator-arity f)]) ;; variary is (#f . #f)
            (unless (or (not arity) (= arity (length args)))
              (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                     f (length args) (car arity))))
+                     f (length args) arity)))
          (error! stx "Unknown operator ~a" f))
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))

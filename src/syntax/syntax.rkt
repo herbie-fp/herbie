@@ -137,27 +137,43 @@
 ;; Implementations inherit attributes
 
 (define-table operators
+  [itype (or/c (listof type-name?) type-name?)]
+  [otype type-name?]
   [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
   [nonffi (unconstrained-argument-number-> value? value?)]
   [ival (or/c #f (unconstrained-argument-number-> ival? ival?))]) 
 
-(define (register-operator! name attrib-dict)
-  (table-set! operators name (make-hash attrib-dict)))
+(define (register-operator! name itypes otype attrib-dict)
+  (define itypes* (dict-ref attrib-dict 'itype itypes))
+  (define otype* (dict-ref attrib-dict 'otype otype))
+  (table-set! operators name
+              (make-hash (append (list (cons 'itype itypes*) (cons 'otype otype*))
+                         attrib-dict))))
 
-(define-syntax-rule (define-operator name [key value] ...)
-  (register-operator! 'name (list (cons 'key value) ...)))
+(define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
+  (register-operator! 'name '(itypes ...) 'otype
+                      (list (cons 'key value) ...)))
 
-(define-operator neg [bf bf-] [ival ival-neg] [nonffi -])
-(define-operator + [bf bf+] [ival ival-add] [nonffi +])
-(define-operator - [bf bf-] [ival ival-sub] [nonffi -])
-(define-operator * [bf bf*] [ival ival-mult] [nonffi *])
-(define-operator / [bf bf/] [ival ival-div] [nonffi /])
+(define-operator (neg real) real
+  [bf bf-] [ival ival-neg] [nonffi -])
+
+(define-operator (+ real real) real
+  [bf bf+] [ival ival-add] [nonffi +])
+
+(define-operator (- real real) real
+  [bf bf-] [ival ival-sub] [nonffi -])
+
+(define-operator (* real real) real
+  [bf bf*] [ival ival-mult] [nonffi *])
+
+(define-operator (/ real real) real
+  [bf bf/] [ival ival-div] [nonffi /])
 
 ;; Operator implementations
 
 (define-table operator-impls
-  [itype (or/c (listof type-name?) type-name?)]
-  [otype type-name?]
+  [itype (or/c (listof representation-name?) representation-name?)]
+  [otype representation-name?]
   [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
   [fl    (unconstrained-argument-number-> value? value?)]
   [nonffi (unconstrained-argument-number-> value? value?)]
@@ -178,20 +194,36 @@
 (define (*loaded-ops*)
   (hash-keys parametric-operators-reverse))
 
+(define (check-operator-types! inherited itypes otype)
+  (define itypes* (dict-ref inherited 'itype))
+  (define otype* (dict-ref inherited 'otype))
+  (define prec->type (compose representation-type get-representation))
+  (and (equal? (prec->type otype) otype*)
+       (or (and (type-name? itypes*) (type-name? itypes)
+                (equal? (prec->type itypes) itypes*))
+           (map (λ (x y) (equal? (prec->type x) y)) itypes itypes*))))
+
 (define (register-operator-impl! operator name atypes rtype attrib-dict)
   (define inherit (dict-ref attrib-dict 'inherit operator)) ; possibly override operator we inherit from
   (define default-attrib (table-ref-all operators inherit))
   (unless default-attrib
     (error 'register-operator-impl! "Real operator does not exist: ~a" operator))
+  ;; merge inherited and explicit attributes
   (define attrib-dict* (dict-merge default-attrib attrib-dict))
-  (define itypes (dict-ref attrib-dict* 'itype atypes))
-  (define otype (dict-ref attrib-dict* 'otype rtype))
-  (table-set! operator-impls name
-              (make-hash (append (list (cons 'itype itypes) (cons 'otype otype)) attrib-dict*)))
+  (define itypes (dict-ref attrib-dict 'itype atypes))
+  (define otype (dict-ref attrib-dict 'otype rtype))
+  (unless (equal? operator 'if) ;; if does not work here
+    (check-operator-types! default-attrib itypes otype))
+  ;; Convert attributes to hash, update tables
+  (define fields (make-hash attrib-dict*))
+  (hash-set! fields 'itype itypes)
+  (hash-set! fields 'otype otype)
+  (table-set! operator-impls name fields)
   (hash-update! parametric-operators operator
                 (λ (h) (hash-set h itypes (cons name otype)))
                 (hash))
   (hash-set! parametric-operators-reverse name operator))
+  
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
   (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
@@ -221,8 +253,8 @@
 ;; will break if operator impls have different aritys
 ;; returns #f for variary operators
 (define (get-operator-arity op)
-  (for/first ([(itypes info) (in-hash (hash-ref parametric-operators op))])
-    (if (representation-name? itypes) #f (length itypes))))
+  (let ([itypes (table-ref operators op 'itype)])
+    (if (type-name? itypes) #f (length itypes))))
   
 ;; binary64 4-function ;;
 (define-operator-impl (- neg.f64 binary64) binary64 [fl -] [inherit 'neg])
@@ -263,7 +295,7 @@
                                             (lambda () (*unknown-ops* (cons 'opf64 (*unknown-ops*))) (curry fallback #'double))))
            (define float-proc (get-ffi-obj 'id_f #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
                                            (lambda () (*unknown-ops* (cons 'opf32 (*unknown-ops*))) (curry fallback #'float))))
-           (define-operator op [key value] ...)
+           (define-operator (op #,@(build-list num-args (λ (_) #'real))) real [key value] ...)
            (define-operator-impl (op opf64 #,@(build-list num-args (λ (_) #'binary64))) binary64
              [fl (λ args (apply double-proc args))])
            (define-operator-impl (op opf32 #,@(build-list num-args (λ (_) #'binary32))) binary32
@@ -481,19 +513,33 @@
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 
-(define-operator if [bf if-fn] [ival ival-if] [nonffi if-fn])
+(define-operator (if real real) real
+  [bf if-fn] [ival ival-if] [nonffi if-fn])
+
 (define-operator-impl (if if bool real real) real [fl if-fn]) ; types not used
 
 (define ((infix-joiner x) . args)
   (string-join args x))
 
 ;; real operators
-(define-operator == [bf (comparator bf=)] [ival ival-==] [nonffi (comparator =)])
-(define-operator != [bf (negate (comparator bf=))] [ival ival-!=] [nonffi (negate (comparator =))])
-(define-operator < [bf (comparator bf>)] [ival ival-<] [nonffi (comparator <)])
-(define-operator > [bf (comparator bf<)] [ival ival->] [nonffi (comparator >)])
-(define-operator <= [bf (comparator bf<=)] [ival ival-<=] [nonffi (comparator <=)])
-(define-operator >= [bf (comparator bf<=)] [ival ival->=] [nonffi (comparator >=)])
+(define-operator (==) real
+  [itype 'real] [bf (comparator bf=)] [ival ival-==] [nonffi (comparator =)])
+
+(define-operator (!=) real
+  [itype 'real] [bf (negate (comparator bf=))] [ival ival-!=]
+  [nonffi (negate (comparator =))])
+
+(define-operator (<) real
+  [itype 'real] [bf (comparator bf>)] [ival ival-<] [nonffi (comparator <)])
+
+(define-operator (>) real
+  [itype 'real] [bf (comparator bf<)] [ival ival->] [nonffi (comparator >)])
+
+(define-operator (<=) real
+  [itype 'real] [bf (comparator bf<=)] [ival ival-<=] [nonffi (comparator <=)])
+
+(define-operator (>=) real
+  [itype 'real] [bf (comparator bf<=)] [ival ival->=] [nonffi (comparator >=)])
 
 ;; binary64 comparators ;;
 (define-operator-impl (== ==.f64 binary64 binary64) bool
@@ -550,15 +596,24 @@
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
 
-(define-operator not [bf not] [ival ival-not] [nonffi not])
-(define-operator-impl (not not bool) bool [fl not])
+(define-operator (not bool) bool
+  [bf not] [ival ival-not] [nonffi not])
 
-(define-operator and [bf and-fn] [ival ival-and] [nonffi and-fn])
+(define-operator (and bool bool) bool
+  [itype 'bool] ; override number of arguments
+  [bf and-fn] [ival ival-and] [nonffi and-fn])
+
+(define-operator (or bool bool) bool
+  [itype 'bool] ; override number of arguments
+  [bf or-fn] [ival ival-or] [nonffi or-fn])
+
+(define-operator-impl (not not bool) bool
+  [fl not])
+
 (define-operator-impl (and and bool bool) bool
   [itype 'bool] [otype 'bool] ; Override number of arguments
   [fl and-fn])
 
-(define-operator or [bf or-fn] [ival ival-or] [nonffi or-fn])
 (define-operator-impl (or or bool bool) bool
   [itype 'bool] [otype 'bool] ; Override number of arguments
   [fl or-fn])
@@ -579,7 +634,9 @@
            (car info)))))
 
 ;; Casts
-(define-operator cast [bf identity] [ival identity] [nonffi identity])
+(define-operator (cast real) real
+  [bf identity] [ival identity] [nonffi identity])
+
 (define-operator-impl (cast cast.f64 binary64) binary64 [fl identity])
 (define-operator-impl (cast cast.f32 binary32) binary32 [fl identity])
 
