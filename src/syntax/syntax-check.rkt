@@ -4,11 +4,6 @@
 (require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
 (provide assert-program!)
 
-(define (within x c)
-  (match c
-   [(cons #f #f)  #t]
-   [(cons l h)    (<= l x h)]))
-
 (define (check-expression* stx vars error!)
   (match stx
     [#`,(? constant?) (void)]
@@ -52,13 +47,10 @@
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (if (hash-has-key? parametric-operators f)
-         (let ([arity (get-operator-arity f)])
-           (unless (within (length args) arity)
-             (if (= (car arity) (cdr arity))
-                 (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                         f (length args) (car arity))
-                 (error! stx "Operator ~a given ~a arguments (expects [~a, ~a])"
-                         f (length args) (car arity) (cdr arity)))))
+         (let ([arity (get-operator-arity f)]) ;; variary is (#f . #f)
+           (unless (or (not arity) (= arity (length args)))
+             (error! stx "Operator ~a given ~a arguments (expects ~a)"
+                     f (length args) (car arity))))
          (error! stx "Unknown operator ~a" f))
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))

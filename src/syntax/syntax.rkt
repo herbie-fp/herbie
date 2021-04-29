@@ -147,12 +147,9 @@
 (define-syntax-rule (define-operator name [key value] ...)
   (register-operator! 'name (list (cons 'key value) ...)))
 
-;; Slower fallback for (- x) and (- x y)
-(define (ival-sub/neg x [y #f])
-  (if y (ival-sub x y) (ival-neg x)))
-
+(define-operator neg [bf bf-] [ival ival-neg] [nonffi -])
 (define-operator + [bf bf+] [ival ival-add] [nonffi +])
-(define-operator - [bf bf-] [ival ival-sub/neg] [nonffi -])
+(define-operator - [bf bf-] [ival ival-sub] [nonffi -])
 (define-operator * [bf bf*] [ival ival-mult] [nonffi *])
 (define-operator / [bf bf/] [ival ival-div] [nonffi /])
 
@@ -182,7 +179,8 @@
   (hash-keys parametric-operators-reverse))
 
 (define (register-operator-impl! operator name atypes rtype attrib-dict)
-  (define default-attrib (table-ref-all operators operator))
+  (define inherit (dict-ref attrib-dict 'inherit operator)) ; possibly override operator we inherit from
+  (define default-attrib (table-ref-all operators inherit))
   (unless default-attrib
     (error 'register-operator-impl! "Real operator does not exist: ~a" operator))
   (define attrib-dict* (dict-merge default-attrib attrib-dict))
@@ -220,33 +218,23 @@
             #f))))
 
 ;; mainly useful for getting arg count of an unparameterized operator
-;; returns an arity range, (#f . #f) if the op is variadic
+;; will break if operator impls have different aritys
+;; returns #f for variary operators
 (define (get-operator-arity op)
-  (define aritys
-    (for/list ([(itypes info) (in-hash (hash-ref parametric-operators op))])
-      (if (representation-name? itypes) #f (length itypes))))
-  (for/fold ([range (cons #t #t)]) ([arity (remove-duplicates aritys)])
-    (match (cons arity range)
-     [(cons #f (cons #t #t)) (cons #f #f)]
-     [(cons #f (cons _ _))   (cons #f #f)]
-     [(cons x (cons #t #t))  (cons x x)]
-     [(cons x (cons l h))
-      (cond [(< x l) (cons x h)]
-            [(> x h) (cons l x)]
-            [else    (cons l h)])])))
+  (for/first ([(itypes info) (in-hash (hash-ref parametric-operators op))])
+    (if (representation-name? itypes) #f (length itypes))))
   
-
 ;; binary64 4-function ;;
-(define-operator-impl (- neg.f64 binary64) binary64 [fl -] [ival ival-neg])
+(define-operator-impl (- neg.f64 binary64) binary64 [fl -] [inherit 'neg])
 (define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
-(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -] [ival ival-sub])
+(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
 (define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
 (define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
  
 ;; binary32 4-function ;;
-(define-operator-impl (- neg.f32 binary32) binary32 [fl -] [ival ival-neg])
+(define-operator-impl (- neg.f32 binary32) binary32 [fl -] [inherit 'neg])
 (define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl +])
-(define-operator-impl (- -.f32 binary32 binary32) binary32 [fl -] [ival ival-sub])
+(define-operator-impl (- -.f32 binary32 binary32) binary32 [fl -])
 (define-operator-impl (* *.f32 binary32 binary32) binary32 [fl *])
 (define-operator-impl (/ /.f32 binary32 binary32) binary32 [fl /])
 
@@ -501,7 +489,7 @@
 
 ;; real operators
 (define-operator == [bf (comparator bf=)] [ival ival-==] [nonffi (comparator =)])
-(define-operator != [bf (inv-comparator bf=)] [ival ival-!=] [nonffi (inv-comparator =)])
+(define-operator != [bf (negate (comparator bf=))] [ival ival-!=] [nonffi (negate (comparator =))])
 (define-operator < [bf (comparator bf>)] [ival ival-<] [nonffi (comparator <)])
 (define-operator > [bf (comparator bf<)] [ival ival->] [nonffi (comparator >)])
 (define-operator <= [bf (comparator bf<=)] [ival ival-<=] [nonffi (comparator <=)])
@@ -514,7 +502,7 @@
 
 (define-operator-impl (!= !=.f64 binary64 binary64) bool
   [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (inv-comparator =)])
+  [fl (negate (comparator =))])
 
 (define-operator-impl (< <.f64 binary64 binary64) bool
   [itype 'binary64] [otype 'bool] ; Override number of arguments
@@ -539,7 +527,7 @@
 
 (define-operator-impl (!= !=.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (inv-comparator =)])
+  [fl (negate (comparator =))])
 
 (define-operator-impl (< <.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
@@ -597,11 +585,11 @@
 
 ;; Conversions
 
-(define-operator binary64->binary32 [bf identity] [ival identity] [nonffi (curryr ->float32)])
-(define-operator-impl (binary64->binary32 binary64->binary32 binary64) binary32 [fl (curryr ->float32)])
+(define-operator-impl (binary64->binary32 binary64->binary32 binary64) binary32
+  [fl (curryr ->float32)] [inherit 'cast])
 
-(define-operator binary32->binary64 [bf identity] [ival identity] [nonffi identity])
-(define-operator-impl (binary32->binary64 binary32->binary64 binary32) binary64 [fl identity])
+(define-operator-impl (binary32->binary64 binary32->binary64 binary32) binary64
+  [fl identity] [inherit 'cast])
 
 ;; Expression predicates ;;
 

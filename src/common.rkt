@@ -8,8 +8,7 @@
          table-set! table-remove!
          call-with-output-files
          take-up-to flip-lists list/true find-duplicates
-         argmins argmaxs index-of set-disjoint?
-         comparator inv-comparator
+         argmins argmaxs index-of set-disjoint? comparator
          parse-flag get-seed set-seed!
          quasisyntax syntax-e* dict sym-append
          format-time format-bits in-sorted-dict web-resource
@@ -222,11 +221,6 @@
 (define ((comparator test) . args)
   (for/and ([left args] [right (cdr args)])
     (test left right)))
-
-(define ((inv-comparator test) . args)
-  (for/or ([left args] [right (cdr args)])
-    ((negate test) left right)))
-
 
 (define (syntax-e* stx)
   (match (syntax-e stx)
