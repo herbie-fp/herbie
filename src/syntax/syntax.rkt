@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/flonum math/base math/bigfloat math/special-functions rival)
+(require math/flonum math/base math/bigfloat math/special-functions rival)
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "../float32.rkt" "types.rkt")
 
 (provide constant? variable? operator? operator-info constant-info get-operator-arity
@@ -256,11 +256,11 @@
     (if (type-name? itypes) #f (length itypes))))
   
 ;; binary64 4-function ;;
-(define-operator-impl (neg neg.f64 binary64) binary64 [fl fl-])
-(define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl fl+])
-(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl fl-])
-(define-operator-impl (* *.f64 binary64 binary64) binary64 [fl fl*])
-(define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl fl/])
+(define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
+(define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
+(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
+(define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
+(define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
  
 ;; binary32 4-function ;;
 (define-operator-impl (neg neg.f32 binary32) binary32 [fl fl32-])
@@ -529,16 +529,16 @@
   [nonffi (negate (comparator =))])
 
 (define-operator (<) real
-  [itype 'real] [bf (comparator bf>)] [ival ival-<] [nonffi (comparator <)])
+  [itype 'real] [bf (comparator bf<)] [ival ival-<] [nonffi (comparator <)])
 
 (define-operator (>) real
-  [itype 'real] [bf (comparator bf<)] [ival ival->] [nonffi (comparator >)])
+  [itype 'real] [bf (comparator bf>)] [ival ival->] [nonffi (comparator >)])
 
 (define-operator (<=) real
   [itype 'real] [bf (comparator bf<=)] [ival ival-<=] [nonffi (comparator <=)])
 
 (define-operator (>=) real
-  [itype 'real] [bf (comparator bf<=)] [ival ival->=] [nonffi (comparator >=)])
+  [itype 'real] [bf (comparator bf>=)] [ival ival->=] [nonffi (comparator >=)])
 
 ;; binary64 comparators ;;
 (define-operator-impl (== ==.f64 binary64 binary64) bool

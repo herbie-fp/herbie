@@ -83,10 +83,10 @@
   (begin (float32-fun name op) ...))
 
 (float32-funs
-  [fl32+  fl+]
-  [fl32-  fl-]
-  [fl32*  fl*]
-  [fl32/  fl/])
+  [fl32+  +]
+  [fl32-  -]
+  [fl32*  *]
+  [fl32/  /])
     
 (module+ test
   (require rackunit)
