@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat)
+(require racket/flonum math/bigfloat)
 
 ; Racket CS made single-flonums a little confusing
 ; All single-precision code is here to make things easier

@@ -248,7 +248,7 @@
     (let ([name (representation-name repr)])
       (values
         (operator-info (get-parametric-operator '< name name) 'fl)
-        (operator-info (get-parametric-operator '- name) 'fl))))
+        (operator-info (get-parametric-operator 'neg name) 'fl))))
   (define max (λ (x y) (if (lt x y) y x))) 
   (define min (λ (x y) (if (lt x y) x y)))
 

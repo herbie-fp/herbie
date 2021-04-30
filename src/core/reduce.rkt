@@ -26,7 +26,7 @@
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
     [`(neg ,arg)
-     (define op* (get-parametric-operator '- (representation-name (*output-repr*))))
+     (define op* (get-parametric-operator 'neg (representation-name (*output-repr*))))
      (define arg* (simplify arg))
      (define val (eval-application op* arg*))
      (or val (simplify-node (list 'neg arg*)))]
