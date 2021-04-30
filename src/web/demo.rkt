@@ -252,7 +252,7 @@
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
 
        (when (eof-object? formula)
-         (error "No formula specified"))
+         (raise-herbie-error "no formula specified"))
        (assert-program! formula)
        (assert-program-typed! formula)
        (define hash (sha1 (open-input-string formula-str)))
