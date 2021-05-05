@@ -140,7 +140,9 @@
    (filter
     identity
     (list
-     (format "(FPCore ~a" (test-vars test))
+     (if (test-identifier test)
+         (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
+         (format "(FPCore ~a" (test-vars test)))
      (format "  :name ~s" (test-name test))
      (format "  :precision ~s" (test-output-prec test))
      (if (equal? (program-body (test-precondition test)) 'TRUE)

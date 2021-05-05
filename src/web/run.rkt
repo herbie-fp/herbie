@@ -13,7 +13,8 @@
   (define var-precs (map (curryr cons prec) vars))
   (define repr (get-representation prec))
   (define var-reprs (map (curryr cons repr) vars))
-  (test (table-row-name row) (table-row-vars row)
+  (test (table-row-name row) #f
+        (table-row-vars row)
         (desugar-program (table-row-input row) repr var-reprs)
         (desugar-program (table-row-output row) repr var-reprs)
         (table-row-target-prog row) 

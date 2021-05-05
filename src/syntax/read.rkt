@@ -9,8 +9,8 @@
          test-precondition test-output-repr)
 
 
-(struct test (name vars input output expected spec pre preprocess
-                   output-prec var-precs conversions) #:prefab)
+(struct test (name identifier vars input output expected spec pre
+              preprocess output-prec var-precs conversions) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -72,13 +72,19 @@
     (hash-set! (*functions*) func-name
                (list args default-prec body)))
 
-  (define name (if func-name func-name (dict-ref prop-dict* ':name body)))
+  ;; Try props first, then identifier, else the expression itself
+  (define name
+    (or (dict-ref prop-dict* ':name #f)
+        func-name
+        body))
+
   (define inlined (inline-functions body))
   (define body* (desugar-program inlined default-repr var-reprs))
   (define pre* (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs))
   (check-unused-variables arg-names body* pre*)
 
   (test (~a name)
+        func-name
         arg-names
         body*
         (desugar-program (inline-functions (dict-ref prop-dict* ':herbie-target #f)) default-repr var-reprs)
