@@ -1,8 +1,20 @@
 ; -*- mode: scheme -*-
 
-(FPCore (re im)
+(FPCore modulus (re im)
  :name "math.abs on complex"
  (sqrt (+ (* re re) (* im im))))
+
+(FPCore modulus_sqr (re im)
+ :name "math.abs on complex (squared)"
+ (+ (* re re) (* im im)))
+
+(FPCore re_sqr (re im)
+ :name "math.square on complex, real part"
+ (- (* re re) (* im im)))
+
+(FPCore im_sqr (re im)
+ :name "math.square on complex, imaginary part"
+ (+ (* re im) (* im re)))
 
 (FPCore (x)
  :name "math.cube on real"
@@ -16,8 +28,8 @@
     (* (* x.re x.im) (- x.re (* 3 x.im))))
 
  (-
-  (* (- (* x.re x.re) (* x.im x.im)) x.re)
-  (* (+ (* x.re x.im) (* x.im x.re)) x.im)))
+  (* (re_sqr x.re x.im) x.re)
+  (* (im_sqr x.re x.im) x.im)))
 
 (FPCore (x.re x.im)
  :name "math.cube on complex, imaginary part"
@@ -27,16 +39,16 @@
   (* (* x.im (- x.re x.im)) (+ x.re x.im)))
 
  (+
-  (* (- (* x.re x.re) (* x.im x.im)) x.im)
-  (* (+ (* x.re x.im) (* x.im x.re)) x.re)))
+  (* (re_sqr x.re x.im) x.im)
+  (* (im_sqr x.re x.im) x.re)))
 
 (FPCore (x.re x.im y.re y.im)
  :name "_divideComplex, real part"
- (/ (+ (* x.re y.re) (* x.im y.im)) (+ (* y.re y.re) (* y.im y.im))))
+ (/ (+ (* x.re y.re) (* x.im y.im)) (modulus_sqr y.re y.im)))
 
 (FPCore (x.re x.im y.re y.im)
  :name "_divideComplex, imaginary part"
- (/ (- (* x.im y.re) (* x.re y.im)) (+ (* y.re y.re) (* y.im y.im))))
+ (/ (- (* x.im y.re) (* x.re y.im)) (modulus_sqr y.re y.im)))
 
 (FPCore (re im)
  :name "math.exp on complex, real part"
@@ -48,7 +60,7 @@
 
 (FPCore (re im)
  :name "math.log/1 on complex, real part"
- (log (sqrt (+ (* re re) (* im im)))))
+ (log (modulus re im)))
 
 (FPCore (re im)
  :name "math.log/1 on complex, imaginary part"
@@ -57,18 +69,18 @@
 (FPCore (re im base)
  :name "math.log/2 on complex, real part"
  (/
-  (+ (* (log (sqrt (+ (* re re) (* im im)))) (log base)) (* (atan2 im re) 0))
+  (+ (* (log (modulus re im)) (log base)) (* (atan2 im re) 0))
   (+ (* (log base) (log base)) (* 0 0))))
 
 (FPCore (re im base)
  :name "math.log/2 on complex, imaginary part"
  (/
-  (- (* (atan2 im re) (log base)) (* (log (sqrt (+ (* re re) (* im im)))) 0))
+  (- (* (atan2 im re) (log base)) (* (log (modulus re im)) 0))
   (+ (* (log base) (log base)) (* 0 0))))
 
 (FPCore (re im)
  :name "math.log10 on complex, real part"
- (/ (log (sqrt (+ (* re re) (* im im)))) (log 10)))
+ (/ (log (modulus re im)) (log 10)))
 
 (FPCore (re im)
  :name "math.log10 on complex, imaginary part"
@@ -87,11 +99,11 @@
  (*
   (exp
    (-
-    (* (log (sqrt (+ (* x.re x.re) (* x.im x.im)))) y.re)
+    (* (log (modulus x.re x.im)) y.re)
     (* (atan2 x.im x.re) y.im)))
   (cos
    (+
-    (* (log (sqrt (+ (* x.re x.re) (* x.im x.im)))) y.im)
+    (* (log (modulus x.re x.im)) y.im)
     (* (atan2 x.im x.re) y.re)))))
 
 (FPCore (x.re x.im y.re y.im)
@@ -99,30 +111,22 @@
  (*
   (exp
    (-
-    (* (log (sqrt (+ (* x.re x.re) (* x.im x.im)))) y.re)
+    (* (log (modulus x.re x.im)) y.re)
     (* (atan2 x.im x.re) y.im)))
   (sin
    (+
-    (* (log (sqrt (+ (* x.re x.re) (* x.im x.im)))) y.im)
+    (* (log (modulus x.re x.im)) y.im)
     (* (atan2 x.im x.re) y.re)))))
 
 (FPCore (re im)
  :name "math.sqrt on complex, real part"
  :herbie-target
  (if (< re 0)
-   (* 0.5 (* (sqrt 2) (sqrt (/ (* im im) (- (sqrt (+ (* re re) (* im im))) re)))))
-   (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* re re) (* im im))) re)))))
- (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* re re) (* im im))) re)))))
+   (* 0.5 (* (sqrt 2) (sqrt (/ (* im im) (- (modulus re im) re)))))
+   (* 0.5 (sqrt (* 2.0 (+ (modulus re im) re)))))
+ (* 0.5 (sqrt (* 2.0 (+ (modulus re im) re)))))
 
 (FPCore (re im)
  :name "math.sqrt on complex, imaginary part, im greater than 0 branch"
  :pre (> im 0)
- (* 0.5 (sqrt (* 2.0 (- (sqrt (+ (* re re) (* im im))) re)))))
-
-(FPCore (re im)
- :name "math.square on complex, real part"
- (- (* re re) (* im im)))
-
-(FPCore (re im)
- :name "math.square on complex, imaginary part"
- (+ (* re im) (* im re)))
+ (* 0.5 (sqrt (* 2.0 (- (modulus re im) re)))))

@@ -47,12 +47,19 @@
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
-     (if (hash-has-key? parametric-operators f)
-         (let ([arity (get-operator-arity f)]) ;; variary is #f
-           (unless (or (not arity) (= arity (length args)))
-             (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                     f (length args) arity)))
-         (error! stx "Unknown operator ~a" f))
+     (cond
+      [(hash-has-key? parametric-operators f)
+        (define arity (get-operator-arity f)) ;; variary is #f
+        (unless (or (not arity) (= arity (length args)))
+          (error! stx "Operator ~a given ~a arguments (expects ~a)"
+                  f (length args) arity))]
+      [(hash-has-key? (*functions*) f)
+        (match-define (list vars _ _) (hash-ref (*functions*) f))
+        (unless (= (length vars) (length args))
+          (error! stx "Function ~a given ~a arguments (expects ~a)"
+                  f (length args) (length vars)))]
+      [else
+        (error! stx "Unknown operator ~a" f)])
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 

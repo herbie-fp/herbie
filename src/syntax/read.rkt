@@ -81,7 +81,7 @@
   (test (~a name)
         arg-names
         body*
-        (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs)
+        (desugar-program (inline-functions (dict-ref prop-dict* ':herbie-target #f)) default-repr var-reprs)
         (dict-ref prop-dict* ':herbie-expected #t)
         (desugar-program (dict-ref prop-dict* ':spec inlined) default-repr var-reprs)
         pre*
