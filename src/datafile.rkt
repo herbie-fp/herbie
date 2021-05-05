@@ -9,7 +9,7 @@
 
 
 (struct table-row
-  (name status pre preprocess precision conversions vars
+  (name identifier status pre preprocess precision conversions vars
         input output spec target-prog start result target
         start-est result-est time bits link cost-accuracy) #:prefab)
 
@@ -31,7 +31,7 @@
 (define (write-datafile file info)
   (define (simplify-test test)
     (match test
-      [(table-row name status pre preprocess prec conversions vars
+      [(table-row name identifier status pre preprocess prec conversions vars
                   input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
                   time bits link cost-accuracy)
@@ -44,6 +44,7 @@
                     (list (first entry) (second entry) (~s (third entry)))))))
        (make-hash
         `((name . ,name)
+          (identifier . ,(~s identifier))
           (pre . ,(~s pre))
           (preprocess . ,(~s (map preprocess->sexp preprocess)))
           (prec . ,(~s prec))
@@ -109,7 +110,9 @@
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
-                     (table-row (get 'name) (get 'status)
+                     (table-row (get 'name)
+                                (parse-string (hash-ref test 'identifier "#f"))
+                                (get 'status)
                                 (parse-string (hash-ref test 'pre "TRUE"))
                                 (map sexp->preprocess (parse-string (hash-ref test 'herbie-preprocess "()")))
                                 (string->symbol (hash-ref test 'prec "binary64"))
