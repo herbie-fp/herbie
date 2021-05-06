@@ -285,7 +285,8 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 #alternatives table { width: 275px; display: inline-table; vertical-align: top; }
 #alternatives table th { text-align: left; font-weight: normal; }
 #alternatives table td { text-align: left; width: 75px; }
-#alternatives .entry div { display: inline-block; width: 500px; }
+#alternatives .entry { padding: 5px 0px; }
+#alternatives .entry .math { display: inline-block; width: 500px; }
 
 /* Formatting backtraces */
 

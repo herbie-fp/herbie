@@ -380,7 +380,7 @@
                  [plot-y-ticks (linear-ticks #:number 9)]
                  [plot-y-far-axis? #t]
                  [plot-y-axis? #t]
-                 [plot-y-label "Accuracy (bits)"])
+                 [plot-y-label "Error (bits)"])
     (define spnt (points (list (vector (car start) (cdr start)))
                          #:sym 'fullsquare
                          #:color "black"
