@@ -47,7 +47,14 @@ section > div { width: 500; float: left; margin-right: 20px; }
                   (h3 ,(~a name))
                   (canvas ([id ,(format "~a-~a" name n)]
                            [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-                  (script "histogram(\"" ,(format "~a-~a" name n) "\", " ,(jsexpr->string values) ", { width : 400, proportional : false })")))))))
+                  (script "histogram(\"" ,(format "~a-~a" name n)
+                          "\", " ,(jsexpr->string values)
+                          ", " ,(jsexpr->string
+                                 (hash 'width 400
+                                       'proportional #f
+                                       'buckets 32.0
+                                       'max (if (equal? name 'time) (json-null) 64.0)))
+                          ")")))))))
    out))
 
 (module+ main
