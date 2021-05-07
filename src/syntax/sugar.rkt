@@ -130,8 +130,8 @@
      (define args*
        (for/list ([arg args] [type atypes])
          (expand-parametric-reverse arg (get-representation type) full?)))
-     (if (and (not full?) (equal? op* 'neg) (= (length args) 1))
-         (cons 'neg args*) ; if only unparameterizing, leave 'neg' alone
+     (if (and full? (equal? op* 'neg) (= (length args) 1)) ; if only unparameterizing, leave 'neg' alone
+         (cons '- args*)
          (cons op* args*))]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]

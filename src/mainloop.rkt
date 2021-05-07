@@ -516,32 +516,23 @@
 (define (extract!)
   (define repr (*output-repr*))
   (define all-alts (atab-all-alts (^table^)))
-
-  ; Constant alts
-  (define const-alts
-    (let ([prog (alt-program (car all-alts))])
-      (list (make-alt `(λ ,(program-variables prog) 1))
-            (make-alt `(λ ,(program-variables prog) 0))
-            (make-alt `(λ ,(program-variables prog) -1)))))
-
-  (define all-alts* (append all-alts const-alts))
-  (*all-alts* (append const-alts (atab-active-alts (^table^))))
+  (*all-alts* (atab-active-alts (^table^)))
 
   (define joined-alts
     (cond
-     [(and (flag-set? 'reduce 'regimes) (> (length all-alts*) 1)
+     [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
            (equal? (type-name (representation-type repr)) 'real)
-           (not (null? (program-variables (alt-program (car all-alts*))))))
+           (not (null? (program-variables (alt-program (car all-alts))))))
       (cond
        [(*pareto-mode*)
-        (pareto-regimes (sort all-alts* < #:key alt-cost) repr (*sampler*))]
+        (pareto-regimes (sort all-alts < #:key alt-cost) repr (*sampler*))]
        [else
         (timeline-event! 'regimes)
-        (define option (infer-splitpoints all-alts* repr))
+        (define option (infer-splitpoints all-alts repr))
         (timeline-event! 'bsearch)
         (list (combine-alts option repr (*sampler*)))])]
      [else
-      (list (argmin score-alt all-alts*))]))
+      (list (argmin score-alt all-alts))]))
   (timeline-event! 'simplify)
   (define progss*
     (simplify-batch
