@@ -140,7 +140,9 @@
                "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
         
         (for ([rule rls])
-             (timeline-push! 'rules (~a (rule-name rule)) ((egg egraph-get-times-applied) egg-graph (rule-name rule))))
+          (define count ((egg egraph-get-times-applied) egg-graph (rule-name rule)))
+          (when (> count 0)
+            (timeline-push! 'rules (~a (rule-name rule)) count)))
         
         (map
          (lambda (id)
