@@ -35,6 +35,7 @@
 
 (define (infer-splitpoints alts repr)
   (debug "Finding splitpoints for:" alts #:from 'regime #:depth 2)
+  (timeline-event! 'regimes)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts repr)
@@ -92,6 +93,7 @@
   (match splitindices
    [(list (si cidx _)) (list-ref alts cidx)]
    [_
+    (timeline-event! 'bsearch)
     (define splitpoints (sindices->spoints pts expr alts splitindices repr sampler))
     (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
 

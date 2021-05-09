@@ -548,9 +548,7 @@
        [(*pareto-mode*)
         (pareto-regimes (sort all-alts* < #:key alt-cost) repr (*sampler*))]
        [else
-        (timeline-event! 'regimes)
         (define option (infer-splitpoints all-alts* repr))
-        (timeline-event! 'bsearch)
         (list (combine-alts option repr (*sampler*)))])]
      [else
       (list (argmin score-alt all-alts*))]))
