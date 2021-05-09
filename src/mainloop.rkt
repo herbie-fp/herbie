@@ -78,16 +78,17 @@
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
   (timeline-event! 'analyze)
-  (define symmetry-groups (map symmetry-group
-                               (filter (lambda (group) (> (length group) 1)) (connected-components (or specification prog)))))
-  ;; make variables strings for the json
-  (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
-  (define preprocess-structs (append preprocess symmetry-groups))
-  (*herbie-preprocess* preprocess-structs)
+  (parameterize ([*timeline-disabled* true])
+    (define symmetry-groups (map symmetry-group
+                                 (filter (lambda (group) (> (length group) 1)) (connected-components (or specification prog)))))
+    ;; make variables strings for the json
+    (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
+    (define preprocess-structs (append preprocess symmetry-groups))
+    (*herbie-preprocess* preprocess-structs))
   (*sampler* (make-sampler (*output-repr*) precondition-prog (list (or specification prog)) (*herbie-preprocess*)))
   
   (timeline-event! 'sample)
-  (define contexts (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*) preprocess-structs))
+  (define contexts (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*) (*herbie-preprocess*)))
   (*pcontext* (car contexts))
   (*pcontext-unprocessed* (cdr contexts))
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
