@@ -64,6 +64,7 @@
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
          ,@(dict-call curr render-phase-counts 'count)
+         ,@(dict-call curr render-phase-alts 'alts)
          ,@(dict-call curr render-phase-times #:extra n 'times)
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-egraph 'egraph)
@@ -220,6 +221,20 @@
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
   `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
+
+(define (render-phase-alts alts)
+  `((dt "Alt Table")
+    (dd (table ([class "times"])
+         (thead (tr (td "Status") (td "Error") (td "Program")))
+         ,@(for/list ([rec (in-list alts)])
+             (match-define (list expr status score) rec)
+             `(tr
+               ,(match status
+                  ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
+                  ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
+                  ["fresh" `(td)])
+               (td ,(format-bits score) "b")
+               (td (pre ,expr))))))))
 
 (define (render-phase-times n times)
   `((dt "Calls")

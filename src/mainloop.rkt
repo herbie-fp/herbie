@@ -130,9 +130,8 @@
   (errors-score (errors (alt-program alt) (*pcontext*) (*output-repr*))))
 
 ; Pareto mode alt picking
-(define (choose-mult-alts)
-  (define altns (filter (compose list? program-body alt-program)
-                        (atab-not-done-alts (^table^))))
+(define (choose-mult-alts from)
+  (define altns (filter (compose list? program-body alt-program) from))
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
@@ -147,9 +146,18 @@
         (list-ref altns** (- (* i div-size) 1))))]))
 
 (define (choose-alts)
-  (if (*pareto-mode*)
-      (choose-mult-alts)
-      (list (argmin score-alt (atab-not-done-alts (^table^))))))
+  (define fresh-alts (atab-not-done-alts (^table^)))
+  (define select (if (*pareto-mode*) choose-mult-alts (compose list (curry argmin score-alt))))
+  (define alts (select fresh-alts))
+  (for ([alt (atab-active-alts (^table^))])
+    (timeline-push! 'alts
+                    (~a (program-body (alt-program alt)))
+                    (cond
+                     [(set-member? alts alt) "next"]
+                     [(set-member? fresh-alts alt) "fresh"]
+                     [else "done"])
+                    (score-alt alt)))
+  alts)
 
 (define (choose-best-alt!)
   (define-values (picked table*)
@@ -527,6 +535,9 @@
 
   (define all-alts* (append all-alts const-alts))
   (*all-alts* (append const-alts (atab-active-alts (^table^))))
+
+  (for ([alt (atab-active-alts (^table^))])
+    (timeline-push! 'alts (~a (program-body (alt-program alt))) "fresh" (score-alt alt)))
 
   (define joined-alts
     (cond
