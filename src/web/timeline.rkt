@@ -213,7 +213,7 @@
 
   `((dt "Rules")
     (dd (table ([class "times"])
-          ,@(for/list ([(count rules) (in-sorted-dict by-count #:key first)])
+          ,@(for/list ([(count rules) (in-sorted-dict by-count #:key first)] [_ (in-range 5)])
               `(tr (td ,(~a count) "×")
                    (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
 
