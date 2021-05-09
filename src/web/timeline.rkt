@@ -63,7 +63,7 @@
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
-         ,@(dict-call curr render-phase-counts 'alts)
+         ,@(dict-call curr render-phase-counts 'count)
          ,@(dict-call curr render-phase-times #:extra n 'times)
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-egraph 'egraph)

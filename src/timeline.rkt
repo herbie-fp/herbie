@@ -110,7 +110,7 @@
 (define-timeline accuracy [accuracy])
 (define-timeline oracle [oracle])
 (define-timeline baseline [baseline])
-(define-timeline alts [input +] [output +])
+(define-timeline count [input +] [output +])
 (define-timeline sampling #:custom merge-sampling-tables)
 (define-timeline symmetry #:unmergable)
 (define-timeline remove-preprocessing #:unmergable)

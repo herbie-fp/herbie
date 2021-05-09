@@ -266,7 +266,7 @@
                            (~a (location-get location (alt-program (^next-alt^))))
                            (- (current-inexact-milliseconds) tnow))))))
     
-    (timeline-push! 'alts (length (^locs^)) (length series-expansions))
+    (timeline-push! 'count (length (^locs^)) (length series-expansions))
 
     (^gened-series^ series-expansions)
     (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
@@ -329,7 +329,7 @@
         (take rewritten 1000)
         rewritten))
         
-  (timeline-push! 'alts (length (^locs^)) (length rewritten*))
+  (timeline-push! 'count (length (^locs^)) (length rewritten*))
 
   (^gened-rewrites^ rewritten*)
   (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
@@ -383,7 +383,7 @@
              (for/list ([child (in-list children)] [locs locs-list])
                (make-simplification-combinations child locs simplify-hash))))
 
-    (timeline-push! 'alts (length locs-list) (length simplified))
+    (timeline-push! 'count (length locs-list) (length simplified))
 
     (^gened-simplify^ simplified))
   (void))
@@ -402,7 +402,7 @@
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
-  (timeline-push! 'alts
+  (timeline-push! 'count
                   (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
 
