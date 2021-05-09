@@ -24,7 +24,9 @@
           (and info '("About" . "#about"))
           '("Timeline" . "#process-info")
           '("Profile" . "#profile"))
-         `(("Report" . ,(if info "results.html" "graph.html"))))
+         (if info 
+             `(("Report" . "results.html"))
+             `(("Details" . "graph.html"))))
        ,(if info (render-about info) "")
        ,(render-timeline timeline)
        ,(render-profile)))
