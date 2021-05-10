@@ -78,16 +78,17 @@
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
   (timeline-event! 'analyze)
-  (define symmetry-groups (map symmetry-group
-                               (filter (lambda (group) (> (length group) 1)) (connected-components (or specification prog)))))
-  ;; make variables strings for the json
-  (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
-  (define preprocess-structs (append preprocess symmetry-groups))
-  (*herbie-preprocess* preprocess-structs)
+  (parameterize ([*timeline-disabled* true])
+    (define symmetry-groups (map symmetry-group
+                                 (filter (lambda (group) (> (length group) 1)) (connected-components (or specification prog)))))
+    ;; make variables strings for the json
+    (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
+    (define preprocess-structs (append preprocess symmetry-groups))
+    (*herbie-preprocess* preprocess-structs))
   (*sampler* (make-sampler (*output-repr*) precondition-prog (list (or specification prog)) (*herbie-preprocess*)))
   
   (timeline-event! 'sample)
-  (define contexts (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*) preprocess-structs))
+  (define contexts (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*) (*herbie-preprocess*)))
   (*pcontext* (car contexts))
   (*pcontext-unprocessed* (cdr contexts))
   (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
@@ -129,9 +130,8 @@
   (errors-score (errors (alt-program alt) (*pcontext*) (*output-repr*))))
 
 ; Pareto mode alt picking
-(define (choose-mult-alts)
-  (define altns (filter (compose list? program-body alt-program)
-                        (atab-not-done-alts (^table^))))
+(define (choose-mult-alts from)
+  (define altns (filter (compose list? program-body alt-program) from))
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
@@ -146,9 +146,18 @@
         (list-ref altns** (- (* i div-size) 1))))]))
 
 (define (choose-alts)
-  (if (*pareto-mode*)
-      (choose-mult-alts)
-      (list (argmin score-alt (atab-not-done-alts (^table^))))))
+  (define fresh-alts (atab-not-done-alts (^table^)))
+  (define select (if (*pareto-mode*) choose-mult-alts (compose list (curry argmin score-alt))))
+  (define alts (select fresh-alts))
+  (for ([alt (atab-active-alts (^table^))])
+    (timeline-push! 'alts
+                    (~a (program-body (alt-program alt)))
+                    (cond
+                     [(set-member? alts alt) "next"]
+                     [(set-member? fresh-alts alt) "fresh"]
+                     [else "done"])
+                    (score-alt alt)))
+  alts)
 
 (define (choose-best-alt!)
   (define-values (picked table*)
@@ -265,7 +274,7 @@
                            (~a (location-get location (alt-program (^next-alt^))))
                            (- (current-inexact-milliseconds) tnow))))))
     
-    (timeline-push! 'alts (length (^locs^)) (length series-expansions))
+    (timeline-push! 'count (length (^locs^)) (length series-expansions))
 
     (^gened-series^ series-expansions)
     (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
@@ -328,7 +337,7 @@
         (take rewritten 1000)
         rewritten))
         
-  (timeline-push! 'alts (length (^locs^)) (length rewritten*))
+  (timeline-push! 'count (length (^locs^)) (length rewritten*))
 
   (^gened-rewrites^ rewritten*)
   (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
@@ -382,7 +391,7 @@
              (for/list ([child (in-list children)] [locs locs-list])
                (make-simplification-combinations child locs simplify-hash))))
 
-    (timeline-push! 'alts (length locs-list) (length simplified))
+    (timeline-push! 'count (length locs-list) (length simplified))
 
     (^gened-simplify^ simplified))
   (void))
@@ -401,7 +410,7 @@
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
-  (timeline-push! 'alts
+  (timeline-push! 'count
                   (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
 
@@ -518,6 +527,9 @@
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* (atab-active-alts (^table^)))
 
+  (for ([alt (atab-active-alts (^table^))])
+    (timeline-push! 'alts (~a (program-body (alt-program alt))) "fresh" (score-alt alt)))
+
   (define joined-alts
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
@@ -527,9 +539,7 @@
        [(*pareto-mode*)
         (pareto-regimes (sort all-alts < #:key alt-cost) repr (*sampler*))]
        [else
-        (timeline-event! 'regimes)
         (define option (infer-splitpoints all-alts repr))
-        (timeline-event! 'bsearch)
         (list (combine-alts option repr (*sampler*)))])]
      [else
       (list (argmin score-alt all-alts))]))

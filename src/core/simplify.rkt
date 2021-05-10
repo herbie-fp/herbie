@@ -77,12 +77,12 @@
             "Falling back on regraph because egg-herbie package not installed")
       simplify-batch-regraph]))
 
-  (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
+  (debug #:from 'simplify "Simplifying using" driver ":\n " (string-join (map ~a exprs) "\n  "))
   (define resulting-lists (driver exprs #:rules rls #:precompute precompute?))
   (define out
     (for/list ([results resulting-lists] [expr exprs])
              (remove-duplicates (cons expr results))))
-  (debug #:from 'simplify "Simplified to:\n  " (string-join (map ~a (map last out)) "\n  "))
+  (debug #:from 'simplify "Simplified to:\n " (string-join (map ~a (map last out)) "\n  "))
     
   out)
 
@@ -140,7 +140,9 @@
                "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
         
         (for ([rule rls])
-             (timeline-push! 'rules (~a (rule-name rule)) ((egg egraph-get-times-applied) egg-graph (rule-name rule))))
+          (define count ((egg egraph-get-times-applied) egg-graph (rule-name rule)))
+          (when (> count 0)
+            (timeline-push! 'rules (~a (rule-name rule)) count)))
         
         (map
          (lambda (id)
@@ -172,7 +174,7 @@
        (define cost
            (apply +
                   (map (lambda (node-id) ((egg egraph-get-cost) egg-graph node-id counter)) node-ids)))
-       (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
+       (debug #:from 'simplify #:depth 2 "iteration " counter ": " cnt " enodes " "(cost " cost ")")
        (define new-time (+ time ((egg iteration-data-time) (first iter))))
        (timeline-push! 'egraph counter cnt cost new-time)
        (loop (rest iter) (+ counter 1) new-time)]))
