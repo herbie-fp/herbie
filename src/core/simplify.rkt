@@ -77,12 +77,12 @@
             "Falling back on regraph because egg-herbie package not installed")
       simplify-batch-regraph]))
 
-  (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
+  (debug #:from 'simplify "Simplifying using" driver ":\n " (string-join (map ~a exprs) "\n  "))
   (define resulting-lists (driver exprs #:rules rls #:precompute precompute?))
   (define out
     (for/list ([results resulting-lists] [expr exprs])
              (remove-duplicates (cons expr results))))
-  (debug #:from 'simplify "Simplified to:\n  " (string-join (map ~a (map last out)) "\n  "))
+  (debug #:from 'simplify "Simplified to:\n " (string-join (map ~a (map last out)) "\n  "))
     
   out)
 

@@ -12,7 +12,7 @@
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
   (match-define (cons offset coeffs) (taylor var expr*))
 
-  (debug #:from 'approximate "Taking taylor expansion of" expr* "in" var "around" 0)
+  (debug #:from 'approximate "Taking taylor expansion of" expr* "in" var)
   
   (define i 0)
   (define terms '())
@@ -103,8 +103,6 @@
     (if (and (list? expr*) (not (set-member? taylor-expansion-known (car expr*))))
         ((get-expander taylor-expansion-known) expr*)
         expr*))
-  (unless (equal? expr expr*)
-    (debug #:from 'taylor "Rewrote expression to" expr))
   (match expr
     [(? (curry equal? var))
      (taylor-exact 0 1)]
