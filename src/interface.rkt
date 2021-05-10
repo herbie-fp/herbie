@@ -47,9 +47,12 @@
       (for/or ([proc repr-generators])
         (proc repr-name))))
 
+;; Returns the representation associated with `name`
+;; attempts to generate the repr if not initially found
 (define (get-representation name)
-  (hash-ref representations name
-            (λ () (raise-herbie-error "Could not find support for ~a representation" name))))
+  (or (hash-ref representations name #f)
+      (and (generate-repr name) (hash-ref representations name))
+      (raise-herbie-error "Could not find support for ~a representation" name)))
 
 (define (register-representation! name type repr? . args)
   (hash-set! representations name

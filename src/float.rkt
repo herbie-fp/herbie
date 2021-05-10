@@ -56,14 +56,29 @@
         [bf->repr (representation-bf->repr repr)])
     (bfinfinite? (repr->bf (bf->repr +inf.bf)))))
 
+;; If the representation uses saturation instead of overflow
+;; if x * x != inf when x is +max, probably saturated
+(define (probably-saturated? ordinal repr)
+  (define bfval (ordinal->bigfloat ordinal))
+  (define bfval2 (bf* bfval bfval)) ;; squaring is probably good enough
+  (define ->repr (representation-bf->repr repr))
+  (define ->ordinal (representation-repr->ordinal repr))
+  (= (->ordinal (->repr bfval))
+     (->ordinal (->repr bfval2))))
+
 (define (bound-ordinary-values repr)
-  (if (has-infinite-value? repr)
+  (if (has-infinite-value? repr) ; bail if representation does not have +inf
       (parameterize ([bf-rounding-mode 'nearest])
-        (let loop ([ordinal (bigfloat->ordinal (largest-ordinary-value repr))] [stepsize 1])
-          (define bfval (ordinal->bigfloat ordinal))
-          (if (bfinfinite? ((representation-repr->bf repr) ((representation-bf->repr repr) bfval)))
-              bfval
-              (loop (+ ordinal stepsize) (* stepsize 2)))))
+        (define hi-ordinal (bigfloat->ordinal (largest-ordinary-value repr)))
+        (if (probably-saturated? hi-ordinal repr) ; bail if representation uses saturation
+            (ordinal->bigfloat hi-ordinal)
+            (let loop ([ordinal hi-ordinal] [stepsize 1])
+              (define bfval (ordinal->bigfloat ordinal))
+              (define ->repr (representation-bf->repr repr))
+              (define ->bf (representation-repr->bf repr))
+              (if (bfinfinite? (->bf (->repr bfval)))
+                  bfval
+                  (loop (+ ordinal stepsize) (* stepsize 2))))))
       (largest-ordinary-value repr)))
 
 (module+ test

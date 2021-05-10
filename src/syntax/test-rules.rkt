@@ -34,7 +34,8 @@
   (match-define (rule name p1 p2 itypes otype) test-rule)
   (define fv (dict-keys itypes))
   (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation t))))
-  (define repr (get-representation otype))       
+  (define repr (get-representation otype))
+  (define ival-bad? (conjoin real? nan?))
 
   (define make-point
     (make-sampler
@@ -52,11 +53,10 @@
   (define ex2 (map prog2 points))
   (define errs
     (for/list ([pt points] [v1 ex1] [v2 ex2]
-               ;; Error code from ival-eval
-               #:unless (or (eq? v1 +nan.0) (eq? v2 +nan.0))
+              ;; Error code from ival-eval
+               #:unless (or (ival-bad? v1) (ival-bad? v2))
                ;; Ignore rules that compute to bad values
-               #:when (ordinary-value? v1 repr)
-               #:when (ordinary-value? v2 repr))
+               #:when (and (ordinary-value? v1 repr) (ordinary-value? v2 repr)))
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
                         ['input v1] ['output v2])
         (check-eq? (ulp-difference v1 v2 repr) 1))))
@@ -91,8 +91,10 @@
        [else (check-equal? v1 v2)]))))
 
 (module+ main
-  (generate-rules-for 'real 'binary64)
-  (generate-rules-for 'real 'binary32)
+  (*needed-reprs* (list (get-representation 'binary64)
+                        (get-representation 'binary32)
+                        (get-representation 'bool)))
+  (define _ (*simplify-rules*))  ; force an update
   (command-line
    #:args names
    (for ([name names])
@@ -103,7 +105,9 @@
       (check-rule-fp-safe rule)))))
 
 (module+ test
-  (*needed-reprs* (list (get-representation 'binary64) (get-representation 'binary32)))
+  (*needed-reprs* (list (get-representation 'binary64)
+                        (get-representation 'binary32)
+                        (get-representation 'bool)))
   (define _ (*simplify-rules*))  ; force an update
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
 

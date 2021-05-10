@@ -47,10 +47,10 @@
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (if (hash-has-key? parametric-operators f)
-         (unless (or (symbol? (get-operator-itype f))
-                     (= (length args) (length (get-operator-itype f))))
-           (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                   f (length args) (length (get-operator-itype f))))
+         (let ([arity (get-operator-arity f)]) ;; variary is (#f . #f)
+           (unless (or (not arity) (= arity (length args)))
+             (error! stx "Operator ~a given ~a arguments (expects ~a)"
+                     f (length args) arity)))
          (error! stx "Unknown operator ~a" f))
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
@@ -88,10 +88,7 @@
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
-    (define known-repr? 
-      (with-handlers ([exn:fail? (const false)])
-        (get-representation (syntax-e* prec))
-        true))
+    (define known-repr? (generate-repr (syntax-e* prec)))
     (unless known-repr?
       (error! prec "Unknown :precision ~a" prec)))
 
@@ -111,9 +108,12 @@
   (when (dict-has-key? prop-dict ':herbie-conversions)
     (define conversions (dict-ref prop-dict ':herbie-conversions))
     (if (list? (syntax-e conversions))
-        (for ([conv (syntax-e* conversions)]
-          #:unless (and (list? conv) (= (length conv) 2)))
-          (error! conversions "Invalid conversion ~a; Valid example: (binary64 binary32)" conv))
+        (for ([conv (syntax-e* conversions)])
+          (unless (and (list? conv) (= (length conv) 2))
+            (error! conversions "Invalid conversion ~a; Valid example: (binary64 binary32)" conv))
+          (define known-repr? (and (generate-repr (first conv)) (generate-repr (second conv))))
+          (unless known-repr?
+            (error! conversions "Unknown precision in conversion ~a" conv)))
         (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))))
 
 (define (check-program* stx error!)

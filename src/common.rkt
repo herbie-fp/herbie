@@ -4,7 +4,8 @@
 (require "config.rkt" "debug.rkt")
 (module+ test (require rackunit))
 
-(provide reap define-table table-ref table-set! table-remove!
+(provide reap define-table table-ref table-ref-all
+         table-set! table-remove!
          call-with-output-files
          take-up-to flip-lists list/true find-duplicates
          argmins argmaxs index-of set-disjoint? comparator
@@ -43,6 +44,11 @@
 
 (define (table-remove! tbl key)
   (hash-remove! (cdr tbl) key))
+
+(define (table-ref-all tbl key)
+  (match-let ([(cons header rows) tbl])
+    (and (hash-has-key? rows key)
+         (map cons (map car header) (hash-ref rows key)))))
 
 ;; Utility list functions
 

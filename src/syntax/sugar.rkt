@@ -57,7 +57,7 @@
          (values (list conv iexpr*) prec)]
         [(list (or 'neg '-) arg) ; unary minus
          (define-values (arg* atype) (loop arg prec))
-         (define op* (get-parametric-operator '- atype))
+         (define op* (get-parametric-operator 'neg atype))
          (values (list op* arg*) (operator-info op* 'otype))]
         [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
          (define iprec (first (operator-info op 'itype)))
@@ -130,15 +130,15 @@
      (define args*
        (for/list ([arg args] [type atypes])
          (expand-parametric-reverse arg (get-representation type) full?)))
-     (if (and (not full?) (equal? op* '-) (= (length args) 1))
-         (cons 'neg args*) ; if only unparameterizing, leave 'neg' alone
+     (if (and full? (equal? op* 'neg) (= (length args) 1)) ; if only unparameterizing, leave 'neg' alone
+         (cons '- args*)
          (cons op* args*))]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
     [(? real?)
      (if full?
          (match expr
-           [-inf.0 '(- INFINITY)] ; not '(neg INFINITY) because this is post-resugaring
+           [-inf.0 (if full? '(- INFINITY) '(neg INFINITY))] ; not '(neg INFINITY) because this is post-resugaring
            [+inf.0 'INFINITY]
            [+nan.0 'NAN]
            [x

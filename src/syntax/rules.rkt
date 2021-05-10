@@ -364,6 +364,21 @@
   #:type ([x real])
   [sqr-neg           (* (neg x) (neg x))        (* x x)]
   [sqr-abs           (* (fabs x) (fabs x))      (* x x)])
+  
+(define-ruleset* fabs-reduce (arithmetic simplify fp-safe)
+  #:type ([x real] [a real] [b real])
+  [fabs-fabs         (fabs (fabs x))            (fabs x)]
+  [fabs-sub          (fabs (- a b))             (fabs (- b a))]
+  [fabs-neg          (fabs (neg x))             (fabs x)]
+  [fabs-sqr          (fabs (* x x))             (* x x)]
+  [fabs-mul          (fabs (* a b))             (* (fabs a) (fabs b))]
+  [fabs-div          (fabs (/ a b))             (/ (fabs a) (fabs b))])
+  
+(define-ruleset* fabs-expand (arithmetic fp-safe)
+  #:type ([x real] [a real] [b real])
+  [neg-fabs          (fabs x)                   (fabs (neg x))]
+  [mul-fabs          (* (fabs a) (fabs b))      (fabs (* a b))]
+  [div-fabs          (/ (fabs a) (fabs b))      (fabs (/ a b))])
 
 (define-ruleset* squares-transform (arithmetic)
   #:type ([x real] [y real])
