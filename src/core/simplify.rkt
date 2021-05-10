@@ -174,7 +174,7 @@
        (define cost
            (apply +
                   (map (lambda (node-id) ((egg egraph-get-cost) egg-graph node-id counter)) node-ids)))
-       (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
+       (debug #:from 'simplify #:depth 2 "iteration " counter ": " cnt " enodes " "(cost " cost ")")
        (define new-time (+ time ((egg iteration-data-time) (first iter))))
        (timeline-push! 'egraph counter cnt cost new-time)
        (loop (rest iter) (+ counter 1) new-time)]))
