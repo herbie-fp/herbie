@@ -159,10 +159,11 @@
         ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
             (render-history end-alt (mk-pcontext newpoints newexacts)
                             (mk-pcontext points exacts) repr))))
+
       ,(if (not (null? other-alts))
-          `(section ([id "alternatives"] [style "margin: 2em 0;"])
-            (h1 "Alternatives")
-             ,@(for/list ([alt other-alts] [cost (cdr costs)] [errs other-errors] [idx (in-naturals 1)])
+           `(section ([id "alternatives"])
+              (h1 "Alternatives")
+              ,@(for/list ([alt other-alts] [cost (cdr costs)] [errs other-errors] [idx (in-naturals 1)])
                 `(div ([class "entry"])
                   (table
                     (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" idx)))
@@ -173,7 +174,7 @@
                             (program->fpcore
                               (resugar-program (alt-program alt) repr)))
                     "\\]"))))
-           "")
+            "")
                                       
       ,(if (not (null? other-alts))
           `(section ([id "cost-accuracy"])

@@ -84,13 +84,6 @@
         (timeline-adjust! 'regimes 'name (test-name test))
         (timeline-adjust! 'regimes 'link ".")
 
-        (debug #:from 'regime-testing #:depth 1
-               "End program error score:" end-score)
-        (when (test-output test)
-          (debug #:from 'regime-testing #:depth 1
-                 "Target error score:"
-                 (errors-score (errors (test-target test) newcontext output-repr))))
-
         (define-values (points exacts) (get-p&es context))
         (define-values (newpoints newexacts) (get-p&es newcontext))
         (test-success test

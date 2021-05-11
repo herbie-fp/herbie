@@ -24,7 +24,9 @@
           (and info '("About" . "#about"))
           '("Timeline" . "#process-info")
           '("Profile" . "#profile"))
-         `(("Report" . ,(if info "results.html" "graph.html"))))
+         (if info 
+             `(("Report" . "results.html"))
+             `(("Details" . "graph.html"))))
        ,(if info (render-about info) "")
        ,(render-timeline timeline)
        ,(render-profile)))
@@ -63,7 +65,8 @@
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
-         ,@(dict-call curr render-phase-counts 'alts)
+         ,@(dict-call curr render-phase-counts 'count)
+         ,@(dict-call curr render-phase-alts 'alts)
          ,@(dict-call curr render-phase-times #:extra n 'times)
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-egraph 'egraph)
@@ -213,13 +216,27 @@
 
   `((dt "Rules")
     (dd (table ([class "times"])
-          ,@(for/list ([(count rules) (in-sorted-dict by-count #:key first)])
+          ,@(for/list ([(count rules) (in-sorted-dict by-count #:key first)] [_ (in-range 5)])
               `(tr (td ,(~a count) "×")
                    (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
   `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
+
+(define (render-phase-alts alts)
+  `((dt "Alt Table")
+    (dd (table ([class "times"])
+         (thead (tr (td "Status") (td "Error") (td "Program")))
+         ,@(for/list ([rec (in-list alts)])
+             (match-define (list expr status score) rec)
+             `(tr
+               ,(match status
+                  ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
+                  ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
+                  ["fresh" `(td)])
+               (td ,(format-bits score) "b")
+               (td (pre ,expr))))))))
 
 (define (render-phase-times n times)
   `((dt "Calls")

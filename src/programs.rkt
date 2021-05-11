@@ -230,7 +230,7 @@
       (munge (program-body prog) repr)))
   (define lt (+ exprc varc))
 
-  (timeline-push! 'compiler size lt)
+  (timeline-push! 'compiler (+ varc size) lt)
   (define exprvec (list->vector (reverse exprs)))
   (λ args
     (define v (make-vector lt))
