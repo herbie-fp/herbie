@@ -83,7 +83,8 @@
          (begin
           (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
-                   (for/list ([(atypes info) (hash-ref parametric-operators 'neg)])
+                   (for/list ([sig (hash-ref parametric-operators 'neg)])
+                     (match-define (list* _ _ atypes) sig)
                      (if (list? atypes)
                          (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " "))
                          (format "(- <~a> ...)" atypes)))
@@ -121,7 +122,8 @@
          (begin
           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
                   (string-join
-                    (for/list ([(atypes info) (hash-ref parametric-operators op)])
+                    (for/list ([sig (hash-ref parametric-operators op)])
+                     (match-define (list* _ _ atypes) sig)
                      (if (list? atypes)
                          (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))
                          (format "(~a <~a> ...)" op atypes)))

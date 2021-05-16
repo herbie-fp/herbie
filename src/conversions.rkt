@@ -37,12 +37,12 @@
   (unless (operator-exists? conv1)
     (define impl (compose (representation-bf->repr repr2) (representation-repr->bf repr1)))
     (register-operator-impl! 'cast conv1 (list prec1) prec2  ; fallback implementation
-      (list (cons 'fl impl) (cons 'inherit 'cast))))
+      (list (cons 'fl impl))))
   
   (unless (operator-exists? conv2)
     (define impl (compose (representation-bf->repr repr1) (representation-repr->bf repr2)))
     (register-operator-impl! 'cast conv2 (list prec2) prec1  ; fallback implementation
-      (list (cons 'fl impl) (cons 'inherit 'cast))))
+      (list (cons 'fl impl))))
 
   ;; Repr rewrites, e.g. <-repr
   (define repr-rewrite1 (sym-append '<- prec1*))
@@ -52,13 +52,13 @@
     (register-operator! repr-rewrite1 (list 'real) 'real
       (list (cons 'bf identity) (cons 'ival identity) (cons 'nonffi identity)))
     (register-operator-impl! repr-rewrite1 repr-rewrite1 (list prec1) prec1
-      (list (cons 'fl identity) (cons 'inherit 'cast))))
+      (list (cons 'fl identity))))
 
   (unless (hash-has-key? parametric-operators repr-rewrite2)
     (register-operator! repr-rewrite2 (list 'real) 'real
       (list (cons 'bf identity) (cons 'ival identity) (cons 'nonffi identity)))
     (register-operator-impl! repr-rewrite2 repr-rewrite2 (list prec2) prec2
-      (list (cons 'fl identity) (cons 'inherit 'cast))))
+      (list (cons 'fl identity))))
 
   ;; Repr rewrite/conversion rules
   (define rulename1 (sym-append 'rewrite '- prec2* '/ prec1*))
@@ -88,8 +88,6 @@
         (warn 'conversions "Duplicate conversion (~a ~a)\n" prec1 prec2))
       (hash-update! (*conversions*) prec1 (λ (x) (cons prec2 x)) '())
       (hash-update! (*conversions*) prec2 (λ (x) (cons prec1 x)) '())
-      (generate-repr prec1) ; manually generate the representation
-      (generate-repr prec2)
       (generate-conversion prec1 prec2)
       (set-union reprs (list (get-representation prec1) (get-representation prec2)))))
   (*needed-reprs* (set-union reprs (*needed-reprs*))))

@@ -219,8 +219,8 @@
   (hash-set! fields 'otype otype)
   (table-set! operator-impls name fields)
   (hash-update! parametric-operators operator
-                (λ (h) (hash-set h itypes (cons name otype)))
-                (hash))
+                (curry cons (list* name otype (operator-info name 'itype)))
+                '())
   (hash-set! parametric-operators-reverse name operator))
   
 
@@ -239,14 +239,18 @@
     (current-continuation-marks))))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
-  (let ([op-info (hash-ref parametric-operators name)])
-    (or (car (hash-ref op-info actual-types (cons #f #f))) ; dumb way to fail with #f
-        (car (hash-ref op-info (car actual-types) (cons #f #f)))
-        (if fail-fast?
+  (or
+    (for/or ([sig (hash-ref parametric-operators name)])
+      (match-define (list* true-name rtype atypes) sig)
+        (and (if (representation-name? atypes)
+                 (andmap (curry equal? atypes) actual-types)
+                 (equal? atypes actual-types))
+             true-name))
+    (if fail-fast?
             (error 'get-parametric-operator
                    "parametric operator with op ~a and input types ~a not found"
                    name actual-types)
-            #f))))
+            #f)))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; will break if operator impls have different aritys
@@ -626,11 +630,11 @@
   (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
 
 (define (get-repr-conv iprec oprec)
-  (for/or ([(op table) (in-hash parametric-operators)] #:when (repr-conv? op))
-    (for/first ([(atypes info) (in-hash table)] #:when #t)
-      (and (equal? (cdr info) oprec)
+  (for/or ([sig (hash-ref parametric-operators 'cast)])
+    (match-define (list* true-name rtype atypes) sig)
+      (and (equal? rtype oprec)
            (equal? (car atypes) iprec)
-           (car info)))))
+           true-name)))
 
 ;; Casts
 (define-operator (cast real) real
