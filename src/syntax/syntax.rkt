@@ -636,14 +636,10 @@
            (equal? (car atypes) iprec)
            true-name)))
 
-;; Casts
+;; Conversions
+
 (define-operator (cast real) real
   [bf identity] [ival identity] [nonffi identity])
-
-(define-operator-impl (cast cast.f64 binary64) binary64 [fl identity])
-(define-operator-impl (cast cast.f32 binary32) binary32 [fl identity])
-
-;; Conversions
 
 (define-operator-impl (cast binary64->binary32 binary64) binary32
   [fl (curryr ->float32)])
