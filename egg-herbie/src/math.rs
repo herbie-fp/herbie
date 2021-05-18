@@ -119,8 +119,7 @@ impl Analysis<Math> for ConstantFold {
                     } else {
                         None
                     }
-                } else if x(b)?.is_integer()
-                {
+                } else if x(b)?.is_integer() {
                     Some(Pow::pow(x(a)?, x(b)?.to_integer()))
                 } else {
                     None
