@@ -229,7 +229,7 @@
 
 (define (taylor-alt altn loc)
   (define expr (location-get loc (alt-program altn)))
-  (define repr (get-representation (repr-of expr (*output-repr*) (*var-reprs*))))
+  (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
   (define vars (free-variables expr))
   (reap [sow]
     (for* ([var vars] [transform-type transforms-to-try])

@@ -57,12 +57,12 @@
 ;; Fast version does not recurse into functions applications
 (define (repr-of expr repr env)
   (match expr
-   [(? real?) (representation-name repr)]
-   [(? (representation-repr? repr)) (representation-name repr)]
-   [(? constant?) (constant-info expr 'type)]
-   [(? variable?) (representation-name (dict-ref env expr))]
+   [(? real?) repr]
+   [(? (representation-repr? repr)) repr]
+   [(? constant?) (get-representation (constant-info expr 'type))]
+   [(? variable?) (dict-ref env expr)]
    [(list 'if cond ift iff) (repr-of ift repr env)]
-   [(list op args ...) (operator-info op 'otype)]))
+   [(list op args ...) (get-representation (operator-info op 'otype))]))
 
 (define (expr-supports? expr field)
   (let loop ([expr expr])
