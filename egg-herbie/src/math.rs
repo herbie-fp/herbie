@@ -114,7 +114,7 @@ impl Analysis<Math> for ConstantFold {
                 if is_zero(b) && !is_zero(a) {
                     Some(Ratio::new(BigInt::from(1), BigInt::from(1)))
                 } else if is_zero(a) {
-                    if x(b)? > &Ratio::new(BigInt::from(0), BigInt::from(1)) {
+                    if x(b)?.is_positive() {
                         Some(Ratio::new(BigInt::from(0), BigInt::from(1)))
                     } else {
                         None
