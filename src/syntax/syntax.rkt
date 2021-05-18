@@ -246,11 +246,10 @@
                  (andmap (curry equal? atypes) actual-types)
                  (equal? atypes actual-types))
              true-name))
-    (if fail-fast?
-            (error 'get-parametric-operator
-                   "parametric operator with op ~a and input types ~a not found"
-                   name actual-types)
-            #f)))
+    (and fail-fast?
+         (error 'get-parametric-operator
+                "parametric operator with op ~a and input types ~a not found"
+                name actual-types))))
 
 ;; mainly useful for getting arg count of an unparameterized operator
 ;; will break if operator impls have different aritys
