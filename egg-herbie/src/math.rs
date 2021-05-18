@@ -113,10 +113,13 @@ impl Analysis<Math> for ConstantFold {
             Math::Pow([_p, a, b]) => {
                 if is_zero(b) && !is_zero(a) {
                     Some(Ratio::new(BigInt::from(1), BigInt::from(1)))
-                } else if is_zero(a) && !is_zero(b) {
-                    Some(Ratio::new(BigInt::from(0), BigInt::from(1)))
+                } else if is_zero(a) {
+                    if x(b)? > &Ratio::new(BigInt::from(0), BigInt::from(1)) {
+                        Some(Ratio::new(BigInt::from(0), BigInt::from(1)))
+                    } else {
+                        None
+                    }
                 } else if x(b)?.is_integer()
-                    && !(x(a)?.is_zero() && (x(b)?.is_zero() || x(b)?.is_negative()))
                 {
                     Some(Pow::pow(x(a)?, x(b)?.to_integer()))
                 } else {
