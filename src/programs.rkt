@@ -80,25 +80,6 @@
 
 ;; Converting constants
 
-(define/contract (location-hash prog)
-  (-> expr? (hash/c expr? (listof location?)))
-  (define hash (make-hash))
-  (define (save expr loc)
-    (hash-update! hash expr (curry cons loc) '()))
-
-  (let loop ([expr prog] [loc '()])
-    (match expr
-      [(list (or 'lambda 'λ) (list vars ...) body)
-       (loop body (cons 2 loc))]
-      [(? constant?) (save expr (reverse loc))]
-      [(? variable?) (save expr (reverse loc))]
-      [(list op args ...)
-       (save expr (reverse loc))
-       (for ([idx (in-naturals 1)] [arg args])
-         (loop arg (cons idx loc)))]))
-
-  hash)
-
 (define (free-variables prog)
   (match prog
     [(? constant?) '()]
