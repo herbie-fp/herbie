@@ -263,18 +263,6 @@
       (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
       (check-in-interval? iv val))))
 
-(define (exact-value? type val)
-  (match type
-    [(or 'real 'complex) (exact? val)]
-    ['boolean true]
-    [_ false]))
-
-(define (value->code type val)
-  (match type
-    ['real val]
-    ['complex (list 'complex (real-part val) (imag-part val))]
-    ['boolean (if val 'TRUE 'FALSE)]))
-
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
   (define exact-value? (conjoin number? exact?))
