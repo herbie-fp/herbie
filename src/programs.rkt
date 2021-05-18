@@ -8,19 +8,15 @@
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
+         expr? expr-supports? expr-contains?
          program-cost
          type-of repr-of
-         expr-supports? expr-contains?
-         location-hash
-         location? expr?
-         location-do location-get location-repr
+         location-do location-get
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression replace-vars
          apply-repr-change)
 
 (define expr? (or/c list? symbol? value? real?))
-
-(define location? (listof natural-number/c))
 
 ;; Programs are just lambda expressions
 
@@ -94,6 +90,8 @@
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
 
+(define location? (listof natural-number/c))
+
 (define/contract (location-do loc prog f)
   (-> location? expr? (-> expr? expr?) expr?)
   (cond
@@ -108,30 +106,11 @@
           (cons (location-do (cdr loc) (car lst) f) (cdr lst))
           (cons (car lst) (loop (- idx 1) (cdr lst)))))]))
 
-(define (location-get loc prog)
+(define/contract (location-get loc prog)
+  (-> location? expr? expr?)
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))
-
-(define (location-repr loc prog repr var-reprs)
-  (let loop ([expr prog] [repr repr] [loc loc])
-    (cond
-     [(null? loc)
-      (get-representation
-        (if (operator? expr)
-            (operator-info expr 'otype)
-            (repr-of expr repr var-reprs)))]
-     [(not (pair? expr))
-      (error "Bad location: cannot enter " expr "any further.")]
-     [else
-      (match expr
-        [(list 'if cond ift iff)
-         (loop (list-ref expr (car loc)) repr (cdr loc))]
-        [(list (? operator? op) args ...)
-         (define ireprs (cons repr (map get-representation (operator-info op 'itype))))
-         (loop (list-ref expr (car loc)) (list-ref ireprs (car loc)) (cdr loc))]
-        [(list (or 'λ 'lambda) (list vars ...) body)
-         (loop (list-ref expr (car loc)) repr (cdr loc))])])))
 
 (define (eval-prog prog mode repr)
   (define f (batch-eval-progs (list prog) mode repr))
