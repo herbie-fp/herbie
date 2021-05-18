@@ -275,21 +275,42 @@
     ['complex (list 'complex (real-part val) (imag-part val))]
     ['boolean (if val 'TRUE 'FALSE)]))
 
+;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
-  (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
-      (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
-        (define fn (operator-info op 'nonffi))
-        (define res (apply fn args))
-        (define repr (get-representation (operator-info op 'otype)))
-        (define rtype (type-name (representation-type repr)))
-        (and ((value-of rtype) res)
-             (exact-value? rtype res)
-             (value->code rtype res)))
-      false))
+  (define exact-value? (conjoin number? exact?))
+  (match (cons (hash-ref parametric-operators-reverse op) args)
+    [(list '+ (? exact-value? as) ...) (apply + as)]
+    [(list '- (? exact-value? as) ...) (apply - as)]
+    [(list '* (? exact-value? as) ...) (apply * as)]
+    [(list '/ (? exact-value? num) (? exact-value? den))
+     (and (not (zero? den)) (/ num den))]
+    [(list 'neg (? exact-value? arg)) (- arg)]
+    [(list 'pow  (? exact-value? a) (? exact-value? b))
+     (cond [(and (zero? b) (not (zero? a))) 1]
+           [(and (zero? a) (positive? b)) 0]
+           [(and (not (zero? a)) (integer? b)) (expt a b)]
+           [else #f])]
+    [(list 'sqrt (? exact-value? a))
+     (let ([s1 (sqrt (numerator a))] [s2 (sqrt (denominator a))])
+       (and
+        (real? s1) (real? s2)
+        (exact? s1) (exact? s2)
+        (/ s1 s2)))]
+    [(list 'fabs (? exact-value? a)) (abs a)]
+    [(list 'floor (? exact-value? a)) (floor a)]
+    [(list 'ceil (? exact-value? a)) (ceiling a)]
+    [(list 'round (? exact-value? a)) (round a)]
+    ;; Added
+    [(list 'log 1) 0]
+    [(list 'cbrt 1) 1]
+    [_ #f]))
 
 (module+ test
-  (define repr (get-representation 'binary64))
   (check-equal? (eval-application '+.f64 1 1) 2)
+  (check-equal? (eval-application '+.f64) 0)
+  (check-equal? (eval-application '/.f64 1 0) #f) ; Not valid
+  (check-equal? (eval-application 'cbrt.f64 1) 1)
+  (check-equal? (eval-application 'log.f64 1) 0)
   (check-equal? (eval-application 'exp.f64 2) #f)) ; Not exact
 
 (define/contract (replace-expression haystack needle needle*)
