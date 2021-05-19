@@ -21,8 +21,8 @@
       (script ([src "../report.js"])))
      (body
       ,(render-menu
-        (list/true)
-        (list/true
+        (list)
+        (list
          '("Report" . "../results.html")
          '("Log" . "debug.txt")
          '("Metrics" . "timeline.html")))

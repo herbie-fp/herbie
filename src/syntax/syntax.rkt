@@ -3,7 +3,8 @@
 (require math/flonum math/base math/bigfloat math/special-functions rival)
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "../float32.rkt" "types.rkt")
 
-(provide constant? variable? operator? operator-info constant-info get-operator-arity
+(provide constant? variable? operator? operator-info operator-exists?
+         constant-info get-operator-arity
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-ops* *loaded-ops*
@@ -16,6 +17,34 @@
            define-constant define-operator
            register-impl! register-operator!))
 
+;; The new, contracts-using version of the above
+
+(define-syntax-rule (define-table name [field type] ...)
+  (define name (cons (list (cons 'field type) ...) (make-hash))))
+
+(define (table-ref tbl key field)
+  (match-let ([(cons header rows) tbl])
+    (for/first ([(field-name type) (in-dict header)]
+                [value (in-list (hash-ref rows key))]
+                #:when (equal? field-name field))
+      value)))
+
+(define (table-set! tbl key fields)
+  (match-let ([(cons header rows) tbl])
+    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
+    (hash-set! rows key row)))
+
+(define (table-remove! tbl key)
+  (hash-remove! (cdr tbl) key))
+
+(define (table-ref-all tbl key)
+  (match-let ([(cons header rows) tbl])
+    (and (hash-has-key? rows key)
+         (map cons (map car header) (hash-ref rows key)))))
+
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))
 
 (module+ test (require rackunit))
 
@@ -187,6 +216,11 @@
                    (λ (e) (error 'operator-info "Unknown operator or field: ~a ~a"
                                                 operator field))])
     (table-ref operator-impls operator field)))
+
+(define (operator-exists? op)
+  (with-handlers ([exn:fail? (const false)])
+    (table-ref operator-impls op 'otype)
+    true))
 
 (define (operator-remove! operator)
   (table-remove! operator-impls operator))

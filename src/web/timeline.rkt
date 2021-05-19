@@ -1,7 +1,7 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../syntax/read.rkt" "../sandbox.rkt"
-         "../datafile.rkt" "common.rkt")
+         "../datafile.rkt" "common.rkt" "../timeline.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -20,7 +20,7 @@
        (script ([src ,(if info "report.js" "../report.js")])))
       (body
        ,(render-menu
-         (list/true
+         (list
           (and info '("About" . "#about"))
           '("Timeline" . "#process-info")
           '("Profile" . "#profile"))
@@ -96,16 +96,14 @@
   `((dt "Local error")
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
-               ,@(for/list ([rec (in-list locations)])
-                   (match-define (list expr err) rec)
+               ,@(for/list ([(expr err) (in-table locations)])
                    `(tr (td ,(format-bits err) "b") (td (pre ,(~a expr)))))))))
 
 (define (render-phase-bstep iters)
   `((dt "Steps")
     (dd (table ([class "times"])
                (tr (th "Iters") (th ([colspan "2"]) "Range") (th "Point"))
-               ,@(for/list ([iter iters])
-                   (match-define (list v1 v2 iters pt) iter)
+               ,@(for/list ([(v1 v2 iters pt) (in-table iters)])
                    `(tr (td ,(~a iters)) 
                         (td (pre ,(~a v1))) (td (pre ,(~a v2)))
                         (td (pre ,(~a pt)))))))))
@@ -119,8 +117,7 @@
            " (" ,(format-time (fourth last-useful-iter)) ")")
         (table ([class "times"])
           (tr (th "Iter") (th "Nodes") (th "Cost"))
-          ,@(for/list ([row (reverse iters)])
-              (match-define (list iter nodes cost t) row)
+          ,@(for/list ([(iter nodes cost t) (in-table (reverse iters))])
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
 
@@ -139,8 +136,7 @@
   `((dt "Search")
     (dd (table ([class "times"])
          (tr (th "True") (th "Other") (th "False") (th "Iter"))
-         ,@(for/list ([rec (in-list (sort sampling < #:key first))])
-             (match-define (list n wt wo wf) rec)
+         ,@(for/list ([(n wt wo wf) (in-table (sort sampling < #:key first))])
              `(tr (td ,(format-percent wt total))
                   (td ,(format-percent wo total))
                   (td ,(format-percent wf total))
@@ -172,8 +168,7 @@
            " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
         ,@(if (> (length rows) 1)
               `((table ([class "times"])
-                  ,@(for/list ([row (in-list rows)] [_ (in-range 5)])
-                      (match-define (list left gained link name) row)
+                  ,@(for/list ([(left gained link name) (in-table rows)] [_ (in-range 5)])
                       `(tr (td ,(format-bits left) "b")
                            (td ,(format-percent gained (+ left gained)))
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
@@ -209,14 +204,9 @@
     (dd ,(format-bits min-error) "b")))
 
 (define (render-phase-rules rules)
-  (define by-count (make-hash))
-  (for ([row (in-list rules)])
-    (match-define (list rule count) row)
-    (dict-update! by-count count (curry cons rule) '()))
-
   `((dt "Rules")
     (dd (table ([class "times"])
-          ,@(for/list ([(count rules) (in-sorted-dict by-count #:key first)] [_ (in-range 5)])
+          ,@(for/list ([(count rules) (in-table (sort rules > #:key second))] [_ (in-range 5)])
               `(tr (td ,(~a count) "×")
                    (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
 
@@ -228,8 +218,7 @@
   `((dt "Alt Table")
     (dd (table ([class "times"])
          (thead (tr (td "Status") (td "Error") (td "Program")))
-         ,@(for/list ([rec (in-list alts)])
-             (match-define (list expr status score) rec)
+         ,@(for/list ([(expr status score) (in-table alts)])
              `(tr
                ,(match status
                   ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
@@ -245,8 +234,8 @@
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
         (table ([class "times"])
-               ,@(for/list ([(expr time) (in-sorted-dict times #:key second)] [_ (in-range 5)])
-                   `(tr (td ,(format-time (car time))) (td (pre ,(~a expr)))))))))
+               ,@(for/list ([(expr time) (in-table (sort times > #:key second))] [_ (in-range 5)])
+                   `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
 (define (render-phase-compiler compiler)
   (match-define (list (list sizes compileds) ...) compiler)
@@ -259,8 +248,7 @@
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
     (dd (table ([class "times"])
-         ,@(for/list ([data (sort outcomes > #:key fourth)])
-             (match-define (list prog precision category time count) data)
+         ,@(for/list ([(prog precision category time count) (in-table (sort outcomes > #:key fourth))])
              `(tr (td ,(format-time time)) (td ,(~a count) "×") (td ,(~a prog))
                   (td ,(~a precision)) (td ,(~a category))))))))
 
@@ -288,8 +276,7 @@
              (div ((id "changed-flags"))
                   ,@(if (null? (changed-flags))
                         '("default")
-                        (for/list ([rec (changed-flags)])
-                          (match-define (list delta class flag) rec)
+                        (for/list ([(delta class flag) (in-table (changed-flags))])
                           `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
                                 " " ,(~a class) ":" ,(~a flag)))))))))
 

@@ -88,7 +88,7 @@
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
-    (define known-repr? (generate-repr (syntax-e* prec)))
+    (define known-repr? (generate-repr (syntax->datum prec)))
     (unless known-repr?
       (error! prec "Unknown :precision ~a" prec)))
 
@@ -108,7 +108,7 @@
   (when (dict-has-key? prop-dict ':herbie-conversions)
     (define conversions (dict-ref prop-dict ':herbie-conversions))
     (if (list? (syntax-e conversions))
-        (for ([conv (syntax-e* conversions)])
+        (for ([conv (syntax->datum conversions)])
           (unless (and (list? conv) (= (length conv) 2))
             (error! conversions "Invalid conversion ~a; Valid example: (binary64 binary32)" conv))
           (define known-repr? (and (generate-repr (first conv)) (generate-repr (second conv))))

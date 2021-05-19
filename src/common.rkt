@@ -4,14 +4,13 @@
 (require "config.rkt" "debug.rkt")
 (module+ test (require rackunit))
 
-(provide reap define-table table-ref table-ref-all
-         table-set! table-remove!
+(provide reap
          call-with-output-files
-         take-up-to flip-lists list/true find-duplicates
-         argmins argmaxs index-of set-disjoint? comparator
-         parse-flag get-seed set-seed!
-         quasisyntax syntax-e* dict sym-append
-         format-time format-bits in-sorted-dict web-resource
+         take-up-to flip-lists find-duplicates
+         argmins argmaxs index-of set-disjoint?
+         get-seed set-seed!
+         quasisyntax dict sym-append
+         format-time format-bits web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
@@ -24,31 +23,6 @@
     (let ([sows (cdr sows)] ...)
       body ...)
     (values (reverse ((car sows))) ...)))
-
-;; The new, contracts-using version of the above
-
-(define-syntax-rule (define-table name [field type] ...)
-  (define name (cons (list (cons 'field type) ...) (make-hash))))
-
-(define (table-ref tbl key field)
-  (match-let ([(cons header rows) tbl])
-    (for/first ([(field-name type) (in-dict header)]
-                [value (in-list (hash-ref rows key))]
-                #:when (equal? field-name field))
-      value)))
-
-(define (table-set! tbl key fields)
-  (match-let ([(cons header rows) tbl])
-    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
-    (hash-set! rows key row)))
-
-(define (table-remove! tbl key)
-  (hash-remove! (cdr tbl) key))
-
-(define (table-ref-all tbl key)
-  (match-let ([(cons header rows) tbl])
-    (and (hash-has-key? rows key)
-         (map cons (map car header) (hash-ref rows key)))))
 
 ;; Utility list functions
 
@@ -90,9 +64,6 @@
   "Flip a list of rows into a list of columns"
   (apply map list list-list))
 
-(define (list/true . args)
-  (filter identity args))
-
 (module+ test
   (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))
                 '((1 4 7) (2 5 8) (3 6 9))))
@@ -124,15 +95,6 @@
   (check-false (set-disjoint? '(a b c) '(a))))
 
 ;; Miscellaneous helper
-
-(define (parse-flag s)
-  (match (string-split s ":")
-    [(list (app string->symbol category) (app string->symbol flag))
-     (and
-      (dict-has-key? all-flags category)
-      (set-member? (dict-ref all-flags category) flag)
-      (list category flag))]
-    [_ #f]))
 
 (define the-seed #f)
 
@@ -208,24 +170,12 @@
                 (λ (p) (loop (cdr names) (cons p ps))))
             (loop (cdr names) (cons #f ps))))))
 
-(define (in-sorted-dict d #:key [key identity])
-  (in-dict (sort (dict->list d) > #:key key)))
-
 (define-runtime-path web-resource-path "web/")
 
 (define (web-resource [name #f])
   (if name
       (build-path web-resource-path name)
       web-resource-path))
-
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
-
-(define (syntax-e* stx)
-  (match (syntax-e stx)
-    [(list elems ...) (map syntax-e* elems)]
-    [stx* stx*]))
 
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~a args))))

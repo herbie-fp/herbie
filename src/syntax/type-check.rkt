@@ -10,7 +10,7 @@
       (match props
        [(list) (list)]
        [(list (app syntax-e prop) value rest ...)
-        (cons (cons prop (syntax-e* value)) (loop rest))])))
+        (cons (cons prop (syntax->datum value)) (loop rest))])))
   (define type (dict-ref props* ':precision 'binary64))
   (assert-expression-type! body type #:env (for/hash ([var vars]) (values (syntax-e var) type))))
 

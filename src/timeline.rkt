@@ -2,7 +2,8 @@
 (require "config.rkt" "float.rkt" racket/hash json)
 (provide timeline-event! timeline-push! timeline-adjust!
          timeline-load! timeline-extract timeline-compact!
-         timeline-merge timeline-relink *timeline-disabled*)
+         timeline-merge timeline-relink *timeline-disabled*
+         in-table)
 (module+ debug (provide *timeline*))
 
 ;; This is a box so we can get a reference outside the engine, and so
@@ -50,6 +51,9 @@
       (if (equal? k 'link)
           (values k (map (λ (p) (path->string (build-path link p))) v))
           (values k v)))))
+
+(define (in-table t)
+  (sequence-map (curry apply values) (in-list t)))
 
 (define timeline-types (make-hash))
 
