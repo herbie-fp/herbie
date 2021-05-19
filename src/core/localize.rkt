@@ -93,5 +93,5 @@
       (sort locs > #:key (compose errors-score car))
       (*localize-expressions-limit*))
     (take-up-to ; low error locs
-      (sort locs > #:key (compose errors-score car))
+      (sort locs < #:key (compose errors-score car))
       (*localize-expressions-limit*))))
