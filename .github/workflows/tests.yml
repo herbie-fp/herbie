@@ -13,7 +13,9 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v0.5
+        uses: Bogdanp/setup-racket@v1.3.1
+        with:
+          version: stable
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1
         with:
@@ -31,13 +33,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        racket-version: [ '7.5', '7.9', '8.0' ]
+        racket-version: [ '7.8', '8.0', '8.1' ]
         precision: [ 'binary32', 'binary64' ]
     steps:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v0.5
+        uses: Bogdanp/setup-racket@v1.3.1
         with:
           version: ${{ matrix.racket-version }}
       - name: Install Rust compiler
