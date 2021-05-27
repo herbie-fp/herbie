@@ -56,6 +56,8 @@ define_language! {
         "ceil" = Ceil([Id; 2]),
         "floor" = Floor([Id; 2]),
         "round" = Round([Id; 2]),
+        "log" = Log([Id; 2]),
+        "cbrt" = Cbrt([Id; 2]),
 
         Constant(Constant),
         Symbol(egg::Symbol),
@@ -136,6 +138,20 @@ impl Analysis<Math> for ConstantFold {
                     } else {
                         None
                     }
+                } else {
+                    None
+                }
+            }
+            Math::Log([_p, a]) => {
+                if x(a)? == &Ratio::new(BigInt::from(1), BigInt::from(1)) {
+                    Some(Ratio::new(BigInt::from(0), BigInt::from(1)))
+                } else {
+                    None
+                }
+            }
+            Math::Cbrt([_p, a]) => {
+                if x(a)? == &Ratio::new(BigInt::from(1), BigInt::from(1)) {
+                    Some(Ratio::new(BigInt::from(1), BigInt::from(1)))
                 } else {
                     None
                 }
