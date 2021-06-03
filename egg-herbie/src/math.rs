@@ -56,6 +56,8 @@ define_language! {
         "ceil" = Ceil([Id; 2]),
         "floor" = Floor([Id; 2]),
         "round" = Round([Id; 2]),
+        "log" = Log([Id; 2]),
+        "cbrt" = Cbrt([Id; 2]),
 
         Constant(Constant),
         Symbol(egg::Symbol),
@@ -111,13 +113,15 @@ impl Analysis<Math> for ConstantFold {
             }
             Math::Neg([_p, a]) => Some(-x(a)?.clone()),
             Math::Pow([_p, a, b]) => {
-                if is_zero(b) && !is_zero(a) {
+                if is_zero(a) {
+                    if x(b)?.is_positive() {
+                        Some(Ratio::new(BigInt::from(0), BigInt::from(1)))
+                    } else {
+                        None
+                    }
+                } else if is_zero(b) {
                     Some(Ratio::new(BigInt::from(1), BigInt::from(1)))
-                } else if is_zero(a) && !is_zero(b) {
-                    Some(Ratio::new(BigInt::from(0), BigInt::from(1)))
-                } else if x(b)?.is_integer()
-                    && !(x(a)?.is_zero() && (x(b)?.is_zero() || x(b)?.is_negative()))
-                {
+                } else if x(b)?.is_integer() {
                     Some(Pow::pow(x(a)?, x(b)?.to_integer()))
                 } else {
                     None
@@ -134,6 +138,20 @@ impl Analysis<Math> for ConstantFold {
                     } else {
                         None
                     }
+                } else {
+                    None
+                }
+            }
+            Math::Log([_p, a]) => {
+                if x(a)? == &Ratio::new(BigInt::from(1), BigInt::from(1)) {
+                    Some(Ratio::new(BigInt::from(0), BigInt::from(1)))
+                } else {
+                    None
+                }
+            }
+            Math::Cbrt([_p, a]) => {
+                if x(a)? == &Ratio::new(BigInt::from(1), BigInt::from(1)) {
+                    Some(Ratio::new(BigInt::from(1), BigInt::from(1)))
                 } else {
                     None
                 }
