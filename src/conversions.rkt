@@ -3,7 +3,7 @@
 (require "common.rkt" "interface.rkt" "errors.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt"
          (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
-(provide generate-conversions get-rewrite-operator *conversions*)
+(provide generate-conversions generate-prec-rewrites get-rewrite-operator *conversions*)
 
 (define *conversions* (make-parameter (make-hash)))
 
@@ -24,7 +24,8 @@
   (define rewrite (sym-append '<- prec*))
   (get-parametric-operator rewrite prec))
 
-(define (generate-conversion prec1 prec2)
+;; Generates conversion, repr-rewrite operators for prec1 and prec2
+(define (generate-conversion-ops prec1 prec2)
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (define prec1* (string->symbol (string-replace* (~a prec1) replace-table))) ; fixed point workaround
   (define prec2* (string->symbol (string-replace* (~a prec2) replace-table)))
@@ -58,7 +59,22 @@
     (register-operator! repr-rewrite2 (list 'real) 'real
       (list (cons 'bf identity) (cons 'ival identity) (cons 'nonffi identity)))
     (register-operator-impl! repr-rewrite2 repr-rewrite2 (list prec2) prec2
-      (list (cons 'fl identity))))
+      (list (cons 'fl identity)))))
+
+;; creates precision rewrite: prec1 <==> prec2
+;; assumes generate-conversion-ops has been invoked for these precisions
+(define (generate-prec-rewrite prec1 prec2)
+  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
+  (define prec1* (string->symbol (string-replace* (~a prec1) replace-table))) ; fixed point workaround
+  (define prec2* (string->symbol (string-replace* (~a prec2) replace-table)))
+
+  ;; Repr conversions, e.g. repr1->repr2
+  (define conv1 (sym-append prec1* '-> prec2*))
+  (define conv2 (sym-append prec2* '-> prec1*))
+
+  ;; Repr rewrites, e.g. <-repr
+  (define repr-rewrite1 (sym-append '<- prec1*))
+  (define repr-rewrite2 (sym-append '<- prec2*))
 
   ;; Repr rewrite/conversion rules
   (define rulename1 (sym-append 'rewrite '- prec2* '/ prec1*))
@@ -78,16 +94,31 @@
   (register-ruleset! rulename4 '(arithmetic simplify) (list (cons 'a prec2))
     (list (list rulename4 `(,conv1 (,conv2 a)) 'a))))
 
-;; First, generate the repr 
-(define (generate-conversions convs)
+;; generate conversions, precision rewrites, etc.
+(define (generate-prec-rewrites convs)
   (define reprs
     (for/fold ([reprs '()]) ([conv convs])
       (define prec1 (first conv))
       (define prec2 (last conv))
-      (when (set-member? (hash-ref (*conversions*) prec1 '()) prec2)
-        (warn 'conversions "Duplicate conversion (~a ~a)\n" prec1 prec2))
       (hash-update! (*conversions*) prec1 (λ (x) (cons prec2 x)) '())
       (hash-update! (*conversions*) prec2 (λ (x) (cons prec1 x)) '())
-      (generate-conversion prec1 prec2)
+      (generate-prec-rewrite prec1 prec2)
       (set-union reprs (list (get-representation prec1) (get-representation prec2)))))
   (*needed-reprs* (set-union reprs (*needed-reprs*))))
+
+;; invoked before desugaring
+(define (generate-conversions convs)
+  (define convs* (mutable-set))
+  (for ([conv convs])
+    (let ([prec1 (first conv)] [prec2 (last conv)])
+      (generate-conversion-ops prec1 prec2)
+      (when (set-member? convs* (cons prec1 prec2))
+        (warn 'conversions "Duplicate conversion (~a ~a)\n" prec1 prec2))
+      (set-add! convs* (cons prec1 prec2)))))
+
+
+;; try built in reprs
+(module+ test
+  (define convs (list (list 'binary64 'binary32)))
+  (generate-conversions convs)
+  (generate-prec-rewrites convs))

@@ -52,7 +52,7 @@
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
 
-      (generate-conversions (test-conversions test))
+      (generate-prec-rewrites (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
         (define alts
           (run-improve (test-program test)

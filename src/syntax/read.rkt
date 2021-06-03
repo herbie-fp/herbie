@@ -2,7 +2,7 @@
 
 (require "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt" "function.rkt"
-         "../preprocess.rkt")
+         "../preprocess.rkt" "../conversions.rkt")
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
@@ -78,23 +78,31 @@
         func-name
         body))
 
+  ;; load conversion operators for desugaring
+  (define convs (dict-ref prop-dict* ':herbie-conversions '()))
+  (generate-conversions convs)
+
+  ;; inline and desugar
   (define inlined (inline-functions body))
   (define body* (desugar-program inlined default-repr var-reprs))
   (define pre* (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs))
+  (define target (desugar-program (inline-functions (dict-ref prop-dict* ':herbie-target #f))
+                                  default-repr var-reprs))
+  (define spec (desugar-program (dict-ref prop-dict* ':spec inlined) default-repr var-reprs))
   (check-unused-variables arg-names body* pre*)
 
   (test (~a name)
         func-name
         arg-names
         body*
-        (desugar-program (inline-functions (dict-ref prop-dict* ':herbie-target #f)) default-repr var-reprs)
+        target
         (dict-ref prop-dict* ':herbie-expected #t)
-        (desugar-program (dict-ref prop-dict* ':spec inlined) default-repr var-reprs)
+        spec
         pre*
         (map sexp->preprocess (dict-ref prop-dict* ':herbie-preprocess empty))
         (representation-name default-repr)
         (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)
-        (dict-ref prop-dict* ':herbie-conversions '())))
+        convs))
         
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that

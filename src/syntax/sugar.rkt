@@ -49,7 +49,7 @@
          (cond
            [(hash-has-key? props* ':precision)
             ; need to insert a cast
-            (loop (cons 'cast expr) prec)]
+            (loop (list 'cast expr) prec)]
            [else (loop body prec)])]
         [(list 'cast (list '! ':precision iprec iexpr))
          (define conv (get-repr-conv iprec prec))
