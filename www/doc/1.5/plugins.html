@@ -64,10 +64,50 @@
   
   <h2>Developing plugins</h2>
 
-  <p>The plugin functionality is currently highly experimental; if you
-  would like to develop your own plugins, please write to
-  the <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">mailing
-  list</a>.</p>
+  <p>The following is a guide to creating a Herbie plugin.
+  Plugins are considered experimental and may change considerably
+  between releases.
+  If you run into issues, please write to the
+  <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">
+  mailing list</a>.</p>
+
+  <p><b>First Steps</b><br>
+  All plugins are implemented as Racket packages. The easiest way to
+  initialize a new Racket package is to run
+
+  <pre class="shell">raco pkg new <i>pkg-name</i></pre>
+
+  in a new folder. Make sure the folder name is the same as the package name!
+  This will initialize a Racket package with all the necessary files.
+  Read the official Racket documentation on the
+  <a href="https://docs.racket-lang.org/pkg/getting-started.html#%28part._how-to-create%29">
+  raco</a> tool for more information.</p>
+
+  <p>A couple entries need to be added to the package manifest stored
+  in <code>info.rkt</code> inside the repository.
+  Make sure the list of dependencies (<code>"deps"</code>) also contains
+  <code>"herbie"</code> so that we can import files from Herbie.
+  Add the following line at the bottom of the file <code>(define herbie-plugin '<i>name</i>)</code>
+  where <i>name</i> is a unique symbol that doesn't conflict with other Herbie plugins.
+  As a suggestion, this should just be the package name.</p>
+
+  <p>Edit the <code>main.rkt</code> file by erasing everything except the
+  language specifier on the first line. Add the line
+  <code>(require herbie/plugin)</code>. This gives the package access
+  to the Herbie plugin interface. Optionally add the following for debugging
+  purposes <code>(eprintf "Loading <i>pkg-name</i> support...\n")</code>.</p>
+
+  <p>Finally, run the following in the same folder as the <code>info.rkt</code>
+  and <code>main.rkt</code>:
+
+  <pre class="shell">raco pkg install</pre>
+
+  This should install your package and check for errors.
+  Now everything is set up!
+  Of course, your plugin is empty and doesn't add any useful features.
+  If you added the debugging line in <code>main.rkt</code>, you should see it
+  print the string when you run Herbie.
+  </p>
   
 </body>
 </html>
