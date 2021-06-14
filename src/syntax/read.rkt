@@ -68,7 +68,7 @@
                 default-repr))))
 
   ;; Named fpcores need to be added to function table
-  (when func-name (register-function! name args default-repr body))
+  (when func-name (register-function! func-name args default-repr body))
 
   ;; Try props first, then identifier, else the expression itself
   (define name
@@ -81,12 +81,10 @@
   (generate-conversions convs)
 
   ;; inline and desugar
-  (define inlined (inline-functions body))
-  (define body* (desugar-program inlined default-repr var-reprs))
+  (define body* (desugar-program body default-repr var-reprs))
   (define pre* (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs))
-  (define target (desugar-program (inline-functions (dict-ref prop-dict* ':herbie-target #f))
-                                  default-repr var-reprs))
-  (define spec (desugar-program (dict-ref prop-dict* ':spec inlined) default-repr var-reprs))
+  (define target (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs))
+  (define spec (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs))
   (check-unused-variables arg-names body* pre*)
 
   (test (~a name)
