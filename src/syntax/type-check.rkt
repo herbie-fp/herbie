@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../errors.rkt" "../interface.rkt"
-         "syntax.rkt" "types.rkt" "function.rkt")
+         "syntax.rkt" "sugar.rkt" "types.rkt")
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
@@ -131,7 +131,8 @@
                   op (string-join (map (curry format "<~a>") actual-types) " "))
           #f))]
     [#`(,(? (curry hash-has-key? (*functions*)) fname) #,exprs ...)
-     (match-define (list vars prec _) (hash-ref (*functions*) fname))
+     (match-define (list vars repr _) (hash-ref (*functions*) fname))
+     (define prec (representation-name repr))
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (define expected (map (const prec) vars))
      (if (andmap equal? actual-types expected)

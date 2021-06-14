@@ -1,8 +1,8 @@
 #lang racket
 
 (require "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
-         "syntax-check.rkt" "type-check.rkt" "sugar.rkt" "function.rkt"
-         "../preprocess.rkt" "../conversions.rkt")
+         "../preprocess.rkt" "../conversions.rkt"
+         "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
@@ -68,9 +68,7 @@
                 default-repr))))
 
   ;; Named fpcores need to be added to function table
-  (when func-name
-    (hash-set! (*functions*) func-name
-               (list args default-prec body)))
+  (when func-name (register-function! name args default-repr body))
 
   ;; Try props first, then identifier, else the expression itself
   (define name

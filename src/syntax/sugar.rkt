@@ -1,7 +1,10 @@
 #lang racket
 
 (require "types.rkt" "syntax.rkt" "../interface.rkt")
-(provide desugar-program resugar-program)
+(provide desugar-program resugar-program inline-functions register-function!
+         *functions*)
+
+(module+ test (require rackunit))
 
 (define (unfold-let expr)
   (match expr
@@ -167,3 +170,37 @@
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
 
+;; Function inlining ;;
+
+;; name -> (vars repr body)
+(define *functions* (make-parameter (make-hash)))
+
+(define (register-function! name args repr body)
+  (hash-set! (*functions*) name (list args repr body)))
+
+(define (inline-functions expr)
+  (let loop ([expr expr])
+    (match expr
+     [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
+      (match-define (list vars _ body) (hash-ref (*functions*) fname))
+      (define dict (map cons vars args))
+      (replace-vars body dict)]
+     [(list op args ...)
+      (cons op (map loop args))]
+     [_ expr])))
+
+
+(module+ test
+  (define repr (get-representation 'binary64))
+  ;; Test classic quadp and quadm examples
+  (register-function! 'disc (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
+  (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
+  (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
+  (check-equal? (inline-functions quadp) '(/ (+ (- y) (sqrt (- (* y y) (* 4 x z)))) (* 2 x)))
+  (check-equal? (inline-functions quadm) '(/ (- (- y) (sqrt (- (* y y) (* 4 x z)))) (* 2 x)))
+
+  ;; x^5 = x^3 * x^2
+  (register-function! 'sqr (list 'x) repr '(* x x))
+  (register-function! 'cube (list 'x) repr '(* x x x))
+  (define fifth '(* (cube a) (sqr a)))
+  (check-equal? (inline-functions fifth) '(* (* a a a) (* a a))))

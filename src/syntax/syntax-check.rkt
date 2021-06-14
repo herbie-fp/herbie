@@ -1,8 +1,7 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../errors.rkt" "../interface.rkt"
-         "syntax.rkt" "function.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "sugar.rkt")
 (provide assert-program!)
 
 (define (check-expression* stx vars error!)
