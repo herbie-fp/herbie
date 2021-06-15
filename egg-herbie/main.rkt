@@ -147,7 +147,10 @@
 (define (egraph-get-proof egraph-data expr goal)
   (define egg-expr (expr->egg-expr expr egraph-data))
   (define egg-goal (expr->egg-expr goal egraph-data))
-  (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+  (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+  (define res (cast pointer _pointer _string/utf-8))
+  (destroy_string pointer)
+  res)
 
 ;; result function is a function that takes the ids of the nodes
 ;; egraph-add-exprs returns the result of result-function
@@ -156,6 +159,8 @@
     (map
      (lambda (expr) (expr->egg-expr expr eg-data))
      exprs))
+  (println "adding egg exprs")
+  (println egg-exprs)
     
   #;
   (debug #:from 'simplify (format "Sending expressions to egg_math:\n ~a"

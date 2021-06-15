@@ -49,6 +49,11 @@ pub unsafe extern "C" fn egraph_addresult_destroy(ptr: *mut EGraphAddResult) {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
+    CString::from_raw(ptr);
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
     let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
     std::mem::drop(array)
