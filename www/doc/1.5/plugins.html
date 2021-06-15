@@ -189,8 +189,8 @@
       </table>
       </code>
     </dt>
-    <dd>Adds a new operator. Operators describe a pure mathematical function,
-      i.e. <code>+</code> and <code>sin</code>.
+    <dd>Adds a new operator. Operators describe pure mathematical functions,
+      i.e. <code>+</code> or <code>sin</code>.
       The parameters <code><i>itypes</i></code> and <code><i>otype</i></code> are the input
       type(s) and output type.
       For example, <code>+</code> takes two <code>real</code> inputs and produces
@@ -228,6 +228,35 @@
       described.
     </dd>
 
+    <dt><code>(<b>define-constant</b> <i>name</i> [bf <i>bf-thunk</i>] [ival <i>ival-thunk</i>])</code>
+    </dt>
+    <dd>Adds a new constant. Constants describe pure mathematical values.
+      i.e. <code>π</code> or <code>e</code>.
+      The <code><i>bf-fn</i></code> argument is a thunk that
+      returns the <a href="https://docs.racket-lang.org/math/bigfloat.html">bigfloat</a>
+      value of the constant.
+      The <code><i>ival-fn</i></code> argument is a thunk
+      that reutrns the <a href="https://github.com/herbie-fp/rival">Rival</a>
+      value of the constant.
+    </dd>
+
+    <dt>
+      <code>
+      <table>
+        <tr><td>(<b>define-constant-impl</b> (<i>const</i> <i>name</i>)</td><td><i>repr</i></td></tr>
+        <tr><td></td><td>[fl <i>fl-thunk</i>]</td></tr>
+        <tr><td></td><td>...)</td></tr>
+      </table>
+      </code>
+    </dt>
+    <dd>Implements <code>const</code> for the representation <code><i>repr</i></code>.
+      The argument <code><i>fl-thunk</i></code> is a thunk that returns the approximate
+      value of the constant in the representation <code><i>repr</i></code>.
+      By default, the attributes <code>bf</code> and <code>ival</code> are inherited
+      from <code><i>op</i></code>, but these can be overridden (see <code>define-operator</code>
+      or <code>define-operator-impl</code> for overriding attributes).
+    </dd>
+
     <dt>
       <code>
       <table>
@@ -241,6 +270,8 @@
     <dd>Defines a set of rewrite rules.
       The <code><i>name</i></code> of the ruleset as well as each <code><i>rule-name</i></code>
       must be a unique symbol.
+      Each ruleset must be marked with a set of <code><i>tags</i></code>
+      (see our <a href="options.html#heading-3">documentation</a> on ruleset tags).
       Each rewrite rule takes the form <code>match ⇝ replace</code> where Herbie's rewriter
       will replace <code>match</code> with <code>replace</code> (and not vice-versa).
       Each <code>match</code> and <code>replace</code> is an expression whose operators are
@@ -263,6 +294,8 @@
       inherits from <code><it>type</it></code>.
       Currently, every <code><it>type</it></code> must be the same, e.g.
       all <code>real</code>, for this procedure to function correctly.
+      Unlike <code>define-ruleset</code>, <code><i>match</i></code> and <code><i>replace</i></code>
+      contain the names of operators rather than operator implementations.
     </dd>
   </dl>
 
