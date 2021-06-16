@@ -84,21 +84,18 @@
   <a href="https://docs.racket-lang.org/pkg/getting-started.html#%28part._how-to-create%29">
   raco</a> tool for more information.</p>
 
-  <p>A couple entries need to be added to the package manifest stored
-  in <code>info.rkt</code> inside the repository.
-  Make sure the list of dependencies (<code>"deps"</code>) also contains
-  <code>"herbie"</code> so that the plugin can import files from Herbie.
+  <p>A single entry needs to be added to the package manifest stored in <code>info.rkt</code>, and
   Add the following line at the bottom of the file <code>(define herbie-plugin '<i>name</i>)</code>
   where <i>name</i> is a unique symbol that doesn't conflict with other Herbie plugins.
   As a suggestion, this should just be the package name.</p>
 
-  <p>Edit the <code>main.rkt</code> file by erasing everything except the
-  language specifier on the first line. Add the line
-  <code>(require herbie/plugin)</code>. This gives the package access
-  to the Herbie plugin interface. Optionally add the following for debugging
-  purposes <code>(eprintf "Loading <i>pkg-name</i> support...\n")</code>.</p>
+  <p>Next, edit the <code>main.rkt</code> file by erasing everything except the
+  language specifier on the first line, and add the line <code>(require herbie/plugin)</code>.
+  This gives the package access to the Herbie plugin interface.
+  Optionally add the following for debugging purposes
+  <code>(eprintf "Loading <i>pkg-name</i> support...\n")</code>.</p>
 
-  <p>Finally, run the following in the same folder as the <code>info.rkt</code>
+  <p>Finally, run the following in the folder containing <code>info.rkt</code>
   and <code>main.rkt</code>:
 
   <pre class="shell">raco pkg install</pre>
@@ -106,8 +103,8 @@
   This should install your package and check for errors.
   Now everything is set up!
   Of course, your plugin is empty and doesn't add any useful features.
-  If you added the debugging line in <code>main.rkt</code>, you should see it
-  print the string when you run Herbie.
+  If you added the debugging line in <code>main.rkt</code>, you should see the string
+  when you run Herbie.
   </p>
 
   <p><b>Adding Features</b><br>
@@ -123,11 +120,13 @@
   For example, if you are adding features for <code>double</code> precision
   (or rather <code>binary64</code>), the representation is unique.
   If you are adding features for a generic floating point format, say
-  <code>(float es nbits)</code>, then the representation is parameterized.</p>
+  <code>(float <i>ebits</i> <i>nbits</i>)</code>, then the representation is parameterized.</p>
 
   <p><b>Plugin Interface (Unique)</b><br>
   The following are the signatures and descriptions of the
-  plugin procedures for unique representations.</p>
+  plugin procedures for unique representations.
+  These procedures should be called from the top-level of <code>main.rkt</code>
+  rather than inside a function.</p>
 
   <dl>
     <dt>
@@ -172,10 +171,11 @@
       The first two convert between a value in your representation and a Racket
       <a href="https://docs.racket-lang.org/math/bigfloat.html">bigfloat</a>.
       The last two convert between a value in your representation and its corresponding ordinal value.
+      Ordinal values for any representation must be within the interval [0, 2<sup><i>width</i></sup> - 1].
       Check Racket's definition of
       <a href="https://docs.racket-lang.org/math/flonum.html?q=ordinal#%28def._%28%28lib._math%2Fflonum..rkt%29._flonum-~3eordinal%29%29">
-      ordinal</a> values for an example, but Herbie requires ordinal values
-      to be non-negative.
+      ordinals</a> for floats.
+      Note that those ordinal values can be negative.
     </dd>
 
     <dt>
@@ -202,7 +202,8 @@
       If you don't want to implement this, set <code><i>ival-fn</i></code> to <code>false</code>.
       The <code><i>nonffi-fn</i></code> argument is the exact implementation of your operator
       (see <code>define-type</code> for a description of exact).
-      To define variary operators, add the attribute <code>[itype <i>itype</i>]</code>.
+      To define operators with an unknown number of arguments, e.g. comparators,
+      add the attribute <code>[itype <i>itype</i>]</code>.
       This will override the input types defined by <code><i>itypes</i></code>.
     </dd>
 
@@ -216,15 +217,15 @@
       </code>
     </dt>
     <dd>Implements <code><i>op</i></code> with input representation(s) <code><i>ireprs</i></code>
-      and the output representation <code><i>orepr</i></code>.
+      and output representation <code><i>orepr</i></code>.
       The field <code><i>name</i></code> must be unique.
-      For reference, Herbie implements <code>+.f64</code> and <code>+.f32</code>
+      For example, Herbie implements <code>+.f64</code> and <code>+.f32</code>
       for double- and single-precision floats.
       The argument <code><i>fl-fn</i></code> is the actual procedure that does the computation.
       Like <code>define-operator</code>, the input representations can be
       overridden with <code>[itype <i>irepr</i>]</code>.
       By default, the attributes <code>bf</code>, <code>ival</code>, and <code>nonffi</code>
-      are inherited from <code><i>op</i></code>, but can be overridden as previously
+      are inherited from <code><i>op</i></code> but can be overridden as previously
       described.
     </dd>
 
@@ -236,8 +237,8 @@
       returns the <a href="https://docs.racket-lang.org/math/bigfloat.html">bigfloat</a>
       value of the constant.
       The <code><i>ival-fn</i></code> argument is a thunk
-      that reutrns the <a href="https://github.com/herbie-fp/rival">Rival</a>
-      value of the constant.
+      that returns the <a href="https://github.com/herbie-fp/rival">Rival</a>
+      interval value of the constant.
     </dd>
 
     <dt>
@@ -253,14 +254,14 @@
       The argument <code><i>fl-thunk</i></code> is a thunk that returns the approximate
       value of the constant in the representation <code><i>repr</i></code>.
       By default, the attributes <code>bf</code> and <code>ival</code> are inherited
-      from <code><i>op</i></code>, but these can be overridden (see <code>define-operator</code>
+      from <code><i>const</i></code> but can be overridden (see <code>define-operator</code>
       or <code>define-operator-impl</code> for overriding attributes).
     </dd>
 
     <dt>
       <code>
       <table>
-        <tr><td>(<b>define-ruleset</b> <i>name</i> (<i>tags ...</i>)</td>
+        <tr><td>(<b>define-ruleset</b> <i>name</i> (<i>groups ...</i>)</td>
             <td>#:type ([<i>var</i> <i>repr</i>] ...)</td></tr>
         <tr><td></td><td>[<i>rule-name</i> <i>match</i> <i>replace</i>]</td></tr>
         <tr><td></td><td>...)</td></tr>
@@ -270,20 +271,20 @@
     <dd>Defines a set of rewrite rules.
       The <code><i>name</i></code> of the ruleset as well as each <code><i>rule-name</i></code>
       must be a unique symbol.
-      Each ruleset must be marked with a set of <code><i>tags</i></code>
-      (see our <a href="options.html#heading-3">documentation</a> on ruleset tags).
+      Each ruleset must be marked with a set of <code><i>groups</i></code>
+      (read <a href="options.html#heading-3">here</a> on ruleset groups).
       Each rewrite rule takes the form <code>match ⇝ replace</code> where Herbie's rewriter
-      will replace <code>match</code> with <code>replace</code> (and not vice-versa).
-      Each <code>match</code> and <code>replace</code> is an expression whose operators are
+      will replace <code>match</code> with <code>replace</code> (not vice-versa).
+      Each <code><i>match</i></code> and <code><i>replace</i></code> is an expression whose operators are
       the names of operator implementations rather than pure mathematical operators.
       Any variable must be listed in the type information with its associated representation.
-      See the <code>softposit-herbie</code> plugin for a concrete example.
+      See the <code>softposit-herbie</code> plugin for a more concrete example.
     </dd>
 
     <dt>
       <code>
       <table>
-        <tr><td>(<b>define-ruleset*</b> <i>name</i> (<i>tags ...</i>)</td>
+        <tr><td>(<b>define-ruleset*</b> <i>name</i> (<i>groups ...</i>)</td>
             <td>#:type ([<i>var</i> <i>type</i>] ...)</td></tr>
         <tr><td></td><td>[<i>rule-name</i> <i>match</i> <i>replace</i>]</td></tr>
         <tr><td></td><td>...)</td></tr>
@@ -323,9 +324,8 @@
   </dl>
 
   <p>
-    In the case that a generator procedure matches a particular representation, it needs to
-    actually add the representation, operators, etc. using a set of alternate
-    procedures.
+    To actually add representations, operators, etc. within a generator procedure,
+    you must use a set of alternate procedures.
   </p>
 
   <dl>
@@ -347,15 +347,8 @@
     <dd>Like <code>define-representation</code>, but used within generators.</dd>
 
     <dt>
-      <code>
-      <table>
-        <tr><td>(<b>register-operator!</b> </td><td> <i>op</i></td></tr>
-        <tr><td></td><td><i>name</i></td></tr>
-        <tr><td></td><td><i>itypes</i></td></tr>
-        <tr><td></td><td><i>otype</i></td></tr>
-        <tr><td></td><td><i>attribs</i>)</td></tr>
-      </table>
-      </code>
+      <code>(<b>register-operator!</b> <i>op</i> <i>name</i> <i>itypes</i>
+        <i>otype</i> <i>attribs</i>)</code>
     </dt>
     <dd>Like <code>define-operator</code>, but used within generators.
       The argument <code><i>itypes</i></code> is a list of the input types
@@ -366,15 +359,8 @@
     </dd>
 
     <dt>
-      <code>
-      <table>
-        <tr><td>(<b>register-operator-impl!</b> </td><td> <i>op</i></td></tr>
-        <tr><td></td><td><i>name</i></td></tr>
-        <tr><td></td><td><i>ireprs</i></td></tr>
-        <tr><td></td><td><i>orepr</i></td></tr>
-        <tr><td></td><td><i>attribs</i>)</td></tr>
-      </table>
-      </code>
+      <code>(<b>register-operator-impl!</b> <i>op</i> <i>name</i> <i>ireprs</i>
+        <i>orepr</i> <i>attribs</i>)</code>
     </dt>
     <dd>Like <code>define-operator-impl</code>, but used within generators.
       See <code>register-operator!</code> for a description of <code><i>ireprs</i></code>
@@ -389,30 +375,12 @@
       <code>(list (list 'bf <i>bf-thunk</i>) ...)</code>.
     </dd>
 
-    <dt>
-      <code>
-      <table>
-        <tr><td>(<b>register-constant-impl!</b> </td><td> <i>const</i></td></tr>
-        <tr><td></td><td><i>name</i></td></tr>
-        <tr><td></td><td><i>type</i></td></tr>
-        <tr><td></td><td><i>attribs</i>)</td></tr>
-      </table>
-      </code>
-    </dt>
+    <dt><code>(<b>register-constant-impl!</b> <i>const</i> <i>name</i> <i>type</i> <i>attribs</i>)</code></dt>
     <dd>Like <code>define-constant-impl</code>, but used within generators.
       See <code>register-constant</code> for a description of <code><i>attribs</i></code>.
     </dd>
 
-    <dt>
-      <code>
-      <table>
-        <tr><td>(<b>register-ruleset!</b> </td><td> <i>name</i></td></tr>
-        <tr><td></td><td><i>groups</i></td></tr>
-        <tr><td></td><td><i>var-reprs</i></td></tr>
-        <tr><td></td><td><i>rules</i>)</td></tr>
-      </table>
-      </code>
-    </dt>
+    <dt><code>(<b>register-ruleset!</b> <i>name</i> <i>groups</i> <i>var-reprs</i> <i>rules</i>)</code></dt>
     <dd>Like <code>define-ruleset</code>, but used within generators.
       In this case, <code><i>groups</i></code> is a list of rule groups;
         <code><i>var-reprs</i></code> is a list of two-element lists
