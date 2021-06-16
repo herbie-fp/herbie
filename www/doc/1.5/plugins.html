@@ -291,8 +291,8 @@
       </code>
     </dt>
     <dd>Like <code>define-ruleset</code>, but it defines a ruleset for every representation that
-      inherits from <code><it>type</it></code>.
-      Currently, every <code><it>type</it></code> must be the same, e.g.
+      inherits from <code><i>type</i></code>.
+      Currently, every <code><i>type</i></code> must be the same, e.g.
       all <code>real</code>, for this procedure to function correctly.
       Unlike <code>define-ruleset</code>, <code><i>match</i></code> and <code><i>replace</i></code>
       contain the names of operators rather than operator implementations.
@@ -300,8 +300,129 @@
   </dl>
 
   <p><b>Plugin Interface (Parameterized)</b><br>
-    </p>
+    Defining operators, constants, and representations for parameterized functions requires
+    a <i>generator</i> procedure for just-in-time loading of features for a particular
+    representation.
+    When Herbie encounters a representation it does not recognize (not explicitly defined
+    using <code>define-representation</code>) it queries a list of generators in case the
+    representation requires just-in-time loading.
+  </p>
 
-  
+  <p>The following procedure handles generators:</p>
+
+  <dl>
+    <dt><code>(<b>register-generator!</b> gen)</code></dt>
+    <dd>Adds a generator procedure to Herbie's set of generators.
+      Generator procedures take the name of a representation and return whether
+      it successfully created the operators, constants, and rules associated
+      with a particular representation.
+      In the case that your plugin does not define the requested representation,
+      the generator procedure(s) need not do anything and should just return
+      <code>false</code>.
+    </dd>
+  </dl>
+
+  <p>
+    In the case that a generator procedure matches a particular representation, it needs to
+    actually add the representation, operators, etc. using a set of alternate
+    procedures.
+  </p>
+
+  <dl>
+    <dt>
+      <code>
+      <table>
+        <tr><td>(<b>register-representation!</b> </td><td> <i>name</i></td></tr>
+        <tr><td></td><td><i>type</i></td></tr>
+        <tr><td></td><td><i>repr?</i></td></tr>
+        <tr><td></td><td><i>bigfloat->repr</i></td></tr>
+        <tr><td></td><td><i>repr->bigfloat</i></td></tr>
+        <tr><td></td><td><i>ordinal->repr</i></td></tr>
+        <tr><td></td><td><i>repr->ordinal</i></td></tr>
+        <tr><td></td><td><i>width</i></td></tr>
+        <tr><td></td><td><i>special?</i>)</td></tr>
+      </table>
+      </code>
+    </dt>
+    <dd>Like <code>define-representation</code>, but used within generators.</dd>
+
+    <dt>
+      <code>
+      <table>
+        <tr><td>(<b>register-operator!</b> </td><td> <i>op</i></td></tr>
+        <tr><td></td><td><i>name</i></td></tr>
+        <tr><td></td><td><i>itypes</i></td></tr>
+        <tr><td></td><td><i>otype</i></td></tr>
+        <tr><td></td><td><i>attribs</i>)</td></tr>
+      </table>
+      </code>
+    </dt>
+    <dd>Like <code>define-operator</code>, but used within generators.
+      The argument <code><i>itypes</i></code> is a list of the input types
+      while the argument <code><i>attribs</i></code> are the same attributes for
+      <code>define-operator</code>, e.g. <code>bf</code>.
+      In this case, <code><i>attribs</i></code> is a list of two-element lists:
+      <code>(list (list 'bf <i>bf-fn</i>) ...)</code>.
+    </dd>
+
+    <dt>
+      <code>
+      <table>
+        <tr><td>(<b>register-operator-impl!</b> </td><td> <i>op</i></td></tr>
+        <tr><td></td><td><i>name</i></td></tr>
+        <tr><td></td><td><i>ireprs</i></td></tr>
+        <tr><td></td><td><i>orepr</i></td></tr>
+        <tr><td></td><td><i>attribs</i>)</td></tr>
+      </table>
+      </code>
+    </dt>
+    <dd>Like <code>define-operator-impl</code>, but used within generators.
+      See <code>register-operator!</code> for a description of <code><i>ireprs</i></code>
+      and <code><i>attribs</i></code>.
+    </dd>
+
+    <dt><code>(<b>register-constant!</b> <i>name</i> <i>attribs</i>)</code></dt>
+    <dd>Like <code>define-constant</code>, but used within generators.
+      The argument <code><i>attribs</i></code> are the same attributes for
+      <code>define-constant</code>.
+      In this case, <code><i>attribs</i></code> is a list of two-element lists:
+      <code>(list (list 'bf <i>bf-thunk</i>) ...)</code>.
+    </dd>
+
+    <dt>
+      <code>
+      <table>
+        <tr><td>(<b>register-constant-impl!</b> </td><td> <i>const</i></td></tr>
+        <tr><td></td><td><i>name</i></td></tr>
+        <tr><td></td><td><i>type</i></td></tr>
+        <tr><td></td><td><i>attribs</i>)</td></tr>
+      </table>
+      </code>
+    </dt>
+    <dd>Like <code>define-constant-impl</code>, but used within generators.
+      See <code>register-constant</code> for a description of <code><i>attribs</i></code>.
+    </dd>
+
+    <dt>
+      <code>
+      <table>
+        <tr><td>(<b>register-ruleset!</b> </td><td> <i>name</i></td></tr>
+        <tr><td></td><td><i>groups</i></td></tr>
+        <tr><td></td><td><i>var-reprs</i></td></tr>
+        <tr><td></td><td><i>rules</i>)</td></tr>
+      </table>
+      </code>
+    </dt>
+    <dd>Like <code>define-ruleset</code>, but used within generators.
+      In this case, <code><i>groups</i></code> is a list of rule groups;
+        <code><i>var-reprs</i></code> is a list of two-element lists
+        associating each variable in the ruleset with its representation, e.g.
+        <code>(list (list 'x '(float 5 16)) ...)</code>;
+        and <code><i>rules</i></code> is a list of rules of the following
+        form <code>(list (list <i>rule-name</i> <i>match</i> <i>replace</i>) ...)</code>.
+    </dd>
+
+  </dl>
+
 </body>
 </html>
