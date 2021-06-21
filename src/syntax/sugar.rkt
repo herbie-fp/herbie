@@ -57,9 +57,15 @@
             (loop (list 'cast expr) prec)]
            [else (loop body prec)])]
         [(list 'cast (list '! ':precision iprec iexpr))
-         (define conv (get-repr-conv iprec prec))
-         (define-values (iexpr* _) (loop iexpr iprec))
-         (values (list conv iexpr*) prec)]
+         (cond
+          [(equal? prec iprec)  ; ignore
+           (loop iexpr prec)]
+          [else
+           (define conv (get-repr-conv iprec prec))
+           (define-values (iexpr* _) (loop iexpr iprec))
+           (values (list conv iexpr*) prec)])]
+        [(list 'cast body)    ; no-op cast (ignore)
+         (loop body prec)]
         [(list (or 'neg '-) arg) ; unary minus
          (define-values (arg* atype) (loop arg prec))
          (define op* (get-parametric-operator 'neg atype))
@@ -172,9 +178,11 @@
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
 
-;; Test inlining
 (module+ test
   (define repr (get-representation 'binary64))
+
+  ;; inlining
+
   ;; Test classic quadp and quadm examples
   (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
   (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
@@ -189,4 +197,11 @@
   (register-function! 'cube (list 'x) repr '(* x x x))
   (define fifth '(* (cube a) (sqr a)))
   (check-equal? (desugar-program fifth repr (list (cons 'a repr)))
-                '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a))))
+                '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
+
+  ;; casting edge cases
+  (check-equal? (desugar-program `(cast x) repr `((x . ,repr)))
+                'x)
+  (check-equal? (desugar-program `(cast (! :precision binary64 x)) repr `((x . ,repr)))
+                'x)
+)
