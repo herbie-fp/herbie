@@ -5,7 +5,7 @@
 (provide define-type define-representation define-constant-impl define-operator-impl
          define-constant define-operator define-ruleset define-ruleset*
          register-ruleset! register-constant-impl! register-operator-impl! register-representation! 
-         register-generator! register-impl! register-operator!
+         register-generator! register-constant! register-operator!
          load-herbie-plugins)
 
 (define (module-exists? module)

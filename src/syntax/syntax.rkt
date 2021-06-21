@@ -14,7 +14,7 @@
            define-constant-impl define-operator-impl
            register-constant-impl! register-operator-impl!
            define-constant define-operator
-           register-impl! register-operator!))
+           register-constant! register-operator!))
 
 
 (module+ test (require rackunit))
@@ -26,11 +26,11 @@
   [bf (->* () bigvalue?)]
   [ival (or/c (->* () ival?) #f)])
 
-(define (register-impl! name attrib-dict)
+(define (register-constant! name attrib-dict)
   (table-set! constants name (make-hash attrib-dict)))
 
 (define-syntax-rule (define-constant name [key value] ...)
-  (register-impl! 'name (list (cons 'key value) ...)))
+  (register-constant! 'name (list (cons 'key value) ...)))
 
 (define-constant PI
   [bf (λ () pi.bf)] 
