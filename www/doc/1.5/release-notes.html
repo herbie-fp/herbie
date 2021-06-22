@@ -15,55 +15,101 @@
 
   <p>
     The <a href="../..">Herbie</a> developers are excited to announce
-    Herbie 1.5! This release focuses on XXX and YYY.
+    Herbie 1.5! This release focuses on new features around multiple
+    precisions. our favorite features are below.
   </p>
 
   <p>
+    <b>What is Herbie?</b>
     Herbie automatically improves the accuracy of floating point
     expressions. This avoids the bugs, errors, and surprises that so
-    often occur when working with floating point. Since
-    our <a href="../../pldi15.html">PLDI'15 paper</a>, we've been hard
-    at work making Herbie more versatile and easier to use.
+    often occur when working with floating point.
   </p>
 
   <img width="100%" src="team.png" style="display: block; margin: 4em 0; border-radius: 6px;"
-       alt="The Herbie team, working over Zoom to bring you Herbie 1.4" />
+       alt="The Herbie team, working over Zoom to bring you Herbie 1.5" />
 
-  <h2>Major features of this release</h2>
-
-  <figure class="showcase" style="background: white; border: 1px solid gray;">
-    <figcaption>A figure will go here to show off Herbie.</figcaption>
+  <h2>New Pareto mode</h2>
+  
+  <figure class="showcase">
+    <figcaption>A screenshot of Herbie with Pareto mode enabled.</figcaption>
   </figure>
 
+  <p>Traditionally, Herbie has been all about giving you the most
+  accurate way possible to evaluation some mathematical expression.
+  But many of our users need to balance accuracy with speed.</p>
+  
+  <p>So Herbie 1.5 has an experimental new <a>pareto mode</a>. When
+  the pareto mode is turned on, Herbie produces multiple outputs
+  that trade off speed for accuracy. Run Herbie with <kbd>--pareto</kbd>
+  to try it out, and if you're interested in more details of how it works,
+  check out our paper at <a href="../../arith21.html">ARITH'21</a>.</p>
 
-  <h2>Improvement to core algorithm</h2>
+  <h2>Symmetric expressions</h2>
+
+  <figure class="showcase">
+    <figcaption>Herbie using symmetry to improve accuracy by sorting.</figcaption>
+  </figure>
+
+  <p>We've been working hard improving Herbie's results on its
+  traditional task: finding the most accurate way to evaluate
+  a mathematical expression. In Herbie 1.5, several improvements
+  landed, but the most exciting is the symmetric expressions mode.</p>
+
+  <p>Simply put, it's pretty common for Herbie to be asked to
+  improve the accuracy of an expression where reordering the variables
+  leaves the expression unchanged---something like
+  <code>log(exp(x) + exp(y))</code>.
+  Often the best way to evaluate that expression requires determining
+  which of <code>x</code> and <code>y</code> is larger.</p>
+
+  <p>With symmetric expressions, Herbie can detect when variable order
+  doesn't matter and sort the variables up front. That often lets
+  Herbie's other components find a clever way to improve accuracy.</p>
+
+  <h2>Function definitions</h2>
+
+  <figure class="showcase">
+    <figcaption>Using a function definition in FPCore.</figcaption>
+  </figure>
+
+  <p>While most people use Herbie using the web interface,
+  Herbie also supports the standard <a href="input.html">FPCore</a>
+  format. FPCore offers more control over Herbie, and it's also
+  a good output format for other tools. In this release, we extended
+  Herbie to support function definitions.</p>
+
+  <p>In short, an FPCore can now include a function name between
+  the <code>FPCore</code> keyword and the list of variables. That core
+  can then be referenced by other cores in the same file. Herbie will
+  automatically expand those calls before improving the expression.</p>
+
+  <h2>Other improvements</h2>
   <ul>
-    <li>A new multiprecision tuner allows Herbie to generate
-    expressions with multiple precisions.</li>
+    <li>Herbie now supports more pluggable number representations,
+    including arbitrary-precision floating-point numbers and also
+    fixed-point numbers.</li>
     <li>The series expansion engine was substantially improved, which
     both reduces timeouts and improves results substantially.</li>
-    <li>A new symmetric expressions engine detects cases where
-    variables can be sorted to improve precision.</li>
     <li>A new "retirement community" data structure allows Herbie to
     consider more candidate programs, and thus produces better,
     simpler results.</li>
-  </ul>
-
-  <h2>Usability improvements</h2>
-  <ul>
     <li>You can now give Herbie FPCore input in the web interface.</li>
-  </ul>
-
-  <h2>Code Cleanup</h2>
-  <ul>
     <li>The Herbie timeline data structure (which powers "Metrics"
     pages) has been dramatically improved, making it easier to add
     more metrics in the future.</li>
-    <li>The Herbie interactive main loop has been simplified, making
-    it easier to understand and reproduce Herbie bugs.</li>
+  </ul>
+
+  <h2>Deprecations and removals</h2>
+  <ul>
     <li>The <code>egg-herbie</code> support package has been merged
     into Herbie proper. This means that if you want to install Herbie
     from source, you will now need a Rust compiler.</li>
+    <li>Support for complex numbers has been deprecated and will be
+    removed in the next release.
+    Please <a href="mailto:herbie@cs.washington.edu">let us know</a>
+    if you are using it. We hope to reimplement this eventually,
+    but with a better architecture.</li>
     <li>The <kbd>precision:double</kbd> flag has been deprecated, and no
     longer does anything. Use the <code>:precision</code> flag instead.</li>
     <li>The <kbd>setup:early-exit</kbd> flag has been deprecated, and no
@@ -74,7 +120,7 @@
   <h2>Try it out!</h2>
 
   <p>
-    We're want Herbie to be more useful to scientists, engineers, and
+    We want Herbie to be more useful to scientists, engineers, and
     programmers around the world. We've got a lot of features we're
     excited to work on in the coming months. Please
     <a href="https://github.com/uwplse/herbie/issues">report bugs</a>,
