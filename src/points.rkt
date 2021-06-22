@@ -266,7 +266,7 @@
         (for/lists (processed pts exs)
             ([_ (in-range (*num-points*))]
              [proc (in-list processed)] [pt (in-list pts)] [ex (in-list exs)])
-          (values proc pt exs)))
+          (values proc pt ex)))
       (cons (mk-pcontext processed* exs*) (mk-pcontext pts* exs*))]
      [else
       (define num-vars (length (program-variables prog)))
