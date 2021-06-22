@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Herbie 1.4 Release Notes</title>
+  <title>Herbie 1.5 Release Notes</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,31 +13,30 @@
     <h1>Herbie 1.5 Release Notes</h1>
   </header>
 
-  <p>
-    The <a href="../..">Herbie</a> developers are excited to announce
-    Herbie 1.5! This release focuses on new features around multiple
-    precisions. Our favorite features are below.
-  </p>
-
-  <p><b>What is Herbie?</b> Herbie automatically improves the
-  accuracy of floating point expressions. This avoids the bugs,
-  errors, and surprises that so often occur when working with
-  floating point.</p>
-
-  <p><b>Join us!</b> The Herbie developers hang out on the
-  <a href="https://fpbench.org">FPBench</a> Slack, attend the
-  FPBench community meetings, and will be speaking at
-  <a href="https://fpbench.org/talks/fptalks21.html">FPTalks 2021</a>.
-  Join us there!</p>
+  <p>The <a href="../..">Herbie</a> developers are excited to announce
+  Herbie 1.5! This release focuses on multiple precisions, new syntax,
+  and higher accuracy. Our favorite features are below.</p>
 
   <img width="100%" src="team.png" style="display: block; margin: 4em 0; border-radius: 6px;"
        alt="The Herbie team, working over Zoom to bring you Herbie 1.5" />
 
-  <h2>New Pareto mode</h2>
+  <p><b>What is Herbie?</b> Herbie automatically improves the accuracy
+  of floating point expressions. This avoids the bugs, errors, and
+  surprises that so often occur with floating point arithmetic.</p>
+
+  <p><b>Join us!</b> Join the Herbie developers on the
+  <a href="https://fpbench.org">FPBench</a> Slack, at the monthly
+  FPBench community meetings, and at
+  <a href="https://fpbench.org/talks/fptalks21.html">FPTalks 2021</a>,
+  where <a href="https://bsaiki.com">Brett</a> will be talking about
+  Herbie 1.5.</p>
   
   <figure class="showcase">
+    <img src="pareto-screenshot.png" style="width: 100%;" />
     <figcaption>A screenshot of Herbie with Pareto mode enabled.</figcaption>
   </figure>
+
+  <h2>New Pareto mode</h2>
 
   <p>Traditionally, Herbie has been all about giving you the most
   accurate way possible to evaluate some mathematical expression.
@@ -49,11 +48,19 @@
   to try it out, and if you're interested in more details of how it works,
   check out our paper at <a href="../../arith21.html">ARITH'21</a>.</p>
 
-  <h2>Symmetric expressions</h2>
-
   <figure class="showcase">
-    <figcaption>Herbie using symmetry to improve accuracy by sorting.</figcaption>
+    <div class="program math" style="text-align: center;">
+      \(
+      \begin{array}{l}
+      [a, b] = \mathsf{sort}([a, b]) \\
+      b + \sqrt{\frac{a}{b}\cdot\frac{a}{b} + 1}
+      \end{array}
+      \)
+    </div>
+    <figcaption>Herbie using sorting to improve accuracy.</figcaption>
   </figure>
+
+  <h2>Symmetric expressions</h2>
 
   <p>We've been working hard improving Herbie's results on its
   traditional task: finding the most accurate way to evaluate
@@ -62,7 +69,7 @@
 
   <p>Simply put, it's pretty common for Herbie to be asked to
   improve the accuracy of an expression where reordering the variables
-  leaves the expression unchanged---something like
+  leaves the expression unchanged&mdash;something like
   <code>log(exp(x) + exp(y))</code>.
   Often the best way to evaluate that expression requires determining
   which of <code>x</code> and <code>y</code> is larger.</p>
@@ -71,11 +78,21 @@
   doesn't matter and sort the variables up front. That often lets
   Herbie's other components find a clever way to improve accuracy.</p>
 
-  <h2>Function definitions</h2>
-
   <figure class="showcase">
-    <figcaption>Using a function definition in FPCore.</figcaption>
+    <pre>
+(FPCore dist2 (x y)
+  (+ (* x x) (* y y)))
+
+(FPCore (x y)
+  (/ (sqrt (+ (dist2 x y) x)) (sqrt 2)))
+    </pre>
+    <figcaption>Using a function definition in FPCore. The first
+    FPCore block defines the <code>dist2</code> function, and the
+    second uses that definition. The result is shorter and more
+    readable.</figcaption>
   </figure>
+
+  <h2>Function definitions</h2>
 
   <p>While most people use Herbie via the web interface,
   Herbie also supports the standard <a href="input.html">FPCore</a>
