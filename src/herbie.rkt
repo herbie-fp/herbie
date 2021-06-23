@@ -15,6 +15,15 @@
 (define (string->thread-count th)
   (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
 
+(define (string->flag s)
+  (match (string-split s ":")
+    [(list (app string->symbol category) (app string->symbol flag))
+     (and
+      (dict-has-key? all-flags category)
+      (set-member? (dict-ref all-flags category) flag)
+      (list category flag))]
+    [_ #f]))
+
 (module+ main
   (define quiet? #f)
   (define demo-output #f)
@@ -57,12 +66,12 @@
     (unless timeout-set? (*timeout* pareto-timeout))]
    #:multi
    [("-o" "--disable") flag "Disable a flag (formatted category:name)"
-    (define tf (parse-flag flag))
+    (define tf (string->flag flag))
     (when (not tf)
       (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
     (apply disable-flag! tf)]
    [("+o" "--enable") flag "Enable a flag (formatted category:name)"
-    (define tf (parse-flag flag))
+    (define tf (string->flag flag))
     (when (not tf)
       (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
     (apply enable-flag! tf)]

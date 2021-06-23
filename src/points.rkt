@@ -262,8 +262,12 @@
                           #:url "faq.html#sample-valid-points")]
      [(>= npts (*num-points*))
       (debug #:from 'points #:depth 4 "Sampled" npts "points with exact outputs")
-      (cons (mk-pcontext (take-up-to processed (*num-points*)) (take-up-to exs (*num-points*)))
-            (mk-pcontext (take-up-to pts (*num-points*)) (take-up-to exs (*num-points*))))]
+      (define-values (processed* pts* exs*)
+        (for/lists (processed pts exs)
+            ([_ (in-range (*num-points*))]
+             [proc (in-list processed)] [pt (in-list pts)] [ex (in-list exs)])
+          (values proc pt ex)))
+      (cons (mk-pcontext processed* exs*) (mk-pcontext pts* exs*))]
      [else
       (define num-vars (length (program-variables prog)))
       (define num (max 4 (- (*num-points*) npts))) ; pad to avoid repeatedly trying to get last point

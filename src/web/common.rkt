@@ -28,13 +28,13 @@
   (pretty-format `(,top ,@props* ,expr) #:mode 'display))
 
 (define/contract (render-menu sections links)
-  (-> (listof (cons/c string? string?)) (listof (cons/c string? string?)) xexpr?)
+  (-> (listof (or/c (cons/c string? string?) #f)) (listof (cons/c string? string?)) xexpr?)
   `(nav ([id "links"])
     (div
-     ,@(for/list ([(text url) (in-dict links)])
+     ,@(for/list ([(text url) (in-dict (filter identity links))])
          `(a ([href ,url]) ,text)))
     (div
-     ,@(for/list ([(text url) (in-dict sections)])
+     ,@(for/list ([(text url) (in-dict (filter identity sections))])
          `(a ([href ,url]) ,text)))))
 
 (define/contract (render-warnings warnings)

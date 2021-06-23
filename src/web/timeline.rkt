@@ -20,7 +20,7 @@
        (script ([src ,(if info "report.js" "../report.js")])))
       (body
        ,(render-menu
-         (list/true
+         (list
           (and info '("About" . "#about"))
           '("Timeline" . "#process-info")
           '("Profile" . "#profile"))
@@ -104,8 +104,8 @@
   `((dt "Steps")
     (dd (table ([class "times"])
                (tr (th "Iters") (th ([colspan "2"]) "Range") (th "Point"))
-               ,@(for/list ([iter iters])
-                   (match-define (list v1 v2 iters pt) iter)
+               ,@(for/list ([rec (in-list iters)])
+                   (match-define (list v1 v2 iters pt) rec)
                    `(tr (td ,(~a iters)) 
                         (td (pre ,(~a v1))) (td (pre ,(~a v2)))
                         (td (pre ,(~a pt)))))))))
@@ -119,8 +119,8 @@
            " (" ,(format-time (fourth last-useful-iter)) ")")
         (table ([class "times"])
           (tr (th "Iter") (th "Nodes") (th "Cost"))
-          ,@(for/list ([row (reverse iters)])
-              (match-define (list iter nodes cost t) row)
+          ,@(for/list ([rec (in-list (reverse iters))])
+              (match-define (list iter nodes cost t) rec)
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
 
@@ -172,8 +172,8 @@
            " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
         ,@(if (> (length rows) 1)
               `((table ([class "times"])
-                  ,@(for/list ([row (in-list rows)] [_ (in-range 5)])
-                      (match-define (list left gained link name) row)
+                  ,@(for/list ([rec (in-list rows)] [_ (in-range 5)])
+                      (match-define (list left gained link name) rec)
                       `(tr (td ,(format-bits left) "b")
                            (td ,(format-percent gained (+ left gained)))
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
@@ -209,14 +209,10 @@
     (dd ,(format-bits min-error) "b")))
 
 (define (render-phase-rules rules)
-  (define by-count (make-hash))
-  (for ([row (in-list rules)])
-    (match-define (list rule count) row)
-    (dict-update! by-count count (curry cons rule) '()))
-
   `((dt "Rules")
     (dd (table ([class "times"])
-          ,@(for/list ([(count rules) (in-sorted-dict by-count #:key first)] [_ (in-range 5)])
+          ,@(for/list ([rec (in-list (sort rules > #:key second))] [_ (in-range 5)])
+              (match-define (list count rules) rec)
               `(tr (td ,(~a count) "×")
                    (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
 
@@ -245,8 +241,9 @@
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
         (table ([class "times"])
-               ,@(for/list ([(expr time) (in-sorted-dict times #:key second)] [_ (in-range 5)])
-                   `(tr (td ,(format-time (car time))) (td (pre ,(~a expr)))))))))
+               ,@(for/list ([rec (in-list (sort times > #:key second))] [_ (in-range 5)])
+                   (match-define (list expr time) rec)
+                   `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
 (define (render-phase-compiler compiler)
   (match-define (list (list sizes compileds) ...) compiler)
@@ -259,8 +256,8 @@
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
     (dd (table ([class "times"])
-         ,@(for/list ([data (sort outcomes > #:key fourth)])
-             (match-define (list prog precision category time count) data)
+         ,@(for/list ([rec (in-list (sort outcomes > #:key fourth))])
+             (match-define (list prog precision category time count) rec)
              `(tr (td ,(format-time time)) (td ,(~a count) "×") (td ,(~a prog))
                   (td ,(~a precision)) (td ,(~a category))))))))
 
@@ -288,7 +285,7 @@
              (div ((id "changed-flags"))
                   ,@(if (null? (changed-flags))
                         '("default")
-                        (for/list ([rec (changed-flags)])
+                        (for/list ([rec (in-list (changed-flags))])
                           (match-define (list delta class flag) rec)
                           `(kbd ,(match delta ['enabled "+o"] ['disabled "-o"])
                                 " " ,(~a class) ":" ,(~a flag)))))))))

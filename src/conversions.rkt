@@ -15,9 +15,6 @@
       [_ (let ([change (car changes)])
            (loop (string-replace str (car change) (cdr change)) (cdr changes)))])))
 
-(define (operator-exists? op)
-  (table-ref-all operator-impls op))
-
 (define (get-rewrite-operator prec)
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (define prec* (string->symbol (string-replace* (~a prec) replace-table)))

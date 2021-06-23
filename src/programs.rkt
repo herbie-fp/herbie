@@ -8,19 +8,15 @@
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
+         expr? expr-supports? expr-contains?
          program-cost
          type-of repr-of
-         expr-supports? expr-contains?
-         location-hash
-         location? expr?
-         location-do location-get location-repr
+         location-do location-get
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression replace-vars
          apply-repr-change)
 
 (define expr? (or/c list? symbol? value? real?))
-
-(define location? (listof natural-number/c))
 
 ;; Programs are just lambda expressions
 
@@ -57,12 +53,12 @@
 ;; Fast version does not recurse into functions applications
 (define (repr-of expr repr env)
   (match expr
-   [(? real?) (representation-name repr)]
-   [(? (representation-repr? repr)) (representation-name repr)]
-   [(? constant?) (constant-info expr 'type)]
-   [(? variable?) (representation-name (dict-ref env expr))]
+   [(? real?) repr]
+   [(? (representation-repr? repr)) repr]
+   [(? constant?) (get-representation (constant-info expr 'type))]
+   [(? variable?) (dict-ref env expr)]
    [(list 'if cond ift iff) (repr-of ift repr env)]
-   [(list op args ...) (operator-info op 'otype)]))
+   [(list op args ...) (get-representation (operator-info op 'otype))]))
 
 (define (expr-supports? expr field)
   (let loop ([expr expr])
@@ -80,25 +76,6 @@
 
 ;; Converting constants
 
-(define/contract (location-hash prog)
-  (-> expr? (hash/c expr? (listof location?)))
-  (define hash (make-hash))
-  (define (save expr loc)
-    (hash-update! hash expr (curry cons loc) '()))
-
-  (let loop ([expr prog] [loc '()])
-    (match expr
-      [(list (or 'lambda 'λ) (list vars ...) body)
-       (loop body (cons 2 loc))]
-      [(? constant?) (save expr (reverse loc))]
-      [(? variable?) (save expr (reverse loc))]
-      [(list op args ...)
-       (save expr (reverse loc))
-       (for ([idx (in-naturals 1)] [arg args])
-         (loop arg (cons idx loc)))]))
-
-  hash)
-
 (define (free-variables prog)
   (match prog
     [(? constant?) '()]
@@ -112,6 +89,8 @@
     [(list? expr)
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
+
+(define location? (listof natural-number/c))
 
 (define/contract (location-do loc prog f)
   (-> location? expr? (-> expr? expr?) expr?)
@@ -127,30 +106,11 @@
           (cons (location-do (cdr loc) (car lst) f) (cdr lst))
           (cons (car lst) (loop (- idx 1) (cdr lst)))))]))
 
-(define (location-get loc prog)
+(define/contract (location-get loc prog)
+  (-> location? expr? expr?)
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))
-
-(define (location-repr loc prog repr var-reprs)
-  (let loop ([expr prog] [repr repr] [loc loc])
-    (cond
-     [(null? loc)
-      (get-representation
-        (if (operator? expr)
-            (operator-info expr 'otype)
-            (repr-of expr repr var-reprs)))]
-     [(not (pair? expr))
-      (error "Bad location: cannot enter " expr "any further.")]
-     [else
-      (match expr
-        [(list 'if cond ift iff)
-         (loop (list-ref expr (car loc)) repr (cdr loc))]
-        [(list (? operator? op) args ...)
-         (define ireprs (cons repr (map get-representation (operator-info op 'itype))))
-         (loop (list-ref expr (car loc)) (list-ref ireprs (car loc)) (cdr loc))]
-        [(list (or 'λ 'lambda) (list vars ...) body)
-         (loop (list-ref expr (car loc)) repr (cdr loc))])])))
 
 (define (eval-prog prog mode repr)
   (define f (batch-eval-progs (list prog) mode repr))
@@ -263,33 +223,42 @@
       (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
       (check-in-interval? iv val))))
 
-(define (exact-value? type val)
-  (match type
-    [(or 'real 'complex) (exact? val)]
-    ['boolean true]
-    [_ false]))
-
-(define (value->code type val)
-  (match type
-    ['real val]
-    ['complex (list 'complex (real-part val) (imag-part val))]
-    ['boolean (if val 'TRUE 'FALSE)]))
-
+;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
-  (if (and (not (null? args)) (andmap (conjoin number? exact?) args))
-      (with-handlers ([exn:fail:contract:divide-by-zero? (const #f)])
-        (define fn (operator-info op 'nonffi))
-        (define res (apply fn args))
-        (define repr (get-representation (operator-info op 'otype)))
-        (define rtype (type-name (representation-type repr)))
-        (and ((value-of rtype) res)
-             (exact-value? rtype res)
-             (value->code rtype res)))
-      false))
+  (define exact-value? (conjoin number? exact?))
+  (match (cons (hash-ref parametric-operators-reverse op) args)
+    [(list '+ (? exact-value? as) ...) (apply + as)]
+    [(list '- (? exact-value? as) ...) (apply - as)]
+    [(list '* (? exact-value? as) ...) (apply * as)]
+    [(list '/ (? exact-value? num) (? exact-value? den))
+     (and (not (zero? den)) (/ num den))]
+    [(list 'neg (? exact-value? arg)) (- arg)]
+    [(list 'pow  (? exact-value? a) (? exact-value? b))
+     (cond [(and (zero? b) (not (zero? a))) 1]
+           [(and (zero? a) (positive? b)) 0]
+           [(and (not (zero? a)) (integer? b)) (expt a b)]
+           [else #f])]
+    [(list 'sqrt (? exact-value? a))
+     (let ([s1 (sqrt (numerator a))] [s2 (sqrt (denominator a))])
+       (and
+        (real? s1) (real? s2)
+        (exact? s1) (exact? s2)
+        (/ s1 s2)))]
+    [(list 'fabs (? exact-value? a)) (abs a)]
+    [(list 'floor (? exact-value? a)) (floor a)]
+    [(list 'ceil (? exact-value? a)) (ceiling a)]
+    [(list 'round (? exact-value? a)) (round a)]
+    ;; Added
+    [(list 'log 1) 0]
+    [(list 'cbrt 1) 1]
+    [_ #f]))
 
 (module+ test
-  (define repr (get-representation 'binary64))
   (check-equal? (eval-application '+.f64 1 1) 2)
+  (check-equal? (eval-application '+.f64) 0)
+  (check-equal? (eval-application '/.f64 1 0) #f) ; Not valid
+  (check-equal? (eval-application 'cbrt.f64 1) 1)
+  (check-equal? (eval-application 'log.f64 1) 0)
   (check-equal? (eval-application 'exp.f64 2) #f)) ; Not exact
 
 (define/contract (replace-expression haystack needle needle*)
