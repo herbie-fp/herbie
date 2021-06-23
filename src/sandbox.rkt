@@ -52,7 +52,7 @@
         [(cons x y) (set-debug-level! x y)]
         [_ (void)])
 
-      (generate-conversions (test-conversions test))
+      (generate-prec-rewrites (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
         (define alts
           (run-improve (test-program test)
@@ -133,7 +133,7 @@
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
   (define repr (test-output-repr test))
-  (table-row (test-name test) status
+  (table-row (test-name test) #f status
              (resugar-program (program-body (test-precondition test)) repr)
              (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
              (test-output-prec test) (test-conversions test)
@@ -149,6 +149,7 @@
   (cond
    [(test-success? result)
     (define name (test-name test))
+    (define identifier (test-identifier test))
     (define start-errors  (test-success-start-error result))
     (define end-errorss   (test-success-end-errors result))
     (define target-errors (test-success-target-error result))
@@ -184,6 +185,7 @@
            [else "uni-start"])))
 
     (struct-copy table-row (dummy-table-row result status link)
+                 [identifier identifier]
                  [output (car end-exprs)]
                  [start start-score] [result end-score] [target target-score]
                  [start-est est-start-score] [result-est est-end-score]
@@ -195,7 +197,11 @@
     (dummy-table-row result "timeout" link)]))
 
 (define (unparse-result row)
-  `(FPCore ,(table-row-vars row)
+  (define top
+    (if (table-row-identifier row)
+        (list (table-row-identifier row) (table-row-vars row))
+        (list (table-row-vars row))))
+  `(FPCore ,@top
      :herbie-status ,(string->symbol (table-row-status row))
      :herbie-time ,(table-row-time row)
      :herbie-error-input 

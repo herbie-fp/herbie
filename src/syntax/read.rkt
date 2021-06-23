@@ -1,15 +1,16 @@
 #lang racket
 
 (require "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
-         "syntax-check.rkt" "type-check.rkt" "sugar.rkt" "../preprocess.rkt")
+         "../preprocess.rkt" "../conversions.rkt"
+         "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
          test-precondition test-output-repr)
 
 
-(struct test (name vars input output expected spec pre preprocess
-                   output-prec var-precs conversions) #:prefab)
+(struct test (name identifier vars input output expected spec pre
+              preprocess output-prec var-precs conversions) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -29,7 +30,13 @@
 (define (parse-test stx [override-ctx '()])
   (assert-program! stx)
   (assert-program-typed! stx)
-  (match-define (list 'FPCore (list args ...) props ... body) (syntax->datum stx))
+  (define-values (func-name args props body)
+    (match (syntax->datum stx)
+     [(list 'FPCore name (list args ...) props ... body)
+      (values name args props body)]
+     [(list 'FPCore (list args ...) props ... body)
+      (values #f args props body)]))
+
   ;; TODO(interface): Currently, this code doesn't fire because annotations aren't
   ;; allowed for variables because of the syntax checker yet. This should run correctly
   ;; once the syntax checker is updated to the FPBench 1.1 standard.
@@ -51,7 +58,8 @@
        [(list (cons prop val) rest ...)
         (loop (dict-set* prop-dict prop val) rest)])))
   
-  (define default-repr (get-representation (dict-ref prop-dict* ':precision 'binary64)))
+  (define default-prec (dict-ref prop-dict* ':precision 'binary64))
+  (define default-repr (get-representation default-prec))
   (define var-reprs 
     (for/list ([arg args] [arg-name arg-names])
       (cons arg-name
@@ -59,21 +67,38 @@
                 (get-representation (list-ref args (add1 (index-of args ':precision))))
                 default-repr))))
 
+  ;; Named fpcores need to be added to function table
+  (when func-name (register-function! func-name args default-repr body))
+
+  ;; Try props first, then identifier, else the expression itself
+  (define name
+    (or (dict-ref prop-dict* ':name #f)
+        func-name
+        body))
+
+  ;; load conversion operators for desugaring
+  (define convs (dict-ref prop-dict* ':herbie-conversions '()))
+  (generate-conversions convs)
+
+  ;; inline and desugar
   (define body* (desugar-program body default-repr var-reprs))
   (define pre* (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs))
+  (define target (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs))
+  (define spec (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs))
   (check-unused-variables arg-names body* pre*)
 
-  (test (~a (dict-ref prop-dict* ':name body))
+  (test (~a name)
+        func-name
         arg-names
         body*
-        (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs)
+        target
         (dict-ref prop-dict* ':herbie-expected #t)
-        (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs)
+        spec
         pre*
         (map sexp->preprocess (dict-ref prop-dict* ':herbie-preprocess empty))
         (representation-name default-repr)
         (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)
-        (dict-ref prop-dict* ':herbie-conversions '())))
+        convs))
         
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that

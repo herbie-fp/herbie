@@ -347,7 +347,8 @@
             (and (andmap identity args*) (cons op args*)))
           (let ([op* (apply get-parametric-operator 
                             (hash-ref parametric-operators-reverse op)
-                            (make-list (length args) prec*))]
+                            (make-list (length args) prec*)
+                            #:fail-fast? #f)]
                 [args* (map (curryr loop prec*) args)])
             (and op* (andmap identity args*) (cons op* args*))))]
      [(? variable?)

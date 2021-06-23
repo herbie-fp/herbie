@@ -1,36 +1,41 @@
 #lang racket
 
 (require "types.rkt" "syntax.rkt" "../interface.rkt")
-(provide desugar-program resugar-program)
+(provide desugar-program resugar-program register-function! *functions*)
 
-(define (unfold-let expr)
-  (match expr
-    [`(let ([,vars ,vals] ...) ,body)
-     (define bindings (map cons vars (map unfold-let vals)))
-     (replace-vars bindings (unfold-let body))]
-    [`(let* () ,body)
-     (unfold-let body)]
-    [`(let* ([,var ,val] ,rest ...) ,body)
-     (replace-vars (list (cons var (unfold-let val))) (unfold-let `(let* ,rest ,body)))]
-    [`(,head ,args ...)
-     (cons head (map unfold-let args))]
-    [x x]))
+(module+ test (require rackunit))
 
-(define (expand-associativity expr)
+;; name -> (vars repr body)
+(define *functions* (make-parameter (make-hash)))
+
+(define (register-function! name args repr body)
+  (hash-set! (*functions*) name (list args repr body)))
+
+;; preprocessing
+(define (expand expr)
   (match expr
-    [(list (and (or '+ '- '* '/) op) a ..2 b)
-     (list op
-           (expand-associativity (cons op a))
-           (expand-associativity b))]
-    [(list (or '+ '*) a) (expand-associativity a)]
-    [(list '- a) (list '- (expand-associativity a))]
-    [(list '/ a) (list '/ 1 (expand-associativity a))]
-    [(list (or '+ '-)) 0]
-    [(list (or '* '/)) 1]
-    [(list op a ...)
-     (cons op (map expand-associativity a))]
-    [_
-     expr]))
+   ;; unfold let
+   [(list let* (list (list var val) rest ...) body)
+    (replace-vars (list (cons var (expand val))) (expand `(let* ,rest ,body)))]
+   [(list 'let (list (list vars vals) ...) body)
+    (replace-vars (map cons vars (map expand vals)) (expand body))]
+   [(list (or 'let 'let*) (list) body)
+    (expand body)]
+   ;; expand associativity
+   [(list (and (or '+ '- '* '/) op) a ..2 b)
+     (list op (expand (cons op a)) (expand b))]
+   [(list (or '+ '*) a) (expand a)]
+   [(list '- a) (list '- (expand a))]
+   [(list '/ a) (list '/ 1 (expand a))]
+   [(list (or '+ '-)) 0]
+   [(list (or '* '/)) 1]
+   ;; inline functions
+   [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
+    (match-define (list vars _ body) (hash-ref (*functions*) fname))
+    (replace-vars (map cons vars args) (expand body))]
+   ;; unchanged
+   [(list op args ...) (cons op (map expand args))]
+   [_ expr]))
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
 ;; and supports multiple precisions
@@ -49,12 +54,18 @@
          (cond
            [(hash-has-key? props* ':precision)
             ; need to insert a cast
-            (loop (cons 'cast expr) prec)]
+            (loop (list 'cast expr) prec)]
            [else (loop body prec)])]
         [(list 'cast (list '! ':precision iprec iexpr))
-         (define conv (get-repr-conv iprec prec))
-         (define-values (iexpr* _) (loop iexpr iprec))
-         (values (list conv iexpr*) prec)]
+         (cond
+          [(equal? prec iprec)  ; ignore
+           (loop iexpr prec)]
+          [else
+           (define conv (get-repr-conv iprec prec))
+           (define-values (iexpr* _) (loop iexpr iprec))
+           (values (list conv iexpr*) prec)])]
+        [(list 'cast body)    ; no-op cast (ignore)
+         (loop body prec)]
         [(list (or 'neg '-) arg) ; unary minus
          (define-values (arg* atype) (loop arg prec))
          (define op* (get-parametric-operator 'neg atype))
@@ -151,7 +162,7 @@
 
 (define (desugar-program prog repr var-reprs #:full [full? #t])
   (if full?
-      (expand-parametric (expand-associativity (unfold-let prog)) repr var-reprs full?)
+      (expand-parametric (expand prog) repr var-reprs full?)
       (expand-parametric prog repr var-reprs full?)))
 
 (define (resugar-program prog repr #:full [full? #t])
@@ -167,3 +178,30 @@
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
 
+(module+ test
+  (define repr (get-representation 'binary64))
+
+  ;; inlining
+
+  ;; Test classic quadp and quadm examples
+  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
+  (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
+  (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
+  (check-equal? (desugar-program quadp repr (map (curryr cons repr) (list 'x 'y 'z)))
+                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+  (check-equal? (desugar-program quadm repr (map (curryr cons repr) (list 'x 'y 'z)))
+                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+
+  ;; x^5 = x^3 * x^2
+  (register-function! 'sqr (list 'x) repr '(* x x))
+  (register-function! 'cube (list 'x) repr '(* x x x))
+  (define fifth '(* (cube a) (sqr a)))
+  (check-equal? (desugar-program fifth repr (list (cons 'a repr)))
+                '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
+
+  ;; casting edge cases
+  (check-equal? (desugar-program `(cast x) repr `((x . ,repr)))
+                'x)
+  (check-equal? (desugar-program `(cast (! :precision binary64 x)) repr `((x . ,repr)))
+                'x)
+)

@@ -1,7 +1,7 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "sugar.rkt")
 (provide assert-program!)
 
 (define (check-expression* stx vars error!)
@@ -46,12 +46,19 @@
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
-     (if (hash-has-key? parametric-operators f)
-         (let ([arity (get-operator-arity f)]) ;; variary is (#f . #f)
-           (unless (or (not arity) (= arity (length args)))
-             (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                     f (length args) arity)))
-         (error! stx "Unknown operator ~a" f))
+     (cond
+      [(hash-has-key? parametric-operators f)
+        (define arity (get-operator-arity f)) ;; variary is #f
+        (unless (or (not arity) (= arity (length args)))
+          (error! stx "Operator ~a given ~a arguments (expects ~a)"
+                  f (length args) arity))]
+      [(hash-has-key? (*functions*) f)
+        (match-define (list vars _ _) (hash-ref (*functions*) f))
+        (unless (= (length vars) (length args))
+          (error! stx "Function ~a given ~a arguments (expects ~a)"
+                  f (length args) (length vars)))]
+      [else
+        (error! stx "Unknown operator ~a" f)])
      (for ([arg args]) (check-expression* arg vars error!))]
     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
 
@@ -117,19 +124,27 @@
         (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))))
 
 (define (check-program* stx error!)
-  (match stx
-    [#`(FPCore #,vars #,props ... #,body)
-     (unless (list? (syntax-e vars))
-       (error! stx "Invalid arguments list ~a; must be a list" stx))
-     (define vars* (if (list? (syntax-e vars)) (filter identifier? (syntax-e vars)) '()))
-     (when (list? (syntax-e vars))
-       (for ([var (syntax-e vars)] #:unless (identifier? var))
-         (error! stx "Argument ~a is not a variable name" var))
-       (when (check-duplicate-identifier vars*)
-         (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*))))
-     (check-properties* props (immutable-bound-id-set vars*) error!)
-     (check-expression* body (immutable-bound-id-set vars*) error!)]
-    [_ (error! stx "Unknown syntax ~a" stx)]))
+  (define-values (vars props body)
+    (match (syntax-e stx)
+     [(list (app syntax-e 'FPCore) (app syntax-e name) (app syntax-e (list vars ...)) props ... body)
+      (unless (symbol? name)
+        (error! stx "FPCore identifier must be a symbol: ~a" name))
+      (values vars props body)]
+     [(list (app syntax-e 'FPCore) (app syntax-e (list vars ...)) props ... body)
+      (values vars props body)]
+     [(list (app syntax-e 'FPCore) something ...)
+      (error! stx "FPCore not in a valid format" stx)]
+     [_ (error! stx "Not an FPCore: ~a" stx)]))
+  (unless (list? vars)
+    (error! stx "Invalid arguments list ~a; must be a list" stx))
+  (define vars* (filter identifier? vars))
+  (when (list? vars)
+    (for ([var vars] #:unless (identifier? var))
+      (error! stx "Argument ~a is not a variable name" var))
+   (when (check-duplicate-identifier vars*)
+      (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*))))
+  (check-properties* props (immutable-bound-id-set vars*) error!)
+  (check-expression* body (immutable-bound-id-set vars*) error!))
 
 (define (assert-expression! stx vars)
   (define errs

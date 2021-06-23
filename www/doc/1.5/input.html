@@ -25,11 +25,15 @@
   <p><a href="http://fpbench.org">FPCore</a> format looks like this:</p>
 
   <pre>(FPCore (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
+  <pre>(FPCore <var>name</var> (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
 
   <p>
     Each <var>input</var> is a variable name, like <code>x</code>,
     used in the <var>expression</var>. Properties are used to specify
     additional information about the <var>expression</var>'s context.
+    As of version 1.5, Herbie supports named functions.
+    If <var>name</var> is specified, the function can be inlined
+    within any subsequent FPCore in the file.
   </p>
 
   <p>

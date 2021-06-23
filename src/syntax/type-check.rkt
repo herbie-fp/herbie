@@ -1,10 +1,16 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt"
+         "syntax.rkt" "sugar.rkt" "types.rkt")
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
-  (match-define (list (app syntax-e 'FPCore) (app syntax-e (list vars ...)) props ... body) (syntax-e stx))
+  (define-values (vars props body)
+    (match (syntax-e stx)
+     [(list (app syntax-e 'FPCore) (app syntax-e name) (app syntax-e (list vars ...)) props ... body)
+      (values vars props body)]
+     [(list (app syntax-e 'FPCore) (app syntax-e (list vars ...)) props ... body)
+      (values vars props body)]))
   (define props*
     (let loop ([props props])
       (match props
@@ -77,7 +83,8 @@
          (begin
           (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
-                   (for/list ([(atypes info) (hash-ref parametric-operators 'neg)])
+                   (for/list ([sig (hash-ref parametric-operators 'neg)])
+                     (match-define (list* _ _ atypes) sig)
                      (if (list? atypes)
                          (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " "))
                          (format "(- <~a> ...)" atypes)))
@@ -115,13 +122,26 @@
          (begin
           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
                   (string-join
-                    (for/list ([(atypes info) (hash-ref parametric-operators '-)])
+                    (for/list ([sig (hash-ref parametric-operators op)])
+                     (match-define (list* _ _ atypes) sig)
                      (if (list? atypes)
                          (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))
                          (format "(~a <~a> ...)" op atypes)))
                     " or ")
                   op (string-join (map (curry format "<~a>") actual-types) " "))
-          #f))]))
+          #f))]
+    [#`(,(? (curry hash-has-key? (*functions*)) fname) #,exprs ...)
+     (match-define (list vars repr _) (hash-ref (*functions*) fname))
+     (define prec (representation-name repr))
+     (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
+     (define expected (map (const prec) vars))
+     (if (andmap equal? actual-types expected)
+         prec
+         (begin
+           (error! stx "Invalid arguments to ~a; expects (~a ~a) but got (~a ~a)" fname
+                       fname fname (string-join (map (curry format "<~a>") expected) " ")
+                       fname (string-join (map (curry format "<~a>") actual-types) " "))
+           #f))]))
 
 (module+ test
   (require rackunit)
