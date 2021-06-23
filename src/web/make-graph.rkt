@@ -74,7 +74,7 @@
       (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
      (body
       ,(render-menu
-        (list/true
+        (list
          '("Error" . "#graphs")
          (and fpcore? (for/and ([p points]) (andmap number? p))
               '("Try it out!" . "#try-it"))
@@ -82,7 +82,7 @@
               '("Target" . "#comparison"))
          '("Derivation" . "#history")
          '("Reproduce" . "#reproduce"))
-        (list/true
+        (list
          '("Report" . "../results.html")
          '("Log" . "debug.txt")
          '("Metrics" . "timeline.html")))

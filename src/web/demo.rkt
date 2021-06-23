@@ -338,7 +338,7 @@
    #:servlet-path "/"
    #:servlet-regexp #rx""
    #:extra-files-paths
-   (list/true (web-resource) (*demo-output*))
+   (filter identity (list (web-resource) (*demo-output*)))
 
    #:log-file (*demo-log*)
    #:file-not-found-responder

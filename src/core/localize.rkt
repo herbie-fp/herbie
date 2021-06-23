@@ -70,22 +70,28 @@
     (if (eq? (*analyze-context*) (*pcontext*))
         *analyze-cache*
         (make-hash)))
-  (define expr->loc (location-hash prog))
 
   (localize-on-expression (program-body prog) varmap cache repr)
 
   (define locs
-    (reap [sow]
-          (for ([(expr locs) (in-hash expr->loc)]
-                #:when (hash-has-key? cache expr))
-            (define err (cdr (hash-ref cache expr)))
-            (when (ormap (curry < 1) err)
-              (for-each (compose sow (curry cons err)) locs)))))
+    (sort
+     (reap [sow]
+       (let loop ([expr (program-body prog)] [loc '(2)])
+         (define err (cdr (hash-ref cache expr)))
+         (unless (andmap (curry = 1) err)
+           (sow (cons err (reverse loc))))
+         (match expr
+           [(? constant?) (void)]
+           [(? variable?) (void)]
+           [(list op args ...)
+            (for ([idx (in-naturals 1)] [arg args])
+              (loop arg (cons idx loc)))])))
+     > #:key (compose errors-score car)))
 
   (values
     (take-up-to ; high error locs
       (sort locs > #:key (compose errors-score car))
       (*localize-expressions-limit*))
     (take-up-to ; low error locs
-      (sort locs > #:key (compose errors-score car))
+      (sort locs < #:key (compose errors-score car))
       (*localize-expressions-limit*))))
