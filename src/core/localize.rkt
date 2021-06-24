@@ -83,6 +83,9 @@
          (match expr
            [(? constant?) (void)]
            [(? variable?) (void)]
+           [(list 'if cond ift iff)
+            (loop ift (cons 2 loc))
+            (loop iff (cons 3 loc))]
            [(list op args ...)
             (for ([idx (in-naturals 1)] [arg args])
               (loop arg (cons idx loc)))])))
