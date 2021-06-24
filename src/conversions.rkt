@@ -73,6 +73,13 @@
   (define repr-rewrite1 (sym-append '<- prec1*))
   (define repr-rewrite2 (sym-append '<- prec2*))
 
+  ;; if missing, try generating them
+  (unless (and (operator-exists? conv1)
+               (operator-exists? conv2)
+               (hash-has-key? parametric-operators repr-rewrite1)
+               (hash-has-key? parametric-operators repr-rewrite2))
+    (generate-conversion-ops prec1 prec2))
+
   ;; Repr rewrite/conversion rules
   (define rulename1 (sym-append 'rewrite '- prec2* '/ prec1*))
   (define rulename2 (sym-append 'rewrite '- prec1* '/ prec2*))

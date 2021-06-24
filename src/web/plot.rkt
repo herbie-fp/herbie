@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat math/flonum plot/no-gui)
+(require math/bigfloat math/flonum plot/no-gui racket/draw)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../syntax/syntax.rkt" "../syntax/types.rkt" "../syntax/read.rkt"
          "../alternative.rkt" "../interface.rkt" "../core/regimes.rkt" 
@@ -14,6 +14,34 @@
 (define *blue-theme* (color-theme "lightblue" "blue" "navy"))
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
 (define *gray-theme* (color-theme "gray" "gray" "gray"))
+
+;; Racket 8.1 compatability
+
+(define (plot-file-compat renderer-tree output [kind 'auto]
+                          #:x-min [x-min #f] #:x-max [x-max #f]
+                          #:y-min [y-min #f] #:y-max [y-max #f]
+                          #:width [width (plot-width)]
+                          #:height [height (plot-height)]
+                          #:title [title (plot-title)]
+                          #:x-label [x-label (plot-x-label)]
+                          #:y-label [y-label (plot-y-label)]
+                      ;   #:aspect-ratio [aspect-ratio (plot-aspect-ratio)]    (added Racket 8.1)
+                          #:legend-anchor [legend-anchor (plot-legend-anchor)])
+  (define bm (make-bitmap width height))
+  (define dc (send bm make-dc))
+  (plot/dc renderer-tree dc 0 0 width height
+           #:x-min x-min #:x-max x-max #:y-min y-min #:y-max y-max
+           #:title title #:x-label x-label #:y-label y-label
+        ;  #:aspect-ratio aspect-ratio                                  (added Racket 8.1)
+           #:legend-anchor legend-anchor)
+  (send bm save-file output kind))
+
+(define plot-file    ; handle buggy `plot-file` in 8.1
+  (if (string=? (version) "8.1")
+      plot-file-compat
+      (let ()
+        (local-require (only-in plot/no-gui [plot-file plot-file*]))
+        plot-file*)))
 
 ;;  Repr conversions
 
