@@ -159,8 +159,8 @@
     (map
      (lambda (expr) (expr->egg-expr expr eg-data))
      exprs))
-  (println "adding egg exprs")
-  (println egg-exprs)
+  ;;(println "adding egg exprs")
+  ;;(println egg-exprs)
     
   #;
   (debug #:from 'simplify (format "Sending expressions to egg_math:\n ~a"
