@@ -4,6 +4,7 @@ pub mod rules;
 use egg::{Id, Iteration, NodeExpr};
 use math::*;
 
+use std::time::Duration;
 use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -199,6 +200,7 @@ pub unsafe extern "C" fn egraph_run(
             runner = runner
                 .with_node_limit(limit as usize)
                 .with_iter_limit(100_000_000) // should never hit
+                .with_time_limit(Duration::from_secs(u64::MAX))
                 .with_hook(|r| {
                     if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
                         Err("Unsoundness detected".into())
