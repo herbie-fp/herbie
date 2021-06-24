@@ -9,8 +9,8 @@ upload () {
     B=$(git rev-parse --abbrev-ref HEAD)
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
-    find "$DIR" -name "*.txt" -or -name "timeline.json" -or -name "profile.json" \
-         -exec gzip -f {} \;
+    find "$DIR" -name "*.txt" -exec gzip -f {} \;
+    find "$DIR" -name "*.json" -exec gzip -f {} \;
     rsync --recursive "$DIR" --exclude reports/ "$RHOST:$RHOSTDIR/$RDIR"
     ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RDIR" -R
     if command -v nightly-results &>/dev/null; then
