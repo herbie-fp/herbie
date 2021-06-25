@@ -18,9 +18,21 @@
    [fl32* (-> float32? ... float32?)]
    [fl32/ (-> float32? float32? ... float32?)]))
 
-
+; Racket 8.0
 (define at-least-racket-8?
   (>= (string->number (substring (version) 0 1)) 8))
+
+; Need a placeholder for < 7.3
+(define single-flonum-available?
+  (let ([single-flonum-available? (const (equal? (system-type 'vm) 'racket))])
+    (local-require racket/flonum)
+    single-flonum-available?))
+
+; Need a placeholder for < 8.0
+(define cast-single
+  (let ([flsingle identity])
+    (local-require racket/flonum)
+    flsingle))
 
 ; Returns true if single flonum is available directly (BC)
 ; or through emulation (CS, >= 8.0)
@@ -33,12 +45,6 @@
   (if at-least-racket-8?
       flonum?
       single-flonum?))
-
-; Need a placeholder for < 8.0
-(define cast-single
-  (let ([flsingle identity])
-    (local-require racket/flonum)
-    flsingle))
 
 (define (->float32 x)
   (if at-least-racket-8?
