@@ -125,10 +125,11 @@
   ;; (which has no way of specifying complex numbers as input.) Once types
   ;; and representations are cleanly distinguished, we can get rid of the
   ;; additional check to see if the repr is complex.
-  (define real->precision (match mode
-    ['bf (λ (repr x) (->bf x repr))]
-    ['fl (λ (repr x) (real->repr x repr))]
-    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]))
+  (define real->precision
+    (match mode
+     ['bf (λ (x repr arg?) (->bf x repr))]
+     ['fl (λ (x repr arg?) (if arg? x (real->repr x repr)))]
+     ['ival (λ (x repr arg?) (if (ival? x) x (mk-ival (->bf x repr))))]))
   
   (define vars (if (empty? progs) '() (program-variables (first progs))))
   (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
@@ -155,7 +156,7 @@
     (set! size (+ 1 size))
     (define expr
       (match prog
-       [(? real?) (list (const (real->precision repr prog)))]
+       [(? real?) (list (const (real->precision prog repr #f)))]
        [(? constant?) (list (constant-info prog mode))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
@@ -195,7 +196,7 @@
   (λ args
     (define v (make-vector lt))
     (for ([arg (in-list args)] [n (in-naturals)] [repr (in-list var-reprs)])
-      (vector-set! v n (real->precision repr arg)))
+      (vector-set! v n (real->precision arg repr #t)))
     (for ([expr (in-vector exprvec)] [n (in-naturals varc)])
       (define tl
         (for/list ([arg (in-list (cdr expr))])
