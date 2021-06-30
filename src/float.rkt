@@ -11,8 +11,7 @@
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total =-or-nan?
- value->string value->json
- ->bf)
+ value->string value->json)
 
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
@@ -145,19 +144,3 @@
               ["+nan.bf" "+nan.0"]
               [x x])
             (loop (+ precision 4))))))) ; 2^4 > 10
-
-; TODO: definitely buggy, remove if possible
-; what if representation takes real values?
-; reals and repr values are indistinguishable
-(define/contract (->bf x repr)
-  (-> any/c representation? bigvalue?)
-  (define type (representation-type repr))
-  (cond
-   [(and (equal? (type-name type) 'complex) (complex? x)) ;; HACK
-    ((type-exact->inexact type) x)]
-    ;; TODO(interface): ->bf is used to convert syntactic numbers to
-    ;; bf values. For 'complex' type, syntactic numbers are still
-    ;; reals, so we need to call `bf` here
-   [(eq? (representation-name repr) 'complex) (bf x)]
-   [((representation-repr? repr) x) ((representation-repr->bf repr) x)]
-   [else (bf x)])) ; assume real

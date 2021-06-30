@@ -1,5 +1,6 @@
 #lang racket
 
+(require math/bigfloat)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../interface.rkt")
 
 (provide localize-error)
@@ -16,13 +17,13 @@
              (λ ()
                 (match expr
                   [(? constant?)
-                   (define bf
+                   (define val
                      (if (symbol? expr)
                          ((constant-info expr 'bf))
-                         (->bf expr repr)))
-                   (cons (repeat bf) (repeat 1))]
+                         (bf expr)))
+                   (cons (repeat val) (repeat 1))]
                   [(? variable?)
-                   (cons (map (curryr ->bf (dict-ref (*var-reprs*) expr))
+                   (cons (map (curryr representation-repr->bf (dict-ref (*var-reprs*) expr))
                               (dict-ref vars expr))
                          (repeat 1))]
                   [`(if ,c ,ift ,iff)
