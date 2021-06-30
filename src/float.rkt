@@ -127,7 +127,6 @@
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
-  (define n* (if (and (number? n) (exact? n)) (exact->inexact n) n))
   (define ->bf (representation-repr->bf repr))
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
@@ -138,8 +137,8 @@
                "Could not uniquely print ~a" n)
         n)
       (parameterize ([bf-precision precision])
-        (define bf (->bf n*))
-        (if (=-or-nan? n* (<-bf bf) repr)
+        (define bf (->bf n))
+        (if (=-or-nan? n (<-bf bf) repr)
             (match (bigfloat->string bf)
               ["-inf.bf" "-inf.0"]
               ["+inf.bf" "+inf.0"]
@@ -147,6 +146,9 @@
               [x x])
             (loop (+ precision 4))))))) ; 2^4 > 10
 
+; TODO: definitely buggy, remove if possible
+; what if representation takes real values?
+; reals and repr values are indistinguishable
 (define/contract (->bf x repr)
   (-> any/c representation? bigvalue?)
   (define type (representation-type repr))
