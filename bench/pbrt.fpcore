@@ -157,14 +157,14 @@
   (/ 1 (sqrt (+ 1 tanTheta2)))))
 
 (FPCore (x s)
- :name "Logistic"
+ :name "Logistic distribution"
  :precision binary32
  :pre (<= 0 s 1.0651631)
  (let ([e (exp (/ (- (fabs x)) s))])
   (/ e (* s (+ 1 e) (+ 1 e)))))
 
 (FPCore (x s)
- :name "Logistic CDF"
+ :name "Logistic function"
  :precision binary32
  :pre (<= 0 s 1.0651631)
  (/ 1 (+ 1 (exp (/ (- x) s)))))
