@@ -66,11 +66,12 @@
       (list (filter rule-ops-supported? rules) groups types)))))
 
 (define (update-rules rules groups)
-  (when (ormap (curry flag-set? 'rules) groups) ; update all
+  (when (ormap (curry flag-set? 'rules) groups)       ; update all
     (all-rules (append (all-rules) rules))
-    (when (set-member? groups 'simplify) ; update simplify
+    (when (set-member? groups 'simplify)              ; update simplify
       (simplify-rules (append (simplify-rules) rules))  
-      (when (set-member? groups 'fp-safe) ; update fp-safe
+      (when (or (set-member? groups 'fp-safe)         ; update fp-safe
+                (set-member? groups 'fp-safe-nan))
         (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
 
 (define (reprs-in-expr expr)
