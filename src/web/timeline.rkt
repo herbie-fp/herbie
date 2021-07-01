@@ -212,9 +212,9 @@
   `((dt "Rules")
     (dd (table ([class "times"])
           ,@(for/list ([rec (in-list (sort rules > #:key second))] [_ (in-range 5)])
-              (match-define (list count rules) rec)
+              (match-define (list rule count) rec)
               `(tr (td ,(~a count) "×")
-                   (td ,@(for/list ([rule rules]) `(code ,(~a rule) " ")))))))))
+                   (td (code ,(~a rule) " "))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
