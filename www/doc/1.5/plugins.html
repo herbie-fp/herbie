@@ -169,7 +169,8 @@
 
       The other four arguments are single-argument procedures that implement different conversions.
       The first two convert between a value in your representation and a Racket
-      <a href="https://docs.racket-lang.org/math/bigfloat.html">bigfloat</a>.
+      <a href="https://docs.racket-lang.org/math/bigfloat.html">bigfloat</a>
+      (you need to import <code>math/bigfloat</code>).
       The last two convert between a value in your representation and its corresponding ordinal value.
       Ordinal values for any representation must be within the interval [0, 2<sup><i>width</i></sup> - 1].
       Check Racket's definition of
@@ -354,8 +355,8 @@
       The argument <code><i>itypes</i></code> is a list of the input types
       while the argument <code><i>attribs</i></code> are the same attributes for
       <code>define-operator</code>, e.g. <code>bf</code>.
-      In this case, <code><i>attribs</i></code> is a list of two-element lists:
-      <code>(list (list 'bf <i>bf-fn</i>) ...)</code>.
+      In this case, <code><i>attribs</i></code> is an association:
+      <code>(list (cons 'bf <i>bf-fn</i>) ...)</code>.
     </dd>
 
     <dt>
@@ -371,21 +372,21 @@
     <dd>Like <code>define-constant</code>, but used within generators.
       The argument <code><i>attribs</i></code> are the same attributes for
       <code>define-constant</code>.
-      In this case, <code><i>attribs</i></code> is a list of two-element lists:
-      <code>(list (list 'bf <i>bf-thunk</i>) ...)</code>.
+      In this case, <code><i>attribs</i></code> is an association:
+      <code>(list (cons 'bf <i>bf-thunk</i>) ...)</code>.
     </dd>
 
     <dt><code>(<b>register-constant-impl!</b> <i>const</i> <i>name</i> <i>type</i> <i>attribs</i>)</code></dt>
     <dd>Like <code>define-constant-impl</code>, but used within generators.
-      See <code>register-constant</code> for a description of <code><i>attribs</i></code>.
+      See <code>register-constant!</code> for a description of <code><i>attribs</i></code>.
     </dd>
 
     <dt><code>(<b>register-ruleset!</b> <i>name</i> <i>groups</i> <i>var-reprs</i> <i>rules</i>)</code></dt>
     <dd>Like <code>define-ruleset</code>, but used within generators.
       In this case, <code><i>groups</i></code> is a list of rule groups;
-        <code><i>var-reprs</i></code> is a list of two-element lists
-        associating each variable in the ruleset with its representation, e.g.
-        <code>(list (list 'x '(float 5 16)) ...)</code>;
+        <code><i>var-reprs</i></code> is an association
+        pairing each variable in the ruleset with its representation, e.g.
+        <code>(list (cons 'x '(float 5 16)) ...)</code>;
         and <code><i>rules</i></code> is a list of rules of the following
         form <code>(list (list <i>rule-name</i> <i>match</i> <i>replace</i>) ...)</code>.
     </dd>
