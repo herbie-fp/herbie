@@ -70,8 +70,7 @@
     (all-rules (append (all-rules) rules))
     (when (set-member? groups 'simplify)              ; update simplify
       (simplify-rules (append (simplify-rules) rules))  
-      (when (or (set-member? groups 'fp-safe)         ; update fp-safe
-                (set-member? groups 'fp-safe-nan))
+      (when (set-member? groups 'fp-safe)         ; update fp-safe
         (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
 
 (define (reprs-in-expr expr)
