@@ -399,7 +399,7 @@
       (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
 (module+ test
-  (parameterize ([*start-prog* '(λ (x y) (/ x y))]
+  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))]
                  [*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x y))]
                  [*output-repr* (get-representation 'binary64)])
     (define sps
@@ -413,7 +413,7 @@
                     (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
                     (get-representation 'binary64)))
 
-    (check-pred p0? '(0 -1))
-    (check-pred p2? '(-1 1))
-    (check-pred p0? '(+1 1))
-    (check-pred p1? '(0 0))))
+    (check-pred p0? '(0.0 -1.0))
+    (check-pred p2? '(-1.0 1.0))
+    (check-pred p0? '(+1.0 1.0))
+    (check-pred p1? '(0.0 0.0))))
