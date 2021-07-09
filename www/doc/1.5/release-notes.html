@@ -53,7 +53,7 @@
       \(
       \begin{array}{l}
       [a, b] = \mathsf{sort}([a, b]) \\
-      b + \sqrt{\frac{a}{b}\cdot\frac{a}{b} + 1}
+      b \cdot \sqrt{\frac{a}{b}\cdot\frac{a}{b} + 1}
       \end{array}
       \)
     </div>
@@ -123,6 +123,8 @@
 
   <h2>Deprecations and removals</h2>
   <ul>
+    <li>Support for the Racket 7-series is deprecated and will be
+    removed in the next release. Please upgrade.</li>
     <li>The <code>egg-herbie</code> support package has been merged
     into Herbie proper. This means that if you want to install Herbie
     from source, you will now need a Rust compiler.</li>
