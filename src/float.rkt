@@ -11,8 +11,7 @@
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total =-or-nan?
- value->string value->json
- ->bf)
+ value->string value->json)
 
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
@@ -127,7 +126,6 @@
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
-  (define n* (if (and (number? n) (exact? n)) (exact->inexact n) n))
   (define ->bf (representation-repr->bf repr))
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
@@ -138,24 +136,11 @@
                "Could not uniquely print ~a" n)
         n)
       (parameterize ([bf-precision precision])
-        (define bf (->bf n*))
-        (if (=-or-nan? n* (<-bf bf) repr)
+        (define bf (->bf n))
+        (if (=-or-nan? n (<-bf bf) repr)
             (match (bigfloat->string bf)
               ["-inf.bf" "-inf.0"]
               ["+inf.bf" "+inf.0"]
               ["+nan.bf" "+nan.0"]
               [x x])
             (loop (+ precision 4))))))) ; 2^4 > 10
-
-(define/contract (->bf x repr)
-  (-> any/c representation? bigvalue?)
-  (define type (representation-type repr))
-  (cond
-   [(and (equal? (type-name type) 'complex) (complex? x)) ;; HACK
-    ((type-exact->inexact type) x)]
-    ;; TODO(interface): ->bf is used to convert syntactic numbers to
-    ;; bf values. For 'complex' type, syntactic numbers are still
-    ;; reals, so we need to call `bf` here
-   [(eq? (representation-name repr) 'complex) (bf x)]
-   [((representation-repr? repr) x) ((representation-repr->bf repr) x)]
-   [else (bf x)])) ; assume real

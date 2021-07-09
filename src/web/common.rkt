@@ -1,8 +1,13 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) 
-         (only-in fpbench fpcore? supported-by-lang? core->c core->tex expr->tex))
+         (only-in fpbench fpcore? supported-by-lang?
+                          core->c core->tex expr->tex
+                          [core-common-subexpr-elim core-cse]
+                          *expr-cse-able?*))
+
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
          "../interface.rkt" "../preprocess.rkt" "../syntax/sugar.rkt")
+
 (provide render-menu render-warnings render-large render-program program->fpcore render-reproduction js-tex-include)
 
 (define (program->fpcore prog #:ident [ident #f])
@@ -15,6 +20,11 @@
   (match core
    [(list 'FPCore name args expr) `(FPCore ,name ,args ,@props ,expr)]
    [(list 'FPCore args expr) `(FPCore ,args ,@props ,expr)]))
+
+(define (at-least-two-ops? expr)
+  (match expr
+   [(list op args ...) (ormap list? args)]
+   [_ #f]))
 
 (define (fpcore->string core)
   (define-values (ident args props expr)
@@ -77,7 +87,10 @@
   (define output-repr (get-representation output-prec))
 
   (define in-prog (program->fpcore (resugar-program (test-program test) output-repr) #:ident identifier))
-  (define out-prog (and result (program->fpcore (resugar-program result output-repr) #:ident identifier)))
+  (define out-prog
+    (and result
+         (parameterize ([*expr-cse-able?* at-least-two-ops?])
+           (core-cse (program->fpcore (resugar-program result output-repr) #:ident identifier)))))
 
   (define in-prog* (fpcore-add-props in-prog (list ':precision output-prec)))
   (define out-prog* (and out-prog (fpcore-add-props out-prog (list ':precision output-prec))))

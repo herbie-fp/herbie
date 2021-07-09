@@ -116,20 +116,22 @@
   (define f (batch-eval-progs (list prog) mode repr))
   (λ args (vector-ref (apply f args) 0)))
 
+(define (real->bf x repr)
+  ((type-exact->inexact (representation-type repr)) x))
+
 (define (batch-eval-progs progs mode repr)
-  ; Keep exact numbers exact
-  ;; TODO(interface): Right now, real->precision and precision->real are
-  ;; mixed up for bf and fl because there is a mismatch between the fpbench
-  ;; input format for how we specify complex numbers (which is the format
-  ;; the interface will ultimately use), and the 1.3 herbie input format
-  ;; (which has no way of specifying complex numbers as input.) Once types
-  ;; and representations are cleanly distinguished, we can get rid of the
-  ;; additional check to see if the repr is complex.
-  (define real->precision (match mode
-    ['bf (λ (repr x) (->bf x repr))]
-    ['fl (λ (repr x) (real->repr x repr))]
-    ['ival (λ (repr x) (if (ival? x) x (mk-ival (->bf x repr))))]))
-  
+  (define real->precision
+    (match mode
+     ['fl (λ (x repr) (real->repr x repr))]
+     ['bf (λ (x repr) (real->bf x repr))]
+     ['ival (λ (x repr) (mk-ival (real->bf x repr)))]))
+
+  (define arg->precision
+    (match mode
+     ['fl (λ (x repr) x)]
+     ['bf (λ (x repr) (if (bigfloat? x) x ((representation-repr->bf repr) x)))]
+     ['ival (λ (x repr) (if (ival? x) x (mk-ival ((representation-repr->bf repr) x))))]))
+
   (define vars (if (empty? progs) '() (program-variables (first progs))))
   (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
 
@@ -155,7 +157,7 @@
     (set! size (+ 1 size))
     (define expr
       (match prog
-       [(? real?) (list (const (real->precision repr prog)))]
+       [(? real?) (list (const (real->precision prog repr)))]
        [(? constant?) (list (constant-info prog mode))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
@@ -195,7 +197,7 @@
   (λ args
     (define v (make-vector lt))
     (for ([arg (in-list args)] [n (in-naturals)] [repr (in-list var-reprs)])
-      (vector-set! v n (real->precision repr arg)))
+      (vector-set! v n (arg->precision arg repr)))
     (for ([expr (in-vector exprvec)] [n (in-naturals varc)])
       (define tl
         (for/list ([arg (in-list (cdr expr))])

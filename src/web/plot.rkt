@@ -68,6 +68,9 @@
       (expt 10 (floor (/ (log max) (log 10))))]))
   (if (<= value min) #f value))
 
+(define (clamp x lo hi)
+  (min hi (max x lo)))
+
 (define (choose-between min max number repr)
   ; Returns a given number of ticks, roughly evenly spaced, between min and max
   ; For any tick, n divisions below max, the tick is an ordinal corresponding to:
@@ -77,8 +80,9 @@
   (define near (λ (x n) (and (<= x n) (<= (abs (/ (- x n) sub-range)) 0.2)))) ; <- tolerance
   (for/list ([itr (in-range 1 (add1 number))])
     (define power10 
-      (first-power10 (ordinal->real (- max (* (add1 itr) sub-range)) repr)
-                     (ordinal->real (- max (* itr sub-range)) repr) repr))
+      (first-power10 (ordinal->real (clamp (- max (* (add1 itr) sub-range)) min max) repr)
+                     (ordinal->real (clamp (- max (* itr sub-range)) min max) repr)
+                     repr))
     (if (and power10 (near (real->ordinal power10 repr) (- max (* itr sub-range))))
         (real->ordinal power10 repr)
         (- max (* itr sub-range)))))

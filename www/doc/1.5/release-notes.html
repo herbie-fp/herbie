@@ -53,7 +53,7 @@
       \(
       \begin{array}{l}
       [a, b] = \mathsf{sort}([a, b]) \\
-      b + \sqrt{\frac{a}{b}\cdot\frac{a}{b} + 1}
+      b \cdot \sqrt{\frac{a}{b}\cdot\frac{a}{b} + 1}
       \end{array}
       \)
     </div>
@@ -109,7 +109,10 @@
   <ul>
     <li>Herbie now supports more pluggable number representations,
     including arbitrary-precision floating-point numbers and also
-    fixed-point numbers.</li>
+    fixed-point numbers. We're still working on better-exposing this
+    to users.</li>
+    <li>Herbie will now introduce some temporary variables to make its
+    output more readable.</li>
     <li>The series expansion engine was substantially improved, which
     both reduces timeouts and improves results substantially.</li>
     <li>A new "retirement community" data structure allows Herbie to
@@ -123,6 +126,8 @@
 
   <h2>Deprecations and removals</h2>
   <ul>
+    <li>Support for the Racket 7-series is deprecated and will be
+    removed in the next release. Please upgrade.</li>
     <li>The <code>egg-herbie</code> support package has been merged
     into Herbie proper. This means that if you want to install Herbie
     from source, you will now need a Rust compiler.</li>

@@ -1,11 +1,14 @@
 #lang racket
 
 (require (only-in xml write-xexpr xexpr?) 
-         (only-in fpbench core->tex))
+         (only-in fpbench core->tex *expr-cse-able?*
+                          [core-common-subexpr-elim core-cse]))
+
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../interface.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
          "common.rkt" "history.rkt" "../syntax/sugar.rkt")
+         
 (provide make-graph)
 
 (define/contract (regime-info altn)
@@ -46,6 +49,14 @@
            (tr (td (label ([for "try-herbie-output"]) "Out"))
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
+
+(define (alt->tex alt repr)
+  (core->tex (core-cse (program->fpcore (resugar-program (alt-program alt) repr)))))
+
+(define (at-least-two-ops? expr)
+  (match expr
+   [(list op args ...) (ormap list? args)]
+   [_ #f]))
 
 (define (make-graph result out fpcore? profile?)
   (match-define
@@ -170,9 +181,8 @@
                     (tr (th "Error") (td ,(format-bits (errors-score errs))))
                     (tr (th "Cost") (td ,(format-bits cost))))
                   (div ([class "math"])
-                    "\\[" ,(core->tex
-                            (program->fpcore
-                              (resugar-program (alt-program alt) repr)))
+                    "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
+                            (alt->tex alt repr))
                     "\\]"))))
             "")
                                       

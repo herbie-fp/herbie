@@ -665,7 +665,8 @@
 (define (get-repr-conv iprec oprec)
   (for/or ([sig (hash-ref parametric-operators 'cast)])
     (match-define (list* true-name rtype atypes) sig)
-      (and (equal? rtype oprec)
+      (and (repr-conv? true-name)
+           (equal? rtype oprec)
            (equal? (car atypes) iprec)
            true-name)))
 
