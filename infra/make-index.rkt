@@ -190,7 +190,7 @@
       (meta ((charset "utf-8")))
       (title "Herbie Reports")
       (link ((rel "stylesheet") (href "index.css")))
-      (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
+      (script ((src "https://d3js.org/d3.v3.min.js") (charset "utf-8")))
       (script ((src "regression-chart.js")))
       (script ((src "report.js"))))
      (body

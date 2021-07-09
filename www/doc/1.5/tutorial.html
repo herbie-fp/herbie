@@ -92,21 +92,20 @@
 
   <p>When you're writing a new numerical program, it's best to keep
   Herbie open in a browser tab so you can run it easily. That way, you
-  can run Herbie on any complex floating-point expression and so
-  always use an accurate version of that expression. Herbie
-  has <a href="options.html">options</a> to log all the expressions
-  you enter, so that you can refer to them later.</p>
+  can run Herbie on any complex floating-point expression you're
+  coding up and so always use an accurate version of that expression.
+  Herbie has <a href="options.html">options</a> to log all the
+  expressions you enter, so that you can refer to them later.</p>
 
   <p>However, let's suppose you're instead tracking down a
-  floating-point bug in existing code. You'll need start by
+  floating-point bug in existing code. Then you'll need start by
   identifying the problematic floating-point expression.</p>
 
   <p>To demonstrate the workflow, let's walk through
     <a href="https://github.com/josdejong/mathjs/pull/208">bug 208</a>
-    in <a href="http://mathjs.org">math.js</a>, an extensive math
-    library for JavaScript. The bug deals with an inaccuracy in the
-    implementation of square roots for complex numbers. (For a full
-    write-up of the bug itself, check out
+    in <a href="http://mathjs.org">math.js</a>, a math library for
+    JavaScript. The bug deals with inaccurate square roots for complex
+    numbers. (For a full write-up of the bug itself, check out
     a <a href="https://pavpanchekha.com/blog/casio-mathjs.html">blog
     post</a> by one of the Herbie authors.)
   </p>
@@ -227,13 +226,13 @@ else {
   with large exponents approaching infinity.</p>
 
   <p>The vertical axis measures bits of error, from 0 to 64. Lower is
-  better. There are two lines drawn: a red one for your input and a
-  blue one for Herbie's output. You can see from the plot that
-  as <code>xim</code> gets smaller (toward the left, closer to zero),
-  Herbie's improvement becomes more and more significant. You can also
-  see that for very large values of <code>xim</code>, the original
-  program had maximal error (in fact, it overflows) but the replace
-  program is often better.</p>
+  better. There are two lines drawn: a red one for the original
+  expression and a blue one for Herbie's version. You can see from the
+  plot that as <code>xim</code> gets smaller (toward the left, closer
+  to zero), Herbie's improvement becomes more and more significant.
+  You can also see that for very large values of <code>xim</code>, the
+  original program had maximal error (in fact, it overflows) but the
+  Herbie's version is better, though not great.</p>
 
   <p>Of course, your exact output will differ a bit from the
   screenshots and descriptions here, because Herbie is randomized.</p>

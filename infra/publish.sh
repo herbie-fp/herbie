@@ -29,8 +29,9 @@ index () {
 
 download_reports () {
     rsync --recursive --checksum --inplace --ignore-existing \
-          --include 'results.json' --include '*/' --exclude '*' \
+          --include 'results.json' --include 'results.json.gz' --include '*/' --exclude '*' \
           uwplse.org:/var/www/herbie/reports/ previous/
+    find previous/ -name "results.json.gz" -exec gunzip {} \;
 }
 
 upload_reports () {
