@@ -1,7 +1,6 @@
 .git
-graphs
-ml-toy
+.github
+.gitignore
+reports
 papers
-herbie/compile/tc*
-herbie/compile/nr*
-rebuild-paper.sh
+egg-herbie/target
