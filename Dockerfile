@@ -1,4 +1,4 @@
-FROM jackfirth/racket:7.7
+FROM jackfirth/racket:8.1
 MAINTAINER Pavel Panchekha <me@pavpanchekha.com>
 RUN apt-get update \
  && apt-get install -y libcairo2-dev libjpeg62 libpango1.0-dev \
