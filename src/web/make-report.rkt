@@ -92,7 +92,7 @@
       (meta ((charset "utf-8")))
       (link ((rel "stylesheet") (type "text/css") (href "report.css")))
       (script ((src "report.js")))
-      (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
+      (script ((src "https://d3js.org/d3.v3.min.js") (charset "utf-8")))
       (script ((type "text/javascript") (src "arrow-chart.js"))))
  
      (body

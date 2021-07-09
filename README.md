@@ -13,7 +13,7 @@ Installing
 ----------
 
 For full details on installing Herbie, please see the
-[documentation](http://herbie.uwplse.org/doc/latest/installing.html).
+[documentation](https://herbie.uwplse.org/doc/latest/installing.html).
 
 Herbie requires Racket 7.0 or later, and supports Windows, macOS, and
 Linux. Install it with:
@@ -30,10 +30,10 @@ Running Herbie
 --------------
 
 For full details on running Herbie, please see the
-[tutorial](http://herbie.uwplse.org/doc/latest/using-web.html).
+[tutorial](https://herbie.uwplse.org/doc/latest/using-web.html).
 
 Herbie's input format is the Scheme-like
-[FPCore](http://fpbench.org/spec/fpcore-1.2.html);
+[FPCore](https://fpbench.org/spec/fpcore-1.2.html);
 for example `(1 + x) - x` is written 
 
     (FPCore (x) (- (+ 1 x) x))
@@ -52,7 +52,7 @@ constant `1`.
 
 Besides `shell`, Herbie also has a `web` interface, and can be run in
 batch mode on files with the `improve` and `report` commands. Consult
-the [documentation](http://herbie.uwplse.org/doc/latest/options.html).
+the [documentation](https://herbie.uwplse.org/doc/latest/options.html).
 for more.
 
 Helping Out
@@ -92,4 +92,4 @@ Herbie on basic but representative examples with:
 This takes approximately 10 minutes.
 
 Historic and nightly test results are collected on
-[uwplse.org](http://herbie.uwplse.org/reports/).
+[uwplse.org](https://herbie.uwplse.org/reports/).

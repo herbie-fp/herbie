@@ -123,7 +123,7 @@
         "")
 
     `(p ([id "lisp-instructions"])
-        "Please enter formulas as " (a ([href "http://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
+        "Please enter formulas as " (a ([href "https://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
         " expressions, including the top-level " (code "FPCore") " form, "
         "using only the following supported functions:")
     `(p ([id "mathjs-instructions"] [style "display: none;"])
