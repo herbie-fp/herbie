@@ -91,7 +91,7 @@
          ;; Match guaranteed to succeed because we ran type-check first
          (define op* (apply get-parametric-operator op atypes))
          (values (cons op* args*) (operator-info op* 'otype))]
-        [(? real?) 
+        [(? number?) 
          (values
            (match expr
              [(or +inf.0 -inf.0 +nan.0) expr]
@@ -146,7 +146,7 @@
          (cons op* args*))]
     [(? (conjoin complex? (negate real?)))
      `(complex ,(real-part expr) ,(imag-part expr))]
-    [(? real?)
+    [(? number?)
      (if full?
          (match expr
            [-inf.0 (if full? '(- INFINITY) '(neg INFINITY))] ; not '(neg INFINITY) because this is post-resugaring

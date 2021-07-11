@@ -19,6 +19,7 @@
 (define (simplify expr*)
   (define expr ((get-evaluator) expr*))
   (match expr
+    [(? number?) expr]
     [(? constant?) expr]
     [(? variable?) expr]
     [`(λ ,vars ,body)
@@ -47,6 +48,7 @@
 
 (define (simplify-node expr)
   (match expr
+    [(? number?) expr]
     [(? constant?) expr]
     [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))

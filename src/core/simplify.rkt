@@ -185,12 +185,9 @@
 (define (munge expr)
   ;; Despite the name, `expr` might be an expression OR a pattern
   (match expr
-    [(? constant?)
-     (if (symbol? expr)
-         (list expr)
-         expr)]
-    [(? variable?)
-     expr]
+    [(? number?) expr]
+    [(? constant?) (list expr)]
+    [(? variable?) expr]
     [(list head subs ...)
      (cons head (map munge subs))]))
 

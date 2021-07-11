@@ -689,10 +689,9 @@
            (dict-has-key? (cdr operator-impls) op))))
 
 (define (constant? var)
-  (or (real? var)
-      (and (symbol? var)
-           (or (hash-has-key? parametric-constants var) 
-               (dict-has-key? (cdr constant-impls) var)))))
+  (and (symbol? var)
+       (or (hash-has-key? parametric-constants var) 
+           (dict-has-key? (cdr constant-impls) var))))
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))

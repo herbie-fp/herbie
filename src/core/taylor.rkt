@@ -106,6 +106,8 @@
   (match expr
     [(? (curry equal? var))
      (taylor-exact 0 1)]
+    [(? number?)
+     (taylor-exact expr)]
     [(? constant?)
      (taylor-exact expr)]
     [(? variable?)

@@ -16,11 +16,10 @@
   (hash-ref! cache expr
              (λ ()
                 (match expr
+                  [(? number?)
+                   (cons (repeat (bf expr)) (repeat 1))]
                   [(? constant?)
-                   (define val
-                     (if (symbol? expr)
-                         ((constant-info expr 'bf))
-                         (bf expr)))
+                   (define val ((constant-info expr 'bf)))
                    (cons (repeat val) (repeat 1))]
                   [(? variable?)
                    (cons (map (curryr representation-repr->bf (dict-ref (*var-reprs*) expr))
@@ -82,6 +81,7 @@
          (unless (andmap (curry = 1) err)
            (sow (cons err (reverse loc))))
          (match expr
+           [(? number?) (void)]
            [(? constant?) (void)]
            [(? variable?) (void)]
            [(list 'if cond ift iff)
