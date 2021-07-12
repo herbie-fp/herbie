@@ -342,16 +342,6 @@
    (unless (flag-set? 'precision 'fallback)
      (for-each operator-remove! (*unknown-ops*)))))
 
-;; if statement
-
-(define (if-fn test if-true if-false) (if test if-true if-false))
-
-(define-operator (if bool real real) real
-  [bf if-fn] [ival ival-if] [nonffi if-fn])
-
-(define-operator-impl (if if bool real real) real ; types not used
-  [fl if-fn])
-
 (define ((infix-joiner x) . args)
   (string-join args x))
 

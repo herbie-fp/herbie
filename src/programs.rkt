@@ -155,6 +155,10 @@
   ;; Known representations
   (define bool-repr (get-representation 'bool))
 
+  ;; 'if' operator
+  (define (if-op cond ift iff)
+    (if cond ift iff))
+
   (define (munge prog repr)
     (set! size (+ 1 size))
     (define expr
@@ -163,7 +167,7 @@
        [(? constant?) (list (constant-info prog mode))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
-        (list (operator-info 'if mode)
+        (list if-op
               (munge c bool-repr)
               (munge t repr)
               (munge f repr))]
