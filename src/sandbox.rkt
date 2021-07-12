@@ -39,6 +39,7 @@
   (define timeline #f)
   (define output-prec (test-output-prec test))
   (define output-repr (get-representation output-prec))
+  (*output-repr* output-repr)
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 
   (define (compute-result test)
