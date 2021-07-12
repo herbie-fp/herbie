@@ -2,10 +2,34 @@
 
 ;; binary32 builtin plugin
 
+(require math/bigfloat math/flonum)
 (require (submod "syntax/syntax.rkt" internals)
+         (submod "interface.rkt" internals)
          "common.rkt" "float32.rkt")
 
 (eprintf "Loading binary32 support...\n")
+
+;; Only load everything before if single flonum supported?
+;; BC or CS (>= 8.0)
+(when (single-flonum-supported?)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (shift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (fn (- x shift-val))))
+
+(define (unshift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (+ (fn x) shift-val)))
+
+(define-representation (binary32 real float32?)
+  bigfloat->float32
+  bf
+  (shift 31 ordinal->float32)
+  (unshift 31 float32->ordinal)
+  32
+  (disjoin nan? infinite?))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -60,3 +84,5 @@
 
 (define-operator-impl (cast binary32->binary64 binary32) binary64
   [fl identity])
+
+)

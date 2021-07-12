@@ -14,6 +14,8 @@
 
 (define *reprs-with-rules* (make-parameter '()))
 (define *needed-reprs* (make-parameter '()))
+(define *output-repr* (make-parameter #f))
+(define *var-reprs* (make-parameter '()))
 
 ;; Structs
 
@@ -64,40 +66,6 @@
 (define (representation-name? x)
   (hash-has-key? representations x))
 
-(define-representation (bool bool boolean?)
-  identity
-  identity
-  (λ (x) (= x 0))
-  (λ (x) (if x 1 0))
-  1
-  (const #f))
-
-(define (shift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (fn (- x shift-val))))
-
-(define (unshift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (+ (fn x) shift-val)))
-
-(define-representation (binary64 real flonum?)
-  bigfloat->flonum
-  bf
-  (shift 63 ordinal->flonum)
-  (unshift 63 flonum->ordinal)
-  64
-  (disjoin nan? infinite?))
-
-;; BC or CS (>= 8.0)
-(when (single-flonum-supported?)
-  (register-representation! 'binary32 'real float32?
-    bigfloat->float32
-    bf
-    (shift 31 ordinal->float32)
-    (unshift 31 float32->ordinal)
-    32
-    (disjoin nan? infinite?)))
-
 ;; repr <==> real
 
 (define (real->repr x repr)
@@ -117,6 +85,12 @@
 (define (special-value? x repr)
   ((representation-special-values repr) x))
 
-;; Global precision tracking
-(define *output-repr* (make-parameter (get-representation 'binary64)))
-(define *var-reprs* (make-parameter '()))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; boolean representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-representation (bool bool boolean?)
+  identity
+  identity
+  (λ (x) (= x 0))
+  (λ (x) (if x 1 0))
+  1
+  (const #f))

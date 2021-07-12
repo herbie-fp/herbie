@@ -153,20 +153,102 @@
   (register-operator! 'name '(itypes ...) 'otype
                       (list (cons 'key value) ...)))
 
-(define-operator (neg real) real
-  [bf bf-] [ival ival-neg] [nonffi -])
+(define-syntax-rule (define-1ary-real-operator name bf-impl ival-impl nonffi-impl)
+  (define-operator (name real) real
+    [bf bf-impl] [ival ival-impl] [nonffi nonffi-impl]))
 
-(define-operator (+ real real) real
-  [bf bf+] [ival ival-add] [nonffi +])
+(define-syntax-rule (define-2ary-real-operator name bf-impl ival-impl nonffi-impl)
+  (define-operator (name real real) real
+    [bf bf-impl] [ival ival-impl] [nonffi nonffi-impl]))
 
-(define-operator (- real real) real
-  [bf bf-] [ival ival-sub] [nonffi -])
+(define-syntax-rule (define-1ary-real-operators [name bf-impl ival-impl nonffi-impl] ...)
+  (begin (define-1ary-real-operator name bf-impl ival-impl nonffi-impl) ...))
 
-(define-operator (* real real) real
-  [bf bf*] [ival ival-mult] [nonffi *])
+(define-syntax-rule (define-2ary-real-operators [name bf-impl ival-impl nonffi-impl] ...)
+  (begin (define-2ary-real-operator name bf-impl ival-impl nonffi-impl) ...))
 
-(define-operator (/ real real) real
-  [bf bf/] [ival ival-div] [nonffi /])
+(define (no-complex fun)
+  (λ xs
+     (define res (apply fun xs))
+     (if (real? res) res +nan.0)))
+
+(define (bfcopysign x y)
+  (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
+
+(define (from-bigfloat bff)
+  (λ args (bigfloat->flonum (apply bff (map bf args)))))
+
+(define (bffdim x y)
+  (if (bf> x y) (bf- x y) 0.bf))
+
+(define (bffma x y z)
+  (bf+ (bf* x y) z))
+
+(define (bffmod x mod)
+  (bf- x (bf* (bftruncate (bf/ x mod)) mod)))
+
+(define (bflogb x)
+  (bffloor (bflog2 (bfabs x))))
+
+(define (bfremainder x mod)
+  (bf- x (bf* (bfround (bf/ x mod)) mod)))
+
+(define-1ary-real-operators
+ [neg bf- ival-neg -]
+ [acos bfacos ival-acos (no-complex acos)]
+ [acosh bfacosh ival-acosh (no-complex acosh)]
+ [asin bfasin ival-asin (no-complex asin)]
+ [asinh bfasinh ival-asinh (no-complex asinh)]
+ [atan bfatan ival-atan (no-complex atan)]
+ [atanh bfatanh ival-atanh (no-complex atanh)]
+ [cbrt bfcbrt ival-cbrt (no-complex (λ (x) (expt x (/ 1 3))))]
+ [ceil bfceiling ival-ceil ceiling]
+ [cos bfcos ival-cos cos]
+ [cosh bfcosh ival-cosh cosh]
+ [erf bferf ival-erf (no-complex erf)]
+ [erfc bferfc ival-erfc erfc]
+ [exp bfexp ival-exp exp]
+ [exp2 bfexp2 ival-exp2 (no-complex (λ (x) (expt 2 x)))]
+ [expm1 bfexpm1 ival-expm1 (from-bigfloat bfexpm1)]
+ [fabs bfabs ival-fabs abs]
+ [floor bffloor ival-floor floor]
+ [j0 bfbesj0 #f (from-bigfloat bfbesj0)]
+ [j1 bfbesj1 #f (from-bigfloat bfbesj1)]
+ [lgamma bflog-gamma #f log-gamma]
+ [log bflog ival-log (no-complex log)]
+ [log10 bflog10 ival-log10 (no-complex (λ (x) (log x 10)))]
+ [log1p bflog1p ival-log1p (from-bigfloat bflog1p)]
+ [log2 bflog2 ival-log2 (from-bigfloat bflog2)]
+ [logb bflogb ival-logb (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))]
+ [rint bfrint ival-rint round]
+ [round bfround ival-round round]
+ [sin bfsin ival-sin sin]
+ [sinh bfsinh ival-sinh sinh]
+ [sqrt bfsqrt ival-sqrt (no-complex sqrt)]
+ [tan bftan ival-tan tan]
+ [tanh bftanh ival-tanh tanh]
+ [tgamma bfgamma #f gamma]
+ [trunc bftruncate ival-trunc truncate]
+ [y0 bfbesy0 #f (from-bigfloat bfbesy0)]
+ [y1 bfbesy1 #f (from-bigfloat bfbesy1)])
+
+(define-2ary-real-operators
+ [+ bf+ ival-add +]
+ [- bf- ival-sub -]
+ [* bf* ival-mult *]
+ [/ bf/ ival-div /]
+ [atan2 bfatan2 ival-atan2 (no-complex atan)]
+ [copysign bfcopysign ival-copysign (λ (x y) (if (>= y 0) (abs x) (- (abs x))))]
+ [fdim bffdim ival-fdim (λ (x y) (max (- x y) 0))]
+ [fmax bfmax ival-fmax (λ (x y) (cond [(nan? x) y] [(nan? y) x] [else (max x y)]))]
+ [fmin bfmin ival-fmin (λ (x y) (cond [(nan? x) y] [(nan? y) x] [else (min x y)]))]
+ [fmod bffmod ival-fmod (from-bigfloat bffmod)]
+ [hypot bfhypot ival-hypot (from-bigfloat bfhypot)]
+ [pow bfexpt ival-pow (no-complex expt)]
+ [remainder bfremainder ival-remainder remainder])
+
+(define-operator (fma real real real) real
+ [bf bffma] [ival ival-fma] [nonffi (from-bigfloat bffma)])
 
 ;; Operator implementations
 
@@ -230,11 +312,6 @@
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
   (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
-
-(define (no-complex fun)
-  (λ xs
-     (define res (apply fun xs))
-     (if (real? res) res +nan.0)))
 
 (define (default-nonffi . args)
   (raise
@@ -329,9 +406,6 @@
 ;;; (define-libm-operator (ceil ceil.f64 ceil.f32 real) real
 ;;;   [libm ceil ceilf] [bf bfceiling] [ival ival-ceil]
 ;;;   [nonffi ceiling])
-
-;;; (define (bfcopysign x y)
-;;;   (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
 
 ;;; (define-libm-operator (copysign copysign.f64 copysign.f32 real real) real
 ;;;   [libm copysign copysignf] [bf bfcopysign] [ival ival-copysign]

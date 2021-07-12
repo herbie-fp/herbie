@@ -2,10 +2,30 @@
 
 ;; binary64 builtin plugin
 
+(require math/bigfloat math/flonum)
 (require (submod "syntax/syntax.rkt" internals)
+         (submod "interface.rkt" internals)
          "common.rkt")
 
 (eprintf "Loading binary64 support...\n")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (shift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (fn (- x shift-val))))
+
+(define (unshift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (+ (fn x) shift-val)))
+
+(define-representation (binary64 real flonum?)
+  bigfloat->flonum
+  bf
+  (shift 63 ordinal->flonum)
+  (unshift 63 flonum->ordinal)
+  64
+  (disjoin nan? infinite?))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
