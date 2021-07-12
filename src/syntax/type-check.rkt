@@ -18,7 +18,6 @@
        [(list (app syntax-e prop) value rest ...)
         (cons (cons prop (syntax->datum value)) (loop rest))])))
   (define type (dict-ref props* ':precision 'binary64))
-  (get-representation type)   ; load if needed
   (assert-expression-type! body type #:env (for/hash ([var vars]) (values (syntax-e var) type))))
 
 (define (assert-expression-type! stx expected-rtype #:env [env #hash()])

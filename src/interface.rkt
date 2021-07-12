@@ -88,7 +88,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; loads builtin representations as needed
-;; only if 'load-herbie-plugins' has not been called
+;; usually if 'load-herbie-plugins' has not been called
 (define (generate-builtins name)
   (match name
    ['binary64

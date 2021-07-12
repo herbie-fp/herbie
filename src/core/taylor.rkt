@@ -473,5 +473,6 @@
                               ,(factorial n))))))))))
 
 (module+ test
-  (require rackunit)
+  (require rackunit "../interface.rkt")
+  (*output-repr* (get-representation 'binary64))
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
