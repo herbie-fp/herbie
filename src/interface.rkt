@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "syntax/types.rkt" "errors.rkt" "float32.rkt")
+(require "syntax/types.rkt" "errors.rkt")
 
 (provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
