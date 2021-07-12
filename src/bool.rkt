@@ -28,14 +28,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (if-fn test if-true if-false)
-  (if test if-true if-false))
-
 (define (and-fn . as) (andmap identity as))
 (define (or-fn  . as) (ormap identity as))
-
-(define-operator-impl (if if bool real real) real ; types not used
-  [fl if-fn])
 
 (define-operator-impl (not not bool) bool
   [fl not])

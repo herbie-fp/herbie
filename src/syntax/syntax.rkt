@@ -42,6 +42,10 @@
     (and (hash-has-key? rows key)
          (map cons (map car header) (hash-ref rows key)))))
 
+(define (table-has-key? tbl key)
+  (match-let ([(cons header rows) tbl])
+    (hash-has-key? rows key)))
+
 (module+ test (require rackunit))
 
 ;; Abstract constant table
@@ -244,6 +248,9 @@
 (define-operator (fma real real real) real
  [bf bffma] [ival ival-fma] [nonffi (from-bigfloat bffma)])
 
+(define (operator-exists? op)
+  (table-has-key? operators op))
+
 ;; Operator implementations
 
 (define-table operator-impls
@@ -262,11 +269,6 @@
                    (λ (e) (error 'operator-info "Unknown operator or field: ~a ~a"
                                                 operator field))])
     (table-ref operator-impls operator field)))
-
-(define (operator-exists? op)
-  (with-handlers ([exn:fail? (const false)])
-    (table-ref operator-impls op 'otype)
-    true))
 
 (define (operator-remove! operator)
   (table-remove! operator-impls operator))
@@ -344,9 +346,11 @@
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 
-; special case handled by syntax and type checker
 (define-operator (if bool real real) real
   [bf if-fn] [ival ival-if] [nonffi if-fn])
+
+(define-operator-impl (if if bool real real) real ; types not used
+  [fl if-fn])
 
 (define ((infix-joiner x) . args)
   (string-join args x))

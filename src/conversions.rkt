@@ -32,12 +32,12 @@
   (define conv1 (sym-append prec1* '-> prec2*))
   (define conv2 (sym-append prec2* '-> prec1*))
 
-  (unless (operator-exists? conv1)
+  (unless (hash-has-key? parametric-operators-reverse conv1)
     (define impl (compose (representation-bf->repr repr2) (representation-repr->bf repr1)))
     (register-operator-impl! 'cast conv1 (list prec1) prec2  ; fallback implementation
       (list (cons 'fl impl))))
   
-  (unless (operator-exists? conv2)
+  (unless (hash-has-key? parametric-operators-reverse conv2)
     (define impl (compose (representation-bf->repr repr1) (representation-repr->bf repr2)))
     (register-operator-impl! 'cast conv2 (list prec2) prec1  ; fallback implementation
       (list (cons 'fl impl))))
@@ -74,8 +74,8 @@
   (define repr-rewrite2 (sym-append '<- prec2*))
 
   ;; if missing, try generating them
-  (unless (and (operator-exists? conv1)
-               (operator-exists? conv2)
+  (unless (and (hash-has-key? parametric-operators-reverse conv1)
+               (hash-has-key? parametric-operators-reverse conv2)
                (hash-has-key? parametric-operators repr-rewrite1)
                (hash-has-key? parametric-operators repr-rewrite2))
     (generate-conversion-ops prec1 prec2))
