@@ -8,7 +8,7 @@
          "syntax/syntax.rkt" "common.rkt"
          "errors.rkt")
 
-(eprintf "Loading binary64 support...\n")
+; (eprintf "Loading binary64 support...\n")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -120,12 +120,6 @@
               #:when (equal? rtype type))
     true-name))
 
-;; bool ;;
-(define-constant-impl (TRUE TRUE) bool
-  [fl (const true)])
-
-(define-constant-impl (FALSE FALSE) bool
-  [fl (const false)])
 
 ;; TODO: The contracts for operators are tricky because the number of arguments is unknown
 ;; There's no easy way to write such a contract in Racket, so I only constrain the output type.
@@ -350,10 +344,9 @@
 
 (define (if-fn test if-true if-false) (if test if-true if-false))
 
-(define-operator (if real real) real
+; special case handled by syntax and type checker
+(define-operator (if bool real real) real
   [bf if-fn] [ival ival-if] [nonffi if-fn])
-
-(define-operator-impl (if if bool real real) real [fl if-fn]) ; types not used
 
 (define ((infix-joiner x) . args)
   (string-join args x))
@@ -378,8 +371,6 @@
 (define-operator (>=) real
   [itype 'real] [bf (comparator bf>=)] [ival ival->=] [nonffi (comparator >=)])
 
-;; binary32 comparators
-
 ;; logical operators ;;
 
 (define (and-fn . as) (andmap identity as))
@@ -395,17 +386,6 @@
 (define-operator (or bool bool) bool
   [itype 'bool] ; override number of arguments
   [bf or-fn] [ival ival-or] [nonffi or-fn])
-
-(define-operator-impl (not not bool) bool
-  [fl not])
-
-(define-operator-impl (and and bool bool) bool
-  [itype 'bool] [otype 'bool] ; Override number of arguments
-  [fl and-fn])
-
-(define-operator-impl (or or bool bool) bool
-  [itype 'bool] [otype 'bool] ; Override number of arguments
-  [fl or-fn])
 
 ;; Miscellaneous operators ;;
 

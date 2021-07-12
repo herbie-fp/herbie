@@ -114,25 +114,6 @@
    [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
     (register-ruleset! 'name 'groups '((var . type) ...) '((rname input output) ...))]))
 
-;; Boolean
-(define-ruleset bool-reduce (bools simplify fp-safe)
-  #:type ([a bool] [b bool])
-  [not-true     (not TRUE)       FALSE]
-  [not-false    (not FALSE)      TRUE]
-  [not-not      (not (not a))    a]
-  [not-and      (not (and a b))  (or  (not a) (not b))]
-  [not-or       (not (or  a b))  (and (not a) (not b))]
-  [and-true-l   (and TRUE a)     a]
-  [and-true-r   (and a TRUE)     a]
-  [and-false-l  (and FALSE a)    FALSE]
-  [and-false-r  (and a FALSE)    FALSE]
-  [and-same     (and a a)        a]
-  [or-true-l    (or TRUE a)      TRUE]
-  [or-true-r    (or a TRUE)      TRUE]
-  [or-false-l   (or FALSE a)     a]
-  [or-false-r   (or a FALSE)     a]
-  [or-same      (or a a)         a])
-
 ;; Templated rulesets defined by types. These are used to generate duplicate rules that
 ;; are valid in any representation of the same underlying type.
 

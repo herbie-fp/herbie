@@ -12,6 +12,9 @@
 ; cannot be exported with contracts since ffi/unsafe is required
 (provide ->float32) 
 
+(module+ test
+  (require rackunit))
+
 ; Racket CS made single-flonums a little confusing
 ; All single-precision code is here to make things easier
 
@@ -94,7 +97,6 @@
   [fl32/  /])
     
 (module+ test
-  (require rackunit)
   (check-equal? (fl32+ 1.0 2.0) (->float32 3.0))
   (check-equal? (fl32- 1.0 2.0) (->float32 -1.0))
   (check-equal? (fl32* 1.0 2.0) (->float32 2.0))
@@ -107,7 +109,7 @@
 ;; BC or CS (>= 8.0)
 (when (single-flonum-supported?)
 
-(eprintf "Loading binary32 support...\n")
+; (eprintf "Loading binary32 support...\n")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

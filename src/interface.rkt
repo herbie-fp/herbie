@@ -53,7 +53,7 @@
 ;; attempts to generate the repr if not initially found
 (define (get-representation name)
   (or (hash-ref representations name #f)
-      (and (generate-repr name) (hash-ref representations name))
+      (and (generate-repr name) (hash-ref representations name #f))
       (raise-herbie-error "Could not find support for ~a representation" name)))
 
 (define (register-representation! name type repr? . args)
@@ -85,12 +85,23 @@
 (define (special-value? x repr)
   ((representation-special-values repr) x))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; boolean representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation (bool bool boolean?)
-  identity
-  identity
-  (λ (x) (= x 0))
-  (λ (x) (if x 1 0))
-  1
-  (const #f))
+;; load representations as needed
+(define (generate-builtins name)
+  (match name
+   ['binary64
+    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
+      (dynamic-require 'herbie/binary64 #f))
+    #t]
+   ['binary32
+    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
+      (dynamic-require 'herbie/binary32 #f))
+    #t]
+   ['bool
+    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
+      (dynamic-require 'herbie/bool #f))
+    #t]
+   [_ #f]))
+
+(register-generator! generate-builtins)
