@@ -42,10 +42,6 @@
     (and (hash-has-key? rows key)
          (map cons (map car header) (hash-ref rows key)))))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
-
 (module+ test (require rackunit))
 
 ;; Abstract constant table
@@ -123,32 +119,6 @@
   (for/first ([(true-name rtype) (in-dict (hash-ref parametric-constants name))]
               #:when (equal? rtype type))
     true-name))
-
-;; binary64 ;;
-(define-constant-impl (PI PI.f64) binary64
-  [fl (const pi)])
-
-(define-constant-impl (E E.f64) binary64
-  [fl (const (exp 1.0))])
-
-(define-constant-impl (INFINITY INFINITY.f64) binary64
-  [fl (const +inf.0)])
-
-(define-constant-impl (NAN NAN.f64) binary64
-  [fl (const +nan.0)])
-
-;; binary32 ;;
-(define-constant-impl (PI PI.f32) binary32
-  [fl (const (->float32 pi))])
-
-(define-constant-impl (E E.f32) binary32
-  [fl (const (->float32 (exp 1.0)))])
-
-(define-constant-impl (INFINITY INFINITY.f32) binary32
-  [fl (const (->float32 +inf.0))])
-
-(define-constant-impl (NAN NAN.f32) binary32
-  [fl (const (->float32 +nan.0))])
 
 ;; bool ;;
 (define-constant-impl (TRUE TRUE) bool
@@ -291,20 +261,6 @@
 (define (get-operator-arity op)
   (let ([itypes (table-ref operators op 'itype)])
     (if (type-name? itypes) #f (length itypes))))
-  
-;; binary64 4-function ;;
-(define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
-(define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
-(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
-(define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
-(define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
- 
-;; binary32 4-function ;;
-(define-operator-impl (neg neg.f32 binary32) binary32 [fl fl32-])
-(define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl fl32+])
-(define-operator-impl (- -.f32 binary32 binary32) binary32 [fl fl32-])
-(define-operator-impl (* *.f32 binary32 binary32) binary32 [fl fl32*])
-(define-operator-impl (/ /.f32 binary32 binary32) binary32 [fl fl32/])
 
 (define *unknown-ops* (make-parameter '()))
 
@@ -313,237 +269,237 @@
    (unless (flag-set? 'precision 'fallback)
      (for-each operator-remove! (*unknown-ops*)))))
 
-(require ffi/unsafe)
-(define-syntax (define-libm-operator stx)
-  (syntax-case stx (real libm)
-    [(_ (op opf64 opf32 real ...) real [libm id_d id_f] [key value] ...)
-     (let* ([num-args (length (cdddr (syntax-e (cadr (syntax-e stx)))))])
-       #`(begin
-           (define (fallback prec . args)
-             (warn 'fallback #:url "faq.html#native-ops"
-                   "native `~a` not supported on your system, using fallback; ~a"
-                   'op
-                   "use --disable precision:fallback to disable fallbacks")
-             (match prec
-              ['double (apply (operator-info 'opf64 'nonffi) args)]
-              ['float (apply (operator-info 'opf32 'nonffi) args)]))
-           (define double-proc (get-ffi-obj 'id_d #f (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
-                                            (lambda () (*unknown-ops* (cons 'opf64 (*unknown-ops*))) (curry fallback #'double))))
-           (define float-proc (get-ffi-obj 'id_f #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
-                                           (lambda () (*unknown-ops* (cons 'opf32 (*unknown-ops*))) (curry fallback #'float))))
-           (define-operator (op #,@(build-list num-args (λ (_) #'real))) real [key value] ...)
-           (define-operator-impl (op opf64 #,@(build-list num-args (λ (_) #'binary64))) binary64
-             [fl (λ args (apply double-proc args))])
-           (define-operator-impl (op opf32 #,@(build-list num-args (λ (_) #'binary32))) binary32
-             [fl (λ args (->float32 (apply float-proc args)))])
-       ))]))
+;;; (require ffi/unsafe)
+;;; (define-syntax (define-libm-operator stx)
+;;;   (syntax-case stx (real libm)
+;;;     [(_ (op opf64 opf32 real ...) real [libm id_d id_f] [key value] ...)
+;;;      (let* ([num-args (length (cdddr (syntax-e (cadr (syntax-e stx)))))])
+;;;        #`(begin
+;;;            (define (fallback prec . args)
+;;;              (warn 'fallback #:url "faq.html#native-ops"
+;;;                    "native `~a` not supported on your system, using fallback; ~a"
+;;;                    'op
+;;;                    "use --disable precision:fallback to disable fallbacks")
+;;;              (match prec
+;;;               ['double (apply (operator-info 'opf64 'nonffi) args)]
+;;;               ['float (apply (operator-info 'opf32 'nonffi) args)]))
+;;;            (define double-proc (get-ffi-obj 'id_d #f (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
+;;;                                             (lambda () (*unknown-ops* (cons 'opf64 (*unknown-ops*))) (curry fallback #'double))))
+;;;            (define float-proc (get-ffi-obj 'id_f #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
+;;;                                            (lambda () (*unknown-ops* (cons 'opf32 (*unknown-ops*))) (curry fallback #'float))))
+;;;            (define-operator (op #,@(build-list num-args (λ (_) #'real))) real [key value] ...)
+;;;            (define-operator-impl (op opf64 #,@(build-list num-args (λ (_) #'binary64))) binary64
+;;;              [fl (λ args (apply double-proc args))])
+;;;            (define-operator-impl (op opf32 #,@(build-list num-args (λ (_) #'binary32))) binary32
+;;;              [fl (λ args (->float32 (apply float-proc args)))])
+;;;        ))]))
 
-(define-libm-operator (acos acos.f64 acos.f32 real) real
-  [libm acos acosf] [bf bfacos] [ival ival-acos]
-  [nonffi (no-complex acos)])
+;;; (define-libm-operator (acos acos.f64 acos.f32 real) real
+;;;   [libm acos acosf] [bf bfacos] [ival ival-acos]
+;;;   [nonffi (no-complex acos)])
 
-(define-libm-operator (acosh acosh.f64 acosh.f32 real) real
-  [libm acosh acoshf] [bf bfacosh] [ival ival-acosh]
-  [nonffi (no-complex acosh)])
+;;; (define-libm-operator (acosh acosh.f64 acosh.f32 real) real
+;;;   [libm acosh acoshf] [bf bfacosh] [ival ival-acosh]
+;;;   [nonffi (no-complex acosh)])
 
-(define-libm-operator (asin asin.f64 asin.f32 real) real
-  [libm asin asinf] [bf bfasin] [ival ival-asin]
-  [nonffi (no-complex asin)])
+;;; (define-libm-operator (asin asin.f64 asin.f32 real) real
+;;;   [libm asin asinf] [bf bfasin] [ival ival-asin]
+;;;   [nonffi (no-complex asin)])
 
-(define-libm-operator (asinh asinh.f64 asinh.f32 real) real
-  [libm asinh asinhf] [bf bfasinh] [ival ival-asinh]
-  [nonffi (no-complex asinh)])
+;;; (define-libm-operator (asinh asinh.f64 asinh.f32 real) real
+;;;   [libm asinh asinhf] [bf bfasinh] [ival ival-asinh]
+;;;   [nonffi (no-complex asinh)])
 
-(define-libm-operator (atan atan.f64 atan.f32 real) real
-  [libm atan atanf] [bf bfatan] [ival ival-atan]
-  [nonffi (no-complex atan)])
+;;; (define-libm-operator (atan atan.f64 atan.f32 real) real
+;;;   [libm atan atanf] [bf bfatan] [ival ival-atan]
+;;;   [nonffi (no-complex atan)])
 
-(define-libm-operator (atan2 atan2.f64 atan2.f32 real real) real
-  [libm atan2 atan2f] [bf bfatan2] [ival ival-atan2]
-  [nonffi (no-complex atan)])
+;;; (define-libm-operator (atan2 atan2.f64 atan2.f32 real real) real
+;;;   [libm atan2 atan2f] [bf bfatan2] [ival ival-atan2]
+;;;   [nonffi (no-complex atan)])
 
-(define-libm-operator (atanh atanh.f64 atanh.f32 real) real
-  [libm atanh atanhf] [bf bfatanh] [ival ival-atanh]
-  [nonffi (no-complex atanh)])
+;;; (define-libm-operator (atanh atanh.f64 atanh.f32 real) real
+;;;   [libm atanh atanhf] [bf bfatanh] [ival ival-atanh]
+;;;   [nonffi (no-complex atanh)])
 
-(define-libm-operator (cbrt cbrt.f64 cbrt.f32 real) real
-  [libm cbrt cbrtf] [bf bfcbrt] [ival ival-cbrt]
-  [nonffi (no-complex (λ (x) (expt x (/ 1 3))))])
+;;; (define-libm-operator (cbrt cbrt.f64 cbrt.f32 real) real
+;;;   [libm cbrt cbrtf] [bf bfcbrt] [ival ival-cbrt]
+;;;   [nonffi (no-complex (λ (x) (expt x (/ 1 3))))])
 
-(define-libm-operator (ceil ceil.f64 ceil.f32 real) real
-  [libm ceil ceilf] [bf bfceiling] [ival ival-ceil]
-  [nonffi ceiling])
+;;; (define-libm-operator (ceil ceil.f64 ceil.f32 real) real
+;;;   [libm ceil ceilf] [bf bfceiling] [ival ival-ceil]
+;;;   [nonffi ceiling])
 
-(define (bfcopysign x y)
-  (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
+;;; (define (bfcopysign x y)
+;;;   (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
 
-(define-libm-operator (copysign copysign.f64 copysign.f32 real real) real
-  [libm copysign copysignf] [bf bfcopysign] [ival ival-copysign]
-  [nonffi (λ (x y) (if (>= y 0) (abs x) (- (abs x))))])
+;;; (define-libm-operator (copysign copysign.f64 copysign.f32 real real) real
+;;;   [libm copysign copysignf] [bf bfcopysign] [ival ival-copysign]
+;;;   [nonffi (λ (x y) (if (>= y 0) (abs x) (- (abs x))))])
 
-(define-libm-operator (cos cos.f64 cos.f32 real) real
-  [libm cos cosf] [bf bfcos] [ival ival-cos]
-  [nonffi cos])
+;;; (define-libm-operator (cos cos.f64 cos.f32 real) real
+;;;   [libm cos cosf] [bf bfcos] [ival ival-cos]
+;;;   [nonffi cos])
 
-(define-libm-operator (cosh cosh.f64 cosh.f32 real) real
-  [libm cosh coshf] [bf bfcosh] [ival ival-cosh]
-  [nonffi cosh])
+;;; (define-libm-operator (cosh cosh.f64 cosh.f32 real) real
+;;;   [libm cosh coshf] [bf bfcosh] [ival ival-cosh]
+;;;   [nonffi cosh])
 
-(define-libm-operator (erf erf.f64 erf.f32 real) real
-  [libm erf erff] [bf bferf] [ival ival-erf]
-  [nonffi (no-complex erf)])
+;;; (define-libm-operator (erf erf.f64 erf.f32 real) real
+;;;   [libm erf erff] [bf bferf] [ival ival-erf]
+;;;   [nonffi (no-complex erf)])
 
-(define-libm-operator (erfc erfc.f64 erfc.f32 real) real
-  [libm erfc erfcf] [bf bferfc] [ival ival-erfc]
-  [nonffi erfc])
+;;; (define-libm-operator (erfc erfc.f64 erfc.f32 real) real
+;;;   [libm erfc erfcf] [bf bferfc] [ival ival-erfc]
+;;;   [nonffi erfc])
 
-(define-libm-operator (exp exp.f64 exp.f32 real) real
-  [libm exp expf] [bf bfexp] [ival ival-exp]
-  [nonffi exp])
+;;; (define-libm-operator (exp exp.f64 exp.f32 real) real
+;;;   [libm exp expf] [bf bfexp] [ival ival-exp]
+;;;   [nonffi exp])
 
-(define-libm-operator (exp2 exp2.f64 exp2.f32 real) real
-  [libm exp2 exp2f] [bf bfexp2] [ival ival-exp2]
-  [nonffi (no-complex (λ (x) (expt 2 x)))])
+;;; (define-libm-operator (exp2 exp2.f64 exp2.f32 real) real
+;;;   [libm exp2 exp2f] [bf bfexp2] [ival ival-exp2]
+;;;   [nonffi (no-complex (λ (x) (expt 2 x)))])
 
-(define (from-bigfloat bff)
-  (λ args (bigfloat->flonum (apply bff (map bf args)))))
+;;; (define (from-bigfloat bff)
+;;;   (λ args (bigfloat->flonum (apply bff (map bf args)))))
 
-(define-libm-operator (expm1 expm1.f64 expm1.f32 real) real
-  [libm expm1 expm1f] [bf bfexpm1] [ival ival-expm1]
-  [nonffi (from-bigfloat bfexpm1)])
+;;; (define-libm-operator (expm1 expm1.f64 expm1.f32 real) real
+;;;   [libm expm1 expm1f] [bf bfexpm1] [ival ival-expm1]
+;;;   [nonffi (from-bigfloat bfexpm1)])
 
-(define-libm-operator (fabs fabs.f64 fabs.f32 real) real
-  [libm fabs fabsf] [bf bfabs] [ival ival-fabs]
-  [nonffi abs])
+;;; (define-libm-operator (fabs fabs.f64 fabs.f32 real) real
+;;;   [libm fabs fabsf] [bf bfabs] [ival ival-fabs]
+;;;   [nonffi abs])
 
-(define (bffdim x y)
-  (if (bf> x y)
-    (bf- x y)
-    0.bf))
+;;; (define (bffdim x y)
+;;;   (if (bf> x y)
+;;;     (bf- x y)
+;;;     0.bf))
 
-(define-libm-operator (fdim fdim.f64 fdim.f32 real real) real
-  [libm fdim fdimf] [bf bffdim] [ival ival-fdim]
-  [nonffi (λ (x y) (max (- x y) 0))])
+;;; (define-libm-operator (fdim fdim.f64 fdim.f32 real real) real
+;;;   [libm fdim fdimf] [bf bffdim] [ival ival-fdim]
+;;;   [nonffi (λ (x y) (max (- x y) 0))])
 
-(define-libm-operator (floor floor.f64 floor.f32 real) real
-  [libm floor floorf] [bf bffloor] [ival ival-floor]
-  [nonffi (λ (x) (floor x))])
+;;; (define-libm-operator (floor floor.f64 floor.f32 real) real
+;;;   [libm floor floorf] [bf bffloor] [ival ival-floor]
+;;;   [nonffi (λ (x) (floor x))])
 
-(define (bffma x y z)
-  (bf+ (bf* x y) z))
+;;; (define (bffma x y z)
+;;;   (bf+ (bf* x y) z))
 
-(define-libm-operator (fma fma.f64 fma.f32 real real real) real
-  [libm fma fmaf] [bf bffma] [ival ival-fma]
-  [nonffi (λ (x y z) (bigfloat->flonum (bf+ (bf* (bf x) (bf y)) (bf z))))])
+;;; (define-libm-operator (fma fma.f64 fma.f32 real real real) real
+;;;   [libm fma fmaf] [bf bffma] [ival ival-fma]
+;;;   [nonffi (λ (x y z) (bigfloat->flonum (bf+ (bf* (bf x) (bf y)) (bf z))))])
 
-(define-libm-operator (fmax fmax.f64 fmax.f32 real real) real
-  [libm fmax fmaxf] [bf bfmax] [ival ival-fmax]
-  [nonffi (λ (x y) (cond  [(nan? x) y] [(nan? y) x] [else (max x y)]))])
+;;; (define-libm-operator (fmax fmax.f64 fmax.f32 real real) real
+;;;   [libm fmax fmaxf] [bf bfmax] [ival ival-fmax]
+;;;   [nonffi (λ (x y) (cond  [(nan? x) y] [(nan? y) x] [else (max x y)]))])
 
-(define-libm-operator (fmin fmin.f64 fmin.f32 real real) real
-  [libm fmin fminf] [bf bfmin] [ival ival-fmin]
-  [nonffi (λ (x y) (cond  [(nan? x) y] [(nan? y) x] [else (min x y)]))])
+;;; (define-libm-operator (fmin fmin.f64 fmin.f32 real real) real
+;;;   [libm fmin fminf] [bf bfmin] [ival ival-fmin]
+;;;   [nonffi (λ (x y) (cond  [(nan? x) y] [(nan? y) x] [else (min x y)]))])
 
-(define (bffmod x mod)
-  (bf- x (bf* (bftruncate (bf/ x mod)) mod)))
+;;; (define (bffmod x mod)
+;;;   (bf- x (bf* (bftruncate (bf/ x mod)) mod)))
 
-(define-libm-operator (fmod fmod.f64 fmod.f32 real real) real
-  [libm fmod fmodf] [bf bffmod] [ival ival-fmod]
-  [nonffi (from-bigfloat bffmod)])
+;;; (define-libm-operator (fmod fmod.f64 fmod.f32 real real) real
+;;;   [libm fmod fmodf] [bf bffmod] [ival ival-fmod]
+;;;   [nonffi (from-bigfloat bffmod)])
 
-(define-libm-operator (hypot hypot.f64 hypot.f32 real real) real
-  [libm hypot hypotf] [bf bfhypot] [ival ival-hypot]
-  [nonffi (from-bigfloat bfhypot)])
+;;; (define-libm-operator (hypot hypot.f64 hypot.f32 real real) real
+;;;   [libm hypot hypotf] [bf bfhypot] [ival ival-hypot]
+;;;   [nonffi (from-bigfloat bfhypot)])
 
-(define-libm-operator (j0 j0.f64 j0.f32 real) real
-  [libm j0 j0f] [bf bfbesj0] [ival #f]
-  [nonffi (from-bigfloat bfbesj0)])
+;;; (define-libm-operator (j0 j0.f64 j0.f32 real) real
+;;;   [libm j0 j0f] [bf bfbesj0] [ival #f]
+;;;   [nonffi (from-bigfloat bfbesj0)])
 
-(define-libm-operator (j1 j1.f64 j1.f32 real) real
-  [libm j1 j1f] [bf bfbesj1] [ival #f]
-  [nonffi (from-bigfloat bfbesj1)])
+;;; (define-libm-operator (j1 j1.f64 j1.f32 real) real
+;;;   [libm j1 j1f] [bf bfbesj1] [ival #f]
+;;;   [nonffi (from-bigfloat bfbesj1)])
 
-(define-libm-operator (lgamma lgamma.f64 lgamma.f32 real) real
-  [libm lgamma lgammaf] [bf bflog-gamma] [ival #f]
-  [nonffi log-gamma])
+;;; (define-libm-operator (lgamma lgamma.f64 lgamma.f32 real) real
+;;;   [libm lgamma lgammaf] [bf bflog-gamma] [ival #f]
+;;;   [nonffi log-gamma])
 
-(define-libm-operator (log log.f64 log.f32 real) real
-  [libm log logf] [bf bflog] [ival ival-log]
-  [nonffi (no-complex log)])
+;;; (define-libm-operator (log log.f64 log.f32 real) real
+;;;   [libm log logf] [bf bflog] [ival ival-log]
+;;;   [nonffi (no-complex log)])
 
-(define-libm-operator (log10 log10.f64 log10.f32 real) real
-  [libm log10 log10f] [bf bflog10] [ival ival-log10]
-  [nonffi (no-complex (λ (x) (log x 10)))])
+;;; (define-libm-operator (log10 log10.f64 log10.f32 real) real
+;;;   [libm log10 log10f] [bf bflog10] [ival ival-log10]
+;;;   [nonffi (no-complex (λ (x) (log x 10)))])
 
-(define-libm-operator (log1p log1p.f64 log1p.f32 real) real
-  [libm log1p log1pf] [bf bflog1p] [ival ival-log1p]
-  [nonffi (from-bigfloat bflog1p)])
+;;; (define-libm-operator (log1p log1p.f64 log1p.f32 real) real
+;;;   [libm log1p log1pf] [bf bflog1p] [ival ival-log1p]
+;;;   [nonffi (from-bigfloat bflog1p)])
 
-(define-libm-operator (log2 log2.f64 log2.f32 real) real
-  [libm log2 log2f] [bf bflog2] [ival ival-log2]
-  [nonffi (from-bigfloat bflog2)])
+;;; (define-libm-operator (log2 log2.f64 log2.f32 real) real
+;;;   [libm log2 log2f] [bf bflog2] [ival ival-log2]
+;;;   [nonffi (from-bigfloat bflog2)])
 
-(define (bflogb x)
-  (bffloor (bflog2 (bfabs x))))
+;;; (define (bflogb x)
+;;;   (bffloor (bflog2 (bfabs x))))
 
-(define-libm-operator (logb logb.f64 logb.f32 real) real
-  [libm logb logbf] [bf bflogb] [ival ival-logb]
-  [nonffi (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))])
+;;; (define-libm-operator (logb logb.f64 logb.f32 real) real
+;;;   [libm logb logbf] [bf bflogb] [ival ival-logb]
+;;;   [nonffi (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))])
 
-(define-libm-operator (pow pow.f64 pow.f32 real real) real
-  [libm pow powf] [bf bfexpt] [ival ival-pow]
-  [nonffi (no-complex expt)])
+;;; (define-libm-operator (pow pow.f64 pow.f32 real real) real
+;;;   [libm pow powf] [bf bfexpt] [ival ival-pow]
+;;;   [nonffi (no-complex expt)])
 
-(define (bfremainder x mod)
-  (bf- x (bf* (bfround (bf/ x mod)) mod)))
+;;; (define (bfremainder x mod)
+;;;   (bf- x (bf* (bfround (bf/ x mod)) mod)))
 
-(define-libm-operator (remainder remainder.f64 remainder.f32 real real) real
-  [libm remainder remainderf] [bf bfremainder] [ival ival-remainder] 
-  [nonffi remainder])
+;;; (define-libm-operator (remainder remainder.f64 remainder.f32 real real) real
+;;;   [libm remainder remainderf] [bf bfremainder] [ival ival-remainder] 
+;;;   [nonffi remainder])
 
-(define-libm-operator (rint rint.f64 rint.f32 real) real
-  [libm rint rintf] [bf bfrint] [ival ival-rint]
-  [nonffi round])
+;;; (define-libm-operator (rint rint.f64 rint.f32 real) real
+;;;   [libm rint rintf] [bf bfrint] [ival ival-rint]
+;;;   [nonffi round])
 
-(define-libm-operator (round round.f64 round.f32 real) real
-  [libm round roundf] [bf bfround] [ival ival-round]
-  [nonffi round])
+;;; (define-libm-operator (round round.f64 round.f32 real) real
+;;;   [libm round roundf] [bf bfround] [ival ival-round]
+;;;   [nonffi round])
 
-(define-libm-operator (sin sin.f64 sin.f32 real) real
-  [libm sin sinf] [bf bfsin] [ival ival-sin]
-  [nonffi sin])
+;;; (define-libm-operator (sin sin.f64 sin.f32 real) real
+;;;   [libm sin sinf] [bf bfsin] [ival ival-sin]
+;;;   [nonffi sin])
 
-(define-libm-operator (sinh sinh.f64 sinh.f32 real) real
-  [libm sinh sinhf] [bf bfsinh] [ival ival-sinh]
-  [nonffi sinh])
+;;; (define-libm-operator (sinh sinh.f64 sinh.f32 real) real
+;;;   [libm sinh sinhf] [bf bfsinh] [ival ival-sinh]
+;;;   [nonffi sinh])
 
-(define-libm-operator (sqrt sqrt.f64 sqrt.f32 real) real
-  [libm sqrt sqrtf] [bf bfsqrt] [ival ival-sqrt]
-  [nonffi (no-complex sqrt)])
+;;; (define-libm-operator (sqrt sqrt.f64 sqrt.f32 real) real
+;;;   [libm sqrt sqrtf] [bf bfsqrt] [ival ival-sqrt]
+;;;   [nonffi (no-complex sqrt)])
 
-(define-libm-operator (tan tan.f64 tan.f32 real) real
-  [libm tan tanf] [bf bftan] [ival ival-tan]
-  [nonffi tan])
+;;; (define-libm-operator (tan tan.f64 tan.f32 real) real
+;;;   [libm tan tanf] [bf bftan] [ival ival-tan]
+;;;   [nonffi tan])
 
-(define-libm-operator (tanh tanh.f64 tanh.f32 real) real
-  [libm tanh tanhf] [bf bftanh] [ival ival-tanh]
-  [nonffi tanh])
+;;; (define-libm-operator (tanh tanh.f64 tanh.f32 real) real
+;;;   [libm tanh tanhf] [bf bftanh] [ival ival-tanh]
+;;;   [nonffi tanh])
 
-(define-libm-operator (tgamma tgamma.f64 tgamma.f32 real) real
-  [libm tgamma tgammaf] [bf bfgamma] [ival #f]
-  [nonffi gamma])
+;;; (define-libm-operator (tgamma tgamma.f64 tgamma.f32 real) real
+;;;   [libm tgamma tgammaf] [bf bfgamma] [ival #f]
+;;;   [nonffi gamma])
 
-(define-libm-operator (trunc trunc.f64 trunc.f32 real) real
-  [libm trunc truncf] [bf bftruncate] [ival ival-trunc]
-  [nonffi truncate])
+;;; (define-libm-operator (trunc trunc.f64 trunc.f32 real) real
+;;;   [libm trunc truncf] [bf bftruncate] [ival ival-trunc]
+;;;   [nonffi truncate])
 
-(define-libm-operator (y0 y0.f64 y0.f32 real) real
-  [libm y0 y0f] [bf bfbesy0] [ival #f] 
-  [nonffi (from-bigfloat bfbesy0)])
+;;; (define-libm-operator (y0 y0.f64 y0.f32 real) real
+;;;   [libm y0 y0f] [bf bfbesy0] [ival #f] 
+;;;   [nonffi (from-bigfloat bfbesy0)])
 
-(define-libm-operator (y1 y1.f64 y1.f32 real) real
-  [libm y1 y1f] [bf bfbesy1] [ival #f]
-  [nonffi (from-bigfloat bfbesy1)])
+;;; (define-libm-operator (y1 y1.f64 y1.f32 real) real
+;;;   [libm y1 y1f] [bf bfbesy1] [ival #f]
+;;;   [nonffi (from-bigfloat bfbesy1)])
 
 ;; If
 
@@ -577,55 +533,7 @@
 (define-operator (>=) real
   [itype 'real] [bf (comparator bf>=)] [ival ival->=] [nonffi (comparator >=)])
 
-;; binary64 comparators ;;
-(define-operator-impl (== ==.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator =)])
-
-(define-operator-impl (!= !=.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (negate (comparator =))])
-
-(define-operator-impl (< <.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator <)])
-
-(define-operator-impl (> >.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator >)])
-
-(define-operator-impl (<= <=.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator <=)])
-
-(define-operator-impl (>= >=.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator >=)])
-
 ;; binary32 comparators
-(define-operator-impl (== ==.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator =)])
-
-(define-operator-impl (!= !=.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (negate (comparator =))])
-
-(define-operator-impl (< <.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator <)])
-
-(define-operator-impl (> >.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator >)])
-
-(define-operator-impl (<= <=.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator <=)])
-
-(define-operator-impl (>= >=.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator >=)])
 
 ;; logical operators ;;
 
@@ -674,12 +582,6 @@
 
 (define-operator (cast real) real
   [bf identity] [ival identity] [nonffi identity])
-
-(define-operator-impl (cast binary64->binary32 binary64) binary32
-  [fl (curryr ->float32)])
-
-(define-operator-impl (cast binary32->binary64 binary32) binary64
-  [fl identity])
 
 ;; Expression predicates ;;
 

@@ -14,6 +14,8 @@
     true))
 
 (define (load-herbie-plugins)
+  (dynamic-require 'herbie/binary64 #f)
+  (dynamic-require 'herbie/binary32 #f)
   (for ([dir (find-relevant-directories '(herbie-plugin))])
     (define info
       (with-handlers ([exn:fail:filesystem? (const false)])
