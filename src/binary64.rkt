@@ -59,7 +59,7 @@
                    "use --disable precision:fallback to disable fallbacks")
              (apply (operator-info 'op 'nonffi) args))
            (define fl-proc (get-ffi-obj 'id #f (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
-                                         (lambda () (*unknown-ops* (cons 'name (*unknown-ops*))) fallback)))
+                                         (lambda () (*unknown-ops* (cons '#,name (*unknown-ops*))) fallback)))
            (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary64))) binary64
              [fl fl-proc])))]))
 

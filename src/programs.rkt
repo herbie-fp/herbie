@@ -63,6 +63,8 @@
 (define (expr-supports? expr field)
   (let loop ([expr expr])
     (match expr
+      [(list 'if cond ift iff)
+       (and (loop cond) (loop ift) (loop iff))]   ; if is special-cased and always supported
       [(list op args ...)
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
