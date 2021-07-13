@@ -33,7 +33,7 @@
 
 (define (expression->type stx env type error!)
   (match stx
-    [#`,(? real?) type]
+    [#`,(? number?) type]
     [#`,(? constant? x)
      (if (set-member? '(TRUE FALSE) x)
          (constant-info x 'type)

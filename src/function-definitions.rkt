@@ -13,6 +13,7 @@
 
 (define (all-ops expr good?)
   (match expr
+    [(? number?) #t]
     [(? constant?) #t]
     [(? variable?) #t]
     [(list f args ...)

@@ -6,6 +6,7 @@
 
 (define (check-expression* stx vars error!)
   (match stx
+    [#`,(? number?) (void)]
     [#`,(? constant?) (void)]
     [#`,(? variable? var)
      (unless (set-member? vars stx)
