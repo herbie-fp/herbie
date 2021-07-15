@@ -12,6 +12,7 @@
    (+
     1
     (/
+     1
      (sqrt
       (+ 1 (* (pow (/ (* 2 l) Om) 2) (+ (pow (sin kx) 2) (pow (sin ky) 2))))))))))
 
