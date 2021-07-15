@@ -86,6 +86,7 @@
   (define target (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs))
   (define spec (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs))
   (check-unused-variables arg-names body* pre*)
+  (check-weird-variables arg-names)
 
   (test (~a name)
         func-name
@@ -99,7 +100,7 @@
         (representation-name default-repr)
         (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)
         convs))
-        
+
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
   ;; don't appear in the `expr`, because that can allow you to do
@@ -112,6 +113,12 @@
     (warn 'unused-variable
           "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
           (string-join (map ~a unused) ", "))))
+
+(define (check-weird-variables vars)
+  (for* ([var vars] [const (in-hash-keys parametric-constants)])
+    (when (string-ci=? (symbol->string var) (symbol->string const))
+      (warn 'strange-variable
+            "unusual variable ~a; did you mean ~a?" var const))))
 
 (define (load-stdin override-ctx)
   (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
