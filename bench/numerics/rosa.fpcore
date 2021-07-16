@@ -20,7 +20,7 @@
          (* 3 x1 x1 s)
          (* x1 x1 x1)
          x1
-         (* 3 s*)))))))
+         (* 3 s*))))))
 
 (FPCore (v w r)
  :name "Rosa's TurbineBenchmark"
