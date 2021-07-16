@@ -527,8 +527,11 @@
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* (atab-active-alts (^table^)))
 
+  (define ndone-alts (atab-not-done-alts (^table^)))
   (for ([alt (atab-active-alts (^table^))])
-    (timeline-push! 'alts (~a (program-body (alt-program alt))) "fresh" (score-alt alt)))
+    (timeline-push! 'alts (~a (program-body (alt-program alt)))
+                    (if (set-member? ndone-alts alt) "fresh" "done")
+                    (score-alt alt)))
 
   (define joined-alts
     (cond
