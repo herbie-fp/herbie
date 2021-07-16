@@ -244,7 +244,7 @@
               (location-do loc (alt-program altn) genexpr)))
           (when expr*
             (define errs (errors expr* (*pcontext*) (*output-repr*)))
-            (define altn* (alt expr* `(taylor ,name ,loc) (list altn)))
+            (define altn* (alt expr* `(taylor ,name ,var ,loc) (list altn)))
             (when (ormap much-< errs last)
               #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
               (sow altn*)
