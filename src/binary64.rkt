@@ -52,14 +52,14 @@
             [sym2-append (λ (x y) (string->symbol (string-append (symbol->string x) (symbol->string y))))]
             [name (sym2-append (syntax-e (car (syntax-e (cadr (syntax-e stx))))) '.f64)])
        #`(begin
-           (define (fallback . args)
-             (warn 'fallback #:url "faq.html#native-ops"
-                   "native `~a` not supported on your system, using fallback; ~a"
-                   'op
-                   "use --disable precision:fallback to disable fallbacks")
-             (apply fn args))
            (define fl-proc (get-ffi-obj 'id #f (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
-                                         (lambda () (*unknown-ops* (cons '#,name (*unknown-ops*))) fallback)))
+                                         (lambda ()
+                                          (*unknown-ops* (cons '#,name (*unknown-ops*)))
+                                          (warn 'fallback #:url "faq.html#native-ops"
+                                                "native `~a` not supported on your system, using fallback; ~a"
+                                                'op
+                                                "use --disable precision:fallback to disable fallbacks")
+                                          fn)))
            (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary64))) binary64
              [fl fl-proc])))]))
 
@@ -132,7 +132,7 @@
  [tgamma tgamma gamma]
  [trunc trunc truncate]
  [y0 y0 (from-bigfloat bfbesy0)]
- [y1 y1 (from-bigfloat bfbesy1)])
+ [y1 notafunction (from-bigfloat bfbesy1)])
 
 (define-2ary-libm-operators
  [atan2 atan2 (no-complex atan)]

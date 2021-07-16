@@ -30,7 +30,7 @@
 (define representations (make-hash))
 
 ;; Repr / operator generation
-;; Some plugins might define 'templated' reprs (e.g. fixed point with
+;; Some plugins might define 'parameterized' reprs (e.g. fixed point with
 ;; m integer and n fractional bits). Since defining an infinite number of reprs
 ;; is impossible, Herbie stores a list of 'repr generators' to query if it comes
 ;; across a repr that is not known at the time. 
@@ -39,9 +39,10 @@
 ;; repr is and has generated that repr and its operators, and false otherwise
 (define repr-generators '())
 
-(define (register-generator! proc)
-  (-> (-> any/c boolean?))
-  (set! repr-generators (cons proc repr-generators)))
+(define/contract (register-generator! proc)
+  (-> (-> any/c boolean?) void?)
+  (unless (set-member? repr-generators proc)
+    (set! repr-generators (cons proc repr-generators))))
 
 ;; Queries each plugin to generate the representation
 (define (generate-repr repr-name)

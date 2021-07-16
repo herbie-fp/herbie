@@ -152,14 +152,14 @@
             [sym2-append (λ (x y) (string->symbol (string-append (symbol->string x) (symbol->string y))))]
             [name (sym2-append (syntax-e (car (syntax-e (cadr (syntax-e stx))))) '.f32)])
        #`(begin
-           (define (fallback . args)
-             (warn 'fallback #:url "faq.html#native-ops"
-                   "native `~a` not supported on your system, using fallback; ~a"
-                   'op
-                   "use --disable precision:fallback to disable fallbacks")
-             (apply fn args))
            (define fl-proc (get-ffi-obj 'id #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
-                                        (lambda () (*unknown-ops* (cons '#,name (*unknown-ops*))) fallback)))
+                                        (lambda ()
+                                          (*unknown-ops* (cons '#,name (*unknown-ops*)))
+                                          (warn 'fallback #:url "faq.html#native-ops"
+                                                "native `~a` not supported on your system, using fallback; ~a"
+                                                'op
+                                                "use --disable precision:fallback to disable fallbacks")
+                                          fn)))
            (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary32))) binary32
              [fl (λ args (->float32 (apply fl-proc args)))])))]))
 
