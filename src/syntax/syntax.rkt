@@ -137,7 +137,6 @@
   [itype (or/c (listof type-name?) type-name?)]
   [otype type-name?]
   [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
-  [nonffi (unconstrained-argument-number-> value? value?)]
   [ival (or/c #f (unconstrained-argument-number-> ival? ival?))]) 
 
 (define (register-operator! name itypes otype attrib-dict)
@@ -151,24 +150,19 @@
   (register-operator! 'name '(itypes ...) 'otype
                       (list (cons 'key value) ...)))
 
-(define-syntax-rule (define-1ary-real-operator name bf-impl ival-impl nonffi-impl)
+(define-syntax-rule (define-1ary-real-operator name bf-impl ival-impl)
   (define-operator (name real) real
-    [bf bf-impl] [ival ival-impl] [nonffi nonffi-impl]))
+    [bf bf-impl] [ival ival-impl]))
 
-(define-syntax-rule (define-2ary-real-operator name bf-impl ival-impl nonffi-impl)
+(define-syntax-rule (define-2ary-real-operator name bf-impl ival-impl)
   (define-operator (name real real) real
-    [bf bf-impl] [ival ival-impl] [nonffi nonffi-impl]))
+    [bf bf-impl] [ival ival-impl]))
 
-(define-syntax-rule (define-1ary-real-operators [name bf-impl ival-impl nonffi-impl] ...)
-  (begin (define-1ary-real-operator name bf-impl ival-impl nonffi-impl) ...))
+(define-syntax-rule (define-1ary-real-operators [name bf-impl ival-impl] ...)
+  (begin (define-1ary-real-operator name bf-impl ival-impl) ...))
 
-(define-syntax-rule (define-2ary-real-operators [name bf-impl ival-impl nonffi-impl] ...)
-  (begin (define-2ary-real-operator name bf-impl ival-impl nonffi-impl) ...))
-
-(define (no-complex fun)
-  (λ xs
-     (define res (apply fun xs))
-     (if (real? res) res +nan.0)))
+(define-syntax-rule (define-2ary-real-operators [name bf-impl ival-impl] ...)
+  (begin (define-2ary-real-operator name bf-impl ival-impl) ...))
 
 (define (bfcopysign x y)
   (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
@@ -192,61 +186,61 @@
   (bf- x (bf* (bfround (bf/ x mod)) mod)))
 
 (define-1ary-real-operators
- [neg bf- ival-neg -]
- [acos bfacos ival-acos (no-complex acos)]
- [acosh bfacosh ival-acosh (no-complex acosh)]
- [asin bfasin ival-asin (no-complex asin)]
- [asinh bfasinh ival-asinh (no-complex asinh)]
- [atan bfatan ival-atan (no-complex atan)]
- [atanh bfatanh ival-atanh (no-complex atanh)]
- [cbrt bfcbrt ival-cbrt (no-complex (λ (x) (expt x 1/3)))]
- [ceil bfceiling ival-ceil ceiling]
- [cos bfcos ival-cos cos]
- [cosh bfcosh ival-cosh cosh]
- [erf bferf ival-erf (no-complex erf)]
- [erfc bferfc ival-erfc erfc]
- [exp bfexp ival-exp exp]
- [exp2 bfexp2 ival-exp2 (no-complex (λ (x) (expt 2 x)))]
- [expm1 bfexpm1 ival-expm1 (from-bigfloat bfexpm1)]
- [fabs bfabs ival-fabs abs]
- [floor bffloor ival-floor floor]
- [j0 bfbesj0 #f (from-bigfloat bfbesj0)]
- [j1 bfbesj1 #f (from-bigfloat bfbesj1)]
- [lgamma bflog-gamma #f log-gamma]
- [log bflog ival-log (no-complex log)]
- [log10 bflog10 ival-log10 (no-complex (λ (x) (log x 10)))]
- [log1p bflog1p ival-log1p (from-bigfloat bflog1p)]
- [log2 bflog2 ival-log2 (from-bigfloat bflog2)]
- [logb bflogb ival-logb (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))]
- [rint bfrint ival-rint round]
- [round bfround ival-round round]
- [sin bfsin ival-sin sin]
- [sinh bfsinh ival-sinh sinh]
- [sqrt bfsqrt ival-sqrt (no-complex sqrt)]
- [tan bftan ival-tan tan]
- [tanh bftanh ival-tanh tanh]
- [tgamma bfgamma #f gamma]
- [trunc bftruncate ival-trunc truncate]
- [y0 bfbesy0 #f (from-bigfloat bfbesy0)]
- [y1 bfbesy1 #f (from-bigfloat bfbesy1)])
+ [neg bf- ival-neg]
+ [acos bfacos ival-acos]
+ [acosh bfacosh ival-acosh]
+ [asin bfasin ival-asin]
+ [asinh bfasinh ival-asinh]
+ [atan bfatan ival-atan]
+ [atanh bfatanh ival-atanh]
+ [cbrt bfcbrt ival-cbrt]
+ [ceil bfceiling ival-ceil]
+ [cos bfcos ival-cos]
+ [cosh bfcosh ival-cosh]
+ [erf bferf ival-erf]
+ [erfc bferfc ival-erfc]
+ [exp bfexp ival-exp]
+ [exp2 bfexp2 ival-exp2]
+ [expm1 bfexpm1 ival-expm1]
+ [fabs bfabs ival-fabs]
+ [floor bffloor ival-floor]
+ [j0 bfbesj0 #f]
+ [j1 bfbesj1 #f]
+ [lgamma bflog-gamma #f]
+ [log bflog ival-log]
+ [log10 bflog10 ival-log10]
+ [log1p bflog1p ival-log1p]
+ [log2 bflog2 ival-log2]
+ [logb bflogb ival-logb]
+ [rint bfrint ival-rint]
+ [round bfround ival-round]
+ [sin bfsin ival-sin]
+ [sinh bfsinh ival-sinh]
+ [sqrt bfsqrt ival-sqrt]
+ [tan bftan ival-tan]
+ [tanh bftanh ival-tanh]
+ [tgamma bfgamma #f]
+ [trunc bftruncate ival-trunc]
+ [y0 bfbesy0 #f]
+ [y1 bfbesy1 #f])
 
 (define-2ary-real-operators
- [+ bf+ ival-add +]
- [- bf- ival-sub -]
- [* bf* ival-mult *]
- [/ bf/ ival-div /]
- [atan2 bfatan2 ival-atan2 (no-complex atan)]
- [copysign bfcopysign ival-copysign (λ (x y) (if (>= y 0) (abs x) (- (abs x))))]
- [fdim bffdim ival-fdim (λ (x y) (max (- x y) 0))]
- [fmax bfmax ival-fmax (λ (x y) (cond [(nan? x) y] [(nan? y) x] [else (max x y)]))]
- [fmin bfmin ival-fmin (λ (x y) (cond [(nan? x) y] [(nan? y) x] [else (min x y)]))]
- [fmod bffmod ival-fmod (from-bigfloat bffmod)]
- [hypot bfhypot ival-hypot (from-bigfloat bfhypot)]
- [pow bfexpt ival-pow (no-complex expt)]
- [remainder bfremainder ival-remainder remainder])
+ [+ bf+ ival-add]
+ [- bf- ival-sub]
+ [* bf* ival-mult]
+ [/ bf/ ival-div]
+ [atan2 bfatan2 ival-atan2]
+ [copysign bfcopysign ival-copysign]
+ [fdim bffdim ival-fdim]
+ [fmax bfmax ival-fmax]
+ [fmin bfmin ival-fmin]
+ [fmod bffmod ival-fmod]
+ [hypot bfhypot ival-hypot]
+ [pow bfexpt ival-pow]
+ [remainder bfremainder ival-remainder])
 
 (define-operator (fma real real real) real
- [bf bffma] [ival ival-fma] [nonffi (from-bigfloat bffma)])
+ [bf bffma] [ival ival-fma])
 
 (define (operator-exists? op)
   (table-has-key? operators op))
@@ -258,7 +252,6 @@
   [otype representation-name?]
   [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
   [fl    (unconstrained-argument-number-> value? value?)]
-  [nonffi (unconstrained-argument-number-> value? value?)]
   [ival (or/c #f (unconstrained-argument-number-> ival? ival?))])
 
 (define parametric-operators (make-hash))
@@ -309,12 +302,6 @@
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
   (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
 
-(define (default-nonffi . args)
-  (raise
-   (make-exn:fail:unsupported
-    (format "couldn't find ~a and no default implementation defined" 'operator)
-    (current-continuation-marks))))
-
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
     (for/or ([sig (hash-ref parametric-operators name)])
@@ -347,23 +334,22 @@
 
 ;; real operators
 (define-operator (==) real
-  [itype 'real] [bf (comparator bf=)] [ival ival-==] [nonffi (comparator =)])
+  [itype 'real] [bf (comparator bf=)] [ival ival-==])
 
 (define-operator (!=) real
-  [itype 'real] [bf (negate (comparator bf=))] [ival ival-!=]
-  [nonffi (negate (comparator =))])
+  [itype 'real] [bf (negate (comparator bf=))] [ival ival-!=])
 
 (define-operator (<) real
-  [itype 'real] [bf (comparator bf<)] [ival ival-<] [nonffi (comparator <)])
+  [itype 'real] [bf (comparator bf<)] [ival ival-<])
 
 (define-operator (>) real
-  [itype 'real] [bf (comparator bf>)] [ival ival->] [nonffi (comparator >)])
+  [itype 'real] [bf (comparator bf>)] [ival ival->])
 
 (define-operator (<=) real
-  [itype 'real] [bf (comparator bf<=)] [ival ival-<=] [nonffi (comparator <=)])
+  [itype 'real] [bf (comparator bf<=)] [ival ival-<=])
 
 (define-operator (>=) real
-  [itype 'real] [bf (comparator bf>=)] [ival ival->=] [nonffi (comparator >=)])
+  [itype 'real] [bf (comparator bf>=)] [ival ival->=])
 
 ;; logical operators ;;
 
@@ -371,15 +357,15 @@
 (define (or-fn  . as) (ormap identity as))
 
 (define-operator (not bool) bool
-  [bf not] [ival ival-not] [nonffi not])
+  [bf not] [ival ival-not])
 
 (define-operator (and bool bool) bool
   [itype 'bool] ; override number of arguments
-  [bf and-fn] [ival ival-and] [nonffi and-fn])
+  [bf and-fn] [ival ival-and])
 
 (define-operator (or bool bool) bool
   [itype 'bool] ; override number of arguments
-  [bf or-fn] [ival ival-or] [nonffi or-fn])
+  [bf or-fn] [ival ival-or])
 
 ;; Miscellaneous operators ;;
 
@@ -400,7 +386,7 @@
 ;; Conversions
 
 (define-operator (cast real) real
-  [bf identity] [ival identity] [nonffi identity])
+  [bf identity] [ival identity])
 
 ;; Expression predicates ;;
 

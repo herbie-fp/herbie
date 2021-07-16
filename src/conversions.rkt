@@ -48,13 +48,13 @@
 
   (unless (hash-has-key? parametric-operators repr-rewrite1)
     (register-operator! repr-rewrite1 (list 'real) 'real
-      (list (cons 'bf identity) (cons 'ival identity) (cons 'nonffi identity)))
+      (list (cons 'bf identity) (cons 'ival identity)))
     (register-operator-impl! repr-rewrite1 repr-rewrite1 (list prec1) prec1
       (list (cons 'fl identity))))
 
   (unless (hash-has-key? parametric-operators repr-rewrite2)
     (register-operator! repr-rewrite2 (list 'real) 'real
-      (list (cons 'bf identity) (cons 'ival identity) (cons 'nonffi identity)))
+      (list (cons 'bf identity) (cons 'ival identity)))
     (register-operator-impl! repr-rewrite2 repr-rewrite2 (list prec2) prec2
       (list (cons 'fl identity)))))
 
