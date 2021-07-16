@@ -92,16 +92,13 @@
 (define (generate-builtins name)
   (match name
    ['binary64
-    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
-      (dynamic-require 'herbie/binary64 #f))
+    (dynamic-require 'herbie/binary64 #f)
     #t]
    ['binary32
-    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
-      (dynamic-require 'herbie/binary32 #f))
+    (dynamic-require 'herbie/binary32 #f)
     #t]
    ['bool
-    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
-      (dynamic-require 'herbie/bool #f))
+    (dynamic-require 'herbie/bool #f)
     #t]
    [_ #f]))
 
