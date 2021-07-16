@@ -75,7 +75,7 @@
   :name "ab-angle->ABCF C"
   (+  (pow (* a (cos (* PI (/ angle 180)))) 2) (pow (* b (sin (* PI (/ angle 180)))) 2)))
 
-(FPCore (a b angle)
+(FPCore (a b)
   :name "ab-angle->ABCF D"
   (- (* a a b b)))
 
