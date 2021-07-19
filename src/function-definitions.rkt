@@ -24,8 +24,8 @@
 
 (register-reset
  (λ ()
-  (hash-clear! expanders)
-  (hash-clear! evaluators)))
+  (set! expanders (make-hash))
+  (set! evaluators (make-hash))))
 
 (define (make-expander primitives)
   (define known-functions (make-hash))

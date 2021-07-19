@@ -60,7 +60,7 @@
 (register-reset
  (λ ()
   (*analyze-context* (*pcontext*))
-  (hash-clear! *analyze-cache*)))
+  (set! *analyze-cache* (make-hash))))
 
 (define (localize-error prog repr)
   (define varmap (map cons (program-variables prog)
