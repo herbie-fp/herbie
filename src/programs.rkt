@@ -383,5 +383,7 @@
      [_ expr])))
       
 (define (apply-repr-change prog)
-  (match-define (list (and (or 'λ 'lambda) lam) (list args ...) body) prog)
-  `(,lam ,args ,(apply-repr-change-expr body)))
+  (match prog
+   [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body))]
+   [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(apply-repr-change-expr body))]
+   [_ (apply-repr-change-expr prog)]))

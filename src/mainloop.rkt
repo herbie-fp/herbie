@@ -16,10 +16,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs lowlocs gened-series gened-rewrites gened-simplify simplified)
+  (table next-alt locs lowlocs gened-series gened-rewrites gened-simplify)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -175,18 +175,20 @@
   (define-values (locs lowlocs)
     (localize-error (alt-program (^next-alt^)) (*output-repr*)))
 
-  (for ([(err loc) (in-dict locs)])
-    (timeline-push! 'locations
-                    (~a (location-get loc (alt-program (^next-alt^))))
-                    (errors-score err)))
-  (^locs^ (map cdr locs))
+  (^locs^
+    (for/list ([(err loc) (in-dict locs)])
+      (let ([expr (location-get loc (alt-program (^next-alt^)))])
+        (timeline-push! 'locations (~a expr) (errors-score err))
+        (cons loc expr))))
 
-  (when (*pareto-mode*) ; Pareto mode uses low-error locations
-    (for ([(err loc) (in-dict lowlocs)])
-      (timeline-push! 'locations
-                      (~a (location-get loc (alt-program (^next-alt^))))
-                      (errors-score err))))
-  (^lowlocs^ (map cdr (if (*pareto-mode*) lowlocs (list))))
+  (^lowlocs^
+    (if (*pareto-mode*) ; Pareto mode uses low-error locations
+        (for/list ([(err loc) (in-dict lowlocs)])
+          (let ([expr (location-get loc (alt-program (^next-alt^)))])
+            (timeline-push! 'locations (~a expr) (errors-score err))
+            (cons loc expr)))
+        (list)))
+
   (void))
 
 (define transforms-to-try
@@ -200,11 +202,14 @@
 
 ; taylor uses older format, resugaring and desugaring needed
 ; not all taylor transforms are valid in a given repr, return false on failure
-(define (taylor-expr expr repr var f finv)
+(define (taylor-gen expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
-  (with-handlers ([exn:fail? (const #f)]) ; in case taylor fails
-    (define genexpr (approximate expr* var #:transform (cons f finv)))
-    (λ (x) (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
+  (define genexpr
+    (with-handlers ([exn:fail? (const #f)])                     ; in case taylor fails internally
+      (approximate expr* var #:transform (cons f finv))))
+  (λ (x)
+    (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
+      (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
 
 (define (exact-min x y)
   (if (<= x y) x y))
@@ -227,33 +232,29 @@
     (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
     #f))
 
-(define (taylor-alt altn loc)
-  (define expr (location-get loc (alt-program altn)))
+(define (taylor-expr vars expr loc)
   (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
-  (define vars (free-variables expr))
+  (define free-vars (free-variables expr))
   (reap [sow]
-    (for* ([var vars] [transform-type transforms-to-try])
+    (for* ([var free-vars] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
-      (define genexpr (taylor-expr expr repr var f finv))
+      (define genexpr (taylor-gen expr repr var f finv))
       (cond
        [genexpr  ; taylor successful
         #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
         (let loop ([last (for/list ([(p e) (in-pcontext (*pcontext*))]) +inf.0)] [i 0])
-          (define expr*
-            (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
-              (location-do loc (alt-program altn) genexpr)))
+          (define expr* (genexpr expr))
           (when expr*
-            (define errs (errors expr* (*pcontext*) (*output-repr*)))
-            (define altn* (alt expr* `(taylor ,name ,loc) (list altn)))
+            (define errs (errors `(λ ,vars ,expr*) (*pcontext*) (*output-repr*)))
             (when (ormap much-< errs last)
               #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
-              (sow altn*)
+              (sow expr*)
               (when (< i 3)
                 (loop (map exact-min errs last) (+ i 1))))))]
        [else  ; taylor failed
         (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
         (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
-        (sow altn)]))))
+        (sow expr)]))))
 
 (define (gen-series!)
   (unless (^locs^)
@@ -262,23 +263,21 @@
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
 
+    (define vars (program-variables (alt-program (^next-alt^))))
     (define series-expansions
       (apply
        append
-       (for/list ([location (^locs^)] [n (in-naturals 1)])
+       (for/list ([(location expr) (in-dict (^locs^))] [n (in-naturals 1)])
          (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
          (define tnow (current-inexact-milliseconds))
-         (begin0
-             (taylor-alt (^next-alt^) location)
-           (timeline-push! 'times
-                           (~a (location-get location (alt-program (^next-alt^))))
-                           (- (current-inexact-milliseconds) tnow))))))
+         (begin0 (taylor-expr vars expr location)
+           (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
     
     (timeline-push! 'count (length (^locs^)) (length series-expansions))
 
-    (^gened-series^ series-expansions)
-    (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
-    (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
+    (^gened-series^ series-expansions))
+    ;;; (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
+    ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
   (void))
 
 (define (gen-rewrites!)
@@ -292,13 +291,11 @@
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 
   (define changelists
-    (apply append
-	   (for/list ([location (^locs^)] [n (in-naturals 1)])
-	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
-             (define tnow (current-inexact-milliseconds))
-             (define expr (location-get location (alt-program altn)))
-             (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root location)
-               (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+    (for/list ([(location expr) (in-dict (^locs^))] [n (in-naturals 1)])
+      (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
+      (define tnow (current-inexact-milliseconds))
+      (begin0 (rewrite expr (*output-repr*) #:rules (*rules*))
+        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
   (define reprchange-rules
     (if (*pareto-mode*)
@@ -307,30 +304,31 @@
 
   ; Empty in normal mode
   (define changelists-low-locs
-    (apply append
-      (for/list ([location (^lowlocs^)] [n (in-naturals 1)])
-        (debug #:from 'progress #:depth 4 "[" n "/" (length (^lowlocs^)) "] rewriting at" location)
-              (define tnow (current-inexact-milliseconds))
-              (define expr (location-get location (alt-program altn)))
-              (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules #:root location)
-                (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+    (for/list ([(location expr) (in-dict (^lowlocs^))] [n (in-naturals 1)])
+      (debug #:from 'progress #:depth 4 "[" n "/" (length (^lowlocs^)) "] rewriting at" location)
+      (define tnow (current-inexact-milliseconds))
+      (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules)
+        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
-  (define changelists* (append changelists changelists-low-locs))
+  (define comb-changelists (append changelists changelists-low-locs))
+  (define exprs (append (map cdr (^locs^)) (map cdr (^lowlocs^))))
+
   (define rules-used
-    (append-map (curry map change-rule) changelists*))
+    (append-map (curry map change-rule) (apply append comb-changelists)))
   (define rule-counts
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
 
-  (define (repr-rewrite-alt altn)
-    (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
+  (define (apply-change-list expr cl)
+    (apply-repr-change
+      (for/fold ([expr expr]) ([cng (in-list cl)])
+        (change-apply cng expr))))
 
   (define rewritten
-    (filter (λ (altn) (program-body (alt-program altn)))
-      (map repr-rewrite-alt
-        (for/list ([cl changelists*])
-          (for/fold ([altn altn]) ([cng cl])
-            (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))))
+    (filter identity
+      (for/list ([cls (in-list comb-changelists)] [expr exprs])
+        (for/list ([cl (in-list cls)])
+          (apply-change-list expr cl)))))
 
   (define rewritten*
     (if (and (*pareto-mode*) (> (length rewritten) 1000))
@@ -340,8 +338,8 @@
   (timeline-push! 'count (length (^locs^)) (length rewritten*))
 
   (^gened-rewrites^ rewritten*)
-  (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
-  (timeline-push! 'min-error (errors-score (atab-min-errors table*)))
+  ;;; (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
+  ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*)))
   (void))
 
 (define (simplify!)
