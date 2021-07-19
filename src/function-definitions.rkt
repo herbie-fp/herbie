@@ -1,6 +1,6 @@
 #lang racket
 
-(require "config.rkt" "syntax/rules.rkt" "core/matcher.rkt" "programs.rkt" "interface.rkt" "syntax/sugar.rkt")
+(require "config.rkt" "syntax/rules.rkt" "core/matcher.rkt""programs.rkt" "interface.rkt" "syntax/sugar.rkt")
 (provide get-expander get-evaluator)
 
 (define (evaluation-rule? rule)
@@ -21,6 +21,11 @@
 
 (define expanders (make-hash))
 (define evaluators (make-hash))
+
+(register-reset
+ (λ ()
+  (hash-clear! expanders)
+  (hash-clear! evaluators)))
 
 (define (make-expander primitives)
   (define known-functions (make-hash))

@@ -51,7 +51,7 @@
           (values k (map (λ (p) (path->string (build-path link p))) v))
           (values k v)))))
 
-(define timeline-types (make-hash))
+(define timeline-types (make-hasheq))
 
 (define-syntax define-timeline
   (syntax-rules ()
@@ -68,7 +68,7 @@
 (define (make-merger . fields)
   (λ tables
     (define rows (apply append tables))
-    (define groups (make-hash))
+    (define groups (make-hasheq))
     (for ([row rows])
       (define-values (values key*) (partition cdr (map cons row fields)))
       (define key (map car key*))
@@ -123,9 +123,9 @@
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above
-  (define types (make-hash))
+  (define types (make-hasheq))
   (for* ([tl (in-list timelines)] [event tl])
-    (define data (hash-ref! types (hash-ref event 'type) (make-hash)))
+    (define data (hash-ref! types (hash-ref event 'type) (make-hasheq)))
     (for ([(k v) (in-dict event)] #:when (hash-ref timeline-types k #f))
       (if (hash-has-key? data k)
           (hash-update! data k (λ (old) ((hash-ref timeline-types k) v old)))
