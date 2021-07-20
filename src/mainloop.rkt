@@ -248,13 +248,13 @@
             (define errs (errors `(λ ,vars ,expr*) (*pcontext*) (*output-repr*)))
             (when (ormap much-< errs last)
               #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
-              (sow expr*)
+              (sow (cons expr* `(taylor ,name ,loc)))
               (when (< i 3)
                 (loop (map exact-min errs last) (+ i 1))))))]
        [else  ; taylor failed
         (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
         (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
-        (sow expr)]))))
+        (sow (cons expr #f))]))))
 
 (define (gen-series!)
   (unless (^locs^)
@@ -265,16 +265,15 @@
 
     (define vars (program-variables (alt-program (^next-alt^))))
     (define series-expansions
-      (apply
-       append
-       (for/list ([(location expr) (in-dict (^locs^))] [n (in-naturals 1)])
-         (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
-         (define tnow (current-inexact-milliseconds))
-         (begin0 (taylor-expr vars expr location)
-           (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+      (filter cdr
+        (apply append
+          (for/list ([(location expr) (in-dict (^locs^))] [n (in-naturals 1)])
+            (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
+            (define tnow (current-inexact-milliseconds))
+            (begin0 (taylor-expr vars expr '())
+              (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))))
     
     (timeline-push! 'count (length (^locs^)) (length series-expansions))
-
     (^gened-series^ series-expansions))
     ;;; (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
     ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
@@ -320,15 +319,18 @@
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
 
   (define (apply-change-list expr cl)
-    (apply-repr-change
-      (for/fold ([expr expr]) ([cng (in-list cl)])
-        (change-apply cng expr))))
+    (cons
+      (for/fold ([expr expr] #:result (apply-repr-change expr))
+                ([cng (in-list cl)])
+        (change-apply cng expr))
+      (list 'change (reverse cl))))
 
   (define rewritten
-    (filter identity
+    (apply append
       (for/list ([cls (in-list comb-changelists)] [expr exprs])
-        (for/list ([cl (in-list cls)])
-          (apply-change-list expr cl)))))
+        (filter car
+          (for/list ([cl (in-list cls)])
+            (apply-change-list expr cl))))))
 
   (define rewritten*
     (if (and (*pareto-mode*) (> (length rewritten) 1000))
@@ -352,31 +354,30 @@
     (define children (append (or (^gened-series^) empty) (or (^gened-rewrites^) empty)))
 
     (define locs-list
-      (for/list ([child (in-list children)] [n (in-naturals 1)])
+      (for/list ([(expr chg) (in-dict children)] [n (in-naturals 1)])
         ;; We want to avoid simplifying if possible, so we only
         ;; simplify things produced by function calls in the rule
         ;; pattern. This means no simplification if the rule output as
         ;; a whole is not a function call pattern, and no simplifying
         ;; subexpressions that don't correspond to function call
         ;; patterns.
-        (match (alt-event child)
+        (match chg
           [(list 'taylor _ loc) (list loc)]
-          [(list 'change cng)
+          [(list 'change (list cng _ ...))
            (match-define (change rule loc _) cng)
            (define pattern (rule-output rule))
-           (define expr (location-get loc (alt-program child)))
            (cond
             [(not (list? pattern)) '()]
             [else
              (for/list ([pos (in-naturals 1)]
                         [arg-pattern (cdr pattern)] #:when (list? arg-pattern))
                (append (change-location cng) (list pos)))])]
-          [_ (list '(2))])))
+          [_ (list '())])))
 
     (define to-simplify
-      (for/list ([child (in-list children)] [locs locs-list]
+      (for/list ([(child _) (in-dict children)] [locs locs-list]
                  #:when true [loc locs])
-        (location-get loc (alt-program child))))
+        (location-get loc child)))
 
     (define simplification-options
       (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true))
@@ -386,8 +387,8 @@
 
     (define simplified
       (apply append
-             (for/list ([child (in-list children)] [locs locs-list])
-               (make-simplification-combinations child locs simplify-hash))))
+        (for/list ([(child _) (in-dict children)] [locs locs-list])
+          (make-simplification-combinations child locs simplify-hash))))
 
     (timeline-push! 'count (length locs-list) (length simplified))
 
@@ -401,10 +402,15 @@
     (raise-user-error 'finalize-iter! "No candidates simplified. Run (simplify!)"))
 
   (timeline-event! 'prune)
-  (define new-alts (^gened-simplify^))
+  (define vars (program-variables (alt-program (^next-alt^))))
+  (define new-alts
+    (for/list ([expr (in-list (^gened-simplify^))])
+      (alt `(λ ,vars ,expr) 'start '())))
+  
+
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-  (^table^ (atab-add-altns (^table^) (^gened-simplify^) (*output-repr*)))
+  (^table^ (atab-add-altns (^table^) new-alts (*output-repr*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
@@ -511,9 +517,12 @@
                #:precision precision)
   (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
   (when (flag-set? 'setup 'simplify)
-    (^gened-rewrites^ (atab-active-alts (^table^)))
+    (^next-alt^ (car (atab-active-alts (^table^)))) ; temporary (for variables)
+    (^gened-rewrites^ (map (λ (x) (cons (program-body (alt-program x)) #f))
+                           (atab-active-alts (^table^))))
     (simplify!)
-    (finalize-iter!))
+    (finalize-iter!)
+    (^next-alt^ #f))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
     (run-iter!))
