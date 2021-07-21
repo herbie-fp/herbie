@@ -79,8 +79,12 @@
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
 
-;; Enables Pherbie
+;; Pherbie related options
 (define *pareto-mode* (make-parameter #f))
+(define *pareto-pick-limit* (make-parameter 5))
+;; In mainloop, cache improvements between iterat
+
+(define *use-improve-cache* (make-parameter #t))
 
 ;;; About Herbie:
 

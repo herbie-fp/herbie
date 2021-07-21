@@ -50,10 +50,6 @@
 
 (define *sampler* (make-parameter #f))
 
-;; Hard-coded options
-(define *pareto-pick-limit* (make-parameter 5))
-(define *use-improve-cache* (make-parameter #f))
-
 (define improve-cache (make-hash))
 
 ;; Adds an expression to the improvement cache
@@ -194,8 +190,7 @@
   (timeline-event! 'localize)
 
   (define vars (program-variables (alt-program (^next-alt^))))
-  (define-values (locs lowlocs)
-    (localize-error (alt-program (^next-alt^)) (*output-repr*)))
+  (define locs-errs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
 
   ; duplicate locations (already seen)
   (^duplocs^ '())
@@ -203,21 +198,43 @@
   ; high-error locations
   (^locs^
     (filter identity
-      (for/list ([(err loc) (in-dict locs)])
-        (let ([expr (location-get loc (alt-program (^next-alt^)))])
-          (timeline-push! 'locations (~a expr) (errors-score err))
-          (if (hash-has-key? improve-cache expr)
-              (begin0 #f  ; if in cache, move to duplocs
-                (^duplocs^ (cons (cons loc expr) (^duplocs^))))
-              (begin0 (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^))))
-                (cache-improvement! expr))))))) ; in case the expression is used twice
+      (let loop ([locs locs-errs] [chosen '()] [count 0])
+        (cond
+         [(null? locs) (reverse chosen)]
+         [(and (*use-improve-cache*)    ; in case 5th, 6th, ... expressions are duplicates
+               (= count (*localize-expressions-limit*)))
+          (define exprs (map (compose alt-program cdr) chosen))
+          (let loop2 ([locs locs])
+            (match-define (cons err loc) (car locs))
+            (define expr (location-get loc (alt-program (^next-alt^))))
+            (cond
+             [(set-member? expr exprs)
+              (timeline-push! 'locations (~a expr) (errors-score err) #f)
+              (^duplocs^ (cons (cons loc expr) (^duplocs^)))
+              (loop2 (cdr locs))]
+             [else
+              (reverse chosen)]))]
+         [else
+          (match-define (cons err loc) (car locs))
+          (define expr (location-get loc (alt-program (^next-alt^))))
+          (cond
+           [(and (*use-improve-cache*)          ; if in cache, put into duplocs
+                 (hash-has-key? improve-cache expr))  
+            (timeline-push! 'locations (~a expr) (errors-score err) #f)
+            (^duplocs^ (cons (cons loc expr) (^duplocs^)))
+            (loop (cdr locs) chosen count)]
+           [else                                ; else, add to list
+            (define choose (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^)))))
+            (timeline-push! 'locations (~a expr) (errors-score err) #t)
+            (cache-improvement! expr) ; in case the expression is used twice
+            (loop (cdr locs) (cons choose chosen) (+ count 1))])]))))
 
   ; low-error locations
   (^lowlocs^
     (if (*pareto-mode*) ; Pareto mode uses low-error locations
-        (for/list ([(err loc) (in-dict lowlocs)])
+        (for/list ([(err loc) (in-dict (take-up-to (reverse locs-errs) (*localize-expressions-limit*)))])
           (let ([expr (location-get loc (alt-program (^next-alt^)))])
-            (timeline-push! 'locations (~a expr) (errors-score err))
+            (timeline-push! 'locations (~a expr) (errors-score err) #t)
             (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^))))))
         (list)))
 
