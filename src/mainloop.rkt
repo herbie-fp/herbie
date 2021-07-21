@@ -16,10 +16,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs lowlocs gened-series gened-rewrites gened-simplify)
+  (table next-alt locs lowlocs duplocs gened-series gened-rewrites gened-simplify)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -27,6 +27,9 @@
 (define (^lowlocs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-lowlocs! (^shell-state^) newval))
   (shellstate-lowlocs (^shell-state^)))
+(define (^duplocs^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-duplocs! (^shell-state^) newval))
+  (shellstate-duplocs (^shell-state^)))
 (define (^table^ [newval 'none])
   (when (not (equal? newval 'none))  (set-shellstate-table! (^shell-state^) newval))
   (shellstate-table (^shell-state^)))
@@ -46,7 +49,24 @@
   (shellstate-gened-simplify (^shell-state^)))
 
 (define *sampler* (make-parameter #f))
+
+;; Hard-coded options
 (define *pareto-pick-limit* (make-parameter 5))
+(define *use-improve-cache* (make-parameter #f))
+
+(define improve-cache (make-hash))
+
+;; Adds an expression to the improvement cache
+;; If `improve` is not provided, an empty list
+;; is stored as the value
+(define (cache-improvement! expr [improve #f])
+  (when (*use-improve-cache*)
+    (if improve
+        (hash-update! improve-cache expr (curry cons improve) (list improve))
+        (hash-update! improve-cache expr identity (list)))))
+
+(register-reset
+  (λ () (set! improve-cache (make-hash)))) 
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn)
@@ -172,21 +192,33 @@
   (unless (^next-alt^)
     (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
+
+  (define vars (program-variables (alt-program (^next-alt^))))
   (define-values (locs lowlocs)
     (localize-error (alt-program (^next-alt^)) (*output-repr*)))
 
-  (^locs^
-    (for/list ([(err loc) (in-dict locs)])
-      (let ([expr (location-get loc (alt-program (^next-alt^)))])
-        (timeline-push! 'locations (~a expr) (errors-score err))
-        (cons loc expr))))
+  ; duplicate locations (already seen)
+  (^duplocs^ '())
 
+  ; high-error locations
+  (^locs^
+    (filter identity
+      (for/list ([(err loc) (in-dict locs)])
+        (let ([expr (location-get loc (alt-program (^next-alt^)))])
+          (timeline-push! 'locations (~a expr) (errors-score err))
+          (if (hash-has-key? improve-cache expr)
+              (begin0 #f  ; if in cache, move to duplocs
+                (^duplocs^ (cons (cons loc expr) (^duplocs^))))
+              (begin0 (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^))))
+                (cache-improvement! expr))))))) ; in case the expression is used twice
+
+  ; low-error locations
   (^lowlocs^
     (if (*pareto-mode*) ; Pareto mode uses low-error locations
         (for/list ([(err loc) (in-dict lowlocs)])
           (let ([expr (location-get loc (alt-program (^next-alt^)))])
             (timeline-push! 'locations (~a expr) (errors-score err))
-            (cons loc expr)))
+            (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^))))))
         (list)))
 
   (void))
@@ -264,13 +296,12 @@
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
 
-    (define vars (program-variables (alt-program (^next-alt^))))
     (define series-expansions
       (apply append
-        (for/list ([(location expr) (in-dict (^locs^))] [n (in-naturals 1)])
+        (for/list ([(location altn) (in-dict (^locs^))] [n (in-naturals 1)])
           (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
+          (define expr (program-body (alt-program altn)))
           (define tnow (current-inexact-milliseconds))
-          (define altn (alt `(λ ,vars ,expr) (list 'mainloop location) (list (^next-alt^))))  ; extract sub-alt
           (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
             (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
     
@@ -291,8 +322,9 @@
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 
   (define changelists
-    (for/list ([(location expr) (in-dict (^locs^))] [n (in-naturals 1)])
+    (for/list ([(location altn) (in-dict (^locs^))] [n (in-naturals 1)])
       (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
+      (define expr (program-body (alt-program altn)))
       (define tnow (current-inexact-milliseconds))
       (begin0 (rewrite expr (*output-repr*) #:rules (*rules*))
         (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
@@ -304,17 +336,15 @@
 
   ; Empty in normal mode
   (define changelists-low-locs
-    (for/list ([(location expr) (in-dict (^lowlocs^))] [n (in-naturals 1)])
+    (for/list ([(location altn) (in-dict (^lowlocs^))] [n (in-naturals 1)])
       (debug #:from 'progress #:depth 4 "[" n "/" (length (^lowlocs^)) "] rewriting at" location)
+      (define expr (program-body (alt-program altn)))
       (define tnow (current-inexact-milliseconds))
       (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules)
         (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
-  (define vars (program-variables (alt-program (^next-alt^))))
   (define comb-changelists (append changelists changelists-low-locs))
-  (define altns
-    (for/list ([locs (append (^locs^) (^lowlocs^))])
-      (alt `(λ ,vars ,(cdr locs)) (list 'mainloop (car locs)) (list (^next-alt^)))))
+  (define altns (map cdr (append (^locs^) (^lowlocs^))))
 
   (define rules-used
     (append-map (curry map change-rule) (apply append comb-changelists)))
@@ -422,7 +452,22 @@
               (list 'simplify (append loc-prefix (cdr loc)))]))
           (define prog* (location-do loc-prefix (alt-program orig) (λ (_) (program-body prog))))
           (values (alt prog* evt* (list altn*)) loc-prefix)])])))
+  ; add to improve cache
+  (unless (null? loc-prefix)
+    (define orig-sub (location-get loc-prefix (alt-program orig)))
+    (cache-improvement! orig-sub altn))
   altn*)
+
+;; cached alts have outdated location data
+(define (repair-cached-alt altn loc)
+  (let loop ([altn altn])
+    (match altn
+     [(alt _ _ (list))
+      altn]
+     [(alt prog (list 'mainloop _) (list prev))
+      (alt prog (list 'mainloop loc) (list prev))]
+     [(alt prog event (list prev))
+      (alt prog event (list (loop prev)))])))
 
 ;; Finish iteration
 (define (finalize-iter!)
@@ -430,20 +475,30 @@
     (raise-user-error 'finalize-iter! "No candidates simplified. Run (simplify!)"))
 
   (timeline-event! 'prune)
+
   (define new-alts (map (curryr reconstruct-alt (^next-alt^)) (^gened-simplify^)))
+  (define prev-alts
+    (if (^duplocs^)
+        (apply append
+          (for/list ([(loc expr) (in-dict (^duplocs^))])
+            (map (λ (x) (reconstruct-alt (repair-cached-alt x loc) (^next-alt^)))
+                 (hash-ref improve-cache expr))))
+        (list)))
+
+  (define new-alts* (append new-alts prev-alts))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-  (^table^ (atab-add-altns (^table^) new-alts (*output-repr*)))
+  (^table^ (atab-add-altns (^table^) new-alts* (*output-repr*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
   (timeline-push! 'count
-                  (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
+                  (+ (length new-alts*) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
 
   (define data
-    (hash 'new (list (length new-alts)
-                     (length (set-intersect new-alts final-fresh-alts)))
+    (hash 'new (list (length new-alts*)
+                     (length (set-intersect new-alts* final-fresh-alts)))
           'fresh (list (length orig-fresh-alts)
                        (length (set-intersect orig-fresh-alts final-fresh-alts)))
           'done (list (- (length orig-done-alts) (if (^next-alt^) 1 0))
@@ -483,6 +538,8 @@
 
 (define (rollback-iter!)
   (^locs^ #f)
+  (^lowlocs^ #f)
+  (^duplocs^ #f)
   (^next-alt^ #f)
   (^gened-rewrites^ #f)
   (^gened-series^ #f)
