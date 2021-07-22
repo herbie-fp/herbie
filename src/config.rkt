@@ -82,8 +82,8 @@
 ;; Pherbie related options
 (define *pareto-mode* (make-parameter #f))
 (define *pareto-pick-limit* (make-parameter 5))
-;; In mainloop, cache improvements between iterat
 
+;; In mainloop, cache improvements between iterations
 (define *use-improve-cache* (make-parameter #t))
 
 ;;; About Herbie:

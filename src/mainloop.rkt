@@ -62,7 +62,7 @@
         (hash-update! improve-cache expr identity (list)))))
 
 (register-reset
-  (λ () (set! improve-cache (make-hash)))) 
+  (λ () (set! improve-cache (make-hash))))
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn)
@@ -200,29 +200,17 @@
     (filter identity
       (let loop ([locs locs-errs] [chosen '()] [count 0])
         (cond
-         [(null? locs) (reverse chosen)]
-         [(and (*use-improve-cache*)    ; in case 5th, 6th, ... expressions are duplicates
-               (= count (*localize-expressions-limit*)))
-          (define exprs (map (compose alt-program cdr) chosen))
-          (let loop2 ([locs locs])
-            (match-define (cons err loc) (car locs))
-            (define expr (location-get loc (alt-program (^next-alt^))))
-            (cond
-             [(set-member? expr exprs)
-              (timeline-push! 'locations (~a expr) (errors-score err) #f)
-              (^duplocs^ (cons (cons loc expr) (^duplocs^)))
-              (loop2 (cdr locs))]
-             [else
-              (reverse chosen)]))]
+         [(or (null? locs) (= count (*localize-expressions-limit*)))
+          (reverse chosen)]
          [else
           (match-define (cons err loc) (car locs))
           (define expr (location-get loc (alt-program (^next-alt^))))
           (cond
            [(and (*use-improve-cache*)          ; if in cache, put into duplocs
-                 (hash-has-key? improve-cache expr))  
+                 (hash-has-key? improve-cache expr))
             (timeline-push! 'locations (~a expr) (errors-score err) #f)
             (^duplocs^ (cons (cons loc expr) (^duplocs^)))
-            (loop (cdr locs) chosen count)]
+            (loop (cdr locs) chosen (+ count 1))]
            [else                                ; else, add to list
             (define choose (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^)))))
             (timeline-push! 'locations (~a expr) (errors-score err) #t)
@@ -249,23 +237,6 @@
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
 
-; taylor uses older format, resugaring and desugaring needed
-; not all taylor transforms are valid in a given repr, return false on failure
-(define (taylor-expr expr repr var f finv)
-  (define expr* (resugar-program expr repr #:full #f))
-  (define genexpr
-    (with-handlers ([exn:fail? (const #f)])                     ; in case taylor fails internally
-      (approximate expr* var #:transform (cons f finv))))
-  (λ (x)
-    (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
-      (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
-
-(define (exact-min x y)
-  (if (<= x y) x y))
-
-(define (much-< x y)
-  (< x (/ y 2)))
-
 ;; Taylor is problematic since it doesn't know what reprs are
 ;; There are two types of errors that occur due to this inconsistency
 ;;  - reduce:
@@ -281,26 +252,30 @@
     (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
     #f))
 
+; taylor uses older format, resugaring and desugaring needed
+; not all taylor transforms are valid in a given repr, return false on failure
+(define (taylor-expr expr repr var f finv)
+  (define expr* (resugar-program expr repr #:full #f))
+  (with-handlers ([exn:fail? (const #f)])       ; in case taylor fails internally
+    (define genexpr (approximate expr* var #:transform (cons f finv)))
+    (λ (x) (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
+            (desugar-program (genexpr) repr (*var-reprs*) #:full #f)))))
+
 (define (taylor-alt altn)
   (define expr (program-body (alt-program altn)))
   (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
-  (define free-vars (free-variables expr))
+  (define vars (free-variables expr))
   (reap [sow]
-    (for* ([var free-vars] [transform-type transforms-to-try])
+    (for* ([var vars] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define genexpr (taylor-expr expr repr var f finv))
       (cond
        [genexpr  ; taylor successful
         #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
-        (let loop ([last (for/list ([(p e) (in-pcontext (*pcontext*))]) +inf.0)] [i 0])
+        (for ([i (in-range 4)])
           (define expr* (location-do '(2) (alt-program altn) genexpr))
           (when expr*
-            (define errs (errors expr* (*pcontext*) (*output-repr*)))
-            (when (ormap much-< errs last)
-              #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
-              (sow (alt expr* (list 'taylor name '(2)) (list altn)))
-              (when (< i 3)
-                (loop (map exact-min errs last) (+ i 1))))))]
+            (sow (alt expr* (list 'taylor name '(2)) (list altn)))))]
        [else  ; taylor failed
         (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
         (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
@@ -321,9 +296,10 @@
           (define tnow (current-inexact-milliseconds))
           (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
             (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
-    
+
     (timeline-push! 'count (length (^locs^)) (length series-expansions))
     (^gened-series^ series-expansions))
+
     ;;; (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
     ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
   (void))
@@ -343,7 +319,7 @@
       (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
       (define expr (program-body (alt-program altn)))
       (define tnow (current-inexact-milliseconds))
-      (begin0 (rewrite expr (*output-repr*) #:rules (*rules*))
+      (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root '(2))
         (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
   (define reprchange-rules
@@ -357,7 +333,7 @@
       (debug #:from 'progress #:depth 4 "[" n "/" (length (^lowlocs^)) "] rewriting at" location)
       (define expr (program-body (alt-program altn)))
       (define tnow (current-inexact-milliseconds))
-      (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules)
+      (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules #:root '(2))
         (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
   (define comb-changelists (append changelists changelists-low-locs))
@@ -369,19 +345,14 @@
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
 
-  (define (apply-change-list altn cl)
-    (for/fold ([altn altn] #:result (apply-repr-change altn))
-              ([cng (in-list cl)])
-      (define cng* (struct-copy change cng
-                    [location (cons 2 (change-location cng))]))
-      (alt (change-apply cng* (alt-program altn)) (list 'change cng*) (list altn))))
-
   (define rewritten
-    (apply append
-      (for/list ([cls (in-list comb-changelists)] [altn altns])
-        (filter alt-program
-          (for/list ([cl (in-list cls)])
-            (apply-change-list altn cl))))))
+    (filter (compose program-body alt-program)  ; false body means failure
+      (for/list ([cls comb-changelists] [altn altns]
+                #:when true [cl cls])
+        (for/fold ([altn altn] #:result (apply-repr-change altn)) ([cng cl])
+            (alt (change-apply cng (alt-program altn))
+                 (list 'change cng)
+                 (list altn))))))
 
   (define rewritten*
     (if (and (*pareto-mode*) (> (length rewritten) 1000))
@@ -389,7 +360,6 @@
         rewritten))
         
   (timeline-push! 'count (length (^locs^)) (length rewritten*))
-
   (^gened-rewrites^ rewritten*)
   ;;; (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
   ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*)))
@@ -422,7 +392,7 @@
             [else
              (for/list ([pos (in-naturals 1)]
                         [arg-pattern (cdr pattern)] #:when (list? arg-pattern))
-               (append (change-location cng) (list pos)))])]
+               (append loc (list pos)))])]
           [_ (list '(2))])))
 
     (define to-simplify
@@ -439,7 +409,7 @@
     (define simplified
       (apply append
              (for/list ([child (in-list children)] [locs locs-list])
-               (make-simplification-combinations child locs simplify-hash))))
+              (make-simplification-combinations child locs simplify-hash))))
 
     (timeline-push! 'count (length locs-list) (length simplified))
     (^gened-simplify^ simplified))
