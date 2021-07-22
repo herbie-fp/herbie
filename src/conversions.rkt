@@ -5,7 +5,7 @@
          (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
 (provide generate-conversions generate-prec-rewrites get-rewrite-operator *conversions*)
 
-(define *conversions* (make-parameter (make-hash)))
+(define *conversions* (make-parameter (hash)))
 
 (define/contract (string-replace* str changes)
   (-> string? (listof (cons/c string? string?)) string?)
@@ -104,8 +104,8 @@
     (for/fold ([reprs '()]) ([conv convs])
       (define prec1 (first conv))
       (define prec2 (last conv))
-      (hash-update! (*conversions*) prec1 (λ (x) (cons prec2 x)) '())
-      (hash-update! (*conversions*) prec2 (λ (x) (cons prec1 x)) '())
+      (*conversions* (hash-update (*conversions*) prec1 (λ (x) (cons prec2 x)) '()))
+      (*conversions* (hash-update (*conversions*) prec2 (λ (x) (cons prec1 x)) '()))
       (generate-prec-rewrite prec1 prec2)
       (set-union reprs (list (get-representation prec1) (get-representation prec2)))))
   (*needed-reprs* (set-union reprs (*needed-reprs*))))
