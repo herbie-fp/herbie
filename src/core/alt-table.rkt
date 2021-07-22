@@ -14,9 +14,9 @@
   (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
                              #:only-fresh boolean?
                              . -> . (values alt? alt-table?)))
-  (atab-peek-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
+  (atab-peek-alt (alt-table? #:picking-func ((listof alt?) . -> . (or/c alt? boolean?))
                              #:only-fresh boolean?
-                             . -> . (values alt? alt-table?)))
+                             . -> . (or/c alt? boolean?)))
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-context (alt-table? . -> . pcontext?))
   (atab-min-errors (alt-table? . -> . (listof real?)))

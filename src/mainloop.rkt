@@ -16,10 +16,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs lowlocs duplocs gened-series gened-rewrites gened-simplify)
+  (table next-alt locs lowlocs duplocs gened-series gened-rewrites gened-simplify gened-full)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -47,6 +47,9 @@
 (define (^gened-simplify^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-gened-simplify! (^shell-state^) newval))
   (shellstate-gened-simplify (^shell-state^)))
+(define (^gened-full^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-gened-full! (^shell-state^) newval))
+  (shellstate-gened-full (^shell-state^)))
 
 (define *sampler* (make-parameter #f))
 
@@ -258,8 +261,7 @@
   (define expr* (resugar-program expr repr #:full #f))
   (with-handlers ([exn:fail? (const #f)])       ; in case taylor fails internally
     (define genexpr (approximate expr* var #:transform (cons f finv)))
-    (λ (x) (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
-            (desugar-program (genexpr) repr (*var-reprs*) #:full #f)))))
+    (λ (x) (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
 
 (define (taylor-alt altn)
   (define expr (program-body (alt-program altn)))
@@ -273,7 +275,9 @@
        [genexpr  ; taylor successful
         #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
         (for ([i (in-range 4)])
-          (define expr* (location-do '(2) (alt-program altn) genexpr))
+          (define expr* 
+            (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
+              (location-do '(2) (alt-program altn) genexpr)))
           (when expr*
             (sow (alt expr* (list 'taylor name '(2)) (list altn)))))]
        [else  ; taylor failed
@@ -345,11 +349,14 @@
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
 
+  (define (repr-change altn)
+    (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
+
   (define rewritten
     (filter (compose program-body alt-program)  ; false body means failure
       (for/list ([cls comb-changelists] [altn altns]
                 #:when true [cl cls])
-        (for/fold ([altn altn] #:result (apply-repr-change altn)) ([cng cl])
+        (for/fold ([altn altn] #:result (repr-change altn)) ([cng cl])
             (alt (change-apply cng (alt-program altn))
                  (list 'change cng)
                  (list altn))))))
@@ -456,13 +463,8 @@
      [(alt prog event (list prev))
       (alt prog event (list (loop prev)))])))
 
-;; Finish iteration
-(define (finalize-iter!)
-  (unless (^gened-simplify^)
-    (raise-user-error 'finalize-iter! "No candidates simplified. Run (simplify!)"))
-
-  (timeline-event! 'prune)
-
+;; Converts subexpressions back to full alternatives
+(define (reconstruct!)
   (define new-alts (map (curryr reconstruct-alt (^next-alt^)) (^gened-simplify^)))
   (define prev-alts
     (if (^duplocs^)
@@ -472,20 +474,28 @@
                  (hash-ref improve-cache expr))))
         (list)))
 
-  (define new-alts* (append new-alts prev-alts))
+  (^gened-full^ (append new-alts prev-alts)))
+
+;; Finish iteration
+(define (finalize-iter!)
+  (unless (^gened-full^)
+    (raise-user-error 'finalize-iter! "No candidates ready for pruning!"))
+
+  (timeline-event! 'prune)
+  (define new-alts (^gened-full^))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-  (^table^ (atab-add-altns (^table^) new-alts* (*output-repr*)))
+  (^table^ (atab-add-altns (^table^) new-alts (*output-repr*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
   (timeline-push! 'count
-                  (+ (length new-alts*) (length orig-fresh-alts) (length orig-done-alts))
+                  (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
 
   (define data
-    (hash 'new (list (length new-alts*)
-                     (length (set-intersect new-alts* final-fresh-alts)))
+    (hash 'new (list (length new-alts)
+                     (length (set-intersect new-alts final-fresh-alts)))
           'fresh (list (length orig-fresh-alts)
                        (length (set-intersect orig-fresh-alts final-fresh-alts)))
           'done (list (- (length orig-done-alts) (if (^next-alt^) 1 0))
@@ -520,6 +530,7 @@
     (debug #:from 'progress #:depth 3 "simplifying candidates")
     (simplify!))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
+  (reconstruct!)
   (finalize-iter!)
   (void))
 
@@ -531,6 +542,7 @@
   (^gened-rewrites^ #f)
   (^gened-series^ #f)
   (^gened-simplify^ #f)
+  (^gened-full^ #f)
   (void))
 
 (define (rollback-improve!)
@@ -545,31 +557,28 @@
     (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
   (debug #:from 'progress #:depth 3 "Picking candidate(s)")
-  (define-values (rewritten series)
-    (for/fold ([rewritten '()] [series '()])
-              ([picked (choose-alts)] [i (in-naturals 1)])
-      (debug #:from 'pick #:depth 4 (format "Picked [~a] " i) picked)
+  (^gened-full^
+    (for/fold ([full '()]) ([picked (choose-alts)] [i (in-naturals 1)])
       (define (picking-func x)
         (for/first ([v x] #:when (alt-equal? v picked)) v))
+      (debug #:from 'pick #:depth 4 (format "Picked [~a] " i) picked)
       (define-values (_ table*)
         (atab-pick-alt (^table^) #:picking-func picking-func #:only-fresh #t))
       (^next-alt^ picked)
       (^table^ table*)
-
       (debug #:from 'progress #:depth 3 "localizing error")
       (localize!)
       (debug #:from 'progress #:depth 3 "generating rewritten candidates")
       (gen-rewrites!)
       (debug #:from 'progress #:depth 3 "generating series expansions")
       (gen-series!)
-      (values (append (^gened-rewrites^) rewritten)
-              (append (^gened-series^) series))))
-  (^gened-rewrites^ rewritten)
-  (^gened-series^ series)
-  (debug #:from 'progress #:depth 3 "simplifying candidates")
-  (simplify!)
+      (debug #:from 'progress #:depth 3 "simplifying candidates")
+      (simplify!)
+      (reconstruct!)
+      (append full (^gened-full^))))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
   (finalize-iter!))
+  
 
 (define (run-improve prog iters
                      #:precondition [precondition #f]
@@ -586,6 +595,7 @@
   (when (flag-set? 'setup 'simplify)
     (^gened-rewrites^ (atab-active-alts (^table^)))
     (simplify!)
+    (reconstruct!)
     (finalize-iter!)
     (^next-alt^ #f))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
