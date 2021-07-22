@@ -27,7 +27,7 @@
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
-(define representations (make-hash))
+(define representations (hash))
 
 ;; Repr / operator generation
 ;; Some plugins might define 'parameterized' reprs (e.g. fixed point with
@@ -58,8 +58,9 @@
       (raise-herbie-error "Could not find support for ~a representation" name)))
 
 (define (register-representation! name type repr? . args)
-  (hash-set! representations name
-            (apply representation name (get-type type) repr? args)))
+  (set! representations
+    (hash-set representations name
+              (apply representation name (get-type type) repr? args))))
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
   (register-representation! 'name 'type repr? args ...))

@@ -6,7 +6,7 @@
 (module+ test (require rackunit))
 
 ;; name -> (vars repr body)
-(define *functions* (make-parameter (make-hash)))
+(define *functions* (make-parameter (make-hasheq)))
 
 (define (register-function! name args repr body)
   (hash-set! (*functions*) name (list args repr body)))

@@ -120,7 +120,6 @@ jobs:
     needs: [ 'hamming' ]
     strategy:
       matrix: # this takes a while: don't run too many
-        racket-version: [ '8.0' ]
         precision: [ 'binary32', 'binary64' ]
     steps:
       - name: "Install Packages"
@@ -128,7 +127,7 @@ jobs:
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.3.1
         with:
-          version: ${{ matrix.racket-version }}
+          version: '8.0'
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install

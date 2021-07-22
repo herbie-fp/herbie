@@ -25,6 +25,12 @@
 (define *reeval-pts* (make-parameter 8000))
 (define *timeout* (make-parameter (* 1000 60 5/2)))
 
+;; true if Racket CS <= 8.2
+(define cs-places-workaround?
+  (let ([major (string->number (substring (version) 0 1))]
+        [minor (string->number (substring (version) 2 3))])
+    (or (< major 8) (and (= major 8) (<= minor 2)))))
+
 (define (get-p&es context)
   (for/lists (pts exs)
       ([(pt ex) (in-pcontext context)])
@@ -124,6 +130,11 @@
            #:render (λ (p order) (write-json (profile->json p)))))
         (compute-result test)))
 
+  ; CS versions <= 8.2: problems with scheduler
+  ; cause places to stay in a suspended state
+  (when cs-places-workaround?
+    (thread (lambda () (sync (system-idle-evt)))))
+  
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)

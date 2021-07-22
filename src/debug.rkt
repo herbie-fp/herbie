@@ -29,7 +29,7 @@
       (= val1 val2)
       (equal? val1 val2)))
 
-(define *cur-debug-levels* (make-hash))
+(define *cur-debug-levels* (make-hasheq))
 ;; To understand this it might be useful to understand the system.
 ;; The current level of any debug flag is fluid, within a range.
 ;; It's "setting" determines the range, or a fixed value,
