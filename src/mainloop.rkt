@@ -213,7 +213,7 @@
                  (hash-has-key? improve-cache expr))
             (timeline-push! 'locations (~a expr) (errors-score err) #f)
             (^duplocs^ (cons (cons loc expr) (^duplocs^)))
-            (loop (cdr locs) chosen (+ count 1))]
+            (loop (cdr locs) chosen (if (*localize-limit-for-new*) count (+ count 1)))]
            [else                                ; else, add to list
             (define choose (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^)))))
             (timeline-push! 'locations (~a expr) (errors-score err) #t)
