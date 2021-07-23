@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+  job1:
+    name: Create Initial Release
+    runs-on: ubuntu-latest
+    outputs: 
+      upload_url: ${{ steps.create_release.outputs.upload_url }} 
+    
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: true
+          prerelease: false
+
+  job2:
+    name: Build
+    needs: job1
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macOS-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+            
+      - name: build egg-herbie
+        run: |
+          cargo build --release --manifest-path=egg-herbie/Cargo.toml
+      
+      - name: Create tarball
+        run: |
+          tar -czvf herbie-${{ matrix.os }}.tar.gz ../herbie
+      
+      - name: Upload assets
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.job1.outputs.upload_url }}
+          asset_path: herbie-${{ matrix.os }}.tar.gz
+          asset_name: herbie-${{ matrix.os }}.tar.gz
+          asset_content_type: application/gzip
