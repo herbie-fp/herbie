@@ -27,13 +27,13 @@ jobs:
   job2:
     name: Build
     needs: job1
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os:
-          - windows-latest
-          - ubuntu-latest
-          - macOS-latest
+          - windows
+          - ubuntu
+          - macOS
+    runs-on: ${{ matrix.os }}-latest
     steps:
       - uses: actions/checkout@v2
 
