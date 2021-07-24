@@ -158,8 +158,10 @@
   (define bool-repr (get-representation 'bool))
 
   ;; 'if' operator
-  (define (if-op cond ift iff)
-    (if cond ift iff))
+  (define if-op
+    (match mode
+     [(or 'fl 'bf) (λ (c ift iff) (if c ift iff))]
+     ['ival ival-if]))
 
   (define (munge prog repr)
     (set! size (+ 1 size))
@@ -236,7 +238,7 @@
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
   (define exact-value? (conjoin number? exact?))
-  (match (cons (hash-ref parametric-operators-reverse op) args)
+  (match (cons op args)
     [(list '+ (? exact-value? as) ...) (apply + as)]
     [(list '- (? exact-value? as) ...) (apply - as)]
     [(list '* (? exact-value? as) ...) (apply * as)]

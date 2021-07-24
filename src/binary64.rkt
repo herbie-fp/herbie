@@ -132,7 +132,7 @@
  [tgamma tgamma gamma]
  [trunc trunc truncate]
  [y0 y0 (from-bigfloat bfbesy0)]
- [y1 notafunction (from-bigfloat bfbesy1)])
+ [y1 y1 (from-bigfloat bfbesy1)])
 
 (define-2ary-libm-operators
  [atan2 atan2 (no-complex atan)]

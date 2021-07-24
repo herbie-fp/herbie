@@ -161,7 +161,7 @@
                                                 "use --disable precision:fallback to disable fallbacks")
                                           fn)))
            (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary32))) binary32
-             [fl (λ args (->float32 (apply fl-proc args)))])))]))
+             [fl fl-proc])))]))
 
 (define-syntax-rule (define-1ary-libm-operator op name fallback)
   (define-libm-operator (op real) [libm name] [nonffi fallback]))

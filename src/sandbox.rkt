@@ -28,8 +28,11 @@
 ;; true if Racket CS <= 8.2
 (define cs-places-workaround?
   (let ([major (string->number (substring (version) 0 1))]
-        [minor (string->number (substring (version) 2 3))])
-    (or (< major 8) (and (= major 8) (<= minor 2)))))
+        [minor (string->number (substring (version) 2 3))]
+        [rest  (substring (version) 3)])
+    (or (< major 8)
+        (and (= major 8) (< minor 2))
+        (and (= major 8) (= minor 2) (zero? (string-length rest))))))
 
 (define (get-p&es context)
   (for/lists (pts exs)
