@@ -81,5 +81,5 @@
 
 (register-reset
  (λ ()
-   (set-clear! warnings-seen)
+   (set! warnings-seen (mutable-set))
    (set! warning-log '())))

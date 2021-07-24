@@ -40,7 +40,7 @@
 ;; standards, this will have to have more information passed in
 (define (type-of expr repr env)
   (match expr
-   [(? real?) (get-type 'real)]
+   [(? number?) (get-type 'real)]
    [(? (representation-repr? repr)) (representation-type repr)]
    [(? constant?) 
     (representation-type (get-representation (constant-info expr 'type)))]
@@ -53,7 +53,7 @@
 ;; Fast version does not recurse into functions applications
 (define (repr-of expr repr env)
   (match expr
-   [(? real?) repr]
+   [(? number?) repr]
    [(? (representation-repr? repr)) repr]
    [(? constant?) (get-representation (constant-info expr 'type))]
    [(? variable?) (dict-ref env expr)]
@@ -66,7 +66,8 @@
       [(list op args ...)
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
-      [(? constant?) (or (not (symbol? expr)) (constant-info expr field))])))
+      [(? number?) true]
+      [(? constant?) (constant-info expr field)])))
 
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
@@ -78,6 +79,7 @@
 
 (define (free-variables prog)
   (match prog
+    [(? number?) '()]
     [(? constant?) '()]
     [(? variable?) (list prog)]
     [`(,op ,args ...)
@@ -157,7 +159,7 @@
     (set! size (+ 1 size))
     (define expr
       (match prog
-       [(? real?) (list (const (real->precision prog repr)))]
+       [(? number?) (list (const (real->precision prog repr)))]
        [(? constant?) (list (constant-info prog mode))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)

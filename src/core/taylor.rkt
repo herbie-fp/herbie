@@ -93,9 +93,8 @@
 
 (register-reset
  (λ ()
-  (hash-clear! n-sum-to-cache)
-  (hash-clear! logcache)
-  (hash-set! logcache 1 '((1 -1 1)))))
+  (set! n-sum-to-cache (make-hash))
+  (set! logcache (make-hash '((1 . ((1 -1 1))))))))
 
 (define (taylor var expr*)
   "Return a pair (e, n), such that expr ~= e var^n"
@@ -106,6 +105,8 @@
   (match expr
     [(? (curry equal? var))
      (taylor-exact 0 1)]
+    [(? number?)
+     (taylor-exact expr)]
     [(? constant?)
      (taylor-exact expr)]
     [(? variable?)

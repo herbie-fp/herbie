@@ -20,7 +20,7 @@
 ;; The new, contracts-using version of the above
 
 (define-syntax-rule (define-table name [field type] ...)
-  (define name (cons (list (cons 'field type) ...) (make-hash))))
+  (define name (cons (list (cons 'field type) ...) (make-hasheq))))
 
 (define (table-ref tbl key field)
   (match-let ([(cons header rows) tbl])
@@ -56,7 +56,7 @@
   [ival (or/c (->* () ival?) #f)])
 
 (define (register-constant! name attrib-dict)
-  (table-set! constants name (make-hash attrib-dict)))
+  (table-set! constants name (make-hasheq attrib-dict)))
 
 (define-syntax-rule (define-constant name [key value] ...)
   (register-constant! 'name (list (cons 'key value) ...)))
@@ -93,8 +93,8 @@
   [fl (->* () value?)]
   [ival (or/c (->* () ival?) #f)])
 
-(define parametric-constants (make-hash))
-(define parametric-constants-reverse (make-hash))
+(define parametric-constants (hash))
+(define parametric-constants-reverse (hash))
 
 (define (constant-info constant field)
   (with-handlers ([exn:fail?
@@ -112,9 +112,13 @@
     (error 'register-constant-impl! "Real constant does not exist: ~a" constant))
   (define attrib-dict* (dict-merge default-attrib attrib-dict))
   (table-set! constant-impls name
-              (make-hash (cons (cons 'type ctype) attrib-dict*)))
-  (hash-update! parametric-constants constant (curry cons (list* name ctype)) '())
-  (hash-set! parametric-constants-reverse name constant))
+              (make-hasheq (cons (cons 'type ctype) attrib-dict*)))
+  (set! parametric-constants
+    (hash-update parametric-constants constant
+                 (curry cons (list* name ctype))
+                 '()))
+  (set! parametric-constants-reverse
+    (hash-set parametric-constants-reverse name constant)))
 
 (define-syntax-rule (define-constant-impl (constant name) ctype [key value] ...)
   (register-constant-impl! 'constant 'name 'ctype (list (cons 'key value) ...)))
@@ -176,8 +180,8 @@
   (define itypes* (dict-ref attrib-dict 'itype itypes))
   (define otype* (dict-ref attrib-dict 'otype otype))
   (table-set! operators name
-              (make-hash (append (list (cons 'itype itypes*) (cons 'otype otype*))
-                         attrib-dict))))
+              (make-hasheq (append (list (cons 'itype itypes*) (cons 'otype otype*))
+                           attrib-dict))))
 
 (define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
   (register-operator! 'name '(itypes ...) 'otype
@@ -208,8 +212,8 @@
   [nonffi (unconstrained-argument-number-> value? value?)]
   [ival (or/c #f (unconstrained-argument-number-> ival? ival?))])
 
-(define parametric-operators (make-hash))
-(define parametric-operators-reverse (make-hash))
+(define parametric-operators (hash))
+(define parametric-operators-reverse (hash))
 
 (define (operator-info operator field)
   (with-handlers ([exn:fail? 
@@ -248,14 +252,16 @@
   (unless (equal? operator 'if) ;; if does not work here
     (check-operator-types! default-attrib itypes otype))
   ;; Convert attributes to hash, update tables
-  (define fields (make-hash attrib-dict*))
+  (define fields (make-hasheq attrib-dict*))
   (hash-set! fields 'itype itypes)
   (hash-set! fields 'otype otype)
   (table-set! operator-impls name fields)
-  (hash-update! parametric-operators operator
-                (curry cons (list* name otype (operator-info name 'itype)))
-                '())
-  (hash-set! parametric-operators-reverse name operator))
+  (set! parametric-operators
+    (hash-update parametric-operators operator
+                 (curry cons (list* name otype (operator-info name 'itype)))
+                 '()))
+  (set! parametric-operators-reverse
+    (hash-set parametric-operators-reverse name operator)))
   
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
@@ -689,10 +695,9 @@
            (dict-has-key? (cdr operator-impls) op))))
 
 (define (constant? var)
-  (or (real? var)
-      (and (symbol? var)
-           (or (hash-has-key? parametric-constants var) 
-               (dict-has-key? (cdr constant-impls) var)))))
+  (and (symbol? var)
+       (or (hash-has-key? parametric-constants var) 
+           (dict-has-key? (cdr constant-impls) var))))
 
 (define (variable? var)
   (and (symbol? var) (not (constant? var))))

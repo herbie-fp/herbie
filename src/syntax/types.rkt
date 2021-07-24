@@ -7,7 +7,8 @@
 
 (struct type (name exact? inexact? exact->inexact inexact->exact))
 
-(define type-dict (make-hash))
+(define type-dict (make-hasheq))
+
 (define-syntax-rule (define-type name (exact? inexact?) e->i i->e)
   (hash-set! type-dict 'name (type 'name exact? inexact? e->i i->e)))
 

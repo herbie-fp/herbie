@@ -30,6 +30,8 @@
   (define (fail . irr) #f)
 
   (match pattern
+   [(? number?)
+    (and (equal? pattern expr) '())]
    [(? constant?)
     (and (equal? pattern expr) '())]
    [(? variable?)
@@ -45,6 +47,7 @@
 (define (pattern-substitute pattern bindings)
   ; pattern binding -> expr
   (match pattern
+   [(? number?) pattern]
    [(? constant?) pattern]
    [(? variable?)
     (dict-ref bindings pattern)]
@@ -120,6 +123,9 @@
       (match pattern
         [(? variable?)
          (sow (cons '() (list (cons pattern expr))))]
+        [(? number?)
+         (when (equal? expr pattern)
+           (sow (cons '() '())))]
         [(? constant?)
          (when (equal? expr pattern)
            (sow (cons '() '())))]
