@@ -51,7 +51,7 @@ jobs:
       
       - name: Create tarball
         run: |
-          tar -czvf herbie-${{ matrix.os }}.tar.gz ../herbie
+          cd .. && tar -czvf herbie-${{ matrix.os }}.tar.gz ./herbie
       
       - name: Upload assets
         id: upload-release-asset
@@ -60,6 +60,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.job1.outputs.upload_url }}
-          asset_path: herbie-${{ matrix.os }}.tar.gz
+          asset_path: ../herbie-${{ matrix.os }}.tar.gz
           asset_name: herbie-${{ matrix.os }}.tar.gz
           asset_content_type: application/gzip
