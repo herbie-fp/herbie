@@ -266,12 +266,12 @@
     [_ #f]))
 
 (module+ test
-  (check-equal? (eval-application '+.f64 1 1) 2)
-  (check-equal? (eval-application '+.f64) 0)
-  (check-equal? (eval-application '/.f64 1 0) #f) ; Not valid
-  (check-equal? (eval-application 'cbrt.f64 1) 1)
-  (check-equal? (eval-application 'log.f64 1) 0)
-  (check-equal? (eval-application 'exp.f64 2) #f)) ; Not exact
+  (check-equal? (eval-application '+ 1 1) 2)
+  (check-equal? (eval-application '+) 0)
+  (check-equal? (eval-application '/ 1 0) #f) ; Not valid
+  (check-equal? (eval-application 'cbrt 1) 1)
+  (check-equal? (eval-application 'log 1) 0)
+  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (define/contract (replace-expression haystack needle needle*)
   (-> expr? expr? expr? expr?)
