@@ -19,7 +19,10 @@
   (let* ([sows (let ([store '()])
                  (cons
                   (λ () store)
-                  (λ (elt) (set! store (cons elt store)))))] ...)
+                  (match-lambda*
+                   [(list elt) (set! store (cons elt store))]
+                   [(list) store]
+                   [_ (error 'reap "invalid sow")])))] ...)
     (let ([sows (cdr sows)] ...)
       body ...)
     (values (reverse ((car sows))) ...)))

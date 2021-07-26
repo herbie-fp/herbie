@@ -62,6 +62,16 @@
   (*analyze-context* (*pcontext*))
   (set! *analyze-cache* (make-hash))))
 
+;; Sometimes, we want to include the parent location if the children locations are
+;; both selected. Ex: sintan from hamming
+(define (is-parent locs loc)
+  (define filter-fn (λ (x) (and (not (null? x)) (= (car x) (car loc)))))
+  (let loop ([locs (map cdr locs)] [loc loc])
+    (cond
+     [(null? locs) #f]
+     [(null? loc) (> (length locs) 2)]
+     [else (loop (map cdr (filter filter-fn locs)) (cdr loc))])))
+
 ;; Returns a list of locations and errors sorted
 ;; by error scores in descending order
 (define (localize-error prog repr)
@@ -78,7 +88,8 @@
     (reap [sow]
       (let loop ([expr (program-body prog)] [loc '(2)])
         (define err (cdr (hash-ref cache expr)))
-        (unless (andmap (curry = 1) err)
+        (unless (and (andmap (curry = 1) err)
+                     (not (is-parent (sow) loc)))
           (sow (cons err (reverse loc))))
         (match expr
           [(? number?) (void)]
