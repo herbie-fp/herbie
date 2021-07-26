@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum)
-(require "syntax/types.rkt" "errors.rkt" "float32.rkt")
+(require "syntax/types.rkt" "errors.rkt")
 
 (provide (struct-out representation) get-representation representation-name?
           *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
@@ -14,6 +14,8 @@
 
 (define *reprs-with-rules* (make-parameter '()))
 (define *needed-reprs* (make-parameter '()))
+(define *output-repr* (make-parameter #f))
+(define *var-reprs* (make-parameter '()))
 
 ;; Structs
 
@@ -28,7 +30,7 @@
 (define representations (hash))
 
 ;; Repr / operator generation
-;; Some plugins might define 'templated' reprs (e.g. fixed point with
+;; Some plugins might define 'parameterized' reprs (e.g. fixed point with
 ;; m integer and n fractional bits). Since defining an infinite number of reprs
 ;; is impossible, Herbie stores a list of 'repr generators' to query if it comes
 ;; across a repr that is not known at the time. 
@@ -37,9 +39,10 @@
 ;; repr is and has generated that repr and its operators, and false otherwise
 (define repr-generators '())
 
-(define (register-generator! proc)
-  (-> (-> any/c boolean?))
-  (set! repr-generators (cons proc repr-generators)))
+(define/contract (register-generator! proc)
+  (-> (-> any/c boolean?) void?)
+  (unless (set-member? repr-generators proc)
+    (set! repr-generators (cons proc repr-generators))))
 
 ;; Queries each plugin to generate the representation
 (define (generate-repr repr-name)
@@ -51,7 +54,7 @@
 ;; attempts to generate the repr if not initially found
 (define (get-representation name)
   (or (hash-ref representations name #f)
-      (and (generate-repr name) (hash-ref representations name))
+      (and (generate-repr name) (hash-ref representations name #f))
       (raise-herbie-error "Could not find support for ~a representation" name)))
 
 (define (register-representation! name type repr? . args)
@@ -64,40 +67,6 @@
 
 (define (representation-name? x)
   (hash-has-key? representations x))
-
-(define-representation (bool bool boolean?)
-  identity
-  identity
-  (λ (x) (= x 0))
-  (λ (x) (if x 1 0))
-  1
-  (const #f))
-
-(define (shift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (fn (- x shift-val))))
-
-(define (unshift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (+ (fn x) shift-val)))
-
-(define-representation (binary64 real flonum?)
-  bigfloat->flonum
-  bf
-  (shift 63 ordinal->flonum)
-  (unshift 63 flonum->ordinal)
-  64
-  (disjoin nan? infinite?))
-
-;; BC or CS (>= 8.0)
-(when (single-flonum-supported?)
-  (register-representation! 'binary32 'real float32?
-    bigfloat->float32
-    bf
-    (shift 31 ordinal->float32)
-    (unshift 31 float32->ordinal)
-    32
-    (disjoin nan? infinite?)))
 
 ;; repr <==> real
 
@@ -118,6 +87,21 @@
 (define (special-value? x repr)
   ((representation-special-values repr) x))
 
-;; Global precision tracking
-(define *output-repr* (make-parameter (get-representation 'binary64)))
-(define *var-reprs* (make-parameter '()))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; loads builtin representations as needed
+;; usually if 'load-herbie-plugins' has not been called
+(define (generate-builtins name)
+  (match name
+   ['binary64
+    (dynamic-require 'herbie/binary64 #f)
+    #t]
+   ['binary32
+    (dynamic-require 'herbie/binary32 #f)
+    #t]
+   ['bool
+    (dynamic-require 'herbie/bool #f)
+    #t]
+   [_ #f]))
+
+(register-generator! generate-builtins)

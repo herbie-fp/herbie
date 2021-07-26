@@ -114,7 +114,7 @@
      (unless (and (equal? re-type 'binary64) (equal? im-type 'binary64))
        (error! stx "complex expects arguments of type binary64, binary64 (not ~a, ~a)" re-type im-type))
      'complex]
-    [#`(,(? (curry hash-has-key? parametric-operators) op) #,exprs ...)
+    [#`(,(? operator-exists? op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (define op* (apply get-parametric-operator op actual-types #:fail-fast? #f))
      (if op*
