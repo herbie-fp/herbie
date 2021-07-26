@@ -2,11 +2,7 @@
 
 ;; binary32 builtin plugin
 
-(require math/base math/bigfloat math/flonum math/special-functions)
-(require (submod "syntax/syntax.rkt" internals)
-         (submod "interface.rkt" internals)
-         "syntax/syntax.rkt" "common.rkt"
-         "errors.rkt")
+(require herbie/plugin math/flonum math/bigfloat herbie/errors)
 
 ; needed by src/syntax/test-rules.rkt
 ; cannot be exported with contracts since ffi/unsafe is required
@@ -111,8 +107,6 @@
 
 ; (eprintf "Loading binary32 support...\n")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (define (shift bits fn)
   (define shift-val (expt 2 bits))
   (λ (x) (fn (- x shift-val))))
@@ -120,6 +114,12 @@
 (define (unshift bits fn)
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
+
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (binary32 real float32?)
   bigfloat->float32
@@ -146,34 +146,33 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-syntax (define-libm-operator stx)
-  (syntax-case stx (real libm)
-    [(_ (op real ...) [libm id] [nonffi fn] [key value] ...)
+  (syntax-case stx (real)
+    [(_ (op real ...) [key value] ...)
      (let* ([num-args (length (cdr (syntax-e (cadr (syntax-e stx)))))]
             [sym2-append (λ (x y) (string->symbol (string-append (symbol->string x) (symbol->string y))))]
-            [name (sym2-append (syntax-e (car (syntax-e (cadr (syntax-e stx))))) '.f32)])
+            [name (sym2-append (syntax-e (car (syntax-e (cadr (syntax-e stx))))) '.f32)]
+            [cname (sym2-append (syntax-e (car (syntax-e (cadr (syntax-e stx))))) 'f)])
        #`(begin
-           (define fl-proc (get-ffi-obj 'id #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
-                                        (lambda ()
-                                          (*unknown-ops* (cons '#,name (*unknown-ops*)))
-                                          (warn 'fallback #:url "faq.html#native-ops"
-                                                "native `~a` not supported on your system, using fallback; ~a"
-                                                'op
-                                                "use --disable precision:fallback to disable fallbacks")
-                                          fn)))
+           (define fl-proc
+            (get-ffi-obj '#,cname #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
+                         (λ () (λ _ (raise-herbie-error
+                                      #:url "faq.html#native-ops"
+                                      "native" 'op "not supported on your system"
+                                      "use the 'racket' precision instead")))))
            (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary32))) binary32
-             [fl fl-proc])))]))
+             [fl fl-proc] [key value] ...)))]))
 
-(define-syntax-rule (define-1ary-libm-operator op name fallback)
-  (define-libm-operator (op real) [libm name] [nonffi fallback]))
+(define-syntax-rule (define-1ary-libm-operator op)
+  (define-libm-operator (op real)))
 
-(define-syntax-rule (define-2ary-libm-operator op name fallback)
-  (define-libm-operator (op real real) [libm name] [nonffi fallback]))
+(define-syntax-rule (define-2ary-libm-operator op)
+  (define-libm-operator (op real real)))
 
-(define-syntax-rule (define-1ary-libm-operators [op name fallback] ...)
-  (begin (define-1ary-libm-operator op name fallback) ...))
+(define-syntax-rule (define-1ary-libm-operators op ...)
+  (begin (define-1ary-libm-operator op) ...))
 
-(define-syntax-rule (define-2ary-libm-operators [op name fallback] ...)
-  (begin (define-2ary-libm-operator op name fallback) ...))
+(define-syntax-rule (define-2ary-libm-operators op ...)
+  (begin (define-2ary-libm-operator op) ...))
 
 (define (no-complex fun)
   (λ xs
@@ -197,56 +196,55 @@
 (define-operator-impl (/ /.f32 binary32 binary32) binary32 [fl fl32/])
 
 (define-1ary-libm-operators
- [acos acosf (no-complex acos)]
- [acosh acoshf (no-complex acosh)]
- [asin asinf (no-complex asin)]
- [asinh asinhf (no-complex asinh)]
- [atan atanf (no-complex atan)]
- [atanh atanhf (no-complex atanh)]
- [cbrt cbrtf (no-complex (λ (x) (expt x 1/3)))]
- [ceil ceilf ceiling]
- [cos cosf cos]
- [cosh coshf cosh]
- [erf erff (no-complex erf)]
- [erfc erfcf erfc]
- [exp expf exp]
- [exp2 exp2f (no-complex (λ (x) (expt 2 x)))]
- [expm1 expm1f (from-bigfloat bfexpm1)]
- [fabs fabsf abs]
- [floor floorf floor]
- [j0 j0f (from-bigfloat bfbesj0)]
- [j1 j1f (from-bigfloat bfbesj1)]
- [lgamma lgammaf log-gamma]
- [log logf (no-complex log)]
- [log10 log10f (no-complex (λ (x) (log x 10)))]
- [log1p log1pf (from-bigfloat bflog1p)]
- [log2 log2f (from-bigfloat bflog2)]
- [logb logbf (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))]
- [rint rintf round]
- [round roundf round]
- [sin sinf sin]
- [sinh sinhf sinh]
- [sqrt sqrtf (no-complex sqrt)]
- [tan tanf tan]
- [tanh tanhf tanh]
- [tgamma tgammaf gamma]
- [trunc truncf truncate]
- [y0 y0f (from-bigfloat bfbesy0)]
- [y1 y1f (from-bigfloat bfbesy1)])
+ acos
+ acosh
+ asin
+ asinh
+ atan
+ atanh
+ cbrt
+ ceil
+ cos
+ cosh
+ erf
+ erfc
+ exp
+ exp2
+ expm1
+ fabs
+ floor
+ j0
+ j1
+ lgamma
+ log
+ log10
+ log1p
+ log2
+ logb
+ rint
+ round
+ sin
+ sinh
+ sqrt
+ tan
+ tanh
+ tgamma
+ trunc
+ y0
+ y1)
 
 (define-2ary-libm-operators
- [atan2 atan2f (no-complex atan)]
- [copysign copysignf (λ (x y) (if (>= y 0) (abs x) (- (abs x))))]
- [fdim fdimf (λ (x y) (max (- x y) 0))]
- [fmax fmaxf (λ (x y) (cond [(nan? x) y] [(nan? y) x] [else (max x y)]))]
- [fmin fminf (λ (x y) (cond [(nan? x) y] [(nan? y) x] [else (min x y)]))]
- [fmod fmodf (from-bigfloat bffmod)]
- [hypot hypotf (from-bigfloat bfhypot)]
- [pow powf (no-complex expt)]
- [remainder remainderf remainder])
+ atan2
+ copysign
+ fdim
+ fmax
+ fmin
+ fmod
+ hypot
+ pow
+ remainder)
 
-(define-libm-operator (fma real real real)
- [libm fmaf] [nonffi (from-bigfloat bffma)])
+(define-libm-operator (fma real real real))
 
 (define-operator-impl (== ==.f32 binary32 binary32) bool
   [itype 'binary32] [otype 'bool] ; Override number of arguments
@@ -272,10 +270,10 @@
   [itype 'binary32] [otype 'bool] ; Override number of arguments
   [fl (comparator >=)])
 
-(define-operator-impl (cast binary64->binary32 binary64) binary32
+(define-operator-impl (cast binary32->binary32 binary32) binary32
   [fl (curryr ->float32)])
 
-(define-operator-impl (cast binary32->binary64 binary32) binary64
+(define-operator-impl (cast binary32->binary32 binary32) binary32
   [fl identity])
 
 )
