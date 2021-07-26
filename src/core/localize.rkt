@@ -69,7 +69,7 @@
   (let loop ([locs (map cdr locs)] [loc loc])
     (cond
      [(null? locs) #f]
-     [(null? loc) (> (length locs) 2)]
+     [(null? loc) (> (length locs) 1)]
      [else (loop (map cdr (filter filter-fn locs)) (cdr loc))])))
 
 ;; Returns a list of locations and errors sorted
@@ -88,10 +88,7 @@
     (reap [sow]
       (let loop ([expr (program-body prog)] [loc '(2)])
         (define err (cdr (hash-ref cache expr)))
-        (unless (and (andmap (curry = 1) err)
-                     (not (is-parent (sow) loc)))
-          (sow (cons err (reverse loc))))
-        (match expr
+        (match expr                               ; descend first
           [(? number?) (void)]
           [(? constant?) (void)]
           [(? variable?) (void)]
@@ -100,5 +97,8 @@
           (loop iff (cons 3 loc))]
           [(list op args ...)
           (for ([idx (in-naturals 1)] [arg args])
-            (loop arg (cons idx loc)))])))
+            (loop arg (cons idx loc)))])
+        (unless (and (andmap (curry = 1) err)     ; then add to locations
+                     (not (is-parent (sow) loc)))
+          (sow (cons err (reverse loc))))))
     > #:key (compose errors-score car)))
