@@ -2,7 +2,9 @@
 
 ;; bool builtin plugin
 
-(require herbie/plugin)
+(require (submod "syntax/syntax.rkt" internals)
+         (submod "syntax/rules.rkt" internals)
+         (submod "interface.rkt" internals))
 
 ; (eprintf "Loading bool support...\n")
 

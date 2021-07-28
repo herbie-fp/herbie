@@ -2,7 +2,10 @@
 
 ;; binary32 builtin plugin
 
-(require herbie/plugin math/flonum math/bigfloat herbie/errors)
+(require math/flonum math/bigfloat)
+(require (submod "syntax/syntax.rkt" internals)
+         (submod "interface.rkt" internals)
+         "errors.rkt")
 
 ; needed by src/syntax/test-rules.rkt
 ; cannot be exported with contracts since ffi/unsafe is required
@@ -270,10 +273,10 @@
   [itype 'binary32] [otype 'bool] ; Override number of arguments
   [fl (comparator >=)])
 
-(define-operator-impl (cast binary32->binary32 binary32) binary32
+(define-operator-impl (cast binary64->binary32 binary64) binary32
   [fl (curryr ->float32)])
 
-(define-operator-impl (cast binary32->binary32 binary32) binary32
+(define-operator-impl (cast binary32->binary64 binary32) binary64
   [fl identity])
 
 )

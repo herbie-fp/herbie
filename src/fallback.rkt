@@ -2,7 +2,9 @@
 
 ;; fallback (Racket) builtin plugin
 
-(require herbie/plugin math/base math/bigfloat math/flonum math/special-functions)
+(require math/base math/bigfloat math/flonum math/special-functions)
+(require (submod "syntax/syntax.rkt" internals)
+         (submod "interface.rkt" internals))
 
 ; (eprintf "Loading fallback support...\n")
 

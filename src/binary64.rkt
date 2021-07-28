@@ -2,7 +2,10 @@
 
 ;; binary64 builtin plugin
 
-(require herbie/plugin math/flonum math/bigfloat herbie/errors)
+(require math/flonum math/bigfloat)
+(require (submod "syntax/syntax.rkt" internals)
+         (submod "interface.rkt" internals)
+         "errors.rkt")
 
 ; (eprintf "Loading binary64 support...\n")
 
