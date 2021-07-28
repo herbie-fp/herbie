@@ -15,7 +15,7 @@
         [setup . (simplify search)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special bools branches)]))
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define (check-flag-deprecated! category flag)
   (match* (category flag)

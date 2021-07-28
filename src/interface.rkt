@@ -102,6 +102,9 @@
    ['bool
     (dynamic-require 'herbie/bool #f)
     #t]
+   ['racket
+    (dynamic-require 'herbie/fallback #f)
+    #t]
    [_ #f]))
 
 (register-generator! generate-builtins)

@@ -16,7 +16,8 @@
 (define (load-herbie-builtins)
   (dynamic-require 'herbie/bool #f)
   (dynamic-require 'herbie/binary64 #f)
-  (dynamic-require 'herbie/binary32 #f))
+  (dynamic-require 'herbie/binary32 #f)
+  (dynamic-require 'herbie/fallback #f))
 
 (define (load-herbie-plugins)
   (load-herbie-builtins)    ; automatically load default representations
