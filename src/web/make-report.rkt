@@ -40,6 +40,7 @@
 
   (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
   (cond
+   [(not dir) (void)]
    [(> (length pareto-points) 1) ; generate the scatterplot if necessary
     (call-with-output-file (build-path dir "cost-accuracy.png")
       #:exists 'replace
