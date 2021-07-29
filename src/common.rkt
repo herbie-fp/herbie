@@ -9,7 +9,7 @@
          take-up-to flip-lists find-duplicates
          argmins argmaxs index-of set-disjoint?
          get-seed set-seed!
-         quasisyntax dict sym-append
+         quasisyntax dict sym-append comparator
          format-time format-bits web-resource
          (all-from-out "config.rkt") (all-from-out "debug.rkt"))
 
@@ -179,3 +179,7 @@
 
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~a args))))
+
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))

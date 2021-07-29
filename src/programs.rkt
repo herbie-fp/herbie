@@ -63,6 +63,8 @@
 (define (expr-supports? expr field)
   (let loop ([expr expr])
     (match expr
+      [(list 'if cond ift iff)
+       (and (loop cond) (loop ift) (loop iff))]   ; if is special-cased and always supported
       [(list op args ...)
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
@@ -155,6 +157,12 @@
   ;; Known representations
   (define bool-repr (get-representation 'bool))
 
+  ;; 'if' operator
+  (define if-op
+    (match mode
+     [(or 'fl 'bf) (λ (c ift iff) (if c ift iff))]
+     ['ival ival-if]))
+
   (define (munge prog repr)
     (set! size (+ 1 size))
     (define expr
@@ -163,7 +171,7 @@
        [(? constant?) (list (constant-info prog mode))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
-        (list (operator-info 'if mode)
+        (list if-op
               (munge c bool-repr)
               (munge t repr)
               (munge f repr))]
@@ -230,7 +238,7 @@
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
   (define exact-value? (conjoin number? exact?))
-  (match (cons (hash-ref parametric-operators-reverse op) args)
+  (match (cons op args)
     [(list '+ (? exact-value? as) ...) (apply + as)]
     [(list '- (? exact-value? as) ...) (apply - as)]
     [(list '* (? exact-value? as) ...) (apply * as)]
@@ -258,12 +266,12 @@
     [_ #f]))
 
 (module+ test
-  (check-equal? (eval-application '+.f64 1 1) 2)
-  (check-equal? (eval-application '+.f64) 0)
-  (check-equal? (eval-application '/.f64 1 0) #f) ; Not valid
-  (check-equal? (eval-application 'cbrt.f64 1) 1)
-  (check-equal? (eval-application 'log.f64 1) 0)
-  (check-equal? (eval-application 'exp.f64 2) #f)) ; Not exact
+  (check-equal? (eval-application '+ 1 1) 2)
+  (check-equal? (eval-application '+) 0)
+  (check-equal? (eval-application '/ 1 0) #f) ; Not valid
+  (check-equal? (eval-application 'cbrt 1) 1)
+  (check-equal? (eval-application 'log 1) 0)
+  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (define/contract (replace-expression haystack needle needle*)
   (-> expr? expr? expr? expr?)

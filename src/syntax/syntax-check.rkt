@@ -48,7 +48,7 @@
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (cond
-      [(hash-has-key? parametric-operators f)
+      [(operator-exists? f)
         (define arity (get-operator-arity f)) ;; variary is #f
         (unless (or (not arity) (= arity (length args)))
           (error! stx "Operator ~a given ~a arguments (expects ~a)"
