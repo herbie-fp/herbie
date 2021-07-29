@@ -6,7 +6,7 @@ edition = "2018"
 
 
 [dependencies]
-egg = { git = "https://github.com/oflatt/egg", branch = "try-proof-trees" }
+egg = { git = "https://github.com/oflatt/egg", branch = "proof-production-beta" }
 
 log = "0.4"
 indexmap = "1"
