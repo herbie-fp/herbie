@@ -10,16 +10,17 @@
 
 (FPCore (x1 x2)
  :name "Rosa's FloatVsDoubleBenchmark"
- (let ((t (- (+ (* 3 x1 x1) (* 2 x2)) x1)) (t* (- (- (* 3 x1 x1) (* 2 x2)) x1)))
-   (let ((d (+ (* x1 x1) 1)))
-     (let ((s (/ t d)) (s* (/ t* d)))
-       (+ x1
-          (+
-           (* (+ (* 2 x1 s (- s 3)) (* x1 x1 (- (* 4 s) 6))) d)
-           (* 3 x1 x1 s)
-           (* x1 x1 x1)
-           x1
-           (* 3 s*)))))))
+ (let ((t (- (+ (* 3 x1 x1) (* 2 x2)) x1))
+       (t* (- (- (* 3 x1 x1) (* 2 x2)) x1))
+       (d (+ (* x1 x1) 1)))
+   (let ((s (/ t d)) (s* (/ t* d)))
+     (+ x1
+        (+
+         (* (+ (* 2 x1 s (- s 3)) (* x1 x1 (- (* 4 s) 6))) d)
+         (* 3 x1 x1 s)
+         (* x1 x1 x1)
+         x1
+         (* 3 s*))))))
 
 (FPCore (v w r)
  :name "Rosa's TurbineBenchmark"

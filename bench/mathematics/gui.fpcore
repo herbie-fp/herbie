@@ -75,7 +75,7 @@
   :name "ab-angle->ABCF C"
   (+  (pow (* a (cos (* PI (/ angle 180)))) 2) (pow (* b (sin (* PI (/ angle 180)))) 2)))
 
-(FPCore (a b angle)
+(FPCore (a b)
   :name "ab-angle->ABCF D"
   (- (* a a b b)))
 
@@ -84,7 +84,7 @@
   :name "ABCF->ab-angle angle"
   (let ([r (sqrt (+ (pow (- A C) 2) (pow B 2)))])
     (* 180
-      (/ (atan (* (/ B) (- C A r))) PI))))
+      (/ (atan (* (/ 1 B) (- C A r))) PI))))
 
 (FPCore (A B C F)
   :name "ABCF->ab-angle a"

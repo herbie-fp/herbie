@@ -244,7 +244,7 @@
               (location-do loc (alt-program altn) genexpr)))
           (when expr*
             (define errs (errors expr* (*pcontext*) (*output-repr*)))
-            (define altn* (alt expr* `(taylor ,name ,loc) (list altn)))
+            (define altn* (alt expr* `(taylor ,name ,var ,loc) (list altn)))
             (when (ormap much-< errs last)
               #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
               (sow altn*)
@@ -527,8 +527,11 @@
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* (atab-active-alts (^table^)))
 
+  (define ndone-alts (atab-not-done-alts (^table^)))
   (for ([alt (atab-active-alts (^table^))])
-    (timeline-push! 'alts (~a (program-body (alt-program alt))) "fresh" (score-alt alt)))
+    (timeline-push! 'alts (~a (program-body (alt-program alt)))
+                    (if (set-member? ndone-alts alt) "fresh" "done")
+                    (score-alt alt)))
 
   (define joined-alts
     (cond
