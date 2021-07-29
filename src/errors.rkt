@@ -68,7 +68,7 @@
 
 (define warnings-seen (mutable-set))
 (define warning-log '())
-(define *warnings-disabled* (make-parameter true))
+(define *warnings-disabled* (make-parameter false))
 
 (define (warn type message #:url [url #f] #:extra [extra '()] . args)
   (unless (or (*warnings-disabled*) (set-member? warnings-seen type))
