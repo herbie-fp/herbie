@@ -216,7 +216,7 @@
         (loop (cdr locs) (if (*localize-limit-for-new*) count (+ count 1)))]
        [else                                ; else, add to list
         (timeline-push! 'locations (~a expr) (errors-score err) #t)
-        (patch-table-add! (^next-alt^) loc #t)
+        (patch-table-add! (^next-alt^) loc #f)
         (loop (cdr locs) (+ count 1))])]))
 
   ; low-error locations
@@ -224,202 +224,55 @@
     (for ([(err loc) (in-dict (take-up-to (reverse locs-errs) (*localize-expressions-limit*)))])
       (let ([expr (location-get loc (alt-program (^next-alt^)))])
         (timeline-push! 'locations (~a expr) (errors-score err) #t)
-        (patch-table-add! (^next-alt^) loc #f))))
+        (patch-table-add! (^next-alt^) loc #t))))
 
   (void))
 
-(define transforms-to-try
-  (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
-	[ninvert-x (λ (x) `(/ 1 (neg ,x)))])
-    `((0 ,identity ,identity)
-      (inf ,invert-x ,invert-x)
-      (-inf ,ninvert-x ,ninvert-x)
-      #;(exp ,exp-x ,log-x)
-      #;(log ,log-x ,exp-x))))
-
-;; Taylor is problematic since it doesn't know what reprs are
-;; There are two types of errors that occur due to this inconsistency
-;;  - reduce:
-;;      the internal simplifier will try to desugar an subexpression
-;;      with an operator/precision mismatch
-;;  - external:
-;;      Taylor is successful in generating an expression but
-;;      external desugaring fails because of an unsupported/mismatched
-;;      operator
-(define (taylor-fail-desugaring expr)
-  (λ _
-    (debug #:from 'progress #:depth 5 "Series expansion (desugaring failure)")
-    (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
-    #f))
-
-; taylor uses older format, resugaring and desugaring needed
-; not all taylor transforms are valid in a given repr, return false on failure
-(define (taylor-expr expr repr var f finv)
-  (define expr* (resugar-program expr repr #:full #f))
-  (with-handlers ([exn:fail? (const #f)])       ; in case taylor fails internally
-    (define genexpr (approximate expr* var #:transform (cons f finv)))
-    (λ (x) (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
-
-(define (taylor-alt altn)
-  (define expr (program-body (alt-program altn)))
-  (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
-  (define vars (free-variables expr))
-  (reap [sow]
-    (for* ([var vars] [transform-type transforms-to-try])
-      (match-define (list name f finv) transform-type)
-      (define genexpr (taylor-expr expr repr var f finv))
-      (cond
-       [genexpr  ; taylor successful
-        #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
-        (for ([i (in-range 4)])
-          (define expr* 
-            (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
-              (location-do '(2) (alt-program altn) genexpr)))
-          (when expr*
-            (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))]
-       [else  ; taylor failed
-        (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
-        (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
-        (sow altn)]))))
-
-(define (gen-series!)
-  (unless (^locs^)
-    (raise-user-error 'gen-series! "No locations selected. Run (localize!) or modify (^locs^)"))
-  (^gened-series^ '())
-  (when (flag-set? 'generate 'taylor)
-    (timeline-event! 'series)
-
-    (define series-expansions
-      (apply append
-        (for/list ([(location altn) (in-dict (^locs^))] [n (in-naturals 1)])
-          (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
-          (define expr (program-body (alt-program altn)))
-          (define tnow (current-inexact-milliseconds))
-          (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
-            (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
-
-    (define (is-nan? x)
-      (and (constant? x) (equal? (hash-ref parametric-constants-reverse x) 'NAN)))
-
-    ; Probably unnecessary, at least CI passes!
-    (define series-expansions*
-      (filter-not
-        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
-        series-expansions))
-
-    (timeline-push! 'count (length (^locs^)) (length series-expansions*))
-    (^gened-series^ series-expansions*))
-
-    ;;; (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
-    ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
-  (void))
-
-(define (gen-rewrites!)
-  (void))
-
-(define (simplify!)
-  (unless (or (^gened-series^) (^gened-rewrites^))
-    (raise-user-error 'simplify! "No candidates generated. Run (gen-series!) or (gen-rewrites!)"))
-  (^gened-simplify^ '())
-
-  (when (flag-set? 'generate 'simplify)
-    (timeline-event! 'simplify)
-    (define children (append (or (^gened-series^) empty) (or (^gened-rewrites^) empty)))
-
-    (define locs-list
-      (for/list ([child (in-list children)] [n (in-naturals 1)])
-        ;; We want to avoid simplifying if possible, so we only
-        ;; simplify things produced by function calls in the rule
-        ;; pattern. This means no simplification if the rule output as
-        ;; a whole is not a function call pattern, and no simplifying
-        ;; subexpressions that don't correspond to function call
-        ;; patterns.
-        (match (alt-event child)
-          [(list 'taylor _ _ loc) (list loc)]
-          [(list 'change cng)
-           (match-define (change rule loc _) cng)
-           (define pattern (rule-output rule))
-           (cond
-            [(not (list? pattern)) '()]
-            [else
-             (for/list ([pos (in-naturals 1)]
-                        [arg-pattern (cdr pattern)] #:when (list? arg-pattern))
-               (append loc (list pos)))])]
-          [_ (list '(2))])))
-
-    (define to-simplify
-      (for/list ([child (in-list children)] [locs locs-list]
-                 #:when true [loc locs])
-        (location-get loc (alt-program child))))
-
-    (define simplification-options
-      (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true))
-
-    (define simplify-hash
-      (make-immutable-hash (map cons to-simplify simplification-options)))
-
-    (define simplified
-      (apply append
-             (for/list ([child (in-list children)] [locs locs-list])
-               (make-simplification-combinations child locs simplify-hash))))
-
-    (timeline-push! 'count (length locs-list) (length simplified))
-    (^gened-simplify^ simplified))
-  (void))
-
-;; takes a subexpression alt and converts it to a full alt
-(define (reconstruct-alt altn orig)
-  (define-values (altn* loc-prefix)
+; Returns 
+(define (gen-cached-alts)
+  ;; cached alts have outdated location data
+  (define (repair-cached-alt altn loc)
     (let loop ([altn altn])
-      (match-define (alt prog event prev) altn)
-      (cond
-       [(null? prev) (values altn '())]
-       [(equal? (car event) 'mainloop) (values (car prev) (cadr event))]
-       [else
-        (define-values (altn* loc-prefix) (loop (car prev)))
-        (cond
-         [(null? loc-prefix) (values altn '())]
-         [else
-          (define evt*
-            (match event
-             [(list 'taylor name var loc)
-              (list 'taylor name var (append loc-prefix (cdr loc)))]
-             [(list 'change cng)
-              (match-define (change rule loc binds) cng)
-              (list 'change (change rule (append loc-prefix (cdr loc)) binds))]
-             [(list 'simplify loc)
-              (list 'simplify (append loc-prefix (cdr loc)))]))
-          (define prog* (location-do loc-prefix (alt-program orig) (λ (_) (program-body prog))))
-          (values (alt prog* evt* (list altn*)) loc-prefix)])])))
-  ; add to improve cache
-  (unless (null? loc-prefix)
-    (define orig-sub (location-get loc-prefix (alt-program orig)))
-    (cache-improvement! orig-sub altn))
-  altn*)
-
-;; cached alts have outdated location data
-(define (repair-cached-alt altn loc base)
-  (let loop ([altn altn])
-    (match altn
-     [(alt _ _ (list))
-      altn]
-     [(alt prog (list 'mainloop _) (list prev))
-      (alt prog (list 'mainloop loc) (list base))]
-     [(alt prog event (list prev))
-      (alt prog event (list (loop prev)))])))
+      (match altn
+      [(alt _ _ (list))
+        altn]
+      [(alt prog (list 'patch _) (list prev))
+        (alt prog (list 'patch loc) (list (^next-alt^)))]
+      [(alt prog event (list prev))
+        (alt prog event (list (loop prev)))])))
+    
+  (for/fold ([cached '()]) ([(loc expr) (in-dict (^duplocs^))])
+    (append cached (repair-cached-alt (patch-table-get expr) loc))))
 
 ;; Converts subexpressions back to full alternatives
-(define (reconstruct!)
-  (define new-alts (map (curryr reconstruct-alt (^next-alt^)) (^gened-simplify^)))
-  (define prev-alts
-    (if (^duplocs^)
-        (apply append
-          (for/list ([(loc expr) (in-dict (^duplocs^))])
-            (for/list ([bad (in-list (hash-ref improve-cache expr))])
-              (define fixed (repair-cached-alt bad loc (^next-alt^)))
-              (reconstruct-alt fixed (^next-alt^)))))
-        (list)))
-  (^gened-full^ (append new-alts prev-alts)))
+(define (reconstruct! alts)
+  ;; takes a subexpression alt and converts it to a full alt
+  (define (reconstruct-alt altn orig)
+    (define-values (altn* loc-prefix)
+      (let loop ([altn altn])
+        (match-define (alt prog event prev) altn)
+        (cond
+         [(null? prev) (values altn '())]
+         [(equal? (car event) 'patch) (values (car prev) (cadr event))]
+         [else
+          (define-values (altn* loc-prefix) (loop (car prev)))
+          (cond
+           [(null? loc-prefix) (values altn '())]
+           [else
+            (define evt*
+              (match event
+               [(list 'taylor name loc)
+                (list 'taylor name (append loc-prefix (cdr loc)))]
+               [(list 'change cng)
+                (match-define (change rule loc binds) cng)
+                (list 'change (change rule (append loc-prefix (cdr loc)) binds))]
+               [(list 'simplify loc)
+                (list 'simplify (append loc-prefix (cdr loc)))]))
+            (define prog* (location-do loc-prefix (alt-program orig) (λ (_) (program-body prog))))
+            (values (alt prog* evt* (list altn*)) loc-prefix)])])))
+    altn*)
+  
+  (^gened-full^ (map (curryr reconstruct-alt (^next-alt^)) alts)))
 
 ;; Finish iteration
 (define (finalize-iter!)
@@ -465,9 +318,11 @@
   (when (not (^locs^))
     (debug #:from 'progress #:depth 3 "localizing error")
     (localize!))
-  (patch-table-run!)
+  (when (patch-table-runnable?)
+    (define patched (patch-table-run))
+    (define cached (gen-cached-alts))
+    (reconstruct! (append patched cached)))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
-  (reconstruct!)
   (finalize-iter!)
   (void))
 
@@ -505,9 +360,14 @@
       (^table^ table*)
       (debug #:from 'progress #:depth 3 "localizing error")
       (localize!)
-      (patch-table-run!)
-      (reconstruct!)
-      (append full (^gened-full^))))
+      (cond
+       [(patch-table-runnable?)
+        (define patched (patch-table-run))
+        (define cached (gen-cached-alts))
+        (reconstruct! (append patched cached))
+        (append full (^gened-full^))]
+       [else
+        full])))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
   (finalize-iter!))
   
@@ -525,11 +385,9 @@
                #:precision precision)
   (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
   (when (flag-set? 'setup 'simplify)
-    (^gened-rewrites^ (atab-active-alts (^table^)))
-    (simplify!)
-    (reconstruct!)
-    (finalize-iter!)
-    (^next-alt^ #f))
+      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
+      (finalize-iter!)
+      (^next-alt^ #f))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
     (run-iter!)
