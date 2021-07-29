@@ -1,10 +1,12 @@
 #lang racket
 
-(require "common.rkt" "programs.rkt" "points.rkt" "alternative.rkt" "errors.rkt"
-         "timeline.rkt" "syntax/rules.rkt" "syntax/types.rkt" "conversions.rkt"
-         "core/localize.rkt" "core/taylor.rkt" "core/alt-table.rkt"
-         "core/simplify.rkt" "core/matcher.rkt" "core/regimes.rkt" "interface.rkt"
-         "syntax/sugar.rkt" "preprocess.rkt" "symmetry.rkt" "sampling.rkt")
+(require "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
+         "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt"
+         "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
+         "interface.rkt" "patch.rkt" "points.rkt" "preprocess.rkt"
+         "programs.rkt" "sampling.rkt" "timeline.rkt" "symmetry.rkt")
+
+(require "core/taylor.rkt" "core/simplify.rkt")
 
 (provide (all-defined-out))
 
@@ -199,36 +201,30 @@
   (^duplocs^ '())
 
   ; high-error locations
-  (^locs^
-    (filter identity
-      (let loop ([locs locs-errs] [chosen '()] [count 0])
-        (cond
-         [(or (null? locs) (= count (*localize-expressions-limit*)))
-          (reverse chosen)]
-         [else
-          (match-define (cons err loc) (car locs))
-          (define expr (location-get loc (alt-program (^next-alt^))))
-          (cond
-           [(and (*use-improve-cache*)          ; if in cache, put into duplocs
-                 (hash-has-key? improve-cache expr))
-            (timeline-push! 'locations (~a expr) (errors-score err) #f)
-            (^duplocs^ (cons (cons loc expr) (^duplocs^)))
-            (loop (cdr locs) chosen (if (*localize-limit-for-new*) count (+ count 1)))]
-           [else                                ; else, add to list
-            (define choose (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^)))))
-            (timeline-push! 'locations (~a expr) (errors-score err) #t)
-            (cache-improvement! expr) ; in case the expression is used twice
-            (loop (cdr locs) (cons choose chosen) (+ count 1))])]))))
+  (let loop ([locs locs-errs] [count 0])
+    (cond
+     [(or (null? locs) (= count (*localize-expressions-limit*)))
+      (void)]
+     [else
+      (match-define (cons err loc) (car locs))
+      (define expr (location-get loc (alt-program (^next-alt^))))
+      (cond
+       [(and (*use-improve-cache*)          ; if in cache, put into duplocs
+             (patch-table-has-expr? expr))
+        (timeline-push! 'locations (~a expr) (errors-score err) #f)
+        (^duplocs^ (cons (cons loc expr) (^duplocs^)))
+        (loop (cdr locs) (if (*localize-limit-for-new*) count (+ count 1)))]
+       [else                                ; else, add to list
+        (timeline-push! 'locations (~a expr) (errors-score err) #t)
+        (patch-table-add! (^next-alt^) loc #t)
+        (loop (cdr locs) (+ count 1))])]))
 
   ; low-error locations
-  (^lowlocs^
-    (if (*pareto-mode*) ; Pareto mode uses low-error locations
-        (for/list ([(err loc) (in-dict (reverse locs-errs))]
-                   [_ (in-range (*localize-expressions-limit*))])
-          (let ([expr (location-get loc (alt-program (^next-alt^)))])
-            (timeline-push! 'locations (~a expr) (errors-score err) #t)
-            (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^))))))
-        (list)))
+  (when (*pareto-mode*) ; Pareto mode uses low-error locations
+    (for ([(err loc) (in-dict (take-up-to (reverse locs-errs) (*localize-expressions-limit*)))])
+      (let ([expr (location-get loc (alt-program (^next-alt^)))])
+        (timeline-push! 'locations (~a expr) (errors-score err) #t)
+        (patch-table-add! (^next-alt^) loc #f))))
 
   (void))
 
@@ -319,67 +315,6 @@
   (void))
 
 (define (gen-rewrites!)
-  (unless (^locs^)
-    (raise-user-error 'gen-rewrites! "No locations selected. Run (localize!) or modify (^locs^)"))
-  (^gened-rewrites^ '())
-
-  (timeline-event! 'rewrite)
-  (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
-  (timeline-push! 'method (~a (object-name rewrite)))
-  (define altn (alt-add-event (^next-alt^) '(start rm)))
-
-  (define changelists
-    (for/list ([(location altn) (in-dict (^locs^))] [n (in-naturals 1)])
-      (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
-      (define expr (program-body (alt-program altn)))
-      (define tnow (current-inexact-milliseconds))
-      (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root '(2))
-        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
-
-  (define reprchange-rules
-    (if (*pareto-mode*)
-        (filter (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?)) (*rules*))
-        (list)))
-
-  ; Empty in normal mode
-  (define changelists-low-locs
-    (for/list ([(location altn) (in-dict (^lowlocs^))] [n (in-naturals 1)])
-      (debug #:from 'progress #:depth 4 "[" n "/" (length (^lowlocs^)) "] rewriting at" location)
-      (define expr (program-body (alt-program altn)))
-      (define tnow (current-inexact-milliseconds))
-      (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules #:root '(2))
-        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
-
-  (define comb-changelists (append changelists changelists-low-locs))
-  (define altns (map cdr (append (^locs^) (^lowlocs^))))
-
-  (define rules-used
-    (append-map (curry map change-rule) (apply append comb-changelists)))
-  (define rule-counts
-    (for ([rgroup (group-by identity rules-used)])
-      (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
-
-  (define (repr-change altn)
-    (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
-
-  (define rewritten
-    (filter (compose program-body alt-program)  ; false body means failure
-      (for/list ([cls comb-changelists] [altn altns]
-                #:when true [cl cls])
-        (for/fold ([altn altn] #:result (repr-change altn)) ([cng cl])
-            (alt (change-apply cng (alt-program altn))
-                 (list 'change cng)
-                 (list altn))))))
-
-  (define rewritten*
-    (if (and (*pareto-mode*) (> (length rewritten) 1000))
-        (take rewritten 1000)
-        rewritten))
-        
-  (timeline-push! 'count (length (^locs^)) (length rewritten*))
-  (^gened-rewrites^ rewritten*)
-  ;;; (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
-  ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*)))
   (void))
 
 (define (simplify!)
@@ -530,15 +465,7 @@
   (when (not (^locs^))
     (debug #:from 'progress #:depth 3 "localizing error")
     (localize!))
-  (when (not (^gened-series^))
-    (debug #:from 'progress #:depth 3 "generating series expansions")
-    (gen-series!))
-  (when (not (^gened-rewrites^))
-    (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-    (gen-rewrites!))
-  (when (not (^gened-simplify^))
-    (debug #:from 'progress #:depth 3 "simplifying candidates")
-    (simplify!))
+  (patch-table-run!)
   (debug #:from 'progress #:depth 3 "adding candidates to table")
   (reconstruct!)
   (finalize-iter!)
@@ -578,12 +505,7 @@
       (^table^ table*)
       (debug #:from 'progress #:depth 3 "localizing error")
       (localize!)
-      (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-      (gen-rewrites!)
-      (debug #:from 'progress #:depth 3 "generating series expansions")
-      (gen-series!)
-      (debug #:from 'progress #:depth 3 "simplifying candidates")
-      (simplify!)
+      (patch-table-run!)
       (reconstruct!)
       (append full (^gened-full^))))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
