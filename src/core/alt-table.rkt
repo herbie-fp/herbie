@@ -55,7 +55,7 @@
              (hash initial-alt #f)
              (hash initial-alt cost)
              context
-             (mutable-set initial-alt)))
+             (set initial-alt)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
            #:only-fresh [only-fresh? #t])
@@ -268,9 +268,9 @@
     (define pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn cost))
     (define alts->done?* (hash-set alt->done? altn #f))
     (define alt->cost* (hash-set alt->cost altn cost))
-    (set-add! all-alts altn)
+    (define all-alts* (set-add all-alts altn))
     (minimize-alts (alt-table pnts->alts*2 alts->pnts*2 alts->done?*
-                              alt->cost* (alt-table-context atab) all-alts))]))
+                              alt->cost* (alt-table-context atab) all-alts*))]))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))
