@@ -301,8 +301,17 @@
           (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
             (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
-    (timeline-push! 'count (length (^locs^)) (length series-expansions))
-    (^gened-series^ series-expansions))
+    (define (is-nan? x)
+      (and (constant? x) (equal? (hash-ref parametric-constants-reverse x) 'NAN)))
+
+    ; Probably unnecessary, at least CI passes!
+    (define series-expansions*
+      (filter-not
+        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
+        series-expansions))
+
+    (timeline-push! 'count (length (^locs^)) (length series-expansions*))
+    (^gened-series^ series-expansions*))
 
     ;;; (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
     ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
@@ -416,7 +425,7 @@
     (define simplified
       (apply append
              (for/list ([child (in-list children)] [locs locs-list])
-              (make-simplification-combinations child locs simplify-hash))))
+               (make-simplification-combinations child locs simplify-hash))))
 
     (timeline-push! 'count (length locs-list) (length simplified))
     (^gened-simplify^ simplified))
@@ -453,13 +462,13 @@
   altn*)
 
 ;; cached alts have outdated location data
-(define (repair-cached-alt altn loc)
+(define (repair-cached-alt altn loc base)
   (let loop ([altn altn])
     (match altn
      [(alt _ _ (list))
       altn]
      [(alt prog (list 'mainloop _) (list prev))
-      (alt prog (list 'mainloop loc) (list prev))]
+      (alt prog (list 'mainloop loc) (list base))]
      [(alt prog event (list prev))
       (alt prog event (list (loop prev)))])))
 
@@ -470,10 +479,10 @@
     (if (^duplocs^)
         (apply append
           (for/list ([(loc expr) (in-dict (^duplocs^))])
-            (map (λ (x) (reconstruct-alt (repair-cached-alt x loc) (^next-alt^)))
-                 (hash-ref improve-cache expr))))
+            (for/list ([bad (in-list (hash-ref improve-cache expr))])
+              (define fixed (repair-cached-alt bad loc (^next-alt^)))
+              (reconstruct-alt fixed (^next-alt^)))))
         (list)))
-
   (^gened-full^ (append new-alts prev-alts)))
 
 ;; Finish iteration
