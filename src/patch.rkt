@@ -52,11 +52,14 @@
 ;  (a) leaves the existing list of improvements empty
 ;  (b) sets the improvements to be an empty list 
 (define (add-patch! expr [improve #f])
-  (if improve
-      (hash-update! (patchtable-table *patch-table*) expr
-                    (curry cons improve) (list improve))
-      (hash-update! (patchtable-table *patch-table*) expr
-                    identity (list))))
+  (cond
+   [(not (*use-improve-cache*)) (void)]
+   [improve
+    (hash-update! (patchtable-table *patch-table*) expr
+                  (curry cons improve) (list improve))]
+   [else
+    (hash-update! (patchtable-table *patch-table*) expr
+                  identity (list))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Internals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -108,7 +111,7 @@
             (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
               (location-do '(2) (alt-program altn) genexpr)))
           (when expr*
-            (sow (alt expr* (list 'taylor name '(2)) (list altn)))))]
+            (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))]
        [else  ; taylor failed
         (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
         (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
@@ -129,9 +132,18 @@
           (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
             (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
-    (timeline-push! 'count (length (^queued^)) (length series-expansions))
+    (define (is-nan? x)
+      (and (constant? x) (equal? (hash-ref parametric-constants-reverse x) 'NAN)))
+
+    ; Probably unnecessary, at least CI passes!
+    (define series-expansions*
+      (filter-not
+        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
+        series-expansions))
+
     ; TODO: accuracy stats for timeline
-    (^series^ series-expansions))
+    (timeline-push! 'count (length (^queued^)) (length series-expansions*))
+    (^series^ series-expansions*))
   (void))
 
 
@@ -218,7 +230,7 @@
     (define locs-list
       (for/list ([child (in-list children)] [n (in-naturals 1)])
         (match (alt-event child)
-          [(list 'taylor _ loc) (list loc)]
+          [(list 'taylor _ _ loc) (list loc)]
           [(list 'change cng)
            (match-define (change rule loc _) cng)
            (define pattern (rule-output rule))

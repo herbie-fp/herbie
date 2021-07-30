@@ -18,10 +18,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs lowlocs duplocs gened-series gened-rewrites gened-simplify gened-full)
+  (table next-alt locs lowlocs duplocs patched)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f #f #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -38,36 +38,11 @@
 (define (^next-alt^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-next-alt! (^shell-state^) newval))
   (shellstate-next-alt (^shell-state^)))
-
-;; Keep track of state for (finish-iter!)
-(define (^gened-series^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-gened-series! (^shell-state^) newval))
-  (shellstate-gened-series (^shell-state^)))
-(define (^gened-rewrites^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-gened-rewrites! (^shell-state^) newval))
-  (shellstate-gened-rewrites (^shell-state^)))
-(define (^gened-simplify^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-gened-simplify! (^shell-state^) newval))
-  (shellstate-gened-simplify (^shell-state^)))
-(define (^gened-full^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-gened-full! (^shell-state^) newval))
-  (shellstate-gened-full (^shell-state^)))
+(define (^patched^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-patched! (^shell-state^) newval))
+  (shellstate-patched (^shell-state^)))
 
 (define *sampler* (make-parameter #f))
-
-(define improve-cache (make-hash))
-
-;; Adds an expression to the improvement cache
-;; If `improve` is not provided, an empty list
-;; is stored as the value
-(define (cache-improvement! expr [improve #f])
-  (when (*use-improve-cache*)
-    (hash-update! improve-cache expr
-                  (if improve (curry cons improve) identity)
-                  (list))))
-
-(register-reset
-  (λ () (set! improve-cache (make-hash))))
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn)
@@ -261,8 +236,8 @@
            [else
             (define evt*
               (match event
-               [(list 'taylor name loc)
-                (list 'taylor name (append loc-prefix (cdr loc)))]
+               [(list 'taylor name var loc)
+                (list 'taylor name var (append loc-prefix (cdr loc)))]
                [(list 'change cng)
                 (match-define (change rule loc binds) cng)
                 (list 'change (change rule (append loc-prefix (cdr loc)) binds))]
@@ -272,15 +247,15 @@
             (values (alt prog* evt* (list altn*)) loc-prefix)])])))
     altn*)
   
-  (^gened-full^ (map (curryr reconstruct-alt (^next-alt^)) alts)))
+  (^patched^ (map (curryr reconstruct-alt (^next-alt^)) alts)))
 
 ;; Finish iteration
 (define (finalize-iter!)
-  (unless (^gened-full^)
+  (unless (^patched^)
     (raise-user-error 'finalize-iter! "No candidates ready for pruning!"))
 
   (timeline-event! 'prune)
-  (define new-alts (^gened-full^))
+  (define new-alts (^patched^))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
   (^table^ (atab-add-altns (^table^) new-alts (*output-repr*)))
@@ -331,10 +306,7 @@
   (^lowlocs^ #f)
   (^duplocs^ #f)
   (^next-alt^ #f)
-  (^gened-rewrites^ #f)
-  (^gened-series^ #f)
-  (^gened-simplify^ #f)
-  (^gened-full^ #f)
+  (^patched^ #f)
   (void))
 
 (define (rollback-improve!)
@@ -349,7 +321,7 @@
     (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
   (debug #:from 'progress #:depth 3 "Picking candidate(s)")
-  (^gened-full^
+  (^patched^
     (for/fold ([full '()]) ([picked (choose-alts)] [i (in-naturals 1)])
       (define (picking-func x)
         (for/first ([v x] #:when (alt-equal? v picked)) v))
@@ -365,7 +337,7 @@
         (define patched (patch-table-run))
         (define cached (gen-cached-alts))
         (reconstruct! (append patched cached))
-        (append full (^gened-full^))]
+        (append full (^patched^))]
        [else
         full])))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
