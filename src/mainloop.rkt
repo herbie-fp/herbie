@@ -279,7 +279,7 @@
             (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
               (location-do '(2) (alt-program altn) genexpr)))
           (when expr*
-            (sow (alt expr* (list 'taylor name '(2)) (list altn)))))]
+            (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))]
        [else  ; taylor failed
         (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
         (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
@@ -390,7 +390,7 @@
         ;; subexpressions that don't correspond to function call
         ;; patterns.
         (match (alt-event child)
-          [(list 'taylor _ loc) (list loc)]
+          [(list 'taylor _ _ loc) (list loc)]
           [(list 'change cng)
            (match-define (change rule loc _) cng)
            (define pattern (rule-output rule))
@@ -437,8 +437,8 @@
          [else
           (define evt*
             (match event
-             [(list 'taylor name loc)
-              (list 'taylor name (append loc-prefix (cdr loc)))]
+             [(list 'taylor name var loc)
+              (list 'taylor name var (append loc-prefix (cdr loc)))]
              [(list 'change cng)
               (match-define (change rule loc binds) cng)
               (list 'change (change rule (append loc-prefix (cdr loc)) binds))]

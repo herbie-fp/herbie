@@ -49,12 +49,19 @@
      (for/list ([loc locs])
        (list (last (hash-ref simplify-hash (location-get loc (alt-program child))))))))
   
-  (for/list ([option location-options])
-    (for/fold ([child child]) ([replacement option] [loc locs])
-      (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
-      (if (not (equal? (alt-program child) child*))
-          (alt child* (list 'simplify loc) (list child))
-          child))))
+  (define options
+    (for/list ([option location-options])
+      (for/fold ([child child]) ([replacement option] [loc locs])
+        (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
+        (if (not (equal? (alt-program child) child*))
+            (alt child* (list 'simplify loc) (list child))
+            child))))
+
+  ; Simplify-streaming lite
+  (for/fold ([all '()] #:result (reverse all)) ([option (in-list options)])
+    (if (alt-equal? option child)
+        (cons option all)
+        (append (list option child) all))))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
