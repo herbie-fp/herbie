@@ -124,18 +124,7 @@
             (error! conversions "Unknown precision in conversion ~a" conv)))
         (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))))
 
-(define (check-program* stx error!)
-  (define-values (vars props body)
-    (match (syntax-e stx)
-     [(list (app syntax-e 'FPCore) (app syntax-e name) (app syntax-e (list vars ...)) props ... body)
-      (unless (symbol? name)
-        (error! stx "FPCore identifier must be a symbol: ~a" name))
-      (values vars props body)]
-     [(list (app syntax-e 'FPCore) (app syntax-e (list vars ...)) props ... body)
-      (values vars props body)]
-     [(list (app syntax-e 'FPCore) something ...)
-      (error! stx "FPCore not in a valid format" stx)]
-     [_ (error! stx "Not an FPCore: ~a" stx)]))
+(define (check-program* stx vars props body error!)
   (unless (list? vars)
     (error! stx "Invalid arguments list ~a; must be a list" stx))
   (define vars* (filter identifier? vars))
@@ -146,6 +135,19 @@
       (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*))))
   (check-properties* props (immutable-bound-id-set vars*) error!)
   (check-expression* body (immutable-bound-id-set vars*) error!))
+
+(define (check-fpcore* stx error!)
+  (match stx
+   [#`(FPCore #,name (#,vars ...) #,props ... #,body)
+    (unless (identifier? name)
+      (error! stx "FPCore identifier must be a symbol: ~a" name))
+    (check-program* stx vars props body error!)]
+   [#`(FPCore (#,vars ...) #,props ... #,body)
+    (check-program* stx vars props body error!)]
+   [#`(FPCore #,something ...)
+    (error! stx "FPCore not in a valid format: ~a" stx)]
+   [_
+    (error! stx "Not an FPCore: ~a" stx)]))
 
 (define (assert-expression! stx vars)
   (define errs
@@ -163,6 +165,28 @@
           (define (error! stx fmt . args)
             (define args* (map (λ (x) (if (syntax? x) (syntax->datum x) x)) args))
             (sow (cons stx (apply format fmt args*))))
-          (check-program* stx error!)))
+          (check-fpcore* stx error!)))
   (unless (null? errs)
     (raise-herbie-syntax-error "Invalid program" #:locations errs)))
+
+;; testing FPCore format
+(module+ test
+  (require rackunit)
+  (define (get-errs stx)
+    (reap [sow]
+          (define (error! stx fmt . args)
+            (define args* (map (λ (x) (if (syntax? x) (syntax->datum x) x)) args))
+            (sow (cons stx (apply format fmt args*))))
+          (check-fpcore* stx error!)))
+
+  (check-pred (compose not null?) (get-errs #'a))
+  (check-pred (compose not null?) (get-errs #'(FPCore)))
+  (check-pred (compose not null?) (get-errs #'(FPCore foo 1)))
+  (check-pred (compose not null?) (get-errs #'(FPCore foo x 1)))
+  (check-pred (compose not null?) (get-errs #'(FPCore foo foo2 (x) x)))
+
+  (check-pred null? (get-errs #'(FPCore (x) x)))
+  (check-pred null? (get-errs #'(FPCore (x) :precision binary64 x)))
+  (check-pred null? (get-errs #'(FPCore foo (x) x)))
+  (check-pred null? (get-errs #'(FPCore foo (x) :precision binary64 x)))
+)
