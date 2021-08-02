@@ -609,7 +609,8 @@
     (^next-alt^ #f))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-    (run-iter!))
+    (run-iter!)
+    (print-warnings))
   (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
   (extract!))
 
