@@ -20,7 +20,13 @@
   (define type (dict-ref props* ':precision 'binary64))
   (assert-expression-type! body type #:env (for/hash ([var vars]) (values (syntax-e var) type))))
 
+(define (load-representations! rtype env)
+  (get-representation rtype)
+  (for ([(_ r) (in-dict env)])
+    (get-representation r)))
+
 (define (assert-expression-type! stx expected-rtype #:env [env #hash()])
+  (load-representations! expected-rtype env) ; load ops (unit tests)
   (define errs
     (reap [sow]
           (define (error! stx fmt . args)
@@ -68,6 +74,7 @@
      (cond
        [(hash-has-key? props* ':precision)
         (define itype (hash-ref props* ':precision))
+        (get-representation itype)    ; load ops (unit tests)
         (define rtype (expression->type body env itype error!))
         (unless (equal? rtype itype)
           (error! stx "Annotation promised precision ~a, but got ~a" itype rtype))
@@ -151,9 +158,11 @@
     (error (apply format msg args) stx))
 
   (define (check-type env-type rtype expr #:env [env #hash()])
+    (load-representations! env-type env) ; load ops (unit tests)
     (check-equal? (expression->type expr env env-type fail) rtype))
 
   (define (check-fails type expr #:env [env #hash()])
+    (load-representations! type env) ; load ops (unit tests)
     (check-equal?
      (let ([v #f])
        (expression->type expr env type (lambda _ (set! v #t)))

@@ -60,9 +60,9 @@
 ;; is stored as the value
 (define (cache-improvement! expr [improve #f])
   (when (*use-improve-cache*)
-    (if improve
-        (hash-update! improve-cache expr (curry cons improve) (list improve))
-        (hash-update! improve-cache expr identity (list)))))
+    (hash-update! improve-cache expr
+                  (if improve (curry cons improve) identity)
+                  (list))))
 
 (register-reset
   (λ () (set! improve-cache (make-hash))))

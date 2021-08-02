@@ -161,7 +161,7 @@
                          (λ () (warn 'unsupported #:url "faq.html#native-ops"
                                      "native `~a` not supported on your system, disabling operator. ~a"
                                      '#,cname
-                                     "Consider using :precision racket for Racket-only double-precision ops.")
+                                     "Consider using :precision racket for Racket-only operators.")
                                #f)))
            (when fl-proc
             (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary32))) binary32

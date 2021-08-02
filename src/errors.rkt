@@ -80,7 +80,7 @@
   (unless (*warnings-disabled*)
     (define url* (and url (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* url)))
     (define entry (list message args url* extra))
-    (hash-update! warnings type (λ (x) (cons entry x)) (list entry))
+    (hash-update! warnings type (curry cons entry) (list))
     (set! warning-log (cons (list type message args url* extra) warning-log))))
 
 (define (print-warnings)
