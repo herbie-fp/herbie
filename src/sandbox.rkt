@@ -70,7 +70,7 @@
                        #:precondition (test-precondition test)
                        #:preprocess (test-preprocess test)
                        #:specification (test-specification test)
-                       #:precision output-prec))             
+                       #:precision output-prec))
 
         (define context (*pcontext*))
         (when seed (set-seed! seed))
