@@ -39,12 +39,11 @@
          (constant-info x 'type)
          (constant-info (get-parametric-constant x type) 'type))]
     [#`,(? variable? x)
-     (define etype (type-name (representation-type (get-representation type))))
-     (define vtype (type-name (representation-type (get-representation (dict-ref env x)))))
+     (define vtype (dict-ref env x))
      (cond
       [(equal? vtype 'bool) 'bool]
-      [(equal? etype vtype) type]
-      [else (error! stx "Expected a variable of type ~a, but got ~a" etype vtype)])]
+      [(equal? type vtype) type]
+      [else (error! stx "Expected a variable of type ~a, but got ~a" type vtype)])]
     [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
@@ -95,6 +94,8 @@
      (define t #f)
      (for ([arg exprs] [i (in-naturals)])
        (define actual-type (expression->type arg env type error!))
+       (when (equal? actual-type 'bool)
+          (error! stx "~a does not take boolean arguments" op))
        (if (= i 0) (set! t actual-type) #f)
        (unless (equal? t actual-type)
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
