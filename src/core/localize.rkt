@@ -62,6 +62,8 @@
   (*analyze-context* (*pcontext*))
   (set! *analyze-cache* (make-hash))))
 
+;; Returns a list of locations and errors sorted
+;; by error scores in descending order
 (define (localize-error prog repr)
   (define varmap (map cons (program-variables prog)
 		      (flip-lists (for/list ([(p e) (in-pcontext (*pcontext*))])
@@ -72,30 +74,20 @@
         (make-hash)))
 
   (localize-on-expression (program-body prog) varmap cache repr)
-
-  (define locs
-    (sort
-     (reap [sow]
-       (let loop ([expr (program-body prog)] [loc '(2)])
-         (define err (cdr (hash-ref cache expr)))
-         (unless (andmap (curry = 1) err)
-           (sow (cons err (reverse loc))))
-         (match expr
-           [(? number?) (void)]
-           [(? constant?) (void)]
-           [(? variable?) (void)]
-           [(list 'if cond ift iff)
-            (loop ift (cons 2 loc))
-            (loop iff (cons 3 loc))]
-           [(list op args ...)
-            (for ([idx (in-naturals 1)] [arg args])
-              (loop arg (cons idx loc)))])))
-     > #:key (compose errors-score car)))
-
-  (values
-    (take-up-to ; high error locs
-      (sort locs > #:key (compose errors-score car))
-      (*localize-expressions-limit*))
-    (take-up-to ; low error locs
-      (sort locs < #:key (compose errors-score car))
-      (*localize-expressions-limit*))))
+  (sort
+    (reap [sow]
+      (let loop ([expr (program-body prog)] [loc '(2)])
+        (define err (cdr (hash-ref cache expr)))
+        (match expr                               ; descend first
+          [(? number?) (void)]
+          [(? constant?) (void)]
+          [(? variable?) (void)]
+          [(list 'if cond ift iff)
+          (loop ift (cons 2 loc))
+          (loop iff (cons 3 loc))]
+          [(list op args ...)
+          (for ([idx (in-naturals 1)] [arg args])
+            (loop arg (cons idx loc)))])
+        (unless (andmap (curry = 1) err)     ; then add to locations
+          (sow (cons err (reverse loc))))))
+    > #:key (compose errors-score car)))

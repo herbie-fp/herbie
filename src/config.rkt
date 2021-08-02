@@ -75,12 +75,20 @@
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
 
+;; In localization, limit is for new locations
+;; (only if *use-improve-cache* is on)
+(define *localize-limit-for-new* (make-parameter #f))
+
 ;; How accurate to make the binary search
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
 
-;; Enables Pherbie
+;; Pherbie related options
 (define *pareto-mode* (make-parameter #f))
+(define *pareto-pick-limit* (make-parameter 5))
+
+;; In mainloop, cache improvements between iterations
+(define *use-improve-cache* (make-parameter #t))
 
 ;;; About Herbie:
 

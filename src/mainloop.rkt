@@ -16,10 +16,10 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate
-  (table next-alt locs lowlocs gened-series gened-rewrites gened-simplify simplified)
+  (table next-alt locs lowlocs duplocs gened-series gened-rewrites gened-simplify gened-full)
   #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -27,6 +27,9 @@
 (define (^lowlocs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-lowlocs! (^shell-state^) newval))
   (shellstate-lowlocs (^shell-state^)))
+(define (^duplocs^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-duplocs! (^shell-state^) newval))
+  (shellstate-duplocs (^shell-state^)))
 (define (^table^ [newval 'none])
   (when (not (equal? newval 'none))  (set-shellstate-table! (^shell-state^) newval))
   (shellstate-table (^shell-state^)))
@@ -44,9 +47,25 @@
 (define (^gened-simplify^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-gened-simplify! (^shell-state^) newval))
   (shellstate-gened-simplify (^shell-state^)))
+(define (^gened-full^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-gened-full! (^shell-state^) newval))
+  (shellstate-gened-full (^shell-state^)))
 
 (define *sampler* (make-parameter #f))
-(define *pareto-pick-limit* (make-parameter 5))
+
+(define improve-cache (make-hash))
+
+;; Adds an expression to the improvement cache
+;; If `improve` is not provided, an empty list
+;; is stored as the value
+(define (cache-improvement! expr [improve #f])
+  (when (*use-improve-cache*)
+    (if improve
+        (hash-update! improve-cache expr (curry cons improve) (list improve))
+        (hash-update! improve-cache expr identity (list)))))
+
+(register-reset
+  (λ () (set! improve-cache (make-hash))))
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn)
@@ -172,21 +191,44 @@
   (unless (^next-alt^)
     (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
-  (define-values (locs lowlocs)
-    (localize-error (alt-program (^next-alt^)) (*output-repr*)))
 
-  (for ([(err loc) (in-dict locs)])
-    (timeline-push! 'locations
-                    (~a (location-get loc (alt-program (^next-alt^))))
-                    (errors-score err)))
-  (^locs^ (map cdr locs))
+  (define vars (program-variables (alt-program (^next-alt^))))
+  (define locs-errs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
 
-  (when (*pareto-mode*) ; Pareto mode uses low-error locations
-    (for ([(err loc) (in-dict lowlocs)])
-      (timeline-push! 'locations
-                      (~a (location-get loc (alt-program (^next-alt^))))
-                      (errors-score err))))
-  (^lowlocs^ (map cdr (if (*pareto-mode*) lowlocs (list))))
+  ; duplicate locations (already seen)
+  (^duplocs^ '())
+
+  ; high-error locations
+  (^locs^
+    (filter identity
+      (let loop ([locs locs-errs] [chosen '()] [count 0])
+        (cond
+         [(or (null? locs) (= count (*localize-expressions-limit*)))
+          (reverse chosen)]
+         [else
+          (match-define (cons err loc) (car locs))
+          (define expr (location-get loc (alt-program (^next-alt^))))
+          (cond
+           [(and (*use-improve-cache*)          ; if in cache, put into duplocs
+                 (hash-has-key? improve-cache expr))
+            (timeline-push! 'locations (~a expr) (errors-score err) #f)
+            (^duplocs^ (cons (cons loc expr) (^duplocs^)))
+            (loop (cdr locs) chosen (if (*localize-limit-for-new*) count (+ count 1)))]
+           [else                                ; else, add to list
+            (define choose (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^)))))
+            (timeline-push! 'locations (~a expr) (errors-score err) #t)
+            (cache-improvement! expr) ; in case the expression is used twice
+            (loop (cdr locs) (cons choose chosen) (+ count 1))])]))))
+
+  ; low-error locations
+  (^lowlocs^
+    (if (*pareto-mode*) ; Pareto mode uses low-error locations
+        (for/list ([(err loc) (in-dict (take-up-to (reverse locs-errs) (*localize-expressions-limit*)))])
+          (let ([expr (location-get loc (alt-program (^next-alt^)))])
+            (timeline-push! 'locations (~a expr) (errors-score err) #t)
+            (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^))))))
+        (list)))
+
   (void))
 
 (define transforms-to-try
@@ -197,20 +239,6 @@
       (-inf ,ninvert-x ,ninvert-x)
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
-
-; taylor uses older format, resugaring and desugaring needed
-; not all taylor transforms are valid in a given repr, return false on failure
-(define (taylor-expr expr repr var f finv)
-  (define expr* (resugar-program expr repr #:full #f))
-  (with-handlers ([exn:fail? (const #f)]) ; in case taylor fails
-    (define genexpr (approximate expr* var #:transform (cons f finv)))
-    (λ (x) (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
-
-(define (exact-min x y)
-  (if (<= x y) x y))
-
-(define (much-< x y)
-  (< x (/ y 2)))
 
 ;; Taylor is problematic since it doesn't know what reprs are
 ;; There are two types of errors that occur due to this inconsistency
@@ -227,8 +255,16 @@
     (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
     #f))
 
-(define (taylor-alt altn loc)
-  (define expr (location-get loc (alt-program altn)))
+; taylor uses older format, resugaring and desugaring needed
+; not all taylor transforms are valid in a given repr, return false on failure
+(define (taylor-expr expr repr var f finv)
+  (define expr* (resugar-program expr repr #:full #f))
+  (with-handlers ([exn:fail? (const #f)])       ; in case taylor fails internally
+    (define genexpr (approximate expr* var #:transform (cons f finv)))
+    (λ (x) (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
+
+(define (taylor-alt altn)
+  (define expr (program-body (alt-program altn)))
   (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
   (define vars (free-variables expr))
   (reap [sow]
@@ -238,18 +274,12 @@
       (cond
        [genexpr  ; taylor successful
         #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
-        (let loop ([last (for/list ([(p e) (in-pcontext (*pcontext*))]) +inf.0)] [i 0])
-          (define expr*
+        (for ([i (in-range 4)])
+          (define expr* 
             (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
-              (location-do loc (alt-program altn) genexpr)))
+              (location-do '(2) (alt-program altn) genexpr)))
           (when expr*
-            (define errs (errors expr* (*pcontext*) (*output-repr*)))
-            (define altn* (alt expr* `(taylor ,name ,var ,loc) (list altn)))
-            (when (ormap much-< errs last)
-              #;(eprintf "Better on ~a\n" (ormap (λ (pt x y) (and (much-< x y) (list pt x y))) pts errs last))
-              (sow altn*)
-              (when (< i 3)
-                (loop (map exact-min errs last) (+ i 1))))))]
+            (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))]
        [else  ; taylor failed
         (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
         (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
@@ -263,22 +293,28 @@
     (timeline-event! 'series)
 
     (define series-expansions
-      (apply
-       append
-       (for/list ([location (^locs^)] [n (in-naturals 1)])
-         (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
-         (define tnow (current-inexact-milliseconds))
-         (begin0
-             (taylor-alt (^next-alt^) location)
-           (timeline-push! 'times
-                           (~a (location-get location (alt-program (^next-alt^))))
-                           (- (current-inexact-milliseconds) tnow))))))
-    
-    (timeline-push! 'count (length (^locs^)) (length series-expansions))
+      (apply append
+        (for/list ([(location altn) (in-dict (^locs^))] [n (in-naturals 1)])
+          (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] generating series at" location)
+          (define expr (program-body (alt-program altn)))
+          (define tnow (current-inexact-milliseconds))
+          (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
+            (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
-    (^gened-series^ series-expansions)
-    (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
-    (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
+    (define (is-nan? x)
+      (and (constant? x) (equal? (hash-ref parametric-constants-reverse x) 'NAN)))
+
+    ; Probably unnecessary, at least CI passes!
+    (define series-expansions*
+      (filter-not
+        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
+        series-expansions))
+
+    (timeline-push! 'count (length (^locs^)) (length series-expansions*))
+    (^gened-series^ series-expansions*))
+
+    ;;; (define table* (atab-add-altns (^table^) (^gened-series^) (*output-repr*)))
+    ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*))))
   (void))
 
 (define (gen-rewrites!)
@@ -292,13 +328,12 @@
   (define altn (alt-add-event (^next-alt^) '(start rm)))
 
   (define changelists
-    (apply append
-	   (for/list ([location (^locs^)] [n (in-naturals 1)])
-	     (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
-             (define tnow (current-inexact-milliseconds))
-             (define expr (location-get location (alt-program altn)))
-             (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root location)
-               (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+    (for/list ([(location altn) (in-dict (^locs^))] [n (in-naturals 1)])
+      (debug #:from 'progress #:depth 4 "[" n "/" (length (^locs^)) "] rewriting at" location)
+      (define expr (program-body (alt-program altn)))
+      (define tnow (current-inexact-milliseconds))
+      (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root '(2))
+        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
   (define reprchange-rules
     (if (*pareto-mode*)
@@ -307,30 +342,33 @@
 
   ; Empty in normal mode
   (define changelists-low-locs
-    (apply append
-      (for/list ([location (^lowlocs^)] [n (in-naturals 1)])
-        (debug #:from 'progress #:depth 4 "[" n "/" (length (^lowlocs^)) "] rewriting at" location)
-              (define tnow (current-inexact-milliseconds))
-              (define expr (location-get location (alt-program altn)))
-              (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules #:root location)
-                (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+    (for/list ([(location altn) (in-dict (^lowlocs^))] [n (in-naturals 1)])
+      (debug #:from 'progress #:depth 4 "[" n "/" (length (^lowlocs^)) "] rewriting at" location)
+      (define expr (program-body (alt-program altn)))
+      (define tnow (current-inexact-milliseconds))
+      (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules #:root '(2))
+        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
-  (define changelists* (append changelists changelists-low-locs))
+  (define comb-changelists (append changelists changelists-low-locs))
+  (define altns (map cdr (append (^locs^) (^lowlocs^))))
+
   (define rules-used
-    (append-map (curry map change-rule) changelists*))
+    (append-map (curry map change-rule) (apply append comb-changelists)))
   (define rule-counts
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
 
-  (define (repr-rewrite-alt altn)
+  (define (repr-change altn)
     (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
 
   (define rewritten
-    (filter (λ (altn) (program-body (alt-program altn)))
-      (map repr-rewrite-alt
-        (for/list ([cl changelists*])
-          (for/fold ([altn altn]) ([cng cl])
-            (alt (change-apply cng (alt-program altn)) (list 'change cng) (list altn)))))))
+    (filter (compose program-body alt-program)  ; false body means failure
+      (for/list ([cls comb-changelists] [altn altns]
+                #:when true [cl cls])
+        (for/fold ([altn altn] #:result (repr-change altn)) ([cng cl])
+            (alt (change-apply cng (alt-program altn))
+                 (list 'change cng)
+                 (list altn))))))
 
   (define rewritten*
     (if (and (*pareto-mode*) (> (length rewritten) 1000))
@@ -338,10 +376,9 @@
         rewritten))
         
   (timeline-push! 'count (length (^locs^)) (length rewritten*))
-
   (^gened-rewrites^ rewritten*)
-  (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
-  (timeline-push! 'min-error (errors-score (atab-min-errors table*)))
+  ;;; (define table* (atab-add-altns (^table^) (^gened-rewrites^) (*output-repr*)))
+  ;;; (timeline-push! 'min-error (errors-score (atab-min-errors table*)))
   (void))
 
 (define (simplify!)
@@ -362,17 +399,16 @@
         ;; subexpressions that don't correspond to function call
         ;; patterns.
         (match (alt-event child)
-          [(list 'taylor _ loc) (list loc)]
+          [(list 'taylor _ _ loc) (list loc)]
           [(list 'change cng)
            (match-define (change rule loc _) cng)
            (define pattern (rule-output rule))
-           (define expr (location-get loc (alt-program child)))
            (cond
             [(not (list? pattern)) '()]
             [else
              (for/list ([pos (in-naturals 1)]
                         [arg-pattern (cdr pattern)] #:when (list? arg-pattern))
-               (append (change-location cng) (list pos)))])]
+               (append loc (list pos)))])]
           [_ (list '(2))])))
 
     (define to-simplify
@@ -392,21 +428,73 @@
                (make-simplification-combinations child locs simplify-hash))))
 
     (timeline-push! 'count (length locs-list) (length simplified))
-
     (^gened-simplify^ simplified))
   (void))
 
+;; takes a subexpression alt and converts it to a full alt
+(define (reconstruct-alt altn orig)
+  (define-values (altn* loc-prefix)
+    (let loop ([altn altn])
+      (match-define (alt prog event prev) altn)
+      (cond
+       [(null? prev) (values altn '())]
+       [(equal? (car event) 'mainloop) (values (car prev) (cadr event))]
+       [else
+        (define-values (altn* loc-prefix) (loop (car prev)))
+        (cond
+         [(null? loc-prefix) (values altn '())]
+         [else
+          (define evt*
+            (match event
+             [(list 'taylor name var loc)
+              (list 'taylor name var (append loc-prefix (cdr loc)))]
+             [(list 'change cng)
+              (match-define (change rule loc binds) cng)
+              (list 'change (change rule (append loc-prefix (cdr loc)) binds))]
+             [(list 'simplify loc)
+              (list 'simplify (append loc-prefix (cdr loc)))]))
+          (define prog* (location-do loc-prefix (alt-program orig) (λ (_) (program-body prog))))
+          (values (alt prog* evt* (list altn*)) loc-prefix)])])))
+  ; add to improve cache
+  (unless (null? loc-prefix)
+    (define orig-sub (location-get loc-prefix (alt-program orig)))
+    (cache-improvement! orig-sub altn))
+  altn*)
+
+;; cached alts have outdated location data
+(define (repair-cached-alt altn loc base)
+  (let loop ([altn altn])
+    (match altn
+     [(alt _ _ (list))
+      altn]
+     [(alt prog (list 'mainloop _) (list prev))
+      (alt prog (list 'mainloop loc) (list base))]
+     [(alt prog event (list prev))
+      (alt prog event (list (loop prev)))])))
+
+;; Converts subexpressions back to full alternatives
+(define (reconstruct!)
+  (define new-alts (map (curryr reconstruct-alt (^next-alt^)) (^gened-simplify^)))
+  (define prev-alts
+    (if (^duplocs^)
+        (apply append
+          (for/list ([(loc expr) (in-dict (^duplocs^))])
+            (for/list ([bad (in-list (hash-ref improve-cache expr))])
+              (define fixed (repair-cached-alt bad loc (^next-alt^)))
+              (reconstruct-alt fixed (^next-alt^)))))
+        (list)))
+  (^gened-full^ (append new-alts prev-alts)))
 
 ;; Finish iteration
 (define (finalize-iter!)
-  (unless (^gened-simplify^)
-    (raise-user-error 'finalize-iter! "No candidates simplified. Run (simplify!)"))
+  (unless (^gened-full^)
+    (raise-user-error 'finalize-iter! "No candidates ready for pruning!"))
 
   (timeline-event! 'prune)
-  (define new-alts (^gened-simplify^))
+  (define new-alts (^gened-full^))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-  (^table^ (atab-add-altns (^table^) (^gened-simplify^) (*output-repr*)))
+  (^table^ (atab-add-altns (^table^) new-alts (*output-repr*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
@@ -451,15 +539,19 @@
     (debug #:from 'progress #:depth 3 "simplifying candidates")
     (simplify!))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
+  (reconstruct!)
   (finalize-iter!)
   (void))
 
 (define (rollback-iter!)
   (^locs^ #f)
+  (^lowlocs^ #f)
+  (^duplocs^ #f)
   (^next-alt^ #f)
   (^gened-rewrites^ #f)
   (^gened-series^ #f)
   (^gened-simplify^ #f)
+  (^gened-full^ #f)
   (void))
 
 (define (rollback-improve!)
@@ -474,31 +566,28 @@
     (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
   (debug #:from 'progress #:depth 3 "Picking candidate(s)")
-  (define-values (rewritten series)
-    (for/fold ([rewritten '()] [series '()])
-              ([picked (choose-alts)] [i (in-naturals 1)])
-      (debug #:from 'pick #:depth 4 (format "Picked [~a] " i) picked)
+  (^gened-full^
+    (for/fold ([full '()]) ([picked (choose-alts)] [i (in-naturals 1)])
       (define (picking-func x)
         (for/first ([v x] #:when (alt-equal? v picked)) v))
+      (debug #:from 'pick #:depth 4 (format "Picked [~a] " i) picked)
       (define-values (_ table*)
         (atab-pick-alt (^table^) #:picking-func picking-func #:only-fresh #t))
       (^next-alt^ picked)
       (^table^ table*)
-
       (debug #:from 'progress #:depth 3 "localizing error")
       (localize!)
       (debug #:from 'progress #:depth 3 "generating rewritten candidates")
       (gen-rewrites!)
       (debug #:from 'progress #:depth 3 "generating series expansions")
       (gen-series!)
-      (values (append (^gened-rewrites^) rewritten)
-              (append (^gened-series^) series))))
-  (^gened-rewrites^ rewritten)
-  (^gened-series^ series)
-  (debug #:from 'progress #:depth 3 "simplifying candidates")
-  (simplify!)
+      (debug #:from 'progress #:depth 3 "simplifying candidates")
+      (simplify!)
+      (reconstruct!)
+      (append full (^gened-full^))))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
   (finalize-iter!))
+  
 
 (define (run-improve prog iters
                      #:precondition [precondition #f]
@@ -515,7 +604,9 @@
   (when (flag-set? 'setup 'simplify)
     (^gened-rewrites^ (atab-active-alts (^table^)))
     (simplify!)
-    (finalize-iter!))
+    (reconstruct!)
+    (finalize-iter!)
+    (^next-alt^ #f))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
     (run-iter!))

@@ -83,6 +83,7 @@
     (*pareto-mode* #t)
     (*ignore-target* #t)
     (*num-iterations* 2)   ; keep iters low
-    (*timeout* (* 1000 60 10))]
+    (*timeout* (* 1000 60 10))
+    (disable-flag! 'rules 'numerics)] ; causes time to increase
    #:args bench-dir
    (exit (if (apply run-tests bench-dir) 0 1))))

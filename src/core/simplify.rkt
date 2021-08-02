@@ -40,10 +40,10 @@
 ;; make all combinations of the alt using the simplification options available
 (define (make-simplification-combinations child locs simplify-hash)
   ;; use this for simplify streaming
-  #;(define location-options
-    (apply cartesian-product
-     (for/list ([loc locs])
-       (hash-ref simplify-hash (location-get loc (alt-program child))))))
+  ;; (define location-options
+  ;;   (apply cartesian-product
+  ;;    (for/list ([loc locs])
+  ;;      (hash-ref simplify-hash (location-get loc (alt-program child)))))))
   (define location-options
     (apply cartesian-product
      (for/list ([loc locs])
@@ -51,13 +51,17 @@
   
   (define options
     (for/list ([option location-options])
-              (for/fold ([child child]) ([replacement option] [loc locs])
-                        (define child* (location-do loc (alt-program child) (lambda (expr) replacement)))
-                        (if (not (equal? (alt-program child) child*))
-                            (alt child* (list 'simplify loc) (list child))
-                            child))))
-  ;; omit the original expression
-  (filter (lambda (option) (not (alt-equal? option child))) options))
+      (for/fold ([child child]) ([replacement option] [loc locs])
+        (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
+        (if (not (equal? (alt-program child) child*))
+            (alt child* (list 'simplify loc) (list child))
+            child))))
+
+  ; Simplify-streaming lite
+  (for/fold ([all '()] #:result (reverse all)) ([option (in-list options)])
+    (if (alt-equal? option child)
+        (cons option all)
+        (append (list option child) all))))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
