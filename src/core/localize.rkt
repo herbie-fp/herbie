@@ -67,13 +67,11 @@
   (let loop ([expr expr] [loc '()])
     (match expr
      [(list op args ...)
-      (define below
-        (for/fold ([below '()] #:result (reverse below))
-                  ([arg (in-list args)] [i (in-naturals 1)])
-          (append (loop arg (cons i loc)) below)))
       (if (equal? expr subexpr)
-          (cons (reverse loc) below)
-          below)]
+          (list (reverse loc))
+          (for/fold ([below '()] #:result (reverse below))
+                    ([arg (in-list args)] [i (in-naturals 1)])
+            (append (loop arg (cons i loc)) below)))]
      [_
       (if (equal? expr subexpr)
           (list (reverse loc))

@@ -6,8 +6,8 @@
 
 (provide
   (contract-out
-   [patch-table-add! (-> alt? (listof natural?) boolean? void?)]
-   [patch-table-get (-> expr? (listof expr?))]
+   [patch-table-add! (-> expr? (listof symbol?) boolean? void?)]
+   [patch-table-get (-> expr? (listof alt?))]
    [patch-table-has-expr? (-> expr? boolean?)]
    [patch-table-runnable? (-> boolean?)]
    [patch-table-run (-> (listof alt?))]
@@ -125,25 +125,16 @@
     (timeline-event! 'series)
     (define series-expansions
       (apply append
-        (for/list ([(location altn) (in-dict (^queued^))] [n (in-naturals 1)])
-          (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] generating series at" location)
+        (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
           (define expr (program-body (alt-program altn)))
+          (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] generating series for" expr)
           (define tnow (current-inexact-milliseconds))
           (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
             (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
-    (define (is-nan? x)
-      (and (constant? x) (equal? (hash-ref parametric-constants-reverse x) 'NAN)))
-
-    ; Probably unnecessary, at least CI passes!
-    (define series-expansions*
-      (filter-not
-        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
-        series-expansions))
-
     ; TODO: accuracy stats for timeline
-    (timeline-push! 'count (length (^queued^)) (length series-expansions*))
-    (^series^ series-expansions*))
+    (timeline-push! 'count (length (^queued^)) (length series-expansions))
+    (^series^ series-expansions))
   (void))
 
 
@@ -156,9 +147,9 @@
   (timeline-push! 'method (~a (object-name rewrite)))
 
   (define changelists
-    (for/list ([(location altn) (in-dict (^queued^))] [n (in-naturals 1)])
-      (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] rewriting at" location)
+    (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
       (define expr (program-body (alt-program altn)))
+      (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] rewriting for" expr)
       (define tnow (current-inexact-milliseconds))
       (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root '(2))
         (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
@@ -170,15 +161,15 @@
 
   ; Empty in normal mode
   (define changelists-low-locs
-    (for/list ([(location altn) (in-dict (^queuedlow^))] [n (in-naturals 1)])
-      (debug #:from 'progress #:depth 4 "[" n "/" (length (^queuedlow^)) "] rewriting at" location)
+    (for/list ([altn (in-list (^queuedlow^))] [n (in-naturals 1)])
       (define expr (program-body (alt-program altn)))
+      (debug #:from 'progress #:depth 4 "[" n "/" (length (^queuedlow^)) "] rewriting for" expr)
       (define tnow (current-inexact-milliseconds))
       (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules #:root '(2))
         (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
   (define comb-changelists (append changelists changelists-low-locs))
-  (define altns (map cdr (append (^queued^) (^queuedlow^))))
+  (define altns (append (^queued^) (^queuedlow^)))
 
   (define rules-used
     (append-map (curry map change-rule) (apply append comb-changelists)))
@@ -210,8 +201,8 @@
 
 (define (get-starting-expr altn)
   (match (alt-event altn)
-   [(list 'patch loc) (location-get loc (alt-program (first (alt-prevs altn))))]
-   [else (get-starting-expr (first (alt-prevs altn)))]))
+   [(list 'patch) (program-body (alt-program altn))]
+   [_ (get-starting-expr (first (alt-prevs altn)))]))
 
 (define (simplify!)
   (unless (or (^series^) (^rewrites^))
@@ -261,8 +252,8 @@
     ; dedup for cache
     (define simplified* (remove-duplicates simplified alt-equal?))
     (unless (and (null? (^queued^)) (null? (^queuedlow^)))  ; don't run for simplify-only
-      (define cachable (map cdr (^queued^)))
       (for ([altn (in-list simplified*)])
+        (define cachable (map (compose program-body alt-program) (^queued^)))
         (let ([expr0 (get-starting-expr altn)])
           (when (set-member? cachable expr0)
             (add-patch! (get-starting-expr altn) altn)))))
@@ -283,15 +274,13 @@
 (define (patch-table-has-expr? expr)
   (hash-has-key? (patchtable-table *patch-table*) expr))
 
-(define (patch-table-add! altn loc down?)
-  (define expr (location-get loc (alt-program altn)))
+(define (patch-table-add! expr vars down?)
   (when (patch-table-has-expr? expr)
     (raise-user-error 'patch-table-add! "Attempting to add previously patched expression!"))
-  (define vars (program-variables (alt-program altn)))
-  (define altn* (alt `(λ ,vars ,expr) (list 'patch loc) (list altn)))
+  (define altn* (alt `(λ ,vars ,expr) `(patch) '()))
   (if down?
-      (^queuedlow^ (cons (cons loc altn*) (^queuedlow^)))
-      (^queued^ (cons (cons loc altn*) (^queued^))))
+      (^queuedlow^ (cons altn* (^queuedlow^)))
+      (^queued^ (cons altn* (^queued^))))
   (void))
 
 (define (patch-table-get expr)

@@ -170,6 +170,7 @@
   (timeline-event! 'localize)
 
   (define orig-prog (alt-program (^next-alt^)))
+  (define vars (program-variables orig-prog))
   (define err&exprs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
 
   ; duplicate locations (already seen)
@@ -182,72 +183,68 @@
       (void)]
      [else
       (match-define (cons err expr) (car err&exprs))
-      (define loc (first (get-locations orig-prog expr)))
       (cond
        [(and (*use-improve-cache*)          ; if in cache, put into duplocs
              (patch-table-has-expr? expr))
         (timeline-push! 'locations (~a expr) (errors-score err) #f)
-        (^duplocs^ (cons (cons loc expr) (^duplocs^)))
+        (^duplocs^ (cons expr (^duplocs^)))
         (loop (cdr err&exprs) (if (*localize-limit-for-new*) count (+ count 1)))]
        [else                                ; else, add to list
         (timeline-push! 'locations (~a expr) (errors-score err) #t)
-        (patch-table-add! (^next-alt^) loc #f)
+        (patch-table-add! expr vars #f)
         (loop (cdr err&exprs) (+ count 1))])]))
 
   ; low-error locations
   (when (*pareto-mode*) ; Pareto mode uses low-error locations
     (for ([(err expr) (in-dict (reverse err&exprs))] [i (in-range (*localize-expressions-limit*))])
-      (let ([loc (first (get-locations orig-prog expr))])
-        (timeline-push! 'locations (~a expr) (errors-score err) #t)
-        (patch-table-add! (^next-alt^) loc #t))))
+      (timeline-push! 'locations (~a expr) (errors-score err) #t)
+      (patch-table-add! expr vars #t)))
 
   (void))
 
-; Returns 
+;; Returns expressions from cache
 (define (gen-cached-alts)
-  ;; cached alts have outdated location data
-  (define (repair-cached-alt altn loc)
-    (let loop ([altn altn])
-      (match altn
-      [(alt _ _ (list))
-        altn]
-      [(alt prog (list 'patch _) (list prev))
-        (alt prog (list 'patch loc) (list (^next-alt^)))]
-      [(alt prog event (list prev))
-        (alt prog event (list (loop prev)))])))
-    
-  (for/fold ([cached '()]) ([(loc expr) (in-dict (^duplocs^))])
-    (append cached (repair-cached-alt (patch-table-get expr) loc))))
+  (for/fold ([cached '()]) ([expr (in-list (^duplocs^))])
+    (append cached (patch-table-get expr))))
 
-;; Converts subexpressions back to full alternatives
+;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
-  ;; takes a subexpression alt and converts it to a full alt
-  (define (reconstruct-alt altn orig)
-    (define-values (altn* loc-prefix)
-      (let loop ([altn altn])
-        (match-define (alt prog event prev) altn)
-        (cond
-         [(null? prev) (values altn '())]
-         [(equal? (car event) 'patch) (values (car prev) (cadr event))]
-         [else
-          (define-values (altn* loc-prefix) (loop (car prev)))
-          (cond
-           [(null? loc-prefix) (values altn '())]
-           [else
-            (define evt*
-              (match event
-               [(list 'taylor name var loc)
-                (list 'taylor name var (append loc-prefix (cdr loc)))]
-               [(list 'change cng)
-                (match-define (change rule loc binds) cng)
-                (list 'change (change rule (append loc-prefix (cdr loc)) binds))]
-               [(list 'simplify loc)
-                (list 'simplify (append loc-prefix (cdr loc)))]))
-            (define prog* (location-do loc-prefix (alt-program orig) (λ (_) (program-body prog))))
-            (values (alt prog* evt* (list altn*)) loc-prefix)])])))
-    altn*)
+  ;; extracts the base expression of a patch
+  (define (get-starting-expr altn)
+    (match altn
+     [(alt prog '(patch) _) (program-body prog)]
+     [(alt _ _ (list)) #f]
+     [(alt _ _ (list prev)) (get-starting-expr prev)]))
+
+  ;; takes a patch and converts it to a full alt
+  (define (reconstruct-alt altn loc0 orig)
+    (let loop ([altn altn])
+      (match-define (alt prog event prev) altn)
+      (cond
+       [(equal? event '(patch)) orig]
+       [else
+        (define event*
+          (match event
+           [(list 'taylor name var loc)
+            (list 'taylor name var (append loc0 (cdr loc)))]
+           [(list 'change cng)
+            (match-define (change rule loc binds) cng)
+            (list 'change (change rule (append loc0 (cdr loc)) binds))]
+           [(list 'simplify loc)
+            (list 'simplify (append loc0 (cdr loc)))]))
+        (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))
+        (alt prog* event* (list (loop (first prev))))])))
   
-  (^patched^ (map (curryr reconstruct-alt (^next-alt^)) alts)))
+  (^patched^
+    (for/fold ([patched '()] #:result (reverse patched))
+              ([altn (in-list alts)])
+      (define expr0 (get-starting-expr altn))
+      (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
+          (let ([locs (get-locations (alt-program (^next-alt^)) expr0)])
+            (append (map (λ (l) (reconstruct-alt altn l (^next-alt^))) locs) patched))
+          (cons altn patched))))
+      
+  (void))
 
 ;; Finish iteration
 (define (finalize-iter!)
