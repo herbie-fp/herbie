@@ -242,6 +242,8 @@
      (define formula
        (with-handlers ([exn:fail? (λ (e) #f)])
          (read-syntax 'web (open-input-string formula-str))))
+     (unless formula
+      (raise-herbie-error "bad input: did you include special characters like `#`?"))
      (with-handlers
          ([exn:fail:user:herbie?
            (λ (e)
@@ -250,7 +252,6 @@
               `(p "Invalid formula " (code ,formula-str) ". "
                   "Formula must be a valid program using only the supported functions. "
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
-
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (assert-program! formula)

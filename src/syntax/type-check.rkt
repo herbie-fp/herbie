@@ -20,7 +20,13 @@
   (define type (dict-ref props* ':precision 'binary64))
   (assert-expression-type! body type #:env (for/hash ([var vars]) (values (syntax-e var) type))))
 
+(define (load-representations! rtype env)
+  (get-representation rtype)
+  (for ([(_ r) (in-dict env)])
+    (get-representation r)))
+
 (define (assert-expression-type! stx expected-rtype #:env [env #hash()])
+  (load-representations! expected-rtype env) ; load ops (unit tests)
   (define errs
     (reap [sow]
           (define (error! stx fmt . args)
@@ -39,12 +45,11 @@
          (constant-info x 'type)
          (constant-info (get-parametric-constant x type) 'type))]
     [#`,(? variable? x)
-     (define etype (type-name (representation-type (get-representation type))))
-     (define vtype (type-name (representation-type (get-representation (dict-ref env x)))))
+     (define vtype (dict-ref env x))
      (cond
       [(equal? vtype 'bool) 'bool]
-      [(equal? etype vtype) type]
-      [else (error! stx "Expected a variable of type ~a, but got ~a" etype vtype)])]
+      [(equal? type vtype) type]
+      [else (error! stx "Expected a variable of type ~a, but got ~a" type vtype)])]
     [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
@@ -69,6 +74,7 @@
      (cond
        [(hash-has-key? props* ':precision)
         (define itype (hash-ref props* ':precision))
+        (get-representation itype)    ; load ops (unit tests)
         (define rtype (expression->type body env itype error!))
         (unless (equal? rtype itype)
           (error! stx "Annotation promised precision ~a, but got ~a" itype rtype))
@@ -95,6 +101,8 @@
      (define t #f)
      (for ([arg exprs] [i (in-naturals)])
        (define actual-type (expression->type arg env type error!))
+       (when (equal? actual-type 'bool)
+          (error! stx "~a does not take boolean arguments" op))
        (if (= i 0) (set! t actual-type) #f)
        (unless (equal? t actual-type)
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
@@ -150,9 +158,11 @@
     (error (apply format msg args) stx))
 
   (define (check-type env-type rtype expr #:env [env #hash()])
+    (load-representations! env-type env) ; load ops (unit tests)
     (check-equal? (expression->type expr env env-type fail) rtype))
 
   (define (check-fails type expr #:env [env #hash()])
+    (load-representations! type env) ; load ops (unit tests)
     (check-equal?
      (let ([v #f])
        (expression->type expr env type (lambda _ (set! v #t)))

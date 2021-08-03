@@ -44,6 +44,9 @@
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
 
+  ; handle plugin warnings
+  (print-warnings)
+
   (multi-command-line
    #:program "herbie"
    #:once-each

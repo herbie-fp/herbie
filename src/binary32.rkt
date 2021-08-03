@@ -158,12 +158,14 @@
        #`(begin
            (define fl-proc
             (get-ffi-obj '#,cname #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
-                         (λ () (λ _ (raise-herbie-error
-                                      #:url "faq.html#native-ops"
-                                      "native" 'op "not supported on your system"
-                                      "use the 'racket' precision instead")))))
-           (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary32))) binary32
-             [fl fl-proc] [key value] ...)))]))
+                         (λ () (warn 'unsupported #:url "faq.html#native-ops"
+                                     "native `~a` not supported on your system, disabling operator. ~a"
+                                     '#,cname
+                                     "Consider using :precision racket for Racket-only operators.")
+                               #f)))
+           (when fl-proc
+            (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary32))) binary32
+              [fl fl-proc] [key value] ...))))]))
 
 (define-syntax-rule (define-1ary-libm-operator op)
   (define-libm-operator (op real)))

@@ -60,9 +60,9 @@
 ;; is stored as the value
 (define (cache-improvement! expr [improve #f])
   (when (*use-improve-cache*)
-    (if improve
-        (hash-update! improve-cache expr (curry cons improve) (list improve))
-        (hash-update! improve-cache expr identity (list)))))
+    (hash-update! improve-cache expr
+                  (if improve (curry cons improve) identity)
+                  (list))))
 
 (register-reset
   (λ () (set! improve-cache (make-hash))))
@@ -609,7 +609,8 @@
     (^next-alt^ #f))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
-    (run-iter!))
+    (run-iter!)
+    (print-warnings))
   (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
   (extract!))
 

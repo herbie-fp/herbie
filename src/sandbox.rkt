@@ -93,6 +93,7 @@
         (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
         (timeline-adjust! 'regimes 'name (test-name test))
         (timeline-adjust! 'regimes 'link ".")
+        (print-warnings)
 
         (define-values (points exacts) (get-p&es context))
         (define-values (newpoints newexacts) (get-p&es newcontext))
@@ -119,6 +120,7 @@
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* false])
       (timeline-event! 'end))
+    (print-warnings)
     (test-failure test (bf-precision)
                   (- (current-inexact-milliseconds) start-time) (timeline-extract output-repr)
                   warning-log e))
@@ -143,6 +145,7 @@
       (engine-result eng)
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
+        (print-warnings)
         (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
 
 (define (dummy-table-row result status link)
