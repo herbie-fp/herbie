@@ -1,6 +1,6 @@
 #lang racket
 
-(require pkg/lib)
+(require pkg/lib racket/lazy-require)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt")
 
@@ -91,9 +91,8 @@
   out)
 
 (lazy-require
- [regraph
-  make-regraph rule-phase precompute-phase prune-phase extractor-phase
-  regraph-count regraph-cost regraph-extract])
+ [regraph (make-regraph rule-phase precompute-phase prune-phase extractor-phase
+                        regraph-count regraph-cost regraph-extract)])
 
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
@@ -126,10 +125,11 @@
   (map list (map unmunge (regraph-extract rg))))
 
 (lazy-require
- [egg-herbie
-  with-egraph egraph-add-exprs egraph-run
-  egraph-is-unsound-detected egraph-get-times-applied egraph-get-simplest egraph-get-cost
-  egg-expr->expr make-ffi-rules free-ffi-rules iteration-data-num-nodes iteration-data-time])
+ [egg-herbie (with-egraph egraph-add-exprs egraph-run
+                          egraph-is-unsound-detected
+                          egraph-get-times-applied egraph-get-simplest egraph-get-cost
+                          egg-expr->expr make-ffi-rules free-ffi-rules
+                          iteration-data-num-nodes iteration-data-time)])
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
