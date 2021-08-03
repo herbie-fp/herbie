@@ -120,16 +120,26 @@
       (warn 'strange-variable
             "unusual variable ~a; did you mean ~a?" var const))))
 
+; Ignore any failures printing the error if needed
+(define (load-test test parsed override-ctx)
+  (with-handlers ([exn:fail:user:herbie?
+                    (λ (e)
+                      (display (herbie-error->string e))
+                      parsed)])
+    (cons (parse-test test override-ctx) parsed)))
+
 (define (load-stdin override-ctx)
-  (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
-    (parse-test test override-ctx)))
+  (for/fold ([parsed '()] #:result (reverse parsed))
+            ([test (in-port (curry read-syntax "stdin") (current-input-port))])
+    (load-test test parsed override-ctx)))
 
 (define (load-file file override-ctx)
   (call-with-input-file file
     (λ (port)
       (port-count-lines! port)
-      (for/list ([test (in-port (curry read-syntax file) port)])
-        (parse-test test override-ctx)))))
+      (for/fold ([parsed '()] #:result (reverse parsed))
+                ([test (in-port (curry read-syntax file) port)])
+        (load-test test parsed override-ctx)))))
 
 (define (load-directory dir override-ctx)
   (apply append
