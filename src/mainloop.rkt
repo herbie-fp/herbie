@@ -169,35 +169,35 @@
     (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
 
-  (define vars (program-variables (alt-program (^next-alt^))))
-  (define locs-errs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
+  (define orig-prog (alt-program (^next-alt^)))
+  (define err&exprs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
 
   ; duplicate locations (already seen)
   (^duplocs^ '())
 
   ; high-error locations
-  (let loop ([locs locs-errs] [count 0])
+  (let loop ([err&exprs err&exprs] [count 0])
     (cond
-     [(or (null? locs) (= count (*localize-expressions-limit*)))
+     [(or (null? err&exprs) (>= count (*localize-expressions-limit*)))
       (void)]
      [else
-      (match-define (cons err loc) (car locs))
-      (define expr (location-get loc (alt-program (^next-alt^))))
+      (match-define (cons err expr) (car err&exprs))
+      (define loc (first (get-locations orig-prog expr)))
       (cond
        [(and (*use-improve-cache*)          ; if in cache, put into duplocs
              (patch-table-has-expr? expr))
         (timeline-push! 'locations (~a expr) (errors-score err) #f)
         (^duplocs^ (cons (cons loc expr) (^duplocs^)))
-        (loop (cdr locs) (if (*localize-limit-for-new*) count (+ count 1)))]
+        (loop (cdr err&exprs) (if (*localize-limit-for-new*) count (+ count 1)))]
        [else                                ; else, add to list
         (timeline-push! 'locations (~a expr) (errors-score err) #t)
         (patch-table-add! (^next-alt^) loc #f)
-        (loop (cdr locs) (+ count 1))])]))
+        (loop (cdr err&exprs) (+ count 1))])]))
 
   ; low-error locations
   (when (*pareto-mode*) ; Pareto mode uses low-error locations
-    (for ([(err loc) (in-dict (take-up-to (reverse locs-errs) (*localize-expressions-limit*)))])
-      (let ([expr (location-get loc (alt-program (^next-alt^)))])
+    (for ([(err expr) (in-dict (reverse err&exprs))] [i (in-range (*localize-expressions-limit*))])
+      (let ([loc (first (get-locations orig-prog expr))])
         (timeline-push! 'locations (~a expr) (errors-score err) #t)
         (patch-table-add! (^next-alt^) loc #t))))
 
