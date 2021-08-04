@@ -118,9 +118,6 @@
         (sow altn)]))))
 
 (define (gen-series!)
-  (when (null? (^queued^))
-    (raise-user-error 'gen-series! "No expressions queued in patch table. Run `patch-table-add!`"))
-
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
     (define series-expansions
@@ -276,7 +273,9 @@
 
 (define (patch-table-add! expr vars down?)
   (when (patch-table-has-expr? expr)
-    (raise-user-error 'patch-table-add! "Attempting to add previously patched expression!"))
+    (raise-user-error 'patch-table-add!
+      "attempting to add previously patched expression: ~a"
+      expr))
   (define altn* (alt `(λ ,vars ,expr) `(patch) '()))
   (if down?
       (^queuedlow^ (cons altn* (^queuedlow^)))
@@ -291,7 +290,9 @@
 
 (define (patch-table-run)
   (debug #:from 'progress #:depth 3 "generating series expansions")
-  (gen-series!)
+  (if (null? (^queued^))
+      (^series^ '())
+      (gen-series!))
   (debug #:from 'progress #:depth 3 "generating rewritten candidates")
   (gen-rewrites!)
   (debug #:from 'progress #:depth 3 "simplifying candidates")

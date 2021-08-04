@@ -196,9 +196,20 @@
 
   ; low-error locations
   (when (*pareto-mode*) ; Pareto mode uses low-error locations
-    (for ([(err expr) (in-dict (reverse err&exprs))] [i (in-range (*localize-expressions-limit*))])
-      (timeline-push! 'locations (~a expr) (errors-score err) #t)
-      (patch-table-add! expr vars #t)))
+    (let loop ([err&exprs (reverse err&exprs)] [count 0])
+      (cond
+       [(or (null? err&exprs) (>= count (*localize-expressions-limit*)))
+        (void)]
+       [else
+        (match-define (cons err expr) (car err&exprs))
+        (cond
+         [(and (*use-improve-cache*)          ; if in cache, put into duplocs
+               (patch-table-has-expr? expr))
+           (loop (cdr err&exprs) count)]
+         [else 
+          (timeline-push! 'locations (~a expr) (errors-score err) #t)
+          (patch-table-add! expr vars #t)
+          (loop (cdr err&exprs) (+ count 1))])])))
 
   (void))
 

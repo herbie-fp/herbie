@@ -88,14 +88,14 @@
         (define oracle-errs (oracle-error fns newcontext output-repr))
 
         ; find the best, sort the rest by cost
-        (define-values (best rest end-score)
+        (define-values (best end-score rest)
           (for/fold ([best #f] [score #f] [rest #f])
                     ([altn (in-list unsorted-alts)] [errs (in-list end-errss)])
             (let ([new-score (errors-score errs)])
               (cond
-               [(not best) (values altn '() new-score)]
-               [(< new-score score) (values altn (cons best rest) new-score)] ; kick out current best
-               [else (values best (cons altn rest) score)]))))
+               [(not best) (values altn new-score '())]
+               [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
+               [else (values best score (cons altn rest))]))))
         (*herbie-preprocess* (remove-unecessary-preprocessing best (*herbie-preprocess*)))
         (define alts (cons best (sort rest > #:key alt-cost)))
 
