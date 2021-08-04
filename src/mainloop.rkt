@@ -374,7 +374,6 @@
     (timeline-push! 'alts (~a (program-body (alt-program alt)))
                     (if (set-member? ndone-alts alt) "fresh" "done")
                     (score-alt alt)))
-
   (define joined-alts
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
@@ -400,8 +399,4 @@
               'final-simplify (list altn)))
       alt-equal?))
   (timeline-event! 'end)
-
-  (define best (argmin score-alt cleaned-alts))
-  (*herbie-preprocess* (remove-unecessary-preprocessing best (*herbie-preprocess*)))
-  (define rest (filter-not (curry alt-equal? best) cleaned-alts))
-  (cons best (sort rest > #:key alt-cost)))
+  (remove-duplicates cleaned-alts alt-equal?))

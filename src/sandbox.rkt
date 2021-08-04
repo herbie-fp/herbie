@@ -4,7 +4,7 @@
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
          (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt"
-         "syntax/sugar.rkt" "preprocess.rkt")
+         "syntax/sugar.rkt" "sampling.rkt" "preprocess.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -64,7 +64,7 @@
 
       (generate-prec-rewrites (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
-        (define alts
+        (define unsorted-alts
           (run-improve (test-program test)
                        (*num-iterations*)
                        #:precondition (test-precondition test)
@@ -83,10 +83,21 @@
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))
 
-        (define end-errss (map (λ (x) (errors (alt-program x) newcontext output-repr)) alts))
+        (define end-errss (map (λ (x) (errors (alt-program x) newcontext output-repr)) unsorted-alts))
         (define baseline-errs (baseline-error fns context newcontext output-repr))
         (define oracle-errs (oracle-error fns newcontext output-repr))
-        (define end-score (errors-score (car end-errss)))
+
+        ; find the best, sort the rest by cost
+        (define-values (best rest end-score)
+          (for/fold ([best #f] [score #f] [rest #f])
+                    ([altn (in-list unsorted-alts)] [errs (in-list end-errss)])
+            (let ([new-score (errors-score errs)])
+              (cond
+               [(not best) (values altn '() new-score)]
+               [(< new-score score) (values altn (cons best rest) new-score)] ; kick out current best
+               [else (values best (cons altn rest) score)]))))
+        (*herbie-preprocess* (remove-unecessary-preprocessing best (*herbie-preprocess*)))
+        (define alts (cons best (sort rest > #:key alt-cost)))
 
         (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
         (timeline-adjust! 'regimes 'accuracy end-score)
