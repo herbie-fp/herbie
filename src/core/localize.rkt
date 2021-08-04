@@ -93,6 +93,6 @@
     (reap [sow]
       (for ([(expr ex&err) (in-hash cache)])
         (define err (cdr ex&err))
-        (unless (andmap (curry = 1) err)
+        (when (list? expr)
           (sow (cons err expr)))))
     > #:key (compose errors-score car)))

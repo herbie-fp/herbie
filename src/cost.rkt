@@ -8,6 +8,8 @@
     (match (hash-ref parametric-operators-reverse op)
      ['+     1]
      ['-     1]
+     ['shl   1]
+     ['shr   1]
      ['neg   1]
      ['*     1]
      ['/     1]
