@@ -14,6 +14,19 @@
   (dynamic-require binary32-plugin #f)
   (dynamic-require fallback-plugin #f))
 
+
+;; loads builtin representations as needed
+;; usually if 'load-herbie-plugins' has not been called
+(define (generate-builtins name)
+  (match name
+   ['bool     (dynamic-require bool-plugin #f) #t]
+   ['binary64 (dynamic-require binary64-plugin #f) #t]
+   ['binary32 (dynamic-require binary32-plugin #f) #t]
+   ['racket   (dynamic-require fallback-plugin #f) #t]
+   [_ #f]))
+
+(register-generator! generate-builtins)
+
 (define (load-herbie-plugins)
   (load-herbie-builtins)    ; automatically load default representations
   (for ([dir (find-relevant-directories '(herbie-plugin))])

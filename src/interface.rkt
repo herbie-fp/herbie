@@ -88,23 +88,3 @@
   ((representation-special-values repr) x))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; loads builtin representations as needed
-;; usually if 'load-herbie-plugins' has not been called
-(define (generate-builtins name)
-  (match name
-   ['binary64
-    (dynamic-require 'herbie/binary64 #f)
-    #t]
-   ['binary32
-    (dynamic-require 'herbie/binary32 #f)
-    #t]
-   ['bool
-    (dynamic-require 'herbie/bool #f)
-    #t]
-   ['racket
-    (dynamic-require 'herbie/fallback #f)
-    #t]
-   [_ #f]))
-
-(register-generator! generate-builtins)
