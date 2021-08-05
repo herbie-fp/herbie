@@ -5,7 +5,6 @@
 (require "../function-definitions.rkt")
 (require "../programs.rkt")
 (require "reduce.rkt")
-
 (provide approximate)
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
@@ -472,6 +471,6 @@
                               ,(factorial n))))))))))
 
 (module+ test
-  (require rackunit "../interface.rkt")
+  (require rackunit "../interface.rkt" "../load-plugin.rkt")
   (*output-repr* (get-representation 'binary64))
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))

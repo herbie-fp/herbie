@@ -2,7 +2,6 @@
 
 (require "types.rkt" "syntax.rkt" "../interface.rkt")
 (provide desugar-program resugar-program register-function! *functions*)
-
 (module+ test (require rackunit))
 
 ;; name -> (vars repr body)
@@ -178,7 +177,7 @@
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
 
-(module+ test
+#;(module+ test
   (define repr (get-representation 'binary64))
 
   ;; inlining

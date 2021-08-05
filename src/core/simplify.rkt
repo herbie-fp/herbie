@@ -3,9 +3,8 @@
 (require pkg/lib)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt")
-
 (provide simplify-expr simplify-batch make-simplification-combinations)
-(module+ test (require rackunit))
+(module+ test (require rackunit "../load-plugin.rkt"))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie
 ;; to simplify an expression as much as possible without making

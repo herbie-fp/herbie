@@ -1,12 +1,8 @@
 #lang racket
 
-;; bool builtin plugin
+;; Builtin boolean plugin
 
-(require (submod "syntax/syntax.rkt" internals)
-         (submod "syntax/rules.rkt" internals)
-         (submod "interface.rkt" internals))
-
-; (eprintf "Loading bool support...\n")
+(require "../plugin.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

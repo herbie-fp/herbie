@@ -3,7 +3,7 @@
 
 (require math/bigfloat math/base)
 (require "common.rkt" "interface.rkt" "syntax/types.rkt" "errors.rkt")
-(module+ test (require rackunit))
+(module+ test (require rackunit "load-plugin.rkt"))
 
 (provide 
  ordinary-value?

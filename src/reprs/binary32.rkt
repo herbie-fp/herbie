@@ -1,18 +1,11 @@
 #lang racket
 
-;; binary32 builtin plugin
+;; Builtin single-precision plugin (:precision binary32)
 
 (require math/flonum math/bigfloat)
-(require (submod "syntax/syntax.rkt" internals)
-         (submod "interface.rkt" internals)
-         "errors.rkt")
+(require "../plugin.rkt" "bool.rkt" "binary64.rkt")
 
-; needed by src/syntax/test-rules.rkt
-; cannot be exported with contracts since ffi/unsafe is required
-(provide ->float32) 
-
-(module+ test
-  (require rackunit))
+(module+ test (require rackunit))
 
 ; Racket CS made single-flonums a little confusing
 ; All single-precision code is here to make things easier
