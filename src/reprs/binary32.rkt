@@ -3,10 +3,9 @@
 ;; Builtin single-precision plugin (:precision binary32)
 
 (require math/flonum math/bigfloat)
-(require "../plugin.rkt")
+(require "../plugin.rkt" "bool.rkt" "binary64.rkt")
 
-(module+ test
-  (require rackunit))
+(module+ test (require rackunit))
 
 ; Racket CS made single-flonums a little confusing
 ; All single-precision code is here to make things easier

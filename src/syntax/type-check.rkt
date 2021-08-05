@@ -153,8 +153,7 @@
 
 (module+ test
   (require rackunit)
-  (require "../load-plugins.rkt")
-  (load-herbie-builtins)
+  (require "../load-plugin.rkt")
 
   (define (fail stx msg . args)
     (error (apply format msg args) stx))

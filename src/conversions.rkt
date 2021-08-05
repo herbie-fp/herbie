@@ -3,6 +3,7 @@
 (require "common.rkt" "interface.rkt" "errors.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt"
          (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
+(module+ test (require "load-plugin.rkt"))
 (provide generate-conversions generate-prec-rewrites get-rewrite-operator *conversions*)
 
 (define *conversions* (make-parameter (hash)))

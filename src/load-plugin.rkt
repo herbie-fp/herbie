@@ -1,8 +1,9 @@
 #lang racket
 (require setup/getinfo racket/runtime-path)
+(require (submod "interface.rkt" internals))
 (provide load-herbie-plugins load-herbie-builtins)
 
-(define-runtime-module-path bool-plugin "reprs/bool.rkt")
+(define-runtime-module-path bool-plugin     "reprs/bool.rkt")
 (define-runtime-module-path binary32-plugin "reprs/binary32.rkt")
 (define-runtime-module-path binary64-plugin "reprs/binary64.rkt")
 (define-runtime-module-path fallback-plugin "reprs/fallback.rkt")

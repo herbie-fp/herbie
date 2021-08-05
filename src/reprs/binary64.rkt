@@ -3,7 +3,7 @@
 ;; Builtin double-precision plugin (:precision binary64)
 
 (require math/flonum math/bigfloat)
-(require "../plugin.rkt")
+(require "../plugin.rkt" "bool.rkt")
 
 (define (shift bits fn)
   (define shift-val (expt 2 bits))
