@@ -8,7 +8,7 @@
 
 (load-herbie-builtins)
 
-(define num-test-points 1000)
+(define num-test-points (make-parameter 100))
 
 ;; WARNING: These aren't treated as preconditions, they are only used for range inference
 (define *conditions*
@@ -47,7 +47,7 @@
        (λ ,fv ,p2))
      empty))
 
-  (define points (for/list ([n (in-range num-test-points)]) (make-point)))
+  (define points (for/list ([n (in-range (num-test-points))]) (make-point)))
   (define prog1 (ground-truth fv p1 repr))
   (define prog2 (ground-truth fv p2 repr))
 
@@ -62,13 +62,13 @@
       (with-check-info (['point (map cons fv pt)] ['method (object-name ground-truth)]
                         ['input v1] ['output v2])
         (check-eq? (ulp-difference v1 v2 repr) 1))))
-  (define usable-fraction (/ (length errs) num-test-points))
+  (define usable-fraction (/ (length errs) (num-test-points)))
   (cond
    [(< usable-fraction 1/10)
     (fail-check "Not enough points sampled to test rule")]
    [(< usable-fraction 8/10)
     (eprintf "~a: ~a% of points usable\n" name
-           (~r (* 100 usable-fraction) #:precision '(= 1)))]))
+             (~r (* 100 usable-fraction) #:precision '(= 0)))]))
 
 (define (check-rule-fp-safe test-rule)
   (match-define (rule name p1 p2 itypes otype) test-rule)
@@ -80,7 +80,7 @@
       (define repr (get-representation (dict-ref (rule-itypes test-rule) v)))
       (random-generate repr)))
   (define point-sequence (in-producer make-point))
-  (define points (for/list ([n (in-range num-test-points)] [pt point-sequence]) pt))
+  (define points (for/list ([n (in-range (num-test-points))] [pt point-sequence]) pt))
   (define prog1 (eval-prog `(λ ,fv ,p1) 'fl repr))
   (define prog2 (eval-prog `(λ ,fv ,p2) 'fl repr))
   (define-values (ex1 ex2)
@@ -97,6 +97,7 @@
                         (get-representation 'binary32)
                         (get-representation 'bool)))
   (define _ (*simplify-rules*))  ; force an update
+  (num-test-points (* 100 (num-test-points)))
   (command-line
    #:args names
    (for ([name names])
