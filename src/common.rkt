@@ -4,7 +4,7 @@
 (require "config.rkt" "debug.rkt")
 (module+ test (require rackunit))
 
-(provide reap
+(provide reap ->float32
          call-with-output-files
          take-up-to flip-lists find-duplicates
          argmins argmaxs index-of set-disjoint?
@@ -26,6 +26,16 @@
     (let ([sows (cdr sows)] ...)
       body ...)
     (values (reverse ((car sows))) ...)))
+
+(define cast-single
+  (let ([flsingle identity])
+    (local-require racket/flonum)
+    flsingle))
+
+(define (->float32 x)
+  (if (>= (string->number (substring (version) 0 1)) 8)
+      (cast-single (exact->inexact x))
+      (real->single-flonum x)))
 
 ;; Utility list functions
 

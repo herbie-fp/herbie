@@ -5,10 +5,6 @@
 (require math/flonum math/bigfloat)
 (require "../plugin.rkt")
 
-; needed by src/syntax/test-rules.rkt
-; cannot be exported with contracts since ffi/unsafe is required
-(provide ->float32) 
-
 (module+ test
   (require rackunit))
 

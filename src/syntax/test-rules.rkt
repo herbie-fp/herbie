@@ -4,7 +4,9 @@
 (require "../common.rkt" "../programs.rkt" "../sampling.rkt"
          (submod "../points.rkt" internals))
 (require "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
-(require "../programs.rkt" "../float.rkt" "../binary32.rkt" "sugar.rkt")
+(require "../programs.rkt" "../float.rkt" "sugar.rkt" "../load-plugin.rkt")
+
+(load-herbie-builtins)
 
 (define num-test-points 1000)
 

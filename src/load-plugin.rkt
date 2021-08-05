@@ -1,6 +1,6 @@
 #lang racket
 (require setup/getinfo racket/runtime-path)
-(provide load-herbie-plugins)
+(provide load-herbie-plugins load-herbie-builtins)
 
 (define-runtime-module-path bool-plugin "reprs/bool.rkt")
 (define-runtime-module-path binary32-plugin "reprs/binary32.rkt")
@@ -8,6 +8,7 @@
 (define-runtime-module-path fallback-plugin "reprs/fallback.rkt")
 
 (define (load-herbie-builtins)
+  ;; Warning: the order here is important!
   (dynamic-require bool-plugin #f)
   (dynamic-require binary64-plugin #f)
   (dynamic-require binary32-plugin #f)
