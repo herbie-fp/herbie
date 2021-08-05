@@ -1,4 +1,5 @@
 #lang racket
+
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt"
@@ -6,18 +7,8 @@
          "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
          "preprocess.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
-(provide make-sampler remove-unecessary-preprocessing)
 
-(define (precondition->hyperrects precondition reprs repr)
-  ;; FPBench needs unparameterized operators
-  (define range-table 
-    (condition->range-table  
-      (resugar-program (program-body precondition) repr #:full #f)))
-
-  (apply cartesian-product
-         (for/list ([var-name (program-variables precondition)] [repr reprs])
-           (map (lambda (interval) (fpbench-ival->ival repr interval))
-                (range-table-ref range-table var-name)))))
+(provide make-sampler remove-unecessary-preprocessing precondition->intervals)
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
@@ -29,6 +20,19 @@
      (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1)))]
     ['bool
      (ival #f #t)]))
+
+(define (precondition->intervals precondition reprs repr)
+  ;; FPBench needs unparameterized operators
+  (define range-table 
+    (condition->range-table  
+      (resugar-program (program-body precondition) repr #:full #f)))
+
+  (for/list ([var-name (program-variables precondition)] [repr reprs])
+    (map (lambda (interval) (fpbench-ival->ival repr interval))
+        (range-table-ref range-table var-name))))
+
+(define (precondition->hyperrects precondition reprs repr)
+  (apply cartesian-product (precondition->intervals precondition reprs repr)))   
 
 (define (partial-sums v)
   (define out (make-vector (vector-length v) 0))

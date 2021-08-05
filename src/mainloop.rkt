@@ -1,7 +1,8 @@
 #lang racket
 
 (require "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
-         "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
+         "core/alt-table.rkt" "core/localize.rkt" "core/overflow.rkt"
+         "core/regimes.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
          "interface.rkt" "patch.rkt" "points.rkt" "preprocess.rkt"
          "programs.rkt" "sampling.rkt" "symmetry.rkt" "timeline.rkt")
@@ -68,6 +69,7 @@
   (rollback-improve!)
   (define precondition-prog
     (or precondition (list 'λ (program-variables prog) 'TRUE)))
+  (setup-overflow-precondition! (program-variables prog) precondition-prog (*output-repr*))
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points

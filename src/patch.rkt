@@ -1,6 +1,6 @@
 #lang racket
 
-(require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
+(require "core/matcher.rkt" "core/taylor.rkt" "core/overflow.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "interface.rkt" "programs.rkt"
          "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
 
@@ -150,6 +150,14 @@
   (timeline-event! 'rewrite)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (timeline-push! 'method (~a (object-name rewrite)))
+
+  (when (and (overflow-analysis-allowed?)
+             (not (null? (^queued^))))
+    (define optimized
+      (for/list ([altn (in-list (^queued^))]
+                #:when (expr-supports? (program-body (alt-program altn)) 'ival))
+        (minimize-overflow altn)))
+    (void))
 
   (define changelists
     (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
