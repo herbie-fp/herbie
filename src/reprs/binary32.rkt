@@ -1,11 +1,9 @@
 #lang racket
 
-;; binary32 builtin plugin
+;; Builtin single-precision plugin (:precision binary32)
 
 (require math/flonum math/bigfloat)
-(require (submod "syntax/syntax.rkt" internals)
-         (submod "interface.rkt" internals)
-         "errors.rkt")
+(require "../plugin.rkt")
 
 ; needed by src/syntax/test-rules.rkt
 ; cannot be exported with contracts since ffi/unsafe is required

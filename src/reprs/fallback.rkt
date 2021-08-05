@@ -1,12 +1,9 @@
 #lang racket
 
-;; fallback (Racket) builtin plugin
+;; Builtin fallback plugin (:precision racket)
 
 (require math/base math/bigfloat math/flonum math/special-functions)
-(require (submod "syntax/syntax.rkt" internals)
-         (submod "interface.rkt" internals))
-
-; (eprintf "Loading fallback support...\n")
+(require "../plugin.rkt")
 
 (define (shift bits fn)
   (define shift-val (expt 2 bits))

@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "errors.rkt" "plugin.rkt" "sandbox.rkt")
+(require "common.rkt" "multi-command-line.rkt" "errors.rkt" "load-plugin.rkt" "sandbox.rkt")
 
 ;; Load all the plugins
 (load-herbie-plugins)

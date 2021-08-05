@@ -1,13 +1,9 @@
 #lang racket
 
-;; binary64 builtin plugin
+;; Builtin double-precision plugin (:precision binary64)
 
 (require math/flonum math/bigfloat)
-(require (submod "syntax/syntax.rkt" internals)
-         (submod "interface.rkt" internals)
-         "errors.rkt")
-
-; (eprintf "Loading binary64 support...\n")
+(require "../plugin.rkt")
 
 (define (shift bits fn)
   (define shift-val (expt 2 bits))
