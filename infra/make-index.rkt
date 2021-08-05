@@ -203,22 +203,21 @@
 (define (get-reports file)
   (cond
    [(directory-exists? file)
-    (for/hash ([dir (directory-jsons file)])
-      (values dir (compute-row dir)))]
+    (map compute-row (directory-jsons file))]
    [(file-exists? file)
-    (define cached-info (hash-copy (call-with-input-file file read-json)))
-    (for ([(k v) (in-hash cached-info)] #:unless (cache-row? v))
-      (raise-user-error 'make-index "Invalid cache row for file ~a" k))
-    (make-immutable-hash (hash->list cached-info))]))
+    (define cached-info (call-with-input-file file read-json))
+    (for ([v (in-list cached-info)] #:unless (cache-row? v))
+      (raise-user-error 'make-index "Invalid cache row ~a" v))
+    cached-info]))
 
 (module+ main
   (command-line
    #:args files
-   (define reports (foldl hash-union (hash) (map get-reports files)))
-   (printf "Loaded data on ~a reports.\n" (hash-count reports))
+   (define reports (append-map get-reports files))
+   (printf "Loaded data on ~a reports.\n" (length reports))
    (call-with-output-file "index.html"
      #:exists 'replace
-     (curry make-index-page (hash-values reports)))
+     (curry make-index-page reports))
    (call-with-output-file "index.cache"
      #:exists 'replace
      (curry write-json reports))))

@@ -27,7 +27,7 @@ index () {
           "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
-    rm index.html
+    rm index.cache index.html
 }
 
 reindex () {
@@ -35,14 +35,14 @@ reindex () {
     rsync --recursive --checksum --inplace --ignore-existing \
           --include 'results.json' --include 'results.json.gz' --include '*/' --exclude '*' \
           "$RHOST:$RHOSTDIR" "$DIR"
-    find "$DIR" -name "results.json.gz" -exec gunzip {} \;
+    find "$DIR" -name "results.json.gz" -exec gunzip -f {} \;
     racket infra/make-index.rkt "$DIR"
     rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
     rsync --recursive \
           "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
-    rm index.html
+    rm index.cache index.html
 }
 
 upload_reports () {
