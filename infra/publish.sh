@@ -36,7 +36,7 @@ reindex () {
           --include 'results.json' --include 'results.json.gz' --include '*/' --exclude '*' \
           "$RHOST:$RHOSTDIR" "$DIR"
     find "$DIR" -name "results.json.gz" -exec gunzip {} \;
-    racket infra/make-index.rkt index.cache
+    racket infra/make-index.rkt "$DIR"
     rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
     rsync --recursive \
           "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
