@@ -11,7 +11,8 @@
          get-seed set-seed!
          quasisyntax dict sym-append comparator
          format-time format-bits web-resource
-         (all-from-out "config.rkt") (all-from-out "debug.rkt"))
+         debug ; from debug.rkt
+         (all-from-out "config.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
 
