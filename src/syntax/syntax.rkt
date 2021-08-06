@@ -11,8 +11,7 @@
          repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
-  (provide operator-impls constant-impls infix-joiner
-           define-constant-impl define-operator-impl
+  (provide define-constant-impl define-operator-impl
            register-constant-impl! register-operator-impl!
            define-constant define-operator
            register-constant! register-operator!))
@@ -251,24 +250,28 @@
 
 ;; Operator implementations
 
-(define-table operator-impls
-  [itype (or/c (listof representation-name?) representation-name?)]
-  [otype representation-name?]
-  [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
-  [fl    (unconstrained-argument-number-> value? value?)]
-  [ival (or/c #f (unconstrained-argument-number-> ival? ival?))])
+(struct operator-impl (itype otype bf fl ival))
+(define operator-impls (make-hash))
 
 (define parametric-operators (hash))
 (define parametric-operators-reverse (hash))
 
-(define (operator-info operator field)
-  (with-handlers ([exn:fail? 
-                   (λ (e) (error 'operator-info "Unknown operator or field: ~a ~a"
-                                                operator field))])
-    (table-ref operator-impls operator field)))
+(define/contract (operator-info operator field)
+  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
+  (unless (hash-has-key? operator-impls operator)
+    (error 'operator-info "Unknown operator ~a" operator))
+  (define accessor
+    (match field
+      ['itype operator-impl-itype]
+      ['otype operator-impl-otype]
+      ['bf operator-impl-bf]
+      ['fl operator-impl-fl]
+      ['ival operator-impl-ival]))
+  (accessor (hash-ref operator-impls operator)))
 
-(define (operator-remove! operator)
-  (table-remove! operator-impls operator))
+(define/contract (operator-remove! operator)
+  (-> symbol? any/c)
+  (hash-remove! operator-impls operator))
 
 (define (*loaded-ops*)
   (hash-keys parametric-operators-reverse))
@@ -296,7 +299,7 @@
   (define fields (make-hasheq attrib-dict*))
   (hash-set! fields 'itype itypes)
   (hash-set! fields 'otype otype)
-  (table-set! operator-impls name fields)
+  (hash-set! operator-impls name (apply operator-impl (map (curry hash-ref fields) '(itype otype bf fl ival))))
   (set! parametric-operators
     (hash-update parametric-operators operator
                  (curry cons (list* name otype (operator-info name 'itype)))
@@ -334,9 +337,6 @@
  (λ ()
    (unless (flag-set? 'precision 'fallback)
      (for-each operator-remove! (*unknown-ops*)))))
-
-(define ((infix-joiner x) . args)
-  (string-join args x))
 
 ;; real operators
 (define-operator (==) real
@@ -399,7 +399,7 @@
 (define (operator? op)
   (and (symbol? op) (not (equal? op 'if))
        (or (hash-has-key? parametric-operators op)
-           (dict-has-key? (cdr operator-impls) op))))
+           (hash-has-key? operator-impls op))))
 
 (define (constant? var)
   (and (symbol? var)
