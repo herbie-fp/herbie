@@ -26,7 +26,7 @@
 ;; Implementations inherit attributes
 
 (struct constant (bf ival))
-(define constants (make-hash))
+(define constants (make-hasheq))
 
 (define (register-constant! name attrib-dict)
   (hash-set! constants name (apply constant (map (curry dict-ref attrib-dict) '(bf ival)))))
@@ -61,7 +61,7 @@
 ;; Constant implementations
 
 (struct constant-impl (type bf fl ival))
-(define constant-impls (make-hash))
+(define constant-impls (make-hasheq))
 
 (define parametric-constants (hash))
 (define parametric-constants-reverse (hash))
@@ -117,7 +117,7 @@
 ;; Implementations inherit attributes
 
 (struct operator (itype otype bf ival))
-(define operators (make-hash))
+(define operators (make-hasheq))
 
 (define (register-operator! name itypes otype attrib-dict)
   (define itypes* (dict-ref attrib-dict 'itype itypes))
@@ -228,7 +228,7 @@
 ;; Operator implementations
 
 (struct operator-impl (itype otype bf fl ival))
-(define operator-impls (make-hash))
+(define operator-impls (make-hasheq))
 
 (define parametric-operators (hash))
 (define parametric-operators-reverse (hash))
