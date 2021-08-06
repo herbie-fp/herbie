@@ -223,7 +223,8 @@
   ; low-error locations
   (^lowlocs^
     (if (*pareto-mode*) ; Pareto mode uses low-error locations
-        (for/list ([(err loc) (in-dict (take-up-to (reverse locs-errs) (*localize-expressions-limit*)))])
+        (for/list ([(err loc) (in-dict (reverse locs-errs))]
+                   [_ (in-range (*localize-expressions-limit*))])
           (let ([expr (location-get loc (alt-program (^next-alt^)))])
             (timeline-push! 'locations (~a expr) (errors-score err) #t)
             (cons loc (alt `(λ ,vars ,expr) (list 'mainloop loc) (list (^next-alt^))))))
