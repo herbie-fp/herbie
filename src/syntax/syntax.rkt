@@ -3,7 +3,9 @@
 (require math/flonum math/base math/bigfloat math/special-functions rival)
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt")
 
-(provide constant? variable? operator? operator-info operator-exists?
+(provide (rename-out [constant-or-impl? constant?]
+                     [operator-or-impl? operator?])
+         variable? operator-info operator-exists?
          constant-info get-operator-arity
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
@@ -18,44 +20,16 @@
 
 ;; The new, contracts-using version of the above
 
-(define-syntax-rule (define-table name [field type] ...)
-  (define name (cons (list (cons 'field type) ...) (make-hasheq))))
-
-(define (table-ref tbl key field)
-  (match-let ([(cons header rows) tbl])
-    (for/first ([(field-name type) (in-dict header)]
-                [value (in-list (hash-ref rows key))]
-                #:when (equal? field-name field))
-      value)))
-
-(define (table-set! tbl key fields)
-  (match-let ([(cons header rows) tbl])
-    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
-    (hash-set! rows key row)))
-
-(define (table-remove! tbl key)
-  (hash-remove! (cdr tbl) key))
-
-(define (table-ref-all tbl key)
-  (match-let ([(cons header rows) tbl])
-    (and (hash-has-key? rows key)
-         (map cons (map car header) (hash-ref rows key)))))
-
-(define (table-has-key? tbl key)
-  (match-let ([(cons header rows) tbl])
-    (hash-has-key? rows key)))
-
 (module+ test (require rackunit))
 
 ;; Abstract constant table
 ;; Implementations inherit attributes
 
-(define-table constants
-  [bf (->* () bigvalue?)]
-  [ival (or/c (->* () ival?) #f)])
+(struct constant (bf ival))
+(define constants (make-hash))
 
 (define (register-constant! name attrib-dict)
-  (table-set! constants name (make-hasheq attrib-dict)))
+  (hash-set! constants name (apply constant (map (curry dict-ref attrib-dict) '(bf ival)))))
 
 (define-syntax-rule (define-constant name [key value] ...)
   (register-constant! 'name (list (cons 'key value) ...)))
@@ -86,32 +60,38 @@
 
 ;; Constant implementations
 
-(define-table constant-impls
-  [type type-name?]
-  [bf (->* () bigvalue?)]
-  [fl (->* () value?)]
-  [ival (or/c (->* () ival?) #f)])
+(struct constant-impl (type bf fl ival))
+(define constant-impls (make-hash))
 
 (define parametric-constants (hash))
 (define parametric-constants-reverse (hash))
 
-(define (constant-info constant field)
-  (with-handlers ([exn:fail?
-                   (λ (e) (error 'constant-info "Unknown constant or field: ~a ~a"
-                                                constant field))])
-    (table-ref constant-impls constant field)))
+(define/contract (constant-info constant field)
+  (-> symbol? (or/c 'type 'bf 'fl 'ival) any/c)
+  (unless (hash-has-key? constant-impls constant)
+    (error 'constant-info "Unknown constant ~a" constant))
+  (define accessor
+    (match field
+      ['type constant-impl-type]
+      ['bf constant-impl-bf]
+      ['fl constant-impl-fl]
+      ['ival constant-impl-ival]))
+  (accessor (hash-ref constant-impls constant)))
 
 (define (dict-merge dict dict2)
   (for/fold ([dict dict]) ([(key value) (in-dict dict2)])
     (dict-set dict key value)))
 
 (define (register-constant-impl! constant name ctype attrib-dict)
-  (define default-attrib (table-ref-all constants constant))
+  (define op (hash-ref constants constant))
+  (define default-attrib
+    (list (cons 'bf (constant-bf op))
+          (cons 'ival (constant-ival op))))
   (unless default-attrib
     (error 'register-constant-impl! "Real constant does not exist: ~a" constant))
-  (define attrib-dict* (dict-merge default-attrib attrib-dict))
-  (table-set! constant-impls name
-              (make-hasheq (cons (cons 'type ctype) attrib-dict*)))
+  (define attrib-dict* (make-hasheq (cons (cons 'type ctype) (dict-merge default-attrib attrib-dict))))
+  (hash-set! constant-impls name
+             (apply constant-impl (map (curry dict-ref attrib-dict*) '(type bf fl ival))))
   (set! parametric-constants
     (hash-update parametric-constants constant
                  (curry cons (list* name ctype))
@@ -136,18 +116,15 @@
 ;; Abstract operator table
 ;; Implementations inherit attributes
 
-(define-table operators
-  [itype (or/c (listof type-name?) type-name?)]
-  [otype type-name?]
-  [bf    (unconstrained-argument-number-> bigvalue? bigvalue?)]
-  [ival (or/c #f (unconstrained-argument-number-> ival? ival?))]) 
+(struct operator (itype otype bf ival))
+(define operators (make-hash))
 
 (define (register-operator! name itypes otype attrib-dict)
   (define itypes* (dict-ref attrib-dict 'itype itypes))
   (define otype* (dict-ref attrib-dict 'otype otype))
-  (table-set! operators name
-              (make-hasheq (append (list (cons 'itype itypes*) (cons 'otype otype*))
-                           attrib-dict))))
+  (define fields (make-hasheq (append (list (cons 'itype itypes*) (cons 'otype otype*)) attrib-dict)))
+
+  (hash-set! operators name (apply operator (map (curry hash-ref fields) '(itype otype bf ival)))))
 
 (define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
   (register-operator! 'name '(itypes ...) 'otype
@@ -246,7 +223,7 @@
  [bf bffma] [ival ival-fma])
 
 (define (operator-exists? op)
-  (table-has-key? operators op))
+  (hash-has-key? operators op))
 
 ;; Operator implementations
 
@@ -286,7 +263,12 @@
            (map (λ (x y) (equal? (prec->type x) y)) itypes itypes*))))
 
 (define (register-operator-impl! operator name atypes rtype attrib-dict)
-  (define default-attrib (table-ref-all operators operator))
+  (define op (hash-ref operators operator))
+  (define default-attrib
+    (list (cons 'itype (operator-itype op))
+          (cons 'otype (operator-otype op))
+          (cons 'bf (operator-bf op))
+          (cons 'ival (operator-ival op))))
   (unless default-attrib
     (error 'register-operator-impl! "Real operator does not exist: ~a" operator))
   ;; merge inherited and explicit attributes
@@ -328,7 +310,7 @@
 ;; will break if operator impls have different aritys
 ;; returns #f for variary operators
 (define (get-operator-arity op)
-  (let ([itypes (table-ref operators op 'itype)])
+  (let ([itypes (operator-itype (hash-ref operators op))])
     (if (type-name? itypes) #f (length itypes))))
 
 (define *unknown-ops* (make-parameter '()))
@@ -396,15 +378,15 @@
 
 ;; Expression predicates ;;
 
-(define (operator? op)
+(define (operator-or-impl? op)
   (and (symbol? op) (not (equal? op 'if))
        (or (hash-has-key? parametric-operators op)
            (hash-has-key? operator-impls op))))
 
-(define (constant? var)
+(define (constant-or-impl? var)
   (and (symbol? var)
        (or (hash-has-key? parametric-constants var) 
-           (dict-has-key? (cdr constant-impls) var))))
+           (hash-has-key? constant-impls var))))
 
 (define (variable? var)
-  (and (symbol? var) (not (constant? var))))
+  (and (symbol? var) (not (constant-or-impl? var))))
