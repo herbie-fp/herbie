@@ -5,7 +5,7 @@ RHOST="uwplse.org"
 RHOSTDIR="/var/www/herbie/reports"
 
 upload () {
-    DIR=$1
+    DIR="$1"
     B=$(git rev-parse --abbrev-ref HEAD)
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
@@ -19,34 +19,46 @@ upload () {
 }
 
 index () {
-    racket infra/make-index.rkt
+    DIR="$1"
+    rsync "$RHOST:$RHOSTDIR/index.cache" index.cache
+    racket infra/make-index.rkt index.cache "$DIR"
+    rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
     rsync --recursive \
           "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
-    rm index.html
+    rm index.cache index.html
 }
 
-download_reports () {
+reindex () {
+    DIR="$1"
     rsync --recursive --checksum --inplace --ignore-existing \
           --include 'results.json' --include 'results.json.gz' --include '*/' --exclude '*' \
-          uwplse.org:/var/www/herbie/reports/ previous/
-    find previous/ -name "results.json.gz" -exec gunzip {} \;
+          "$RHOST:$RHOSTDIR" "$DIR"
+    find "$DIR" -name "results.json.gz" -exec gunzip -f {} \;
+    racket infra/make-index.rkt "$DIR"
+    rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
+    rsync --recursive \
+          "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
+          "$RHOST:$RHOSTDIR/"
+    ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
+    rm index.cache index.html
 }
 
 upload_reports () {
-    rsync --recursive previous/ uwplse.org:/var/www/herbie/reports/
+    DIR="$1"
+    rsync --recursive "$DIR"/ "$RHOST:$RHOSTDIR"
 }
 
 help () {
     printf "USAGE: publish.sh upload <dir>\t\t\tUpload the directory <dir>\n"
-    printf "       publish.sh index\t\t\t\tRegenerate the report index\n"
+    printf "       publish.sh index <dir>\t\t\t\tAdd the directory <dir> to the index page\n"
 }
 
 CMD="$1"
+DIR="$2"
 
-if [[ $CMD = "upload" ]]; then
-    DIR="$2"
+check_dir () {
     if [[ -z $DIR ]]; then
         echo "Please pass a directory to upload"
         echo
@@ -56,14 +68,20 @@ if [[ $CMD = "upload" ]]; then
         echo "Directory $DIR does not exist"
         exit 2
     else
-        upload "$DIR"
+        return 0
     fi
+}
+
+if [[ $CMD = "upload" ]]; then
+    check_dir
+    upload "$DIR"
 elif [[ $CMD = "index" ]]; then
-    download_reports
-    index
+    index "$DIR"
+elif [[ $CMD = "update-index" ]]; then
+    reindex "$DIR"
 elif [[ $CMD = "update-reports" ]]; then
-    upload_reports
-    index
+    upload_reports "$DIR"
+    reindex "$DIR"
 else
     help
 fi
