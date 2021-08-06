@@ -4,7 +4,8 @@
 (require "syntax/types.rkt" "errors.rkt")
 
 (provide (struct-out representation) get-representation representation-name?
-          *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
+          *output-repr* *var-reprs* *needed-reprs*
+          *reprs-with-rules* *overflow-search-reprs*
           real->repr repr->real
           value? special-value?
           generate-repr)
@@ -16,6 +17,7 @@
 (define *needed-reprs* (make-parameter '()))
 (define *output-repr* (make-parameter #f))
 (define *var-reprs* (make-parameter '()))
+(define *overflow-search-reprs* (make-parameter '()))
 
 ;; Structs
 

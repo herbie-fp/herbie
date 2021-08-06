@@ -10,7 +10,7 @@
 
 
 (struct test (name identifier vars input output expected spec pre
-              preprocess output-prec var-precs conversions) #:prefab)
+              preprocess output-prec var-precs conversions overflow-search) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -99,7 +99,8 @@
         (map sexp->preprocess (dict-ref prop-dict* ':herbie-preprocess empty))
         (representation-name default-repr)
         (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)
-        convs))
+        convs
+        (dict-ref prop-dict* ':herbie-overflow-search '())))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that

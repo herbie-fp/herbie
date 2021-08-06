@@ -97,7 +97,7 @@
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
-    (define known-repr? (generate-repr (syntax->datum prec)))
+    (define known-repr? (get-representation (syntax->datum prec)))
     (unless known-repr?
       (error! prec "Unknown :precision ~a" prec)))
 
@@ -123,7 +123,27 @@
           (define known-repr? (and (generate-repr (first conv)) (generate-repr (second conv))))
           (unless known-repr?
             (error! conversions "Unknown precision in conversion ~a" conv)))
-        (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))))
+        (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions)))
+
+  (when (dict-has-key? prop-dict ':herbie-overflow-search)
+    (define search-types (dict-ref prop-dict ':herbie-overflow-search 'binary64))
+    (if (list? (syntax-e search-types))
+        (let ([type (syntax->datum search-types)])    ; TODO: multiple search types
+          (unless (list? type)
+            (error! search-types "Expected a parameterized representation: ~a" type))
+          (define prec (syntax->datum (dict-ref prop-dict ':precision)))
+          (unless (list? prec)
+            (error! search-types "Overflow search requires parameterized representation ~a" prec))
+          (for/fold ([sym? #f]) ([param (in-list type)] [param2 (in-list prec)])
+            (cond
+             [(equal? param param2) sym?]
+             [(and (symbol? param) (number? param2))
+              (if sym?
+                  (error! search-types "Cannot do overflow search on multiple variables: ~a" type)
+                  #t)]
+             [else (error! search-types "Search type does not match precision")])))
+        (error! search-types "Invalid :herbie-overflow-search ~a, must be a list" search-types)))
+)
 
 (define (check-program* stx vars props body error!)
   (unless (list? vars)
