@@ -151,13 +151,13 @@
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (timeline-push! 'method (~a (object-name rewrite)))
 
-  (when (and (overflow-analysis-allowed?)
-             (not (null? (^queued^))))
-    (define optimized
-      (for/list ([altn (in-list (^queued^))]
-                #:when (expr-supports? (program-body (alt-program altn)) 'ival))
-        (minimize-overflow altn)))
-    (void))
+  (define overflow-minimized
+    (if (and (overflow-analysis-allowed?)
+              (not (null? (^queued^))))
+        (for/list ([altn (in-list (^queued^))]
+                  #:when (expr-supports? (program-body (alt-program altn)) 'ival))
+          (alt (minimize-overflow altn) (list 'overflow '(2)) (list altn)))
+        (list)))
 
   (define changelists
     (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
@@ -195,12 +195,14 @@
 
   (define rewritten
     (filter (compose program-body alt-program)  ; false body means failure
-      (for/list ([cls comb-changelists] [altn altns]
-                #:when true [cl cls])
-        (for/fold ([altn altn] #:result (repr-change altn)) ([cng cl])
-            (alt (change-apply cng (alt-program altn))
-                 (list 'change cng)
-                 (list altn))))))
+      (append
+        (for/list ([cls comb-changelists] [altn altns]
+                  #:when true [cl cls])
+          (for/fold ([altn altn] #:result (repr-change altn)) ([cng cl])
+              (alt (change-apply cng (alt-program altn))
+                  (list 'change cng)
+                  (list altn))))
+        (map repr-change overflow-minimized))))
 
   (define rewritten*
     (if (and (*pareto-mode*) (> (length rewritten) 1000))

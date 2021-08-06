@@ -30,6 +30,15 @@
 
 ;; Overflow analysis
 
+(define range-cache (make-hash))
+
+(register-reset
+  (λ () (set! range-cache (make-hash))))
+
+(define (get-range repr)
+  (hash-ref! range-cache repr
+             (λ () (caar (precondition->intervals `(λ (x) TRUE) (list repr) repr)))))
+
 (define (replace lst k v)
   (cond
    [(list? lst) (map (curryr replace k v) lst)]
@@ -49,18 +58,14 @@
 (define (search lo hi repr)
   (define param (get-repr-param repr))
   (define name (*overflow-search-reprs*))
-  (define range (caar (precondition->intervals `(λ (x) TRUE) (list repr) repr)))
+  (define range (get-range repr))
   (define incr-ideal
     (let loop ([curr-lo (ival-lo range)] [curr-hi (ival-hi range)] [param param])   ; increase parameter
       (define param* (cons (car param) (+ (cdr param) 1)))
       (define name* (replace name (car param*) (cdr param*)))
       (define repr* (get-representation name*))
-      (define range (caar (precondition->intervals `(λ (x) TRUE) (list repr*) repr*)))
+      (define range (get-range repr*))
       (cond
-       [(or (bf< (ival-lo range) curr-lo) (bf> (ival-lo range) curr-hi))      ; increasing range
-        (if (and (bf< curr-lo lo) (bf> curr-hi hi))   ; curr is already big
-            (replace name (car param) (cdr param))
-            (loop (ival-lo range) (ival-hi range) param*))]
        [(and (bf> (ival-lo range) curr-lo) (bf< (ival-lo range) curr-hi))     ; decreasing range
         (cond
          [(and (bf> curr-lo lo) (bf< curr-hi hi))   ; curr is already big
@@ -68,27 +73,31 @@
          [(or (bf> (ival-lo range) lo) (bf< (ival-hi range) hi))
           (replace name (car param) (cdr param))]
          [else
-          (loop (ival-lo range) (ival-hi range) param*)])])))
+          (loop (ival-lo range) (ival-hi range) param*)])]
+       [else                                                                  ; increasing range
+        (if (and (bf< curr-lo lo) (bf> curr-hi hi))   ; curr is already big
+            (replace name (car param) (cdr param))
+            (loop (ival-lo range) (ival-hi range) param*))])))
 
   (define decr-param (if incr-ideal (get-repr-param (get-representation incr-ideal)) param))
   (let loop ([curr-lo (ival-lo range)] [curr-hi (ival-hi range)] [param decr-param])   ; decrease parameter
     (define param* (cons (car param) (- (cdr param) 1)))
     (define name* (replace name (car param*) (cdr param*)))
     (define repr* (get-representation name*))
-    (define range (caar (precondition->intervals `(λ (x) TRUE) (list repr*) repr*)))
+    (define range (get-range repr*))
     (cond
-      [(or (bf< (ival-lo range) curr-lo) (bf> (ival-lo range) curr-hi))     ; increasing range
-      (if (and (bf< curr-lo lo) (bf> curr-hi hi))   ; curr is already big
-          (replace name (car param) (cdr param))
-          (loop (ival-lo range) (ival-hi range) param*))]
-      [(and (bf> (ival-lo range) curr-lo) (bf< (ival-lo range) curr-hi))     ; decreasing range
+     [(and (bf> (ival-lo range) curr-lo) (bf< (ival-lo range) curr-hi))     ; decreasing range
       (cond
         [(and (bf> curr-lo lo) (bf< curr-hi hi))   ; curr is already big
         #f]
         [(or (bf> (ival-lo range) lo) (bf< (ival-hi range) hi))
         (replace name (car param) (cdr param))]
         [else
-        (loop (ival-lo range) (ival-hi range) param*)])])))
+        (loop (ival-lo range) (ival-hi range) param*)])]
+     [else                                                                  ; increasing range
+      (if (and (bf< curr-lo lo) (bf> curr-hi hi))   ; curr is already big
+          (replace name (car param) (cdr param))
+          (loop (ival-lo range) (ival-hi range) param*))])))
 
 
 (define (analyze expr cache)
@@ -105,23 +114,27 @@
                  [(? number?) (mk-ival (bf expr))])))))
 
 (define (minimize-overflow altn)
-  (define expr (program-body (alt-program altn)))
+  (define prog (alt-program altn))
+  (define expr (program-body prog))
   (define cache (make-hash))
   (analyze expr cache)
-  (define-values (expr* range)
+  (define-values (expr* range repr)
     (let loop ([expr expr])
       (match expr
        [(list 'if cond ift iff)
-        (define-values (ift* r1) (loop ift))
-        (define-values (iff* r2) (loop iff))
+        (define-values (ift* rng1 ift-repr) (loop ift))
+        (define-values (iff* rng2 iff-repr) (loop iff))
         (values (list 'if cond ift* iff*)
-                (hash-ref cache expr))]
+                (hash-ref cache expr)
+                ift-repr)]
        [(list (? repr-conv? conv) body)
-        (loop body)]
+        (define oprec (operator-info conv 'otype))
+        (define-values (body* range _) (loop body))
+        (values body* range (get-representation oprec))]
        [(list op args ...)
         (define range (hash-ref cache expr))
-        (define-values (args* ranges*)
-          (for/lists (l1 l2) ([arg (in-list args)])
+        (define-values (args* ranges* reprs*)
+          (for/lists (l1 l2 l3) ([arg (in-list args)])
             (loop arg)))
         (define-values (lo hi)
           (for/fold ([lo (ival-lo range)] [hi (ival-hi range)])
@@ -130,14 +143,28 @@
                     (bfmax hi (ival-hi range)))))
         (cond
          [(bf= lo hi)   ; exact?
-          (values (cons op args*) range)]
+          (values (cons op args*) range (first reprs*))]
+         [(or (bfinfinite? lo) (bfinfinite? hi))
+          (values (cons op args*) range (first reprs*))]
          [else
-            (define repr (get-representation (operator-info op 'otype)))
-            (define ideal (search lo hi repr))
-            (printf "~a: ~a\n" expr ideal)
-            (values (cons op args*) range)])]
-       [(? variable?) (values expr (hash-ref cache expr))]
-       [(? constant?) (values expr (hash-ref cache expr))]
-       [(? number?) (values expr (hash-ref cache expr))])))
+          (define repr (get-representation (operator-info op 'otype)))
+          (define ideal (search lo hi repr))
+          (cond
+           [ideal
+            (define args**
+              (for/list ([arg (in-list args*)] [repr (in-list reprs*)])
+                (cond
+                [(equal? ideal repr) arg]
+                [else
+                  (define prec (representation-name repr))
+                  (generate-conversions `((,prec ,ideal)))
+                  (define conv (get-repr-conv prec ideal))
+                  (list conv arg)])))
+            (values (cons op args**) range (get-representation ideal))]
+           [else    ; something failed
+            (values (cons op args*) range (first reprs*))])])]
+       [(? variable?) (values expr (hash-ref cache expr) (*output-repr*))]
+       [(? constant?) (values expr (hash-ref cache expr) (*output-repr*))]
+       [(? number?) (values expr (hash-ref cache expr) (*output-repr*))])))
 
-  (void))
+  `(λ ,(program-variables prog) ,expr*))
