@@ -1,7 +1,7 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "sugar.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
 (provide assert-program!)
 (module+ test (require rackunit "../load-plugin.rkt"))
 

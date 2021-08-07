@@ -6,6 +6,7 @@
 (provide (rename-out [constant-or-impl? constant?]
                      [operator-or-impl? operator?])
          variable? operator-info operator-exists?
+         *functions* register-function!
          constant-info get-operator-arity
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
@@ -390,3 +391,9 @@
 
 (define (variable? var)
   (and (symbol? var) (not (constant-or-impl? var))))
+
+;; name -> (vars repr body)
+(define *functions* (make-parameter (make-hasheq)))
+
+(define (register-function! name args repr body)
+  (hash-set! (*functions*) name (list args repr body)))

@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "../interface.rkt"
-         "syntax.rkt" "sugar.rkt" "types.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)

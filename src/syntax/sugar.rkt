@@ -1,14 +1,8 @@
 #lang racket
 
 (require "types.rkt" "syntax.rkt" "../interface.rkt")
-(provide desugar-program resugar-program register-function! *functions*)
+(provide desugar-program resugar-program)
 (module+ test (require rackunit))
-
-;; name -> (vars repr body)
-(define *functions* (make-parameter (make-hasheq)))
-
-(define (register-function! name args repr body)
-  (hash-set! (*functions*) name (list args repr body)))
 
 ;; preprocessing
 (define (expand expr)
