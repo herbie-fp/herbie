@@ -6,7 +6,7 @@
 (provide
  pattern-match pattern-substitute
  rewrite-expression-head rewrite-expression
- change-apply)
+ change-apply rule-apply)
 
 ;;; Our own pattern matcher.
 ;;
