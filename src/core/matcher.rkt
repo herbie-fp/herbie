@@ -6,7 +6,7 @@
 (provide
  pattern-match pattern-substitute
  rewrite-expression-head rewrite-expression
- change-apply rule-rewrite)
+ change-apply)
 
 ;;; Our own pattern matcher.
 ;;
@@ -61,13 +61,6 @@
     (if bindings
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
-
-(define (rule-rewrite rule prog [loc '()])
-  (let/ec return
-    (location-do loc prog
-                 (λ (x) (match (rule-apply rule x)
-                          [(cons out bindings) out]
-                          [#f (return #f)])))))
 
 (define (change-apply cng prog)
   (match-define (change rule location bindings) cng)
