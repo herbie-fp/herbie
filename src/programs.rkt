@@ -114,15 +114,12 @@
   (define f (batch-eval-progs (list prog) mode repr))
   (λ args (vector-ref (apply f args) 0)))
 
-(define (real->bf x repr)
-  ((type-exact->inexact (representation-type repr)) x))
-
 (define (batch-eval-progs progs mode repr)
   (define real->precision
     (match mode
      ['fl (λ (x repr) (real->repr x repr))]
-     ['bf (λ (x repr) (real->bf x repr))]
-     ['ival (λ (x repr) (mk-ival (real->bf x repr)))]))
+     ['bf (λ (x repr) (bf x))]
+     ['ival (λ (x repr) (mk-ival (bf x)))]))
 
   (define arg->precision
     (match mode
