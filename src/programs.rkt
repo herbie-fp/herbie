@@ -2,13 +2,12 @@
 
 (require math/bigfloat rival)
 (require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt"
-         "timeline.rkt" "cost.rkt")
+         "timeline.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
          expr? expr-supports? expr-contains?
-         program-cost
          type-of repr-of
          location-do location-get
          batch-eval-progs eval-prog eval-application
@@ -28,10 +27,6 @@
   (-> expr? (listof symbol?))
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   vars)
-
-(define (program-cost prog)
-  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
-  (expr-cost body))
 
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
