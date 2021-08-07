@@ -64,7 +64,7 @@
     (for/list ([arg args] [arg-name arg-names])
       (cons arg-name
             (if (and (list? arg) (set-member? args ':precision))
-                (get-representation (list-ref args (add1 (index-of args ':precision))))
+                (get-representation (cadr (member ':precision args)))
                 default-repr))))
 
   ;; Named fpcores need to be added to function table
