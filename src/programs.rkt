@@ -292,7 +292,6 @@
     '(/ 1 cos))
    '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
 
-
 ; Updates the repr of an expression if needed
 (define (apply-repr-change-expr expr)
   (let loop ([expr expr] [prec #f])
@@ -379,7 +378,7 @@
                 (let ([conv (get-repr-conv (constant-info expr 'type) prec*)])
                   (and conv (list conv expr))))))] ; if constant does not exist in repr, add conversion
      [_ expr])))
-      
+
 (define (apply-repr-change prog)
   (match prog
    [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body))]
