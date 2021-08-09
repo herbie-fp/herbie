@@ -26,7 +26,7 @@
       (set! *precondition* #f)))
 
 (define (overflow-analysis-allowed?)
-  *precondition*)
+  (and *precondition* (not (null? (*overflow-search-reprs*)))))
 
 ;; Overflow analysis
 

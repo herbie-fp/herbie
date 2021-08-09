@@ -196,13 +196,13 @@
   (define rewritten
     (filter (compose program-body alt-program)  ; false body means failure
       (append
+        (map repr-change overflow-minimized)
         (for/list ([cls comb-changelists] [altn altns]
                   #:when true [cl cls])
           (for/fold ([altn altn] #:result (repr-change altn)) ([cng cl])
               (alt (change-apply cng (alt-program altn))
                   (list 'change cng)
-                  (list altn))))
-        (map repr-change overflow-minimized))))
+                  (list altn)))))))
 
   (define rewritten*
     (if (and (*pareto-mode*) (> (length rewritten) 1000))
