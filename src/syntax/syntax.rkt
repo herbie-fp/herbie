@@ -10,13 +10,14 @@
          get-parametric-operator parametric-operators parametric-operators-reverse
          get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-ops* *loaded-ops*
-         repr-conv? rewrite-repr-op? get-repr-conv)
+         repr-conv? rewrite-repr-op? get-repr-conv
+         generate-conversion-impl)
 
 (module+ internals 
   (provide define-constant-impl define-operator-impl
            register-constant-impl! register-operator-impl!
            define-constant define-operator
-           register-constant! register-operator!))
+           register-constant! register-operator! register-conversion-generator!))
 
 ;; The new, contracts-using version of the above
 
@@ -389,4 +390,34 @@
            (hash-has-key? constant-impls var))))
 
 (define (variable? var)
-  (and (symbol? var) (not (constant-or-impl? var))))
+  (and (symbol? var) (not (constant? var))))
+
+; Similar to representation generators, conversion generators
+; allow Herbie to query plugins for optimized implementations
+; of representation conversions, rather than the default
+; bigfloat implementation
+(define conversion-generators '())
+
+(define/contract (register-conversion-generator! proc)
+  (-> (-> any/c any/c boolean?) void?)
+  (unless (set-member? conversion-generators proc)
+    (set! conversion-generators (cons proc conversion-generators))))
+
+(define replace-table `((" " . "_") ("(" . "") (")" . "")))
+
+(define/contract (string-replace* str changes)
+  (-> string? (listof (cons/c string? string?)) string?)
+  (let loop ([str str] [changes changes])
+    (match changes
+      [(? null?) str]
+      [_ (let ([change (car changes)])
+           (loop (string-replace str (car change) (cdr change)) (cdr changes)))])))
+
+(define (generate-conversion-impl prec1 prec2)
+  (define prec1* (string->symbol (string-replace* (~a prec1) replace-table)))
+  (define prec2* (string->symbol (string-replace* (~a prec2) replace-table)))
+  (define conv1 (sym-append prec1* '-> prec2*))
+  (define conv2 (sym-append prec2* '-> prec1*))
+  (or (and (hash-has-key? parametric-operators-reverse conv1)
+           (hash-has-key? parametric-operators-reverse conv2))
+      (for/or ([proc (in-list conversion-generators)]) (proc prec1 prec2))))

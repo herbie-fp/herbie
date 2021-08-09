@@ -1,12 +1,17 @@
 #lang racket
 
-(require "common.rkt" "interface.rkt" "errors.rkt"
-         "syntax/rules.rkt" "syntax/syntax.rkt"
-         (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
+(require (submod "syntax/rules.rkt" internals)
+         (submod "syntax/syntax.rkt" internals)
+         "common.rkt" "interface.rkt" "errors.rkt"
+         "syntax/rules.rkt" "syntax/syntax.rkt")
+
 (module+ test (require "load-plugin.rkt"))
+
 (provide generate-conversions generate-prec-rewrites get-rewrite-operator *conversions*)
 
 (define *conversions* (make-parameter (hash)))
+
+(define replace-table `((" " . "_") ("(" . "") (")" . "")))
 
 (define/contract (string-replace* str changes)
   (-> string? (listof (cons/c string? string?)) string?)
@@ -17,14 +22,12 @@
            (loop (string-replace str (car change) (cdr change)) (cdr changes)))])))
 
 (define (get-rewrite-operator prec)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (define prec* (string->symbol (string-replace* (~a prec) replace-table)))
   (define rewrite (sym-append '<- prec*))
   (get-parametric-operator rewrite prec))
 
 ;; Generates conversion, repr-rewrite operators for prec1 and prec2
 (define (generate-conversion-ops prec1 prec2)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (define prec1* (string->symbol (string-replace* (~a prec1) replace-table))) ; fixed point workaround
   (define prec2* (string->symbol (string-replace* (~a prec2) replace-table)))
   (define-values (repr1 repr2) (values (get-representation prec1) (get-representation prec2)))
@@ -33,13 +36,11 @@
   (define conv1 (sym-append prec1* '-> prec2*))
   (define conv2 (sym-append prec2* '-> prec1*))
 
-  (unless (hash-has-key? parametric-operators-reverse conv1)
+  (unless (generate-conversion-impl prec1 prec2)
     (define impl (compose (representation-bf->repr repr2) (representation-repr->bf repr1)))
+    (define impl2 (compose (representation-bf->repr repr1) (representation-repr->bf repr2)))
     (register-operator-impl! 'cast conv1 (list prec1) prec2  ; fallback implementation
-      (list (cons 'fl impl))))
-  
-  (unless (hash-has-key? parametric-operators-reverse conv2)
-    (define impl (compose (representation-bf->repr repr1) (representation-repr->bf repr2)))
+      (list (cons 'fl impl)))
     (register-operator-impl! 'cast conv2 (list prec2) prec1  ; fallback implementation
       (list (cons 'fl impl))))
 
@@ -62,7 +63,6 @@
 ;; creates precision rewrite: prec1 <==> prec2
 ;; assumes generate-conversion-ops has been invoked for these precisions
 (define (generate-prec-rewrite prec1 prec2)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (define prec1* (string->symbol (string-replace* (~a prec1) replace-table))) ; fixed point workaround
   (define prec2* (string->symbol (string-replace* (~a prec2) replace-table)))
 

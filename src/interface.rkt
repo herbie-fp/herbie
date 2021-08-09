@@ -88,5 +88,3 @@
 
 (define (special-value? x repr)
   ((representation-special-values repr) x))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

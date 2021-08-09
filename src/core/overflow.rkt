@@ -153,13 +153,13 @@
            [ideal
             (define args**
               (for/list ([arg (in-list args*)] [repr (in-list reprs*)])
-                (cond
-                [(equal? ideal repr) arg]
-                [else
-                  (define prec (representation-name repr))
-                  (generate-conversions `((,prec ,ideal)))
-                  (define conv (get-repr-conv prec ideal))
-                  (list conv arg)])))
+                (let ([prec (representation-name repr)])
+                  (if (equal? ideal prec)
+                      arg
+                      (begin
+                        (generate-conversions `((,prec ,ideal)))
+                        (let ([conv (get-repr-conv prec ideal)])
+                          (list conv arg)))))))
             (values (cons op args**) range (get-representation ideal))]
            [else    ; something failed
             (values (cons op args*) range (first reprs*))])])]
