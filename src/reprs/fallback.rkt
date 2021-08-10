@@ -136,26 +136,20 @@
 (define-fallback-operator (fma real real real)
  [fl (from-bigfloat bffma)])
 
-(define-operator-impl (== ==.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
+(define-operator-impl (== ==.rkt . racket) bool
   [fl (comparator =)])
 
-(define-operator-impl (!= !=.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
+(define-operator-impl (!= !=.rkt . racket) bool
   [fl (negate (comparator =))])
 
-(define-operator-impl (< <.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
+(define-operator-impl (< <.rkt . racket) bool
   [fl (comparator <)])
 
-(define-operator-impl (> >.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
+(define-operator-impl (> >.rkt . racket) bool
   [fl (comparator >)])
 
-(define-operator-impl (<= <=.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
+(define-operator-impl (<= <=.rkt . racket) bool
   [fl (comparator <=)])
 
-(define-operator-impl (>= >=.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
+(define-operator-impl (>= >=.rkt . racket) bool
   [fl (comparator >=)])

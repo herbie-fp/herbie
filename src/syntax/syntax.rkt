@@ -127,9 +127,14 @@
 
   (hash-set! operators name (apply operator (map (curry hash-ref fields) '(itype otype bf ival)))))
 
-(define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
-  (register-operator! 'name '(itypes ...) 'otype
-                      (list (cons 'key value) ...)))
+(define-syntax define-operator
+  (syntax-rules ()
+    [(define-operator (name itypes ...) otype [key value] ...)
+     (register-operator! 'name '(itypes ...) 'otype
+                         (list (cons 'key value) ...))]
+    [(define-operator (name . itype) otype [key value] ...)
+     (register-operator! 'name 'itype 'otype
+                         (list (cons 'key value) ...))]))
 
 (define-syntax-rule (define-1ary-real-operator name bf-impl ival-impl)
   (define-operator (name real) real
@@ -291,8 +296,12 @@
     (hash-set parametric-operators-reverse name operator)))
   
 
-(define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
+(define-syntax define-operator-impl
+  (syntax-rules ()
+    [(define-operator-impl (operator name atypes ...) rtype [key value] ...)
+     (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...))]
+    [(define-operator-impl (operator name . atype) rtype [key value] ...)
+     (register-operator-impl! 'operator 'name 'atype 'rtype (list (cons 'key value) ...))]))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
@@ -322,23 +331,23 @@
      (for-each operator-remove! (*unknown-ops*)))))
 
 ;; real operators
-(define-operator (==) real
-  [itype 'real] [bf (comparator bf=)] [ival ival-==])
+(define-operator (== . real) real
+  [bf (comparator bf=)] [ival ival-==])
 
-(define-operator (!=) real
-  [itype 'real] [bf (negate (comparator bf=))] [ival ival-!=])
+(define-operator (!= . real) real
+  [bf (negate (comparator bf=))] [ival ival-!=])
 
-(define-operator (<) real
-  [itype 'real] [bf (comparator bf<)] [ival ival-<])
+(define-operator (< . real) real
+  [bf (comparator bf<)] [ival ival-<])
 
-(define-operator (>) real
-  [itype 'real] [bf (comparator bf>)] [ival ival->])
+(define-operator (> . real) real
+  [bf (comparator bf>)] [ival ival->])
 
-(define-operator (<=) real
-  [itype 'real] [bf (comparator bf<=)] [ival ival-<=])
+(define-operator (<= . real) real
+  [bf (comparator bf<=)] [ival ival-<=])
 
-(define-operator (>=) real
-  [itype 'real] [bf (comparator bf>=)] [ival ival->=])
+(define-operator (>= . real) real
+  [bf (comparator bf>=)] [ival ival->=])
 
 ;; logical operators ;;
 
@@ -348,12 +357,10 @@
 (define-operator (not bool) bool
   [bf not] [ival ival-not])
 
-(define-operator (and bool bool) bool
-  [itype 'bool] ; override number of arguments
+(define-operator (and . bool) bool
   [bf and-fn] [ival ival-and])
 
-(define-operator (or bool bool) bool
-  [itype 'bool] ; override number of arguments
+(define-operator (or . bool) bool
   [bf or-fn] [ival ival-or])
 
 ;; Miscellaneous operators ;;

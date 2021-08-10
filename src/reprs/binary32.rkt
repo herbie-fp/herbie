@@ -244,28 +244,22 @@
 
 (define-libm-operator (fma real real real))
 
-(define-operator-impl (== ==.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
+(define-operator-impl (== ==.f32 . binary32) bool
   [fl (comparator =)])
 
-(define-operator-impl (!= !=.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
+(define-operator-impl (!= !=.f32 . binary32) bool
   [fl (negate (comparator =))])
 
-(define-operator-impl (< <.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
+(define-operator-impl (< <.f32 . binary32) bool
   [fl (comparator <)])
 
-(define-operator-impl (> >.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
+(define-operator-impl (> >.f32 . binary32) bool
   [fl (comparator >)])
 
-(define-operator-impl (<= <=.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
+(define-operator-impl (<= <=.f32 . binary32) bool
   [fl (comparator <=)])
 
-(define-operator-impl (>= >=.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
+(define-operator-impl (>= >=.f32 . binary32) bool
   [fl (comparator >=)])
 
 (define-operator-impl (cast binary64->binary32 binary64) binary32

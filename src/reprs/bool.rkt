@@ -30,12 +30,10 @@
 (define-operator-impl (not not bool) bool
   [fl not])
 
-(define-operator-impl (and and bool bool) bool
-  [itype 'bool] [otype 'bool] ; Override number of arguments
+(define-operator-impl (and and . bool) bool
   [fl and-fn])
 
-(define-operator-impl (or or bool bool) bool
-  [itype 'bool] [otype 'bool] ; Override number of arguments
+(define-operator-impl (or or . bool) bool
   [fl or-fn])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; rules ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
