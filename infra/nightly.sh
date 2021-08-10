@@ -38,16 +38,19 @@ function run {
       || output_error "reports/$name/results.json" "$name" "$seed"
 }
 
+DIR="$1"
+
 report=$(git rev-parse --abbrev-ref HEAD)-$(date "+%Y-%m-%d")
-mkdir -p reports
-rm -rf reports/* || echo "No existing reports to delete"
+mkdir -p "$DIR"
+rm -rf "$DIR"/* || echo "No existing reports to delete"
 dirs=""
 for bench in bench/*; do
   name=$(basename "$bench" .fpcore)
   run "$bench" "$name" "$@"
   if [ "$?" -eq 0 ]; then
-      dirs="$dirs reports/$name";
+      dirs="$dirs $DIR/$name";
   fi
 done
-racket infra/nightly.rkt reports/ $dirs
-bash infra/publish.sh upload "reports/"
+racket infra/nightly.rkt "$DIR" "$DIR/*"
+bash infra/publish.sh upload "$DIR"
+bash infra/publish.sh index "$DIR"
