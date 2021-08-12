@@ -339,7 +339,7 @@
     (error 'constant-info "Unknown constant ~a" constant))
   (define accessor
     (match field
-      ['type constant-impl-otype]
+      ['type constant-impl-type]
       ['bf constant-impl-bf]
       ['fl constant-impl-fl]
       ['ival constant-impl-ival]))
