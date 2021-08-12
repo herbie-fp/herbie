@@ -6,6 +6,11 @@
 (provide simplify-expr simplify-batch make-simplification-combinations)
 (module+ test (require rackunit "../load-plugin.rkt"))
 
+; make sure to check both package scopes
+(define (is-installed? name)
+  (or (hash-has-key? (installed-pkg-table #:scope 'installation) name)
+      (hash-has-key? (installed-pkg-table #:scope 'user) name)))
+
 ;; One module to rule them all, the great simplify. It uses egg-herbie
 ;; to simplify an expression as much as possible without making
 ;; unnecessary changes. We do this by creating an egraph, saturating
@@ -19,11 +24,10 @@
 
 ;; fall back on herbie-egraph if egg-herbie is unavailable
 (define use-egg-math?
-  (or
-   (hash-has-key? (installed-pkg-table) "egg-herbie")
-   (hash-has-key? (installed-pkg-table) "egg-herbie-windows")
-   (hash-has-key? (installed-pkg-table) "egg-herbie-osx")
-   (hash-has-key? (installed-pkg-table) "egg-herbie-linux")))
+  (or (is-installed? "egg-herbie")
+      (is-installed? "egg-herbie-windows")
+      (is-installed? "egg-herbie-osx")
+      (is-installed? "egg-herbie-linux")))
 
 ;; prefab struct used to send rules to egg-herbie
 (struct irule (name input output) #:prefab)
