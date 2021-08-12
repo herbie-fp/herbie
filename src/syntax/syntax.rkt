@@ -384,10 +384,10 @@
 
 (define (operator-or-impl? op)
   (and (symbol? op) (not (equal? op 'if))
-       (or (and (hash-has-key? parametric-operators var) 
-                (not (null? (operator-itype (hash-ref operators var)))))
-           (and (hash-has-key? operator-impls var)
-                (not (null? (operator-itype (hash-ref operator-impls var))))))))
+       (or (and (hash-has-key? parametric-operators op) 
+                (not (null? (operator-itype (hash-ref operators op)))))
+           (and (hash-has-key? operator-impls op)
+                (not (null? (operator-itype (hash-ref operator-impls op))))))))
 
 (define (constant-or-impl? var)
   (and (symbol? var)
