@@ -39,6 +39,7 @@ function run {
 }
 
 DIR="$1"
+shift
 
 report=$(git rev-parse --abbrev-ref HEAD)-$(date "+%Y-%m-%d")
 mkdir -p "$DIR"
