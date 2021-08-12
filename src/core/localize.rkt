@@ -83,11 +83,11 @@
           [(? constant?) (void)]
           [(? variable?) (void)]
           [(list 'if cond ift iff)
-          (loop ift (cons 2 loc))
-          (loop iff (cons 3 loc))]
+           (loop ift (cons 2 loc))
+           (loop iff (cons 3 loc))]
           [(list op args ...)
-          (for ([idx (in-naturals 1)] [arg args])
-            (loop arg (cons idx loc)))])
+           (for ([idx (in-naturals 1)] [arg args])
+             (loop arg (cons idx loc)))])
         (unless (andmap (curry = 1) err)     ; then add to locations
           (sow (cons err (reverse loc))))))
     > #:key (compose errors-score car)))

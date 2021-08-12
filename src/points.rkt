@@ -239,17 +239,6 @@
     (values pt processed ex)))
 
 
-(define (extract-sampled-points allvars precondition)
-  (match precondition
-    [`(or (and (== ,(? variable? varss) ,(? constant? valss)) ...) ...)
-     (define pts
-       (for/list ([vars varss] [vals valss])
-         (if (set=? vars allvars)
-             (map (curry dict-ref (map cons vars vals)) allvars)
-             #f)))
-     (and (andmap identity pts) pts)]
-    [_ #f]))
-
 ;; This is the obsolete version for the "halfpoint" method
 ;; TODO: It currently ignores preprocessing, just using the unprocessed version of the point
 (define (prepare-points-halfpoints prog precondition repr sampler preprocess-structs)
