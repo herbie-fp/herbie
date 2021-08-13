@@ -76,10 +76,13 @@ if [[ $CMD = "upload" ]]; then
     check_dir
     upload "$DIR"
 elif [[ $CMD = "index" ]]; then
+    check_dir
     index "$DIR"
 elif [[ $CMD = "update-index" ]]; then
+    check_dir
     reindex "$DIR"
 elif [[ $CMD = "update-reports" ]]; then
+    check_dir
     upload_reports "$DIR"
     reindex "$DIR"
 else
