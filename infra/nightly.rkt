@@ -41,7 +41,7 @@
      (for/list ([dir (in-list dirs)])
        (with-handlers ([exn? (const #f)])
          (call-with-input-file (build-path dir "results.json") read-datafile)))))
-  (define joint-rs (apply merge-datafiles rss))
+  (define joint-rs (merge-datafiles rss #:dirs dirs))
   (write-datafile (build-path outdir "results.json") joint-rs)
   (call-with-output-file (build-path outdir "results.html")
     #:exists 'replace

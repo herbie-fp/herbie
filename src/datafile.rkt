@@ -129,13 +129,15 @@
 (define (unique? a)
   (or (null? a) (andmap (curry equal? (car a)) (cdr a))))
 
-(define (merge-datafiles . dfs)
+(define (merge-datafiles dfs #:dirs [dirs #f])
   (when (null? dfs)
     (error' merge-datafiles "Cannot merge no datafiles"))
   (for ([f (in-list (list report-info-commit report-info-hostname report-info-seed
                           report-info-flags report-info-points report-info-iterations))])
     (unless (unique? (map f dfs))
       (error 'merge-datafiles "Cannot merge datafiles at different ~a" f)))
+  (unless dirs
+    (set! dirs (map (const #f) dfs)))
 
   (report-info
    (last (sort (map report-info-date dfs) < #:key date->seconds))
@@ -147,7 +149,13 @@
    (report-info-points (first dfs))
    (report-info-iterations (first dfs))
    (~a (cons 'merged (map report-info-note dfs)))
-   (apply append (map report-info-tests dfs))))
+   (for/list ([df (in-list dfs)] [dir (in-list dirs)]
+              #:when true
+              [test (in-list (report-info-tests df))])
+     (struct-copy table-row test
+                  [link (if dir
+                            (format "~a/~a" dir (table-row-link test))
+                            (table-row-link test))]))))
 
 (define (diff-datafiles old new)
   (define old-tests
