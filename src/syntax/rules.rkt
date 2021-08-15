@@ -183,6 +183,11 @@
   [cancel-sign-sub      (- a (* (neg b) c))     (+ a (* b c))]
   [cancel-sign-sub-inv  (- a (* b c))           (+ a (* (neg b) c))])
 
+(define-ruleset* pull-factor (arithmetic simplify)
+  #:type ([a real] [b real])
+  [pull-add (+ a b) (* a (+ 1 (/ b a)))]
+  [pull-sub (- a b) (* a (- 1 (/ b a)))])
+
 ; Difference of squares
 (define-ruleset* difference-of-squares-canonicalize (polynomials simplify)
   #:type ([a real] [b real])
