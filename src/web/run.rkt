@@ -5,7 +5,7 @@
          "../interface.rkt" "../profile.rkt" "../timeline.rkt" "../sampling.rkt"
          "make-report.rkt" "thread-pool.rkt" "timeline.rkt")
 
-(provide make-report rerun-report replot-report)
+(provide make-report rerun-report replot-report diff-report)
 
 (define (extract-test row)
   (define vars (table-row-vars row))
@@ -165,3 +165,10 @@
    [else
     ; Put things with an output first
     (test-output t1)]))
+
+(define (diff-report old new)
+  (define df (diff-datafiles (read-datafile (build-path old "results.json"))
+                             (read-datafile (build-path new "results.json"))))
+  (call-with-output-file (build-path new "results.html")
+    #:exists 'replace
+    (curryr make-report-page df #f)))
