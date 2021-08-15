@@ -82,7 +82,7 @@
           #:key (λ (x) (or (table-row-start (car x)) 0))))
 
   (define classes
-    (if (ormap table-row-target tests) '(no-target) '()))
+    (if (ormap table-row-target tests) '() '(no-target)))
 
   ;; HTML cruft
   (fprintf out "<!doctype html>\n")
