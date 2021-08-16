@@ -48,15 +48,14 @@
   (patchtable-final *patch-table*))
 
 ; Adds an improvement to the patch table
-; If `improve` is not provided, the patch table either
-;  (a) leaves the existing list of improvements empty
-;  (b) sets the improvements to be an empty list 
+; If `improve` is not provided, a key is added
+; with no improvements
 (define (add-patch! expr [improve #f])
   (cond
    [(not (*use-improve-cache*)) (void)]
    [improve
     (hash-update! (patchtable-table *patch-table*) expr
-                  (curry cons improve) (list improve))]
+                  (curry cons improve) (list))]
    [else
     (hash-update! (patchtable-table *patch-table*) expr
                   identity (list))]))
