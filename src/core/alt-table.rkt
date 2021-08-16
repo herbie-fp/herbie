@@ -224,16 +224,10 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
-(define (is-nan? expr)
-  (and (hash-has-key? parametric-constants-reverse expr)
-       (equal? (hash-ref parametric-constants-reverse expr) 'NAN)))
-
 (define (atab-add-altns atab altns repr)
-  (define altns* (filter-not (compose (curryr expr-contains? is-nan?) alt-program)
-                             (remove-duplicates altns alt-equal?)))
-  (define progs (map alt-program altns*))
+  (define progs (map alt-program altns))
   (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))
-  (for/fold ([atab atab]) ([altn (in-list altns*)] [errs (in-vector errss)])
+  (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-vector errss)])
     (atab-add-altn atab altn errs repr)))
 
 (define (worse-than? point->alts altn cost tied-pnts tied-errs)
