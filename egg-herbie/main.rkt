@@ -189,7 +189,7 @@
           (cons '(- z (+ (+ y 2) x)) "(- real h2 (+ real (+ real h0 2) h1))")
           (cons '(*.f64 x y) "(* f64 h1 h0)")
           (cons '(+.f32 (*.f32 x y) 2) "(+ f32 (* f32 h1 h0) 2)")
-          (cons '(cos.f64 PI.f64) "(cos f64 (PI f64))")
+          (cons '(cos.f64 (PI.f64)) "(cos f64 (PI f64))")
           (cons '(if TRUE x y) "(if real (TRUE real) h1 h0)")))
 
   (define nil

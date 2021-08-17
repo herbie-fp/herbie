@@ -219,7 +219,7 @@
           [(-.f64 (*.f64 (sqrt.f64 (+.f64 x 1)) (sqrt.f64 (+.f64 x 1)))
               (*.f64 (sqrt.f64 x) (sqrt.f64 x))) . 1]
           [(+.f64 1/5 3/10) . 1/2]
-          [(cos.f64 PI.f64) . -1]
+          [(cos.f64 (PI.f64)) . -1]
           ;; this test is problematic and runs out of nodes currently
           ;[(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
           ))
