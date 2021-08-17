@@ -86,15 +86,11 @@
 (define (egg-parsed->expr parsed rename-dict)
   (match parsed
     [(list first-parsed second-parsed rest-parsed ...)
-     (if (empty? rest-parsed) ; Assuming no nullary functions
-         (if (equal? second-parsed 'real)  ; parameterized constants: (name type) => name.type
-               first-parsed
-               (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
-         (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
-           (if (equal? second-parsed 'real)
-               first-parsed
-               (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
-           (map (curryr egg-parsed->expr rename-dict) rest-parsed)))]
+     (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
+      (if (equal? second-parsed 'real)
+          first-parsed
+          (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
+      (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
     [(or (? number?) (? constant?))
      parsed]
     [else
@@ -190,16 +186,16 @@
           (cons '(*.f64 x y) "(* f64 h1 h0)")
           (cons '(+.f32 (*.f32 x y) 2) "(+ f32 (* f32 h1 h0) 2)")
           (cons '(cos.f64 (PI.f64)) "(cos f64 (PI f64))")
-          (cons '(if TRUE x y) "(if real (TRUE real) h1 h0)")))
+          (cons '(if (TRUE) x y) "(if real (TRUE real) h1 h0)")))
 
   (define nil
     (with-egraph
      (lambda (egg-graph)
-      (for/list ([expr-pair test-exprs])
-        (let* ([out (expr->egg-expr (car expr-pair) egg-graph)]
-               [inv (egg-expr->expr out egg-graph)])
-          (check-equal? out (cdr expr-pair))      ; check output against expected
-          (check-equal? inv (car expr-pair))))))) ; check if procedures are truly inverses
+      (for/list ([(in expected-out) (in-dict test-exprs)])
+        (let* ([out (expr->egg-expr in egg-graph)]
+               [computed-in (egg-expr->expr out egg-graph)])
+          (check-equal? out expected-out)
+          (check-equal? computed-in in))))))
 
   (define extended-expr-list
     (list
