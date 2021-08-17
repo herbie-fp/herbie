@@ -18,9 +18,6 @@
                 (match expr
                   [(? number?)
                    (cons (repeat (bf expr)) (repeat 1))]
-                  [(? constant?)
-                   (define val ((constant-info expr 'bf)))
-                   (cons (repeat val) (repeat 1))]
                   [(? variable?)
                    (cons (map (curryr representation-repr->bf (dict-ref (*var-reprs*) expr))
                               (dict-ref vars expr))
@@ -80,7 +77,6 @@
         (define err (cdr (hash-ref cache expr)))
         (match expr                               ; descend first
           [(? number?) (void)]
-          [(? constant?) (void)]
           [(? variable?) (void)]
           [(list 'if cond ift iff)
            (loop ift (cons 2 loc))

@@ -39,10 +39,13 @@
 (define (expression->type stx env type error!)
   (match stx
     [#`,(? number?) type]
-    [#`,(? constant? x)
-     (if (set-member? '(TRUE FALSE) x)
-         (constant-info x 'type)
-         (constant-info (get-parametric-constant x type) 'type))]
+    [#`,(? constant-operator? x)
+     (let/ec k
+       (for/list ([sig (hash-ref parametric-operators x)])
+         (match-define (list* name rtype atypes) sig)
+         (when (equal? rtype type)
+           (k (operator-info name 'otype))))
+       (error! stx "Could not find implementation of ~a for ~a" x type))]
     [#`,(? variable? x)
      (define vtype (dict-ref env x))
      (cond

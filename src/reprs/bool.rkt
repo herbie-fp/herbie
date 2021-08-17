@@ -16,10 +16,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constant-impl (TRUE TRUE) bool
+(define-operator-impl (TRUE TRUE) bool
   [fl (const true)])
 
-(define-constant-impl (FALSE FALSE) bool
+(define-operator-impl (FALSE FALSE) bool
   [fl (const false)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

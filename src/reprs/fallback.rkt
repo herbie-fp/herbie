@@ -29,16 +29,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constant-impl (PI PI.rkt) racket
+(define-operator-impl (PI PI.rkt) racket
   [fl (const pi)])
 
-(define-constant-impl (E E.rkt) racket
+(define-operator-impl (E E.rkt) racket
   [fl (const (exp 1.0))])
 
-(define-constant-impl (INFINITY INFINITY.rkt) racket
+(define-operator-impl (INFINITY INFINITY.rkt) racket
   [fl (const +inf.0)])
 
-(define-constant-impl (NAN NAN.rkt) racket
+(define-operator-impl (NAN NAN.rkt) racket
   [fl (const +nan.0)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

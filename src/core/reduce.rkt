@@ -20,7 +20,6 @@
   (define expr ((get-evaluator) expr*))
   (match expr
     [(? number?) expr]
-    [(? constant?) expr]
     [(? variable?) expr]
     [`(λ ,vars ,body)
      `(λ ,vars ,(simplify body))]
@@ -40,7 +39,6 @@
 (define (simplify-node expr)
   (match expr
     [(? number?) expr]
-    [(? constant?) expr]
     [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
@@ -67,7 +65,6 @@
   (let ([label (or label expr)])
     (match expr
       [(? number?) `((,expr 1))]
-      [(? constant?) `((1 ,expr))]
       [(? variable?) `((1 ,expr))]
       [`(+ ,args ...) (append-map recurse args)]
       [`(neg ,arg) (map negate-term (recurse arg))]

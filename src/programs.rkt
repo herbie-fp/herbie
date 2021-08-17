@@ -36,8 +36,6 @@
   (match expr
    [(? number?) (get-type 'real)]
    [(? (representation-repr? repr)) (representation-type repr)]
-   [(? constant?) 
-    (representation-type (get-representation (constant-info expr 'type)))]
    [(? variable?) (representation-type (dict-ref env expr))]
    [(list 'if cond ift iff) (type-of ift repr env)]
    [(list op args ...) ; repr-name -> repr -> type
@@ -49,7 +47,6 @@
   (match expr
    [(? number?) repr]
    [(? (representation-repr? repr)) repr]
-   [(? constant?) (get-representation (constant-info expr 'type))]
    [(? variable?) (dict-ref env expr)]
    [(list 'if cond ift iff) (repr-of ift repr env)]
    [(list op args ...) (get-representation (operator-info op 'otype))]))
@@ -62,8 +59,7 @@
       [(list op args ...)
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
-      [(? number?) true]
-      [(? constant?) (constant-info expr field)])))
+      [(? number?) true])))
 
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
@@ -76,7 +72,6 @@
 (define (free-variables prog)
   (match prog
     [(? number?) '()]
-    [(? constant?) '()]
     [(? variable?) (list prog)]
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
@@ -159,7 +154,6 @@
     (define expr
       (match prog
        [(? number?) (list (const (real->precision prog repr)))]
-       [(? constant?) (list (constant-info prog mode))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
         (list if-op
@@ -167,20 +161,22 @@
               (munge t repr)
               (munge f repr))]
        [(list op args ...)
-        (define op-info
+        (match-define (list* fn variary? itypes)
           (hash-ref! cached-ops op
                      (λ ()
                       (define atypes
                         (match (operator-info op 'itype)
-                         [(? representation-name? a) (list #f (get-representation a))]
-                         [(? list? as) (map get-representation as)]))
+                         [(? representation-name? a)
+                          (cons #t (get-representation a))]
+                         [(? list? as)
+                          (cons #f (map get-representation as))]))
                       (cons (operator-info op mode) atypes))))
         (define atypes
-          (if (cadr op-info) ; handle variadic operators
-              (cdr op-info)
-              (make-list (length args) (caddr op-info))))
-        (cons (car op-info) (map munge args atypes))]
-       [_ (raise-argument-error 'eval-prog "expr?" prog)]))
+          (if variary? ; handle variadic operators
+              (make-list (length args) itypes)
+              itypes))
+        (cons fn (map munge args atypes))]
+       [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
               (λ ()
                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
@@ -359,16 +355,6 @@
        [else ; insert a cast if the variable precision is not the same
         (define cast (get-repr-conv var-prec prec))
         (and cast (list cast expr))])]
-     [(? (curry hash-has-key? parametric-constants-reverse))
-      (define prec* (if prec prec (constant-info expr 'type)))
-      (if (equal? (constant-info expr 'type) prec*) ; update constants if precision no longer matches
-          expr
-          (let* ([c-unparam (hash-ref parametric-constants-reverse expr expr)]
-                 [c* (get-parametric-constant c-unparam prec)])
-            (if c*
-                c*
-                (let ([conv (get-repr-conv (constant-info expr 'type) prec*)])
-                  (and conv (list conv expr))))))] ; if constant does not exist in repr, add conversion
      [_ expr])))
 
 (define (apply-repr-change prog)

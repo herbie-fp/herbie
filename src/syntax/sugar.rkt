@@ -7,6 +7,8 @@
 ;; preprocessing
 (define (expand expr)
   (match expr
+   ;; Constants are zero-ary functions
+   [(? constant-operator?) (list expr)]
    ;; unfold let
    [(list let* (list (list var val) rest ...) body)
     (replace-vars (list (cons var (expand val))) (expand `(let* ,rest ,body)))]
@@ -77,6 +79,13 @@
          (define-values (re* re-type) (loop re 'binary64))
          (define-values (im* im-type) (loop im 'binary64))
          (values (list 'complex re* im*) 'complex)]
+        [(list x) ; constant
+         (let/ec k
+           (for/list ([sig (hash-ref parametric-operators x)])
+             (match-define (list* name rtype atypes) sig)
+             (when (or (equal? rtype prec) (equal? rtype 'bool))
+               (k (list name) (operator-info name 'otype))))
+           (error 'sugar "Could not find constant implementation for ~a at ~a" x prec))]
         [(list op args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
@@ -92,10 +101,6 @@
              [_ (inexact->exact expr)])
            prec)]
         [(? boolean?) (values expr 'bool)]
-        [(? constant?) 
-         (define prec* (if (set-member? '(TRUE FALSE) expr) 'bool prec))
-         (define constant* (get-parametric-constant expr prec*))
-         (values constant* (constant-info constant* 'type))]
         [(? variable?)
          (define vprec (representation-name (dict-ref var-reprs expr)))
          (cond
@@ -125,6 +130,8 @@
       [(not full?) `(,op ,body*)]
       [(list? body*) `(cast (! :precision ,iprec ,body*))]
       [else body*])] ; constants and variables should not have casts and precision changes
+    [(list op)
+     (hash-ref parametric-operators-reverse op op)]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
@@ -150,7 +157,6 @@
                  (exact->inexact x) ; convert to flonum if binary64 or binary32
                  x)])
          expr)]
-    [(? constant?) (hash-ref parametric-constants-reverse expr expr)]
     [(? variable?) expr]))
 
 (define (desugar-program prog repr var-reprs #:full [full? #t])

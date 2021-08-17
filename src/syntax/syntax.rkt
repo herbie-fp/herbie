@@ -3,35 +3,20 @@
 (require math/flonum math/base math/bigfloat math/special-functions rival)
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt")
 
-(provide (rename-out [constant-or-impl? constant?]
-                     [operator-or-impl? operator?])
-         variable? operator-info operator-exists?
+(provide (rename-out [operator-or-impl? operator?])
+         variable? operator-info operator-exists? constant-operator?
          *functions* register-function!
-         constant-info get-operator-arity
+         get-operator-arity
          get-parametric-operator parametric-operators parametric-operators-reverse
-         get-parametric-constant parametric-constants parametric-constants-reverse
          *unknown-ops* *loaded-ops*
-         repr-conv? rewrite-repr-op? get-repr-conv)
+         repr-conv? rewrite-repr-op? get-repr-conv
+         all-constants)
 
 (module+ internals 
-  (provide define-constant-impl define-operator-impl
-           register-constant-impl! register-operator-impl!
-           define-constant define-operator
-           register-constant! register-operator!))
-
-;; Abstract constant table
-;; Implementations inherit attributes
-
-(struct constant (bf ival))
-(define constants (make-hasheq))
-
-(define (register-constant! name attrib-dict)
-  (hash-set! constants name (apply constant (map (curry dict-ref attrib-dict) '(bf ival)))))
-
-;; TODO: The contracts for operators are tricky because the number of arguments is unknown
-;; There's no easy way to write such a contract in Racket, so I only constrain the output type.
-(define (unconstrained-argument-number-> from/c to/c)
-  (unconstrained-domain-> to/c))
+  (provide define-operator-impl
+           register-operator-impl!
+           define-operator
+           register-operator!))
 
 ;; Abstract operator table
 ;; Implementations inherit attributes
@@ -298,82 +283,33 @@
            (equal? (car atypes) iprec)
            true-name)))
 
-(define-syntax-rule (define-constant name otype [key value] ...)
-  (register-constant! 'name (list (cons 'key value) ...)))
-
-(define-constant PI real
+(define-operator (PI) real
   [bf (λ () pi.bf)] 
   [ival ival-pi])
 
-(define-constant E real
+(define-operator (E) real
   [bf (λ () (bfexp 1.bf))]
   [ival ival-e])
 
-(define-constant INFINITY real
+(define-operator (INFINITY) real
   [bf (λ () +inf.bf)]
   [ival (λ () (mk-ival +inf.bf))])
 
-(define-constant NAN real
+(define-operator (NAN) real
   [bf (λ () +nan.bf)]
   [ival (λ () (mk-ival +nan.bf))])
 
-(define-constant TRUE bool
+(define-operator (TRUE) bool
   [bf (const true)]
   [ival (const (ival-bool true))])
 
-(define-constant FALSE bool
+(define-operator (FALSE) bool
   [bf (const false)]
   [ival (const (ival-bool false))])
-
-;; Constant implementations
-
-(struct constant-impl (type bf fl ival))
-(define constant-impls (make-hasheq))
-
-(define parametric-constants (hash))
-(define parametric-constants-reverse (hash))
-
-(define/contract (constant-info constant field)
-  (-> symbol? (or/c 'type 'bf 'fl 'ival) any/c)
-  (unless (hash-has-key? operator-impls constant)
-    (error 'constant-info "Unknown constant ~a" constant))
-  (define accessor
-    (match field
-      ['type constant-impl-type]
-      ['bf constant-impl-bf]
-      ['fl constant-impl-fl]
-      ['ival constant-impl-ival]))
-  (accessor (hash-ref constant-impls constant)))
 
 (define (dict-merge dict dict2)
   (for/fold ([dict dict]) ([(key value) (in-dict dict2)])
     (dict-set dict key value)))
-
-(define (register-constant-impl! constant name ctype attrib-dict)
-  (define op (hash-ref constants constant))
-  (define default-attrib
-    (list (cons 'bf (constant-bf op))
-          (cons 'ival (constant-ival op))))
-  (unless default-attrib
-    (error 'register-constant-impl! "Real constant does not exist: ~a" constant))
-  (define attrib-dict* (make-hasheq (cons (cons 'type ctype) (dict-merge default-attrib attrib-dict))))
-  (hash-set! constant-impls name
-             (apply constant-impl (map (curry dict-ref attrib-dict*) '(type bf fl ival))))
-  (set! parametric-constants
-    (hash-update parametric-constants constant
-                 (curry cons (list* name ctype))
-                 '()))
-  (set! parametric-constants-reverse
-    (hash-set parametric-constants-reverse name constant)))
-
-(define-syntax-rule (define-constant-impl (constant name) ctype [key value] ...)
-  (register-constant-impl! 'constant 'name 'ctype (list (cons 'key value) ...)))
-
-(define (get-parametric-constant name type)
-  (for/first ([(true-name rtype) (in-dict (hash-ref parametric-constants name))]
-              #:when (equal? rtype type))
-    true-name))
-
 
 ;; Conversions
 
@@ -384,23 +320,30 @@
 
 (define (operator-or-impl? op)
   (and (symbol? op) (not (equal? op 'if))
-       (or (and (hash-has-key? parametric-operators op) 
-                (not (null? (operator-itype (hash-ref operators op)))))
-           (and (hash-has-key? operator-impls op)
-                (not (null? (operator-itype (hash-ref operator-impls op))))))))
+       (or (hash-has-key? parametric-operators op)
+           (hash-has-key? operator-impls op))))
 
-(define (constant-or-impl? var)
-  (and (symbol? var)
-       (or (and (hash-has-key? parametric-operators var) 
-                (null? (operator-itype (hash-ref operators var))))
-           (and (hash-has-key? operator-impls var)
-                (null? (operator-itype (hash-ref operator-impls var)))))))
+(define (constant-operator? op)
+  (and (symbol? op)
+       (or (and (hash-has-key? parametric-operators op) 
+                (null? (operator-itype (hash-ref operators op))))
+           (and (hash-has-key? operator-impls op)
+                (null? (operator-itype (hash-ref operator-impls op)))))))
 
 (define (variable? var)
-  (and (symbol? var) (not (constant-or-impl? var))))
+  (and (symbol? var)
+       (or (not (hash-has-key? parametric-operators var))
+           (not (null? (operator-itype (hash-ref operators var)))))
+       (or (not (hash-has-key? operator-impls var))
+           (not (null? (operator-impl-itype (hash-ref operator-impls var)))))))
 
 ;; name -> (vars repr body)
 (define *functions* (make-parameter (make-hasheq)))
 
 (define (register-function! name args repr body)
   (hash-set! (*functions*) name (list args repr body)))
+
+(define (all-constants)
+  (for/list ([(name rec) (in-hash parametric-operators)]
+             #:when (= (length rec) 2))
+    name))

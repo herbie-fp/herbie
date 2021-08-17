@@ -106,9 +106,9 @@
      (taylor-exact 0 1)]
     [(? number?)
      (taylor-exact expr)]
-    [(? constant?)
-     (taylor-exact expr)]
     [(? variable?)
+     (taylor-exact expr)]
+    [`(,const)
      (taylor-exact expr)]
     [`(+ ,args ...)
      (apply taylor-add (map (curry taylor var) args))]

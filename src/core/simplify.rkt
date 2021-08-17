@@ -104,11 +104,10 @@
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
 
-  (define rg (make-regraph (map munge exprs) #:limit (*node-limit*)))
+  (define rg (make-regraph exprs #:limit (*node-limit*)))
 
   (define phases
-    (list (rule-phase (map (compose munge rule-input) rls)
-                                (map (compose munge rule-output) rls))
+    (list (rule-phase (map rule-input rls) (map rule-output rls))
           (and precompute? (precompute-phase eval-application))
           prune-phase
           extractor-phase))
@@ -121,7 +120,7 @@
     (and (< initial-cnt (regraph-count rg) (*node-limit*))))
 
   (log rg "done")
-  (map list (map unmunge (regraph-extract rg))))
+  (map list (regraph-extract rg)))
 
 (lazy-require
  [egg-herbie (with-egraph egraph-add-exprs egraph-run
@@ -188,24 +187,6 @@
   (free-ffi-rules ffi-rules)
   iteration-data)
 
-(define (munge expr)
-  ;; Despite the name, `expr` might be an expression OR a pattern
-  (match expr
-    [(? number?) expr]
-    [(? constant?) (list expr)]
-    [(? variable?) expr]
-    [(list head subs ...)
-     (cons head (map munge subs))]))
-
-(define (unmunge expr)
-  ;; Despite the name, `expr` might be an expression OR a pattern
-  (match expr
-    [(list constant)
-     constant]
-    [(list head subs ...)
-     (cons head (map unmunge subs))]
-    [_ expr]))
-
 (module+ test
   (require "../interface.rkt" "../syntax/rules.rkt")
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x a b c)))
@@ -216,9 +197,7 @@
   ;; this would be bad because we don't want to match type-specific operators on a value of a different type
   (for ([rule all-simplify-rules])
     (check-true
-     (or
-      (not (symbol? (rule-input rule)))
-      (constant? (rule-input rule)))
+     (not (symbol? (rule-input rule)))
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
