@@ -79,7 +79,7 @@
          (define-values (re* re-type) (loop re 'binary64))
          (define-values (im* im-type) (loop im 'binary64))
          (values (list 'complex re* im*) 'complex)]
-        [(list x) ; constant
+        [(or (? constant-operator? x) (list x)) ; constant
          (let/ec k
            (for/list ([sig (hash-ref parametric-operators x)])
              (match-define (list* name rtype atypes) sig)
