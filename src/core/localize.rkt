@@ -5,12 +5,17 @@
 
 (provide localize-error)
 
+(define *analyze-cache* (make-hash))
+(define *analyze-context* (make-parameter #f))
+
+(register-reset
+ (λ ()
+  (*analyze-context* (*pcontext*))
+  (set! *analyze-cache* (make-hash))))
+
 (define (repeat c)
   (for/list ([(p e) (in-pcontext (*pcontext*))])
     c))
-
-(define *analyze-cache* (make-hash))
-(define *analyze-context* (make-parameter #f))
 
 (define (localize-on-expression expr vars cache repr)
   (hash-ref! cache expr
@@ -59,11 +64,6 @@
                    (define approx (map (curry apply (operator-info f 'fl)) argapprox))
                    (cons exact (map (λ (ex ap) (ulp-difference (<-bf ex) ap repr))
                                     exact approx))]))))
-
-(register-reset
- (λ ()
-  (*analyze-context* (*pcontext*))
-  (set! *analyze-cache* (make-hash))))
 
 ;; Returns a list of locations and errors sorted
 ;; by error scores in descending order
