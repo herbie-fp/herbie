@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "matcher.rkt" "../interface.rkt"
-         "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt"
+         "../syntax/rules.rkt" "../syntax/syntax.rkt"
          "../syntax/sugar.rkt" "../syntax/types.rkt")
 
 (provide simplify)
@@ -16,11 +16,10 @@
       (λ (r) (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f))
       (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
 
-(define (simplify expr*)
-  (define expr ((get-evaluator) expr*))
+(define (simplify expr)
   (match expr
     [(? number?) expr]
-    [(? variable?) expr]
+    [(? symbol?) expr]
     [`(λ ,vars ,body)
      `(λ ,vars ,(simplify body))]
     [`(lambda ,vars ,body)
