@@ -29,6 +29,12 @@
 				       (apply (eval-prog `(λ ,(map car vars) ,c) 'bf repr) p))])
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
+                  [`(,f)
+                   (define repr (get-representation (operator-info f 'otype)))
+                   (define <-bf (representation-bf->repr repr))
+                   (define exact ((operator-info f 'bf)))
+                   (define approx ((operator-info f 'fl)))
+                   (cons (repeat exact) (repeat (ulp-difference (<-bf exact) approx repr)))]
                   [`(,f ,args ...)
                    (define repr (get-representation (operator-info f 'otype)))
                    (define argreprs
