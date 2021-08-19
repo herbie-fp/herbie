@@ -5,7 +5,7 @@
          "float.rkt" "alternative.rkt" "interface.rkt" "points.rkt"
          "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
          "preprocess.rkt")
-(module+ test (require rackunit))
+(module+ test (require rackunit "load-plugin.rkt"))
 (provide make-sampler remove-unecessary-preprocessing)
 
 (define (precondition->hyperrects precondition reprs repr)

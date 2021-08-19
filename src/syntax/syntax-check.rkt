@@ -3,6 +3,7 @@
 (require syntax/id-set)
 (require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "sugar.rkt")
 (provide assert-program!)
+(module+ test (require rackunit "../load-plugin.rkt"))
 
 (define (check-expression* stx vars error!)
   (match stx
@@ -171,7 +172,6 @@
 
 ;; testing FPCore format
 (module+ test
-  (require rackunit)
   (define (get-errs stx)
     (reap [sow]
           (define (error! stx fmt . args)

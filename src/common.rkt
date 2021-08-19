@@ -4,14 +4,15 @@
 (require "config.rkt" "debug.rkt")
 (module+ test (require rackunit))
 
-(provide reap
+(provide reap ->float32
          call-with-output-files
-         take-up-to flip-lists find-duplicates
+         flip-lists find-duplicates
          argmins argmaxs index-of set-disjoint?
          get-seed set-seed!
          quasisyntax dict sym-append comparator
          format-time format-bits web-resource
-         (all-from-out "config.rkt") (all-from-out "debug.rkt"))
+         debug ; from debug.rkt
+         (all-from-out "config.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
 
@@ -27,15 +28,17 @@
       body ...)
     (values (reverse ((car sows))) ...)))
 
+(define cast-single
+  (let ([flsingle identity])
+    (local-require racket/flonum)
+    flsingle))
+
+(define (->float32 x)
+  (if (>= (string->number (substring (version) 0 1)) 8)
+      (cast-single (exact->inexact x))
+      (real->single-flonum x)))
+
 ;; Utility list functions
-
-(define (take-up-to l k)
-  (for/list ([x l] [i (in-range k)])
-    x))
-
-(module+ test
-  (check-equal? (take-up-to '(a b c d e f) 3) '(a b c))
-  (check-equal? (take-up-to '(a b) 3) '(a b)))
 
 (define (argmins f lst)
   (let loop ([lst lst] [best-score #f] [best-elts '()])

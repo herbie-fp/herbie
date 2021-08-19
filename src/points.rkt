@@ -8,7 +8,7 @@
          prepare-points errors batch-errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
-(module+ test (require rackunit))
+(module+ test (require rackunit "load-plugin.rkt"))
 (module+ internals (provide ival-eval))
 
 (define *pcontext* (make-parameter #f))

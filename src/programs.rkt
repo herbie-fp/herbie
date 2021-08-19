@@ -3,8 +3,7 @@
 (require math/bigfloat rival)
 (require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt"
          "timeline.rkt" "cost.rkt")
-
-(module+ test (require rackunit))
+(module+ test (require rackunit "load-plugin.rkt"))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
@@ -218,7 +217,6 @@
 
 (module+ test
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(a b c)))
-  (require math/bigfloat)
   (define tests
     #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
