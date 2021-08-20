@@ -142,6 +142,10 @@
     (^series^ series-expansions*))
   (void))
 
+(define (bad-alt! altn)
+  (define expr (program-body (alt-program altn)))
+  (when (expr-contains? expr rewrite-repr-op?)
+    (error 'bad-alt! "containg rewrite repr ~a" expr)))
 
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
@@ -182,17 +186,16 @@
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
 
-  (define (repr-change altn)
-    (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
-
   (define rewritten
-    (filter (compose program-body alt-program)  ; false body means failure
-      (for/list ([cls comb-changelists] [altn altns]
-                #:when true [cl cls])
-        (for/fold ([altn altn] #:result (repr-change altn)) ([cng cl])
-            (alt (change-apply cng (alt-program altn))
-                 (list 'change cng)
-                 (list altn))))))
+    (for/fold ([done '()] #:result (reverse done))
+              ([cls comb-changelists] [altn altns] #:when true [cl cls])
+      (let loop ([cl cl] [altn altn])
+        (if (null? cl)
+            (cons altn done)
+            (let ([prog* (apply-repr-change (change-apply (car cl) (alt-program altn)))])
+              (if (program-body prog*)
+                  (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
+                  done))))))
 
   (define rewritten*
     (if (and (*pareto-mode*) (> (length rewritten) 1000))
