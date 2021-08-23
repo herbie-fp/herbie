@@ -42,7 +42,7 @@
   (define make-point
     (make-sampler
      repr
-     `(λ ,fv ,(desugar-program (dict-ref *conditions* name 'TRUE) repr (*var-reprs*)))
+     `(λ ,fv ,(desugar-program (dict-ref *conditions* name '(TRUE)) repr (*var-reprs*)))
      `((λ ,fv ,p1)
        (λ ,fv ,p2))
      empty))
@@ -113,21 +113,12 @@
                         (get-representation 'bool)))
   (define _ (*simplify-rules*))  ; force an update
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
-
-    (define ground-truth
-      (cond
-       [(and (expr-supports? (rule-input test-rule) 'ival)
-             (expr-supports? (rule-output test-rule) 'ival))
-        ival-ground-truth]
-       [else
-        (unless (set-member? (second test-ruleset) 'complex)
-          (fail-check "Real or boolean rule not supported by intervals"))
-        (when (dict-has-key? *conditions* (rule-name test-rule))
-          (fail-check "Using bigfloat sampling on a rule with a condition"))
-        bf-ground-truth]))
+    (unless (and (expr-supports? (rule-input test-rule) 'ival)
+                 (expr-supports? (rule-output test-rule) 'ival))
+      (fail-check "Rule does not support ival sampling"))
 
     (test-case (~a (rule-name test-rule))
-      (check-rule-correct test-rule ground-truth)))
+      (check-rule-correct test-rule ival-ground-truth)))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
