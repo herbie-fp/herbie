@@ -43,7 +43,7 @@
      (let/ec k
        (for/list ([sig (hash-ref parametric-operators x)])
          (match-define (list* name rtype atypes) sig)
-         (when (equal? rtype type)
+         (when (or (equal? rtype type) (equal? rtype 'bool))
            (k (operator-info name 'otype))))
        (error! stx "Could not find implementation of ~a for ~a" x type))]
     [#`,(? variable? x)
