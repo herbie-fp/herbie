@@ -6,22 +6,25 @@ RHOSTDIR="/var/www/herbie/reports"
 
 upload () {
     DIR="$1"
+    rsync "$RHOST:$RHOSTDIR/index.cache" index.cache
     B=$(git rev-parse --abbrev-ref HEAD)
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
     find "$DIR" -name "*.txt" -exec gzip -f {} \;
     find "$DIR" -name "*.json" -exec gzip -f {} \;
-    rsync --recursive "$DIR" --exclude reports/ "$RHOST:$RHOSTDIR/$RDIR"
+    rsync --recursive "$DIR" "$RHOST:$RHOSTDIR/$RDIR"
     ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RDIR" -R
     if command -v nightly-results &>/dev/null; then
         nightly-results url https://herbie.uwplse.org/reports/"$RDIR"/
     fi
+    racket infra/make-index.rkt index.cache "$DIR"
+    rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
 }
 
 index () {
     DIR="$1"
     rsync "$RHOST:$RHOSTDIR/index.cache" index.cache
-    racket infra/make-index.rkt index.cache "$DIR"
+    racket infra/make-index.rkt index.cache
     rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
     rsync --recursive \
           "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
@@ -38,8 +41,7 @@ reindex () {
     find "$DIR" -name "results.json.gz" -exec gunzip -f {} \;
     racket infra/make-index.rkt "$DIR"
     rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
-    rsync --recursive \
-          "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
+    rsync "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
     rm index.cache index.html
@@ -76,10 +78,12 @@ if [[ $CMD = "upload" ]]; then
     check_dir
     upload "$DIR"
 elif [[ $CMD = "index" ]]; then
-    index "$DIR"
+    index
 elif [[ $CMD = "update-index" ]]; then
+    check_dir
     reindex "$DIR"
 elif [[ $CMD = "update-reports" ]]; then
+    check_dir
     upload_reports "$DIR"
     reindex "$DIR"
 else
