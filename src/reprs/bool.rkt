@@ -51,7 +51,7 @@
   [and-false-r  (and a (FALSE))  (FALSE)]
   [and-same     (and a a)        a]
   [or-true-l    (or (TRUE) a)    (TRUE)]
-  [or-true-r    (or a (TRUE))      (TRUE)]
+  [or-true-r    (or a (TRUE))    (TRUE)]
   [or-false-l   (or (FALSE) a)   a]
-  [or-false-r   (or a FALSE)     a]
+  [or-false-r   (or a (FALSE))   a]
   [or-same      (or a a)         a])
