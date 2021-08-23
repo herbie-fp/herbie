@@ -131,7 +131,8 @@
       [(list? body*) `(cast (! :precision ,iprec ,body*))]
       [else body*])] ; constants and variables should not have casts and precision changes
     [(list op)
-     (hash-ref parametric-operators-reverse op op)]
+     (define op* (hash-ref parametric-operators-reverse op op))
+     (if full? op* (list op*))]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
      (define atypes
