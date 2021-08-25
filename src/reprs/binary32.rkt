@@ -111,10 +111,6 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (binary32 real float32?)
@@ -244,23 +240,23 @@
 
 (define-libm-operator (fma real real real))
 
-(define-operator-impl (== ==.f32 . binary32) bool
-  [fl (comparator =)])
+(define-operator-impl (== ==.f32 binary32 binary32) bool
+  [fl =])
 
-(define-operator-impl (!= !=.f32 . binary32) bool
-  [fl (negate (comparator =))])
+(define-operator-impl (!= !=.f32 binary32 binary32) bool
+  [fl (negate =)])
 
-(define-operator-impl (< <.f32 . binary32) bool
-  [fl (comparator <)])
+(define-operator-impl (< <.f32 binary32 binary32) bool
+  [fl <])
 
-(define-operator-impl (> >.f32 . binary32) bool
-  [fl (comparator >)])
+(define-operator-impl (> >.f32 binary32 binary32) bool
+  [fl >])
 
-(define-operator-impl (<= <=.f32 . binary32) bool
-  [fl (comparator <=)])
+(define-operator-impl (<= <=.f32 binary32 binary32) bool
+  [fl <=])
 
-(define-operator-impl (>= >=.f32 . binary32) bool
-  [fl (comparator >=)])
+(define-operator-impl (>= >=.f32 binary32 binary32) bool
+  [fl >=])
 
 (define-operator-impl (cast binary64->binary32 binary64) binary32
   [fl (curryr ->float32)])

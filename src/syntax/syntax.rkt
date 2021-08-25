@@ -35,9 +35,6 @@
   (syntax-rules ()
     [(define-operator (name itypes ...) otype [key value] ...)
      (register-operator! 'name '(itypes ...) 'otype
-                         (list (cons 'key value) ...))]
-    [(define-operator (name . itype) otype [key value] ...)
-     (register-operator! 'name 'itype 'otype
                          (list (cons 'key value) ...))]))
 
 (define-syntax-rule (define-1ary-real-operator name bf-impl ival-impl)
@@ -203,9 +200,7 @@
 (define-syntax define-operator-impl
   (syntax-rules ()
     [(define-operator-impl (operator name atypes ...) rtype [key value] ...)
-     (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...))]
-    [(define-operator-impl (operator name . atype) rtype [key value] ...)
-     (register-operator-impl! 'operator 'name 'atype 'rtype (list (cons 'key value) ...))]))
+     (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...))]))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
@@ -235,22 +230,22 @@
      (for-each operator-remove! (*unknown-ops*)))))
 
 ;; real operators
-(define-operator (== . real) real
+(define-operator (== real real) real
   [bf (comparator bf=)] [ival ival-==])
 
-(define-operator (!= . real) real
+(define-operator (!= real real) real
   [bf (negate (comparator bf=))] [ival ival-!=])
 
-(define-operator (< . real) real
+(define-operator (< real real) real
   [bf (comparator bf<)] [ival ival-<])
 
-(define-operator (> . real) real
+(define-operator (> real real) real
   [bf (comparator bf>)] [ival ival->])
 
-(define-operator (<= . real) real
+(define-operator (<= real real) real
   [bf (comparator bf<=)] [ival ival-<=])
 
-(define-operator (>= . real) real
+(define-operator (>= real real) real
   [bf (comparator bf>=)] [ival ival->=])
 
 ;; logical operators ;;
@@ -261,10 +256,10 @@
 (define-operator (not bool) bool
   [bf not] [ival ival-not])
 
-(define-operator (and . bool) bool
+(define-operator (and bool bool) bool
   [bf and-fn] [ival ival-and])
 
-(define-operator (or . bool) bool
+(define-operator (or bool bool) bool
   [bf or-fn] [ival ival-or])
 
 ;; Miscellaneous operators ;;

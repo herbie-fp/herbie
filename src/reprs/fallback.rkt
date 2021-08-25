@@ -13,10 +13,6 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (racket real flonum?)
@@ -136,20 +132,20 @@
 (define-fallback-operator (fma real real real)
  [fl (from-bigfloat bffma)])
 
-(define-operator-impl (== ==.rkt . racket) bool
-  [fl (comparator =)])
+(define-operator-impl (== ==.rkt racket racket) bool
+  [fl =])
 
-(define-operator-impl (!= !=.rkt . racket) bool
-  [fl (negate (comparator =))])
+(define-operator-impl (!= !=.rkt racket racket) bool
+  [fl (negate =)])
 
-(define-operator-impl (< <.rkt . racket) bool
-  [fl (comparator <)])
+(define-operator-impl (< <.rkt racket racket) bool
+  [fl <])
 
-(define-operator-impl (> >.rkt . racket) bool
-  [fl (comparator >)])
+(define-operator-impl (> >.rkt racket racket) bool
+  [fl >])
 
-(define-operator-impl (<= <=.rkt . racket) bool
-  [fl (comparator <=)])
+(define-operator-impl (<= <=.rkt racket racket) bool
+  [fl <=])
 
-(define-operator-impl (>= >=.rkt . racket) bool
-  [fl (comparator >=)])
+(define-operator-impl (>= >=.rkt racket racket) bool
+  [fl >=])

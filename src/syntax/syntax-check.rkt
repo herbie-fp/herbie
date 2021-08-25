@@ -43,7 +43,7 @@
     [#`(! #,props ... #,body)
      (check-properties* props '() body)
      (check-expression* body vars error!)]
-    [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
+    [#`(,(? (curry set-member? '(+ - * / and or = != < > <= >=))) #,args ...)
      ;; These expand associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(#,f-syntax #,args ...)

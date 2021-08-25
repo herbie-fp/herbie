@@ -162,16 +162,7 @@
               (munge f repr))]
        [(list op args ...)
         (define fn (operator-info op mode))
-        (define atypes
-          (match (operator-info op 'itype)
-            [(? representation-name? a)
-             (make-list (length args) (get-representation a))]
-            [(? list? as)
-             (map get-representation as)]))
-        (unless (= (length args) (length atypes))
-          (eprintf "Error with operators ~a\n" op)
-          (pretty-print args)
-          (pretty-print atypes))
+        (define atypes (map get-representation (operator-info op 'itype)))
         (cons fn (map munge args atypes))]
        [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
@@ -325,12 +316,12 @@
             con]
            [else
             (match-define (list op args ...) con)
-            (define cprec (operator-info op 'itype))
-            (cond
-             [(equal? cprec 'bool)
-              `(,op ,@(map loop2 args))]
-             [else
-              `(,op ,@(map (curryr loop cprec) args))])])))
+            (define args*
+              (for/list ([arg args] [atype (operator-info op 'itype)])
+                (if (equal? atype 'bool)
+                    (loop2 arg)
+                    (loop arg atype))))
+            (cons op args*)])))
       (define ift* (loop ift prec*))
       (define iff* (loop iff prec*))
       (and ift* iff* `(if ,con* ,ift* ,iff*))]
