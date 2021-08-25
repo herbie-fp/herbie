@@ -6,7 +6,6 @@
 (provide (rename-out [operator-or-impl? operator?])
          variable? operator-info operator-exists? constant-operator?
          *functions* register-function!
-         get-operator-arity
          get-parametric-operator parametric-operators parametric-operators-reverse
          *unknown-ops* *loaded-ops*
          repr-conv? rewrite-repr-op? get-repr-conv
@@ -31,11 +30,8 @@
 
   (hash-set! operators name (apply operator (map (curry hash-ref fields) '(itype otype bf ival)))))
 
-(define-syntax define-operator
-  (syntax-rules ()
-    [(define-operator (name itypes ...) otype [key value] ...)
-     (register-operator! 'name '(itypes ...) 'otype
-                         (list (cons 'key value) ...))]))
+(define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
+  (register-operator! 'name '(itypes ...) 'otype (list (cons 'key value) ...)))
 
 (define-syntax-rule (define-1ary-real-operator name bf-impl ival-impl)
   (define-operator (name real) real
@@ -197,10 +193,8 @@
     (hash-set parametric-operators-reverse name operator)))
   
 
-(define-syntax define-operator-impl
-  (syntax-rules ()
-    [(define-operator-impl (operator name atypes ...) rtype [key value] ...)
-     (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...))]))
+(define-syntax (define-operator-impl (operator name atypes ...) rtype [key value] ...)
+  (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
@@ -214,13 +208,6 @@
          (error 'get-parametric-operator
                 "parametric operator with op ~a and input types ~a not found"
                 name actual-types))))
-
-;; mainly useful for getting arg count of an unparameterized operator
-;; will break if operator impls have different aritys
-;; returns #f for variary operators
-(define (get-operator-arity op)
-  (let ([itypes (operator-itype (hash-ref operators op))])
-    (if (type-name? itypes) #f (length itypes))))
 
 (define *unknown-ops* (make-parameter '()))
 

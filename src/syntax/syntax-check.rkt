@@ -44,14 +44,14 @@
      (check-properties* props '() body)
      (check-expression* body vars error!)]
     [#`(,(? (curry set-member? '(+ - * / and or = != < > <= >=))) #,args ...)
-     ;; These expand associativity so we don't check the number of arguments
+     ;; These expand by associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (cond
       [(operator-exists? f)
-        (define arity (get-operator-arity f)) ;; variary is #f
-        (unless (or (not arity) (= arity (length args)))
+        (define arity (length (operator-info f 'itype))) ;; variary is #f
+        (unless (= arity (length args))
           (error! stx "Operator ~a given ~a arguments (expects ~a)"
                   f (length args) arity))]
       [(hash-has-key? (*functions*) f)
