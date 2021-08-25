@@ -161,20 +161,17 @@
               (munge t repr)
               (munge f repr))]
        [(list op args ...)
-        (match-define (list* fn variary? itypes)
-          (hash-ref! cached-ops op
-                     (λ ()
-                      (define atypes
-                        (match (operator-info op 'itype)
-                         [(? representation-name? a)
-                          (cons #t (get-representation a))]
-                         [(? list? as)
-                          (cons #f (map get-representation as))]))
-                      (cons (operator-info op mode) atypes))))
+        (define fn (operator-info op mode))
         (define atypes
-          (if variary? ; handle variadic operators
-              (make-list (length args) itypes)
-              itypes))
+          (match (operator-info op 'itype)
+            [(? representation-name? a)
+             (make-list (length args) (get-representation a))]
+            [(? list? as)
+             (map get-representation as)]))
+        (unless (= (length args) (length atypes))
+          (eprintf "Error with operators ~a\n" op)
+          (pretty-print args)
+          (pretty-print atypes))
         (cons fn (map munge args atypes))]
        [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
