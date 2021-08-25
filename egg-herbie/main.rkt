@@ -91,17 +91,10 @@
           first-parsed
           (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
       (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
-    [(or (? number?) (? constant?))
+    [(or (? number?))
      parsed]
     [else
      (hash-ref rename-dict parsed)]))
-
-(define (parameterized-constant? sym)
-  (if (symbol? sym)
-      (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s sym))
-        [(list _ constant prec) #t]
-        [_ #f])
-      #f))
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
 (define (expr->egg-expr expr egg-data)
@@ -122,10 +115,6 @@
       #:after-last ")")]
     [(and (number? expr) (exact? expr) (real? expr))
      (number->string expr)]
-    [(constant? expr)
-     (extract-symbol expr)]
-    [(parameterized-constant? expr)
-     (extract-symbol expr)]
     [(hash-has-key? herbie->egg-dict expr)
      (symbol->string (hash-ref herbie->egg-dict expr))]
     [else
