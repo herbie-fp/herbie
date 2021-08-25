@@ -193,7 +193,7 @@
     (hash-set parametric-operators-reverse name operator)))
   
 
-(define-syntax (define-operator-impl (operator name atypes ...) rtype [key value] ...)
+(define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
   (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
