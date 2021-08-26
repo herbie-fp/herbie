@@ -4,7 +4,7 @@
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
-         variable? operator-info operator-exists? constant-operator?
+         variable? operator-info real-operator-info operator-exists? constant-operator?
          *functions* register-function!
          get-parametric-operator parametric-operators parametric-operators-reverse
          *unknown-ops* *loaded-ops*
@@ -135,6 +135,18 @@
 
 (define parametric-operators (hash))
 (define parametric-operators-reverse (hash))
+
+(define/contract (real-operator-info operator field)
+  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
+  (unless (hash-has-key? operators operator)
+    (error 'real-operator-info "Unknown operator ~a" operator))
+  (define accessor
+    (match field
+      ['itype operator-itype]
+      ['otype operator-otype]
+      ['bf operator-bf]
+      ['ival operator-ival]))
+  (accessor (hash-ref operators operator)))
 
 (define/contract (operator-info operator field)
   (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
