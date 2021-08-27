@@ -178,7 +178,7 @@
     [`(hypot ,a ,b)
      (define ta (taylor var a))
      (define tb (taylor var b))
-     (taylor-sqrt (taylor-add ta tb))]
+     (taylor-sqrt (taylor-add (taylor-mult ta ta) (taylor-mult tb tb)))]
     [`(fma ,a ,b ,c) (taylor var `(+ (* ,a ,b) ,c))]
     [`(sinh ,arg)
      (define exparg (taylor var `(exp ,arg)))
