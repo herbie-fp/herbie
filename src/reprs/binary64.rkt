@@ -29,16 +29,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constant-impl (PI PI.f64) binary64
+(define-operator-impl (PI PI.f64) binary64
   [fl (const pi)])
 
-(define-constant-impl (E E.f64) binary64
+(define-operator-impl (E E.f64) binary64
   [fl (const (exp 1.0))])
 
-(define-constant-impl (INFINITY INFINITY.f64) binary64
+(define-operator-impl (INFINITY INFINITY.f64) binary64
   [fl (const +inf.0)])
 
-(define-constant-impl (NAN NAN.f64) binary64
+(define-operator-impl (NAN NAN.f64) binary64
   [fl (const +nan.0)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -132,26 +132,20 @@
 
 (define-libm-operator (fma real real real))
 
-(define-operator-impl (== ==.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
+(define-operator-impl (== ==.f64 . binary64) bool
   [fl (comparator =)])
 
-(define-operator-impl (!= !=.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
+(define-operator-impl (!= !=.f64 . binary64) bool
   [fl (negate (comparator =))])
 
-(define-operator-impl (< <.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
+(define-operator-impl (< <.f64 . binary64) bool
   [fl (comparator <)])
 
-(define-operator-impl (> >.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
+(define-operator-impl (> >.f64 . binary64) bool
   [fl (comparator >)])
 
-(define-operator-impl (<= <=.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
+(define-operator-impl (<= <=.f64 . binary64) bool
   [fl (comparator <=)])
 
-(define-operator-impl (>= >=.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
+(define-operator-impl (>= >=.f64 . binary64) bool
   [fl (comparator >=)])

@@ -2,13 +2,12 @@
 
 (require math/bigfloat rival)
 (require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt"
-         "timeline.rkt" "cost.rkt")
+         "timeline.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
          expr? expr-supports? expr-contains?
-         program-cost
          type-of repr-of
          location-do location-get
          batch-eval-progs eval-prog eval-application
@@ -29,10 +28,6 @@
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   vars)
 
-(define (program-cost prog)
-  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
-  (expr-cost body))
-
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
 ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
@@ -41,8 +36,6 @@
   (match expr
    [(? number?) (get-type 'real)]
    [(? (representation-repr? repr)) (representation-type repr)]
-   [(? constant?) 
-    (representation-type (get-representation (constant-info expr 'type)))]
    [(? variable?) (representation-type (dict-ref env expr))]
    [(list 'if cond ift iff) (type-of ift repr env)]
    [(list op args ...) ; repr-name -> repr -> type
@@ -54,7 +47,6 @@
   (match expr
    [(? number?) repr]
    [(? (representation-repr? repr)) repr]
-   [(? constant?) (get-representation (constant-info expr 'type))]
    [(? variable?) (dict-ref env expr)]
    [(list 'if cond ift iff) (repr-of ift repr env)]
    [(list op args ...) (get-representation (operator-info op 'otype))]))
@@ -67,8 +59,7 @@
       [(list op args ...)
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
-      [(? number?) true]
-      [(? constant?) (constant-info expr field)])))
+      [(? number?) true])))
 
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
@@ -81,7 +72,6 @@
 (define (free-variables prog)
   (match prog
     [(? number?) '()]
-    [(? constant?) '()]
     [(? variable?) (list prog)]
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
@@ -119,15 +109,12 @@
   (define f (batch-eval-progs (list prog) mode repr))
   (λ args (vector-ref (apply f args) 0)))
 
-(define (real->bf x repr)
-  ((type-exact->inexact (representation-type repr)) x))
-
 (define (batch-eval-progs progs mode repr)
   (define real->precision
     (match mode
      ['fl (λ (x repr) (real->repr x repr))]
-     ['bf (λ (x repr) (real->bf x repr))]
-     ['ival (λ (x repr) (mk-ival (real->bf x repr)))]))
+     ['bf (λ (x repr) (bf x))]
+     ['ival (λ (x repr) (mk-ival (bf x)))]))
 
   (define arg->precision
     (match mode
@@ -167,7 +154,6 @@
     (define expr
       (match prog
        [(? number?) (list (const (real->precision prog repr)))]
-       [(? constant?) (list (constant-info prog mode))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
         (list if-op
@@ -175,20 +161,19 @@
               (munge t repr)
               (munge f repr))]
        [(list op args ...)
-        (define op-info
-          (hash-ref! cached-ops op
-                     (λ ()
-                      (define atypes
-                        (match (operator-info op 'itype)
-                         [(? representation-name? a) (list #f (get-representation a))]
-                         [(? list? as) (map get-representation as)]))
-                      (cons (operator-info op mode) atypes))))
+        (define fn (operator-info op mode))
         (define atypes
-          (if (cadr op-info) ; handle variadic operators
-              (cdr op-info)
-              (make-list (length args) (caddr op-info))))
-        (cons (car op-info) (map munge args atypes))]
-       [_ (raise-argument-error 'eval-prog "expr?" prog)]))
+          (match (operator-info op 'itype)
+            [(? representation-name? a)
+             (make-list (length args) (get-representation a))]
+            [(? list? as)
+             (map get-representation as)]))
+        (unless (= (length args) (length atypes))
+          (eprintf "Error with operators ~a\n" op)
+          (pretty-print args)
+          (pretty-print atypes))
+        (cons fn (map munge args atypes))]
+       [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
               (λ ()
                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
@@ -292,7 +277,6 @@
     '(/ 1 cos))
    '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
 
-
 ; Updates the repr of an expression if needed
 (define (apply-repr-change-expr expr)
   (let loop ([expr expr] [prec #f])
@@ -337,7 +321,7 @@
       (define con*
         (let loop2 ([con con])
           (cond
-           [(set-member? '(TRUE 'FALSE) con)
+           [(set-member? '((TRUE) (FALSE)) con)
             con]
            [else
             (match-define (list op args ...) con)
@@ -368,18 +352,8 @@
        [else ; insert a cast if the variable precision is not the same
         (define cast (get-repr-conv var-prec prec))
         (and cast (list cast expr))])]
-     [(? (curry hash-has-key? parametric-constants-reverse))
-      (define prec* (if prec prec (constant-info expr 'type)))
-      (if (equal? (constant-info expr 'type) prec*) ; update constants if precision no longer matches
-          expr
-          (let* ([c-unparam (hash-ref parametric-constants-reverse expr expr)]
-                 [c* (get-parametric-constant c-unparam prec)])
-            (if c*
-                c*
-                (let ([conv (get-repr-conv (constant-info expr 'type) prec*)])
-                  (and conv (list conv expr))))))] ; if constant does not exist in repr, add conversion
      [_ expr])))
-      
+
 (define (apply-repr-change prog)
   (match prog
    [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body))]

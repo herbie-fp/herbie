@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "../interface.rkt"
-         "syntax.rkt" "sugar.rkt" "types.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
@@ -40,10 +39,13 @@
 (define (expression->type stx env type error!)
   (match stx
     [#`,(? number?) type]
-    [#`,(? constant? x)
-     (if (set-member? '(TRUE FALSE) x)
-         (constant-info x 'type)
-         (constant-info (get-parametric-constant x type) 'type))]
+    [#`,(? constant-operator? x)
+     (let/ec k
+       (for/list ([sig (hash-ref parametric-operators x)])
+         (match-define (list* name rtype atypes) sig)
+         (when (or (equal? rtype type) (equal? rtype 'bool))
+           (k (operator-info name 'otype))))
+       (error! stx "Could not find implementation of ~a for ~a" x type))]
     [#`,(? variable? x)
      (define vtype (dict-ref env x))
      (cond
@@ -154,6 +156,7 @@
 (module+ test
   (require rackunit)
   (require "../load-plugin.rkt")
+  (load-herbie-builtins)
 
   (define (fail stx msg . args)
     (error (apply format msg args) stx))

@@ -1,14 +1,14 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "sugar.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
 (provide assert-program!)
 (module+ test (require rackunit "../load-plugin.rkt"))
 
 (define (check-expression* stx vars error!)
   (match stx
     [#`,(? number?) (void)]
-    [#`,(? constant?) (void)]
+    [#`,(? constant-operator?) (void)]
     [#`,(? variable? var)
      (unless (set-member? vars stx)
        (error! stx "Unknown variable ~a" var))]

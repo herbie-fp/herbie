@@ -92,7 +92,7 @@
   (*start-prog* prog)
   (rollback-improve!)
   (define precondition-prog
-    (or precondition (list 'λ (program-variables prog) 'TRUE)))
+    (or precondition (list 'λ (program-variables prog) '(TRUE))))
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points
@@ -303,7 +303,7 @@
             (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
     (define (is-nan? x)
-      (and (constant? x) (equal? (hash-ref parametric-constants-reverse x) 'NAN)))
+      (and (operator? x) (equal? (hash-ref parametric-operators-reverse x) 'NAN)))
 
     ; Probably unnecessary, at least CI passes!
     (define series-expansions*

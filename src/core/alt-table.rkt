@@ -225,8 +225,8 @@
                [alt->cost (hash-remove* alt->cost altns)]))
 
 (define (is-nan? expr)
-  (and (hash-has-key? parametric-constants-reverse expr)
-       (equal? (hash-ref parametric-constants-reverse expr) 'NAN)))
+  (and (hash-has-key? parametric-operators-reverse expr)
+       (equal? (hash-ref parametric-operators-reverse expr) 'NAN)))
 
 (define (atab-add-altns atab altns repr)
   (define altns* (filter-not (compose (curryr expr-contains? is-nan?) alt-program)

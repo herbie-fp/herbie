@@ -1,7 +1,7 @@
 #lang racket
 
 (require "interface.rkt" "syntax/syntax.rkt" "syntax/sugar.rkt")
-(provide expr-cost)
+(provide program-cost expr-cost)
 
 (define (operator-cost op bits)
   (* bits
@@ -39,3 +39,7 @@
       (apply + (operator-cost op (representation-total-bits repr))
                (map loop args ireprs))]
      [_ (representation-total-bits repr)])))
+
+(define (program-cost prog)
+  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
+  (expr-cost body))

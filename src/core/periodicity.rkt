@@ -92,8 +92,8 @@
        `(λ ,vars ,(loop body (cons 2 loc)))]
       [(? real? x)
        (annotation x (reverse loc) 'constant x)]
-      [(? constant? c)
-       (define val ((constant-info c 'fl)))
+      [(list c)
+       (define val ((operator-info c 'fl)))
        (annotation val (reverse loc) 'constant val)]
       [(? variable? x)
        (annotation x (reverse loc) 'linear `((,x . 1)))]
