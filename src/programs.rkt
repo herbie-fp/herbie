@@ -321,7 +321,7 @@
       (define con*
         (let loop2 ([con con])
           (cond
-           [(set-member? '(TRUE 'FALSE) con)
+           [(set-member? '((TRUE) (FALSE)) con)
             con]
            [else
             (match-define (list op args ...) con)

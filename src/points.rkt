@@ -103,7 +103,7 @@
         (apply-preprocess (program-variables precondition) pt preprocess-structs repr))
 
       (define pre
-        (or (equal? (program-body precondition) 'TRUE)
+        (or (equal? (program-body precondition) '(TRUE))
             (ival-eval pre-fn processed-point (get-representation 'bool) #:precision (bf-precision)
                        #:log (point-logger 'pre precondition))))
 
