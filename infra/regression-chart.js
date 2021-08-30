@@ -171,7 +171,7 @@ function make_speed_graph(node, data) {
 function select_data(data, options, tag) {
     return data = DATA.filter(function(x) {
         var out = true;
-        for (var flag in OPTIONS) {
+        for (var flag in options) {
             out = out && (x.flags.indexOf(flag) !== -1) == OPTIONS[flag];
         }
         return out && x.tag == tag;
@@ -195,7 +195,7 @@ function render(node1, node2, data, options, tag) {
 
 function draw_results(node1, node2) {
     DATA = get_data(document.getElementById("reports"));
-    OPTIONS = {"rules:numerics": false};
+    OPTIONS = {"rules:numerics": true};
     TAG = null;
     NODE1 = node1;
     NODE2 = node2;
