@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - run: raco test src/ infra/
+      - run: raco test src/ infra/ egg-herbie/
 
   hamming:
     name: "Integration tests (Hamming)"

@@ -115,7 +115,7 @@
           (string-join (map ~a unused) ", "))))
 
 (define (check-weird-variables vars)
-  (for* ([var vars] [const (in-hash-keys parametric-constants)])
+  (for* ([var vars] [const (all-constants)])
     (when (string-ci=? (symbol->string var) (symbol->string const))
       (warn 'strange-variable
             "unusual variable ~a; did you mean ~a?" var const))))

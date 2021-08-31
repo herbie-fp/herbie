@@ -103,7 +103,7 @@
         (apply-preprocess (program-variables precondition) pt preprocess-structs repr))
 
       (define pre
-        (or (equal? (program-body precondition) 'TRUE)
+        (or (equal? (program-body precondition) '(TRUE))
             (ival-eval pre-fn processed-point (get-representation 'bool) #:precision (bf-precision)
                        #:log (point-logger 'pre precondition))))
 
@@ -238,17 +238,6 @@
        #:when (andmap (curryr ordinary-value? (*output-repr*)) processed))
     (values pt processed ex)))
 
-
-(define (extract-sampled-points allvars precondition)
-  (match precondition
-    [`(or (and (== ,(? variable? varss) ,(? constant? valss)) ...) ...)
-     (define pts
-       (for/list ([vars varss] [vals valss])
-         (if (set=? vars allvars)
-             (map (curry dict-ref (map cons vars vals)) allvars)
-             #f)))
-     (and (andmap identity pts) pts)]
-    [_ #f]))
 
 ;; This is the obsolete version for the "halfpoint" method
 ;; TODO: It currently ignores preprocessing, just using the unprocessed version of the point

@@ -13,10 +13,6 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (racket real flonum?)
@@ -29,16 +25,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constant-impl (PI PI.rkt) racket
+(define-operator-impl (PI PI.rkt) racket
   [fl (const pi)])
 
-(define-constant-impl (E E.rkt) racket
+(define-operator-impl (E E.rkt) racket
   [fl (const (exp 1.0))])
 
-(define-constant-impl (INFINITY INFINITY.rkt) racket
+(define-operator-impl (INFINITY INFINITY.rkt) racket
   [fl (const +inf.0)])
 
-(define-constant-impl (NAN NAN.rkt) racket
+(define-operator-impl (NAN NAN.rkt) racket
   [fl (const +nan.0)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -137,25 +133,19 @@
  [fl (from-bigfloat bffma)])
 
 (define-operator-impl (== ==.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
-  [fl (comparator =)])
+  [fl =])
 
 (define-operator-impl (!= !=.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
-  [fl (negate (comparator =))])
+  [fl (negate =)])
 
 (define-operator-impl (< <.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
-  [fl (comparator <)])
+  [fl <])
 
 (define-operator-impl (> >.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
-  [fl (comparator >)])
+  [fl >])
 
 (define-operator-impl (<= <=.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
-  [fl (comparator <=)])
+  [fl <=])
 
 (define-operator-impl (>= >=.rkt racket racket) bool
-  [itype 'racket] [otype 'bool] ; Override number of arguments
-  [fl (comparator >=)])
+  [fl >=])
