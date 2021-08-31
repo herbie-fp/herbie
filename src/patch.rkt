@@ -128,18 +128,9 @@
           (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
             (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
-    (define (is-nan? expr)
-      (and (hash-has-key? parametric-constants-reverse expr)
-          (equal? (hash-ref parametric-constants-reverse expr) 'NAN)))
-
-    ; maybe necessary for CI to pass (this changes often)
-    (define series-expansions*
-      (filter-not (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
-                  series-expansions))
-
     ; TODO: accuracy stats for timeline
-    (timeline-push! 'count (length (^queued^)) (length series-expansions*))
-    (^series^ series-expansions*))
+    (timeline-push! 'count (length (^queued^)) (length series-expansions))
+    (^series^ series-expansions))
   (void))
 
 (define (bad-alt! altn)
