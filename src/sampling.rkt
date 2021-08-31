@@ -193,5 +193,7 @@
     (when (> search-result 0)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for))))
 
-  (check-equal? (precondition->hyperrects '(λ (a b) (and (<=.f64 0 a 1) (<=.f64 0 b 1))) (list repr repr) repr)
+  (check-equal? (precondition->hyperrects
+                 '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))
+                                (and (<=.f64 0 b) (<=.f64 b 1)))) (list repr repr) repr)
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))

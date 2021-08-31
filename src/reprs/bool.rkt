@@ -30,10 +30,10 @@
 (define-operator-impl (not not bool) bool
   [fl not])
 
-(define-operator-impl (and and . bool) bool
+(define-operator-impl (and and bool bool) bool
   [fl and-fn])
 
-(define-operator-impl (or or . bool) bool
+(define-operator-impl (or or bool bool) bool
   [fl or-fn])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; rules ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

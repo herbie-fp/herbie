@@ -109,6 +109,22 @@
        (unless (equal? t actual-type)
          (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
      t]
+    [#`(,(and (or '< '> '<= '>= '= '!=) op) #,exprs ...)
+     (define t #f)
+     (for ([arg exprs] [i (in-naturals)])
+       (define actual-type (expression->type arg env type error!))
+       (when (equal? actual-type 'bool)
+          (error! stx "~a does not take boolean arguments" op))
+       (if (= i 0) (set! t actual-type) #f)
+       (unless (equal? t actual-type)
+         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
+     'bool]
+    [#`(,(and (or 'and 'or) op) #,exprs ...)
+     (for ([arg exprs] [i (in-naturals)])
+       (define actual-type (expression->type arg env type error!))
+       (unless (equal? actual-type 'bool)
+          (error! stx "~a only takes boolean arguments" op)))
+     'bool]
     [#`(,(and (or 're 'im) op) #,arg)
      ; TODO: this special case can be removed when complex-herbie is moved to a composite type
      ; re, im : complex -> binary64

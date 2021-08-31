@@ -16,14 +16,40 @@
     (replace-vars (map cons vars (map expand vals)) (expand body))]
    [(list (or 'let 'let*) (list) body)
     (expand body)]
-   ;; expand associativity
-   [(list (and (or '+ '- '* '/) op) a ..2 b)
+   ;; expand arithmetic associativity
+   [(list (and (or '+ '- '* '/ 'and 'or) op) a ..2 b)
      (list op (expand (cons op a)) (expand b))]
-   [(list (or '+ '*) a) (expand a)]
+   [(list (or '+ '* 'and 'or) a) (expand a)]
    [(list '- a) (list '- (expand a))]
    [(list '/ a) (list '/ 1 (expand a))]
    [(list (or '+ '-)) 0]
    [(list (or '* '/)) 1]
+   ['(and) 'TRUE]
+   ['(or) 'FALSE]
+   ;; expand comparison associativity
+   [(list (and (or '< '<= '> '>= '=) op) as ...)
+    (define as* (map expand as))
+    (define out
+      (for/fold ([out #f]) ([term as*] [next (cdr as*)])
+        (if out
+            (list 'and out (list op term next))
+            (list op term next))))
+    (or out 'TRUE)]
+   [(list '!= as ...)
+    (define as* (map expand as))
+    (define out
+      (for/fold ([out #f])
+          ([term as*] [i (in-naturals)]
+           #:when true
+           [term2 as*] [j (in-naturals)]
+           #:when (< i j))
+        (if out
+            (list 'and out (list '!= term term2))
+            (list '!= term term2))))
+    (or out 'TRUE)]
+   [(list (or 'and 'or) a) (expand a)]
+   ['(and) 'TRUE]
+   ['(or) 'FALSE]
    ;; inline functions
    [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
     (match-define (list vars _ body) (hash-ref (*functions*) fname))
@@ -135,10 +161,7 @@
      (if full? op* (list op*))]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
-     (define atypes
-       (match (operator-info op 'itype)
-         [(? representation-name? a) (map (const a) args)] ; some repr names are lists
-         [(? list? as) as]))   
+     (define atypes (operator-info op 'itype))
      (define args*
        (for/list ([arg args] [type atypes])
          (expand-parametric-reverse arg (get-representation type) full?)))

@@ -13,10 +13,6 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (binary64 real flonum?)
@@ -132,20 +128,20 @@
 
 (define-libm-operator (fma real real real))
 
-(define-operator-impl (== ==.f64 . binary64) bool
-  [fl (comparator =)])
+(define-operator-impl (== ==.f64 binary64 binary64) bool
+  [fl =])
 
-(define-operator-impl (!= !=.f64 . binary64) bool
-  [fl (negate (comparator =))])
+(define-operator-impl (!= !=.f64 binary64 binary64) bool
+  [fl (negate =)])
 
-(define-operator-impl (< <.f64 . binary64) bool
-  [fl (comparator <)])
+(define-operator-impl (< <.f64 binary64 binary64) bool
+  [fl <])
 
-(define-operator-impl (> >.f64 . binary64) bool
-  [fl (comparator >)])
+(define-operator-impl (> >.f64 binary64 binary64) bool
+  [fl >])
 
-(define-operator-impl (<= <=.f64 . binary64) bool
-  [fl (comparator <=)])
+(define-operator-impl (<= <=.f64 binary64 binary64) bool
+  [fl <=])
 
-(define-operator-impl (>= >=.f64 . binary64) bool
-  [fl (comparator >=)])
+(define-operator-impl (>= >=.f64 binary64 binary64) bool
+  [fl >=])

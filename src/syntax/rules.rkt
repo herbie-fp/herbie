@@ -80,9 +80,7 @@
       [(list 'if cond ift iff)
         (append (loop cond) (loop ift) (loop iff))]
       [(list op args ...)
-        (define itypes (operator-info op 'itype))
-        (append (if (list? itypes) itypes (list itypes))
-                (append-map loop args))]
+        (append (operator-info op 'itype) (append-map loop args))]
       [_ '()]))))
 
 (define (type-of-rule input output ctx)

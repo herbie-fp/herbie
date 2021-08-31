@@ -4,9 +4,8 @@
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
-         variable? operator-info operator-exists? constant-operator?
+         variable? operator-info real-operator-info operator-exists? constant-operator?
          *functions* register-function!
-         get-operator-arity
          get-parametric-operator parametric-operators parametric-operators-reverse
          *unknown-ops* *loaded-ops*
          repr-conv? rewrite-repr-op? get-repr-conv
@@ -31,14 +30,8 @@
 
   (hash-set! operators name (apply operator (map (curry hash-ref fields) '(itype otype bf ival)))))
 
-(define-syntax define-operator
-  (syntax-rules ()
-    [(define-operator (name itypes ...) otype [key value] ...)
-     (register-operator! 'name '(itypes ...) 'otype
-                         (list (cons 'key value) ...))]
-    [(define-operator (name . itype) otype [key value] ...)
-     (register-operator! 'name 'itype 'otype
-                         (list (cons 'key value) ...))]))
+(define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
+  (register-operator! 'name '(itypes ...) 'otype (list (cons 'key value) ...)))
 
 (define-syntax-rule (define-1ary-real-operator name bf-impl ival-impl)
   (define-operator (name real) real
@@ -143,6 +136,18 @@
 (define parametric-operators (hash))
 (define parametric-operators-reverse (hash))
 
+(define/contract (real-operator-info operator field)
+  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
+  (unless (hash-has-key? operators operator)
+    (error 'real-operator-info "Unknown operator ~a" operator))
+  (define accessor
+    (match field
+      ['itype operator-itype]
+      ['otype operator-otype]
+      ['bf operator-bf]
+      ['ival operator-ival]))
+  (accessor (hash-ref operators operator)))
+
 (define/contract (operator-info operator field)
   (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
   (unless (hash-has-key? operator-impls operator)
@@ -200,12 +205,8 @@
     (hash-set parametric-operators-reverse name operator)))
   
 
-(define-syntax define-operator-impl
-  (syntax-rules ()
-    [(define-operator-impl (operator name atypes ...) rtype [key value] ...)
-     (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...))]
-    [(define-operator-impl (operator name . atype) rtype [key value] ...)
-     (register-operator-impl! 'operator 'name 'atype 'rtype (list (cons 'key value) ...))]))
+(define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
+  (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
@@ -220,13 +221,6 @@
                 "parametric operator with op ~a and input types ~a not found"
                 name actual-types))))
 
-;; mainly useful for getting arg count of an unparameterized operator
-;; will break if operator impls have different aritys
-;; returns #f for variary operators
-(define (get-operator-arity op)
-  (let ([itypes (operator-itype (hash-ref operators op))])
-    (if (type-name? itypes) #f (length itypes))))
-
 (define *unknown-ops* (make-parameter '()))
 
 (register-reset
@@ -235,22 +229,22 @@
      (for-each operator-remove! (*unknown-ops*)))))
 
 ;; real operators
-(define-operator (== . real) real
+(define-operator (== real real) real
   [bf (comparator bf=)] [ival ival-==])
 
-(define-operator (!= . real) real
+(define-operator (!= real real) real
   [bf (negate (comparator bf=))] [ival ival-!=])
 
-(define-operator (< . real) real
+(define-operator (< real real) real
   [bf (comparator bf<)] [ival ival-<])
 
-(define-operator (> . real) real
+(define-operator (> real real) real
   [bf (comparator bf>)] [ival ival->])
 
-(define-operator (<= . real) real
+(define-operator (<= real real) real
   [bf (comparator bf<=)] [ival ival-<=])
 
-(define-operator (>= . real) real
+(define-operator (>= real real) real
   [bf (comparator bf>=)] [ival ival->=])
 
 ;; logical operators ;;
@@ -261,10 +255,10 @@
 (define-operator (not bool) bool
   [bf not] [ival ival-not])
 
-(define-operator (and . bool) bool
+(define-operator (and bool bool) bool
   [bf and-fn] [ival ival-and])
 
-(define-operator (or . bool) bool
+(define-operator (or bool bool) bool
   [bf or-fn] [ival ival-or])
 
 ;; Miscellaneous operators ;;

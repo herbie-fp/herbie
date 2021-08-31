@@ -42,12 +42,7 @@
                    (cons (repeat exact) (repeat (ulp-difference (<-bf exact) approx repr)))]
                   [`(,f ,args ...)
                    (define repr (get-representation (operator-info f 'otype)))
-                   (define argreprs
-                     (match (operator-info f 'itype)
-                       [(? representation-name? type)
-                        (map (const (get-representation type)) args)]
-                       [(list arg-types ...)
-                        (map get-representation arg-types)]))
+                   (define argreprs (map get-representation (operator-info f 'itype)))
                    (define <-bf (representation-bf->repr repr))
                    (define arg<-bfs (map representation-bf->repr argreprs))
 
