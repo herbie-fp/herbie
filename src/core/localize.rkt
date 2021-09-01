@@ -66,16 +66,15 @@
 (define (get-locations expr subexpr)
   (let loop ([expr expr] [loc '()])
     (match expr
-     [(list op args ...)
-      (if (equal? expr subexpr)
-          (list (reverse loc))
-          (for/fold ([below '()] #:result (reverse below))
-                    ([arg (in-list args)] [i (in-naturals 1)])
-            (append (loop arg (cons i loc)) below)))]
-     [_
-      (if (equal? expr subexpr)
-          (list (reverse loc))
-          (list))])))
+      [(== subexpr)
+       (list (reverse loc))]
+      [(list op args ...)
+       (apply
+        append
+        (for/list ([arg (in-list args)] [i (in-naturals 1)])
+          (loop arg (cons i loc))))]
+      [_
+       (list)])))
 
 ;; Returns a list of locations and errors sorted
 ;; by error scores in descending order
