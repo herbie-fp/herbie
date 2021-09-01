@@ -14,8 +14,8 @@
 (define (all-ops expr good?)
   (match expr
     [(? number?) #t]
-    [(? constant?) #t]
     [(? variable?) #t]
+    [(list f) #t]
     [(list f args ...)
      (and (good? f) (andmap (curryr all-ops good?) args))]))
 
@@ -61,6 +61,11 @@
     (let loop ([expr expr])
       (let ([expr* (simplify expr)])
         (if expr* (loop expr*) expr)))))
+
+(define (rule-rewrite rule prog)
+  (match (rule-apply rule prog)
+    [(cons out bindings) out]
+    [#f #f]))
 
 (define (make-evaluator)
   (define evaluation-rules

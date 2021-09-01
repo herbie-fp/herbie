@@ -4,6 +4,8 @@
 # caused by heavy use of FFI by eggmath.rkt
 CORES=4
 
+set -e -x
+
 function output_error {
     DIR="$1"
     NAME="$2"
@@ -52,6 +54,6 @@ for bench in bench/*; do
       dirs="$dirs $DIR/$name";
   fi
 done
-racket infra/nightly.rkt "$DIR" "$DIR/*"
+racket infra/nightly.rkt "$DIR" $dirs
 bash infra/publish.sh upload "$DIR"
-bash infra/publish.sh index "$DIR"
+bash infra/publish.sh index

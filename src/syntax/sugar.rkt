@@ -1,18 +1,14 @@
 #lang racket
 
 (require "types.rkt" "syntax.rkt" "../interface.rkt")
-(provide desugar-program resugar-program register-function! *functions*)
+(provide desugar-program resugar-program)
 (module+ test (require rackunit))
-
-;; name -> (vars repr body)
-(define *functions* (make-parameter (make-hasheq)))
-
-(define (register-function! name args repr body)
-  (hash-set! (*functions*) name (list args repr body)))
 
 ;; preprocessing
 (define (expand expr)
   (match expr
+   ;; Constants are zero-ary functions
+   [(? constant-operator?) (list expr)]
    ;; unfold let
    [(list let* (list (list var val) rest ...) body)
     (replace-vars (list (cons var (expand val))) (expand `(let* ,rest ,body)))]
@@ -20,14 +16,40 @@
     (replace-vars (map cons vars (map expand vals)) (expand body))]
    [(list (or 'let 'let*) (list) body)
     (expand body)]
-   ;; expand associativity
-   [(list (and (or '+ '- '* '/) op) a ..2 b)
+   ;; expand arithmetic associativity
+   [(list (and (or '+ '- '* '/ 'and 'or) op) a ..2 b)
      (list op (expand (cons op a)) (expand b))]
-   [(list (or '+ '*) a) (expand a)]
+   [(list (or '+ '* 'and 'or) a) (expand a)]
    [(list '- a) (list '- (expand a))]
    [(list '/ a) (list '/ 1 (expand a))]
    [(list (or '+ '-)) 0]
    [(list (or '* '/)) 1]
+   ['(and) 'TRUE]
+   ['(or) 'FALSE]
+   ;; expand comparison associativity
+   [(list (and (or '< '<= '> '>= '=) op) as ...)
+    (define as* (map expand as))
+    (define out
+      (for/fold ([out #f]) ([term as*] [next (cdr as*)])
+        (if out
+            (list 'and out (list op term next))
+            (list op term next))))
+    (or out 'TRUE)]
+   [(list '!= as ...)
+    (define as* (map expand as))
+    (define out
+      (for/fold ([out #f])
+          ([term as*] [i (in-naturals)]
+           #:when true
+           [term2 as*] [j (in-naturals)]
+           #:when (< i j))
+        (if out
+            (list 'and out (list '!= term term2))
+            (list '!= term term2))))
+    (or out 'TRUE)]
+   [(list (or 'and 'or) a) (expand a)]
+   ['(and) 'TRUE]
+   ['(or) 'FALSE]
    ;; inline functions
    [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
     (match-define (list vars _ body) (hash-ref (*functions*) fname))
@@ -83,6 +105,13 @@
          (define-values (re* re-type) (loop re 'binary64))
          (define-values (im* im-type) (loop im 'binary64))
          (values (list 'complex re* im*) 'complex)]
+        [(or (? constant-operator? x) (list x)) ; constant
+         (let/ec k
+           (for/list ([sig (hash-ref parametric-operators x)])
+             (match-define (list* name rtype atypes) sig)
+             (when (or (equal? rtype prec) (equal? rtype 'bool))
+               (k (list name) (operator-info name 'otype))))
+           (error 'sugar "Could not find constant implementation for ~a at ~a" x prec))]
         [(list op args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
@@ -98,10 +127,6 @@
              [_ (inexact->exact expr)])
            prec)]
         [(? boolean?) (values expr 'bool)]
-        [(? constant?) 
-         (define prec* (if (set-member? '(TRUE FALSE) expr) 'bool prec))
-         (define constant* (get-parametric-constant expr prec*))
-         (values constant* (constant-info constant* 'type))]
         [(? variable?)
          (define vprec (representation-name (dict-ref var-reprs expr)))
          (cond
@@ -131,12 +156,12 @@
       [(not full?) `(,op ,body*)]
       [(list? body*) `(cast (! :precision ,iprec ,body*))]
       [else body*])] ; constants and variables should not have casts and precision changes
+    [(list op)
+     (define op* (hash-ref parametric-operators-reverse op op))
+     (if full? op* (list op*))]
     [(list op args ...)
      (define op* (hash-ref parametric-operators-reverse op op))
-     (define atypes
-       (match (operator-info op 'itype)
-         [(? representation-name? a) (map (const a) args)] ; some repr names are lists
-         [(? list? as) as]))   
+     (define atypes (operator-info op 'itype))
      (define args*
        (for/list ([arg args] [type atypes])
          (expand-parametric-reverse arg (get-representation type) full?)))
@@ -156,7 +181,6 @@
                  (exact->inexact x) ; convert to flonum if binary64 or binary32
                  x)])
          expr)]
-    [(? constant?) (hash-ref parametric-constants-reverse expr expr)]
     [(? variable?) expr]))
 
 (define (desugar-program prog repr var-reprs #:full [full? #t])

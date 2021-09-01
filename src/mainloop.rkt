@@ -67,7 +67,7 @@
   (*start-prog* prog)
   (rollback-improve!)
   (define precondition-prog
-    (or precondition (list 'λ (program-variables prog) 'TRUE)))
+    (or precondition (list 'λ (program-variables prog) '(TRUE))))
 
   (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
   ;; If the specification is given, it is used for sampling points

@@ -13,10 +13,6 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (binary64 real flonum?)
@@ -29,16 +25,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constant-impl (PI PI.f64) binary64
+(define-operator-impl (PI PI.f64) binary64
   [fl (const pi)])
 
-(define-constant-impl (E E.f64) binary64
+(define-operator-impl (E E.f64) binary64
   [fl (const (exp 1.0))])
 
-(define-constant-impl (INFINITY INFINITY.f64) binary64
+(define-operator-impl (INFINITY INFINITY.f64) binary64
   [fl (const +inf.0)])
 
-(define-constant-impl (NAN NAN.f64) binary64
+(define-operator-impl (NAN NAN.f64) binary64
   [fl (const +nan.0)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -133,25 +129,19 @@
 (define-libm-operator (fma real real real))
 
 (define-operator-impl (== ==.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator =)])
+  [fl =])
 
 (define-operator-impl (!= !=.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (negate (comparator =))])
+  [fl (negate =)])
 
 (define-operator-impl (< <.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator <)])
+  [fl <])
 
 (define-operator-impl (> >.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator >)])
+  [fl >])
 
 (define-operator-impl (<= <=.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator <=)])
+  [fl <=])
 
 (define-operator-impl (>= >=.f64 binary64 binary64) bool
-  [itype 'binary64] [otype 'bool] ; Override number of arguments
-  [fl (comparator >=)])
+  [fl >=])

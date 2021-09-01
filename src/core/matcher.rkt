@@ -6,7 +6,7 @@
 (provide
  pattern-match pattern-substitute
  rewrite-expression-head rewrite-expression
- change-apply rule-rewrite)
+ change-apply rule-apply)
 
 ;;; Our own pattern matcher.
 ;;
@@ -32,8 +32,6 @@
   (match pattern
    [(? number?)
     (and (equal? pattern expr) '())]
-   [(? constant?)
-    (and (equal? pattern expr) '())]
    [(? variable?)
     (list (cons pattern expr))]
    [(list phead _ ...)
@@ -48,7 +46,6 @@
   ; pattern binding -> expr
   (match pattern
    [(? number?) pattern]
-   [(? constant?) pattern]
    [(? variable?)
     (dict-ref bindings pattern)]
    [(list phead pargs ...)
@@ -61,13 +58,6 @@
     (if bindings
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
-
-(define (rule-rewrite rule prog [loc '()])
-  (let/ec return
-    (location-do loc prog
-                 (λ (x) (match (rule-apply rule x)
-                          [(cons out bindings) out]
-                          [#f (return #f)])))))
 
 (define (change-apply cng prog)
   (match-define (change rule location bindings) cng)
@@ -124,9 +114,6 @@
         [(? variable?)
          (sow (cons '() (list (cons pattern expr))))]
         [(? number?)
-         (when (equal? expr pattern)
-           (sow (cons '() '())))]
-        [(? constant?)
          (when (equal? expr pattern)
            (sow (cons '() '())))]
         [(list phead _ ...)
