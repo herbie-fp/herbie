@@ -41,10 +41,10 @@
     [#`,(? number?) type]
     [#`,(? constant-operator? x)
      (let/ec k
-       (for/list ([sig (hash-ref parametric-operators x)])
-         (match-define (list* name rtype atypes) sig)
+       (for/list ([name (operator-all-impls x)])
+         (define rtype (operator-info name 'otype))
          (when (or (equal? rtype type) (equal? rtype 'bool))
-           (k (operator-info name 'otype))))
+           (k rtype)))
        (error! stx "Could not find implementation of ~a for ~a" x type))]
     [#`,(? variable? x)
      (define vtype (dict-ref env x))
@@ -91,11 +91,9 @@
          (begin
           (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
-                   (for/list ([sig (hash-ref parametric-operators 'neg)])
-                     (match-define (list* _ _ atypes) sig)
-                     (if (list? atypes)
-                         (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " "))
-                         (format "(- <~a> ...)" atypes)))
+                   (for/list ([sig (operator-all-impls 'neg)])
+                     (define atypes (operator-info sig 'itype))
+                     (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " ")))
                    " or ")
                   actual-type)
           #f))]    
@@ -148,11 +146,9 @@
          (begin
           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
                   (string-join
-                    (for/list ([sig (hash-ref parametric-operators op)])
-                     (match-define (list* _ _ atypes) sig)
-                     (if (list? atypes)
-                         (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))
-                         (format "(~a <~a> ...)" op atypes)))
+                    (for/list ([sig (operator-all-impls op)])
+                      (define atypes (operator-info sig 'itypes))
+                      (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " ")))
                     " or ")
                   op (string-join (map (curry format "<~a>") actual-types) " "))
           #f))]

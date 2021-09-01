@@ -5,7 +5,7 @@
 
 (define (operator-cost op bits)
   (* bits
-    (match (hash-ref parametric-operators-reverse op)
+    (match (impl->operator op)
      ['+     1]
      ['-     1]
      ['neg   1]

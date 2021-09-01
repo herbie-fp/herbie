@@ -50,11 +50,11 @@
 (define (rule-ops-supported? rule)
   (define (ops-in-expr expr)
     (cond
-      [(list? expr) (if (set-member? (*loaded-ops*) (car expr))
-                        (for/and ([subexpr (cdr expr)])
-                          (ops-in-expr subexpr))
-                        #f)]
-      [else #t]))
+      [(list? expr)
+       (and (impl-exists? (car expr))
+            (for/and ([subexpr (cdr expr)])
+              (ops-in-expr subexpr)))]
+      [else true]))
   (ops-in-expr (rule-output rule)))
 
 (register-reset

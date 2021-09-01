@@ -331,7 +331,7 @@
           (let ([args* (map loop args (operator-info op 'itype))])
             (and (andmap identity args*) (cons op args*)))
           (let ([op* (apply get-parametric-operator 
-                            (hash-ref parametric-operators-reverse op)
+                            (impl->operator op)
                             (make-list (length args) prec*)
                             #:fail-fast? #f)]
                 [args* (map (curryr loop prec*) args)])

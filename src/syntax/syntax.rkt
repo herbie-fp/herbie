@@ -4,12 +4,12 @@
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
-         variable? operator-info real-operator-info operator-exists? constant-operator?
+         variable? constant-operator? operator-exists? impl-exists?
+         real-operator-info operator-info 
+         impl->operator all-constants operator-all-impls
          *functions* register-function!
-         get-parametric-operator parametric-operators parametric-operators-reverse
-         *unknown-ops* *loaded-ops*
-         repr-conv? rewrite-repr-op? get-repr-conv
-         all-constants)
+         get-parametric-operator
+         repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
   (provide define-operator-impl
@@ -20,7 +20,7 @@
 ;; Abstract operator table
 ;; Implementations inherit attributes
 
-(struct operator (itype otype bf ival))
+(struct operator (name itype otype bf ival))
 (define operators (make-hasheq))
 
 (define (register-operator! name itypes otype attrib-dict)
@@ -28,7 +28,7 @@
   (define otype* (dict-ref attrib-dict 'otype otype))
   (define fields (make-hasheq (append (list (cons 'itype itypes*) (cons 'otype otype*)) attrib-dict)))
 
-  (hash-set! operators name (apply operator (map (curry hash-ref fields) '(itype otype bf ival)))))
+  (hash-set! operators name (apply operator name (map (curry hash-ref fields) '(itype otype bf ival)))))
 
 (define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
   (register-operator! 'name '(itypes ...) 'otype (list (cons 'key value) ...)))
@@ -130,11 +130,10 @@
 
 ;; Operator implementations
 
-(struct operator-impl (itype otype bf fl ival))
+(struct operator-impl (name op itype otype bf fl ival))
 (define operator-impls (make-hasheq))
 
-(define parametric-operators (hash))
-(define parametric-operators-reverse (hash))
+(define operators-to-impls (make-hasheq))
 
 (define/contract (real-operator-info operator field)
   (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
@@ -165,9 +164,6 @@
   (-> symbol? any/c)
   (hash-remove! operator-impls operator))
 
-(define (*loaded-ops*)
-  (hash-keys parametric-operators-reverse))
-
 (define (check-operator-types! inherited itypes otype)
   (define itypes* (dict-ref inherited 'itype))
   (define otype* (dict-ref inherited 'otype))
@@ -196,13 +192,8 @@
   (define fields (make-hasheq attrib-dict*))
   (hash-set! fields 'itype itypes)
   (hash-set! fields 'otype otype)
-  (hash-set! operator-impls name (apply operator-impl (map (curry hash-ref fields) '(itype otype bf fl ival))))
-  (set! parametric-operators
-    (hash-update parametric-operators operator
-                 (curry cons (list* name otype (operator-info name 'itype)))
-                 '()))
-  (set! parametric-operators-reverse
-    (hash-set parametric-operators-reverse name operator)))
+  (hash-set! operator-impls name (apply operator-impl name op (map (curry hash-ref fields) '(itype otype bf fl ival))))
+  (hash-update! operators-to-impls operator (curry cons name) '()))
   
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
@@ -210,23 +201,19 @@
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
-    (for/or ([sig (hash-ref parametric-operators name)])
-      (match-define (list* true-name rtype atypes) sig)
-        (and (if (representation-name? atypes)
-                 (andmap (curry equal? atypes) actual-types)
-                 (equal? atypes actual-types))
-             true-name))
+    (for/or ([impl (operator-all-impls name)])
+      (define atypes (operator-info impl 'itype))
+      (and (equal? atypes actual-types) impl))
     (and fail-fast?
          (error 'get-parametric-operator
                 "parametric operator with op ~a and input types ~a not found"
                 name actual-types))))
 
-(define *unknown-ops* (make-parameter '()))
+(define (impl->operator name)
+  (operator-name (operator-impl-op (hash-ref operator-impls name))))
 
-(register-reset
- (λ ()
-   (unless (flag-set? 'precision 'fallback)
-     (for-each operator-remove! (*unknown-ops*)))))
+(define (operator-all-impls name)
+  (hash-ref operators-to-impls name))
 
 ;; real operators
 (define-operator (== real real) real
@@ -270,12 +257,11 @@
   (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
 
 (define (get-repr-conv iprec oprec)
-  (for/or ([sig (hash-ref parametric-operators 'cast)])
-    (match-define (list* true-name rtype atypes) sig)
-      (and (repr-conv? true-name)
-           (equal? rtype oprec)
-           (equal? (car atypes) iprec)
-           true-name)))
+  (for/or ([name (operator-all-impls 'cast)])
+    (and (repr-conv? name)
+         (equal? (operator-info name 'otype) oprec)
+         (equal? (car (operator-info name 'itype)) iprec)
+         name)))
 
 (define-operator (PI) real
   [bf (λ () pi.bf)] 
@@ -312,21 +298,24 @@
 
 ;; Expression predicates ;;
 
+(define (impl-exists? op)
+  (hash-has-key? operator-impls op))
+
 (define (operator-or-impl? op)
   (and (symbol? op) (not (equal? op 'if))
-       (or (hash-has-key? parametric-operators op)
+       (or (hash-has-key? operators op)
            (hash-has-key? operator-impls op))))
 
 (define (constant-operator? op)
   (and (symbol? op)
-       (or (and (hash-has-key? parametric-operators op) 
+       (or (and (hash-has-key? operators op) 
                 (null? (operator-itype (hash-ref operators op))))
            (and (hash-has-key? operator-impls op)
                 (null? (operator-itype (hash-ref operator-impls op)))))))
 
 (define (variable? var)
   (and (symbol? var)
-       (or (not (hash-has-key? parametric-operators var))
+       (or (not (hash-has-key? operators var))
            (not (null? (operator-itype (hash-ref operators var)))))
        (or (not (hash-has-key? operator-impls var))
            (not (null? (operator-impl-itype (hash-ref operator-impls var)))))))
@@ -338,6 +327,6 @@
   (hash-set! (*functions*) name (list args repr body)))
 
 (define (all-constants)
-  (for/list ([(name rec) (in-hash parametric-operators)]
-             #:when (= (length rec) 2))
+  (for/list ([(name rec) (in-hash operators)]
+             #:when (= (length (operator-itype rec)) 0))
     name))

@@ -107,10 +107,10 @@
          (values (list 'complex re* im*) 'complex)]
         [(or (? constant-operator? x) (list x)) ; constant
          (let/ec k
-           (for/list ([sig (hash-ref parametric-operators x)])
-             (match-define (list* name rtype atypes) sig)
+           (for/list ([name (operator-all-impls x)])
+             (define rtype (operator-info name 'otype))
              (when (or (equal? rtype prec) (equal? rtype 'bool))
-               (k (list name) (operator-info name 'otype))))
+               (k (list name) rtype)))
            (error 'sugar "Could not find constant implementation for ~a at ~a" x prec))]
         [(list op args ...)
          (define-values (args* atypes)
@@ -157,13 +157,12 @@
       [(list? body*) `(cast (! :precision ,iprec ,body*))]
       [else body*])] ; constants and variables should not have casts and precision changes
     [(list op)
-     (define op* (hash-ref parametric-operators-reverse op op))
+     (define op* (impl->operator op))
      (if full? op* (list op*))]
     [(list op args ...)
-     (define op* (hash-ref parametric-operators-reverse op op))
-     (define atypes (operator-info op 'itype))
+     (define op* (impl->operator op))
      (define args*
-       (for/list ([arg args] [type atypes])
+       (for/list ([arg args] [type (operator-info op 'itype)])
          (expand-parametric-reverse arg (get-representation type) full?)))
      (if (and full? (equal? op* 'neg) (= (length args) 1)) ; if only unparameterizing, leave 'neg' alone
          (cons '- args*)
