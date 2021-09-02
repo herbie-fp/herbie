@@ -6,12 +6,11 @@
 
 (provide
   (contract-out
-   [patch-table-add! (-> expr? (listof symbol?) boolean? void?)]
-   [patch-table-get (-> expr? (listof alt?))]
    [patch-table-has-expr? (-> expr? boolean?)]
-   [patch-table-runnable? (-> boolean?)]
-   [patch-table-run (-> (listof alt?))]
-   [patch-table-run-simplify (-> (listof alt?) (listof alt?))]))
+   [patch-table-run-simplify (-> (listof alt?) (listof alt?))]
+   [patch-table-run (-> (listof (cons/c (listof symbol?) expr?))
+                        (listof (cons/c (listof symbol?) expr?))
+                        (listof alt?))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -298,17 +297,37 @@
 (define (patch-table-runnable?)
   (or (not (null? (^queued^))) (not (null? (^queuedlow^)))))
 
-(define (patch-table-run)
-  (debug #:from 'progress #:depth 3 "generating series expansions")
-  (if (null? (^queued^))
-      (^series^ '())
-      (gen-series!))
-  (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-  (gen-rewrites!)
-  (debug #:from 'progress #:depth 3 "simplifying candidates")
-  (simplify!)
-  (begin0 (^final^)
-    (patch-table-clear!)))
+(define (patch-table-run locs lowlocs)
+  (define cached
+    (for/fold ([qed '()] [ced '()]
+              #:result (begin0 (reverse ced) (^queued^ (reverse qed))))
+              ([(vars expr) (in-dict locs)])
+      (if (patch-table-has-expr? expr)
+          (values qed (cons expr ced))
+          (let ([altn* (alt `(λ ,vars ,expr) `(patch) '())])
+            (values (cons altn* qed) ced)))))
+  (^queuedlow^
+    (for/list ([(vars expr) (in-dict lowlocs)])
+      (alt `(λ ,vars ,expr) `(patch) '())))
+  (cond
+   [(and (null? (^queued^))       ; early exit, nothing queued
+         (null? (^queuedlow^))
+         (null? cached))
+    '()]
+   [(and (null? (^queued^))       ; only fetch cache
+         (null? (^queuedlow^)))
+    (append-map patch-table-get cached)]
+   [else                          ; run patches
+    (debug #:from 'progress #:depth 3 "generating series expansions")
+    (if (null? (^queued^))
+        (^series^ '())
+        (gen-series!))
+    (debug #:from 'progress #:depth 3 "generating rewritten candidates")
+    (gen-rewrites!)
+    (debug #:from 'progress #:depth 3 "simplifying candidates")
+    (simplify!)
+    (begin0 (apply append (^final^) (map patch-table-get cached))
+      (patch-table-clear!))]))
 
 (define (patch-table-run-simplify altns)
   (^rewrites^ (append altns (if (^rewrites^) (^rewrites^) '())))

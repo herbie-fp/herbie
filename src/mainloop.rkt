@@ -15,11 +15,9 @@
 ;; extending, make sure this never gets too complicated to fit in your
 ;; head at once, because then global state is going to mess you up.
 
-(struct shellstate
-  (table next-alt locs lowlocs duplocs patched)
-  #:mutable)
+(struct shellstate (table next-alt locs lowlocs patched) #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f #f)))
+(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -27,9 +25,6 @@
 (define (^lowlocs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-lowlocs! (^shell-state^) newval))
   (shellstate-lowlocs (^shell-state^)))
-(define (^duplocs^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-duplocs! (^shell-state^) newval))
-  (shellstate-duplocs (^shell-state^)))
 (define (^table^ [newval 'none])
   (when (not (equal? newval 'none))  (set-shellstate-table! (^shell-state^) newval))
   (shellstate-table (^shell-state^)))
@@ -171,50 +166,24 @@
   (define vars (program-variables orig-prog))
   (define err&exprs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
 
-  ; duplicate locations (already seen)
-  (^duplocs^ '())
-
   ; high-error locations
-  (let loop ([err&exprs err&exprs] [count 0])
-    (cond
-     [(or (null? err&exprs) (>= count (*localize-expressions-limit*)))
-      (void)]
-     [else
-      (match-define (cons err expr) (car err&exprs))
-      (cond
-       [(and (*use-improve-cache*)          ; if in cache, put into duplocs
-             (patch-table-has-expr? expr))
-        (timeline-push! 'locations (~a expr) (errors-score err) #f)
-        (^duplocs^ (cons expr (^duplocs^)))
-        (loop (cdr err&exprs) (if (*localize-limit-for-new*) count (+ count 1)))]
-       [else                                ; else, add to list
-        (timeline-push! 'locations (~a expr) (errors-score err) #t)
-        (patch-table-add! expr vars #f)
-        (loop (cdr err&exprs) (+ count 1))])]))
+  (^locs^
+    (for/list ([e&e err&exprs] [i (in-range 4)])
+      (match-define (cons err expr) e&e)
+      (begin0 (cons vars expr)
+        (timeline-push! 'locations (~a expr) (errors-score err)
+                        (not (patch-table-has-expr? expr))))))
 
   ; low-error locations
-  (when (*pareto-mode*) ; Pareto mode uses low-error locations
-    (let loop ([err&exprs (reverse err&exprs)] [count 0])
-      (cond
-       [(or (null? err&exprs) (>= count (*localize-expressions-limit*)))
-        (void)]
-       [else
-        (match-define (cons err expr) (car err&exprs))
-        (cond
-         [(and (*use-improve-cache*)          ; if in cache, put into duplocs
-               (patch-table-has-expr? expr))
-           (loop (cdr err&exprs) count)]
-         [else 
-          (timeline-push! 'locations (~a expr) (errors-score err) #t)
-          (patch-table-add! expr vars #t)
-          (loop (cdr err&exprs) (+ count 1))])])))
+  (^lowlocs^
+    (if (*pareto-mode*)
+        (for/list ([e&e (reverse err&exprs)] [i (in-range 4)])
+          (match-define (cons err expr) e&e)
+          (begin0 (cons vars expr)
+            (timeline-push! 'locations (~a expr) (errors-score err) #f)))
+        '()))
 
   (void))
-
-;; Returns expressions from cache
-(define (gen-cached-alts)
-  (for/fold ([cached '()]) ([expr (in-list (^duplocs^))])
-    (append cached (patch-table-get expr))))
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
@@ -299,10 +268,7 @@
   (when (not (^locs^))
     (debug #:from 'progress #:depth 3 "localizing error")
     (localize!))
-  (when (patch-table-runnable?)
-    (define patched (patch-table-run))
-    (define cached (gen-cached-alts))
-    (reconstruct! (append patched cached)))
+  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
   (finalize-iter!)
   (void))
@@ -310,7 +276,6 @@
 (define (rollback-iter!)
   (^locs^ #f)
   (^lowlocs^ #f)
-  (^duplocs^ #f)
   (^next-alt^ #f)
   (^patched^ #f)
   (void))
@@ -338,14 +303,8 @@
       (^table^ table*)
       (debug #:from 'progress #:depth 3 "localizing error")
       (localize!)
-      (cond
-       [(patch-table-runnable?)
-        (define patched (patch-table-run))
-        (define cached (gen-cached-alts))
-        (reconstruct! (append patched cached))
-        (append full (^patched^))]
-       [else
-        full])))
+      (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
+      (append full (^patched^))))
   (debug #:from 'progress #:depth 3 "adding candidates to table")
   (finalize-iter!))
   
@@ -408,4 +367,17 @@
               'final-simplify (list altn)))
       alt-equal?))
   (timeline-event! 'end)
-  (remove-duplicates cleaned-alts alt-equal?))
+
+  ; find the best, sort the rest by cost
+  (define alts* (remove-duplicates cleaned-alts alt-equal?))
+  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*output-repr*))) alts*))
+  (define-values (best end-score rest)
+    (for/fold ([best #f] [score #f] [rest #f])
+              ([altn (in-list alts*)] [errs (in-list errss)])
+      (let ([new-score (errors-score errs)])
+        (cond
+         [(not best) (values altn new-score '())]
+         [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
+         [else (values best score (cons altn rest))]))))
+  (*herbie-preprocess* (remove-unecessary-preprocessing best (*herbie-preprocess*)))
+  (cons best (sort rest > #:key alt-cost)))
