@@ -74,9 +74,6 @@
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
-
-;; In localization, limit is for new locations
-;; (only if *use-improve-cache* is on)
 (define *localize-limit-for-new* (make-parameter #f))
 
 ;; How accurate to make the binary search

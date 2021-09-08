@@ -3,7 +3,7 @@
 (require math/bigfloat)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../interface.rkt")
 
-(provide localize-error)
+(provide localize-error get-locations)
 
 (define *analyze-cache* (make-hash))
 (define *analyze-context* (make-parameter #f))
@@ -60,6 +60,25 @@
                    (cons exact (map (λ (ex ap) (ulp-difference (<-bf ex) ap repr))
                                     exact approx))]))))
 
+(register-reset
+ (λ ()
+  (*analyze-context* (*pcontext*))
+  (set! *analyze-cache* (make-hash))))
+
+;; Returns the locations of `subexpr` within `expr`
+(define (get-locations expr subexpr)
+  (let loop ([expr expr] [loc '()])
+    (match expr
+      [(== subexpr)
+       (list (reverse loc))]
+      [(list op args ...)
+       (apply
+        append
+        (for/list ([arg (in-list args)] [i (in-naturals 1)])
+          (loop arg (cons i loc))))]
+      [_
+       (list)])))
+
 ;; Returns a list of locations and errors sorted
 ;; by error scores in descending order
 (define (localize-error prog repr)
@@ -74,17 +93,8 @@
   (localize-on-expression (program-body prog) varmap cache repr)
   (sort
     (reap [sow]
-      (let loop ([expr (program-body prog)] [loc '(2)])
-        (define err (cdr (hash-ref cache expr)))
-        (match expr                               ; descend first
-          [(? number?) (void)]
-          [(? variable?) (void)]
-          [(list 'if cond ift iff)
-           (loop ift (cons 2 loc))
-           (loop iff (cons 3 loc))]
-          [(list op args ...)
-           (for ([idx (in-naturals 1)] [arg args])
-             (loop arg (cons idx loc)))])
-        (unless (andmap (curry = 1) err)     ; then add to locations
-          (sow (cons err (reverse loc))))))
+      (for ([(expr ex&err) (in-hash cache)])
+        (define err (cdr ex&err))
+        (unless (andmap (curry = 1) err)
+          (sow (cons err expr)))))
     > #:key (compose errors-score car)))
