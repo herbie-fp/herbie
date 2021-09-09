@@ -53,6 +53,7 @@
           (sow (option-on-expr sound-alts bexpr repr))))))
   (define best (argmin (compose errors-score option-errors) options))
   (debug "Found split indices:" best #:from 'regime #:depth 3)
+  (timeline-push! 'count (length alts) (length (option-split-indices best)))
   best)
 
 (define (exprs-to-branch-on alts repr)
@@ -385,12 +386,10 @@
     (debug "Computing regimes starting at alt" (+ idx 1) "of"
             (length sorted) #:from 'regime #:depth 2)
     (cond
-      [(null? alts) '()]
-      [(= (length alts) 1) (list (car alts))]
-      [else
-      (timeline-event! 'regimes)
+     [(null? alts) '()]
+     [(= (length alts) 1) (list (car alts))]
+     [else
       (define opt (infer-splitpoints alts repr))
-      (timeline-event! 'bsearch)
       (define branched-alt (combine-alts opt repr sampler))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
