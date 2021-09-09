@@ -168,7 +168,7 @@
 
   ; high-error locations
   (^locs^
-    (for/list ([(err expr) (in-dict loc-errs)] [i (in-range 4)])
+    (for/list ([(err expr) (in-dict loc-errs)] [i (in-range (*localize-expressions-limit*))])
       (timeline-push! 'locations (~a expr) (errors-score err)
                       (not (patch-table-has-expr? expr)))
       (cons vars expr)))
@@ -176,7 +176,7 @@
   ; low-error locations
   (^lowlocs^
     (if (*pareto-mode*)
-        (for/list ([(err expr) (in-dict (reverse loc-errs))] [i (in-range 4)])
+        (for/list ([(err expr) (in-dict (reverse loc-errs))] [i (in-range (*localize-expressions-limit*))])
           (timeline-push! 'locations (~a expr) (errors-score err) #f)
           (cons vars expr)) 
         '()))
