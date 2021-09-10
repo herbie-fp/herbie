@@ -164,23 +164,21 @@
 
   (define orig-prog (alt-program (^next-alt^)))
   (define vars (program-variables orig-prog))
-  (define err&exprs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
+  (define loc-errs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
 
   ; high-error locations
   (^locs^
-    (for/list ([e&e err&exprs] [i (in-range 4)])
-      (match-define (cons err expr) e&e)
-      (begin0 (cons vars expr)
-        (timeline-push! 'locations (~a expr) (errors-score err)
-                        (not (patch-table-has-expr? expr))))))
+    (for/list ([(err expr) (in-dict loc-errs)] [i (in-range (*localize-expressions-limit*))])
+      (timeline-push! 'locations (~a expr) (errors-score err)
+                      (not (patch-table-has-expr? expr)))
+      (cons vars expr)))
 
   ; low-error locations
   (^lowlocs^
     (if (*pareto-mode*)
-        (for/list ([e&e (reverse err&exprs)] [i (in-range 4)])
-          (match-define (cons err expr) e&e)
-          (begin0 (cons vars expr)
-            (timeline-push! 'locations (~a expr) (errors-score err) #f)))
+        (for/list ([(err expr) (in-dict (reverse loc-errs))] [i (in-range (*localize-expressions-limit*))])
+          (timeline-push! 'locations (~a expr) (errors-score err) #f)
+          (cons vars expr)) 
         '()))
 
   (void))

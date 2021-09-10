@@ -50,14 +50,9 @@
 ; If `improve` is not provided, a key is added
 ; with no improvements
 (define (add-patch! expr [improve #f])
-  (cond
-   [(not (*use-improve-cache*)) (void)]
-   [improve
+  (when (*use-improve-cache*)
     (hash-update! (patchtable-table *patch-table*) expr
-                  (curry cons improve) (list))]
-   [else
-    (hash-update! (patchtable-table *patch-table*) expr
-                  identity (list))]))
+                  (if improve (curry cons improve) identity) (list))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Internals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
