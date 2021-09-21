@@ -303,7 +303,7 @@
             (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
     (define (is-nan? x)
-      (and (operator? x) (equal? (impl->operator x) 'NAN)))
+      (and (impl-exists? x) (equal? (impl->operator x) 'NAN)))
 
     ; Probably unnecessary, at least CI passes!
     (define series-expansions*
