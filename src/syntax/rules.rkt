@@ -80,7 +80,7 @@
       [(list 'if cond ift iff)
         (append (loop cond) (loop ift) (loop iff))]
       [(list op args ...)
-        (append (operator-info op 'itype) (append-map loop args))]
+        (append (map get-representation (operator-info op 'itype)) (append-map loop args))]
       [_ '()]))))
 
 (define (type-of-rule input output ctx)
@@ -131,15 +131,14 @@
 ;; Add existing rules in rulesets to 'active' rules
 
 (define (add-rules-from-rulesets repr)
-  (define repr-name (representation-name repr))
   (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
-  (define valid? (curry set-member? (map representation-name (*reprs-with-rules*))))
+  (define valid? (curry set-member? (*reprs-with-rules*)))
 
   (define (valid-rule r)
     (define in-reprs (reprs-in-expr (rule-input r)))
     (define out-reprs (reprs-in-expr (rule-output r)))
-    (define all-reprs (set-union (list (rule-otype r)) in-reprs out-reprs))
-    (and (andmap valid? all-reprs) (ormap (curry equal? repr-name) all-reprs)))
+    (define all-reprs (set-union (list (get-representation (rule-otype r))) in-reprs out-reprs))
+    (and (andmap valid? all-reprs) (ormap (curry equal? repr) all-reprs)))
 
   (for ([set (*rulesets*)])
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
