@@ -148,13 +148,11 @@
      (define iff* (expand-parametric-reverse iff repr full?))
      (list 'if cond* ift* iff*)]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-     (define iprec (first (operator-info op 'itype)))
-     (define oprec (operator-info op 'otype))
-     (define repr* (get-representation iprec))
+     (define repr* (get-representation (first (operator-info op 'itype))))
      (define body* (expand-parametric-reverse body repr* full?))
      (cond
       [(not full?) `(,op ,body*)]
-      [(list? body*) `(cast (! :precision ,iprec ,body*))]
+      [(list? body*) `(cast (! :precision ,(representation-name repr*) ,body*))]
       [else body*])] ; constants and variables should not have casts and precision changes
     [(list op)
      (define op* (impl->operator op))
@@ -162,8 +160,8 @@
     [(list op args ...)
      (define op* (impl->operator op))
      (define args*
-       (for/list ([arg args] [type (operator-info op 'itype)])
-         (expand-parametric-reverse arg (get-representation type) full?)))
+       (for/list ([arg args] [repr (map get-representation (operator-info op 'itype))])
+         (expand-parametric-reverse arg repr full?)))
      (if (and full? (equal? op* 'neg) (= (length args) 1)) ; if only unparameterizing, leave 'neg' alone
          (cons '- args*)
          (cons op* args*))]
