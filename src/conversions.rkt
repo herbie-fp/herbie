@@ -126,7 +126,7 @@
     (when (set-member? convs* (cons repr1 repr2))
       (warn 'conversions "Duplicate conversion (~a ~a)\n"
             (representation-name repr1) (representation-name repr2)))
-    (set-add! convs* (cons repr1 repr2)))))
+    (set-add! convs* (cons repr1 repr2))))
 
 
 ;; try built in reprs
