@@ -89,9 +89,13 @@
 (define (type-of-rule input output ctx)
   (cond   ; special case for 'if', return the 'type-of-rule' of the ift branch
     [(list? input) 
-      (if (equal? (car input) 'if) (type-of-rule (caddr input) output ctx) (get-representation (operator-info (car input) 'otype)))]
+      (if (equal? (car input) 'if)
+          (type-of-rule (caddr input) output ctx)
+          (get-representation (operator-info (car input) 'otype)))]
     [(list? output)
-      (if (equal? (car output) 'if) (type-of-rule input (caddr output) ctx) (get-representation (operator-info (car output) 'otype)))]
+      (if (equal? (car output) 'if)
+          (type-of-rule input (caddr output) ctx)
+          (get-representation (operator-info (car output) 'otype)))]
     [(symbol? input) (dict-ref ctx input)]   ; fallback: if symbol, check ctx for type
     [(symbol? output) (dict-ref ctx output)]
     [else
@@ -166,7 +170,7 @@
         (cons v
               (if (equal? t typename)
                   repr
-                  (get-representation t)))))
+                  (get-representation t))))) ;; Only bad one!
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
         (let ([name* (sym-append (rule-name r) '_ repr-name)]

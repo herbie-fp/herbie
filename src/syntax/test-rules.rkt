@@ -90,9 +90,7 @@
        [else (check-equal? v1 v2)]))))
 
 (module+ main
-  (*needed-reprs* (list (get-representation 'binary64)
-                        (get-representation 'binary32)
-                        (get-representation 'bool)))
+  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
   (num-test-points (* 100 (num-test-points)))
   (command-line
@@ -105,9 +103,7 @@
       (check-rule-fp-safe rule)))))
 
 (module+ test
-  (*needed-reprs* (list (get-representation 'binary64)
-                        (get-representation 'binary32)
-                        (get-representation 'bool)))
+  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
     (unless (and (expr-supports? (rule-input test-rule) 'ival)

@@ -46,8 +46,8 @@
                          #:debug-port [debug-port #f]
                          #:debug-level [debug-level #f])
   (define timeline #f)
-  (define output-prec (test-output-prec test))
-  (define output-repr (get-representation output-prec))
+  (define output-repr (test-output-repr test))
+  (define output-prec (representation-name output-repr))
   (*output-repr* output-repr)
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 

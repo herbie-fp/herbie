@@ -83,8 +83,8 @@
 
 (define (render-program #:to [result #f] preprocess test)
   (define identifier (test-identifier test))
-  (define output-prec (test-output-prec test))
-  (define output-repr (get-representation output-prec))
+  (define output-repr (test-output-repr test))
+  (define output-prec (representation-name output-repr))
 
   (define in-prog (program->fpcore (resugar-program (test-program test) output-repr) #:ident identifier))
   (define out-prog

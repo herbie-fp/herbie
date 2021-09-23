@@ -9,9 +9,7 @@
 
 (define (extract-test row)
   (define vars (table-row-vars row))
-  (define prec (table-row-precision row))
-  (define var-precs (map (curryr cons prec) vars))
-  (define repr (get-representation prec))
+  (define repr (get-representation (table-row-precision row)))
   (define var-reprs (map (curryr cons repr) vars))
   (test (table-row-name row)
         (table-row-identifier row)
@@ -60,7 +58,7 @@
         #:unless (set-member? '("error" "crash") (table-row-status row)))
     (set-seed! (report-info-seed data))
     (define orig-test (extract-test row))
-    (define output-repr (get-representation (test-output-prec orig-test)))
+    (define output-repr (test-output-repr orig-test))
     (parameterize ([*timeline-disabled* true] [*output-repr* output-repr]
                    [*var-reprs* (map (curryr cons output-repr) (test-vars orig-test))])
       (define sampler
