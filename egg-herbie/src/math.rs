@@ -24,7 +24,7 @@ pub struct Extracted {
 
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let mut extractor = Extractor::new(&runner.egraph, AstSize);
+        let extractor = Extractor::new(&runner.egraph, AstSize);
         let extracted = runner
             .roots
             .iter()
@@ -176,21 +176,21 @@ impl Analysis<Math> for ConstantFold {
             }))
     }
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
-        match (&to, from) {
-            (None, None) => false,
-            (Some(_), None) => false, // no update needed
-            (None, Some(c)) => {
-                *to = Some(c);
-                true
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+        match (to.as_mut(), &from) {
+            (None, None) => DidMerge(false, false),
+            (None, Some(_)) => {
+                *to = from;
+                DidMerge(true, false)
             }
+            (Some(_), None) => DidMerge(false, true),
             (Some(a), Some(ref b)) => {
                 if a.0 != b.0 {
                     if !self.unsound.swap(true, Ordering::SeqCst) {
                         log::warn!("Bad merge detected: {} != {}", a.0, b.0);
                     }
                 }
-                false
+                DidMerge(false, false)
             }
         }
     }
@@ -198,17 +198,10 @@ impl Analysis<Math> for ConstantFold {
     fn modify(egraph: &mut EGraph, class_id: Id) {
         let class = &mut egraph[class_id];
         if let Some((c, node)) = class.data.clone() {
-            let added = egraph.add(Math::Constant(c.clone()));
-            let mut const_pattern: PatternAst<Math> = Default::default();
-            const_pattern.add(ENodeOrVar::ENode(Math::Constant(c)));
-            let (id, did_something) = egraph.union_with_reason(class_id,
-                added,
-                node,
-                const_pattern,
-                Default::default(),
-                "metadata-eval".to_string());
-            if false {
-                egraph[id].nodes.retain(|n| n.is_leaf())
+            egraph.union_instantiations(&node, &format!("{}", c).parse().unwrap(), &Default::default(), "metadata-eval".to_string());
+
+            if egraph.analysis.prune {
+                egraph[class_id].nodes.retain(|n| n.is_leaf())
             }
         }
     }

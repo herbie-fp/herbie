@@ -1,6 +1,5 @@
 use crate::math::*;
 
-use indexmap::IndexMap;
 use std::str::FromStr;
 
 pub fn mk_rules(tuples: &[(&str, &str, &str)]) -> Vec<Rewrite> {

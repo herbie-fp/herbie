@@ -1,7 +1,7 @@
 pub mod math;
 pub mod rules;
 
-use egg::{Id, Iteration, NodeExpr};
+use egg::{Id, Iteration};
 use math::*;
 
 use std::time::Duration;
@@ -289,22 +289,12 @@ pub unsafe extern "C" fn egraph_get_proof(
             .take()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
-        let rule_slice = &ctx.rules.iter().collect::<Vec<&Rewrite>>()[..];
-        let proof = runner.produce_proof(rule_slice, &expr_rec, &goal_rec);
+        let mut proof = runner.explain_equivalence(&expr_rec, &goal_rec);
         ctx.runner = Some(runner);
-        match proof {
-            Some(steps) => {
-                let strings = NodeExpr::<Math>::to_strings::<ConstantFold>(rule_slice, &steps);
-                let joined = strings.join("\n");
-                let best_str = CString::new(joined).unwrap();
-                let best_str_pointer = best_str.as_ptr();
-                std::mem::forget(best_str);
-                best_str_pointer
-            }
-            None => {
-                make_empty_string()
-            }
-        }
+        let string = CString::new(proof.get_flat_string()).unwrap();
+        let string_pointer = string.as_ptr();
+        std::mem::forget(string);
+        string_pointer
     })
 }
 
