@@ -39,13 +39,12 @@
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn)
-  (define prec (representation-name (*output-repr*)))
   (define prog (alt-program altn))
   (filter (λ (altn) (program-body (alt-program altn)))
     (for/list ([(k v) (in-hash (*conversions*))]
-              #:unless (equal? k prec)
-              #:when (set-member? v prec))
-      (define rewrite (get-rewrite-operator (get-representation k)))
+              #:unless (equal? k (*output-repr*))
+              #:when (set-member? v (*output-repr*)))
+      (define rewrite (get-rewrite-operator k))
       (define prog* `(λ ,(program-variables prog) (,rewrite ,(program-body prog))))
       (alt (apply-repr-change prog*) 'start '()))))
 
