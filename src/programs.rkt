@@ -270,45 +270,45 @@
 
 ; Updates the repr of an expression if needed
 (define (apply-repr-change-expr expr)
-  (let loop ([expr expr] [prec #f])
+  (let loop ([expr expr] [repr #f])
     (match expr
      [(list (? repr-conv? op) body)
-      (define iprec (first (operator-info op 'itype)))
-      (define oprec (operator-info op 'otype))
-      (define prec* (if prec prec oprec))
-      (define body* (loop body iprec))
+      (define irepr (get-representation (first (operator-info op 'itype))))
+      (define oprec (get-representation (operator-info op 'otype)))
+      (define repr* (or repr orepr))
+      (define body* (loop body irepr))
       (cond
        [(not body*) #f] ; propagate failed repr-change
        [else
-        (define new-conv (get-repr-conv iprec prec*)) ; try to find a single conversion
+        (define new-conv (get-repr-conv irepr repr*)) ; try to find a single conversion
         (if new-conv
             (list new-conv body*)
-            (let ([second-conv (get-repr-conv oprec prec*)]) ; try a two-step conversion
+            (let ([second-conv (get-repr-conv orepr repr*)]) ; try a two-step conversion
               (and second-conv (list second-conv (list op body*)))))])]
      [(list (? rewrite-repr-op? rr) (list (? repr-conv? op) body))  ; repr change on a conversion
-      (define iprec (first (operator-info op 'itype)))
-      (define prec* (operator-info rr 'otype))
-      (if (equal? prec* iprec)
-          (if prec
-              (loop body iprec) ; if the conversions are inverses and not the top
-              (list op (loop body iprec)))
-          (if prec
-              (loop (list op body) prec*)
-              (let* ([conv (get-repr-conv prec* (representation-name (*output-repr*)))]
-                     [body* (loop body prec*)])
+      (define irepr (get-representation (first (operator-info op 'itype))))
+      (define repr* (get-representation (operator-info rr 'otype)))
+      (if (equal? repr* irepr)
+          (if repr
+              (loop body irepr) ; if the conversions are inverses and not the top
+              (list op (loop body irepr)))
+          (if repr
+              (loop (list op body) repr*)
+              (let* ([conv (get-repr-conv repr* (*output-repr*))]
+                     [body* (loop body repr*)])
                 (and conv body* (list conv body*)))))]
      [(list (? rewrite-repr-op? op) body)
-      (define iprec (operator-info op 'otype))
-      (define oprec (if prec prec (representation-name (*output-repr*))))
+      (define irepr (get-representation (operator-info op 'otype)))
+      (define orepr (or repr (*output-repr*)))
       (cond
-       [(equal? iprec oprec)
-        (loop body iprec)]
+       [(equal? irepr orepr)
+        (loop body irepr)]
        [else
-        (define conv (get-repr-conv iprec oprec))
-        (define body* (loop body iprec))
+        (define conv (get-repr-conv irepr orepr))
+        (define body* (loop body irepr))
         (and conv body* (list conv body*))])]
      [(list 'if con ift iff)
-      (define prec* (if prec prec (representation-name (*output-repr*))))
+      (define repr* (or repr (*output-repr*)))
       (define con*
         (let loop2 ([con con])
           (cond
@@ -317,31 +317,32 @@
            [else
             (match-define (list op args ...) con)
             (define args*
-              (for/list ([arg args] [atype (operator-info op 'itype)])
-                (if (equal? atype 'bool)
+              (for/list ([arg args] [atype (map get-representation (operator-info op 'itype))])
+                (if (equal? (representation-type atype) 'bool)
                     (loop2 arg)
                     (loop arg atype))))
             (cons op args*)])))
-      (define ift* (loop ift prec*))
-      (define iff* (loop iff prec*))
+      (define ift* (loop ift repr*))
+      (define iff* (loop iff repr*))
       (and ift* iff* `(if ,con* ,ift* ,iff*))]
      [(list (? operator? op) args ...) 
-      (define prec* (if prec prec (operator-info op 'otype)))
-      (if (equal? (operator-info op 'otype) prec*)
-          (let ([args* (map loop args (operator-info op 'itype))])
+      (define orepr (get-representation (operator-info op 'otype)))
+      (define repr* (or repr orepr))
+      (if (equal? orepr repr*)
+          (let ([args* (map loop args (map get-representation (operator-info op 'itype)))])
             (and (andmap identity args*) (cons op args*)))
           (let ([op* (apply get-parametric-operator 
                             (impl->operator op)
-                            (make-list (length args) prec*)
+                            (make-list (length args) repr*)
                             #:fail-fast? #f)]
-                [args* (map (curryr loop prec*) args)])
+                [args* (map (curryr loop repr*) args)])
             (and op* (andmap identity args*) (cons op* args*))))]
      [(? variable?)
-      (define var-prec (representation-name (dict-ref (*var-reprs*) expr)))
+      (define var-repr (dict-ref (*var-reprs*) expr))
       (cond
-       [(equal? var-prec prec) expr]
+       [(equal? var-repr repr) expr]
        [else ; insert a cast if the variable precision is not the same
-        (define cast (get-repr-conv var-prec prec))
+        (define cast (get-repr-conv var-repr repr))
         (and cast (list cast expr))])]
      [_ expr])))
 

@@ -199,10 +199,10 @@
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
   (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
 
-(define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
+(define/contract (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
     (for/or ([impl (operator-all-impls name)])
-      (define atypes (operator-info impl 'itype))
+      (define atypes (map get-representation (operator-info impl 'itype)))
       (and (equal? atypes actual-types) impl))
     (and fail-fast?
          (error 'get-parametric-operator
@@ -256,11 +256,11 @@
 (define (rewrite-repr-op? expr)
   (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
 
-(define (get-repr-conv iprec oprec)
+(define (get-repr-conv irepr orepr)
   (for/or ([name (operator-all-impls 'cast)])
     (and (repr-conv? name)
-         (equal? (operator-info name 'otype) oprec)
-         (equal? (car (operator-info name 'itype)) iprec)
+         (equal? (get-representation (operator-info name 'otype)) orepr)
+         (equal? (get-representation (first (operator-info name 'itype))) irepr)
          name)))
 
 (define-operator (PI) real

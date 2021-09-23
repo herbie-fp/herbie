@@ -16,7 +16,7 @@
        [(list) (list)]
        [(list (app syntax-e prop) value rest ...)
         (cons (cons prop (syntax->datum value)) (loop rest))])))
-  (define type (dict-ref props* ':precision 'binary64))
+  (define type (get-representation (dict-ref props* ':precision 'binary64)))
   (assert-expression-type! body type #:env (for/hash ([var vars]) (values (syntax-e var) type))))
 
 (define (load-representations! rtype env)
@@ -32,7 +32,8 @@
             (sow (cons stx (apply format fmt args))))
           (define actual-rtype (expression->type stx env expected-rtype error!))
           (unless (equal? expected-rtype actual-rtype)
-            (error! stx "Expected program of type ~a, got type ~a" expected-rtype actual-rtype))))
+            (error! stx "Expected program of type ~a, got type ~a"
+                    (representation-name expected-rtype) (representation-name actual-rtype)))))
   (unless (null? errs)
     (raise-herbie-syntax-error "Program has type errors" #:locations errs)))
 
@@ -42,14 +43,14 @@
     [#`,(? constant-operator? x)
      (let/ec k
        (for/list ([name (operator-all-impls x)])
-         (define rtype (operator-info name 'otype))
-         (when (or (equal? rtype type) (equal? rtype 'bool))
+         (define rtype (get-representation (operator-info name 'otype)))
+         (when (or (equal? rtype type) (equal? (representation-type rtype) 'bool))
            (k rtype)))
-       (error! stx "Could not find implementation of ~a for ~a" x type))]
+       (error! stx "Could not find implementation of ~a for ~a" x (representation-name type)))]
     [#`,(? variable? x)
      (define vtype (dict-ref env x))
      (cond
-      [(equal? vtype 'bool) 'bool]
+      [(equal? (representation-type vtype) 'bool) vtype]
       [(equal? type vtype) type]
       [else (error! stx "Expected a variable of type ~a, but got ~a" type vtype)])]
     [#`(let ((,id #,expr) ...) #,body)
@@ -64,22 +65,24 @@
      (expression->type body env2 type error!)]
     [#`(if #,branch #,ifstmt #,elsestmt)
      (define branch-type (expression->type branch env type error!))
-     (unless (equal? branch-type 'bool)
-       (error! stx "If statement has non-boolean type for branch ~a" branch-type))
+     (unless (equal? (representation-type branch-type) 'bool)
+       (error! stx "If statement has non-boolean type ~a for branch"
+               (representation-name branch-type)))
      (define ifstmt-type (expression->type ifstmt env type error!))
      (define elsestmt-type (expression->type elsestmt env type error!))
      (unless (equal? ifstmt-type elsestmt-type)
-       (error! stx "If statement has different types for if (~a) and else (~a)" ifstmt-type elsestmt-type))
+       (error! stx "If statement has different types for if (~a) and else (~a)"
+               (representation-name ifstmt-type) (representation-name elsestmt-type)))
       ifstmt-type]
     [#`(! #,props ... #,body)
      (define props* (apply hash-set* (hash) (map syntax-e props)))
      (cond
        [(hash-has-key? props* ':precision)
-        (define itype (hash-ref props* ':precision))
-        (get-representation itype)    ; load ops (unit tests)
+        (define itype (get-representation (hash-ref props* ':precision)))
         (define rtype (expression->type body env itype error!))
         (unless (equal? rtype itype)
-          (error! stx "Annotation promised precision ~a, but got ~a" itype rtype))
+          (error! stx "Annotation promised precision ~a, but got ~a"
+                  (get-representation itype) (get-representation rtype)))
         type]
        [else
         (expression->type body env type error!)])]
@@ -87,82 +90,92 @@
      (define actual-type (expression->type arg env type error!))
      (define op* (get-parametric-operator 'neg actual-type #:fail-fast? #f))
      (if op*
-         (operator-info op* 'otype)
+         (get-representation (operator-info op* 'otype))
          (begin
           (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
                    (for/list ([sig (operator-all-impls 'neg)])
-                     (define atypes (operator-info sig 'itype))
-                     (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " ")))
+                     (define atypes (map get-representation (operator-info sig 'itype)))
+                     (format "(- ~a)" (string-join
+                                       (for/list ([atype atypes])
+                                         (format "<~a>" (representation-name atype)))
+                                       " ")))
                    " or ")
-                  actual-type)
-          #f))]    
+                  (representation-name actual-type))
+          #f))]
     [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
      (define t #f)
      (for ([arg exprs] [i (in-naturals)])
        (define actual-type (expression->type arg env type error!))
-       (when (equal? actual-type 'bool)
+       (when (equal? (representation-type actual-type) 'bool)
           (error! stx "~a does not take boolean arguments" op))
        (if (= i 0) (set! t actual-type) #f)
        (unless (equal? t actual-type)
-         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
+         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1)
+                 (representation-name t) (representation-name actual-type))))
      t]
     [#`(,(and (or '< '> '<= '>= '= '!=) op) #,exprs ...)
      (define t #f)
      (for ([arg exprs] [i (in-naturals)])
        (define actual-type (expression->type arg env type error!))
-       (when (equal? actual-type 'bool)
+       (when (equal? (representation-type actual-type) 'bool)
           (error! stx "~a does not take boolean arguments" op))
        (if (= i 0) (set! t actual-type) #f)
        (unless (equal? t actual-type)
-         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1) t actual-type)))
-     'bool]
+         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1)
+                 (representation-name t) (representation-name actual-type))))
+     (get-representation 'bool)]
     [#`(,(and (or 'and 'or) op) #,exprs ...)
      (for ([arg exprs] [i (in-naturals)])
        (define actual-type (expression->type arg env type error!))
-       (unless (equal? actual-type 'bool)
+       (unless (equal? (representation-type actual-type) 'bool)
           (error! stx "~a only takes boolean arguments" op)))
-     'bool]
+     (get-representation 'bool)]
     [#`(,(and (or 're 'im) op) #,arg)
      ; TODO: this special case can be removed when complex-herbie is moved to a composite type
      ; re, im : complex -> binary64
-     (define atype (expression->type arg env 'complex error!)) 
-     (unless (equal? atype 'complex)
-       (error! stx "~a expects argument of type complex (not ~a)" op atype))
-     'binary64]
+     (define atype (expression->type arg env (get-representation 'complex) error!)) 
+     (unless (equal? (representation-type atype) 'complex)
+       (error! stx "~a expects argument of type complex (not ~a)" op (representation-name atype)))
+     (get-representation 'binary64)]
     [#`(complex #,re #,im)
      ; TODO: this special case can be removed when complex-herbie is moved to a composite type
      ; complex : binary64, binary64 -> complex
-     (define re-type (expression->type re env 'binary64 error!))
-     (define im-type (expression->type im env 'binary64 error!))
-     (unless (and (equal? re-type 'binary64) (equal? im-type 'binary64))
-       (error! stx "complex expects arguments of type binary64, binary64 (not ~a, ~a)" re-type im-type))
-     'complex]
+     (define b64 (get-representation 'binary64))
+     (define re-type (expression->type re env b64 error!))
+     (define im-type (expression->type im env b64 error!))
+     (unless (and (equal? re-type b64) (equal? im-type b64))
+       (error! stx "complex expects arguments of type binary64, binary64 (not ~a, ~a)"
+               (representation-name re-type) (representation-name im-type)))
+     (get-representation 'complex)]
     [#`(,(? operator-exists? op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (define op* (apply get-parametric-operator op actual-types #:fail-fast? #f))
      (if op*
-         (operator-info op* 'otype)
+         (get-representation (operator-info op* 'otype))
          (begin
           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
                   (string-join
                     (for/list ([sig (operator-all-impls op)])
-                      (define atypes (operator-info sig 'itype))
-                      (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " ")))
+                      (define atypes (map get-representation (operator-info sig 'itype)))
+                      (format "(~a ~a)" op (string-join
+                                            (for/list ([atype atypes])
+                                              (format "<~a>" (representation-name atype)))
+                                            " ")))
                     " or ")
-                  op (string-join (map (curry format "<~a>") actual-types) " "))
+                  op (string-join (map (curry format "<~a>") (map representation-name actual-types)) " "))
           #f))]
     [#`(,(? (curry hash-has-key? (*functions*)) fname) #,exprs ...)
      (match-define (list vars repr _) (hash-ref (*functions*) fname))
      (define prec (representation-name repr))
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
-     (define expected (map (const prec) vars))
+     (define expected (map (const repr) vars))
      (if (andmap equal? actual-types expected)
-         prec
+         repr
          (begin
            (error! stx "Invalid arguments to ~a; expects (~a ~a) but got (~a ~a)" fname
-                       fname fname (string-join (map (curry format "<~a>") expected) " ")
-                       fname (string-join (map (curry format "<~a>") actual-types) " "))
+                       fname fname (string-join (map (curry format "<~a>") (map representation-name expected)) " ")
+                       fname (string-join (map (curry format "<~a>") (map representation-name actual-types)) " "))
            #f))]))
 
 (module+ test
@@ -170,18 +183,21 @@
   (require "../load-plugin.rkt")
   (load-herbie-builtins)
 
+  (define (get-reprs-ctx env)
+    (for/hash ([(k v) (in-dict env)])
+      (values k (get-representation v))))
+
   (define (fail stx msg . args)
     (error (apply format msg args) stx))
 
   (define (check-types env-type rtype expr #:env [env #hash()])
-    (load-representations! env-type env) ; load ops (unit tests)
-    (check-equal? (expression->type expr env env-type fail) rtype))
+    (check-equal? (expression->type expr (get-reprs-ctx env) (get-representation env-type) fail)
+                  (get-representation rtype)))
 
   (define (check-fails type expr #:env [env #hash()])
-    (load-representations! type env) ; load ops (unit tests)
     (check-equal?
      (let ([v #f])
-       (expression->type expr env type (lambda _ (set! v #t)))
+       (expression->type expr (get-reprs-ctx env) (get-representation type) (lambda _ (set! v #t)))
        v)
      #t))
 

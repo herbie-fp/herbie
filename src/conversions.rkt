@@ -23,7 +23,7 @@
 (define (get-rewrite-operator repr)
   (define prec (representation-name repr))
   (define rewrite (sym-append '<- (munge-prec prec)))
-  (get-parametric-operator rewrite prec))
+  (get-parametric-operator rewrite repr))
 
 ;; Generates conversion, repr-rewrite operators for prec1 and prec2
 (define (generate-conversion-ops repr1 repr2)

@@ -99,8 +99,7 @@
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
-        (define name (representation-name repr))
-        (define <=-operator (get-parametric-operator '<= name name))
+        (define <=-operator (get-parametric-operator '<= repr repr))
         `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
@@ -214,8 +213,7 @@
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
 
-  (define repr-name (representation-name repr))
-  (define eq-repr (get-parametric-operator '== repr-name repr-name))
+  (define eq-repr (get-parametric-operator '== repr repr))
   
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)

@@ -62,79 +62,83 @@
 ;; and supports multiple precisions
 (define (expand-parametric expr repr var-reprs full?)
   (define-values (expr* prec)
-    (let loop ([expr expr] [prec (representation-name repr)]) ; easier to work with repr names
+    (let loop ([expr expr] [repr repr]) ; easier to work with repr names
       ;; Run after unfold-let, so no need to track lets
+      (define prec (representation-name repr))
       (match expr
         [(list 'if cond ift iff)
-         (define-values (cond* _a) (loop cond prec))
-         (define-values (ift* rtype) (loop ift prec))
-         (define-values (iff* _b) (loop iff prec))
+         (define-values (cond* _a) (loop cond repr))
+         (define-values (ift* rtype) (loop ift repr))
+         (define-values (iff* _b) (loop iff repr))
          (values (list 'if cond* ift* iff*) rtype)]
         [(list '! props ... body)
          (define props* (apply hash-set* (hash) props))
          (cond
            [(hash-has-key? props* ':precision)
             ; need to insert a cast
-            (loop (list 'cast expr) prec)]
-           [else (loop body prec)])]
+            (loop (list 'cast expr) repr)]
+           [else (loop body repr)])]
         [(list 'cast (list '! ':precision iprec iexpr))
+         (define irepr (get-representation iprec))
          (cond
-          [(equal? prec iprec)  ; ignore
-           (loop iexpr prec)]
+          [(equal? repr irepr)  ; ignore
+           (loop iexpr repr)]
           [else
-           (define conv (get-repr-conv iprec prec))
-           (define-values (iexpr* _) (loop iexpr iprec))
-           (values (list conv iexpr*) prec)])]
+           (define conv (get-repr-conv irepr repr))
+           (define-values (iexpr* _) (loop iexpr irepr))
+           (values (list conv iexpr*) repr)])]
         [(list 'cast body)    ; no-op cast (ignore)
-         (loop body prec)]
+         (loop body repr)]
         [(list (or 'neg '-) arg) ; unary minus
-         (define-values (arg* atype) (loop arg prec))
+         (define-values (arg* atype) (loop arg repr))
          (define op* (get-parametric-operator 'neg atype))
-         (values (list op* arg*) (operator-info op* 'otype))]
+         (values (list op* arg*) (get-representation (operator-info op* 'otype)))]
         [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-         (define iprec (first (operator-info op 'itype)))
-         (define oprec (operator-info op 'otype))
-         (define-values (body* rtype) (loop body iprec))
-         (values (list op body*) oprec)]
+         (define irepr (get-representation (first (operator-info op 'itype))))
+         (define orepr (get-representation (operator-info op 'otype)))
+         (define-values (body* rtype) (loop body irepr))
+         (values (list op body*) orepr)]
         [(list (and (or 're 'im) op) arg)
          ; TODO: this special case can be removed when complex-herbie is moved to a composite type
          (define-values (arg* atype) (loop arg 'complex))
-         (values (list op arg*) 'binary64)]
+         (values (list op arg*) (get-representation 'binary64))]
         [(list 'complex re im)
          ; TODO: this special case can be removed when complex-herbie is moved to a composite type
          (define-values (re* re-type) (loop re 'binary64))
          (define-values (im* im-type) (loop im 'binary64))
-         (values (list 'complex re* im*) 'complex)]
+         (values (list 'complex re* im*) (get-representation 'complex))]
         [(or (? constant-operator? x) (list x)) ; constant
          (let/ec k
            (for/list ([name (operator-all-impls x)])
-             (define rtype (operator-info name 'otype))
-             (when (or (equal? rtype prec) (equal? rtype 'bool))
+             (define rtype (get-representation (operator-info name 'otype)))
+             (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
                (k (list name) rtype)))
            (error 'sugar "Could not find constant implementation for ~a at ~a" x prec))]
         [(list op args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
-             (loop arg prec)))
+             (loop arg repr)))
          ;; Match guaranteed to succeed because we ran type-check first
          (define op* (apply get-parametric-operator op atypes))
-         (values (cons op* args*) (operator-info op* 'otype))]
+         (values (cons op* args*) (get-representation (operator-info op* 'otype)))]
         [(? number?) 
          (values
            (match expr
              [(or +inf.0 -inf.0 +nan.0) expr]
              [(? exact?) expr]
              [_ (inexact->exact expr)])
-           prec)]
-        [(? boolean?) (values expr 'bool)]
+           repr)]
+        [(? boolean?) (values expr (get-representation 'bool))]
         [(? variable?)
-         (define vprec (representation-name (dict-ref var-reprs expr)))
+         (define vrepr (dict-ref var-reprs expr))
          (cond
-          [(equal? vprec 'bool) (values expr 'bool)]
-          [(equal? vprec prec) (values expr prec)]
+          [(equal? (representation-type vrepr) 'bool) (values expr vrepr)]
+          [(equal? vrepr repr) (values expr repr)]
           [else
-           (define conv (get-repr-conv vprec prec))
-           (unless conv (error 'expand-parametric "Conversion does not exist: ~a -> ~a\n" vprec prec))
+           (define conv (get-repr-conv vrepr repr))
+           (unless conv
+             (error 'expand-parametric "Conversion does not exist: ~a -> ~a\n"
+                    (representation-name vprec) (representation-name prec)))
            (values (list conv expr) prec)])]))) 
   expr*)
 
