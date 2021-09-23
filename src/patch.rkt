@@ -124,7 +124,8 @@
 
     ; Probably unnecessary, at least CI passes!
     (define (is-nan? x)
-      (and (operator? x) (equal? (hash-ref parametric-operators-reverse x #f) 'NAN)))
+      (and (impl-exists? x) (equal? (impl->operator x) 'NAN)))
+
     (define series-expansions*
       (filter-not
         (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))

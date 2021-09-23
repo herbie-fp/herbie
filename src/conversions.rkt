@@ -33,12 +33,12 @@
   (define conv1 (sym-append prec1* '-> prec2*))
   (define conv2 (sym-append prec2* '-> prec1*))
 
-  (unless (hash-has-key? parametric-operators-reverse conv1)
+  (unless (impl-exists? conv1)
     (define impl (compose (representation-bf->repr repr2) (representation-repr->bf repr1)))
     (register-operator-impl! 'cast conv1 (list prec1) prec2  ; fallback implementation
       (list (cons 'fl impl))))
   
-  (unless (hash-has-key? parametric-operators-reverse conv2)
+  (unless (impl-exists? conv2)
     (define impl (compose (representation-bf->repr repr1) (representation-repr->bf repr2)))
     (register-operator-impl! 'cast conv2 (list prec2) prec1  ; fallback implementation
       (list (cons 'fl impl))))
@@ -47,13 +47,13 @@
   (define repr-rewrite1 (sym-append '<- prec1*))
   (define repr-rewrite2 (sym-append '<- prec2*))
 
-  (unless (hash-has-key? parametric-operators repr-rewrite1)
+  (unless (operator-exists? repr-rewrite1)
     (register-operator! repr-rewrite1 (list 'real) 'real
       (list (cons 'bf identity) (cons 'ival identity)))
     (register-operator-impl! repr-rewrite1 repr-rewrite1 (list prec1) prec1
       (list (cons 'fl identity))))
 
-  (unless (hash-has-key? parametric-operators repr-rewrite2)
+  (unless (operator-exists? repr-rewrite2)
     (register-operator! repr-rewrite2 (list 'real) 'real
       (list (cons 'bf identity) (cons 'ival identity)))
     (register-operator-impl! repr-rewrite2 repr-rewrite2 (list prec2) prec2
@@ -75,10 +75,10 @@
   (define repr-rewrite2 (sym-append '<- prec2*))
 
   ;; if missing, try generating them
-  (unless (and (hash-has-key? parametric-operators-reverse conv1)
-               (hash-has-key? parametric-operators-reverse conv2)
-               (hash-has-key? parametric-operators repr-rewrite1)
-               (hash-has-key? parametric-operators repr-rewrite2))
+  (unless (and (impl-exists? conv1)
+               (impl-exists? conv2)
+               (operator-exists? repr-rewrite1)
+               (operator-exists? repr-rewrite2))
     (generate-conversion-ops prec1 prec2))
 
   ;; Repr rewrite/conversion rules

@@ -41,10 +41,10 @@
     [#`,(? number?) type]
     [#`,(? constant-operator? x)
      (let/ec k
-       (for/list ([sig (hash-ref parametric-operators x)])
-         (match-define (list* name rtype atypes) sig)
+       (for/list ([name (operator-all-impls x)])
+         (define rtype (operator-info name 'otype))
          (when (or (equal? rtype type) (equal? rtype 'bool))
-           (k (operator-info name 'otype))))
+           (k rtype)))
        (error! stx "Could not find implementation of ~a for ~a" x type))]
     [#`,(? variable? x)
      (define vtype (dict-ref env x))
@@ -91,11 +91,9 @@
          (begin
           (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
-                   (for/list ([sig (hash-ref parametric-operators 'neg)])
-                     (match-define (list* _ _ atypes) sig)
-                     (if (list? atypes)
-                         (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " "))
-                         (format "(- <~a> ...)" atypes)))
+                   (for/list ([sig (operator-all-impls 'neg)])
+                     (define atypes (operator-info sig 'itype))
+                     (format "(- ~a)" (string-join (map (curry format "<~a>") atypes) " ")))
                    " or ")
                   actual-type)
           #f))]    
@@ -148,11 +146,9 @@
          (begin
           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
                   (string-join
-                    (for/list ([sig (hash-ref parametric-operators op)])
-                     (match-define (list* _ _ atypes) sig)
-                     (if (list? atypes)
-                         (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " "))
-                         (format "(~a <~a> ...)" op atypes)))
+                    (for/list ([sig (operator-all-impls op)])
+                      (define atypes (operator-info sig 'itype))
+                      (format "(~a ~a)" op (string-join (map (curry format "<~a>") atypes) " ")))
                     " or ")
                   op (string-join (map (curry format "<~a>") actual-types) " "))
           #f))]
@@ -177,7 +173,7 @@
   (define (fail stx msg . args)
     (error (apply format msg args) stx))
 
-  (define (check-type env-type rtype expr #:env [env #hash()])
+  (define (check-types env-type rtype expr #:env [env #hash()])
     (load-representations! env-type env) ; load ops (unit tests)
     (check-equal? (expression->type expr env env-type fail) rtype))
 
@@ -189,13 +185,13 @@
        v)
      #t))
 
-  (check-type 'binary64 'binary64 #'4)
-  (check-type 'binary64'binary64 #'x #:env #hash((x . binary64)))
-  (check-type 'binary64 'binary64 #'(acos x) #:env #hash((x . binary64)))
+  (check-types 'binary64 'binary64 #'4)
+  (check-types 'binary64 'binary64 #'x #:env #hash((x . binary64)))
+  (check-types 'binary64 'binary64 #'(acos x) #:env #hash((x . binary64)))
   (check-fails 'binary64 #'(acos x) #:env #hash((x . bool)))
-  (check-type 'binary64 'bool #'(and a b c) #:env #hash((a . bool) (b . bool) (c . bool)))
-  (check-type 'binary64 'binary64 #'(if (== a 1) 1 0) #:env #hash((a . binary64)))
+  (check-types 'binary64 'bool #'(and a b c) #:env #hash((a . bool) (b . bool) (c . bool)))
+  (check-types 'binary64 'binary64 #'(if (== a 1) 1 0) #:env #hash((a . binary64)))
   (check-fails 'binary64 #'(if (== a 1) 1 0) #:env #hash((a . bool)))
-  (check-type 'binary64 'bool #'(let ([a 1]) TRUE))
+  (check-types 'binary64 'bool #'(let ([a 1]) TRUE))
   (check-fails 'binary64 #'(if (== a 1) 1 TRUE) #:env #hash((a . binary64)))
-  (check-type 'binary64 'binary64 #'(let ([a 1]) a) #:env #hash((a . bool))))
+  (check-types 'binary64 'binary64 #'(let ([a 1]) a) #:env #hash((a . bool))))
