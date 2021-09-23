@@ -68,7 +68,7 @@
 (define (rewrite-expression expr repr #:rules rules #:root [root-loc '()] #:destruct [destruct? #f])
   (define type (repr-of expr repr (*var-reprs*)))
   (reap [sow]
-    (for ([rule rules] #:when (equal? type (get-representation (rule-otype rule))))
+    (for ([rule rules] #:when (equal? type (rule-otype rule)))
       (let* ([result (rule-apply rule expr)])
         (when result
             (sow (list (change rule root-loc (cdr result)))))))))
@@ -77,7 +77,7 @@
   (define type (repr-of expr repr (*var-reprs*)))
   (define (rewriter sow expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
-    (for ([rule rules] #:when (equal? type (get-representation (rule-otype rule))))
+    (for ([rule rules] #:when (equal? type (rule-otype rule)))
       (when (or
              (not ghead) ; Any results work for me
              (and

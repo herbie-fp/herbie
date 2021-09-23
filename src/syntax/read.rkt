@@ -77,7 +77,8 @@
         body))
 
   ;; load conversion operators for desugaring
-  (define convs (dict-ref prop-dict* ':herbie-conversions '()))
+  (define convs (map (curry map get-representation)
+                     (dict-ref prop-dict* ':herbie-conversions '())))
   (generate-conversions convs)
 
   ;; inline and desugar

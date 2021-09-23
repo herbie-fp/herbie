@@ -34,7 +34,7 @@
 
 (define (rules->irules rules)
   (if use-egg-math?
-      (for/list [(rule rules)]
+      (for/list ([rule rules])
         (irule (rule-name rule) (rule-input rule) (rule-output rule)))
       (list)))
 

@@ -17,13 +17,13 @@
   (set! fn-inverses
         (remove-duplicates
          (map
-          (λ (r) (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f))
+          (λ (r) (resugar-program (rule-input r) (rule-otype r) #:full #f))
           (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
   (set! fn-evaluations
         (for/hash ([r (*rules*)] #:when (null? (free-variables (rule-input r))))
           (values
-           (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f)
-           (resugar-program (rule-output r) (get-representation (rule-otype r)) #:full #f)))))
+           (resugar-program (rule-input r) (rule-otype r) #:full #f)
+           (resugar-program (rule-output r) (rule-otype r) #:full #f)))))
 
 (define (simplify expr)
   (match expr

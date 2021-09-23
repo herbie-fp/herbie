@@ -45,7 +45,7 @@
     (for/list ([(k v) (in-hash (*conversions*))]
               #:unless (equal? k prec)
               #:when (set-member? v prec))
-      (define rewrite (get-rewrite-operator k))
+      (define rewrite (get-rewrite-operator (get-representation k)))
       (define prog* `(λ ,(program-variables prog) (,rewrite ,(program-body prog))))
       (alt (apply-repr-change prog*) 'start '()))))
 

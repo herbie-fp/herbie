@@ -233,7 +233,7 @@
            '())
      :name ,(table-row-name row)
      :precision ,(table-row-precision row)
-     :herbie-conversions ,(table-row-conversions row)
+     :herbie-conversions ,(map (curry map representation-name) (table-row-conversions row))
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
      ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
