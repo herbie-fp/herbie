@@ -274,7 +274,7 @@
     (match expr
      [(list (? repr-conv? op) body)
       (define irepr (get-representation (first (operator-info op 'itype))))
-      (define oprec (get-representation (operator-info op 'otype)))
+      (define orepr (get-representation (operator-info op 'otype)))
       (define repr* (or repr orepr))
       (define body* (loop body irepr))
       (cond

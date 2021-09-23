@@ -64,7 +64,6 @@
   (define-values (expr* prec)
     (let loop ([expr expr] [repr repr]) ; easier to work with repr names
       ;; Run after unfold-let, so no need to track lets
-      (define prec (representation-name repr))
       (match expr
         [(list 'if cond ift iff)
          (define-values (cond* _a) (loop cond repr))
@@ -113,7 +112,7 @@
              (define rtype (get-representation (operator-info name 'otype)))
              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
                (k (list name) rtype)))
-           (error 'sugar "Could not find constant implementation for ~a at ~a" x prec))]
+           (error 'sugar "Could not find constant implementation for ~a at ~a" x (representation-name repr)))]
         [(list op args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
@@ -138,8 +137,8 @@
            (define conv (get-repr-conv vrepr repr))
            (unless conv
              (error 'expand-parametric "Conversion does not exist: ~a -> ~a\n"
-                    (representation-name vprec) (representation-name prec)))
-           (values (list conv expr) prec)])]))) 
+                    (representation-name vrepr) (representation-name repr)))
+           (values (list conv expr) repr)])]))) 
   expr*)
 
 ;; TODO(interface): This needs to be changed once the syntax checker is updated
