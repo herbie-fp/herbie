@@ -91,10 +91,10 @@
         [(list (or 'neg '-) arg) ; unary minus
          (define-values (arg* atype) (loop arg repr))
          (define op* (get-parametric-operator 'neg atype))
-         (values (list op* arg*) (get-representation (operator-info op* 'otype)))]
+         (values (list op* arg*) (operator-info op* 'otype))]
         [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-         (define irepr (get-representation (first (operator-info op 'itype))))
-         (define orepr (get-representation (operator-info op 'otype)))
+         (define irepr (first (operator-info op 'itype)))
+         (define orepr (operator-info op 'otype))
          (define-values (body* rtype) (loop body irepr))
          (values (list op body*) orepr)]
         [(list (and (or 're 'im) op) arg)
@@ -109,7 +109,7 @@
         [(or (? constant-operator? x) (list x)) ; constant
          (let/ec k
            (for/list ([name (operator-all-impls x)])
-             (define rtype (get-representation (operator-info name 'otype)))
+             (define rtype (operator-info name 'otype))
              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
                (k (list name) rtype)))
            (error 'sugar "Could not find constant implementation for ~a at ~a" x (representation-name repr)))]
@@ -119,7 +119,7 @@
              (loop arg repr)))
          ;; Match guaranteed to succeed because we ran type-check first
          (define op* (apply get-parametric-operator op atypes))
-         (values (cons op* args*) (get-representation (operator-info op* 'otype)))]
+         (values (cons op* args*) (operator-info op* 'otype))]
         [(? number?) 
          (values
            (match expr
@@ -151,7 +151,7 @@
      (define iff* (expand-parametric-reverse iff repr full?))
      (list 'if cond* ift* iff*)]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-     (define repr* (get-representation (first (operator-info op 'itype))))
+     (define repr* (first (operator-info op 'itype)))
      (define body* (expand-parametric-reverse body repr* full?))
      (cond
       [(not full?) `(,op ,body*)]
@@ -163,7 +163,7 @@
     [(list op args ...)
      (define op* (impl->operator op))
      (define args*
-       (for/list ([arg args] [repr (map get-representation (operator-info op 'itype))])
+       (for/list ([arg args] [repr (operator-info op 'itype)])
          (expand-parametric-reverse arg repr full?)))
      (if (and full? (equal? op* 'neg) (= (length args) 1)) ; if only unparameterizing, leave 'neg' alone
          (cons '- args*)

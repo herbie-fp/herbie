@@ -83,7 +83,7 @@
       [(list 'if cond ift iff)
         (append (loop cond) (loop ift) (loop iff))]
       [(list op args ...)
-        (append (map get-representation (operator-info op 'itype)) (append-map loop args))]
+        (append (operator-info op 'itype) (append-map loop args))]
       [_ '()]))))
 
 (define (type-of-rule input output ctx)
@@ -91,11 +91,11 @@
     [(list? input) 
       (if (equal? (car input) 'if)
           (type-of-rule (caddr input) output ctx)
-          (get-representation (operator-info (car input) 'otype)))]
+          (operator-info (car input) 'otype))]
     [(list? output)
       (if (equal? (car output) 'if)
           (type-of-rule input (caddr output) ctx)
-          (get-representation (operator-info (car output) 'otype)))]
+          (operator-info (car output) 'otype))]
     [(symbol? input) (dict-ref ctx input)]   ; fallback: if symbol, check ctx for type
     [(symbol? output) (dict-ref ctx output)]
     [else

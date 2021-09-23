@@ -43,7 +43,7 @@
     [#`,(? constant-operator? x)
      (let/ec k
        (for/list ([name (operator-all-impls x)])
-         (define rtype (get-representation (operator-info name 'otype)))
+         (define rtype (operator-info name 'otype))
          (when (or (equal? rtype type) (equal? (representation-type rtype) 'bool))
            (k rtype)))
        (error! stx "Could not find implementation of ~a for ~a" x (representation-name type)))]
@@ -90,12 +90,12 @@
      (define actual-type (expression->type arg env type error!))
      (define op* (get-parametric-operator 'neg actual-type #:fail-fast? #f))
      (if op*
-         (get-representation (operator-info op* 'otype))
+         (operator-info op* 'otype)
          (begin
           (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
                    (for/list ([sig (operator-all-impls 'neg)])
-                     (define atypes (map get-representation (operator-info sig 'itype)))
+                     (define atypes (operator-info sig 'itype))
                      (format "(- ~a)" (string-join
                                        (for/list ([atype atypes])
                                          (format "<~a>" (representation-name atype)))
@@ -152,12 +152,12 @@
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (define op* (apply get-parametric-operator op actual-types #:fail-fast? #f))
      (if op*
-         (get-representation (operator-info op* 'otype))
+         (operator-info op* 'otype)
          (begin
           (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
                   (string-join
                     (for/list ([sig (operator-all-impls op)])
-                      (define atypes (map get-representation (operator-info sig 'itype)))
+                      (define atypes (operator-info sig 'itype))
                       (format "(~a ~a)" op (string-join
                                             (for/list ([atype atypes])
                                               (format "<~a>" (representation-name atype)))

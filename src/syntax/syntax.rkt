@@ -153,8 +153,8 @@
     (error 'operator-info "Unknown operator ~a" operator))
   (define accessor
     (match field
-      ['itype operator-impl-itype]
-      ['otype operator-impl-otype]
+      ['itype (compose (curry map get-representation) operator-impl-itype)]
+      ['otype (compose get-representation operator-impl-otype)]
       ['bf operator-impl-bf]
       ['fl operator-impl-fl]
       ['ival operator-impl-ival]))
@@ -202,7 +202,7 @@
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
     (for/or ([impl (operator-all-impls name)])
-      (define atypes (map get-representation (operator-info impl 'itype)))
+      (define atypes (operator-info impl 'itype))
       (and (equal? atypes actual-types) impl))
     (and fail-fast?
          (error 'get-parametric-operator
@@ -259,8 +259,8 @@
 (define (get-repr-conv irepr orepr)
   (for/or ([name (operator-all-impls 'cast)])
     (and (repr-conv? name)
-         (equal? (get-representation (operator-info name 'otype)) orepr)
-         (equal? (get-representation (first (operator-info name 'itype))) irepr)
+         (equal? (operator-info name 'otype) orepr)
+         (equal? (first (operator-info name 'itype)) irepr)
          name)))
 
 (define-operator (PI) real
