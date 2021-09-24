@@ -156,7 +156,6 @@
 
 ;; Generate a set of rules by replacing a generic type with a repr
 (define (generate-rules-for type repr)
-  (define repr-name (representation-name repr))
   (define typename (type-name type))
   (define valid? (disjoin (curry equal? typename)
                           (curry set-member? (map representation-name (*reprs-with-rules*)))))
@@ -173,7 +172,7 @@
                   (get-representation t))))) ;; Only bad one!
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
-        (let ([name* (sym-append (rule-name r) '_ repr-name)]
+        (let ([name* (sym-append (rule-name r) '_ (representation-name repr))]
               [input* (with-handlers ([exn:fail? (const #f)])
                         (desugar-program (rule-input r) repr ctx #:full #f))]
               [output* (with-handlers ([exn:fail? (const #f)])
