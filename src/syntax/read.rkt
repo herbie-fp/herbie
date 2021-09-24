@@ -54,7 +54,7 @@
        ['() prop-dict]
        [(list (cons prop val) rest ...)
         (loop (dict-set* prop-dict prop val) rest)])))
-  
+
   (define default-repr (get-representation (dict-ref prop-dict* ':precision 'binary64)))
   (define var-reprs 
     (for/list ([arg args] [arg-name arg-names])
