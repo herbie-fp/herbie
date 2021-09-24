@@ -164,7 +164,7 @@
   (-> symbol? any/c)
   (hash-remove! operator-impls operator))
 
-(define (register-operator-impl! operator name atypes rtype attrib-dict)
+(define (register-operator-impl! operator name areprs rrepr attrib-dict)
   (unless (hash-has-key? operators operator)
     (error 'register-operator-impl!
            "Cannot register ~a as implementation of ~a: no such operator"
