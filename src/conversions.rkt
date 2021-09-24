@@ -26,8 +26,8 @@
 
 ;; Generates conversion, repr-rewrite operators for prec1 and prec2
 (define (generate-conversion-ops repr1 repr2)
-  (define prec1* (munge-prec (repr->symbol repr1)))
-  (define prec2* (munge-prec (repr->symbol repr2)))
+  (define prec1* (repr->symbol repr1))
+  (define prec2* (repr->symbol repr2))
 
   ;; Repr conversions, e.g. repr1->repr2
   (define conv1 (sym-append prec1* '-> prec2*))

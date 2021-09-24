@@ -47,7 +47,7 @@
           (identifier . ,(~s identifier))
           (pre . ,(~s pre))
           (preprocess . ,(~s (map preprocess->sexp preprocess)))
-          (prec . ,(~s (representation-name prec))
+          (prec . ,(~s (representation-name prec)))
           (conversions . ,(map (curry map (compose ~s representation-name)) conversions))
           (status . ,status)
           (start . ,start-bits)
