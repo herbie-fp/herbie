@@ -55,8 +55,6 @@
 
 (define-eggmath destroy_egraphiters (_fun _uint _EGraphIter-pointer -> _void))
 
-(define-eggmath destroy_string (_fun _pointer -> _void))
-
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _bool))
 
 (define-eggmath egraph_run (_fun _egraph-pointer
@@ -72,7 +70,7 @@
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer
                                          _uint ;; node id
                                          _uint ;; iteration
-                                         -> _string/utf-8))
+                                         -> _pointer))
 
 (define-eggmath egraph_get_proof (_fun _egraph-pointer
                                        _string/utf-8

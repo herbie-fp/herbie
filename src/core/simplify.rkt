@@ -3,7 +3,7 @@
 (require pkg/lib racket/lazy-require)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt")
-(provide simplify-expr simplify-expr-with-proof simplify-batch make-simplification-combinations
+(provide simplify-expr simplify-batch make-simplification-combinations
          (struct-out simplify-result))
 (module+ test (require rackunit "../load-plugin.rkt"))
 
@@ -32,7 +32,7 @@
 
 ;; prefab struct used to send rules to egg-herbie
 (struct irule (name input output) #:prefab)
-(struct simplify-result (iterations proof))
+(struct simplify-result (expr proof))
 
 (define (rules->irules rules)
   (if use-egg-math?
@@ -56,10 +56,11 @@
   
   (define options
     (for/list ([option location-options])
-      (for/fold ([child child]) ([replacement option] [loc locs])
+      (for/fold ([child child]) ([replacement-result option] [loc locs])
+        (match-define (simplify-result replacement proof) replacement-result)
         (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
         (if (not (equal? (alt-program child) child*))
-            (alt child* (list 'simplify loc) (list child))
+            (alt child* (list 'simplify loc proof) (list child))
             child))))
 
   ; Simplify-streaming lite
@@ -68,26 +69,15 @@
         (cons option all)
         (append (list option child) all))))
 
-(define/contract (simplify-expr-with-proof expr #:rules rls #:precompute [precompute? false])
-  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) (cons/c expr? string?))
-  (define result (first (simplify-batch (list expr) #:rules rls #:precompute precompute? #:prove true)))
-
-  (timeline-push! 'proof (simplify-result-proof result))
-  (when (equal? (simplify-result-proof result) "")
-        (error "Failed to prove two expressions equal from egraph"))
-    
-  (cons (last (simplify-result-iterations result)) (simplify-result-proof result)))
-
-(define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false])
-  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
-  (last (simplify-result-iterations
-          (first (simplify-batch (list expr) #:rules rls #:precompute precompute?)))))
+(define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
+  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) simplify-result?)
+  (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
 
 
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 (define/contract (simplify-batch exprs #:rules rls #:precompute [precompute? false] #:prove [prove? false])
-  (->* ((listof expr?) #:rules (listof rule?)) (#:precompute boolean? #:prove boolean?) (listof simplify-result?))
+  (->* ((listof expr?) #:rules (listof rule?)) (#:precompute boolean? #:prove boolean?) (listof (listof simplify-result?)))
 
   (define driver
     (cond
@@ -99,13 +89,12 @@
       simplify-batch-regraph]))
 
   (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
-  (define simplify-results (driver exprs #:rules rls #:precompute precompute? #:prove prove?))
+  (define results (driver exprs #:rules rls #:precompute precompute? #:prove prove?))
   (define out
-    (for/list ([result simplify-results] [expr exprs])
-             (simplify-result (remove-duplicates (cons expr (simplify-result-iterations result)))
-                              (simplify-result-proof result))))
+    (for/list ([result results] [expr exprs])
+              (remove-duplicates (cons (simplify-result expr "") result))))
   (debug #:from 'simplify "Simplified to:\n  "
-         (string-join (map ~a (map (compose last simplify-result-iterations) out)) "\n  "))
+         (string-join (map ~a (map (compose simplify-result-expr last) out)) "\n  "))
     
   out)
 
@@ -114,7 +103,7 @@
                         regraph-count regraph-cost regraph-extract)])
 
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute? #:prove prove?)
-  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prove boolean? (listof simplify-result?))
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prove boolean? (listof (listof simplify-result?)))
   (timeline-push! 'method "regraph")
 
   (define start-time (current-inexact-milliseconds))
@@ -140,18 +129,17 @@
     (and (< initial-cnt (regraph-count rg) (*node-limit*))))
 
   (log rg "done")
-  (map (lambda (a) (simplify-result a ""))
-       (map list (map unmunge ((regraph regraph-extract) rg)))))
+  (map (lambda (a) (list (simplify-result a ""))) (regraph-extract rg)))
 
 (lazy-require
  [egg-herbie (with-egraph egraph-add-exprs egraph-run
-                          egraph-is-unsound-detected
+                          egraph-is-unsound-detected egraph-get-proof
                           egraph-get-times-applied egraph-get-simplest egraph-get-cost
                           egg-expr->expr make-ffi-rules free-ffi-rules
                           iteration-data-num-nodes iteration-data-time)])
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute? #:prove prove?)
-  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prove boolean? (listof simplify-result?))
+  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prove boolean? (listof (listof simplify-result?)))
   (timeline-push! 'method "egg-herbie")
   (define irules (rules->irules rls))
 
@@ -180,14 +168,16 @@
         
         (for/list ([iterations all-iterations] [expr exprs])
                   ;; TODO make this only prove if prove? is true
-                  (define proof (if #t
-                                    (egraph-get-proof egg-graph expr (last iterations))
-                                    ""))
-                  (when (equal? proof "")
-                        (error (string-append
-                                "Failed to produce proof for "
-                                (~a expr) " to " (~a (last iterations)))))
-                  (simplify-result iterations proof)))))))
+                  (for/list ([result iterations])
+                            (define proof
+                              (if prove?
+                                  (egraph-get-proof egg-graph expr result)
+                                  ""))
+                            (when (and (equal? proof "") prove?)
+                                  (error (string-append
+                                          "Failed to produce proof for "
+                                          (~a expr) " to " (~a result))))
+                            (simplify-result result proof))))))))
 
 (define (egg-run-rules egg-graph node-limit irules node-ids precompute?)
   (define ffi-rules (make-ffi-rules irules))

@@ -206,8 +206,8 @@
            [(list 'change cng)
             (match-define (change rule loc binds) cng)
             (list 'change (change rule (append loc0 (cdr loc)) binds))]
-           [(list 'simplify loc)
-            (list 'simplify (append loc0 (cdr loc)))]))
+           [(list 'simplify loc proof)
+            (list 'simplify (append loc0 (cdr loc)) proof)]))
         (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))
         (alt prog* event* (list (loop (first prev))))])))
   
@@ -361,7 +361,7 @@
   (define cleaned-alts
     (remove-duplicates
       (for/list ([altn joined-alts] [progs progss*])
-        (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
+        (alt `(λ ,(program-variables (alt-program altn)) ,(simplify-result-expr (last progs)))
               'final-simplify (list altn)))
       alt-equal?))
   (timeline-event! 'end)

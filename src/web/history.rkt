@@ -84,7 +84,7 @@
                                                       "ERROR")        
                                                   "\\]")))]
 
-    [(alt prog `(simplify ,loc) `(,prev))
+    [(alt prog `(simplify ,loc ,proof) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))

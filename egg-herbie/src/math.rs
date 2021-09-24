@@ -120,23 +120,23 @@ impl Analysis<Math> for ConstantFold {
                     } else {
                         x(a)? / x(b)?
                     }
-                }
-            }
-            Math::Neg([_p, a]) => Some(-x(a)?.clone()),
-            Math::Pow([_p, a, b]) => {
-                if is_zero(a) {
-                    if x(b)?.is_positive() {
-                        Ratio::new(BigInt::from(0), BigInt::from(1))
+                },
+                Math::Neg([_p, a]) => -x(a)?.clone(),
+                Math::Pow([_p, a, b]) => {
+                    if is_zero(a) {
+                        if x(b)?.is_positive() {
+                            Ratio::new(BigInt::from(0), BigInt::from(1))
+                        } else {
+                            return None
+                        }
+                    } else if is_zero(b) {
+                        Ratio::new(BigInt::from(1), BigInt::from(1))
+                    } else if x(b)?.is_integer() {
+                        Pow::pow(x(a)?, x(b)?.to_integer())
                     } else {
                         return None
                     }
-                } else if is_zero(b) {
-                    Ratio::new(BigInt::from(1), BigInt::from(1))
-                } else if x(b)?.is_integer() {
-                    Pow::pow(x(a)?, x(b)?.to_integer())
-                } else {
-                    return None
-                }
+                },
                 Math::Sqrt([_p, a]) => {
                     let a = x(a)?;
                     if *a.numer() > BigInt::from(0) && *a.denom() > BigInt::from(0) {
@@ -153,14 +153,14 @@ impl Analysis<Math> for ConstantFold {
                     }
                 }
                 Math::Log([_p, a]) => {
-                    if x(a)? == &Ratio::new(BigInt::from(1), BigInt::from(1)) {
+                    if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
                         Ratio::new(BigInt::from(0), BigInt::from(1))
                     } else {
                         return None
                     }
                 }
                 Math::Cbrt([_p, a]) => {
-                    if x(a)? == &Ratio::new(BigInt::from(1), BigInt::from(1)) {
+                    if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
                         Ratio::new(BigInt::from(1), BigInt::from(1))
                     } else {
                         return None
