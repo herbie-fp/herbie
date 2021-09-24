@@ -116,7 +116,7 @@
    [(define-ruleset name groups [rname input output] ...)
     (define-ruleset name groups #:type () [rname input output] ...)]
    [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
-    (register-ruleset! 'name 'groups `((var . ,(get-representation type)) ...)
+    (register-ruleset! 'name 'groups `((var . ,(get-representation 'type)) ...)
                        '((rname input output) ...))]))
 
 ;; Templated rulesets defined by types. These are used to generate duplicate rules that
