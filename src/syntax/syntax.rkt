@@ -130,7 +130,7 @@
 
 ;; Operator implementations
 
-(struct operator-impl (name op itype otype bf fl ival))
+(struct operator-impl (name op itype otype fl))
 (define operator-impls (make-hasheq))
 
 (define operators-to-impls (make-hasheq))
@@ -153,46 +153,41 @@
     (error 'operator-info "Unknown operator ~a" operator))
   (define accessor
     (match field
-      ['itype (compose (curry map get-representation) operator-impl-itype)]
-      ['otype (compose get-representation operator-impl-otype)]
-      ['bf operator-impl-bf]
+      ['itype operator-impl-itype]
+      ['otype operator-impl-otype]
+      ['bf (compose operator-bf operator-impl-op)]
       ['fl operator-impl-fl]
-      ['ival operator-impl-ival]))
+      ['ival (compose operator-ival operator-impl-op)]))
   (accessor (hash-ref operator-impls operator)))
 
 (define/contract (operator-remove! operator)
   (-> symbol? any/c)
   (hash-remove! operator-impls operator))
 
-(define (check-operator-types! inherited itypes otype)
-  (define itypes* (dict-ref inherited 'itype))
-  (define otype* (dict-ref inherited 'otype))
-  (define prec->type (compose representation-type get-representation))
-  (and (equal? (prec->type otype) otype*)
-       (or (and (type-name? itypes*) (type-name? itypes)
-                (equal? (prec->type itypes) itypes*))
-           (map (λ (x y) (equal? (prec->type x) y)) itypes itypes*))))
-
 (define (register-operator-impl! operator name atypes rtype attrib-dict)
+  (define areprs (map get-representation atypes))
+  (define rrepr (get-representation rtype))
+
+  (unless (hash-has-key? operators operator)
+    (error 'register-operator-impl!
+           "Cannot register ~a as implementation of ~a: no such operator"
+           name operator))
+
+
   (define op (hash-ref operators operator))
-  (define default-attrib
-    (list (cons 'itype (operator-itype op))
-          (cons 'otype (operator-otype op))
-          (cons 'bf (operator-bf op))
-          (cons 'ival (operator-ival op))))
-  (unless default-attrib
-    (error 'register-operator-impl! "Real operator does not exist: ~a" operator))
-  ;; merge inherited and explicit attributes
-  (define attrib-dict* (dict-merge default-attrib attrib-dict))
-  (define itypes (dict-ref attrib-dict 'itype atypes))
-  (define otype (dict-ref attrib-dict 'otype rtype))
-  (unless (equal? operator 'if) ;; if does not work here
-    (check-operator-types! default-attrib itypes otype))
-  ;; Convert attributes to hash, update tables
-  (define fields (make-hasheq attrib-dict*))
-  (hash-set! fields 'itype itypes)
-  (hash-set! fields 'otype otype)
-  (hash-set! operator-impls name (apply operator-impl name op (map (curry hash-ref fields) '(itype otype bf fl ival))))
+  (define fl-fun (dict-ref attrib-dict 'fl))
+  (define bf-fun (operator-bf op))
+  (define ival-fun (operator-ival op))
+
+  (unless (equal? operator 'if) ;; Type check all operators except if
+    (for ([arepr (cons rrepr areprs)]
+          [itype (cons (operator-otype op) (operator-itype op))])
+      (unless (equal? (representation-type arepr) itype)
+        (error 'register-operator-impl!
+               "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
+               name operator rrepr (operator-otype op)))))
+
+  (hash-set! operator-impls name (operator-impl name op areprs rrepr bf-fun fl-fun ival-fun))
   (hash-update! operators-to-impls operator (curry cons name) '()))
   
 
