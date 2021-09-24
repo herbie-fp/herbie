@@ -37,6 +37,13 @@
 (define (repr-has-type? repr type)
   (and repr (equal? (representation-type repr) type)))
 
+(define (application->string op types)
+  (format "(~a ~a)" op
+          (string-join
+           (for/list ([t types])
+             (if t (format "<~a>" (representation-name t)) "<?>"))
+           " ")))
+
 (define (expression->type stx env type error!)
   (match stx
     [#`,(? number?) type]
@@ -154,16 +161,12 @@
      (if op*
          (operator-info op* 'otype)
          (begin
-          (error! stx "Invalid arguments to ~a; expects ~a but got (~a ~a)" op
+          (error! stx "Invalid arguments to ~a; expects ~a but got ~a" op
                   (string-join
                     (for/list ([sig (operator-all-impls op)])
-                      (define atypes (operator-info sig 'itype))
-                      (format "(~a ~a)" op (string-join
-                                            (for/list ([atype atypes])
-                                              (format "<~a>" atype))
-                                            " ")))
+                      (application->string op (operator-info sig 'itype)))
                     " or ")
-                  op (string-join (map (curry format "<~a>") (map representation-name actual-types)) " "))
+                  (application->string op actual-types))
           #f))]
     [#`(,(? (curry hash-has-key? (*functions*)) fname) #,exprs ...)
      (match-define (list vars repr _) (hash-ref (*functions*) fname))
@@ -172,9 +175,9 @@
      (if (andmap equal? actual-types expected)
          repr
          (begin
-           (error! stx "Invalid arguments to ~a; expects (~a ~a) but got (~a ~a)" fname
-                       fname fname (string-join (map (curry format "<~a>") (map representation-name expected)) " ")
-                       fname (string-join (map (curry format "<~a>") (map representation-name actual-types)) " "))
+           (error! stx "Invalid arguments to ~a; expects ~a but got ~a" fname
+                       fname (application->string fname expected)
+                       (application->string fname actual-types))
            #f))]))
 
 (module+ test
