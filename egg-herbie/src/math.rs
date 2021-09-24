@@ -83,7 +83,7 @@ impl Default for ConstantFold {
 
 
 impl Analysis<Math> for ConstantFold {
-    type Data = Option<(Constant, PatternAst<Math>)>;
+    type Data = Option<(Constant, (PatternAst<Math>, Subst))>;
     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
         if !egraph.analysis.constant_fold {
             return None;
@@ -97,14 +97,6 @@ impl Analysis<Math> for ConstantFold {
                 None => false,
             }
         };
-
-        let mut missing_child = false;
-        enode.for_each(|n| if egraph[n].data == None {
-            missing_child = true;
-        });
-        if missing_child {
-            return None;
-        }
 
         Some((
             match enode {
@@ -160,7 +152,9 @@ impl Analysis<Math> for ConstantFold {
                     }
                 }
                 Math::Cbrt([_p, a]) => {
+                    println!("here");
                     if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
+                        println!("here2");
                         Ratio::new(BigInt::from(1), BigInt::from(1))
                     } else {
                         return None
@@ -175,11 +169,16 @@ impl Analysis<Math> for ConstantFold {
             },
             {
                 let mut pattern: PatternAst<Math> = Default::default();
+                let mut var_counter = 0;
+                let mut subst: Subst = Default::default();
                 enode.for_each(|child| {
                     if let Some(constant) = x(&child) {
                         pattern.add(ENodeOrVar::ENode(Math::Constant(constant)));
                     } else {
-                        panic!("Child didn't have constant");
+                        let var = ("?".to_string() + &var_counter.to_string()).parse().unwrap();
+                        pattern.add(ENodeOrVar::Var(var));
+                        subst.insert(var, child);
+                        var_counter += 1;
                     }
                 });
                 let mut counter = 0;
@@ -190,7 +189,7 @@ impl Analysis<Math> for ConstantFold {
                     res
                 });
                 pattern.add(ENodeOrVar::ENode(head));
-                pattern
+                (pattern, subst)
             }))
     }
 
@@ -215,8 +214,8 @@ impl Analysis<Math> for ConstantFold {
 
     fn modify(egraph: &mut EGraph, class_id: Id) {
         let class = &mut egraph[class_id];
-        if let Some((c, node)) = class.data.clone() {
-            egraph.union_instantiations(&node, &format!("{}", c).parse().unwrap(), &Default::default(), "metadata-eval".to_string());
+        if let Some((c, (pat, subst))) = class.data.clone() {
+            egraph.union_instantiations(&pat, &format!("{}", c).parse().unwrap(), &subst, "metadata-eval".to_string());
 
             if egraph.analysis.prune {
                 egraph[class_id].nodes.retain(|n| n.is_leaf())
