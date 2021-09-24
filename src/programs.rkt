@@ -14,7 +14,7 @@
          free-variables replace-expression replace-vars
          apply-repr-change)
 
-(define expr? (or/c list? symbol? real?))
+(define expr? (or/c list? symbol? boolean? real?))
 
 ;; Programs are just lambda expressions
 
