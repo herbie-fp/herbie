@@ -88,7 +88,7 @@
         (define rtype (expression->type body env itype error!))
         (unless (equal? rtype itype)
           (error! stx "Annotation promised precision ~a, but got ~a"
-                  (get-representation itype) (get-representation rtype)))
+                  itype rtype))
         type]
        [else
         (expression->type body env type error!)])]
