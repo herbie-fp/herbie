@@ -19,13 +19,7 @@
   (define type (get-representation (dict-ref props* ':precision 'binary64)))
   (assert-expression-type! body type #:env (for/hash ([var vars]) (values (syntax-e var) type))))
 
-(define (load-representations! rtype env)
-  (get-representation rtype)
-  (for ([(_ r) (in-dict env)])
-    (get-representation r)))
-
 (define (assert-expression-type! stx expected-rtype #:env [env #hash()])
-  (load-representations! expected-rtype env) ; load ops (unit tests)
   (define errs
     (reap [sow]
           (define (error! stx fmt . args)
