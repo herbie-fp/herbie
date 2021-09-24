@@ -189,8 +189,7 @@
     (error (apply format msg args) stx))
 
   (define (check-types env-type rtype expr #:env [env #hash()])
-    (check-equal? (expression->type expr env env-type fail)
-                  rtype))
+    (check-equal? (expression->type expr env env-type fail) rtype))
 
   (define (check-fails type expr #:env [env #hash()])
     (check-equal?
@@ -207,8 +206,8 @@
   (check-types <b64> <b64> #'(acos x) #:env `((x . ,<b64>)))
   (check-fails <b64> #'(acos x) #:env `((x . ,<bool>)))
   (check-types <b64> <bool> #'(and a b c) #:env `((a . ,<bool>) (b . ,<bool>) (c . ,<bool>)))
-  (check-types <b64> <b64> #'(if (== a 1) 1 0) #:env `((a . binary64)))
+  (check-types <b64> <b64> #'(if (== a 1) 1 0) #:env `((a . ,<b64>)))
   (check-fails <b64> #'(if (== a 1) 1 0) #:env `((a . ,<bool>)))
   (check-types <b64> <bool> #'(let ([a 1]) TRUE))
-  (check-fails <b64> #'(if (== a 1) 1 TRUE) #:env `((a . binary64)))
+  (check-fails <b64> #'(if (== a 1) 1 TRUE) #:env `((a . ,<b64>)))
   (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>))))
