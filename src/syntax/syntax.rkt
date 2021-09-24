@@ -176,8 +176,6 @@
 
   (define op (hash-ref operators operator))
   (define fl-fun (dict-ref attrib-dict 'fl))
-  (define bf-fun (operator-bf op))
-  (define ival-fun (operator-ival op))
 
   (unless (equal? operator 'if) ;; Type check all operators except if
     (for ([arepr (cons rrepr areprs)]
@@ -187,7 +185,7 @@
                "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
                name operator rrepr (operator-otype op)))))
 
-  (hash-set! operator-impls name (operator-impl name op areprs rrepr bf-fun fl-fun ival-fun))
+  (hash-set! operator-impls name (operator-impl name op areprs rrepr fl-fun))
   (hash-update! operators-to-impls operator (curry cons name) '()))
   
 
@@ -211,22 +209,22 @@
   (hash-ref operators-to-impls name))
 
 ;; real operators
-(define-operator (== real real) real
+(define-operator (== real real) bool
   [bf (comparator bf=)] [ival ival-==])
 
-(define-operator (!= real real) real
+(define-operator (!= real real) bool
   [bf (negate (comparator bf=))] [ival ival-!=])
 
-(define-operator (< real real) real
+(define-operator (< real real) bool
   [bf (comparator bf<)] [ival ival-<])
 
-(define-operator (> real real) real
+(define-operator (> real real) bool
   [bf (comparator bf>)] [ival ival->])
 
-(define-operator (<= real real) real
+(define-operator (<= real real) bool
   [bf (comparator bf<=)] [ival ival-<=])
 
-(define-operator (>= real real) real
+(define-operator (>= real real) bool
   [bf (comparator bf>=)] [ival ival->=])
 
 ;; logical operators ;;
