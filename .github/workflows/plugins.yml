@@ -1,0 +1,36 @@
+name: Unit, Integration, and Plugin tests
+
+on: [push]
+
+env:
+  RUST_BACKTRACE: full
+
+jobs:
+  softposit:
+    name: "Plugin tests (Posits)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v1.3.1
+        with:
+          version: '8.0'
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      - name: "Check out softposit-herbie master"
+        uses: actions/checkout@master
+        with:
+          repository: herbie-fp/softposit-herbie
+          path: plugin
+      - name: "Install SoftPosit support"
+        run: raco pkg install --no-cache --auto --name softposit-herbie plugin/
+      - run: racket infra/travis.rkt --precision posit16 --seed 0 plugin/bench/posits.fpcore
