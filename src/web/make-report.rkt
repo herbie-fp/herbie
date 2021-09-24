@@ -15,7 +15,7 @@
   (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
                                        (list (list 0 0)))
                     cas))
-  (define reprs (map (compose get-representation table-row-precision) trs))
+  (define reprs (map table-row-precision trs))
 
   (define start
     (for/fold ([x 0] [y 0] #:result (cons x y)) ([s starts])
