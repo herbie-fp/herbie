@@ -14,7 +14,7 @@
          free-variables replace-expression replace-vars
          apply-repr-change)
 
-(define expr? (or/c list? symbol? value? real?))
+(define expr? (or/c list? symbol? real?))
 
 ;; Programs are just lambda expressions
 
@@ -191,7 +191,8 @@
       (vector-ref v n))))
 
 (module+ test
-  (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(a b c)))
+  (define <binary64> (get-representation 'binary64))
+  (*var-reprs* (map (curryr cons <binary64>) '(a b c)))
   (define tests
     #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
@@ -204,8 +205,8 @@
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
       ;; When we are in ival mode, we don't use repr, so pass in #f
-      (define iv (apply (eval-prog e 'ival (get-representation 'binary64)) p))
-      (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
+      (define iv (apply (eval-prog e 'ival <binary64>) p))
+      (define val (apply (eval-prog e 'bf <binary64>) p))
       (check-in-interval? iv val))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149

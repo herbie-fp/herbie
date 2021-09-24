@@ -10,7 +10,7 @@
 
 
 (struct test (name identifier vars input output expected spec pre
-              preprocess output-prec var-precs conversions) #:prefab)
+              preprocess output-repr var-reprs conversions) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -23,9 +23,6 @@
 
 (define (test-precondition test)
   `(λ ,(test-vars test) ,(test-pre test)))
-
-(define (test-output-repr test)
-  (get-representation (test-output-prec test)))
 
 (define (parse-test stx [override-ctx '()])
   (assert-program! stx)
@@ -58,8 +55,7 @@
        [(list (cons prop val) rest ...)
         (loop (dict-set* prop-dict prop val) rest)])))
   
-  (define default-prec (dict-ref prop-dict* ':precision 'binary64))
-  (define default-repr (get-representation default-prec))
+  (define default-repr (get-reprsentation (dict-ref prop-dict* ':precision 'binary64)))
   (define var-reprs 
     (for/list ([arg args] [arg-name arg-names])
       (cons arg-name
@@ -98,8 +94,8 @@
         spec
         pre*
         (map sexp->preprocess (dict-ref prop-dict* ':herbie-preprocess empty))
-        (representation-name default-repr)
-        (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)
+        default-repr
+        var-reprs
         convs))
 
 (define (check-unused-variables vars precondition expr)

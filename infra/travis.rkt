@@ -1,10 +1,8 @@
 #lang racket
 
 (require "../src/common.rkt" "../src/points.rkt" "../src/load-plugin.rkt"
-         "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt")
-
-;; Load all the plugins
-(load-herbie-plugins)
+         "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt"
+         "../src/interface.rkt")
 
 (define *precision* (make-parameter #f))
 (define *ignore-target* (make-parameter #f))
@@ -28,9 +26,9 @@
     (define the-test*
       (if (*precision*)
           (struct-copy test the-test
-                       [output-prec (*precision*)]
-                       [var-precs
-                        (for/list ([(var prec) (in-dict (test-var-precs the-test))])
+                       [output-repr (*precision*)]
+                       [var-reprs
+                        (for/list ([(var prec) (in-dict (test-var-reprs the-test))])
                           (cons var (*precision*)))])
           the-test))
     (match (get-test-result the-test* #:seed seed)
@@ -69,8 +67,12 @@
        #f])))
 
 (module+ main
+  ;; Load all the plugins
+  (load-herbie-plugins)
+
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
+
   (command-line
    #:program "travis.rkt"
    #:once-each
@@ -78,7 +80,7 @@
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
    [("--precision") prec "Which precision to use for tests"
-    (*precision* (string->symbol prec))]
+    (*precision* (get-representation (string->symbol prec)))]
    [("--pareto") "Enables Pherbie"
     (*pareto-mode* #t)
     (*ignore-target* #t)

@@ -177,6 +177,7 @@
            [+inf.0 'INFINITY]
            [+nan.0 'NAN]
            [x
+            ;; TODO: Why is this here?
             (if (set-member? '(binary64 binary32) (representation-name repr))
                  (exact->inexact x) ; convert to flonum if binary64 or binary32
                  x)])

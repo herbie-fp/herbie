@@ -16,21 +16,18 @@
       [_ (let ([change (car changes)])
            (loop (string-replace str (car change) (cdr change)) (cdr changes)))])))
 
-(define (munge-prec prec)
+(define (repr->symbol repr)
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
-  (string->symbol (string-replace* (~a prec) replace-table)))
+  (string->symbol (string-replace* (~a (representation-name repr)) replace-table)))
 
 (define (get-rewrite-operator repr)
-  (define prec (representation-name repr))
-  (define rewrite (sym-append '<- (munge-prec prec)))
+  (define rewrite (sym-append '<- (repr->symbol repr)))
   (get-parametric-operator rewrite repr))
 
 ;; Generates conversion, repr-rewrite operators for prec1 and prec2
 (define (generate-conversion-ops repr1 repr2)
-  (define prec1 (representation-name repr1))
-  (define prec2 (representation-name repr2))
-  (define prec1* (munge-prec prec1))
-  (define prec2* (munge-prec prec2))
+  (define prec1* (munge-prec (repr->symbol repr1)))
+  (define prec2* (munge-prec (repr->symbol repr2)))
 
   ;; Repr conversions, e.g. repr1->repr2
   (define conv1 (sym-append prec1* '-> prec2*))
@@ -38,12 +35,12 @@
 
   (unless (impl-exists? conv1)
     (define impl (compose (representation-bf->repr repr2) (representation-repr->bf repr1)))
-    (register-operator-impl! 'cast conv1 (list prec1) prec2  ; fallback implementation
+    (register-operator-impl! 'cast conv1 (list repr1) repr2  ; fallback implementation
       (list (cons 'fl impl))))
   
   (unless (impl-exists? conv2)
     (define impl (compose (representation-bf->repr repr1) (representation-repr->bf repr2)))
-    (register-operator-impl! 'cast conv2 (list prec2) prec1  ; fallback implementation
+    (register-operator-impl! 'cast conv2 (list repr2) repr1  ; fallback implementation
       (list (cons 'fl impl))))
 
   ;; Repr rewrites, e.g. <-repr
@@ -53,23 +50,20 @@
   (unless (operator-exists? repr-rewrite1)
     (register-operator! repr-rewrite1 (list 'real) 'real
       (list (cons 'bf identity) (cons 'ival identity)))
-    (register-operator-impl! repr-rewrite1 repr-rewrite1 (list prec1) prec1
+    (register-operator-impl! repr-rewrite1 repr-rewrite1 (list repr1) repr1
       (list (cons 'fl identity))))
 
   (unless (operator-exists? repr-rewrite2)
     (register-operator! repr-rewrite2 (list 'real) 'real
       (list (cons 'bf identity) (cons 'ival identity)))
-    (register-operator-impl! repr-rewrite2 repr-rewrite2 (list prec2) prec2
+    (register-operator-impl! repr-rewrite2 repr-rewrite2 (list repr2) repr2
       (list (cons 'fl identity)))))
 
 ;; creates precision rewrite: prec1 <==> prec2
 ;; assumes generate-conversion-ops has been invoked for these precisions
 (define (generate-prec-rewrite repr1 repr2)
-  (define prec1 (representation-name repr1))
-  (define prec2 (representation-name repr2))
-
-  (define prec1* (munge-prec prec1)) ; fixed point workaround
-  (define prec2* (munge-prec prec2))
+  (define prec1* (repr->symbol repr1)) ; fixed point workaround
+  (define prec2* (repr->symbol repr2))
 
   ;; Repr conversions, e.g. repr1->repr2
   (define conv1 (sym-append prec1* '-> prec2*))

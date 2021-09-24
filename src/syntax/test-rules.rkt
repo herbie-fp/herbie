@@ -85,7 +85,7 @@
       (values (apply prog1 pt) (apply prog2 pt))))
   (for ([pt points] [v1 ex1] [v2 ex2])
     (with-check-info (['point (map list fv pt)])
-      (match (representation-name repr)
+      (match (representation-name repr) ;; TODO: Why is this here?
        ['binary32 (check-equal? (->float32 v1) (->float32 v2))] ; casting problems
        [else (check-equal? v1 v2)]))))
 

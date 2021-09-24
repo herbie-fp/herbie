@@ -154,7 +154,7 @@
   (table-row (test-name test) #f status
              (resugar-program (program-body (test-precondition test)) repr)
              (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
-             (test-output-prec test) (test-conversions test)
+             (representation-name (test-output-repr test)) (test-conversions test)
              (test-vars test)
              (resugar-program (test-input test) repr) #f
              (resugar-program (test-spec test) repr)

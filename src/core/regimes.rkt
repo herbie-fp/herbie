@@ -152,12 +152,12 @@
       (list-ref errs (si-cidx si)))))
 
 (module+ test
+  (define repr (get-representation 'binary64))
   (parameterize ([*start-prog* '(λ (x) 1)]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
-                 [*var-reprs* (list (cons 'x (get-representation 'binary64)))]
-                 [*output-repr* (get-representation 'binary64)])
+                 [*var-reprs* (list (cons 'x repr))]
+                 [*output-repr* repr])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
-    (define repr (get-representation 'binary64))
 
     ;; This is a basic sanity test
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
@@ -394,8 +394,8 @@
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))]
-                 [*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x y))]
-                 [*output-repr* (get-representation 'binary64)])
+                 [*var-reprs* (map (curryr cons repr) '(x y))]
+                 [*output-repr* repr])
     (define sps
       (list (sp 0 '(/.f64 y x) -inf.0)
             (sp 2 '(/.f64 y x) 0.0)
@@ -405,7 +405,7 @@
                   (splitpoints->point-preds
                     sps
                     (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
-                    (get-representation 'binary64)))
+                    repr))
 
     (check-pred p0? '(0.0 -1.0))
     (check-pred p2? '(-1.0 1.0))

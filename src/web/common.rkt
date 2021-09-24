@@ -84,7 +84,6 @@
 (define (render-program #:to [result #f] preprocess test)
   (define identifier (test-identifier test))
   (define output-repr (test-output-repr test))
-  (define output-prec (representation-name output-repr))
 
   (define in-prog (program->fpcore (resugar-program (test-program test) output-repr) #:ident identifier))
   (define out-prog
@@ -92,6 +91,7 @@
          (parameterize ([*expr-cse-able?* at-least-two-ops?])
            (core-cse (program->fpcore (resugar-program result output-repr) #:ident identifier)))))
 
+  (define output-prec (representation-name output-repr))
   (define in-prog* (fpcore-add-props in-prog (list ':precision output-prec)))
   (define out-prog* (and out-prog (fpcore-add-props out-prog (list ':precision output-prec))))
 
@@ -165,7 +165,7 @@
          (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
          (format "(FPCore ~a" (test-vars test)))
      (format "  :name ~s" (test-name test))
-     (format "  :precision ~s" (test-output-prec test))
+     (format "  :precision ~s" (representation-name (test-output-repr test)))
      (if (equal? (program-body (test-precondition test)) '(TRUE))
          #f
          (format "  :pre ~a" (resugar-program (program-body (test-precondition test)) output-repr)))

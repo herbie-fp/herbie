@@ -165,9 +165,6 @@
   (hash-remove! operator-impls operator))
 
 (define (register-operator-impl! operator name atypes rtype attrib-dict)
-  (define areprs (map get-representation atypes))
-  (define rrepr (get-representation rtype))
-
   (unless (hash-has-key? operators operator)
     (error 'register-operator-impl!
            "Cannot register ~a as implementation of ~a: no such operator"
@@ -190,7 +187,10 @@
   
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
+  (register-operator-impl! 'operator 'name
+                           (list (get-representation 'atypes) ...)
+                           (get-representation 'rtype)
+                           (list (cons 'key value) ...)))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
