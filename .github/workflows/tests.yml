@@ -1,4 +1,4 @@
-name: Unit, Integration, and Plugin tests
+name: Integration tests
 
 on: [push]
 
