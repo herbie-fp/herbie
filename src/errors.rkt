@@ -6,7 +6,8 @@
          (struct-out exn:fail:user:herbie)
          (struct-out exn:fail:user:herbie:syntax)
          (struct-out exn:fail:user:herbie:sampling)
-         warn warning-log *warnings-disabled*)
+         warn warning-log *warnings-disabled*
+         print-warnings)
 
 (struct exn:fail:user:herbie exn:fail:user (url)
         #:extra-constructor-name make-exn:fail:user:herbie)
@@ -66,20 +67,30 @@
     [else
      (old-error-display-handler message err)])))
 
-(define warnings-seen (mutable-set))
+
+(define *warnings-disabled* (make-parameter false))
+(define warnings (make-hash))
 (define warning-log '())
-(define *warnings-disabled* (make-parameter true))
+
+(register-reset 
+  (λ () (set! warnings (make-hash))
+        (set! warning-log '())))
 
 (define (warn type message #:url [url #f] #:extra [extra '()] . args)
-  (unless (or (*warnings-disabled*) (set-member? warnings-seen type))
-    (set-add! warnings-seen type)
+  (unless (*warnings-disabled*)
     (define url* (and url (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* url)))
-    (set! warning-log (cons (list type message args url* extra) warning-log))
-    (eprintf "Warning: ~a\n" (apply format message args))
-    (for ([line extra]) (eprintf "  ~a\n" line))
-    (when url (eprintf "See <~a> for more.\n" url*))))
+    (define entry (list message args url* extra))
+    (hash-update! warnings type (curry cons entry) (list))
+    (set! warning-log (cons (list type message args url* extra) warning-log))))
 
-(register-reset
- (λ ()
-   (set-clear! warnings-seen)
-   (set! warning-log '())))
+(define (print-warnings)
+  (unless (*warnings-disabled*)
+    (for ([(type log) (in-hash warnings)])
+      (define url
+        (for/fold ([url #f]) ([entry (in-list (reverse log))])
+          (match-define (list message args url* extra) entry)
+          (eprintf "Warning: ~a\n" (apply format message args))
+          (for ([line extra]) (eprintf "  ~a\n" line))
+          (if url* url* url)))
+      (eprintf "See <~a> for more.\n" url))
+    (set! warnings (make-hash))))

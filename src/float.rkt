@@ -3,7 +3,7 @@
 
 (require math/bigfloat math/base)
 (require "common.rkt" "interface.rkt" "syntax/types.rkt" "errors.rkt")
-(module+ test (require rackunit))
+(module+ test (require rackunit "load-plugin.rkt"))
 
 (provide 
  ordinary-value?
@@ -11,8 +11,7 @@
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total =-or-nan?
- value->string value->json
- ->bf)
+ value->string value->json)
 
 (define (ulp-difference x y repr)
   (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
@@ -56,14 +55,29 @@
         [bf->repr (representation-bf->repr repr)])
     (bfinfinite? (repr->bf (bf->repr +inf.bf)))))
 
+;; If the representation uses saturation instead of overflow
+;; if x * x != inf when x is +max, probably saturated
+(define (probably-saturated? ordinal repr)
+  (define bfval (ordinal->bigfloat ordinal))
+  (define bfval2 (bf* bfval bfval)) ;; squaring is probably good enough
+  (define ->repr (representation-bf->repr repr))
+  (define ->ordinal (representation-repr->ordinal repr))
+  (= (->ordinal (->repr bfval))
+     (->ordinal (->repr bfval2))))
+
 (define (bound-ordinary-values repr)
-  (if (has-infinite-value? repr)
+  (if (has-infinite-value? repr) ; bail if representation does not have +inf
       (parameterize ([bf-rounding-mode 'nearest])
-        (let loop ([ordinal (bigfloat->ordinal (largest-ordinary-value repr))] [stepsize 1])
-          (define bfval (ordinal->bigfloat ordinal))
-          (if (bfinfinite? ((representation-repr->bf repr) ((representation-bf->repr repr) bfval)))
-              bfval
-              (loop (+ ordinal stepsize) (* stepsize 2)))))
+        (define hi-ordinal (bigfloat->ordinal (largest-ordinary-value repr)))
+        (if (probably-saturated? hi-ordinal repr) ; bail if representation uses saturation
+            (ordinal->bigfloat hi-ordinal)
+            (let loop ([ordinal hi-ordinal] [stepsize 1])
+              (define bfval (ordinal->bigfloat ordinal))
+              (define ->repr (representation-bf->repr repr))
+              (define ->bf (representation-repr->bf repr))
+              (if (bfinfinite? (->bf (->repr bfval)))
+                  bfval
+                  (loop (+ ordinal stepsize) (* stepsize 2))))))
       (largest-ordinary-value repr)))
 
 (module+ test
@@ -112,7 +126,6 @@
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits
-  (define n* (if (and (number? n) (exact? n)) (exact->inexact n) n))
   (define ->bf (representation-repr->bf repr))
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
@@ -123,24 +136,11 @@
                "Could not uniquely print ~a" n)
         n)
       (parameterize ([bf-precision precision])
-        (define bf (->bf n*))
-        (if (=-or-nan? n* (<-bf bf) repr)
+        (define bf (->bf n))
+        (if (=-or-nan? n (<-bf bf) repr)
             (match (bigfloat->string bf)
               ["-inf.bf" "-inf.0"]
               ["+inf.bf" "+inf.0"]
               ["+nan.bf" "+nan.0"]
               [x x])
             (loop (+ precision 4))))))) ; 2^4 > 10
-
-(define/contract (->bf x repr)
-  (-> any/c representation? bigvalue?)
-  (define type (representation-type repr))
-  (cond
-   [(and (equal? (type-name type) 'complex) (complex? x)) ;; HACK
-    ((type-exact->inexact type) x)]
-    ;; TODO(interface): ->bf is used to convert syntactic numbers to
-    ;; bf values. For 'complex' type, syntactic numbers are still
-    ;; reals, so we need to call `bf` here
-   [(eq? (representation-name repr) 'complex) (bf x)]
-   [((representation-repr? repr) x) ((representation-repr->bf repr) x)]
-   [else (bf x)])) ; assume real

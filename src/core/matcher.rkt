@@ -6,7 +6,7 @@
 (provide
  pattern-match pattern-substitute
  rewrite-expression-head rewrite-expression
- change-apply rule-rewrite)
+ change-apply rule-apply)
 
 ;;; Our own pattern matcher.
 ;;
@@ -30,7 +30,7 @@
   (define (fail . irr) #f)
 
   (match pattern
-   [(? constant?)
+   [(? number?)
     (and (equal? pattern expr) '())]
    [(? variable?)
     (list (cons pattern expr))]
@@ -45,7 +45,7 @@
 (define (pattern-substitute pattern bindings)
   ; pattern binding -> expr
   (match pattern
-   [(? constant?) pattern]
+   [(? number?) pattern]
    [(? variable?)
     (dict-ref bindings pattern)]
    [(list phead pargs ...)
@@ -59,13 +59,6 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-(define (rule-rewrite rule prog [loc '()])
-  (let/ec return
-    (location-do loc prog
-                 (λ (x) (match (rule-apply rule x)
-                          [(cons out bindings) out]
-                          [#f (return #f)])))))
-
 (define (change-apply cng prog)
   (match-define (change rule location bindings) cng)
   (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
@@ -73,7 +66,7 @@
 ;; The rewriter
 
 (define (rewrite-expression expr repr #:rules rules #:root [root-loc '()] #:destruct [destruct? #f])
-  (define type (repr-of expr repr (*var-reprs*)))
+  (define type (representation-name (repr-of expr repr (*var-reprs*))))
   (reap [sow]
     (for ([rule rules] #:when (equal? type (rule-otype rule)))
       (let* ([result (rule-apply rule expr)])
@@ -81,7 +74,7 @@
             (sow (list (change rule root-loc (cdr result)))))))))
 
 (define (rewrite-expression-head expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
-  (define type (repr-of expr repr (*var-reprs*)))
+  (define type (representation-name (repr-of expr repr (*var-reprs*))))
   (define (rewriter sow expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
     (for ([rule rules] #:when (equal? type (rule-otype rule)))
@@ -120,7 +113,7 @@
       (match pattern
         [(? variable?)
          (sow (cons '() (list (cons pattern expr))))]
-        [(? constant?)
+        [(? number?)
          (when (equal? expr pattern)
            (sow (cons '() '())))]
         [(list phead _ ...)

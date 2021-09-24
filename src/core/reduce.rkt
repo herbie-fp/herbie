@@ -1,53 +1,53 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "matcher.rkt" "../interface.rkt"
-         "../function-definitions.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt"
+         "../syntax/rules.rkt" "../syntax/syntax.rkt"
          "../syntax/sugar.rkt" "../syntax/types.rkt")
 
-(provide simplify)
+(provide simplify load-rule-hacks)
 
 ;; Cancellation's goal is to cancel (additively or multiplicatively) like terms.
 ;; It uses commutativity, identities, inverses, associativity,
 ;; distributativity, and function inverses.
 
-(define fn-inverses
-  (remove-duplicates
-    (map
-      (λ (r) (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f))
-      (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
+(define fn-inverses '())
+(define fn-evaluations (make-hash))
 
-(define (simplify expr*)
-  (define expr ((get-evaluator) expr*))
+(define (load-rule-hacks)
+  (set! fn-inverses
+        (remove-duplicates
+         (map
+          (λ (r) (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f))
+          (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
+  (set! fn-evaluations
+        (for/hash ([r (*rules*)] #:when (null? (free-variables (rule-input r))))
+          (values
+           (resugar-program (rule-input r) (get-representation (rule-otype r)) #:full #f)
+           (resugar-program (rule-output r) (get-representation (rule-otype r)) #:full #f)))))
+
+(define (simplify expr)
   (match expr
-    [(? constant?) expr]
-    [(? variable?) expr]
+    [(? number?) expr]
+    [(? symbol?) expr]
     [`(λ ,vars ,body)
      `(λ ,vars ,(simplify body))]
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
-    [`(neg ,arg)
-     (define op* (get-parametric-operator '- (representation-name (*output-repr*))))
-     (define arg* (simplify arg))
-     (define val (eval-application op* arg*))
-     (or val (simplify-node (list 'neg arg*)))]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
      (simplify-node (list op (simplify body)))]
     [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary 
-     (define atypes (make-list 2 (representation-name (*output-repr*))))
-     (define op* (apply get-parametric-operator op atypes))
      (define args* (map simplify args))
-     (define val (apply eval-application op* args*))
+     (define val (apply eval-application op args*))
      (or val (simplify-node (list* op args*)))]
     [`(,op ,args ...)
-     (define atypes (make-list (length args) (representation-name (*output-repr*))))
-     (define op* (apply get-parametric-operator op atypes))
      (define args* (map simplify args))
-     (define val (apply eval-application op* args*))
+     (define val (apply eval-application op args*))
      (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)
   (match expr
-    [(? constant?) expr]
+    [(? (curry hash-has-key? fn-evaluations)) (hash-ref fn-evaluations expr)]
+    [(? number?) expr]
     [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
@@ -74,7 +74,6 @@
   (let ([label (or label expr)])
     (match expr
       [(? number?) `((,expr 1))]
-      [(? constant?) `((1 ,expr))]
       [(? variable?) `((1 ,expr))]
       [`(+ ,args ...) (append-map recurse args)]
       [`(neg ,arg) (map negate-term (recurse arg))]
@@ -263,3 +262,4 @@
      (match (type-name (type-of base* (*output-repr*) (*var-reprs*)))
        ['real `(pow ,x ,power)]
        ['complex `(pow ,x (complex ,power 0))])]))
+

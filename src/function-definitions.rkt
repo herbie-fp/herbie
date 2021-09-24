@@ -1,6 +1,6 @@
 #lang racket
 
-(require "config.rkt" "syntax/rules.rkt" "core/matcher.rkt" "programs.rkt" "interface.rkt" "syntax/sugar.rkt")
+(require "config.rkt" "syntax/rules.rkt" "core/matcher.rkt""programs.rkt" "interface.rkt" "syntax/sugar.rkt")
 (provide get-expander get-evaluator)
 
 (define (evaluation-rule? rule)
@@ -13,13 +13,19 @@
 
 (define (all-ops expr good?)
   (match expr
-    [(? constant?) #t]
+    [(? number?) #t]
     [(? variable?) #t]
+    [(list f) #t]
     [(list f args ...)
      (and (good? f) (andmap (curryr all-ops good?) args))]))
 
 (define expanders (make-hash))
 (define evaluators (make-hash))
+
+(register-reset
+ (λ ()
+  (set! expanders (make-hash))
+  (set! evaluators (make-hash))))
 
 (define (make-expander primitives)
   (define known-functions (make-hash))
@@ -55,6 +61,11 @@
     (let loop ([expr expr])
       (let ([expr* (simplify expr)])
         (if expr* (loop expr*) expr)))))
+
+(define (rule-rewrite rule prog)
+  (match (rule-apply rule prog)
+    [(cons out bindings) out]
+    [#f #f]))
 
 (define (make-evaluator)
   (define evaluation-rules

@@ -25,11 +25,15 @@
   <p><a href="http://fpbench.org">FPCore</a> format looks like this:</p>
 
   <pre>(FPCore (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
+  <pre>(FPCore <var>name</var> (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
 
   <p>
     Each <var>input</var> is a variable name, like <code>x</code>,
     used in the <var>expression</var>. Properties are used to specify
     additional information about the <var>expression</var>'s context.
+    As of version 1.5, Herbie supports named functions.
+    If <var>name</var> is specified, the function can be inlined
+    within any subsequent FPCore in the file.
   </p>
 
   <p>
@@ -171,6 +175,24 @@
   <p>By default, <code>binary64</code> is assumed. Herbie also has
   a <a href="plugins.html">plugin system</a> to load additional
   precisions.</p>
+
+  <h2 id="conversions">Conversions</h2>
+
+  <p>Herbie supports conversions between different precisions.
+  All conversions are assumed to be bi-directional. You can
+  specify conversions with the <code>:herbie-conversions</code>
+  property.</p>
+
+  <dl class="function-list">
+    <dt><code>:herbie-conversions<br/>([<var>prec1</var> <var>prec2</var>] ...)</code></dt>
+    <dd>If an expression is computed with precision <code>prec1</code>,
+    Herbie is allowed to rewrite all (or some) of the expression so it
+    is computed with precision <code>prec2</code>.</dd>
+  </dl>
+
+  <p>For example, to let Herbie introduce single-precision
+  code when <code>:precision</code> is set to <code>binary64</code> or vice versa,
+  specify <code>:herbie-conversions ((binary64 binary32))</code></p>
 
   <h2 id="specs">Specifications</h2>
 

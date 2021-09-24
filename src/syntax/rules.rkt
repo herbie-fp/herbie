@@ -2,7 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../programs.rkt" "../interface.rkt" "syntax.rkt" "types.rkt" "sugar.rkt")
+(require "../common.rkt" "../interface.rkt" "syntax.rkt" "types.rkt" "sugar.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
@@ -42,14 +42,6 @@
 ;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag       ('fp-safe' does not imply 'simplify')
 ;;
 
-(define (update-rules rules groups)
-  (when (ormap (curry flag-set? 'rules) groups) ; update all
-    (all-rules (append (all-rules) rules))
-    (when (set-member? groups 'simplify) ; update simplify
-      (simplify-rules (append (simplify-rules) rules))  
-      (when (set-member? groups 'fp-safe) ; update fp-safe
-        (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
-
 (struct rule (name input output itypes otype) ; Input and output are patterns
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
@@ -73,6 +65,14 @@
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
 
+(define (update-rules rules groups)
+  (when (ormap (curry flag-set? 'rules) groups)       ; update all
+    (all-rules (append (all-rules) rules))
+    (when (set-member? groups 'simplify)              ; update simplify
+      (simplify-rules (append (simplify-rules) rules))  
+      (when (set-member? groups 'fp-safe)         ; update fp-safe
+        (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
+
 (define (reprs-in-expr expr)
   (remove-duplicates
     (let loop ([expr expr])
@@ -80,9 +80,7 @@
       [(list 'if cond ift iff)
         (append (loop cond) (loop ift) (loop iff))]
       [(list op args ...)
-        (define itypes (operator-info op 'itype))
-        (append (if (list? itypes) itypes (list itypes))
-                (append-map loop args))]
+        (append (operator-info op 'itype) (append-map loop args))]
       [_ '()]))))
 
 (define (type-of-rule input output ctx)
@@ -97,29 +95,13 @@
       (error 'type-of-rule "Could not compute type of rule ~a -> ~a"
               input output)]))
 
-;; Name generation
-
-(define rule-names (mutable-set))
-(define collision-count 1)
-
-(define (gen-unique-rule-name name) 
-  (cond
-   [(set-member? rule-names name)
-    (define name* (string->symbol (format "~a_~a" name collision-count)))
-    (set-add! rule-names name*)
-    (set! collision-count (add1 collision-count))
-    name*]
-   [else
-    (set-add! rule-names name)
-    name]))
-
 ;; Rulesets defined by reprs. These rulesets are unique
 
 (define (register-ruleset! name groups var-ctx rules)
   (define rules*
     (for/list ([r rules])
       (match-define (list rname input output) r)
-      (rule (gen-unique-rule-name rname) input output var-ctx 
+      (rule rname input output var-ctx 
             (type-of-rule input output var-ctx))))
   (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
       
@@ -129,25 +111,6 @@
     (define-ruleset name groups #:type () [rname input output] ...)]
    [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
     (register-ruleset! 'name 'groups '((var . type) ...) '((rname input output) ...))]))
-
-;; Boolean
-(define-ruleset bool-reduce (bools simplify fp-safe)
-  #:type ([a bool] [b bool])
-  [not-true     (not TRUE)       FALSE]
-  [not-false    (not FALSE)      TRUE]
-  [not-not      (not (not a))    a]
-  [not-and      (not (and a b))  (or  (not a) (not b))]
-  [not-or       (not (or  a b))  (and (not a) (not b))]
-  [and-true-l   (and TRUE a)     a]
-  [and-true-r   (and a TRUE)     a]
-  [and-false-l  (and FALSE a)    FALSE]
-  [and-false-r  (and a FALSE)    FALSE]
-  [and-same     (and a a)        a]
-  [or-true-l    (or TRUE a)      TRUE]
-  [or-true-r    (or a TRUE)      TRUE]
-  [or-false-l   (or FALSE a)     a]
-  [or-false-r   (or a FALSE)     a]
-  [or-same      (or a a)         a])
 
 ;; Templated rulesets defined by types. These are used to generate duplicate rules that
 ;; are valid in any representation of the same underlying type.
@@ -200,7 +163,7 @@
     (define var-reprs (for/list ([(var prec) (in-dict ctx)]) (cons var (get-representation prec))))
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
-        (let ([name* (gen-unique-rule-name (sym-append (rule-name r) '_ repr-name))]
+        (let ([name* (sym-append (rule-name r) '_ repr-name)]
               [input* (with-handlers ([exn:fail? (const #f)])
                         (desugar-program (rule-input r) repr var-reprs #:full #f))]
               [output* (with-handlers ([exn:fail? (const #f)])
@@ -380,6 +343,21 @@
   #:type ([x real])
   [sqr-neg           (* (neg x) (neg x))        (* x x)]
   [sqr-abs           (* (fabs x) (fabs x))      (* x x)])
+  
+(define-ruleset* fabs-reduce (arithmetic simplify fp-safe)
+  #:type ([x real] [a real] [b real])
+  [fabs-fabs         (fabs (fabs x))            (fabs x)]
+  [fabs-sub          (fabs (- a b))             (fabs (- b a))]
+  [fabs-neg          (fabs (neg x))             (fabs x)]
+  [fabs-sqr          (fabs (* x x))             (* x x)]
+  [fabs-mul          (fabs (* a b))             (* (fabs a) (fabs b))]
+  [fabs-div          (fabs (/ a b))             (/ (fabs a) (fabs b))])
+  
+(define-ruleset* fabs-expand (arithmetic fp-safe)
+  #:type ([x real] [a real] [b real])
+  [neg-fabs          (fabs x)                   (fabs (neg x))]
+  [mul-fabs          (* (fabs a) (fabs b))      (fabs (* a b))]
+  [div-fabs          (/ (fabs a) (fabs b))      (fabs (/ a b))])
 
 (define-ruleset* squares-transform (arithmetic)
   #:type ([x real] [y real])
@@ -741,10 +719,10 @@
 
 (define-ruleset* compare-reduce (bools simplify fp-safe-nan)
   #:type ([x real] [y real])
-  [lt-same      (<  x x)         FALSE]
-  [gt-same      (>  x x)         FALSE]
-  [lte-same     (<= x x)         TRUE]
-  [gte-same     (>= x x)         TRUE]
+  [lt-same      (<  x x)         (FALSE)]
+  [gt-same      (>  x x)         (FALSE)]
+  [lte-same     (<= x x)         (TRUE)]
+  [gte-same     (>= x x)         (TRUE)]
   [not-lt       (not (<  x y))   (>= x y)]
   [not-gt       (not (>  x y))   (<= x y)]
   [not-lte      (not (<= x y))   (>  x y)]
@@ -752,8 +730,8 @@
 
 (define-ruleset* branch-reduce (branches simplify fp-safe)
   #:type ([a bool] [b bool] [x real] [y real])
-  [if-true        (if TRUE x y)       x]
-  [if-false       (if FALSE x y)      y]
+  [if-true        (if (TRUE) x y)       x]
+  [if-false       (if (FALSE) x y)      y]
   [if-same        (if a x x)          x]
   [if-not         (if (not a) x y)    (if a y x)]
   [if-if-or       (if a x (if b x y)) (if (or a b) x y)]

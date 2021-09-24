@@ -1,0 +1,81 @@
+name: Build new Herbie release
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+  job1:
+    name: Create Initial Release
+    runs-on: ubuntu-latest
+    outputs: 
+      upload_url: ${{ steps.create_release.outputs.upload_url }} 
+    
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: true
+          prerelease: false
+
+  job2:
+    name: Build
+    needs: job1
+    strategy:
+      matrix:     # manual matrix
+        include:
+          - os: windows-latest
+            os-name: windows
+          - os: ubuntu-18.04  # glibc compatability
+            os-name: ubuntu
+          - os: macos-latest
+            os-name: macOS
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Racket
+        uses: Bogdanp/setup-racket@v1.3.1
+        with:
+          version: stable
+
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            
+      - name: build egg-herbie
+        run: cargo build --release --manifest-path=egg-herbie/Cargo.toml
+      
+      - name: Create tarball
+        run: raco pkg create --format zip egg-herbie
+
+      - name: Upload pre-build egg-herbie
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.job1.outputs.upload_url }}
+          asset_path: egg-herbie.zip
+          asset_name: egg-herbie-${{ matrix.os-name }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload pre-build egg-herbie checksum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.job1.outputs.upload_url }}
+          asset_path: egg-herbie.zip.CHECKSUM
+          asset_name: egg-herbie-${{ matrix.os-name }}.zip.CHECKSUM
+          asset_content_type: application/zip

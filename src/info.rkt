@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "herbie")
-(define version "1.4")
+(define version "1.5")
 
 ;; Packaging information
 
@@ -32,7 +32,7 @@
     ("egg-herbie" #:version "1.4")
     ("regraph" #:version "1.4")
     ("rival" #:version "1.4")
-    ("fpbench" #:version "2.0")))
+    ("fpbench" #:version "2.0.1")))
 
 (define build-deps
   '("rackunit-lib"))

@@ -21,8 +21,8 @@
       (script ([src "../report.js"])))
      (body
       ,(render-menu
-        (list/true)
-        (list/true
+        (list)
+        (list
          '("Report" . "../results.html")
          '("Log" . "debug.txt")
          '("Metrics" . "timeline.html")))
@@ -40,7 +40,7 @@
             (p "Use the " (code "--timeout") " flag to change the timeout."))]
          [_ ""])
 
-      ,(render-program test)
+      ,(render-program empty test)
 
       ,(match exn
         [(? exn:fail:user:herbie?) ""]

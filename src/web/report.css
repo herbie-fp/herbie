@@ -159,6 +159,8 @@ section h1 {
 #language { position: absolute; right: 1em; }
 #precondition { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
 #precondition:before { content: "Precondition"; float: left; color: #444; }
+#preprocess { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
+#preprocess:before { content: "Preprocess"; float: left; color: #444; }
 
 /* Error graphs */
 
@@ -277,6 +279,14 @@ pre.shell code:before { content: "$ "; font-weight: bold; }
 #comparison table th { text-align: left; }
 #comparison table td { text-align: right; }
 #comparison div { display: inline-block; width: 500px; }
+
+/* Alternatives */
+
+#alternatives table { width: 275px; display: inline-table; vertical-align: top; }
+#alternatives table th { text-align: left; font-weight: normal; }
+#alternatives table td { text-align: left; width: 75px; }
+#alternatives .entry { padding: 5px 0px; }
+#alternatives .entry .math { display: inline-block; width: 500px; }
 
 /* Formatting backtraces */
 

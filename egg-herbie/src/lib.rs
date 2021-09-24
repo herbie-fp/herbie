@@ -8,6 +8,7 @@ use std::time::Duration;
 use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
 unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
@@ -58,6 +59,11 @@ pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
 pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
     let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
     std::mem::drop(array)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
+    let _str = CString::from_raw(ptr);
 }
 
 // a struct to report failure if the add fails
@@ -199,7 +205,7 @@ pub unsafe extern "C" fn egraph_run(
             runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
             runner = runner
                 .with_node_limit(limit as usize)
-                .with_iter_limit(100_000_000) // should never hit
+                .with_iter_limit(usize::MAX) // should never hit
                 .with_time_limit(Duration::from_secs(u64::MAX))
                 .with_hook(|r| {
                     if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
@@ -219,7 +225,12 @@ pub unsafe extern "C" fn egraph_run(
 
 fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
     let id = runner.egraph.find(Id::from(id as usize));
-    let desired_iter = min(runner.iterations.len().saturating_sub(1), iter as usize);
+    let desired_iter = if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
+        // go back one more iter, egg can duplicate the final iter in the case of an error
+        min(runner.iterations.len().saturating_sub(3), iter as usize)
+    } else {
+        min(runner.iterations.len().saturating_sub(1), iter as usize)
+    };
 
     runner.iterations[desired_iter]
         .data
@@ -295,6 +306,35 @@ pub unsafe extern "C" fn egraph_get_proof(
         let string_pointer = string.as_ptr();
         std::mem::forget(string);
         string_pointer
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        runner.egraph.analysis.unsound.load(Ordering::SeqCst)
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *const i8) -> u32 {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        let string = ptr_to_string(name);
+        runner
+            .iterations
+            .iter()
+            .map(|iter| *iter.applied.get(&string).unwrap_or(&0) as u32)
+            .sum()
     })
 }
 

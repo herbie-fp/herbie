@@ -111,6 +111,13 @@
       used. A number can be passed to this option to use that many
       threads, or <code>yes</code> can be passed to tell Herbie to use
       all of the hardware threads.</dd>
+
+    <dt><code>--pareto</code></dt>
+    <dd>Enables multi-objective improvement. Herbie will attempt to simultaneously
+    optimize for both accuracy and expression cost. Rather than generating
+    a single "ideal" output expression, Herbie will generate many output expressions.
+    This mode is still considered experimental. This <em>will</em> take a long time to run.
+    We recommend timeouts measured in hours.</dd>
   </dl>
 
   <h2>Web shell options</h2>
@@ -125,7 +132,7 @@
 
     <dt><code>--save-session dir</code></dt>
     <dd>Save all the reports to this directory. The directory also
-    caches of previously-computed expressions.</dd>
+    caches previously-computed expressions.</dd>
 
     <dt><code>--log file</code></dt>
     <dd>Write an access log to this file, formatted like an Apache

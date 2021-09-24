@@ -16,11 +16,7 @@ install:
 	raco pkg update --name herbie src/
 
 nightly: install
-	bash infra/nightly.sh
-	$(MAKE) index
-
-index:
-	bash infra/publish.sh index
+	bash infra/nightly.sh reports
 
 start-server: install
 	racket src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \

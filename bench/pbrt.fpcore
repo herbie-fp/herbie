@@ -1,0 +1,230 @@
+(FPCore (cosTheta_i cosTheta_O sinTheta_i sinTheta_O v)
+ :name "HairBSDF, Mp, upper"
+ :precision binary32
+ :pre (and (<= -1 cosTheta_i 1) (<= -1 cosTheta_O 1)
+           (<= -1 sinTheta_i 1) (<= -1 sinTheta_O 1)
+           (< 0.1 v) (<= v 1.5707964))
+ (let ([a (/ (* cosTheta_i cosTheta_O) v)]
+       [b (/ (* sinTheta_i sinTheta_O) v)])
+  (/ (* (exp (- b)) a) (* (sinh (/ 1 v)) 2 v))))
+
+(FPCore (cosTheta_i cosTheta_O sinTheta_i sinTheta_O v)
+ :name "HairBSDF, Mp, lower"
+ :precision binary32
+ :pre (and (<= -1 cosTheta_i 1) (<= -1 cosTheta_O 1)
+           (<= -1 sinTheta_i 1) (<= -1 sinTheta_O 1)
+           (<= -1.5707964 v 0.1))
+ (let ([a (/ (* cosTheta_i cosTheta_O) v)]
+       [b (/ (* sinTheta_i sinTheta_O) v)])
+  (exp (+ (- a b (/ 1 v)) 0.6931f0 (log (/ 1 (* 2 v)))))))
+
+(FPCore (u v)
+ :name "HairBSDF, sample_f, cosTheta"
+ :precision binary32
+ :pre (and (<= 1e-5 u 1) (<= 0 v 109.746574))
+ (+ 1 (* v (log (+ u (* (- 1 u) (exp (/ -2 v))))))))
+
+(FPCore (sinTheta_O h eta)
+ :name "HairBSDF, gamma for a refracted ray"
+ :precision binary32
+ :pre (and (<= -1 sinTheta_O 1)
+           (<= -1 h 1)
+           (<= 0 eta 10))
+ (let* ([sqr_sinTheta_O (* sinTheta_O sinTheta_O)]
+        [cosThetaO (sqrt (- 1 sqr_sinTheta_O))])
+  (asin (/ h (sqrt (- (* eta eta) (/ sqr_sinTheta_O cosThetaO)))))))
+
+;; Light sampling functions
+
+(FPCore (ux uy maxCos)
+ :name "UniformSampleCone, x"
+ :precision binary32
+ :pre (and (<= 2.328306437e-10 ux 1)
+           (<= 2.328306437e-10 uy 1)
+           (<= 0 maxCos 1))
+ (let* ([cosTheta (+ (- 1 ux) (* ux maxCos))]
+        [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
+        [phi (* uy 2 PI)])
+  (* (cos phi) sinTheta)))
+
+(FPCore (ux uy maxCos)
+ :name "UniformSampleCone, y"
+ :precision binary32
+ :pre (and (<= 2.328306437e-10 ux 1)
+           (<= 2.328306437e-10 uy 1)
+           (<= 0 maxCos 1))
+ (let* ([cosTheta (+ (- 1 ux) (* ux maxCos))]
+        [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
+        [phi (* uy 2 PI)])
+  (* (sin phi) sinTheta)))
+
+(FPCore (ux uy maxCos)
+ :name "UniformSampleCone, z"
+ :precision binary32
+ :pre (and (<= 2.328306437e-10 ux 1)
+           (<= 2.328306437e-10 uy 1)
+           (<= 0 maxCos 1))
+ (let* ([cosTheta (+ (- 1 ux) (* ux maxCos))]
+        [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
+        [phi (* uy 2 PI)])
+  cosTheta))
+
+;; Unsure on reasonable bounds for xi, yi, zi
+(FPCore (xi yi zi ux uy maxCos)
+ :name "UniformSampleCone 2"
+ :precision binary32
+ :pre (and (<= -1e4 xi 1e4) (<= -1e4 yi 1e4) (<= -1e4 zi 1e4)
+           (<= 2.328306437e-10 ux 1) (<= 2.328306437e-10 uy 1)
+           (<= 0 maxCos 1))
+ (let* ([cosTheta (+ (* (- 1 ux) maxCos ux))] ; (lerp ux maxCos 1)
+        [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
+        [phi (* uy 2 PI)])
+  (+ (* (cos phi) sinTheta xi)
+     (* (sin phi) sinTheta yi)
+     (* cosTheta zi))))
+
+(FPCore (normAngle u n0_i n1_i)
+ :name "Curve intersection, scale width based on ribbon orientation"
+ :precision binary32
+ :pre (and (<= 0 normAngle (/ PI 2))
+           (<= -1 n0_i 1) (<= -1 n1_i 1)
+           (<= 2.328306437e-10 u 1))
+ (let* ([invSinNormAngle (/ 1 (sin normAngle))]
+        [sin0 (* (sin (* (- 1 u) normAngle)) invSinNormAngle)]
+        [sin1 (* (sin (* u normAngle)) invSinNormAngle)])
+  (+ (* sin0 n0_i) (* sin1 n1_i))))
+
+(FPCore (x tau)
+ :name "Lanczos kernel"
+ :precision binary32
+ :pre (and (<= 1e-5 x 1) (<= 1 tau 5))
+ (let ([xp (* x PI)])
+  (* (/ (sin (* xp tau)) (* xp tau))
+     (/ (sin xp) xp))))
+
+(FPCore (cosTheta_i u1 u2)
+ :name "Beckmann Sample, near normal, slope_x"
+ :precision binary32
+ :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
+           (<= 2.328306437e-10 u1 1) (<= 2.328306437e-10 u2 1))
+ (let ([r (sqrt (- (log (- 1 u1))))]
+       [sinPhi (sin (* 2 PI u2))]
+       [cosPhi (cos (* 2 PI u2))])
+  (* r cosPhi)))
+
+(FPCore (cosTheta_i u1 u2)
+ :name "Beckmann Sample, near normal, slope_y"
+ :precision binary32
+ :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
+           (<= 2.328306437e-10 u1 1) (<= 2.328306437e-10 u2 1))
+ (let ([r (sqrt (- (log (- 1 u1))))]
+       [sinPhi (sin (* 2 PI u2))]
+       [cosPhi (cos (* 2 PI u2))])
+  (* r sinPhi)))
+
+(FPCore (cosTheta_i u1 u2)
+ :name "Trowbridge-Reitz Sample, near normal, slope_x"
+ :precision binary32
+ :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
+           (<= 2.328306437e-10 u1 1) (<= 2.328306437e-10 u2 1))
+ (let ([r (sqrt (/ u1 (- 1 u1)))]
+       [phi (* 6.28318530718 u2)])
+  (* r (cos phi))))
+
+(FPCore (cosTheta_i u1 u2)
+ :name "Trowbridge-Reitz Sample, near normal, slope_y"
+ :precision binary32
+ :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
+           (<= 2.328306437e-10 u1 1) (<= 2.328306437e-10 u2 1))
+ (let ([r (sqrt (/ u1 (- 1 u1)))]
+       [phi (* 6.28318530718 u2)])
+  (* r (sin phi))))
+
+(FPCore (u0 u1 alphax alphay)
+ :name "Trowbridge-Reitz Sample, sample surface normal, cosTheta"
+ :precision binary32
+ :pre (and (<= 2.328306437e-10 u0 1)
+           (<= 2.328306437e-10 u1 0.5)
+           (<= 0.0001 alphax 1)
+           (<= 0.0001 alphay 1))
+ (let* ([phi (atan (* (/ alphay alphax) (tan (+ (* 2 PI u1) (* 0.5 PI)))))]
+        [sinPhi (sin phi)]
+        [cosPhi (cos phi)]
+        [alphax2 (* alphax alphax)]
+        [alphay2 (* alphay alphay)]
+        [alpha2 (/ 1 (+ (/ (* cosPhi cosPhi) alphax2) (/ (* sinPhi sinPhi) alphay2)))]
+        [tanTheta2 (/ (* alpha2 u0) (- 1 u0))])
+  (/ 1 (sqrt (+ 1 tanTheta2)))))
+
+(FPCore (x s)
+ :name "Logistic distribution"
+ :precision binary32
+ :pre (<= 0 s 1.0651631)
+ (let ([e (exp (/ (- (fabs x)) s))])
+  (/ e (* s (+ 1 e) (+ 1 e)))))
+
+(FPCore (x s)
+ :name "Logistic function"
+ :precision binary32
+ :pre (<= 0 s 1.0651631)
+ (/ 1 (+ 1 (exp (/ (- x) s)))))
+
+(FPCore (u s)
+ :name "Sample trimmed logistic on [-pi, pi]"
+ :precision binary32
+ :pre (and (<= 2.328306437e-10 u 1) (<= 0 s 1.0651631))
+ (let* ([lcdf_lo (/ 1 (+ 1 (exp (/ PI s))))]
+        [lcdf_hi (/ 1 (+ 1 (exp (/ (- PI) s))))]
+        [k (- lcdf_hi lcdf_lo)])
+  (* (- s) (log (- (/ 1 (+ (* u k) lcdf_lo)) 1)))))
+
+(FPCore (cosTheta c)
+ :name "Beckmann Sample, normalization factor"
+ :precision binary32
+ :pre (and (< 0 cosTheta 0.9999) (< -1 c 1))
+ (let* ([sinTheta (sqrt (- 1 cosTheta cosTheta))]
+        [tanTheta (/ sinTheta cosTheta)])
+  (/ 1 (+ 1 c (* (/ 1 (sqrt PI)) tanTheta (exp (* (- cosTheta) cosTheta)))))))
+
+(FPCore (alpha u0)
+ :name "Beckmann Distribution sample, tan2theta, alphax == alphay"
+ :precision binary32
+ :pre (and (<= 0.0001 alpha 1) (<= 2.328306437e-10 u0 1))
+ (* (- alpha) alpha (log (- 1 u0))))
+    
+(FPCore (alphax alphay u0 cos2phi sin2phi)
+ :name "Beckmann Distribution sample, tan2theta, alphax != alphay, u1 <= 0.5"
+ :precision binary32
+ :pre (and (<= 0.0001 alphax 1) (<= 0.0001 alphay 1) (<= 2.328306437e-10 u0 1)
+           (<= 0 cos2phi 1) (<= 0 sin2phi))
+ (let ([alphax2 (* alphax alphax)]
+       [alphay2 (* alphay alphay)])
+  (/ (- (log (- 1 u0))) (+ (/ cos2phi alphax2) (/ sin2phi alphay2)))))
+
+; TODO: find better upper bound on 's' for Disney BSSRDF...
+
+(FPCore (s r)
+ :name "Disney BSSRDF, PDF of scattering profile"
+ :precision binary32
+ :pre (and (<= 0 s 256) (< 1e-6 r 1e6))
+ (+ (/ (* 0.25 (exp (/ (- r) s))) (* 2 PI s r))
+    (/ (* 0.75 (exp (/ (- r) (* 3 s)))) (* 6 PI s r))))
+
+(FPCore (s u)
+ :name "Disney BSSRDF, sample scattering profile, lower"
+ :precision binary32
+ :pre (and (<= 0 s 256) (<= 2.328306437e-10 u 0.25))
+ (* s (log (/ 1 (- 1 (* 4 u))))))
+
+(FPCore (s u)
+ :name "Disney BSSRDF, sample scattering profile, upper"
+ :precision binary32
+ :pre (and (<= 0 s 256) (<= 0.25 u 1))
+ (* 3 s (log (/ 1 (- 1 (/ (- u 0.25) 0.75))))))
+
+(FPCore (cosTheta alpha)
+ :name "GTR1 distribution"
+ :precision binary32
+ :pre (and (<= 0 cosTheta 1) (<= 0.0001 alpha 1))
+ (let ([alpha2 (* alpha alpha)])
+  (/ (- alpha2 1) (* PI (log alpha2) (+ 1 (* (- alpha2 1) cosTheta cosTheta))))))

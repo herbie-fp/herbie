@@ -1,17 +1,47 @@
 #lang racket
 
-(require math/bigfloat math/flonum plot/no-gui)
+(require math/bigfloat math/flonum plot/no-gui racket/draw)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../alternative.rkt" "../interface.rkt" "../syntax/read.rkt" "../core/regimes.rkt" 
+         "../syntax/syntax.rkt" "../syntax/types.rkt" "../syntax/read.rkt"
+         "../alternative.rkt" "../interface.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
-(provide make-axis-plot make-points-plot)
+(provide make-axis-plot make-points-plot make-cost-accuracy-plot
+         make-full-cost-accuracy-plot)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
 (define *blue-theme* (color-theme "lightblue" "blue" "navy"))
 (define *green-theme* (color-theme "lightgreen" "green" "darkgreen"))
+(define *gray-theme* (color-theme "gray" "gray" "gray"))
+
+;; Racket 8.1 compatability
+
+(define (plot-file-compat renderer-tree output [kind 'auto]
+                          #:x-min [x-min #f] #:x-max [x-max #f]
+                          #:y-min [y-min #f] #:y-max [y-max #f]
+                          #:width [width (plot-width)]
+                          #:height [height (plot-height)]
+                          #:title [title (plot-title)]
+                          #:x-label [x-label (plot-x-label)]
+                          #:y-label [y-label (plot-y-label)]
+                      ;   #:aspect-ratio [aspect-ratio (plot-aspect-ratio)]    (added Racket 8.1)
+                          #:legend-anchor [legend-anchor (plot-legend-anchor)])
+  (define bm (make-bitmap width height))
+  (define dc (send bm make-dc))
+  (plot/dc renderer-tree dc 0 0 width height
+           #:x-min x-min #:x-max x-max #:y-min y-min #:y-max y-max
+           #:title title #:x-label x-label #:y-label y-label
+        ;  #:aspect-ratio aspect-ratio                                  (added Racket 8.1)
+           #:legend-anchor legend-anchor)
+  (send bm save-file output kind))
+
+(define plot-file    ; handle buggy `plot-file` in 8.1
+  (if (string=? (version) "8.1")
+      plot-file-compat
+      (let ()
+        (local-require (only-in plot/no-gui [plot-file plot-file*]))
+        plot-file*)))
 
 ;;  Repr conversions
 
@@ -38,6 +68,9 @@
       (expt 10 (floor (/ (log max) (log 10))))]))
   (if (<= value min) #f value))
 
+(define (clamp x lo hi)
+  (min hi (max x lo)))
+
 (define (choose-between min max number repr)
   ; Returns a given number of ticks, roughly evenly spaced, between min and max
   ; For any tick, n divisions below max, the tick is an ordinal corresponding to:
@@ -47,8 +80,9 @@
   (define near (λ (x n) (and (<= x n) (<= (abs (/ (- x n) sub-range)) 0.2)))) ; <- tolerance
   (for/list ([itr (in-range 1 (add1 number))])
     (define power10 
-      (first-power10 (ordinal->real (- max (* (add1 itr) sub-range)) repr)
-                     (ordinal->real (- max (* itr sub-range)) repr) repr))
+      (first-power10 (ordinal->real (clamp (- max (* (add1 itr) sub-range)) min max) repr)
+                     (ordinal->real (clamp (- max (* itr sub-range)) min max) repr)
+                     repr))
     (if (and power10 (near (real->ordinal power10 repr) (- max (* itr sub-range))))
         (real->ordinal power10 repr)
         (- max (* itr sub-range)))))
@@ -246,7 +280,7 @@
     (let ([name (representation-name repr)])
       (values
         (operator-info (get-parametric-operator '< name name) 'fl)
-        (operator-info (get-parametric-operator '- name) 'fl))))
+        (operator-info (get-parametric-operator 'neg name) 'fl))))
   (define max (λ (x y) (if (lt x y) y x))) 
   (define min (λ (x y) (if (lt x y) x y)))
 
@@ -296,21 +330,26 @@
 
 (define (make-axis-plot result out idx)
   (define var (list-ref (test-vars (test-result-test result)) idx))
-  (define split-var? (equal? var (regime-var (test-success-end-alt result))))
+  (define end-alt (car (test-success-end-alts result)))
+  (define split-var? (equal? var (regime-var end-alt)))
   (define repr (test-output-repr (test-result-test result)))
   (define pts (test-success-newpoints result))
   (herbie-plot
    #:port out #:kind 'png
    repr
    (error-axes pts repr #:axis idx)
-   (map error-mark (if split-var? (regime-splitpoints (test-success-end-alt result)) '()))))
+   (map error-mark (if split-var? (regime-splitpoints end-alt) '()))))
 
 (define (make-points-plot result out idx letter)
   (define-values (theme accessor)
     (match letter
-      ['r (values *red-theme*   test-success-start-error)]
-      ['g (values *green-theme* test-success-target-error)]
-      ['b (values *blue-theme*  test-success-end-error)]))
+     ['r (values *red-theme*   test-success-start-error)]
+     ['g (values *green-theme* test-success-target-error)]
+     ['b (values *blue-theme*  (compose car test-success-end-errors))]
+     [(? (conjoin string? (curryr string-prefix? "o")))
+      (define num (+ (string->number (substring letter 1)) 1))
+      (values *gray-theme*
+              (λ (x) (list-ref (test-success-end-errors x) num)))]))
 
   (define repr (test-output-repr (test-result-test result)))
   (define pts (test-success-newpoints result))
@@ -321,6 +360,71 @@
    repr
    (error-points err pts repr #:axis idx #:color theme)
    (error-avg err pts repr #:axis idx #:color theme)))
+
+;;; Cost vs. Accuracy (internal, single benchmark)
+(define (make-cost-accuracy-plot result out)
+  (define repr (test-output-repr (test-result-test result)))
+  (define bits (representation-total-bits repr))
+  (define costs (test-success-end-costs result))
+  (define errs (map errors-score (test-success-end-errors result)))
+
+  (define cost0 (test-success-start-cost result))
+  (define err0 (errors-score (test-success-start-error result)))
+
+  (define xmax (argmax identity (cons cost0 costs)))
+  (define xmin (argmax identity (cons cost0 costs)))
+
+  (parameterize ([plot-width 800] [plot-height 300]
+                 [plot-background-alpha 0]
+                 [plot-font-size 10]
+                 [plot-x-tick-label-anchor 'top]
+                 [plot-x-label "Cost"]
+                 [plot-x-far-axis? #t]
+                 [plot-x-far-ticks no-ticks]
+                 [plot-y-ticks (linear-ticks #:number 9 #:base 32 #:divisors '(2 4 8))]
+                 [plot-y-far-axis? #t]
+                 [plot-y-axis? #t]
+                 [plot-y-label "Error (bits)"])
+    (define pnts (points (map vector costs errs)
+                         #:sym 'fullcircle
+                         #:size 9
+                         #:fill-color "red"))
+    (define spnt (points (list (vector cost0 err0))
+                         #:sym 'fullsquare
+                         #:color "black"
+                         #:size 15))
+    (plot-file (list spnt pnts (y-tick-lines))
+               out 'png
+               #:x-min 0 #:x-max (+ xmax xmin)
+               #:y-min 0 #:y-max bits)))
+
+;;; Cost vs. Accuracy (internal, entire suite)
+(define (make-full-cost-accuracy-plot y-max start pts out)
+  (match-define (list (cons costs scores) ...) pts)
+  (define x-max (argmax identity (cons (car start) costs)))
+  (parameterize ([plot-width 800] [plot-height 300]
+                 [plot-background-alpha 0]
+                 [plot-font-size 10]
+                 [plot-x-tick-label-anchor 'top]
+                 [plot-x-label "Cost"]
+                 [plot-x-far-axis? #t]
+                 [plot-x-far-ticks no-ticks]
+                 [plot-y-ticks (linear-ticks #:number 9)]
+                 [plot-y-far-axis? #t]
+                 [plot-y-axis? #t]
+                 [plot-y-label "Error (bits)"])
+    (define spnt (points (list (vector (car start) (cdr start)))
+                         #:sym 'fullsquare
+                         #:color "black"
+                         #:size 15))
+    (define curve (lines (map vector (map car pts) (map cdr pts))
+                         #:color "red"
+                         #:width 4))
+    (plot-file (list spnt curve (y-tick-lines))
+               out 'png
+               #:x-min 0 #:x-max x-max
+               #:y-min 0 #:y-max y-max)))
+
 
 (define (make-alt-plots point-alt-idxs alt-idxs title out result)
   (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
@@ -351,7 +455,7 @@
     (define point-alt-idxs (make-point-alt-idxs result))
     (define newpoints (test-success-newpoints result))
     (define baseline-errs (test-success-baseline-error result))
-    (define herbie-errs (test-success-end-error result))
+    (define herbie-errs (car (test-success-end-errors result)))
     (define oracle-errs (test-success-oracle-error result))
     (define point-colors (herbie-ratio-point-colors newpoints baseline-errs herbie-errs oracle-errs))
     (for* ([i (range (- (length vars) 1))] [j (range 1 (length vars))])

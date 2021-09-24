@@ -123,7 +123,7 @@
         "")
 
     `(p ([id "lisp-instructions"])
-        "Please enter formulas as " (a ([href "http://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
+        "Please enter formulas as " (a ([href "https://fpbench.org/spec/fpcore-1.0.html"]) "FPCore")
         " expressions, including the top-level " (code "FPCore") " form, "
         "using only the following supported functions:")
     `(p ([id "mathjs-instructions"] [style "display: none;"])
@@ -223,7 +223,7 @@
           (struct-copy report-info info [tests (cons data (report-info-tests info))]))
         (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
   (write-datafile data-file info)
-  (call-with-output-file html-file #:exists 'replace (curryr make-report-page info)))
+  (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (run-improve hash formula)
   (hash-set! *jobs* hash (open-output-string))
@@ -242,6 +242,8 @@
      (define formula
        (with-handlers ([exn:fail? (λ (e) #f)])
          (read-syntax 'web (open-input-string formula-str))))
+     (unless formula
+      (raise-herbie-error "bad input: did you include special characters like `#`?"))
      (with-handlers
          ([exn:fail:user:herbie?
            (λ (e)
@@ -250,9 +252,8 @@
               `(p "Invalid formula " (code ,formula-str) ". "
                   "Formula must be a valid program using only the supported functions. "
                   "Please " (a ([href ,go-back]) "go back") " and try again.")))])
-
        (when (eof-object? formula)
-         (error "No formula specified"))
+         (raise-herbie-error "no formula specified"))
        (assert-program! formula)
        (assert-program-typed! formula)
        (define hash (sha1 (open-input-string formula-str)))
@@ -338,7 +339,7 @@
    #:servlet-path "/"
    #:servlet-regexp #rx""
    #:extra-files-paths
-   (list/true (web-resource) (*demo-output*))
+   (filter identity (list (web-resource) (*demo-output*)))
 
    #:log-file (*demo-log*)
    #:file-not-found-responder

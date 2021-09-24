@@ -2,17 +2,16 @@
 
 (require math/number-theory)
 (require "../common.rkt")
-(require "../function-definitions.rkt")
 (require "../programs.rkt")
 (require "reduce.rkt")
-
 (provide approximate)
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
+  (load-rule-hacks)
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
   (match-define (cons offset coeffs) (taylor var expr*))
 
-  (debug #:from 'approximate "Taking taylor expansion of" expr* "in" var "around" 0)
+  (debug #:from 'approximate "Taking taylor expansion of" expr* "in" var)
   
   (define i 0)
   (define terms '())
@@ -93,24 +92,19 @@
 
 (register-reset
  (λ ()
-  (hash-clear! n-sum-to-cache)
-  (hash-clear! logcache)
-  (hash-set! logcache 1 '((1 -1 1)))))
+  (set! n-sum-to-cache (make-hash))
+  (set! logcache (make-hash '((1 . ((1 -1 1))))))))
 
-(define (taylor var expr*)
+(define (taylor var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (define expr
-    (if (and (list? expr*) (not (set-member? taylor-expansion-known (car expr*))))
-        ((get-expander taylor-expansion-known) expr*)
-        expr*))
-  (unless (equal? expr expr*)
-    (debug #:from 'taylor "Rewrote expression to" expr))
   (match expr
     [(? (curry equal? var))
      (taylor-exact 0 1)]
-    [(? constant?)
+    [(? number?)
      (taylor-exact expr)]
     [(? variable?)
+     (taylor-exact expr)]
+    [`(,const)
      (taylor-exact expr)]
     [`(+ ,args ...)
      (apply taylor-add (map (curry taylor var) args))]
@@ -162,6 +156,8 @@
            (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-sin (zero-series arg*)))))]
         [else
          (taylor-cos (zero-series arg*))]))]
+    [`(tan ,arg)
+     (taylor var `(/ (sin ,arg) (cos ,arg)))]
     [`(log ,arg)
      (let* ([arg* (normalize-series (taylor var arg))]
             [rest (taylor-log (cdr arg*))])
@@ -177,6 +173,36 @@
      (taylor-pow (normalize-series (taylor var base)) power)]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
+    [`(expm1 ,arg) (taylor var `(- (exp ,arg) 1))]
+    [`(log1p ,arg) (taylor var `(log (+ 1 ,arg)))]
+    [`(hypot ,a ,b)
+     (define ta (taylor var a))
+     (define tb (taylor var b))
+     (taylor-sqrt (taylor-add (taylor-mult ta ta) (taylor-mult tb tb)))]
+    [`(fma ,a ,b ,c) (taylor var `(+ (* ,a ,b) ,c))]
+    [`(sinh ,arg)
+     (define exparg (taylor var `(exp ,arg)))
+     (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]
+    [`(cosh ,arg)
+     (define exparg (taylor var `(exp ,arg)))
+     (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-invert exparg)))]
+    [`(tanh ,arg)
+     (define exparg (taylor var `(exp ,arg)))
+     (define expinv (taylor-invert exparg))
+     (define x+ (taylor-add exparg expinv))
+     (define x- (taylor-add exparg (taylor-negate expinv)))
+     (taylor-quotient x- x+)]
+    [`(asinh ,x)
+     (define tx (taylor var x))
+     (taylor-log (taylor-add tx (taylor-sqrt (taylor-add (taylor-mult tx tx) (taylor-exact 1)))))]
+    [`(acosh ,x)
+     (define tx (taylor var x))
+     (taylor-log (taylor-add tx (taylor-sqrt (taylor-add (taylor-mult tx tx) (taylor-exact -1)))))]
+    [`(atanh ,x)
+     (define tx (taylor var x))
+     (taylor-mult (taylor-exact 1/2)
+                  (taylor-log (taylor-quotient (taylor-add (taylor-exact 1) tx)
+                                               (taylor-add (taylor-exact 1) (taylor-negate tx)))))]
     [_
      (taylor-exact expr)]))
 
@@ -473,5 +499,6 @@
                               ,(factorial n))))))))))
 
 (module+ test
-  (require rackunit)
+  (require rackunit "../interface.rkt" "../load-plugin.rkt")
+  (*output-repr* (get-representation 'binary64))
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))

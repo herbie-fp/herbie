@@ -13,7 +13,9 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v0.5
+        uses: Bogdanp/setup-racket@v1.3.1
+        with:
+          version: stable
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1
         with:
@@ -24,20 +26,20 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - run: raco test src/ infra/
+      - run: raco test src/ infra/ egg-herbie/
 
   hamming:
     name: "Integration tests (Hamming)"
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        racket-version: [ '7.5', '7.6', '7.7' ]
+        racket-version: [ '8.0', '8.1', '8.2' ]
         precision: [ 'binary32', 'binary64' ]
     steps:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v0.5
+        uses: Bogdanp/setup-racket@v1.3.1
         with:
           version: ${{ matrix.racket-version }}
       - name: Install Rust compiler
@@ -60,7 +62,9 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v0.5
+        uses: Bogdanp/setup-racket@v1.3.1
+        with:
+          version: '8.0'
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1
         with:
@@ -88,7 +92,9 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v0.5
+        uses: Bogdanp/setup-racket@v1.3.1
+        with:
+          version: '8.0'
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1
         with:
@@ -107,3 +113,22 @@ jobs:
       - name: "Install Complex support"
         run: raco pkg install --no-cache --auto --name complex-herbie plugin/
       - run: racket infra/travis.rkt --seed 0 plugin/test.fpcore
+
+  pherbie-hamming:
+    name: "Integration tests (Pherbie, Hamming)"
+    runs-on: ubuntu-latest
+    needs: [ 'hamming' ]
+    strategy:
+      matrix: # this takes a while: don't run too many
+        precision: [ 'binary32', 'binary64' ]
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v1.3.1
+        with:
+          version: '8.0'
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 --pareto bench/hamming/

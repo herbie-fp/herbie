@@ -5,7 +5,7 @@
 
 (define all-flags
   #hash([precision . (double fallback)]
-        [setup . (simplify early-exit search)]
+        [setup . (simplify search)]
         [generate . (rr taylor simplify better-rr)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
@@ -15,7 +15,7 @@
         [setup . (simplify search)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic special bools branches)]))
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define (check-flag-deprecated! category flag)
   (match* (category flag)
@@ -79,6 +79,13 @@
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
 
+;; Pherbie related options
+(define *pareto-mode* (make-parameter #f))
+(define *pareto-pick-limit* (make-parameter 5))
+
+;; In mainloop, cache improvements between iterations
+(define *use-improve-cache* (make-parameter #t))
+
 ;;; About Herbie:
 
 (define (run-command cmd)
@@ -92,7 +99,7 @@
           (if (equal? out "") default out))
       default))
 
-(define *herbie-version* "1.4")
+(define *herbie-version* "1.5")
 
 (define *hostname* (run-command "hostname"))
 

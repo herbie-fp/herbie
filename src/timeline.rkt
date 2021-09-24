@@ -15,8 +15,8 @@
 
 (define (timeline-event! type)
   (unless (*timeline-disabled*)
-    (define initial (hasheq 'type (~a type) 'time (current-inexact-milliseconds)))
-    (define b (make-hasheq (hash->list initial))) ; convert to mutable hash
+    (define b (make-hasheq (list (cons 'type (~a type))
+                                 (cons 'time (current-inexact-milliseconds)))))
     (set-box! *timeline* (cons b (unbox *timeline*)))))
 
 (define/contract (timeline-push! key . values)
@@ -25,7 +25,7 @@
     (define val (if (= (length values) 1) (car values) values))
     (hash-update! (car (unbox *timeline*)) key (curry cons val) '())))
 
-(define (timeline-adjust! type key . values)
+(define/contract (timeline-adjust! type key . values)
   (-> symbol? symbol? jsexpr? ... void?)
   (unless (*timeline-disabled*)
     (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) (~a type)))
@@ -51,7 +51,7 @@
           (values k (map (λ (p) (path->string (build-path link p))) v))
           (values k v)))))
 
-(define timeline-types (make-hash))
+(define timeline-types (make-hasheq))
 
 (define-syntax define-timeline
   (syntax-rules ()
@@ -110,8 +110,11 @@
 (define-timeline accuracy [accuracy])
 (define-timeline oracle [oracle])
 (define-timeline baseline [baseline])
-(define-timeline alts [input +] [output +])
+(define-timeline count [input +] [output +])
+(define-timeline alts [prog] [status])
 (define-timeline sampling #:custom merge-sampling-tables)
+(define-timeline symmetry #:unmergable)
+(define-timeline remove-preprocessing #:unmergable)
 (define-timeline locations #:unmergable)
 (define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)

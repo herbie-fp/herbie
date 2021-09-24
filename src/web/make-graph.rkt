@@ -1,11 +1,14 @@
 #lang racket
 
 (require (only-in xml write-xexpr xexpr?) 
-         (only-in fpbench core->tex))
+         (only-in fpbench core->tex *expr-cse-able?*
+                          [core-common-subexpr-elim core-cse]))
+
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../interface.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
          "common.rkt" "history.rkt" "../syntax/sugar.rkt")
+         
 (provide make-graph)
 
 (define/contract (regime-info altn)
@@ -47,14 +50,27 @@
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
+(define (alt->tex alt repr)
+  (core->tex (core-cse (program->fpcore (resugar-program (alt-program alt) repr)))))
+
+(define (at-least-two-ops? expr)
+  (match expr
+   [(list op args ...) (ormap list? args)]
+   [_ #f]))
+
 (define (make-graph result out fpcore? profile?)
   (match-define
    (test-success test bits time timeline warnings
-                 start-alt end-alt points exacts start-est-error end-est-error
-                 newpoints newexacts start-error end-error target-error
-                 baseline-error oracle-error all-alts)
+                 start-alt end-alts preprocess points exacts start-est-error end-est-error
+                 newpoints newexacts start-error end-errors target-error
+                 baseline-error oracle-error start-cost costs all-alts)
    result)
   (define repr (test-output-repr test))
+  (define end-alt (car end-alts))
+  (define end-error (car end-errors))
+  (define other-alts (cdr end-alts))
+  (define other-errors (cdr end-errors))
+  (define alt-plots? (< (* (length other-alts) (length (test-vars test))) 100))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -69,7 +85,7 @@
       (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
      (body
       ,(render-menu
-        (list/true
+        (list
          '("Error" . "#graphs")
          (and fpcore? (for/and ([p points]) (andmap number? p))
               '("Try it out!" . "#try-it"))
@@ -77,7 +93,7 @@
               '("Target" . "#comparison"))
          '("Derivation" . "#history")
          '("Reproduce" . "#reproduce"))
-        (list/true
+        (list
          '("Report" . "../results.html")
          '("Log" . "debug.txt")
          '("Metrics" . "timeline.html")))
@@ -92,11 +108,14 @@
                               (format-bits (apply max (map ulps->bits start-error)) #:unit #f)
                               (format-bits (apply max (map ulps->bits end-error)) #:unit #f)))
        ,(render-large "Time" (format-time time))
-       ,(render-large "Precision" `(kbd ,(~a (representation-name repr)))))
+       ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
+       ,(if (*pareto-mode*)
+            (render-large "Cost" `(kbd ,(format-bits (car costs) #:unit #f)))
+            ""))
 
       ,(render-warnings warnings)
 
-      ,(render-program test #:to (alt-program end-alt))
+      ,(render-program preprocess test #:to (alt-program end-alt))
 
       (section ([id "graphs"])
        (h1 "Error")
@@ -107,6 +126,11 @@
               (define split-var? (equal? var (regime-var end-alt)))
               (define title "The X axis uses an exponential scale")
               `(figure ([id ,(format "fig-~a" idx)] [class ,(if split-var? "default" "")])
+                ,@(reverse ; buttons are sorted R/L
+                    (for/list ([alt other-alts] [idx2 (in-naturals)] #:when alt-plots?)
+                      (let ([name (format "Other~a" idx2)])
+                        `(img ([width "800"] [height "300"] [title ,title] [data-name ,name]
+                               [src ,(format "plot-~ao~a.png" idx idx2)])))))
                 (img ([width "800"] [height "300"] [title ,title]
                       [src ,(format "plot-~a.png" idx)]))
                 (img ([width "800"] [height "300"] [title ,title] [data-name "Input"]
@@ -118,7 +142,10 @@
                 (img ([width "800"] [height "300"] [title ,title] [data-name "Result"]
                       [src ,(format "plot-~ab.png" idx)]))
                 (figcaption (p "Bits error versus " (var ,(~a var)))))]
-             [else ""]))))
+             [else ""]))
+       ,(if alt-plots?
+             ""
+             `(p "Too many alternatives generated, ignoring plots"))))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive start-alt (car points))
@@ -141,7 +168,30 @@
        (h1 "Derivation")
        (ol ([class "history"])
         ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
-            (render-history end-alt (mk-pcontext newpoints newexacts) (mk-pcontext points exacts) repr))))
+            (render-history end-alt (mk-pcontext newpoints newexacts)
+                            (mk-pcontext points exacts) repr))))
+
+      ,(if (not (null? other-alts))
+           `(section ([id "alternatives"])
+              (h1 "Alternatives")
+              ,@(for/list ([alt other-alts] [cost (cdr costs)] [errs other-errors] [idx (in-naturals 1)])
+                `(div ([class "entry"])
+                  (table
+                    (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" idx)))
+                    (tr (th "Error") (td ,(format-bits (errors-score errs))))
+                    (tr (th "Cost") (td ,(format-bits cost))))
+                  (div ([class "math"])
+                    "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
+                            (alt->tex alt repr))
+                    "\\]"))))
+            "")
+                                      
+      ,(if (not (null? other-alts))
+          `(section ([id "cost-accuracy"])
+            (h1 "Error")
+            (img ([width "800"] [height "300"] [title "cost-accuracy"]
+                  [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
+            "")
 
       ,(render-reproduction test)))
     out))

@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "errors.rkt" "plugin.rkt" "sandbox.rkt")
+(require "common.rkt" "multi-command-line.rkt" "errors.rkt" "load-plugin.rkt" "sandbox.rkt")
 
 ;; Load all the plugins
 (load-herbie-plugins)
@@ -14,6 +14,15 @@
 
 (define (string->thread-count th)
   (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
+
+(define (string->flag s)
+  (match (string-split s ":")
+    [(list (app string->symbol category) (app string->symbol flag))
+     (and
+      (dict-has-key? all-flags category)
+      (set-member? (dict-ref all-flags category) flag)
+      (list category flag))]
+    [_ #f]))
 
 (module+ main
   (define quiet? #f)
@@ -29,13 +38,20 @@
   (define report-note #f)
   (define report-debug? #f)
 
+  (define pareto-timeout (* 1000 60 60 2))
+  (define timeout-set? #f)
+
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
+
+  ; handle plugin warnings
+  (print-warnings)
 
   (multi-command-line
    #:program "herbie"
    #:once-each
    [("--timeout") s "Timeout for each test (in seconds)"
+    (set! timeout-set? #t)
     (*timeout* (* 1000 (string->number s)))]
    [("--seed") int "The random seed to use in point generation"
     (define given-seed (read (open-input-string int)))
@@ -48,14 +64,17 @@
     (*node-limit* (string->number num))]
    [("--num-analysis") num "The number of input analysis iterations to use"
     (*max-find-range-depth* (string->number num))]
+   [("--pareto") "Enables Pareto-Herbie (Pherbie)"
+    (*pareto-mode* #t)
+    (unless timeout-set? (*timeout* pareto-timeout))]
    #:multi
    [("-o" "--disable") flag "Disable a flag (formatted category:name)"
-    (define tf (parse-flag flag))
+    (define tf (string->flag flag))
     (when (not tf)
       (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
     (apply disable-flag! tf)]
    [("+o" "--enable") flag "Enable a flag (formatted category:name)"
-    (define tf (parse-flag flag))
+    (define tf (string->flag flag))
     (when (not tf)
       (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
     (apply enable-flag! tf)]

@@ -46,6 +46,8 @@
 
 (define-eggmath egraph_destroy (_fun _egraph-pointer -> _void))
 
+(define-eggmath destroy_string (_fun _pointer -> _void))
+
 ;; egraph pointer, s-expr string -> node number
 (define-eggmath egraph_add_expr (_fun _egraph-pointer _string/utf-8 -> _EGraphAddResult-pointer))
 

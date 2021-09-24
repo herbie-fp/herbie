@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/place)
-(require "../common.rkt" "../sandbox.rkt" "../plugin.rkt" "pages.rkt"
+(require "../common.rkt" "../sandbox.rkt" "../load-plugin.rkt" "pages.rkt"
          "../syntax/read.rkt" "../datafile.rkt")
 
 (provide get-test-results)
@@ -46,7 +46,7 @@
 (define (make-worker seed profile? debug? dir)
   (place/context* ch
     #:parameters (*flags* *num-iterations* *num-points* *timeout* *reeval-pts* *node-limit*
-                  *max-find-range-depth*)
+                  *max-find-range-depth* *pareto-mode*)
     (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
       (load-herbie-plugins))
     (for ([_ (in-naturals)])
@@ -104,12 +104,7 @@
         (if (= (length out*) (length progs))
             out*
             (loop out*)))))
-
-  ;; 9/29/20: warfa segfaults when killing worker threads. Can't recreate locally.
-  ;; Cause unknown. Seems to disappear in a later branch. Weird stuff
-  ;; TODO: Check on this later.
   (for-each place-kill workers)
-
   (map cdr (sort outs < #:key car)))
 
 (define (run-nothreads progs #:seed seed #:profile profile? #:debug debug? #:dir dir)

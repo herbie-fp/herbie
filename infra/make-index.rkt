@@ -1,26 +1,16 @@
 #lang racket
 
-(require racket/runtime-path)
+(require racket/runtime-path racket/hash)
 (require (only-in xml write-xexpr) json)
 (require racket/date "../src/common.rkt" "../src/datafile.rkt")
-(provide directory-jsons name->timestamp)
-
-(define-runtime-path report-json-path "../previous/")
-
-(define (name->timestamp path)
-  (define rpath (find-relative-path (simple-form-path report-json-path) path))
-  (define folder (path-element->string (first (explode-path rpath))))
-  (string->number
-   (if (string-contains? folder ":")
-       (first (string-split folder ":"))
-       folder)))
+(provide directory-jsons)
 
 (define (directory-jsons dir)
   (reap [sow]
     (let loop ([dir dir])
       (cond
        [(file-exists? (build-path dir "results.json"))
-        (sow (find-relative-path (simple-form-path report-json-path) (simple-form-path dir)))]
+        (sow dir)]
        [(directory-exists? dir)
         (for-each loop (directory-list dir #:build? true))]))))
 
@@ -62,7 +52,7 @@
 (define/contract (compute-row folder)
   (-> path? cache-row?)
   (eprintf "Reading ~a\n" folder)
-  (define info (read-datafile (build-path report-json-path folder "results.json")))
+  (define info (read-datafile (build-path folder "results.json")))
   (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
 
   (define-values (total-start total-end)
@@ -103,9 +93,6 @@
         'bits-improved (- total-start total-end)
         'bits-available total-start))
 
-(define (read-row folder)
-  (dict-ref! (*cache*) (string->symbol (path->string folder)) (λ () (compute-row folder))))
-
 (define (round* x)
   (cond
    [(>= (abs x) (expt 10 6)) "?"]
@@ -139,28 +126,21 @@
            (td ([title ,(format "At ~a\nOn ~a\nFlags ~a" (field 'date-full) (field 'hostname) (string-join (field 'options) " "))])
                (a ([href ,(format "./~a/results.html" (field 'folder))]) "»")))))))
 
-(define (make-index-page out)
-  (when (file-exists? (build-path report-json-path "index.cache"))
-    (define cached-info (hash-copy (call-with-input-file (build-path report-json-path "index.cache") read-json)))
-    (if (for/and ([(k v) (in-hash cached-info)]) (cache-row? v))
-        (*cache* cached-info)
-        (eprintf "Ignoring cache; contains invalid values")))
+(define (make-index-page folders out)
+  (define branch-infos
+     (group-by (curryr dict-ref 'branch)
+               (sort
+                (filter (compose (curry < (- (current-seconds) (* 60 60 24 30)))
+                                 (curryr dict-ref 'date-unix))
+                        folders)
+               > #:key (curryr dict-ref 'date-unix))))
 
-  (define dirs (directory-jsons report-json-path))
-  (define folders
-     (map read-row (sort (filter name->timestamp dirs) > #:key name->timestamp)))
-  (define recent-folders
-    (filter (λ (x) (< (- (current-seconds) (dict-ref x 'date-unix)) (* 60 60 24 30)))
-            folders))
-
-  (define branch-infos*
-    (sort
-     (group-by (curryr dict-ref 'branch) recent-folders)
-     > #:key (λ (x) (dict-ref (first x) 'date-unix))))
+  (when (null? branch-infos)
+    (raise-user-error 'make-index "No recent nightly runs"))
 
   (define-values (mainline-infos other-infos)
     (partition (λ (x) (set-member? '("master" "develop") (dict-ref (first x) 'branch)))
-               branch-infos*))
+               branch-infos))
 
   (when (null? mainline-infos)
     (set! mainline-infos
@@ -190,15 +170,15 @@
       (meta ((charset "utf-8")))
       (title "Herbie Reports")
       (link ((rel "stylesheet") (href "index.css")))
-      (script ((src "http://d3js.org/d3.v3.min.js") (charset "utf-8")))
+      (script ((src "https://d3js.org/d3.v3.min.js") (charset "utf-8")))
       (script ((src "regression-chart.js")))
       (script ((src "report.js"))))
      (body
       (div
        ((id "large"))
-       (div "Reports: " (span ((class "number")) ,(~a (length recent-folders))))
+       (div "Reports: " (span ((class "number")) ,(~a (apply + (map length branch-infos)))))
        (div "Mainline: " (span ((class "number")) ,(~a (length (apply append mainline-infos)))))
-       (div "Branches: " (span ((class "number")) ,(~a (length branch-infos*))))
+       (div "Branches: " (span ((class "number")) ,(~a (length branch-infos))))
        (div "Crash-free: " (span ((class "number")) ,(if since-last-crash
                                                          (format "~ad" (inexact->exact (round since-last-crash)))
                                                          "∞"))))
@@ -220,10 +200,24 @@
             (print-rows rows #:name (dict-ref (first rows) 'branch)))))))
    out))
 
+(define (get-reports file)
+  (cond
+   [(directory-exists? file)
+    (map compute-row (directory-jsons file))]
+   [(file-exists? file)
+    (define cached-info (call-with-input-file file read-json))
+    (for ([v (in-list cached-info)] #:unless (cache-row? v))
+      (raise-user-error 'make-index "Invalid cache row ~a" v))
+    cached-info]))
+
 (module+ main
-  (call-with-output-file "index.html"
-    #:exists 'replace
-    make-index-page)
-  (call-with-output-file (build-path report-json-path "index.cache")
-    #:exists 'replace
-    (curry write-json (*cache*))))
+  (command-line
+   #:args files
+   (define reports (append-map get-reports files))
+   (printf "Loaded data on ~a reports.\n" (length reports))
+   (call-with-output-file "index.html"
+     #:exists 'replace
+     (curry make-index-page reports))
+   (call-with-output-file "index.cache"
+     #:exists 'replace
+     (curry write-json reports))))

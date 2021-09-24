@@ -4,14 +4,15 @@
 (require "config.rkt" "debug.rkt")
 (module+ test (require rackunit))
 
-(provide reap define-table table-ref table-set! table-remove!
+(provide reap ->float32
          call-with-output-files
-         take-up-to flip-lists list/true find-duplicates
-         argmins argmaxs index-of set-disjoint? comparator
-         parse-flag get-seed set-seed!
-         quasisyntax syntax-e* dict sym-append
-         format-time format-bits in-sorted-dict web-resource
-         (all-from-out "config.rkt") (all-from-out "debug.rkt"))
+         flip-lists find-duplicates
+         argmins argmaxs index-of set-disjoint?
+         get-seed set-seed!
+         quasisyntax dict sym-append comparator
+         format-time format-bits web-resource
+         debug ; from debug.rkt
+         (all-from-out "config.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
 
@@ -19,40 +20,25 @@
   (let* ([sows (let ([store '()])
                  (cons
                   (λ () store)
-                  (λ (elt) (set! store (cons elt store)))))] ...)
+                  (match-lambda*
+                   [(list elt) (set! store (cons elt store))]
+                   [(list) store]
+                   [_ (error 'reap "invalid sow")])))] ...)
     (let ([sows (cdr sows)] ...)
       body ...)
     (values (reverse ((car sows))) ...)))
 
-;; The new, contracts-using version of the above
+(define cast-single
+  (let ([flsingle identity])
+    (local-require racket/flonum)
+    flsingle))
 
-(define-syntax-rule (define-table name [field type] ...)
-  (define name (cons (list (cons 'field type) ...) (make-hash))))
-
-(define (table-ref tbl key field)
-  (match-let ([(cons header rows) tbl])
-    (for/first ([(field-name type) (in-dict header)]
-                [value (in-list (hash-ref rows key))]
-                #:when (equal? field-name field))
-      value)))
-
-(define (table-set! tbl key fields)
-  (match-let ([(cons header rows) tbl])
-    (define row (for/list ([(hkey htype) (in-dict header)]) (dict-ref fields hkey)))
-    (hash-set! rows key row)))
-
-(define (table-remove! tbl key)
-  (hash-remove! (cdr tbl) key))
+(define (->float32 x)
+  (if (>= (string->number (substring (version) 0 1)) 8)
+      (cast-single (exact->inexact x))
+      (real->single-flonum x)))
 
 ;; Utility list functions
-
-(define (take-up-to l k)
-  (for/list ([x l] [i (in-range k)])
-    x))
-
-(module+ test
-  (check-equal? (take-up-to '(a b c d e f) 3) '(a b c))
-  (check-equal? (take-up-to '(a b) 3) '(a b)))
 
 (define (argmins f lst)
   (let loop ([lst lst] [best-score #f] [best-elts '()])
@@ -83,9 +69,6 @@
 (define (flip-lists list-list)
   "Flip a list of rows into a list of columns"
   (apply map list list-list))
-
-(define (list/true . args)
-  (filter identity args))
 
 (module+ test
   (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))
@@ -118,15 +101,6 @@
   (check-false (set-disjoint? '(a b c) '(a))))
 
 ;; Miscellaneous helper
-
-(define (parse-flag s)
-  (match (string-split s ":")
-    [(list (app string->symbol category) (app string->symbol flag))
-     (and
-      (dict-has-key? all-flags category)
-      (set-member? (dict-ref all-flags category) flag)
-      (list category flag))]
-    [_ #f]))
 
 (define the-seed #f)
 
@@ -202,9 +176,6 @@
                 (λ (p) (loop (cdr names) (cons p ps))))
             (loop (cdr names) (cons #f ps))))))
 
-(define (in-sorted-dict d #:key [key identity])
-  (in-dict (sort (dict->list d) > #:key key)))
-
 (define-runtime-path web-resource-path "web/")
 
 (define (web-resource [name #f])
@@ -212,14 +183,9 @@
       (build-path web-resource-path name)
       web-resource-path))
 
+(define (sym-append . args)
+  (string->symbol (apply string-append (map ~a args))))
+
 (define ((comparator test) . args)
   (for/and ([left args] [right (cdr args)])
     (test left right)))
-
-(define (syntax-e* stx)
-  (match (syntax-e stx)
-    [(list elems ...) (map syntax-e* elems)]
-    [stx* stx*]))
-
-(define (sym-append . args)
-  (string->symbol (apply string-append (map ~a args))))
