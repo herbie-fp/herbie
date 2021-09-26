@@ -24,7 +24,7 @@
 (define (test-precondition test)
   `(λ ,(test-vars test) ,(test-pre test)))
 
-(define (parse-test stx [override-ctx '()])
+(define (parse-test stx)
   (assert-program! stx)
   (assert-program-typed! stx)
   (define-values (func-name args props body)
@@ -48,14 +48,7 @@
         ['() '()]
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
-  (define prop-dict* ; override fpcore props
-    (let loop ([prop-dict prop-dict] [ctx override-ctx])
-      (match ctx
-       ['() prop-dict]
-       [(list (cons prop val) rest ...)
-        (loop (dict-set* prop-dict prop val) rest)])))
-
-  (define default-repr (get-representation (dict-ref prop-dict* ':precision 'binary64)))
+  (define default-repr (get-representation (dict-ref prop-dict ':precision (*default-precision*))))
   (define var-reprs 
     (for/list ([arg args] [arg-name arg-names])
       (cons arg-name
@@ -68,20 +61,20 @@
 
   ;; Try props first, then identifier, else the expression itself
   (define name
-    (or (dict-ref prop-dict* ':name #f)
+    (or (dict-ref prop-dict ':name #f)
         func-name
         body))
 
   ;; load conversion operators for desugaring
   (define convs (map (curry map get-representation)
-                     (dict-ref prop-dict* ':herbie-conversions '())))
+                     (dict-ref prop-dict ':herbie-conversions '())))
   (generate-conversions convs)
 
   ;; inline and desugar
   (define body* (desugar-program body default-repr var-reprs))
-  (define pre* (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs))
-  (define target (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs))
-  (define spec (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs))
+  (define pre* (desugar-program (dict-ref prop-dict ':pre 'TRUE) default-repr var-reprs))
+  (define target (desugar-program (dict-ref prop-dict ':herbie-target #f) default-repr var-reprs))
+  (define spec (desugar-program (dict-ref prop-dict ':spec body) default-repr var-reprs))
   (check-unused-variables arg-names body* pre*)
   (check-weird-variables arg-names)
 
@@ -90,10 +83,10 @@
         arg-names
         body*
         target
-        (dict-ref prop-dict* ':herbie-expected #t)
+        (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (map sexp->preprocess (dict-ref prop-dict* ':herbie-preprocess empty))
+        (map sexp->preprocess (dict-ref prop-dict ':herbie-preprocess empty))
         default-repr
         var-reprs
         convs))
@@ -117,34 +110,34 @@
       (warn 'strange-variable
             "unusual variable ~a; did you mean ~a?" var const))))
 
-(define (load-stdin override-ctx)
+(define (load-stdin)
   (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
-    (parse-test test override-ctx)))
+    (parse-test test)))
 
-(define (load-file file override-ctx)
+(define (load-file file)
   (call-with-input-file file
     (λ (port)
       (port-count-lines! port)
       (for/list ([test (in-port (curry read-syntax file) port)])
-        (parse-test test override-ctx)))))
+        (parse-test test)))))
 
-(define (load-directory dir override-ctx)
+(define (load-directory dir)
   (apply append
          (for/list ([fname (in-directory dir)]
                     #:when (file-exists? fname)
                     #:when (equal? (filename-extension fname) #"fpcore"))
-           (load-file fname override-ctx))))
+           (load-file fname))))
 
-(define (load-tests path [override-ctx '()])
+(define (load-tests path)
   (define path* (if (string? path) (string->path path) path))
   (define out
     (cond
      [(equal? path "-")
-      (load-stdin override-ctx)]
+      (load-stdin)]
      [(directory-exists? path*)
-      (load-directory path* override-ctx)]
+      (load-directory path*)]
      [else
-      (load-file path* override-ctx)]))
+      (load-file path*)]))
   (define duplicates (find-duplicates (map test-name out)))
   (unless (null? duplicates)
     (warn 'duplicate-names

@@ -17,8 +17,13 @@
        [(_ #t) (>= target-bits (- output-bits 1))])))
 
 (define (run-tests . bench-dirs)
-  (define override-ctx (if (*precision*) `((:precision . ,(representation-name (*precision*)))) '())) ; desugar programs correctly
-  (define tests (append-map (curryr load-tests override-ctx) bench-dirs))
+  (define default-precision 
+    (if (*precision*)
+        (representation-name (*precision*))
+        (*default-precision*)))
+  (define tests
+    (parameterize ([*default-precision* default-precision])
+      (append-map load-tests bench-dirs)))
   (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
   (for/and ([the-test tests] [i (in-naturals)])
