@@ -16,6 +16,13 @@
        [(#f #t) (>= input-bits output-bits)]
        [(_ #t) (>= target-bits (- output-bits 1))])))
 
+(define (override-test-precision test repr)
+  (struct-copy test the-test
+               [output-repr-name (representation-name repr)]
+               [var-repr-namess
+                (for/list ([(var prec) (in-dict (test-var-reprs the-test))])
+                  (cons var (representation-name repr)))]))
+
 (define (run-tests . bench-dirs)
   (define default-precision 
     (if (*precision*)
@@ -30,11 +37,7 @@
     (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
     (define the-test*
       (if (*precision*)
-          (struct-copy test the-test
-                       [output-repr (*precision*)]
-                       [var-reprs
-                        (for/list ([(var prec) (in-dict (test-var-reprs the-test))])
-                          (cons var (*precision*)))])
+          (override-test-precision the-test (*precision*))
           the-test))
     (match (get-test-result the-test* #:seed seed)
       [(test-success test bits time timeline warnings
