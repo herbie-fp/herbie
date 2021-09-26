@@ -16,7 +16,7 @@
        [(#f #t) (>= input-bits output-bits)]
        [(_ #t) (>= target-bits (- output-bits 1))])))
 
-(define (override-test-precision test repr)
+(define (override-test-precision the-test repr)
   (struct-copy test the-test
                [output-repr-name (representation-name repr)]
                [var-repr-namess
