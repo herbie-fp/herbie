@@ -9,7 +9,7 @@
 
 (define (extract-test row)
   (define vars (table-row-vars row))
-  (define repr (table-row-precision row))
+  (define repr (get-representation (table-row-precision row)))
   (define var-reprs (map (curryr cons repr) vars))
   (test (table-row-name row)
         (table-row-identifier row)
@@ -20,8 +20,8 @@
         (desugar-program (table-row-spec row) repr var-reprs)
         (desugar-program (table-row-pre row) repr var-reprs)
         (table-row-preprocess row)
-        repr
-        var-reprs
+        (representation-name repr)
+        (for/list ([(k v) (in-dict var-reprs)]) (cons k (representation-name v)))
         (table-row-conversions row)))
   
 (define (make-report bench-dirs #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)

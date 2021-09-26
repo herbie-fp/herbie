@@ -154,7 +154,8 @@
   (table-row (test-name test) #f status
              (resugar-program (program-body (test-precondition test)) repr)
              (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
-             (test-output-repr test) (test-conversions test)
+             (representation-name (test-output-repr test))
+             (map (curry map representation-name) (test-conversions test))
              (test-vars test)
              (resugar-program (test-input test) repr) #f
              (resugar-program (test-spec test) repr)
@@ -232,8 +233,8 @@
            `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
            '())
      :name ,(table-row-name row)
-     :precision ,(representation-name (table-row-precision row))
-     :herbie-conversions ,(map (curry map representation-name) (table-row-conversions row))
+     :precision ,(table-row-precision row)
+     :herbie-conversions ,(table-row-conversions row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
      ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())

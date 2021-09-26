@@ -1,16 +1,17 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
+(require "../config.rkt" "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
          "../preprocess.rkt" "../conversions.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
-         test-precondition test-output-repr)
+         test-precondition
+         test-output-repr test-var-reprs test-conversions)
 
 
 (struct test (name identifier vars input output expected spec pre
-              preprocess output-repr var-reprs conversions) #:prefab)
+              preprocess output-repr-name var-repr-names conversion-syntax) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -23,6 +24,16 @@
 
 (define (test-precondition test)
   `(λ ,(test-vars test) ,(test-pre test)))
+
+(define (test-output-repr test)
+  (get-representation (test-output-repr-name test)))
+
+(define (test-var-reprs test)
+  (for/list ([(k v) (in-dict (test-var-repr-names test))])
+    (cons k (get-representation v))))
+
+(define (test-conversions test)
+  (map (curry map get-representation) (test-conversion-syntax test)))
 
 (define (parse-test stx)
   (assert-program! stx)
@@ -66,8 +77,8 @@
         body))
 
   ;; load conversion operators for desugaring
-  (define convs (map (curry map get-representation)
-                     (dict-ref prop-dict ':herbie-conversions '())))
+  (define conv-syntax (dict-ref prop-dict ':herbie-conversions '()))
+  (define convs (map (curry map get-representation) conv-syntax))
   (generate-conversions convs)
 
   ;; inline and desugar
@@ -87,9 +98,9 @@
         spec
         pre*
         (map sexp->preprocess (dict-ref prop-dict ':herbie-preprocess empty))
-        default-repr
-        var-reprs
-        convs))
+        (representation-name default-repr)
+        (for/list ([(k v) (in-dict var-reprs)]) (cons k (representation-name v)))
+        conv-syntax))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
