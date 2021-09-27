@@ -277,10 +277,9 @@
         (eval-prog `(λ ,vars ,axis) 'fl repr)))
         
   (define-values (lt neg) ;; representation-specific operators
-    (let ([name (representation-name repr)])
-      (values
-        (operator-info (get-parametric-operator '< name name) 'fl)
-        (operator-info (get-parametric-operator 'neg name) 'fl))))
+    (values
+     (operator-info (get-parametric-operator '< repr repr) 'fl)
+     (operator-info (get-parametric-operator 'neg repr) 'fl)))
   (define max (λ (x y) (if (lt x y) y x))) 
   (define min (λ (x y) (if (lt x y) x y)))
 

@@ -130,7 +130,7 @@
 
 ;; Operator implementations
 
-(struct operator-impl (name op itype otype bf fl ival))
+(struct operator-impl (name op itype otype fl))
 (define operator-impls (make-hasheq))
 
 (define operators-to-impls (make-hasheq))
@@ -155,49 +155,42 @@
     (match field
       ['itype operator-impl-itype]
       ['otype operator-impl-otype]
-      ['bf operator-impl-bf]
+      ['bf (compose operator-bf operator-impl-op)]
       ['fl operator-impl-fl]
-      ['ival operator-impl-ival]))
+      ['ival (compose operator-ival operator-impl-op)]))
   (accessor (hash-ref operator-impls operator)))
 
 (define/contract (operator-remove! operator)
   (-> symbol? any/c)
   (hash-remove! operator-impls operator))
 
-(define (check-operator-types! inherited itypes otype)
-  (define itypes* (dict-ref inherited 'itype))
-  (define otype* (dict-ref inherited 'otype))
-  (define prec->type (compose representation-type get-representation))
-  (and (equal? (prec->type otype) otype*)
-       (or (and (type-name? itypes*) (type-name? itypes)
-                (equal? (prec->type itypes) itypes*))
-           (map (λ (x y) (equal? (prec->type x) y)) itypes itypes*))))
+(define (register-operator-impl! operator name areprs rrepr attrib-dict)
+  (unless (hash-has-key? operators operator)
+    (error 'register-operator-impl!
+           "Cannot register ~a as implementation of ~a: no such operator"
+           name operator))
 
-(define (register-operator-impl! operator name atypes rtype attrib-dict)
+
   (define op (hash-ref operators operator))
-  (define default-attrib
-    (list (cons 'itype (operator-itype op))
-          (cons 'otype (operator-otype op))
-          (cons 'bf (operator-bf op))
-          (cons 'ival (operator-ival op))))
-  (unless default-attrib
-    (error 'register-operator-impl! "Real operator does not exist: ~a" operator))
-  ;; merge inherited and explicit attributes
-  (define attrib-dict* (dict-merge default-attrib attrib-dict))
-  (define itypes (dict-ref attrib-dict 'itype atypes))
-  (define otype (dict-ref attrib-dict 'otype rtype))
-  (unless (equal? operator 'if) ;; if does not work here
-    (check-operator-types! default-attrib itypes otype))
-  ;; Convert attributes to hash, update tables
-  (define fields (make-hasheq attrib-dict*))
-  (hash-set! fields 'itype itypes)
-  (hash-set! fields 'otype otype)
-  (hash-set! operator-impls name (apply operator-impl name op (map (curry hash-ref fields) '(itype otype bf fl ival))))
+  (define fl-fun (dict-ref attrib-dict 'fl))
+
+  (unless (equal? operator 'if) ;; Type check all operators except if
+    (for ([arepr (cons rrepr areprs)]
+          [itype (cons (operator-otype op) (operator-itype op))])
+      (unless (equal? (representation-type arepr) itype)
+        (error 'register-operator-impl!
+               "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
+               name operator rrepr (operator-otype op)))))
+
+  (hash-set! operator-impls name (operator-impl name op areprs rrepr fl-fun))
   (hash-update! operators-to-impls operator (curry cons name) '()))
   
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
+  (register-operator-impl! 'operator 'name
+                           (list (get-representation 'atypes) ...)
+                           (get-representation 'rtype)
+                           (list (cons 'key value) ...)))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
@@ -216,22 +209,22 @@
   (hash-ref operators-to-impls name))
 
 ;; real operators
-(define-operator (== real real) real
+(define-operator (== real real) bool
   [bf (comparator bf=)] [ival ival-==])
 
-(define-operator (!= real real) real
+(define-operator (!= real real) bool
   [bf (negate (comparator bf=))] [ival ival-!=])
 
-(define-operator (< real real) real
+(define-operator (< real real) bool
   [bf (comparator bf<)] [ival ival-<])
 
-(define-operator (> real real) real
+(define-operator (> real real) bool
   [bf (comparator bf>)] [ival ival->])
 
-(define-operator (<= real real) real
+(define-operator (<= real real) bool
   [bf (comparator bf<=)] [ival ival-<=])
 
-(define-operator (>= real real) real
+(define-operator (>= real real) bool
   [bf (comparator bf>=)] [ival ival->=])
 
 ;; logical operators ;;
@@ -256,11 +249,11 @@
 (define (rewrite-repr-op? expr)
   (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
 
-(define (get-repr-conv iprec oprec)
+(define (get-repr-conv irepr orepr)
   (for/or ([name (operator-all-impls 'cast)])
     (and (repr-conv? name)
-         (equal? (operator-info name 'otype) oprec)
-         (equal? (car (operator-info name 'itype)) iprec)
+         (equal? (operator-info name 'otype) orepr)
+         (equal? (first (operator-info name 'itype)) irepr)
          name)))
 
 (define-operator (PI) real

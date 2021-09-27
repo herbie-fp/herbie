@@ -34,7 +34,7 @@
 
 (define (rules->irules rules)
   (if use-egg-math?
-      (for/list [(rule rules)]
+      (for/list ([rule rules])
         (irule (rule-name rule) (rule-input rule) (rule-output rule)))
       (list)))
 
@@ -97,6 +97,9 @@
  [regraph (make-regraph rule-phase precompute-phase prune-phase extractor-phase
                         regraph-count regraph-cost regraph-extract)])
 
+(define (eval-application* op . args)
+  (apply eval-application (impl->operator op) args))
+
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
   (timeline-push! 'method "regraph")
@@ -112,7 +115,7 @@
 
   (define phases
     (list (rule-phase (map rule-input rls) (map rule-output rls))
-          (and precompute? (precompute-phase eval-application))
+          (and precompute? (precompute-phase eval-application*))
           prune-phase
           extractor-phase))
 
