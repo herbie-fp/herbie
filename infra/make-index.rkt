@@ -11,6 +11,8 @@
       (cond
        [(file-exists? (build-path dir "results.json"))
         (sow dir)]
+       [(file-exists? (build-path dir "results.json.gz"))
+        (raise-user-error 'directory-jsons "Cannot read ~a, results file is compressed" dir)]
        [(directory-exists? dir)
         (for-each loop (directory-list dir #:build? true))]))))
 
@@ -46,12 +48,11 @@
   (apply and/c hash?
          (for*/list ([(valid? keys) (in-hash key-contracts)] [key keys])
            (make-flat-contract
-            #:name key
+            #:name `(hash-has-key/c ,key)
             #:first-order (λ (x) (and (hash-has-key? x key) (valid? (hash-ref x key))))))))
 
 (define/contract (compute-row folder)
   (-> path? cache-row?)
-  (eprintf "Reading ~a\n" folder)
   (define info (read-datafile (build-path folder "results.json")))
   (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
 
@@ -213,8 +214,13 @@
 (module+ main
   (command-line
    #:args files
-   (define reports (append-map get-reports files))
-   (printf "Loaded data on ~a reports.\n" (length reports))
+   (define reports
+     (append-map
+      (λ (file)
+        (define out (get-reports (string->path file)))
+        (printf "Loaded data on ~a reports from ~a\n" (length out) file)
+        out)
+      files))
    (call-with-output-file "index.html"
      #:exists 'replace
      (curry make-index-page reports))

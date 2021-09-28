@@ -54,6 +54,8 @@ for bench in bench/*; do
       dirs="$dirs $DIR/$name";
   fi
 done
+
+
 racket infra/nightly.rkt "$DIR" $dirs
 bash infra/publish.sh upload "$DIR"
 bash infra/publish.sh index

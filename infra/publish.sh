@@ -10,15 +10,20 @@ upload () {
     B=$(git rev-parse --abbrev-ref HEAD)
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
+    racket infra/make-index.rkt index.cache "$DIR"
+    rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
     find "$DIR" -name "*.txt" -exec gzip -f {} \;
     find "$DIR" -name "*.json" -exec gzip -f {} \;
     rsync --recursive "$DIR" "$RHOST:$RHOSTDIR/$RDIR"
+    rsync --recursive \
+          "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
+          "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RDIR" -R
+    ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
     if command -v nightly-results &>/dev/null; then
         nightly-results url https://herbie.uwplse.org/reports/"$RDIR"/
     fi
-    racket infra/make-index.rkt index.cache "$DIR"
-    rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
+    rm index.html
 }
 
 index () {
@@ -30,7 +35,7 @@ index () {
           "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/report.js" \
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
-    rm index.cache index.html
+    rm index.html
 }
 
 reindex () {
