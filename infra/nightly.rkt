@@ -45,7 +45,7 @@
   (write-datafile (build-path outdir "results.json") joint-rs)
   (call-with-output-file (build-path outdir "results.html")
     #:exists 'replace
-    (curryr make-report joint-rs #f)))
+    (curryr make-report-page joint-rs #f)))
 
 (module+ main
   (command-line
