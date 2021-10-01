@@ -121,15 +121,19 @@
       (warn 'strange-variable
             "unusual variable ~a; did you mean ~a?" var const))))
 
+(define (our-read-syntax port name)
+  (parameterize ([read-decimal-as-inexact false])
+    (read-syntax port name)))
+
 (define (load-stdin)
-  (for/list ([test (in-port (curry read-syntax "stdin") (current-input-port))])
+  (for/list ([test (in-port (curry our-read-syntax "stdin") (current-input-port))])
     (parse-test test)))
 
 (define (load-file file)
   (call-with-input-file file
     (λ (port)
       (port-count-lines! port)
-      (for/list ([test (in-port (curry read-syntax file) port)])
+      (for/list ([test (in-port (curry our-read-syntax file) port)])
         (parse-test test)))))
 
 (define (load-directory dir)
