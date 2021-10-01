@@ -1,10 +1,8 @@
 #lang racket
 
 (require "../src/common.rkt" "../src/points.rkt" "../src/load-plugin.rkt"
-         "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt")
-
-;; Load all the plugins
-(load-herbie-plugins)
+         "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt"
+         "../src/interface.rkt")
 
 (define *precision* (make-parameter #f))
 (define *ignore-target* (make-parameter #f))
@@ -18,20 +16,28 @@
        [(#f #t) (>= input-bits output-bits)]
        [(_ #t) (>= target-bits (- output-bits 1))])))
 
+(define (override-test-precision the-test repr)
+  (struct-copy test the-test
+               [output-repr-name (representation-name repr)]
+               [var-repr-names
+                (for/list ([(var prec) (in-dict (test-var-reprs the-test))])
+                  (cons var (representation-name repr)))]))
+
 (define (run-tests . bench-dirs)
-  (define override-ctx (if (*precision*) `((:precision . ,(*precision*))) '())) ; desugar programs correctly
-  (define tests (append-map (curryr load-tests override-ctx) bench-dirs))
+  (define default-precision 
+    (if (*precision*)
+        (representation-name (*precision*))
+        (*default-precision*)))
+  (define tests
+    (parameterize ([*default-precision* default-precision])
+      (append-map load-tests bench-dirs)))
   (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
   (for/and ([the-test tests] [i (in-naturals)])
     (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
     (define the-test*
       (if (*precision*)
-          (struct-copy test the-test
-                       [output-prec (*precision*)]
-                       [var-precs
-                        (for/list ([(var prec) (in-dict (test-var-precs the-test))])
-                          (cons var (*precision*)))])
+          (override-test-precision the-test (*precision*))
           the-test))
     (match (get-test-result the-test* #:seed seed)
       [(test-success test bits time timeline warnings
@@ -69,8 +75,12 @@
        #f])))
 
 (module+ main
+  ;; Load all the plugins
+  (load-herbie-plugins)
+
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
+
   (command-line
    #:program "travis.rkt"
    #:once-each
@@ -78,7 +88,7 @@
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
    [("--precision") prec "Which precision to use for tests"
-    (*precision* (string->symbol prec))]
+    (*precision* (get-representation (string->symbol prec)))]
    [("--pareto") "Enables Pherbie"
     (*pareto-mode* #t)
     (*ignore-target* #t)

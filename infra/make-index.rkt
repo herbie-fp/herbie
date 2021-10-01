@@ -11,6 +11,8 @@
       (cond
        [(file-exists? (build-path dir "results.json"))
         (sow dir)]
+       [(file-exists? (build-path dir "results.json.gz"))
+        (raise-user-error 'directory-jsons "Cannot read ~a, results file is compressed" dir)]
        [(directory-exists? dir)
         (for-each loop (directory-list dir #:build? true))]))))
 
@@ -46,12 +48,11 @@
   (apply and/c hash?
          (for*/list ([(valid? keys) (in-hash key-contracts)] [key keys])
            (make-flat-contract
-            #:name key
+            #:name `(hash-has-key/c ,key)
             #:first-order (λ (x) (and (hash-has-key? x key) (valid? (hash-ref x key))))))))
 
 (define/contract (compute-row folder)
   (-> path? cache-row?)
-  (eprintf "Reading ~a\n" folder)
   (define info (read-datafile (build-path folder "results.json")))
   (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
 
@@ -200,10 +201,13 @@
             (print-rows rows #:name (dict-ref (first rows) 'branch)))))))
    out))
 
-(define (get-reports file)
+(define (get-reports file base)
   (cond
    [(directory-exists? file)
-    (map compute-row (directory-jsons file))]
+    (for/list ([folder (in-list (directory-jsons file))])
+      (define relative-path (find-relative-path file folder #:more-than-same? false))
+      (define path* (if base (build-path base relative-path) relative-path))
+      (hash-set (compute-row folder) 'folder (path->string (simplify-path path* false))))]
    [(file-exists? file)
     (define cached-info (call-with-input-file file read-json))
     (for ([v (in-list cached-info)] #:unless (cache-row? v))
@@ -211,10 +215,19 @@
     cached-info]))
 
 (module+ main
+  (define relpath #f)
   (command-line
+   #:once-each
+   [("--relpath") s "Prefix to use for new folders in the arguments"
+    (set! relpath s)]
    #:args files
-   (define reports (append-map get-reports files))
-   (printf "Loaded data on ~a reports.\n" (length reports))
+   (define reports
+     (append-map
+      (λ (file)
+        (define out (get-reports (string->path file) relpath))
+        (printf "Loaded data on ~a reports from ~a\n" (length out) file)
+        out)
+      files))
    (call-with-output-file "index.html"
      #:exists 'replace
      (curry make-index-page reports))

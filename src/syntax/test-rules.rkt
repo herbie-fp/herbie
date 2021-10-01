@@ -33,16 +33,15 @@
   (with-hiprec (compose (representation-bf->repr repr) (eval-prog `(λ ,fv ,p) 'bf repr))))
 
 (define (check-rule-correct test-rule ground-truth)
-  (match-define (rule name p1 p2 itypes otype) test-rule)
+  (match-define (rule name p1 p2 itypes repr) test-rule)
   (define fv (dict-keys itypes))
-  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation t))))
-  (define repr (get-representation otype))
+  (*var-reprs* itypes)
   (define ival-bad? (conjoin real? nan?))
 
   (define make-point
     (make-sampler
      repr
-     `(λ ,fv ,(desugar-program (dict-ref *conditions* name 'TRUE) repr (*var-reprs*)))
+     `(λ ,fv ,(desugar-program (dict-ref *conditions* name '(TRUE)) repr (*var-reprs*)))
      `((λ ,fv ,p1)
        (λ ,fv ,p2))
      empty))
@@ -71,14 +70,12 @@
              (~r (* 100 usable-fraction) #:precision '(= 0)))]))
 
 (define (check-rule-fp-safe test-rule)
-  (match-define (rule name p1 p2 itypes otype) test-rule)
+  (match-define (rule name p1 p2 itypes repr) test-rule)
   (define fv (dict-keys itypes))
-  (*var-reprs* (for/list ([(v t) (in-dict itypes)]) (cons v (get-representation t))))
-  (define repr (get-representation otype))
+  (*var-reprs* itypes)
   (define (make-point)
-    (for/list ([v fv])
-      (define repr (get-representation (dict-ref (rule-itypes test-rule) v)))
-      (random-generate repr)))
+    (for/list ([v (in-list fv)])
+      (random-generate (dict-ref itypes v))))
   (define point-sequence (in-producer make-point))
   (define points (for/list ([n (in-range (num-test-points))] [pt point-sequence]) pt))
   (define prog1 (eval-prog `(λ ,fv ,p1) 'fl repr))
@@ -88,14 +85,12 @@
       (values (apply prog1 pt) (apply prog2 pt))))
   (for ([pt points] [v1 ex1] [v2 ex2])
     (with-check-info (['point (map list fv pt)])
-      (match otype
+      (match (representation-name repr) ;; TODO: Why is this here?
        ['binary32 (check-equal? (->float32 v1) (->float32 v2))] ; casting problems
        [else (check-equal? v1 v2)]))))
 
 (module+ main
-  (*needed-reprs* (list (get-representation 'binary64)
-                        (get-representation 'binary32)
-                        (get-representation 'bool)))
+  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
   (num-test-points (* 100 (num-test-points)))
   (command-line
@@ -108,26 +103,15 @@
       (check-rule-fp-safe rule)))))
 
 (module+ test
-  (*needed-reprs* (list (get-representation 'binary64)
-                        (get-representation 'binary32)
-                        (get-representation 'bool)))
+  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
-
-    (define ground-truth
-      (cond
-       [(and (expr-supports? (rule-input test-rule) 'ival)
-             (expr-supports? (rule-output test-rule) 'ival))
-        ival-ground-truth]
-       [else
-        (unless (set-member? (second test-ruleset) 'complex)
-          (fail-check "Real or boolean rule not supported by intervals"))
-        (when (dict-has-key? *conditions* (rule-name test-rule))
-          (fail-check "Using bigfloat sampling on a rule with a condition"))
-        bf-ground-truth]))
+    (unless (and (expr-supports? (rule-input test-rule) 'ival)
+                 (expr-supports? (rule-output test-rule) 'ival))
+      (fail-check "Rule does not support ival sampling"))
 
     (test-case (~a (rule-name test-rule))
-      (check-rule-correct test-rule ground-truth)))
+      (check-rule-correct test-rule ival-ground-truth)))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]

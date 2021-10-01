@@ -86,26 +86,15 @@
 (define (egg-parsed->expr parsed rename-dict)
   (match parsed
     [(list first-parsed second-parsed rest-parsed ...)
-     (if (empty? rest-parsed) ; Assuming no nullary functions
-         (if (equal? second-parsed 'real)  ; parameterized constants: (name type) => name.type
-               first-parsed
-               (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
-         (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
-           (if (equal? second-parsed 'real)
-               first-parsed
-               (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
-           (map (curryr egg-parsed->expr rename-dict) rest-parsed)))]
-    [(or (? number?) (? constant?))
+     (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
+      (if (equal? second-parsed 'real)
+          first-parsed
+          (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
+      (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
+    [(or (? number?))
      parsed]
     [else
      (hash-ref rename-dict parsed)]))
-
-(define (parameterized-constant? sym)
-  (if (symbol? sym)
-      (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s sym))
-        [(list _ constant prec) #t]
-        [_ #f])
-      #f))
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
 (define (expr->egg-expr expr egg-data)
@@ -126,10 +115,6 @@
       #:after-last ")")]
     [(and (number? expr) (exact? expr) (real? expr))
      (number->string expr)]
-    [(constant? expr)
-     (extract-symbol expr)]
-    [(parameterized-constant? expr)
-     (extract-symbol expr)]
     [(hash-has-key? herbie->egg-dict expr)
      (symbol->string (hash-ref herbie->egg-dict expr))]
     [else
@@ -189,17 +174,17 @@
           (cons '(- z (+ (+ y 2) x)) "(- real h2 (+ real (+ real h0 2) h1))")
           (cons '(*.f64 x y) "(* f64 h1 h0)")
           (cons '(+.f32 (*.f32 x y) 2) "(+ f32 (* f32 h1 h0) 2)")
-          (cons '(cos.f64 PI.f64) "(cos f64 (PI f64))")
-          (cons '(if TRUE x y) "(if real (TRUE real) h1 h0)")))
+          (cons '(cos.f64 (PI.f64)) "(cos f64 (PI f64))")
+          (cons '(if (TRUE) x y) "(if real (TRUE real) h1 h0)")))
 
   (define nil
     (with-egraph
      (lambda (egg-graph)
-      (for/list ([expr-pair test-exprs])
-        (let* ([out (expr->egg-expr (car expr-pair) egg-graph)]
-               [inv (egg-expr->expr out egg-graph)])
-          (check-equal? out (cdr expr-pair))      ; check output against expected
-          (check-equal? inv (car expr-pair))))))) ; check if procedures are truly inverses
+      (for/list ([(in expected-out) (in-dict test-exprs)])
+        (let* ([out (expr->egg-expr in egg-graph)]
+               [computed-in (egg-expr->expr out egg-graph)])
+          (check-equal? out expected-out)
+          (check-equal? computed-in in))))))
 
   (define extended-expr-list
     (list

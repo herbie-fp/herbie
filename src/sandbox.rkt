@@ -4,7 +4,7 @@
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
          (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt"
-         "syntax/sugar.rkt" "preprocess.rkt")
+         "syntax/sugar.rkt" "preprocess.rkt" "sampling.rkt" "cost.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -46,8 +46,8 @@
                          #:debug-port [debug-port #f]
                          #:debug-level [debug-level #f])
   (define timeline #f)
-  (define output-prec (test-output-prec test))
-  (define output-repr (get-representation output-prec))
+  (define output-repr (test-output-repr test))
+  (define output-prec (representation-name output-repr))
   (*output-repr* output-repr)
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 
@@ -154,7 +154,8 @@
   (table-row (test-name test) #f status
              (resugar-program (program-body (test-precondition test)) repr)
              (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
-             (test-output-prec test) (test-conversions test)
+             (representation-name (test-output-repr test))
+             (map (curry map representation-name) (test-conversions test))
              (test-vars test)
              (resugar-program (test-input test) repr) #f
              (resugar-program (test-spec test) repr)

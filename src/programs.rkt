@@ -2,20 +2,19 @@
 
 (require math/bigfloat rival)
 (require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt"
-         "timeline.rkt" "cost.rkt")
+         "timeline.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
          expr? expr-supports? expr-contains?
-         program-cost
          type-of repr-of
          location-do location-get
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression replace-vars
          apply-repr-change)
 
-(define expr? (or/c list? symbol? value? real?))
+(define expr? (or/c list? symbol? boolean? real?))
 
 ;; Programs are just lambda expressions
 
@@ -29,10 +28,6 @@
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   vars)
 
-(define (program-cost prog)
-  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
-  (expr-cost body))
-
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
 ;; TODO(interface): Once we update the syntax checker to FPCore 1.1
@@ -41,12 +36,9 @@
   (match expr
    [(? number?) (get-type 'real)]
    [(? (representation-repr? repr)) (representation-type repr)]
-   [(? constant?) 
-    (representation-type (get-representation (constant-info expr 'type)))]
    [(? variable?) (representation-type (dict-ref env expr))]
    [(list 'if cond ift iff) (type-of ift repr env)]
-   [(list op args ...) ; repr-name -> repr -> type
-    (representation-type (get-representation (operator-info op 'otype)))]))
+   [(list op args ...) (representation-type (operator-info op 'otype))]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
@@ -54,10 +46,9 @@
   (match expr
    [(? number?) repr]
    [(? (representation-repr? repr)) repr]
-   [(? constant?) (get-representation (constant-info expr 'type))]
    [(? variable?) (dict-ref env expr)]
    [(list 'if cond ift iff) (repr-of ift repr env)]
-   [(list op args ...) (get-representation (operator-info op 'otype))]))
+   [(list op args ...) (operator-info op 'otype)]))
 
 (define (expr-supports? expr field)
   (let loop ([expr expr])
@@ -67,8 +58,7 @@
       [(list op args ...)
        (and (operator-info op field) (andmap loop args))]
       [(? variable?) true]
-      [(? number?) true]
-      [(? constant?) (constant-info expr field)])))
+      [(? number?) true])))
 
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
@@ -81,7 +71,6 @@
 (define (free-variables prog)
   (match prog
     [(? number?) '()]
-    [(? constant?) '()]
     [(? variable?) (list prog)]
     [`(,op ,args ...)
      (remove-duplicates (append-map free-variables args))]))
@@ -119,15 +108,12 @@
   (define f (batch-eval-progs (list prog) mode repr))
   (λ args (vector-ref (apply f args) 0)))
 
-(define (real->bf x repr)
-  ((type-exact->inexact (representation-type repr)) x))
-
 (define (batch-eval-progs progs mode repr)
   (define real->precision
     (match mode
      ['fl (λ (x repr) (real->repr x repr))]
-     ['bf (λ (x repr) (real->bf x repr))]
-     ['ival (λ (x repr) (mk-ival (real->bf x repr)))]))
+     ['bf (λ (x repr) (bf x))]
+     ['ival (λ (x repr) (mk-ival (bf x)))]))
 
   (define arg->precision
     (match mode
@@ -167,7 +153,6 @@
     (define expr
       (match prog
        [(? number?) (list (const (real->precision prog repr)))]
-       [(? constant?) (list (constant-info prog mode))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
         (list if-op
@@ -175,20 +160,10 @@
               (munge t repr)
               (munge f repr))]
        [(list op args ...)
-        (define op-info
-          (hash-ref! cached-ops op
-                     (λ ()
-                      (define atypes
-                        (match (operator-info op 'itype)
-                         [(? representation-name? a) (list #f (get-representation a))]
-                         [(? list? as) (map get-representation as)]))
-                      (cons (operator-info op mode) atypes))))
-        (define atypes
-          (if (cadr op-info) ; handle variadic operators
-              (cdr op-info)
-              (make-list (length args) (caddr op-info))))
-        (cons (car op-info) (map munge args atypes))]
-       [_ (raise-argument-error 'eval-prog "expr?" prog)]))
+        (define fn (operator-info op mode))
+        (define atypes (operator-info op 'itype))
+        (cons fn (map munge args atypes))]
+       [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
               (λ ()
                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
@@ -216,7 +191,8 @@
       (vector-ref v n))))
 
 (module+ test
-  (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(a b c)))
+  (define <binary64> (get-representation 'binary64))
+  (*var-reprs* (map (curryr cons <binary64>) '(a b c)))
   (define tests
     #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
@@ -229,8 +205,8 @@
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
       ;; When we are in ival mode, we don't use repr, so pass in #f
-      (define iv (apply (eval-prog e 'ival (get-representation 'binary64)) p))
-      (define val (apply (eval-prog e 'bf (get-representation 'binary64)) p))
+      (define iv (apply (eval-prog e 'ival <binary64>) p))
+      (define val (apply (eval-prog e 'bf <binary64>) p))
       (check-in-interval? iv val))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
@@ -292,94 +268,84 @@
     '(/ 1 cos))
    '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
 
-
 ; Updates the repr of an expression if needed
 (define (apply-repr-change-expr expr)
-  (let loop ([expr expr] [prec #f])
+  (let loop ([expr expr] [repr #f])
     (match expr
      [(list (? repr-conv? op) body)
-      (define iprec (first (operator-info op 'itype)))
-      (define oprec (operator-info op 'otype))
-      (define prec* (if prec prec oprec))
-      (define body* (loop body iprec))
+      (define irepr (first (operator-info op 'itype)))
+      (define orepr (operator-info op 'otype))
+      (define repr* (or repr orepr))
+      (define body* (loop body irepr))
       (cond
        [(not body*) #f] ; propagate failed repr-change
        [else
-        (define new-conv (get-repr-conv iprec prec*)) ; try to find a single conversion
+        (define new-conv (get-repr-conv irepr repr*)) ; try to find a single conversion
         (if new-conv
             (list new-conv body*)
-            (let ([second-conv (get-repr-conv oprec prec*)]) ; try a two-step conversion
+            (let ([second-conv (get-repr-conv orepr repr*)]) ; try a two-step conversion
               (and second-conv (list second-conv (list op body*)))))])]
      [(list (? rewrite-repr-op? rr) (list (? repr-conv? op) body))  ; repr change on a conversion
-      (define iprec (first (operator-info op 'itype)))
-      (define prec* (operator-info rr 'otype))
-      (if (equal? prec* iprec)
-          (if prec
-              (loop body iprec) ; if the conversions are inverses and not the top
-              (list op (loop body iprec)))
-          (if prec
-              (loop (list op body) prec*)
-              (let* ([conv (get-repr-conv prec* (representation-name (*output-repr*)))]
-                     [body* (loop body prec*)])
+      (define irepr (first (operator-info op 'itype)))
+      (define repr* (operator-info rr 'otype))
+      (if (equal? repr* irepr)
+          (if repr
+              (loop body irepr) ; if the conversions are inverses and not the top
+              (list op (loop body irepr)))
+          (if repr
+              (loop (list op body) repr*)
+              (let* ([conv (get-repr-conv repr* (*output-repr*))]
+                     [body* (loop body repr*)])
                 (and conv body* (list conv body*)))))]
      [(list (? rewrite-repr-op? op) body)
-      (define iprec (operator-info op 'otype))
-      (define oprec (if prec prec (representation-name (*output-repr*))))
+      (define irepr (operator-info op 'otype))
+      (define orepr (or repr (*output-repr*)))
       (cond
-       [(equal? iprec oprec)
-        (loop body iprec)]
+       [(equal? irepr orepr)
+        (loop body irepr)]
        [else
-        (define conv (get-repr-conv iprec oprec))
-        (define body* (loop body iprec))
+        (define conv (get-repr-conv irepr orepr))
+        (define body* (loop body irepr))
         (and conv body* (list conv body*))])]
      [(list 'if con ift iff)
-      (define prec* (if prec prec (representation-name (*output-repr*))))
+      (define repr* (or repr (*output-repr*)))
       (define con*
         (let loop2 ([con con])
           (cond
-           [(set-member? '(TRUE 'FALSE) con)
+           [(set-member? '((TRUE) (FALSE)) con)
             con]
            [else
             (match-define (list op args ...) con)
-            (define cprec (operator-info op 'itype))
-            (cond
-             [(equal? cprec 'bool)
-              `(,op ,@(map loop2 args))]
-             [else
-              `(,op ,@(map (curryr loop cprec) args))])])))
-      (define ift* (loop ift prec*))
-      (define iff* (loop iff prec*))
+            (define args*
+              (for/list ([arg args] [atype (operator-info op 'itype)])
+                (if (equal? (representation-type atype) 'bool)
+                    (loop2 arg)
+                    (loop arg atype))))
+            (cons op args*)])))
+      (define ift* (loop ift repr*))
+      (define iff* (loop iff repr*))
       (and ift* iff* `(if ,con* ,ift* ,iff*))]
      [(list (? operator? op) args ...) 
-      (define prec* (if prec prec (operator-info op 'otype)))
-      (if (equal? (operator-info op 'otype) prec*)
+      (define orepr (operator-info op 'otype))
+      (define repr* (or repr orepr))
+      (if (equal? orepr repr*)
           (let ([args* (map loop args (operator-info op 'itype))])
             (and (andmap identity args*) (cons op args*)))
           (let ([op* (apply get-parametric-operator 
-                            (hash-ref parametric-operators-reverse op)
-                            (make-list (length args) prec*)
+                            (impl->operator op)
+                            (make-list (length args) repr*)
                             #:fail-fast? #f)]
-                [args* (map (curryr loop prec*) args)])
+                [args* (map (curryr loop repr*) args)])
             (and op* (andmap identity args*) (cons op* args*))))]
      [(? variable?)
-      (define var-prec (representation-name (dict-ref (*var-reprs*) expr)))
+      (define var-repr (dict-ref (*var-reprs*) expr))
       (cond
-       [(equal? var-prec prec) expr]
+       [(equal? var-repr repr) expr]
        [else ; insert a cast if the variable precision is not the same
-        (define cast (get-repr-conv var-prec prec))
+        (define cast (get-repr-conv var-repr repr))
         (and cast (list cast expr))])]
-     [(? (curry hash-has-key? parametric-constants-reverse))
-      (define prec* (if prec prec (constant-info expr 'type)))
-      (if (equal? (constant-info expr 'type) prec*) ; update constants if precision no longer matches
-          expr
-          (let* ([c-unparam (hash-ref parametric-constants-reverse expr expr)]
-                 [c* (get-parametric-constant c-unparam prec)])
-            (if c*
-                c*
-                (let ([conv (get-repr-conv (constant-info expr 'type) prec*)])
-                  (and conv (list conv expr))))))] ; if constant does not exist in repr, add conversion
      [_ expr])))
-      
+
 (define (apply-repr-change prog)
   (match prog
    [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body))]

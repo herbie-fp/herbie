@@ -34,7 +34,7 @@
 
 (define (rules->irules rules)
   (if use-egg-math?
-      (for/list [(rule rules)]
+      (for/list ([rule rules])
         (irule (rule-name rule) (rule-input rule) (rule-output rule)))
       (list)))
 
@@ -97,6 +97,9 @@
  [regraph (make-regraph rule-phase precompute-phase prune-phase extractor-phase
                         regraph-count regraph-cost regraph-extract)])
 
+(define (eval-application* op . args)
+  (apply eval-application (impl->operator op) args))
+
 (define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
   (timeline-push! 'method "regraph")
@@ -108,12 +111,11 @@
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
     (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
 
-  (define rg (make-regraph (map munge exprs) #:limit (*node-limit*)))
+  (define rg (make-regraph exprs #:limit (*node-limit*)))
 
   (define phases
-    (list (rule-phase (map (compose munge rule-input) rls)
-                                (map (compose munge rule-output) rls))
-          (and precompute? (precompute-phase eval-application))
+    (list (rule-phase (map rule-input rls) (map rule-output rls))
+          (and precompute? (precompute-phase eval-application*))
           prune-phase
           extractor-phase))
 
@@ -125,7 +127,7 @@
     (and (< initial-cnt (regraph-count rg) (*node-limit*))))
 
   (log rg "done")
-  (map list (map unmunge (regraph-extract rg))))
+  (map list (regraph-extract rg)))
 
 (lazy-require
  [egg-herbie (with-egraph egraph-add-exprs egraph-run
@@ -192,24 +194,6 @@
   (free-ffi-rules ffi-rules)
   iteration-data)
 
-(define (munge expr)
-  ;; Despite the name, `expr` might be an expression OR a pattern
-  (match expr
-    [(? number?) expr]
-    [(? constant?) (list expr)]
-    [(? variable?) expr]
-    [(list head subs ...)
-     (cons head (map munge subs))]))
-
-(define (unmunge expr)
-  ;; Despite the name, `expr` might be an expression OR a pattern
-  (match expr
-    [(list constant)
-     constant]
-    [(list head subs ...)
-     (cons head (map unmunge subs))]
-    [_ expr]))
-
 (module+ test
   (require "../interface.rkt" "../syntax/rules.rkt")
   (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x a b c)))
@@ -220,9 +204,7 @@
   ;; this would be bad because we don't want to match type-specific operators on a value of a different type
   (for ([rule all-simplify-rules])
     (check-true
-     (or
-      (not (symbol? (rule-input rule)))
-      (constant? (rule-input rule)))
+     (not (symbol? (rule-input rule)))
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
@@ -244,7 +226,7 @@
           [(-.f64 (*.f64 (sqrt.f64 (+.f64 x 1)) (sqrt.f64 (+.f64 x 1)))
               (*.f64 (sqrt.f64 x) (sqrt.f64 x))) . 1]
           [(+.f64 1/5 3/10) . 1/2]
-          [(cos.f64 PI.f64) . -1]
+          [(cos.f64 (PI.f64)) . -1]
           ;; this test is problematic and runs out of nodes currently
           ;[(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
           ))
