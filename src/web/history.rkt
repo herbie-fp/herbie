@@ -91,7 +91,9 @@
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
                                                       (core->tex prog* #:loc loc #:color "blue") 
                                                       "ERROR") 
-                                                  "\\]")))]
+                                                  "\\]")
+           (p "Proof")
+           (p ,proof))]
 
     [(alt prog `initial-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
