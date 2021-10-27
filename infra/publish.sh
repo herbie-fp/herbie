@@ -21,7 +21,7 @@ upload () {
     ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RDIR" -R
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
     if command -v nightly-results &>/dev/null; then
-        nightly-results url https://herbie.uwplse.org/reports/"$RDIR"/
+        nightly-results url https://herbie.uwplse.org/reports/"$RDIR"/results.html
     fi
     rm index.html
 }
