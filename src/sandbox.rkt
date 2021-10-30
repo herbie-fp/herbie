@@ -64,15 +64,19 @@
 
       (generate-prec-rewrites (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
-        (define alts
-          (run-improve (test-program test)
-                       (*num-iterations*)
-                       #:precondition (test-precondition test)
-                       #:preprocess (test-preprocess test)
-                       #:specification (test-specification test)
-                       #:precision output-prec))
+        (rollback-improve!)
 
-        (define context (*pcontext*))
+        (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
+        (define context
+          (setup-context!
+           (or (test-specification test) (test-program test)) (test-precondition test)
+           output-repr))
+
+        (define alts
+          (run-improve! (test-program test) context (*num-iterations*)
+                        #:specification (test-specification test)
+                        #:preprocess (test-preprocess test)))
+
         (when seed (set-seed! seed))
         (timeline-event! 'sample)
         (define newcontext

@@ -24,9 +24,9 @@
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
 
-(define-syntax-rule (for/pcontext ([(pt ex) pcontext]) body ...)
+(define-syntax-rule (for/pcontext ([(pt ex) pcontext] other ...) body ...)
   (let-values ([(pts* exs*)
-                (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)])
+                (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...)
                   body ...)])
     (mk-pcontext pts* exs*)))
 

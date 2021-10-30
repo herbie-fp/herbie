@@ -295,6 +295,7 @@
       (finalize-iter!)
       (^next-alt^ #f)))
 
+;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve prog iters
                      #:precondition [precondition #f]
                      #:preprocess [preprocess empty]
@@ -303,34 +304,36 @@
   (rollback-improve!)
   (define repr (get-representation precision))
 
-  (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
   (define original-points (setup-context! (or specification prog) precondition repr))
+  (run-improve! iters prog specification preprocess original-points repr))
 
-  (improve! iters prog specification preprocess original-points repr))
 
-(define (improve! iters prog specification preprocess pcontext repr)
+(define (run-improve! prog pcontext iters
+                      #:specification [specification #f]
+                      #:preprocess [preprocess '()])
   (debug #:from 'progress #:depth 3 "[2/5] Deducing preprocessing steps")
+  (define vars (program-variables specification))
 
   ;; If the specification is given, it is used for sampling points
-  (parameterize ([*timeline-disabled* true])
-    (define sortable (connected-components specification))
-    (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
-    ;; make variables strings for the json
-    (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
-    (define preprocess-structs (append preprocess symmetry-groups))
-    (*herbie-preprocess* preprocess-structs))
+  (define sortable
+    (parameterize ([*timeline-disabled* true])
+      (connected-components specification)))
 
-  (*pcontext*
+  (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
+  (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
+  (*herbie-preprocess* (append preprocess symmetry-groups))
+
+  (define processed-pcontext
    (for/pcontext ([(pt ex) pcontext])
-    (values (apply-preprocess (program-variables specification) pt (*herbie-preprocess*) repr) ex)))
+    (values (apply-preprocess vars pt (*herbie-preprocess*) (*output-repr*)) ex)))
 
-  (match-define (cons best rest) (mutate! prog iters))
+  (match-define (cons best rest) (mutate! prog iters processed-pcontext))
 
   (*herbie-preprocess* (remove-unecessary-preprocessing best pcontext (*herbie-preprocess*)))
   (cons best rest))
 
-
-(define (mutate! prog iters)
+(define (mutate! prog iters pcontext)
+  (*pcontext* pcontext)
   (debug #:from 'progress #:depth 3 "[3/5] Initializing alt table")
   (initialize-alt-table! prog (*pcontext*) (*output-repr*))
 
