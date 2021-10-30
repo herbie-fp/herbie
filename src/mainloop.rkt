@@ -279,21 +279,6 @@
   (define contexts (prepare-points specification precondition repr sampler'()))
   (cdr contexts))
 
-(define (deduce-preprocessing! specification preprocess pcontext repr)
-  ;; If the specification is given, it is used for sampling points
-  (parameterize ([*timeline-disabled* true])
-    (define sortable (connected-components specification))
-    (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
-    ;; make variables strings for the json
-    (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
-    (define preprocess-structs (append preprocess symmetry-groups))
-    (*herbie-preprocess* preprocess-structs))
-
-  (define-values (pts* exs*)
-    (for/lists (pts* exs*) ([(pt ex) (in-pcontext (*pcontext-unprocessed*))])
-      (values (apply-preprocess (program-variables specification) pt (*herbie-preprocess*) repr) ex)))
-  (mk-pcontext pts* exs*))
-
 (define (initialize-alt-table! prog pcontext repr)
   (define alt (make-alt prog))
   (*start-prog* prog)
@@ -303,7 +288,12 @@
   (^table^
    (if (*pareto-mode*)
        (atab-add-altns table (starting-alts alt) repr)
-       table)))
+       table))
+
+  (when (flag-set? 'setup 'simplify)
+      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
+      (finalize-iter!)
+      (^next-alt^ #f)))
 
 (define (run-improve prog iters
                      #:precondition [precondition #f]
@@ -314,25 +304,42 @@
   (define repr (get-representation precision))
 
   (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
-  (*pcontext-unprocessed*
-   (setup-context! (or specification prog) precondition repr))
+  (define original-points (setup-context! (or specification prog) precondition repr))
 
+  (improve! iters prog specification preprocess original-points repr))
+
+(define (improve! iters prog specification preprocess pcontext repr)
   (debug #:from 'progress #:depth 3 "[2/5] Deducing preprocessing steps")
-  (*pcontext*
-   (deduce-preprocessing! (or specification prog) preprocess (*pcontext-unprocessed*) repr))
 
+  ;; If the specification is given, it is used for sampling points
+  (parameterize ([*timeline-disabled* true])
+    (define sortable (connected-components specification))
+    (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
+    ;; make variables strings for the json
+    (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
+    (define preprocess-structs (append preprocess symmetry-groups))
+    (*herbie-preprocess* preprocess-structs))
+
+  (*pcontext*
+   (for/pcontext ([(pt ex) pcontext])
+    (values (apply-preprocess (program-variables specification) pt (*herbie-preprocess*) repr) ex)))
+
+  (match-define (cons best rest) (mutate! prog iters))
+
+  (*herbie-preprocess* (remove-unecessary-preprocessing best pcontext (*herbie-preprocess*)))
+  (cons best rest))
+
+
+(define (mutate! prog iters)
   (debug #:from 'progress #:depth 3 "[3/5] Initializing alt table")
-  (initialize-alt-table! prog (*pcontext*) repr)
+  (initialize-alt-table! prog (*pcontext*) (*output-repr*))
 
   (debug #:from 'progress #:depth 1 "[4/5] Entering search loop")
-  (when (flag-set? 'setup 'simplify)
-      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
-      (finalize-iter!)
-      (^next-alt^ #f))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
     (run-iter!)
     (print-warnings))
+
   (debug #:from 'progress #:depth 1 "[5/5] Extracting best program")
   (extract!))
 
@@ -383,5 +390,4 @@
          [(not best) (values altn new-score '())]
          [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
          [else (values best score (cons altn rest))]))))
-  (*herbie-preprocess* (remove-unecessary-preprocessing best (*herbie-preprocess*)))
   (cons best (sort rest > #:key alt-cost)))
