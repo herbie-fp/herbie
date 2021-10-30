@@ -268,6 +268,8 @@
   (define vars (program-variables specification))
   (*output-repr* repr)
   (*var-reprs* (map (curryr cons repr) vars))
+  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
+    (*needed-reprs* (list repr (get-representation 'bool))))
 
   (timeline-event! 'analyze)
   (define sampler (make-sampler repr precondition (list specification) '()))
@@ -277,14 +279,14 @@
   (define contexts (prepare-points specification precondition repr sampler'()))
   (cdr contexts))
 
-(define (deduce-preprocessing! specification pcontext repr)
+(define (deduce-preprocessing! specification preprocess pcontext repr)
   ;; If the specification is given, it is used for sampling points
   (parameterize ([*timeline-disabled* true])
     (define sortable (connected-components specification))
     (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
     ;; make variables strings for the json
     (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
-    (define preprocess-structs symmetry-groups)
+    (define preprocess-structs (append preprocess symmetry-groups))
     (*herbie-preprocess* preprocess-structs))
 
   (define-values (pts* exs*)
@@ -292,37 +294,16 @@
       (values (apply-preprocess (program-variables specification) pt (*herbie-preprocess*) repr) ex)))
   (mk-pcontext pts* exs*))
 
-;; Setting up
-(define (setup-prog! prog
-                     #:precondition [precondition #f]
-                     #:preprocess [preprocess empty]
-                     #:precision [precision 'binary64]
-                     #:specification [specification #f])
-  (define vars (program-variables prog))
-  (define body (program-body prog))
-  (define repr (get-representation precision))
-
-  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
-    (*needed-reprs* (list repr (get-representation 'bool))))
-  (*start-prog* prog)
-
-  (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
-  (*pcontext-unprocessed*
-   (setup-context! (or specification prog) precondition repr))
-
-  (debug #:from 'progress #:depth 3 "[2/5] Deducing preprocessing steps")
-  (*pcontext*
-   (deduce-preprocessing! (or specification prog) (*pcontext-unprocessed*) repr))
-
-  (debug #:from 'progress #:depth 3 "[3/5] Initializing alt table")
+(define (initialize-alt-table! prog pcontext repr)
   (define alt (make-alt prog))
-  (^table^ (make-alt-table (*pcontext*) alt repr))
+  (*start-prog* prog)
+  (define table (make-alt-table (*pcontext*) alt repr))
 
   ; Add starting alt in every precision
-  (when (*pareto-mode*)
-    (define alts (starting-alts alt))
-    (^table^ (atab-add-altns (^table^) alts (*output-repr*))))
-  alt)
+  (^table^
+   (if (*pareto-mode*)
+       (atab-add-altns table (starting-alts alt) repr)
+       table)))
 
 (define (run-improve prog iters
                      #:precondition [precondition #f]
@@ -330,12 +311,19 @@
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
   (rollback-improve!)
+  (define repr (get-representation precision))
 
-  (setup-prog! prog
-               #:specification specification
-               #:precondition precondition
-               #:preprocess preprocess
-               #:precision precision)
+  (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
+  (*pcontext-unprocessed*
+   (setup-context! (or specification prog) precondition repr))
+
+  (debug #:from 'progress #:depth 3 "[2/5] Deducing preprocessing steps")
+  (*pcontext*
+   (deduce-preprocessing! (or specification prog) preprocess (*pcontext-unprocessed*) repr))
+
+  (debug #:from 'progress #:depth 3 "[3/5] Initializing alt table")
+  (initialize-alt-table! prog (*pcontext*) repr)
+
   (debug #:from 'progress #:depth 1 "[4/5] Entering search loop")
   (when (flag-set? 'setup 'simplify)
       (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
