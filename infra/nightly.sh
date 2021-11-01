@@ -51,7 +51,7 @@ for bench in bench/*; do
   name=$(basename "$bench" .fpcore)
   run "$bench" "$name" "$@"
   if [ "$?" -eq 0 ]; then
-      dirs="$dirs $DIR/$name";
+      dirs="$dirs $name";
   fi
 done
 

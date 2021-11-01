@@ -10,11 +10,9 @@
      (conjoin (negate eof-object?) identity)
      (for/list ([dir (in-list dirs)])
        (with-handlers ([exn? (const #f)])
-         (define tl (call-with-input-file (build-path dir "timeline.json") read-json))
-         (define link
-           (find-relative-path (simple-form-path outdir) (simple-form-path dir)))
-         (timeline-relink link tl)))))
-  (define info (read-datafile (build-path (first dirs) "results.json")))
+         (define tl (call-with-input-file (build-path outdir dir "timeline.json") read-json))
+         (timeline-relink link dir)))))
+  (define info (read-datafile (build-path outdir (first dirs) "results.json")))
   (define joint-tl (apply timeline-merge tls))
   (call-with-output-file (build-path outdir "timeline.json")
     #:exists 'replace
@@ -29,7 +27,7 @@
      (conjoin (negate eof-object?) identity)
      (for/list ([dir (in-list dirs)])
        (with-handlers ([exn? (const #f)])
-         (call-with-input-file (build-path dir "profile.json") read-json)))))
+         (call-with-input-file (build-path outdir dir "profile.json") read-json)))))
   (define joint-pf (apply profile-merge (map json->profile pfs)))
   (call-with-output-file (build-path outdir "profile.json")
     #:exists 'replace
@@ -42,7 +40,7 @@
      (conjoin (negate eof-object?) identity)
      (for/list ([dir (in-list dirs)])
        (with-handlers ([exn? (const #f)])
-         (read-datafile (build-path dir "results.json"))))))
+         (read-datafile (build-path outdir dir "results.json"))))))
   (define joint-rs (merge-datafiles rss #:dirs dirs))
   (write-datafile (build-path outdir "results.json") joint-rs)
   (call-with-output-file (build-path outdir "results.html")
