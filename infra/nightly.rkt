@@ -11,7 +11,7 @@
      (for/list ([dir (in-list dirs)])
        (with-handlers ([exn? (const #f)])
          (define tl (call-with-input-file (build-path outdir dir "timeline.json") read-json))
-         (timeline-relink link dir)))))
+         (timeline-relink dir tl)))))
   (define info (read-datafile (build-path outdir (first dirs) "results.json")))
   (define joint-tl (apply timeline-merge tls))
   (call-with-output-file (build-path outdir "timeline.json")
