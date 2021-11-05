@@ -48,47 +48,6 @@
       (define prog* `(λ ,(program-variables prog) (,rewrite ,(program-body prog))))
       (alt (apply-repr-change prog*) 'start '()))))
 
-;; Setting up
-(define (setup-prog! prog
-                     #:precondition [precondition #f]
-                     #:preprocess [preprocess empty]
-                     #:precision [precision 'binary64]
-                     #:specification [specification #f])
-  (*output-repr* (get-representation precision))
-  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
-    (*needed-reprs* (list (*output-repr*) (get-representation 'bool))))
-  (*var-reprs* (map (curryr cons (*output-repr*)) (program-variables prog)))
-  (*start-prog* prog)
-  (rollback-improve!)
-  (define precondition-prog
-    (or precondition (list 'λ (program-variables prog) '(TRUE))))
-
-  (debug #:from 'progress #:depth 3 "[1/2] Preparing points")
-  ;; If the specification is given, it is used for sampling points
-  (timeline-event! 'analyze)
-  (parameterize ([*timeline-disabled* true])
-    (define symmetry-groups (map symmetry-group
-                                 (filter (lambda (group) (> (length group) 1)) (connected-components (or specification prog)))))
-    ;; make variables strings for the json
-    (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
-    (define preprocess-structs (append preprocess symmetry-groups))
-    (*herbie-preprocess* preprocess-structs))
-  (*sampler* (make-sampler (*output-repr*) precondition-prog (list (or specification prog)) (*herbie-preprocess*)))
-  
-  (timeline-event! 'sample)
-  (define contexts (prepare-points (or specification prog) precondition-prog (*output-repr*) (*sampler*) (*herbie-preprocess*)))
-  (*pcontext* (car contexts))
-  (*pcontext-unprocessed* (cdr contexts))
-  (debug #:from 'progress #:depth 3 "[2/2] Setting up program.")
-  (define alt (make-alt prog))
-  (^table^ (make-alt-table (*pcontext*) alt (*output-repr*)))
-
-  ; Add starting alt in every precision
-  (when (*pareto-mode*)
-    (define alts (starting-alts alt))
-    (^table^ (atab-add-altns (^table^) alts (*output-repr*))))
-  alt)
-
 ;; Information
 (define (list-alts)
   (printf "Key: [.] = done, [>] = chosen\n")
@@ -305,28 +264,86 @@
   (debug #:from 'progress #:depth 3 "adding candidates to table")
   (finalize-iter!))
   
+(define (setup-context! specification precondition repr)
+  (define vars (program-variables specification))
+  (*output-repr* repr)
+  (*var-reprs* (map (curryr cons repr) vars))
+  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
+    (*needed-reprs* (list repr (get-representation 'bool))))
 
+  (timeline-event! 'analyze)
+  (define sampler (make-sampler repr precondition (list specification) '()))
+  (*sampler* sampler)
+
+  (timeline-event! 'sample)
+  (define contexts (prepare-points specification precondition repr sampler'()))
+  (cdr contexts))
+
+(define (initialize-alt-table! prog pcontext repr)
+  (define alt (make-alt prog))
+  (*start-prog* prog)
+  (define table (make-alt-table (*pcontext*) alt repr))
+
+  ; Add starting alt in every precision
+  (^table^
+   (if (*pareto-mode*)
+       (atab-add-altns table (starting-alts alt) repr)
+       table))
+
+  (when (flag-set? 'setup 'simplify)
+      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
+      (finalize-iter!)
+      (^next-alt^ #f)))
+
+;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve prog iters
                      #:precondition [precondition #f]
                      #:preprocess [preprocess empty]
                      #:precision [precision 'binary64]
                      #:specification [specification #f])
-  (debug #:from 'progress #:depth 1 "[Phase 1 of 3] Setting up.")
-  (setup-prog! prog
-               #:specification specification
-               #:precondition precondition
-               #:preprocess preprocess
-               #:precision precision)
-  (debug #:from 'progress #:depth 1 "[Phase 2 of 3] Improving.")
-  (when (flag-set? 'setup 'simplify)
-      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
-      (finalize-iter!)
-      (^next-alt^ #f))
+  (rollback-improve!)
+  (define repr (get-representation precision))
+
+  (define original-points (setup-context! (or specification prog) precondition repr))
+  (run-improve! iters prog specification preprocess original-points repr))
+
+
+(define (run-improve! prog pcontext iters
+                      #:specification [specification #f]
+                      #:preprocess [preprocess '()])
+  (debug #:from 'progress #:depth 3 "[2/5] Deducing preprocessing steps")
+  (define vars (program-variables specification))
+
+  ;; If the specification is given, it is used for sampling points
+  (define sortable
+    (parameterize ([*timeline-disabled* true])
+      (connected-components specification)))
+
+  (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
+  (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
+  (*herbie-preprocess* (append preprocess symmetry-groups))
+
+  (define processed-pcontext
+   (for/pcontext ([(pt ex) pcontext])
+    (values (apply-preprocess vars pt (*herbie-preprocess*) (*output-repr*)) ex)))
+
+  (match-define (cons best rest) (mutate! prog iters processed-pcontext))
+
+  (*herbie-preprocess* (remove-unecessary-preprocessing best pcontext (*herbie-preprocess*)))
+  (cons best rest))
+
+(define (mutate! prog iters pcontext)
+  (*pcontext* pcontext)
+  (debug #:from 'progress #:depth 3 "[3/5] Initializing alt table")
+  (initialize-alt-table! prog (*pcontext*) (*output-repr*))
+
+  (debug #:from 'progress #:depth 1 "[4/5] Entering search loop")
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
     (run-iter!)
     (print-warnings))
-  (debug #:from 'progress #:depth 1 "[Phase 3 of 3] Extracting.")
+
+  (debug #:from 'progress #:depth 1 "[5/5] Extracting best program")
   (extract!))
 
 (define (extract!)
@@ -376,5 +393,4 @@
          [(not best) (values altn new-score '())]
          [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
          [else (values best score (cons altn rest))]))))
-  (*herbie-preprocess* (remove-unecessary-preprocessing best (*herbie-preprocess*)))
   (cons best (sort rest > #:key alt-cost)))

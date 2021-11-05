@@ -4,7 +4,7 @@
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
          "interface.rkt" "preprocess.rkt")
 
-(provide *pcontext* *pcontext-unprocessed* in-pcontext mk-pcontext pcontext?
+(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext?
          prepare-points errors batch-errors errors-score
          oracle-error baseline-error oracle-error-idx)
 
@@ -12,7 +12,6 @@
 (module+ internals (provide ival-eval))
 
 (define *pcontext* (make-parameter #f))
-(define *pcontext-unprocessed* (make-parameter #f))
 
 (struct pcontext (points exacts))
 
@@ -25,6 +24,12 @@
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
 
+(define-syntax-rule (for/pcontext ([(pt ex) pcontext] other ...) body ...)
+  (let-values ([(pts* exs*)
+                (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...)
+                  body ...)])
+    (mk-pcontext pts* exs*)))
+
 (module+ test
   (require "syntax/read.rkt")
   (require racket/runtime-path)
@@ -32,7 +37,7 @@
   (define exprs
     (let ([tests (load-tests benchmarks)])
       (append (map test-program tests) (map test-precondition tests))))
-  (check = (count (compose not (curryr expr-supports? 'ival) program-body) exprs) 0))
+  (check-true (andmap (compose (curryr expr-supports? 'ival) program-body) exprs)))
 
 (define (point-logger name prog)
   (define start (current-inexact-milliseconds))

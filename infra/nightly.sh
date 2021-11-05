@@ -7,7 +7,6 @@ CORES=4
 set -e -x
 
 function output_error {
-    DIR="$1"
     NAME="$2"
     SEED="$3"
     DATE=`date +%s`
