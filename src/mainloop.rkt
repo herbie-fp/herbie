@@ -322,9 +322,7 @@
   (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
   (*herbie-preprocess* (append preprocess symmetry-groups))
 
-  (define processed-pcontext
-   (for/pcontext ([(pt ex) pcontext])
-    (values (apply-preprocess vars pt (*herbie-preprocess*) (*output-repr*)) ex)))
+  (define processed-pcontext (preprocess-pcontext vars pcontext (*herbie-preprocess*) (*output-repr*)))
 
   (match-define (cons best rest) (mutate! prog iters processed-pcontext))
 

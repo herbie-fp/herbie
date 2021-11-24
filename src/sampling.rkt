@@ -118,8 +118,11 @@
      hyperrects-analysis]))
 
 (define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two)
-  (<= (errors-score (errors (alt-program alt) pcontext (*output-repr*) #:processing preprocessing-one))
-      (errors-score (errors (alt-program alt) pcontext (*output-repr*) #:processing preprocessing-two))))
+  (define vars (program-variables (alt-program alt)))
+  (define pcontext1 (preprocess-pcontext vars pcontext preprocessing-one (*output-repr*)))
+  (define pcontext2 (preprocess-pcontext vars pcontext preprocessing-two (*output-repr*)))
+  (<= (errors-score (errors (alt-program alt) pcontext1 (*output-repr*)))
+      (errors-score (errors (alt-program alt) pcontext2 (*output-repr*)))))
 
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))

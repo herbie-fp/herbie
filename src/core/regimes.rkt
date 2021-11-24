@@ -230,8 +230,7 @@
                                   (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
                              repr
                              (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
-                                                             (sampler) (*herbie-preprocess*) repr)))
-                             empty))
+                                                             (sampler) (*herbie-preprocess*) repr)))))
           (- (errors-score (errors prog1 ctx repr))
              (errors-score (errors prog2 ctx repr))))))
       (define pt (binary-search-floats pred v1 v2 repr))
