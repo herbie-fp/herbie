@@ -225,14 +225,13 @@
                        [*timeline-disabled* true]
                        [*var-reprs* (dict-set (*var-reprs*) var repr)])
           (define ctx
-            (car
              (prepare-points start-prog
                              `(λ ,(program-variables start-prog)
                                   (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
                              repr
                              (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
                                                              (sampler) (*herbie-preprocess*) repr)))
-                             empty)))
+                             empty))
           (- (errors-score (errors prog1 ctx repr))
              (errors-score (errors prog2 ctx repr))))))
       (define pt (binary-search-floats pred v1 v2 repr))
