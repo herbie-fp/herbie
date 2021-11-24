@@ -1,8 +1,9 @@
 #lang racket
 
-(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
-(require "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt")
-(require "../points.rkt" "../float.rkt") ; For binary search
+(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
+         "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
+         "../points.rkt")
+(require "../ground-truth.rkt" "../float.rkt") ; For binary search
 (module+ test (require rackunit "../load-plugin.rkt"))
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
