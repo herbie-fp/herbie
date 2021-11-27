@@ -4,6 +4,7 @@
 (require "interface.rkt" "programs.rkt" "float.rkt" "points.rkt")
 
 (provide (struct-out symmetry-group) preprocess->sexp sexp->preprocess
+         preprocess-pcontext
          *herbie-preprocess* apply-preprocess ival-preprocesses)
 
 ;; Tracks list of preprocess structs Herbie decides to apply
