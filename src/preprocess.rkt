@@ -58,7 +58,7 @@
      (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs) repr)]))
 
 (define (preprocess-pcontext variables pcontext preprocess-structs repr)
-  (for/pcontext ([(pt ex) (in-pcontext pcontext)])
+  (for/pcontext ([(pt ex) pcontext])
     (values (apply-preprocess variables pt preprocess-structs repr) ex)))
 
 (define (ival-preprocess ivals precondition preprocess-struct)
