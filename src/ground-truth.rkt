@@ -1,8 +1,14 @@
 #lang racket
 
 (require math/bigfloat rival math/base)
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "interface.rkt" "points.rkt")
+(require [only-in "errors.rkt" warn raise-herbie-error]
+         [only-in "programs.rkt" program-variables program-body eval-prog expr-supports?]
+         [only-in "common.rkt" debug]
+         [only-in "timeline.rkt" timeline-push! timeline-compact!]
+         [only-in "float.rkt" ordinary-value? =-or-nan?]
+         [only-in "interface.rkt" representation-bf->repr get-representation *output-repr*]
+         [only-in "config.rkt" *max-mpfr-prec* *num-points* *max-skipped-points* *precision-step*]
+         [only-in "points.rkt" mk-pcontext])
 
 (provide prepare-points)
 

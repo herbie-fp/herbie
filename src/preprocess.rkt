@@ -1,7 +1,7 @@
 #lang racket
 
 (require rival math/bigfloat)
-(require "interface.rkt" "programs.rkt" "float.rkt")
+(require "interface.rkt" "programs.rkt" "float.rkt" "points.rkt")
 
 (provide (struct-out symmetry-group) preprocess->sexp sexp->preprocess
          *herbie-preprocess* apply-preprocess ival-preprocesses)
