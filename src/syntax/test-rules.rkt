@@ -2,7 +2,7 @@
 
 (require rackunit math/bigfloat)
 (require "../common.rkt" "../programs.rkt" "../sampling.rkt"
-         (submod "../points.rkt" internals))
+         (submod "../ground-truth.rkt" internals))
 (require "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
 (require "../programs.rkt" "../float.rkt" "sugar.rkt" "../load-plugin.rkt")
 

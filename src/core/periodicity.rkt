@@ -18,7 +18,7 @@
 
 (require racket/match)
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "../points.rkt"
-         "../interface.rkt")
+         "../interface.rkt" "../ground-truth.rkt")
 
 (struct annotation (expr loc type coeffs) #:transparent)
 (struct lp (loc periods) #:prefab)
