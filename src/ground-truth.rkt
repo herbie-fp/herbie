@@ -7,7 +7,8 @@
          [only-in "float.rkt" ordinary-value?]
          [only-in "interface.rkt" representation-bf->repr get-representation]
          [only-in "config.rkt" *max-mpfr-prec* *num-points* *max-skipped-points*]
-         [only-in "points.rkt" mk-pcontext])
+         [only-in "points.rkt" mk-pcontext]
+         [only-in "sampling.rkt" valid-result?])
 
 (provide prepare-points)
 
@@ -50,34 +51,27 @@
 
 (define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
   (define <-bf (representation-bf->repr repr))
+  (define ival-valid? (valid-result? repr))
   (let loop ([precision precision])
-    (match-define (ival out (app <-bf lo) (app <-bf hi))
-                  (parameterize ([bf-precision precision]) (apply fn pt)))
-    (define lo! (ival-lo-fixed? out))
-    (define hi! (ival-hi-fixed? out))
-    (define lo=hi (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 and -0.0
+    (define out (parameterize ([bf-precision precision]) (apply fn pt)))
+    (define valid (ival-valid? (vector (ival #t) out)))
+    (define precision* (exact-floor (* precision 2)))
     (cond
-     [(ival-err out)
+     [(not (ival-hi valid))
       (log! 'nan precision pt)
       +nan.0]
-     [(and (not (ival-err? out)) lo=hi)
-      (if (ordinary-value? hi repr)
-          (log! 'sampled precision pt hi)
-          (log! 'infinite precision pt hi))
-      hi]
-     [(and lo! hi! (not lo=hi))
-      (log! 'overflowed precision pt)
+     [(and (not (ival-lo valid)) (ival-lo-fixed? valid))
+      (log! 'unsamplable precision pt)
       +nan.0]
-     [(or (and lo! (bigfloat? (ival-lo out)) (bfinfinite? (ival-lo out)))
-          (and hi! (bigfloat? (ival-hi out)) (bfinfinite? (ival-hi out))))
-      ;; We never sample infinite points anyway
-      (log! 'overflowed precision pt)
+     [(ival-lo valid)
+      (define ex (<-bf (ival-lo out)))
+      (log! 'sampled precision pt ex)
+      ex]
+     [(> precision* (*max-mpfr-prec*))
+      (log! 'exit precision pt)
       +nan.0]
      [else
-      (define precision* (exact-floor (* precision 2)))
-      (if (> precision* (*max-mpfr-prec*))
-          (begin (log! 'exit precision pt) +nan.0)
-          (loop precision*))])))
+      (loop precision*)])))
 
 (define (eval-prog-ival prog name repr)
   (cond
@@ -86,7 +80,8 @@
    [else
     (warn 'no-ival-operator #:url "faq.html#no-ival-operator"
           "using unsound ground truth evaluation for program ~a" name)
-    (compose mk-ival (eval-prog prog 'bf repr))]))
+    (define f (eval-prog prog 'bf repr))
+    (λ (x) (ival (f x)))]))
 
 (define (prepare-points prog precondition repr sampler)
   (timeline-push! 'method "intervals")

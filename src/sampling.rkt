@@ -6,7 +6,7 @@
          "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
          "preprocess.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
-(provide make-sampler)
+(provide make-sampler valid-result?)
 
 (define (precondition->hyperrects precondition reprs repr)
   ;; FPBench needs unparameterized operators
@@ -65,31 +65,40 @@
     (<-ordinal (random-integer (->ordinal (ival-lo interval))
                                (+ 1 (->ordinal (ival-hi interval)))))))
 
+(define (ival-positive-infinite repr)
+  (define <-bf (representation-bf->repr repr))
+  (define ->bf (representation-repr->bf repr))
+  (define (positive-inf? x) (bf= (->bf (<-bf x)) +inf.bf))
+  (λ (interval)
+    (match-define (ival lo hi) interval)
+    (cond
+     [(or (bfnan? lo) (bfnan? hi))
+      (ival-bool #t)]
+     [else
+      (define i (ival (positive-inf? lo) (positive-inf? hi)))
+      (define i2 (if (ival-lo-fixed? interval) (ival-fix-lo i) i))
+      (define i3 (if (ival-hi-fixed? interval) (ival-fix-hi i2) i2))
+      i3])))
+
 (define (is-finite-interval repr)
-  (define bound (bound-ordinary-values repr))
-  (match (type-name (representation-type repr))
-    ['real
-     (λ (interval)
-       (define not-number? (or (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval))))
-       (ival-or (ival-bool not-number?) (ival-< (mk-ival (bf- bound)) interval (mk-ival bound))))]
-    ['bool (const (ival-bool #t))]))
+  (define positive-inf? (ival-positive-infinite repr))
+  (λ (interval)
+    (match-define (ival lo hi) interval)
+    (cond
+     [(bigfloat? lo)
+      (ival-not (ival-or (positive-inf? interval) (positive-inf? (ival-neg interval))))]
+     [else
+      (ival-bool #t)])))
 
 (define (is-samplable-interval repr)
   (define <-bf (representation-bf->repr repr))
-  (match (type-name (representation-type repr))
-    ['real
-     (λ (interval)
-       (match-define (ival (app <-bf lo) (app <-bf hi)) interval)
-       (define lo! (ival-lo-fixed? interval))
-       (define hi! (ival-hi-fixed? interval))
-       (define lo=hi (or (equal? lo hi) (and (number? lo) (= lo hi))))
-       (define v
-         (and (not (ival-err? interval))
-              (or (and lo! hi! (not lo=hi))
-                  (and lo! (bigfloat? (ival-lo interval)) (bfinfinite? (ival-lo interval)))
-                  (and hi! (bigfloat? (ival-hi interval)) (bfinfinite? (ival-hi interval))))))
-       (ival-bool (not v)))]
-    ['bool (const (ival-bool #t))]))
+  (λ (interval)
+    (match-define (ival (app <-bf lo) (app <-bf hi)) interval)
+    (define lo! (ival-lo-fixed? interval))
+    (define hi! (ival-hi-fixed? interval))
+    (define lo=hi (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 vs -0.0
+    (define can-converge (or (not lo!) (not hi!) lo=hi))
+    (ival lo=hi can-converge)))
 
 (define (valid-result? repr)
   (define ival-finite? (is-finite-interval repr))
