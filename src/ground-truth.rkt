@@ -51,10 +51,9 @@
 
 (define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
   (define <-bf (representation-bf->repr repr))
-  (define ival-valid? (valid-result? repr))
   (let loop ([precision precision])
     (define out (parameterize ([bf-precision precision]) (apply fn pt)))
-    (define valid (ival-valid? (vector (ival #t) out)))
+    (define valid (valid-result? repr out))
     (define precision* (exact-floor (* precision 2)))
     (cond
      [(not (ival-hi valid))
