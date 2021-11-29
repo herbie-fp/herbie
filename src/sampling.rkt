@@ -1,7 +1,7 @@
 #lang racket
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
-(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt"
+(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "alternative.rkt" "interface.rkt"
          "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
          "preprocess.rkt")
@@ -29,15 +29,6 @@
      (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1)))]
     ['bool
      (ival #f #t)]))
-
-(define (partial-sums v)
-  (define out (make-vector (vector-length v) 0))
-  (let loop ([sum 0] [i 0])
-    (if (< i (vector-length v))
-        (let ([sum* (+ sum (vector-ref v i))])
-          (vector-set! out i sum*)
-          (loop sum* (+ i 1)))
-        out)))
 
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
 ;; assumes vector strictly increasing
