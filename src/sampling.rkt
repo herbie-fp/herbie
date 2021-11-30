@@ -122,7 +122,7 @@
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
-(define (point-logger name prog)
+(define (point-logger name vars)
   (define start (current-inexact-milliseconds))
   (define (log! . args)
     (define now (current-inexact-milliseconds))
@@ -132,7 +132,7 @@
          (define key (list 'exit prec))
          (warn 'ground-truth #:url "faq.html#ground-truth"
                "could not determine a ground truth for program ~a" name
-               #:extra (for/list ([var (program-variables prog)] [val pt])
+               #:extra (for/list ([var vars] [val pt])
                          (format "~a = ~a" var val)))
          key]
         [`(unsamplable ,prec ,pt) (list 'overflowed prec)]
@@ -176,7 +176,7 @@
       (define exs
         (ival-eval fn pt repr
                    #:precision starting-precision
-                   #:log (point-logger 'body prog)))
+                   #:log (point-logger 'body (map car (*var-reprs*)))))
 
       (cond
        [(and (not (nan? ex)) (andmap (curryr ordinary-value? repr) pt))
