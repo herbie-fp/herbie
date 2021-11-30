@@ -1,11 +1,10 @@
 #lang racket
 
-(require rival math/bigfloat)
 (require "interface.rkt" "programs.rkt" "float.rkt" "points.rkt")
 
 (provide (struct-out symmetry-group) preprocess->sexp sexp->preprocess
          preprocess-pcontext
-         *herbie-preprocess* apply-preprocess ival-preprocesses)
+         *herbie-preprocess* apply-preprocess)
 
 ;; Tracks list of preprocess structs Herbie decides to apply
 (define *herbie-preprocess* (make-parameter empty))
