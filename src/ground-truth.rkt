@@ -8,12 +8,11 @@
          [only-in "interface.rkt" representation-bf->repr get-representation]
          [only-in "config.rkt" *max-mpfr-prec* *num-points* *max-skipped-points*]
          [only-in "points.rkt" mk-pcontext]
-         [only-in "sampling.rkt" valid-result?])
+         [only-in "sampling.rkt" make-search-func])
 
-(provide prepare-points)
+(provide batch-prepare-points prepare-points sample-points)
 
 (module+ test (require rackunit "load-plugin.rkt"))
-(module+ internals (provide ival-eval))
 
 (module+ test
   (require "syntax/read.rkt")
@@ -37,13 +36,9 @@
                #:extra (for/list ([var (program-variables prog)] [val pt])
                          (format "~a = ~a" var val)))
          key]
-        [`(overflowed ,prec ,pt)
-         (list 'overflowed prec)]
-        [`(sampled ,prec ,pt #f) (list 'false prec)]
-        [`(sampled ,prec ,pt #t) (list 'true prec)]
-        [`(sampled ,prec ,pt ,_) (list 'valid prec)]
-        [`(infinite ,prec ,pt ,_) (list 'invalid prec)]
-        [`(nan ,prec ,pt) (list 'nan prec)]))
+        [`(unsamplable ,prec ,pt) (list 'overflowed prec)]
+        [`(sampled ,prec ,pt) (list 'valid prec)]
+        [`(invalid ,prec ,pt) (list 'invalid prec)]))
     (define dt (- now start))
     (timeline-push! 'outcomes (~a name) prec (~a category) dt 1)
     (set! start now))
@@ -52,77 +47,61 @@
 (define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
   (define <-bf (representation-bf->repr repr))
   (let loop ([precision precision])
-    (define out (parameterize ([bf-precision precision]) (apply fn pt)))
-    (define valid (valid-result? repr out))
+    (match-define (list valid exs ...) (parameterize ([bf-precision precision]) (apply fn pt)))
     (define precision* (exact-floor (* precision 2)))
     (cond
      [(not (ival-hi valid))
-      (log! 'nan precision pt)
+      (log! 'invalid precision pt)
       +nan.0]
      [(and (not (ival-lo valid)) (ival-lo-fixed? valid))
       (log! 'unsamplable precision pt)
       +nan.0]
      [(ival-lo valid)
-      (define ex (<-bf (ival-lo out)))
-      (log! 'sampled precision pt ex)
-      ex]
+      (log! 'sampled precision pt)
+      (map <-bf exs)]
      [(> precision* (*max-mpfr-prec*))
       (log! 'exit precision pt)
       +nan.0]
      [else
       (loop precision*)])))
 
-(define (eval-prog-ival prog name repr)
-  (cond
-   [(expr-supports? (program-body prog) 'ival)
-    (eval-prog prog 'ival repr)]
-   [else
-    (warn 'no-ival-operator #:url "faq.html#no-ival-operator"
-          "using unsound ground truth evaluation for program ~a" name)
-    (define f (eval-prog prog 'bf repr))
-    (λ (x) (ival (f x)))]))
-
-(define (prepare-points prog precondition repr sampler)
+(define (batch-prepare-points progs precondition repr sampler)
   (timeline-push! 'method "intervals")
 
+  ;; If we're using the bf fallback, start at the max precision
   (define starting-precision
     (if (and (expr-supports? (program-body precondition) 'ival)
              (expr-supports? (program-body prog) 'ival))
         (bf-precision)
         (*max-mpfr-prec*)))
 
-  (define pre-fn (eval-prog-ival precondition 'pre repr))
-  (define body-fn (eval-prog-ival prog 'body repr))
+  (define fn (make-search-func precondition progs repr '()))
 
-  (define-values (points exacts)
-    (let loop ([sampled 0] [skipped 0] [points '()] [exacts '()])
+  (define-values (points exactss)
+    (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
 
-      (define pre
-        (or (equal? (program-body precondition) '(TRUE))
-            (ival-eval pre-fn pt (get-representation 'bool)
-                       #:precision starting-precision
-                       #:log (point-logger 'pre precondition))))
-
-      (define ex
-        (and pre (ival-eval body-fn pt repr
-                            #:precision starting-precision
-                            #:log (point-logger 'body prog))))
-
-      (define success
-        ;; +nan.0 is the "error" return code for ival-eval
-        (and (not (equal? pre +nan.0)) (not (equal? ex +nan.0))))
+      (define exs
+        (ival-eval fn pt repr
+                   #:precision starting-precision
+                   #:log (point-logger 'body prog)))
 
       (cond
-       [(and success (andmap (curryr ordinary-value? repr) pt) pre (ordinary-value? ex repr))
-        (if (>= sampled (- (*num-points*) 1))
-            (values points exacts)
-            (loop (+ 1 sampled) 0 (cons pt points) (cons ex exacts)))]
+       [(and (not (nan? ex)) (andmap (curryr ordinary-value? repr) pt))
+        (if (>= (+ 1 sampled) (*num-points*))
+            (values (cons pt points) (cons ex exactss))
+            (loop (+ 1 sampled) 0 (cons pt points) (cons ex exactss)))]
        [else
-        (unless (< skipped (- (*max-skipped-points*) 1))
+        (when (>= skipped (*max-skipped-points*))
           (raise-herbie-error "Cannot sample enough valid points."
                               #:url "faq.html#sample-valid-points"))
-        (loop sampled (+ 1 skipped) points exacts)])))
+        (loop sampled (+ 1 skipped) points exactss)])))
   (timeline-compact! 'outcomes)
-  (mk-pcontext points exacts))
+  (cons points (flip-lists exactss)))
 
+(define (prepare-points prog precondition repr sampler)
+  (apply mk-pcontext (batch-prepare-points (list prog) precondition repr sampler)))
+
+(define (sample-points precondition progs repr)
+  (define sampler (make-sampler repr precondition progs empty))
+  (batch-prepare-points progs precondition repr sampler))

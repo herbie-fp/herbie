@@ -127,12 +127,22 @@
             (is-samplable-interval repr ival)
             (ival-not (ival-error? ival))))
 
+(define (eval-prog-wrapper progs repr)
+  (match (map (compose not (curryr expr-supports? 'ival) program-body) progs)
+    ['()
+     (batch-eval-progs progs 'ival repr)]
+    [(list prog others ...)
+     (warn 'no-ival-operator #:url "faq.html#no-ival-operator"
+           "using unsound ground truth evaluation for program ~a" prog)
+     (define f (batch-eval-progs progs 'bf repr))
+     (λ (x) (vector-map (λ (y) (ival y)) (ival (f x))))]))
+
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func precondition programs repr preprocess-structs)
   (define preprocessor (ival-preprocesses precondition preprocess-structs repr))
-  (define fns (batch-eval-progs (cons precondition programs) 'ival repr))
+  (define fns (eval-prog-wrapper (cons precondition programs) repr))
   (λ inputs
     (define inputs* (preprocessor inputs))
     (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs*)))
