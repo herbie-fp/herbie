@@ -321,7 +321,7 @@
       (connected-components specification)))
 
   (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
-  (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
+  (timeline-push! 'symmetry (map ~a symmetry-groups))
   (*herbie-preprocess* (append preprocess symmetry-groups))
 
   (define processed-pcontext (preprocess-pcontext vars pcontext (*herbie-preprocess*) (*output-repr*)))
@@ -357,7 +357,7 @@
     [(< (length result) (length preprocessing))
      (remove-unnecessary-preprocessing alt pcontext result #:removed newly-removed)]
     [else
-     (timeline-push! 'remove-preprocessing (map (compose ~a preprocess->sexp) newly-removed))
+     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
      result]))
 
 (define (mutate! prog iters pcontext)
