@@ -20,7 +20,6 @@
     i3]))
 
 (define (is-finite-interval repr interval)
-  (define positive-inf? (ival-positive-infinite repr))
   (match-define (ival lo hi) interval)
   (cond
    [(bigfloat? lo)
@@ -44,14 +43,15 @@
             (ival-not (ival-error? ival))))
 
 (define (eval-prog-wrapper progs repr)
-  (match (map (compose not (curryr expr-supports? 'ival) program-body) progs)
+  (match (filter (compose not (curryr expr-supports? 'ival) program-body) progs)
     ['()
      (values 'ival (batch-eval-progs progs 'ival repr))]
     [(list prog others ...)
      (warn 'no-ival-operator #:url "faq.html#no-ival-operator"
            "using unsound ground truth evaluation for program ~a" prog)
      (define f (batch-eval-progs progs 'bf repr))
-     (values 'bf (λ (x) (vector-map (λ (y) (ival y)) (ival (f x)))))]))
+     (define (unival x) (if (bigfloat? x) x (ival-lo x)))
+     (values 'bf (λ (x) (vector-map (λ (y) (ival y)) (apply f (map unival x)))))]))
 
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good

@@ -28,11 +28,11 @@
 
   (define precondition `(λ ,fv ,(dict-ref *conditions* name '(TRUE))))
   (define progs (list `(λ ,fv ,p1) `(λ ,fv ,p2)))
-  (match-define (list pts ex1 ex2)
+  (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)])
       (sample-points precondition progs repr)))
 
-  (for ([pt (in-list pts)] [ex1 (in-list exs1)] [ex2 (in-list exs2)])
+  (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
       (with-check-info (['point (map cons fv pt)] ['input v1] ['output v2])
        (check-eq? (ulp-difference v1 v2 repr) 1))))
 

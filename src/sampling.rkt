@@ -142,24 +142,19 @@
     (set! start now))
   log!)
 
-(define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
-  (define <-bf (representation-bf->repr repr))
+(define (ival-eval fn pt #:precision [precision 80])
   (let loop ([precision precision])
     (match-define (list valid exs ...) (parameterize ([bf-precision precision]) (apply fn pt)))
     (define precision* (exact-floor (* precision 2)))
     (cond
      [(not (ival-hi valid))
-      (log! 'invalid precision pt)
-      +nan.0]
+      (values 'invalid precision +nan.0)]
      [(and (not (ival-lo valid)) (ival-lo-fixed? valid))
-      (log! 'unsamplable precision pt)
-      +nan.0]
+      (values 'unsamplable precision +nan.0)]
      [(ival-lo valid)
-      (log! 'sampled precision pt)
-      (map <-bf exs)]
+      (values 'sampled precision exs)]
      [(> precision* (*max-mpfr-prec*))
-      (log! 'exit precision pt)
-      +nan.0]
+      (values 'exit precision +nan.0)]
      [else
       (loop precision*)])))
 
@@ -167,18 +162,20 @@
   ;; If we're using the bf fallback, start at the max precision
   (define starting-precision
     (match how ['ival (bf-precision)] ['bf (*max-mpfr-prec*)]))
+  (define <-bf (representation-bf->repr repr))
+  (define logger (point-logger 'body (map car (*var-reprs*))))
 
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
 
-      (define exs
-        (ival-eval fn pt repr
-                   #:precision starting-precision
-                   #:log (point-logger 'body (map car (*var-reprs*)))))
+      (define-values (status precision out)
+        (ival-eval fn pt #:precision starting-precision))
+      (logger status precision pt)
 
       (cond
-       [(and (not (nan? exs)) (andmap (curryr ordinary-value? repr) pt))
+       [(and (list? out) (andmap (curryr ordinary-value? repr) pt))
+        (define exs (map (compose <-bf ival-lo) out))
         (if (>= (+ 1 sampled) (*num-points*))
             (values (cons pt points) (cons exs exactss))
             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
