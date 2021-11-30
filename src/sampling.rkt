@@ -179,10 +179,10 @@
                    #:log (point-logger 'body (map car (*var-reprs*)))))
 
       (cond
-       [(and (not (nan? ex)) (andmap (curryr ordinary-value? repr) pt))
+       [(and (not (nan? exs)) (andmap (curryr ordinary-value? repr) pt))
         (if (>= (+ 1 sampled) (*num-points*))
-            (values (cons pt points) (cons ex exactss))
-            (loop (+ 1 sampled) 0 (cons pt points) (cons ex exactss)))]
+            (values (cons pt points) (cons exs exactss))
+            (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
        [else
         (when (>= skipped (*max-skipped-points*))
           (raise-herbie-error "Cannot sample enough valid points."
