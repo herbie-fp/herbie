@@ -65,7 +65,7 @@
      (define inputs* (preprocessor inputs))
      (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs*)))
      (cons (apply ival-and ival-pre (map (curry valid-result? repr) ival-bodies))
-           ival-bodies)))
+           ival-bodies))))
 
 (define (prepare-points prog precondition repr sampler)
   (define-values (how fn) (make-search-func precondition (list prog) repr '()))
