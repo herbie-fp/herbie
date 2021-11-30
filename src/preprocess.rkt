@@ -7,7 +7,6 @@
 ;; Tracks list of preprocess structs Herbie decides to apply
 (define *herbie-preprocess* (make-parameter empty))
 
-
 ;; index-value-pairs is a sorted list of (index, value)
 (define (list-set-multiple list index-value-pairs)
   (let loop ([current list] [todo index-value-pairs] [index 0])

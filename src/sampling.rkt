@@ -44,6 +44,7 @@
      (ival #f #t)]))
 
 (module+ test
+  (define repr (get-representation 'binary64))
   (check-equal? (precondition->hyperrects
                  '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))
                                 (and (<=.f64 0 b) (<=.f64 b 1)))) (list repr repr) repr)
@@ -98,7 +99,6 @@
     (map sample-ival hyperrect reprs)))
 
 (module+ test
-  (define repr (get-representation 'binary64))
   (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
   (check-true
    (andmap (curry set-member? '(0.0 1.0))

@@ -61,8 +61,7 @@
   (values
    how 
    (λ inputs
-     (define inputs* (preprocessor inputs))
-     (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs*)))
+     (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs)))
      (cons (apply ival-and ival-pre (map (curry valid-result? repr) ival-bodies))
            ival-bodies))))
 
@@ -71,6 +70,6 @@
   (batch-prepare-points how fn repr sampler))
 
 (define (sample-points precondition progs repr)
-  (define-values (how fn) (make-search-func precondition (list prog) repr))
+  (define-values (how fn) (make-search-func precondition progs repr))
   (define sampler (make-sampler repr precondition progs how fn))
   (batch-prepare-points how fn repr sampler))
