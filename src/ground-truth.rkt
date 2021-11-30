@@ -56,8 +56,7 @@
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
-(define (make-search-func precondition programs repr preprocess-structs)
-  (define preprocessor (ival-preprocesses precondition preprocess-structs repr))
+(define (make-search-func precondition programs repr)
   (define-values (how fns) (eval-prog-wrapper (cons precondition programs) repr))
   (values
    how 
@@ -68,10 +67,10 @@
            ival-bodies))))
 
 (define (prepare-points prog precondition repr sampler)
-  (define-values (how fn) (make-search-func precondition (list prog) repr '()))
+  (define-values (how fn) (make-search-func precondition (list prog) repr))
   (batch-prepare-points how fn repr sampler))
 
 (define (sample-points precondition progs repr)
-  (define-values (how fn) (make-search-func precondition (list prog) repr '()))
-  (define sampler (make-sampler repr precondition progs how fn empty))
+  (define-values (how fn) (make-search-func precondition (list prog) repr))
+  (define sampler (make-sampler repr precondition progs how fn))
   (batch-prepare-points how fn repr sampler))

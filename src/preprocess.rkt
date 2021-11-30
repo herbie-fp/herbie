@@ -60,20 +60,3 @@
 (define (preprocess-pcontext variables pcontext preprocess-structs repr)
   (for/pcontext ([(pt ex) pcontext])
     (values (apply-preprocess variables pt preprocess-structs repr) ex)))
-
-(define (ival-preprocess ivals precondition preprocess-struct)
-  (apply-to-group (program-variables precondition) ivals (symmetry-group-variables preprocess-struct)
-                  (lambda (group-ivals)
-                    (ival-sort group-ivals bf<))))
-
-
-(define (ival-preprocesses precondition preprocess-structs repr)
-  (lambda ivals
-    (let loop ([current ivals]
-               [todo preprocess-structs])
-      (cond
-        [(empty? todo)
-         (apply values current)]
-        [else
-         (loop (ival-preprocess current precondition (first todo))
-               (rest todo))]))))

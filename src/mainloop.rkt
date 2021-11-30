@@ -273,8 +273,8 @@
     (*needed-reprs* (list repr (get-representation 'bool))))
 
   (timeline-event! 'analyze)
-  (define-values (how fn) (make-search-func precondition (list specification) repr '()))
-  (define sampler (make-sampler repr precondition (list specification) how fn '()))
+  (define-values (how fn) (make-search-func precondition (list specification) repr))
+  (define sampler (make-sampler repr precondition (list specification) how fn))
   (*sampler* sampler)
 
   (timeline-event! 'sample)

@@ -3,8 +3,7 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "alternative.rkt" "interface.rkt"
-         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
-         "preprocess.rkt")
+         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
 (provide make-sampler batch-prepare-points)
 
@@ -105,7 +104,7 @@
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
-(define (make-sampler repr precondition programs how search-func preprocess-structs)
+(define (make-sampler repr precondition programs how search-func)
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
   (cond
    [(and (flag-set? 'setup 'search) (equal? how 'ival) (not (empty? reprs))
