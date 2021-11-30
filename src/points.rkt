@@ -26,7 +26,7 @@
     (mk-pcontext pts* exs*)))
 
 (define (split-pcontext context num-a num-b)
-  (define num-total (vector-length (pcontext-points pcontext)))
+  (define num-total (vector-length (pcontext-points context)))
   (unless (= (+ num-a num-b) num-total)
     (error 'split-pcontext "Cannot split pcontext of size ~a into ~a and ~a"
            num-total num-a num-b))
