@@ -6,7 +6,7 @@
          "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
          "preprocess.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
-(provide make-sampler valid-result?)
+(provide make-sampler make-sampler-from-func)
 
 (define (precondition->hyperrects precondition reprs repr)
   ;; FPBench needs unparameterized operators
@@ -130,46 +130,38 @@
 (define (eval-prog-wrapper progs repr)
   (match (map (compose not (curryr expr-supports? 'ival) program-body) progs)
     ['()
-     (batch-eval-progs progs 'ival repr)]
+     (values 'ival (batch-eval-progs progs 'ival repr))]
     [(list prog others ...)
      (warn 'no-ival-operator #:url "faq.html#no-ival-operator"
            "using unsound ground truth evaluation for program ~a" prog)
      (define f (batch-eval-progs progs 'bf repr))
-     (λ (x) (vector-map (λ (y) (ival y)) (ival (f x))))]))
+     (values 'bf (λ (x) (vector-map (λ (y) (ival y)) (ival (f x)))))]))
 
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func precondition programs repr preprocess-structs)
   (define preprocessor (ival-preprocesses precondition preprocess-structs repr))
-  (define fns (eval-prog-wrapper (cons precondition programs) repr))
-  (λ inputs
-    (define inputs* (preprocessor inputs))
-    (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs*)))
-    (cons (apply ival-and ival-pre (map (curry valid-result? repr) ival-bodies))
-          ival-bodies)))
+  (define-values (how fns) (eval-prog-wrapper (cons precondition programs) repr))
+  (values
+   how 
+   (λ inputs
+     (define inputs* (preprocessor inputs))
+     (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs*)))
+     (cons (apply ival-and ival-pre (map (curry valid-result? repr) ival-bodies))
+           ival-bodies)))
 
-(define (make-sampler-analysis repr reprs precondition programs preprocess-structs)
-  (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
-  (define search-func (make-search-func precondition programs repr preprocess-structs))
-  (define hyperrects
-    (find-intervals (compose car search-func) hyperrects-analysis
-                    #:reprs reprs #:fuel (*max-find-range-depth*)))
-  (make-hyperrect-sampler hyperrects reprs))
-
-; These definitions in place, we finally generate the points.
-; A sampler returns two points- one without preprocessing and one with preprocessing
-(define (make-sampler repr precondition programs preprocess-structs)
+(define (make-sampler repr precondition programs how search-func preprocess-structs)
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
-
   (cond
-   [(and
-     (flag-set? 'setup 'search)
-     (andmap (compose (curry equal? 'real) type-name representation-type) (cons repr reprs))
-     (andmap (compose (curryr expr-supports? 'ival) program-body) (cons precondition programs))
-     (not (empty? reprs)))
+   [(and (flag-set? 'setup 'search) (equal? how 'ival) (not (empty? reprs))
+         (andmap (compose (curry equal? 'real) type-name representation-type) (cons repr reprs)))
     (timeline-push! 'method "search")
-    (make-sampler-analysis repr reprs precondition programs preprocess-structs)]
+    (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
+    (define hyperrects
+      (find-intervals (compose car search-func) hyperrects-analysis
+                      #:reprs reprs #:fuel (*max-find-range-depth*)))
+    (make-hyperrect-sampler hyperrects reprs)]
    [else
     (timeline-push! 'method "random")
     (λ () (map random-generate reprs))]))

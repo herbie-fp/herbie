@@ -10,7 +10,7 @@
          [only-in "points.rkt" mk-pcontext]
          [only-in "sampling.rkt" make-search-func])
 
-(provide batch-prepare-points prepare-points sample-points)
+(provide prepare-points sample-points)
 
 (module+ test (require rackunit "load-plugin.rkt"))
 
@@ -65,17 +65,10 @@
      [else
       (loop precision*)])))
 
-(define (batch-prepare-points progs precondition repr sampler)
-  (timeline-push! 'method "intervals")
-
+(define (batch-prepare-points how fn repr sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define starting-precision
-    (if (and (expr-supports? (program-body precondition) 'ival)
-             (expr-supports? (program-body prog) 'ival))
-        (bf-precision)
-        (*max-mpfr-prec*)))
-
-  (define fn (make-search-func precondition progs repr '()))
+    (match how ['ival (bf-precision)] ['bf (*max-mpfr-prec*)]))
 
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
@@ -100,8 +93,10 @@
   (cons points (flip-lists exactss)))
 
 (define (prepare-points prog precondition repr sampler)
-  (apply mk-pcontext (batch-prepare-points (list prog) precondition repr sampler)))
+  (define-values (how fn) (make-search-func precondition (list prog) repr '()))
+  (apply mk-pcontext (batch-prepare-points how fn repr sampler)))
 
 (define (sample-points precondition progs repr)
-  (define sampler (make-sampler repr precondition progs empty))
-  (batch-prepare-points progs precondition repr sampler))
+  (define-values (how fn) (make-search-func precondition (list prog) repr '()))
+  (define sampler (make-sampler repr precondition progs how fn empty))
+  (batch-prepare-points how fn repr sampler))

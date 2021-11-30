@@ -61,19 +61,17 @@
     (define output-repr (test-output-repr orig-test))
     (parameterize ([*timeline-disabled* true] [*output-repr* output-repr]
                    [*var-reprs* (map (curryr cons output-repr) (test-vars orig-test))])
-      (define sampler
-        (make-sampler (*output-repr*) (test-precondition orig-test)
-                      (list (test-specification orig-test))
-                      (test-preprocess orig-test)))
-      (define newcontext
-        (parameterize ([*num-points* (*reeval-pts*)])
-          (prepare-points (test-specification orig-test)
-                          (test-precondition orig-test)
-                          output-repr sampler
-                          (test-preprocess orig-test))))
+      (define samples
+        (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+          (sample-points
+           (test-precondition test)
+           (list (or (test-specification test) (test-program test)))
+           output-repr)))
+      (define-values (train-context test-context)
+        (split-pcontext (apply mk-pcontext samples) (*num-points*) (*reeval-pts*))) 
       (define start-alt (make-alt (test-program orig-test)))
       (define end-alt (make-alt `(λ ,(test-vars orig-test) ,(test-output orig-test))))
-      (define-values (newpoints newexacts) (get-p&es newcontext))
+      (define-values (newpoints newexacts) (get-p&es test-context))
 
       ; Pherbie specific
       (define ca (table-row-cost-accuracy row))
@@ -85,18 +83,18 @@
         (for/list ([prog other-progs])
           `(λ ,(test-vars orig-test) ,(desugar-program prog output-repr (*var-reprs*)))))
 
-      (define end-errs (errors (alt-program end-alt) newcontext output-repr))
-      (define other-errs (map (curryr errors newcontext output-repr) other-progs*))
+      (define end-errs (errors (alt-program end-alt) test-context output-repr))
+      (define other-errs (map (curryr errors test-context output-repr) other-progs*))
 
       (define result
         (test-success orig-test #f #f #f #f
                       start-alt (cons end-alt (map make-alt other-progs*))
                       #f #f #f #f #f
                       newpoints newexacts
-                      (errors (alt-program start-alt) newcontext output-repr)
+                      (errors (alt-program start-alt) test-context output-repr)
                       (cons end-errs other-errs)
                       (if (test-output orig-test)
-                          (errors (test-target orig-test) newcontext output-repr)
+                          (errors (test-target orig-test) test-context output-repr)
                           #f)
                       #f #f
                       (alt-cost start-alt) (cons end-cost other-costs)
