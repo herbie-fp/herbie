@@ -6,7 +6,18 @@
          "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
          "preprocess.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
-(provide make-sampler make-sampler-from-func)
+(provide make-sampler batch-prepare-points)
+
+(module+ test
+  (require "syntax/read.rkt")
+  (require racket/runtime-path)
+  (define-runtime-path benchmarks "../bench/")
+  (define exprs
+    (let ([tests (load-tests benchmarks)])
+      (append (map test-program tests) (map test-precondition tests))))
+  (check-true (andmap (compose (curryr expr-supports? 'ival) program-body) exprs)))
+
+;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
 (define (precondition->hyperrects precondition reprs repr)
   ;; FPBench needs unparameterized operators
@@ -35,6 +46,8 @@
                  '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))
                                 (and (<=.f64 0 b) (<=.f64 b 1)))) (list repr repr) repr)
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
+
+;; Part 2: using subdivision search to find valid intervals
 
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
 ;; assumes vector strictly increasing
@@ -89,68 +102,6 @@
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
-(define (ival-positive-infinite repr interval)
-  (define <-bf (representation-bf->repr repr))
-  (define ->bf (representation-repr->bf repr))
-  (define (positive-inf? x) (bf= (->bf (<-bf x)) +inf.bf))
-  (match-define (ival lo hi) interval)
-  (cond
-   [(or (bfnan? lo) (bfnan? hi))
-    (ival-bool #t)]
-   [else
-    (define i (ival (positive-inf? lo) (positive-inf? hi)))
-    (define i2 (if (ival-lo-fixed? interval) (ival-fix-lo i) i))
-    (define i3 (if (ival-hi-fixed? interval) (ival-fix-hi i2) i2))
-    i3]))
-
-(define (is-finite-interval repr interval)
-  (define positive-inf? (ival-positive-infinite repr))
-  (match-define (ival lo hi) interval)
-  (cond
-   [(bigfloat? lo)
-    (ival-not (ival-or (ival-positive-infinite repr interval)
-                       (ival-positive-infinite repr (ival-neg interval))))]
-   [else
-    (ival-bool #t)]))
-
-(define (is-samplable-interval repr interval)
-  (define <-bf (representation-bf->repr repr))
-  (match-define (ival (app <-bf lo) (app <-bf hi)) interval)
-  (define lo! (ival-lo-fixed? interval))
-  (define hi! (ival-hi-fixed? interval))
-  (define lo=hi (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 vs -0.0
-  (define can-converge (or (not lo!) (not hi!) lo=hi))
-  (ival lo=hi can-converge))
-
-(define (valid-result? repr ival)
-  (ival-and (is-finite-interval repr ival)
-            (is-samplable-interval repr ival)
-            (ival-not (ival-error? ival))))
-
-(define (eval-prog-wrapper progs repr)
-  (match (map (compose not (curryr expr-supports? 'ival) program-body) progs)
-    ['()
-     (values 'ival (batch-eval-progs progs 'ival repr))]
-    [(list prog others ...)
-     (warn 'no-ival-operator #:url "faq.html#no-ival-operator"
-           "using unsound ground truth evaluation for program ~a" prog)
-     (define f (batch-eval-progs progs 'bf repr))
-     (values 'bf (λ (x) (vector-map (λ (y) (ival y)) (ival (f x)))))]))
-
-;; Returns a function that maps an ival to a list of ivals
-;; The first element of that function's output tells you if the input is good
-;; The other elements of that function's output tell you the output values
-(define (make-search-func precondition programs repr preprocess-structs)
-  (define preprocessor (ival-preprocesses precondition preprocess-structs repr))
-  (define-values (how fns) (eval-prog-wrapper (cons precondition programs) repr))
-  (values
-   how 
-   (λ inputs
-     (define inputs* (preprocessor inputs))
-     (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs*)))
-     (cons (apply ival-and ival-pre (map (curry valid-result? repr) ival-bodies))
-           ival-bodies)))
-
 (define (make-sampler repr precondition programs how search-func preprocess-structs)
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
   (cond
@@ -165,3 +116,74 @@
    [else
     (timeline-push! 'method "random")
     (λ () (map random-generate reprs))]))
+
+;; Part 3: computing exact values by recomputing at higher precisions
+
+(define (point-logger name prog)
+  (define start (current-inexact-milliseconds))
+  (define (log! . args)
+    (define now (current-inexact-milliseconds))
+    (match-define (list category prec)
+      (match args
+        [`(exit ,prec ,pt)
+         (define key (list 'exit prec))
+         (warn 'ground-truth #:url "faq.html#ground-truth"
+               "could not determine a ground truth for program ~a" name
+               #:extra (for/list ([var (program-variables prog)] [val pt])
+                         (format "~a = ~a" var val)))
+         key]
+        [`(unsamplable ,prec ,pt) (list 'overflowed prec)]
+        [`(sampled ,prec ,pt) (list 'valid prec)]
+        [`(invalid ,prec ,pt) (list 'invalid prec)]))
+    (define dt (- now start))
+    (timeline-push! 'outcomes (~a name) prec (~a category) dt 1)
+    (set! start now))
+  log!)
+
+(define (ival-eval fn pt repr #:precision [precision 80] #:log [log! void])
+  (define <-bf (representation-bf->repr repr))
+  (let loop ([precision precision])
+    (match-define (list valid exs ...) (parameterize ([bf-precision precision]) (apply fn pt)))
+    (define precision* (exact-floor (* precision 2)))
+    (cond
+     [(not (ival-hi valid))
+      (log! 'invalid precision pt)
+      +nan.0]
+     [(and (not (ival-lo valid)) (ival-lo-fixed? valid))
+      (log! 'unsamplable precision pt)
+      +nan.0]
+     [(ival-lo valid)
+      (log! 'sampled precision pt)
+      (map <-bf exs)]
+     [(> precision* (*max-mpfr-prec*))
+      (log! 'exit precision pt)
+      +nan.0]
+     [else
+      (loop precision*)])))
+
+(define (batch-prepare-points how fn repr sampler)
+  ;; If we're using the bf fallback, start at the max precision
+  (define starting-precision
+    (match how ['ival (bf-precision)] ['bf (*max-mpfr-prec*)]))
+
+  (define-values (points exactss)
+    (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
+      (define pt (sampler))
+
+      (define exs
+        (ival-eval fn pt repr
+                   #:precision starting-precision
+                   #:log (point-logger 'body prog)))
+
+      (cond
+       [(and (not (nan? ex)) (andmap (curryr ordinary-value? repr) pt))
+        (if (>= (+ 1 sampled) (*num-points*))
+            (values (cons pt points) (cons ex exactss))
+            (loop (+ 1 sampled) 0 (cons pt points) (cons ex exactss)))]
+       [else
+        (when (>= skipped (*max-skipped-points*))
+          (raise-herbie-error "Cannot sample enough valid points."
+                              #:url "faq.html#sample-valid-points"))
+        (loop sampled (+ 1 skipped) points exactss)])))
+  (timeline-compact! 'outcomes)
+  (cons points (flip-lists exactss)))
