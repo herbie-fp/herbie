@@ -1,14 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require [only-in "errors.rkt" warn raise-herbie-error]
-         [only-in "programs.rkt" program-variables program-body eval-prog expr-supports?]
-         [only-in "timeline.rkt" timeline-push! timeline-compact!]
-         [only-in "float.rkt" ordinary-value?]
-         [only-in "interface.rkt" representation-bf->repr get-representation]
-         [only-in "config.rkt" *max-mpfr-prec* *num-points* *max-skipped-points*]
-         [only-in "points.rkt" mk-pcontext]
-         [only-in "sampling.rkt" make-search-func])
+(require "errors.rkt" "programs.rkt" "interface.rkt" "sampling.rkt")
 
 (provide make-search-func prepare-points sample-points)
 
@@ -76,7 +69,7 @@
 
 (define (prepare-points prog precondition repr sampler)
   (define-values (how fn) (make-search-func precondition (list prog) repr '()))
-  (apply mk-pcontext (batch-prepare-points how fn repr sampler)))
+  (batch-prepare-points how fn repr sampler))
 
 (define (sample-points precondition progs repr)
   (define-values (how fn) (make-search-func precondition (list prog) repr '()))

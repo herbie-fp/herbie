@@ -278,7 +278,7 @@
   (*sampler* sampler)
 
   (timeline-event! 'sample)
-  (prepare-points specification precondition repr sampler))
+  (apply mk-pcontext (prepare-points specification precondition repr sampler)))
 
 (define (initialize-alt-table! prog pcontext repr)
   (define alt (make-alt prog))
