@@ -73,9 +73,11 @@
     ("C" . ,(λ (c i) (core->c c (if i (symbol->string i) "code"))))))
 
 (define (render-preprocess-struct preprocess)
-  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) ", ") "]"))
-  `(div ([class "program math"])
-        "\\[" ,vars "=" ,(string-append "\\mathsf{sort}(" vars ")") "\\]"))
+  (match preprocess
+    [`(sort ,vars ...)
+     (define vars (format "[~a]" (string-join (map ~a vars) ", ")))
+     `(div ([class "program math"])
+           "\\[" ,vars "=" ,(string-append "\\mathsf{sort}(" vars ")") "\\]")]))
 
 (define (render-preprocess preprocess-structs)
   `(div ([id "preprocess"])

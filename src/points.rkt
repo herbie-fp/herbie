@@ -2,7 +2,7 @@
 
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "interface.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext?
+(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext
          errors batch-errors errors-score oracle-error baseline-error oracle-error-idx)
 
 ;; pcontexts are Herbie's standard data structure for storing
