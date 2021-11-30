@@ -265,6 +265,7 @@
   (finalize-iter!))
   
 (define (setup-context! specification precondition repr)
+  (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
   (define vars (program-variables specification))
   (*output-repr* repr)
   (*var-reprs* (map (curryr cons repr) vars))

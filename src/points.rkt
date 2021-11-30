@@ -25,6 +25,16 @@
                   body ...)])
     (mk-pcontext pts* exs*)))
 
+(define (split-pcontext context num-a num-b)
+  (define num-total (vector-length (pcontext-points pcontext)))
+  (unless (= (+ num-a num-b) num-total)
+    (error 'split-pcontext "Cannot split pcontext of size ~a into ~a and ~a"
+           num-total num-a num-b))
+  (match-define (pcontext pts exs) context)
+  (define-values (pts-a pts-b) (vector-split-at pts num-a))
+  (define-values (exs-a exs-b) (vector-split-at exs num-a))
+  (values (pcontext pts-a exs-a) (pcontext pts-b exs-b)))
+
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
 
