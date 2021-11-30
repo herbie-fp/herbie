@@ -320,9 +320,12 @@
     (parameterize ([*timeline-disabled* true])
       (connected-components specification)))
 
-  (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
-  (timeline-push! 'symmetry (map ~a symmetry-groups))
-  (*herbie-preprocess* (append preprocess symmetry-groups))
+  (define new-preprocess
+    (for/list ([sortable-variables (in-list sortable)]
+               #:when (> (length sortable-variables) 1))
+      (cons 'sort sortable-variables)))
+  (timeline-push! 'symmetry (map ~a new-preprocess))
+  (*herbie-preprocess* (append preprocess new-preprocess))
 
   (define processed-pcontext (preprocess-pcontext vars pcontext (*herbie-preprocess*) (*output-repr*)))
 
