@@ -8,6 +8,9 @@
 (module+ test (require rackunit "load-plugin.rkt"))
 (provide make-sampler batch-prepare-points)
 
+;; Much of this code assumes everything supports intervals. Almost
+;; everything does---we're still missing support for the Gamma and
+;; Bessel functions. But at least none of the benchmarks use those.
 (module+ test
   (require "syntax/read.rkt")
   (require racket/runtime-path)
