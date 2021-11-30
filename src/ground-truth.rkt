@@ -5,40 +5,28 @@
 
 (provide make-search-func prepare-points sample-points)
 
-(define (ival-positive-infinite repr interval)
+(define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
   (define ->bf (representation-repr->bf repr))
   (define (positive-inf? x) (bf= (->bf (<-bf x)) +inf.bf))
-  (match-define (ival lo hi) interval)
+  (define ival-positive-infinite (monotonic->ival positive-inf?))
   (cond
-   [(or (bfnan? lo) (bfnan? hi))
-    (ival-bool #t)]
-   [else
-    (define i (ival (positive-inf? lo) (positive-inf? hi)))
-    (define i2 (if (ival-lo-fixed? interval) (ival-fix-lo i) i))
-    (define i3 (if (ival-hi-fixed? interval) (ival-fix-hi i2) i2))
-    i3]))
-
-(define (is-finite-interval repr interval)
-  (match-define (ival lo hi) interval)
-  (cond
-   [(bigfloat? lo)
-    (ival-not (ival-or (ival-positive-infinite repr interval)
-                       (ival-positive-infinite repr (ival-neg interval))))]
+   [(bigfloat? (ival-lo interval))
+    (ival-or (ival-positive-infinite interval)
+             (ival-positive-infinite (ival-neg interval)))]
    [else
     (ival-bool #t)]))
 
 (define (is-samplable-interval repr interval)
+  (define ival-convergent)
   (define <-bf (representation-bf->repr repr))
-  (match-define (ival (app <-bf lo) (app <-bf hi)) interval)
-  (define lo! (ival-lo-fixed? interval))
-  (define hi! (ival-hi-fixed? interval))
-  (define lo=hi (or (equal? lo hi) (and (number? lo) (= lo hi)))) ; 0.0 vs -0.0
-  (define can-converge (or (not lo!) (not hi!) lo=hi))
-  (ival lo=hi can-converge))
+  (define (close-enough? lo hi)
+    (let ([lo* (<-bf lo)] [(hi* (<-bf hi))])
+      (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
+  ((close-enough->ival close-enough?) interval))
 
 (define (valid-result? repr ival)
-  (ival-and (is-finite-interval repr ival)
+  (ival-and (ival-not (is-infinite-interval repr ival))
             (is-samplable-interval repr ival)
             (ival-not (ival-error? ival))))
 
