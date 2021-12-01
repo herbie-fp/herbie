@@ -18,7 +18,7 @@
 (define (is-samplable-interval repr interval)
   (define <-bf (representation-bf->repr repr))
   (define (close-enough? lo hi)
-    (let ([lo* (<-bf lo)] [(hi* (<-bf hi))])
+    (let ([lo* (<-bf lo)] [hi* (<-bf hi)])
       (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
   ((close-enough->ival close-enough?) interval))
 
