@@ -8,17 +8,14 @@
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
   (define ->bf (representation-repr->bf repr))
-  (define (positive-inf? x) (bf= (->bf (<-bf x)) +inf.bf))
+  (define (positive-inf? x) (and (bigfloat? x) (bf= (->bf (<-bf x)) +inf.bf)))
+  (define (negative-inf? x) (and (bigfloat? x) (bf= (->bf (<-bf x)) -inf.bf)))
   (define ival-positive-infinite (monotonic->ival positive-inf?))
-  (cond
-   [(bigfloat? (ival-lo interval))
-    (ival-or (ival-positive-infinite interval)
-             (ival-positive-infinite (ival-neg interval)))]
-   [else
-    (ival-bool #t)]))
+  (define ival-negative-infinite (comonotonic->ival negative-inf?))
+  (ival-or (ival-positive-infinite interval)
+           (ival-negative-infinite interval)))
 
 (define (is-samplable-interval repr interval)
-  (define ival-convergent)
   (define <-bf (representation-bf->repr repr))
   (define (close-enough? lo hi)
     (let ([lo* (<-bf lo)] [(hi* (<-bf hi))])
