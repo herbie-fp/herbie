@@ -16,8 +16,8 @@
     ;; These next three approximate pi so that range analysis will work
     [asin-sin-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
     [asin-sin-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
-    [acos-cos-s_binary64    . (<=.f64 0 x 3.1415)]
-    [acos-cos-s_binary32    . (<=.f32 0 x 3.1415)]
+    [acos-cos-s_binary64    . (and (<=.f64 0 x) (<=.f64 x 3.1416))]
+    [acos-cos-s_binary32    . (and (<=.f32 0 x) (<=.f64 x 3.1416))]
     [atan-tan-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
     [atan-tan-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]))
 
@@ -29,7 +29,7 @@
   (define precondition `(λ ,fv ,(dict-ref *conditions* name '(TRUE))))
   (define progs (list `(λ ,fv ,p1) `(λ ,fv ,p2)))
   (match-define (list pts exs1 exs2)
-    (parameterize ([*num-points* (num-test-points)])
+    (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
       (sample-points precondition progs repr)))
 
   (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
