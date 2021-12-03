@@ -5,7 +5,8 @@
 
 (provide
  (struct-out table-row) (struct-out report-info)
- make-report-info read-datafile write-datafile)
+ make-report-info read-datafile write-datafile
+ merge-datafiles diff-datafiles)
 
 
 (struct table-row
@@ -48,7 +49,7 @@
           (pre . ,(~s pre))
           (preprocess . ,(~s (map preprocess->sexp preprocess)))
           (prec . ,(~s prec))
-          (conversions . ,(~a conversions))
+          (conversions . ,(map (curry map ~s) conversions))
           (status . ,status)
           (start . ,start-bits)
           (end . ,end-bits)
@@ -115,8 +116,11 @@
                                 (get 'status)
                                 (parse-string (hash-ref test 'pre "TRUE"))
                                 (map sexp->preprocess (parse-string (hash-ref test 'herbie-preprocess "()")))
-                                (string->symbol (hash-ref test 'prec "binary64"))
-                                (parse-string (hash-ref test 'conversions "()"))
+                                (parse-string (hash-ref test 'prec "binary64"))
+                                (let ([cs (hash-ref test 'conversions "()")])
+                                  (if (string? cs)
+                                      (parse-string cs)
+                                      (map (curry map parse-string) cs)))
                                 vars (parse-string (get 'input)) (parse-string (get 'output))
                                 (parse-string (hash-ref test 'spec "#f"))
                                 (parse-string (hash-ref test 'target-prog "#f"))
@@ -124,3 +128,61 @@
                                 (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
                                 (get 'time) (get 'bits) (get 'link)
                                 (parse-string (hash-ref test 'cost-accuracy "()"))))))))
+
+(define (unique? a)
+  (or (null? a) (andmap (curry equal? (car a)) (cdr a))))
+
+(define (merge-datafiles dfs #:dirs [dirs #f])
+  (when (null? dfs)
+    (error' merge-datafiles "Cannot merge no datafiles"))
+  (for ([f (in-list (list report-info-commit report-info-hostname report-info-seed
+                          report-info-flags report-info-points report-info-iterations))])
+    (unless (unique? (map f dfs))
+      (error 'merge-datafiles "Cannot merge datafiles at different ~a" f)))
+  (unless dirs
+    (set! dirs (map (const #f) dfs)))
+
+  (report-info
+   (last (sort (map report-info-date dfs) < #:key date->seconds))
+   (report-info-commit (first dfs))
+   (first (filter values (map report-info-branch dfs)))
+   (report-info-hostname (first dfs))
+   (report-info-seed (first dfs))
+   (report-info-flags (first dfs))
+   (report-info-points (first dfs))
+   (report-info-iterations (first dfs))
+   (~a (cons 'merged (map report-info-note dfs)))
+   (for/list ([df (in-list dfs)] [dir (in-list dirs)]
+              #:when true
+              [test (in-list (report-info-tests df))])
+     (struct-copy table-row test
+                  [link (if dir
+                            (format "~a/~a" dir (table-row-link test))
+                            (table-row-link test))]))))
+
+(define (diff-datafiles old new)
+  (define old-tests
+    (for/hash ([ot (in-list (report-info-tests old))])
+      (values (table-row-name ot) ot)))
+  (define tests*
+    (for/list ([nt (in-list (report-info-tests new))])
+      (if (hash-has-key? old-tests (table-row-name nt))
+          (let ([ot (hash-ref old-tests (table-row-name nt))])
+            (define end-score (table-row-result nt))
+            (define target-score (table-row-result ot))
+            (define start-score (table-row-start nt))
+
+            (struct-copy table-row nt
+                         [status
+                          (if (and end-score target-score start-score)
+                              (cond
+                               [(< end-score (- target-score 1)) "gt-target"]
+                               [(< end-score (+ target-score 1)) "eq-target"]
+                               [(> end-score (+ start-score 1)) "lt-start"]
+                               [(> end-score (- start-score 1)) "eq-start"]
+                               [(> end-score (+ target-score 1)) "lt-target"])
+                              (table-row-status nt))]
+                         [target-prog (table-row-output ot)]
+                         [target (table-row-result ot)]))
+          nt)))
+  (struct-copy report-info new [tests tests*]))

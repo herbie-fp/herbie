@@ -117,9 +117,9 @@
     [else
      hyperrects-analysis]))
 
-(define (preprocessing-<=? alt preprocessing-one preprocessing-two)
-  (<= (errors-score (errors (alt-program alt) (*pcontext-unprocessed*) (*output-repr*) #:processing preprocessing-one))
-      (errors-score (errors (alt-program alt) (*pcontext-unprocessed*) (*output-repr*) #:processing preprocessing-two))))
+(define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two)
+  (<= (errors-score (errors (alt-program alt) pcontext (*output-repr*) #:processing preprocessing-one))
+      (errors-score (errors (alt-program alt) pcontext (*output-repr*) #:processing preprocessing-two))))
 
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))
@@ -127,19 +127,19 @@
 
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unecessary-preprocessing alt preprocessing #:removed [removed empty])
+(define (remove-unecessary-preprocessing alt pcontext preprocessing #:removed [removed empty])
   (define-values (result newly-removed)
     (let loop ([preprocessing preprocessing] [i 0] [removed removed])
       (cond
         [(>= i (length preprocessing))
          (values preprocessing removed)]
-        [(preprocessing-<=? alt (drop-at preprocessing i) preprocessing)
+        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing)
          (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
         [else
          (loop preprocessing (+ i 1) removed)])))
   (cond
     [(< (length result) (length preprocessing))
-     (remove-unecessary-preprocessing alt result #:removed newly-removed)]
+     (remove-unecessary-preprocessing alt pcontext result #:removed newly-removed)]
     [else
      (timeline-push! 'remove-preprocessing (map (compose ~a preprocess->sexp) newly-removed))
      result]))

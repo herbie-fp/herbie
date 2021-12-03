@@ -7,7 +7,6 @@ CORES=4
 set -e -x
 
 function output_error {
-    DIR="$1"
     NAME="$2"
     SEED="$3"
     DATE=`date +%s`
@@ -51,9 +50,11 @@ for bench in bench/*; do
   name=$(basename "$bench" .fpcore)
   run "$bench" "$name" "$@"
   if [ "$?" -eq 0 ]; then
-      dirs="$dirs $DIR/$name";
+      dirs="$dirs $name";
   fi
 done
+
+
 racket infra/nightly.rkt "$DIR" $dirs
 bash infra/publish.sh upload "$DIR"
 bash infra/publish.sh index

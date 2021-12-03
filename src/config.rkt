@@ -86,6 +86,8 @@
 ;; In mainloop, cache improvements between iterations
 (define *use-improve-cache* (make-parameter #t))
 
+(define *default-precision* (make-parameter 'binary64))
+
 ;;; About Herbie:
 
 (define (run-command cmd)

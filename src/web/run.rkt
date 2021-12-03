@@ -5,13 +5,11 @@
          "../interface.rkt" "../profile.rkt" "../timeline.rkt" "../sampling.rkt"
          "make-report.rkt" "thread-pool.rkt" "timeline.rkt")
 
-(provide make-report rerun-report replot-report)
+(provide make-report rerun-report replot-report diff-report)
 
 (define (extract-test row)
   (define vars (table-row-vars row))
-  (define prec (table-row-precision row))
-  (define var-precs (map (curryr cons prec) vars))
-  (define repr (get-representation prec))
+  (define repr (get-representation (table-row-precision row)))
   (define var-reprs (map (curryr cons repr) vars))
   (test (table-row-name row)
         (table-row-identifier row)
@@ -22,8 +20,8 @@
         (desugar-program (table-row-spec row) repr var-reprs)
         (desugar-program (table-row-pre row) repr var-reprs)
         (table-row-preprocess row)
-        (table-row-precision row)
-        (map (curryr cons (table-row-precision row)) (table-row-vars row))
+        (representation-name repr)
+        (for/list ([(k v) (in-dict var-reprs)]) (cons k (representation-name v)))
         (table-row-conversions row)))
   
 (define (make-report bench-dirs #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
@@ -41,7 +39,7 @@
 
 (define (replot-report json-file #:dir dir)
   (local-require "../points.rkt" "../interface.rkt" "../sandbox.rkt" "../alternative.rkt"
-                 "pages.rkt" "../timeline.rkt")
+                 "../ground-truth.rkt" "pages.rkt" "../timeline.rkt")
 
   (define data (read-datafile json-file))
   ;; This must create a `test-success` object with the following fields set to something real:
@@ -60,7 +58,7 @@
         #:unless (set-member? '("error" "crash") (table-row-status row)))
     (set-seed! (report-info-seed data))
     (define orig-test (extract-test row))
-    (define output-repr (get-representation (test-output-prec orig-test)))
+    (define output-repr (test-output-repr orig-test))
     (parameterize ([*timeline-disabled* true] [*output-repr* output-repr]
                    [*var-reprs* (map (curryr cons output-repr) (test-vars orig-test))])
       (define sampler
@@ -165,3 +163,10 @@
    [else
     ; Put things with an output first
     (test-output t1)]))
+
+(define (diff-report old new)
+  (define df (diff-datafiles (read-datafile (build-path old "results.json"))
+                             (read-datafile (build-path new "results.json"))))
+  (call-with-output-file (build-path new "results.html")
+    #:exists 'replace
+    (curryr make-report-page df #f)))

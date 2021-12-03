@@ -111,7 +111,7 @@
 (define-timeline oracle [oracle])
 (define-timeline baseline [baseline])
 (define-timeline count [input +] [output +])
-(define-timeline alts [prog] [status])
+(define-timeline alts #:unmergable)
 (define-timeline sampling #:custom merge-sampling-tables)
 (define-timeline symmetry #:unmergable)
 (define-timeline remove-preprocessing #:unmergable)
