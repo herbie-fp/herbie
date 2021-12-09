@@ -75,9 +75,11 @@
 (define (render-preprocess-struct preprocess)
   (match preprocess
     [`(sort ,vars ...)
-     (define vars (format "[~a]" (string-join (map ~a vars) ", ")))
+     (define varstring (format "[~a]" (string-join (map ~a vars) ", ")))
      `(div ([class "program math"])
-           "\\[" ,vars "=" ,(string-append "\\mathsf{sort}(" vars ")") "\\]")]))
+           "\\["
+           ,varstring "=" "\\mathsf{sort}(" ,varstring ")"
+           "\\]")]))
 
 (define (render-preprocess preprocess-structs)
   `(div ([id "preprocess"])
