@@ -1,7 +1,6 @@
 #lang racket
 
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "interface.rkt" "preprocess.rkt")
+(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "interface.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext?
          errors batch-errors errors-score oracle-error baseline-error oracle-error-idx)
@@ -17,8 +16,6 @@
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
 
 (define/contract (mk-pcontext points exacts)
-  ;; TODO: The second argument type should be any of the possible input types,
-  ;; not just any type in general (maybe the first argument too?)
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
 
@@ -58,15 +55,11 @@
 (define (errors-score e)
   (apply (if (flag-set? 'reduce 'avg-error) average max) (map ulps->bits e)))
 
-(define (errors prog pcontext repr #:processing [processing #f])
+(define (errors prog pcontext repr)
   (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (define processed
-      (if processing
-          (apply-preprocess (program-variables prog) point processing repr)
-          point))
-    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog processed) (raise e))])
-      (point-error (apply fn processed) exact repr))))
+    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
+      (point-error (apply fn point) exact repr))))
 
 (define (batch-errors progs pcontext repr)
   (define fn (batch-eval-progs progs 'fl repr))

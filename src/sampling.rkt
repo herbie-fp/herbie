@@ -2,11 +2,11 @@
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt"
-         "float.rkt" "alternative.rkt" "interface.rkt" "points.rkt"
+         "float.rkt" "alternative.rkt" "interface.rkt"
          "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
          "preprocess.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
-(provide make-sampler remove-unecessary-preprocessing)
+(provide make-sampler)
 
 (define (precondition->hyperrects precondition reprs repr)
   ;; FPBench needs unparameterized operators
@@ -70,7 +70,7 @@
   (match (type-name (representation-type repr))
     ['real
      (λ (interval)
-       (define not-number? (and (or (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval)))))
+       (define not-number? (or (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval))))
        (ival-or (ival-bool not-number?) (ival-< (mk-ival (bf- bound)) interval (mk-ival bound))))]
     ['bool (const (ival-bool #t))]))
 
@@ -117,33 +117,6 @@
     [else
      hyperrects-analysis]))
 
-(define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two)
-  (<= (errors-score (errors (alt-program alt) pcontext (*output-repr*) #:processing preprocessing-one))
-      (errors-score (errors (alt-program alt) pcontext (*output-repr*) #:processing preprocessing-two))))
-
-(define (drop-at ls index)
-  (define-values (front back) (split-at ls index))
-  (append front (rest back)))
-
-
-; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unecessary-preprocessing alt pcontext preprocessing #:removed [removed empty])
-  (define-values (result newly-removed)
-    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
-      (cond
-        [(>= i (length preprocessing))
-         (values preprocessing removed)]
-        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing)
-         (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
-        [else
-         (loop preprocessing (+ i 1) removed)])))
-  (cond
-    [(< (length result) (length preprocessing))
-     (remove-unecessary-preprocessing alt pcontext result #:removed newly-removed)]
-    [else
-     (timeline-push! 'remove-preprocessing (map (compose ~a preprocess->sexp) newly-removed))
-     result]))
-    
 ; These definitions in place, we finally generate the points.
 ; A sampler returns two points- one without preprocessing and one with preprocessing
 (define (make-sampler repr precondition programs preprocess-structs)
