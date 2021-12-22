@@ -80,13 +80,16 @@
                         #:preprocess (test-preprocess test)))
 
         (when seed (set-seed! seed))
+        (define processed-test-context
+          (preprocess-pcontext (test-vars test) test-context (*herbie-preprocess*) output-repr))
+
         (define fns
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))
 
-        (define end-errss (map (λ (x) (errors (alt-program x) test-context output-repr)) alts))
-        (define baseline-errs (baseline-error fns train-context test-context output-repr))
-        (define oracle-errs (oracle-error fns test-context output-repr))
+        (define end-errss (map (λ (x) (errors (alt-program x) processed-test-context output-repr)) alts))
+        (define baseline-errs (baseline-error fns context processed-test-context output-repr))
+        (define oracle-errs (oracle-error fns processed-test-context output-repr))
         (define end-score (errors-score (car end-errss)))
 
         (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
@@ -97,7 +100,7 @@
         (print-warnings)
 
         (define-values (points exacts) (get-p&es train-context))
-        (define-values (newpoints newexacts) (get-p&es test-context))
+        (define-values (newpoints newexacts) (get-p&es processed-test-context))
         (test-success test
                       (bf-precision)
                       (- (current-inexact-milliseconds) start-time)
@@ -107,10 +110,10 @@
                       (errors (test-program test) train-context output-repr)
                       (errors (alt-program (car alts)) train-context output-repr)
                       newpoints newexacts
-                      (errors (test-program test) test-context output-repr)
+                      (errors (test-program test) processed-test-context output-repr)
                       end-errss
                       (if (test-output test)
-                          (errors (test-target test) test-context output-repr)
+                          (errors (test-target test) processed-test-context output-repr)
                           #f)
                       baseline-errs
                       oracle-errs

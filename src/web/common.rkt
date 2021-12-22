@@ -187,7 +187,7 @@
     (h1 "Reproduce")
     ,(if bug?
          `(p "Please include this information when filing a "
-             (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
+             (a ((href "https://github.com/herbie-fp/herbie/issues")) "bug report") ":")
          "")
     (pre ((class "shell"))
          (code
