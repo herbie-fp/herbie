@@ -88,7 +88,7 @@
                (remove-duplicates (*all-alts*))))
 
         (define end-errss (map (λ (x) (errors (alt-program x) processed-test-context output-repr)) alts))
-        (define baseline-errs (baseline-error fns context processed-test-context output-repr))
+        (define baseline-errs (baseline-error fns train-context processed-test-context output-repr))
         (define oracle-errs (oracle-error fns processed-test-context output-repr))
         (define end-score (errors-score (car end-errss)))
 
