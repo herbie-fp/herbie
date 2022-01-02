@@ -380,6 +380,8 @@
         (alt `(λ ,(program-variables (alt-program altn)) ,(simplify-result-expr (last progs)))
               'final-simplify (list altn)))
       alt-equal?))
+  (timeline-event! 'soundness)
+  
   (timeline-event! 'end)
 
   ; find the best, sort the rest by cost
