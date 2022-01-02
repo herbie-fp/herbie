@@ -1,9 +1,8 @@
 #lang racket
 
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "timeline.rkt"
-         "interface.rkt" "preprocess.rkt")
+(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "interface.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext?
+(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext
          errors batch-errors errors-score oracle-error baseline-error oracle-error-idx)
 
 ;; pcontexts are Herbie's standard data structure for storing
@@ -17,8 +16,6 @@
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
 
 (define/contract (mk-pcontext points exacts)
-  ;; TODO: The second argument type should be any of the possible input types,
-  ;; not just any type in general (maybe the first argument too?)
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
 
@@ -27,6 +24,16 @@
                 (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...)
                   body ...)])
     (mk-pcontext pts* exs*)))
+
+(define (split-pcontext context num-a num-b)
+  (define num-total (vector-length (pcontext-points context)))
+  (unless (= (+ num-a num-b) num-total)
+    (error 'split-pcontext "Cannot split pcontext of size ~a into ~a and ~a"
+           num-total num-a num-b))
+  (match-define (pcontext pts exs) context)
+  (define-values (pts-a pts-b) (vector-split-at pts num-a))
+  (define-values (exs-a exs-b) (vector-split-at exs num-a))
+  (values (pcontext pts-a exs-a) (pcontext pts-b exs-b)))
 
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
@@ -58,15 +65,11 @@
 (define (errors-score e)
   (apply (if (flag-set? 'reduce 'avg-error) average max) (map ulps->bits e)))
 
-(define (errors prog pcontext repr #:processing [processing #f])
+(define (errors prog pcontext repr)
   (define fn (eval-prog prog 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (define processed
-      (if processing
-          (apply-preprocess (program-variables prog) point processing repr)
-          point))
-    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog processed) (raise e))])
-      (point-error (apply fn processed) exact repr))))
+    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
+      (point-error (apply fn point) exact repr))))
 
 (define (batch-errors progs pcontext repr)
   (define fn (batch-eval-progs progs 'fl repr))

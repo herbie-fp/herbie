@@ -266,11 +266,11 @@
 
 (define-operator (INFINITY) real
   [bf (λ () +inf.bf)]
-  [ival (λ () (mk-ival +inf.bf))])
+  [ival (λ () (ival +inf.bf))])
 
 (define-operator (NAN) real
   [bf (λ () +nan.bf)]
-  [ival (λ () (mk-ival +nan.bf))])
+  [ival (λ () (ival +nan.bf))])
 
 (define-operator (TRUE) bool
   [bf (const true)]

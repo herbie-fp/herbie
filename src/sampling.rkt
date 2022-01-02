@@ -1,12 +1,25 @@
 #lang racket
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
-(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt"
-         "float.rkt" "alternative.rkt" "interface.rkt" "points.rkt"
-         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
-         "preprocess.rkt")
+(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt" "common.rkt"
+         "float.rkt" "alternative.rkt" "interface.rkt"
+         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt")
 (module+ test (require rackunit "load-plugin.rkt"))
-(provide make-sampler remove-unecessary-preprocessing)
+(provide make-sampler batch-prepare-points)
+
+;; Much of this code assumes everything supports intervals. Almost
+;; everything does---we're still missing support for the Gamma and
+;; Bessel functions. But at least none of the benchmarks use those.
+(module+ test
+  (require "syntax/read.rkt")
+  (require racket/runtime-path)
+  (define-runtime-path benchmarks "../bench/")
+  (define exprs
+    (let ([tests (load-tests benchmarks)])
+      (append (map test-program tests) (map test-precondition tests))))
+  (check-true (andmap (compose (curryr expr-supports? 'ival) program-body) exprs)))
+
+;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
 (define (precondition->hyperrects precondition reprs repr)
   ;; FPBench needs unparameterized operators
@@ -30,14 +43,14 @@
     ['bool
      (ival #f #t)]))
 
-(define (partial-sums v)
-  (define out (make-vector (vector-length v) 0))
-  (let loop ([sum 0] [i 0])
-    (if (< i (vector-length v))
-        (let ([sum* (+ sum (vector-ref v i))])
-          (vector-set! out i sum*)
-          (loop sum* (+ i 1)))
-        out)))
+(module+ test
+  (define repr (get-representation 'binary64))
+  (check-equal? (precondition->hyperrects
+                 '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))
+                                (and (<=.f64 0 b) (<=.f64 b 1)))) (list repr repr) repr)
+                (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
+
+;; Part 2: using subdivision search to find valid intervals
 
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
 ;; assumes vector strictly increasing
@@ -51,132 +64,7 @@
       (define pivot (vector-ref vector mid))
       (if (<= pivot num) (loop (+ 1 mid) right) (loop left mid))])))
 
-(define (choose-hyperrect hyperrects weights)
-  (define weight-max (vector-ref weights (- (vector-length weights) 1)))
-  (define rand-ordinal (random-integer 0 weight-max))
-  (vector-ref hyperrects (binary-search weights rand-ordinal)))
-
-(define (sample-multi-bounded hyperrects weights reprs)
-  (define hyperrect (choose-hyperrect hyperrects weights))
-
-  (for/list ([interval hyperrect] [repr reprs])
-    (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
-    (define <-ordinal (representation-ordinal->repr repr))
-    (<-ordinal (random-integer (->ordinal (ival-lo interval))
-                               (+ 1 (->ordinal (ival-hi interval)))))))
-
-(define (is-finite-interval repr)
-  (define bound (bound-ordinary-values repr))
-  (match (type-name (representation-type repr))
-    ['real
-     (λ (interval)
-       (define not-number? (and (or (bfnan? (ival-lo interval)) (bfnan? (ival-hi interval)))))
-       (ival-or (ival-bool not-number?) (ival-< (mk-ival (bf- bound)) interval (mk-ival bound))))]
-    ['bool (const (ival-bool #t))]))
-
-(define (is-samplable-interval repr)
-  (define <-bf (representation-bf->repr repr))
-  (match (type-name (representation-type repr))
-    ['real
-     (λ (interval)
-       (match-define (ival (app <-bf lo) (app <-bf hi)) interval)
-       (define lo! (ival-lo-fixed? interval))
-       (define hi! (ival-hi-fixed? interval))
-       (define lo=hi (or (equal? lo hi) (and (number? lo) (= lo hi))))
-       (define v
-         (and (not (ival-err? interval))
-              (or (and lo! hi! (not lo=hi))
-                  (and lo! (bigfloat? (ival-lo interval)) (bfinfinite? (ival-lo interval)))
-                  (and hi! (bigfloat? (ival-hi interval)) (bfinfinite? (ival-hi interval))))))
-       (ival-bool (not v)))]
-    ['bool (const (ival-bool #t))]))
-
-(define (valid-result? repr)
-  (define ival-finite? (is-finite-interval repr))
-  (define ival-samplable? (is-samplable-interval repr))
-  (λ (ival-vec)
-    (match-define (list ival-pre ival-bodies ...) (vector->list ival-vec))
-    (define x
-      (apply ival-and
-             ival-pre
-             (append
-              (map ival-finite? ival-bodies)
-              (map ival-samplable? ival-bodies) ; Arguable whether this should be here
-              (map (compose ival-not ival-error?) ival-bodies))))
-    x))
-
-(define (get-hyperrects preprocess-structs precondition programs reprs repr)
-  (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
-  (cond
-    [(flag-set? 'setup 'search)
-     (define search-func
-       (compose (valid-result? repr)
-                (batch-eval-progs (cons precondition programs) 'ival repr)
-                (ival-preprocesses precondition preprocess-structs repr)))
-     (find-intervals search-func hyperrects-analysis #:reprs reprs #:fuel (*max-find-range-depth*))]
-    [else
-     hyperrects-analysis]))
-
-(define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two)
-  (<= (errors-score (errors (alt-program alt) pcontext (*output-repr*) #:processing preprocessing-one))
-      (errors-score (errors (alt-program alt) pcontext (*output-repr*) #:processing preprocessing-two))))
-
-(define (drop-at ls index)
-  (define-values (front back) (split-at ls index))
-  (append front (rest back)))
-
-
-; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unecessary-preprocessing alt pcontext preprocessing #:removed [removed empty])
-  (define-values (result newly-removed)
-    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
-      (cond
-        [(>= i (length preprocessing))
-         (values preprocessing removed)]
-        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing)
-         (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
-        [else
-         (loop preprocessing (+ i 1) removed)])))
-  (cond
-    [(< (length result) (length preprocessing))
-     (remove-unecessary-preprocessing alt pcontext result #:removed newly-removed)]
-    [else
-     (timeline-push! 'remove-preprocessing (map (compose ~a preprocess->sexp) newly-removed))
-     result]))
-    
-; These definitions in place, we finally generate the points.
-; A sampler returns two points- one without preprocessing and one with preprocessing
-(define (make-sampler repr precondition programs preprocess-structs)
-  (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
-
-  (unless (for/and ([repr reprs]) (> (bf-precision) (representation-total-bits repr)))
-    (error 'make-sampler "Bigfloat precision ~a not sufficient to refine representations ~a"
-           (bf-precision) reprs))
-
-  (cond
-   [(and (andmap (curry equal? 'real) (map (compose type-name representation-type) (cons repr reprs)))
-         (expr-supports? (program-body precondition) 'ival)
-         (andmap (compose (curryr expr-supports? 'ival) program-body) programs)
-         (not (empty? reprs)))
-    (timeline-push! 'method "search")
-    (define hyperrects (list->vector (get-hyperrects preprocess-structs precondition programs reprs repr)))
-    (when (zero? (vector-length hyperrects))      ; compatability: avoid `vector-empty?` - 7.5 or later
-      (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
-    (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
-    (λ () (sample-multi-bounded hyperrects weights reprs))]
-   [else
-    (timeline-push! 'method "random")
-    (λ () (map random-generate reprs))]))
-
 (module+ test
-  (define repr (get-representation 'binary64))
-  (check-true
-   (andmap (curry set-member? '(0.0 1.0))
-           (sample-multi-bounded
-            (vector (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1))))
-            (vector 1)
-            (list repr repr))))
-
   (define rand-list
     (let loop ([current 0])
       (if (> current 200)
@@ -191,9 +79,110 @@
     (define search-result (binary-search arr search-for))
     (check-true (> (vector-ref arr search-result) search-for))
     (when (> search-result 0)
-      (check-true (<= (vector-ref arr (- search-result 1)) search-for))))
+      (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
 
-  (check-equal? (precondition->hyperrects
-                 '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))
-                                (and (<=.f64 0 b) (<=.f64 b 1)))) (list repr repr) repr)
-                (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
+(define (sample-ival interval repr)
+  (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+  (define <-ordinal (representation-ordinal->repr repr))
+  (<-ordinal (random-integer (->ordinal (ival-lo interval))
+                             (+ 1 (->ordinal (ival-hi interval))))))
+
+(define (make-hyperrect-sampler hyperrects* reprs)
+  (when (null? hyperrects*)
+    (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
+  (define hyperrects (list->vector hyperrects*))
+  (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
+  (define weight-max (vector-ref weights (- (vector-length weights) 1)))
+  (λ ()
+    (define rand-ordinal (random-integer 0 weight-max))
+    (define hyperrect (vector-ref hyperrects (binary-search weights rand-ordinal)))
+    (map sample-ival hyperrect reprs)))
+
+(module+ test
+  (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
+  (check-true
+   (andmap (curry set-member? '(0.0 1.0))
+           ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
+
+(define (make-sampler repr precondition programs how search-func)
+  (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
+  (cond
+   [(and (flag-set? 'setup 'search) (equal? how 'ival) (not (empty? reprs))
+         (andmap (compose (curry equal? 'real) type-name representation-type) (cons repr reprs)))
+    (timeline-push! 'method "search")
+    (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
+    (define hyperrects
+      (find-intervals (compose car search-func) hyperrects-analysis
+                      #:reprs reprs #:fuel (*max-find-range-depth*)))
+    (make-hyperrect-sampler hyperrects reprs)]
+   [else
+    (timeline-push! 'method "random")
+    (λ () (map random-generate reprs))]))
+
+;; Part 3: computing exact values by recomputing at higher precisions
+
+(define (point-logger name vars)
+  (define start (current-inexact-milliseconds))
+  (define (log! . args)
+    (define now (current-inexact-milliseconds))
+    (match-define (list category prec)
+      (match args
+        [`(exit ,prec ,pt)
+         (define key (list 'exit prec))
+         (warn 'ground-truth #:url "faq.html#ground-truth"
+               "could not determine a ground truth for program ~a" name
+               #:extra (for/list ([var vars] [val pt])
+                         (format "~a = ~a" var val)))
+         key]
+        [`(unsamplable ,prec ,pt) (list 'overflowed prec)]
+        [`(sampled ,prec ,pt) (list 'valid prec)]
+        [`(invalid ,prec ,pt) (list 'invalid prec)]))
+    (define dt (- now start))
+    (timeline-push! 'outcomes (~a name) prec (~a category) dt 1)
+    (set! start now))
+  log!)
+
+(define (ival-eval fn pt #:precision [precision 80])
+  (let loop ([precision precision])
+    (match-define (list valid exs ...) (parameterize ([bf-precision precision]) (apply fn pt)))
+    (define precision* (exact-floor (* precision 2)))
+    (cond
+     [(not (ival-hi valid))
+      (values 'invalid precision +nan.0)]
+     [(and (not (ival-lo valid)) (ival-lo-fixed? valid))
+      (values 'unsamplable precision +nan.0)]
+     [(ival-lo valid)
+      (values 'sampled precision exs)]
+     [(> precision* (*max-mpfr-prec*))
+      (values 'exit precision +nan.0)]
+     [else
+      (loop precision*)])))
+
+(define (batch-prepare-points how fn repr sampler)
+  ;; If we're using the bf fallback, start at the max precision
+  (define starting-precision
+    (match how ['ival (bf-precision)] ['bf (*max-mpfr-prec*)]))
+  (define <-bf (representation-bf->repr repr))
+  (define logger (point-logger 'body (map car (*var-reprs*))))
+
+  (define-values (points exactss)
+    (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
+      (define pt (sampler))
+
+      (define-values (status precision out)
+        (ival-eval fn pt #:precision starting-precision))
+      (logger status precision pt)
+
+      (cond
+       [(and (list? out) (andmap (curryr ordinary-value? repr) pt))
+        (define exs (map (compose <-bf ival-lo) out))
+        (if (>= (+ 1 sampled) (*num-points*))
+            (values (cons pt points) (cons exs exactss))
+            (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
+       [else
+        (when (>= skipped (*max-skipped-points*))
+          (raise-herbie-error "Cannot sample enough valid points."
+                              #:url "faq.html#sample-valid-points"))
+        (loop sampled (+ 1 skipped) points exactss)])))
+  (timeline-compact! 'outcomes)
+  (cons points (flip-lists exactss)))

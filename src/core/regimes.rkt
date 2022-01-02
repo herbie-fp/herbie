@@ -225,14 +225,13 @@
                        [*timeline-disabled* true]
                        [*var-reprs* (dict-set (*var-reprs*) var repr)])
           (define ctx
-            (car
-             (prepare-points start-prog
-                             `(λ ,(program-variables start-prog)
-                                  (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
-                             repr
-                             (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
-                                                             (sampler) (*herbie-preprocess*) repr)))
-                             empty)))
+            (apply mk-pcontext
+                   (prepare-points start-prog
+                                   `(λ ,(program-variables start-prog)
+                                      (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
+                                   repr
+                                   (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
+                                                                   (sampler) (*herbie-preprocess*) repr))))))
           (- (errors-score (errors prog1 ctx repr))
              (errors-score (errors prog2 ctx repr))))))
       (define pt (binary-search-floats pred v1 v2 repr))
@@ -277,16 +276,6 @@
        point
        (range (length point))))
 
-;; Takes a vector of numbers, and returns the partial sum of those numbers.
-;; For example, if your vector is #(1 4 6 3 8), then this returns #(1 5 11 14 22).
-(define (partial-sum vec)
-  (define res (make-vector (vector-length vec)))
-  (for/fold ([cur-psum 0]) ([(el idx) (in-indexed (in-vector vec))])
-    (let ([new-psum (+ cur-psum el)])
-      (vector-set! res idx new-psum)
-      new-psum))
-  res)
-
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
 ;; indices = The si's we are considering in this candidate.
@@ -307,7 +296,7 @@
   (define num-points (length (car err-lsts)))
   (define min-weight num-points)
 
-  (define psums (map (compose partial-sum list->vector) err-lsts))
+  (define psums (map (compose partial-sums list->vector) err-lsts))
   (define can-split? (curry vector-ref (list->vector can-split-lst)))
 
   ;; Our intermediary data is a list of cse's,

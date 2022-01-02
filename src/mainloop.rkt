@@ -265,6 +265,7 @@
   (finalize-iter!))
   
 (define (setup-context! specification precondition repr)
+  (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
   (define vars (program-variables specification))
   (*output-repr* repr)
   (*var-reprs* (map (curryr cons repr) vars))
@@ -272,12 +273,12 @@
     (*needed-reprs* (list repr (get-representation 'bool))))
 
   (timeline-event! 'analyze)
-  (define sampler (make-sampler repr precondition (list specification) '()))
+  (define-values (how fn) (make-search-func precondition (list specification) repr))
+  (define sampler (make-sampler repr precondition (list specification) how fn))
   (*sampler* sampler)
 
   (timeline-event! 'sample)
-  (define contexts (prepare-points specification precondition repr sampler'()))
-  (cdr contexts))
+  (apply mk-pcontext (prepare-points specification precondition repr sampler)))
 
 (define (initialize-alt-table! prog pcontext repr)
   (define alt (make-alt prog))
@@ -319,18 +320,48 @@
     (parameterize ([*timeline-disabled* true])
       (connected-components specification)))
 
-  (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
-  (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
-  (*herbie-preprocess* (append preprocess symmetry-groups))
+  (define new-preprocess
+    (for/list ([sortable-variables (in-list sortable)]
+               #:when (> (length sortable-variables) 1))
+      (cons 'sort sortable-variables)))
+  (timeline-push! 'symmetry (map ~a new-preprocess))
+  (*herbie-preprocess* (append preprocess new-preprocess))
 
-  (define processed-pcontext
-   (for/pcontext ([(pt ex) pcontext])
-    (values (apply-preprocess vars pt (*herbie-preprocess*) (*output-repr*)) ex)))
+  (define processed-pcontext (preprocess-pcontext vars pcontext (*herbie-preprocess*) (*output-repr*)))
 
   (match-define (cons best rest) (mutate! prog iters processed-pcontext))
 
-  (*herbie-preprocess* (remove-unecessary-preprocessing best pcontext (*herbie-preprocess*)))
+  (*herbie-preprocess* (remove-unnecessary-preprocessing best pcontext (*herbie-preprocess*)))
   (cons best rest))
+
+(define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two)
+  (define vars (program-variables (alt-program alt)))
+  (define pcontext1 (preprocess-pcontext vars pcontext preprocessing-one (*output-repr*)))
+  (define pcontext2 (preprocess-pcontext vars pcontext preprocessing-two (*output-repr*)))
+  (<= (errors-score (errors (alt-program alt) pcontext1 (*output-repr*)))
+      (errors-score (errors (alt-program alt) pcontext2 (*output-repr*)))))
+
+(define (drop-at ls index)
+  (define-values (front back) (split-at ls index))
+  (append front (rest back)))
+
+; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
+(define (remove-unnecessary-preprocessing alt pcontext preprocessing #:removed [removed empty])
+  (define-values (result newly-removed)
+    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
+      (cond
+        [(>= i (length preprocessing))
+         (values preprocessing removed)]
+        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing)
+         (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
+        [else
+         (loop preprocessing (+ i 1) removed)])))
+  (cond
+    [(< (length result) (length preprocessing))
+     (remove-unnecessary-preprocessing alt pcontext result #:removed newly-removed)]
+    [else
+     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
+     result]))
 
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)

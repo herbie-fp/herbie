@@ -1,25 +1,11 @@
 #lang racket
 
-(require rival math/bigfloat)
-(require "interface.rkt" "programs.rkt" "float.rkt")
+(require "interface.rkt" "programs.rkt" "float.rkt" "points.rkt")
 
-(provide (struct-out symmetry-group) preprocess->sexp sexp->preprocess
-         *herbie-preprocess* apply-preprocess ival-preprocesses)
+(provide preprocess-pcontext *herbie-preprocess* apply-preprocess)
 
 ;; Tracks list of preprocess structs Herbie decides to apply
 (define *herbie-preprocess* (make-parameter empty))
-
-;; Herbie preprocess structs
-(struct symmetry-group (variables) #:prefab)
-
-
-(define (preprocess->sexp preprocess)
-  `(sort ,@(symmetry-group-variables preprocess)))
-
-(define (sexp->preprocess sexp)
-  (match sexp
-    [(list 'sort vars ...) (symmetry-group vars)]
-    [else (error (format "unknown preprocess ~a" sexp))]))
 
 ;; index-value-pairs is a sorted list of (index, value)
 (define (list-set-multiple list index-value-pairs)
@@ -44,9 +30,8 @@
   (list-set-multiple point sorted))
 
 (define (sort-group variables point preprocess repr)
-  (apply-to-group variables point (symmetry-group-variables preprocess)
-                  (lambda (group)
-                    (sort group (curry <-repr repr)))))
+  (match-define (list 'sort vars ...) preprocess)
+  (apply-to-group variables point vars (lambda (group) (sort group (curry <-repr repr)))))
 
 (define (apply-preprocess variables sampled-point preprocess-structs repr)
   (cond
@@ -56,20 +41,6 @@
     [else
      (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs) repr)]))
 
-
-(define (ival-preprocess ivals precondition preprocess-struct)
-  (apply-to-group (program-variables precondition) ivals (symmetry-group-variables preprocess-struct)
-                  (lambda (group-ivals)
-                    (ival-sort group-ivals bf<))))
-
-
-(define (ival-preprocesses precondition preprocess-structs repr)
-  (lambda ivals
-    (let loop ([current ivals]
-               [todo preprocess-structs])
-      (cond
-        [(empty? todo)
-         (apply values current)]
-        [else
-         (loop (ival-preprocess current precondition (first todo))
-               (rest todo))]))))
+(define (preprocess-pcontext variables pcontext preprocess-structs repr)
+  (for/pcontext ([(pt ex) pcontext])
+    (values (apply-preprocess variables pt preprocess-structs repr) ex)))

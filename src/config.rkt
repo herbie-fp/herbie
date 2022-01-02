@@ -123,10 +123,6 @@
 
 ;; OBSOLETE
 
-;; The step size with which arbitrary-precision precision is increased
-;; DANGEROUS TO CHANGE
-(define *precision-step* (make-parameter 256))
-
 ;; In periodicity analysis,
 ;; this is how small the period of a function must be to count as periodic
 (define *max-period-coeff* 20)

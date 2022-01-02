@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/date json)
-(require "common.rkt" "interface.rkt" "preprocess.rkt")
+(require "common.rkt" "interface.rkt")
 
 (provide
  (struct-out table-row) (struct-out report-info)
@@ -47,7 +47,7 @@
         `((name . ,name)
           (identifier . ,(~s identifier))
           (pre . ,(~s pre))
-          (preprocess . ,(~s (map preprocess->sexp preprocess)))
+          (preprocess . ,(~s preprocess))
           (prec . ,(~s prec))
           (conversions . ,(map (curry map ~s) conversions))
           (status . ,status)
@@ -115,7 +115,7 @@
                                 (parse-string (hash-ref test 'identifier "#f"))
                                 (get 'status)
                                 (parse-string (hash-ref test 'pre "TRUE"))
-                                (map sexp->preprocess (parse-string (hash-ref test 'herbie-preprocess "()")))
+                                (parse-string (hash-ref test 'herbie-preprocess "()"))
                                 (parse-string (hash-ref test 'prec "binary64"))
                                 (let ([cs (hash-ref test 'conversions "()")])
                                   (if (string? cs)
