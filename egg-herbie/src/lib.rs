@@ -34,7 +34,7 @@ pub struct Context {
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
         iteration: 0,
-        runner: Some(Runner::new(Default::default())),
+        runner: Some(Runner::new(Default::default()).with_explanations_enabled()),
         rules: vec![],
     }))
 }

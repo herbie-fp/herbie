@@ -60,7 +60,7 @@
         (match-define (simplify-result replacement proof) replacement-result)
         (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
         (if (not (equal? (alt-program child) child*))
-            (alt child* (list 'simplify loc proof) (list child))
+            (alt child* `(simplify ,loc ,proof #f) (list child))
             child))))
 
   ; Simplify-streaming lite
@@ -141,6 +141,11 @@
                           egg-expr->expr make-ffi-rules free-ffi-rules
                           iteration-data-num-nodes iteration-data-time)])
 
+(define (translate-proof proof-str egg-graph)
+  (map (lambda (s)
+           (egg-expr->expr s egg-graph))
+       (string-split proof-str "\n")))
+
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute? #:prove prove?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prove boolean? (listof (listof simplify-result?)))
   (timeline-push! 'method "egg-herbie")
@@ -174,7 +179,7 @@
                   (for/list ([result iterations])
                             (define proof
                               (if prove?
-                                  (egraph-get-proof egg-graph expr result)
+                                  (translate-proof (egraph-get-proof egg-graph expr result) egg-graph)
                                   ""))
                             (when (and (equal? proof "") prove?)
                                   (error (string-append

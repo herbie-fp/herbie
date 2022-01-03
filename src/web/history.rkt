@@ -84,7 +84,7 @@
                                                       "ERROR")        
                                                   "\\]")))]
 
-    [(alt prog `(simplify ,loc ,proof) `(,prev))
+    [(alt prog `(simplify ,loc ,proof ,soundiness) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 repr)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
@@ -92,8 +92,7 @@
                                                       (core->tex prog* #:loc loc #:color "blue") 
                                                       "ERROR") 
                                                   "\\]")
-           (p "Proof")
-           (p ,proof))]
+           (p "Proof")))]
 
     [(alt prog `initial-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))

@@ -3,7 +3,7 @@
 (require "cost.rkt")
 (provide (struct-out change) (struct-out alt) make-alt alt?
          alt-program alt-add-event *start-prog* *all-alts*
-         alt-cost alt-equal?)
+         alt-cost alt-equal? alt-map)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -28,6 +28,26 @@
 
 (define (alt-cost altn)
   (program-cost (alt-program altn)))
+
+(define (alt-map f altn)
+  (f
+   (match altn
+    [(alt prog 'start (list))
+     altn]
+    [(alt prog `(start ,strategy) `(,prev))
+     (alt prog `(start ,strategy) `(,(alt-map f prev)))]
+    [(alt p `(regimes ,splitpoints) prevs)
+     (alt p `(regimes ,splitpoints) `(,(map (curry alt-map f) prevs)))]
+    [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
+     (alt prog `(taylor ,pt ,var ,loc) `(,(alt-map f prev)))]
+    [(alt prog `(simplify ,loc ,proof ,soundiness) `(,prev))
+     (alt prog `(simplify ,loc ,proof ,soundiness) `(,(alt-map f prev)))]
+    [(alt prog `initial-simplify `(,prev))
+     (alt prog `initial-simplify `(,(alt-map f prev)))]
+    [(alt prog `final-simplify `(,prev))
+     (alt prog `final-simplify `(,(alt-map f prev)))]
+    [(alt prog (list 'change cng) `(,prev))
+     (alt prog (list 'change cng) `(,(alt-map f prev)))])))
 
 ;; A useful parameter for many of Herbie's subsystems, though
 ;; ultimately one that should be located somewhere else or perhaps

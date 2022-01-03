@@ -4,7 +4,7 @@
          "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
          "interface.rkt" "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
-         "programs.rkt" "sampling.rkt" "symmetry.rkt" "timeline.rkt")
+         "programs.rkt" "sampling.rkt" "symmetry.rkt" "timeline.rkt" "soundiness.rkt")
 
 (provide (all-defined-out))
 
@@ -164,8 +164,8 @@
            [(list 'change cng)
             (match-define (change rule loc binds) cng)
             (list 'change (change rule (append loc0 (cdr loc)) binds))]
-           [(list 'simplify loc proof)
-            (list 'simplify (append loc0 (cdr loc)) proof)]))
+           [(list 'simplify loc proof soundiness)
+            (list 'simplify (append loc0 (cdr loc)) proof soundiness)]))
         (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))
         (alt prog* event* (list (loop (first prev))))])))
   
@@ -411,12 +411,16 @@
         (alt `(λ ,(program-variables (alt-program altn)) ,(simplify-result-expr (last progs)))
               'final-simplify (list altn)))
       alt-equal?))
+  (define alts-deduplicated
+    (remove-duplicates cleaned-alts alt-equal?))
+  
   (timeline-event! 'soundness)
+  (define alts*
+    (for/list ([altn alts-deduplicated])
+              (add-soundiness altn (*pcontext*) (*output-repr*))))
   
   (timeline-event! 'end)
-
   ; find the best, sort the rest by cost
-  (define alts* (remove-duplicates cleaned-alts alt-equal?))
   (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*output-repr*))) alts*))
   (define-values (best end-score rest)
     (for/fold ([best #f] [score #f] [rest #f])

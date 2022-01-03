@@ -86,6 +86,10 @@
 
 (define (egg-parsed->expr parsed rename-dict)
   (match parsed
+    [`(Rewrite=> ,rule ,expr)
+      `(Rewrite=> ,rule ,(egg-parsed->expr expr rename-dict))]
+    [`(Rewrite<= ,rule ,expr)
+      `(Rewrite<= ,rule ,(egg-parsed->expr expr rename-dict))]
     [(list first-parsed second-parsed rest-parsed ...)
      (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
       (if (equal? second-parsed 'real)

@@ -241,7 +241,7 @@
         (location-get loc (alt-program child))))
 
     (define simplification-options
-      (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true))
+      (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true #:prove true))
 
     (define simplify-hash
       (make-immutable-hash (map cons to-simplify simplification-options)))
