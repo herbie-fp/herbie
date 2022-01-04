@@ -92,7 +92,14 @@
                                                       (core->tex prog* #:loc loc #:color "blue") 
                                                       "ERROR") 
                                                   "\\]")
-           (p "Proof")))]
+           (div ([class "math"]) "Proof")
+           ,@(for/list ([step proof] [data soundiness])
+                       (define text (format "~a: ~a points increase in error, ~a points decrease in error"
+                                    step (first data) (second data)))
+                       `(div ([class "math"])
+                             ,(if (> (first data) 0)
+                                  `(b ,text)
+                                  text)))))]
 
     [(alt prog `initial-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))

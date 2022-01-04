@@ -39,9 +39,8 @@
                                (if (< b a)
                                    1
                                    0)))
-                    (list (/ num-increase (length prev))
-                          (/ num-decrease (length prev))))))
-  (println proof-diffs)
+                    (list num-increase
+                          num-decrease (length prev)))))
   proof-diffs)
   
 

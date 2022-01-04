@@ -37,7 +37,7 @@
     [(alt prog `(start ,strategy) `(,prev))
      (alt prog `(start ,strategy) `(,(alt-map f prev)))]
     [(alt p `(regimes ,splitpoints) prevs)
-     (alt p `(regimes ,splitpoints) `(,(map (curry alt-map f) prevs)))]
+     (alt p `(regimes ,splitpoints) (map (curry alt-map f) prevs))]
     [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
      (alt prog `(taylor ,pt ,var ,loc) `(,(alt-map f prev)))]
     [(alt prog `(simplify ,loc ,proof ,soundiness) `(,prev))
