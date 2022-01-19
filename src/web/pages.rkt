@@ -3,7 +3,7 @@
 (require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json)
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" "../interface.rkt")
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt" "../programs.rkt"
-         "../syntax/sugar.rkt")
+        "../syntax/sugar.rkt" "../float.rkt")
 (provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)
@@ -31,7 +31,8 @@
                    ;; Don't generate a plot with only one X value else plotting throws an exception
                    #:when (> (unique-values (test-success-newpoints result) idx) 1))
           (format "plot-~a~a.png" idx type))
-      ,(and good? (>= (length (test-success-end-alts result)) 2) "cost-accuracy.png")))
+      ,(and good? (>= (length (test-success-end-alts result)) 2) "cost-accuracy.png")
+      ,(and good? "points.json")))
   (filter identity pages))
 
 (define ((page-error-handler result page) e)
@@ -57,6 +58,8 @@
      (write-json (test-result-timeline result) out)]
     ["cost-accuracy.png"
      (make-cost-accuracy-plot result out)]
+    ["points.json"
+     (make-points-json result out repr)]
     [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
      (make-axis-plot result out (string->number idx))]
     [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
@@ -81,3 +84,11 @@
   (define js-text (get-interactive-js result repr))
   (when (string? js-text)
     (display js-text out)))
+
+(define (make-points-json result out repr)
+  (define points (test-success-newpoints result))
+  (define exacts (test-success-newexacts result))
+  (define json-points (for/list ([point points]) (for/list ([value point]) (value->json value repr))))
+  (define json-exacts (map (lambda (x) (value->json x repr)) exacts))
+  (define json-obj `#hasheq((points . ,json-points) (exacts . ,json-exacts)))
+  (write-json json-obj out))
