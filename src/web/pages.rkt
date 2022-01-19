@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json file/gzip)
+(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json)
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" "../interface.rkt")
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt" "../programs.rkt"
         "../syntax/sugar.rkt" "../float.rkt")
@@ -32,7 +32,7 @@
                    #:when (> (unique-values (test-success-newpoints result) idx) 1))
           (format "plot-~a~a.png" idx type))
       ,(and good? (>= (length (test-success-end-alts result)) 2) "cost-accuracy.png")
-      ,(and good? "points.json.gz")))
+      ,(and good? "points.json")))
   (filter identity pages))
 
 (define ((page-error-handler result page) e)
@@ -58,8 +58,8 @@
      (write-json (test-result-timeline result) out)]
     ["cost-accuracy.png"
      (make-cost-accuracy-plot result out)]
-    ["points.json.gz"
-     (make-compressed-points result out repr)]
+    ["points.json"
+     (make-points-json result out repr)]
     [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
      (make-axis-plot result out (string->number idx))]
     [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
@@ -85,26 +85,10 @@
   (when (string? js-text)
     (display js-text out)))
 
-; sends gzip-compressed bytes representing the points to out
-(define (make-compressed-points result out repr)
+(define (make-points-json result out repr)
   (define points (test-success-newpoints result))
   (define exacts (test-success-newexacts result))
-  (define (json-dumps jsexpr) (with-output-to-string (lambda () (write-json jsexpr))))
-  ;; borrowed from https://groups.google.com/g/racket-users/c/VZ0mxdkawao
-  (define (compress str)
-    (call-with-output-bytes
-     (lambda (out-port)
-       (call-with-input-string str
-                              (lambda (in-port)
-                                (gzip-through-ports in-port out-port #f 0))))))
-  ;; can test decompress using the below
-  ; (define (decompress str)
-  ;   (call-with-output-string
-  ;     (lambda (out-port)
-  ;       (call-with-input-bytes str
-  ;         (lambda (in-port)
-  ;           (gunzip-through-ports in-port out-port))))))
-  (define json-points (map (lambda (x) (value->json (car x) repr)) points))
+  (define json-points (for/list ([point points]) (for/list ([value point]) (value->json value repr))))
   (define json-exacts (map (lambda (x) (value->json x repr)) exacts))
   (define json-obj `#hasheq((points . ,json-points) (exacts . ,json-exacts)))
-  (display (compress (json-dumps json-obj)) out))
+  (write-json json-obj out))
