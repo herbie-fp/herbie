@@ -278,7 +278,19 @@
   (*sampler* sampler)
 
   (timeline-event! 'sample)
-  (apply mk-pcontext (prepare-points specification precondition repr sampler)))
+  (define seed (get-seed))
+  ;; Temporary, to align with the `main` branch
+  (define reeval-pts 8000)
+  (define ctx1
+    (parameterize ([*num-points* (- (*num-points*) reeval-pts)])
+      (when seed (set-seed! seed))
+      (random)
+      (apply mk-pcontext (prepare-points specification precondition repr sampler))))
+  (define ctx2
+    (parameterize ([*num-points* reeval-pts])
+      (when seed (set-seed! seed))
+      (apply mk-pcontext (prepare-points specification precondition repr sampler))))
+  (join-pcontext ctx1 ctx2))
 
 (define (initialize-alt-table! prog pcontext repr)
   (define alt (make-alt prog))

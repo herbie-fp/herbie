@@ -2,7 +2,7 @@
 
 (require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "interface.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext
+(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext join-pcontext
          errors batch-errors errors-score oracle-error baseline-error oracle-error-idx)
 
 ;; pcontexts are Herbie's standard data structure for storing
@@ -34,6 +34,11 @@
   (define-values (pts-a pts-b) (vector-split-at pts num-a))
   (define-values (exs-a exs-b) (vector-split-at exs num-a))
   (values (pcontext pts-a exs-a) (pcontext pts-b exs-b)))
+
+(define (join-pcontext . ctxs)
+  (pcontext
+   (apply vector-append (map pcontext-points ctxs))
+   (apply vector-append (map pcontext-exacts ctxs))))
 
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
