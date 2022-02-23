@@ -3,7 +3,7 @@
 (require math/bigfloat rival)
 (require "errors.rkt" "programs.rkt" "interface.rkt" "sampling.rkt")
 
-(provide make-search-func prepare-points sample-points)
+(provide make-search-func prepare-points sample-points ground-truth-require-convergence)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -26,10 +26,14 @@
       (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
   ((close-enough->ival close-enough?) interval))
 
-(define (valid-result? repr ival)
-  (ival-and (ival-not (is-infinite-interval repr ival))
-            (is-samplable-interval repr ival)
-            (ival-not (ival-error? ival))))
+(define ground-truth-require-convergence (make-parameter #t))
+
+(define (valid-result? repr out)
+  (ival-and (ival-not (is-infinite-interval repr out))
+            (if (ground-truth-require-convergence)
+                (is-samplable-interval repr out)
+                (ival (ival-hi (is-samplable-interval repr out))))
+            (ival-not (ival-error? out))))
 
 (define (eval-prog-wrapper progs repr)
   (match (filter (compose not (curryr expr-supports? 'ival) program-body) progs)
@@ -60,5 +64,7 @@
 
 (define (sample-points precondition progs repr)
   (define-values (how fn) (make-search-func precondition progs repr))
-  (define sampler (make-sampler repr precondition progs how fn))
+  (define sampler 
+    (parameterize ([ground-truth-require-convergence #f])
+      (make-sampler repr precondition progs how fn)))
   (batch-prepare-points how fn repr sampler))
