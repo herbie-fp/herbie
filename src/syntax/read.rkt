@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../config.rkt" "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
-         "../preprocess.rkt" "../conversions.rkt"
+         "../conversions.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
@@ -97,7 +97,7 @@
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (map sexp->preprocess (dict-ref prop-dict ':herbie-preprocess empty))
+        (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
         (for/list ([(k v) (in-dict var-reprs)]) (cons k (representation-name v)))
         conv-syntax))

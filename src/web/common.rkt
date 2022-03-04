@@ -72,14 +72,15 @@
     ("FPCore" . ,(λ (c i) (fpcore->string c)))
     ("C" . ,(λ (c i) (core->c c (if i (symbol->string i) "code"))))))
 
-(define (render-preprocess-struct preprocess)
-  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) ", ") "]"))
-  `(div ([class "program math"])
-        "\\[" ,vars "=" ,(string-append "\\mathsf{sort}(" vars ")") "\\]"))
-
 (define (render-preprocess preprocess-structs)
-  `(div ([id "preprocess"])
-        ,@(map render-preprocess-struct preprocess-structs)))
+  `(div ([id "preprocess"] [class "program math"])
+        "\\["
+        ,@(for/list ([preprocess preprocess-structs])
+            (match preprocess
+              [`(sort ,vars ...)
+               (define varstring (format "[~a]" (string-join (map ~a vars) ", ")))
+               (format "~a = \\mathsf{sort}(~a) \\" varstring varstring)]))
+        "\\]"))
 
 (define (render-program #:to [result #f] preprocess test)
   (define identifier (test-identifier test))

@@ -113,13 +113,13 @@
     (match mode
      ['fl (λ (x repr) (real->repr x repr))]
      ['bf (λ (x repr) (bf x))]
-     ['ival (λ (x repr) (mk-ival (bf x)))]))
+     ['ival (λ (x repr) (ival (bf x)))]))
 
   (define arg->precision
     (match mode
      ['fl (λ (x repr) x)]
      ['bf (λ (x repr) (if (bigfloat? x) x ((representation-repr->bf repr) x)))]
-     ['ival (λ (x repr) (if (ival? x) x (mk-ival ((representation-repr->bf repr) x))))]))
+     ['ival (λ (x repr) (if (ival? x) x (ival ((representation-repr->bf repr) x))))]))
 
   (define vars (if (empty? progs) '() (program-variables (first progs))))
   (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))

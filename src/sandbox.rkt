@@ -66,32 +66,30 @@
       (with-handlers ([exn? (curry on-exception start-time)])
         (rollback-improve!)
 
-        (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
-        (define context
-          (setup-context!
-           (or (test-specification test) (test-program test)) (test-precondition test)
-           output-repr))
+        (define joint-context
+          (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+            (setup-context!
+             (or (test-specification test) (test-program test)) (test-precondition test)
+             output-repr)))
+        (define-values (train-context test-context)
+          (split-pcontext joint-context (*num-points*) (*reeval-pts*))) 
 
         (define alts
-          (run-improve! (test-program test) context (*num-iterations*)
+          (run-improve! (test-program test) train-context (*num-iterations*)
                         #:specification (test-specification test)
                         #:preprocess (test-preprocess test)))
 
         (when seed (set-seed! seed))
-        (timeline-event! 'sample)
-        (define newcontext
-          (parameterize ([*num-points* (*reeval-pts*)])
-            (prepare-points (test-specification test) (test-precondition test) output-repr (*sampler*))))
-        (define processed-newcontext
-          (preprocess-pcontext (test-vars test) newcontext (*herbie-preprocess*) output-repr))
+        (define processed-test-context
+          (preprocess-pcontext (test-vars test) test-context (*herbie-preprocess*) output-repr))
 
         (define fns
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))
 
-        (define end-errss (map (λ (x) (errors (alt-program x) processed-newcontext output-repr)) alts))
-        (define baseline-errs (baseline-error fns context processed-newcontext output-repr))
-        (define oracle-errs (oracle-error fns processed-newcontext output-repr))
+        (define end-errss (map (λ (x) (errors (alt-program x) processed-test-context output-repr)) alts))
+        (define baseline-errs (baseline-error fns train-context processed-test-context output-repr))
+        (define oracle-errs (oracle-error fns processed-test-context output-repr))
         (define end-score (errors-score (car end-errss)))
 
         (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
@@ -101,21 +99,21 @@
         (timeline-adjust! 'regimes 'link ".")
         (print-warnings)
 
-        (define-values (points exacts) (get-p&es context))
-        (define-values (newpoints newexacts) (get-p&es processed-newcontext))
+        (define-values (points exacts) (get-p&es train-context))
+        (define-values (newpoints newexacts) (get-p&es processed-test-context))
         (test-success test
                       (bf-precision)
                       (- (current-inexact-milliseconds) start-time)
                       (timeline-extract output-repr)
                       warning-log (make-alt (test-program test)) alts
                       (*herbie-preprocess*) points exacts
-                      (errors (test-program test) context output-repr)
-                      (errors (alt-program (car alts)) context output-repr)
+                      (errors (test-program test) train-context output-repr)
+                      (errors (alt-program (car alts)) train-context output-repr)
                       newpoints newexacts
-                      (errors (test-program test) processed-newcontext output-repr)
+                      (errors (test-program test) processed-test-context output-repr)
                       end-errss
                       (if (test-output test)
-                          (errors (test-target test) processed-newcontext output-repr)
+                          (errors (test-target test) processed-test-context output-repr)
                           #f)
                       baseline-errs
                       oracle-errs

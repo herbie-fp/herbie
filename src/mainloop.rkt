@@ -265,6 +265,7 @@
   (finalize-iter!))
   
 (define (setup-context! specification precondition repr)
+  (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
   (define vars (program-variables specification))
   (*output-repr* repr)
   (*var-reprs* (map (curryr cons repr) vars))
@@ -272,11 +273,26 @@
     (*needed-reprs* (list repr (get-representation 'bool))))
 
   (timeline-event! 'analyze)
-  (define sampler (make-sampler repr precondition (list specification) '()))
+  (define-values (how fn) (make-search-func precondition (list specification) repr))
+  (define sampler 
+    (parameterize ([ground-truth-require-convergence #f])
+      (make-sampler repr precondition (list specification) how fn)))
   (*sampler* sampler)
 
   (timeline-event! 'sample)
-  (prepare-points specification precondition repr sampler))
+  (define seed (get-seed))
+  ;; Temporary, to align with the `main` branch
+  (define reeval-pts 8000)
+  (define ctx1
+    (parameterize ([*num-points* (- (*num-points*) reeval-pts)])
+      (when seed (set-seed! seed))
+      (random)
+      (apply mk-pcontext (prepare-points specification precondition repr sampler))))
+  (define ctx2
+    (parameterize ([*num-points* reeval-pts])
+      (when seed (set-seed! seed))
+      (apply mk-pcontext (prepare-points specification precondition repr sampler))))
+  (join-pcontext ctx1 ctx2))
 
 (define (initialize-alt-table! prog pcontext repr)
   (define alt (make-alt prog))
@@ -318,9 +334,12 @@
     (parameterize ([*timeline-disabled* true])
       (connected-components specification)))
 
-  (define symmetry-groups (map symmetry-group (filter (lambda (group) (> (length group) 1)) sortable)))
-  (timeline-push! 'symmetry (map (compose ~a preprocess->sexp) symmetry-groups))
-  (*herbie-preprocess* (append preprocess symmetry-groups))
+  (define new-preprocess
+    (for/list ([sortable-variables (in-list sortable)]
+               #:when (> (length sortable-variables) 1))
+      (cons 'sort sortable-variables)))
+  (timeline-push! 'symmetry (map ~a new-preprocess))
+  (*herbie-preprocess* (append preprocess new-preprocess))
 
   (define processed-pcontext (preprocess-pcontext vars pcontext (*herbie-preprocess*) (*output-repr*)))
 
@@ -355,7 +374,7 @@
     [(< (length result) (length preprocessing))
      (remove-unnecessary-preprocessing alt pcontext result #:removed newly-removed)]
     [else
-     (timeline-push! 'remove-preprocessing (map (compose ~a preprocess->sexp) newly-removed))
+     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
      result]))
 
 (define (mutate! prog iters pcontext)
