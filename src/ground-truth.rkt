@@ -31,7 +31,7 @@
 (define ground-truth-require-convergence (make-parameter #t))
 
 (define (valid-result? repr out)
-  (ival-and (ival-not (is-infinite-interval repr out))
+  (ival-and #;(ival-not (is-infinite-interval repr out))
             (if (ground-truth-require-convergence)
                 (is-samplable-interval repr out)
                 (ival (ival-hi (is-samplable-interval repr out))))

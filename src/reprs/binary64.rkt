@@ -21,7 +21,7 @@
   (shift 63 ordinal->flonum)
   (unshift 63 flonum->ordinal)
   64
-  (disjoin nan? infinite?))
+  nan?)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
