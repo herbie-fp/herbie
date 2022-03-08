@@ -364,12 +364,15 @@ function onload() {
             `
         }
         const error_msgs = get_errors(known_input_ranges[varname])
+        const warning_msgs = get_warnings(known_input_ranges[varname])
         const view = html(`
             <div id="${varname}_input" class="input-range-view">
                 <div>
                 <span class="varname"> ${varname}: </span> 
                 ${input_view(low_id, low)} to ${input_view(high_id, high)}</div>
                 <ul id="errors" style="display: ${error_msgs.length > 0 ? 'block' : 'none'}">${error_msgs.map(msg => `<li>${msg}</li>`).join('')}</ul>
+                <ul id="warnings" style="display: ${warning_msgs.length > 0 ? 'block' : 'none'}">${warning_msgs.map(msg => `<li>${msg}</li>`).join('')}</ul>
+
             </div>`)
 
         const low_el = view.querySelector(`#${low_id}`)
@@ -377,20 +380,43 @@ function onload() {
         function get_errors([low, high] = [undefined, undefined]) {
             if ((low === undefined || low === '') || (high === undefined || high === '')) return []
             const A = []
-            if (!(low === undefined || low === '') && isNaN(Number(low))) A.push(`The start of the range (${low}) is not a number.`)
-            if (!(high === undefined || high === '') && isNaN(Number(high))) A.push(`The end of the range (${high}) is not a number.`)
+            if (!(low === undefined || low === '') && isNaN(Number(low))) {
+                A.push(`The start of the range (${low}) is not a number.`)
+            } else if (!Number.isFinite(Number(low))) {
+                A.push(`The start of the range (${low}) is outside the floating point range.`)
+            }
+
+            if (!(high === undefined || high === '') && isNaN(Number(high))) {
+                A.push(`The end of the range (${high}) is not a number.`)
+            } else if (!Number.isFinite(Number(high))) {
+                A.push(`The end of the range (${high}) is outside the floating point range.`)
+            }
+
             if (Number(low) > Number(high)) A.push(`The start of the range is higher than the end.`)
+            
+            return A
+        }
+        function get_warnings([low, high] = [undefined, undefined]) {
+            if ((low === undefined || low === '') || (high === undefined || high === '')) return []
+            const A = []
+            if (Number(low) == Number(high)) A.push(`(This is a single point.)`)
             return A
         }
 
         function show_errors(root=document) {
             const error_msgs = get_errors(known_input_ranges[varname])
             root.querySelectorAll(`#${varname}_input input`).forEach(input => {
-                input.style['background-color'] = input.value === '' ? '#a6ffff3d' : 'white'
+                input.style['background-color'] = input.value === '' ? '#a6ffff3d' : 'initial'
             })
             const e = root.querySelector(`#${varname}_input #errors`)
             e.innerHTML = error_msgs.map(msg => `<li>${msg}</li>`).join('')
             e.style.display = error_msgs.length > 0 ? 'block' : 'none'
+        }
+        function show_warnings(root=document) {
+            const warning_msgs = get_warnings(known_input_ranges[varname])
+            const e = root.querySelector(`#${varname}_input #warnings`)
+            e.innerHTML = warning_msgs.map(msg => `<li>${msg}</li>`).join('')
+            e.style.display = warning_msgs.length > 0 ? 'block' : 'none'
         }
         function set_input_range({ low, high }) {
             if (low !== undefined) low_el.value = low
@@ -399,6 +425,7 @@ function onload() {
             const [old_low, old_high] = known_input_ranges[varname]
             known_input_ranges[varname] = [low ?? old_low, high ?? old_high]
             show_errors()
+            show_warnings()
             update_run_button()
         }
         low_el.addEventListener('input', () => set_input_range({ low: low_el.value }))
@@ -518,6 +545,13 @@ function onload() {
         .dropdown:focus-within .dropdown-content {
             display: block;
         }
+
+        #warnings li { 
+            background: #fd0; 
+            width: fit-content;
+        }
+
+
     </style>
     `))
 }
