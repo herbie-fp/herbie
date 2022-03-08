@@ -234,7 +234,7 @@ function hide_extra_fields() {
         if (inputs[i].tagName == "SELECT" && inputs[i].selectedIndex) return;
     }
     var $a = document.createElement("a");
-    $a.textContent = "Additional options »";
+    $a.textContent = "Advanced options »";
     $a.classList.add("show-extra");
     $extra.parentNode.insertBefore($a, $extra.nextSibling);
     //$extra.style.display = "none";
@@ -271,7 +271,7 @@ function setup_state(state, form) {
 
     if (!form.a_extra) {
         form.a_extra = document.createElement("a");
-        form.a_extra.textContent = "Additional options";
+        form.a_extra.textContent = "Advanced options";
         form.a_extra.addEventListener("click", function() {
             setup_state("extra", form);
         });
@@ -316,7 +316,204 @@ function setup_state(state, form) {
     }
 }
 
+function get_varnames_mathjs(mathjs_text) {
+    /* ASK confirm that this should get the variable names */
+    const names = []
+    dump_tree(math.parse(mathjs_text), names)
+    var dnames = [];
+    for (var i = 0; i < names.length; i++) {
+        if (dnames.indexOf(names[i]) === -1) dnames.push(names[i]);
+    }
+    return dnames
+}
+
 function onload() {
+
+    /* TODO confirm that we'll delete these */
+    function hide_and_delete_later(selector) { document.querySelector(selector).style.display = 'none' }
+    hide_and_delete_later('#formula textarea')
+    hide_and_delete_later('#formula .extra-links')
+    hide_and_delete_later('#formula .extra-fields')
+
+    // Only records ranges the user intentionally set.
+    const known_input_ranges = { /* "x" : [-1, 1] */ }
+
+    const form = new Form(document.getElementById("formula"))
+    function html(string) {
+        const t = document.createElement('template');
+        t.innerHTML = string;
+        return t.content;
+    }
+
+    function range_inputs(varname) {
+        const [low, high] = known_input_ranges[varname] || [undefined, undefined]
+        //known_input_ranges[varname] = [low, high]  // no-op or save a new entry
+        
+        const low_id = `${varname}_low`
+        const high_id = `${varname}_high`
+        const default_options = ['-1e9', '-1e3', '-1', '0', '1', '1e3', '1e9']
+        function input_view(id, value) {
+            return `
+                <div id="${id}_dropdown" class="dropdown">
+                    <input id="${id}" class="input-range" autocomplete="off" placeholder="-1e3" ${value ? `value="${value}"` : ``}>
+                    <div class="dropdown-content">
+                        ${default_options.map(s => `<div>${s}</div>`).join('')}
+                    </div>
+                </div>
+            `
+        }
+        const error_msgs = get_errors(known_input_ranges[varname])
+        const view = html(`
+            <div id="${varname}_input" class="input-range-view">
+                <div>${input_view(low_id, low)} <span class="varname"> &le; ${varname} &leq; </span> ${input_view(high_id, high)}</div>
+                <ul id="errors" style="display: ${error_msgs.length > 0 ? 'block' : 'none'}">${error_msgs.map(msg => `<li>${msg}</li>`).join('')}</ul>
+            </div>`)
+
+        const low_el = view.querySelector(`#${low_id}`)
+        
+        function get_errors([low, high] = [undefined, undefined]) {
+            if ((low === undefined || low === '') || (high === undefined || high === '')) return []
+            const A = []
+            if (!(low === undefined || low === '') && isNaN(Number(low))) A.push(`The start of the range (${low}) is not a number.`)
+            if (!(high === undefined || high === '') && isNaN(Number(high))) A.push(`The end of the range (${high}) is not a number.`)
+            if (Number(low) > Number(high)) A.push(`The start of the range is higher than the end.`)
+            return A
+        }
+
+        function show_errors(root=document) {
+            const error_msgs = get_errors(known_input_ranges[varname])
+            root.querySelectorAll(`#${varname}_input input`).forEach(input => {
+                input.style['background-color'] = input.value === '' ? '#a6ffff3d' : 'white'
+            })
+            const e = root.querySelector(`#${varname}_input #errors`)
+            e.innerHTML = error_msgs.map(msg => `<li>${msg}</li>`).join('')
+            e.style.display = error_msgs.length > 0 ? 'block' : 'none'
+        }
+        function set_input_range({ low, high }) {
+            if (low !== undefined) low_el.value = low
+            if (high !== undefined) high_el.value = high
+            if (!known_input_ranges[varname]) { known_input_ranges[varname] = [undefined, undefined] }
+            const [old_low, old_high] = known_input_ranges[varname]
+            known_input_ranges[varname] = [low ?? old_low, high ?? old_high]
+            show_errors()
+            update_run_button()
+        }
+        low_el.addEventListener('input', () => set_input_range({ low: low_el.value }))
+        view.querySelectorAll(`#${low_id}_dropdown .dropdown-content div`).forEach((e, i) => e.onclick = () => set_input_range({ low: e.textContent }))
+        
+        const high_el = view.querySelector(`#${high_id}`)
+        high_el.addEventListener('input', () => set_input_range({ high: high_el.value }))
+        view.querySelectorAll(`#${high_id}_dropdown .dropdown-content div`).forEach((e, i) => e.onclick = () => set_input_range({ high: e.textContent }))
+
+        show_errors(view)
+
+        return view
+    }
+
+    const range_div = document.createElement('DIV')
+    document.querySelector('#formula').appendChild(range_div)
+
+    function no_range_errors([low, high] = [undefined, undefined]) {
+        return low !== '' && high !== '' && !isNaN(Number(low)) && !isNaN(Number(high)) && Number(low) <= Number(high) 
+    }
+
+    function update_run_button() {
+        const button = document.querySelector('#run_herbie')
+        let varnames;
+        try {
+            varnames = get_varnames_mathjs(form.math.value)
+        } catch (e) {
+            button.setAttribute('disabled', 'true')
+            return;
+        }
+        if (form.math.value && varnames.every(varname => no_range_errors(known_input_ranges[varname]))) {
+            button.removeAttribute('disabled')
+        } else {
+            button.setAttribute('disabled', 'true')
+        }
+    }
+    update_run_button()
+
+    let current_timeout = undefined  // used to debounce the input box
+    function check_errors_and_draw_ranges() {
+        if (!check_errors()) { return }
+        const varnames = get_varnames_mathjs(form.math.value)
+        const range_prompt = varnames.length > 0 ? html(`<div>Please specify the range of each input so that Herbie can optimize for your use case.</div>`) : ``
+        range_div.replaceChildren(range_prompt, ...varnames.map(range_inputs))
+    }
+    check_errors_and_draw_ranges()
+    
+    form.math.addEventListener("input", function () {
+        clearTimeout(current_timeout)
+        current_timeout = setTimeout(check_errors_and_draw_ranges, 400)
+        update_run_button()
+        // range_div.appendChild(html(`
+        // <datalist id="range_options">
+        //     <option value="1e9">
+        //     <option value="1e3">
+        //     <option value="1">
+        //     <option value="0">
+        //     <option value="-1">
+        //     <option value="-1e3">
+        //     <option value="-1e9">
+        // </datlist>
+        // `))
+    })
+    form.math.setAttribute('autocomplete', 'off')  // (because it hides the error output)
+    //form.math.addEventListener("input", check_errors)
+
+
+    // TODO move submit button to end
+    document.querySelector('#formula').appendChild(document.querySelector('#formula').removeChild(document.querySelector('#formula button')))
+
+    document.body.appendChild(html(`
+    <style>
+        input.input-range {
+            width: auto !important;
+        }
+        
+        .input-range-view {
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-range-view .varname {
+            font-size: 125%;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+          }
+          
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+
+        .dropdown-content div {
+            padding: 5px;
+        }
+
+        .dropdown-content div:hover {background-color: #f1f1f1}
+        
+        
+        .dropdown-content:hover {
+            display: block;
+        }
+
+        .dropdown:focus-within .dropdown-content {
+            display: block;
+        }
+    </style>
+    `))
+}
+
+function advanced_onload() {
     var form = new Form(document.getElementById("formula"));
 
     const params = new URLSearchParams(window.location.search);

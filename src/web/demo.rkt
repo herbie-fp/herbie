@@ -110,7 +110,7 @@
              (select ([name "precision"] [id "precision"])
                (option ([value "binary64"]) "Double-precision floats")
                (option ([value "binary32"]) "Single-precision floats")))
-           (button ([type "submit"] [tabindex "-1"]) "Improve with Herbie")
+           (button ([id "run_herbie"] [type "submit"] [tabindex "-1"]) "Improve with Herbie")
            (ul ([id "errors"]))
            (pre ([id "progress"] [style "display: none;"])))
 
