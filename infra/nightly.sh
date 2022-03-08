@@ -5,10 +5,10 @@
 CORES=4
 
 set -e -x
+SEED=$(date "+%Y%j")
 
 function output_error {
     NAME="$2"
-    SEED="$3"
     DATE=`date +%s`
     COMMIT=`git rev-parse HEAD`
     BRANCH=`git rev-parse --abbrev-ref HEAD`
@@ -24,7 +24,6 @@ EOF
 function run {
   bench="$1"; shift
   name="$1"; shift
-  seed=$(date "+%Y%j")
   
   echo "Running $name test with flags $@"
   rm -rf "reports/$name"
@@ -32,11 +31,11 @@ function run {
       --note "$name" \
       --profile \
       --debug \
-      --seed "$seed" \
+      --seed "$SEED" \
       --threads "$CORES" \
       "$@" \
       "$bench" "reports/$name" \
-      || output_error "reports/$name/results.json" "$name" "$seed"
+      || output_error "reports/$name/results.json" "$name"
 }
 
 DIR="$1"
