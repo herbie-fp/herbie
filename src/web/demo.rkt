@@ -97,7 +97,7 @@
     #:title (if (*demo?*) "Herbie web demo" "Herbie")
     #:show-title (*demo?*)
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "demo.js")
-    `(p "Enter a formula below, hit " (kbd "Enter") ", and Herbie will try to improve it.")
+    `(p "Enter a formula below, and Herbie will try to improve it.")
     `(form ([action ,(url improve)] [method "post"] [id "formula"]
             [data-progress ,(url improve-start)])
            (textarea ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
@@ -139,9 +139,7 @@
         " and the "
         (a ([href ,(format "https://herbie.uwplse.org/doc/~a/input.html" *herbie-version*)])
         "standard functions")
-        " listed at the bottom of this page. If you're not sure how to use a function, try writing an expression without variables in the box below.")
-      `(div ( )
-        (input ([id "mathjs-instructions-test"] [name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"])))
+        " listed at the bottom of this page.")
     
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")

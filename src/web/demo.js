@@ -352,7 +352,7 @@ function onload() {
         
         const low_id = `${varname}_low`
         const high_id = `${varname}_high`
-        const default_options = ['-1e9', '-1e3', '-1', '0', '1', '1e3', '1e9']
+        const default_options = ['-1.79e308', '-1e9', '-1e3', '-1', '0', '1', '1e3', '1e9', '1.79e308']
         function input_view(id, value) {
             return `
                 <div id="${id}_dropdown" class="dropdown">
@@ -366,7 +366,9 @@ function onload() {
         const error_msgs = get_errors(known_input_ranges[varname])
         const view = html(`
             <div id="${varname}_input" class="input-range-view">
-                <div>${input_view(low_id, low)} <span class="varname"> &le; ${varname} &leq; </span> ${input_view(high_id, high)}</div>
+                <div>
+                <span class="varname"> ${varname}: </span> 
+                ${input_view(low_id, low)} to ${input_view(high_id, high)}</div>
                 <ul id="errors" style="display: ${error_msgs.length > 0 ? 'block' : 'none'}">${error_msgs.map(msg => `<li>${msg}</li>`).join('')}</ul>
             </div>`)
 
@@ -439,7 +441,7 @@ function onload() {
     function check_errors_and_draw_ranges() {
         if (!check_errors()) { return }
         const varnames = get_varnames_mathjs(form.math.value)
-        const range_prompt = varnames.length > 0 ? html(`<div>Please specify the range of each input so that Herbie can optimize for your use case.</div>`) : ``
+        const range_prompt = varnames.length > 0 ? html(`<div>Please specify the approximate range of each input so that Herbie can optimize for your use case.</div>`) : ``
         range_div.replaceChildren(range_prompt, ...varnames.map(range_inputs))
     }
     check_errors_and_draw_ranges()
