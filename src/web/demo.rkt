@@ -133,6 +133,15 @@
         (a ([href ,(format "https://herbie.uwplse.org/doc/~a/input.html" *herbie-version*)])
            "standard functions")
         " like:")
+      `(p ([id "mathjs-instructions"] )
+        "Herbie supports ordinary mathematical syntax (parsed by "
+        (a ([href "https://mathjs.org"]) "math.js") ")"
+        " and the "
+        (a ([href ,(format "https://herbie.uwplse.org/doc/~a/input.html" *herbie-version*)])
+        "standard functions")
+        " listed at the bottom of this page. If you're not sure how to use a function, try writing an expression without variables in the box below.")
+      `(div ( )
+        (input ([id "mathjs-instructions-test"] [name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"])))
     
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")

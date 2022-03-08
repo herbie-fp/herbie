@@ -334,6 +334,7 @@ function onload() {
     hide_and_delete_later('#formula textarea')
     hide_and_delete_later('#formula .extra-links')
     hide_and_delete_later('#formula .extra-fields')
+    hide_and_delete_later('#lisp-instructions')
 
     // Only records ranges the user intentionally set.
     const known_input_ranges = { /* "x" : [-1, 1] */ }
@@ -468,6 +469,12 @@ function onload() {
 
     document.body.appendChild(html(`
     <style>
+
+        #mathjs-instructions-test {
+            width: 100%;
+            font-size: 125%;
+        }
+
         input.input-range {
             width: auto !important;
         }
