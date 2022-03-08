@@ -87,11 +87,9 @@
   (define binary64 (get-representation 'binary64))
   (check-true (ordinary-value? 2.5 binary64))
   (check-false (ordinary-value? +nan.0 binary64))
-  (check-false (ordinary-value? -inf.0 binary64))
   (define binary32 (get-representation 'binary32))
   (check-true (ordinary-value? 2.5f0 binary32))
-  (check-false (ordinary-value? +nan.f binary32))
-  (check-false (ordinary-value? -inf.f binary32)))
+  (check-false (ordinary-value? +nan.f binary32)))
 
 (define (=-or-nan? x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))

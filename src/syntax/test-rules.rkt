@@ -13,6 +13,8 @@
 (define *conditions*
   `([asinh-2_binary64       . (>=.f64 x 0)]
     [asinh-2_binary32       . (>=.f32 x 0)]
+    [pow-base-0_binary64    . (>=.f64 x 0)]
+    [pow-base-0_binary32    . (>=.f32 x 0)]
     ;; These next three approximate pi so that range analysis will work
     [asin-sin-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
     [asin-sin-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
