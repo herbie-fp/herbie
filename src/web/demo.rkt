@@ -103,13 +103,6 @@
            (textarea ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
            (input ([name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"]))
            (div ([class "extra-links"]))
-           (div ([class "extra-fields"])
-             (label ([for "pre"]) "Precondition")
-             (input ([name "pre"] [id "pre"] [placeholder "TRUE"]))
-             (label ([for "precision"]) "Precision")
-             (select ([name "precision"] [id "precision"])
-               (option ([value "binary64"]) "Double-precision floats")
-               (option ([value "binary32"]) "Single-precision floats")))
            (ul ([id "errors"]))
            (div ([id "input-ranges"]))
            (button ([id "run_herbie"] [type "submit"] [tabindex "-1"]) "Improve with Herbie")
@@ -134,13 +127,6 @@
         (a ([href ,(format "https://herbie.uwplse.org/doc/~a/input.html" *herbie-version*)])
            "standard functions")
         " like:")
-      `(p ([id "mathjs-instructions"] )
-        "Herbie supports ordinary mathematical syntax (parsed by "
-        (a ([href "https://mathjs.org"]) "math.js") ")"
-        " and the "
-        (a ([href ,(format "https://herbie.uwplse.org/doc/~a/input.html" *herbie-version*)])
-        "standard functions")
-        " listed at the bottom of this page.")
     
     (function-list
      '((+ - * / abs) "The usual arithmetic functions")
