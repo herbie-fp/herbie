@@ -306,6 +306,7 @@ function setup_state(state, form) {
         document.querySelector("#lisp-instructions").style.display = "none";
         document.querySelector("#mathjs-instructions").style.display = "block";
         form.extra_links.removeChild(form.a_mathjs)
+        update_run_button_mathjs()
     } else {
         form.fpcore.style.display = "block";
         form.math.style.display = "none";
@@ -327,6 +328,22 @@ function get_varnames_mathjs(mathjs_text) {
         if (dnames.indexOf(names[i]) === -1) dnames.push(names[i]);
     }
     return dnames
+}
+
+function update_run_button_mathjs() {
+    const button = document.querySelector('#run_herbie')
+    let varnames;
+    try {
+        varnames = get_varnames_mathjs(form.math.value)
+    } catch (e) {
+        button.setAttribute('disabled', 'true')
+        return;
+    }
+    if (form.math.value && varnames.every(varname => no_range_errors(KNOWN_INPUT_RANGES[varname]))) {
+        button.removeAttribute('disabled')
+    } else {
+        button.setAttribute('disabled', 'true')
+    }
 }
 
 function get_input_range_errors([low, high] = [undefined, undefined], empty_if_missing=false) {
@@ -438,7 +455,7 @@ function onload() {
             KNOWN_INPUT_RANGES[varname] = [low ?? old_low, high ?? old_high]
             show_errors()
             show_warnings()
-            update_run_button()
+            update_run_button_mathjs()
         }
         low_el.addEventListener('input', () => set_input_range({ low: low_el.value }))
         view.querySelectorAll(`#${low_id}_dropdown .dropdown-content div`).forEach((e, i) => {
@@ -467,22 +484,8 @@ function onload() {
         return low !== '' && high !== '' && !isNaN(Number(low)) && !isNaN(Number(high)) && Number(low) <= Number(high) 
     }
 
-    function update_run_button() {
-        const button = document.querySelector('#run_herbie')
-        let varnames;
-        try {
-            varnames = get_varnames_mathjs(form.math.value)
-        } catch (e) {
-            button.setAttribute('disabled', 'true')
-            return;
-        }
-        if (form.math.value && varnames.every(varname => no_range_errors(KNOWN_INPUT_RANGES[varname]))) {
-            button.removeAttribute('disabled')
-        } else {
-            button.setAttribute('disabled', 'true')
-        }
-    }
-    update_run_button()
+    
+    update_run_button_mathjs()
 
     let current_timeout = undefined  // used to debounce the input box
     function check_errors_and_draw_ranges() {
@@ -498,7 +501,7 @@ function onload() {
     form.math.addEventListener("input", function () {
         clearTimeout(current_timeout)
         current_timeout = setTimeout(check_errors_and_draw_ranges, 400)
-        update_run_button()
+        update_run_button_mathjs()
     })
     form.math.setAttribute('autocomplete', 'off')  // (because it hides the error output)
 
