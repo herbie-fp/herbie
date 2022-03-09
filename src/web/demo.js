@@ -466,8 +466,10 @@ function onload() {
 
     let current_timeout = undefined  // used to debounce the input box
     function check_errors_and_draw_ranges() {
+        if (form.math.value === "") document.querySelector('#input-ranges').innerHTML=''
         if (!check_errors()) { return }
         const varnames = get_varnames_mathjs(form.math.value)
+        const range_div = document.querySelector('#input-ranges')
         const range_prompt = varnames.length > 0 ? html(`<div>Please specify the approximate range of each input so that Herbie can optimize for your use case.</div>`) : ``
         range_div.replaceChildren(range_prompt, ...varnames.map(range_inputs))
     }
@@ -494,7 +496,8 @@ function onload() {
 
 
     // TODO move submit button to end
-    document.querySelector('#formula').appendChild(document.querySelector('#formula').removeChild(document.querySelector('#formula button')))
+
+    //document.querySelector('#formula').appendChild(document.querySelector('#formula').removeChild(document.querySelector('#formula button')))
 
     document.body.appendChild(html(`
     <style>
