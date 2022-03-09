@@ -306,7 +306,7 @@ function setup_state(state, form) {
         document.querySelector("#lisp-instructions").style.display = "none";
         document.querySelector("#mathjs-instructions").style.display = "block";
         form.extra_links.removeChild(form.a_mathjs)
-        update_run_button_mathjs()
+        update_run_button_mathjs(form)
     } else {
         form.fpcore.style.display = "block";
         form.math.style.display = "none";
@@ -330,7 +330,10 @@ function get_varnames_mathjs(mathjs_text) {
     return dnames
 }
 
-function update_run_button_mathjs() {
+function update_run_button_mathjs(form) {
+    function no_range_errors([low, high] = [undefined, undefined]) {
+        return low !== '' && high !== '' && !isNaN(Number(low)) && !isNaN(Number(high)) && Number(low) <= Number(high) 
+    }
     const button = document.querySelector('#run_herbie')
     let varnames;
     try {
@@ -455,7 +458,7 @@ function onload() {
             KNOWN_INPUT_RANGES[varname] = [low ?? old_low, high ?? old_high]
             show_errors()
             show_warnings()
-            update_run_button_mathjs()
+            update_run_button_mathjs(form)
         }
         low_el.addEventListener('input', () => set_input_range({ low: low_el.value }))
         view.querySelectorAll(`#${low_id}_dropdown .dropdown-content div`).forEach((e, i) => {
@@ -480,12 +483,10 @@ function onload() {
     const range_div = document.createElement('DIV')
     document.querySelector('#formula').appendChild(range_div)
 
-    function no_range_errors([low, high] = [undefined, undefined]) {
-        return low !== '' && high !== '' && !isNaN(Number(low)) && !isNaN(Number(high)) && Number(low) <= Number(high) 
-    }
+    
 
     
-    update_run_button_mathjs()
+    update_run_button_mathjs(form)
 
     let current_timeout = undefined  // used to debounce the input box
     function check_errors_and_draw_ranges() {
@@ -501,7 +502,7 @@ function onload() {
     form.math.addEventListener("input", function () {
         clearTimeout(current_timeout)
         current_timeout = setTimeout(check_errors_and_draw_ranges, 400)
-        update_run_button_mathjs()
+        update_run_button_mathjs(form)
     })
     form.math.setAttribute('autocomplete', 'off')  // (because it hides the error output)
 
