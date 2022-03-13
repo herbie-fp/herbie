@@ -172,7 +172,6 @@
            "Cannot register ~a as implementation of ~a: no such operator"
            name operator))
 
-
   (define op (hash-ref operators operator))
   (define fl-fun (dict-ref attrib-dict 'fl))
 

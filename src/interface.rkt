@@ -37,6 +37,7 @@
 ;; Generators take one argument, a repr name, and returns true if knows what the
 ;; repr is and has generated that repr and its operators, and false otherwise
 (define repr-generators '())
+(define *current-generator* (make-parameter #f))
 
 (define/contract (register-generator! proc)
   (-> (-> any/c boolean?) void?)
@@ -47,7 +48,13 @@
 (define (generate-repr repr-name)
   (or (hash-has-key? representations repr-name)
       (for/or ([proc repr-generators])
-        (proc repr-name))))
+        ;; Check if a user accidently created an infinite loop in their plugin!
+        (when (eq? proc (*current-generator*))
+          (raise-herbie-error "Tried to generate ~a representation while generating the \
+            same representation. Check your plugin to make sure you register your representation(s) \
+            before calling `get-representation`!"))
+        (parameterize ([*current-generator* proc])
+          (proc repr-name)))))
 
 ;; Returns the representation associated with `name`
 ;; attempts to generate the repr if not initially found
