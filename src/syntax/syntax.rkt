@@ -3,121 +3,26 @@
 (require math/flonum math/base math/bigfloat math/special-functions rival)
 (require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt")
 
-(provide (rename-out [constant-or-impl? constant?]
-                     [operator-or-impl? operator?])
-         variable? operator-info operator-exists?
-         constant-info get-operator-arity
-         get-parametric-operator parametric-operators parametric-operators-reverse
-         get-parametric-constant parametric-constants parametric-constants-reverse
-         *unknown-ops* *loaded-ops*
-         repr-conv? rewrite-repr-op? get-repr-conv
-         generate-conversion-impl)
+(provide (rename-out [operator-or-impl? operator?])
+         variable? constant-operator? operator-exists? impl-exists?
+         real-operator-info operator-info 
+         impl->operator all-constants operator-all-impls
+         *functions* register-function!
+         get-parametric-operator
+         generate-conversion-impl!
+         repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
-  (provide define-constant-impl define-operator-impl
-           register-constant-impl! register-operator-impl!
-           define-constant define-operator
-           register-constant! register-operator! register-conversion-generator!))
-
-;; The new, contracts-using version of the above
-
-(module+ test (require rackunit))
-
-;; Abstract constant table
-;; Implementations inherit attributes
-
-(struct constant (bf ival))
-(define constants (make-hasheq))
-
-(define (register-constant! name attrib-dict)
-  (hash-set! constants name (apply constant (map (curry dict-ref attrib-dict) '(bf ival)))))
-
-(define-syntax-rule (define-constant name [key value] ...)
-  (register-constant! 'name (list (cons 'key value) ...)))
-
-(define-constant PI
-  [bf (λ () pi.bf)] 
-  [ival ival-pi])
-
-(define-constant E
-  [bf (λ () (bfexp 1.bf))]
-  [ival ival-e])
-
-(define-constant INFINITY
-  [bf (λ () +inf.bf)]
-  [ival (λ () (mk-ival +inf.bf))])
-
-(define-constant NAN
-  [bf (λ () +nan.bf)]
-  [ival (λ () (mk-ival +nan.bf))])
-
-(define-constant TRUE
-  [bf (const true)]
-  [ival (const (ival-bool true))])
-
-(define-constant FALSE
-  [bf (const false)]
-  [ival (const (ival-bool false))])
-
-;; Constant implementations
-
-(struct constant-impl (type bf fl ival))
-(define constant-impls (make-hasheq))
-
-(define parametric-constants (hash))
-(define parametric-constants-reverse (hash))
-
-(define/contract (constant-info constant field)
-  (-> symbol? (or/c 'type 'bf 'fl 'ival) any/c)
-  (unless (hash-has-key? constant-impls constant)
-    (error 'constant-info "Unknown constant ~a" constant))
-  (define accessor
-    (match field
-      ['type constant-impl-type]
-      ['bf constant-impl-bf]
-      ['fl constant-impl-fl]
-      ['ival constant-impl-ival]))
-  (accessor (hash-ref constant-impls constant)))
-
-(define (dict-merge dict dict2)
-  (for/fold ([dict dict]) ([(key value) (in-dict dict2)])
-    (dict-set dict key value)))
-
-(define (register-constant-impl! constant name ctype attrib-dict)
-  (define op (hash-ref constants constant))
-  (define default-attrib
-    (list (cons 'bf (constant-bf op))
-          (cons 'ival (constant-ival op))))
-  (unless default-attrib
-    (error 'register-constant-impl! "Real constant does not exist: ~a" constant))
-  (define attrib-dict* (make-hasheq (cons (cons 'type ctype) (dict-merge default-attrib attrib-dict))))
-  (hash-set! constant-impls name
-             (apply constant-impl (map (curry dict-ref attrib-dict*) '(type bf fl ival))))
-  (set! parametric-constants
-    (hash-update parametric-constants constant
-                 (curry cons (list* name ctype))
-                 '()))
-  (set! parametric-constants-reverse
-    (hash-set parametric-constants-reverse name constant)))
-
-(define-syntax-rule (define-constant-impl (constant name) ctype [key value] ...)
-  (register-constant-impl! 'constant 'name 'ctype (list (cons 'key value) ...)))
-
-(define (get-parametric-constant name type)
-  (for/first ([(true-name rtype) (in-dict (hash-ref parametric-constants name))]
-              #:when (equal? rtype type))
-    true-name))
-
-
-;; TODO: The contracts for operators are tricky because the number of arguments is unknown
-;; There's no easy way to write such a contract in Racket, so I only constrain the output type.
-(define (unconstrained-argument-number-> from/c to/c)
-  (unconstrained-domain-> to/c))
+  (provide define-operator-impl
+           register-operator-impl!
+           define-operator
+           register-operator!
+           register-conversion-generator!))
 
 ;; Abstract operator table
 ;; Implementations inherit attributes
 
-(struct operator (itype otype bf ival))
+(struct operator (name itype otype bf ival))
 (define operators (make-hasheq))
 
 (define (register-operator! name itypes otype attrib-dict)
@@ -125,11 +30,10 @@
   (define otype* (dict-ref attrib-dict 'otype otype))
   (define fields (make-hasheq (append (list (cons 'itype itypes*) (cons 'otype otype*)) attrib-dict)))
 
-  (hash-set! operators name (apply operator (map (curry hash-ref fields) '(itype otype bf ival)))))
+  (hash-set! operators name (apply operator name (map (curry hash-ref fields) '(itype otype bf ival)))))
 
 (define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
-  (register-operator! 'name '(itypes ...) 'otype
-                      (list (cons 'key value) ...)))
+  (register-operator! 'name '(itypes ...) 'otype (list (cons 'key value) ...)))
 
 (define-syntax-rule (define-1ary-real-operator name bf-impl ival-impl)
   (define-operator (name real) real
@@ -228,11 +132,22 @@
 
 ;; Operator implementations
 
-(struct operator-impl (itype otype bf fl ival))
+(struct operator-impl (name op itype otype fl))
 (define operator-impls (make-hasheq))
 
-(define parametric-operators (hash))
-(define parametric-operators-reverse (hash))
+(define operators-to-impls (make-hasheq))
+
+(define/contract (real-operator-info operator field)
+  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
+  (unless (hash-has-key? operators operator)
+    (error 'real-operator-info "Unknown operator ~a" operator))
+  (define accessor
+    (match field
+      ['itype operator-itype]
+      ['otype operator-otype]
+      ['bf operator-bf]
+      ['ival operator-ival]))
+  (accessor (hash-ref operators operator)))
 
 (define/contract (operator-info operator field)
   (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
@@ -242,103 +157,77 @@
     (match field
       ['itype operator-impl-itype]
       ['otype operator-impl-otype]
-      ['bf operator-impl-bf]
+      ['bf (compose operator-bf operator-impl-op)]
       ['fl operator-impl-fl]
-      ['ival operator-impl-ival]))
+      ['ival (compose operator-ival operator-impl-op)]))
   (accessor (hash-ref operator-impls operator)))
 
 (define/contract (operator-remove! operator)
   (-> symbol? any/c)
   (hash-remove! operator-impls operator))
 
-(define (*loaded-ops*)
-  (hash-keys parametric-operators-reverse))
+(define (register-operator-impl! operator name areprs rrepr attrib-dict)
+  (unless (hash-has-key? operators operator)
+    (error 'register-operator-impl!
+           "Cannot register ~a as implementation of ~a: no such operator"
+           name operator))
 
-(define (check-operator-types! inherited itypes otype)
-  (define itypes* (dict-ref inherited 'itype))
-  (define otype* (dict-ref inherited 'otype))
-  (define prec->type (compose representation-type get-representation))
-  (and (equal? (prec->type otype) otype*)
-       (or (and (type-name? itypes*) (type-name? itypes)
-                (equal? (prec->type itypes) itypes*))
-           (map (λ (x y) (equal? (prec->type x) y)) itypes itypes*))))
 
-(define (register-operator-impl! operator name atypes rtype attrib-dict)
   (define op (hash-ref operators operator))
-  (define default-attrib
-    (list (cons 'itype (operator-itype op))
-          (cons 'otype (operator-otype op))
-          (cons 'bf (operator-bf op))
-          (cons 'ival (operator-ival op))))
-  (unless default-attrib
-    (error 'register-operator-impl! "Real operator does not exist: ~a" operator))
-  ;; merge inherited and explicit attributes
-  (define attrib-dict* (dict-merge default-attrib attrib-dict))
-  (define itypes (dict-ref attrib-dict 'itype atypes))
-  (define otype (dict-ref attrib-dict 'otype rtype))
-  (unless (equal? operator 'if) ;; if does not work here
-    (check-operator-types! default-attrib itypes otype))
-  ;; Convert attributes to hash, update tables
-  (define fields (make-hasheq attrib-dict*))
-  (hash-set! fields 'itype itypes)
-  (hash-set! fields 'otype otype)
-  (hash-set! operator-impls name (apply operator-impl (map (curry hash-ref fields) '(itype otype bf fl ival))))
-  (set! parametric-operators
-    (hash-update parametric-operators operator
-                 (curry cons (list* name otype (operator-info name 'itype)))
-                 '()))
-  (set! parametric-operators-reverse
-    (hash-set parametric-operators-reverse name operator)))
+  (define fl-fun (dict-ref attrib-dict 'fl))
+
+  (unless (equal? operator 'if) ;; Type check all operators except if
+    (for ([arepr (cons rrepr areprs)]
+          [itype (cons (operator-otype op) (operator-itype op))])
+      (unless (equal? (representation-type arepr) itype)
+        (error 'register-operator-impl!
+               "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
+               name operator rrepr (operator-otype op)))))
+
+  (hash-set! operator-impls name (operator-impl name op areprs rrepr fl-fun))
+  (hash-update! operators-to-impls operator (curry cons name) '()))
   
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator 'name '(atypes ...) 'rtype (list (cons 'key value) ...)))
+  (register-operator-impl! 'operator 'name
+                           (list (get-representation 'atypes) ...)
+                           (get-representation 'rtype)
+                           (list (cons 'key value) ...)))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
   (or
-    (for/or ([sig (hash-ref parametric-operators name)])
-      (match-define (list* true-name rtype atypes) sig)
-        (and (if (representation-name? atypes)
-                 (andmap (curry equal? atypes) actual-types)
-                 (equal? atypes actual-types))
-             true-name))
+    (for/or ([impl (operator-all-impls name)])
+      (define atypes (operator-info impl 'itype))
+      (and (equal? atypes actual-types) impl))
     (and fail-fast?
          (error 'get-parametric-operator
                 "parametric operator with op ~a and input types ~a not found"
                 name actual-types))))
 
-;; mainly useful for getting arg count of an unparameterized operator
-;; will break if operator impls have different aritys
-;; returns #f for variary operators
-(define (get-operator-arity op)
-  (let ([itypes (operator-itype (hash-ref operators op))])
-    (if (type-name? itypes) #f (length itypes))))
+(define (impl->operator name)
+  (operator-name (operator-impl-op (hash-ref operator-impls name))))
 
-(define *unknown-ops* (make-parameter '()))
-
-(register-reset
- (λ ()
-   (unless (flag-set? 'precision 'fallback)
-     (for-each operator-remove! (*unknown-ops*)))))
+(define (operator-all-impls name)
+  (hash-ref operators-to-impls name))
 
 ;; real operators
-(define-operator (==) real
-  [itype 'real] [bf (comparator bf=)] [ival ival-==])
+(define-operator (== real real) bool
+  [bf (comparator bf=)] [ival ival-==])
 
-(define-operator (!=) real
-  [itype 'real] [bf (negate (comparator bf=))] [ival ival-!=])
+(define-operator (!= real real) bool
+  [bf (negate (comparator bf=))] [ival ival-!=])
 
-(define-operator (<) real
-  [itype 'real] [bf (comparator bf<)] [ival ival-<])
+(define-operator (< real real) bool
+  [bf (comparator bf<)] [ival ival-<])
 
-(define-operator (>) real
-  [itype 'real] [bf (comparator bf>)] [ival ival->])
+(define-operator (> real real) bool
+  [bf (comparator bf>)] [ival ival->])
 
-(define-operator (<=) real
-  [itype 'real] [bf (comparator bf<=)] [ival ival-<=])
+(define-operator (<= real real) bool
+  [bf (comparator bf<=)] [ival ival-<=])
 
-(define-operator (>=) real
-  [itype 'real] [bf (comparator bf>=)] [ival ival->=])
+(define-operator (>= real real) bool
+  [bf (comparator bf>=)] [ival ival->=])
 
 ;; logical operators ;;
 
@@ -349,11 +238,9 @@
   [bf not] [ival ival-not])
 
 (define-operator (and bool bool) bool
-  [itype 'bool] ; override number of arguments
   [bf and-fn] [ival ival-and])
 
 (define-operator (or bool bool) bool
-  [itype 'bool] ; override number of arguments
   [bf or-fn] [ival ival-or])
 
 ;; Miscellaneous operators ;;
@@ -364,33 +251,45 @@
 (define (rewrite-repr-op? expr)
   (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
 
-(define (get-repr-conv iprec oprec)
-  (for/or ([sig (hash-ref parametric-operators 'cast)])
-    (match-define (list* true-name rtype atypes) sig)
-      (and (repr-conv? true-name)
-           (equal? rtype oprec)
-           (equal? (car atypes) iprec)
-           true-name)))
+(define (get-repr-conv irepr orepr)
+  (for/or ([name (operator-all-impls 'cast)])
+    (and (repr-conv? name)
+         (equal? (operator-info name 'otype) orepr)
+         (equal? (first (operator-info name 'itype)) irepr)
+         name)))
+
+(define-operator (PI) real
+  [bf (λ () pi.bf)] 
+  [ival ival-pi])
+
+(define-operator (E) real
+  [bf (λ () (bfexp 1.bf))]
+  [ival ival-e])
+
+(define-operator (INFINITY) real
+  [bf (λ () +inf.bf)]
+  [ival (λ () (ival +inf.bf))])
+
+(define-operator (NAN) real
+  [bf (λ () +nan.bf)]
+  [ival (λ () (ival +nan.bf))])
+
+(define-operator (TRUE) bool
+  [bf (const true)]
+  [ival (const (ival-bool true))])
+
+(define-operator (FALSE) bool
+  [bf (const false)]
+  [ival (const (ival-bool false))])
+
+(define (dict-merge dict dict2)
+  (for/fold ([dict dict]) ([(key value) (in-dict dict2)])
+    (dict-set dict key value)))
 
 ;; Conversions
 
 (define-operator (cast real) real
   [bf identity] [ival identity])
-
-;; Expression predicates ;;
-
-(define (operator-or-impl? op)
-  (and (symbol? op) (not (equal? op 'if))
-       (or (hash-has-key? parametric-operators op)
-           (hash-has-key? operator-impls op))))
-
-(define (constant-or-impl? var)
-  (and (symbol? var)
-       (or (hash-has-key? parametric-constants var) 
-           (hash-has-key? constant-impls var))))
-
-(define (variable? var)
-  (and (symbol? var) (not (constant? var))))
 
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations
@@ -403,21 +302,43 @@
   (unless (set-member? conversion-generators proc)
     (set! conversion-generators (cons proc conversion-generators))))
 
-(define replace-table `((" " . "_") ("(" . "") (")" . "")))
+(define (generate-conversion-impl! conv1 conv2 repr1 repr2)
+  (or (impl-exists? conv1)
+      (impl-exists? conv2)
+      (for ([generate conversion-generators])
+        (generate (representation-name repr1) (representation-name repr2)))))
 
-(define/contract (string-replace* str changes)
-  (-> string? (listof (cons/c string? string?)) string?)
-  (let loop ([str str] [changes changes])
-    (match changes
-      [(? null?) str]
-      [_ (let ([change (car changes)])
-           (loop (string-replace str (car change) (cdr change)) (cdr changes)))])))
+;; Expression predicates ;;
 
-(define (generate-conversion-impl prec1 prec2)
-  (define prec1* (string->symbol (string-replace* (~a prec1) replace-table)))
-  (define prec2* (string->symbol (string-replace* (~a prec2) replace-table)))
-  (define conv1 (sym-append prec1* '-> prec2*))
-  (define conv2 (sym-append prec2* '-> prec1*))
-  (or (and (hash-has-key? parametric-operators-reverse conv1)
-           (hash-has-key? parametric-operators-reverse conv2))
-      (for/or ([proc (in-list conversion-generators)]) (proc prec1 prec2))))
+(define (impl-exists? op)
+  (hash-has-key? operator-impls op))
+
+(define (operator-or-impl? op)
+  (and (symbol? op) (not (equal? op 'if))
+       (or (hash-has-key? operators op)
+           (hash-has-key? operator-impls op))))
+
+(define (constant-operator? op)
+  (and (symbol? op)
+       (or (and (hash-has-key? operators op) 
+                (null? (operator-itype (hash-ref operators op))))
+           (and (hash-has-key? operator-impls op)
+                (null? (operator-itype (hash-ref operator-impls op)))))))
+
+(define (variable? var)
+  (and (symbol? var)
+       (or (not (hash-has-key? operators var))
+           (not (null? (operator-itype (hash-ref operators var)))))
+       (or (not (hash-has-key? operator-impls var))
+           (not (null? (operator-impl-itype (hash-ref operator-impls var)))))))
+
+;; name -> (vars repr body)
+(define *functions* (make-parameter (make-hasheq)))
+
+(define (register-function! name args repr body)
+  (hash-set! (*functions*) name (list args repr body)))
+
+(define (all-constants)
+  (for/list ([(name rec) (in-hash operators)]
+             #:when (= (length (operator-itype rec)) 0))
+    name))

@@ -5,12 +5,17 @@
 
 (provide localize-error get-locations)
 
+(define *analyze-cache* (make-hash))
+(define *analyze-context* (make-parameter #f))
+
+(register-reset
+ (λ ()
+  (*analyze-context* (*pcontext*))
+  (set! *analyze-cache* (make-hash))))
+
 (define (repeat c)
   (for/list ([(p e) (in-pcontext (*pcontext*))])
     c))
-
-(define *analyze-cache* (make-hash))
-(define *analyze-context* (make-parameter #f))
 
 (define (localize-on-expression expr vars cache repr)
   (hash-ref! cache expr
@@ -18,9 +23,6 @@
                 (match expr
                   [(? number?)
                    (cons (repeat (bf expr)) (repeat 1))]
-                  [(? constant?)
-                   (define val ((constant-info expr 'bf)))
-                   (cons (repeat val) (repeat 1))]
                   [(? variable?)
                    (cons (map (curryr representation-repr->bf (dict-ref (*var-reprs*) expr))
                               (dict-ref vars expr))
@@ -32,14 +34,15 @@
 				       (apply (eval-prog `(λ ,(map car vars) ,c) 'bf repr) p))])
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
+                  [`(,f)
+                   (define repr (operator-info f 'otype))
+                   (define <-bf (representation-bf->repr repr))
+                   (define exact ((operator-info f 'bf)))
+                   (define approx ((operator-info f 'fl)))
+                   (cons (repeat exact) (repeat (ulp-difference (<-bf exact) approx repr)))]
                   [`(,f ,args ...)
-                   (define repr (get-representation (operator-info f 'otype)))
-                   (define argreprs
-                     (match (operator-info f 'itype)
-                       [(? representation-name? type)
-                        (map (const (get-representation type)) args)]
-                       [(list arg-types ...)
-                        (map get-representation arg-types)]))
+                   (define repr (operator-info f 'otype))
+                   (define argreprs (operator-info f 'itype))
                    (define <-bf (representation-bf->repr repr))
                    (define arg<-bfs (map representation-bf->repr argreprs))
 
@@ -66,16 +69,15 @@
 (define (get-locations expr subexpr)
   (let loop ([expr expr] [loc '()])
     (match expr
-     [(list op args ...)
-      (if (equal? expr subexpr)
-          (list (reverse loc))
-          (for/fold ([below '()] #:result (reverse below))
-                    ([arg (in-list args)] [i (in-naturals 1)])
-            (append (loop arg (cons i loc)) below)))]
-     [_
-      (if (equal? expr subexpr)
-          (list (reverse loc))
-          (list))])))
+      [(== subexpr)
+       (list (reverse loc))]
+      [(list op args ...)
+       (apply
+        append
+        (for/list ([arg (in-list args)] [i (in-naturals 1)])
+          (loop arg (cons i loc))))]
+      [_
+       (list)])))
 
 ;; Returns a list of locations and errors sorted
 ;; by error scores in descending order

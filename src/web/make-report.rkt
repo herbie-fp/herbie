@@ -15,7 +15,7 @@
   (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
                                        (list (list 0 0)))
                     cas))
-  (define precs (map table-row-precision trs))
+  (define reprs (map (compose get-representation table-row-precision) trs))
 
   (define start
     (for/fold ([x 0] [y 0] #:result (cons x y)) ([s starts])
@@ -24,8 +24,7 @@
     (for/list ([pts ptss])
       (for/list ([pt pts])
         (cons (first pt) (second pt)))))
-  (define precs->bits (compose representation-total-bits get-representation))
-  (define ymax (apply + (map precs->bits precs)))
+  (define ymax (apply + (map representation-total-bits reprs)))
   (values start (generate-pareto-curve ptss*) ymax))
 
 (define (badge-label result)
@@ -82,7 +81,7 @@
           #:key (λ (x) (or (table-row-start (car x)) 0))))
 
   (define classes
-    (if (ormap table-row-target tests) '(no-target) '()))
+    (if (ormap table-row-target tests) '() '(no-target)))
 
   ;; HTML cruft
   (fprintf out "<!doctype html>\n")

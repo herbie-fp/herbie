@@ -1,10 +1,10 @@
 #lang racket
 (require profile math/bigfloat racket/engine json)
-(require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt"
+(require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt" "ground-truth.rkt"
          "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
-         (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "syntax/sugar.rkt"
-        "sampling.rkt" "preprocess.rkt" "conversions.rkt")
+         (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt"
+         "syntax/sugar.rkt" "preprocess.rkt" "sampling.rkt" "cost.rkt")
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
@@ -46,11 +46,10 @@
                          #:debug-port [debug-port #f]
                          #:debug-level [debug-level #f])
   (define timeline #f)
-  (define output-prec (test-output-prec test))
-  (define output-repr (get-representation output-prec))
+  (define output-repr (test-output-repr test))
+  (define output-prec (representation-name output-repr))
   (*output-repr* output-repr)
   (*needed-reprs* (list output-repr (get-representation 'bool)))
-  (*overflow-search-reprs* (test-overflow-search test))
 
   (define (compute-result test)
     (parameterize ([*debug-port* (or debug-port (*debug-port*))]
@@ -65,40 +64,33 @@
 
       (generate-prec-rewrites (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
-        (define unsorted-alts
-          (run-improve (test-program test)
-                       (*num-iterations*)
-                       #:precondition (test-precondition test)
-                       #:preprocess (test-preprocess test)
-                       #:specification (test-specification test)
-                       #:precision output-prec))
+        (rollback-improve!)
 
-        (define context (*pcontext*))
+        (define joint-context
+          (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+            (setup-context!
+             (or (test-specification test) (test-program test)) (test-precondition test)
+             output-repr)))
+        (define-values (train-context test-context)
+          (split-pcontext joint-context (*num-points*) (*reeval-pts*))) 
+
+        (define alts
+          (run-improve! (test-program test) train-context (*num-iterations*)
+                        #:specification (test-specification test)
+                        #:preprocess (test-preprocess test)))
+
         (when seed (set-seed! seed))
-        (timeline-event! 'sample)
-        (define newcontext
-          (parameterize ([*num-points* (*reeval-pts*)])
-            (car (prepare-points (test-specification test) (test-precondition test) output-repr
-                                 (*sampler*) (*herbie-preprocess*)))))
+        (define processed-test-context
+          (preprocess-pcontext (test-vars test) test-context (*herbie-preprocess*) output-repr))
+
         (define fns
           (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
                (remove-duplicates (*all-alts*))))
 
-        (define end-errss (map (λ (x) (errors (alt-program x) newcontext output-repr)) unsorted-alts))
-        (define baseline-errs (baseline-error fns context newcontext output-repr))
-        (define oracle-errs (oracle-error fns newcontext output-repr))
-
-        ; find the best, sort the rest by cost
-        (define-values (best end-score rest)
-          (for/fold ([best #f] [score #f] [rest #f])
-                    ([altn (in-list unsorted-alts)] [errs (in-list end-errss)])
-            (let ([new-score (errors-score errs)])
-              (cond
-               [(not best) (values altn new-score '())]
-               [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
-               [else (values best score (cons altn rest))]))))
-        (*herbie-preprocess* (remove-unecessary-preprocessing best (*herbie-preprocess*)))
-        (define alts (cons best (sort rest > #:key alt-cost)))
+        (define end-errss (map (λ (x) (errors (alt-program x) processed-test-context output-repr)) alts))
+        (define baseline-errs (baseline-error fns train-context processed-test-context output-repr))
+        (define oracle-errs (oracle-error fns processed-test-context output-repr))
+        (define end-score (errors-score (car end-errss)))
 
         (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
         (timeline-adjust! 'regimes 'accuracy end-score)
@@ -107,21 +99,21 @@
         (timeline-adjust! 'regimes 'link ".")
         (print-warnings)
 
-        (define-values (points exacts) (get-p&es context))
-        (define-values (newpoints newexacts) (get-p&es newcontext))
+        (define-values (points exacts) (get-p&es train-context))
+        (define-values (newpoints newexacts) (get-p&es processed-test-context))
         (test-success test
                       (bf-precision)
                       (- (current-inexact-milliseconds) start-time)
                       (timeline-extract output-repr)
                       warning-log (make-alt (test-program test)) alts
                       (*herbie-preprocess*) points exacts
-                      (errors (test-program test) context output-repr)
-                      (errors (alt-program (car alts)) context output-repr)
+                      (errors (test-program test) train-context output-repr)
+                      (errors (alt-program (car alts)) train-context output-repr)
                       newpoints newexacts
-                      (errors (test-program test) newcontext output-repr)
+                      (errors (test-program test) processed-test-context output-repr)
                       end-errss
                       (if (test-output test)
-                          (errors (test-target test) newcontext output-repr)
+                          (errors (test-target test) processed-test-context output-repr)
                           #f)
                       baseline-errs
                       oracle-errs
@@ -166,7 +158,8 @@
   (table-row (test-name test) #f status
              (resugar-program (program-body (test-precondition test)) repr)
              (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
-             (test-output-prec test) (test-conversions test)
+             (representation-name (test-output-repr test))
+             (map (curry map representation-name) (test-conversions test))
              (test-vars test)
              (resugar-program (test-input test) repr) #f
              (resugar-program (test-spec test) repr)

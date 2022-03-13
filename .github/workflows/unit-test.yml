@@ -1,0 +1,29 @@
+name: Unit tests
+
+on: [push]
+
+env:
+  RUST_BACKTRACE: full
+
+jobs:
+  unit-tests:
+    name: "Unit Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v1.3.1
+        with:
+          version: stable
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      - run: raco test src/ infra/ egg-herbie/

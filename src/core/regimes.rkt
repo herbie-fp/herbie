@@ -1,8 +1,9 @@
 #lang racket
 
-(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt")
-(require "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt")
-(require "../points.rkt" "../float.rkt") ; For binary search
+(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
+         "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
+         "../points.rkt")
+(require "../ground-truth.rkt" "../float.rkt") ; For binary search
 (module+ test (require rackunit "../load-plugin.rkt"))
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
@@ -53,6 +54,7 @@
           (sow (option-on-expr sound-alts bexpr repr))))))
   (define best (argmin (compose errors-score option-errors) options))
   (debug "Found split indices:" best #:from 'regime #:depth 3)
+  (timeline-push! 'count (length alts) (length (option-split-indices best)))
   best)
 
 (define (exprs-to-branch-on alts repr)
@@ -98,8 +100,7 @@
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
-        (define name (representation-name repr))
-        (define <=-operator (get-parametric-operator '<= name name))
+        (define <=-operator (get-parametric-operator '<= repr repr))
         `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
              ,expr)))
@@ -152,12 +153,12 @@
       (list-ref errs (si-cidx si)))))
 
 (module+ test
+  (define repr (get-representation 'binary64))
   (parameterize ([*start-prog* '(λ (x) 1)]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
-                 [*var-reprs* (list (cons 'x (get-representation 'binary64)))]
-                 [*output-repr* (get-representation 'binary64)])
+                 [*var-reprs* (list (cons 'x repr))]
+                 [*output-repr* repr])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
-    (define repr (get-representation 'binary64))
 
     ;; This is a basic sanity test
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
@@ -213,8 +214,7 @@
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
 
-  (define repr-name (representation-name repr))
-  (define eq-repr (get-parametric-operator '== repr-name repr-name))
+  (define eq-repr (get-parametric-operator '== repr repr))
   
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
@@ -225,14 +225,13 @@
                        [*timeline-disabled* true]
                        [*var-reprs* (dict-set (*var-reprs*) var repr)])
           (define ctx
-            (car
-             (prepare-points start-prog
-                             `(λ ,(program-variables start-prog)
-                                  (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
-                             repr
-                             (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
-                                                             (sampler) (*herbie-preprocess*) repr)))
-                             empty)))
+            (apply mk-pcontext
+                   (prepare-points start-prog
+                                   `(λ ,(program-variables start-prog)
+                                      (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
+                                   repr
+                                   (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
+                                                                   (sampler) (*herbie-preprocess*) repr))))))
           (- (errors-score (errors prog1 ctx repr))
              (errors-score (errors prog2 ctx repr))))))
       (define pt (binary-search-floats pred v1 v2 repr))
@@ -277,16 +276,6 @@
        point
        (range (length point))))
 
-;; Takes a vector of numbers, and returns the partial sum of those numbers.
-;; For example, if your vector is #(1 4 6 3 8), then this returns #(1 5 11 14 22).
-(define (partial-sum vec)
-  (define res (make-vector (vector-length vec)))
-  (for/fold ([cur-psum 0]) ([(el idx) (in-indexed (in-vector vec))])
-    (let ([new-psum (+ cur-psum el)])
-      (vector-set! res idx new-psum)
-      new-psum))
-  res)
-
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
 ;; indices = The si's we are considering in this candidate.
@@ -307,7 +296,7 @@
   (define num-points (length (car err-lsts)))
   (define min-weight num-points)
 
-  (define psums (map (compose partial-sum list->vector) err-lsts))
+  (define psums (map (compose partial-sums list->vector) err-lsts))
   (define can-split? (curry vector-ref (list->vector can-split-lst)))
 
   ;; Our intermediary data is a list of cse's,
@@ -385,20 +374,18 @@
     (debug "Computing regimes starting at alt" (+ idx 1) "of"
             (length sorted) #:from 'regime #:depth 2)
     (cond
-      [(null? alts) '()]
-      [(= (length alts) 1) (list (car alts))]
-      [else
-      (timeline-event! 'regimes)
+     [(null? alts) '()]
+     [(= (length alts) 1) (list (car alts))]
+     [else
       (define opt (infer-splitpoints alts repr))
-      (timeline-event! 'bsearch)
       (define branched-alt (combine-alts opt repr sampler))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))]
-                 [*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x y))]
-                 [*output-repr* (get-representation 'binary64)])
+                 [*var-reprs* (map (curryr cons repr) '(x y))]
+                 [*output-repr* repr])
     (define sps
       (list (sp 0 '(/.f64 y x) -inf.0)
             (sp 2 '(/.f64 y x) 0.0)
@@ -408,7 +395,7 @@
                   (splitpoints->point-preds
                     sps
                     (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
-                    (get-representation 'binary64)))
+                    repr))
 
     (check-pred p0? '(0.0 -1.0))
     (check-pred p2? '(-1.0 1.0))

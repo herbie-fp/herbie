@@ -1,14 +1,14 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "sugar.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
 (provide assert-program!)
 (module+ test (require rackunit "../load-plugin.rkt"))
 
 (define (check-expression* stx vars error!)
   (match stx
     [#`,(? number?) (void)]
-    [#`,(? constant?) (void)]
+    [#`,(? constant-operator?) (void)]
     [#`,(? variable? var)
      (unless (set-member? vars stx)
        (error! stx "Unknown variable ~a" var))]
@@ -43,15 +43,15 @@
     [#`(! #,props ... #,body)
      (check-properties* props '() body)
      (check-expression* body vars error!)]
-    [#`(,(? (curry set-member? '(+ - * /))) #,args ...)
-     ;; These expand associativity so we don't check the number of arguments
+    [#`(,(? (curry set-member? '(+ - * / and or = != < > <= >=))) #,args ...)
+     ;; These expand by associativity so we don't check the number of arguments
      (for ([arg args]) (check-expression* arg vars error!))]
     [#`(#,f-syntax #,args ...)
      (define f (syntax->datum f-syntax))
      (cond
       [(operator-exists? f)
-        (define arity (get-operator-arity f)) ;; variary is #f
-        (unless (or (not arity) (= arity (length args)))
+        (define arity (length (real-operator-info f 'itype)))
+        (unless (= arity (length args))
           (error! stx "Operator ~a given ~a arguments (expects ~a)"
                   f (length args) arity))]
       [(hash-has-key? (*functions*) f)

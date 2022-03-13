@@ -111,10 +111,6 @@
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (binary32 real float32?)
@@ -127,16 +123,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constant-impl (PI PI.f32) binary32
+(define-operator-impl (PI PI.f32) binary32
   [fl (const (->float32 pi))])
 
-(define-constant-impl (E E.f32) binary32
+(define-operator-impl (E E.f32) binary32
   [fl (const (->float32 (exp 1.0)))])
 
-(define-constant-impl (INFINITY INFINITY.f32) binary32
+(define-operator-impl (INFINITY INFINITY.f32) binary32
   [fl (const (->float32 +inf.0))])
 
-(define-constant-impl (NAN NAN.f32) binary32
+(define-operator-impl (NAN NAN.f32) binary32
   [fl (const (->float32 +nan.0))])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -245,28 +241,22 @@
 (define-libm-operator (fma real real real))
 
 (define-operator-impl (== ==.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator =)])
+  [fl =])
 
 (define-operator-impl (!= !=.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (negate (comparator =))])
+  [fl (negate =)])
 
 (define-operator-impl (< <.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator <)])
+  [fl <])
 
 (define-operator-impl (> >.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator >)])
+  [fl >])
 
 (define-operator-impl (<= <=.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator <=)])
+  [fl <=])
 
 (define-operator-impl (>= >=.f32 binary32 binary32) bool
-  [itype 'binary32] [otype 'bool] ; Override number of arguments
-  [fl (comparator >=)])
+  [fl >=])
 
 (define-operator-impl (cast binary64->binary32 binary64) binary32
   [fl (curryr ->float32)])

@@ -42,7 +42,10 @@
 ;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag       ('fp-safe' does not imply 'simplify')
 ;;
 
-(struct rule (name input output itypes otype) ; Input and output are patterns
+(struct rule (name input output itypes otype)
+        ;; Input and output are patterns
+        ;; itypes is a mapping, variable name -> representation
+        ;; otype is a representation
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
            (fprintf port "#<rule ~a>" (rule-name rule)))])
@@ -50,11 +53,11 @@
 (define (rule-ops-supported? rule)
   (define (ops-in-expr expr)
     (cond
-      [(list? expr) (if (set-member? (*loaded-ops*) (car expr))
-                        (for/and ([subexpr (cdr expr)])
-                          (ops-in-expr subexpr))
-                        #f)]
-      [else #t]))
+      [(list? expr)
+       (and (impl-exists? (car expr))
+            (for/and ([subexpr (cdr expr)])
+              (ops-in-expr subexpr)))]
+      [else true]))
   (ops-in-expr (rule-output rule)))
 
 (register-reset
@@ -80,17 +83,19 @@
       [(list 'if cond ift iff)
         (append (loop cond) (loop ift) (loop iff))]
       [(list op args ...)
-        (define itypes (operator-info op 'itype))
-        (append (if (list? itypes) itypes (list itypes))
-                (append-map loop args))]
+        (append (operator-info op 'itype) (append-map loop args))]
       [_ '()]))))
 
 (define (type-of-rule input output ctx)
   (cond   ; special case for 'if', return the 'type-of-rule' of the ift branch
     [(list? input) 
-      (if (equal? (car input) 'if) (type-of-rule (caddr input) output ctx) (operator-info (car input) 'otype))]
+      (if (equal? (car input) 'if)
+          (type-of-rule (caddr input) output ctx)
+          (operator-info (car input) 'otype))]
     [(list? output)
-      (if (equal? (car output) 'if) (type-of-rule input (caddr output) ctx) (operator-info (car output) 'otype))]
+      (if (equal? (car output) 'if)
+          (type-of-rule input (caddr output) ctx)
+          (operator-info (car output) 'otype))]
     [(symbol? input) (dict-ref ctx input)]   ; fallback: if symbol, check ctx for type
     [(symbol? output) (dict-ref ctx output)]
     [else
@@ -98,12 +103,11 @@
               input output)]))
 
 ;; Rulesets defined by reprs. These rulesets are unique
-
 (define (register-ruleset! name groups var-ctx rules)
   (define rules*
     (for/list ([r rules])
       (match-define (list rname input output) r)
-      (rule rname input output var-ctx 
+      (rule rname input output var-ctx
             (type-of-rule input output var-ctx))))
   (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
       
@@ -112,7 +116,8 @@
    [(define-ruleset name groups [rname input output] ...)
     (define-ruleset name groups #:type () [rname input output] ...)]
    [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
-    (register-ruleset! 'name 'groups '((var . type) ...) '((rname input output) ...))]))
+    (register-ruleset! 'name 'groups `((var . ,(get-representation 'type)) ...)
+                       '((rname input output) ...))]))
 
 ;; Templated rulesets defined by types. These are used to generate duplicate rules that
 ;; are valid in any representation of the same underlying type.
@@ -133,15 +138,14 @@
 ;; Add existing rules in rulesets to 'active' rules
 
 (define (add-rules-from-rulesets repr)
-  (define repr-name (representation-name repr))
   (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
-  (define valid? (curry set-member? (map representation-name (*reprs-with-rules*))))
+  (define valid? (curry set-member? (*reprs-with-rules*)))
 
   (define (valid-rule r)
     (define in-reprs (reprs-in-expr (rule-input r)))
     (define out-reprs (reprs-in-expr (rule-output r)))
     (define all-reprs (set-union (list (rule-otype r)) in-reprs out-reprs))
-    (and (andmap valid? all-reprs) (ormap (curry equal? repr-name) all-reprs)))
+    (and (andmap valid? all-reprs) (ormap (curry equal? repr) all-reprs)))
 
   (for ([set (*rulesets*)])
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
@@ -152,7 +156,6 @@
 
 ;; Generate a set of rules by replacing a generic type with a repr
 (define (generate-rules-for type repr)
-  (define repr-name (representation-name repr))
   (define typename (type-name type))
   (define valid? (disjoin (curry equal? typename)
                           (curry set-member? (map representation-name (*reprs-with-rules*)))))
@@ -161,18 +164,22 @@
        #:when (or (empty? (third set)) ; no type ctx
                   (andmap (λ (p) (valid? (cdr p))) (third set))))
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
-    (define ctx (for/list ([v vars] [t types]) (cons v (if (equal? t typename) repr-name t))))
-    (define var-reprs (for/list ([(var prec) (in-dict ctx)]) (cons var (get-representation prec))))
+    (define ctx
+      (for/list ([v vars] [t types])
+        (cons v
+              (if (equal? t typename)
+                  repr
+                  (get-representation t))))) ;; Only bad one!
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
-        (let ([name* (sym-append (rule-name r) '_ repr-name)]
+        (let ([name* (sym-append (rule-name r) '_ (representation-name repr))]
               [input* (with-handlers ([exn:fail? (const #f)])
-                        (desugar-program (rule-input r) repr var-reprs #:full #f))]
+                        (desugar-program (rule-input r) repr ctx #:full #f))]
               [output* (with-handlers ([exn:fail? (const #f)])
-                         (desugar-program (rule-output r) repr var-reprs #:full #f))])
+                         (desugar-program (rule-output r) repr ctx #:full #f))])
           (if (and input* output*) ; if successfully desugars, then the rule is valid
-              (cons (rule name* input* output* 
-                          ctx (type-of-rule input* output* ctx))
+              (cons (rule name* input* output* ctx
+                          (type-of-rule input* output* ctx))
                     rules*)
               rules*))))      ; else, assume the expression(s) are not supported in the repr
     (unless (empty? rules*)   ; only add the ruleset if it contains one
@@ -721,10 +728,10 @@
 
 (define-ruleset* compare-reduce (bools simplify fp-safe-nan)
   #:type ([x real] [y real])
-  [lt-same      (<  x x)         FALSE]
-  [gt-same      (>  x x)         FALSE]
-  [lte-same     (<= x x)         TRUE]
-  [gte-same     (>= x x)         TRUE]
+  [lt-same      (<  x x)         (FALSE)]
+  [gt-same      (>  x x)         (FALSE)]
+  [lte-same     (<= x x)         (TRUE)]
+  [gte-same     (>= x x)         (TRUE)]
   [not-lt       (not (<  x y))   (>= x y)]
   [not-gt       (not (>  x y))   (<= x y)]
   [not-lte      (not (<= x y))   (>  x y)]
@@ -732,8 +739,8 @@
 
 (define-ruleset* branch-reduce (branches simplify fp-safe)
   #:type ([a bool] [b bool] [x real] [y real])
-  [if-true        (if TRUE x y)       x]
-  [if-false       (if FALSE x y)      y]
+  [if-true        (if (TRUE) x y)       x]
+  [if-false       (if (FALSE) x y)      y]
   [if-same        (if a x x)          x]
   [if-not         (if (not a) x y)    (if a y x)]
   [if-if-or       (if a x (if b x y)) (if (or a b) x y)]

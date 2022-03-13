@@ -3,11 +3,9 @@
 (require math/bigfloat math/flonum)
 (require "syntax/types.rkt" "errors.rkt")
 
-(provide (struct-out representation) get-representation representation-name?
-          *output-repr* *var-reprs* *needed-reprs*
-          *reprs-with-rules* *overflow-search-reprs*
+(provide (struct-out representation) get-representation
+          *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
           real->repr repr->real
-          value? special-value?
           generate-repr)
 
 (module+ internals 
@@ -17,7 +15,6 @@
 (define *needed-reprs* (make-parameter '()))
 (define *output-repr* (make-parameter #f))
 (define *var-reprs* (make-parameter '()))
-(define *overflow-search-reprs* (make-parameter '()))
 
 ;; Structs
 
@@ -67,9 +64,6 @@
 (define-syntax-rule (define-representation (name type repr?) args ...)
   (register-representation! 'name 'type repr? args ...))
 
-(define (representation-name? x)
-  (hash-has-key? representations x))
-
 ;; repr <==> real
 
 (define (real->repr x repr)
@@ -79,12 +73,3 @@
   (match x
     [(? boolean?) x]
     [_ (bigfloat->real ((representation-repr->bf repr) x))]))
-
-;; Predicates
-
-(define (value? x)
-  (for/or ([(name repr) (in-hash representations)])
-    ((representation-repr? repr) x)))
-
-(define (special-value? x repr)
-  ((representation-special-values repr) x))

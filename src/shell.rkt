@@ -10,7 +10,9 @@
         (λ (e)
           ((error-display-handler) (exn-message e) e)
           (get-input))])
-    (define input (read-syntax "stdin" (current-input-port)))
+    (define input 
+      (parameterize ([read-decimal-as-inexact false])
+        (read-syntax "stdin" (current-input-port))))
     (if (eof-object? input)
         (begin (printf "\n") eof)
         (parse-test input))))

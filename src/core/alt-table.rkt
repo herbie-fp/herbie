@@ -224,6 +224,9 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
+(define (is-nan? expr)
+  (and (impl-exists? expr) (equal? (impl->operator expr) 'NAN)))
+
 (define (atab-add-altns atab altns repr)
   (define progs (map alt-program altns))
   (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))

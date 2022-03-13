@@ -74,7 +74,6 @@
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
-(define *localize-limit-for-new* (make-parameter #f))
 
 ;; How accurate to make the binary search
 (define *binary-search-test-points* (make-parameter 16))
@@ -86,6 +85,8 @@
 
 ;; In mainloop, cache improvements between iterations
 (define *use-improve-cache* (make-parameter #t))
+
+(define *default-precision* (make-parameter 'binary64))
 
 ;;; About Herbie:
 
@@ -121,10 +122,6 @@
   (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn-rec))))
 
 ;; OBSOLETE
-
-;; The step size with which arbitrary-precision precision is increased
-;; DANGEROUS TO CHANGE
-(define *precision-step* (make-parameter 256))
 
 ;; In periodicity analysis,
 ;; this is how small the period of a function must be to count as periodic

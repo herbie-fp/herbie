@@ -1,16 +1,17 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
-         "../preprocess.rkt" "../conversions.rkt"
+(require "../config.rkt" "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
+         "../conversions.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
-         test-precondition test-output-repr)
+         test-precondition
+         test-output-repr test-var-reprs test-conversions)
 
 
 (struct test (name identifier vars input output expected spec pre
-              preprocess output-prec var-precs conversions overflow-search) #:prefab)
+              preprocess output-repr-name var-repr-names conversion-syntax) #:prefab)
 
 (define (test-program test)
   `(λ ,(test-vars test) ,(test-input test)))
@@ -25,9 +26,16 @@
   `(λ ,(test-vars test) ,(test-pre test)))
 
 (define (test-output-repr test)
-  (get-representation (test-output-prec test)))
+  (get-representation (test-output-repr-name test)))
 
-(define (parse-test stx [override-ctx '()])
+(define (test-var-reprs test)
+  (for/list ([(k v) (in-dict (test-var-repr-names test))])
+    (cons k (get-representation v))))
+
+(define (test-conversions test)
+  (map (curry map get-representation) (test-conversion-syntax test)))
+
+(define (parse-test stx)
   (assert-program! stx)
   (assert-program-typed! stx)
   (define-values (func-name args props body)
@@ -51,15 +59,7 @@
         ['() '()]
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
-  (define prop-dict* ; override fpcore props
-    (let loop ([prop-dict prop-dict] [ctx override-ctx])
-      (match ctx
-       ['() prop-dict]
-       [(list (cons prop val) rest ...)
-        (loop (dict-set* prop-dict prop val) rest)])))
-  
-  (define default-prec (dict-ref prop-dict* ':precision 'binary64))
-  (define default-repr (get-representation default-prec))
+  (define default-repr (get-representation (dict-ref prop-dict ':precision (*default-precision*))))
   (define var-reprs 
     (for/list ([arg args] [arg-name arg-names])
       (cons arg-name
@@ -72,19 +72,20 @@
 
   ;; Try props first, then identifier, else the expression itself
   (define name
-    (or (dict-ref prop-dict* ':name #f)
+    (or (dict-ref prop-dict ':name #f)
         func-name
         body))
 
   ;; load conversion operators for desugaring
-  (define convs (dict-ref prop-dict* ':herbie-conversions '()))
+  (define conv-syntax (dict-ref prop-dict ':herbie-conversions '()))
+  (define convs (map (curry map get-representation) conv-syntax))
   (generate-conversions convs)
 
   ;; inline and desugar
   (define body* (desugar-program body default-repr var-reprs))
-  (define pre* (desugar-program (dict-ref prop-dict* ':pre 'TRUE) default-repr var-reprs))
-  (define target (desugar-program (dict-ref prop-dict* ':herbie-target #f) default-repr var-reprs))
-  (define spec (desugar-program (dict-ref prop-dict* ':spec body) default-repr var-reprs))
+  (define pre* (desugar-program (dict-ref prop-dict ':pre 'TRUE) default-repr var-reprs))
+  (define target (desugar-program (dict-ref prop-dict ':herbie-target #f) default-repr var-reprs))
+  (define spec (desugar-program (dict-ref prop-dict ':spec body) default-repr var-reprs))
   (check-unused-variables arg-names body* pre*)
   (check-weird-variables arg-names)
 
@@ -93,14 +94,13 @@
         arg-names
         body*
         target
-        (dict-ref prop-dict* ':herbie-expected #t)
+        (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (map sexp->preprocess (dict-ref prop-dict* ':herbie-preprocess empty))
+        (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
-        (map (λ (pair) (cons (car pair) (representation-name (cdr pair)))) var-reprs)
-        convs
-        (dict-ref prop-dict* ':herbie-overflow-search '())))
+        (for/list ([(k v) (in-dict var-reprs)]) (cons k (representation-name v)))
+        conv-syntax))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
@@ -116,49 +116,43 @@
           (string-join (map ~a unused) ", "))))
 
 (define (check-weird-variables vars)
-  (for* ([var vars] [const (in-hash-keys parametric-constants)])
+  (for* ([var vars] [const (all-constants)])
     (when (string-ci=? (symbol->string var) (symbol->string const))
       (warn 'strange-variable
             "unusual variable ~a; did you mean ~a?" var const))))
 
-; Ignore any failures printing the error if needed
-(define (load-test test parsed override-ctx)
-  (with-handlers ([exn:fail:user:herbie?
-                    (λ (e)
-                      (display (herbie-error->string e))
-                      parsed)])
-    (cons (parse-test test override-ctx) parsed)))
+(define (our-read-syntax port name)
+  (parameterize ([read-decimal-as-inexact false])
+    (read-syntax port name)))
 
-(define (load-stdin override-ctx)
-  (for/fold ([parsed '()] #:result (reverse parsed))
-            ([test (in-port (curry read-syntax "stdin") (current-input-port))])
-    (load-test test parsed override-ctx)))
+(define (load-stdin)
+  (for/list ([test (in-port (curry our-read-syntax "stdin") (current-input-port))])
+    (parse-test test)))
 
-(define (load-file file override-ctx)
+(define (load-file file)
   (call-with-input-file file
     (λ (port)
       (port-count-lines! port)
-      (for/fold ([parsed '()] #:result (reverse parsed))
-                ([test (in-port (curry read-syntax file) port)])
-        (load-test test parsed override-ctx)))))
+      (for/list ([test (in-port (curry our-read-syntax file) port)])
+        (parse-test test)))))
 
-(define (load-directory dir override-ctx)
+(define (load-directory dir)
   (apply append
          (for/list ([fname (in-directory dir)]
                     #:when (file-exists? fname)
                     #:when (equal? (filename-extension fname) #"fpcore"))
-           (load-file fname override-ctx))))
+           (load-file fname))))
 
-(define (load-tests path [override-ctx '()])
+(define (load-tests path)
   (define path* (if (string? path) (string->path path) path))
   (define out
     (cond
      [(equal? path "-")
-      (load-stdin override-ctx)]
+      (load-stdin)]
      [(directory-exists? path*)
-      (load-directory path* override-ctx)]
+      (load-directory path*)]
      [else
-      (load-file path* override-ctx)]))
+      (load-file path*)]))
   (define duplicates (find-duplicates (map test-name out)))
   (unless (null? duplicates)
     (warn 'duplicate-names

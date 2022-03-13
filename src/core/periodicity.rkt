@@ -18,7 +18,7 @@
 
 (require racket/match)
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "../points.rkt"
-         "../interface.rkt")
+         "../interface.rkt" "../ground-truth.rkt")
 
 (struct annotation (expr loc type coeffs) #:transparent)
 (struct lp (loc periods) #:prefab)
@@ -92,8 +92,8 @@
        `(λ ,vars ,(loop body (cons 2 loc)))]
       [(? real? x)
        (annotation x (reverse loc) 'constant x)]
-      [(? constant? c)
-       (define val ((constant-info c 'fl)))
+      [(list c)
+       (define val ((operator-info c 'fl)))
        (annotation val (reverse loc) 'constant val)]
       [(? variable? x)
        (annotation x (reverse loc) 'linear `((,x . 1)))]
@@ -181,8 +181,8 @@
 			 (if (or (> (apply max (map cdr (lp-periods ploc))) *max-period-coeff*))
 			     altn
 			     (let ([context
-                 (car
-                  (prepare-points
+                  (apply mk-pcontext
+                   (prepare-points
                     program
                     `(λ ,(program-variables program)
                        (and ,@(for/list ([(var period) (lp-periods ploc)])

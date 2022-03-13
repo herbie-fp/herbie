@@ -1,17 +1,16 @@
 #lang racket
 
-(require "core/matcher.rkt" "core/taylor.rkt" "core/overflow.rkt" "core/simplify.rkt"
+(require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "interface.rkt" "programs.rkt"
          "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
 
 (provide
   (contract-out
-   [patch-table-add! (-> expr? (listof symbol?) boolean? void?)]
-   [patch-table-get (-> expr? (listof alt?))]
    [patch-table-has-expr? (-> expr? boolean?)]
-   [patch-table-runnable? (-> boolean?)]
-   [patch-table-run (-> (listof alt?))]
-   [patch-table-run-simplify (-> (listof alt?) (listof alt?))]))
+   [patch-table-run-simplify (-> (listof alt?) (listof alt?))]
+   [patch-table-run (-> (listof (cons/c (listof symbol?) expr?))
+                        (listof (cons/c (listof symbol?) expr?))
+                        (listof alt?))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -51,14 +50,9 @@
 ; If `improve` is not provided, a key is added
 ; with no improvements
 (define (add-patch! expr [improve #f])
-  (cond
-   [(not (*use-improve-cache*)) (void)]
-   [improve
+  (when (*use-improve-cache*)
     (hash-update! (patchtable-table *patch-table*) expr
-                  (curry cons improve) (list))]
-   [else
-    (hash-update! (patchtable-table *patch-table*) expr
-                  identity (list))]))
+                  (if improve (curry cons improve) identity) (list))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Internals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -128,20 +122,24 @@
           (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
             (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
 
-    (define (is-nan? expr)
-      (and (hash-has-key? parametric-constants-reverse expr)
-          (equal? (hash-ref parametric-constants-reverse expr) 'NAN)))
+    ; Probably unnecessary, at least CI passes!
+    (define (is-nan? x)
+      (and (impl-exists? x) (equal? (impl->operator x) 'NAN)))
 
-    ; maybe necessary for CI to pass (this changes often)
     (define series-expansions*
-      (filter-not (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
-                  series-expansions))
+      (filter-not
+        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
+        series-expansions))
 
     ; TODO: accuracy stats for timeline
     (timeline-push! 'count (length (^queued^)) (length series-expansions*))
     (^series^ series-expansions*))
   (void))
 
+(define (bad-alt! altn)
+  (define expr (program-body (alt-program altn)))
+  (when (expr-contains? expr rewrite-repr-op?)
+    (error 'bad-alt! "containg rewrite repr ~a" expr)))
 
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
@@ -150,14 +148,6 @@
   (timeline-event! 'rewrite)
   (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
   (timeline-push! 'method (~a (object-name rewrite)))
-
-  (define overflow-minimized
-    (if (and (overflow-analysis-allowed?)
-              (not (null? (^queued^))))
-        (for/list ([altn (in-list (^queued^))]
-                  #:when (expr-supports? (program-body (alt-program altn)) 'ival))
-          (alt (minimize-overflow altn) (list 'overflow '(2)) (list altn)))
-        (list)))
 
   (define changelists
     (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
@@ -190,19 +180,16 @@
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
 
-  (define (repr-change altn)
-    (alt (apply-repr-change (alt-program altn)) (alt-event altn) (alt-prevs altn)))
-
   (define rewritten
-    (filter (compose program-body alt-program)  ; false body means failure
-      (append
-        (map repr-change overflow-minimized)
-        (for/list ([cls comb-changelists] [altn altns]
-                  #:when true [cl cls])
-          (for/fold ([altn altn] #:result (repr-change altn)) ([cng cl])
-              (alt (change-apply cng (alt-program altn))
-                  (list 'change cng)
-                  (list altn)))))))
+    (for/fold ([done '()] #:result (reverse done))
+              ([cls comb-changelists] [altn altns] #:when true [cl cls])
+      (let loop ([cl cl] [altn altn])
+        (if (null? cl)
+            (cons altn done)
+            (let ([prog* (apply-repr-change (change-apply (car cl) (alt-program altn)))])
+              (if (program-body prog*)
+                  (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
+                  done))))))
 
   (define rewritten*
     (if (and (*pareto-mode*) (> (length rewritten) 1000))
@@ -306,17 +293,37 @@
 (define (patch-table-runnable?)
   (or (not (null? (^queued^))) (not (null? (^queuedlow^)))))
 
-(define (patch-table-run)
-  (debug #:from 'progress #:depth 3 "generating series expansions")
-  (if (null? (^queued^))
-      (^series^ '())
-      (gen-series!))
-  (debug #:from 'progress #:depth 3 "generating rewritten candidates")
-  (gen-rewrites!)
-  (debug #:from 'progress #:depth 3 "simplifying candidates")
-  (simplify!)
-  (begin0 (^final^)
-    (patch-table-clear!)))
+(define (patch-table-run locs lowlocs)
+  (define cached
+    (for/fold ([qed '()] [ced '()]
+              #:result (begin0 (reverse ced) (^queued^ (reverse qed))))
+              ([(vars expr) (in-dict locs)])
+      (if (patch-table-has-expr? expr)
+          (values qed (cons expr ced))
+          (let ([altn* (alt `(λ ,vars ,expr) `(patch) '())])
+            (values (cons altn* qed) ced)))))
+  (^queuedlow^
+    (for/list ([(vars expr) (in-dict lowlocs)])
+      (alt `(λ ,vars ,expr) `(patch) '())))
+  (cond
+   [(and (null? (^queued^))       ; early exit, nothing queued
+         (null? (^queuedlow^))
+         (null? cached))
+    '()]
+   [(and (null? (^queued^))       ; only fetch cache
+         (null? (^queuedlow^)))
+    (append-map patch-table-get cached)]
+   [else                          ; run patches
+    (debug #:from 'progress #:depth 3 "generating series expansions")
+    (if (null? (^queued^))
+        (^series^ '())
+        (gen-series!))
+    (debug #:from 'progress #:depth 3 "generating rewritten candidates")
+    (gen-rewrites!)
+    (debug #:from 'progress #:depth 3 "simplifying candidates")
+    (simplify!)
+    (begin0 (apply append (^final^) (map patch-table-get cached))
+      (patch-table-clear!))]))
 
 (define (patch-table-run-simplify altns)
   (^rewrites^ (append altns (if (^rewrites^) (^rewrites^) '())))

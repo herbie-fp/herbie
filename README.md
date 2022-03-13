@@ -1,8 +1,6 @@
 ![Herbie](logo.png)
 
 
-[![Build Status](https://travis-ci.org/uwplse/herbie.svg?branch=master)](https://travis-ci.org/uwplse/herbie)
-
 Herbie automatically improves the error of floating point expressions.
 Visit [our website](https://herbie.uwplse.org) for tutorials,
 documentation, and an online demo. Herbie has semi-regular releases
@@ -63,7 +61,7 @@ Herbie development is organized on our
 where we discuss work in progress and announce major improvements.
 [Email us](mailto:herbie@cs.washington.edu) to get involved!
 
-We use [Github](https://github.com/uwplse/herbie) and
+We use [Github](https://github.com/herbie-fp/herbie) and
 [Trello](https://trello.com/b/lh7b33Dr/herbie) to organize development
 goals.
 

@@ -72,19 +72,19 @@
     ("FPCore" . ,(λ (c i) (fpcore->string c)))
     ("C" . ,(λ (c i) (core->c c (if i (symbol->string i) "code"))))))
 
-(define (render-preprocess-struct preprocess)
-  (define vars (string-append "[" (string-join (map symbol->string (symmetry-group-variables preprocess)) ", ") "]"))
-  `(div ([class "program math"])
-        "\\[" ,vars "=" ,(string-append "\\mathsf{sort}(" vars ")") "\\]"))
-
 (define (render-preprocess preprocess-structs)
-  `(div ([id "preprocess"])
-        ,@(map render-preprocess-struct preprocess-structs)))
+  `(div ([id "preprocess"] [class "program math"])
+        "\\["
+        ,@(for/list ([preprocess preprocess-structs])
+            (match preprocess
+              [`(sort ,vars ...)
+               (define varstring (format "[~a]" (string-join (map ~a vars) ", ")))
+               (format "~a = \\mathsf{sort}(~a) \\" varstring varstring)]))
+        "\\]"))
 
 (define (render-program #:to [result #f] preprocess test)
   (define identifier (test-identifier test))
-  (define output-prec (test-output-prec test))
-  (define output-repr (get-representation output-prec))
+  (define output-repr (test-output-repr test))
 
   (define in-prog (program->fpcore (resugar-program (test-program test) output-repr) #:ident identifier))
   (define out-prog
@@ -92,6 +92,7 @@
          (parameterize ([*expr-cse-able?* at-least-two-ops?])
            (core-cse (program->fpcore (resugar-program result output-repr) #:ident identifier)))))
 
+  (define output-prec (representation-name output-repr))
   (define in-prog* (fpcore-add-props in-prog (list ':precision output-prec)))
   (define out-prog* (and out-prog (fpcore-add-props out-prog (list ':precision output-prec))))
 
@@ -114,7 +115,7 @@
         (values "" "")))
 
   `(section ([id "program"])
-     ,(if (equal? (program-body (test-precondition test)) 'TRUE)
+     ,(if (equal? (program-body (test-precondition test)) '(TRUE))
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
@@ -165,8 +166,8 @@
          (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
          (format "(FPCore ~a" (test-vars test)))
      (format "  :name ~s" (test-name test))
-     (format "  :precision ~s" (test-output-prec test))
-     (if (equal? (program-body (test-precondition test)) 'TRUE)
+     (format "  :precision ~s" (representation-name (test-output-repr test)))
+     (if (equal? (program-body (test-precondition test)) '(TRUE))
          #f
          (format "  :pre ~a" (resugar-program (program-body (test-precondition test)) output-repr)))
      (if (equal? (test-expected test) #t)
@@ -186,7 +187,7 @@
     (h1 "Reproduce")
     ,(if bug?
          `(p "Please include this information when filing a "
-             (a ((href "https://github.com/uwplse/herbie/issues")) "bug report") ":")
+             (a ((href "https://github.com/herbie-fp/herbie/issues")) "bug report") ":")
          "")
     (pre ((class "shell"))
          (code
