@@ -50,9 +50,12 @@
       (for/or ([proc repr-generators])
         ;; Check if a user accidently created an infinite loop in their plugin!
         (when (eq? proc (*current-generator*))
-          (raise-herbie-error "Tried to generate ~a representation while generating the \
-            same representation. Check your plugin to make sure you register your representation(s) \
-            before calling `get-representation`!"))
+          (raise-herbie-error 
+            (string-append
+              "Tried to generate `~a` representation while generating the same representation. "
+              "Check your plugin to make sure you register your representation(s) "
+              "before calling `get-representation`!")
+            repr-name))
         (parameterize ([*current-generator* proc])
           (proc repr-name)))))
 

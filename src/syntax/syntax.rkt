@@ -132,7 +132,7 @@
 
 ;; Operator implementations
 
-(struct operator-impl (name op itype otype fl))
+(struct operator-impl (name op itype otype fl bf ival))
 (define operator-impls (make-hasheq))
 
 (define operators-to-impls (make-hasheq))
@@ -157,9 +157,9 @@
     (match field
       ['itype operator-impl-itype]
       ['otype operator-impl-otype]
-      ['bf (compose operator-bf operator-impl-op)]
+      ['bf operator-impl-bf]
       ['fl operator-impl-fl]
-      ['ival (compose operator-ival operator-impl-op)]))
+      ['ival operator-impl-ival]))
   (accessor (hash-ref operator-impls operator)))
 
 (define/contract (operator-remove! operator)
@@ -174,6 +174,8 @@
 
   (define op (hash-ref operators operator))
   (define fl-fun (dict-ref attrib-dict 'fl))
+  (define bf-fun (dict-ref attrib-dict 'bf (lambda () (operator-bf op))))
+  (define ival-fun (dict-ref attrib-dict 'ival (lambda () (operator-ival op))))
 
   (unless (equal? operator 'if) ;; Type check all operators except if
     (for ([arepr (cons rrepr areprs)]
@@ -183,7 +185,8 @@
                "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
                name operator rrepr (operator-otype op)))))
 
-  (hash-set! operator-impls name (operator-impl name op areprs rrepr fl-fun))
+  (define impl (operator-impl name op areprs rrepr fl-fun bf-fun ival-fun))
+  (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls operator (curry cons name) '()))
   
 

@@ -162,6 +162,8 @@
        [(list op args ...)
         (define fn (operator-info op mode))
         (define atypes (operator-info op 'itype))
+        (unless (and fn atypes)
+          (error 'munge "Could not find operator field ~a for ~a" mode op))
         (cons fn (map munge args atypes))]
        [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
