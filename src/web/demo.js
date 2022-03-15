@@ -211,8 +211,8 @@ function get_errors() {
 
 function check_errors() {
     var input = document.querySelector("[name=formula-math]");
-    var pre = document.querySelector("[name=pre]");
-    var errors = get_errors([input.value, "real"], [pre.value || "TRUE", "bool"]);
+    
+    var errors = get_errors([input.value, "real"]);
 
     if (!input.value) {
         document.getElementById("errors").innerHTML = "";
@@ -373,7 +373,6 @@ function onload() {
 
     function hide(selector) { document.querySelector(selector).style.display = 'none' }
     hide('#formula textarea')
-    hide('#formula .extra-fields')
 
     var form = new Form(document.getElementById("formula"));
 
