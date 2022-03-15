@@ -22,6 +22,7 @@
   (name type repr?
    bf->repr repr->bf ordinal->repr repr->ordinal
    total-bits special-values)
+  #:transparent
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])

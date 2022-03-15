@@ -104,10 +104,6 @@
   (register-ruleset! rulename4 '(arithmetic simplify) (list (cons 'a repr2))
     (list (list rulename4 `(,conv1 (,conv2 a)) 'a))))
 
-;; repr canonicalization
-(define (canoncalize-repr repr)
-  (get-representation (representation-name repr)))
-
 ;; generate conversions, precision rewrites, etc.
 (define (generate-prec-rewrites convs)
   (for/fold ([reprs '()]) ([conv convs])
@@ -116,7 +112,7 @@
     (*conversions* (hash-update (*conversions*) repr1 (curry cons repr2) '()))
     (*conversions* (hash-update (*conversions*) repr2 (curry cons repr1) '()))
     (generate-prec-rewrite repr1 repr2)
-    (*needed-reprs* (set-union (*needed-reprs*) (map canoncalize-repr (list repr1 repr2))))))
+    (*needed-reprs* (set-union (*needed-reprs*) (list repr1 repr2)))))
 
 ;; invoked before desugaring
 (define (generate-conversions convs)
@@ -129,7 +125,6 @@
       (warn 'conversions "Duplicate conversion (~a ~a)\n"
             (representation-name repr1) (representation-name repr2)))
     (set-add! convs* (cons repr1 repr2))))
-
 
 ;; try built in reprs
 (module+ test
