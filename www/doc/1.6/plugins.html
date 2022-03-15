@@ -86,8 +86,8 @@
   <a href="https://docs.racket-lang.org/pkg/getting-started.html#%28part._how-to-create%29">
   raco</a> tool for more information.</p>
 
-  <p>A single entry needs to be added to the package manifest stored in <code>info.rkt</code>, and
-  Add the following line at the bottom of the file <code>(define herbie-plugin '<i>name</i>)</code>
+  <p>A single entry needs to be added to the package manifest stored in <code>info.rkt</code>,
+  and add <code>(define herbie-plugin '<i>name</i>)</code> to the bottom of the file
   where <i>name</i> is a unique symbol that doesn't conflict with other Herbie plugins.
   As a suggestion, this should just be the package name.</p>
 
@@ -96,7 +96,7 @@
   This gives the package access to the Herbie plugin interface.
   Optionally add the following for debugging purposes
   <code>(eprintf "Loading <i>pkg-name</i> support...\n")</code>
-  near the top of the file.</p>
+  directly after the <i>require</i> statement.</p>
 
   <p>Finally, run the following in the folder containing <code>info.rkt</code>
   and <code>main.rkt</code>:
@@ -206,6 +206,7 @@
       To define operators with an unknown number of arguments, e.g. comparators,
       add the attribute <code>[itype <i>itype</i>]</code>.
       This will override the input type names defined by <code><i>itype-names</i></code>.
+      See the bottom of this section for support for constants.
     </dd>
 
     <dt>
@@ -225,9 +226,10 @@
       The argument <code><i>fl-fn</i></code> is the actual procedure that does the computation.
       Like <code>define-operator</code>, the input representations can be
       overridden with <code>[itype <i>irepr</i>]</code>.
-      By default, the attributes <code>bf</code>, <code>ival</code>, and <code>nonffi</code>
+      By default, the attributes <code>bf</code> and <code>ival</code>
       are inherited from <code><i>op</i></code> but can be overridden as previously
       described.
+      See the bottom of this section for support for constant implementations.
     </dd>
 
     <dt>
@@ -299,12 +301,11 @@
   <dl>
     <dt><code>(<b>get-representation</b> name)</code></dt>
     <dd>Takes a representation name and returns a representation object.
-      Do not call this function if the associated representation has
-      not been registered yet!
+      Do not call this function before the associated representation has been registered!
     </dd>
   </dl>
 
-  <p>The following procedures handles generators:</p>
+  <p>The following procedures handle generators:</p>
 
   <dl>
     <dt><code>(<b>register-generator!</b> gen)</code></dt>
@@ -327,7 +328,7 @@
       Conversions are one-argument operator implementations of the <code>cast</code>
         operator that have one representation as an input representation and
         a different representation as an output representation.
-      User-defined conversions are not required for multi-precision optimization,
+      User-defined conversions are <i>OPTIONAL</i> for multi-precision optimization,
         since Herbie can synthesize these by default.
       However Herbie's implementations are often slow since they are
         representation-agnostic and work for any two representations.
