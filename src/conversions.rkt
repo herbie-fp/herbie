@@ -11,8 +11,6 @@
 
 (define *conversions* (make-parameter (hash)))
 
-(define replace-table `((" " . "_") ("(" . "") (")" . "")))
-
 (define/contract (string-replace* str changes)
   (-> string? (listof (cons/c string? string?)) string?)
   (let loop ([str str] [changes changes])
