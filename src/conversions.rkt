@@ -106,17 +106,19 @@
   (register-ruleset! rulename4 '(arithmetic simplify) (list (cons 'a repr2))
     (list (list rulename4 `(,conv1 (,conv2 a)) 'a))))
 
+;; repr canonicalization
+(define (canoncalize-repr repr)
+  (get-representation (representation-name repr)))
+
 ;; generate conversions, precision rewrites, etc.
 (define (generate-prec-rewrites convs)
-  (define reprs
-    (for/fold ([reprs '()]) ([conv convs])
-      (define repr1 (first conv))
-      (define repr2 (last conv))
-      (*conversions* (hash-update (*conversions*) repr1 (curry cons repr2) '()))
-      (*conversions* (hash-update (*conversions*) repr2 (curry cons repr1) '()))
-      (generate-prec-rewrite repr1 repr2)
-      (set-union reprs (list repr1 repr2))))
-  (*needed-reprs* (set-union reprs (*needed-reprs*))))
+  (for/fold ([reprs '()]) ([conv convs])
+    (define repr1 (first conv))
+    (define repr2 (last conv))
+    (*conversions* (hash-update (*conversions*) repr1 (curry cons repr2) '()))
+    (*conversions* (hash-update (*conversions*) repr2 (curry cons repr1) '()))
+    (generate-prec-rewrite repr1 repr2)
+    (*needed-reprs* (set-union (*needed-reprs*) (map canoncalize-repr (list repr1 repr2))))))
 
 ;; invoked before desugaring
 (define (generate-conversions convs)

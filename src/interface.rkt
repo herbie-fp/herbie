@@ -40,7 +40,7 @@
 (define *current-generator* (make-parameter #f))
 
 (define/contract (register-generator! proc)
-  (-> (-> any/c boolean?) void?)
+  (-> (-> any/c any/c) void?)
   (unless (set-member? repr-generators proc)
     (set! repr-generators (cons proc repr-generators))))
 
@@ -49,7 +49,8 @@
   (or (hash-has-key? representations repr-name)
       (for/or ([proc repr-generators])
         ;; Check if a user accidently created an infinite loop in their plugin!
-        (when (eq? proc (*current-generator*))
+        (when (and (eq? proc (*current-generator*))
+                   (not (hash-has-key? representations repr-name)))
           (raise-herbie-error 
             (string-append
               "Tried to generate `~a` representation while generating the same representation. "
@@ -78,6 +79,10 @@
     (define repr (apply representation name (get-type type) repr? args))
     (set! representations (hash-set representations name repr))]
    [(name repr)
+    (unless (representation? repr)
+      (error' register-representation!
+             "Expected a representation. Received ~a. Check your plugins!!"
+             repr))
     (set! representations (hash-set representations name repr))]))
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
