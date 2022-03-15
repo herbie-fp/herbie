@@ -174,8 +174,8 @@
 
   (define op (hash-ref operators operator))
   (define fl-fun (dict-ref attrib-dict 'fl))
-  (define bf-fun (dict-ref attrib-dict 'bf (lambda () (operator-bf op))))
-  (define ival-fun (dict-ref attrib-dict 'ival (lambda () (operator-ival op))))
+  (define bf-fun (dict-ref attrib-dict 'bf (λ () (operator-bf op))))
+  (define ival-fun (dict-ref attrib-dict 'ival (λ () (operator-ival op))))
 
   (unless (equal? operator 'if) ;; Type check all operators except if
     (for ([arepr (cons rrepr areprs)]

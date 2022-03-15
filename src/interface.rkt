@@ -66,10 +66,19 @@
       (and (generate-repr name) (hash-ref representations name #f))
       (raise-herbie-error "Could not find support for ~a representation" name)))
 
-(define (register-representation! name type repr? . args)
-  (set! representations
-    (hash-set representations name
-              (apply representation name (get-type type) repr? args))))
+;; Registers a representation that can be invoked with ':precision <name>'.
+;; This function comes in two forms:
+;;  (1) Creates a new representation with the given traits
+;;      and associates it with the same name.
+;;  (2) Associates an existing representation with a
+;;      (possibly different) name; useful for aliasing.
+(define register-representation!
+  (case-lambda
+   [(name type repr? . args)
+    (define repr (apply representation name (get-type type) repr? args))
+    (set! representations (hash-set representations name repr))]
+   [(name repr)
+    (set! representations (hash-set representations name repr))]))
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
   (register-representation! 'name 'type repr? args ...))
