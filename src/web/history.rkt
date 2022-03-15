@@ -114,12 +114,4 @@
                                                       (core->tex prog* #:loc (change-location cng) #:color "blue")
                                                       "ERROR")
                                                   "\\]")))]
-    [(alt prog (list 'overflow loc) `(,prev))
-      (define prog* (program->fpcore (resugar-program prog repr)))
-      `(,@(render-history prev pcontext pcontext2 repr)
-       (li (p "Overflow analysis" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc loc #:color "blue") 
-                                                      "ERROR") 
-                                                  "\\]")))]
     ))
