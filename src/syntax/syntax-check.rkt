@@ -1,7 +1,7 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
+(require "../common.rkt" "../conversions.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
 (provide assert-program!)
 (module+ test (require rackunit "../load-plugin.rkt"))
 
@@ -115,15 +115,19 @@
     (check-expression* (dict-ref prop-dict ':herbie-target) vars error!))
     
   (when (dict-has-key? prop-dict ':herbie-conversions)
-    (define conversions (dict-ref prop-dict ':herbie-conversions))
-    (if (list? (syntax-e conversions))
-        (for ([conv (syntax->datum conversions)])
-          (unless (and (list? conv) (= (length conv) 2))
-            (error! conversions "Invalid conversion ~a; Valid example: (binary64 binary32)" conv))
+    (define conversion-stx (dict-ref prop-dict ':herbie-conversions))
+    (cond
+     [(list? (syntax-e conversion-stx))
+      (define conversions (syntax->datum conversion-stx))
+      (for ([conv conversions])
+        (match conv
+         [(list repr-name-1 repr-name2)
           (define known-repr? (and (generate-repr (first conv)) (generate-repr (second conv))))
-          (unless known-repr?
-            (error! conversions "Unknown precision in conversion ~a" conv)))
-        (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions)))
+          (unless known-repr? (error! conversion-stx "Unknown precision in conversion ~a" conv))]
+         [_ (error! conversion-stx "Invalid conversion ~a; Valid example: (binary64 binary32)" conv)]))
+      (generate-conversions (map (curry map get-representation) conversions))]
+     [else
+      (error! conversion-stx "Invalid :herbie-conversions ~a; must be a list" conversion-stx)]))
 )
 
 (define (check-program* stx vars props body error!)
