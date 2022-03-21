@@ -9,7 +9,10 @@
           generate-repr)
 
 (module+ internals 
-  (provide define-representation register-generator! register-representation!))
+  (provide define-representation
+           register-generator!
+           register-representation!
+           register-representation-alias!))
 
 (define *reprs-with-rules* (make-parameter '()))
 (define *needed-reprs* (make-parameter '()))
@@ -69,22 +72,22 @@
       (raise-herbie-error "Could not find support for ~a representation" name)))
 
 ;; Registers a representation that can be invoked with ':precision <name>'.
-;; This function comes in two forms:
-;;  (1) Creates a new representation with the given traits
-;;      and associates it with the same name.
-;;  (2) Associates an existing representation with a
-;;      (possibly different) name; useful for aliasing.
-(define register-representation!
-  (case-lambda
-   [(name type repr? . args)
-    (define repr (apply representation name (get-type type) repr? args))
-    (set! representations (hash-set representations name repr))]
-   [(name repr)
-    (unless (representation? repr)
-      (error' register-representation!
-             "Expected a representation. Received ~a. Check your plugins!!"
-             repr))
-    (set! representations (hash-set representations name repr))]))
+;; Creates a new representation with the given traits and associates it
+;; with the same name. See `register-representation-alias!` for associating
+;; a representation with a different name.
+(define (register-representation! name type repr? . args)
+  (define repr (apply representation name (get-type type) repr? args))
+  (set! representations (hash-set representations name repr)))
+
+;; Associates an existing representation with a (possibly different) name.
+;; Useful for defining an common alias for an equivalent representation,
+;; e.g. float for binary32.
+(define (register-representation-alias! name repr)
+  (unless (representation? repr)
+      (error' register-representation-alias!
+              "Expected a representation. Received ~a. Check your plugins!!"
+              repr))
+  (set! representations (hash-set representations name repr)))
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
   (register-representation! 'name 'type repr? args ...))

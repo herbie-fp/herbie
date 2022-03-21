@@ -6,7 +6,8 @@
          "errors.rkt" "interface.rkt")
 (provide define-type define-representation define-operator-impl
          define-operator define-ruleset define-ruleset*
-         register-ruleset! register-operator-impl! register-representation!
+         register-ruleset! register-operator-impl! 
+         register-representation! register-representation-alias!
          register-conversion-generator!
          register-generator! register-operator!
          (struct-out representation) get-representation
