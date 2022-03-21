@@ -371,6 +371,9 @@ function get_input_range_errors([low, high] = [undefined, undefined], empty_if_m
 
 function onload() {
 
+    // Only records ranges the user intentionally set.
+    window.KNOWN_INPUT_RANGES = { /* "x" : [-1, 1] */ }
+
     function hide(selector) { document.querySelector(selector).style.display = 'none' }
     hide('#formula textarea')
 
@@ -387,9 +390,6 @@ function onload() {
     else STATE = "math";
 
     setup_state(STATE, form);
-
-    // Only records ranges the user intentionally set.
-    window.KNOWN_INPUT_RANGES = { /* "x" : [-1, 1] */ }
 
     function html(string) {
         const t = document.createElement('template');
