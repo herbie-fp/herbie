@@ -106,7 +106,7 @@
 
 ;; generate conversions, precision rewrites, etc.
 (define (generate-prec-rewrites convs)
-  (for/fold ([reprs '()]) ([conv convs])
+  (for ([conv convs])
     (define repr1 (first conv))
     (define repr2 (last conv))
     (*conversions* (hash-update (*conversions*) repr1 (curry cons repr2) '()))
