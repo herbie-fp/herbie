@@ -62,7 +62,7 @@ a:hover {text-decoration: underline; color: #295785}
 #formula .extra-fields input, .extra-fields select { width: 80%; font-size: 100%; }
 #errors li { color: #800; }
 #formula button[type=submit].hidden { visibility: hidden; height: 0; }
-
+#mathjs-instructions, #lis { margin-top: 3em;}
 #mathjs-instructions-test { width: 100%; font-size: 125%; }
 input.input-range { width: auto !important; }
 .input-range-view { margin-top: 15px; margin-bottom: 15px; }
