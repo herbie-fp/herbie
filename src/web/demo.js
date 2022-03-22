@@ -198,30 +198,46 @@ function dump_tree(tree, names) {
 
 function get_errors() {
     var tree, errors = [];
+    let parse_fail = false
     for (var i = 0; i < arguments.length; i++) {
         try {
             tree = math.parse(arguments[i][0]);
             errors = errors.concat(tree_errors(tree, arguments[i][1]));
         } catch (e) {
+            parse_fail = true
             errors.push("" + e);
         }
     }
+    if (!parse_fail) {
+        const input = document.querySelector("[name=formula-math]")
+        errors = [...errors, ...get_varnames_mathjs(input.value).map(varname => get_input_range_errors(KNOWN_INPUT_RANGES[varname], true).map(s => "RangeError: " + varname + ": " + s)).flat()]
+    }
     return errors;
+}
+
+function get_warnings() {
+    try {
+        const input = document.querySelector("[name=formula-math]")
+        return get_varnames_mathjs(input.value).map(varname => get_input_range_warnings(KNOWN_INPUT_RANGES[varname]).map(s => "RangeWarning: " + varname + ": " + s)).flat()
+    } catch (e) {
+        return []
+    }
 }
 
 function check_errors() {
     var input = document.querySelector("[name=formula-math]");
     
     var errors = get_errors([input.value, "real"]);
+    var warnings = get_warnings();
 
+    document.getElementById("errors").innerHTML = errors.length == 0 || !input.value ? "" : "<li>" + errors.join("</li><li>") + "</li>";
+    document.getElementById("warnings").innerHTML = warnings.length == 0 || !input.value ? "" : "<li>" + warnings.join("</li><li>") + "</li>";
+    
     if (!input.value) {
-        document.getElementById("errors").innerHTML = "";
         return false;
     } else if (errors.length > 0) {
-        document.getElementById("errors").innerHTML = "<li>" + errors.join("</li><li>") + "</li>";
         return false;
     } else {
-        document.getElementById("errors").innerHTML = "";
         return true;
     }
 }
@@ -276,10 +292,13 @@ function setup_state(state, form) {
 
     if (!form.a_fpcore) {
         form.a_fpcore = document.createElement("a");
-        form.a_fpcore.textContent = "FPCore input";
+        form.a_fpcore.textContent = "Convert to FPCore input";
         form.a_fpcore.addEventListener("click", function(evt) {
             if (form.math.value) {
-                if (!check_errors()) return evt.preventDefault();
+                if (!check_errors()) {
+                    alert("Please fix all errors before attempting to use FPCore input.")
+                    return evt.preventDefault();
+                }
                 var fpcore = dump_fpcore(form.math.value, get_precondition_from_input_ranges(form), ''/*form.prec.value*/);
                 form.fpcore.value = fpcore;
             }
@@ -289,23 +308,23 @@ function setup_state(state, form) {
     }
     form.extra_links.appendChild(form.a_fpcore);
 
-    if (!form.a_mathjs) {
-        form.a_mathjs = document.createElement("a");
-        form.a_mathjs.textContent = "back to MathJS input";
-        form.a_mathjs.addEventListener("click", function(evt) {
-            setup_state("math", form);
-        });
+    // if (!form.a_mathjs) {
+    //     form.a_mathjs = document.createElement("a");
+    //     form.a_mathjs.textContent = "back to MathJS input";
+    //     form.a_mathjs.addEventListener("click", function(evt) {
+    //         setup_state("math", form);
+    //     });
         
-    }
-    form.extra_links.appendChild(form.a_mathjs);
+    // }
+    // form.extra_links.appendChild(form.a_mathjs);
     
     if (state == "math") {
         form.fpcore.style.display = "none";
         form.math.style.display = "block";
-        form.input_ranges.style.display = "block";
+        form.input_ranges.style.display = "table";
         document.querySelector("#lisp-instructions").style.display = "none";
         document.querySelector("#mathjs-instructions").style.display = "block";
-        form.extra_links.removeChild(form.a_mathjs)
+        //form.extra_links.removeChild(form.a_mathjs)
         update_run_button_mathjs(form)
     } else {
         form.fpcore.style.display = "block";
@@ -314,13 +333,13 @@ function setup_state(state, form) {
         document.querySelector("#lisp-instructions").style.display = "block";
         document.querySelector("#mathjs-instructions").style.display = "none";
         form.extra_links.removeChild(form.a_fpcore)
+        //form.extra_links.removeChild(form.a_mathjs)  // (we can't reverse the formula; could throw it out?)
         form.button.classList.remove("hidden");
         form.button.removeAttribute("disabled");
     }
 }
 
 function get_varnames_mathjs(mathjs_text) {
-    /* ASK confirm that this should get the variable names */
     const names = []
     dump_tree(math.parse(mathjs_text), names)
     var dnames = [];
@@ -369,6 +388,13 @@ function get_input_range_errors([low, high] = [undefined, undefined], empty_if_m
     return A
 }
 
+function get_input_range_warnings([low, high] = [undefined, undefined]) {
+    if ((low === undefined || low === '') || (high === undefined || high === '')) return []
+    const A = []
+    if (Number(low) == Number(high)) A.push(`This is a single point.`)
+    return A
+}
+
 function onload() {
 
     // Only records ranges the user intentionally set.
@@ -403,10 +429,10 @@ function onload() {
         const low_id = `${varname}_low`
         const high_id = `${varname}_high`
         const default_options = ['-1.79e308', '-1e9', '-1e3', '-1', '0', '1', '1e3', '1e9', '1.79e308']
-        function input_view(id, value) {
+        function input_view(id, value, placeholder) {
             return `
                 <div id="${id}_dropdown" class="dropdown">
-                    <input id="${id}" class="input-range" autocomplete="off" placeholder="-1e3" ${value ? `value="${value}"` : ``}>
+                    <input id="${id}" class="input-range" autocomplete="off" placeholder="${placeholder}" ${value ? `value="${value}"` : ``}>
                     <div class="dropdown-content">
                         ${default_options.map(s => `<div>${s}</div>`).join('')}
                     </div>
@@ -416,47 +442,41 @@ function onload() {
         const error_msgs = get_input_range_errors(KNOWN_INPUT_RANGES[varname], true)
         const warning_msgs = get_warnings(KNOWN_INPUT_RANGES[varname])
         const view = html(`
-            <div id="${varname}_input" class="input-range-view">
-                <div>
-                <span class="varname"> ${varname}: </span> 
-                ${input_view(low_id, low)} to ${input_view(high_id, high)}</div>
-                <ul id="errors" style="display: ${error_msgs.length > 0 ? 'block' : 'none'}">${error_msgs.map(msg => `<li>${msg}</li>`).join('')}</ul>
-                <ul id="warnings" style="display: ${warning_msgs.length > 0 ? 'block' : 'none'}">${warning_msgs.map(msg => `<li>${msg}</li>`).join('')}</ul>
-
-            </div>`)
+                <tr id="${varname}_input" class="input-range-view">
+                <td class="varname">
+                    ${varname}:
+                </td>
+                <td>${input_view(low_id, low, '-1e3')}</td> <td>to</td> <td>${input_view(high_id, high, '1e3')}</td>
+                </tr>`)
 
         const low_el = view.querySelector(`#${low_id}`)
         
-        function get_warnings([low, high] = [undefined, undefined]) {
-            if ((low === undefined || low === '') || (high === undefined || high === '')) return []
-            const A = []
-            if (Number(low) == Number(high)) A.push(`(This is a single point.)`)
-            return A
-        }
+
 
         function show_errors(root=document) {
-            const error_msgs = get_input_range_errors(KNOWN_INPUT_RANGES[varname], true)
+            //const error_msgs = get_input_range_errors(KNOWN_INPUT_RANGES[varname], true)
             root.querySelectorAll(`#${varname}_input input`).forEach(input => {
                 input.style['background-color'] = input.value === '' ? '#a6ffff3d' : 'initial'
             })
-            const e = root.querySelector(`#${varname}_input #errors`)
-            e.innerHTML = error_msgs.map(msg => `<li>${msg}</li>`).join('')
-            e.style.display = error_msgs.length > 0 ? 'block' : 'none'
+            // const e = root.querySelector(`#${varname}_input #errors`)
+            // e.innerHTML = error_msgs.map(msg => `<li>${msg}</li>`).join('')
+            // e.style.display = error_msgs.length > 0 ? 'block' : 'none'
         }
-        function show_warnings(root=document) {
-            const warning_msgs = get_warnings(KNOWN_INPUT_RANGES[varname])
-            const e = root.querySelector(`#${varname}_input #warnings`)
-            e.innerHTML = warning_msgs.map(msg => `<li>${msg}</li>`).join('')
-            e.style.display = warning_msgs.length > 0 ? 'block' : 'none'
-        }
+        // function show_warnings(root=document) {
+        //     // const warning_msgs = get_input_range_warnings(KNOWN_INPUT_RANGES[varname])
+        //     // const e = root.querySelector(`#${varname}_input #warnings`)
+        //     // e.innerHTML = warning_msgs.map(msg => `<li>${msg}</li>`).join('')
+        //     // e.style.display = warning_msgs.length > 0 ? 'block' : 'none'
+        // }
         function set_input_range({ low, high }) {
             if (low !== undefined) low_el.value = low
             if (high !== undefined) high_el.value = high
             if (!KNOWN_INPUT_RANGES[varname]) { KNOWN_INPUT_RANGES[varname] = [undefined, undefined] }
             const [old_low, old_high] = KNOWN_INPUT_RANGES[varname]
             KNOWN_INPUT_RANGES[varname] = [low ?? old_low, high ?? old_high]
+            check_errors()
             show_errors()
-            show_warnings()
+            //show_warnings()
             update_run_button_mathjs(form)
         }
         low_el.addEventListener('input', () => set_input_range({ low: low_el.value }))
@@ -474,6 +494,7 @@ function onload() {
             e.addEventListener('pointerdown', handler)
         })
 
+        check_errors()
         show_errors(view)
 
         return view
@@ -493,8 +514,8 @@ function onload() {
         if (!check_errors()) { return }
         const varnames = get_varnames_mathjs(form.math.value)
         const range_div = document.querySelector('#input-ranges')
-        const range_prompt = varnames.length > 0 ? html(`<div>Please specify the approximate range of each input so that Herbie can optimize for your use case.</div>`) : ``
-        range_div.replaceChildren(range_prompt, ...varnames.map(range_inputs))
+        //const range_prompt = varnames.length > 0 ? html(`<div>Please specify the approximate range of each input so that Herbie can optimize for your use case.</div>`) : ``
+        range_div.replaceChildren(...varnames.map(range_inputs))
     }
     check_errors_and_draw_ranges()
     

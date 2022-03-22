@@ -97,16 +97,18 @@
     #:title (if (*demo?*) "Herbie web demo" "Herbie")
     #:show-title (*demo?*)
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "demo.js")
-    `(p "Enter a formula below, and Herbie will try to improve it.")
+    `(p "Write a formula below, and Herbie will try to improve it. Enter approximate ranges for inputs.")
     `(form ([action ,(url improve)] [method "post"] [id "formula"]
             [data-progress ,(url improve-start)])
-           (textarea ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
-           (input ([name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"]))
-           (div ([class "extra-links"]))
-           (ul ([id "errors"]))
-           (div ([id "input-ranges"]))
-           (button ([id "run_herbie"] [type "submit"] [tabindex "-1"]) "Improve with Herbie")
-           (pre ([id "progress"] [style "display: none;"])))
+          
+        (textarea ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
+        (input ([name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"]))
+        (table ([id "input-ranges"]))
+        (ul ([id "errors"]))
+        (ul ([id "warnings"]))
+        (button ([id "run_herbie"] [type "submit"] [tabindex "-1"]) "Improve with Herbie")
+        (span ([class "extra-links"]))
+        (pre ([id "progress"] [style "display: none;"])))
 
     (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "

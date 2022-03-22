@@ -46,11 +46,13 @@ ul {padding-left: 1em;}
 a {color: #2A6496; text-decoration: none}
 a:hover {text-decoration: underline; color: #295785}
 
-#formula textarea, #formula input { width: 100%; font-size: 125%; }
+#formula textarea, #formula input { width: 100%; font-size: 125%; background-color: white; border: 1px solid rgba(222, 229, 231, 1); border-radius: 2px; }
 #formula textarea { font-family: monospace; height: 7em; }
+#input-ranges { margin-top: .1em; }
+#input-ranges td {padding-top: .4em; }
 .extra-fields { margin-top: 1em; }
 .extra-links {
-    display: block; text-align: right; margin-top: .5em; cursor: pointer;
+    float: right; margin-top: .2em; cursor: pointer;
 }
 .extra-links a:after {
      content: "•"; color: black; display: inline-block; padding: 0 1ex;
@@ -74,7 +76,7 @@ input.input-range { width: auto !important; }
 .dropdown-content div:hover {background-color: #f1f1f1}
 .dropdown-content:hover { display: block; }
 .dropdown:focus-within .dropdown-content { display: block; }
-#warnings li { background: #fd0; width: fit-content; }
+#warnings li { color: orange; }
 
 #progress {
     font-size: 14px; font-family: sans-serif; background-color: #f1f1f1;
