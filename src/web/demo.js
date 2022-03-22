@@ -102,13 +102,12 @@ function bottom_up(tree, cb) {
     return tree;
 }
 
-function dump_fpcore(formula, pre, precision) {
+function dump_fpcore(formula) {
     var tree = math.parse(formula);
-    var ptree = math.parse(pre);
 
     var names = [];
     var body = dump_tree(tree, names);
-    var precondition = dump_tree(ptree, names);
+    var precondition = get_precondition_from_input_ranges(formula);
 
     var dnames = [];
     for (var i = 0; i < names.length; i++) {
@@ -117,8 +116,7 @@ function dump_fpcore(formula, pre, precision) {
 
     var name = formula.replace("\\", "\\\\").replace("\"", "\\\"");
     var fpcore = "(FPCore (" + dnames.join(" ") + ")\n  :name \"" + name + "\"";
-    if (pre) fpcore += "\n  :pre " + precondition;
-    if (precision) fpcore += "\n  :precision " + precision;
+    if (precondition) fpcore += "\n  :pre " + precondition;
 
     return fpcore + "\n  "  + body + ")";
 }
@@ -277,12 +275,13 @@ function Form(form) {
     this.button = form.querySelector("[type=submit]")
 }
 
-function get_precondition_from_input_ranges(form) {
-    return get_varnames_mathjs(form.math.value)
-        .map(name => ([name, KNOWN_INPUT_RANGES[name]]))
-        .filter(([_, range]) => get_input_range_errors(range).length == 0)
-        .map(([name, [start, end]]) => `((${start} <= ${name} <= ${end}))`)
-        .join(' and ')
+function get_precondition_from_input_ranges(formula) {
+    const checks = get_varnames_mathjs(formula)
+    .map(name => ([name, KNOWN_INPUT_RANGES[name]]))
+    .filter(([_, range]) => get_input_range_errors(range).length == 0)
+    .map(([name, [start, end]]) => `(<= ${start} ${name} ${end})`)
+    .join(' ')
+    return checks.length == 0 ? "" : `(and ${checks}`
 }
 
 function setup_state(state, form) {
@@ -299,7 +298,7 @@ function setup_state(state, form) {
                     alert("Please fix all errors before attempting to use FPCore input.")
                     return evt.preventDefault();
                 }
-                var fpcore = dump_fpcore(form.math.value, get_precondition_from_input_ranges(form), ''/*form.prec.value*/);
+                var fpcore = dump_fpcore(form.math.value)
                 form.fpcore.value = fpcore;
             }
             setup_state("fpcore", form);
@@ -530,8 +529,7 @@ function onload() {
         var fpcore;
         if (STATE != "fpcore") {
             if (!check_errors()) return evt.preventDefault();
-            //fpcore = dump_fpcore(form.math.value, form.pre.value, form.prec.value);
-            fpcore = dump_fpcore(form.math.value, get_precondition_from_input_ranges(form), ''/*form.prec.value*/);
+            fpcore = dump_fpcore(form.math.value)
         } else {
             fpcore = form.fpcore.value;
         }
