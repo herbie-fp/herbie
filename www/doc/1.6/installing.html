@@ -19,7 +19,8 @@
     <a href="../../">Herbie</a> supports Linux, macOS, and Windows. It
     can be installed from a package or from source. To start, install
     <a href="https://racket-lang.org">Racket</a>, which Herbie is
-    written in. (Herbie is also available as
+    written in. Optionally install <a href="https://www.rust-lang.org/">Rust</a>
+    when building from source. (Herbie is also available as
     a <a href="docker.html">Docker image</a>.)
   </p>
 
@@ -27,8 +28,8 @@
 
   <p>
     Install Racket either using
-    the <a href="http://download.racket-lang.org/racket-v8.1.html">official
-    installer</a> or distro-provided packages. Versions as old as 7.0
+    the <a href="https://download.racket-lang.org/">official
+    installer</a> or distro-provided packages. Versions as old as 8.0
     are supported, but more recent versions are faster.
   </p>
 
@@ -36,15 +37,33 @@
     Test that Racket is installed correctly and has a correct version:
   </p>
 
-  <pre class="shell">racket
-Welcome to Racket v8.1 [cs].
-> (exit)</pre>
+  <pre class="shell"> racket -v
+Welcome to Racket v8.4 [cs].</pre>
 
-  <h2>Installing Herbie from a package</h2>
+  <h2>Installing Herbie from source</h2>
 
-  <p>Once Racket is installed, install Herbie from a package with:</p>
+  <p>
+    Install Rust, using <a href="https://rustup.rs/">rustup</a> or via
+    some other means. Also install Racket, version 8.0 or later, either using
+    the <a href="http://download.racket-lang.org">official installer</a>
+    or distro-provided packages.
+    </p>
+    
+    <p>
+      Once Racket and Rust are installed, download the Herbie source
+    <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
+  </p>
 
-  <pre class="shell">raco pkg install --auto herbie</pre>
+  <pre class="shell">git clone https://github.com/uwplse/herbie</pre>
+
+  <p>
+    Change to the <code>herbie</code> directory;
+    you should see a <code>README.md</code> file, a directory named <code>src</code>,
+    a directory named <code>bench/</code>, and a few other directories.
+    Install Herbie on your system with:
+  </p>
+
+  <pre class="shell">make install</pre>
 
   <p>
     This command installs Herbie and its dependencies, compiles it for
@@ -64,37 +83,24 @@ Welcome to Racket v8.1 [cs].
     correctly, check out the <a href="tutorial.html">tutorial</a>.
   </p>
 
-  <h2>Installing Herbie from source</h2>
+  <h2>Installing Herbie from a package</h2>
+
+  <p>Once Racket is installed, install Herbie from a package with:</p>
+
+  <pre class="shell">raco pkg install --auto herbie</pre>
 
   <p>
-    Install Rust, using <a href="https://rustup.rs/">rustup</a> or via
-    some other means. Also install Racket, version 7.0 or later, either using
-    the <a href="http://download.racket-lang.org/racket-v8.1.html">official
-      installer</a> or distro-provided packages.
-    </p>
-    
-    <p>
-      Once Racket and Rust are installed, download the Herbie source
-    <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
+    This method of installation is discouraged.
+    Users should install Herbie from source unless
+      they do not have Rust installed natively.
   </p>
-
-  <pre class="shell">git clone https://github.com/uwplse/herbie</pre>
-
-  <p>
-    Change to the <code>herbie</code> directory;
-    you should see a <code>README.md</code> file, a directory named <code>src</code>,
-    a directory named <code>bench/</code>, and a few other directories.
-    Install Herbie on your system with:
-  </p>
-
-  <pre class="shell">make install</pre>
 
   <!-- This is a copy of the text above -->
 
   <p>
     This command installs Herbie and its dependencies, compiles it for
     faster startup, and places the <code>herbie</code> executable in
-    your Racket user path:
+    your Racket user path (example paths for Racket 8.1):
   </p>
 
   <ul>
