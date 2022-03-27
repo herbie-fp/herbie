@@ -478,11 +478,16 @@ function onload() {
     
     update_run_button_mathjs(form)
 
-    let current_timeout = undefined  // used to debounce the input box
+    let current_timeout = undefined  // can be used to debounce the input box
     function check_errors_and_draw_ranges() {
         if (form.math.value === "") document.querySelector('#input-ranges').innerHTML=''
-        if (!check_errors()) { return }
-        const varnames = get_varnames_mathjs(form.math.value)
+        let varnames;
+        try {
+            varnames = get_varnames_mathjs(form.math.value)
+        } catch (e) {
+            check_errors()
+            return
+        }
         const range_div = document.querySelector('#input-ranges')
         range_div.replaceChildren(...varnames.map(range_inputs))
     }
@@ -490,7 +495,7 @@ function onload() {
     
     form.math.addEventListener("input", function () {
         clearTimeout(current_timeout)
-        current_timeout = setTimeout(check_errors_and_draw_ranges, 400)
+        current_timeout = setTimeout(check_errors_and_draw_ranges, 0)  // turn off debouncing
         update_run_button_mathjs(form)
     })
     form.math.setAttribute('autocomplete', 'off')  // (because it hides the error output)
