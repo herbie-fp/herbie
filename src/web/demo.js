@@ -280,7 +280,7 @@ function get_precondition_from_input_ranges(formula) {
     .filter(([_, range]) => get_input_range_errors(range).length == 0)
     .map(([name, [start, end]]) => `(<= ${start} ${name} ${end})`)
     .join(' ')
-    return checks.length == 0 ? "" : `(and ${checks}`
+    return checks.length == 0 ? "" : `(and ${checks})`
 }
 
 function setup_state(state, form) {
