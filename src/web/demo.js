@@ -251,7 +251,6 @@ function hide_extra_fields() {
     $a.textContent = "Advanced options »";
     $a.classList.add("show-extra");
     $extra.parentNode.insertBefore($a, $extra.nextSibling);
-    //$extra.style.display = "none";
     $a.addEventListener("click", function() {
         $extra.style.display = "block";
         $a.style.display = "none";
@@ -289,50 +288,33 @@ function setup_state(state, form) {
     form.fpcore.removeAttribute("disabled");
     form.math.removeAttribute("disabled");
 
-    if (!form.a_fpcore) {
-        form.a_fpcore = document.createElement("a");
-        form.a_fpcore.textContent = "Convert to FPCore input";
-        form.a_fpcore.addEventListener("click", function(evt) {
-            if (form.math.value) {
-                if (!check_errors()) {
-                    alert("Please fix all errors before attempting to use FPCore input.")
-                    return evt.preventDefault();
-                }
-                var fpcore = dump_fpcore(form.math.value)
-                form.fpcore.value = fpcore;
+    document.querySelector('#use-fpcore-input a').onclick = function(evt) {
+        if (form.math.value) {
+            if (!check_errors()) {
+                alert("Please fix all errors before attempting to use FPCore input.")
+                return evt.preventDefault();
             }
-            setup_state("fpcore", form);
-        });
-        
+            var fpcore = dump_fpcore(form.math.value)
+            form.fpcore.value = fpcore;
+        }
+        setup_state("fpcore", form);
     }
-    form.extra_links.appendChild(form.a_fpcore);
 
-    // if (!form.a_mathjs) {
-    //     form.a_mathjs = document.createElement("a");
-    //     form.a_mathjs.textContent = "back to MathJS input";
-    //     form.a_mathjs.addEventListener("click", function(evt) {
-    //         setup_state("math", form);
-    //     });
-        
-    // }
-    // form.extra_links.appendChild(form.a_mathjs);
-    
     if (state == "math") {
         form.fpcore.style.display = "none";
         form.math.style.display = "block";
         form.input_ranges.style.display = "table";
+        document.querySelector('#use-fpcore-input').style.display = 'block';
         document.querySelector("#lisp-instructions").style.display = "none";
         document.querySelector("#mathjs-instructions").style.display = "block";
-        //form.extra_links.removeChild(form.a_mathjs)
         update_run_button_mathjs(form)
     } else {
+        document.querySelector('#use-fpcore-input').style.display = 'none';
         form.fpcore.style.display = "block";
         form.math.style.display = "none";
         form.input_ranges.style.display = "none";
         document.querySelector("#lisp-instructions").style.display = "block";
         document.querySelector("#mathjs-instructions").style.display = "none";
-        form.extra_links.removeChild(form.a_fpcore)
-        //form.extra_links.removeChild(form.a_mathjs)  // (we can't reverse the formula; could throw it out?)
         form.button.classList.remove("hidden");
         form.button.removeAttribute("disabled");
     }
@@ -453,20 +435,10 @@ function onload() {
 
 
         function show_errors(root=document) {
-            //const error_msgs = get_input_range_errors(KNOWN_INPUT_RANGES[varname], true)
             root.querySelectorAll(`#${varname}_input input`).forEach(input => {
                 input.style['background-color'] = input.value === '' ? '#a6ffff3d' : 'initial'
             })
-            // const e = root.querySelector(`#${varname}_input #errors`)
-            // e.innerHTML = error_msgs.map(msg => `<li>${msg}</li>`).join('')
-            // e.style.display = error_msgs.length > 0 ? 'block' : 'none'
         }
-        // function show_warnings(root=document) {
-        //     // const warning_msgs = get_input_range_warnings(KNOWN_INPUT_RANGES[varname])
-        //     // const e = root.querySelector(`#${varname}_input #warnings`)
-        //     // e.innerHTML = warning_msgs.map(msg => `<li>${msg}</li>`).join('')
-        //     // e.style.display = warning_msgs.length > 0 ? 'block' : 'none'
-        // }
         function set_input_range({ low, high }) {
             if (low !== undefined) low_el.value = low
             if (high !== undefined) high_el.value = high
@@ -475,7 +447,6 @@ function onload() {
             KNOWN_INPUT_RANGES[varname] = [low ?? old_low, high ?? old_high]
             check_errors()
             show_errors()
-            //show_warnings()
             update_run_button_mathjs(form)
         }
         low_el.addEventListener('input', () => set_input_range({ low: low_el.value }))
@@ -513,7 +484,6 @@ function onload() {
         if (!check_errors()) { return }
         const varnames = get_varnames_mathjs(form.math.value)
         const range_div = document.querySelector('#input-ranges')
-        //const range_prompt = varnames.length > 0 ? html(`<div>Please specify the approximate range of each input so that Herbie can optimize for your use case.</div>`) : ``
         range_div.replaceChildren(...varnames.map(range_inputs))
     }
     check_errors_and_draw_ranges()

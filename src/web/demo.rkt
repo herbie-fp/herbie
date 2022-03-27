@@ -98,6 +98,9 @@
     #:show-title (*demo?*)
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "demo.js")
     `(p "Write a formula below, and Herbie will try to improve it. Enter approximate ranges for inputs.")
+    `(p ([id "use-fpcore-input"]) "You can also "
+       (a "use FPCore")
+       ".")
     `(form ([action ,(url improve)] [method "post"] [id "formula"]
             [data-progress ,(url improve-start)])
           
@@ -107,7 +110,6 @@
         (ul ([id "errors"]))
         (ul ([id "warnings"]))
         (button ([id "run_herbie"] [type "submit"] [tabindex "-1"]) "Improve with Herbie")
-        (span ([class "extra-links"]))
         (pre ([id "progress"] [style "display: none;"])))
 
     (if (*demo?*)
