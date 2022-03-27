@@ -495,7 +495,7 @@ function onload() {
     
     form.math.addEventListener("input", function () {
         clearTimeout(current_timeout)
-        current_timeout = setTimeout(check_errors_and_draw_ranges, 0)  // turn off debouncing
+        current_timeout = setTimeout(check_errors_and_draw_ranges, 400)
         update_run_button_mathjs(form)
     })
     form.math.setAttribute('autocomplete', 'off')  // (because it hides the error output)
