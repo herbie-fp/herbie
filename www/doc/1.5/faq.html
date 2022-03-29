@@ -78,6 +78,17 @@
   <p>Herbie warnings refer to this section for explanations and common
   actions to take.</p>
 
+  <h3 id="inf-points">Infinite outputs for too many points</h3>
+  
+  <p>
+    Some computations, like <code>exp(1000.0)</code>, produce an
+    answer so large that its best floating-point representation is
+    infinity. While Herbie can handle programs like this fine, often
+    these aren't points you want Herbie to focus on. In that case,
+    you'll want to give Herbie a precondition that defines what values
+    are valid inputs to your program.
+  </p>
+
   <h3 id="ground-truth">Could not determine a ground truth</h3>
 
   <p>
@@ -89,7 +100,7 @@
     this warning, you should add a restrictive precondition, such
     as <code>:pre (&lt; -100 x 100)</code>, to prevent large inputs.
   </p>
-
+  
   <h3 id="native-ops">Native <var>operation</var> not supported on your system</h3>
 
   <p>
@@ -128,7 +139,16 @@
     Herbie will automatically compensate for this, and in most cases nothing needs to be done.
     However, Herbie may have failed to simplify the output.
   </p>
+  
+  <h3 id="no-ival-operator">Using unsound ground truth evaluation</h3>
 
+  <p>
+    This warning occurs when certain rare operators such
+    as <code>lgamma</code> or <code>y1</code> are passed to Herbie.
+    These operators are only partially supported, and Herbie's results
+    on programs that use those operators are more likely to be
+    incorrect. Please check over Herbie's output before using it.
+  </p>
 
   <h2>Known bugs</h2>
 

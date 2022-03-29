@@ -71,6 +71,7 @@
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-sampling 'sampling)
+         ,@(dict-call curr render-phase-sampling 'infinite)
          ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
@@ -154,6 +155,12 @@
   `((dt ,name)
     (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
   empty))
+
+(define (render-phase-infinite info)
+  (match-define (list inf total) (first info))
+  (if (> total 0)
+      `((dt ,"Infinites")
+        (dd ,(format-percent inf total) " of outputs are infinite."))))
 
 (define (render-phase-accuracy accuracy oracle baseline name link)
   (define rows
