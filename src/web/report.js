@@ -49,35 +49,35 @@ var TogglableFlags = new Component("#flag-list", {
     }
 });
 
-var FigureColors = new Component("#graphs figure", {
-    setup: function() {
-        this.caption = this.elt.querySelector("figcaption");
-        var imgs = [].slice.call(this.elt.querySelectorAll("img"));
-        var names = imgs.map(function(i) { return i.getAttribute("data-name"); });
-        var buttons = names.filter(function(i) { return i; }).map(this.mkbutton);
-        var caption_text = this.elt.querySelector("figcaption p");
-        this.caption.insertBefore(Element("div", buttons), caption_text);
-    },
-    mkbutton: function(name) {
-        var title = "Click to toggle " + name.toLowerCase() + " graph";
-        var control = Element("button", { className: name, title: title}, name);
-        control.addEventListener("click", this.toggler(control, name));
-        return control;
-    },
-    toggler: function(button, name) {
-        var figure = this.elt;
-        var img = figure.querySelector("img[data-name=" + name + "]");
-        return function() {
-            if (button.classList.contains("inactive")) {
-                button.classList.remove("inactive");
-                img.style.display = "";
-            } else {
-                button.classList.add("inactive");
-                img.style.display = "none";
-            }
-        }
-    },
-});
+// var FigureColors = new Component("#graphs figure", {
+//     setup: function() {
+//         this.caption = this.elt.querySelector("figcaption");
+//         var imgs = [].slice.call(this.elt.querySelectorAll("img"));
+//         var names = imgs.map(function(i) { return i.getAttribute("data-name"); });
+//         var buttons = names.filter(function(i) { return i; }).map(this.mkbutton);
+//         var caption_text = this.elt.querySelector("figcaption p");
+//         this.caption.insertBefore(Element("div", buttons), caption_text);
+//     },
+//     mkbutton: function(name) {
+//         var title = "Click to toggle " + name.toLowerCase() + " graph";
+//         var control = Element("button", { className: name, title: title}, name);
+//         control.addEventListener("click", this.toggler(control, name));
+//         return control;
+//     },
+//     toggler: function(button, name) {
+//         var figure = this.elt;
+//         var img = figure.querySelector("img[data-name=" + name + "]");
+//         return function() {
+//             if (button.classList.contains("inactive")) {
+//                 button.classList.remove("inactive");
+//                 img.style.display = "";
+//             } else {
+//                 button.classList.add("inactive");
+//                 img.style.display = "none";
+//             }
+//         }
+//     },
+// });
 
 var TryIt = new Component("#try-it", {
     depends: function() {
@@ -114,53 +114,118 @@ var TryIt = new Component("#try-it", {
     },
 });
 
-var FigureTabs = new Component("#graphs > div", {
-    setup: function() {
-        var figures = this.elt.getElementsByTagName("figure");
-        var figure_array = {};
-        var default_figure = null;
-        for (var i = 0; i < figures.length; i++) {
-            var idx = figures[i].id;
-            var variable = figures[i].getElementsByTagName("var")[0].innerText;
-            if (figures[i].classList.contains("default")) default_figure = figures[i];
-            figure_array[idx] = { elt: figures[i], name: variable };
-            figures[i].style.display = "none";
-            figures[i].querySelector("figcaption > p").style.display = "none";
-        }
-        if (default_figure === null && figures.length > 0) default_figure = figures[0];
+// var FigureTabs = new Component("#graphs > div", {
+//     setup: function() {
+//         var figures = this.elt.getElementsByTagName("figure");
+//         var figure_array = {};
+//         var default_figure = null;
+//         for (var i = 0; i < figures.length; i++) {
+//             var idx = figures[i].id;
+//             var variable = figures[i].getElementsByTagName("var")[0].innerText;
+//             if (figures[i].classList.contains("default")) default_figure = figures[i];
+//             figure_array[idx] = { elt: figures[i], name: variable };
+//             figures[i].style.display = "none";
+//             figures[i].querySelector("figcaption > p").style.display = "none";
+//         }
+//         if (default_figure === null && figures.length > 0) default_figure = figures[0];
         
-        var buttons = Object.keys(figure_array).map(function(idx) {
-            return Element("li", { id: "tab-" + idx }, figure_array[idx].name);
-        });
+//         var buttons = Object.keys(figure_array).map(function(idx) {
+//             return Element("li", { id: "tab-" + idx }, figure_array[idx].name);
+//         });
 
-        var tab_bar = Element("ul", { className: "tabbar" }, [
-            Element("p", "Bits error vs value of"),
-            buttons,
-        ]);
-        this.elt.appendChild(tab_bar);
+//         var tab_bar = Element("ul", { className: "tabbar" }, [
+//             Element("p", "Bits error vs value of"),
+//             buttons,
+//         ]);
+//         this.elt.appendChild(tab_bar);
 
-        for (var i = 0; i < buttons.length; i++) {
-            buttons[i].addEventListener("click", this.toggle.bind(this, buttons[i].id));
-        }
+//         for (var i = 0; i < buttons.length; i++) {
+//             buttons[i].addEventListener("click", this.toggle.bind(this, buttons[i].id));
+//         }
     
-        if (default_figure) this.toggle("tab-" + default_figure.id);
-    },
-    toggle: function(tabid) {
-        var id = tabid.substr(4);
-        var tab = document.getElementById(tabid);
-        var pane = document.getElementById(id);
+//         if (default_figure) this.toggle("tab-" + default_figure.id);
+//     },
+//     toggle: function(tabid) {
+//         var id = tabid.substr(4);
+//         var tab = document.getElementById(tabid);
+//         var pane = document.getElementById(id);
 
-        var old_tab = tab.parentNode.getElementsByClassName("selected");
-        if (old_tab.length > 0) {
-            var old_pane = document.getElementById(old_tab[0].id.substr(4));
-            old_pane.style.display = "none";
-            old_tab[0].classList.remove("selected")
-        }
+//         var old_tab = tab.parentNode.getElementsByClassName("selected");
+//         if (old_tab.length > 0) {
+//             var old_pane = document.getElementById(old_tab[0].id.substr(4));
+//             old_pane.style.display = "none";
+//             old_tab[0].classList.remove("selected")
+//         }
 
-        tab.classList.add("selected");
-        pane.style.display = "block";
+//         tab.classList.add("selected");
+//         pane.style.display = "block";
+//     }
+// });
+
+// get D3
+//import d3 from 'https://cdn.skypack.dev/d3'
+const Plot = import("https://cdn.skypack.dev/@observablehq/plot@0.4")
+const bit_difference = (x, y) => {
+    const to_signed_int = float64 => {
+        const buffer = new ArrayBuffer(8)
+        const view = new DataView(buffer)
+        view.setFloat64(0, float64)
+        return view.getBigInt64(0)
     }
-});
+    const mbn = x => math.bignumber(to_signed_int(x).toString())
+    const ordinal = x => to_signed_int(x) >= 0 ? mbn(x) : math.subtract(mbn(-0.0), mbn(x))
+    const ulp_difference = (x, y) => math.add(math.abs(math.subtract(ordinal(x), ordinal(y))), 1)
+    return math.log2(ulp_difference(x, y).toString())
+}
+const get_points_store = {}
+const key_fn = fn => (a, b) => fn(a) - fn(b)
+const get_points_memo = async () => {
+    if (get_points_store.value) { return get_points_store.value }
+    const ps = await get_json(hash + '/points.json')
+    get_points_store.value = [...ps.points.map((p, i) => ({x: p, y: ps.exacts[i]}))].sort(key_fn(o => o.x))
+    return get_points_store.value
+}
+const get_json = url => fetch(url, {  // TODO double check URL
+    // body: `_body_`,
+    headers: {"content-type": "text/plain"},
+    method: "GET",
+    mode: 'cors'
+    }).then(async response => {
+    //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
+    return await response.json()
+})
+const points_with_err = async fn => await Promise.all((await get_points_memo()).map(async ({x, y}, i) => ({
+    i,
+    x,
+    computed: fn(...x),
+    exact: y,
+    err: new Number(bit_difference(fn(...x), y) )
+})))
+const plot = (data, myfn, varName) => {
+    if (!varName) throw Error('stop')
+    const out = addTooltips(Plot.plot({
+    width: '800',
+    height: '400',
+    grid: true,
+    x: { type: 'log', base: 10, tickFormat: ',.1', ticks: 10, label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70},
+    y: { label: "Bits of error", domain: [0, 64], ticks: new Array(64/4 + 1).fill(0).map((_, i) => i * 4), tickFormat: d => d % 8 != 0 ? '' : d},
+    marks: [
+      Plot.line(data, {x: "x", y: "err", stroke: '#883355ff', strokeWidth: 1.3}),
+      Plot.dot(data, {x: "x", y: "err", stroke: '#ff000007', r: 1.3, 
+                      title: d => `x: ${d.x} \n i: ${d.i} \n computed: ${d.computed}\n exact: ${d.exact} \n bits of error: ${d.err}`}),
+    ]
+  }))
+    out.setAttribute('viewBox', '0 0 800 430')
+    //out.style['grid-area'] = 'small-plots'
+    //out.style.display = 'inline'
+    return out
+  }
+const ClientGraph = new Component('#graphs', {
+    setup: async () => {
+        console.log(start, end)
+        document.querySelector('#graphs').replaceChildren(plot(await points_with_err(start), start, 'x'))
+    }
+})
 
 var RenderMath = new Component(".math", {
     depends: function() {
