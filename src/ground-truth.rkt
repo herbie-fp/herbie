@@ -66,15 +66,27 @@
 
 (define (prepare-points prog precondition repr sampler)
   (define-values (how fn) (make-search-func precondition (list prog) repr))
-  (batch-prepare-points how fn repr sampler))
+
+  (match-define (list pt exs ...) (batch-prepare-points how fn repr sampler))
+  ;; Count infinite points
+  (define ->bf (representation-repr->bf repr))
+  (define total-pts (length pt))
+  (for* ([ex exs])
+    (define inf-pts (count (compose (disjoin boolean? bfrational?) ->bf) ex))
+    (timeline-push! 'infinite inf-pts total-pts)
+    (when (> inf-pts (* total-pts 0.20)) ; Warn on > 20% infinite points
+      (warn 'inf-points #:url "faq.html#inf-points"
+            "Infinite outputs for ~a% of points. You may want to add a precondition.")))
+
+  (list* pt exs))
 
 (define (sample-points precondition progs repr)
   (define-values (how fn) (make-search-func precondition progs repr))
   (define sampler 
     (parameterize ([ground-truth-require-convergence #f])
       (make-sampler repr precondition progs how fn)))
-  (match-define (list pt exs ...) (batch-prepare-points how fn repr sampler))
 
+  (match-define (list pt exs ...) (batch-prepare-points how fn repr sampler))
   ;; Count infinite points
   (define ->bf (representation-repr->bf repr))
   (define total-pts (length pt))
