@@ -79,7 +79,7 @@
   (define ->bf (representation-repr->bf repr))
   (define total-pts (length pt))
   (for* ([ex exs])
-    (define inf-pts (count (compose bfrational? ->bf) ex))
+    (define inf-pts (count (compose (disjoin boolean? bfrational?) ->bf) ex))
     (timeline-push! 'infinite inf-pts total-pts)
     (when (> inf-pts (* total-pts 0.20)) ; Warn on > 20% infinite points
       (warn 'inf-points #:url "faq.html#inf-points"
