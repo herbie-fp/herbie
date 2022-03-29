@@ -73,7 +73,7 @@
   (define sampler 
     (parameterize ([ground-truth-require-convergence #f])
       (make-sampler repr precondition progs how fn)))
-  (match-define (pt exs ...) (batch-prepare-points how fn repr sampler))
+  (match-define (list pt exs ...) (batch-prepare-points how fn repr sampler))
 
   ;; Count infinite points
   (define ->bf (representation-repr->bf repr))
