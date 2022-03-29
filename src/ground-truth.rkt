@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "errors.rkt" "programs.rkt" "interface.rkt" "sampling.rkt")
+(require "errors.rkt" "programs.rkt" "interface.rkt" "sampling.rkt" "timeline.rkt")
 
 (provide make-search-func prepare-points sample-points ground-truth-require-convergence)
 

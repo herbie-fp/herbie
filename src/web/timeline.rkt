@@ -160,7 +160,8 @@
   (match-define (list inf total) (first info))
   (if (> total 0)
       `((dt ,"Infinites")
-        (dd ,(format-percent inf total) " of outputs are infinite."))))
+        (dd ,(format-percent inf total) " of outputs are infinite."))
+      ""))
 
 (define (render-phase-accuracy accuracy oracle baseline name link)
   (define rows
