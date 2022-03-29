@@ -31,11 +31,15 @@
 (define ground-truth-require-convergence (make-parameter #t))
 
 (define (valid-result? repr out)
-  (ival-and #;(ival-not (is-infinite-interval repr out))
-            (if (ground-truth-require-convergence)
+  (define is-samplable
+    (if (ground-truth-require-convergence)
                 (is-samplable-interval repr out)
-                (ival (ival-hi (is-samplable-interval repr out))))
-            (ival-not (ival-error? out))))
+                (ival (ival-hi (is-samplable-interval repr out)))))
+  (when (not (ival-hi is-samplable))
+    (warn 'ground-truth #:url "faq.html#ground-truth"
+          "unable to evaluate ground truth for some inputs"))
+  (define is-domain (ival-not (ival-error? out)))
+  (ival-and is-samplable is-domain))
 
 (define (eval-prog-wrapper progs repr)
   (match (filter (compose not (curryr expr-supports? 'ival) program-body) progs)
