@@ -80,8 +80,8 @@
       (title "Result for " ,(~a (test-name test)))
       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       ,@js-tex-include
-      (script ([src "../report.js"]))
       (script ([src "interactive.js"]))
+      (script ([src "../report.js"] [type "module"]))
       (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
      (body
       ,(render-menu

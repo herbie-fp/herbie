@@ -162,68 +162,243 @@ var TryIt = new Component("#try-it", {
 //     }
 // });
 
-// get D3
-//import d3 from 'https://cdn.skypack.dev/d3'
-const Plot = import("https://cdn.skypack.dev/@observablehq/plot@0.4")
-const bit_difference = (x, y) => {
-    const to_signed_int = float64 => {
-        const buffer = new ArrayBuffer(8)
-        const view = new DataView(buffer)
-        view.setFloat64(0, float64)
-        return view.getBigInt64(0)
-    }
-    const mbn = x => math.bignumber(to_signed_int(x).toString())
-    const ordinal = x => to_signed_int(x) >= 0 ? mbn(x) : math.subtract(mbn(-0.0), mbn(x))
-    const ulp_difference = (x, y) => math.add(math.abs(math.subtract(ordinal(x), ordinal(y))), 1)
-    return math.log2(ulp_difference(x, y).toString())
-}
-const get_points_store = {}
-const key_fn = fn => (a, b) => fn(a) - fn(b)
-const get_points_memo = async () => {
-    if (get_points_store.value) { return get_points_store.value }
-    const ps = await get_json(hash + '/points.json')
-    get_points_store.value = [...ps.points.map((p, i) => ({x: p, y: ps.exacts[i]}))].sort(key_fn(o => o.x))
-    return get_points_store.value
-}
-const get_json = url => fetch(url, {  // TODO double check URL
-    // body: `_body_`,
-    headers: {"content-type": "text/plain"},
-    method: "GET",
-    mode: 'cors'
-    }).then(async response => {
-    //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
-    return await response.json()
-})
-const points_with_err = async fn => await Promise.all((await get_points_memo()).map(async ({x, y}, i) => ({
-    i,
-    x,
-    computed: fn(...x),
-    exact: y,
-    err: new Number(bit_difference(fn(...x), y) )
-})))
-const plot = (data, myfn, varName) => {
-    if (!varName) throw Error('stop')
-    const out = addTooltips(Plot.plot({
-    width: '800',
-    height: '400',
-    grid: true,
-    x: { type: 'log', base: 10, tickFormat: ',.1', ticks: 10, label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70},
-    y: { label: "Bits of error", domain: [0, 64], ticks: new Array(64/4 + 1).fill(0).map((_, i) => i * 4), tickFormat: d => d % 8 != 0 ? '' : d},
-    marks: [
-      Plot.line(data, {x: "x", y: "err", stroke: '#883355ff', strokeWidth: 1.3}),
-      Plot.dot(data, {x: "x", y: "err", stroke: '#ff000007', r: 1.3, 
-                      title: d => `x: ${d.x} \n i: ${d.i} \n computed: ${d.computed}\n exact: ${d.exact} \n bits of error: ${d.err}`}),
-    ]
-  }))
-    out.setAttribute('viewBox', '0 0 800 430')
-    //out.style['grid-area'] = 'small-plots'
-    //out.style.display = 'inline'
-    return out
-  }
+
 const ClientGraph = new Component('#graphs', {
     setup: async () => {
+        
+        // get D3
+        const d3 = await import('https://cdn.skypack.dev/d3@6')
+        const Plot = await import("https://cdn.skypack.dev/@observablehq/plot@0.4")
+        const bit_difference = (x, y) => {
+            const to_signed_int = float64 => {
+                const buffer = new ArrayBuffer(8)
+                const view = new DataView(buffer)
+                view.setFloat64(0, float64)
+                return view.getBigInt64(0)
+            }
+            const mbn = x => math.bignumber(to_signed_int(x).toString())
+            const ordinal = x => to_signed_int(x) >= 0 ? mbn(x) : math.subtract(mbn(-0.0), mbn(x))
+            const ulp_difference = (x, y) => math.add(math.abs(math.subtract(ordinal(x), ordinal(y))), 1)
+            return math.log2(ulp_difference(x, y).toString())
+        }
+        const get_points_store = {}
+        const key_fn = fn => (a, b) => fn(a) - fn(b)
+        const get_points_memo = async () => {
+            if (get_points_store.value) { return get_points_store.value }
+            const ps = await get_json('points.json')
+            get_points_store.value = [...ps.points.map((p, i) => ({x: p, y: ps.exacts[i]}))].sort(key_fn(o => o.x))
+            return get_points_store.value
+        }
+        const get_json = url => fetch(url, {  // TODO double check URL
+            // body: `_body_`,
+            headers: {"content-type": "text/plain"},
+            method: "GET",
+            mode: 'cors'
+            }).then(async response => {
+            //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
+            return await response.json()
+        })
+        const points_with_err = async fn => await Promise.all((await get_points_memo()).map(async ({x, y}, i) => ({
+            i,
+            x,
+            computed: fn(...x),
+            exact: y,
+            err: new Number(bit_difference(fn(...x), y) )
+        })))
+        /* addTooltips code adapted from https://observablehq.com/@mkfreeman/plot-tooltip */
+        const hover = (tip, pos, text) => {
+            const side_padding = 10;
+            const vertical_padding = 5;
+            const vertical_offset = 15;
+        
+            // Empty it out
+            tip.selectAll("*").remove();
+        
+            // Append the text
+            tip
+            .style("text-anchor", "middle")
+            .style("pointer-events", "none")
+            .attr("transform", `translate(${pos[0]}, ${pos[1] + 7})`)
+            .selectAll("text")
+            .data(text)
+            .join("text")
+            .style("dominant-baseline", "ideographic")
+            .text((d) => d)
+            .attr("y", (d, i) => (i - (text.length - 1)) * 15 - vertical_offset)
+            .style("font-weight", (d, i) => (i === 0 ? "bold" : "normal"));
+        
+            const bbox = tip.node().getBBox();
+        
+            // Add a rectangle (as background)
+            tip
+            .append("rect")
+            .attr("y", bbox.y - vertical_padding)
+            .attr("x", bbox.x - side_padding)
+            .attr("width", bbox.width + side_padding * 2)
+            .attr("height", bbox.height + vertical_padding * 2)
+            .style("fill", "white")
+            .style("stroke", "#d3d3d3")
+            .lower();
+        }
+        // To generate a unique ID for each chart so that they styles only apply to that chart
+        const id_generator = () => {
+            var S4 = function () {
+                return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
+            };
+            return "a" + S4() + S4();
+            }
+        const addTooltips = (chart, hover_styles = { fill: "blue", opacity: 0.5 }) => {
+            let styles = hover_styles;
+            const line_styles = {
+            stroke: "blue",
+            "stroke-width": 3
+            };
+            // Workaround if it's in a figure
+            const type = d3.select(chart).node().tagName;
+            let wrapper =
+            type === "FIGURE" ? d3.select(chart).select("svg") : d3.select(chart);
+        
+            // Workaround if there's a legend....
+            const numSvgs = d3.select(chart).selectAll("svg").size();
+            if (numSvgs === 2)
+            wrapper = d3
+                .select(chart)
+                .selectAll("svg")
+                .filter((d, i) => i === 1);
+            wrapper.style("overflow", "visible"); // to avoid clipping at the edges
+        
+            // Set pointer events to visibleStroke if the fill is none (e.g., if its a line)
+            wrapper.selectAll("path").each(function (data, index, nodes) {
+            // For line charts, set the pointer events to be visible stroke
+            if (
+                d3.select(this).attr("fill") === null ||
+                d3.select(this).attr("fill") === "none"
+            ) {
+                d3.select(this).style("pointer-events", "visibleStroke");
+                styles = hover_styles.fill == 'blue' && hover_styles.opacity == .5 //_.isEqual(hover_styles, { fill: "blue", opacity: 0.5 })
+                ? line_styles
+                : hover_styles;
+            }
+            });
+        
+            const tip = wrapper
+            .selectAll(".hover-tip")
+            .data([""])
+            .join("g")
+            .attr("class", "hover")
+            .style("pointer-events", "none")
+            .style("text-anchor", "middle");
+        
+            // Add a unique id to the chart for styling
+            const id = id_generator();
+        
+            // Add the event listeners
+            d3.select(chart)
+            .classed(id, true) // using a class selector so that it doesn't overwrite the ID
+            .selectAll("title")
+            .each(function () {
+                // Get the text out of the title, set it as an attribute on the parent, and remove it
+                const title = d3.select(this); // title element that we want to remove
+                const parent = d3.select(this.parentNode); // visual mark on the screen
+                const t = title.text();
+                if (t) {
+                parent.attr("__title", t).classed("has-title", true);
+                title.remove();
+                }
+                // Mouse events
+                parent
+                .on("mousemove", function (event) {
+                    const text = d3.select(this).attr("__title");
+                    const pointer = d3.pointer(event, wrapper.node());
+                    if (text) tip.call(hover, pointer, text.split("\n"));
+                    else tip.selectAll("*").remove();
+        
+                    // Raise it
+                    d3.select(this).raise();
+                    // Keep within the parent horizontally
+                    const tipSize = tip.node().getBBox();
+                    if (pointer[0] + tipSize.x < 0)
+                    tip.attr(
+                        "transform",
+                        `translate(${tipSize.width / 2}, ${pointer[1] + 7})`
+                    );
+                    else if (pointer[0] + tipSize.width / 2 > wrapper.attr("width"))
+                    tip.attr(
+                        "transform",
+                        `translate(${wrapper.attr("width") - tipSize.width / 2}, ${
+                        pointer[1] + 7
+                        })`
+                    );
+                })
+                .on("mouseout", function (event) {
+                    tip.selectAll("*").remove();
+                    // Lower it!
+                    d3.select(this).lower();
+                });
+            });
+        
+            // Remove the tip if you tap on the wrapper (for mobile)
+            wrapper.on("touchstart", () => tip.selectAll("*").remove());
+            // Add styles
+            const style_string = Object.keys(styles)
+            .map((d) => {
+                return `${d}:${styles[d]};`;
+            })
+                .join("");
+            
+            function html(string) {
+                const t = document.createElement('template');
+                t.innerHTML = string;
+                return t.content;
+            }
+        
+            // Define the styles
+            const style = html(`<style>
+                .${id} .has-title {
+                cursor: pointer; 
+                pointer-events: all;
+                }
+                .${id} .has-title:hover {
+                ${style_string}
+            }
+            </style>`);
+            chart.appendChild(style);
+            return chart;
+        }
+
+        const chunk = (A, chunksize) => A.reduce((acc, e, i) => {
+            if (i % chunksize == 0) { acc.push([]) }
+            acc[acc.length - 1].push(e)
+            return acc
+        }, [])
+        const average_chunk = A => {
+            // HACK to just show a clean line. x values are off because averaging huge x is hard
+            const out = ({ x: A[0].x/*A.reduce((acc, v) => acc + v.x, 0) / A.length*/, err: A.reduce((acc, v) => acc + v.err, 0) / A.length })
+            console.log(out)
+            return out
+        }
+        const plot = (data, myfn, varName) => {
+            if (!varName) throw Error('stop')
+            const out = addTooltips(Plot.plot({
+            width: '800',
+            height: '400',
+            grid: true,
+            x: { type: 'log', base: 10, tickFormat: ',.1', ticks: 10, label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70},
+            y: { label: "Bits of error", domain: [0, 64], ticks: new Array(64/4 + 1).fill(0).map((_, i) => i * 4), tickFormat: d => d % 8 != 0 ? '' : d},
+            marks: [
+            Plot.line(chunk(data, 30).map(average_chunk), {x: "x", y: "err", stroke: '#883355ff', strokeWidth: 1.3}),
+            Plot.dot(data, {x: "x", y: "err", stroke: '#ff000007', r: 1.3, 
+                            title: d => `x: ${d.x} \n i: ${d.i} \n computed: ${d.computed}\n exact: ${d.exact} \n bits of error: ${d.err}`}),
+            ]
+        }))
+            out.setAttribute('viewBox', '0 0 800 430')
+            //out.style['grid-area'] = 'small-plots'
+            //out.style.display = 'inline'
+            return out
+        }
+        
         console.log(start, end)
-        document.querySelector('#graphs').replaceChildren(plot(await points_with_err(start), start, 'x'))
+        document.querySelector('#graphs').replaceChildren(plot(await points_with_err(start), start, 'x'), plot(await points_with_err(end), end, 'x'))
     }
 })
 
