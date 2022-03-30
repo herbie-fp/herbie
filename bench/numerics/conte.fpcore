@@ -1,0 +1,15 @@
+; -*- mode: scheme -*-
+
+(FPCore (x)
+ :name "Elementary Numerical Analysis, Section 1.4, Mentioned, A"
+ :cite (conte-et-al-1982)
+ :pre (< -0.01 x 0.01)
+ :herbie-target
+ (/ (* (sin x) (sin x)) (+ 1 (cos x)))
+ (- 1 (cos x)))
+
+(FPCore (x)
+ :name "Elementary Numerical Analysis, Section 1.4, Mentioned, B"
+ :cite (conte-et-al-1982)
+ :pre (< 0.999 x 1.001)
+ (/ 10 (- 1 (* x x))))
