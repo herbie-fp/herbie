@@ -10,11 +10,11 @@
 <body>
   <header>
     <a href="../.."><img class="logo" src="../../logo.png" /></a>
-    <h1>Herbie 1.5 Release Notes</h1>
+    <h1>Herbie 1.6 Release Notes</h1>
   </header>
 
   <p>The <a href="../..">Herbie</a> developers are excited to announce
-  Herbie 1.5! This release focuses on multiple precisions, new syntax,
+  Herbie 1.6! This release focuses on multiple precisions, new syntax,
   and higher accuracy. Our favorite features are below.</p>
 
   <img width="100%" src="team.png" style="display: block; margin: 4em 0; border-radius: 6px;"
@@ -27,120 +27,40 @@
   <p><b>Join us!</b> Join the Herbie developers on the
   <a href="https://fpbench.org">FPBench</a> Slack, at the monthly
   FPBench community meetings, and at
-  <a href="https://fpbench.org/talks/fptalks21.html">FPTalks 2021</a>,
-  where <a href="https://bsaiki.com">Brett</a> will be talking about
-  Herbie 1.5.</p>
+  <a href="https://fpbench.org/talks/fptalks22.html">FPTalks 2022</a>.
   
-  <figure class="showcase">
-    <img src="pareto-screenshot.png" style="width: 100%;" />
-    <figcaption>A screenshot of Herbie with Pareto mode enabled.</figcaption>
-  </figure>
+  <!-- 
+    Showcase image
+  -->
 
-  <h2>New Pareto mode</h2>
+  <h2>Interactive Herbie</h2>
 
-  <p>Traditionally, Herbie has been all about giving you the most
-  accurate way possible to evaluate some mathematical expression.
-  But many of our users need to balance accuracy with speed.</p>
-  
-  <p>So Herbie 1.5 has an experimental new <a>pareto mode</a>. When
-  the pareto mode is turned on, Herbie produces multiple outputs
-  that trade off speed for accuracy. Run Herbie with <kbd>--pareto</kbd>
-  to try it out, and if you're interested in more details of how it works,
-  check out our paper at <a href="../../arith21.html">ARITH'21</a>.</p>
-
-  <figure class="showcase">
-    <div class="program math" style="text-align: center;">
-      \(
-      \begin{array}{l}
-      [a, b] = \mathsf{sort}([a, b]) \\
-      b \cdot \sqrt{\frac{a}{b}\cdot\frac{a}{b} + 1}
-      \end{array}
-      \)
-    </div>
-    <figcaption>Herbie using sorting to improve accuracy.</figcaption>
-  </figure>
-
-  <h2>Symmetric expressions</h2>
-
-  <p>We've been working hard improving Herbie's results on its
-  traditional task: finding the most accurate way to evaluate
-  a mathematical expression. In Herbie 1.5, several improvements
-  landed, but the most exciting is the symmetric expressions mode.</p>
-
-  <p>Simply put, it's pretty common for Herbie to be asked to
-  improve the accuracy of an expression where reordering the variables
-  leaves the expression unchanged&mdash;something like
-  <code>log(exp(x) + exp(y))</code>.
-  Often the best way to evaluate that expression requires determining
-  which of <code>x</code> and <code>y</code> is larger.</p>
-
-  <p>With symmetric expressions, Herbie can detect when variable order
-  doesn't matter and sort the variables up front. That often lets
-  Herbie's other components find a clever way to improve accuracy.</p>
-
-  <figure class="showcase">
-    <pre>
-(FPCore dist2 (x y)
-  (+ (* x x) (* y y)))
-
-(FPCore (x y)
-  (/ (sqrt (+ (dist2 x y) x)) (sqrt 2)))
-    </pre>
-    <figcaption>Using a function definition in FPCore. The first
-    FPCore block defines the <code>dist2</code> function, and the
-    second uses that definition. The result is shorter and more
-    readable.</figcaption>
-  </figure>
-
-  <h2>Function definitions</h2>
-
-  <p>While most people use Herbie via the web interface,
-  Herbie also supports the standard <a href="input.html">FPCore</a>
-  format. FPCore offers more control over Herbie, and it's also
-  a good output format for other tools. In this release, we extended
-  Herbie to support function definitions.</p>
-
-  <p>In short, an FPCore can now include a function name between
-  the <code>FPCore</code> keyword and the list of variables. That core
-  can then be referenced by other cores in the same file. Herbie will
-  automatically expand those calls before improving the expression.</p>
+  <h2>Sampling</h2>
 
   <h2>Other improvements</h2>
   <ul>
-    <li>Herbie now supports more pluggable number representations,
-    including arbitrary-precision floating-point numbers and also
-    fixed-point numbers. We're still working on better-exposing this
-    to users.</li>
-    <li>Herbie will now introduce some temporary variables to make its
-    output more readable.</li>
-    <li>The series expansion engine was substantially improved, which
-    both reduces timeouts and improves results substantially.</li>
-    <li>A new "retirement community" data structure allows Herbie to
-    consider more candidate programs, and thus produces better,
-    simpler results.</li>
-    <li>You can now give Herbie FPCore input in the web interface.</li>
-    <li>The Herbie timeline data structure (which powers "Metrics"
-    pages) has been dramatically improved, making it easier to add
-    more metrics in the future.</li>
+    <li> Herbie's double-precision and single-precision representations
+      are implemented as plugins that automatically ship with
+      Herbie's core. Not only is this design cleaner, but the builtin
+      plugins now serve as examples for plugin developers.
+    </li>
+    <li> Constants are now represented internally as operators.
+      This simplifies the plugin interface as well as Herbie's internals.
+    </li>
   </ul>
 
   <h2>Deprecations and removals</h2>
   <ul>
-    <li>Support for the Racket 7-series is deprecated and will be
-    removed in the next release. Please upgrade.</li>
+    <li>Support for the Racket 7.x has been removed. Please upgrade.</li>
     <li>The <code>egg-herbie</code> support package has been merged
     into Herbie proper. This means that if you want to install Herbie
     from source, you will now need a Rust compiler.</li>
-    <li>Support for complex numbers has been deprecated and will be
-    removed in the next release.
+    <li>Support for complex numbers has been removed.
     Please <a href="mailto:herbie@cs.washington.edu">let us know</a>
     if you are using it. We hope to reimplement this eventually,
     but with a better architecture.</li>
-    <li>The <kbd>precision:double</kbd> flag has been deprecated, and no
-    longer does anything. Use the <code>:precision</code> flag instead.</li>
-    <li>The <kbd>setup:early-exit</kbd> flag has been deprecated, and no
-    longer does anything. Herbie is fast enough now that it's not that
-    important any more!</li>
+    <li>The <kbd>precision:fallback</kbd> flag has been deprecated, and no
+    longer does anything. Use the <code>:precision racket</code> flag instead.</li>
   </ul>
   
   <h2>Try it out!</h2>
