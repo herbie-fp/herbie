@@ -1,9 +1,12 @@
 #lang racket
 
-(require "common.rkt" "interface.rkt" "errors.rkt"
-         "syntax/rules.rkt" "syntax/syntax.rkt"
-         (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
+(require (submod "syntax/rules.rkt" internals)
+         (submod "syntax/syntax.rkt" internals)
+         "common.rkt" "interface.rkt" "errors.rkt"
+         "syntax/rules.rkt" "syntax/syntax.rkt")
+
 (module+ test (require "load-plugin.rkt"))
+
 (provide generate-conversions generate-prec-rewrites get-rewrite-operator *conversions*)
 
 (define *conversions* (make-parameter (hash)))
@@ -32,6 +35,9 @@
   ;; Repr conversions, e.g. repr1->repr2
   (define conv1 (sym-append prec1* '-> prec2*))
   (define conv2 (sym-append prec2* '-> prec1*))
+
+  ;; Try generating a user-defined implementation
+  (generate-conversion-impl! conv1 conv2 repr1 repr2)
 
   (unless (impl-exists? conv1)
     (define impl (compose (representation-bf->repr repr2) (representation-repr->bf repr1)))
@@ -100,15 +106,13 @@
 
 ;; generate conversions, precision rewrites, etc.
 (define (generate-prec-rewrites convs)
-  (define reprs
-    (for/fold ([reprs '()]) ([conv convs])
-      (define repr1 (first conv))
-      (define repr2 (last conv))
-      (*conversions* (hash-update (*conversions*) repr1 (curry cons repr2) '()))
-      (*conversions* (hash-update (*conversions*) repr2 (curry cons repr1) '()))
-      (generate-prec-rewrite repr1 repr2)
-      (set-union reprs (list repr1 repr2))))
-  (*needed-reprs* (set-union reprs (*needed-reprs*))))
+  (for ([conv convs])
+    (define repr1 (first conv))
+    (define repr2 (last conv))
+    (*conversions* (hash-update (*conversions*) repr1 (curry cons repr2) '()))
+    (*conversions* (hash-update (*conversions*) repr2 (curry cons repr1) '()))
+    (generate-prec-rewrite repr1 repr2)
+    (*needed-reprs* (set-union (*needed-reprs*) (list repr1 repr2)))))
 
 ;; invoked before desugaring
 (define (generate-conversions convs)
@@ -121,7 +125,6 @@
       (warn 'conversions "Duplicate conversion (~a ~a)\n"
             (representation-name repr1) (representation-name repr2)))
     (set-add! convs* (cons repr1 repr2))))
-
 
 ;; try built in reprs
 (module+ test

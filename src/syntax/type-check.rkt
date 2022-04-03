@@ -53,13 +53,13 @@
          (define rtype (operator-info name 'otype))
          (when (or (equal? rtype type) (repr-has-type? rtype 'bool))
            (k rtype)))
-       (error! stx "Could not find implementation of ~a for ~a" x type))]
+       (error! stx "Could not find implementation of ~a for ~a" x type)
+       type)]
     [#`,(? variable? x)
      (define vtype (dict-ref env x))
-     (cond
-      [(repr-has-type? vtype 'bool) vtype]
-      [(equal? type vtype) type]
-      [else (error! stx "Expected a variable of type ~a, but got ~a" type vtype)])]
+     (unless (or (equal? type vtype) (repr-has-type? vtype 'bool))
+      (error! stx "Expected a variable of type ~a, but got ~a" type vtype))
+     vtype]
     [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
@@ -167,7 +167,7 @@
                       (application->string op (operator-info sig 'itype)))
                     " or ")
                   (application->string op actual-types))
-          #f))]
+          type))]
     [#`(,(? (curry hash-has-key? (*functions*)) fname) #,exprs ...)
      (match-define (list vars repr _) (hash-ref (*functions*) fname))
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
@@ -178,7 +178,7 @@
            (error! stx "Invalid arguments to ~a; expects ~a but got ~a" fname
                        fname (application->string fname expected)
                        (application->string fname actual-types))
-           #f))]))
+           type))]))
 
 (module+ test
   (require rackunit)

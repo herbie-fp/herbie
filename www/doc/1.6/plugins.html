@@ -69,7 +69,9 @@
   between releases.
   If you run into issues, please write to the
   <a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">
-  mailing list</a>.</p>
+  mailing list</a>.
+  Be sure to check out the <a href="https://github.com/herbie-fp/herbie/tree/main/src/reprs">
+  built-in plugins</a> in the Herbie repository before getting started.</p>
 
   <p><b>First Steps</b><br>
 
@@ -84,8 +86,8 @@
   <a href="https://docs.racket-lang.org/pkg/getting-started.html#%28part._how-to-create%29">
   raco</a> tool for more information.</p>
 
-  <p>A single entry needs to be added to the package manifest stored in <code>info.rkt</code>, and
-  Add the following line at the bottom of the file <code>(define herbie-plugin '<i>name</i>)</code>
+  <p>A single entry needs to be added to the package manifest stored in <code>info.rkt</code>,
+  and add <code>(define herbie-plugin '<i>name</i>)</code> to the bottom of the file
   where <i>name</i> is a unique symbol that doesn't conflict with other Herbie plugins.
   As a suggestion, this should just be the package name.</p>
 
@@ -93,7 +95,8 @@
   language specifier on the first line, and add the line <code>(require herbie/plugin)</code>.
   This gives the package access to the Herbie plugin interface.
   Optionally add the following for debugging purposes
-  <code>(eprintf "Loading <i>pkg-name</i> support...\n")</code>.</p>
+  <code>(eprintf "Loading <i>pkg-name</i> support...\n")</code>
+  directly after the <i>require</i> statement.</p>
 
   <p>Finally, run the following in the folder containing <code>info.rkt</code>
   and <code>main.rkt</code>:
@@ -123,10 +126,11 @@
   <code>(float <i>ebits</i> <i>nbits</i>)</code>, then the representation is parameterized.</p>
 
   <p><b>Plugin Interface (Unique)</b><br>
+
   The following are the signatures and descriptions of the
   plugin procedures for unique representations.
-  These procedures should be called from the top-level of <code>main.rkt</code>
-  rather than inside a function.</p>
+  These procedures are required to be at the top-level of
+  <code>main.rkt</code> rather than inside a function.</p>
 
   <dl>
     <dt>
@@ -182,18 +186,16 @@
     <dt>
       <code>
       <table>
-        <tr><td>(<b>define-operator</b> (<i>name</i> <i>itypes ...</i>)</td><td> otype</td></tr>
+        <tr><td>(<b>define-operator</b> (<i>name</i> <i>itype-names ...</i>)</td><td> otype-name</td></tr>
         <tr><td></td><td>[bf <i>bf-fn</i>]</td></tr>
-        <tr><td></td><td>[ival <i>ival-fn</i>]</td></tr>
-        <tr><td></td><td>[nonffi <i>nonffi-fn</i>]</td></tr>
-        <tr><td></td><td>...)</td></tr>
+        <tr><td></td><td>[ival <i>ival-fn</i>])
       </table>
       </code>
     </dt>
     <dd>Adds a new operator. Operators describe pure mathematical functions,
       i.e. <code>+</code> or <code>sin</code>.
-      The parameters <code><i>itypes</i></code> and <code><i>otype</i></code> are the input
-      type(s) and output type.
+      The parameters <code><i>itype-names</i></code> and <code><i>otype-name</i></code>
+      are the input type(s) and output type names.
       For example, <code>+</code> takes two <code>real</code> inputs and produces
       one <code>real</code> output.
       The <code><i>bf-fn</i></code> argument is the
@@ -201,62 +203,33 @@
       The <code><i>ival-fn</i></code> argument is the <a href="https://github.com/herbie-fp/rival">Rival</a>
       implementation of your operator. This is optional but improves the quality of Herbie's output.
       If you don't want to implement this, set <code><i>ival-fn</i></code> to <code>false</code>.
-      The <code><i>nonffi-fn</i></code> argument is the exact implementation of your operator
-      (see <code>define-type</code> for a description of exact).
       To define operators with an unknown number of arguments, e.g. comparators,
       add the attribute <code>[itype <i>itype</i>]</code>.
-      This will override the input types defined by <code><i>itypes</i></code>.
+      This will override the input type names defined by <code><i>itype-names</i></code>.
+      See the bottom of this section for support for constants.
     </dd>
 
     <dt>
       <code>
       <table>
-        <tr><td>(<b>define-operator-impl</b> (<i>op</i> <i>name</i> <i>ireprs ...</i>)</td><td><i>orepr</i></td></tr>
+        <tr><td>(<b>define-operator-impl</b> (<i>op</i> <i>name</i> <i>irepr-names ...</i>)</td><td><i>orepr-name</i></td></tr>
         <tr><td></td><td>[fl <i>fl-fn</i>]</td></tr>
         <tr><td></td><td>...)</td></tr>
       </table>
       </code>
     </dt>
-    <dd>Implements <code><i>op</i></code> with input representation(s) <code><i>ireprs</i></code>
-      and output representation <code><i>orepr</i></code>.
+    <dd>Implements <code><i>op</i></code> with input representation(s) <code><i>irepr-names</i></code>
+      and output representation <code><i>orepr-name</i></code>.
       The field <code><i>name</i></code> must be unique.
       For example, Herbie implements <code>+.f64</code> and <code>+.f32</code>
       for double- and single-precision floats.
       The argument <code><i>fl-fn</i></code> is the actual procedure that does the computation.
       Like <code>define-operator</code>, the input representations can be
       overridden with <code>[itype <i>irepr</i>]</code>.
-      By default, the attributes <code>bf</code>, <code>ival</code>, and <code>nonffi</code>
+      By default, the attributes <code>bf</code> and <code>ival</code>
       are inherited from <code><i>op</i></code> but can be overridden as previously
       described.
-    </dd>
-
-    <dt><code>(<b>define-constant</b> <i>name</i> [bf <i>bf-thunk</i>] [ival <i>ival-thunk</i>])</code>
-    </dt>
-    <dd>Adds a new constant. Constants describe pure mathematical values.
-      i.e. <code>π</code> or <code>e</code>.
-      The <code><i>bf-fn</i></code> argument is a thunk that
-      returns the <a href="https://docs.racket-lang.org/math/bigfloat.html">bigfloat</a>
-      value of the constant.
-      The <code><i>ival-fn</i></code> argument is a thunk
-      that returns the <a href="https://github.com/herbie-fp/rival">Rival</a>
-      interval value of the constant.
-    </dd>
-
-    <dt>
-      <code>
-      <table>
-        <tr><td>(<b>define-constant-impl</b> (<i>const</i> <i>name</i>)</td><td><i>repr</i></td></tr>
-        <tr><td></td><td>[fl <i>fl-thunk</i>]</td></tr>
-        <tr><td></td><td>...)</td></tr>
-      </table>
-      </code>
-    </dt>
-    <dd>Implements <code>const</code> for the representation <code><i>repr</i></code>.
-      The argument <code><i>fl-thunk</i></code> is a thunk that returns the approximate
-      value of the constant in the representation <code><i>repr</i></code>.
-      By default, the attributes <code>bf</code> and <code>ival</code> are inherited
-      from <code><i>const</i></code> but can be overridden (see <code>define-operator</code>
-      or <code>define-operator-impl</code> for overriding attributes).
+      See the bottom of this section for support for constant implementations.
     </dd>
 
     <dt>
@@ -301,25 +274,66 @@
     </dd>
   </dl>
 
-  <p><b>Plugin Interface (Parameterized)</b><br>
-    Defining operators, constants, and representations for parameterized functions requires
-    a <i>generator</i> procedure for just-in-time loading of features for a particular
-    representation.
-    When Herbie encounters a representation it does not recognize (not explicitly defined
-    using <code>define-representation</code>) it queries a list of generators in case the
-    representation requires just-in-time loading.
+  <p>Procedures for declaring constants are not a part of the plugin interface.
+    Instead, constants and constant implementations are defined as
+      zero-argument operators and operator implementations.
+    The fields <code><i>fl-fn</i></code>, <code><i>bf-fn</i></code>,
+      and <code><i>ival-fn</i></code> should be implemented with zero-argument
+      procedures (thunks).
+    Similar to operator and operator implementations, constants describe pure
+      mathematical values like <code>π</code> or <code>e</code> while constant
+      implementations define an approximation of those constants in a particular
+      representation.
   </p>
 
-  <p>The following procedure handles generators:</p>
+  <p><b>Plugin Interface (Parameterized)</b><br>
+
+  Defining operators, constants, and representations for parameterized functions requires
+  a <i>generator</i> procedure for just-in-time loading of features for a particular
+  representation.
+  When Herbie encounters a representation it does not recognize (not explicitly defined
+  using <code>define-representation</code>) it queries a list of generators in case the
+  representation requires just-in-time loading.
+  </p>
+
+  <p>The following procedure handles represention objects:</p>
+
+  <dl>
+    <dt><code>(<b>get-representation</b> name)</code></dt>
+    <dd>Takes a representation name and returns a representation object.
+      Do not call this function before the associated representation has been registered!
+    </dd>
+  </dl>
+
+  <p>The following procedures handle generators:</p>
 
   <dl>
     <dt><code>(<b>register-generator!</b> gen)</code></dt>
-    <dd>Adds a generator procedure to Herbie's set of generators.
-      Generator procedures take the name of a representation and return whether
-      it successfully created the operators, constants, and rules associated
-      with a particular representation.
-      In the case that your plugin does not define the requested representation,
-      the generator procedure(s) need not do anything and should just return
+    <dd>Adds a representation generator procedure to Herbie's set of generators.
+      Representation generator procedures take the name of a representation and
+      return the associated representation object if it successfully created the
+      operators, constants, and rules for that representation.
+      In the case that your plugin does not register the requested representation,
+      the generator procedure need not do anything and should just return
+      <code>false</code>.
+    </dd>
+  </dl>
+
+  <dl>
+    <dt><code>(<b>register-conversion-generator!</b> gen)</code></dt>
+    <dd>Adds a conversion generator procedure to Herbie's set of generators.
+      Conversion generator procedures take the names of two representations
+      and returns <code>true</code> if it successfully registered conversion(s)
+      between the two representations.
+      Conversions are one-argument operator implementations of the <code>cast</code>
+        operator that have one representation as an input representation and
+        a different representation as an output representation.
+      User-defined conversions are <i>OPTIONAL</i> for multi-precision optimization,
+        since Herbie can synthesize these by default.
+      However Herbie's implementations are often slow since they are
+        representation-agnostic and work for any two representations.
+      In the case that your plugin does not register the requested conversion(s),
+      the generator procedure need not do anything and should just return
       <code>false</code>.
     </dd>
   </dl>
@@ -348,11 +362,25 @@
     <dd>Like <code>define-representation</code>, but used within generators.</dd>
 
     <dt>
-      <code>(<b>register-operator!</b> <i>op</i> <i>name</i> <i>itypes</i>
-        <i>otype</i> <i>attribs</i>)</code>
+      <code>
+      <table>
+        <tr><td>(<b>register-representation!</b> </td><td> <i>name</i> <i>repr</i>)</td></tr>
+      </table>
+      </code>
+    </dt>
+    <dd>An alternate form of <code>register-representation!</code> used for representation aliasing.
+      If two representations are equivalent, e.g. <i>(float 8 32)</i> and <i>binary32</i>,
+      this procedure can be used to declare the two representations equivalent.
+      The field <i>repr</i> is an existing representation object and <i>name</i>
+      is an alias that should be associated with it.
+    </dd>
+
+    <dt>
+      <code>(<b>register-operator!</b> <i>op</i> <i>name</i> <i>itype-names</i>
+        <i>otype-name</i> <i>attribs</i>)</code>
     </dt>
     <dd>Like <code>define-operator</code>, but used within generators.
-      The argument <code><i>itypes</i></code> is a list of the input types
+      The argument <code><i>itype-names</i></code> is a list of the input types
       while the argument <code><i>attribs</i></code> are the same attributes for
       <code>define-operator</code>, e.g. <code>bf</code>.
       In this case, <code><i>attribs</i></code> is an association:
@@ -364,27 +392,19 @@
         <i>orepr</i> <i>attribs</i>)</code>
     </dt>
     <dd>Like <code>define-operator-impl</code>, but used within generators.
-      See <code>register-operator!</code> for a description of <code><i>ireprs</i></code>
-      and <code><i>attribs</i></code>.
+      Unlike <code>define-operator-impl</code>, this procedure takes representation
+        objects rather than representation names for <code><i>ireprs</i></code>
+        and <code><i>orepr</i></code>.
+      Use <code>get-representation</code> to produce these objects.
+      See <code>register-operator!</code> for a description of <code><i>attribs</i></code>.
     </dd>
 
-    <dt><code>(<b>register-constant!</b> <i>name</i> <i>attribs</i>)</code></dt>
-    <dd>Like <code>define-constant</code>, but used within generators.
-      The argument <code><i>attribs</i></code> are the same attributes for
-      <code>define-constant</code>.
-      In this case, <code><i>attribs</i></code> is an association:
-      <code>(list (cons 'bf <i>bf-thunk</i>) ...)</code>.
-    </dd>
-
-    <dt><code>(<b>register-constant-impl!</b> <i>const</i> <i>name</i> <i>type</i> <i>attribs</i>)</code></dt>
-    <dd>Like <code>define-constant-impl</code>, but used within generators.
-      See <code>register-constant!</code> for a description of <code><i>attribs</i></code>.
-    </dd>
-
-    <dt><code>(<b>register-ruleset!</b> <i>name</i> <i>groups</i> <i>var-reprs</i> <i>rules</i>)</code></dt>
+    <dt><code>(<b>register-ruleset!</b> <i>name</i> <i>groups</i>
+        <i>var-repr-names</i> <i>rules</i>)</code>
+    </dt>    
     <dd>Like <code>define-ruleset</code>, but used within generators.
       In this case, <code><i>groups</i></code> is a list of rule groups;
-        <code><i>var-reprs</i></code> is an association
+        <code><i>var-repr-names</i></code> is an association
         pairing each variable in the ruleset with its representation, e.g.
         <code>(list (cons 'x '(float 5 16)) ...)</code>;
         and <code><i>rules</i></code> is a list of rules of the following

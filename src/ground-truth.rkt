@@ -45,8 +45,8 @@
      (warn 'no-ival-operator #:url "faq.html#no-ival-operator"
            "using unsound ground truth evaluation for program ~a" prog)
      (define f (batch-eval-progs progs 'bf repr))
-     (define (unival x) (if (bigfloat? x) x (ival-lo x)))
-     (values 'bf (λ (x) (vector-map (λ (y) (ival y)) (apply f (map unival x)))))]))
+     (define (unival x) (if (ival? x) (ival-lo x) x))
+     (values 'bf (λ args (vector-map (λ (y) (ival y)) (apply f (map unival args)))))]))
 
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
