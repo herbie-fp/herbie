@@ -184,6 +184,30 @@ section h1 {
 .tabbar li:hover { background: #e4e4e4; }
 .tabbar li.selected { background: #d3d3d3; }
 
+#plot_options { display: grid; grid-template-columns: auto auto; }
+#variables { justify-self: start; }
+#functions { justify-self: end; }
+
+#variables .selected { background-color: lightgray; }
+#variables .variable { margin-right: 3px; padding-left: 2px; padding-right: 2px; padding-bottom: 2px; }
+
+#functions { margin-right: 40px; }
+#functions .function {
+    width: 20px;
+    height: 20px;
+    /* border: 1px solid #000; */
+    border-radius: 50%;
+    /* box-shadow: inset 0px 0px 0px 1px black; */
+    box-sizing: border-box; /* Include padding and border in element's width and height */
+    display: inline-block;
+    margin-left: 5px;
+}
+
+#functions #function_start { border: 3px solid red; }
+#functions #function_start.selected { background: pink; }
+#functions #function_end { border: 3px solid blue; }
+#functions #function_end.selected { background: lightblue; }
+
 /* Try it out section */
 
 #try-result output { font-size: 108%; margin: 0 .5em; float: right; }

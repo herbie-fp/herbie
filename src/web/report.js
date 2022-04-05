@@ -186,7 +186,7 @@ const ClientGraph = new Component('#graphs', {
         const get_points_memo = async () => {
             if (get_points_store.value) { return get_points_store.value }
             const ps = await get_json('points.json')
-            get_points_store.value = [...ps.points.map((p, i) => ({x: p, y: ps.exacts[i]}))].sort(key_fn(o => o.x))
+            get_points_store.value = [...ps.points.map((p, i) => ({x: p, y: ps.exacts[i]}))]
             return get_points_store.value
         }
         const get_json = url => fetch(url, {  // TODO double check URL
@@ -374,31 +374,71 @@ const ClientGraph = new Component('#graphs', {
         const average_chunk = A => {
             // HACK to just show a clean line. x values are off because averaging huge x is hard
             const out = ({ x: A[0].x/*A.reduce((acc, v) => acc + v.x, 0) / A.length*/, err: A.reduce((acc, v) => acc + v.err, 0) / A.length })
-            console.log(out)
+            //console.log(out)
             return out
         }
-        const plot = (data, myfn, varName) => {
-            if (!varName) throw Error('stop')
+        const plot = async (varName, function_names) => {
+            const functions = [
+                { name: 'start', fn: start, line: { stroke: '#aa3333ff' }, dot: { stroke: '#ff000007'} },
+                { name: 'end', fn: end, line: { stroke: '#0000ffff' }, dot: { stroke: '#0000ff07'} },
+                //{ name: 'target', fn: target, line: { stroke: 'green' }, dot: { stroke: 'green'}}  // NOTE not properly supported yet
+            ].filter(o => function_names.includes(o.name))
+            async function line_and_dot_graphs({ name, fn, line, dot }) {
+                const index = all_vars.indexOf(varName)
+                const data = (await points_with_err(fn)).sort(key_fn(o => o.x[index])).map((o, i) => (o.i = i, o))
+                return [
+                    Plot.line(chunk(data, 30).map(average_chunk), {
+                        x: d => d.x[index], y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
+                    }),
+                    Plot.dot(data, {x: d => d.x[index], y: "err", r: 1.3, 
+                        title: d => `x: ${d.x[index]} \n i: ${d.i} \n computed: ${d.computed}\n exact: ${d.exact} \n bits of error: ${d.err}`,
+                        ...dot})
+                ]
+            }
             const out = addTooltips(Plot.plot({
             width: '800',
             height: '400',
             grid: true,
             x: { type: 'log', base: 10, tickFormat: ',.1', ticks: 10, label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70},
             y: { label: "Bits of error", domain: [0, 64], ticks: new Array(64/4 + 1).fill(0).map((_, i) => i * 4), tickFormat: d => d % 8 != 0 ? '' : d},
-            marks: [
-            Plot.line(chunk(data, 30).map(average_chunk), {x: "x", y: "err", stroke: '#883355ff', strokeWidth: 1.3}),
-            Plot.dot(data, {x: "x", y: "err", stroke: '#ff000007', r: 1.3, 
-                            title: d => `x: ${d.x} \n i: ${d.i} \n computed: ${d.computed}\n exact: ${d.exact} \n bits of error: ${d.err}`}),
-            ]
+            marks: await Promise.all(functions.map(async config => await line_and_dot_graphs(config)).flat())
         }))
             out.setAttribute('viewBox', '0 0 800 430')
             //out.style['grid-area'] = 'small-plots'
             //out.style.display = 'inline'
             return out
         }
-        
-        console.log(start, end)
-        document.querySelector('#graphs').replaceChildren(plot(await points_with_err(start), start, 'x'), plot(await points_with_err(end), end, 'x'))
+        function html(string) {
+            const t = document.createElement('template');
+            t.innerHTML = string;
+            return t.content;
+        }
+        const all_vars = start.toString().split(')')[0].split('(')[1].split(',').map(s => s.trim())
+        async function render(selected_var_name, selected_functions) {
+            const all_fns = ['start', 'end']
+            const options_view = html(`
+                <div id="plot_options">
+                <div id="variables">
+                    Bits of error vs. ${all_vars.map(v => `<span class="variable ${selected_var_name == v ? 'selected' : ''}">${v}</span>`).join('')}
+                </div>
+                <div id="functions">
+                    ${all_fns.map(fn => `<div id="function_${fn}" class="function ${selected_functions.includes(fn) ? 'selected' : ''}"></div>`).join('')}
+                </div>
+                </div>
+            `)
+            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+            options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
+                console.log('clicked variable')
+                render(e.textContent, selected_functions)
+            })
+            options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
+                console.log('clicked function')
+                render(selected_var_name, toggle(e.id.split('_').slice(1).join('_'), selected_functions))
+            })
+            document.querySelector('#graphs').replaceChildren(await plot(selected_var_name, selected_functions), options_view)
+        }
+        render(all_vars[0], ['start', 'end'])  // TODO initialize properly -- where to get the varname from...
+        //document.querySelector('#graphs').replaceChildren(plot(await points_with_err(start), start, 'x'), plot(await points_with_err(end), end, 'x'))
     }
 })
 
