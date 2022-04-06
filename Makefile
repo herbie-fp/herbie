@@ -14,12 +14,14 @@ install:
 	raco pkg install --skip-installed --auto --name herbie src/
 	raco pkg update --name herbie src/
 
-distribute:	exe
+distribute:	distribute-minimal
+	cp -r bench herbie-compiled/
+
+distribute-minimal:	exe
 	mkdir -p herbie-compiled
 	mkdir -p herbie-compiled/bin
 	cp herbie herbie-compiled/bin/
-	cp -r src/web/resources herbie-compiled/resources
-	cp -r bench herbie-compiled/
+	cp -r src/web/resources herbie-compiled/
 
 exe:
 	raco exe -o herbie --orig-exe --embed-dlls --vv src/herbie.rkt
