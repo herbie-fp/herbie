@@ -13,6 +13,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    name: "Standalone Executable Tests"
     steps:
       - uses: actions/checkout@master
       - name: "Install Racket"
@@ -31,5 +32,7 @@ jobs:
         run: make install
       - name: "Build standalone executable"
         run: make distribute-minimal
+      - name: "Uninstall local Herbie instance"
+        run: raco pkg remove herbie egg-herbie
       - name: "Test executable (report tool)"
-        run: herbie-compiled/bin/herbie report --threads yes herbie-compiled/bench/hamming graphs
+        run: herbie-compiled/bin/herbie report --threads yes bench/hamming graphs
