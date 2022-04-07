@@ -30,9 +30,13 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
+      # Build executable and remove Herbie launcher
       - name: "Build standalone executable"
-        run: make distribute-minimal
-      - name: "Uninstall local Herbie instance"
+        run: make distribution
+      - name: "Uninstall Herbie launcher"
         run: raco pkg remove herbie egg-herbie
+      # Test executable
+      - name: "Test executable (improve tool)"
+        run: herbie-compiled/bin/herbie improve --threads yes bench/tutorial.fpcore improve.fpcore
       - name: "Test executable (report tool)"
-        run: herbie-compiled/bin/herbie report --threads yes bench/hamming graphs
+        run: herbie-compiled/bin/herbie report --threads yes bench/tutorial.fpcore graphs
