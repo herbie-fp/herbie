@@ -1,4 +1,4 @@
-Copyright (c) 2015-2019 Herbie Project
+Copyright (c) 2015-2022 Herbie Project
 Modified work Copyright 2016 Google Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining

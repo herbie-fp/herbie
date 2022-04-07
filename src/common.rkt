@@ -188,21 +188,11 @@
             (loop (cdr names) (cons #f ps))))))
 
 (define-runtime-path web-resource-path "web/resources/")
-(define fallback-web-resource-path "../resources")
-
-(define (get-exe-directory)
-  (define-values (base name dir?) (split-path (path->complete-path (find-system-path 'run-file))))
-  base)
 
 (define (web-resource [name #f])
   (if name
-    (let ([rt-path (build-path web-resource-path name)])
-      (if (file-exists? rt-path)
-          rt-path
-          (build-path (get-exe-directory) fallback-web-resource-path name)))
-    (if (directory-exists? web-resource-path)
-        web-resource-path
-        (build-path (get-exe-directory) fallback-web-resource-path))))
+      (build-path web-resource-path name)
+      web-resource-path))
 
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~a args))))
