@@ -21,14 +21,9 @@ minimal-distribution: exe
 	mkdir -p herbie-compiled/
 	cp LICENSE.md herbie-compiled/
 	cp logo.png herbie-compiled/
-	[ ! -f herbie.exe ] || (raco distribute herbie-compiled herbie.exe && \
-							mkdir -p herbie-compiled/bin && \
-							mv herbie-compiled/herbie.exe herbie-compiled/bin && \
-							rm herbie.exe)
-	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && \
-							rm herbie.app)
-	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && \
-						rm herbie)
+	[ ! -f herbie.exe ] || (raco distribute herbie-compiled herbie.exe)
+	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
+	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 exe:
 	raco exe -o herbie --orig-exe --embed-dlls --vv src/herbie.rkt

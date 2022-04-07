@@ -35,7 +35,15 @@ jobs:
       - name: "Uninstall Herbie launcher"
         run: raco pkg remove herbie egg-herbie
       # Test executable
-      - name: "Test executable (improve tool)"
-        run: ./herbie-compiled/bin/herbie improve --threads yes bench/tutorial.fpcore improve.fpcore
-      - name: "Test executable (report tool)"
-        run: ./herbie-compiled/bin/herbie report --threads yes bench/tutorial.fpcore graphs
+      - name: "Test executable, improve tool (Windows)"
+        if: runner.os == 'Windows'
+        run: herbie-compiled/herbie.exe improve --threads yes bench/tutorial.fpcore improve.fpcore
+      - name: "Test executable, improve tool (Linux / MacOS)"
+        if: runner.os != 'Windows'
+        run: herbie-compiled/bin/herbie improve --threads yes bench/tutorial.fpcore improve.fpcore
+      - name: "Test executable, report tool (Windows)"
+        if: runner.os == 'Windows'
+        run: herbie-compiled/herbie.exe report --threads yes bench/tutorial.fpcore graphs
+      - name: "Test executable, report tool (Linux / MacOS)"
+        if: runner.os != 'Windows'
+        run: herbie-compiled/bin/herbie report --threads yes bench/tutorial.fpcore graphs
