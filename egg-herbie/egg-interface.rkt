@@ -13,13 +13,13 @@
          (struct-out EGraphIter)
          (struct-out FFIRule))
 
-
-(define-runtime-path rust-bin (build-path "target/release"))
-(define libeggmath-path
-  (build-path rust-bin (case (system-type)
-                        [(windows) "egg_math"]
-                        [else "libegg_math"])))
-
+(define-runtime-path libeggmath-path
+  (build-path "target/release"
+              (string-append
+                (case (system-type)
+                 [(windows) "egg_math"]
+                 [else "libegg_math"])
+                (bytes->string/utf-8 (system-type 'so-suffix)))))
 
 (define-ffi-definer define-eggmath (ffi-lib libeggmath-path))
 
