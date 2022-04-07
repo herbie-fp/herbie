@@ -1,4 +1,4 @@
-name: Plugin tests
+name: Distribution tests
 
 on: [push]
 

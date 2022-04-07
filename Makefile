@@ -17,12 +17,17 @@ install:
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
 
-minimal-distribution:
+minimal-distribution: exe
+	[ ! -f herbie.exe ] || mv herbie.exe herbie
+	[ ! -f herbie.app ] || mv herbie.app herbie
 	mkdir -p herbie-compiled/
 	cp LICENSE.md herbie-compiled/
-	raco exe -o herbie --orig-exe --embed-dlls --vv src/herbie.rkt
+	cp logo.png herbie-compiled/
 	raco distribute herbie-compiled herbie
 	rm herbie
+
+exe:
+	raco exe -o herbie --orig-exe --embed-dlls --vv src/herbie.rkt
 
 nightly: install
 	bash infra/nightly.sh reports
