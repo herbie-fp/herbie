@@ -13,7 +13,6 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    name: "Standalone Executable Tests"
     steps:
       - uses: actions/checkout@master
       - name: "Install Racket"
@@ -37,6 +36,6 @@ jobs:
         run: raco pkg remove herbie egg-herbie
       # Test executable
       - name: "Test executable (improve tool)"
-        run: herbie-compiled/bin/herbie improve --threads yes bench/tutorial.fpcore improve.fpcore
+        run: ./herbie-compiled/bin/herbie improve --threads yes bench/tutorial.fpcore improve.fpcore
       - name: "Test executable (report tool)"
-        run: herbie-compiled/bin/herbie report --threads yes bench/tutorial.fpcore graphs
+        run: ./herbie-compiled/bin/herbie report --threads yes bench/tutorial.fpcore graphs
