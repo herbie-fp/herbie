@@ -14,11 +14,11 @@
          (struct-out FFIRule))
 
 
-(define-runtime-path libeggmath-path
-  (build-path "target" "release"
-              (case (system-type)
-                [(windows) "egg_math"]
-                [else "libegg_math"])))
+(define-runtime-path rust-bin (build-path "target/release"))
+(define libeggmath-path
+  (build-path rust-bin (case (system-type)
+                        [(windows) "egg_math"]
+                        [else "libegg_math"])))
 
 
 (define-ffi-definer define-eggmath (ffi-lib libeggmath-path))
