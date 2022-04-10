@@ -8,7 +8,8 @@
 
 ; make sure to check both package scopes
 (define (is-installed? name)
-  (or (hash-has-key? (installed-pkg-table #:scope 'installation) name)
+  (or (null? (current-library-collection-paths))  ;; most-likely compiled a standalone executable
+      (hash-has-key? (installed-pkg-table #:scope 'installation) name)
       (hash-has-key? (installed-pkg-table #:scope 'user) name)))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie

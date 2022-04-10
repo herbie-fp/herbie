@@ -14,6 +14,19 @@ install:
 	raco pkg install --skip-installed --auto --name herbie src/
 	raco pkg update --name herbie src/
 
+distribution: minimal-distribution
+	cp -r bench herbie-compiled/
+
+minimal-distribution:
+	mkdir -p herbie-compiled/
+	cp README.md herbie-compiled/
+	cp LICENSE.md herbie-compiled/
+	cp logo.png herbie-compiled/
+	raco exe -o herbie --orig-exe --embed-dlls --vv src/herbie.rkt
+	[ ! -f herbie.exe ] || (raco distribute herbie-compiled herbie.exe && rm herbie.exe)
+	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
+	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
+
 nightly: install
 	bash infra/nightly.sh reports
 
