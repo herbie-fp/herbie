@@ -73,6 +73,13 @@
                                          _uint ;; iteration
                                          -> _pointer)) ;; string pointer
 
+;; TODO egg-rr
+;; node number -> (s-expr string) string
+(define-eggmath egraph_get_variants (_fun _egraph-pointer
+                                         _uint ;; node id
+                                         _uint ;; iteration
+                                         -> _pointer)) ;; string pointer
+
 (define-eggmath egraph_get_cost (_fun _egraph-pointer
                                      _uint ;; node id
                                      _uint ;; iteration
@@ -81,4 +88,4 @@
 (define-eggmath egraph_get_times_applied (_fun _egraph-pointer
                                                _pointer ;; name of the rule
                                                -> _uint))
-                                               
+

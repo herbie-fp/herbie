@@ -73,6 +73,13 @@
         (when result
             (sow (list (change rule root-loc (cdr result)))))))))
 
+; TODO egg rr experiment
+; - how do changes work with egg rewrites?
+; - how to get variations from egg?
+(define (egg-rewrite-expression-head expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
+  ; this is wrong
+  (list expr))
+
 (define (rewrite-expression-head expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
   (define type (repr-of expr repr (*var-reprs*)))
   (define (rewriter sow expr ghead glen loc cdepth)

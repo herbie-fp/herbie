@@ -254,6 +254,30 @@ pub unsafe extern "C" fn egraph_get_simplest(
     })
 }
 
+// TODO egg rr
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_variants(
+    ptr: *mut Context,
+    node_id: u32,
+    iter: u32,
+) -> *const c_char {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        let ext = find_extracted(runner, node_id, iter);
+
+        // TODO egg rr : wrap in "(..)" to make it a list
+        let best_str = CString::new(ext.best.to_string()).unwrap();
+        let best_str_pointer = best_str.as_ptr();
+        std::mem::forget(best_str);
+        best_str_pointer
+    })
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
     ffirun(|| {
