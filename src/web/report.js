@@ -379,27 +379,75 @@ const ClientGraph = new Component('#graphs', {
         }
         const plot = async (varName, function_names) => {
             const functions = [
-                { name: 'start', fn: start, line: { stroke: '#aa3333ff' }, dot: { stroke: '#ff000007'} },
-                { name: 'end', fn: end, line: { stroke: '#0000ffff' }, dot: { stroke: '#0000ff07'} },
+                { name: 'start', fn: start, line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000007'} },
+                { name: 'end', fn: end, line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff07'} },
                 //{ name: 'target', fn: target, line: { stroke: 'green' }, dot: { stroke: 'green'}}  // NOTE not properly supported yet
             ].filter(o => function_names.includes(o.name))
-            async function line_and_dot_graphs({ name, fn, line, dot }) {
+            async function line_and_dot_graphs({ name, fn, line, dot, area }) {
                 const index = all_vars.indexOf(varName)
                 const data = (await points_with_err(fn)).sort(key_fn(o => o.x[index])).map((o, i) => (o.i = i, o))
+                console.log(data, index)
+                const sliding_window = (A, size) => [...new Array(Math.max(A.length - size, 0))].map((_, i) => {
+                    const half = Math.floor(size / 2)
+                    i = i + half
+                    const slice = A.slice(i - half, i - half + size).sort(key_fn(o => o.err))
+                    const x = A[i].x[index]
+                    const top = slice[Math.floor(slice.length * .95)].err
+                    const top_q = slice[Math.floor(slice.length * .75)].err
+                    const bottom = slice[Math.floor(slice.length * .05)].err
+                    const bottom_q = slice[Math.floor(slice.length * .25)].err
+                    const middle = slice[Math.floor(slice.length * .5)].err
+                    const average = slice.reduce((acc, e) => e.err + acc, 0) / slice.length
+                    return { x, top, middle, bottom, average, top_q, bottom_q }
+                })
+                const sliding_window_data = sliding_window(data, 100)
+                console.log(sliding_window_data)
+                const sliding_chunksize = 100
                 return [
-                    Plot.line(chunk(data, 30).map(average_chunk), {
-                        x: d => d.x[index], y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
+                    Plot.areaY(sliding_window_data, {
+                        x: d => d.x, 
+                        y1: "bottom", 
+                        y2: "top",
+                        ...area
                     }),
-                    Plot.dot(data, {x: d => d.x[index], y: "err", r: 1.3, 
-                        title: d => `x: ${d.x[index]} \n i: ${d.i} \n computed: ${d.computed}\n exact: ${d.exact} \n bits of error: ${d.err}`,
-                        ...dot})
+                    Plot.areaY(sliding_window_data, {
+                        x: d => d.x, 
+                        y1: "bottom_q", 
+                        y2: "top_q",
+                        ...area
+                    }),
+                    Plot.line(sliding_window_data, {
+                        x: "x",
+                        y: "middle",
+                        strokeWidth: 1.3, ...line,
+                    }),
+                    Plot.line(sliding_window_data, {
+                        x: "x",
+                        y: "average",
+                        strokeWidth: 1.3, ...line,
+                    }),
+                    // Plot.line(chunk(sliding_window_data.map(({ top }) => top), sliding_chunksize).map(average_chunk), {
+                    //     x: d => d.x[index], y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
+                    // }),
+                    // Plot.line(chunk(sliding_window_data.map(({ bottom }) => bottom), sliding_chunksize).map(average_chunk), {
+                    //     x: d => d.x[index], y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
+                    // }),
+                    // Plot.line(chunk(sliding_window_data.map(({ middle }) => middle), sliding_chunksize).map(average_chunk), {
+                    //     x: d => d.x[index], y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
+                    // }),
+                    // Plot.dot(data, {x: d => d.x[index], y: "err", r: 1.3, 
+                    //     title: d => `x: ${d.x[index]} \n i: ${d.i} \n computed: ${d.computed}\n exact: ${d.exact} \n bits of error: ${d.err}`,
+                    //     ...dot})
                 ]
             }
+            const points = await get_points_memo()
+            const index = all_vars.indexOf(varName)
+            const domain = [points.reduce((acc, e) => Math.min(acc, e.x[index]), points[0].x[index]), points.reduce((acc, e) => Math.max(acc, e.x[index]), points[0].x[index])]
+            console.log(domain)
             const out = addTooltips(Plot.plot({
             width: '800',
             height: '400',
-            grid: true,
-            x: { type: 'log', base: 10, tickFormat: ',.1', ticks: 10, label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70},
+            x: { type: 'log', base: 10, tickFormat: ',.1', ticks: 10, label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70, domain, grid:true},
             y: { label: "Bits of error", domain: [0, 64], ticks: new Array(64/4 + 1).fill(0).map((_, i) => i * 4), tickFormat: d => d % 8 != 0 ? '' : d},
             marks: await Promise.all(functions.map(async config => await line_and_dot_graphs(config)).flat())
         }))
