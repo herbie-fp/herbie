@@ -68,15 +68,15 @@
                          ,@values)))
   
 (define languages
-  `(("FPCore" . ,(λ (c i) (fpcore->string c)))
-    ("C" . ,(λ (c i) (core->c c i)))
-    ("Fortran" . ,(λ (c i) (core->fortran c i)))
-    ("Java" . ,(λ (c i) (core->java c i)))
-    ("Python" . ,(λ (c i) (core->python c i)))
-    ("Julia" . ,(λ (c i) (core->julia c i)))
-    ("MATLAB" . ,(λ (c i) (core->matlab c i)))
-    ("Wolfram" . ,(λ (c i) (core->wls c i)))
-    ("TeX" . ,(λ (c i) (core->tex c)))
+  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)))
+    ("C" "c" ,(λ (c i) (core->c c i)))
+    ("Fortran" "f03" ,(λ (c i) (core->fortran c i)))
+    ("Java" "java" ,(λ (c i) (core->java c i)))
+    ("Python" "py" ,(λ (c i) (core->python c i)))
+    ("Julia" "jl" ,(λ (c i) (core->julia c i)))
+    ("MATLAB" "mat" ,(λ (c i) (core->matlab c i)))
+    ("Wolfram" "wl" ,(λ (c i) (core->wls c i)))
+    ("TeX" "tex" ,(λ (c i) (core->tex c)))
     ))
 
 (define (render-preprocess preprocess-structs)
@@ -105,15 +105,14 @@
 
   (define versions
     (reap [sow]
-      (for ([(lang converter) (in-dict languages)])
-        (let ([ext (string-downcase lang)]) ; FPBench organizes compilers by extension
-          (when (and (fpcore? in-prog*) (or (not out-prog*) (fpcore? out-prog*))
-                     (or (equal? ext "fpcore")                           
-                          (and (supported-by-lang? in-prog* ext) ; must be valid in a given language  
-                               (or (not out-prog*) (supported-by-lang? out-prog* ext)))))
-            (sow (cons lang (cons (converter in-prog* (if identifier (symbol->string identifier) "code"))
-                                  (and out-prog* (converter out-prog* identifier)))))
-    )))))
+      (for ([(lang record) (in-dict languages)])
+        (match-define (list ext converter) record)
+        (when (and (fpcore? in-prog*) (or (not out-prog*) (fpcore? out-prog*))
+                   (or (equal? ext "fpcore")                           
+                       (and (supported-by-lang? in-prog* ext) ; must be valid in a given language  
+                            (or (not out-prog*) (supported-by-lang? out-prog* ext)))))
+          (sow (cons lang (cons (converter in-prog* (if identifier (symbol->string identifier) "code"))
+                                (and out-prog* (converter out-prog* identifier)))))))))
 
   (define-values (math-in math-out)
     (if (dict-has-key? versions "TeX")
