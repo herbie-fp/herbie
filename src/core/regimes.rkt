@@ -3,7 +3,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
          "../points.rkt")
-(require "../ground-truth.rkt" "../float.rkt") ; For binary search
+(require "../ground-truth.rkt" "../float.rkt" "../pretty-print.rkt") ; For binary search
 (module+ test (require rackunit "../load-plugin.rkt"))
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
@@ -184,8 +184,12 @@
      ; (only works for floats, problematic since p1 and p2 are repr values)
      ; (this is handled by catching all sampling errors, so we can comment this out)
      ; [(nan? midpoint) p1]
-     [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
-	   [else
+     [(<= (ulp-difference p1 p2 repr) (expt 2 48))
+      ((representation-bf->repr repr)
+       (bigfloat-interval-shortest
+        ((representation-repr->bf repr) p1)
+        ((representation-repr->bf repr) p2)))]
+     [else
       ; cmp usually equals 0 if sampling failed
       ; if so, give up and return the current midpoint
       (define cmp (pred midpoint))
