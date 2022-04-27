@@ -68,9 +68,16 @@
                          ,@values)))
   
 (define languages
-  `(("TeX" . ,(λ (c i) (core->tex c)))
-    ("FPCore" . ,(λ (c i) (fpcore->string c)))
-    ("C" . ,(λ (c i) (core->c c (if i (symbol->string i) "code"))))))
+  `(("FPCore" . ,(λ (c i) (fpcore->string c)))
+    ("C" . ,(λ (c i) (core->c c i)))
+    ("Fortran" . ,(λ (c i) (core->fortran c i)))
+    ("Java" . ,(λ (c i) (core->java c i)))
+    ("Python" . ,(λ (c i) (core->python c i)))
+    ("Julia" . ,(λ (c i) (core->julia c i)))
+    ("MATLAB" . ,(λ (c i) (core->matlab c i)))
+    ("Wolfram" . ,(λ (c i) (core->wls c i)))
+    ("TeX" . ,(λ (c i) (core->tex c)))
+    ))
 
 (define (render-preprocess preprocess-structs)
   `(div ([id "preprocess"] [class "program math"])
@@ -104,7 +111,7 @@
                      (or (equal? ext "fpcore")                           
                           (and (supported-by-lang? in-prog* ext) ; must be valid in a given language  
                                (or (not out-prog*) (supported-by-lang? out-prog* ext)))))
-            (sow (cons lang (cons (converter in-prog* identifier)
+            (sow (cons lang (cons (converter in-prog* (if identifier (symbol->string identifier) "code"))
                                   (and out-prog* (converter out-prog* identifier)))))
     )))))
 
