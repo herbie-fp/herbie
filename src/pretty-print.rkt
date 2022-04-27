@@ -1,7 +1,7 @@
 #lang racket
 
-(require srfi/13)
-(require math/bigfloat)
+(require srfi/13 math/bigfloat)
+(provide bigfloat-interval-shortest)
 
 (define (bigfloat->normal-string x)
   (cond
