@@ -196,7 +196,10 @@
       (cond
        [(negative? cmp) (binary-search-floats pred midpoint p2 repr)]
        [(positive? cmp) (binary-search-floats pred p1 midpoint repr)]
-       [else midpoint])])))
+       [else ((representation-bf->repr repr)
+              (bigfloat-interval-shortest
+               ((representation-repr->bf repr) p1)
+               ((representation-repr->bf repr) p2)))])])))
 
 (define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
@@ -252,7 +255,11 @@
     (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
 
   (define (regimes-sidx->spoint sidx)
-    (sp (si-cidx sidx) expr (apply eval-expr (list-ref points (- (si-pidx sidx) 1)))))
+    (sp (si-cidx sidx) expr
+        ((representation-bf->repr repr)
+         (bigfloat-interval-shortest
+          (apply eval-expr (list-ref points (- (si-pidx sidx) 1)))
+          (apply eval-expr (list-ref points (si-pidx sidx)))))))
 
   (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
 
