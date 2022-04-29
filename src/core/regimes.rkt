@@ -258,8 +258,10 @@
     (sp (si-cidx sidx) expr
         ((representation-bf->repr repr)
          (bigfloat-interval-shortest
-          (apply eval-expr (list-ref points (- (si-pidx sidx) 1)))
-          (apply eval-expr (list-ref points (si-pidx sidx)))))))
+          ((representation-repr->bf repr)
+           (apply eval-expr (list-ref points (- (si-pidx sidx) 1))))
+          ((representation-repr->bf repr)
+           (apply eval-expr (list-ref points (si-pidx sidx))))))))
 
   (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
 
