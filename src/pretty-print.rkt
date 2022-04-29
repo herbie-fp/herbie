@@ -101,9 +101,9 @@
   (define x-parts (bigfloat->normal-string x))
   (define y-parts (bigfloat->normal-string y))
   (cond
-   [(bf= x y) (bigfloat->string y)]
-   [(symbol? x-parts) (bigfloat->string x)]
-   [(symbol? y-parts) (bigfloat->string y)]
+   [(bf= x y) y]
+   [(symbol? x-parts) x]
+   [(symbol? y-parts) y]
    [(bfnegative? y)
     (bf- (bigfloat-interval-shortest (bf- y) (bf- x)))]
    [(bfnegative? x)
