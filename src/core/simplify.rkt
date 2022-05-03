@@ -3,7 +3,8 @@
 (require pkg/lib racket/lazy-require)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt")
-(provide simplify-expr simplify-batch make-simplification-combinations use-egg-math?)
+(provide simplify-expr simplify-batch make-simplification-combinations
+         use-egg-math? rules->irules egg-run-rules)
 (module+ test (require rackunit "../load-plugin.rkt"))
 
 ; make sure to check both package scopes
