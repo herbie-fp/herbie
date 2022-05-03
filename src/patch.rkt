@@ -144,17 +144,14 @@
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
-
   (timeline-event! 'rewrite)
-  (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
-  (timeline-push! 'method (~a (object-name rewrite)))
 
   (define changelists
     (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
       (define expr (program-body (alt-program altn)))
       (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] rewriting for" expr)
       (define tnow (current-inexact-milliseconds))
-      (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root '(2))
+      (begin0 (rewrite-expression expr (*output-repr*) #:rules (*rules*) #:root '(2))
         (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
   (define reprchange-rules
@@ -168,7 +165,7 @@
       (define expr (program-body (alt-program altn)))
       (debug #:from 'progress #:depth 4 "[" n "/" (length (^queuedlow^)) "] rewriting for" expr)
       (define tnow (current-inexact-milliseconds))
-      (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules #:root '(2))
+      (begin0 (rewrite-expression expr (*output-repr*) #:rules reprchange-rules #:root '(2))
         (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
 
   (define comb-changelists (append changelists changelists-low-locs))

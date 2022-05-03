@@ -1,12 +1,15 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt"
-         "../syntax/rules.rkt" "../interface.rkt")
+         "../syntax/rules.rkt" "../interface.rkt" "../timeline.rkt"
+         "simplify.rkt")
 
 (provide
- pattern-match pattern-substitute
- rewrite-expression-head rewrite-expression
- change-apply rule-apply)
+  pattern-match
+  pattern-substitute
+  rewrite-expression
+  change-apply
+  rule-apply)
 
 ;;; Our own pattern matcher.
 ;;
@@ -63,9 +66,9 @@
   (match-define (change rule location bindings) cng)
   (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
 
-;; The rewriter
+;;  Depth 1 rewriter
 
-(define (rewrite-expression expr repr #:rules rules #:root [root-loc '()] #:destruct [destruct? #f])
+(define (rewrite-once expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
   (define type (repr-of expr repr (*var-reprs*)))
   (reap [sow]
     (for ([rule rules] #:when (equal? type (rule-otype rule)))
@@ -73,14 +76,9 @@
         (when result
             (sow (list (change rule root-loc (cdr result)))))))))
 
-; TODO egg rr experiment
-; - how do changes work with egg rewrites?
-; - how to get variations from egg?
-(define (egg-rewrite-expression-head expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
-  ; this is wrong
-  (list expr))
+;;  Recursive rewriter
 
-(define (rewrite-expression-head expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
+(define (recursive-rewrite expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
   (define type (repr-of expr repr (*var-reprs*)))
   (define (rewriter sow expr ghead glen loc cdepth)
     ; expr _ _ _ _ -> (list (list change))
@@ -112,7 +110,8 @@
 
   (define cache (make-hash))
   (define (matcher* expr pattern loc cdepth)
-    (hash-ref! cache (list loc pattern cdepth) (λ () (matcher expr pattern loc cdepth))))
+    (hash-ref! cache (list loc pattern cdepth)
+               (λ () (matcher expr pattern loc cdepth))))
 
   (define (matcher expr pattern loc cdepth)
     ; expr pattern _ -> (list ((list change) * bindings))
@@ -144,3 +143,26 @@
 
   ;; The "#f #f" means that any output result works. It's a bit of a hack
   (reap [sow] (rewriter (compose sow reverse) expr #f #f (reverse root-loc) depth)))
+
+;;  Egg recursive rewriter
+
+; TODO egg rr experiment
+; - how do changes work with egg rewrites?
+; - how to get variations from egg?
+(define (egg-rewrite expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
+  
+
+  ; this is wrong
+  (define identity-rule (rule "identity" 'x 'x (list repr) repr))
+  (list (list (change identity-rule root-loc (list (cons 'x expr))))))
+
+;;  Rewrite chooser
+(define (rewrite-expression expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
+  (define driver
+    (cond
+     [(not (flag-set? 'generate 'rr)) rewrite-once]
+     [(flag-set? 'generate 'egg-rr) egg-rewrite]
+     [else recursive-rewrite]))
+  
+  (timeline-push! 'method (~a (object-name driver)))
+  (driver expr repr #:rules rules #:root root-loc #:depth depth))
