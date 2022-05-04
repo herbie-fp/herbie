@@ -74,10 +74,10 @@
                                           _uint ;; iteration
                                           -> _pointer)) ;; string pointer
 
-;; TODO egg-rr
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants (_fun _egraph-pointer
                                           _uint ;; node id
+                                          _uint ;; fuel
                                           -> _pointer)) ;; string pointer
 
 (define-eggmath egraph_get_cost (_fun _egraph-pointer

@@ -155,7 +155,10 @@
 ; - how do changes work with egg rewrites?
 ; - how to get variations from egg?
 (define (egg-rewrite expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
+  (define egg-rule (rule "egg" 'x 'x (list repr) repr))
   (define irules (rules->irules rules))
+  (define fuel 4)
+
   (define extracted
     (with-egraph
       (lambda (egg-graph)
@@ -170,11 +173,8 @@
               '()]
              [else
               (define expr-id (first node-ids))
-              (if (egraph-is-unsound-detected egg-graph)
-                  (egg-exprs->exprs (egraph-get-variants egg-graph expr-id) egg-graph)
-                  '())]))))))
+              (egg-exprs->exprs (egraph-get-variants egg-graph expr-id fuel) egg-graph)]))))))
 
-  (define egg-rule (rule "egg" 'x 'x (list repr) repr))
   (for/list ([variant extracted] #:unless (equal? expr variant))
     (list (change egg-rule root-loc (list (cons 'x variant))))))
 
