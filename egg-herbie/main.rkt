@@ -7,7 +7,8 @@
 (module+ test (require rackunit))
 
 (provide egraph-run egraph-add-exprs with-egraph
-         egraph-get-simplest egg-expr->expr egg-add-exn?
+         egraph-get-simplest egraph-get-variants
+         egg-expr->expr egg-exprs->exprs egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost
          egraph-is-unsound-detected egraph-get-times-applied
          (struct-out iteration-data))
@@ -21,6 +22,12 @@
 
 (define (egraph-get-simplest egraph-data node-id iteration)
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+  (define str (cast ptr _pointer _string/utf-8))
+  (destroy_string ptr)
+  str)
+
+(define (egraph-get-variants egraph-data node-id)
+  (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
   str)
@@ -79,9 +86,22 @@
   (egraph_destroy (egraph-data-egraph-pointer egraph))
   res)
 
+;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
   (define parsed (read (open-input-string expr)))
   (egg-parsed->expr parsed (egraph-data-egg->herbie-dict eg-data)))
+
+;; Like `egg-expr->expr` but expected the string to
+;; parse into a list of S-exprs
+(define (egg-exprs->exprs exprs eg-data)
+  (define port (open-input-string exprs))
+  (let loop ([parse (read port)] [exprs '()])
+    ; (printf "~a ->" parse)
+    (if (eof-object? parse)
+        (reverse exprs)
+        (let ([expr (egg-parsed->expr parse (egraph-data-egg->herbie-dict eg-data))])
+          ; (printf " ~a\n" expr)
+          (loop (read port) (cons expr exprs))))))
 
 (define (egg-parsed->expr parsed rename-dict)
   (match parsed

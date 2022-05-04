@@ -176,10 +176,11 @@
   (define rule-counts
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
-
+  
   (define rewritten
     (for/fold ([done '()] #:result (reverse done))
-              ([cls comb-changelists] [altn altns] #:when true [cl cls])
+              ([cls comb-changelists] [altn altns]
+              #:when true [cl cls])
       (let loop ([cl cl] [altn altn])
         (if (null? cl)
             (cons altn done)

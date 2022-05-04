@@ -148,11 +148,8 @@
 ;;  Egg recursive rewriter
 
 (lazy-require
- [egg-herbie (with-egraph egraph-add-exprs egraph-run
-                          egraph-is-unsound-detected
-                          egraph-get-times-applied egraph-get-simplest egraph-get-cost
-                          egg-expr->expr make-ffi-rules free-ffi-rules
-                          iteration-data-num-nodes iteration-data-time)])
+ [egg-herbie (with-egraph egraph-add-exprs egraph-run egraph-get-variants
+              egraph-is-unsound-detected egg-exprs->exprs)])
 
 ; TODO egg rr experiment
 ; - how do changes work with egg rewrites?
@@ -166,27 +163,20 @@
           egg-graph
           (list expr)
           (lambda (node-ids)
-            (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t))
-          
-            (when (egraph-is-unsound-detected egg-graph)
+            (cond
+             [(egraph-is-unsound-detected egg-graph)
               (warn 'unsound-rules #:url "faq.html#unsound-rules"
-                  "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
-          
-            ; (for ([rule rls])
-            ;   (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-            ;   (when (> count 0)
-            ;     (timeline-push! 'rules (~a (rule-name rule)) count)))
-            (map
-              (lambda (id)
-                (for/list ([iter (in-range (length iter-data))])
-                  (egg-expr->expr (egraph-get-simplest egg-graph id iter) egg-graph)))
-              node-ids))))))
+                  "Unsound rule application detected in e-graph. Results from simplify may not be sound.")
+              '()]
+             [else
+              (define expr-id (first node-ids))
+              (if (egraph-is-unsound-detected egg-graph)
+                  (egg-exprs->exprs (egraph-get-variants egg-graph expr-id) egg-graph)
+                  '())]))))))
 
-  (define simplest (caar extracted))
-
-  ; this is wrong
-  (define identity-rule (rule "egg" 'x 'x (list repr) repr))
-  (list (list (change identity-rule root-loc (list (cons 'x simplest))))))
+  (define egg-rule (rule "egg" 'x 'x (list repr) repr))
+  (for/list ([variant extracted] #:unless (equal? expr variant))
+    (list (change egg-rule root-loc (list (cons 'x variant))))))
 
 ;;  Rewrite chooser
 (define (rewrite-expression expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])

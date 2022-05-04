@@ -1,11 +1,12 @@
 #lang racket
 
 (require ffi/unsafe
-         ffi/unsafe/define)
-(require racket/runtime-path)
+         ffi/unsafe/define
+         racket/runtime-path)
 
 (provide egraph_create egraph_destroy egraph_add_expr
-         egraph_addresult_destroy egraph_run egraph_get_simplest
+         egraph_addresult_destroy egraph_run
+         egraph_get_simplest egraph_get_variants
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
          destroy_string
@@ -69,21 +70,20 @@
 
 ;; node number -> s-expr string
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer
-                                         _uint ;; node id
-                                         _uint ;; iteration
-                                         -> _pointer)) ;; string pointer
+                                          _uint ;; node id
+                                          _uint ;; iteration
+                                          -> _pointer)) ;; string pointer
 
 ;; TODO egg-rr
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants (_fun _egraph-pointer
-                                         _uint ;; node id
-                                         _uint ;; iteration
-                                         -> _pointer)) ;; string pointer
+                                          _uint ;; node id
+                                          -> _pointer)) ;; string pointer
 
 (define-eggmath egraph_get_cost (_fun _egraph-pointer
-                                     _uint ;; node id
-                                     _uint ;; iteration
-                                     -> _uint))
+                                      _uint ;; node id
+                                      _uint ;; iteration
+                                      -> _uint))
 
 (define-eggmath egraph_get_times_applied (_fun _egraph-pointer
                                                _pointer ;; name of the rule
