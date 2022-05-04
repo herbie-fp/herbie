@@ -174,10 +174,8 @@ impl Analysis<Math> for ConstantFold {
                 true
             }
             (Some(a), Some(ref b)) => {
-                if a != b {
-                    if !self.unsound.swap(true, Ordering::SeqCst) {
-                        log::warn!("Bad merge detected: {} != {}", a, b);
-                    }
+                if a != b && !self.unsound.swap(true, Ordering::SeqCst) {
+                    log::warn!("Bad merge detected: {} != {}", a, b);
                 }
                 false
             }

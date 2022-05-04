@@ -51,8 +51,7 @@ pub unsafe extern "C" fn egraph_addresult_destroy(ptr: *mut EGraphAddResult) {
 
 #[no_mangle]
 pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
-    let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
-    std::mem::drop(array)
+    let _array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
 }
 
 #[no_mangle]
@@ -108,7 +107,7 @@ unsafe fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
     let mut result: Vec<EGraphIter> = runner
         .iterations
         .iter()
-        .map(|iter| convert_iter(&iter))
+        .map(convert_iter)
         .collect();
     let ptr = result.as_mut_ptr();
     std::mem::forget(result);
@@ -179,7 +178,7 @@ pub unsafe extern "C" fn egraph_run(
             .take()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
-        if !runner.stop_reason.is_some() {
+        if runner.stop_reason.is_none() {
             let length: usize = rules_array_length as usize;
             let ffi_rules: &[*mut FFIRule] = slice::from_raw_parts(rules_array_ptr, length);
             let mut ffi_tuples: Vec<(&str, &str, &str)> = vec![];
@@ -282,8 +281,8 @@ fn best_expr(
     id: &Id,
 ) -> String {
     let v = cache.get(id);
-    if v.is_some() {
-        v.unwrap().to_string()
+    if let Some(r) = v {
+        r.to_string()
     } else {
         let (_, expr) = extractor.find_best(*id);
         let s = expr.to_string();
@@ -349,7 +348,7 @@ fn egraph_get_variants_fuel(
             Math::Constant(c) => exprs.push(c.to_string()),
             Math::Symbol(s) => exprs.push(s.to_string()),
             // variary
-            Math::Other(s, args) => {
+            Math::Other(_s, _args) => {
                 // let mut vars = vec![];
                 // for id in args {
                 //     let mut i_vars = egraph_get_variants_fuel(runner, extractor, cache, as_u32(id), fuel - 1);
@@ -384,7 +383,7 @@ pub unsafe extern "C" fn egraph_get_variants(
         let mut cache: IndexMap<Id, RecExpr> = Default::default();
 
         // extract
-        let vars = egraph_get_variants_fuel(&runner, &mut extractor, &mut cache, node_id, fuel);
+        let vars = egraph_get_variants_fuel(runner, &mut extractor, &mut cache, node_id, fuel);
         let mut expr_strs: String = "".to_owned();
         for var in vars {
             expr_strs.push_str(&format!(" {}", var));
