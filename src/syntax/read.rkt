@@ -59,7 +59,8 @@
         ['() '()]
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
-  (define default-repr (get-representation (dict-ref prop-dict ':precision (*default-precision*))))
+  (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
+  (define default-repr (get-representation default-prec))
   (define var-reprs 
     (for/list ([arg args] [arg-name arg-names])
       (cons arg-name

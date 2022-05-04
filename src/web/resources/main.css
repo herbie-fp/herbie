@@ -46,11 +46,13 @@ ul {padding-left: 1em;}
 a {color: #2A6496; text-decoration: none}
 a:hover {text-decoration: underline; color: #295785}
 
-#formula textarea, #formula input { width: 100%; font-size: 125%; }
+#formula textarea, #formula input { width: 100%; font-size: 125%; background-color: white; border: 1px solid rgba(222, 229, 231, 1); border-radius: 2px; }
 #formula textarea { font-family: monospace; height: 7em; }
+#input-ranges { margin-top: .1em; }
+#input-ranges td {padding-top: .4em; }
 .extra-fields { margin-top: 1em; }
 .extra-links {
-    display: block; text-align: right; margin-top: .5em; cursor: pointer;
+    float: right; margin-top: .2em; cursor: pointer;
 }
 .extra-links a:after {
      content: "•"; color: black; display: inline-block; padding: 0 1ex;
@@ -60,6 +62,22 @@ a:hover {text-decoration: underline; color: #295785}
 #formula .extra-fields input, .extra-fields select { width: 80%; font-size: 100%; }
 #errors li { color: #800; }
 #formula button[type=submit].hidden { visibility: hidden; height: 0; }
+#mathjs-instructions, #lis { margin-top: 3em;}
+#mathjs-instructions-test { width: 100%; font-size: 125%; }
+input.input-range { width: auto !important; }
+.input-range-view { margin-top: 15px; margin-bottom: 15px; }
+.input-range-view .varname { font-size: 125%; }
+.dropdown { position: relative; display: inline-block; }
+.dropdown-content { 
+    display: none; position: absolute; background-color: #f9f9f9; 
+    min-width: 160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1; }
+.dropdown-content div { padding: 5px; }
+.dropdown-content div:hover {background-color: #f1f1f1}
+.dropdown-content:hover { display: block; }
+.dropdown:focus-within .dropdown-content { display: block; }
+#warnings li { color: #cc5a2a; }
+
 #progress {
     font-size: 14px; font-family: sans-serif; background-color: #f1f1f1;
     padding-left: 0; overflow: scroll; overflow-y: auto;

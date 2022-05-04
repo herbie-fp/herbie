@@ -9,13 +9,15 @@
          impl->operator all-constants operator-all-impls
          *functions* register-function!
          get-parametric-operator
+         generate-conversion-impl!
          repr-conv? rewrite-repr-op? get-repr-conv)
 
 (module+ internals 
   (provide define-operator-impl
            register-operator-impl!
            define-operator
-           register-operator!))
+           register-operator!
+           register-conversion-generator!))
 
 ;; Abstract operator table
 ;; Implementations inherit attributes
@@ -130,7 +132,7 @@
 
 ;; Operator implementations
 
-(struct operator-impl (name op itype otype fl))
+(struct operator-impl (name op itype otype fl bf ival))
 (define operator-impls (make-hasheq))
 
 (define operators-to-impls (make-hasheq))
@@ -155,9 +157,9 @@
     (match field
       ['itype operator-impl-itype]
       ['otype operator-impl-otype]
-      ['bf (compose operator-bf operator-impl-op)]
+      ['bf operator-impl-bf]
       ['fl operator-impl-fl]
-      ['ival (compose operator-ival operator-impl-op)]))
+      ['ival operator-impl-ival]))
   (accessor (hash-ref operator-impls operator)))
 
 (define/contract (operator-remove! operator)
@@ -170,9 +172,10 @@
            "Cannot register ~a as implementation of ~a: no such operator"
            name operator))
 
-
   (define op (hash-ref operators operator))
   (define fl-fun (dict-ref attrib-dict 'fl))
+  (define bf-fun (dict-ref attrib-dict 'bf (λ () (operator-bf op))))
+  (define ival-fun (dict-ref attrib-dict 'ival (λ () (operator-ival op))))
 
   (unless (equal? operator 'if) ;; Type check all operators except if
     (for ([arepr (cons rrepr areprs)]
@@ -182,7 +185,8 @@
                "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
                name operator rrepr (operator-otype op)))))
 
-  (hash-set! operator-impls name (operator-impl name op areprs rrepr fl-fun))
+  (define impl (operator-impl name op areprs rrepr fl-fun bf-fun ival-fun))
+  (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls operator (curry cons name) '()))
   
 
@@ -288,6 +292,23 @@
 
 (define-operator (cast real) real
   [bf identity] [ival identity])
+
+; Similar to representation generators, conversion generators
+; allow Herbie to query plugins for optimized implementations
+; of representation conversions, rather than the default
+; bigfloat implementation
+(define conversion-generators '())
+
+(define/contract (register-conversion-generator! proc)
+  (-> (-> any/c any/c boolean?) void?)
+  (unless (set-member? conversion-generators proc)
+    (set! conversion-generators (cons proc conversion-generators))))
+
+(define (generate-conversion-impl! conv1 conv2 repr1 repr2)
+  (or (impl-exists? conv1)
+      (impl-exists? conv2)
+      (for ([generate conversion-generators])
+        (generate (representation-name repr1) (representation-name repr2)))))
 
 ;; Expression predicates ;;
 

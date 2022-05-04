@@ -1,0 +1,49 @@
+name: Distribution tests
+
+on: [push]
+
+env:
+  RUST_BACKTRACE: full
+
+jobs:
+  distribute:
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@master
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v1.3.1
+        with:
+            version: stable
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      # Build executable and remove Herbie launcher
+      - name: "Build standalone executable"
+        run: make distribution
+      - name: "Uninstall Herbie launcher"
+        run: raco pkg remove herbie egg-herbie
+      # Test executable
+      - name: "Test executable, improve tool (Windows)"
+        if: runner.os == 'Windows'
+        run: herbie-compiled/herbie.exe improve --threads yes bench/tutorial.fpcore improve.fpcore
+      - name: "Test executable, improve tool (Linux / MacOS)"
+        if: runner.os != 'Windows'
+        run: herbie-compiled/bin/herbie improve --threads yes bench/tutorial.fpcore improve.fpcore
+      - name: "Test executable, report tool (Windows)"
+        if: runner.os == 'Windows'
+        run: herbie-compiled/herbie.exe report --threads yes bench/tutorial.fpcore graphs
+      - name: "Test executable, report tool (Linux / MacOS)"
+        if: runner.os != 'Windows'
+        run: herbie-compiled/bin/herbie report --threads yes bench/tutorial.fpcore graphs
