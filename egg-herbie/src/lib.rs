@@ -322,10 +322,13 @@ fn egraph_get_variants_fuel(
                     egraph_get_variants_fuel(runner, extractor, cache, as_u32(j), fuel - 1);
                 i_vars.push(best_expr(extractor, cache, i));
                 j_vars.push(best_expr(extractor, cache, j));
-                for (i, j) in i_vars.iter().zip(j_vars.iter()) {
-                    exprs.push(format!("({} {} {} {})", op_str, p_str, i, j));
+                for i in i_vars {
+                    for j in &j_vars {
+                        exprs.push(format!("({} {} {} {})", op_str, p_str, i, j));
+                    }
                 }
             }
+
             // unary
             Math::Neg([p, i])
             | Math::Sqrt([p, i])
@@ -344,20 +347,47 @@ fn egraph_get_variants_fuel(
                     exprs.push(format!("({} {} {})", op_str, p_str, i));
                 }
             }
+
             // constants
             Math::Constant(c) => exprs.push(c.to_string()),
             Math::Symbol(s) => exprs.push(s.to_string()),
-            // variary
-            Math::Other(_s, _args) => {
-                // let mut vars = vec![];
-                // for id in args {
-                //     let mut i_vars = egraph_get_variants_fuel(runner, extractor, cache, as_u32(id), fuel - 1);
-                //     i_vars.push(best_expr(extractor, cache, id));
-                //     vars.push(id);
-                // }
 
-                // let v: Vec<&Id> = args.iter().map(|i| i).collect();
-                // exprs.push(format!("({} {})", s.to_string(), op_ext(v)));
+            // variary
+            Math::Other(s, args) => {
+                let p = &args[0];
+                let p_str = best_expr(extractor, cache, p);
+
+                let mut arg_vars = vec![];
+                for id in &args[1..] {
+                    let mut i_vars = egraph_get_variants_fuel(runner, extractor, cache, as_u32(id), fuel - 1);
+                    i_vars.push(best_expr(extractor, cache, id));
+                    arg_vars.push(i_vars);
+                }
+
+                if arg_vars.len() == 0 {
+                    exprs.push(format!("({} {})", s.to_string(), p_str));
+                } else if arg_vars.len() == 1 {
+                    for v in &arg_vars[0] {
+                        exprs.push(format!("({} {} {})", s.to_string(), p_str, v));
+                    }
+                } else if arg_vars.len() == 2 {
+                    for i in &arg_vars[0] {
+                        for j in &arg_vars[1] {
+                            exprs.push(format!("({} {} {} {})", s.to_string(), p_str, i, j));
+                        }
+                    }
+                } else if arg_vars.len() == 3 {
+                    for i in &arg_vars[0] {
+                        for j in &arg_vars[1] {
+                            for k in &arg_vars[2] {
+                                exprs.push(format!("({} {} {} {} {})", s.to_string(), p_str, i, j, k));
+                            }
+                        }
+                    }
+                } else {
+                    // TODO: cartesian product on arbitrary number of sets of variants
+                    // this may never actually be used
+                }
             }
         }
     }
