@@ -16,6 +16,7 @@ pub type Iteration = egg::Iteration<IterData>;
 
 pub struct IterData {
     pub extracted: Vec<(Id, Extracted)>,
+    pub egraph: EGraph,
 }
 
 pub struct Extracted {
@@ -27,15 +28,17 @@ impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
         let mut extractor = Extractor::new(&runner.egraph, AstSize);
         let extracted = runner
-            .roots
-            .iter()
-            .map(|&root| {
-                let (cost, best) = extractor.find_best(root);
+            .egraph
+            .classes()
+            .map(|c| {
+                let (cost, best) = extractor.find_best(c.id);
                 let ext = Extracted { cost, best };
-                (root, ext)
+                (c.id, ext)
             })
             .collect();
-        Self { extracted }
+        let egraph = runner.egraph.clone();
+
+        Self { extracted, egraph }
     }
 }
 
@@ -71,12 +74,22 @@ pub struct ConstantFold {
     pub prune: bool,
 }
 
+impl Clone for ConstantFold {
+    fn clone(&self) -> Self {
+        Self {
+            unsound: AtomicBool::from(self.unsound.load(Ordering::SeqCst)),
+            constant_fold: self.constant_fold,
+            prune: self.prune,
+        }
+    }
+}
+
 impl Default for ConstantFold {
     fn default() -> Self {
         Self {
             constant_fold: true,
             prune: true,
-            unsound: AtomicBool::from(false),
+            unsound: AtomicBool::new(false),
         }
     }
 }

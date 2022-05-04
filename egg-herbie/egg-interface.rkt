@@ -77,6 +77,7 @@
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants (_fun _egraph-pointer
                                           _uint ;; node id
+                                          _uint ;; iter
                                           _uint ;; fuel
                                           -> _pointer)) ;; string pointer
 

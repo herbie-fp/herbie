@@ -157,6 +157,7 @@
 (define (egg-rewrite expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
   (define egg-rule (rule "egg" 'x 'x (list repr) repr))
   (define irules (rules->irules rules))
+  (define use-all-iters? #t)
   (define fuel 1)
 
   (define extracted
@@ -166,16 +167,26 @@
           egg-graph
           (list expr)
           (lambda (node-ids)
-            (egg-run-rules egg-graph (*node-limit*) irules node-ids #t)
+            (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t))
             (cond
              [(egraph-is-unsound-detected egg-graph)
               (warn 'unsound-rules #:url "faq.html#unsound-rules"
-                  "Unsound rule application detected in e-graph. Results from simplify may not be sound.")
+                  "Unsound rule application detected in e-graph. Results from recursive rewrite may not be sound.")
               '()]
+             [use-all-iters?
+              (define expr-id (first node-ids))
+              (reap [sow]
+                (for ([iter (in-range (length iter-data))])
+                  (define output-str (egraph-get-variants egg-graph expr-id iter fuel))
+                  (for ([variant (egg-exprs->exprs output-str egg-graph)])
+                    (sow variant))))]
              [else
               (define expr-id (first node-ids))
-              (egg-exprs->exprs (egraph-get-variants egg-graph expr-id fuel) egg-graph)]))))))
+              (define last-iter (- (length iter-data) 1))
+              (define output-str (egraph-get-variants egg-graph expr-id last-iter fuel))
+              (egg-exprs->exprs output-str egg-graph)]))))))
 
+  (define extracted* (remove-duplicates extracted))
   (for/list ([variant extracted] #:unless (equal? expr variant))
     (list (change egg-rule root-loc (list (cons 'x variant))))))
 
