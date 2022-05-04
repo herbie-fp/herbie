@@ -157,7 +157,7 @@
 (define (egg-rewrite expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
   (define egg-rule (rule "egg" 'x 'x (list repr) repr))
   (define irules (rules->irules rules))
-  (define use-all-iters? #t)
+  (define use-all-iters? #f)
   (define fuel 1)
 
   (define extracted

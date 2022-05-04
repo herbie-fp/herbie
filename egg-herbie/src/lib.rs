@@ -281,14 +281,14 @@ macro_rules! best_expr {
 
 fn egraph_get_variants_fuel(runner: &Runner, node_id: u32, iter: u32, fuel: u32) -> Vec<String> {
     if fuel == 0 {
-        return vec![];
+        return vec![best_expr!(runner, node_id, iter)];
     }
 
     // Id -> u32
     let as_u32 = |id: &Id| usize::from(*id) as u32;
     let egraph = &runner.iterations[iter as usize].data.egraph;
 
-    let mut exprs = vec![];
+    let mut exprs = vec![best_expr!(runner, node_id, iter)];
     for n in &egraph[Id::from(node_id as usize)].nodes {
         match n {
             // binary
@@ -299,10 +299,8 @@ fn egraph_get_variants_fuel(runner: &Runner, node_id: u32, iter: u32, fuel: u32)
             | Math::Pow([p, i, j]) => {
                 let op_str = get_op_str(n).unwrap();
                 let p_str = best_expr!(runner, as_u32(p), iter);
-                let mut i_vars = egraph_get_variants_fuel(runner, as_u32(i), iter, fuel - 1);
-                let mut j_vars = egraph_get_variants_fuel(runner, as_u32(j), iter, fuel - 1);
-                i_vars.push(best_expr!(runner, as_u32(i), iter));
-                j_vars.push(best_expr!(runner, as_u32(j), iter));
+                let i_vars = egraph_get_variants_fuel(runner, as_u32(i), iter, fuel - 1);
+                let j_vars = egraph_get_variants_fuel(runner, as_u32(j), iter, fuel - 1);
                 for i in i_vars {
                     for j in &j_vars {
                         exprs.push(format!("({} {} {} {})", op_str, p_str, i, j));
@@ -321,8 +319,7 @@ fn egraph_get_variants_fuel(runner: &Runner, node_id: u32, iter: u32, fuel: u32)
             | Math::Cbrt([p, i]) => {
                 let op_str = get_op_str(n).unwrap();
                 let p_str = best_expr!(runner, as_u32(p), iter);
-                let mut i_vars = egraph_get_variants_fuel(runner, as_u32(i), iter, fuel - 1);
-                i_vars.push(best_expr!(runner, as_u32(i), iter));
+                let i_vars = egraph_get_variants_fuel(runner, as_u32(i), iter, fuel - 1);
                 for i in i_vars {
                     exprs.push(format!("({} {} {})", op_str, p_str, i));
                 }
@@ -339,9 +336,7 @@ fn egraph_get_variants_fuel(runner: &Runner, node_id: u32, iter: u32, fuel: u32)
 
                 let mut arg_vars = vec![];
                 for id in &args[1..] {
-                    let mut i_vars = egraph_get_variants_fuel(runner, as_u32(id), iter, fuel - 1);
-                    i_vars.push(best_expr!(runner, as_u32(id), iter));
-                    arg_vars.push(i_vars);
+                    arg_vars.push(egraph_get_variants_fuel(runner, as_u32(id), iter, fuel - 1));
                 }
 
                 if arg_vars.len() == 0 {
@@ -397,9 +392,8 @@ pub unsafe extern "C" fn egraph_get_variants(
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
         // extract
-        let vars = egraph_get_variants_fuel(runner, node_id, newest_sound_iter(runner, iter), fuel);
         let mut expr_strs: String = "".to_owned();
-        for var in vars {
+        for var in egraph_get_variants_fuel(runner, node_id, newest_sound_iter(runner, iter), fuel) {
             expr_strs.push_str(&format!(" {}", var));
         }
 

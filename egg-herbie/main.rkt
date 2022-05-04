@@ -96,11 +96,9 @@
 (define (egg-exprs->exprs exprs eg-data)
   (define port (open-input-string exprs))
   (let loop ([parse (read port)] [exprs '()])
-    ; (printf "~a ->" parse)
     (if (eof-object? parse)
         (reverse exprs)
         (let ([expr (egg-parsed->expr parse (egraph-data-egg->herbie-dict eg-data))])
-          ; (printf " ~a\n" expr)
           (loop (read port) (cons expr exprs))))))
 
 (define (egg-parsed->expr parsed rename-dict)
