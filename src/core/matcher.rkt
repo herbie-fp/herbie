@@ -157,7 +157,7 @@
 (define (egg-rewrite expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
   (define egg-rule (rule "egg" 'x 'x (list repr) repr))
   (define irules (rules->irules rules))
-  (define fuel 4)
+  (define fuel 2)
 
   (define extracted
     (with-egraph
@@ -166,6 +166,7 @@
           egg-graph
           (list expr)
           (lambda (node-ids)
+            (egg-run-rules egg-graph (*node-limit*) irules node-ids #t)
             (cond
              [(egraph-is-unsound-detected egg-graph)
               (warn 'unsound-rules #:url "faq.html#unsound-rules"
