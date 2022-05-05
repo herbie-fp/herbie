@@ -151,6 +151,12 @@
  [egg-herbie (with-egraph egraph-add-exprs egraph-run egraph-get-variants
               egraph-is-unsound-detected egg-exprs->exprs)])
 
+(define (same-op? expr variant)
+  (and (list? expr)
+       (list? variant)
+       (equal? (car expr) (car variant))
+       (= (length expr) (length variant))))
+
 ; TODO egg rr experiment
 ; - how do changes work with egg rewrites?
 ; - how to get variations from egg?
@@ -186,8 +192,7 @@
               (define output-str (egraph-get-variants egg-graph expr-id last-iter fuel))
               (egg-exprs->exprs output-str egg-graph)]))))))
 
-  (define extracted* (remove-duplicates extracted))
-  (for/list ([variant extracted] #:unless (equal? expr variant))
+  (for/list ([variant (remove-duplicates extracted)] #:unless (same-op? expr variant))
     (list (change egg-rule root-loc (list (cons 'x variant))))))
 
 ;;  Rewrite chooser
