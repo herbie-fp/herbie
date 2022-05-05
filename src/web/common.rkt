@@ -1,14 +1,17 @@
 #lang racket
 (require (only-in xml write-xexpr xexpr?) 
          (only-in fpbench fpcore? supported-by-lang?
-                          core->c core->tex expr->tex
+                          core->c core->fortran core->java core->python
+                          core->julia core->matlab core->wls core->tex
+                          expr->tex
                           [core-common-subexpr-elim core-cse]
                           *expr-cse-able?*))
 
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
          "../interface.rkt" "../preprocess.rkt" "../syntax/sugar.rkt")
 
-(provide render-menu render-warnings render-large render-program program->fpcore render-reproduction js-tex-include)
+(provide render-menu render-warnings render-large render-program
+         program->fpcore render-reproduction js-tex-include)
 
 (define (program->fpcore prog #:ident [ident #f])
   (match-define (list _ args expr) prog)
@@ -107,12 +110,17 @@
     (reap [sow]
       (for ([(lang record) (in-dict languages)])
         (match-define (list ext converter) record)
-        (when (and (fpcore? in-prog*) (or (not out-prog*) (fpcore? out-prog*))
+        (when (and (fpcore? in-prog*)
+                   (or (not out-prog*) (fpcore? out-prog*))
                    (or (equal? ext "fpcore")                           
                        (and (supported-by-lang? in-prog* ext) ; must be valid in a given language  
-                            (or (not out-prog*) (supported-by-lang? out-prog* ext)))))
-          (sow (cons lang (cons (converter in-prog* (if identifier (symbol->string identifier) "code"))
-                                (and out-prog* (converter out-prog* identifier)))))))))
+                            (or (not out-prog*)
+                                (supported-by-lang? out-prog* ext)))))
+          (define name (if identifier (symbol->string identifier) "code"))
+          (sow
+            (cons lang
+              (cons (converter in-prog* name)
+                    (and out-prog* (converter out-prog* name)))))))))
 
   (define-values (math-in math-out)
     (if (dict-has-key? versions "TeX")
