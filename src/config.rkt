@@ -13,7 +13,7 @@
 (define default-flags
   #hash([precision . (fallback)]
         [setup . (simplify search)]
-        [generate . (rr taylor simplify)]
+        [generate . (rr egg-rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
