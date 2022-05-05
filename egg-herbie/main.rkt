@@ -26,8 +26,8 @@
   (destroy_string ptr)
   str)
 
-(define (egraph-get-variants egraph-data node-id iter fuel)
-  (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id iter fuel))
+(define (egraph-get-variants egraph-data node-id)
+  (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
   str)

@@ -1,7 +1,8 @@
 pub mod math;
 pub mod rules;
 
-use egg::{Id, Iteration};
+use egg::{Id, Iteration, Extractor, AstSize};
+use indexmap::IndexMap;
 use math::*;
 
 use std::cmp::min;
@@ -273,116 +274,25 @@ fn get_op_str(n: &Math) -> Option<String> {
     }
 }
 
-macro_rules! best_expr {
-    ($run:expr, $id:expr, $iter:expr) => {
-        find_extracted($run, $id, $iter).best.to_string()
-    };
-}
-
-fn egraph_get_variants_fuel(runner: &Runner, node_id: u32, iter: u32, fuel: u32) -> Vec<String> {
-    if fuel == 0 {
-        return vec![best_expr!(runner, node_id, iter)];
+fn variant_get_simplest(
+    extractor: &mut Extractor<AstSize, Math, ConstantFold>,
+    cache: &mut IndexMap<Id, String>,
+    id: &Id,
+) -> String {
+    if let Some(v) = cache.get(id) {
+        v.clone()
+    } else {
+        let (_, expr) = extractor.find_best(*id);
+        let s = expr.to_string();
+        cache.insert(*id, s.clone());
+        s
     }
-
-    // Id -> u32
-    let as_u32 = |id: &Id| usize::from(*id) as u32;
-    let egraph = &runner.iterations[iter as usize].data.egraph;
-
-    let mut exprs = vec![best_expr!(runner, node_id, iter)];
-    for n in &egraph[Id::from(node_id as usize)].nodes {
-        match n {
-            // binary
-            Math::Add([p, i, j])
-            | Math::Sub([p, i, j])
-            | Math::Mul([p, i, j])
-            | Math::Div([p, i, j])
-            | Math::Pow([p, i, j]) => {
-                let op_str = get_op_str(n).unwrap();
-                let p_str = best_expr!(runner, as_u32(p), iter);
-                let i_vars = egraph_get_variants_fuel(runner, as_u32(i), iter, fuel - 1);
-                let j_vars = egraph_get_variants_fuel(runner, as_u32(j), iter, fuel - 1);
-                for i in i_vars {
-                    for j in &j_vars {
-                        exprs.push(format!("({} {} {} {})", op_str, p_str, i, j));
-                    }
-                }
-            }
-
-            // unary
-            Math::Neg([p, i])
-            | Math::Sqrt([p, i])
-            | Math::Fabs([p, i])
-            | Math::Ceil([p, i])
-            | Math::Floor([p, i])
-            | Math::Round([p, i])
-            | Math::Log([p, i])
-            | Math::Cbrt([p, i]) => {
-                let op_str = get_op_str(n).unwrap();
-                let p_str = best_expr!(runner, as_u32(p), iter);
-                let i_vars = egraph_get_variants_fuel(runner, as_u32(i), iter, fuel - 1);
-                for i in i_vars {
-                    exprs.push(format!("({} {} {})", op_str, p_str, i));
-                }
-            }
-
-            // constants
-            Math::Constant(c) => exprs.push(c.to_string()),
-            Math::Symbol(s) => exprs.push(s.to_string()),
-
-            // variary
-            Math::Other(s, args) => {
-                let p = &args[0];
-                let p_str = best_expr!(runner, as_u32(p), iter);
-
-                let mut arg_vars = vec![];
-                for id in &args[1..] {
-                    arg_vars.push(egraph_get_variants_fuel(runner, as_u32(id), iter, fuel - 1));
-                }
-
-                if arg_vars.len() == 0 {
-                    exprs.push(format!("({} {})", s.to_string(), p_str));
-                } else if arg_vars.len() == 1 {
-                    for v in &arg_vars[0] {
-                        exprs.push(format!("({} {} {})", s.to_string(), p_str, v));
-                    }
-                } else if arg_vars.len() == 2 {
-                    for i in &arg_vars[0] {
-                        for j in &arg_vars[1] {
-                            exprs.push(format!("({} {} {} {})", s.to_string(), p_str, i, j));
-                        }
-                    }
-                } else if arg_vars.len() == 3 {
-                    for i in &arg_vars[0] {
-                        for j in &arg_vars[1] {
-                            for k in &arg_vars[2] {
-                                exprs.push(format!(
-                                    "({} {} {} {} {})",
-                                    s.to_string(),
-                                    p_str,
-                                    i,
-                                    j,
-                                    k
-                                ));
-                            }
-                        }
-                    }
-                } else {
-                    // TODO: cartesian product on arbitrary number of sets of variants
-                    // this may never actually be used
-                }
-            }
-        }
-    }
-
-    exprs
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_variants(
     ptr: *mut Context,
     node_id: u32,
-    iter: u32,
-    fuel: u32,
 ) -> *const c_char {
     ffirun(|| {
         let ctx = &*ptr;
@@ -391,13 +301,66 @@ pub unsafe extern "C" fn egraph_get_variants(
             .as_ref()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
+        // root id
+        let id = Id::from(node_id as usize);
+
+        // cache
+        let mut extractor = Extractor::new(&runner.egraph, AstSize);
+        let mut cache: IndexMap<Id, String> = Default::default();
+
         // extract
-        let mut expr_strs: String = "".to_owned();
-        for var in egraph_get_variants_fuel(runner, node_id, newest_sound_iter(runner, iter), fuel) {
-            expr_strs.push_str(&format!(" {}", var));
+        let mut exprs = vec![variant_get_simplest(&mut extractor, &mut cache, &id)];
+        for n in &runner.egraph[Id::from(node_id as usize)].nodes {
+            match n {
+                // binary
+                Math::Add([p, i, j])
+                | Math::Sub([p, i, j])
+                | Math::Mul([p, i, j])
+                | Math::Div([p, i, j])
+                | Math::Pow([p, i, j]) => {
+                    exprs.push(format!("({} {} {} {})",
+                        get_op_str(n).unwrap(),
+                        variant_get_simplest(&mut extractor, &mut cache, p),
+                        variant_get_simplest(&mut extractor, &mut cache, i),
+                        variant_get_simplest(&mut extractor, &mut cache, j)
+                    ));
+                }
+    
+                // unary
+                Math::Neg([p, i])
+                | Math::Sqrt([p, i])
+                | Math::Fabs([p, i])
+                | Math::Ceil([p, i])
+                | Math::Floor([p, i])
+                | Math::Round([p, i])
+                | Math::Log([p, i])
+                | Math::Cbrt([p, i]) => {
+                    exprs.push(format!("({} {} {})",
+                        get_op_str(n).unwrap(),
+                        variant_get_simplest(&mut extractor, &mut cache, p),
+                        variant_get_simplest(&mut extractor, &mut cache, i),
+                    ));
+                }
+    
+                // constants
+                Math::Constant(c) => exprs.push(c.to_string()),
+                Math::Symbol(s) => exprs.push(s.to_string()),
+    
+                // variary
+                Math::Other(s, args) => {
+                    // safe to assume at least one argument
+                    let mut expr = format!("({} {}", s, variant_get_simplest(&mut extractor, &mut cache, &args[0]));
+                    for i in &args[1..] {
+                        expr.push_str(&format!(" {}", variant_get_simplest(&mut extractor, &mut cache, i)));
+                    }
+                    expr.push(')');
+                    exprs.push(expr);
+                }
+            }
         }
 
-        let best_str = CString::new(expr_strs).unwrap();
+        // format
+        let best_str = CString::new(exprs.join(" ")).unwrap();
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
         best_str_pointer

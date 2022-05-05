@@ -163,9 +163,6 @@
 (define (egg-rewrite expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
   (define egg-rule (rule "egg" 'x 'x (list repr) repr))
   (define irules (rules->irules rules))
-  (define use-all-iters? #f)
-  (define fuel 1)
-
   (define extracted
     (with-egraph
       (lambda (egg-graph)
@@ -179,18 +176,10 @@
               (warn 'unsound-rules #:url "faq.html#unsound-rules"
                   "Unsound rule application detected in e-graph. Results from recursive rewrite may not be sound.")
               '()]
-             [use-all-iters?
-              (define expr-id (first node-ids))
-              (reap [sow]
-                (for ([iter (in-range (length iter-data))])
-                  (define output-str (egraph-get-variants egg-graph expr-id iter fuel))
-                  (for ([variant (egg-exprs->exprs output-str egg-graph)])
-                    (sow variant))))]
              [else
               (define expr-id (first node-ids))
               (define last-iter (- (length iter-data) 1))
-              (define output-str (egraph-get-variants egg-graph expr-id last-iter fuel))
-              (egg-exprs->exprs output-str egg-graph)]))))))
+              (egg-exprs->exprs (egraph-get-variants egg-graph expr-id) egg-graph)]))))))
 
   (for/list ([variant (remove-duplicates extracted)] #:unless (same-op? expr variant))
     (list (change egg-rule root-loc (list (cons 'x variant))))))
