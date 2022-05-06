@@ -8,7 +8,7 @@
 (provide
   pattern-match
   pattern-substitute
-  rewrite-expression
+  rewrite-expressions
   change-apply
   rule-apply)
 
@@ -157,40 +157,84 @@
        (equal? (car expr) (car variant))
        (= (length expr) (length variant))))
 
+; If unsoundness was detected, try falling back to one at a time
+(define (egg-rewrite expr repr #:rules rules #:roots [root-loc '()])
+  (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
+  (define irules (rules->irules rules))
+  (with-egraph
+    (lambda (egg-graph)
+      (egraph-add-exprs
+        egg-graph
+        (list expr)
+        (lambda (node-ids)
+          (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t))
+          (cond
+            [(egraph-is-unsound-detected egg-graph)
+            (warn 'unsound-rules #:url "faq.html#unsound-rules"
+                "Unsound rule application detected in e-graph. Results from recursive rewrite may not be sound.")
+            '()]
+            [else
+            (define expr-id (first node-ids))
+            (define output (egraph-get-variants egg-graph expr-id))
+            (define extracted (egg-exprs->exprs output egg-graph))
+            (for/list ([variant (remove-duplicates extracted)]
+                        #:unless (same-op? expr variant))
+              (list (change egg-rule root-loc (list (cons 'x variant)))))]))))))
+
 ; TODO egg rr experiment
 ; - how do changes work with egg rewrites?
 ; - how to get variations from egg?
-(define (egg-rewrite expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
-  (define egg-rule (rule "egg" 'x 'x (list repr) repr))
+(define (batch-egg-rewrite exprs
+                           repr
+                           #:rules rules
+                           #:roots [root-locs (make-list (length exprs) '())]
+                           #:depths [depths (make-list (length exprs) 1)])
+  (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
   (define irules (rules->irules rules))
-  (define extracted
-    (with-egraph
-      (lambda (egg-graph)
-        (egraph-add-exprs
-          egg-graph
-          (list expr)
-          (lambda (node-ids)
-            (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t))
-            (cond
-             [(egraph-is-unsound-detected egg-graph)
-              (warn 'unsound-rules #:url "faq.html#unsound-rules"
-                  "Unsound rule application detected in e-graph. Results from recursive rewrite may not be sound.")
-              '()]
-             [else
-              (define expr-id (first node-ids))
-              (define last-iter (- (length iter-data) 1))
-              (egg-exprs->exprs (egraph-get-variants egg-graph expr-id) egg-graph)]))))))
+  (with-egraph
+    (lambda (egg-graph)
+      (egraph-add-exprs
+        egg-graph
+        exprs
+        (lambda (node-ids)
+          (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t))
+          (cond
+           [(egraph-is-unsound-detected egg-graph)
+            ; something bad happened
+            ; fallback and run one at a time
+            (for/list ([expr exprs]) (egg-rewrite expr repr #:rules rules))]
+           [else
+            (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
+              (define output (egraph-get-variants egg-graph id))
+              (define extracted (egg-exprs->exprs output egg-graph))
+              (for/list ([variant (remove-duplicates extracted)]
+                         #:unless (same-op? expr variant))
+                (list (change egg-rule root-loc (list (cons 'x variant))))))]))))))
 
-  (for/list ([variant (remove-duplicates extracted)] #:unless (same-op? expr variant))
-    (list (change egg-rule root-loc (list (cons 'x variant))))))
-
-;;  Rewrite chooser
-(define (rewrite-expression expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
+;;  Recursive rewrite chooser
+(define (rewrite-expressions exprs
+                             repr 
+                             #:rules rules
+                             #:roots [root-locs (make-list (length exprs) '())]
+                             #:depths [depths (make-list (length exprs) 1)])
+  ; choose correct rr driver
   (define driver
     (cond
      [(not (flag-set? 'generate 'rr)) rewrite-once]
-     [(flag-set? 'generate 'egg-rr) egg-rewrite]
+     [(flag-set? 'generate 'egg-rr) batch-egg-rewrite]
      [else recursive-rewrite]))
-  
   (timeline-push! 'method (~a (object-name driver)))
-  (driver expr repr #:rules rules #:root root-loc #:depth depth))
+
+  ; sequential or batched rewriting
+  (match driver
+   [egg-rewrite
+    (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
+    (define tnow (current-inexact-milliseconds))
+    (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
+      (timeline-push! 'times (~a exprs) (- (current-inexact-milliseconds) tnow)))]
+   [_
+    (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
+      (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
+      (define tnow (current-inexact-milliseconds))
+      (begin0 (driver expr repr #:rules rules #:root root-loc #:depth depth)
+        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]))
