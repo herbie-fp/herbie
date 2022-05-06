@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/lazy-require)
+(require racket/lazy-require racket/hash)
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt"
          "../syntax/rules.rkt" "../interface.rkt" "../timeline.rkt"
          "../errors.rkt" "simplify.rkt")
@@ -145,11 +145,12 @@
   ;; The "#f #f" means that any output result works. It's a bit of a hack
   (reap [sow] (rewriter (compose sow reverse) expr #f #f (reverse root-loc) depth)))
 
-;;  Egg recursive rewriter
+;;  Egg rewriter
 
 (lazy-require
  [egg-herbie (with-egraph egraph-add-exprs egraph-run egraph-get-variants
-              egraph-is-unsound-detected egg-exprs->exprs)])
+              egraph-is-unsound-detected egraph-get-times-applied
+              egg-exprs->exprs)])
 
 (define (same-op? expr variant)
   (and (list? expr)
@@ -158,32 +159,34 @@
        (= (length expr) (length variant))))
 
 ; If unsoundness was detected, try falling back to one at a time
-(define (egg-rewrite expr repr #:rules rules #:roots [root-loc '()])
+; Returns (cons <rule-count> <variants>)
+(define (egg-rewrite expr repr #:rules rules #:root [root-loc '()])
   (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
   (define irules (rules->irules rules))
+  (timeline-push! 'method (~a (object-name egg-rewrite)))
   (with-egraph
     (lambda (egg-graph)
       (egraph-add-exprs
         egg-graph
         (list expr)
         (lambda (node-ids)
-          (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t))
+          (egg-run-rules egg-graph (*node-limit*) irules node-ids #t)
           (cond
-            [(egraph-is-unsound-detected egg-graph)
+           [(egraph-is-unsound-detected egg-graph)
             (warn 'unsound-rules #:url "faq.html#unsound-rules"
                 "Unsound rule application detected in e-graph. Results from recursive rewrite may not be sound.")
-            '()]
-            [else
+            (cons (hash) '())]
+           [else
             (define expr-id (first node-ids))
             (define output (egraph-get-variants egg-graph expr-id))
             (define extracted (egg-exprs->exprs output egg-graph))
-            (for/list ([variant (remove-duplicates extracted)]
-                        #:unless (same-op? expr variant))
-              (list (change egg-rule root-loc (list (cons 'x variant)))))]))))))
+            (cons
+              (for/hash ([rule rules])
+                (values (rule-name rule) (egraph-get-times-applied egg-graph (rule-name rule))))
+              (for/list ([variant (remove-duplicates extracted)]
+                         #:unless (same-op? expr variant))
+                (list (change egg-rule root-loc (list (cons 'x variant))))))]))))))
 
-; TODO egg rr experiment
-; - how do changes work with egg rewrites?
-; - how to get variations from egg?
 (define (batch-egg-rewrite exprs
                            repr
                            #:rules rules
@@ -197,12 +200,25 @@
         egg-graph
         exprs
         (lambda (node-ids)
-          (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t))
+          (egg-run-rules egg-graph (*node-limit*) irules node-ids #t)
+          (for ([rule rules])
+            (define count (egraph-get-times-applied egg-graph (rule-name rule)))
+            (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
           (cond
            [(egraph-is-unsound-detected egg-graph)
             ; something bad happened
-            ; fallback and run one at a time
-            (for/list ([expr exprs]) (egg-rewrite expr repr #:rules rules))]
+            ; fallback and run one at a time (if more than 1)
+            (cond
+             [(> (length exprs) 1)
+              (define rule-counts (make-hash))
+              (begin0
+                (for/list ([expr exprs] [root-loc root-locs])
+                  (match-define (cons rcs variants) (egg-rewrite expr repr #:rules rules #:root root-loc))
+                  (hash-union! rule-counts rcs #:combine +)
+                  variants)
+                (for ([(name count) (in-hash rule-counts)])
+                  (when (> count 0) (timeline-push! 'rules (~a name) count))))]
+             [else '()])]
            [else
             (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
               (define output (egraph-get-variants egg-graph id))
@@ -231,7 +247,8 @@
     (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
     (define tnow (current-inexact-milliseconds))
     (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
-      (timeline-push! 'times (~a exprs) (- (current-inexact-milliseconds) tnow)))]
+      (for ([expr exprs])
+        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]
    [_
     (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
       (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)

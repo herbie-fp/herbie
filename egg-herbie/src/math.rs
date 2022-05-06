@@ -26,7 +26,8 @@ pub struct Extracted {
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
         let mut extractor = Extractor::new(&runner.egraph, AstSize);
-        let extracted = runner.roots
+        let extracted = runner
+            .roots
             .iter()
             .map(|&root| {
                 let (cost, best) = extractor.find_best(root);
