@@ -17,11 +17,8 @@
   ((representation-special-values repr) x))
 
 (define (ulp-difference x y repr)
-  (if (and (complex? x) (complex? y) (not (real? x)) (not (real? y)))
-    (+ (ulp-difference (real-part x) (real-part y) (get-representation 'binary64))
-       (ulp-difference (imag-part x) (imag-part y) (get-representation 'binary64)))
-    (let ([->ordinal (representation-repr->ordinal repr)])
-      (+ 1 (abs (- (->ordinal y) (->ordinal x)))))))
+  (define ->ordinal (representation-repr->ordinal repr))
+  (+ 1 (abs (- (->ordinal y) (->ordinal x)))))
 
 ;; Returns the midpoint of the representation's ordinal values,
 ;; not the real-valued midpoint
@@ -37,12 +34,7 @@
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
 
 (define (ordinary-value? x repr)
-  (if (and (complex? x) (not (real? x)))
-      ;; TODO: Once complex is a separate type rather than a repr, check to see
-      ;; what repr the complex implementation is using
-      (and (ordinary-value? (real-part x) (get-representation 'binary64))
-           (ordinary-value? (imag-part x) (get-representation 'binary64)))
-      (not (special-value? x repr))))
+  (not (special-value? x repr)))
 
 
 (define (largest-ordinary-value repr)
@@ -102,8 +94,6 @@
 
 (define (</total x1 x2 repr)
   (cond
-   [(and (complex? x1) (complex? x2) (not (real? x1)) (not (real? x2)))
-    (error "Complex numbers are unordered")]
    [(and (real? x1) (real? x2))
     (cond [(nan? x1) #f] [(nan? x2) #t] [else (< x1 x2)])]
    [else
@@ -124,7 +114,6 @@
        [(or -inf.0 -inf.f) (hash 'type "real" 'value "-inf")]
        [(or +inf.0 +inf.f) (hash 'type "real" 'value "+inf")]
        [(or +nan.0 +nan.f) (hash 'type "real" 'value "NaN")])]
-    [(? complex?) (hash 'type "complex" 'real (real-part x) 'imag (imag-part x))]
     [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
 
 (define (value->string n repr)

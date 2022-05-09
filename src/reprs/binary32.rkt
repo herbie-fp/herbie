@@ -168,11 +168,6 @@
 (define-syntax-rule (define-2ary-libm-operators op ...)
   (begin (define-2ary-libm-operator op) ...))
 
-(define (no-complex fun)
-  (λ xs
-     (define res (apply fun xs))
-     (if (real? res) res +nan.0)))
-
 (define (from-bigfloat bff)
   (λ args (bigfloat->flonum (apply bff (map bf args)))))
 

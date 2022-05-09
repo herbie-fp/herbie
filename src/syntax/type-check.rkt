@@ -138,23 +138,6 @@
        (unless (repr-has-type? actual-type 'bool)
           (error! stx "~a only takes boolean arguments" op)))
      (get-representation 'bool)]
-    [#`(,(and (or 're 'im) op) #,arg)
-     ; TODO: this special case can be removed when complex-herbie is moved to a composite type
-     ; re, im : complex -> binary64
-     (define atype (expression->type arg env (get-representation 'complex) error!)) 
-     (unless (repr-has-type? atype 'complex)
-       (error! stx "~a expects argument of type complex (not ~a)" op atype))
-     (get-representation 'binary64)]
-    [#`(complex #,re #,im)
-     ; TODO: this special case can be removed when complex-herbie is moved to a composite type
-     ; complex : binary64, binary64 -> complex
-     (define b64 (get-representation 'binary64))
-     (define re-type (expression->type re env b64 error!))
-     (define im-type (expression->type im env b64 error!))
-     (unless (and (equal? re-type b64) (equal? im-type b64))
-       (error! stx "complex expects arguments of type binary64, binary64 (not ~a, ~a)"
-               re-type im-type))
-     (get-representation 'complex)]
     [#`(,(? operator-exists? op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (define op* (apply get-parametric-operator op actual-types #:fail-fast? #f))
