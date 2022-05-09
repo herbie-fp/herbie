@@ -6,12 +6,12 @@
 (module+ test (require rackunit "load-plugin.rkt"))
 
 (provide 
- ordinary-value?
- largest-ordinary-value bound-ordinary-values
+ special-value?
  ulp-difference ulps->bits
  midpoint random-generate
- </total <=/total =-or-nan?
- value->string value->json)
+ </total <=/total
+ value->string value->json
+ bound-ordinary-values)
 
 (define (special-value? x repr)
   ((representation-special-values repr) x))
@@ -32,10 +32,6 @@
 
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
-
-(define (ordinary-value? x repr)
-  (not (special-value? x repr)))
-
 
 (define (largest-ordinary-value repr)
   (define inf-in-repr ((representation-bf->repr repr) +inf.bf))
@@ -77,13 +73,13 @@
 
 (module+ test
   (define binary64 (get-representation 'binary64))
-  (check-true (ordinary-value? 2.5 binary64))
-  (check-false (ordinary-value? +nan.0 binary64))
-  (check-false (ordinary-value? -inf.0 binary64))
+  (check-false (special-value? 2.5 binary64))
+  (check-true  (special-value? +nan.0 binary64))
+  (check-true  (special-value? -inf.0 binary64))
   (define binary32 (get-representation 'binary32))
-  (check-true (ordinary-value? 2.5f0 binary32))
-  (check-false (ordinary-value? +nan.f binary32))
-  (check-false (ordinary-value? -inf.f binary32)))
+  (check-false (special-value? 2.5f0 binary32))
+  (check-true  (special-value? +nan.f binary32))
+  (check-true  (special-value? -inf.f binary32)))
 
 (define (=-or-nan? x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))
