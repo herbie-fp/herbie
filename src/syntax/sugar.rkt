@@ -97,15 +97,6 @@
          (define orepr (operator-info op 'otype))
          (define-values (body* rtype) (loop body irepr))
          (values (list op body*) orepr)]
-        [(list (and (or 're 'im) op) arg)
-         ; TODO: this special case can be removed when complex-herbie is moved to a composite type
-         (define-values (arg* atype) (loop arg 'complex))
-         (values (list op arg*) (get-representation 'binary64))]
-        [(list 'complex re im)
-         ; TODO: this special case can be removed when complex-herbie is moved to a composite type
-         (define-values (re* re-type) (loop re 'binary64))
-         (define-values (im* im-type) (loop im 'binary64))
-         (values (list 'complex re* im*) (get-representation 'complex))]
         [(or (? constant-operator? x) (list x)) ; constant
          (let/ec k
            (for/list ([name (operator-all-impls x)])
@@ -168,8 +159,6 @@
      (if (and full? (equal? op* 'neg) (= (length args) 1)) ; if only unparameterizing, leave 'neg' alone
          (cons '- args*)
          (cons op* args*))]
-    [(? (conjoin complex? (negate real?)))
-     `(complex ,(real-part expr) ,(imag-part expr))]
     [(? number?)
      (if full?
          (match expr

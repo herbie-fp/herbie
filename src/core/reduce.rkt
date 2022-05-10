@@ -257,9 +257,5 @@
     [`(-1 . ,x) `(/ 1 ,x)]
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
-    [`(,power . ,x)
-     (define base* (desugar-program x (*output-repr*) (*var-reprs*) #:full #f))
-     (match (type-name (type-of base* (*output-repr*) (*var-reprs*)))
-       ['real `(pow ,x ,power)]
-       ['complex `(pow ,x (complex ,power 0))])]))
+    [`(,power . ,x) `(pow ,x ,power)]))
 

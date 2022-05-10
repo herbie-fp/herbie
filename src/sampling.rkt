@@ -174,7 +174,7 @@
       (logger status precision pt)
 
       (cond
-       [(and (list? out) (andmap (curryr ordinary-value? repr) pt))
+       [(and (list? out) (not (ormap (curryr special-value? repr) pt)))
         (define exs (map (compose <-bf ival-lo) out))
         (if (>= (+ 1 sampled) (*num-points*))
             (values (cons pt points) (cons exs exactss))

@@ -2,7 +2,7 @@
 
 ;; Builtin single-precision plugin (:precision binary32)
 
-(require math/flonum math/bigfloat)
+(require math/flonum math/bigfloat racket/flonum)
 (require "../plugin.rkt" "bool.rkt" "binary64.rkt")
 
 (module+ test (require rackunit))
@@ -12,38 +12,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; float32 library ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Racket 8.0
-(define at-least-racket-8?
-  (>= (string->number (substring (version) 0 1)) 8))
-
-; Need a placeholder for < 7.3
-(define single-flonum-available?
-  (let ([single-flonum-available? (const (equal? (system-type 'vm) 'racket))])
-    (local-require racket/flonum)
-    single-flonum-available?))
-
-; Need a placeholder for < 8.0
-(define cast-single
-  (let ([flsingle identity])
-    (local-require racket/flonum)
-    flsingle))
-
-; Returns true if single flonum is available directly (BC)
-; or through emulation (CS, >= 8.0)
-(define (single-flonum-supported?)
-  (or (single-flonum-available?) at-least-racket-8?))
-
-; Contracts are problematic (BC, < 8.0): values not
-; necessarily single flonums. Bug in Herbie?
-(define float32?
-  (if at-least-racket-8?
-      flonum?
-      single-flonum?))
+(define float32? flonum?)
 
 (define (->float32 x)
-  (if at-least-racket-8?
-      (cast-single (exact->inexact x))
-      (real->single-flonum x)))
+  (flsingle (exact->inexact x)))
 
 (define (float32->bit-field x)
   (integer-bytes->integer (real->floating-point-bytes x 4) #f #f))
@@ -96,10 +68,6 @@
 
 ; for define-libm-operator (must be top-level)
 (require ffi/unsafe)
-
-;; Only load everything below if single flonum supported?
-;; BC or CS (>= 8.0)
-(when (single-flonum-supported?)
 
 ; (eprintf "Loading binary32 support...\n")
 
@@ -167,11 +135,6 @@
 
 (define-syntax-rule (define-2ary-libm-operators op ...)
   (begin (define-2ary-libm-operator op) ...))
-
-(define (no-complex fun)
-  (λ xs
-     (define res (apply fun xs))
-     (if (real? res) res +nan.0)))
 
 (define (from-bigfloat bff)
   (λ args (bigfloat->flonum (apply bff (map bf args)))))
@@ -263,5 +226,3 @@
 
 (define-operator-impl (cast binary32->binary64 binary32) binary64
   [fl identity])
-
-)
