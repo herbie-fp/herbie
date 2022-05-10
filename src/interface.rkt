@@ -9,7 +9,10 @@
           generate-repr)
 
 (module+ internals 
-  (provide define-representation register-generator! register-representation!))
+  (provide define-representation
+           register-generator!
+           register-representation!
+           register-representation-alias!))
 
 (define *reprs-with-rules* (make-parameter '()))
 (define *needed-reprs* (make-parameter '()))
@@ -22,6 +25,7 @@
   (name type repr?
    bf->repr repr->bf ordinal->repr repr->ordinal
    total-bits special-values)
+  #:transparent
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
@@ -37,9 +41,10 @@
 ;; Generators take one argument, a repr name, and returns true if knows what the
 ;; repr is and has generated that repr and its operators, and false otherwise
 (define repr-generators '())
+(define *current-generator* (make-parameter #f))
 
 (define/contract (register-generator! proc)
-  (-> (-> any/c boolean?) void?)
+  (-> (-> any/c any/c) void?)
   (unless (set-member? repr-generators proc)
     (set! repr-generators (cons proc repr-generators))))
 
@@ -47,7 +52,17 @@
 (define (generate-repr repr-name)
   (or (hash-has-key? representations repr-name)
       (for/or ([proc repr-generators])
-        (proc repr-name))))
+        ;; Check if a user accidently created an infinite loop in their plugin!
+        (when (and (eq? proc (*current-generator*))
+                   (not (hash-has-key? representations repr-name)))
+          (raise-herbie-error 
+            (string-append
+              "Tried to generate `~a` representation while generating the same representation. "
+              "Check your plugin to make sure you register your representation(s) "
+              "before calling `get-representation`!")
+            repr-name))
+        (parameterize ([*current-generator* proc])
+          (proc repr-name)))))
 
 ;; Returns the representation associated with `name`
 ;; attempts to generate the repr if not initially found
@@ -56,10 +71,23 @@
       (and (generate-repr name) (hash-ref representations name #f))
       (raise-herbie-error "Could not find support for ~a representation" name)))
 
+;; Registers a representation that can be invoked with ':precision <name>'.
+;; Creates a new representation with the given traits and associates it
+;; with the same name. See `register-representation-alias!` for associating
+;; a representation with a different name.
 (define (register-representation! name type repr? . args)
-  (set! representations
-    (hash-set representations name
-              (apply representation name (get-type type) repr? args))))
+  (define repr (apply representation name (get-type type) repr? args))
+  (set! representations (hash-set representations name repr)))
+
+;; Associates an existing representation with a (possibly different) name.
+;; Useful for defining an common alias for an equivalent representation,
+;; e.g. float for binary32.
+(define (register-representation-alias! name repr)
+  (unless (representation? repr)
+      (error' register-representation-alias!
+              "Expected a representation. Received ~a. Check your plugins!!"
+              repr))
+  (set! representations (hash-set representations name repr)))
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
   (register-representation! 'name 'type repr? args ...))
@@ -73,7 +101,3 @@
   (match x
     [(? boolean?) x]
     [_ (bigfloat->real ((representation-repr->bf repr) x))]))
-
-;; Predicates
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representations ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

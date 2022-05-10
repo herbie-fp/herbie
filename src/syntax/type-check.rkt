@@ -53,13 +53,13 @@
          (define rtype (operator-info name 'otype))
          (when (or (equal? rtype type) (repr-has-type? rtype 'bool))
            (k rtype)))
-       (error! stx "Could not find implementation of ~a for ~a" x type))]
+       (error! stx "Could not find implementation of ~a for ~a" x type)
+       type)]
     [#`,(? variable? x)
      (define vtype (dict-ref env x))
-     (cond
-      [(repr-has-type? vtype 'bool) vtype]
-      [(equal? type vtype) type]
-      [else (error! stx "Expected a variable of type ~a, but got ~a" type vtype)])]
+     (unless (or (equal? type vtype) (repr-has-type? vtype 'bool))
+      (error! stx "Expected a variable of type ~a, but got ~a" type vtype))
+     vtype]
     [#`(let ((,id #,expr) ...) #,body)
      (define env2
        (for/fold ([env2 env]) ([var id] [val expr])
@@ -138,23 +138,6 @@
        (unless (repr-has-type? actual-type 'bool)
           (error! stx "~a only takes boolean arguments" op)))
      (get-representation 'bool)]
-    [#`(,(and (or 're 'im) op) #,arg)
-     ; TODO: this special case can be removed when complex-herbie is moved to a composite type
-     ; re, im : complex -> binary64
-     (define atype (expression->type arg env (get-representation 'complex) error!)) 
-     (unless (repr-has-type? atype 'complex)
-       (error! stx "~a expects argument of type complex (not ~a)" op atype))
-     (get-representation 'binary64)]
-    [#`(complex #,re #,im)
-     ; TODO: this special case can be removed when complex-herbie is moved to a composite type
-     ; complex : binary64, binary64 -> complex
-     (define b64 (get-representation 'binary64))
-     (define re-type (expression->type re env b64 error!))
-     (define im-type (expression->type im env b64 error!))
-     (unless (and (equal? re-type b64) (equal? im-type b64))
-       (error! stx "complex expects arguments of type binary64, binary64 (not ~a, ~a)"
-               re-type im-type))
-     (get-representation 'complex)]
     [#`(,(? operator-exists? op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (define op* (apply get-parametric-operator op actual-types #:fail-fast? #f))
@@ -167,7 +150,7 @@
                       (application->string op (operator-info sig 'itype)))
                     " or ")
                   (application->string op actual-types))
-          #f))]
+          type))]
     [#`(,(? (curry hash-has-key? (*functions*)) fname) #,exprs ...)
      (match-define (list vars repr _) (hash-ref (*functions*) fname))
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
@@ -178,7 +161,7 @@
            (error! stx "Invalid arguments to ~a; expects ~a but got ~a" fname
                        fname (application->string fname expected)
                        (application->string fname actual-types))
-           #f))]))
+           type))]))
 
 (module+ test
   (require rackunit)

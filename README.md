@@ -13,7 +13,7 @@ Installing
 For full details on installing Herbie, please see the
 [documentation](https://herbie.uwplse.org/doc/latest/installing.html).
 
-Herbie requires Racket 7.0 or later, and supports Windows, macOS, and
+Herbie requires Racket 8.0 or later, and supports Windows, macOS, and
 Linux. Install it with:
 
     raco pkg install --auto herbie
