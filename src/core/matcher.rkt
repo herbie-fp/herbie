@@ -196,39 +196,47 @@
                            #:depths [depths (make-list (length exprs) 1)])
   (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
   (define irules (rules->irules rules))
-  (with-egraph
-    (lambda (egg-graph)
-      (egraph-add-exprs
-        egg-graph
-        exprs
-        (lambda (node-ids)
-          (egg-run-rules egg-graph (*node-limit*) irules node-ids #t)
-          (for ([rule rules])
-            (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-            (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
-          (cond
-           [(egraph-is-unsound-detected egg-graph)
-            ; something bad happened
-            ; fallback and run one at a time (if more than 1)
+  ;; returns a procedure rather than the variants directly:
+  ;; if we need to fallback, we exit the `with-egraph` closure first
+  ;; so the existing egraph gets cleaned up
+  (define result-thunk
+    (with-egraph
+      (λ (egg-graph)
+        (egraph-add-exprs
+          egg-graph
+          exprs
+          (λ (node-ids)
+            (egg-run-rules egg-graph (*node-limit*) irules node-ids #t)
+            (for ([rule rules])
+              (define count (egraph-get-times-applied egg-graph (rule-name rule)))
+              (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
             (cond
-             [(> (length exprs) 1)
-              (define rule-counts (make-hash))
+             [(egraph-is-unsound-detected egg-graph)
+              ; something bad happened
+              ; fallback and run one at a time (if more than 1)
+              (λ ()
+                (cond
+                 [(> (length exprs) 1)
+                  (define rule-counts (make-hash))
+                  (define variants
+                    (for/list ([expr exprs] [root-loc root-locs])
+                      (match-define (cons rcs variants) (egg-rewrite expr repr #:rules rules #:root root-loc))
+                      (hash-union! rule-counts rcs #:combine +)
+                      variants))
+                  (for ([(name count) (in-hash rule-counts)])
+                    (when (> count 0) (timeline-push! 'rules (~a name) count)))
+                  variants]
+                 [else '()]))]
+             [else
               (define variants
-                (for/list ([expr exprs] [root-loc root-locs])
-                  (match-define (cons rcs variants) (egg-rewrite expr repr #:rules rules #:root root-loc))
-                  (hash-union! rule-counts rcs #:combine +)
-                  variants))
-              (for ([(name count) (in-hash rule-counts)])
-                (when (> count 0) (timeline-push! 'rules (~a name) count)))
-              variants]
-             [else '()])]
-           [else
-            (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
-              (define output (egraph-get-variants egg-graph id))
-              (define extracted (egg-exprs->exprs output egg-graph))
-              (for/list ([variant (remove-duplicates extracted)]
-                         #:unless (same-op? expr variant))
-                (list (change egg-rule root-loc (list (cons 'x variant))))))]))))))
+                (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
+                  (define output (egraph-get-variants egg-graph id))
+                  (define extracted (egg-exprs->exprs output egg-graph))
+                  (for/list ([variant (remove-duplicates extracted)]
+                            #:unless (same-op? expr variant))
+                    (list (change egg-rule root-loc (list (cons 'x variant)))))))
+              (λ () variants)]))))))
+  (result-thunk))
 
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
