@@ -180,12 +180,14 @@
             (define expr-id (first node-ids))
             (define output (egraph-get-variants egg-graph expr-id))
             (define extracted (egg-exprs->exprs output egg-graph))
-            (cons
+            (define rule-counts
               (for/hash ([rule rules])
-                (values (rule-name rule) (egraph-get-times-applied egg-graph (rule-name rule))))
+                (values (rule-name rule) (egraph-get-times-applied egg-graph (rule-name rule)))))
+            (define variants
               (for/list ([variant (remove-duplicates extracted)]
                          #:unless (same-op? expr variant))
-                (list (change egg-rule root-loc (list (cons 'x variant))))))]))))))
+                (list (change egg-rule root-loc (list (cons 'x variant))))))
+            (cons rule-counts variants)]))))))
 
 (define (batch-egg-rewrite exprs
                            repr
@@ -211,13 +213,14 @@
             (cond
              [(> (length exprs) 1)
               (define rule-counts (make-hash))
-              (begin0
+              (define variants
                 (for/list ([expr exprs] [root-loc root-locs])
                   (match-define (cons rcs variants) (egg-rewrite expr repr #:rules rules #:root root-loc))
                   (hash-union! rule-counts rcs #:combine +)
-                  variants)
-                (for ([(name count) (in-hash rule-counts)])
-                  (when (> count 0) (timeline-push! 'rules (~a name) count))))]
+                  variants))
+              (for ([(name count) (in-hash rule-counts)])
+                (when (> count 0) (timeline-push! 'rules (~a name) count)))
+              variants]
              [else '()])]
            [else
             (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
@@ -243,7 +246,7 @@
 
   ; sequential or batched rewriting
   (match driver
-   [egg-rewrite
+   [batch-egg-rewrite
     (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
     (define tnow (current-inexact-milliseconds))
     (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
