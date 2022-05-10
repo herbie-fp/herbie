@@ -1,7 +1,7 @@
 pub mod math;
 pub mod rules;
 
-use egg::{Extractor, Id, Iteration, Language, StopReason};
+use egg::{Extractor, Id, Iteration, Language, StopReason, Symbol};
 use indexmap::IndexMap;
 use math::*;
 
@@ -311,7 +311,7 @@ pub unsafe extern "C" fn egraph_get_variants(
         let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
 
         // extractor
-        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
         let mut cache: IndexMap<Id, RecExpr> = Default::default();
 
         // extract variants
@@ -320,7 +320,7 @@ pub unsafe extern "C" fn egraph_get_variants(
             // assuming same ops in an eclass cannot
             // have different precisions
             if !n.matches(head_node) {
-                // get around reference requirement of `to_recexpr`
+                // extract if not in cache
                 n.for_each(|id| {
                     if cache.get(&id).is_none() {
                         let (_, best) = extractor.find_best(id);
@@ -328,7 +328,7 @@ pub unsafe extern "C" fn egraph_get_variants(
                     }
                 });
 
-                exprs.push(n.to_recexpr(|id| cache.get(&id).unwrap().as_ref()));
+                exprs.push(n.join_recexprs(|id| cache.get(&id).unwrap().as_ref()));
             }
         }
 
@@ -361,11 +361,11 @@ pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *cons
             .runner
             .as_ref()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
-        let string = ptr_to_string(name);
+        let sym = Symbol::from(ptr_to_string(name));
         runner
             .iterations
             .iter()
-            .map(|iter| *iter.applied.get(&string).unwrap_or(&0) as u32)
+            .map(|iter| *iter.applied.get(&sym).unwrap_or(&0) as u32)
             .sum()
     })
 }
