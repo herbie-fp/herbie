@@ -169,6 +169,15 @@ const ClientGraph = new Component('#graphs', {
         // get D3
         const d3 = await import('https://cdn.skypack.dev/d3@6')
         const Plot = await import("https://cdn.skypack.dev/@observablehq/plot@0.4")
+        // TODO optimize ordinal calculation
+        const to_signed_int = float64 => {
+            const buffer = new ArrayBuffer(8)
+            const view = new DataView(buffer)
+            view.setFloat64(0, float64)
+            return view.getBigInt64(0)
+        }
+        const mbn = x => math.bignumber(to_signed_int(x).toString())
+        const ordinal = x => to_signed_int(x) >= 0 ? mbn(x) : math.subtract(mbn(-0.0), mbn(x))
         const bit_difference = (x, y) => {
             const to_signed_int = float64 => {
                 const buffer = new ArrayBuffer(8)
@@ -377,6 +386,84 @@ const ClientGraph = new Component('#graphs', {
             //console.log(out)
             return out
         }
+        function to_signed_int (float64) {
+            const buffer = new ArrayBuffer(8)
+            const view = new DataView(buffer)
+            view.setFloat64(0, float64)
+            return view.getBigInt64(0)
+        }
+        function real_from_signed_int (signed) {
+            const buffer = new ArrayBuffer(8)
+            const view = new DataView(buffer)
+            view.setBigInt64(0, signed)
+            return view.getFloat64(0)
+        }
+        function mbn(x) {
+            return math.bignumber(to_signed_int(x).toString())
+        }
+        let mbn_neg_0 = mbn(-0.0)
+        function real_to_ordinal(real) {
+            let signed = to_signed_int(real)
+            let mbn = math.bignumber(signed.toString())
+            return signed >= 0 ? mbn : math.subtract(mbn_neg_0, mbn)
+        }
+        function ordinal_to_real(ordinal) {
+            return ordinal >=0 ? real_from_signed_int(BigInt(ordinal)) : real_from_signed_int(BigInt(math.subtract(mbn_neg_0, math.bignumber(ordinal))))
+        }
+        function choose_ticks_clientside (min, max) {
+            function first_power10(min, max) {
+                let value = max < 0 ? - (10 ** Math.ceil(Math.log(-max)/ Math.log(10))) : 10 ** (Math.floor(Math.log(max) / Math.log(10)))
+                return value <= min ? false : value
+              }
+            function clamp(x, lo, hi) {
+                return Math.min(hi, Math.max(x, lo))
+              }
+            function choose_between(min, max, number) {
+              // ; Returns a given number of ticks, roughly evenly spaced, between min and max
+              // ; For any tick, n divisions below max, the tick is an ordinal corresponding to:
+              // ;  (a) a power of 10 between n and (n + ε) divisions below max where ε is some tolerance, or
+              // ;  (b) a value, n divisions below max
+              let sub_range = Math.round((max - min) / (1 + number))
+              let near = (x, n) => (x <= n) && (Math.abs((x - n) / sub_range) <= .2)  // <= tolerance
+              return [...Array(number)].map((_, i) => i + 1).map(itr => {
+                let power10 = first_power10(
+                  ordinal_to_real(clamp(max - ((itr + 1) * sub_range), min, max)),
+                  ordinal_to_real(clamp(max - (itr * sub_range), min, max))
+                )
+                return power10 && near(real_to_ordinal(power10), max - (itr * sub_range)) ? real_to_ordinal(power10)
+                  : max - (itr - sub_range)
+              })
+            }
+            function pick_spaced_ordinals(necessary, min, max, number) {
+              // NOTE use of mathjs bignumber arithmetic is required in this function!
+              let sub_range = math.divide(math.bignumber(math.subtract(math.bignumber(max), math.bignumber(min))), math.bignumber(number)) // size of a division on the ordinal range
+              let necessary_star = (function loop(necessary) {
+                return necessary.length < 2 ? necessary
+                  : math.smaller(math.subtract(necessary[1], necessary[0]), sub_range) ? loop(necessary.slice(1)) 
+                  : [necessary[0], ...loop(necessary.slice(1))]
+              })(necessary) // filter out necessary points that are too close
+              let all = (function loop(necessary, min_star, start) {
+                if (start >= number) { return [] }
+                if (necessary.length == 0) { return choose_between(min_star, max, number - start) }
+                let idx = false
+                for (let i=0; i<number; i++) {
+                  if (math.smallerEq(math.subtract(necessary[0], math.add(min, math.bignumber(math.multiply(i, sub_range)))), sub_range)) {
+                    idx = i
+                    break
+                  }
+                }
+                return [...choose_between(min_star, necessary[0], idx - start), ...loop(necessary.slice(1), necessary[0], idx + 1)]
+              })(necessary_star, min, 0)
+              return [...all, ...necessary_star].sort((a, b) => math.subtract(a, b))
+            }
+            function choose_ticks (min, max) {
+              let tick_count = 13
+              let necessary = [min, -1.0, 0, 1.0, max].filter(v => (min <= v) && (v <= max) && (min <= max)).map(v => real_to_ordinal(v))
+              let major_ticks = pick_spaced_ordinals(necessary, real_to_ordinal(min), real_to_ordinal(max), tick_count).map(v => ordinal_to_real(v))
+              return major_ticks
+            }
+            return choose_ticks(min, max)
+        }
         const plot = async (varName, function_names) => {
             const functions = [
                 { name: 'start', fn: start, line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000007'} },
@@ -404,36 +491,36 @@ const ClientGraph = new Component('#graphs', {
                 console.log(sliding_window_data)
                 const sliding_chunksize = 100
                 return [
-                    Plot.areaY(sliding_window_data, {
-                        x: d => d.x, 
-                        y1: "bottom", 
-                        y2: "top",
-                        ...area
-                    }),
-                    Plot.areaY(sliding_window_data, {
-                        x: d => d.x, 
-                        y1: "bottom_q", 
-                        y2: "top_q",
-                        ...area
-                    }),
+                    // Plot.areaY(sliding_window_data, {
+                    //     x: d => d.x, 
+                    //     y1: "bottom", 
+                    //     y2: "top",
+                    //     ...area
+                    // }),
+                    // Plot.areaY(sliding_window_data, {
+                    //     x: d => d.x, 
+                    //     y1: "bottom_q", 
+                    //     y2: "top_q",
+                    //     ...area
+                    // }),
                     Plot.line(sliding_window_data, {
                         x: "x",
                         y: "middle",
                         strokeWidth: 1.3, ...line,
                     }),
-                    Plot.line(sliding_window_data, {
-                        x: "x",
-                        y: "average",
-                        strokeWidth: 1.3, ...line,
-                    }),
+                    // Plot.line(sliding_window_data, {
+                    //     x: "x",
+                    //     y: "average",
+                    //     strokeWidth: 1.3, ...line,
+                    // }),
                     // Plot.line(chunk(sliding_window_data.map(({ top }) => top), sliding_chunksize).map(average_chunk), {
-                    //     x: d => d.x[index], y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
+                    //     x: d => d.x, y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
                     // }),
                     // Plot.line(chunk(sliding_window_data.map(({ bottom }) => bottom), sliding_chunksize).map(average_chunk), {
-                    //     x: d => d.x[index], y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
+                    //     x: d => d.x, y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
                     // }),
                     // Plot.line(chunk(sliding_window_data.map(({ middle }) => middle), sliding_chunksize).map(average_chunk), {
-                    //     x: d => d.x[index], y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
+                    //     x: d => d.x, y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
                     // }),
                     // Plot.dot(data, {x: d => d.x[index], y: "err", r: 1.3, 
                     //     title: d => `x: ${d.x[index]} \n i: ${d.i} \n computed: ${d.computed}\n exact: ${d.exact} \n bits of error: ${d.err}`,
@@ -442,12 +529,11 @@ const ClientGraph = new Component('#graphs', {
             }
             const points = await get_points_memo()
             const index = all_vars.indexOf(varName)
-            const domain = [points.reduce((acc, e) => Math.min(acc, e.x[index]), points[0].x[index]), points.reduce((acc, e) => Math.max(acc, e.x[index]), points[0].x[index])]
-            console.log(domain)
+            const domain = [ordinal(points.reduce((acc, e) => Math.min(acc, e.x[index]), points[0].x[index])).toString(), ordinal(points.reduce((acc, e) => Math.max(acc, e.x[index]), points[0].x[index])).toString()]
             const out = addTooltips(Plot.plot({
             width: '800',
             height: '400',
-            x: { type: 'log', base: 10, tickFormat: ',.1', ticks: 10, label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70, domain, grid:true},
+            x: { /*type: 'log',*/ /*base: 10,*/ tickFormat: d => ordinal_to_real(d), /*',.1',*/ /*ticks: 10,*/ label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70, /*domain,*/ grid:true},
             y: { label: "Bits of error", domain: [0, 64], ticks: new Array(64/4 + 1).fill(0).map((_, i) => i * 4), tickFormat: d => d % 8 != 0 ? '' : d},
             marks: await Promise.all(functions.map(async config => await line_and_dot_graphs(config)).flat())
         }))
