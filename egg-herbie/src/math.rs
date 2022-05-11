@@ -4,7 +4,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use num_bigint::BigInt;
 use num_rational::Ratio;
-use num_traits::{Pow, Signed, Zero};
+use num_integer::Integer;
+use num_traits::{Pow, Signed, Zero, One};
 
 pub type Constant = num_rational::BigRational;
 pub type RecExpr = egg::RecExpr<Math>;
@@ -23,9 +24,52 @@ pub struct Extracted {
     pub cost: usize,
 }
 
+// cost function similar to AstSize except
+//  (i)  will penalize `(pow _ p)` where p is a fraction
+//  (ii) can optionally penalize entire eclasses if they are a child of some node
+pub struct AltCost<'a> {
+    pub egraph: &'a EGraph,
+    pub ignore: Vec<Id>,
+}
+
+impl<'a> CostFunction<Math> for AltCost<'a> {
+    type Cost = usize;
+
+    fn cost<C>(&mut self, enode: &Math, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost
+    {
+        match enode {
+            Math::Pow([_, _, i]) => {
+                if self.egraph[*i].nodes.iter().any(|n| match n {
+                    Math::Constant(x) => !x.denom().is_one() && x.denom().is_odd(),
+                    _ => false
+                }) {
+                    usize::MAX
+                } else {
+                    enode.fold(1, |sum, id| if self.ignore.contains(&id) {
+                        usize::MAX
+                    } else {
+                        usize::saturating_add(sum, costs(id))
+                    })
+                }
+            },
+            _ => enode.fold(1, |sum, id| if self.ignore.contains(&id) {
+                usize::MAX
+            } else {
+                usize::saturating_add(sum, costs(id))
+            }),
+        }
+    }
+}
+
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let mut extractor = Extractor::new(&runner.egraph, AstSize);
+        let cost = AltCost {
+            egraph: &runner.egraph,
+            ignore: vec![],
+        };
+        let mut extractor = Extractor::new(&runner.egraph, cost);
         let extracted = runner
             .roots
             .iter()
@@ -76,7 +120,7 @@ impl Default for ConstantFold {
         Self {
             constant_fold: true,
             prune: true,
-            unsound: AtomicBool::from(false),
+            unsound: AtomicBool::new(false),
         }
     }
 }
@@ -174,10 +218,8 @@ impl Analysis<Math> for ConstantFold {
                 true
             }
             (Some(a), Some(ref b)) => {
-                if a != b {
-                    if !self.unsound.swap(true, Ordering::SeqCst) {
-                        log::warn!("Bad merge detected: {} != {}", a, b);
-                    }
+                if a != b && !self.unsound.swap(true, Ordering::SeqCst) {
+                    log::warn!("Bad merge detected: {} != {}", a, b);
                 }
                 false
             }
