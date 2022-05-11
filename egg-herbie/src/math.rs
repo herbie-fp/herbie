@@ -3,9 +3,9 @@ use egg::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use num_bigint::BigInt;
-use num_rational::Ratio;
 use num_integer::Integer;
-use num_traits::{Pow, Signed, Zero, One};
+use num_rational::Ratio;
+use num_traits::{One, Pow, Signed, Zero};
 
 pub type Constant = num_rational::BigRational;
 pub type RecExpr = egg::RecExpr<Math>;
@@ -37,27 +37,31 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
 
     fn cost<C>(&mut self, enode: &Math, mut costs: C) -> Self::Cost
     where
-        C: FnMut(Id) -> Self::Cost
+        C: FnMut(Id) -> Self::Cost,
     {
         match enode {
             Math::Pow([_, _, i]) => {
                 if self.egraph[*i].nodes.iter().any(|n| match n {
                     Math::Constant(x) => !x.denom().is_one() && x.denom().is_odd(),
-                    _ => false
+                    _ => false,
                 }) {
                     usize::MAX
                 } else {
-                    enode.fold(1, |sum, id| if self.ignore.contains(&id) {
-                        usize::MAX
-                    } else {
-                        usize::saturating_add(sum, costs(id))
+                    enode.fold(1, |sum, id| {
+                        if self.ignore.contains(&id) {
+                            usize::MAX
+                        } else {
+                            usize::saturating_add(sum, costs(id))
+                        }
                     })
                 }
-            },
-            _ => enode.fold(1, |sum, id| if self.ignore.contains(&id) {
-                usize::MAX
-            } else {
-                usize::saturating_add(sum, costs(id))
+            }
+            _ => enode.fold(1, |sum, id| {
+                if self.ignore.contains(&id) {
+                    usize::MAX
+                } else {
+                    usize::saturating_add(sum, costs(id))
+                }
             }),
         }
     }
