@@ -39,31 +39,21 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
     where
         C: FnMut(Id) -> Self::Cost,
     {
-        match enode {
-            Math::Pow([_, _, i]) => {
-                if self.egraph[*i].nodes.iter().any(|n| match n {
-                    Math::Constant(x) => !x.denom().is_one() && x.denom().is_odd(),
-                    _ => false,
-                }) {
-                    usize::MAX
-                } else {
-                    enode.fold(1, |sum, id| {
-                        if self.ignore.contains(&id) {
-                            usize::MAX
-                        } else {
-                            usize::saturating_add(sum, costs(id))
-                        }
-                    })
+        if let Math::Pow([_, _, i]) = enode {
+            if let Some(n) = &self.egraph[*i].data {
+                if !n.denom().is_one() && n.denom().is_odd() {
+                    return usize::MAX;
                 }
             }
-            _ => enode.fold(1, |sum, id| {
-                if self.ignore.contains(&id) {
-                    usize::MAX
-                } else {
-                    usize::saturating_add(sum, costs(id))
-                }
-            }),
         }
+
+        enode.fold(1, |sum, id| {
+            if self.ignore.contains(&id) {
+                usize::MAX
+            } else {
+                usize::saturating_add(sum, costs(id))
+            }
+        })
     }
 }
 
