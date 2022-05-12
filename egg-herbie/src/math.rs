@@ -32,6 +32,12 @@ pub struct AltCost<'a> {
     pub ignore: Vec<Id>,
 }
 
+impl<'a> AltCost<'a> {
+    pub fn new(egraph: &'a EGraph, ignore: Vec<Id>) -> Self {
+        Self { egraph, ignore }
+    }
+}
+
 impl<'a> CostFunction<Math> for AltCost<'a> {
     type Cost = usize;
 
@@ -59,11 +65,7 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
 
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let cost = AltCost {
-            egraph: &runner.egraph,
-            ignore: vec![],
-        };
-        let mut extractor = Extractor::new(&runner.egraph, cost);
+        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph, vec![]));
         let extracted = runner
             .roots
             .iter()

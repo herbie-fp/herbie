@@ -1,7 +1,7 @@
 pub mod math;
 pub mod rules;
 
-use egg::{AstSize, Extractor, Id, Iteration, Language};
+use egg::{Extractor, Id, Iteration, Language};
 use indexmap::IndexMap;
 use math::*;
 
@@ -275,7 +275,7 @@ fn get_op_str(n: &Math) -> Option<String> {
 }
 
 fn variant_get_simplest(
-    extractor: &mut Extractor<AstSize, Math, ConstantFold>,
+    extractor: &mut Extractor<AltCost, Math, ConstantFold>,
     cache: &mut IndexMap<Id, String>,
     id: &Id,
 ) -> String {
@@ -309,7 +309,7 @@ pub unsafe extern "C" fn egraph_get_variants(
         let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
 
         // cache
-        let mut extractor = Extractor::new(&runner.egraph, AstSize);
+        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph, vec![]));
         let mut cache: IndexMap<Id, String> = Default::default();
 
         // extract
