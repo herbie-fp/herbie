@@ -3,8 +3,9 @@ use egg::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use num_bigint::BigInt;
+use num_integer::Integer;
 use num_rational::Ratio;
-use num_traits::{Pow, Signed, Zero};
+use num_traits::{One, Pow, Signed, Zero};
 
 pub type Constant = num_rational::BigRational;
 pub type RecExpr = egg::RecExpr<Math>;
@@ -23,9 +24,46 @@ pub struct Extracted {
     pub cost: usize,
 }
 
+// cost function similar to AstSize except
+//  (i)  will penalize `(pow _ p)` where p is a fraction
+//  (ii) can optionally penalize entire eclasses if they are a child of some node
+pub struct AltCost<'a> {
+    pub egraph: &'a EGraph,
+    pub ignore: Vec<Id>,
+}
+
+impl<'a> CostFunction<Math> for AltCost<'a> {
+    type Cost = usize;
+
+    fn cost<C>(&mut self, enode: &Math, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost,
+    {
+        if let Math::Pow([_, _, i]) = enode {
+            if let Some(n) = &self.egraph[*i].data {
+                if !n.denom().is_one() && n.denom().is_odd() {
+                    return usize::MAX;
+                }
+            }
+        }
+
+        enode.fold(1, |sum, id| {
+            if self.ignore.contains(&id) {
+                usize::MAX
+            } else {
+                usize::saturating_add(sum, costs(id))
+            }
+        })
+    }
+}
+
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let mut extractor = Extractor::new(&runner.egraph, AstSize);
+        let cost = AltCost {
+            egraph: &runner.egraph,
+            ignore: vec![],
+        };
+        let mut extractor = Extractor::new(&runner.egraph, cost);
         let extracted = runner
             .roots
             .iter()
