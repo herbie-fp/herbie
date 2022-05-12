@@ -1,7 +1,7 @@
 pub mod math;
 pub mod rules;
 
-use egg::{AstSize, Extractor, Id, Iteration};
+use egg::{AstSize, Extractor, Id, Iteration, Language};
 use indexmap::IndexMap;
 use math::*;
 
@@ -290,7 +290,11 @@ fn variant_get_simplest(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_variants(ptr: *mut Context, node_id: u32) -> *const c_char {
+pub unsafe extern "C" fn egraph_get_variants(
+    ptr: *mut Context,
+    node_id: u32,
+    orig_expr: *const c_char,
+) -> *const c_char {
     ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
@@ -298,8 +302,11 @@ pub unsafe extern "C" fn egraph_get_variants(ptr: *mut Context, node_id: u32) ->
             .as_ref()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
-        // root id
+        // root (id, expr)
         let id = Id::from(node_id as usize);
+        let orig_recexpr =
+            cstring_to_recexpr(orig_expr).unwrap_or_else(|| panic!("could not parse expr"));
+        let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
 
         // cache
         let mut extractor = Extractor::new(&runner.egraph, AstSize);
@@ -308,59 +315,63 @@ pub unsafe extern "C" fn egraph_get_variants(ptr: *mut Context, node_id: u32) ->
         // extract
         let mut exprs = vec![variant_get_simplest(&mut extractor, &mut cache, &id)];
         for n in &runner.egraph[Id::from(node_id as usize)].nodes {
-            match n {
-                // binary
-                Math::Add([p, i, j])
-                | Math::Sub([p, i, j])
-                | Math::Mul([p, i, j])
-                | Math::Div([p, i, j])
-                | Math::Pow([p, i, j]) => {
-                    exprs.push(format!(
-                        "({} {} {} {})",
-                        get_op_str(n).unwrap(),
-                        variant_get_simplest(&mut extractor, &mut cache, p),
-                        variant_get_simplest(&mut extractor, &mut cache, i),
-                        variant_get_simplest(&mut extractor, &mut cache, j)
-                    ));
-                }
-
-                // unary
-                Math::Neg([p, i])
-                | Math::Sqrt([p, i])
-                | Math::Fabs([p, i])
-                | Math::Ceil([p, i])
-                | Math::Floor([p, i])
-                | Math::Round([p, i])
-                | Math::Log([p, i])
-                | Math::Cbrt([p, i]) => {
-                    exprs.push(format!(
-                        "({} {} {})",
-                        get_op_str(n).unwrap(),
-                        variant_get_simplest(&mut extractor, &mut cache, p),
-                        variant_get_simplest(&mut extractor, &mut cache, i),
-                    ));
-                }
-
-                // constants
-                Math::Constant(c) => exprs.push(c.to_string()),
-                Math::Symbol(s) => exprs.push(s.to_string()),
-
-                // variary
-                Math::Other(s, args) => {
-                    // safe to assume at least one argument
-                    let mut expr = format!(
-                        "({} {}",
-                        s,
-                        variant_get_simplest(&mut extractor, &mut cache, &args[0])
-                    );
-                    for i in &args[1..] {
-                        expr.push_str(&format!(
-                            " {}",
-                            variant_get_simplest(&mut extractor, &mut cache, i)
+            // assuming same ops in an eclass cannot
+            // have different precisions
+            if !n.matches(head_node) {
+                match n {
+                    // binary
+                    Math::Add([p, i, j])
+                    | Math::Sub([p, i, j])
+                    | Math::Mul([p, i, j])
+                    | Math::Div([p, i, j])
+                    | Math::Pow([p, i, j]) => {
+                        exprs.push(format!(
+                            "({} {} {} {})",
+                            get_op_str(n).unwrap(),
+                            variant_get_simplest(&mut extractor, &mut cache, p),
+                            variant_get_simplest(&mut extractor, &mut cache, i),
+                            variant_get_simplest(&mut extractor, &mut cache, j)
                         ));
                     }
-                    expr.push(')');
-                    exprs.push(expr);
+
+                    // unary
+                    Math::Neg([p, i])
+                    | Math::Sqrt([p, i])
+                    | Math::Fabs([p, i])
+                    | Math::Ceil([p, i])
+                    | Math::Floor([p, i])
+                    | Math::Round([p, i])
+                    | Math::Log([p, i])
+                    | Math::Cbrt([p, i]) => {
+                        exprs.push(format!(
+                            "({} {} {})",
+                            get_op_str(n).unwrap(),
+                            variant_get_simplest(&mut extractor, &mut cache, p),
+                            variant_get_simplest(&mut extractor, &mut cache, i),
+                        ));
+                    }
+
+                    // constants
+                    Math::Constant(c) => exprs.push(c.to_string()),
+                    Math::Symbol(s) => exprs.push(s.to_string()),
+
+                    // variary
+                    Math::Other(s, args) => {
+                        // safe to assume at least one argument
+                        let mut expr = format!(
+                            "({} {}",
+                            s,
+                            variant_get_simplest(&mut extractor, &mut cache, &args[0])
+                        );
+                        for i in &args[1..] {
+                            expr.push_str(&format!(
+                                " {}",
+                                variant_get_simplest(&mut extractor, &mut cache, i)
+                            ));
+                        }
+                        expr.push(')');
+                        exprs.push(expr);
+                    }
                 }
             }
         }

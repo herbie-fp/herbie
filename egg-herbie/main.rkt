@@ -26,8 +26,9 @@
   (destroy_string ptr)
   str)
 
-(define (egraph-get-variants egraph-data node-id)
-  (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id))
+(define (egraph-get-variants egraph-data node-id orig-expr)
+  (define expr-str (expr->egg-expr orig-expr egraph-data))
+  (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
   str)

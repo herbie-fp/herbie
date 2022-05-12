@@ -76,8 +76,9 @@
 
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants (_fun _egraph-pointer
-                                          _uint ;; node id
-                                          -> _pointer)) ;; string pointer
+                                          _uint           ;; node id
+                                          _string/utf-8   ;; original expr
+                                          -> _pointer))   ;; string pointer
 
 (define-eggmath egraph_get_cost (_fun _egraph-pointer
                                       _uint ;; node id

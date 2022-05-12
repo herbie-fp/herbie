@@ -152,12 +152,6 @@
               egraph-is-unsound-detected egraph-get-times-applied
               egg-exprs->exprs)])
 
-(define (same-op? expr variant)
-  (and (list? expr)
-       (list? variant)
-       (equal? (car expr) (car variant))
-       (= (length expr) (length variant))))
-
 ; If unsoundness was detected, try falling back to one at a time
 ; Returns (cons <rule-count> <variants>)
 (define (egg-rewrite expr repr #:rules rules #:root [root-loc '()])
@@ -178,14 +172,13 @@
             (cons (hash) '())]
            [else
             (define expr-id (first node-ids))
-            (define output (egraph-get-variants egg-graph expr-id))
+            (define output (egraph-get-variants egg-graph expr-id expr))
             (define extracted (egg-exprs->exprs output egg-graph))
             (define rule-counts
               (for/hash ([rule rules])
                 (values (rule-name rule) (egraph-get-times-applied egg-graph (rule-name rule)))))
             (define variants
-              (for/list ([variant (remove-duplicates extracted)]
-                         #:unless (same-op? expr variant))
+              (for/list ([variant (remove-duplicates extracted)])
                 (list (change egg-rule root-loc (list (cons 'x variant))))))
             (cons rule-counts variants)]))))))
 
@@ -230,10 +223,9 @@
              [else
               (define variants
                 (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
-                  (define output (egraph-get-variants egg-graph id))
+                  (define output (egraph-get-variants egg-graph id expr))
                   (define extracted (egg-exprs->exprs output egg-graph))
-                  (for/list ([variant (remove-duplicates extracted)]
-                            #:unless (same-op? expr variant))
+                  (for/list ([variant (remove-duplicates extracted)])
                     (list (change egg-rule root-loc (list (cons 'x variant)))))))
               (λ () variants)]))))))
   (result-thunk))
