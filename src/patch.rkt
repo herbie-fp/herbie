@@ -203,6 +203,7 @@
   (unless (or (^series^) (^rewrites^))
     (raise-user-error 'simplify! "No candidates generated. Run (gen-series!) or (gen-rewrites!)"))
 
+  (^final^ (append (or (^series^) empty) (or (^rewrites^) empty)))
   (when (flag-set? 'generate 'simplify)
     (timeline-event! 'simplify)
     (define children (append (or (^series^) empty) (or (^rewrites^) empty)))

@@ -237,24 +237,26 @@
                              #:roots [root-locs (make-list (length exprs) '())]
                              #:depths [depths (make-list (length exprs) 1)])
   ; choose correct rr driver
-  (define driver
-    (cond
-     [(not (flag-set? 'generate 'rr)) rewrite-once]
-     [(flag-set? 'generate 'egg-rr) batch-egg-rewrite]
-     [else recursive-rewrite]))
-  (timeline-push! 'method (~a (object-name driver)))
+  (cond
+   [(null? exprs) '()]
+   [else
+    (define driver
+      (cond
+      [(not (flag-set? 'generate 'rr)) rewrite-once]
+      [(flag-set? 'generate 'egg-rr) batch-egg-rewrite]
+      [else recursive-rewrite]))
+    (timeline-push! 'method (~a (object-name driver)))
 
-  ; sequential or batched rewriting
-  (match driver
-   [batch-egg-rewrite
-    (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
-    (define tnow (current-inexact-milliseconds))
-    (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
-      (for ([expr exprs])
-        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]
-   [_
-    (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
-      (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
+    ; sequential or batched rewriting
+    (match driver
+     [batch-egg-rewrite
+      (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
       (define tnow (current-inexact-milliseconds))
-      (begin0 (driver expr repr #:rules rules #:root root-loc #:depth depth)
-        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]))
+      (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
+        (for ([expr exprs]) (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]
+     [_
+      (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
+        (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
+        (define tnow (current-inexact-milliseconds))
+        (begin0 (driver expr repr #:rules rules #:root root-loc #:depth depth)
+          (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))])]))
