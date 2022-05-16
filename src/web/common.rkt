@@ -83,14 +83,15 @@
     ))
 
 (define (render-preprocess preprocess-structs)
-  `(div ([id "preprocess"] [class "program math"])
-        "\\["
+  `(div ([id "preprocess"])
+    (div ([class "program math"])
+        "\\[ \\begin{array}{c}"
         ,@(for/list ([preprocess preprocess-structs])
             (match preprocess
               [`(sort ,vars ...)
                (define varstring (format "[~a]" (string-join (map ~a vars) ", ")))
-               (format "~a = \\mathsf{sort}(~a) \\" varstring varstring)]))
-        "\\]"))
+               (format "~a = \\mathsf{sort}(~a)\\\\ " varstring varstring)]))
+        "\\end{array} \\]")))
 
 (define (render-program #:to [result #f] preprocess test)
   (define identifier (test-identifier test))
