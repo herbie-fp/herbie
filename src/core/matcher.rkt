@@ -147,40 +147,55 @@
 
 ;;  Egg rewriter
 
+;; Fallback system
+;;  batch-egg-rewrite - batched call to egg
+;;  egg-rewrite - call to egg on an expression (skipped if batch-egg-rewrite called with 1 expr)
+;;  egg-rewrite (with iter limit) - call to egg on an expression with an iter limit (last resort)
+
 (lazy-require
- [egg-herbie (with-egraph egraph-add-exprs egraph-run egraph-get-variants
+ [egg-herbie (with-egraph egraph-add-exprs egraph-get-variants
               egraph-is-unsound-detected egraph-get-times-applied
               egg-exprs->exprs)])
 
-; If unsoundness was detected, try falling back to one at a time
-; Returns (cons <rule-count> <variants>)
-(define (egg-rewrite expr repr #:rules rules #:root [root-loc '()])
+; If unsoundness was detected, try running one epxression at a time.
+; Can optionally set iter limit (will give up if unsoundness detected).
+; Returns (cons <rule-count> <variants>).
+(define (egg-rewrite expr repr #:rules rules #:root [root-loc '()] #:limit [iter-limit #f])
   (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
   (define irules (rules->irules rules))
   (timeline-push! 'method (~a (object-name egg-rewrite)))
-  (with-egraph
-    (lambda (egg-graph)
-      (egraph-add-exprs
-        egg-graph
-        (list expr)
-        (lambda (node-ids)
-          (egg-run-rules egg-graph (*node-limit*) irules node-ids #t)
-          (cond
-           [(egraph-is-unsound-detected egg-graph)
-            (warn 'unsound-rules #:url "faq.html#unsound-rules"
-                "Unsound rule application detected in e-graph. Results from recursive rewrite may not be sound.")
-            (cons (hash) '())]
-           [else
-            (define expr-id (first node-ids))
-            (define output (egraph-get-variants egg-graph expr-id expr))
-            (define extracted (egg-exprs->exprs output egg-graph))
-            (define rule-counts
-              (for/hash ([rule rules])
-                (values (rule-name rule) (egraph-get-times-applied egg-graph (rule-name rule)))))
-            (define variants
-              (for/list ([variant (remove-duplicates extracted)])
-                (list (change egg-rule root-loc (list (cons 'x variant))))))
-            (cons rule-counts variants)]))))))
+  ;; returns a procedure rather than the variants directly:
+  ;; if we need to fallback, we exit the `with-egraph` closure first
+  ;; so the existing egraph gets cleaned up
+  (define result-thunk
+    (with-egraph
+      (lambda (egg-graph)
+        (egraph-add-exprs
+          egg-graph
+          (list expr)
+          (lambda (node-ids)
+            (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t #:limit iter-limit))
+            (cond
+             [(egraph-is-unsound-detected egg-graph)
+              ; give up if iter limit is set
+              ; otherwise try with iter limit
+              (λ ()
+                (if (and iter-limit (>= iter-limit 2))
+                    (cons (hash) '())
+                    (let ([limit (- (length iter-data) 2)])
+                      (egg-rewrite expr repr #:rules rules #:root root-loc #:limit limit))))]
+             [else
+              (define expr-id (first node-ids))
+              (define output (egraph-get-variants egg-graph expr-id expr))
+              (define extracted (egg-exprs->exprs output egg-graph))
+              (define rule-counts
+                (for/hash ([rule rules])
+                  (values (rule-name rule) (egraph-get-times-applied egg-graph (rule-name rule)))))
+              (define variants
+                (for/list ([variant (remove-duplicates extracted)])
+                  (list (change egg-rule root-loc (list (cons 'x variant))))))
+              (λ () (cons rule-counts variants))]))))))
+  (result-thunk))
 
 (define (batch-egg-rewrite exprs
                            repr
@@ -199,27 +214,26 @@
           egg-graph
           exprs
           (λ (node-ids)
-            (egg-run-rules egg-graph (*node-limit*) irules node-ids #t)
+            (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t))
             (for ([rule rules])
               (define count (egraph-get-times-applied egg-graph (rule-name rule)))
               (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
             (cond
              [(egraph-is-unsound-detected egg-graph)
               ; something bad happened
-              ; fallback and run one at a time (if more than 1)
+              ; fallback and run one at a time
               (λ ()
-                (cond
-                 [(> (length exprs) 1)
-                  (define rule-counts (make-hash))
-                  (define variants
-                    (for/list ([expr exprs] [root-loc root-locs])
-                      (match-define (cons rcs variants) (egg-rewrite expr repr #:rules rules #:root root-loc))
-                      (hash-union! rule-counts rcs #:combine +)
-                      variants))
+                (define rule-counts (make-hash))
+                (define iter-limit (and (= (length exprs) 1) (- (length iter-data) 2)))
+                (define variants
+                (for/list ([expr exprs] [root-loc root-locs])
+                  (match-define (cons rcs variants)
+                    (egg-rewrite expr repr #:rules rules #:root root-loc #:limit iter-limit))
+                  (hash-union! rule-counts rcs #:combine +)
+                  variants))
                   (for ([(name count) (in-hash rule-counts)])
                     (when (> count 0) (timeline-push! 'rules (~a name) count)))
-                  variants]
-                 [else '()]))]
+                  variants)]
              [else
               (define variants
                 (for/list ([id node-ids] [expr exprs] [root-loc root-locs])

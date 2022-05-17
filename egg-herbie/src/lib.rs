@@ -158,10 +158,11 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_run(
+pub unsafe extern "C" fn egraph_run_with_iter_limit(
     ptr: *mut Context,
     output_size: *mut u32,
-    limit: u32,
+    iter_limit: u32,
+    node_limit: u32,
     rules_array_ptr: *const *mut FFIRule,
     is_constant_folding_enabled: bool,
     rules_array_length: u32,
@@ -191,8 +192,8 @@ pub unsafe extern "C" fn egraph_run(
 
             runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
             runner = runner
-                .with_node_limit(limit as usize)
-                .with_iter_limit(usize::MAX) // should never hit
+                .with_node_limit(node_limit as usize)
+                .with_iter_limit(iter_limit as usize) // should never hit
                 .with_time_limit(Duration::from_secs(u64::MAX))
                 .with_hook(|r| {
                     if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
@@ -208,6 +209,26 @@ pub unsafe extern "C" fn egraph_run(
         ctx.runner = Some(runner);
         res
     })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_run(
+    ptr: *mut Context,
+    output_size: *mut u32,
+    node_limit: u32,
+    rules_array_ptr: *const *mut FFIRule,
+    is_constant_folding_enabled: bool,
+    rules_array_length: u32,
+) -> *const EGraphIter {
+    egraph_run_with_iter_limit(
+        ptr,
+        output_size,
+        u32::MAX,
+        node_limit,
+        rules_array_ptr,
+        is_constant_folding_enabled,
+        rules_array_length,
+    )
 }
 
 fn newest_sound_iter(runner: &Runner, iter: u32) -> u32 {

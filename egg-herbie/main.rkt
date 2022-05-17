@@ -72,9 +72,14 @@
            (convert-iteration-data (ptr-add egraphiters 1 _EGraphIter) (- size 1)))]
     [else empty]))
 
-
-(define (egraph-run egraph-data node-limit ffi-rules precompute?)
-  (define-values (egraphiters res-len) (egraph_run (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
+;; runs rules on an egraph
+;; can optionally specify an iter limit
+(define (egraph-run egraph-data iter-limit node-limit ffi-rules precompute?)
+  (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
+  (define-values (egraphiters res-len)
+    (if iter-limit
+        (egraph_run_with_iter_limit egraph-ptr iter-limit node-limit ffi-rules precompute?)
+        (egraph_run egraph-ptr node-limit ffi-rules precompute?)))
   (define res (convert-iteration-data egraphiters res-len))
   (destroy_egraphiters res-len egraphiters)
   res)

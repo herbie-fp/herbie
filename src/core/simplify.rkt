@@ -166,17 +166,15 @@
                       (egg-expr->expr (egraph-get-simplest egg-graph id iter) egg-graph)))
          node-ids))))))
 
-(define (egg-run-rules egg-graph node-limit irules node-ids precompute? #:hook [hook #f])
+(define (egg-run-rules egg-graph node-limit irules node-ids precompute? #:limit [iter-limit #f])
   (define ffi-rules (make-ffi-rules irules))
   (define start-time (current-inexact-milliseconds))
 
   #;(define (timeline-cost iter)
-    
-    (define cnt (egraph-get-size egg-graph))
-    
-    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
+      (define cnt (egraph-get-size egg-graph)) 
+      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
-  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute?))
+  (define iteration-data (egraph-run egg-graph iter-limit node-limit ffi-rules precompute?))
 
   (let loop
     ([iter iteration-data] [counter 0] [time 0])
@@ -191,7 +189,6 @@
        (debug #:from 'simplify #:depth 2 "iteration " counter ": " cnt " enodes " "(cost " cost ")")
        (define new-time (+ time (iteration-data-time (first iter))))
        (timeline-push! 'egraph counter cnt cost new-time)
-       (when hook (hook egg-graph))
        (loop (rest iter) (+ counter 1) new-time)]))
 
   (free-ffi-rules ffi-rules)
