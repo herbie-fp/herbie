@@ -169,7 +169,7 @@ const ClientGraph = new Component('#graphs', {
         // get D3
         const d3 = await import('https://cdn.skypack.dev/d3@6')
         const Plot = await import("https://cdn.skypack.dev/@observablehq/plot@0.4")
-        // TODO optimize ordinal calculation
+        // TODO optimize ordinal calculation below
         const to_signed_int = float64 => {
             const buffer = new ArrayBuffer(8)
             const view = new DataView(buffer)
@@ -386,21 +386,21 @@ const ClientGraph = new Component('#graphs', {
             //console.log(out)
             return out
         }
-        function to_signed_int (float64) {
-            const buffer = new ArrayBuffer(8)
-            const view = new DataView(buffer)
-            view.setFloat64(0, float64)
-            return view.getBigInt64(0)
-        }
+        // function to_signed_int (float64) {
+        //     const buffer = new ArrayBuffer(8)
+        //     const view = new DataView(buffer)
+        //     view.setFloat64(0, float64)
+        //     return view.getBigInt64(0)
+        // }
         function real_from_signed_int (signed) {
             const buffer = new ArrayBuffer(8)
             const view = new DataView(buffer)
             view.setBigInt64(0, signed)
             return view.getFloat64(0)
         }
-        function mbn(x) {
-            return math.bignumber(to_signed_int(x).toString())
-        }
+        // function mbn(x) {
+        //     return math.bignumber(to_signed_int(x).toString())
+        // }
         let mbn_neg_0 = mbn(-0.0)
         function real_to_ordinal(real) {
             let signed = to_signed_int(real)
@@ -454,7 +454,7 @@ const ClientGraph = new Component('#graphs', {
                 }
                 return [...choose_between(min_star, necessary[0], idx - start), ...loop(necessary.slice(1), necessary[0], idx + 1)]
               })(necessary_star, min, 0)
-              return [...all, ...necessary_star].sort((a, b) => math.subtract(a, b))
+              return [...all, ...necessary_star].sort((a, b) => math.subtract(math.bignumber(a), math.bignumber(b)))
             }
             function choose_ticks (min, max) {
               let tick_count = 13
@@ -470,6 +470,11 @@ const ClientGraph = new Component('#graphs', {
                 { name: 'end', fn: end, line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff07'} },
                 //{ name: 'target', fn: target, line: { stroke: 'green' }, dot: { stroke: 'green'}}  // NOTE not properly supported yet
             ].filter(o => function_names.includes(o.name))
+            
+            const points = await get_points_memo()
+            const index = all_vars.indexOf(varName)
+            const domain = [ordinal(points.reduce((acc, e) => Math.min(acc, e.x[index]), points[0].x[index])).toString(), ordinal(points.reduce((acc, e) => Math.max(acc, e.x[index]), points[0].x[index])).toString()]
+
             async function line_and_dot_graphs({ name, fn, line, dot, area }) {
                 const index = all_vars.indexOf(varName)
                 const data = (await points_with_err(fn)).sort(key_fn(o => o.x[index])).map((o, i) => (o.i = i, o))
@@ -478,7 +483,7 @@ const ClientGraph = new Component('#graphs', {
                     const half = Math.floor(size / 2)
                     i = i + half
                     const slice = A.slice(i - half, i - half + size).sort(key_fn(o => o.err))
-                    const x = A[i].x[index]
+                    const x = real_to_ordinal(A[i].x[index])
                     const top = slice[Math.floor(slice.length * .95)].err
                     const top_q = slice[Math.floor(slice.length * .75)].err
                     const bottom = slice[Math.floor(slice.length * .05)].err
@@ -522,20 +527,28 @@ const ClientGraph = new Component('#graphs', {
                     // Plot.line(chunk(sliding_window_data.map(({ middle }) => middle), sliding_chunksize).map(average_chunk), {
                     //     x: d => d.x, y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
                     // }),
-                    // Plot.dot(data, {x: d => d.x[index], y: "err", r: 1.3, 
+                    // Plot.dot(data, {x: d => real_to_ordinal(d.x[index]), y: "err", r: 1.3,
                     //     title: d => `x: ${d.x[index]} \n i: ${d.i} \n computed: ${d.computed}\n exact: ${d.exact} \n bits of error: ${d.err}`,
                     //     ...dot})
+                    ...(0 > ordinal_to_real(domain[0]) && 0 < ordinal_to_real(domain[1]) ? [Plot.ruleX([0])] : [])
                 ]
             }
-            const points = await get_points_memo()
-            const index = all_vars.indexOf(varName)
-            const domain = [ordinal(points.reduce((acc, e) => Math.min(acc, e.x[index]), points[0].x[index])).toString(), ordinal(points.reduce((acc, e) => Math.max(acc, e.x[index]), points[0].x[index])).toString()]
+            
+            
+            console.log(domain, choose_ticks_clientside(ordinal_to_real(domain[0]), ordinal_to_real(domain[1])), choose_ticks_clientside(ordinal_to_real(domain[0]), ordinal_to_real(domain[1])).map(v => real_to_ordinal(v)).map(v => ordinal_to_real(v)))
+            const repr_ticks = d => {
+                let v = ordinal_to_real(d)
+                if (v == 0 || (.01 < math.abs(v) && math.abs(v) < 100)) { return v.toPrecision(4) }
+                return v.toExponential(0)
+            }
             const out = addTooltips(Plot.plot({
             width: '800',
-            height: '400',
-            x: { /*type: 'log',*/ /*base: 10,*/ tickFormat: d => ordinal_to_real(d), /*',.1',*/ /*ticks: 10,*/ label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70, /*domain,*/ grid:true},
+            height: '400',                
+            x: { /*type: 'log',*/ /*base: 10,*/ tickFormat: d => repr_ticks(d), /*',.1',*/ ticks: choose_ticks_clientside(ordinal_to_real(domain[0]), ordinal_to_real(domain[1])).map(v => real_to_ordinal(v)), label: `value of ${varName}`, labelAnchor: 'center', labelOffset: [200, 20], tickRotate: 70, /*domain,*/ grid:true},
             y: { label: "Bits of error", domain: [0, 64], ticks: new Array(64/4 + 1).fill(0).map((_, i) => i * 4), tickFormat: d => d % 8 != 0 ? '' : d},
             marks: await Promise.all(functions.map(async config => await line_and_dot_graphs(config)).flat())
+            // TODO add ruleX for regime split points
+            // TODO add tickX for 0
         }))
             out.setAttribute('viewBox', '0 0 800 430')
             //out.style['grid-area'] = 'small-plots'
