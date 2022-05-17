@@ -15,19 +15,22 @@ while [ -L "$src" ]; do
   src="$(readlink "$src")"
   [[ $src != /* ]] && src="$dir/$src"
 done
-INFRA_DIR="$(cd -P "$(dirname "$src")" && pwd)"
 
+INFRA_DIR="$(cd -P "$(dirname "$src")" && pwd)"
+BENCH_DIR="$INFRA_DIR"/../bench
+
+# check arguments
 if [ -z "$1" ]; then
   echo "Usage: $0 <output_dir>"
 else
-  DIR="$1"; shift
+  OUT_DIR="$1"; shift
   FLAGS="$@"
 fi
 
 # run
 RECURSE=1 LOG=1 \
   bash "$INFRA_DIR"/run.sh \
-    "$INFRA_DIR"/../bench "$DIR" \
+    "$BENCH_DIR" "$OUT_DIR" \
     --profile \
     --debug \
     --seed "$SEED" \
@@ -35,5 +38,5 @@ RECURSE=1 LOG=1 \
     $FLAGS
 
 # upload
-bash $INFRA_DIR/publish.sh upload "$DIR"
+bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
 bash $INFRA_DIR/publish.sh index

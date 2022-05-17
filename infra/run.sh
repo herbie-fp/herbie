@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # exit immediately upon first error
-if [ ! -z "$LOG" ]; then
-  set -e -x
-else
+if [ -z "$LOG" ]; then
   set -e
+else
+  set -e -x
 fi
 
 # determine where to run
@@ -34,7 +34,7 @@ function output_error {
 EOF
 }
 
-# actual worker
+# actual runner
 function run {
   bench="$1"; shift
   name="$1"; shift
@@ -46,6 +46,7 @@ function run {
     echo "Running tests in '$name' with '$args'"
   fi
 
+  rm -rf "$OUTDIR/$name"
   racket "src/herbie.rkt" report \
     --note "$name" \
     "$@" \
@@ -55,7 +56,7 @@ function run {
 
 # run
 mkdir -p $OUTDIR
-rm -rf "$OUTDIR"/*
+rm -rf "$OUTDIR"/* || echo "nothing to delete"
 if [ -z "$RECURSE" ]; then
   name=$(basename "$BENCH" .fpcore)
   run "$BENCH" "$name" "$@"
@@ -69,5 +70,7 @@ else
     fi
   done
 
-  racket infra/nightly.rkt "$OUTDIR" $dirs
+  # merge reports
+  echo "merging $dirs"
+  racket infra/merge.rkt "$OUTDIR" $dirs
 fi
