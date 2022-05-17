@@ -210,9 +210,11 @@
   (unless (or (^series^) (^rewrites^))
     (raise-user-error 'simplify! "No candidates generated. Run (gen-series!) or (gen-rewrites!)"))
 
+  ; load final in case simplify is disabled
+  (^final^ (append (or (^series^) '()) (or (^rewrites^) '())))
   (when (flag-set? 'generate 'simplify)
     (timeline-event! 'simplify)
-    (define children (append (or (^series^) empty) (or (^rewrites^) empty)))
+    (define children (^final^))
 
     ;; We want to avoid simplifying if possible, so we only
     ;; simplify things produced by function calls in the rule
