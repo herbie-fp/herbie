@@ -137,11 +137,10 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 }
 
 #subreports.no-subreports #with-subreports { display: none; }
-#subreports #with-subreports { display: block; }
+#subreports #with-subreports { display: block; border-top: 1px solid #ddd; }
 
 #subreport-table {
-    padding: 0 0 0 1em;
-    margin: 0;
+    padding: 5px 0 5px 1em;
 }
 
 #subreport-table table {
@@ -149,8 +148,8 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
     border-spacing: 0;
 }
 
-#subreport-table table tr { height: 15px; }
-#subreport-table table tr td { height: 15px; }
+#subreport-table table tr th { line-height: 25px; padding-right: 10px; }
+#subreport-table table tr td { line-height: 25px; padding-right: 10px; }
 
 /* Detail page layout */
 
