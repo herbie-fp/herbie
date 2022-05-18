@@ -308,7 +308,7 @@ pub unsafe extern "C" fn egraph_get_variants(
                 n.for_each(|id| {
                     if cache.get(&id).is_none() {
                         let (_, best) = extractor.find_best(id);
-                        cache.insert(id, best);   
+                        cache.insert(id, best);
                     }
                 });
 
