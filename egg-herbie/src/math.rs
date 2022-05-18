@@ -24,17 +24,15 @@ pub struct Extracted {
     pub cost: usize,
 }
 
-// cost function similar to AstSize except
-//  (i)  will penalize `(pow _ p)` where p is a fraction
-//  (ii) can optionally penalize entire eclasses if they are a child of some node
+// cost function similar to AstSize except it will
+// penalize `(pow _ p)` where p is a fraction
 pub struct AltCost<'a> {
     pub egraph: &'a EGraph,
-    pub ignore: Vec<Id>,
 }
 
 impl<'a> AltCost<'a> {
-    pub fn new(egraph: &'a EGraph, ignore: Vec<Id>) -> Self {
-        Self { egraph, ignore }
+    pub fn new(egraph: &'a EGraph) -> Self {
+        Self { egraph }
     }
 }
 
@@ -53,19 +51,13 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
             }
         }
 
-        enode.fold(1, |sum, id| {
-            if self.ignore.contains(&id) {
-                usize::MAX
-            } else {
-                usize::saturating_add(sum, costs(id))
-            }
-        })
+        enode.fold(1, |sum, id| usize::saturating_add(sum, costs(id)))
     }
 }
 
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph, vec![]));
+        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
         let extracted = runner
             .roots
             .iter()

@@ -295,7 +295,7 @@ pub unsafe extern "C" fn egraph_get_variants(
         let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
 
         // extractor
-        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph, vec![]));
+        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
         let mut cache: IndexMap<Id, RecExpr> = Default::default();
 
         // extract variants
