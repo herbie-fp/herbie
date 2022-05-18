@@ -33,26 +33,34 @@
     #:exists 'replace
     (curry write-json (profile->json joint-pf))))
 
-(define (merge-reports outdir . dirs)
+(define (merge-reports outdir name . dirs)
   (load-herbie-builtins)
   (define rss
     (filter
      (conjoin (negate eof-object?) identity)
      (for/list ([dir (in-list dirs)])
        (with-handlers ([exn? (const #f)])
-         (read-datafile (build-path outdir dir "results.json"))))))
-  (define joint-rs (merge-datafiles rss #:dirs dirs))
+         (let ([df (read-datafile (build-path outdir dir "results.json"))])
+          (if (eof-object? df)
+              eof
+              (cons df dir)))))))
+  (define dfs (map car rss))
+  (define joint-rs (merge-datafiles dfs #:dirs dirs #:name name))
   (write-datafile (build-path outdir "results.json") joint-rs)
   (call-with-output-file (build-path outdir "results.html")
     #:exists 'replace
-    (curryr make-report-page joint-rs #f)))
+    (curryr make-report-page joint-rs #f #:merge-data rss)))
 
 (module+ main
+  (define name #f)
   (command-line
+   #:once-each
+   [("--name") _name "Name for the merged report"
+    (set! name _name)]
    #:args (outdir . dirs)
-   (apply merge-reports outdir dirs)
-   (apply merge-timelines outdir dirs)
-   (apply merge-profiles outdir dirs)
-   (copy-file (web-resource "arrow-chart.js") (build-path outdir "arrow-chart.js") #t)
-   (copy-file (web-resource "report.js") (build-path outdir "report.js") #t)
-   (copy-file (web-resource "report.css") (build-path outdir "report.css") #t)))
+    (apply merge-reports outdir name dirs)
+    (apply merge-timelines outdir dirs)
+    (apply merge-profiles outdir dirs)
+    (copy-file (web-resource "arrow-chart.js") (build-path outdir "arrow-chart.js") #t)
+    (copy-file (web-resource "report.js") (build-path outdir "report.js") #t)
+    (copy-file (web-resource "report.css") (build-path outdir "report.css") #t)))

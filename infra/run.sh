@@ -72,5 +72,5 @@ else
 
   # merge reports
   echo "merging $dirs"
-  racket infra/merge.rkt "$OUTDIR" $dirs
+  racket infra/merge.rkt --name "$(basename $BENCH .fpcore)" "$OUTDIR" $dirs
 fi

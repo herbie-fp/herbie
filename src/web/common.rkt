@@ -43,7 +43,7 @@
 (define/contract (render-menu sections links)
   (-> (listof (or/c (cons/c string? string?) #f)) (listof (cons/c string? string?)) xexpr?)
   `(nav ([id "links"])
-    (div
+    (div ([class "right"])
      ,@(for/list ([(text url) (in-dict (filter identity links))])
          `(a ([href ,url]) ,text)))
     (div
