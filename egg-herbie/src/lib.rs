@@ -275,41 +275,6 @@ pub unsafe extern "C" fn egraph_get_simplest(
     })
 }
 
-fn get_op_str(n: &Math) -> Option<String> {
-    match n {
-        Math::Add(_) => Some(String::from("+")),
-        Math::Sub(_) => Some(String::from("-")),
-        Math::Mul(_) => Some(String::from("*")),
-        Math::Div(_) => Some(String::from("/")),
-        Math::Pow(_) => Some(String::from("pow")),
-        Math::Neg(_) => Some(String::from("neg")),
-        Math::Sqrt(_) => Some(String::from("sqrt")),
-        Math::Fabs(_) => Some(String::from("fabs")),
-        Math::Ceil(_) => Some(String::from("ceil")),
-        Math::Floor(_) => Some(String::from("floor")),
-        Math::Round(_) => Some(String::from("round")),
-        Math::Log(_) => Some(String::from("log")),
-        Math::Cbrt(_) => Some(String::from("cbrt")),
-        Math::Other(s, _) => Some(s.to_string()),
-        _ => None,
-    }
-}
-
-fn variant_get_simplest(
-    extractor: &mut Extractor<AltCost, Math, ConstantFold>,
-    cache: &mut IndexMap<Id, String>,
-    id: &Id,
-) -> String {
-    if let Some(v) = cache.get(id) {
-        v.clone()
-    } else {
-        let (_, expr) = extractor.find_best(*id);
-        let s = expr.to_string();
-        cache.insert(*id, s.clone());
-        s
-    }
-}
-
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_variants(
     ptr: *mut Context,
@@ -329,76 +294,31 @@ pub unsafe extern "C" fn egraph_get_variants(
             cstring_to_recexpr(orig_expr).unwrap_or_else(|| panic!("could not parse expr"));
         let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
 
-        // cache
+        // extractor
         let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph, vec![]));
-        let mut cache: IndexMap<Id, String> = Default::default();
+        let mut cache: IndexMap<Id, RecExpr> = Default::default();
 
-        // extract
-        let mut exprs = vec![variant_get_simplest(&mut extractor, &mut cache, &id)];
-        for n in &runner.egraph[Id::from(node_id as usize)].nodes {
+        // extract variants
+        let mut exprs = vec![];
+        for n in &runner.egraph[id].nodes {
             // assuming same ops in an eclass cannot
             // have different precisions
             if !n.matches(head_node) {
-                match n {
-                    // binary
-                    Math::Add([p, i, j])
-                    | Math::Sub([p, i, j])
-                    | Math::Mul([p, i, j])
-                    | Math::Div([p, i, j])
-                    | Math::Pow([p, i, j]) => {
-                        exprs.push(format!(
-                            "({} {} {} {})",
-                            get_op_str(n).unwrap(),
-                            variant_get_simplest(&mut extractor, &mut cache, p),
-                            variant_get_simplest(&mut extractor, &mut cache, i),
-                            variant_get_simplest(&mut extractor, &mut cache, j)
-                        ));
+                // get around reference requirement of `to_recexpr`
+                n.for_each(|id| {
+                    if cache.get(&id).is_none() {
+                        let (_, best) = extractor.find_best(id);
+                        cache.insert(id, best);   
                     }
+                });
 
-                    // unary
-                    Math::Neg([p, i])
-                    | Math::Sqrt([p, i])
-                    | Math::Fabs([p, i])
-                    | Math::Ceil([p, i])
-                    | Math::Floor([p, i])
-                    | Math::Round([p, i])
-                    | Math::Log([p, i])
-                    | Math::Cbrt([p, i]) => {
-                        exprs.push(format!(
-                            "({} {} {})",
-                            get_op_str(n).unwrap(),
-                            variant_get_simplest(&mut extractor, &mut cache, p),
-                            variant_get_simplest(&mut extractor, &mut cache, i),
-                        ));
-                    }
-
-                    // constants
-                    Math::Constant(c) => exprs.push(c.to_string()),
-                    Math::Symbol(s) => exprs.push(s.to_string()),
-
-                    // variary
-                    Math::Other(s, args) => {
-                        // safe to assume at least one argument
-                        let mut expr = format!(
-                            "({} {}",
-                            s,
-                            variant_get_simplest(&mut extractor, &mut cache, &args[0])
-                        );
-                        for i in &args[1..] {
-                            expr.push_str(&format!(
-                                " {}",
-                                variant_get_simplest(&mut extractor, &mut cache, i)
-                            ));
-                        }
-                        expr.push(')');
-                        exprs.push(expr);
-                    }
-                }
+                exprs.push(n.to_recexpr(|id| cache.get(&id).unwrap().as_ref()));
             }
         }
 
         // format
-        let best_str = CString::new(exprs.join(" ")).unwrap();
+        let expr_strs: Vec<String> = exprs.iter().map(|r| r.to_string()).collect();
+        let best_str = CString::new(expr_strs.join(" ")).unwrap();
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
         best_str_pointer
