@@ -132,7 +132,10 @@
                 (a ([href "#results"]) "Results")
                 (div ([id "with-subreports"])
                   ,(format-subreports merge-data)))
-            `(div ([id "subreports"] [style "display: none"])))))
+            `(div
+              (a ([href "#about"]) "Flags")
+              (a ([href "#results"]) "Results")
+              (div ([id "subreports"] [style "display: none"]))))))
 
       (div ((id "large"))
        ,(render-large "Time" (format-time total-time))
