@@ -39,7 +39,7 @@
   (match-define (list (cons reports paths) ...) rss)
   `(div ([id "subreport-table"])
     (table
-      (tr (th "Subreport") (th "Passed") (th "Time") (th "Tests") (th "Bits"))
+      (tr (th "Subreport") (th "Time") (th "Passed") (th "Tests") (th "Bits"))
       ,@(for/list ([report reports] [path paths])
           (let ([index (path->string (build-path path "results.html"))]
                 [time (apply + (map table-row-time (report-info-tests report)))]
