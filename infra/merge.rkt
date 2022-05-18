@@ -40,12 +40,16 @@
      (conjoin (negate eof-object?) identity)
      (for/list ([dir (in-list dirs)])
        (with-handlers ([exn? (const #f)])
-         (read-datafile (build-path outdir dir "results.json"))))))
-  (define joint-rs (merge-datafiles rss #:dirs dirs))
+         (let ([df (read-datafile (build-path outdir dir "results.json"))])
+          (if (eof-object? df)
+              eof
+              (cons df dir)))))))
+  (define dfs (map car rss))
+  (define joint-rs (merge-datafiles dfs #:dirs dirs))
   (write-datafile (build-path outdir "results.json") joint-rs)
   (call-with-output-file (build-path outdir "results.html")
     #:exists 'replace
-    (curryr make-report-page joint-rs #f)))
+    (curryr make-report-page joint-rs #f #:merge-data rss)))
 
 (module+ main
   (command-line
