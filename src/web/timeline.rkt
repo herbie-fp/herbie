@@ -70,6 +70,7 @@
          ,@(dict-call curr render-phase-times #:extra n 'times)
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-egraph 'egraph)
+         ,@(dict-call curr render-phase-egraph-stop 'egraph-stop)
          ,@(dict-call curr render-phase-sampling 'sampling)
          ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
@@ -121,12 +122,23 @@
     (dd (p "Useful iterations: " ,(~a (first last-useful-iter))
            " (" ,(format-time (fourth last-useful-iter)) ")")
         (table ([class "times"])
-          (tr (th "Iter") (th "Nodes") (th "Cost") (th "Status"))
+          (tr (th "Iter") (th "Nodes") (th "Cost"))
           ,@(for/list ([rec (in-list (reverse iters))])
-              (match-define (list iter nodes cost t sr) rec)
-              `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))
-                   (td ,(if sr (~a sr) ""))))))))
+              (match-define (list iter nodes cost t) rec)
+              `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
+(define (render-phase-egraph-stop data)
+  (match data
+   [(list (list reason 1))
+    `((dt "Stop Event")
+      (dd ,(~a reason)))]
+   [(list (list reasons counts) ...)
+    `((dt "Stop Event")
+      (dd
+        (table ([class "times"])
+          ,@(for/list ([reason reasons] [count counts])
+            `(tr (td ,(~a count) "×")
+                 (td ,(~a reason)))))))]))
 
 (define (format-percent num den)
   (string-append
