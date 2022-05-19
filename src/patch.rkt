@@ -144,32 +144,24 @@
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
-
   (timeline-event! 'rewrite)
-  (define rewrite (if (flag-set? 'generate 'rr) rewrite-expression-head rewrite-expression))
-  (timeline-push! 'method (~a (object-name rewrite)))
 
-  (define changelists
-    (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
-      (define expr (program-body (alt-program altn)))
-      (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] rewriting for" expr)
-      (define tnow (current-inexact-milliseconds))
-      (begin0 (rewrite expr (*output-repr*) #:rules (*rules*) #:root '(2))
-        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
-
-  (define reprchange-rules
+  (define reprchange-rules                              ;; empty in non-Pareto mode
     (if (*pareto-mode*)
         (filter (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?)) (*rules*))
         (list)))
 
-  ; Empty in normal mode
+  ;; get subexprs and locations
+  (define exprs (map (compose program-body alt-program) (^queued^)))
+  (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
+  (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
+  (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root
+
+  ;; rewrite
+  (define changelists
+    (rewrite-expressions exprs (*output-repr*) #:rules (*rules*) #:roots locs))
   (define changelists-low-locs
-    (for/list ([altn (in-list (^queuedlow^))] [n (in-naturals 1)])
-      (define expr (program-body (alt-program altn)))
-      (debug #:from 'progress #:depth 4 "[" n "/" (length (^queuedlow^)) "] rewriting for" expr)
-      (define tnow (current-inexact-milliseconds))
-      (begin0 (rewrite expr (*output-repr*) #:rules reprchange-rules #:root '(2))
-        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow)))))
+    (rewrite-expressions lowexprs (*output-repr*) #:rules reprchange-rules #:roots lowlocs))
 
   (define comb-changelists (append changelists changelists-low-locs))
   (define altns (append (^queued^) (^queuedlow^)))
@@ -179,10 +171,11 @@
   (define rule-counts
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
-
+  
   (define rewritten
     (for/fold ([done '()] #:result (reverse done))
-              ([cls comb-changelists] [altn altns] #:when true [cl cls])
+              ([cls comb-changelists] [altn altns]
+              #:when true [cl cls])
       (let loop ([cl cl] [altn altn])
         (if (null? cl)
             (cons altn done)
