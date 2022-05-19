@@ -239,13 +239,13 @@ pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
             .runner
             .as_ref()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
-        
-        match runner.stop_reason {           
-            Some(StopReason::Saturated) => 0,           
+
+        match runner.stop_reason {
+            Some(StopReason::Saturated) => 0,
             Some(StopReason::IterationLimit(_)) => 1,
             Some(StopReason::NodeLimit(_)) => 2,
             Some(StopReason::Other(_)) => 3,
-            _ => 4
+            _ => 4,
         }
     })
 }
