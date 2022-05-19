@@ -121,10 +121,11 @@
     (dd (p "Useful iterations: " ,(~a (first last-useful-iter))
            " (" ,(format-time (fourth last-useful-iter)) ")")
         (table ([class "times"])
-          (tr (th "Iter") (th "Nodes") (th "Cost"))
+          (tr (th "Iter") (th "Nodes") (th "Cost") (th "Status"))
           ,@(for/list ([rec (in-list (reverse iters))])
-              (match-define (list iter nodes cost t) rec)
-              `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
+              (match-define (list iter nodes cost t sr) rec)
+              `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))
+                   (td ,(if sr (~a sr) ""))))))))
 
 
 (define (format-percent num den)

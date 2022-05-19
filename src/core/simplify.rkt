@@ -111,7 +111,7 @@
     (define cnt (regraph-count rg))
     (define cost (regraph-cost rg))
     (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
-    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
+    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time #f)))
 
   (define rg (make-regraph exprs #:limit (*node-limit*)))
 
@@ -133,10 +133,10 @@
 
 (lazy-require
  [egg-herbie (with-egraph egraph-add-exprs egraph-run
-                          egraph-is-unsound-detected
-                          egraph-get-times-applied egraph-get-simplest egraph-get-cost
-                          egg-expr->expr make-ffi-rules free-ffi-rules
-                          iteration-data-num-nodes iteration-data-time)])
+              egraph-is-unsound-detected egraph-stop-reason
+              egraph-get-times-applied egraph-get-simplest egraph-get-cost
+              egg-expr->expr make-ffi-rules free-ffi-rules
+              iteration-data-num-nodes iteration-data-time)])
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
   (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? (listof (listof expr?)))
@@ -166,15 +166,23 @@
                       (egg-expr->expr (egraph-get-simplest egg-graph id iter) egg-graph)))
          node-ids))))))
 
+(define (stop-reason->string sr)
+  (match sr
+   ['saturated  "saturated"]
+   ['iter-limit "iter limit"]
+   ['node-limit "node limit"]
+   ['unsound    "unsound"]))
+
 (define (egg-run-rules egg-graph node-limit irules node-ids precompute? #:limit [iter-limit #f])
   (define ffi-rules (make-ffi-rules irules))
   (define start-time (current-inexact-milliseconds))
 
-  #;(define (timeline-cost iter)
-      (define cnt (egraph-get-size egg-graph)) 
-      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
+  ; (define (timeline-cost iter)
+  ;   (define cnt (egraph-get-size egg-graph)) 
+  ;   (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
   (define iteration-data (egraph-run egg-graph iter-limit node-limit ffi-rules precompute?))
+  (define stop-reason (egraph-stop-reason egg-graph))
 
   (let loop
     ([iter iteration-data] [counter 0] [time 0])
@@ -188,7 +196,8 @@
                   (map (lambda (node-id) (egraph-get-cost egg-graph node-id counter)) node-ids)))
        (debug #:from 'simplify #:depth 2 "iteration " counter ": " cnt " enodes " "(cost " cost ")")
        (define new-time (+ time (iteration-data-time (first iter))))
-       (timeline-push! 'egraph counter cnt cost new-time)
+       (timeline-push! 'egraph counter cnt cost new-time
+                      (and (null? (rest iter)) (stop-reason->string stop-reason)))
        (loop (rest iter) (+ counter 1) new-time)]))
 
   (free-ffi-rules ffi-rules)
