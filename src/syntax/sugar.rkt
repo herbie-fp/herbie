@@ -1,6 +1,6 @@
 #lang racket
 
-(require "types.rkt" "syntax.rkt" "../interface.rkt")
+(require "types.rkt" "syntax.rkt" "../errors.rkt" "../interface.rkt")
 (provide desugar-program resugar-program)
 (module+ test (require rackunit))
 
@@ -103,7 +103,8 @@
              (define rtype (operator-info name 'otype))
              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
                (k (list name) rtype)))
-           (error 'sugar "Could not find constant implementation for ~a at ~a" x (representation-name repr)))]
+           (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
+                                        x (representation-name repr)))]
         [(list op args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
@@ -127,8 +128,8 @@
           [else
            (define conv (get-repr-conv vrepr repr))
            (unless conv
-             (error 'expand-parametric "Conversion does not exist: ~a -> ~a\n"
-                    (representation-name vrepr) (representation-name repr)))
+             (raise-herbie-missing-error "Conversion does not exist: ~a -> ~a"
+                (representation-name vrepr) (representation-name repr)))
            (values (list conv expr) repr)])]))) 
   expr*)
 

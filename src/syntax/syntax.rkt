@@ -140,7 +140,7 @@
 (define/contract (real-operator-info operator field)
   (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
   (unless (hash-has-key? operators operator)
-    (error 'real-operator-info "Unknown operator ~a" operator))
+    (raise-herbie-missing-error "Unknown operator ~a" operator))
   (define accessor
     (match field
       ['itype operator-itype]
@@ -152,7 +152,7 @@
 (define/contract (operator-info operator field)
   (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
   (unless (hash-has-key? operator-impls operator)
-    (error 'operator-info "Unknown operator ~a" operator))
+    (raise-herbie-missing-error "Unknown operator ~a" operator))
   (define accessor
     (match field
       ['itype operator-impl-itype]
@@ -168,9 +168,9 @@
 
 (define (register-operator-impl! operator name areprs rrepr attrib-dict)
   (unless (hash-has-key? operators operator)
-    (error 'register-operator-impl!
-           "Cannot register ~a as implementation of ~a: no such operator"
-           name operator))
+    (raise-herbie-missing-error
+      "Cannot register ~a as implementation of ~a: no such operator"
+      name operator))
 
   (define op (hash-ref operators operator))
   (define fl-fun (dict-ref attrib-dict 'fl))
@@ -181,14 +181,14 @@
     (for ([arepr (cons rrepr areprs)]
           [itype (cons (operator-otype op) (operator-itype op))])
       (unless (equal? (representation-type arepr) itype)
-        (error 'register-operator-impl!
-               "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
-               name operator rrepr (operator-otype op)))))
+        (raise-herbie-missing-error
+          "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
+          name operator rrepr (operator-otype op)))))
 
   (define impl (operator-impl name op areprs rrepr fl-fun bf-fun ival-fun))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls operator (curry cons name) '()))
-  
+
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
   (register-operator-impl! 'operator 'name
@@ -197,14 +197,16 @@
                            (list (cons 'key value) ...)))
 
 (define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
-  (or
-    (for/or ([impl (operator-all-impls name)])
+  (let/ec k
+    (for ([impl (operator-all-impls name)])
       (define atypes (operator-info impl 'itype))
-      (and (equal? atypes actual-types) impl))
-    (and fail-fast?
-         (error 'get-parametric-operator
-                "parametric operator with op ~a and input types ~a not found"
-                name actual-types))))
+      (when (equal? atypes actual-types) (k impl)))
+    (when fail-fast?
+      (raise-herbie-missing-error
+        "Parametric operator (~a ~a) not found"
+        name
+        (string-join (map (λ (r) (format "<~a>" (representation-name r))) actual-types) " "))
+      #f)))
 
 (define (impl->operator name)
   (operator-name (operator-impl-op (hash-ref operator-impls name))))
