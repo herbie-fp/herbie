@@ -1,6 +1,6 @@
 #lang racket
 
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "interface.rkt")
+(require "config.rkt" "float.rkt" "interface.rkt" "programs.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext join-pcontext
          errors batch-errors errors-score oracle-error baseline-error oracle-error-idx)

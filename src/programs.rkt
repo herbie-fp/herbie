@@ -1,9 +1,8 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt"
-         "timeline.rkt")
-(module+ test (require rackunit "load-plugin.rkt"))
+(require "syntax/types.rkt" "syntax/syntax.rkt" "interface.rkt" "timeline.rkt")
+(module+ test (require rackunit))
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables

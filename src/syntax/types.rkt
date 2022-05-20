@@ -1,7 +1,5 @@
 #lang racket
 
-(require math/bigfloat)
-
 (provide type-name get-type type-name?)
 (module+ internals (provide define-type))
 

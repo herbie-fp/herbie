@@ -1,7 +1,7 @@
 #lang racket
 
-(require math/flonum math/base math/bigfloat math/special-functions rival)
-(require "../common.rkt" "../interface.rkt" "../errors.rkt" "types.rkt")
+(require math/bigfloat rival)
+(require "../common.rkt" "../interface.rkt" "../errors.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
          variable? constant-operator? operator-exists? impl-exists?

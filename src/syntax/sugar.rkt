@@ -1,8 +1,7 @@
 #lang racket
 
-(require "types.rkt" "syntax.rkt" "../errors.rkt" "../interface.rkt")
+(require "syntax.rkt" "../errors.rkt" "../interface.rkt")
 (provide desugar-program resugar-program)
-(module+ test (require rackunit))
 
 ;; preprocessing
 (define (expand expr)
@@ -193,6 +192,7 @@
     [#t expr]))
 
 #;(module+ test
+  (require rackunit)
   (define repr (get-representation 'binary64))
 
   ;; inlining
