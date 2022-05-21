@@ -1,7 +1,6 @@
 #lang racket
 (require json xml)
-(require "../src/common.rkt" "../src/timeline.rkt" "../src/profile.rkt"
-         "../src/datafile.rkt" "../src/web/timeline.rkt")
+(require "../src/datafile.rkt")
 
 (define metrics
   (list `(start . ,table-row-start)

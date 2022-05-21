@@ -183,7 +183,7 @@
       (unless (equal? (representation-type arepr) itype)
         (raise-herbie-missing-error
           "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
-          name operator rrepr (operator-otype op)))))
+          name operator (representation-name rrepr) (operator-otype op)))))
 
   (define impl (operator-impl name op areprs rrepr fl-fun bf-fun ival-fun))
   (hash-set! operator-impls name impl)
@@ -201,12 +201,11 @@
     (for ([impl (operator-all-impls name)])
       (define atypes (operator-info impl 'itype))
       (when (equal? atypes actual-types) (k impl)))
-    (when fail-fast?
-      (raise-herbie-missing-error
+    (unless fail-fast? (k #f))
+    (raise-herbie-missing-error
         "Parametric operator (~a ~a) not found"
         name
-        (string-join (map (λ (r) (format "<~a>" (representation-name r))) actual-types) " "))
-      #f)))
+        (string-join (map (λ (r) (format "<~a>" (representation-name r))) actual-types) " "))))
 
 (define (impl->operator name)
   (operator-name (operator-impl-op (hash-ref operator-impls name))))
