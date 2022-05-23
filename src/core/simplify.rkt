@@ -177,9 +177,9 @@
   (define ffi-rules (make-ffi-rules irules))
   (define start-time (current-inexact-milliseconds))
 
-  ; (define (timeline-cost iter)
-  ;   (define cnt (egraph-get-size egg-graph)) 
-  ;   (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
+  #;(define (timeline-cost iter)
+      (define cnt (egraph-get-size egg-graph)) 
+      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
   (define iteration-data (egraph-run egg-graph iter-limit node-limit ffi-rules precompute?))
   (let loop ([iter iteration-data] [counter 0] [time 0])

@@ -266,8 +266,8 @@
      [batch-egg-rewrite
       (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
       (define tnow (current-inexact-milliseconds))
-      (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
-        (for ([expr exprs]) (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]
+      ; batch-egg-rewrite should not log `times` timeline info
+      (driver exprs repr #:rules rules #:roots root-locs #:depths depths)]
      [_
       (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
         (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
