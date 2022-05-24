@@ -128,17 +128,13 @@
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
 (define (render-phase-egraph-stop data)
-  (match data
-   [(list (list reason 1))
-    `((dt "Stop Event")
-      (dd ,(~a reason)))]
-   [(list (list reasons counts) ...)
-    `((dt "Stop Event")
-      (dd
-        (table ([class "times"])
-          ,@(for/list ([reason reasons] [count counts])
-            `(tr (td ,(~a count) "×")
-                 (td ,(~a reason)))))))]))
+  (match-define (list (list reasons counts) ...) data)
+  `((dt "Stop Event")
+    (dd
+      (table ([class "times"])
+        ,@(for/list ([reason reasons] [count counts])
+          `(tr (td ,(~a count) "×")
+                (td ,(~a reason))))))))
 
 (define (format-percent num den)
   (string-append
