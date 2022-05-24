@@ -3,7 +3,8 @@
 (require pkg/lib racket/lazy-require)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt")
-(provide simplify-expr simplify-batch make-simplification-combinations)
+(provide simplify-expr simplify-batch make-simplification-combinations
+         use-egg-math? rules->irules egg-run-rules)
 (module+ test (require rackunit "../load-plugin.rkt"))
 
 ; make sure to check both package scopes
@@ -165,17 +166,15 @@
                       (egg-expr->expr (egraph-get-simplest egg-graph id iter) egg-graph)))
          node-ids))))))
 
-(define (egg-run-rules egg-graph node-limit irules node-ids precompute?)
+(define (egg-run-rules egg-graph node-limit irules node-ids precompute? #:limit [iter-limit #f])
   (define ffi-rules (make-ffi-rules irules))
   (define start-time (current-inexact-milliseconds))
 
   #;(define (timeline-cost iter)
-    
-    (define cnt (egraph-get-size egg-graph))
-    
-    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
+      (define cnt (egraph-get-size egg-graph)) 
+      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
-  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute?))
+  (define iteration-data (egraph-run egg-graph iter-limit node-limit ffi-rules precompute?))
 
   (let loop
     ([iter iteration-data] [counter 0] [time 0])

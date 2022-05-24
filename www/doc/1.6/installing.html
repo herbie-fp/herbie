@@ -28,7 +28,7 @@
 
   <p>
     Install Racket either using
-    the <a href="https://download.racket-lang.org/">official
+    the <a href="http://download.racket-lang.org/racket-v8.5.html">official
     installer</a> or distro-provided packages. Versions as old as 8.0
     are supported, but more recent versions are faster.
   </p>
@@ -37,8 +37,9 @@
     Test that Racket is installed correctly and has a correct version:
   </p>
 
-  <pre class="shell"> racket -v
-Welcome to Racket v8.4 [cs].</pre>
+  <pre class="shell">racket
+Welcome to Racket v8.5 [cs].
+> (exit)</pre>
 
   <h2>Installing Herbie from source</h2>
 
@@ -68,13 +69,13 @@ Welcome to Racket v8.4 [cs].</pre>
   <p>
     This command installs Herbie and its dependencies, compiles it for
     faster startup, and places the <code>herbie</code> executable in
-    your Racket user path (example paths for Racket 8.1):
+    your Racket user path (example paths for Racket 8.5):
   </p>
 
   <ul>
-    <li>On Windows, <code>AppData\Roaming\Racket\8.1\bin</code> in your user folder.</li>
-    <li>On macOS, <code>Library/Racket/8.1/bin</code> in your home folder.</li>
-    <li>On Linux, <code>.racket/8.1/bin</code> in your home directory.</li>
+    <li>On Windows, <code>AppData\Roaming\Racket\8.5\bin</code> in your user folder.</li>
+    <li>On macOS, <code>Library/Racket/8.5/bin</code> in your home folder.</li>
+    <li>On Linux, <code>.racket/8.5/bin</code> in your home directory.</li>
   </ul>
 
   <p>
@@ -85,15 +86,21 @@ Welcome to Racket v8.4 [cs].</pre>
 
   <h2>Installing Herbie from a package</h2>
 
-  <p>Once Racket is installed, install Herbie from a package with:</p>
-
-  <pre class="shell">raco pkg install --auto herbie</pre>
-
   <p>
     This method of installation is discouraged.
     Users should install Herbie from source unless
       they do not have Rust installed natively.
+    Install Racket, version 8.0 or later, either using
+    the <a href="http://download.racket-lang.org/racket-v8.5.html">official
+      installer</a> or distro-provided packages.
+    </p>
+    
+    <p>
+      Once Racket is installed installed, download the Herbie source
+    <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
   </p>
+
+  <pre class="shell">raco pkg install --auto herbie</pre>
 
   <!-- This is a copy of the text above -->
 
@@ -104,9 +111,9 @@ Welcome to Racket v8.4 [cs].</pre>
   </p>
 
   <ul>
-    <li>On Windows, <code>AppData\Roaming\Racket\8.1\bin</code> in your user folder.</li>
-    <li>On macOS, <code>Library/Racket/8.1/bin</code> in your home folder.</li>
-    <li>On Linux, <code>.racket/8.1/bin</code> in your home directory.</li>
+    <li>On Windows, <code>AppData\Roaming\Racket\8.5\bin</code> in your user folder.</li>
+    <li>On macOS, <code>Library/Racket/8.5/bin</code> in your home folder.</li>
+    <li>On Linux, <code>.racket/8.5/bin</code> in your home directory.</li>
   </ul>
 
   <p>
