@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Herbie 1.5 Release Notes</title>
+  <title>Herbie 1.6 Release Notes</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -14,11 +14,11 @@
   </header>
 
   <p>The <a href="../..">Herbie</a> developers are excited to announce
-  Herbie 1.6! This release focuses on multiple precisions, new syntax,
-  and higher accuracy. Our favorite features are below.</p>
+  Herbie 1.6! This release focuses on further integrating egg, reliability,
+  and a better web interface. Our favorite features are below.</p>
 
   <img width="100%" src="team.png" style="display: block; margin: 4em 0; border-radius: 6px;"
-       alt="The Herbie team, working over Zoom to bring you Herbie 1.5" />
+       alt="The Herbie team, working over Zoom to bring you Herbie 1.6" />
 
   <p><b>What is Herbie?</b> Herbie automatically improves the accuracy
   of floating point expressions. This avoids the bugs, errors, and
@@ -29,11 +29,50 @@
   FPBench community meetings, and at
   <a href="https://fpbench.org/talks/fptalks22.html">FPTalks 2022</a>.
   
+  <figure class="showcase">
+    <img src="system-1.5.png" style="width: 100%;" />
+    <img src="system-1.6.png" style="width: 100%;" />
+    <figcaption>
+      System diagram for Herbie 1.5 (top) and Herbie 1.6 (bottom).
+      Key differences include recursive rewrite on egg, a new patching
+        subsystem, and the removal of double-precision (binary64)
+        and single-precision (binary32) types from the core architecture.
+    </figcaption>
+  </figure>
+
+  <h2>Recursive Rewriting with egg</h2>
+
+  Two releases ago, Herbie 1.4, featured a new simplifier that used the
+    <a href="https://github.com/egraphs-good/egg">egg</a> library
+    which led to a substantial increase in speed.
+  This release of Herbie further leverages the egg library by replacing
+    the recursive rewriter with an egg-based implementation.
+  Herbie's output is now more stable across seeds compared
+    to the previous implementation, maintains a similar level
+    of performance, and increases accuracy gains overall.
+
   <!-- 
-    Showcase image
+    TODO: variability plots
   -->
 
   <h2>Interactive Herbie</h2>
+
+  <p>Despite the fact that most users interact with Herbie via the web,
+    the web interface has historically had a minimal design.
+  Recently, we have concluded that many issues filed over the years
+    are tied to users not providing important information like
+    preconditions and the web interface's limited functionality.
+  As part of a ongoing push to make Herbie more user-friendly,
+    new features have been added to the web interface including
+    mandatory preconditions that help users best tune
+    their input domain.</p>
+  
+    <figure class="showcase">
+      <img src="interactive-preconditions.png" style="width: 100%;" />
+      <figcaption>
+        Preconditions on the new web interface.
+      </figcaption>
+    </figure>
 
   <h2>Sampling</h2>
 
@@ -52,9 +91,6 @@
   <h2>Deprecations and removals</h2>
   <ul>
     <li>Support for the Racket 7.x has been removed. Please upgrade.</li>
-    <li>The <code>egg-herbie</code> support package has been merged
-    into Herbie proper. This means that if you want to install Herbie
-    from source, you will now need a Rust compiler.</li>
     <li>Support for complex numbers has been removed.
     Please <a href="mailto:herbie@cs.washington.edu">let us know</a>
     if you are using it. We hope to reimplement this eventually,
