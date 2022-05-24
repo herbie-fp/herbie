@@ -30,7 +30,6 @@
     "rackunit-lib"
     "web-server-lib"
     ("egg-herbie" #:version "1.5")
-    ("regraph" #:version "1.4")
     ("rival" #:version "1.4")
     ("fpbench" #:version "2.0.3")))
 

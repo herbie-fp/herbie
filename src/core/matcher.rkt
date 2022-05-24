@@ -257,7 +257,7 @@
     (define driver
       (cond
       [(not (flag-set? 'generate 'rr)) rewrite-once]
-      [(and use-egg-math? (flag-set? 'generate 'egg-rr)) batch-egg-rewrite]
+      [(and (flag-set? 'generate 'egg-rr)) batch-egg-rewrite]
       [else recursive-rewrite]))
     (timeline-push! 'method (~a (object-name driver)))
 
