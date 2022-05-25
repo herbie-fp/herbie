@@ -1,7 +1,7 @@
 pub mod math;
 pub mod rules;
 
-use egg::{Extractor, Id, Iteration, Language};
+use egg::{Extractor, Id, Iteration, Language, StopReason};
 use indexmap::IndexMap;
 use math::*;
 
@@ -102,7 +102,7 @@ fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
     }
 }
 
-unsafe fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
+fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
     let mut result: Vec<EGraphIter> = runner.iterations.iter().map(convert_iter).collect();
     let ptr = result.as_mut_ptr();
     std::mem::forget(result);
@@ -231,18 +231,34 @@ pub unsafe extern "C" fn egraph_run(
     )
 }
 
-fn newest_sound_iter(runner: &Runner, iter: u32) -> u32 {
-    if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
-        // go back one more iter, egg can duplicate the final iter in the case of an error
-        min(runner.iterations.len().saturating_sub(3) as u32, iter)
-    } else {
-        min(runner.iterations.len().saturating_sub(1) as u32, iter)
-    }
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        match runner.stop_reason {
+            Some(StopReason::Saturated) => 0,
+            Some(StopReason::IterationLimit(_)) => 1,
+            Some(StopReason::NodeLimit(_)) => 2,
+            Some(StopReason::Other(_)) => 3,
+            _ => 4,
+        }
+    })
 }
 
 fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
     let id = runner.egraph.find(Id::from(id as usize));
-    let sound_iter = newest_sound_iter(runner, iter) as usize;
+
+    // go back one more iter, egg can duplicate the final iter in the case of an error
+    let sound_iter = if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
+        min(runner.iterations.len().saturating_sub(3), iter as usize)
+    } else {
+        min(runner.iterations.len().saturating_sub(1), iter as usize)
+    };
 
     runner.iterations[sound_iter]
         .data

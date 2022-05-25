@@ -6,6 +6,7 @@
 
 (provide egraph_create egraph_destroy egraph_add_expr
          egraph_addresult_destroy egraph_run egraph_run_with_iter_limit
+         egraph_get_stop_reason
          egraph_get_simplest egraph_get_variants
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
@@ -79,6 +80,9 @@
         (_uint = (length ffi-rules))              ;; number of rules
         -> (iters : _EGraphIter-pointer)
         -> (values iters len)))
+
+;; gets the stop reason as an integer
+(define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))
 
 ;; node number -> s-expr string
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer

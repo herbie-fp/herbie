@@ -10,7 +10,8 @@
          egraph-get-simplest egraph-get-variants
          egg-expr->expr egg-exprs->exprs egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost
-         egraph-is-unsound-detected egraph-get-times-applied
+         egraph-stop-reason egraph-is-unsound-detected
+         egraph-get-times-applied
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -37,7 +38,16 @@
   (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
 
 (define (egraph-is-unsound-detected egraph-data)
-  (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))  
+  (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
+
+(define (egraph-stop-reason egraph-data)
+  (define sr (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data)))
+  (match sr
+   [0 'saturated]
+   [1 'iter-limit]
+   [2 'node-limit]
+   [3 'unsound]
+   [else (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
 (define (make-raw-string s)
   (define b (string->bytes/utf-8 s))
