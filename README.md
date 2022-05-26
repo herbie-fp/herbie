@@ -46,8 +46,8 @@ This will install a `herbie` binary somewhere under `~/.racket` (Linux)
   (check installation messages for a possible location).
 You can also run `src/herbie.rkt` directly.
 
-Please note that this method of installation
-  does not work for Apple M1 systems and related ARM architectures.
+Please note that this method of installation **will fail**
+  for *Apple M1* systems and other *ARM* architectures.
 We hope to support this in the near future.
 
 ## Running Herbie
