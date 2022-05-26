@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "herbie")
-(define version "1.5")
+(define version "1.6")
 
 ;; Packaging information
 
@@ -23,13 +23,13 @@
 ;; Dependencies
 
 (define deps
-  '(("base" #:version "7.0")
+  '(("base" #:version "8.0")
     "math-lib"
     "plot-lib"
     "profile-lib"
     "rackunit-lib"
     "web-server-lib"
-    ("egg-herbie" #:version "1.5")
+    ("egg-herbie" #:version "1.6")
     ("rival" #:version "1.4")
     ("fpbench" #:version "2.0.3")))
 
