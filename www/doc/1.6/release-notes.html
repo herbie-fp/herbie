@@ -45,15 +45,24 @@
   Two releases ago, Herbie 1.4, featured a new simplifier that used the
     <a href="https://github.com/egraphs-good/egg">egg</a> library
     which led to a substantial increase in speed.
-  This release of Herbie further leverages the egg library by replacing
+  This release further incorporates the egg library into Herbie by replacing
     the recursive rewriter with an egg-based implementation.
   Herbie's output is now more stable across seeds compared
     to the previous implementation, maintains a similar level
     of performance, and increases accuracy gains overall.
+  This change also makes adding new rewrite rules less tedious
+    as the old recursive rewriter was sensitive to new rules
+    and often affected Herbie in mysterious ways.  
 
-  <!-- 
-    TODO: variability plots
-  -->
+  <figure class="showcase">
+    <img src="old-rr-seed-variance.png" style="width: 100%;" />
+    <img src="egg-rr-seed-variance.png" style="width: 100%;" />
+    <figcaption>
+      Comparison of Herbie's total output error (bits) across 100 seeds with
+        the old recursive rewriter (top) versus the egg-based implementation (bottom).
+      The egg-based implementation has lower variability.
+    </figcaption>
+  </figure>
 
   <h2>Interactive Herbie</h2>
 
@@ -88,8 +97,8 @@
   <p>The patch table manages most rewriting capabilities, provides a
     minimal interface to generate variants from a set of expressions,
     and caches variants in case of duplicate input expressions.
-  Creating this subsystem to handle variant generation in comparison
-    more cleanly dilineates the "generate" and "test" parts within Herbie.
+  Creating this subsystem to handle variant generation more cleanly
+    delineates the "generate" and "test" parts within Herbie.
   </p>
   
   <p>Herbie's double-precision and single-precision representations
@@ -97,11 +106,10 @@
     with Herbie.
   Representation-specific operators and definitions are
     no longer present in Herbie's core architecure.
-  Instead, Herbie is now representation-agnostic and loads
-    double- and single-precision representations through
-    the plugin interface.
+  This change makes Herbie representation-agnostic and loads
+    double- and single-precision representations through the plugin interface.
   Not only is this design cleaner, but these plugins now
-    serve as examples for future plugin developers.
+    serve as examples for plugin developers.
   In the future, we hope to move additional definitions
     out of core Herbie and into plugins such as error metrics
     and cost models (Pherbie).
@@ -137,7 +145,7 @@
     but with a better architecture.</li>
     <li>The <kbd>precision:fallback</kbd> flag has been deprecated, and no
     longer does anything. Use the <code>:precision racket</code> flag instead.</li>
-    <li>Regraph has been removed as a fallback simplfy driver.</li>
+    <li>Support for <a href="https://github.com/herbie-fp/regraph">regraph</a> has been removed.</li>
   </ul>
   
   <h2>Try it out!</h2>
