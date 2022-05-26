@@ -74,17 +74,57 @@
       </figcaption>
     </figure>
 
-  <h2>Sampling</h2>
+  <h2>Patching and Plugins</h2>
+  
+  <p>Herbie has undergone a significant architectural change since the previous release.
+  Although this change may not be visible to users, we hope that it
+    makes future Herbie development more streamlined and provides a clearer
+    answer to the question: what is Herbie?
+  In particular, two major improvements include adding the "patch table"
+    and moving number system specifics out of Herbie's
+    core architecture.
+  </p>
+  
+  <p>The patch table manages most rewriting capabilities, provides a
+    minimal interface to generate variants from a set of expressions,
+    and caches variants in case of duplicate input expressions.
+  Creating this subsystem to handle variant generation in comparison
+    more cleanly dilineates the "generate" and "test" parts within Herbie.
+  </p>
+  
+  <p>Herbie's double-precision and single-precision representations
+    are now implemented as plugins that automatically ship
+    with Herbie.
+  Representation-specific operators and definitions are
+    no longer present in Herbie's core architecure.
+  Instead, Herbie is now representation-agnostic and loads
+    double- and single-precision representations through
+    the plugin interface.
+  Not only is this design cleaner, but these plugins now
+    serve as examples for future plugin developers.
+  In the future, we hope to move additional definitions
+    out of core Herbie and into plugins such as error metrics
+    and cost models (Pherbie).
+  </p>
 
   <h2>Other improvements</h2>
   <ul>
-    <li> Herbie's double-precision and single-precision representations
-      are implemented as plugins that automatically ship with
-      Herbie's core. Not only is this design cleaner, but the builtin
-      plugins now serve as examples for plugin developers.
+    <li>Precondition analysis and sampling are now implemented
+      the same system. Sampling multiple functions is now supported.
+    </li>
+    <li>The backup sampler now just computes with MPFR floats
+        at high-precision rather than the old "halfpoints" sampler.
     </li>
     <li> Constants are now represented internally as operators.
       This simplifies the plugin interface as well as Herbie's internals.
+    </li>
+    <li>Removes support variary operators.
+      Relational operators are now expanded when parsed.</li>
+    <li>Constants are always read as exact rational numbers.
+      This enables additional optimizations through constant folding.
+    </li>
+    <li>More output languages are supported in the reports including
+      Fortran, Java, Python, Julia, MatLab, and Wolfram.
     </li>
   </ul>
 
@@ -97,6 +137,7 @@
     but with a better architecture.</li>
     <li>The <kbd>precision:fallback</kbd> flag has been deprecated, and no
     longer does anything. Use the <code>:precision racket</code> flag instead.</li>
+    <li>Regraph has been removed as a fallback simplfy driver.</li>
   </ul>
   
   <h2>Try it out!</h2>
