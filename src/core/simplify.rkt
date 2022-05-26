@@ -99,6 +99,13 @@
                       (egg-expr->expr (egraph-get-simplest egg-graph id iter) egg-graph)))
          node-ids))))))
 
+(define (stop-reason->string sr)
+  (match sr
+   ['saturated  "saturated"]
+   ['iter-limit "iter limit"]
+   ['node-limit "node limit"]
+   ['unsound    "unsound"]))
+
 (define (egg-run-rules egg-graph node-limit irules node-ids precompute? #:limit [iter-limit #f])
   (define ffi-rules (make-ffi-rules irules))
   (define start-time (current-inexact-milliseconds))
