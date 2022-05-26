@@ -40,11 +40,31 @@
 Welcome to Racket v8.5 [cs].
 > (exit)</pre>
 
-  <h2>Installing Herbie from a package</h2>
+<h2>Installing Herbie from source</h2>
 
-  <p>Once Racket is installed, install Herbie from a package with:</p>
+  <p>
+    Install Rust, using <a href="https://rustup.rs/">rustup</a> or via some other means.
+    Versions as old as 1.46.0 are supported.
+    Also install Racket, version 8.0 or later, either using the the
+    <a href="http://download.racket-lang.org/racket-v8.5.html">official installer</a>
+    or distro-provided packages.
+    </p>
+    
+    <p>
+      Once Racket and Rust are installed, download the Herbie source
+    <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
+  </p>
 
-  <pre class="shell">raco pkg install --auto herbie</pre>
+  <pre class="shell">git clone https://github.com/uwplse/herbie</pre>
+
+  <p>
+    Change to the <code>herbie</code> directory;
+    you should see a <code>README.md</code> file, a directory named <code>src</code>,
+    a directory named <code>bench/</code>, and a few other directories.
+    Install Herbie on your system with:
+  </p>
+
+  <pre class="shell">make install</pre>
 
   <p>
     This command installs Herbie and its dependencies, compiles it for
@@ -64,30 +84,11 @@ Welcome to Racket v8.5 [cs].
     correctly, check out the <a href="tutorial.html">tutorial</a>.
   </p>
 
-  <h2>Installing Herbie from source</h2>
+  <h2>Installing Herbie from a package</h2>
 
-  <p>
-    Install Rust, using <a href="https://rustup.rs/">rustup</a> or via
-    some other means. Also install Racket, version 8.0 or later, either using
-    the <a href="http://download.racket-lang.org/racket-v8.5.html">official
-      installer</a> or distro-provided packages.
-    </p>
-    
-    <p>
-      Once Racket and Rust are installed, download the Herbie source
-    <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
-  </p>
+  <p>Once Racket is installed, install Herbie from a package with:</p>
 
-  <pre class="shell">git clone https://github.com/uwplse/herbie</pre>
-
-  <p>
-    Change to the <code>herbie</code> directory;
-    you should see a <code>README.md</code> file, a directory named <code>src</code>,
-    a directory named <code>bench/</code>, and a few other directories.
-    Install Herbie on your system with:
-  </p>
-
-  <pre class="shell">make install</pre>
+  <pre class="shell">raco pkg install --auto herbie</pre>  
 
   <!-- This is a copy of the text above -->
 

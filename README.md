@@ -7,25 +7,49 @@ documentation, and an online demo. Herbie has semi-regular releases
 once a year, maintains backwards compatibility, and uses standardized
 formats.
 
-Installing
-----------
+## Installing
 
 For full details on installing Herbie, please see the
 [documentation](https://herbie.uwplse.org/doc/latest/installing.html).
 
-Herbie requires Racket 8.0 or later, and supports Windows, macOS, and
-Linux. Install it with:
+### Installing from Source
+
+Installing from source requires Racket 8.0 or later,
+  Rust 1.46.0 or later, and supports Windows, macOS, and Linux
+  for various architectures.
+
+Install Racket from [here](https://download.racket-lang.org/).
+Install Rust from [here](https://www.rust-lang.org/tools/install).
+In this directory, build Herbie with:
+
+    make install
+
+This will install a `herbie` binary somewhere under `~/.racket` (Linux)
+  although this path is dependent on OS and Racket version
+  (check installation messages for a possible location).
+You can also run `src/herbie.rkt` directly.
+
+### Installing from the Racket package index
+
+Use this method for installing Herbie if Rust is not on your system.
+Installing via the Racket package index requires Racket 8.0 or later
+  and supports Windows, macOS, and Linux on x86-64 architectures.
+
+Install Racket from [here](https://download.racket-lang.org/).
+Install Herbie with:
 
     raco pkg install --auto herbie
 
-This will install a `herbie` binary to somewhere under `~/.racket`.
-You can also download the source and run `src/herbie.rkt` directly.
+This will install a `herbie` binary somewhere under `~/.racket` (Linux)
+  although this path is dependent on OS and Racket version
+  (check installation messages for a possible location).
+You can also run `src/herbie.rkt` directly.
 
-Alternatively, Herbie and Herbie's Rust components can be built from source and installed
-  using `make install` in the herbie directory.
+Please note that this method of installation **will fail**
+  for *Apple M1* systems and other *ARM* architectures.
+We hope to support this in the near future.
 
-Running Herbie
---------------
+## Running Herbie
 
 For full details on running Herbie, please see the
 [tutorial](https://herbie.uwplse.org/doc/latest/using-web.html).
@@ -53,8 +77,7 @@ batch mode on files with the `improve` and `report` commands. Consult
 the [documentation](https://herbie.uwplse.org/doc/latest/options.html).
 for more.
 
-Helping Out
------------
+## Helping Out
 
 Herbie development is organized on our
 [mailing list](https://mailman.cs.washington.edu/mailman/listinfo/herbie),
@@ -65,8 +88,7 @@ We use [Github](https://github.com/herbie-fp/herbie) and
 [Trello](https://trello.com/b/lh7b33Dr/herbie) to organize development
 goals.
 
-Running Tests
--------------
+## Running Tests
 
 Herbie has unit tests for basic functionality, though coverage is far
 from complete. You can run the test suite by downloading the source
