@@ -25,27 +25,27 @@ In this directory, build Herbie with:
 
     make install
 
-This will install a `herbie` binary to somewhere under `~/.racket` (Linux)
+This will install a `herbie` binary somewhere under `~/.racket` (Linux)
   although this path is dependent on OS and Racket version
-  (check the installation messages a possible location).
+  (check installation messages for a possible location).
 You can also run `src/herbie.rkt` directly.
 
 ### Installing from the Racket package index
 
-If Rust is not on your system, use this method for installing Herbie;
-This method requires Racket 8.0 or later,
-  and supports Windows, macOS, and Linux on x86-64 architectures.
+Use this method for installing Herbie if Rust is not on your system.
+This method requires Racket 8.0 or later, and supports
+    Windows, macOS, and Linux on x86-64 architectures.
 Install Racket from [here](https://download.racket-lang.org/).
 Install Herbie with:
 
     raco pkg install --auto herbie
 
-This will install a `herbie` binary to somewhere under `~/.racket` (Linux)
+This will install a `herbie` binary somewhere under `~/.racket` (Linux)
   although this path is dependent on OS and Racket version
-  (check the installation messages a possible location).
+  (check installation messages for a possible location).
 You can also run `src/herbie.rkt` directly.
 
-Please note that installing through the Racket package index
+Please note that this method of installation
   does not work for Apple M1 systems and related ARM-architectures.
 We hope to support this in the near future.
 
