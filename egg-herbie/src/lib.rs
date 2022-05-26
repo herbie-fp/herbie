@@ -1,7 +1,8 @@
 pub mod math;
 pub mod rules;
 
-use egg::{Id, Iteration};
+use egg::{Extractor, Id, Iteration, Language, StopReason};
+use indexmap::IndexMap;
 use math::*;
 
 use std::cmp::min;
@@ -49,8 +50,7 @@ pub unsafe extern "C" fn egraph_addresult_destroy(ptr: *mut EGraphAddResult) {
 
 #[no_mangle]
 pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
-    let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
-    std::mem::drop(array)
+    let _array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
 }
 
 #[no_mangle]
@@ -102,12 +102,8 @@ fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
     }
 }
 
-unsafe fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
-    let mut result: Vec<EGraphIter> = runner
-        .iterations
-        .iter()
-        .map(|iter| convert_iter(&iter))
-        .collect();
+fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
+    let mut result: Vec<EGraphIter> = runner.iterations.iter().map(convert_iter).collect();
     let ptr = result.as_mut_ptr();
     std::mem::forget(result);
     ptr
@@ -162,10 +158,11 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_run(
+pub unsafe extern "C" fn egraph_run_with_iter_limit(
     ptr: *mut Context,
     output_size: *mut u32,
-    limit: u32,
+    iter_limit: u32,
+    node_limit: u32,
     rules_array_ptr: *const *mut FFIRule,
     is_constant_folding_enabled: bool,
     rules_array_length: u32,
@@ -177,7 +174,7 @@ pub unsafe extern "C" fn egraph_run(
             .take()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
-        if !runner.stop_reason.is_some() {
+        if runner.stop_reason.is_none() {
             let length: usize = rules_array_length as usize;
             let ffi_rules: &[*mut FFIRule] = slice::from_raw_parts(rules_array_ptr, length);
             let mut ffi_tuples: Vec<(&str, &str, &str)> = vec![];
@@ -195,8 +192,8 @@ pub unsafe extern "C" fn egraph_run(
 
             runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
             runner = runner
-                .with_node_limit(limit as usize)
-                .with_iter_limit(usize::MAX) // should never hit
+                .with_node_limit(node_limit as usize)
+                .with_iter_limit(iter_limit as usize) // should never hit
                 .with_time_limit(Duration::from_secs(u64::MAX))
                 .with_hook(|r| {
                     if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
@@ -214,16 +211,56 @@ pub unsafe extern "C" fn egraph_run(
     })
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn egraph_run(
+    ptr: *mut Context,
+    output_size: *mut u32,
+    node_limit: u32,
+    rules_array_ptr: *const *mut FFIRule,
+    is_constant_folding_enabled: bool,
+    rules_array_length: u32,
+) -> *const EGraphIter {
+    egraph_run_with_iter_limit(
+        ptr,
+        output_size,
+        u32::MAX,
+        node_limit,
+        rules_array_ptr,
+        is_constant_folding_enabled,
+        rules_array_length,
+    )
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        match runner.stop_reason {
+            Some(StopReason::Saturated) => 0,
+            Some(StopReason::IterationLimit(_)) => 1,
+            Some(StopReason::NodeLimit(_)) => 2,
+            Some(StopReason::Other(_)) => 3,
+            _ => 4,
+        }
+    })
+}
+
 fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
     let id = runner.egraph.find(Id::from(id as usize));
-    let desired_iter = if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
-        // go back one more iter, egg can duplicate the final iter in the case of an error
+
+    // go back one more iter, egg can duplicate the final iter in the case of an error
+    let sound_iter = if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
         min(runner.iterations.len().saturating_sub(3), iter as usize)
     } else {
         min(runner.iterations.len().saturating_sub(1), iter as usize)
     };
 
-    runner.iterations[desired_iter]
+    runner.iterations[sound_iter]
         .data
         .extracted
         .iter()
@@ -248,6 +285,56 @@ pub unsafe extern "C" fn egraph_get_simplest(
         let ext = find_extracted(runner, node_id, iter);
 
         let best_str = CString::new(ext.best.to_string()).unwrap();
+        let best_str_pointer = best_str.as_ptr();
+        std::mem::forget(best_str);
+        best_str_pointer
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_variants(
+    ptr: *mut Context,
+    node_id: u32,
+    orig_expr: *const c_char,
+) -> *const c_char {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        // root (id, expr)
+        let id = Id::from(node_id as usize);
+        let orig_recexpr =
+            cstring_to_recexpr(orig_expr).unwrap_or_else(|| panic!("could not parse expr"));
+        let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
+
+        // extractor
+        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let mut cache: IndexMap<Id, RecExpr> = Default::default();
+
+        // extract variants
+        let mut exprs = vec![];
+        for n in &runner.egraph[id].nodes {
+            // assuming same ops in an eclass cannot
+            // have different precisions
+            if !n.matches(head_node) {
+                // get around reference requirement of `to_recexpr`
+                n.for_each(|id| {
+                    if cache.get(&id).is_none() {
+                        let (_, best) = extractor.find_best(id);
+                        cache.insert(id, best);
+                    }
+                });
+
+                exprs.push(n.to_recexpr(|id| cache.get(&id).unwrap().as_ref()));
+            }
+        }
+
+        // format
+        let expr_strs: Vec<String> = exprs.iter().map(|r| r.to_string()).collect();
+        let best_str = CString::new(expr_strs.join(" ")).unwrap();
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
         best_str_pointer

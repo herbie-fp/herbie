@@ -23,6 +23,9 @@
      (eprintf "The precision:double option has been removed.\n")
      (eprintf "  Please use :precision binary32 and :precision binary64 instead.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+    [('generate 'better-rr)
+     (eprintf "The current recursive rewriter does not support the generate:better-rr option.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
     [(_ _)
      (void)]))
 
