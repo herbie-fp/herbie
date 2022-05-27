@@ -54,7 +54,7 @@
     (hash-update! (patchtable-table *patch-table*) expr
                   (if improve (curry cons improve) identity) (list))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Internals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define transforms-to-try
   (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
@@ -129,10 +129,7 @@
     (^series^ series-expansions*))
   (void))
 
-(define (bad-alt! altn)
-  (define expr (program-body (alt-program altn)))
-  (when (expr-contains? expr rewrite-repr-op?)
-    (error 'bad-alt! "containg rewrite repr ~a" expr)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
@@ -186,6 +183,8 @@
   ; TODO: accuracy stats for timeline
   (^rewrites^ rewritten*)
   (void))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (get-starting-expr altn)
   (match (alt-event altn)

@@ -17,7 +17,6 @@
 ;; Bindings are stored as association lists
 
 (define (merge-bindings binding1 binding2)
-  (define (fail . irr) #f)
   (and binding1
        binding2
        (let/ec quit
@@ -25,8 +24,6 @@
            (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
 
 (define (pattern-match pattern expr)
-  (define (fail . irr) #f)
-
   (match pattern
    [(? number?)
     (and (equal? pattern expr) '())]
