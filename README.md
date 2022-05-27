@@ -15,7 +15,7 @@ For full details on installing Herbie, please see the
 ### Installing from Source
 
 Installing from source requires Racket 8.0 or later,
-  Rust 1.46.0 or later, and supports Windows, macOS, and Linux
+  Rust 1.60.0 or later, and supports Windows, macOS, and Linux
   for various architectures.
 
 Install Racket from [here](https://download.racket-lang.org/).
