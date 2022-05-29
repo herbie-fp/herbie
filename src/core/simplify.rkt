@@ -126,7 +126,7 @@
       (loop (rest iter) (+ counter 1) new-time)))
 
   (define sr (egraph-stop-reason egg-graph))
-  (timeline-push! 'egraph-stop (stop-reason->string sr) 1)
+  (timeline-push! 'stop (stop-reason->string sr) 1)
   
   (free-ffi-rules ffi-rules)
   iteration-data)

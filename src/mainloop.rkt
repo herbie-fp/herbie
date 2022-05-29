@@ -425,6 +425,7 @@
               'final-simplify (list altn)))
       alt-equal?))
   (timeline-event! 'end)
+  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
 
   ; find the best, sort the rest by cost
   (define alts* (remove-duplicates cleaned-alts alt-equal?))

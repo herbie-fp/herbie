@@ -66,7 +66,7 @@
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
          ,@(dict-call curr render-phase-egraph 'egraph)
-         ,@(dict-call curr render-phase-egraph-stop 'egraph-stop)
+         ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
          ,@(dict-call curr render-phase-alts 'alts)
          ,@(dict-call curr render-phase-times #:extra n 'times)
@@ -128,14 +128,14 @@
               (match-define (list iter nodes cost t) rec)
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
-(define (render-phase-egraph-stop data)
+(define (render-phase-stop data)
   (match-define (list (list reasons counts) ...) data)
   `((dt "Stop Event")
     (dd
       (table ([class "times"])
         ,@(for/list ([reason reasons] [count counts])
           `(tr (td ,(~a count) "×")
-                (td ,(~a reason))))))))
+               (td ,(~a reason))))))))
 
 (define (format-percent num den)
   (string-append

@@ -134,7 +134,7 @@
 (define-timeline kept #:unmergable)
 (define-timeline min-error #:unmergable)
 (define-timeline egraph #:unmergable)
-(define-timeline egraph-stop [reason false] [count +])
+(define-timeline stop [reason false] [count +])
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above
