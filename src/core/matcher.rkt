@@ -180,15 +180,12 @@
     (define driver batch-egg-rewrite)
     (timeline-push! 'method (~a (object-name driver)))
     (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
-    (define tnow (current-inexact-milliseconds))
-    (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
-      (for ([expr exprs])
-        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]
+    (driver exprs repr #:rules rules #:roots root-locs #:depths depths)]
    [else
     (define driver rewrite-once)
     (timeline-push! 'method (~a (object-name driver)))
     (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
         (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
-        (define tnow (current-inexact-milliseconds))
+        (define timeline-stop! (timeline-start! 'times (~a expr)))
         (begin0 (driver expr repr #:rules rules #:root root-loc #:depth depth)
-          (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]))
+          (timeline-stop!)))]))

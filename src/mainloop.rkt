@@ -328,11 +328,10 @@
                       #:preprocess [preprocess '()])
   (debug #:from 'progress #:depth 3 "[2/5] Deducing preprocessing steps")
   (define vars (program-variables specification))
+  (timeline-event! 'preprocess)
 
   ;; If the specification is given, it is used for sampling points
-  (define sortable
-    (parameterize ([*timeline-disabled* true])
-      (connected-components specification)))
+  (define sortable (connected-components specification))
 
   (define new-preprocess
     (for/list ([sortable-variables (in-list sortable)]
