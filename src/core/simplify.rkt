@@ -64,11 +64,13 @@
 
   (define driver simplify-batch-egg)
   (debug #:from 'simplify "Simplifying using" driver ":\n " (string-join (map ~a exprs) "\n  "))
+  (timeline-push! 'inputs (map ~a exprs))
   (define resulting-lists (driver exprs #:rules rls #:precompute precompute?))
   (define out
     (for/list ([results resulting-lists] [expr exprs])
-             (remove-duplicates (cons expr results))))
+      (remove-duplicates (cons expr results))))
   (debug #:from 'simplify "Simplified to:\n " (string-join (map ~a (map last out)) "\n  "))
+  (timeline-push! 'outputs (map ~a (apply append exprs)))
   out)
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
