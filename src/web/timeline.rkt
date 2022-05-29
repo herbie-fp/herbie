@@ -70,6 +70,7 @@
          ,@(dict-call curr render-phase-counts 'count)
          ,@(dict-call curr render-phase-alts 'alts)
          ,@(dict-call curr render-phase-times #:extra n 'times)
+         ,@(dict-call curr render-phase-series #:extra n 'series)
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-sampling 'sampling)
          ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
@@ -256,6 +257,18 @@
                ,@(for/list ([rec (in-list (sort times > #:key second))] [_ (in-range 5)])
                    (match-define (list expr time) rec)
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+
+(define (render-phase-series n times)
+  `((dt "Calls")
+    (dd (p ,(~a (length times)) " calls:")
+        (canvas ([id ,(format "calls-~a" n)]
+                 [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
+        (table ([class "times"])
+               ,@(for/list ([rec (in-list (sort times > #:key fourth))] [_ (in-range 5)])
+                   (match-define (list expr var transform time) rec)
+                   `(tr (td ,(format-time time))
+                        (td (pre ,expr)) (td (pre ,var)) (td ,transform)))))))
 
 (define (render-phase-compiler compiler)
   (match-define (list (list sizes compileds) ...) compiler)
