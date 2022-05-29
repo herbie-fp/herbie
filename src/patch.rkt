@@ -118,9 +118,9 @@
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
           (define expr (program-body (alt-program altn)))
           (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] generating series for" expr)
-          (define tnow (current-inexact-milliseconds))
+          (define timeline-stop! (timeline-start! 'times (~a expr)))
           (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
-            (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+            (timeline-stop!)))))
 
     ; Probably unnecessary, at least CI passes!
     (define (is-nan? x)

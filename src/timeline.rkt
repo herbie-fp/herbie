@@ -1,7 +1,7 @@
 #lang racket
 (require "config.rkt" "float.rkt" racket/hash json)
 (provide timeline-event! timeline-push! timeline-adjust!
-         timeline-load! timeline-extract timeline-compact!
+         timeline-load! timeline-extract timeline-compact! timeline-start!
          timeline-merge timeline-relink *timeline-disabled*)
 (module+ debug (provide *timeline*))
 
@@ -10,6 +10,7 @@
 ;; Important: Use 'eq?' based hash tables, process may freeze otherwise
 (define *timeline* (box '()))
 (define *timeline-disabled* (make-parameter true))
+(define *timeline-timers* (mutable-set))
 
 (register-reset (λ () (set-box! *timeline* '())))
 
@@ -33,10 +34,20 @@
       true)
     (void)))
 
+(define (timeline-start! key . values)
+  (define tstart (current-inexact-milliseconds))
+  (define (end!)
+    (define tend (current-inexact-milliseconds))
+    (apply timeline-push! key (append values (list (- tend tstart))))
+    (set-remove! *timeline-timers* end!))
+  (set-add! *timeline-timers* end!)
+  end!)
+
 (define (timeline-load! value)
   (set! *timeline* value))
 
 (define (timeline-extract repr)
+  (for ([end! (set->list *timeline-timers*)]) (end!))
   (define end (hasheq 'time (current-inexact-milliseconds)))
   (reverse
    (for/list ([evt (unbox *timeline*)] [next (cons end (unbox *timeline*))])
