@@ -339,9 +339,10 @@
          [offset* (- offset (modulo offset 3))]
          [coeffs (cdr num*)]
          [coeffs* (if (= (modulo offset 3) 0) coeffs (λ (n) (if (= n 0) 0 (coeffs (+ n (modulo offset 3))))))]
+         [f0 (simplify `(cbrt ,(coeffs* 0)))]
          [hash (make-hash)])
-    (hash-set! hash 0 (simplify `(cbrt ,(coeffs 0))))
-    (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 3 (cbrt (* (cbrt ,(coeffs 0)) (cbrt ,(coeffs 0))))))))
+    (hash-set! hash 0 f0)
+    (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 3 (cbrt (* ,f0 ,f0))))))
     (letrec ([f (λ (n)
                    (hash-ref! hash n
                               (λ ()
@@ -351,12 +352,12 @@
                                     `(/ (- ,(coeffs* n) (pow ,(f (/ n 3)) 3)
                                           (+ ,@(for*/list ([j (in-range n)] [k (in-range (+ j 1) n)] #:when (< (+ j k) n))
                                                   `(* 3 (* ,(f j) ,(f k) ,(f (- n j k)))))))
-                                        (* 3 ,(f 0) ,(f 0)))]
+                                        (* 3 ,f0 ,f0))]
                                    [else
                                     `(/ (- ,(coeffs* n)
                                           (+ ,@(for*/list ([j (in-range n)] [k (in-range (+ j 1) n)] #:when (< (+ j k) n))
                                                   `(* 3 (* ,(f j) ,(f k) ,(f (- n j k)))))))
-                                        (* 3 ,(f 0) ,(f 0)))])))))])
+                                        (* 3 ,f0 ,f0))])))))])
       (cons (/ offset* 3) f))))
 
 (define (taylor-pow coeffs n)
