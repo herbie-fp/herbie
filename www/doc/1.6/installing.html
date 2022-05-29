@@ -46,6 +46,7 @@ Welcome to Racket v8.5 [cs].
   <p>
     Install Rust, using <a href="https://rustup.rs/">rustup</a> or via some other means.
     Versions as old as 1.60.0 are supported.
+    This installation method supports Windows, macOS, and Linux for various architectures.
   </p>
     
   <p>
@@ -73,7 +74,7 @@ Welcome to Racket v8.5 [cs].
   <ul>
     <li>On Windows, <code>AppData\Roaming\Racket\8.5\bin</code> in your user folder.</li>
     <li>On macOS, <code>Library/Racket/8.5/bin</code> in your home folder.</li>
-    <li>On Linux, <code>.racket/8.5/bin</code> in your home directory.</li>
+    <li>On Linux, <code>.local/share/racket/8.5/bin</code> in your home directory.</li>
   </ul>
 
   <p>
@@ -84,7 +85,11 @@ Welcome to Racket v8.5 [cs].
 
   <h2>Installing Herbie from a package</h2>
 
-  <p>Once Racket is installed, install Herbie from a package with:</p>
+  <p>
+    This installation method supports Windows, macOS, and Linux for x86-64.
+    This method of installation will fail for Apple M1 systems and other ARM architectures.
+    Once Racket is installed, install Herbie from a package with:
+  </p>
 
   <pre class="shell">raco pkg install --auto herbie</pre>  
 
@@ -99,7 +104,7 @@ Welcome to Racket v8.5 [cs].
   <ul>
     <li>On Windows, <code>AppData\Roaming\Racket\8.5\bin</code> in your user folder.</li>
     <li>On macOS, <code>Library/Racket/8.5/bin</code> in your home folder.</li>
-    <li>On Linux, <code>.racket/8.5/bin</code> in your home directory.</li>
+    <li>On Linux, <code>.local/share/racket/8.5/bin</code> in your home directory.</li>
   </ul>
 
   <p>
