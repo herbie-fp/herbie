@@ -1,26 +1,21 @@
 [package]
 name = "egg-herbie"
-version = "0.2.2"
+version = "0.3.0"
 authors = [ "Oliver Flatt <oflatt@gmail.com>", "Max Willsey <me@mwillsey.com>" ]
 edition = "2018"
 
-
 [dependencies]
-egg = "0.6"
+egg = "0.8"
 
 log = "0.4"
 indexmap = "1"
-libc = "0.2.71"
-smallvec = "1.4.0"
+libc = "0.2.125"
 
-num-rational = "0.3.0"
-num-integer = "0.1.42"
-num-bigint = "0.3.0"
-num-traits = "0.2.12"
-env_logger = { version = "0.7", default-features = false }
-
-[features]
-upward-merging = ["egg/upward-merging"]
+num-bigint = "0.4.3"
+num-integer = "0.1.45"
+num-rational = "0.4.0"
+num-traits = "0.2.15"
+env_logger = { version = "0.9", default-features = false }
 
 [lib]
 name = "egg_math"

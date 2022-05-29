@@ -1,7 +1,7 @@
 pub mod math;
 pub mod rules;
 
-use egg::{Extractor, Id, Iteration, Language};
+use egg::{Extractor, Id, Iteration, Language, StopReason, Symbol};
 use indexmap::IndexMap;
 use math::*;
 
@@ -102,7 +102,7 @@ fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
     }
 }
 
-unsafe fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
+fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
     let mut result: Vec<EGraphIter> = runner.iterations.iter().map(convert_iter).collect();
     let ptr = result.as_mut_ptr();
     std::mem::forget(result);
@@ -231,18 +231,34 @@ pub unsafe extern "C" fn egraph_run(
     )
 }
 
-fn newest_sound_iter(runner: &Runner, iter: u32) -> u32 {
-    if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
-        // go back one more iter, egg can duplicate the final iter in the case of an error
-        min(runner.iterations.len().saturating_sub(3) as u32, iter)
-    } else {
-        min(runner.iterations.len().saturating_sub(1) as u32, iter)
-    }
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        match runner.stop_reason {
+            Some(StopReason::Saturated) => 0,
+            Some(StopReason::IterationLimit(_)) => 1,
+            Some(StopReason::NodeLimit(_)) => 2,
+            Some(StopReason::Other(_)) => 3,
+            _ => 4,
+        }
+    })
 }
 
 fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
     let id = runner.egraph.find(Id::from(id as usize));
-    let sound_iter = newest_sound_iter(runner, iter) as usize;
+
+    // go back one more iter, egg can duplicate the final iter in the case of an error
+    let sound_iter = if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
+        min(runner.iterations.len().saturating_sub(3), iter as usize)
+    } else {
+        min(runner.iterations.len().saturating_sub(1), iter as usize)
+    };
 
     runner.iterations[sound_iter]
         .data
@@ -295,7 +311,7 @@ pub unsafe extern "C" fn egraph_get_variants(
         let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
 
         // extractor
-        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
         let mut cache: IndexMap<Id, RecExpr> = Default::default();
 
         // extract variants
@@ -304,7 +320,7 @@ pub unsafe extern "C" fn egraph_get_variants(
             // assuming same ops in an eclass cannot
             // have different precisions
             if !n.matches(head_node) {
-                // get around reference requirement of `to_recexpr`
+                // extract if not in cache
                 n.for_each(|id| {
                     if cache.get(&id).is_none() {
                         let (_, best) = extractor.find_best(id);
@@ -312,7 +328,7 @@ pub unsafe extern "C" fn egraph_get_variants(
                     }
                 });
 
-                exprs.push(n.to_recexpr(|id| cache.get(&id).unwrap().as_ref()));
+                exprs.push(n.join_recexprs(|id| cache.get(&id).unwrap().as_ref()));
             }
         }
 
@@ -345,11 +361,11 @@ pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *cons
             .runner
             .as_ref()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
-        let string = ptr_to_string(name);
+        let sym = Symbol::from(ptr_to_string(name));
         runner
             .iterations
             .iter()
-            .map(|iter| *iter.applied.get(&string).unwrap_or(&0) as u32)
+            .map(|iter| *iter.applied.get(&sym).unwrap_or(&0) as u32)
             .sum()
     })
 }

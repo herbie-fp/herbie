@@ -1,16 +1,10 @@
 #lang racket
 
-(require racket/lazy-require racket/hash)
+(require racket/hash egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt"
-         "../syntax/rules.rkt" "../interface.rkt" "../timeline.rkt"
-         "../errors.rkt" "simplify.rkt")
+         "../syntax/rules.rkt" "../interface.rkt" "../timeline.rkt" "simplify.rkt")
 
-(provide
-  pattern-match
-  pattern-substitute
-  rewrite-expressions
-  change-apply
-  rule-apply)
+(provide pattern-match rewrite-expressions change-apply)
 
 ;;; Our own pattern matcher.
 ;;
@@ -77,85 +71,14 @@
         (when result
             (sow (list (change rule root-loc (cdr result)))))))))
 
-;;  Recursive rewriter
-
-(define (recursive-rewrite expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
-  (define type (repr-of expr repr (*var-reprs*)))
-  (define (rewriter sow expr ghead glen loc cdepth)
-    ; expr _ _ _ _ -> (list (list change))
-    (for ([rule rules] #:when (equal? type (rule-otype rule)))
-      (when (or
-             (not ghead) ; Any results work for me
-             (and
-              (list? (rule-output rule))
-              (= (length (rule-output rule)) glen)
-              (eq? (car (rule-output rule)) ghead)))
-        (for ([option (matcher* expr (rule-input rule) loc (- cdepth 1))])
-          ;; Each option is a list of change lists
-          (sow (cons (change rule (reverse loc) (cdr option)) (car option)))))))
-
-  (define (reduce-children sow options)
-    ; (list (list ((list change) * bindings)))
-    ; -> (list ((list change) * bindings))
-    (for ([children options])
-      (let ([bindings* (foldl merge-bindings '() (map cdr children))])
-        (when bindings*
-          (sow (cons (apply append (map car children)) bindings*))))))
-
-  (define (fix-up-variables sow pattern cngs)
-    ; pattern (list change) -> (list change) * bindings
-    (match-define (change rule loc bindings) (car cngs))
-    (define result (pattern-substitute (rule-output rule) bindings))
-    (define bindings* (pattern-match pattern result))
-    (when bindings* (sow (cons cngs bindings*))))
-
-  (define cache (make-hash))
-  (define (matcher* expr pattern loc cdepth)
-    (hash-ref! cache (list loc pattern cdepth)
-               (λ () (matcher expr pattern loc cdepth))))
-
-  (define (matcher expr pattern loc cdepth)
-    ; expr pattern _ -> (list ((list change) * bindings))
-    (reap [sow]
-      (match pattern
-        [(? variable?)
-         (sow (cons '() (list (cons pattern expr))))]
-        [(? number?)
-         (when (equal? expr pattern)
-           (sow (cons '() '())))]
-        [(list phead _ ...)
-         (when (and (list? expr) (equal? phead (car expr))
-                    (= (length pattern) (length expr)))
-           (let/ec k ;; We have an option to early exit if a child pattern cannot be matched
-             (define child-options ; (list (list ((list cng) * bnd)))
-               (for/list ([i (in-naturals)] [sube expr] [subp pattern] #:when (> i 0))
-                 ;; Note: fuel is "depth" not "cdepth", because we're recursing to a child
-                 (define options (matcher* sube subp (cons i loc) depth))
-                 (when (null? options) (k)) ;; Early exit 
-                 options))
-             (reduce-children sow (apply cartesian-product child-options))))
-
-         (when (and (> cdepth 0)
-                    (or (flag-set? 'generate 'better-rr)
-                        (not (and (list? expr) (equal? phead (car expr)) (= (length pattern) (length expr))))))
-           ;; Sort of a brute force approach to getting the bindings
-           (rewriter (curry fix-up-variables sow pattern)
-                     expr (car pattern) (length pattern) loc (- cdepth 1)))])))
-
-  ;; The "#f #f" means that any output result works. It's a bit of a hack
-  (reap [sow] (rewriter (compose sow reverse) expr #f #f (reverse root-loc) depth)))
-
+;;
 ;;  Egg rewriter
+;;
 
 ;; Fallback system
 ;;  batch-egg-rewrite - batched call to egg
 ;;  egg-rewrite - call to egg on an expression (skipped if batch-egg-rewrite called with 1 expr)
 ;;  egg-rewrite (with iter limit) - call to egg on an expression with an iter limit (last resort)
-
-(lazy-require
- [egg-herbie (with-egraph egraph-add-exprs egraph-get-variants
-              egraph-is-unsound-detected egraph-get-times-applied
-              egg-exprs->exprs)])
 
 ; If unsoundness was detected, try running one epxression at a time.
 ; Can optionally set iter limit (will give up if unsoundness detected).
@@ -253,24 +176,19 @@
   ; choose correct rr driver
   (cond
    [(null? exprs) '()]
-   [else
-    (define driver
-      (cond
-      [(not (flag-set? 'generate 'rr)) rewrite-once]
-      [(and use-egg-math? (flag-set? 'generate 'egg-rr)) batch-egg-rewrite]
-      [else recursive-rewrite]))
+   [(flag-set? 'generate 'rr)
+    (define driver batch-egg-rewrite)
     (timeline-push! 'method (~a (object-name driver)))
-
-    ; sequential or batched rewriting
-    (match driver
-     [batch-egg-rewrite
-      (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
-      (define tnow (current-inexact-milliseconds))
-      (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
-        (for ([expr exprs]) (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]
-     [_
-      (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
+    (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
+    (define tnow (current-inexact-milliseconds))
+    (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
+      (for ([expr exprs])
+        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]
+   [else
+    (define driver rewrite-once)
+    (timeline-push! 'method (~a (object-name driver)))
+    (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
         (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
         (define tnow (current-inexact-milliseconds))
         (begin0 (driver expr repr #:rules rules #:root root-loc #:depth depth)
-          (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))])]))
+          (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]))

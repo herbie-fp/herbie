@@ -6,14 +6,14 @@
 (define all-flags
   #hash([precision . (double fallback)]
         [setup . (simplify search)]
-        [generate . (rr taylor simplify better-rr egg-rr)]
+        [generate . (rr taylor simplify better-rr)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define default-flags
   #hash([precision . ()]
         [setup . (simplify search)]
-        [generate . (rr egg-rr taylor simplify)]
+        [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
@@ -26,6 +26,9 @@
     [('precision 'fallback)
      (eprintf "The precision:fallback option has been removed.\n")
      (eprintf "  The fallback representation is specified with :precision racket.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+    [('generate 'better-rr)
+     (eprintf "The current recursive rewriter does not support the generate:better-rr option.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
     [(_ _)
      (void)]))

@@ -65,11 +65,12 @@
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
+         ,@(dict-call curr render-phase-egraph 'egraph)
+         ,@(dict-call curr render-phase-egraph-stop 'egraph-stop)
          ,@(dict-call curr render-phase-counts 'count)
          ,@(dict-call curr render-phase-alts 'alts)
          ,@(dict-call curr render-phase-times #:extra n 'times)
          ,@(dict-call curr render-phase-bstep 'bstep)
-         ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-sampling 'sampling)
          ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
@@ -126,6 +127,14 @@
               (match-define (list iter nodes cost t) rec)
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
+(define (render-phase-egraph-stop data)
+  (match-define (list (list reasons counts) ...) data)
+  `((dt "Stop Event")
+    (dd
+      (table ([class "times"])
+        ,@(for/list ([reason reasons] [count counts])
+          `(tr (td ,(~a count) "×")
+                (td ,(~a reason))))))))
 
 (define (format-percent num den)
   (string-append

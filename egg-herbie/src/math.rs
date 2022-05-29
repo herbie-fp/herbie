@@ -57,7 +57,7 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
 
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
         let extracted = runner
             .roots
             .iter()
@@ -197,19 +197,19 @@ impl Analysis<Math> for ConstantFold {
         }
     }
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         match (&to, from) {
-            (None, None) => false,
-            (Some(_), None) => false, // no update needed
+            (None, None) => DidMerge(false, false),
+            (Some(_), None) => DidMerge(false, true), // no update needed
             (None, Some(c)) => {
                 *to = Some(c);
-                true
+                DidMerge(true, false)
             }
             (Some(a), Some(ref b)) => {
                 if a != b && !self.unsound.swap(true, Ordering::SeqCst) {
                     log::warn!("Bad merge detected: {} != {}", a, b);
                 }
-                false
+                DidMerge(false, false)
             }
         }
     }
@@ -217,7 +217,7 @@ impl Analysis<Math> for ConstantFold {
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(constant) = egraph[id].data.clone() {
             let added = egraph.add(Math::Constant(constant));
-            let (id, _) = egraph.union(id, added);
+            egraph.union(id, added);
             if egraph.analysis.prune {
                 egraph[id].nodes.retain(|n| n.is_leaf())
             }
