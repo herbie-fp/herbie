@@ -79,9 +79,6 @@
 ;;  egg-rewrite-iter-limit - call to egg on an expression with an iter limit (last resort)
 ;;
 
-(define (expr-list? li)
-  (and (list? li) (list? (car li))))
-
 (define (batch-egg-rewrite exprs
                            repr
                            #:rules rules
@@ -110,19 +107,19 @@
               [(egraph-is-unsound-detected egg-graph)
                 ; unsoundness detected, fallback
                 (match* (exprs iter-limit)
-                 [((? expr-list?) #f)         ; run expressions individually
+                 [((list (? list?) (? list?) (? list?) ...) #f)     ; run expressions individually
                   (λ ()
                     (for/list ([expr exprs] [root-loc root-locs])
                       (timeline-push! 'method "egg-rewrite")
                       (car (loop (list expr) (list root-loc) #f))))]
-                 [(_ #f)                      ; run expressions with iter limit
+                 [((list (? list?)) #f)                             ; run expressions with iter limit
                   (λ ()
                     (let ([limit (- (length iter-data) 2)])
                       (timeline-push! 'method "egg-rewrite-iter-limit")
                       (loop exprs root-locs limit)))]
-                 [(_ (? number?))                      ; give up
+                 [(_ (? number?))                                   ; give up
                   (timeline-push! 'method "egg-rewrite-fail")
-                  (λ () '())])]
+                  (λ () '(()))])]
               [else
                 (define variants
                   (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
