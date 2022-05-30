@@ -70,7 +70,7 @@
     (for/list ([results resulting-lists] [expr exprs])
       (remove-duplicates (cons expr results))))
   (debug #:from 'simplify "Simplified to:\n " (string-join (map ~a (map last out)) "\n  "))
-  (timeline-push! 'outputs (map ~a (apply append exprs)))
+  (timeline-push! 'outputs (map ~a (apply append out)))
   out)
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
