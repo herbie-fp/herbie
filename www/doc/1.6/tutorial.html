@@ -40,8 +40,14 @@
     <img width="100%" src="web-input.png" alt="The program input field in the Herbie web UI."/>
   </figure>
 
-  <p>Type <kbd>(1 + x) - x</kbd> into this box and press enter. You
-  should see the entry box gray out, then some text appear on the
+  <p>Type <kbd>(1 + x) - x</kbd> into this box. You should see two 
+  boxes appear for entering the lower and upper bound on the range
+  of values for x. Select the lowest and highest options, like this:
+  <figure>
+    <img width="100%" src="range-input.png" alt="The input range field in the Herbie web UI."/>
+  </figure>
+  Finally, hit the "Improve with Herbie" button. You should see the 
+  entry box gray out, then some text will appear on the
   screen describing what Herbie is doing. After a few seconds, you'll
   be redirected to a page with Herbie's results. The most important
   part of that page is the large gray box in the middle:
@@ -182,9 +188,15 @@ else {
   <pre>0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre))</pre>
 
   <p>Recall that this code is only run when <code>x.im</code> is
-  non-negative. So, before running Herbie on this expression, click
-  the “Additional options” link, and enter <kbd>xim &gt;= 0</kbd> for
-  the precondition. This asks Herbie to consider only non-negative
+  non-negative (but it runs for all values of <code>x.re</code>). So, 
+  select the full range of values for <code>x.re</code>, but restrict
+  the range of <code>x.im</code>, like this: 
+  
+  <figure>
+    <img width="100%" src="range-input-2.png" alt="Restricting the input range to xim >= 0." />
+  </figure>
+  
+  This asks Herbie to consider only non-negative
   values of <code>xim</code> when improving the accuracy of this
   expression.</p>
   
