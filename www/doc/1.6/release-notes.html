@@ -30,13 +30,15 @@
   <a href="https://fpbench.org/talks/fptalks22.html">FPTalks 2022</a>.
   
   <figure class="showcase">
-    <img src="system-1.5.png" style="width: 100%;" />
-    <img src="system-1.6.png" style="width: 100%;" />
+    <img src="system-1.6-changes.png" style="width: 100%;" />
     <figcaption>
       System diagram for Herbie 1.5 (top) and Herbie 1.6 (bottom).
-      Key differences include recursive rewrite on egg, a new patching
-        subsystem, and the removal of double-precision (binary64)
-        and single-precision (binary32) types from the core architecture.
+      Key changes are highlighted in red.
+      From top to bottom: double-precision (binary64) and single-precision (binary32) types
+        are loaded through plugins instead of begin embeded in Herbie's core architecture;
+        a new patching subsystem bundles together the various
+        rewriting methods behind a simple interface;
+        recursive rewrite is now implemented using egg.
     </figcaption>
   </figure>
 
