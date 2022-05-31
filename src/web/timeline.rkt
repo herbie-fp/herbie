@@ -107,13 +107,16 @@
 
 (define (render-phase-bstep iters)
   `((dt "Steps")
-    (dd (table ([class "times"])
-               (tr (th "Iters") (th ([colspan "2"]) "Range") (th "Point"))
-               ,@(for/list ([rec (in-list iters)])
-                   (match-define (list v1 v2 iters pt) rec)
-                   `(tr (td ,(~a iters)) 
-                        (td (pre ,(~a v1))) (td (pre ,(~a v2)))
-                        (td (pre ,(~a pt)))))))))
+    (dd (table
+         (tr (th "Iters") (th "Point") (th) (th ([colspan "3"]) "Range") (th))
+         ,@(for/list ([rec (in-list iters)])
+             (match-define (list v1 v2 pt) rec)
+             `(tr (td (pre ,(~a pt)))
+                  (td "∈ [")
+                  (td (pre ,(~a v1)))
+                  (td ", ")
+                  (td (pre ,(~a v2)))
+                  (td "]")))))))
 
 (define (render-phase-egraph iters)
   (define costs (map third iters))

@@ -32,14 +32,12 @@
 ;; can insert a timeline break between them.
 
 (define (infer-splitpoints alts repr)
-  (debug "Finding splitpoints for:" alts #:from 'regime #:depth 2)
   (timeline-event! 'regimes)
+  (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts repr)
         (program-variables (alt-program (first alts)))))
-  (debug "Trying" (length branch-exprs) "branch expressions:" branch-exprs
-         #:from 'regime-changes #:depth 3)
   (define options
     ;; We can only combine alts for which the branch expression is
     ;; critical, to enable binary search.
@@ -53,7 +51,6 @@
                      (not (set-member? sound-alts (list-ref alts (si-cidx si))))))
           (sow (option-on-expr sound-alts bexpr repr))))))
   (define best (argmin (compose errors-score option-errors) options))
-  (debug "Found split indices:" best #:from 'regime #:depth 3)
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   best)
 
@@ -128,6 +125,7 @@
 
 (define (option-on-expr alts expr repr)
   (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
+  (define timeline-stop! (timeline-start! 'branch expr))
   (define vars (program-variables (alt-program (first alts))))
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
@@ -140,7 +138,9 @@
     (for/list ([alt alts]) (errors (alt-program alt) pcontext* repr)))
   (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
   (define split-indices (err-lsts->split-indices bit-err-lsts can-split?))
-  (option split-indices alts pts expr (pick-errors split-indices pts err-lsts repr)))
+  (define out (option split-indices alts pts expr (pick-errors split-indices pts err-lsts repr)))
+  (timeline-stop! (errors-score (option-errors out)))
+  out)
 
 (define/contract (pick-errors split-indices pts err-lsts repr)
   (->i ([sis (listof si?)] 
@@ -214,8 +214,6 @@
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
 
-  (define eq-repr (get-parametric-operator '== repr repr))
-  
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
 
@@ -223,6 +221,7 @@
     (define current-guess v1)
     (define sampling-fail? #f)
 
+    (define eq-repr (get-parametric-operator '== repr repr))
     (define (pred v)
       (set! iters (+ 1 iters))
       (set! best-guess current-guess)
@@ -246,22 +245,7 @@
     (define pt (binary-search-floats pred v1 v2 repr))
     (when sampling-fail?
       (set! pt best-guess))
-    (timeline-push! 'bstep (value->json v1 repr) (value->json v2 repr) iters (value->json pt repr))
     pt)
-
-  (define (sidx->spoint sidx next-sidx)
-    (define prog1 (list-ref progs (si-cidx sidx)))
-    (define prog2 (list-ref progs (si-cidx next-sidx)))
-
-    (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx sidx)))))
-    (define p2 (apply eval-expr (list-ref points (si-pidx sidx))))
-
-    (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
-
-  (define (regimes-sidx->spoint sidx)
-    (sp (si-cidx sidx) expr (apply eval-expr (list-ref points (- (si-pidx sidx) 1)))))
-
-  (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
 
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
@@ -273,14 +257,24 @@
       
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
-     (cond
-       [use-binary
-        (with-handlers ([exn:fail:user:herbie:sampling?
-                         (lambda (e) (regimes-sidx->spoint si1))])
-          (sidx->spoint si1 si2))]
-       [else
-        (regimes-sidx->spoint si1)]))
-   (list final-sp)))
+     (define timeline-stop! (timeline-start! 'times (~a expr)))
+     (define prog1 (list-ref progs (si-cidx sidx)))
+     (define prog2 (list-ref progs (si-cidx next-sidx)))
+
+     (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx sidx)))))
+     (define p2 (apply eval-expr (list-ref points (si-pidx sidx))))
+
+     (define split-at
+       (if use-binary
+           (with-handlers ([exn:fail:user:herbie:sampling? (const p1)])
+             (find-split prog1 prog2 p1 p2))
+           p1))
+     (timeline-stop!)
+
+     (timeline-push 'method (if use-binary "binary-search" "left-value"))
+     (timeline-push! 'bstep (value->json p1 repr) (value->json p2 repr) (value->json split-at repr))
+     (sp (si-cidx sidx) expr split-at))
+   (list (sp (si-cidx (last sindices)) expr +nan.0))))
 
 (define (point-with-dim index point val)
   (map (λ (pval pindex) (if (= pindex index) val pval))

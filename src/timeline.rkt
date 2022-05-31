@@ -36,9 +36,9 @@
 
 (define (timeline-start! key . values)
   (define tstart (current-inexact-milliseconds))
-  (define (end!)
+  (define (end! . args)
     (define tend (current-inexact-milliseconds))
-    (apply timeline-push! key (append values (list (- tend tstart))))
+    (apply timeline-push! key (append values args (list (- tend tstart))))
     (set-remove! *timeline-timers* end!))
   (set-add! *timeline-timers* end!)
   end!)
@@ -135,6 +135,7 @@
 (define-timeline min-error #:unmergable)
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
+(define-timeline branch #:unmergeable)
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above
