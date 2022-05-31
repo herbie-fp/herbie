@@ -125,7 +125,7 @@
 
 (define (option-on-expr alts expr repr)
   (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
-  (define timeline-stop! (timeline-start! 'branch expr))
+  (define timeline-stop! (timeline-start! 'branch (~a expr)))
   (define vars (program-variables (alt-program (first alts))))
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
   (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
