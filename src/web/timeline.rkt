@@ -266,7 +266,7 @@
     (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map fourth times)) ")")
         (table ([class "times"])
                ,@(for/list ([rec (in-list (sort times > #:key fourth))] [_ (in-range 5)])
                    (match-define (list expr var transform time) rec)
