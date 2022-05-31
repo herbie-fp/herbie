@@ -4,7 +4,7 @@
          (only-in fpbench core->tex supported-by-lang?))
 (require "../points.rkt" "../float.rkt" "../alternative.rkt" "../interface.rkt"
          "../syntax/rules.rkt" "../core/regimes.rkt" "../common.rkt"
-        "common.rkt" "../programs.rkt" "../syntax/sugar.rkt")
+         "common.rkt" "../syntax/sugar.rkt")
 (provide render-history)
 
 (define (split-pcontext pcontext splitpoints alts repr)

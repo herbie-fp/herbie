@@ -3,11 +3,10 @@
 (require (submod "syntax/rules.rkt" internals)
          (submod "syntax/syntax.rkt" internals)
          "common.rkt" "interface.rkt" "errors.rkt"
-         "syntax/rules.rkt" "syntax/syntax.rkt")
+         "syntax/syntax.rkt")
 
-(module+ test (require "load-plugin.rkt"))
-
-(provide generate-conversions generate-prec-rewrites get-rewrite-operator *conversions*)
+(provide generate-conversions generate-prec-rewrites
+         get-rewrite-operator *conversions*)
 
 (define *conversions* (make-parameter (hash)))
 
@@ -128,6 +127,9 @@
 
 ;; try built in reprs
 (module+ test
+  (require "load-plugin.rkt")
+  (load-herbie-plugins)
+  
   (define convs (list (map get-representation '(binary64 binary32))))
   (generate-conversions convs)
   (generate-prec-rewrites convs))

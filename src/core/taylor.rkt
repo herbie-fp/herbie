@@ -1,9 +1,7 @@
 #lang racket
 
 (require math/number-theory)
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "reduce.rkt")
+(require "../common.rkt" "../programs.rkt" "reduce.rkt")
 (provide approximate)
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
@@ -507,6 +505,7 @@
 
 (module+ test
   (require rackunit "../interface.rkt" "../load-plugin.rkt")
+  (load-herbie-plugins)
   (*output-repr* (get-representation 'binary64))
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
 

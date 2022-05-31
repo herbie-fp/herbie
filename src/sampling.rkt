@@ -1,10 +1,10 @@
 #lang racket
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
-(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt" "common.rkt"
-         "float.rkt" "alternative.rkt" "interface.rkt"
-         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt")
-(module+ test (require rackunit "load-plugin.rkt"))
+(require "searchreals.rkt" "programs.rkt" "errors.rkt" "common.rkt"
+         "float.rkt" "interface.rkt" "timeline.rkt"
+         "syntax/types.rkt" "syntax/sugar.rkt")
+
 (provide make-sampler batch-prepare-points)
 
 ;; Much of this code assumes everything supports intervals. Almost
@@ -13,7 +13,11 @@
 (module+ test
   (require "syntax/read.rkt")
   (require racket/runtime-path)
+  (require rackunit "load-plugin.rkt")
+
   (define-runtime-path benchmarks "../bench/")
+  (load-herbie-builtins)
+  
   (define exprs
     (let ([tests (load-tests benchmarks)])
       (append (map test-program tests) (map test-precondition tests))))
@@ -44,6 +48,9 @@
      (ival #f #t)]))
 
 (module+ test
+  (require rackunit "load-plugin.rkt")
+  (load-herbie-builtins)
+
   (define repr (get-representation 'binary64))
   (check-equal? (precondition->hyperrects
                  '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))

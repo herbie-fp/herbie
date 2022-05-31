@@ -1,5 +1,7 @@
 #lang racket
-(require "config.rkt" "float.rkt" racket/hash json)
+
+(require json "config.rkt")
+
 (provide timeline-event! timeline-push! timeline-adjust!
          timeline-load! timeline-extract timeline-compact! timeline-start!
          timeline-merge timeline-relink *timeline-disabled*)

@@ -8,7 +8,9 @@
          make-simplification-combinations
          rules->irules egg-run-rules)
 
-(module+ test (require rackunit "../load-plugin.rkt"))
+(module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-plugins))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie
 ;; to simplify an expression as much as possible without making
@@ -116,7 +118,7 @@
       (define cnt (egraph-get-size egg-graph)) 
       (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
-  (define iteration-data (egraph-run egg-graph iter-limit node-limit ffi-rules precompute?))
+  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
   (let loop ([iter iteration-data] [counter 0] [time 0])
     (unless (null? iter)
       (define cnt (iteration-data-num-nodes (first iter)))

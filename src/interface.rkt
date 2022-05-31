@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat math/flonum)
+(require math/bigfloat)
 (require "syntax/types.rkt" "errors.rkt")
 
 (provide (struct-out representation) get-representation
@@ -84,9 +84,8 @@
 ;; e.g. float for binary32.
 (define (register-representation-alias! name repr)
   (unless (representation? repr)
-      (error' register-representation-alias!
-              "Expected a representation. Received ~a. Check your plugins!!"
-              repr))
+    (raise-herbie-error "Tried to register an alias for representation ~a: not found"
+                        (representation-name repr)))
   (set! representations (hash-set representations name repr)))
 
 (define-syntax-rule (define-representation (name type repr?) args ...)

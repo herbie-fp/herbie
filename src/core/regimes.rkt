@@ -4,9 +4,13 @@
          "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
          "../points.rkt")
 (require "../ground-truth.rkt" "../float.rkt") ; For binary search
-(module+ test (require rackunit "../load-plugin.rkt"))
+
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
+
+(module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-builtins))
 
 (struct option (split-indices alts pts expr errors) #:transparent
 	#:methods gen:custom-write
