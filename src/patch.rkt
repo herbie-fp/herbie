@@ -1,7 +1,7 @@
 #lang racket
 
 (require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
-         "alternative.rkt" "common.rkt" "interface.rkt" "programs.rkt"
+         "alternative.rkt" "common.rkt" "errors.rkt" "interface.rkt" "programs.rkt"
          "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
 
 (provide
@@ -54,7 +54,7 @@
     (hash-update! (patchtable-table *patch-table*) expr
                   (if improve (curry cons improve) identity) (list))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Internals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define transforms-to-try
   (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
@@ -84,31 +84,26 @@
 ; not all taylor transforms are valid in a given repr, return false on failure
 (define (taylor-expr expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
-  (with-handlers ([exn:fail? (const #f)])       ; in case taylor fails internally
-    (define genexpr (approximate expr* var #:transform (cons f finv)))
-    (λ (x) (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
+  (define genexpr (approximate expr* var #:transform (cons f finv)))
+  (λ ()
+    (with-handlers ([exn:fail:user:herbie:missing? (taylor-fail-desugaring expr)])
+      (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
 
 (define (taylor-alt altn)
-  (define expr (program-body (alt-program altn)))
+  (define prog (alt-program altn))
+  (define expr (program-body prog))
   (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
-  (define vars (free-variables expr))
   (reap [sow]
-    (for* ([var vars] [transform-type transforms-to-try])
+    (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
+      (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
       (define genexpr (taylor-expr expr repr var f finv))
-      (cond
-       [genexpr  ; taylor successful
-        #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
-        (for ([i (in-range 4)])
-          (define expr* 
-            (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
-              (location-do '(2) (alt-program altn) genexpr)))
-          (when expr*
-            (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))]
-       [else  ; taylor failed
-        (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
-        (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
-        (sow altn)]))))
+      (for ([i (in-range 4)])
+        (define replace (genexpr))
+        (when replace
+          (define expr* (list (first prog) (second prog) replace))
+          (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))
+      (timeline-stop!))))
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
@@ -118,9 +113,7 @@
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
           (define expr (program-body (alt-program altn)))
           (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] generating series for" expr)
-          (define tnow (current-inexact-milliseconds))
-          (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
-            (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+          (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
 
     ; Probably unnecessary, at least CI passes!
     (define (is-nan? x)
@@ -136,10 +129,7 @@
     (^series^ series-expansions*))
   (void))
 
-(define (bad-alt! altn)
-  (define expr (program-body (alt-program altn)))
-  (when (expr-contains? expr rewrite-repr-op?)
-    (error 'bad-alt! "containg rewrite repr ~a" expr)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
@@ -193,6 +183,8 @@
   ; TODO: accuracy stats for timeline
   (^rewrites^ rewritten*)
   (void))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (get-starting-expr altn)
   (match (alt-event altn)

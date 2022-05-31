@@ -1,6 +1,6 @@
 #lang racket
 
-(require "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
+(require "syntax/rules.rkt" "syntax/types.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
          "interface.rkt" "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
@@ -328,11 +328,10 @@
                       #:preprocess [preprocess '()])
   (debug #:from 'progress #:depth 3 "[2/5] Deducing preprocessing steps")
   (define vars (program-variables specification))
+  (timeline-event! 'preprocess)
 
   ;; If the specification is given, it is used for sampling points
-  (define sortable
-    (parameterize ([*timeline-disabled* true])
-      (connected-components specification)))
+  (define sortable (connected-components specification))
 
   (define new-preprocess
     (for/list ([sortable-variables (in-list sortable)]
@@ -426,6 +425,7 @@
               'final-simplify (list altn)))
       alt-equal?))
   (timeline-event! 'end)
+  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
 
   ; find the best, sort the rest by cost
   (define alts* (remove-duplicates cleaned-alts alt-equal?))

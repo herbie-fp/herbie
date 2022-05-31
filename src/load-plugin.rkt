@@ -26,8 +26,6 @@
    ['racket   (dynamic-require fallback-plugin #f) #t]
    [_ #f]))
 
-(register-generator! generate-builtins)
-
 (define (load-herbie-plugins)
   (load-herbie-builtins)    ; automatically load default representations
   (for ([dir (find-relevant-directories '(herbie-plugin))])
@@ -38,3 +36,7 @@
     (when value
       (with-handlers ([exn:fail:filesystem:missing-module? void])
         (dynamic-require value #f)))))
+
+;; requiring "load-plugin.rkt" automatically registers
+;; all built-in representation but does not load them
+(register-generator! generate-builtins)

@@ -1,16 +1,15 @@
 #lang racket
 (require profile math/bigfloat racket/engine json)
-(require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt" "ground-truth.rkt"
-         "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
-         (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt"
-         "syntax/sugar.rkt" "preprocess.rkt" "sampling.rkt" "cost.rkt")
+(require "syntax/read.rkt" "syntax/sugar.rkt"
+         "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
+         "datafile.rkt" "debug.rkt" "errors.rkt" "interface.rkt"
+         "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
+         "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result)
-
 
 ;; These cannot move between threads!
 (struct test-result (test bits time timeline warnings))

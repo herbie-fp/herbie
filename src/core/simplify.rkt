@@ -8,7 +8,9 @@
          make-simplification-combinations
          rules->irules egg-run-rules)
 
-(module+ test (require rackunit "../load-plugin.rkt"))
+(module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-plugins))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie
 ;; to simplify an expression as much as possible without making
@@ -64,11 +66,13 @@
 
   (define driver simplify-batch-egg)
   (debug #:from 'simplify "Simplifying using" driver ":\n " (string-join (map ~a exprs) "\n  "))
+  (timeline-push! 'inputs (map ~a exprs))
   (define resulting-lists (driver exprs #:rules rls #:precompute precompute?))
   (define out
     (for/list ([results resulting-lists] [expr exprs])
-             (remove-duplicates (cons expr results))))
+      (remove-duplicates (cons expr results))))
   (debug #:from 'simplify "Simplified to:\n " (string-join (map ~a (map last out)) "\n  "))
+  (timeline-push! 'outputs (map ~a (apply append out)))
   out)
 
 (define/contract (simplify-batch-egg exprs #:rules rls #:precompute precompute?)
@@ -114,7 +118,7 @@
       (define cnt (egraph-get-size egg-graph)) 
       (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
-  (define iteration-data (egraph-run egg-graph iter-limit node-limit ffi-rules precompute?))
+  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
   (let loop ([iter iteration-data] [counter 0] [time 0])
     (unless (null? iter)
       (define cnt (iteration-data-num-nodes (first iter)))
@@ -124,7 +128,7 @@
       (loop (rest iter) (+ counter 1) new-time)))
 
   (define sr (egraph-stop-reason egg-graph))
-  (timeline-push! 'egraph-stop (stop-reason->string sr) 1)
+  (timeline-push! 'stop (stop-reason->string sr) 1)
   
   (free-ffi-rules ffi-rules)
   iteration-data)

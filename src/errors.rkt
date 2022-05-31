@@ -1,11 +1,12 @@
 #lang racket
 (require "config.rkt")
 (provide raise-herbie-error raise-herbie-syntax-error
-         raise-herbie-sampling-error
+         raise-herbie-sampling-error raise-herbie-missing-error
          herbie-error->string herbie-error-url
          (struct-out exn:fail:user:herbie)
          (struct-out exn:fail:user:herbie:syntax)
          (struct-out exn:fail:user:herbie:sampling)
+         (struct-out exn:fail:user:herbie:missing)
          warn warning-log *warnings-disabled*
          print-warnings)
 
@@ -18,6 +19,9 @@
 (struct exn:fail:user:herbie:sampling exn:fail:user:herbie ()
   #:extra-constructor-name make-exn:fail:user:herbie:sampling)
 
+(struct exn:fail:user:herbie:missing exn:fail:user:herbie ()
+  #:extra-constructor-name make-exn:fail:user:herbie:missing)
+
 (define (raise-herbie-error message #:url [url #f] . args)
   (raise (make-exn:fail:user:herbie
           (apply format message args) (current-continuation-marks) url)))
@@ -28,6 +32,10 @@
 
 (define (raise-herbie-sampling-error message #:url [url #f] . args)
   (raise (make-exn:fail:user:herbie:sampling
+          (apply format message args) (current-continuation-marks) url)))
+
+(define (raise-herbie-missing-error message #:url [url #f] . args)
+  (raise (make-exn:fail:user:herbie:missing
           (apply format message args) (current-continuation-marks) url)))
 
 (define (herbie-error-url exn)
