@@ -218,9 +218,17 @@
   
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
+
+    (define best-guess #f)
+    (define current-guess v1)
+    (define sampling-fail? #f)
+
     (define (pred v)
       (set! iters (+ 1 iters))
-      (with-handlers ([exn:fail:user:herbie? (const 0)]) ; couldn't sample points
+      (set! best-guess current-guess)
+      (set! current-guess v)
+      (with-handlers ([exn:fail:user:herbie?
+                       (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
         (parameterize ([*num-points* (*binary-search-test-points*)]
                        [*timeline-disabled* true]
                        [*var-reprs* (dict-set (*var-reprs*) var repr)])
@@ -232,9 +240,12 @@
                                    repr
                                    (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
                                                                    (sampler) (*herbie-preprocess*) repr))))))
-          (- (errors-score (errors prog1 ctx repr))
-             (errors-score (errors prog2 ctx repr))))))
-      (define pt (binary-search-floats pred v1 v2 repr))
+          (define acc1 (errors-score (errors prog1 ctx repr)))
+          (define acc2 (errors-score (errors prog2 ctx repr)))
+          (- acc1 acc2))))
+    (define pt (binary-search-floats pred v1 v2 repr))
+    (when sampling-fail?
+      (set! pt best-guess))
     (timeline-push! 'bstep (value->json v1 repr) (value->json v2 repr) iters (value->json pt repr))
     pt)
 

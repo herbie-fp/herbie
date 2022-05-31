@@ -187,7 +187,7 @@
                 (λ (p) (loop (cdr names) (cons p ps))))
             (loop (cdr names) (cons #f ps))))))
 
-(define-runtime-path web-resource-path "web/")
+(define-runtime-path web-resource-path "web/resources/")
 
 (define (web-resource [name #f])
   (if name

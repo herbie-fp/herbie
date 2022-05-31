@@ -9,7 +9,7 @@ pub fn mk_rules(tuples: &[(&str, &str, &str)]) -> Vec<Rewrite> {
         .map(|(name, left, right)| {
             let left = Pattern::from_str(left).unwrap();
             let right = Pattern::from_str(right).unwrap();
-            Rewrite::new(*name, *name, left, right).unwrap()
+            Rewrite::new(*name, left, right).unwrap()
         })
         .collect()
 }
@@ -33,21 +33,6 @@ pub fn math_rules() -> IndexMap<&'static str, Vec<Rewrite>> {
             ),
             ("erf-erfc", "(erfc f64 ?x)", "(- f64 1 (erf f64 ?x))"),
             ("erfc-erf", "(erf f64 ?x)", "(- f64 1 (erfc f64 ?x))"),
-        ],
-    );
-    add("complex-number-basics",
-        &[
-            ("real-part","(re real (complex real ?x ?y))","?x"),
-            ("imag-part","(im real (complex real ?x ?y))","?y"),
-            ("complex-add-def","(+ c (complex real ?a ?b) (complex real ?c ?d))","(complex real (+ f64 ?a ?c) (+ f64 ?b ?d))"),
-            ("complex-def-add","(complex real (+ f64 ?a ?c) (+ f64 ?b ?d))","(+ c (complex real ?a ?b) (complex real ?c ?d))"),
-            ("complex-sub-def","(- c (complex real ?a ?b) (complex real ?c ?d))","(complex real (- f64 ?a ?c) (- f64 ?b ?d))"),
-            ("complex-def-sub","(complex real (- f64 ?a ?c) (- f64 ?b ?d))","(- c (complex real ?a ?b) (complex real ?c ?d))"),
-            ("complex-neg-def","(neg c (complex real ?a ?b))","(complex real (neg f64 ?a) (neg f64 ?b))"),
-            ("complex-def-neg","(complex real (neg f64 ?a) (neg f64 ?b))","(neg c (complex real ?a ?b))"),
-            ("complex-mul-def","(* c (complex real ?a ?b) (complex real ?c ?d))","(complex real (- f64 (* f64 ?a ?c) (* f64 ?b ?d)) (+ f64 (* f64 ?a ?d) (* f64 ?b ?c)))"),
-            ("complex-div-def","(/ c (complex real ?a ?b) (complex real ?c ?d))","(complex real (/ f64 (+ f64 (* f64 ?a ?c) (* f64 ?b ?d)) (+ f64 (* f64 ?c ?c) (* f64 ?d ?d))) (/ f64 (- f64 (* f64 ?b ?c) (* f64 ?a ?d)) (+ f64 (* f64 ?c ?c) (* f64 ?d ?d))))"),
-            ("complex-conj-def","(conj real (complex real ?a ?b))","(complex real ?a (neg f64 ?b))"),
         ],
     );
     add(
@@ -504,21 +489,6 @@ pub fn math_rules() -> IndexMap<&'static str, Vec<Rewrite>> {
         ],
     );
     add(
-        "fractions-distribute.c",
-        &[
-            (
-                "div-sub.c",
-                "(/ c (- c ?a ?b) ?c)",
-                "(- c (/ c ?a ?c) (/ c ?b ?c))",
-            ),
-            (
-                "times-frac.c",
-                "(/ c (* c ?a ?b) (* c ?c ?d))",
-                "(* c (/ c ?a ?c) (/ c ?b ?d))",
-            ),
-        ],
-    );
-    add(
         "fractions-distribute",
         &[
             (
@@ -651,51 +621,6 @@ pub fn math_rules() -> IndexMap<&'static str, Vec<Rewrite>> {
         ],
     );
     add(
-        "distributivity.c",
-        &[
-            (
-                "distribute-lft-in.c",
-                "(* c ?a (+ c ?b ?c))",
-                "(+ c (* c ?a ?b) (* c ?a ?c))",
-            ),
-            (
-                "distribute-rgt-in.c",
-                "(* c ?a (+ c ?b ?c))",
-                "(+ c (* c ?b ?a) (* c ?c ?a))",
-            ),
-            (
-                "distribute-lft-out.c",
-                "(+ c (* c ?a ?b) (* c ?a ?c))",
-                "(* c ?a (+ c ?b ?c))",
-            ),
-            (
-                "distribute-lft-out--.c",
-                "(- c (* c ?a ?b) (* c ?a ?c))",
-                "(* c ?a (- c ?b ?c))",
-            ),
-            (
-                "distribute-rgt-out.c",
-                "(+ c (* c ?b ?a) (* c ?c ?a))",
-                "(* c ?a (+ c ?b ?c))",
-            ),
-            (
-                "distribute-rgt-out-- c",
-                "(- c (* c ?b ?a) (* c ?c ?a))",
-                "(* c ?a (- c ?b ?c))",
-            ),
-            (
-                "distribute-lft1-in.c",
-                "(+ c (* c ?b ?a) ?a)",
-                "(* c (+ c ?b (complex real 1 0)) ?a)",
-            ),
-            (
-                "distribute-rgt1-in.c",
-                "(+ c ?a (* c ?c ?a))",
-                "(* c (+ c ?c (complex real 1 0)) ?a)",
-            ),
-        ],
-    );
-    add(
         "distributivity",
         &[
             (
@@ -741,93 +666,6 @@ pub fn math_rules() -> IndexMap<&'static str, Vec<Rewrite>> {
         ],
     );
     add("counting", &[("count-2", "(+ f64 ?x ?x)", "(* f64 2 ?x)")]);
-    add(
-        "associativity.c",
-        &[
-            (
-                "associate-+r+.c",
-                "(+ c ?a (+ c ?b ?c))",
-                "(+ c (+ c ?a ?b) ?c)",
-            ),
-            (
-                "associate-+l+.c",
-                "(+ c (+ c ?a ?b) ?c)",
-                "(+ c ?a (+ c ?b ?c))",
-            ),
-            (
-                "associate-+r-.c",
-                "(+ c ?a (- c ?b ?c))",
-                "(- c (+ c ?a ?b) ?c)",
-            ),
-            (
-                "associate-+l-.c",
-                "(+ c (- c ?a ?b) ?c)",
-                "(- c ?a (- c ?b ?c))",
-            ),
-            (
-                "associate--r+.c",
-                "(- c ?a (+ c ?b ?c))",
-                "(- c (- c ?a ?b) ?c)",
-            ),
-            (
-                "associate--l+.c",
-                "(- c (+ c ?a ?b) ?c)",
-                "(+ c ?a (- c ?b ?c))",
-            ),
-            (
-                "associate--l-.c",
-                "(- c (- c ?a ?b) ?c)",
-                "(- c ?a (+ c ?b ?c))",
-            ),
-            (
-                "associate--r-.c",
-                "(- c ?a (- c ?b ?c))",
-                "(+ c (- c ?a ?b) ?c)",
-            ),
-            (
-                "associate-*r*.c",
-                "(* c ?a (* c ?b ?c))",
-                "(* c (* c ?a ?b) ?c)",
-            ),
-            (
-                "associate-*l*.c",
-                "(* c (* c ?a ?b) ?c)",
-                "(* c ?a (* c ?b ?c))",
-            ),
-            (
-                "associate-*r/.c",
-                "(* c ?a (/ c ?b ?c))",
-                "(/ c (* c ?a ?b) ?c)",
-            ),
-            (
-                "associate-*l/.c",
-                "(* c (/ c ?a ?b) ?c)",
-                "(/ c (* c ?a ?c) ?b)",
-            ),
-            (
-                "associate-/r*.c",
-                "(/ c ?a (* c ?b ?c))",
-                "(/ c (/ c ?a ?b) ?c)",
-            ),
-            (
-                "associate-/l*.c",
-                "(/ c (* c ?b ?c) ?a)",
-                "(/ c ?b (/ c ?a ?c))",
-            ),
-            (
-                "associate-/r/.c",
-                "(/ c ?a (/ c ?b ?c))",
-                "(* c (/ c ?a ?b) ?c)",
-            ),
-            (
-                "associate-/l/.c",
-                "(/ c (/ c ?b ?c) ?a)",
-                "(/ c ?b (* c ?a ?c))",
-            ),
-            ("sub-neg.c", "(- c ?a ?b)", "(+ c ?a (neg c ?b))"),
-            ("unsub-neg.c", "(+ c ?a (neg c ?b))", "(- c ?a ?b)"),
-        ],
-    );
     add(
         "associativity",
         &[
@@ -913,13 +751,6 @@ pub fn math_rules() -> IndexMap<&'static str, Vec<Rewrite>> {
             ),
             ("sub-neg", "(- f64 ?a ?b)", "(+ f64 ?a (neg f64 ?b))"),
             ("unsub-neg", "(+ f64 ?a (neg f64 ?b))", "(- f64 ?a ?b)"),
-        ],
-    );
-    add(
-        "commutativity.c",
-        &[
-            ("+ c-commutative", "(+ c ?a ?b)", "(+ c ?b ?a)"),
-            ("* c-commutative", "(* c ?a ?b)", "(* c ?b ?a)"),
         ],
     );
     add(

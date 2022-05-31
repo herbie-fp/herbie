@@ -1,0 +1,49 @@
+; -*- mode: scheme -*-
+
+(FPCore (x)
+  :name "ENA, Section 1.4, Mentioned, A"
+  :cite (conte-et-al-1980)
+  :pre (<= -0.01 x 0.01)
+  :herbie-target
+  (/ (* (sin x) (sin x)) (+ 1 (cos x)))
+  (- 1 (cos x)))
+
+(FPCore (x)
+  :name "ENA, Section 1.4, Mentioned, B"
+  :cite (conte-et-al-1980)
+  :pre (<= 0.999 x 1.001)
+  (/ 10 (- 1 (* x x))))
+
+(FPCore (x)
+  :name "ENA, Section 1.4, Exercise 4a"
+  :cite (conte-et-al-1980)
+  :pre (<= -1 x 1)
+  :herbie-target
+  (* 1/6 (* x x))
+  (/ (- x (sin x)) (tan x)))
+
+(FPCore (x)
+  :name "ENA, Section 1.4, Exercise 1"
+  :cite (conte-et-al-1980)
+  :pre (<= 1.99 x 2.01)
+  (* (cos x) (exp (* 10 (* x x)))))
+
+(FPCore (x eps)
+  :name "ENA, Section 1.4, Exercise 4b, n=2"
+  :cite (conte-et-al-1980)
+  :pre (and (<= -1e9 x 1e9) (<= -1 eps 1))
+  (- (pow (+ x eps) 2) (pow x 2)))
+
+(FPCore (x eps)
+  :name "ENA, Section 1.4, Exercise 4b, n=5"
+  :cite (conte-et-al-1980)
+  :pre (and (<= -1e9 x 1e9) (<= -1 eps 1))
+  (- (pow (+ x eps) 5) (pow x 5)))
+
+(FPCore (x eps)
+  :name "ENA, Section 1.4, Exercise 4d"
+  :cite (conte-et-al-1980)
+  :pre (and (<= 0 x 1e9) (<= -1 eps 1))
+  :herbie-target
+  (/ eps (+ x (sqrt (- (* x x) eps))))
+  (- x (sqrt (- (* x x) eps))))

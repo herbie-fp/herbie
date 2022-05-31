@@ -35,6 +35,20 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
+var Subreport = new Component("#subreports", {
+    setup: function() {
+        this.elt.classList.add("no-subreports");
+        this.button = Element("a", {id: "subreports-toggle"}, "See subreports");
+        this.button.addEventListener("click", this.toggle);
+        this.elt.insertBefore(this.button, this.elt.children[0]);
+    },
+    toggle: function() {
+        this.elt.classList.toggle("no-subreports");
+        var changed_only = this.elt.classList.contains("no-subreports");
+        this.button.innerText = changed_only ? "See subreports" : "Hide subreports";
+    }
+});
+
 var TogglableFlags = new Component("#flag-list", {
     setup: function() {
         this.elt.classList.add("changed-flags");

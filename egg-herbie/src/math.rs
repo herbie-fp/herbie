@@ -3,8 +3,9 @@ use egg::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use num_bigint::BigInt;
+use num_integer::Integer;
 use num_rational::Ratio;
-use num_traits::{Pow, Signed, Zero};
+use num_traits::{One, Pow, Signed, Zero};
 
 pub type Constant = num_rational::BigRational;
 pub type RecExpr = egg::RecExpr<Math>;
@@ -23,9 +24,40 @@ pub struct Extracted {
     pub cost: usize,
 }
 
+// cost function similar to AstSize except it will
+// penalize `(pow _ p)` where p is a fraction
+pub struct AltCost<'a> {
+    pub egraph: &'a EGraph,
+}
+
+impl<'a> AltCost<'a> {
+    pub fn new(egraph: &'a EGraph) -> Self {
+        Self { egraph }
+    }
+}
+
+impl<'a> CostFunction<Math> for AltCost<'a> {
+    type Cost = usize;
+
+    fn cost<C>(&mut self, enode: &Math, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(Id) -> Self::Cost,
+    {
+        if let Math::Pow([_, _, i]) = enode {
+            if let Some(n) = &self.egraph[*i].data {
+                if !n.denom().is_one() && n.denom().is_odd() {
+                    return usize::MAX;
+                }
+            }
+        }
+
+        enode.fold(1, |sum, id| usize::saturating_add(sum, costs(id)))
+    }
+}
+
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let mut extractor = Extractor::new(&runner.egraph, AstSize);
+        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
         let extracted = runner
             .roots
             .iter()
@@ -76,7 +108,7 @@ impl Default for ConstantFold {
         Self {
             constant_fold: true,
             prune: true,
-            unsound: AtomicBool::from(false),
+            unsound: AtomicBool::new(false),
         }
     }
 }
@@ -165,21 +197,19 @@ impl Analysis<Math> for ConstantFold {
         }
     }
 
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         match (&to, from) {
-            (None, None) => false,
-            (Some(_), None) => false, // no update needed
+            (None, None) => DidMerge(false, false),
+            (Some(_), None) => DidMerge(false, true), // no update needed
             (None, Some(c)) => {
                 *to = Some(c);
-                true
+                DidMerge(true, false)
             }
             (Some(a), Some(ref b)) => {
-                if a != b {
-                    if !self.unsound.swap(true, Ordering::SeqCst) {
-                        log::warn!("Bad merge detected: {} != {}", a, b);
-                    }
+                if a != b && !self.unsound.swap(true, Ordering::SeqCst) {
+                    log::warn!("Bad merge detected: {} != {}", a, b);
                 }
-                false
+                DidMerge(false, false)
             }
         }
     }
@@ -187,7 +217,7 @@ impl Analysis<Math> for ConstantFold {
     fn modify(egraph: &mut EGraph, id: Id) {
         if let Some(constant) = egraph[id].data.clone() {
             let added = egraph.add(Math::Constant(constant));
-            let (id, _) = egraph.union(id, added);
+            egraph.union(id, added);
             if egraph.analysis.prune {
                 egraph[id].nodes.retain(|n| n.is_leaf())
             }

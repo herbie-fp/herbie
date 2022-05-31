@@ -1,4 +1,4 @@
-FROM racket/racket:8.2-full
+FROM racket/racket:8.5-full
 MAINTAINER Pavel Panchekha <me@pavpanchekha.com>
 ADD src /src/herbie
 RUN raco pkg install --auto /src/herbie
