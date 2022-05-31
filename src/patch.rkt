@@ -96,12 +96,14 @@
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
+      (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
       (define genexpr (taylor-expr expr repr var f finv))
       (for ([i (in-range 4)])
         (define replace (genexpr))
         (when replace
           (define expr* (list (first prog) (second prog) replace))
-          (sow (alt expr* `(taylor ,name ,var (2)) (list altn))))))))
+          (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))
+      (timeline-stop!))))
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
@@ -111,9 +113,7 @@
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
           (define expr (program-body (alt-program altn)))
           (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] generating series for" expr)
-          (define tnow (current-inexact-milliseconds))
-          (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
-            (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+          (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
 
     ; Probably unnecessary, at least CI passes!
     (define (is-nan? x)

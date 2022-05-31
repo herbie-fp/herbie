@@ -65,10 +65,11 @@
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
          ,@(dict-call curr render-phase-egraph 'egraph)
-         ,@(dict-call curr render-phase-egraph-stop 'egraph-stop)
+         ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
          ,@(dict-call curr render-phase-alts 'alts)
          ,@(dict-call curr render-phase-times #:extra n 'times)
+         ,@(dict-call curr render-phase-series #:extra n 'series)
          ,@(dict-call curr render-phase-bstep 'bstep)
          ,@(dict-call curr render-phase-sampling 'sampling)
          ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
@@ -105,13 +106,16 @@
 
 (define (render-phase-bstep iters)
   `((dt "Steps")
-    (dd (table ([class "times"])
-               (tr (th "Iters") (th ([colspan "2"]) "Range") (th "Point"))
-               ,@(for/list ([rec (in-list iters)])
-                   (match-define (list v1 v2 iters pt) rec)
-                   `(tr (td ,(~a iters)) 
-                        (td (pre ,(~a v1))) (td (pre ,(~a v2)))
-                        (td (pre ,(~a pt)))))))))
+    (dd (table
+         (tr (th "Iters") (th "Point") (th) (th ([colspan "3"]) "Range") (th))
+         ,@(for/list ([rec (in-list iters)])
+             (match-define (list v1 v2 pt) rec)
+             `(tr (td (pre ,(~a pt)))
+                  (td "∈ [")
+                  (td (pre ,(~a v1)))
+                  (td ", ")
+                  (td (pre ,(~a v2)))
+                  (td "]")))))))
 
 (define (render-phase-egraph iters)
   (define costs (map third iters))
@@ -126,14 +130,14 @@
               (match-define (list iter nodes cost t) rec)
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
-(define (render-phase-egraph-stop data)
+(define (render-phase-stop data)
   (match-define (list (list reasons counts) ...) data)
   `((dt "Stop Event")
     (dd
       (table ([class "times"])
         ,@(for/list ([reason reasons] [count counts])
           `(tr (td ,(~a count) "×")
-                (td ,(~a reason))))))))
+               (td ,(~a reason))))))))
 
 (define (format-percent num den)
   (string-append
@@ -255,6 +259,18 @@
                ,@(for/list ([rec (in-list (sort times > #:key second))] [_ (in-range 5)])
                    (match-define (list expr time) rec)
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+
+(define (render-phase-series n times)
+  `((dt "Calls")
+    (dd (p ,(~a (length times)) " calls:")
+        (canvas ([id ,(format "calls-~a" n)]
+                 [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map fourth times)) ")")
+        (table ([class "times"])
+               ,@(for/list ([rec (in-list (sort times > #:key fourth))] [_ (in-range 5)])
+                   (match-define (list expr var transform time) rec)
+                   `(tr (td ,(format-time time))
+                        (td (pre ,expr)) (td (pre ,var)) (td ,transform)))))))
 
 (define (render-phase-compiler compiler)
   (match-define (list (list sizes compileds) ...) compiler)
