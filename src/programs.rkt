@@ -233,6 +233,7 @@
     [(list 'ceil (? exact-value? a)) (ceiling a)]
     [(list 'round (? exact-value? a)) (round a)]
     ;; Added
+    [(list 'exp 0) 1]
     [(list 'log 1) 0]
     [(list 'cbrt 1) 1]
     [_ #f]))
