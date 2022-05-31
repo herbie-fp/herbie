@@ -347,17 +347,12 @@
                    (hash-ref! hash n
                               (λ ()
                                  (simplify
-                                  (cond
-                                   [(= (modulo n 3) 0)
-                                    `(/ (- ,(coeffs* n) (pow ,(f (/ n 3)) 3)
-                                          (+ ,@(for*/list ([j (in-range n)] [k (in-range (+ j 1) n)] #:when (< (+ j k) n))
-                                                  `(* 3 (* ,(f j) ,(f k) ,(f (- n j k)))))))
-                                        (* 3 ,f0 ,f0))]
-                                   [else
-                                    `(/ (- ,(coeffs* n)
-                                          (+ ,@(for*/list ([j (in-range n)] [k (in-range (+ j 1) n)] #:when (< (+ j k) n))
-                                                  `(* 3 (* ,(f j) ,(f k) ,(f (- n j k)))))))
-                                        (* 3 ,f0 ,f0))])))))])
+                                  `(/ (- ,(coeffs* n)
+                                         ,@(for*/list ([terms (n-sum-to 3 n)]
+                                                       #:unless (set-member? terms n))
+                                             (match-define (list a b c) terms)
+                                             `(* ,(f a) ,(f b) ,(f c))))
+                                      (* 3 ,f0 ,f0))))))])
       (cons (/ offset* 3) f))))
 
 (define (taylor-pow coeffs n)
@@ -514,3 +509,12 @@
   (require rackunit "../interface.rkt" "../load-plugin.rkt")
   (*output-repr* (get-representation 'binary64))
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
+
+(module+ test
+  (define (coeffs expr #:n [n 7])
+    (match-define fn (zero-series (taylor 'x expr)))
+    (build-list n fn))
+
+  (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
+  (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
+  )
