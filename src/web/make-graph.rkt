@@ -78,8 +78,8 @@
      (head
       (meta ([charset "utf-8"]))
       (title "Result for " ,(~a (test-name test)))
-      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       ,@js-tex-include
+      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       (script ([src "../report.js"]))
       (script ([src "interactive.js"]))
       (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
