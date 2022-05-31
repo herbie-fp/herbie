@@ -84,7 +84,7 @@
 
 ;; runs rules on an egraph
 ;; can optionally specify an iter limit
-(define (egraph-run egraph-data iter-limit node-limit ffi-rules precompute?)
+(define (egraph-run egraph-data node-limit ffi-rules precompute? [iter-limit #f])
   (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
   (define-values (egraphiters res-len)
     (if iter-limit

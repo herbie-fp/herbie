@@ -1,8 +1,7 @@
 #lang racket
 
 (require racket/hash)
-(require "../common.rkt" "../alternative.rkt" "../points.rkt"
-         "../timeline.rkt" "../programs.rkt")
+(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt")
 
 (provide
  (contract-out

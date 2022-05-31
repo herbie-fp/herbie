@@ -1,7 +1,7 @@
 #lang racket
 
 (require rackunit)
-(require "alternative.rkt" "interface.rkt" "points.rkt")
+(require "alternative.rkt" "points.rkt")
 
 (provide generate-pareto-curve)
 

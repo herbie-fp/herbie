@@ -1,9 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt"
-         "timeline.rkt")
-(module+ test (require rackunit "load-plugin.rkt"))
+(require "syntax/types.rkt" "syntax/syntax.rkt" "interface.rkt" "timeline.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
@@ -13,6 +11,10 @@
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression replace-vars
          apply-repr-change)
+
+(module+ test
+  (require rackunit "load-plugin.rkt")
+  (load-herbie-plugins))
 
 (define expr? (or/c list? symbol? boolean? real?))
 
@@ -136,9 +138,6 @@
   (define exprc 0)
   (define varc (length vars))
 
-  ;; Local cache of operator info
-  (define cached-ops (make-hash))
-
   ;; Known representations
   (define bool-repr (get-representation 'bool))
 
@@ -170,7 +169,6 @@
                   (set! exprc (+ 1 exprc))
                   (set! exprs (cons expr exprs))))))
 
-  (define progc (length progs))
   (define names
     (for/list ([prog progs])
       (munge (program-body prog) repr)))

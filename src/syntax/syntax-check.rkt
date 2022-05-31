@@ -3,7 +3,6 @@
 (require syntax/id-set)
 (require "../common.rkt" "../conversions.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
 (provide assert-program!)
-(module+ test (require rackunit "../load-plugin.rkt"))
 
 (define (check-expression* stx vars error!)
   (match stx
@@ -177,6 +176,9 @@
 
 ;; testing FPCore format
 (module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-builtins)
+
   (define (get-errs stx)
     (reap [sow]
           (define (error! stx fmt . args)

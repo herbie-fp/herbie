@@ -1,8 +1,7 @@
 #lang racket
 
-(require "types.rkt" "syntax.rkt" "../interface.rkt")
+(require "syntax.rkt" "../errors.rkt" "../interface.rkt")
 (provide desugar-program resugar-program)
-(module+ test (require rackunit))
 
 ;; preprocessing
 (define (expand expr)
@@ -103,7 +102,8 @@
              (define rtype (operator-info name 'otype))
              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
                (k (list name) rtype)))
-           (error 'sugar "Could not find constant implementation for ~a at ~a" x (representation-name repr)))]
+           (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
+                                        x (representation-name repr)))]
         [(list op args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
@@ -127,8 +127,8 @@
           [else
            (define conv (get-repr-conv vrepr repr))
            (unless conv
-             (error 'expand-parametric "Conversion does not exist: ~a -> ~a\n"
-                    (representation-name vrepr) (representation-name repr)))
+             (raise-herbie-missing-error "Conversion does not exist: ~a -> ~a"
+                (representation-name vrepr) (representation-name repr)))
            (values (list conv expr) repr)])]))) 
   expr*)
 
@@ -190,31 +190,3 @@
     [(list? expr)
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
-
-#;(module+ test
-  (define repr (get-representation 'binary64))
-
-  ;; inlining
-
-  ;; Test classic quadp and quadm examples
-  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
-  (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
-  (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
-  (check-equal? (desugar-program quadp repr (map (curryr cons repr) (list 'x 'y 'z)))
-                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
-  (check-equal? (desugar-program quadm repr (map (curryr cons repr) (list 'x 'y 'z)))
-                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
-
-  ;; x^5 = x^3 * x^2
-  (register-function! 'sqr (list 'x) repr '(* x x))
-  (register-function! 'cube (list 'x) repr '(* x x x))
-  (define fifth '(* (cube a) (sqr a)))
-  (check-equal? (desugar-program fifth repr (list (cons 'a repr)))
-                '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
-
-  ;; casting edge cases
-  (check-equal? (desugar-program `(cast x) repr `((x . ,repr)))
-                'x)
-  (check-equal? (desugar-program `(cast (! :precision binary64 x)) repr `((x . ,repr)))
-                'x)
-)
