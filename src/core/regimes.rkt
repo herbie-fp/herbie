@@ -33,7 +33,7 @@
 
 (define (infer-splitpoints alts repr)
   (timeline-event! 'regimes)
-  (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts)
+  (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts))
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts repr)
@@ -258,11 +258,11 @@
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
      (define timeline-stop! (timeline-start! 'times (~a expr)))
-     (define prog1 (list-ref progs (si-cidx sidx)))
-     (define prog2 (list-ref progs (si-cidx next-sidx)))
+     (define prog1 (list-ref progs (si-cidx si1)))
+     (define prog2 (list-ref progs (si-cidx si2)))
 
-     (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx sidx)))))
-     (define p2 (apply eval-expr (list-ref points (si-pidx sidx))))
+     (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
+     (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
 
      (define split-at
        (if use-binary
@@ -271,9 +271,9 @@
            p1))
      (timeline-stop!)
 
-     (timeline-push 'method (if use-binary "binary-search" "left-value"))
+     (timeline-push! 'method (if use-binary "binary-search" "left-value"))
      (timeline-push! 'bstep (value->json p1 repr) (value->json p2 repr) (value->json split-at repr))
-     (sp (si-cidx sidx) expr split-at))
+     (sp (si-cidx si1) expr split-at))
    (list (sp (si-cidx (last sindices)) expr +nan.0))))
 
 (define (point-with-dim index point val)
