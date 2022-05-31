@@ -180,7 +180,7 @@
     (timeline-push! 'method "batch-egg-rewrite")
     (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
     (timeline-push! 'inputs (map ~a exprs))
-    (define out (batch-egg-rewrite expr repr #:rules rules #:roots root-locs #:depths depths))
+    (define out (batch-egg-rewrite exprs repr #:rules rules #:roots root-locs #:depths depths))
     (timeline-push! 'outputs (map ~a out))
     out]
    [else
