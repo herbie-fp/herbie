@@ -14,7 +14,7 @@
   </header>
 
   <p>The <a href="../..">Herbie</a> developers are excited to announce
-  Herbie 1.6! This release focuses on further integrating egg, reliability,
+  Herbie 1.6! This release focuses on further integration of egg, improved reliability,
   and a better web interface. Our favorite features are below.</p>
 
   <img width="100%" src="team.png" style="display: block; margin: 4em 0; border-radius: 6px;"
@@ -32,13 +32,12 @@
   <figure class="showcase">
     <img src="system-1.6-changes.png" style="width: 100%;" />
     <figcaption>
-      System diagram for Herbie 1.6 as well as key changes this
-        release surrounded by red boxes.
+      System diagram for Herbie 1.6 as well as key changes in red.
       From top to bottom: double-precision (binary64) and single-precision (binary32) types
-        are loaded through plugins instead of begin embeded in Herbie's core architecture;
+        are loaded through plugins instead of being embedded in Herbie's core;
         a new patching subsystem bundles together the various
         rewriting methods behind a simple interface;
-        recursive rewrite is now implemented using egg.
+        recursive rewrite uses egg.
       Compare Herbie 1.5 and 1.6 system diagrams <a href="../1.5/diagrams.html">here</a>
         and <a href="../1.6/diagrams.html">here</a>.
     </figcaption>
@@ -102,7 +101,7 @@
     minimal interface to generate variants from a set of expressions,
     and caches variants in case of duplicate input expressions.
   Creating this subsystem to handle variant generation more cleanly
-    delineates the "generate" and "test" parts within Herbie.
+    separates the "generate" and "test" parts within Herbie.
   </p>
   
   <p>Herbie's double-precision and single-precision representations
@@ -121,8 +120,8 @@
 
   <h2>Other improvements</h2>
   <ul>
-    <li>Precondition analysis and sampling are now implemented
-      the same system. Sampling multiple functions is now supported.
+    <li>Precondition analysis and point sampling are unified under a single function.
+      Sampling multiple functions is now supported.
     </li>
     <li>The backup sampler now just computes with MPFR floats
         at high-precision rather than the old "halfpoints" sampler.
@@ -137,6 +136,9 @@
     </li>
     <li>More output languages are supported in the reports including
       Fortran, Java, Python, Julia, MatLab, and Wolfram.
+    </li>
+    <li>egg has been updated to 0.8.1 which has led to a performance increase.
+      Make sure to have at least Rust 1.60 when installing from source.
     </li>
   </ul>
 
