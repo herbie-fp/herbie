@@ -136,6 +136,8 @@
       (*templated-rulesets* (cons (list name 'groups '((var . type) ...)) 
                                   (*templated-rulesets*))))]))
 
+(define *reprs-with-rules* (make-parameter '()))
+
 ;; Add existing rules in rulesets to 'active' rules
 
 (define (add-rules-from-rulesets repr)

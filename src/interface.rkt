@@ -4,8 +4,8 @@
 (require "syntax/types.rkt" "errors.rkt")
 
 (provide (struct-out representation) get-representation
-          *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
           real->repr repr->real
+          *output-repr* *var-reprs* *needed-reprs*
           generate-repr)
 
 (module+ internals 
@@ -14,7 +14,6 @@
            register-representation!
            register-representation-alias!))
 
-(define *reprs-with-rules* (make-parameter '()))
 (define *needed-reprs* (make-parameter '()))
 (define *output-repr* (make-parameter #f))
 (define *var-reprs* (make-parameter '()))
