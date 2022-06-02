@@ -5,14 +5,10 @@
 (require "common.rkt" "interface.rkt" "errors.rkt")
 
 (provide 
- special-value?
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total
  value->string value->json)
-
-(define (special-value? x repr)
-  ((representation-special-values repr) x))
 
 (define (ulp-difference x y repr)
   (define ->ordinal (representation-repr->ordinal repr))
@@ -31,36 +27,25 @@
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
 
-(module+ test
-  (require rackunit "load-plugin.rkt")
-  (load-herbie-plugins)
-
-  (define binary64 (get-representation 'binary64))
-  (check-false (special-value? 2.5 binary64))
-  (check-true  (special-value? +nan.0 binary64))
-  (check-true  (special-value? -inf.0 binary64))
-  (define binary32 (get-representation 'binary32))
-  (check-false (special-value? 2.5f0 binary32))
-  (check-true  (special-value? +nan.f binary32))
-  (check-true  (special-value? -inf.f binary32)))
-
 (define (=-or-nan? x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))
+  (define special? (representation-special-value? repr))
   (or (= (->ordinal x1) (->ordinal x2))
       (if (real? x1) ; Infinities are considered special values for real reprs for some reason
           (and (nan? x1) (nan? x2))
-          (and (special-value? x1 repr) (special-value? x2 repr)))))
+          (and (special? x1) (special? x2)))))
 
 (define (</total x1 x2 repr)
+  (define special? (representation-special-value? repr))
+  (define ->ordinal (representation-repr->ordinal repr))
   (cond
    [(and (real? x1) (real? x2))
     (cond [(nan? x1) #f] [(nan? x2) #t] [else (< x1 x2)])]
    [else
     (cond
-     [(special-value? x1 repr) #f]
-     [(special-value? x2 repr) #t]
-     [else (< ((representation-repr->ordinal repr) x1)
-              ((representation-repr->ordinal repr) x2))])]))
+     [(special? x1) #f]
+     [(special? x2) #t]
+     [else (< (->ordinal x1) (->ordinal x2))])]))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=-or-nan? x1 x2 repr)))

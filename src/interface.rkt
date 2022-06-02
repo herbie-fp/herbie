@@ -24,7 +24,7 @@
 (struct representation
   (name type repr?
    bf->repr repr->bf ordinal->repr repr->ordinal
-   total-bits special-values)
+   total-bits special-value?)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
