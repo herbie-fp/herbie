@@ -131,6 +131,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Splits rules into three categories
+;  - reprchange: rules that change precision
+;  - expansive: rules of the form `x -> f(x)` that are not reprchange
+;  - normal: everything else
 (define (partition-rules rules)
   (let-values ([(expansive normal)
                   (partition (compose variable? rule-input) rules)])
