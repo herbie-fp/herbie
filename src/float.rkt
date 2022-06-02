@@ -74,7 +74,7 @@
         n)
       (parameterize ([bf-precision precision])
         (define bf (->bf n))
-        (if (=-or-nan? n (<-bf bf) repr)
+        (if (=/total n (<-bf bf) repr)
             (match (bigfloat->string bf)
               ["-inf.bf" "-inf.0"]
               ["+inf.bf" "+inf.0"]
