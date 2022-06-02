@@ -39,13 +39,8 @@
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
   (match (type-name (representation-type repr))
-    ['real
-     (define bound (bound-ordinary-values repr))
-     (define bflo (match lo [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
-     (define bfhi (match hi [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
-     (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1)))]
-    ['bool
-     (ival #f #t)]))
+    ['real (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1)))]
+    ['bool (ival #f #t)]))
 
 (module+ test
   (require rackunit "load-plugin.rkt")

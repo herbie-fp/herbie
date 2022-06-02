@@ -9,8 +9,7 @@
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total
- value->string value->json
- bound-ordinary-values)
+ value->string value->json)
 
 (define (special-value? x repr)
   ((representation-special-values repr) x))
@@ -31,44 +30,6 @@
 
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
-
-(define (largest-ordinary-value repr)
-  (define inf-in-repr ((representation-bf->repr repr) +inf.bf))
-  ((representation-repr->bf repr)
-   ((representation-ordinal->repr repr)
-    (if (bfinfinite? ((representation-repr->bf repr) inf-in-repr))
-        (- ((representation-repr->ordinal repr) inf-in-repr) 1)  ;; actually corresponds to +inf.0 (binary64)
-        ((representation-repr->ordinal repr) inf-in-repr))))) ;; just the max val (fixed point)
-        
-(define (has-infinite-value? repr)
-  (let ([repr->bf (representation-repr->bf repr)]
-        [bf->repr (representation-bf->repr repr)])
-    (bfinfinite? (repr->bf (bf->repr +inf.bf)))))
-
-;; If the representation uses saturation instead of overflow
-;; if x * x != inf when x is +max, probably saturated
-(define (probably-saturated? ordinal repr)
-  (define bfval (ordinal->bigfloat ordinal))
-  (define bfval2 (bf* bfval bfval)) ;; squaring is probably good enough
-  (define ->repr (representation-bf->repr repr))
-  (define ->ordinal (representation-repr->ordinal repr))
-  (= (->ordinal (->repr bfval))
-     (->ordinal (->repr bfval2))))
-
-(define (bound-ordinary-values repr)
-  (if (has-infinite-value? repr) ; bail if representation does not have +inf
-      (parameterize ([bf-rounding-mode 'nearest])
-        (define hi-ordinal (bigfloat->ordinal (largest-ordinary-value repr)))
-        (if (probably-saturated? hi-ordinal repr) ; bail if representation uses saturation
-            (ordinal->bigfloat hi-ordinal)
-            (let loop ([ordinal hi-ordinal] [stepsize 1])
-              (define bfval (ordinal->bigfloat ordinal))
-              (define ->repr (representation-bf->repr repr))
-              (define ->bf (representation-repr->bf repr))
-              (if (bfinfinite? (->bf (->repr bfval)))
-                  bfval
-                  (loop (+ ordinal stepsize) (* stepsize 2))))))
-      (largest-ordinary-value repr)))
 
 (module+ test
   (require rackunit "load-plugin.rkt")
