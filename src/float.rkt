@@ -8,7 +8,8 @@
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total
- value->string value->json)
+ value->string value->json
+ real->repr repr->real)
 
 (define (ulp-difference x y repr)
   (define ->ordinal (representation-repr->ordinal repr))
@@ -80,3 +81,11 @@
               ["+nan.bf" "+nan.0"]
               [x x])
             (loop (+ precision 4))))))) ; 2^4 > 10
+
+(define (real->repr x repr)
+  ((representation-bf->repr repr) (bf x)))
+
+(define (repr->real x repr)
+  (match x
+    [(? boolean?) x]
+    [_ (bigfloat->real ((representation-repr->bf repr) x))]))

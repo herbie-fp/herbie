@@ -4,7 +4,6 @@
 (require "syntax/types.rkt" "errors.rkt")
 
 (provide (struct-out representation) get-representation
-          real->repr repr->real
           *output-repr* *var-reprs* *needed-reprs*
           generate-repr)
 
@@ -90,12 +89,3 @@
 (define-syntax-rule (define-representation (name type repr?) args ...)
   (register-representation! 'name 'type repr? args ...))
 
-;; repr <==> real
-
-(define (real->repr x repr)
-  ((representation-bf->repr repr) (bf x)))
-
-(define (repr->real x repr)
-  (match x
-    [(? boolean?) x]
-    [_ (bigfloat->real ((representation-repr->bf repr) x))]))
