@@ -15,7 +15,6 @@
 (define *demo-prefix* (make-parameter "/"))
 (define *demo-output* (make-parameter false))
 (define *demo-log* (make-parameter false))
-(define *demo-debug?* (make-parameter false))
 
 (define (add-prefix url)
   (string-replace (string-append (*demo-prefix*) url) "//" "/"))
@@ -158,8 +157,7 @@
      (let loop ([seed #f])
        (match (thread-receive)
          [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
-                 timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?
-                 debug? ,debug?)
+                 timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
           (set! seed vec)
           (*flags* flag-table)
           (*num-iterations* iterations)
@@ -167,8 +165,7 @@
           (*timeout* timeout)
           (*demo-output* output)
           (*reeval-pts* reeval)
-          (*demo?* demo?)
-          (*demo-debug?* debug?)]
+          (*demo?* demo?)]
          [(list 'improve hash formula sema)
           (define path (format "~a.~a" hash *herbie-commit*))
           (cond
@@ -179,11 +176,7 @@
            [else
             (eprintf "Job ~a started..." hash)
 
-            (define result
-              (get-test-result
-               #:seed seed
-               #:debug (*demo-debug?*)
-               (parse-test formula)))
+            (define result (get-test-result (parse-test formula) #:seed seed))
 
             (hash-set! *completed-jobs* hash result)
 
@@ -300,17 +293,15 @@
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
-(define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:debug debug? #:log log #:port port #:public? public)
+(define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
   (*demo-output* output)
   (*demo-prefix* prefix)
   (*demo-log* log)
-  (*demo-debug?* debug?)
 
   (define config
     `(init rand ,(get-seed) flags ,(*flags*) num-iters ,(*num-iterations*) points ,(*num-points*)
-           timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)
-           debug? ,(*demo-debug?*)))
+           timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
   (thread-send *worker-thread* config)
 
   (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))

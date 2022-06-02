@@ -38,10 +38,7 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-(define (get-test-result test
-                         #:seed [seed #f]
-                         #:profile [profile? #f]
-                         #:debug [debug? #f])
+(define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
   (define output-repr (test-output-repr test))
   (define output-prec (representation-name output-repr))
