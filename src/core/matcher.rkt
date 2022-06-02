@@ -126,6 +126,7 @@
                     (define output (egraph-get-variants egg-graph id expr))
                     (define extracted (egg-exprs->exprs output egg-graph))
                     (for/list ([variant (remove-duplicates extracted)])
+                      (printf "~a -> ~a\n" expr variant)
                       (list (change egg-rule root-loc (list (cons 'x variant)))))))
                 (λ () variants)]))))))
     (result-thunk)))

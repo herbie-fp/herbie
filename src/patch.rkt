@@ -136,10 +136,10 @@
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
   (timeline-event! 'rewrite)
 
-  (define reprchange-rules                              ;; empty in non-Pareto mode
-    (if (*pareto-mode*)
-        (filter (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?)) (*rules*))
-        (list)))
+  ;; partion the rules
+  (define-values (reprchange-rules normal-rules)
+    (partition (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?))
+               (*rules*)))
 
   ;; get subexprs and locations
   (define exprs (map (compose program-body alt-program) (^queued^)))
@@ -147,11 +147,13 @@
   (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
   (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root
 
+  (for-each displayln normal-rules)
+
   ;; rewrite
   (define changelists
-    (rewrite-expressions exprs (*output-repr*) #:rules (*rules*) #:roots locs))
-  (define changelists-low-locs
-    (rewrite-expressions lowexprs (*output-repr*) #:rules reprchange-rules #:roots lowlocs))
+    (rewrite-expressions exprs (*output-repr*) #:rules normal-rules #:roots locs))
+  (define changelists-low-locs (make-list (length (^queuedlow^)) '()))
+    ; (rewrite-expressions lowexprs (*output-repr*) #:rules reprchange-rules #:roots lowlocs))
 
   (define comb-changelists (append changelists changelists-low-locs))
   (define altns (append (^queued^) (^queuedlow^)))

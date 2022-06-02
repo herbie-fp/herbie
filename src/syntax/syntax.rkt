@@ -249,15 +249,14 @@
 ;; Miscellaneous operators ;;
 
 (define (repr-conv? expr)
-  (and (symbol? expr) (regexp-match? #px"^[\\S]+(->)[\\S]+$" (symbol->string expr))))
+  (and (symbol? expr) (set-member? (operator-all-impls 'cast) expr)))
 
 (define (rewrite-repr-op? expr)
-  (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
+  (and (symbol? expr) (set-member? (operator-all-impls 'convert) expr)))
 
 (define (get-repr-conv irepr orepr)
   (for/or ([name (operator-all-impls 'cast)])
-    (and (repr-conv? name)
-         (equal? (operator-info name 'otype) orepr)
+    (and (equal? (operator-info name 'otype) orepr)
          (equal? (first (operator-info name 'itype)) irepr)
          name)))
 
@@ -290,6 +289,9 @@
     (dict-set dict key value)))
 
 ;; Conversions
+
+(define-operator (convert real) real
+  [bf identity] [ival identity])
 
 (define-operator (cast real) real
   [bf identity] [ival identity])
