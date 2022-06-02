@@ -176,7 +176,7 @@
     (if one-real-repr?
         (merge-changelists
           (rewrite-expressions exprs (*output-repr*) #:rules (append expansive-rules normal-rules) #:roots locs)
-          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs))
+          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs #:once? #t))
         (merge-changelists
           (rewrite-expressions exprs (*output-repr*) #:rules normal-rules #:roots locs)
           (rewrite-expressions exprs (*output-repr*) #:rules expansive-rules #:roots locs #:once? #t)

@@ -140,7 +140,7 @@
                              #:once? [once? #f])
   ; choose correct rr driver
   (cond
-   [(null? exprs) '()]
+   [(or (null? exprs) (null? rules)) (make-list (length exprs) '())]
    [(or once? (not (flag-set? 'generate 'rr)))
     (timeline-push! 'method "rewrite-once")
     (for/list ([expr exprs] [root-loc root-locs] [n (in-naturals 1)])
