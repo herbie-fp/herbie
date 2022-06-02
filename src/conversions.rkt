@@ -5,8 +5,7 @@
          "common.rkt" "interface.rkt" "errors.rkt"
          "syntax/syntax.rkt")
 
-(provide generate-conversions generate-prec-rewrites
-         get-rewrite-operator *conversions*)
+(provide generate-conversions generate-prec-rewrites *conversions*)
 
 (define *conversions* (make-parameter (hash)))
 
@@ -21,9 +20,6 @@
 (define (repr->symbol repr)
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (string->symbol (string-replace* (~a (representation-name repr)) replace-table)))
-
-(define (get-rewrite-operator repr)
-  (get-parametric-operator 'convert repr))
 
 ;; Generates conversion, repr-rewrite operators for prec1 and prec2
 (define (generate-conversion-ops repr1 repr2)
