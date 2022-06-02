@@ -1,5 +1,6 @@
 #lang racket
 
+(require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
          "../points.rkt")
@@ -258,13 +259,18 @@
       (set! pt best-guess))
     pt)
 
-  (define (regimes-sidx->point sidx)
-    ((representation-bf->repr repr)
-      (bigfloat-interval-shortest
-      ((representation-repr->bf repr)
-        (apply eval-expr (list-ref points (- (si-pidx sidx) 1))))
-      ((representation-repr->bf repr)
-        (apply eval-expr (list-ref points (si-pidx sidx)))))))
+  ; a little more rigorous than it sounds:
+  ; finds the shortest number `x` near `p1` such that
+  ; `x1` is in [p1, p2] and is no larger than
+  ;  - if `p1` is negative, `p1` / 2
+  ;  - if `p1` is positive, `p1` * 2
+  (define (nearby-point p1 p2)
+    (let ([left ((representation-repr->bf repr) p1)]
+          [right ((representation-repr->bf repr) p2)])
+      ((representation-bf->repr repr)
+        (if (bfnegative? left)
+            (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+            (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
 
   (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
   (define use-binary
@@ -288,10 +294,7 @@
        (if use-binary
            (with-handlers ([exn:fail:user:herbie:sampling? (const p1)])
              (find-split prog1 prog2 p1 p2))
-           ((representation-bf->repr repr)
-            (bigfloat-interval-shortest
-              ((representation-repr->bf repr) p1)
-              ((representation-repr->bf repr) p2)))))
+           (nearby-point p1 p2)))
      (timeline-stop!)
 
      (timeline-push! 'method (if use-binary "binary-search" "simplest"))
