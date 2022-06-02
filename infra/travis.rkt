@@ -89,10 +89,11 @@
     (when given-seed (set-seed! given-seed))]
    [("--precision") prec "Which precision to use for tests"
     (*precision* (get-representation (string->symbol prec)))]
-   [("--pareto") num "Enables Pherbie with <num> iters"
+   [("--num-iters") num "The number of iterations to use for the main loop"
+    (*num-iterations* (string->number num))]
+   [("--pareto") "Enables Pherbie"
     (*pareto-mode* #t)
     (*ignore-target* #t)
-    (*num-iterations* (string->number num))
     (*timeout* (* 1000 60 10))
     (disable-flag! 'rules 'numerics)] ; causes time to increase
    #:args bench-dir

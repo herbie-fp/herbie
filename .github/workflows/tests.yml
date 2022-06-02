@@ -49,4 +49,4 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 --pareto 2 bench/hamming/
+      - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 --num-iters 2 --pareto bench/hamming/

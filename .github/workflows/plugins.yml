@@ -64,4 +64,4 @@ jobs:
       - name: "Install SoftPosit support"
         run: raco pkg install --no-cache --auto --name softposit-herbie plugin/
       - name: "Run posit benchmarks"
-        run: racket infra/travis.rkt --seed 0 --pareto 2 infra/bench/posit-pherbie.fpcore
+        run: racket infra/travis.rkt --seed 0 --num-iters 2 --pareto infra/bench/posit-pherbie.fpcore
