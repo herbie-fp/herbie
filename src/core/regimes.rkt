@@ -258,26 +258,15 @@
       (set! pt best-guess))
     pt)
 
-  (define (sidx->spoint sidx next-sidx)
-    (define prog1 (list-ref progs (si-cidx sidx)))
-    (define prog2 (list-ref progs (si-cidx next-sidx)))
-
-    (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx sidx)))))
-    (define p2 (apply eval-expr (list-ref points (si-pidx sidx))))
-
-    (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
-
-  (define (regimes-sidx->spoint sidx)
-    (sp (si-cidx sidx) expr
-        ((representation-bf->repr repr)
-         (bigfloat-interval-shortest
-          ((representation-repr->bf repr)
-           (apply eval-expr (list-ref points (- (si-pidx sidx) 1))))
-          ((representation-repr->bf repr)
-           (apply eval-expr (list-ref points (si-pidx sidx))))))))
+  (define (regimes-sidx->point sidx)
+    ((representation-bf->repr repr)
+      (bigfloat-interval-shortest
+      ((representation-repr->bf repr)
+        (apply eval-expr (list-ref points (- (si-pidx sidx) 1))))
+      ((representation-repr->bf repr)
+        (apply eval-expr (list-ref points (si-pidx sidx)))))))
 
   (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
-
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
          ;; Binary search is only valid if we correctly extracted the branch expression
@@ -299,10 +288,13 @@
        (if use-binary
            (with-handlers ([exn:fail:user:herbie:sampling? (const p1)])
              (find-split prog1 prog2 p1 p2))
-           p1))
+           ((representation-bf->repr repr)
+            (bigfloat-interval-shortest
+              ((representation-repr->bf repr) p1)
+              ((representation-repr->bf repr) p2)))))
      (timeline-stop!)
 
-     (timeline-push! 'method (if use-binary "binary-search" "left-value"))
+     (timeline-push! 'method (if use-binary "binary-search" "simplest"))
      (timeline-push! 'bstep (value->json p1 repr) (value->json p2 repr) (value->json split-at repr))
      (sp (si-cidx si1) expr split-at))
    (list (sp (si-cidx (last sindices)) expr +nan.0))))
