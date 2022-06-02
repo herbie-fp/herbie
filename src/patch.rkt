@@ -2,7 +2,7 @@
 
 (require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "errors.rkt" "interface.rkt" "programs.rkt"
-         "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
+         "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt")
 
 (provide
   (contract-out
@@ -160,12 +160,23 @@
   (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
   (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root
 
+  ;; HACK:
+  ;; - check loaded representations
+  ;; - if there is only one real representation, allow expansive rules to be run in egg
+  ;; This is just a workaround and should definitely be fixed
+  (define real-type (get-type 'real))
+  (define one-real-repr? (= (count (λ (r) (equal? real-type (representation-type r))) (*needed-reprs*)) 1))
+
   ;; rewrite high-error locations
   (define changelists
-    (merge-changelists
-      (rewrite-expressions exprs (*output-repr*) #:rules normal-rules #:roots locs)
-      (rewrite-expressions exprs (*output-repr*) #:rules expansive-rules #:roots locs #:once? #t)
-      (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs #:once? #t)))
+    (if one-real-repr?
+        (merge-changelists
+          (rewrite-expressions exprs (*output-repr*) #:rules (append expansive-rules normal-rules) #:roots locs)
+          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs))
+        (merge-changelists
+          (rewrite-expressions exprs (*output-repr*) #:rules normal-rules #:roots locs)
+          (rewrite-expressions exprs (*output-repr*) #:rules expansive-rules #:roots locs #:once? #t)
+          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs #:once? #t))))
 
   ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
