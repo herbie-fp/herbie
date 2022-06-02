@@ -182,7 +182,6 @@
             (define result
               (get-test-result
                #:seed seed
-               #:debug-port (hash-ref *jobs* hash)
                #:debug (*demo-debug?*)
                (parse-test formula)))
 

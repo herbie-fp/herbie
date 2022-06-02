@@ -2,7 +2,7 @@
 (require profile math/bigfloat racket/engine json)
 (require "syntax/read.rkt" "syntax/sugar.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
-         "datafile.rkt" "debug.rkt" "errors.rkt" "interface.rkt"
+         "datafile.rkt" "errors.rkt" "interface.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 
@@ -41,8 +41,7 @@
 (define (get-test-result test
                          #:seed [seed #f]
                          #:profile [profile? #f]
-                         #:debug [debug? #f]
-                         #:debug-port [debug-port #f])
+                         #:debug [debug? #f])
   (define timeline #f)
   (define output-repr (test-output-repr test))
   (define output-prec (representation-name output-repr))
@@ -50,8 +49,7 @@
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 
   (define (compute-result test)
-    (parameterize ([*debug-port* (or debug-port (*debug-port*))]
-                   [*timeline-disabled* false]
+    (parameterize ([*timeline-disabled* false]
                    [*warnings-disabled* true])
       (define start-time (current-inexact-milliseconds))
       (when seed (set-seed! seed))
