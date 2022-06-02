@@ -68,6 +68,7 @@
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
          ,@(dict-call curr render-phase-alts 'alts)
+         ,@(dict-call curr render-phase-inputs 'inputs 'outputs)
          ,@(dict-call curr render-phase-times #:extra n 'times)
          ,@(dict-call curr render-phase-series #:extra n 'series)
          ,@(dict-call curr render-phase-bstep 'bstep)
@@ -97,7 +98,7 @@
   `((dt "Local error")
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
-          (thead (tr (td "New") (td "Error") (td "Program")))
+          (thead (tr (th "New") (th "Error") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
               (match-define (list expr err new?) rec)
               `(tr (td ,(if new? "✓" ""))
@@ -238,7 +239,7 @@
 (define (render-phase-alts alts)
   `((dt "Alt Table")
     (dd (table ([class "times"])
-         (thead (tr (td "Status") (td "Error") (td "Program")))
+         (thead (tr (th "Status") (th "Error") (th "Program")))
          ,@(for/list ([rec (in-list alts)])
              (match-define (list expr status score) rec)
              `(tr
@@ -267,10 +268,11 @@
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map fourth times)) ")")
         (table ([class "times"])
+               (thead (tr (th "Time") (th "Variable") (th) (th "Point") (th "Expression")))
                ,@(for/list ([rec (in-list (sort times > #:key fourth))] [_ (in-range 5)])
                    (match-define (list expr var transform time) rec)
                    `(tr (td ,(format-time time))
-                        (td (pre ,expr)) (td (pre ,var)) (td ,transform)))))))
+                        (td (pre ,var)) (td "@") (td ,transform) (td (pre ,expr))))))))
 
 (define (render-phase-compiler compiler)
   (match-define (list (list sizes compileds) ...) compiler)
@@ -287,6 +289,20 @@
              (match-define (list prog precision category time count) rec)
              `(tr (td ,(format-time time)) (td ,(~a count) "×") (td ,(~a prog))
                   (td ,(~a precision)) (td ,(~a category))))))))
+
+(define (render-phase-inputs inputs outputs)
+  `((dt "Calls")
+    (dd ,@(for/list ([call inputs] [output outputs] [n (in-naturals 1)])
+            `(details
+              (summary "Call " ,(~a n))
+              (table
+               (thead (tr (th "Inputs")))
+               ,@(for/list ([arg call])
+                   `(tr (td (pre ,(~a arg))))))
+              (table
+               (thead (tr (th "Outputs")))
+               ,@(for/list ([out output])
+                   `(tr (td (pre ,(~a out)))))))))))
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
