@@ -74,7 +74,9 @@
 ;; with the same name. See `register-representation-alias!` for associating
 ;; a representation with a different name.
 (define (register-representation! name type repr? . args)
-  (define repr (apply representation name (get-type type) repr? args))
+  (unless (type-name? type)
+    (raise-herbie-error "Tried to register a representation for type ~a: not found" type))
+  (define repr (apply representation name type repr? args))
   (set! representations (hash-set representations name repr)))
 
 ;; Associates an existing representation with a (possibly different) name.

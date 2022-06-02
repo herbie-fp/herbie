@@ -3,7 +3,7 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "interface.rkt" "timeline.rkt"
-         "syntax/types.rkt" "syntax/sugar.rkt")
+         "syntax/sugar.rkt")
 
 (provide make-sampler batch-prepare-points)
 
@@ -38,7 +38,7 @@
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
-  (match (type-name (representation-type repr))
+  (match (representation-type repr)
     ['real (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1)))]
     ['bool (ival #f #t)]))
 
@@ -110,7 +110,7 @@
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
   (cond
    [(and (flag-set? 'setup 'search) (equal? how 'ival) (not (empty? reprs))
-         (andmap (compose (curry equal? 'real) type-name representation-type) (cons repr reprs)))
+         (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
     (timeline-push! 'method "search")
     (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
     (define hyperrects

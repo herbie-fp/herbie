@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "interface.rkt" "timeline.rkt" "float.rkt")
+(require "syntax/syntax.rkt" "interface.rkt" "timeline.rkt" "float.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
@@ -36,7 +36,7 @@
 ;; standards, this will have to have more information passed in
 (define (type-of expr repr env)
   (match expr
-   [(? number?) (get-type 'real)]
+   [(? number?) 'real]
    [(? (representation-repr? repr)) (representation-type repr)]
    [(? variable?) (representation-type (dict-ref env expr))]
    [(list 'if cond ift iff) (type-of ift repr env)]

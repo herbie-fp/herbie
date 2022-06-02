@@ -2,8 +2,7 @@
 
 (require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
-         "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
-         "../points.rkt")
+         "../interface.rkt" "../errors.rkt" "../preprocess.rkt" "../points.rkt")
 (require "../ground-truth.rkt" "../float.rkt" "../pretty-print.rkt") ; For binary search
 
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
@@ -66,7 +65,7 @@
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-name (type-of e repr (*var-reprs*))) 'real))
+   (λ (e) (equal? (type-of e repr (*var-reprs*)) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
