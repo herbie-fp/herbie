@@ -23,8 +23,7 @@
   (string->symbol (string-replace* (~a (representation-name repr)) replace-table)))
 
 (define (get-rewrite-operator repr)
-  (define rewrite (sym-append '<- (repr->symbol repr)))
-  (get-parametric-operator rewrite repr))
+  (get-parametric-operator 'convert repr))
 
 ;; Generates conversion, repr-rewrite operators for prec1 and prec2
 (define (generate-conversion-ops repr1 repr2)
