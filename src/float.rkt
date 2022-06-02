@@ -27,7 +27,7 @@
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
 
-(define (=-or-nan? x1 x2 repr)
+(define (=/total x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))
   (define special? (representation-special-value? repr))
   (or (= (->ordinal x1) (->ordinal x2))
@@ -48,7 +48,7 @@
      [else (< (->ordinal x1) (->ordinal x2))])]))
 
 (define (<=/total x1 x2 repr)
-  (or (</total x1 x2 repr) (=-or-nan? x1 x2 repr)))
+  (or (</total x1 x2 repr) (=/total x1 x2 repr)))
 
 (define (value->json x repr)
   (match x
