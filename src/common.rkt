@@ -4,11 +4,11 @@
 (require "config.rkt")
 (module+ test (require rackunit))
 
-(provide reap ->float32
+(provide reap
          flip-lists find-duplicates partial-sums
          argmins argmaxs index-of set-disjoint?
          get-seed set-seed!
-         quasisyntax dict sym-append comparator
+         quasisyntax dict sym-append
          format-time format-bits web-resource
          (all-from-out "config.rkt"))
 
@@ -30,11 +30,6 @@
   (let ([flsingle identity])
     (local-require racket/flonum)
     flsingle))
-
-(define (->float32 x)
-  (if (>= (string->number (substring (version) 0 1)) 8)
-      (cast-single (exact->inexact x))
-      (real->single-flonum x)))
 
 ;; Utility list functions
 
@@ -185,6 +180,3 @@
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~a args))))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))

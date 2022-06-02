@@ -46,14 +46,13 @@
   (define points (build-list (num-test-points) make-point))
   (define prog1 (eval-prog `(λ ,fv ,p1) 'fl repr))
   (define prog2 (eval-prog `(λ ,fv ,p2) 'fl repr))
-  (define-values (ex1 ex2)
-    (for/lists (ex1 ex2) ([pt points])
-      (values (apply prog1 pt) (apply prog2 pt))))
-  (for ([pt points] [v1 ex1] [v2 ex2])
+  (define ex1 (map (curry apply prog1) points))
+  (define ex2 (map (curry apply prog2) points))
+  (for ([pt points])
     (with-check-info (['point (map list fv pt)])
-      (match (representation-name repr) ;; TODO: Why is this here?
-       ['binary32 (check-equal? (->float32 v1) (->float32 v2))] ; casting problems
-       [else (check-equal? v1 v2)]))))
+      (define v1 (apply prog1 pt))
+      (define v2 (apply prog1 pt))
+      (check-equal? v1 v2))))
 
 (module+ main
   (*needed-reprs* (map get-representation '(binary64 binary32 bool)))

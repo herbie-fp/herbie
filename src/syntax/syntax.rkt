@@ -248,6 +248,10 @@
 (define (operator-all-impls name)
   (hash-ref operators-to-impls name))
 
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))
+
 ;; real operators
 (define-operator (== real real) bool
   [bf (comparator bf=)] [ival ival-==])
