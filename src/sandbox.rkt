@@ -42,8 +42,7 @@
                          #:seed [seed #f]
                          #:profile [profile? #f]
                          #:debug [debug? #f]
-                         #:debug-port [debug-port #f]
-                         #:debug-level [debug-level #f])
+                         #:debug-port [debug-port #f])
   (define timeline #f)
   (define output-repr (test-output-repr test))
   (define output-prec (representation-name output-repr))
@@ -57,9 +56,6 @@
       (define start-time (current-inexact-milliseconds))
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
-      (match debug-level
-        [(cons x y) (set-debug-level! x y)]
-        [_ (void)])
 
       (generate-prec-rewrites (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])

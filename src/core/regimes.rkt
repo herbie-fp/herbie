@@ -95,7 +95,6 @@
    [_
     (timeline-event! 'bsearch)
     (define splitpoints (sindices->spoints pts expr alts splitindices repr sampler))
-    (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
 
     (define expr*
       (for/fold
@@ -128,7 +127,6 @@
     (mk-pcontext (map first p&e) (map second p&e))))
 
 (define (option-on-expr alts expr repr)
-  (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
   (define timeline-stop! (timeline-start! 'branch (~a expr)))
   (define vars (program-variables (alt-program (first alts))))
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
@@ -255,10 +253,7 @@
     (and (flag-set? 'reduce 'binary-search)
          ;; Binary search is only valid if we correctly extracted the branch expression
          (andmap identity (cons start-prog progs))))
-  (if use-binary
-      (debug #:from 'binary-search "Improving bounds with binary search for" expr "and" alts)
-      (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts))
-      
+  
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
      (define timeline-stop! (timeline-start! 'times (~a expr)))
@@ -380,8 +375,6 @@
 
 (define (pareto-regimes sorted repr sampler)
   (let loop ([alts sorted] [idx 0])
-    (debug "Computing regimes starting at alt" (+ idx 1) "of"
-            (length sorted) #:from 'regime #:depth 2)
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]

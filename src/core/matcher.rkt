@@ -141,7 +141,6 @@
    [(null? exprs) '()]
    [(flag-set? 'generate 'rr)
     (timeline-push! 'method "batch-egg-rewrite")
-    (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
     (timeline-push! 'inputs (map ~a exprs))
     (define out (batch-egg-rewrite exprs repr #:rules rules #:roots root-locs #:depths depths))
     (timeline-push! 'outputs (map ~a out))
@@ -149,7 +148,6 @@
    [else
     (timeline-push! 'method "rewrite-once")
     (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
-        (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
         (define timeline-stop! (timeline-start! 'times (~a expr)))
         (begin0 (rewrite-once expr repr #:rules rules #:root root-loc #:depth depth)
           (timeline-stop!)))]))

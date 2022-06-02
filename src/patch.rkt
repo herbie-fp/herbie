@@ -74,19 +74,12 @@
 ;;      Taylor is successful in generating an expression but
 ;;      external desugaring fails because of an unsupported/mismatched
 ;;      operator
-(define (taylor-fail-desugaring expr)
-  (λ _
-    (debug #:from 'progress #:depth 5 "Series expansion (desugaring failure)")
-    (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
-    #f))
 
-; taylor uses older format, resugaring and desugaring needed
-; not all taylor transforms are valid in a given repr, return false on failure
 (define (taylor-expr expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
   (define genexpr (approximate expr* var #:transform (cons f finv)))
   (λ ()
-    (with-handlers ([exn:fail:user:herbie:missing? (taylor-fail-desugaring expr)])
+    (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
       (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
 
 (define (taylor-alt altn)
@@ -112,7 +105,6 @@
       (apply append
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
           (define expr (program-body (alt-program altn)))
-          (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] generating series for" expr)
           (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
 
     ; Probably unnecessary, at least CI passes!
@@ -293,21 +285,14 @@
     (for/list ([(vars expr) (in-dict lowlocs)])
       (alt `(λ ,vars ,expr) `(patch) '())))
   (cond
-   [(and (null? (^queued^))       ; early exit, nothing queued
-         (null? (^queuedlow^))
-         (null? cached))
-    '()]
    [(and (null? (^queued^))       ; only fetch cache
          (null? (^queuedlow^)))
     (append-map patch-table-get cached)]
    [else                          ; run patches
-    (debug #:from 'progress #:depth 3 "generating series expansions")
     (if (null? (^queued^))
         (^series^ '())
         (gen-series!))
-    (debug #:from 'progress #:depth 3 "generating rewritten candidates")
     (gen-rewrites!)
-    (debug #:from 'progress #:depth 3 "simplifying candidates")
     (simplify!)
     (begin0 (apply append (^final^) (map patch-table-get cached))
       (patch-table-clear!))]))

@@ -9,8 +9,6 @@
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
   (match-define (cons offset coeffs) (taylor var expr*))
 
-  (debug #:from 'approximate "Taking taylor expansion of" expr* "in" var)
-  
   (define i 0)
   (define terms '())
 
