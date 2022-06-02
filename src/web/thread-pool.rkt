@@ -18,9 +18,13 @@
     (when (not (directory-exists? rdir)) (make-directory rdir))
 
     (define result
-      (call-with-output-files
-       (list (and profile? (build-path rdir "profile.json")))
-       (λ (pp) (get-test-result test #:seed seed #:profile pp))))
+      (cond
+       [profile?
+        (call-with-output-file
+            (build-path rdir "profile.json") #:exists 'replace
+            (λ (pp) (get-test-result test #:seed seed #:profile pp)))]
+       [else
+        (get-test-result test #:seed seed #:profile #f)]))
 
     (set-seed! seed)
     (define error? #f)
