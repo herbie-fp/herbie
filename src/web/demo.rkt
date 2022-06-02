@@ -7,6 +7,7 @@
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt")
+(require (submod "../timeline.rkt" debug))
 
 (provide run-demo)
 
@@ -40,7 +41,7 @@
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
-  (match-define (cons result debug) results)
+  (match-define result results)
   (cond
    [(set-member? (all-pages result) page)
     (response 200 #"OK" (current-seconds) #"text"
@@ -48,10 +49,6 @@
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page)])
                   (make-page page out result #f))))]
-   [(equal? page "debug.txt")
-    (response 200 #"OK" (current-seconds) #"text/plain"
-              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-              (λ (out) (display debug out)))]
    [else
     (next-dispatcher)]))
 
@@ -189,7 +186,7 @@
                #:debug (*demo-debug?*)
                (parse-test formula)))
 
-            (hash-set! *completed-jobs* hash (cons result (get-output-string (hash-ref *jobs* hash))))
+            (hash-set! *completed-jobs* hash result)
 
             (when (*demo-output*)
               ;; Output results
@@ -198,10 +195,6 @@
                 (with-handlers ([exn:fail? (page-error-handler result page)])
                   (call-with-output-file (build-path (*demo-output*) path page)
                     (λ (out) (make-page page out result #f)))))
-              (call-with-output-file
-               (build-path (*demo-output*) path "debug.txt")
-               #:exists 'replace
-               (curry display (get-output-string (hash-ref *jobs* hash))))
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "results.html")))
@@ -223,7 +216,7 @@
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (run-improve hash formula)
-  (hash-set! *jobs* hash (open-output-string))
+  (hash-set! *jobs* hash *timeline*)
   (define sema (make-semaphore))
   (thread-send *worker-thread* (list 'improve hash formula sema))
   sema)
@@ -274,10 +267,13 @@
 
 (define (check-status req hash)
   (match (hash-ref *jobs* hash #f)
-    [(? output-port? progress)
+    [(? box? timeline)
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-               (λ (out) (display (get-output-string progress) out)))]
+               (λ (out) (display (apply string-append
+                                        (for/list ([entry (reverse (unbox timeline))])
+                                          (format "Doing ~a\n" (hash-ref entry 'type))))
+                                 out)))]
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*))))

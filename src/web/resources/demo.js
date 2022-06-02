@@ -524,25 +524,13 @@ function onload() {
     });
 }
 
-function clean_progress(str) {
-    var lines = str.split("\n");
-    var outlines = [];
-    for (var i = 0; i < lines.length; i++) {
-        var line = lines[i];
-        var words = line.split(": ");
-        var word0 = words.shift();
-        outlines.push(words.join(": "));
-    }
-    return outlines.join("\n");
-}
-
 function get_progress(loc) {
     var req2 = new XMLHttpRequest();
     req2.open("GET", loc);
     req2.onreadystatechange = function() {
         if (req2.readyState == 4) {
             if (req2.status == 202) {
-                document.getElementById("progress").textContent = clean_progress(req2.responseText);
+                document.getElementById("progress").textContent = req2.responseText;
                 setTimeout(function() {get_progress(loc)}, 100);
             } else if (req2.status == 201) {
                 var loc2 = req2.getResponseHeader("Location");
