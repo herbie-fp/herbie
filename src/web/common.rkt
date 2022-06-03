@@ -82,16 +82,11 @@
     ("TeX" "tex" ,(λ (c i) (core->tex c)))
     ))
 
-(define (render-preprocess preprocess-structs)
-  `(div ([id "preprocess"])
-    (div ([class "program math"])
-        "\\[ \\begin{array}{c}"
-        ,@(for/list ([preprocess preprocess-structs])
-            (match preprocess
-              [`(sort ,vars ...)
-               (define varstring (format "[~a]" (string-join (map ~a vars) ", ")))
-               (format "~a = \\mathsf{sort}(~a)\\\\ " varstring varstring)]))
-        "\\end{array} \\]")))
+(define (preprocess->tex preprocess)
+  (match preprocess
+    [`(sort ,vars ...)
+     (define varstring (format "[~a]" (string-join (map ~a vars) ", ")))
+     (format "~a = \\mathsf{sort}(~a)" varstring varstring)]))
 
 (define (render-program #:to [result #f] preprocess test)
   (define identifier (test-identifier test))
@@ -135,9 +130,6 @@
           `(div ([id "precondition"])
              (div ([class "program math"])
                   "\\[" ,(expr->tex (resugar-program (program-body (test-precondition test)) output-repr)) "\\]")))
-     ,(if (empty? preprocess)
-          ""
-          (render-preprocess preprocess))
            
      (select ([id "language"])
        (option "Math")
@@ -147,7 +139,12 @@
        (div ([class "program math"]) "\\[" ,math-in "\\]")
        ,@(if result
              `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,math-out "\\]"))
+               (div ([class "program math"])
+                    "\\[\\begin{array}{l}\n"
+                    ,(string-join (map preprocess->tex preprocess) "\\\\")
+                    "\\\\"
+                    ,math-out
+                    "\\end{array}\\]"))
              `()))
      ,@(for/list ([(lang outs) (in-dict versions)])
          (match-define (cons out-input out-output) outs)
