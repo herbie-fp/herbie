@@ -1,9 +1,10 @@
 #lang racket
 
+(require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
          "../points.rkt")
-(require "../ground-truth.rkt" "../float.rkt") ; For binary search
+(require "../ground-truth.rkt" "../float.rkt" "../pretty-print.rkt") ; For binary search
 
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
@@ -188,15 +189,22 @@
      ; (only works for floats, problematic since p1 and p2 are repr values)
      ; (this is handled by catching all sampling errors, so we can comment this out)
      ; [(nan? midpoint) p1]
-     [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
-	   [else
+     [(<= (ulp-difference p1 p2 repr) (expt 2 48))
+      ((representation-bf->repr repr)
+       (bigfloat-interval-shortest
+        ((representation-repr->bf repr) p1)
+        ((representation-repr->bf repr) p2)))]
+     [else
       ; cmp usually equals 0 if sampling failed
       ; if so, give up and return the current midpoint
       (define cmp (pred midpoint))
       (cond
        [(negative? cmp) (binary-search-floats pred midpoint p2 repr)]
        [(positive? cmp) (binary-search-floats pred p1 midpoint repr)]
-       [else midpoint])])))
+       [else ((representation-bf->repr repr)
+              (bigfloat-interval-shortest
+               ((representation-repr->bf repr) p1)
+               ((representation-repr->bf repr) p2)))])])))
 
 (define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
@@ -251,6 +259,19 @@
       (set! pt best-guess))
     pt)
 
+  ; a little more rigorous than it sounds:
+  ; finds the shortest number `x` near `p1` such that
+  ; `x1` is in `[p1, p2]` and is no larger than
+  ;  - if `p1` is negative, `p1 / 2`
+  ;  - if `p1` is positive, `p1 * 2`
+  (define (left-point p1 p2)
+    (let ([left ((representation-repr->bf repr) p1)]
+          [right ((representation-repr->bf repr) p2)])
+      ((representation-bf->repr repr)
+        (if (bfnegative? left)
+            (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+            (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
+
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
          ;; Binary search is only valid if we correctly extracted the branch expression
@@ -272,7 +293,7 @@
        (if use-binary
            (with-handlers ([exn:fail:user:herbie:sampling? (const p1)])
              (find-split prog1 prog2 p1 p2))
-           p1))
+           (left-point p1 p2)))
      (timeline-stop!)
 
      (timeline-push! 'method (if use-binary "binary-search" "left-value"))
