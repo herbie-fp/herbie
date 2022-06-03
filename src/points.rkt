@@ -82,4 +82,3 @@
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
       (for/vector ([out (in-vector (apply fn point))])
         (point-error out exact repr)))))
-

@@ -1,14 +1,8 @@
 #lang racket
 
-(require rackunit)
-(require "alternative.rkt" "points.rkt")
-
 (provide generate-pareto-curve)
 
 (define *pareto-ensure-convex* (make-parameter #t))
-
-(define (alt-score alt context repr)
-  (errors-score (errors (alt-program alt) context repr)))
 
 (define (paired-less? elem1 elem2)
   (let ([c1 (car elem1)] [c2 (car elem2)])
@@ -96,6 +90,8 @@
         sorted)]))
 
 (module+ test
+  (require rackunit)
+
   (define pts
     (for/list ([k (in-range 1 100)])
       (for/list ([n (in-range 1 1000 10)])
