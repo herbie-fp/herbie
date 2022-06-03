@@ -5,13 +5,12 @@
          racket/runtime-path)
 
 (provide egraph_create egraph_destroy egraph_add_expr
-         egraph_addresult_destroy egraph_run egraph_run_with_iter_limit
+         egraph_run egraph_run_with_iter_limit
          egraph_get_stop_reason
          egraph_get_simplest egraph_get_variants
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
          destroy_string
-         (struct-out EGraphAddResult)
          (struct-out EGraphIter)
          (struct-out FFIRule))
 
@@ -26,10 +25,6 @@
 (define-ffi-definer define-eggmath (ffi-lib libeggmath-path))
 
 (define _egraph-pointer (_cpointer 'egraph))
-
-(define-cstruct _EGraphAddResult
-  ([id _uint]
-   [successp _bool]))
 
 (define-cstruct _EGraphIter
   ([numnodes _uint]
@@ -51,9 +46,7 @@
 (define-eggmath destroy_string (_fun _pointer -> _void))
 
 ;; egraph pointer, s-expr string -> node number
-(define-eggmath egraph_add_expr (_fun _egraph-pointer _string/utf-8 -> _EGraphAddResult-pointer))
-
-(define-eggmath egraph_addresult_destroy (_fun _EGraphAddResult-pointer -> _void))
+(define-eggmath egraph_add_expr (_fun _egraph-pointer _string/utf-8 -> _uint))
 
 (define-eggmath destroy_egraphiters (_fun _uint _EGraphIter-pointer -> _void))
 

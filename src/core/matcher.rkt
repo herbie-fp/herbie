@@ -95,39 +95,36 @@
     (define result-thunk
       (with-egraph
         (λ (egg-graph)
-          (egraph-add-exprs
-            egg-graph
-            exprs
-            (λ (node-ids)
-              (define iter-data (egg-run-rules egg-graph #:limit iter-limit (*node-limit*) irules node-ids #t))
-              (for ([rule rules])
-                (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-                (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
-              (cond
-              [(egraph-is-unsound-detected egg-graph)
-                ; unsoundness detected, fallback
-                (match* (exprs iter-limit)
-                 [((list (? list?) (? list?) (? list?) ...) #f)     ; run expressions individually
-                  (λ ()
-                    (for/list ([expr exprs] [root-loc root-locs])
-                      (timeline-push! 'method "egg-rewrite")
-                      (car (loop (list expr) (list root-loc) #f))))]
-                 [((list (? list?)) #f)                             ; run expressions with iter limit
-                  (λ ()
-                    (let ([limit (- (length iter-data) 2)])
-                      (timeline-push! 'method "egg-rewrite-iter-limit")
-                      (loop exprs root-locs limit)))]
-                 [(_ (? number?))                                   ; give up
-                  (timeline-push! 'method "egg-rewrite-fail")
-                  (λ () '(()))])]
-              [else
-                (define variants
-                  (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
-                    (define output (egraph-get-variants egg-graph id expr))
-                    (define extracted (egg-exprs->exprs output egg-graph))
-                    (for/list ([variant (remove-duplicates extracted)])
-                      (list (change egg-rule root-loc (list (cons 'x variant)))))))
-                (λ () variants)]))))))
+          (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+          (define iter-data (egg-run-rules egg-graph #:limit iter-limit (*node-limit*) irules node-ids #t))
+          (for ([rule rules])
+            (define count (egraph-get-times-applied egg-graph (rule-name rule)))
+            (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
+          (cond
+          [(egraph-is-unsound-detected egg-graph)
+            ; unsoundness detected, fallback
+            (match* (exprs iter-limit)
+             [((list (? list?) (? list?) (? list?) ...) #f)     ; run expressions individually
+              (λ ()
+                (for/list ([expr exprs] [root-loc root-locs])
+                  (timeline-push! 'method "egg-rewrite")
+                  (car (loop (list expr) (list root-loc) #f))))]
+             [((list (? list?)) #f)                             ; run expressions with iter limit
+              (λ ()
+                (let ([limit (- (length iter-data) 2)])
+                  (timeline-push! 'method "egg-rewrite-iter-limit")
+                  (loop exprs root-locs limit)))]
+             [(_ (? number?))                                   ; give up
+              (timeline-push! 'method "egg-rewrite-fail")
+              (λ () '(()))])]
+          [else
+            (define variants
+              (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
+                (define output (egraph-get-variants egg-graph id expr))
+                (define extracted (egg-exprs->exprs output egg-graph))
+                (for/list ([variant (remove-duplicates extracted)])
+                  (list (change egg-rule root-loc (list (cons 'x variant)))))))
+            (λ () variants)]))))
     (result-thunk)))
 
 ;;  Recursive rewrite chooser

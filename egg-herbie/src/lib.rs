@@ -44,11 +44,6 @@ pub unsafe extern "C" fn egraph_destroy(ptr: *mut Context) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_addresult_destroy(ptr: *mut EGraphAddResult) {
-    std::mem::drop(Box::from_raw(ptr))
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
     let _array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
 }
@@ -56,13 +51,6 @@ pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
 #[no_mangle]
 pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
     let _str = CString::from_raw(ptr);
-}
-
-// a struct to report failure if the add fails
-#[repr(C)]
-pub struct EGraphAddResult {
-    id: u32,
-    successp: bool,
 }
 
 #[repr(C)]
@@ -113,7 +101,7 @@ fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
 pub unsafe extern "C" fn egraph_add_expr(
     ptr: *mut Context,
     expr: *const c_char,
-) -> *mut EGraphAddResult {
+) -> u32 {
     ffirun(|| {
         let _ = env_logger::try_init();
         let ctx = &mut *ptr;
@@ -125,20 +113,18 @@ pub unsafe extern "C" fn egraph_add_expr(
         assert_eq!(ctx.iteration, 0);
 
         let result = match cstring_to_recexpr(expr) {
-            None => EGraphAddResult {
-                id: 0,
-                successp: false,
-            },
+            None => 0 as u32,
             Some(rec_expr) => {
                 runner = runner.with_expr(&rec_expr);
                 let id = *runner.roots.last().unwrap();
                 let id = usize::from(id) as u32;
-                EGraphAddResult { id, successp: true }
+                assert!(id < u32::MAX);
+                id + 1 as u32
             }
         };
 
         ctx.runner = Some(runner);
-        Box::into_raw(Box::new(result))
+        result
     })
 }
 

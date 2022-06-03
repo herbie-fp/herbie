@@ -82,26 +82,21 @@
 
   (with-egraph
    (lambda (egg-graph)
-     (egraph-add-exprs
-      egg-graph
-      exprs
-      (lambda (node-ids)
-        (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
+     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+     (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
         
-        (when (egraph-is-unsound-detected egg-graph)
-          (warn 'unsound-rules #:url "faq.html#unsound-rules"
-               "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
+     (when (egraph-is-unsound-detected egg-graph)
+       (warn 'unsound-rules #:url "faq.html#unsound-rules"
+             "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
         
-        (for ([rule rls])
-          (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-          (when (> count 0)
-            (timeline-push! 'rules (~a (rule-name rule)) count)))
+     (for ([rule rls])
+       (define count (egraph-get-times-applied egg-graph (rule-name rule)))
+       (when (> count 0)
+         (timeline-push! 'rules (~a (rule-name rule)) count)))
         
-        (map
-         (lambda (id)
-           (for/list ([iter (in-range (length iter-data))])
-                      (egg-expr->expr (egraph-get-simplest egg-graph id iter) egg-graph)))
-         node-ids))))))
+     (for/list ([id node-ids])
+        (for/list ([iter (in-range (length iter-data))])
+          (egg-expr->expr (egraph-get-simplest egg-graph id iter) egg-graph))))))
 
 (define (stop-reason->string sr)
   (match sr
