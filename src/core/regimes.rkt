@@ -43,18 +43,19 @@
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts repr)
         (program-variables (alt-program (first alts)))))
+  (define err-lsts (map vector->list (batch-errors (map alt-program alts) (*pcontext*) repr)))
   (define options
     ;; We can only combine alts for which the branch expression is
     ;; critical, to enable binary search.
     (reap [sow]
       (for ([bexpr branch-exprs])
-        (define unsound-option (option-on-expr alts bexpr repr))
+        (define unsound-option (option-on-expr alts err-lsts bexpr repr))
         (sow unsound-option)
         (define sound-alts (filter (λ (alt) (critical-subexpression? (program-body (alt-program alt)) bexpr)) alts))
         (when (and (> (length sound-alts) 1)
                    (for/or ([si (option-split-indices unsound-option)])
                      (not (set-member? sound-alts (list-ref alts (si-cidx si))))))
-          (sow (option-on-expr sound-alts bexpr repr))))))
+          (sow (option-on-expr sound-alts err-lsts bexpr repr))))))
   (define best (argmin (compose errors-score option-errors) options))
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   best)
@@ -120,28 +121,33 @@
     (define splitpoints** (append splitpoints* (list splitpoint*)))
     (values alts** splitpoints**)))
 
-(define (sort-context-on-expr context expr variables repr)
+(define (sort-errors-by-expr context errors expr variables repr)
   (define fn (eval-prog `(λ ,variables ,expr) 'fl repr))
   (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (list pt ex))
 		   (λ (x1 x2) (</total x1 x2 repr))
                    #:key (λ (pts) (apply fn (first pts))))])
     (mk-pcontext (map first p&e) (map second p&e))))
 
-(define (option-on-expr alts expr repr)
+(define (option-on-expr alts err-lsts expr repr)
   (define timeline-stop! (timeline-start! 'branch (~a expr)))
+
   (define vars (program-variables (alt-program (first alts))))
-  (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
-  (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
+  (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
   (define fn (eval-prog `(λ ,vars ,expr) 'fl repr))
   (define splitvals (for/list ([pt pts]) (apply fn pt)))
+  (define big-table ; val and errors for each alt, per point
+    (for/list ([(pt ex) (in-pcontext (*pcontext*))] [err-lst err-lsts])
+      (list* pt (apply fn pt) err-lst)))
+  (match-define (list pts* splitvals* err-lsts* ...)
+                (flip-lists (sort big-table (curryr </total repr) #:key second)))
+
+  (define bit-err-lsts* (map (curry map ulps->bits) err-lsts*))
+
   (define can-split? (append (list #f)
-                             (for/list ([val (cdr splitvals)] [prev splitvals])
+                             (for/list ([val (cdr splitvals*)] [prev splitvals*])
                                (</total prev val repr))))
-  (define err-lsts
-    (for/list ([alt alts]) (errors (alt-program alt) pcontext* repr)))
-  (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
-  (define split-indices (err-lsts->split-indices bit-err-lsts can-split?))
-  (define out (option split-indices alts pts expr (pick-errors split-indices pts err-lsts repr)))
+  (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
+  (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop! (errors-score (option-errors out)))
   out)
 
