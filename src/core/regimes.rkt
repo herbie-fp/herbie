@@ -168,21 +168,22 @@
                  [*var-reprs* (list (cons 'x repr))]
                  [*output-repr* repr])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
+    (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
     ;; This is a basic sanity test
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts 'x repr)
+           (option-on-expr alts err-lsts 'x repr)
            '(1 0))
 
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts '1 repr)
+           (option-on-expr alts err-lsts '1 repr)
            '(0))
 
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts '(if (==.f64 x 0.5) 1 +nan.0) repr)
+           (option-on-expr alts err-lsts '(if (==.f64 x 0.5) 1 +nan.0) repr)
            '(1 0))))
 
 ;; (pred p1) and (not (pred p2))
