@@ -98,10 +98,7 @@ fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_add_expr(
-    ptr: *mut Context,
-    expr: *const c_char,
-) -> u32 {
+pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char,) -> u32 {
     ffirun(|| {
         let _ = env_logger::try_init();
         let ctx = &mut *ptr;
