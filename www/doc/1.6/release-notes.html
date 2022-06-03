@@ -79,12 +79,39 @@
     mandatory preconditions that help users best tune
     their input domain.</p>
   
-    <figure class="showcase">
-      <img src="interactive-preconditions.png" style="width: 100%;" />
-      <figcaption>
-        Preconditions on the new web interface.
-      </figcaption>
-    </figure>
+  <figure class="showcase">
+    <img src="interactive-preconditions.png" style="width: 100%;" />
+    <figcaption>
+      Preconditions on the new web interface.
+    </figcaption>
+  </figure>
+
+  <h2>Shorter Branch Conditions</h2>
+
+  <p>
+    Herbie now synthesizes branch conditions with shorter split values.
+    Before, Herbie's binary search algorithm would narrow down the set of
+      possible split values to a small interval from which Herbie took the midpoint.
+    Often the midpoint had a long string representation which made it seem
+      like it was chosen with high precision.
+    Now Herbie will choose a value on that same interval with a short string representation.
+    This change makes output programs more readable and highlights the
+      low precision in the result of binary search.
+      
+  </p>
+
+  <figure class="showcase">
+    <table>
+      <tr>
+        <td><img src="quadp-old-branch.png" style="width: 100%;" /></td>
+        <td><img src="quadp-short-branch.png" style="width: 100%;" /></td>
+      </tr>
+    </table>
+    <figcaption>
+      Comparison of the midpoint (left) vs. shortest number (right) methods for
+        selecting branch conditions.
+    </figcaption>
+  </figure>
 
   <h2>Patching and Plugins</h2>
   
