@@ -24,18 +24,18 @@
         (for/list ([(k v) (in-dict var-reprs)]) (cons k (representation-name v)))
         (table-row-conversions row)))
   
-(define (make-report bench-dirs #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
+(define (make-report bench-dirs #:dir dir #:profile profile? #:note note #:threads threads)
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
-  (run-tests tests #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads))
+  (run-tests tests #:dir dir #:profile profile? #:note note #:threads threads))
 
-(define (rerun-report json-file #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
+(define (rerun-report json-file #:dir dir #:profile profile? #:note note #:threads threads)
   (define data (read-datafile json-file))
   (define tests (map extract-test (report-info-tests data)))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
-  (run-tests tests #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads))
+  (run-tests tests #:dir dir #:profile profile? #:note note #:threads threads))
 
 (define (replot-report json-file #:dir dir)
   (local-require "../points.rkt" "../interface.rkt" "../sandbox.rkt" "../alternative.rkt"
@@ -121,12 +121,12 @@
 (define (merge-profile-jsons ps)
   (profile->json (apply profile-merge (map json->profile (dict-values ps)))))
 
-(define (run-tests tests #:dir dir #:profile profile? #:debug debug? #:note note #:threads threads)
+(define (run-tests tests #:dir dir #:profile profile? #:note note #:threads threads)
   (define seed (get-seed))
   (when (not (directory-exists? dir)) (make-directory dir))
 
   (define results
-    (get-test-results tests #:threads threads #:seed seed #:profile profile? #:debug debug? #:dir dir))
+    (get-test-results tests #:threads threads #:seed seed #:profile profile? #:dir dir))
   (define info (make-report-info (filter values results) #:note note #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)

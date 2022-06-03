@@ -172,12 +172,10 @@
            [_ #f]))])))
 
 (define (optimize-periodicity improve-func altn)
-  (debug "Optimizing " altn " for periodicity..." #:from 'periodicity #:depth 2)
   (let* ([plocs (periodic-locs (alt-program altn))]
 	 [oalts (map (λ (ploc)
 		       (let* ([vars (map car (lp-periods ploc))]
 			      [program `(λ ,vars ,(location-get (lp-loc ploc) (alt-program altn)))])
-			 (debug "Looking at subexpression " program #:from 'periodicity #:depth 4)
 			 (if (or (> (apply max (map cdr (lp-periods ploc))) *max-period-coeff*))
 			     altn
 			     (let ([context
@@ -199,7 +197,6 @@
          [final-prog
           (for/fold ([prog (alt-program altn)]) ([oexpr oexprs] [ploc plocs])
             (location-do (lp-loc ploc) prog (const oexpr)))])
-    (debug #:from 'periodicity "Periodicity result: " final-prog)
     (if (not (null? oalts))
         (alt final-prog 'periodicity (cons altn oalts))
         altn)))

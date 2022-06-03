@@ -95,7 +95,6 @@
          '("Reproduce" . "#reproduce"))
         (list
          '("Report" . "../results.html")
-         '("Log" . "debug.txt")
          '("Metrics" . "timeline.html")))
 
       (section ([id "large"])

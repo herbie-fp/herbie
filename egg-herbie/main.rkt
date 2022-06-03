@@ -173,10 +173,6 @@
      (lambda (expr) (expr->egg-expr expr eg-data))
      exprs))
     
-  #;
-  (debug #:from 'simplify (format "Sending expressions to egg_math:\n ~a"
-                                  (string-join egg-exprs "\n ")))
-      
   (define expr-results
     (map
      (lambda (expr)
