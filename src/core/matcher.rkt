@@ -62,13 +62,13 @@
 ;;  Non-recursive rewriter
 ;;
 
-(define (rewrite-once expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
-  (define type (repr-of expr repr (*var-reprs*)))
+(define (rewrite-once expr repr #:rules rules #:root [root-loc '()])
+  (define expr-repr (repr-of expr repr (*var-reprs*)))
   (reap [sow]
-    (for ([rule rules] #:when (equal? type (rule-otype rule)))
+    (for ([rule rules] #:when (equal? expr-repr (rule-otype rule)))
       (let* ([result (rule-apply rule expr)])
         (when result
-            (sow (list (change rule root-loc (cdr result)))))))))
+          (sow (list (change rule root-loc (cdr result)))))))))
 
 ;;
 ;;  Egg recursive rewriter
@@ -84,7 +84,7 @@
                            #:rules rules
                            #:roots [root-locs (make-list (length exprs) '())]
                            #:depths [depths (make-list (length exprs) 1)])
-  (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
+  (define reprs (map (λ (e) (repr-of e repr (*var-reprs*))) exprs))
   (define irules (rules->irules rules))
   ; If unsoundness was detected, try running one epxression at a time.
   ; Can optionally set iter limit (will give up if unsoundness detected).
@@ -122,34 +122,36 @@
                   (λ () '(()))])]
               [else
                 (define variants
-                  (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
+                  (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
+                    (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
                     (define output (egraph-get-variants egg-graph id expr))
                     (define extracted (egg-exprs->exprs output egg-graph))
                     (for/list ([variant (remove-duplicates extracted)])
-                      (list (change egg-rule root-loc (list (cons 'x variant)))))))
+                     (list (change egg-rule root-loc (list (cons 'x variant)))))))
                 (λ () variants)]))))))
     (result-thunk)))
 
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
-                             repr 
+                             repr
                              #:rules rules
                              #:roots [root-locs (make-list (length exprs) '())]
-                             #:depths [depths (make-list (length exprs) 1)])
+                             #:depths [depths (make-list (length exprs) 1)]
+                             #:once? [once? #f])
   ; choose correct rr driver
   (cond
-   [(null? exprs) '()]
-   [(flag-set? 'generate 'rr)
+   [(or (null? exprs) (null? rules)) (make-list (length exprs) '())]
+   [(or once? (not (flag-set? 'generate 'rr)))
+    (timeline-push! 'method "rewrite-once")
+    (for/list ([expr exprs] [root-loc root-locs] [n (in-naturals 1)])
+      (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
+      (define timeline-stop! (timeline-start! 'times (~a expr)))
+      (begin0 (rewrite-once expr repr #:rules rules #:root root-loc)
+        (timeline-stop!)))]
+   [else
     (timeline-push! 'method "batch-egg-rewrite")
     (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
     (timeline-push! 'inputs (map ~a exprs))
     (define out (batch-egg-rewrite exprs repr #:rules rules #:roots root-locs #:depths depths))
     (timeline-push! 'outputs (map ~a out))
-    out]
-   [else
-    (timeline-push! 'method "rewrite-once")
-    (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
-        (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
-        (define timeline-stop! (timeline-start! 'times (~a expr)))
-        (begin0 (rewrite-once expr repr #:rules rules #:root root-loc #:depth depth)
-          (timeline-stop!)))]))
+    out]))

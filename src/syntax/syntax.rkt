@@ -10,7 +10,8 @@
          *functions* register-function!
          get-parametric-operator
          generate-conversion-impl!
-         repr-conv? rewrite-repr-op? get-repr-conv)
+         repr-conv? rewrite-repr-op?
+         get-repr-conv get-rewrite-operator)
 
 (module+ internals 
   (provide define-operator-impl
@@ -19,18 +20,21 @@
            register-operator!
            register-conversion-generator!))
 
-;; Abstract operator table
+;; Real operator table
 ;; Implementations inherit attributes
 
 (struct operator (name itype otype bf ival))
 (define operators (make-hasheq))
+
+(define operators-to-impls (make-hasheq))
 
 (define (register-operator! name itypes otype attrib-dict)
   (define itypes* (dict-ref attrib-dict 'itype itypes))
   (define otype* (dict-ref attrib-dict 'otype otype))
   (define fields (make-hasheq (append (list (cons 'itype itypes*) (cons 'otype otype*)) attrib-dict)))
 
-  (hash-set! operators name (apply operator name (map (curry hash-ref fields) '(itype otype bf ival)))))
+  (hash-set! operators name (apply operator name (map (curry hash-ref fields) '(itype otype bf ival))))
+  (hash-set! operators-to-impls name '()))
 
 (define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
   (register-operator! 'name '(itypes ...) 'otype (list (cons 'key value) ...)))
@@ -135,8 +139,6 @@
 (struct operator-impl (name op itype otype fl bf ival))
 (define operator-impls (make-hasheq))
 
-(define operators-to-impls (make-hasheq))
-
 (define/contract (real-operator-info operator field)
   (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
   (unless (hash-has-key? operators operator)
@@ -187,7 +189,7 @@
 
   (define impl (operator-impl name op areprs rrepr fl-fun bf-fun ival-fun))
   (hash-set! operator-impls name impl)
-  (hash-update! operators-to-impls operator (curry cons name) '()))
+  (hash-update! operators-to-impls operator (curry cons name)))
 
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
@@ -249,16 +251,20 @@
 ;; Miscellaneous operators ;;
 
 (define (repr-conv? expr)
-  (and (symbol? expr) (regexp-match? #px"^[\\S]+(->)[\\S]+$" (symbol->string expr))))
+  (and (symbol? expr) (set-member? (operator-all-impls 'cast) expr)))
 
 (define (rewrite-repr-op? expr)
-  (and (symbol? expr) (regexp-match? #px"^(<-)[\\S]+$" (symbol->string expr))))
+  (and (symbol? expr) (set-member? (operator-all-impls 'convert) expr)))
 
 (define (get-repr-conv irepr orepr)
   (for/or ([name (operator-all-impls 'cast)])
-    (and (repr-conv? name)
-         (equal? (operator-info name 'otype) orepr)
+    (and (equal? (operator-info name 'otype) orepr)
          (equal? (first (operator-info name 'itype)) irepr)
+         name)))
+
+(define (get-rewrite-operator repr)
+  (for/or ([name (operator-all-impls 'convert)])
+    (and (equal? (operator-info name 'itype) (list repr))
          name)))
 
 (define-operator (PI) real
@@ -290,6 +296,9 @@
     (dict-set dict key value)))
 
 ;; Conversions
+
+(define-operator (convert real) real
+  [bf identity] [ival identity])
 
 (define-operator (cast real) real
   [bf identity] [ival identity])

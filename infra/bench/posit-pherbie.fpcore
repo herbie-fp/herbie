@@ -1,0 +1,73 @@
+; -*- mode: scheme -*-
+
+(FPCore (x)
+ :name "2sqrt (example 3.1)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (- (sqrt (+ x 1)) (sqrt x)))
+
+(FPCore (x eps)
+ :name "2sin (example 3.3)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (- (sin (+ x eps)) (sin x)))
+
+(FPCore (x)
+ :name "tanhf (example 3.4)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (/ (- 1 (cos x)) (sin x)))
+
+(FPCore (N)
+ :name "2atan (example 3.5)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (- (atan (+ N 1)) (atan N)))
+
+(FPCore (x)
+ :name "2isqrt (example 3.6)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (- (/ 1 (sqrt x)) (/ 1 (sqrt (+ x 1)))))
+
+(FPCore (x)
+ :name "2frac (problem 3.3.1)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (- (/ 1 (+ x 1)) (/ 1 x)))
+
+(FPCore (x eps)
+ :name "2tan (problem 3.3.2)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (- (tan (+ x eps)) (tan x)))
+
+(FPCore (x)
+ :name "3frac (problem 3.3.3)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
+
+(FPCore (x)
+ :name "2cbrt (problem 3.3.4)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (- (cbrt (+ x 1)) (cbrt x)))
+
+(FPCore (x eps)
+ :name "2cos (problem 3.3.5)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (- (cos (+ x eps)) (cos x)))
+
+(FPCore (N)
+ :name "2log (problem 3.3.6)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (- (log (+ N 1)) (log N)))
+
+(FPCore (x)
+ :name "exp2 (problem 3.3.7)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (+ (- (exp x) 2) (exp (- x))))
