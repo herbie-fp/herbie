@@ -261,10 +261,10 @@
 
   ; a little more rigorous than it sounds:
   ; finds the shortest number `x` near `p1` such that
-  ; `x1` is in [p1, p2] and is no larger than
-  ;  - if `p1` is negative, `p1` / 2
-  ;  - if `p1` is positive, `p1` * 2
-  (define (nearby-point p1 p2)
+  ; `x1` is in `[p1, p2]` and is no larger than
+  ;  - if `p1` is negative, `p1 / 2`
+  ;  - if `p1` is positive, `p1 * 2`
+  (define (left-point p1 p2)
     (let ([left ((representation-repr->bf repr) p1)]
           [right ((representation-repr->bf repr) p2)])
       ((representation-bf->repr repr)
@@ -272,7 +272,6 @@
             (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
             (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
 
-  (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
          ;; Binary search is only valid if we correctly extracted the branch expression
@@ -294,10 +293,10 @@
        (if use-binary
            (with-handlers ([exn:fail:user:herbie:sampling? (const p1)])
              (find-split prog1 prog2 p1 p2))
-           (nearby-point p1 p2)))
+           (left-point p1 p2)))
      (timeline-stop!)
 
-     (timeline-push! 'method (if use-binary "binary-search" "simplest"))
+     (timeline-push! 'method (if use-binary "binary-search" "left-value"))
      (timeline-push! 'bstep (value->json p1 repr) (value->json p2 repr) (value->json split-at repr))
      (sp (si-cidx si1) expr split-at))
    (list (sp (si-cidx (last sindices)) expr +nan.0))))
