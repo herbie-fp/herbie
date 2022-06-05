@@ -4,7 +4,8 @@
 (require "../common.rkt" "../interface.rkt" "../errors.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
-         variable? constant-operator? operator-exists? impl-exists?
+         variable? constant-operator?
+         operator-exists? operator-deprecated? impl-exists?
          real-operator-info operator-info 
          impl->operator all-constants operator-all-impls
          *functions* register-function!
@@ -23,17 +24,26 @@
 ;; Real operator table
 ;; Implementations inherit attributes
 
-(struct operator (name itype otype bf ival))
-(define operators (make-hasheq))
+(struct operator (name itype otype bf ival deprecated))
 
+(define operators (make-hasheq))
 (define operators-to-impls (make-hasheq))
 
-(define (register-operator! name itypes otype attrib-dict)
-  (define itypes* (dict-ref attrib-dict 'itype itypes))
-  (define otype* (dict-ref attrib-dict 'otype otype))
-  (define fields (make-hasheq (append (list (cons 'itype itypes*) (cons 'otype otype*)) attrib-dict)))
+(define (operator-exists? op)
+  (hash-has-key? operators op))
 
-  (hash-set! operators name (apply operator name (map (curry hash-ref fields) '(itype otype bf ival))))
+(define (operator-deprecated? op)
+  (operator-deprecated (hash-ref operators op)))
+
+(define (register-operator! name itypes otype attrib-dict)
+  (define override-dict
+    (list
+      (cons 'itype (dict-ref attrib-dict 'itype itypes))
+      (cons 'otype (dict-ref attrib-dict 'otype otype))
+      (cons 'deprecated (dict-ref attrib-dict 'deprecated #f))))
+  (define fields (make-hasheq (append attrib-dict override-dict)))
+  (define field-names '(itype otype bf ival deprecated))
+  (hash-set! operators name (apply operator name (map (curry hash-ref fields) field-names)))
   (hash-set! operators-to-impls name '()))
 
 (define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
@@ -93,8 +103,6 @@
  [expm1 bfexpm1 ival-expm1]
  [fabs bfabs ival-fabs]
  [floor bffloor ival-floor]
- [j0 bfbesj0 #f]
- [j1 bfbesj1 #f]
  [lgamma bflog-gamma #f]
  [log bflog ival-log]
  [log10 bflog10 ival-log10]
@@ -109,9 +117,7 @@
  [tan bftan ival-tan]
  [tanh bftanh ival-tanh]
  [tgamma bfgamma #f]
- [trunc bftruncate ival-trunc]
- [y0 bfbesy0 #f]
- [y1 bfbesy1 #f])
+ [trunc bftruncate ival-trunc])
 
 (define-2ary-real-operators
  [+ bf+ ival-add]
@@ -131,8 +137,19 @@
 (define-operator (fma real real real) real
  [bf bffma] [ival ival-fma])
 
-(define (operator-exists? op)
-  (hash-has-key? operators op))
+;; Deprecated operators
+
+(define-operator (j0 real) real
+ [bf bfbesj0] [ival #f] [deprecated #t])
+
+(define-operator (j1 real) real
+ [bf bfbesj1] [ival #f] [deprecated #t])
+ 
+(define-operator (y0 real) real
+ [bf bfbesy0] [ival #f] [deprecated #t])
+
+(define-operator (y1 real) real
+ [bf bfbesy1] [ival #f] [deprecated #t])
 
 ;; Operator implementations
 
