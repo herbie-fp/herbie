@@ -41,21 +41,24 @@
 
   <pre>docker run -it uwplse/herbie shell</pre>
   
-  <p>This will run the <a href="using-cli.html">Herbie shell</a>,
-  reading input from the standard input.</p>
+  <p>This will read input from the standard input.</p>
   
   <p>Note that Herbie in Docker is more limited; for example, it will
   not recognize plugins installed outside the Docker container.</p>
 
-  <h2>Running the web shell</h2>
+  <h2>Running the web interface</h2>
 
-  <p>Running the web shell in Docker requires exposing the ports
-  inside the container. The Herbie Docker image binds to port 80 by
-  default; use the <code>-p &lt;hostport&gt;:80</code> option to
-  Docker to expose Herbie on whatever port you choose.
-  </p>
+  <p>
+    You can run the Herbie web server locally with
 
   <pre class="shell">docker run -it --rm -p 8000:80 uwplse/herbie</pre>
+
+    and access the server at <a href="http://localhost:8000">http://localhost:8000</a>.
+    </p>
+    <p>
+      (Herbie's Docker image binds to port 80 by
+    default; this command uses the <code>-p &lt;hostport&gt;:80</code> option to expose Herbie on port 8000.)
+  </p>
 
   <p>
     If you are using the <code>--log</code>
