@@ -63,6 +63,14 @@
               outside-expt)))))
 
 (define n-sum-to-cache (make-hash))
+(define logcache (make-hash '((1 . ((1 -1 1))))))
+(define series-cache (make-hash))
+
+(register-reset
+ (λ ()
+  (set! n-sum-to-cache (make-hash))
+  (set! logcache (make-hash '((1 . ((1 -1 1))))))
+  (set! series-cache (make-hash))))
 
 (define (n-sum-to n k)
   (hash-ref! n-sum-to-cache (cons n k)
@@ -83,15 +91,11 @@
           (loop (- i (length seg)) (+ sum 1))
           (list-ref seg i)))))
 
-(define taylor-expansion-known
-  '(+ - neg * / sqrt cbrt exp sin cos log pow))
-
-(register-reset
- (λ ()
-  (set! n-sum-to-cache (make-hash))
-  (set! logcache (make-hash '((1 . ((1 -1 1))))))))
-
 (define (taylor var expr)
+  (define var-cache (hash-ref! series-cache var (λ () (make-hash))))
+  (hash-ref! var-cache expr (λ () (taylor* var expr))))
+
+(define (taylor* var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
   (match expr
     [(? (curry equal? var))
@@ -107,7 +111,7 @@
     [`(neg ,arg)
      (taylor-negate ((curry taylor var) arg))]
     [`(- ,arg1 ,arg2)
-     (taylor-add (taylor var arg1) (taylor-negate (taylor var arg2)))]
+     (taylor var `(+ ,arg1 (neg ,arg2)))]
     [`(* ,left ,right)
      (taylor-mult (taylor var left) (taylor var right))]
     [`(/ 1 ,arg)
@@ -472,7 +476,6 @@
 (define (logstep table)
   (lognormalize (loggenerate table)))
 
-(define logcache (make-hash (list (cons 1 '((1 -1 1))))))
 (define logbiggest 1)
 
 (define (logcompute i)
