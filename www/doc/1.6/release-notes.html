@@ -28,18 +28,14 @@
   <a href="https://fpbench.org">FPBench</a> Slack, at the monthly
   FPBench community meetings, and at
   <a href="https://fpbench.org/talks/fptalks22.html">FPTalks 2022</a>.
-  
+
   <figure class="showcase">
-    <img src="system-1.6-changes.png" style="width: 100%;" />
+    <img src="old-rr-seed-variance.png" style="width: 100%;" />
+    <img src="egg-rr-seed-variance.png" style="width: 100%;" />
     <figcaption>
-      System diagram for Herbie 1.6 as well as key changes in red.
-      From top to bottom: double-precision (binary64) and single-precision (binary32) types
-        are loaded through plugins instead of being embedded in Herbie's core;
-        a new patching subsystem bundles together the various
-        rewriting methods behind a simple interface;
-        recursive rewrite uses egg.
-      Compare Herbie 1.5 and 1.6 system diagrams <a href="../1.5/diagrams.html">here</a>
-        and <a href="../1.6/diagrams.html">here</a>.
+      Comparison of Herbie's total output error (bits) across 100 seeds with
+        the old recursive rewriter (top) versus the egg-based implementation (bottom).
+      The egg-based implementation has lower variability.
     </figcaption>
   </figure>
 
@@ -55,34 +51,37 @@
     of performance, and increases accuracy gains overall.
   This change also makes adding new rewrite rules less tedious
     as the old recursive rewriter was sensitive to new rules
-    and often affected Herbie in mysterious ways.  
-
-  <figure class="showcase">
-    <img src="old-rr-seed-variance.png" style="width: 100%;" />
-    <img src="egg-rr-seed-variance.png" style="width: 100%;" />
-    <figcaption>
-      Comparison of Herbie's total output error (bits) across 100 seeds with
-        the old recursive rewriter (top) versus the egg-based implementation (bottom).
-      The egg-based implementation has lower variability.
-    </figcaption>
-  </figure>
-
-  <h2>Interactive Herbie</h2>
-
-  <p>Despite the fact that most users interact with Herbie via the web,
-    the web interface has historically had a minimal design.
-  Recently, we have concluded that many issues filed over the years
-    are tied to users not providing important information like
-    preconditions and the web interface's limited functionality.
-  As part of a ongoing push to make Herbie more user-friendly,
-    new features have been added to the web interface including
-    mandatory preconditions that help users best tune
-    their input domain.</p>
+    and often affected Herbie in mysterious ways.
   
   <figure class="showcase">
     <img src="interactive-preconditions.png" style="width: 100%;" />
     <figcaption>
       Preconditions on the new web interface.
+    </figcaption>
+  </figure>
+
+  <h2>Interactive Herbie</h2>
+
+  <p>
+  Despite the fact that most users interact with Herbie via the demo page,
+    the web interface has historically had a minimal design.
+  As part of a ongoing push to make Herbie more user-friendly,
+    new features have been added to the web interface including
+    mandatory preconditions, better warnings and errors, and
+    an overall cleaner design.
+  We expect the demo page to change considerably in the coming year.
+  </p>
+
+  <figure class="showcase">
+    <table>
+      <tr>
+        <td><img src="quadp-old-branch.png" style="width: 100%;" /></td>
+        <td><img src="quadp-short-branch.png" style="width: 100%;" /></td>
+      </tr>
+    </table>
+    <figcaption>
+      Comparison of the midpoint (left) vs. shortest number (right) methods for
+        selecting branch conditions.
     </figcaption>
   </figure>
 
@@ -101,15 +100,16 @@
   </p>
 
   <figure class="showcase">
-    <table>
-      <tr>
-        <td><img src="quadp-old-branch.png" style="width: 100%;" /></td>
-        <td><img src="quadp-short-branch.png" style="width: 100%;" /></td>
-      </tr>
-    </table>
+    <img src="system-1.6-changes.png" style="width: 100%;" />
     <figcaption>
-      Comparison of the midpoint (left) vs. shortest number (right) methods for
-        selecting branch conditions.
+      System diagram for Herbie 1.6 as well as key changes in red.
+      From top to bottom: double-precision (binary64) and single-precision (binary32) types
+        are loaded through plugins instead of being embedded in Herbie's core;
+        a new patching subsystem bundles together the various
+        rewriting methods behind a simple interface;
+        recursive rewrite uses egg.
+      Compare Herbie 1.5 and 1.6 system diagrams <a href="../1.5/diagrams.html">here</a>
+        and <a href="../1.6/diagrams.html">here</a>.
     </figcaption>
   </figure>
 
