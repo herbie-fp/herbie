@@ -164,17 +164,17 @@
 ; can't load these without native support
 
 (when (check-native-1ary-exists? 'j0)
-  (define-operator-impl (j0.rkt racket) racket
+  (define-operator-impl (j0 j0.rkt racket) racket
     [fl (from-bigfloat bfbesj0)]))
 
 (when (check-native-1ary-exists? 'j1)
-  (define-operator-impl (j1.rkt racket) racket
+  (define-operator-impl (j1 j1.rkt racket) racket
     [fl (from-bigfloat bfbesj1)]))
  
 (when (check-native-1ary-exists? 'y0)
-  (define-operator-impl (y0.rkt racket) racket
+  (define-operator-impl (y0 y0.rkt racket) racket
     [fl (from-bigfloat bfbesy0)]))
 
 (when (check-native-1ary-exists? 'y1)
-  (define-operator-impl (y1.rkt racket) racket
+  (define-operator-impl (y1 y1.rkt racket) racket
     [fl (from-bigfloat bfbesy1)]))
