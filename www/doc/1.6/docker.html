@@ -103,5 +103,30 @@
     have the correct permissions set.
   </p>
 
+  <h2>For developers: updating the Docker image + Dockerfile</h2>
+
+  <p>
+    For building and testing, first clone the repo and confirm that Herbie builds correctly with <code>make install</code>.
+  </p>
+  <p>
+    Next, examine the Dockerfile and Makefile together. The Dockerfile should follow a process exactly like the Makefile, except a clean initial environment is assumed. The build may be split into 2 or more stages to limit the size of the resulting image. Each stage consists of a <code>FROM</code> command and a series of further commands to build up the desired environment, and later stages can refer to earlier stages by name--for example, <code>COPY --from=earlier-stage ...</code> can copy files compiled in earlier images. You may need to do things like bumping the version of Rust used for binary compilation or the version of Racket used in production, or adjusting paths to match the newest version of the repo.
+  </p>
+    <p>
+    Once you are ready to build:
+    <pre class="shell">docker build -t herbie-testbuild .</pre>
+    from the repo's main directory will build a new test image with the tag <code>herbie-testbuild</code>. You can run this image with
+    <pre class="shell">docker run -p 8000:80 -it herbie-testbuild</pre>
+    and see the web demo in the host machine's browser at <code>http://localhost:8000</code>.
+  </p>
+  
+  <p>
+  To open a shell in a running container for testing, first get the container ID with
+  <pre class="shell">docker ps</pre>
+  and then open a shell in the container as root with
+  <pre class="shell">docker exec -it &lt;CONTAINER ID&gt; sh</pre>
+  
+  The code and egg-herbie binaries should be under <code>/src</code>.
+  </p>
+
 </body>
 </html>
