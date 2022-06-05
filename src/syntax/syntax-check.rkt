@@ -149,8 +149,8 @@
   (for ([op (in-set deprecated-ops)])
     (define message
       (format (syntax->error-format-string stx)
-        (format "operator `~a` is deprecated and will be removed in the next release." op)))
-    (warn 'deprecated #:url "faq.html#native-ops" message)))
+        (format "operator `~a` is deprecated." op)))
+    (warn 'deprecated #:url "faq.html#deprecated-ops" message)))
 
 (define (check-fpcore* stx error!)
   (match stx
