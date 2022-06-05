@@ -139,17 +139,33 @@
 
 ;; Deprecated operators
 
-(define-operator (j0 real) real
- [bf bfbesj0] [ival #f] [deprecated #t])
+(module hairy racket/base
+  (require ffi/unsafe)
+  (provide check-native-1ary-exists?)
 
-(define-operator (j1 real) real
- [bf bfbesj1] [ival #f] [deprecated #t])
+  (define (check-native-1ary-exists? op)
+    (let ([f32-name (string->symbol (string-append (symbol->string op) "f"))])
+      (or (get-ffi-obj op #f (_fun _double -> _double) (λ () #f))
+          (get-ffi-obj f32-name #f (_fun _float -> _float) (λ () #f)))))
+)
+
+(require (submod "." hairy))
+
+(when (check-native-1ary-exists? 'j0)
+  (define-operator (j0 real) real
+    [bf bfbesj0] [ival #f] [deprecated #t]))
+
+(when (check-native-1ary-exists? 'j1)
+  (define-operator (j1 real) real
+    [bf bfbesj1] [ival #f] [deprecated #t]))
  
-(define-operator (y0 real) real
- [bf bfbesy0] [ival #f] [deprecated #t])
+(when (check-native-1ary-exists? 'y0)
+  (define-operator (y0 real) real
+    [bf bfbesy0] [ival #f] [deprecated #t]))
 
-(define-operator (y1 real) real
- [bf bfbesy1] [ival #f] [deprecated #t])
+(when (check-native-1ary-exists? 'y1)
+  (define-operator (y1 real) real
+    [bf bfbesy1] [ival #f] [deprecated #t]))
 
 ;; Operator implementations
 
