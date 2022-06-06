@@ -115,11 +115,7 @@
        #`(begin
            (define fl-proc
             (get-ffi-obj '#,cname #f (_fun #,@(build-list num-args (λ (_) #'_float)) -> _float)
-                         (λ () (warn 'unsupported #:url "faq.html#native-ops"
-                                     "native `~a` not supported on your system, disabling operator. ~a"
-                                     '#,cname
-                                     "Consider using :precision racket for Racket-only operators.")
-                               #f)))
+                         (λ () #f)))
            (when fl-proc
             (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary32))) binary32
               [fl fl-proc] [key value] ...))))]))

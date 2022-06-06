@@ -90,14 +90,13 @@
     as <code>:pre (&lt; -100 x 100)</code>, to prevent large inputs.
   </p>
 
-  <h3 id="native-ops">Native <var>operation</var> not supported on your system</h3>
+  <h3 id="deprecated-ops">Operator <var>op</var> is deprecated</h3>
 
   <p>
-    Microsoft's <code>math.h</code> does not provide implementations
-    of the Bessel functions. Herbie provides fallback implementations
-    which print this warning. You can disable the fallback with
-    the <code>--disable precision:fallback</code> option; Herbie will
-    then not use those functions.
+    Herbie raises this warning when an operation is no longer supported.
+    Input expressions containing these operators may not be portable
+      across different platforms.
+    Consider creating a plugin to support them.
   </p>
 
   <h3 id="value-to-string">Could uniquely print <var>val</var></h3>

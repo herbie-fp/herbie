@@ -94,8 +94,6 @@
  [expm1 (from-bigfloat bfexpm1)]
  [fabs abs]
  [floor floor]
- [j0 (from-bigfloat bfbesj0)]
- [j1 (from-bigfloat bfbesj1)]
  [lgamma log-gamma]
  [log (no-complex log)]
  [log10 (no-complex (λ (x) (log x 10)))]
@@ -110,9 +108,7 @@
  [tan tan]
  [tanh tanh]
  [tgamma gamma]
- [trunc truncate]
- [y0 (from-bigfloat bfbesy0)]
- [y1 (from-bigfloat bfbesy1)])
+ [trunc truncate])
 
 (define-2ary-fallback-operators
  [+ +]
@@ -149,3 +145,36 @@
 
 (define-operator-impl (>= >=.rkt racket racket) bool
   [fl >=])
+
+;; Deprecated
+
+;; copied from <herbie>/syntax/syntax.rkt
+(module hairy racket/base
+  (require ffi/unsafe)
+  (provide check-native-1ary-exists?)
+
+  (define (check-native-1ary-exists? op)
+    (let ([f32-name (string->symbol (string-append (symbol->string op) "f"))])
+      (or (get-ffi-obj op #f (_fun _double -> _double) (λ () #f))
+          (get-ffi-obj f32-name #f (_fun _float -> _float) (λ () #f)))))
+)
+
+(require (submod "." hairy))
+
+; can't load these without native support
+
+(when (check-native-1ary-exists? 'j0)
+  (define-operator-impl (j0 j0.rkt racket) racket
+    [fl (from-bigfloat bfbesj0)]))
+
+(when (check-native-1ary-exists? 'j1)
+  (define-operator-impl (j1 j1.rkt racket) racket
+    [fl (from-bigfloat bfbesj1)]))
+ 
+(when (check-native-1ary-exists? 'y0)
+  (define-operator-impl (y0 y0.rkt racket) racket
+    [fl (from-bigfloat bfbesy0)]))
+
+(when (check-native-1ary-exists? 'y1)
+  (define-operator-impl (y1 y1.rkt racket) racket
+    [fl (from-bigfloat bfbesy1)]))
