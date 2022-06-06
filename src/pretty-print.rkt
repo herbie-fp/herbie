@@ -97,7 +97,8 @@
       (string-pad sa (max (string-length sa) (string-length sb)) #\0)
       (string-pad sb (max (string-length sa) (string-length sb)) #\0)))]))
 
-(define (bigfloat-interval-shortest x y)
+(define/contract (bigfloat-interval-shortest x y)
+  (->i ([x bigfloat?] [y bigfloat?]) #:pre (x y) (or (bf<= x y) (bfnan? y)) [result bigfloat?])
   (define x-parts (bigfloat->normal-string x))
   (define y-parts (bigfloat->normal-string y))
   (cond
