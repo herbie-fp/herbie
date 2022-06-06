@@ -11,6 +11,15 @@
 
 (define fn-inverses '())
 (define fn-evaluations (make-hash))
+(define simplify-cache (make-hash))
+(define simplify-node-cache (make-hash))
+
+(register-reset
+ (λ ()
+  (set! fn-inverses '())
+  (set! fn-evaluations (make-hash))
+  (set! simplify-cache (make-hash))
+  (set! simplify-node-cache (make-hash))))
 
 (define (load-rule-hacks)
   (set! fn-inverses
@@ -25,6 +34,9 @@
            (resugar-program (rule-output r) (rule-otype r) #:full #f)))))
 
 (define (simplify expr)
+  (hash-ref! simplify-cache expr (λ () (simplify* expr))))
+
+(define (simplify* expr)
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
@@ -33,7 +45,7 @@
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-     (simplify-node (list op (simplify body)))]
+     (list op (simplify body))]
     [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary 
      (define args* (map simplify args))
      (define val (apply eval-application op args*))
@@ -44,6 +56,9 @@
      (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)
+  (hash-ref! simplify-node-cache expr (λ () (simplify-node* expr))))
+
+(define (simplify-node* expr)
   (match expr
     [(? (curry hash-has-key? fn-evaluations)) (hash-ref fn-evaluations expr)]
     [(? number?) expr]
@@ -66,7 +81,7 @@
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
 
-(define (gather-additive-terms expr #:label [label #f] )
+(define (gather-additive-terms expr #:label [label #f])
   (define (recurse subexpr #:label [label #f])
     (gather-additive-terms subexpr #:label label))
 
