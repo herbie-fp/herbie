@@ -10,7 +10,7 @@
   (define replaced (string-replace tname #px"\\W+" ""))
   (format "~a-~a" index (substring replaced 0 (min (string-length replaced) 50))))
 
-(define (run-test index test #:seed seed #:profile profile? #:debug debug? #:dir dir)
+(define (run-test index test #:seed seed #:profile profile? #:dir dir)
   (cond
    [dir
     (define dirname (graph-folder-path (test-name test) index))
@@ -18,9 +18,13 @@
     (when (not (directory-exists? rdir)) (make-directory rdir))
 
     (define result
-      (call-with-output-files
-       (list (build-path rdir "debug.txt") (and profile? (build-path rdir "profile.json")))
-       (λ (dp pp) (get-test-result test #:seed seed #:profile pp #:debug debug? #:debug-port dp #:debug-level (cons #t #t)))))
+      (cond
+       [profile?
+        (call-with-output-file
+            (build-path rdir "profile.json") #:exists 'replace
+            (λ (pp) (get-test-result test #:seed seed #:profile pp)))]
+       [else
+        (get-test-result test #:seed seed #:profile #f)]))
 
     (set-seed! seed)
     (define error? #f)
@@ -43,7 +47,7 @@
        #'(let ([fresh (params)] ...)
            (place/context name (parameterize ([params fresh] ...) body ...))))]))
 
-(define (make-worker seed profile? debug? dir)
+(define (make-worker seed profile? dir)
   (place/context* ch
     #:parameters (*flags* *num-iterations* *num-points* *timeout* *reeval-pts* *node-limit*
                   *max-find-range-depth* *pareto-mode*)
@@ -51,7 +55,7 @@
       (load-herbie-plugins))
     (for ([_ (in-naturals)])
       (match-define (list 'apply self id test) (place-channel-get ch))
-      (define result (run-test id test #:seed seed #:profile profile? #:debug debug? #:dir dir))
+      (define result (run-test id test #:seed seed #:profile profile? #:dir dir))
       (place-channel-put ch `(done ,id ,self ,result)))))
 
 (define (print-test-result i n data)
@@ -70,10 +74,10 @@
               (~r (table-row-result data) #:min-width 2 #:precision 0)
               (table-row-name data))]))
 
-(define (run-workers progs threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
+(define (run-workers progs threads #:seed seed #:profile profile? #:dir dir)
   (define workers
     (for/list ([wid (in-range threads)])
-      (make-worker seed profile? debug? dir)))
+      (make-worker seed profile? dir)))
 
   (define work
     (for/list ([id (in-naturals)] [prog progs])
@@ -107,7 +111,7 @@
   (for-each place-kill workers)
   (map cdr (sort outs < #:key car)))
 
-(define (run-nothreads progs #:seed seed #:profile profile? #:debug debug? #:dir dir)
+(define (run-nothreads progs #:seed seed #:profile profile? #:dir dir)
   (eprintf "Starting Herbie on ~a problems (seed: ~a)...\n" (length progs) seed)
   (define outs '())
   (with-handlers ([exn:break?
@@ -115,18 +119,17 @@
                      (eprintf "Terminating after ~a problem~a!\n"
                              (length outs) (if (= (length outs) 1) "s" "")))])
     (for ([test progs] [i (in-naturals)])
-      (define tr (run-test i test #:seed seed #:profile profile? #:debug debug? #:dir dir))
+      (define tr (run-test i test #:seed seed #:profile profile? #:dir dir))
       (print-test-result (+ 1 i) (length progs) tr)
       (set! outs (cons tr outs))))
   (reverse outs))
 
-(define/contract (get-test-results progs #:threads threads #:seed seed #:profile profile? #:debug debug? #:dir dir)
+(define/contract (get-test-results progs #:threads threads #:seed seed #:profile profile? #:dir dir)
   (-> (listof test?) #:threads (or/c #f natural-number/c)
       #:seed (or/c pseudo-random-generator-vector? (integer-in 0 (sub1 (expt 2 31))))
-      #:profile boolean? #:debug boolean? #:dir (or/c #f path-string?)
+      #:profile boolean? #:dir (or/c #f path-string?)
       (listof (or/c #f table-row?)))
 
   (if threads
-      (run-workers progs (min threads (length progs))
-                   #:seed seed #:profile profile? #:debug debug? #:dir dir)
-      (run-nothreads progs #:seed seed #:profile profile? #:debug debug? #:dir dir)))
+      (run-workers progs (min threads (length progs)) #:seed seed #:profile profile? #:dir dir)
+      (run-nothreads progs #:seed seed #:profile profile? #:dir dir)))

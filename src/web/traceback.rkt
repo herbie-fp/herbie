@@ -24,7 +24,6 @@
         (list)
         (list
          '("Report" . "../results.html")
-         '("Log" . "debug.txt")
          '("Metrics" . "timeline.html")))
 
       ,(render-warnings warnings)

@@ -1,9 +1,10 @@
 #lang racket
 
+(require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
          "../points.rkt")
-(require "../ground-truth.rkt" "../float.rkt") ; For binary search
+(require "../ground-truth.rkt" "../float.rkt" "../pretty-print.rkt") ; For binary search
 
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
@@ -95,7 +96,6 @@
    [_
     (timeline-event! 'bsearch)
     (define splitpoints (sindices->spoints pts expr alts splitindices repr sampler))
-    (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
 
     (define expr*
       (for/fold
@@ -128,7 +128,6 @@
     (mk-pcontext (map first p&e) (map second p&e))))
 
 (define (option-on-expr alts expr repr)
-  (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
   (define timeline-stop! (timeline-start! 'branch (~a expr)))
   (define vars (program-variables (alt-program (first alts))))
   (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
@@ -188,15 +187,22 @@
      ; (only works for floats, problematic since p1 and p2 are repr values)
      ; (this is handled by catching all sampling errors, so we can comment this out)
      ; [(nan? midpoint) p1]
-     [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
-	   [else
+     [(<= (ulp-difference p1 p2 repr) (expt 2 48))
+      ((representation-bf->repr repr)
+       (bigfloat-interval-shortest
+        ((representation-repr->bf repr) p1)
+        ((representation-repr->bf repr) p2)))]
+     [else
       ; cmp usually equals 0 if sampling failed
       ; if so, give up and return the current midpoint
       (define cmp (pred midpoint))
       (cond
        [(negative? cmp) (binary-search-floats pred midpoint p2 repr)]
        [(positive? cmp) (binary-search-floats pred p1 midpoint repr)]
-       [else midpoint])])))
+       [else ((representation-bf->repr repr)
+              (bigfloat-interval-shortest
+               ((representation-repr->bf repr) p1)
+               ((representation-repr->bf repr) p2)))])])))
 
 (define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
@@ -251,14 +257,24 @@
       (set! pt best-guess))
     pt)
 
+  ; a little more rigorous than it sounds:
+  ; finds the shortest number `x` near `p1` such that
+  ; `x1` is in `[p1, p2]` and is no larger than
+  ;  - if `p1` is negative, `p1 / 2`
+  ;  - if `p1` is positive, `p1 * 2`
+  (define (left-point p1 p2)
+    (let ([left ((representation-repr->bf repr) p1)]
+          [right ((representation-repr->bf repr) p2)])
+      ((representation-bf->repr repr)
+        (if (bfnegative? left)
+            (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+            (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
+
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
          ;; Binary search is only valid if we correctly extracted the branch expression
          (andmap identity (cons start-prog progs))))
-  (if use-binary
-      (debug #:from 'binary-search "Improving bounds with binary search for" expr "and" alts)
-      (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts))
-      
+  
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
      (define timeline-stop! (timeline-start! 'times (~a expr)))
@@ -272,7 +288,7 @@
        (if use-binary
            (with-handlers ([exn:fail:user:herbie:sampling? (const p1)])
              (find-split prog1 prog2 p1 p2))
-           p1))
+           (left-point p1 p2)))
      (timeline-stop!)
 
      (timeline-push! 'method (if use-binary "binary-search" "left-value"))
@@ -380,8 +396,6 @@
 
 (define (pareto-regimes sorted repr sampler)
   (let loop ([alts sorted] [idx 0])
-    (debug "Computing regimes starting at alt" (+ idx 1) "of"
-            (length sorted) #:from 'regime #:depth 2)
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]

@@ -5,8 +5,7 @@
          "common.rkt" "interface.rkt" "errors.rkt"
          "syntax/syntax.rkt")
 
-(provide generate-conversions generate-prec-rewrites
-         get-rewrite-operator *conversions*)
+(provide generate-conversions generate-prec-rewrites *conversions*)
 
 (define *conversions* (make-parameter (hash)))
 
@@ -21,10 +20,6 @@
 (define (repr->symbol repr)
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (string->symbol (string-replace* (~a (representation-name repr)) replace-table)))
-
-(define (get-rewrite-operator repr)
-  (define rewrite (sym-append '<- (repr->symbol repr)))
-  (get-parametric-operator rewrite repr))
 
 ;; Generates conversion, repr-rewrite operators for prec1 and prec2
 (define (generate-conversion-ops repr1 repr2)
@@ -52,16 +47,12 @@
   (define repr-rewrite1 (sym-append '<- prec1*))
   (define repr-rewrite2 (sym-append '<- prec2*))
 
-  (unless (operator-exists? repr-rewrite1)
-    (register-operator! repr-rewrite1 (list 'real) 'real
-      (list (cons 'bf identity) (cons 'ival identity)))
-    (register-operator-impl! repr-rewrite1 repr-rewrite1 (list repr1) repr1
+  (unless (impl-exists? repr-rewrite1)
+    (register-operator-impl! 'convert repr-rewrite1 (list repr1) repr1
       (list (cons 'fl identity))))
 
-  (unless (operator-exists? repr-rewrite2)
-    (register-operator! repr-rewrite2 (list 'real) 'real
-      (list (cons 'bf identity) (cons 'ival identity)))
-    (register-operator-impl! repr-rewrite2 repr-rewrite2 (list repr2) repr2
+  (unless (impl-exists? repr-rewrite2)
+    (register-operator-impl! 'convert repr-rewrite2 (list repr2) repr2
       (list (cons 'fl identity)))))
 
 ;; creates precision rewrite: prec1 <==> prec2
