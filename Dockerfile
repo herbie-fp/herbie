@@ -6,7 +6,7 @@
 # Builds output under /herbie/egg-herbie
 FROM rust:1.61.0 as egg-herbie-builder
 WORKDIR /herbie
-COPY . .
+ADD egg-herbie egg-herbie
 RUN cargo build --release --manifest-path=egg-herbie/Cargo.toml
 
 # Production image
