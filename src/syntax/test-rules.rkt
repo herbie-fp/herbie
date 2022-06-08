@@ -1,9 +1,9 @@
 #lang racket
 
 (require rackunit)
-(require "../common.rkt" "../programs.rkt" "../sampling.rkt" "../ground-truth.rkt")
-(require "rules.rkt" (submod "rules.rkt" internals) "../interface.rkt")
-(require "../programs.rkt" "../float.rkt" "sugar.rkt" "../load-plugin.rkt")
+(require "../common.rkt" "../programs.rkt" "../float.rkt"
+         "../ground-truth.rkt" "../interface.rkt" "../load-plugin.rkt"
+         "rules.rkt" (submod "rules.rkt" internals))
 
 (load-herbie-builtins)
 

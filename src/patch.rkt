@@ -1,8 +1,8 @@
 #lang racket
 
 (require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
-         "alternative.rkt" "common.rkt" "interface.rkt" "programs.rkt"
-         "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
+         "alternative.rkt" "common.rkt" "errors.rkt" "interface.rkt" "programs.rkt"
+         "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt")
 
 (provide
   (contract-out
@@ -54,7 +54,7 @@
     (hash-update! (patchtable-table *patch-table*) expr
                   (if improve (curry cons improve) identity) (list))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Internals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define transforms-to-try
   (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
@@ -74,41 +74,29 @@
 ;;      Taylor is successful in generating an expression but
 ;;      external desugaring fails because of an unsupported/mismatched
 ;;      operator
-(define (taylor-fail-desugaring expr)
-  (λ _
-    (debug #:from 'progress #:depth 5 "Series expansion (desugaring failure)")
-    (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
-    #f))
 
-; taylor uses older format, resugaring and desugaring needed
-; not all taylor transforms are valid in a given repr, return false on failure
 (define (taylor-expr expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
-  (with-handlers ([exn:fail? (const #f)])       ; in case taylor fails internally
-    (define genexpr (approximate expr* var #:transform (cons f finv)))
-    (λ (x) (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
+  (define genexpr (approximate expr* var #:transform (cons f finv)))
+  (λ ()
+    (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+      (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
 
 (define (taylor-alt altn)
-  (define expr (program-body (alt-program altn)))
+  (define prog (alt-program altn))
+  (define expr (program-body prog))
   (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
-  (define vars (free-variables expr))
   (reap [sow]
-    (for* ([var vars] [transform-type transforms-to-try])
+    (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
+      (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
       (define genexpr (taylor-expr expr repr var f finv))
-      (cond
-       [genexpr  ; taylor successful
-        #;(define pts (for/list ([(p e) (in-pcontext (*pcontext*))]) p))
-        (for ([i (in-range 4)])
-          (define expr* 
-            (with-handlers ([exn:fail? (taylor-fail-desugaring expr)]) ; failed on desugaring
-              (location-do '(2) (alt-program altn) genexpr)))
-          (when expr*
-            (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))]
-       [else  ; taylor failed
-        (debug #:from 'progress #:depth 5 "Series expansion (internal failure)")
-        (debug #:from 'progress #:depth 5 "Problematic expression: " expr)
-        (sow altn)]))))
+      (for ([i (in-range 4)])
+        (define replace (genexpr))
+        (when replace
+          (define expr* (list (first prog) (second prog) replace))
+          (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))
+      (timeline-stop!))))
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
@@ -117,10 +105,7 @@
       (apply append
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
           (define expr (program-body (alt-program altn)))
-          (debug #:from 'progress #:depth 4 "[" n "/" (length (^queued^)) "] generating series for" expr)
-          (define tnow (current-inexact-milliseconds))
-          (begin0 (filter-not (curry alt-equal? altn) (taylor-alt altn))
-            (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))))
+          (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
 
     ; Probably unnecessary, at least CI passes!
     (define (is-nan? x)
@@ -136,20 +121,34 @@
     (^series^ series-expansions*))
   (void))
 
-(define (bad-alt! altn)
-  (define expr (program-body (alt-program altn)))
-  (when (expr-contains? expr rewrite-repr-op?)
-    (error 'bad-alt! "containg rewrite repr ~a" expr)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Splits rules into three categories
+;  - reprchange: rules that change precision
+;  - expansive: rules of the form `x -> f(x)` that are not reprchange
+;  - normal: everything else
+(define (partition-rules rules)
+  (let-values ([(expansive normal)
+                  (partition (compose variable? rule-input) rules)])
+    (let-values ([(reprchange expansive*)
+                  (partition (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?))
+                                     expansive)])
+      (values reprchange expansive* normal))))
+
+(define (merge-changelists . lsts)
+  (unless (apply = (map length lsts))
+    (error 'merge-changelists "lists are not the same size ~a" (map length lsts)))
+  (define len (length (first lsts)))
+  (for/list ([i (in-range len)])
+    (apply append (for/list ([lst lsts]) (list-ref lst i)))))
 
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
   (timeline-event! 'rewrite)
 
-  (define reprchange-rules                              ;; empty in non-Pareto mode
-    (if (*pareto-mode*)
-        (filter (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?)) (*rules*))
-        (list)))
+  ;; partition the rules
+  (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
 
   ;; get subexprs and locations
   (define exprs (map (compose program-body alt-program) (^queued^)))
@@ -157,11 +156,30 @@
   (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
   (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root
 
-  ;; rewrite
+  ;; HACK:
+  ;; - check loaded representations
+  ;; - if there is only one real representation, allow expansive rules to be run in egg
+  ;; This is just a workaround and should definitely be fixed
+  (define real-type (get-type 'real))
+  (define one-real-repr? (= (count (λ (r) (equal? real-type (representation-type r))) (*needed-reprs*)) 1))
+
+  ;; rewrite high-error locations
   (define changelists
-    (rewrite-expressions exprs (*output-repr*) #:rules (*rules*) #:roots locs))
+    (if one-real-repr?
+        (merge-changelists
+          (rewrite-expressions exprs (*output-repr*) #:rules (append expansive-rules normal-rules) #:roots locs)
+          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs #:once? #t))
+        (merge-changelists
+          (rewrite-expressions exprs (*output-repr*) #:rules normal-rules #:roots locs)
+          (rewrite-expressions exprs (*output-repr*) #:rules expansive-rules #:roots locs #:once? #t)
+          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs #:once? #t))))
+
+  ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
-    (rewrite-expressions lowexprs (*output-repr*) #:rules reprchange-rules #:roots lowlocs))
+    (rewrite-expressions lowexprs (*output-repr*)
+                         #:rules reprchange-rules
+                         #:roots lowlocs
+                         #:once? #t))
 
   (define comb-changelists (append changelists changelists-low-locs))
   (define altns (append (^queued^) (^queuedlow^)))
@@ -193,6 +211,8 @@
   ; TODO: accuracy stats for timeline
   (^rewrites^ rewritten*)
   (void))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (get-starting-expr altn)
   (match (alt-event altn)
@@ -301,21 +321,14 @@
     (for/list ([(vars expr) (in-dict lowlocs)])
       (alt `(λ ,vars ,expr) `(patch) '())))
   (cond
-   [(and (null? (^queued^))       ; early exit, nothing queued
-         (null? (^queuedlow^))
-         (null? cached))
-    '()]
    [(and (null? (^queued^))       ; only fetch cache
          (null? (^queuedlow^)))
     (append-map patch-table-get cached)]
    [else                          ; run patches
-    (debug #:from 'progress #:depth 3 "generating series expansions")
     (if (null? (^queued^))
         (^series^ '())
         (gen-series!))
-    (debug #:from 'progress #:depth 3 "generating rewritten candidates")
     (gen-rewrites!)
-    (debug #:from 'progress #:depth 3 "simplifying candidates")
     (simplify!)
     (begin0 (apply append (^final^) (map patch-table-get cached))
       (patch-table-clear!))]))

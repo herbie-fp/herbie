@@ -1,16 +1,15 @@
 #lang racket
 (require profile math/bigfloat racket/engine json)
-(require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt" "ground-truth.rkt"
-         "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
-         (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt"
-         "syntax/sugar.rkt" "preprocess.rkt" "sampling.rkt" "cost.rkt")
+(require "syntax/read.rkt" "syntax/sugar.rkt"
+         "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
+         "datafile.rkt" "errors.rkt" "interface.rkt"
+         "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
+         "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result)
-
 
 ;; These cannot move between threads!
 (struct test-result (test bits time timeline warnings))
@@ -39,12 +38,7 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-(define (get-test-result test
-                         #:seed [seed #f]
-                         #:profile [profile? #f]
-                         #:debug [debug? #f]
-                         #:debug-port [debug-port #f]
-                         #:debug-level [debug-level #f])
+(define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
   (define output-repr (test-output-repr test))
   (define output-prec (representation-name output-repr))
@@ -52,15 +46,11 @@
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 
   (define (compute-result test)
-    (parameterize ([*debug-port* (or debug-port (*debug-port*))]
-                   [*timeline-disabled* false]
+    (parameterize ([*timeline-disabled* false]
                    [*warnings-disabled* true])
       (define start-time (current-inexact-milliseconds))
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
-      (match debug-level
-        [(cons x y) (set-debug-level! x y)]
-        [_ (void)])
 
       (generate-prec-rewrites (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])

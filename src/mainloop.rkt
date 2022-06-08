@@ -1,6 +1,6 @@
 #lang racket
 
-(require "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
+(require "syntax/rules.rkt" "syntax/types.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
          "interface.rkt" "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
@@ -111,7 +111,6 @@
     (atab-pick-alt (^table^) #:picking-func (curry argmin score-alt) #:only-fresh #t))
   (^next-alt^ picked)
   (^table^ table*)
-  (debug #:from 'pick #:depth 4 "Picked " picked)
   (void))
 
 ;; Invoke the subsystems individually
@@ -219,13 +218,10 @@
 
 (define (finish-iter!)
   (when (not (^next-alt^))
-    (debug #:from 'progress #:depth 3 "picking best candidate")
     (choose-best-alt!))
   (when (not (^locs^))
-    (debug #:from 'progress #:depth 3 "localizing error")
     (localize!))
   (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
-  (debug #:from 'progress #:depth 3 "adding candidates to table")
   (finalize-iter!)
   (void))
 
@@ -247,25 +243,20 @@
   (when (^next-alt^)
     (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
-  (debug #:from 'progress #:depth 3 "Picking candidate(s)")
   (^patched^
     (for/fold ([full '()]) ([picked (choose-alts)] [i (in-naturals 1)])
       (define (picking-func x)
         (for/first ([v x] #:when (alt-equal? v picked)) v))
-      (debug #:from 'pick #:depth 4 (format "Picked [~a] " i) picked)
       (define-values (_ table*)
         (atab-pick-alt (^table^) #:picking-func picking-func #:only-fresh #t))
       (^next-alt^ picked)
       (^table^ table*)
-      (debug #:from 'progress #:depth 3 "localizing error")
       (localize!)
       (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
       (append full (^patched^))))
-  (debug #:from 'progress #:depth 3 "adding candidates to table")
   (finalize-iter!))
   
 (define (setup-context! specification precondition repr)
-  (debug #:from 'progress #:depth 3 "[1/5] Preparing context")
   (define vars (program-variables specification))
   (*output-repr* repr)
   (*var-reprs* (map (curryr cons repr) vars))
@@ -326,13 +317,11 @@
 (define (run-improve! prog pcontext iters
                       #:specification [specification #f]
                       #:preprocess [preprocess '()])
-  (debug #:from 'progress #:depth 3 "[2/5] Deducing preprocessing steps")
   (define vars (program-variables specification))
+  (timeline-event! 'preprocess)
 
   ;; If the specification is given, it is used for sampling points
-  (define sortable
-    (parameterize ([*timeline-disabled* true])
-      (connected-components specification)))
+  (define sortable (connected-components specification))
 
   (define new-preprocess
     (for/list ([sortable-variables (in-list sortable)]
@@ -379,16 +368,12 @@
 
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)
-  (debug #:from 'progress #:depth 3 "[3/5] Initializing alt table")
   (initialize-alt-table! prog (*pcontext*) (*output-repr*))
 
-  (debug #:from 'progress #:depth 1 "[4/5] Entering search loop")
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-    (debug #:from 'progress #:depth 2 "iteration" (+ 1 iter) "/" iters)
     (run-iter!)
     (print-warnings))
 
-  (debug #:from 'progress #:depth 1 "[5/5] Extracting best program")
   (extract!))
 
 (define (extract!)
@@ -426,6 +411,7 @@
               'final-simplify (list altn)))
       alt-equal?))
   (timeline-event! 'end)
+  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
 
   ; find the best, sort the rest by cost
   (define alts* (remove-duplicates cleaned-alts alt-equal?))

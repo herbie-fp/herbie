@@ -6,7 +6,7 @@
 
 (module+ test (require rackunit))
 
-(provide egraph-run egraph-add-exprs with-egraph
+(provide egraph-run egraph-add-expr with-egraph
          egraph-get-simplest egraph-get-variants
          egg-expr->expr egg-exprs->exprs egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost
@@ -84,7 +84,7 @@
 
 ;; runs rules on an egraph
 ;; can optionally specify an iter limit
-(define (egraph-run egraph-data iter-limit node-limit ffi-rules precompute?)
+(define (egraph-run egraph-data node-limit ffi-rules precompute? [iter-limit #f])
   (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
   (define-values (egraphiters res-len)
     (if iter-limit
@@ -166,38 +166,14 @@
 (struct egg-add-exn exn:fail ())
 
 ;; result function is a function that takes the ids of the nodes
-;; egraph-add-exprs returns the result of result-function
-(define (egraph-add-exprs eg-data exprs result-function)
-  (define egg-exprs
-    (map
-     (lambda (expr) (expr->egg-expr expr eg-data))
-     exprs))
-    
-  #;
-  (debug #:from 'simplify (format "Sending expressions to egg_math:\n ~a"
-                                  (string-join egg-exprs "\n ")))
-      
-  (define expr-results
-    (map
-     (lambda (expr)
-       (egraph_add_expr (egraph-data-egraph-pointer eg-data) expr))
-     egg-exprs))
-  
-  (define node-ids
-    (for/list ([result expr-results])
-      (if (EGraphAddResult-successp result)
-          (EGraphAddResult-id result)
-          (raise (egg-add-exn
-               (string-append "Failed to add expr to egraph")
-               (current-continuation-marks))))))
-
-  (define res (result-function node-ids))
-
-  (for/list ([result expr-results])
-    (egraph_addresult_destroy result))
-
-  res)
-
+(define (egraph-add-expr eg-data expr)
+  (define egg-expr (expr->egg-expr expr eg-data))
+  (define result (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
+  (when (= result 0)
+    (raise (egg-add-exn
+            "Failed to add expr to egraph"
+            (current-continuation-marks))))
+  (- result 1))
 
 (module+ test
 

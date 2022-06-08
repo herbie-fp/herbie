@@ -1,7 +1,9 @@
 #lang racket
-(require "config.rkt" "float.rkt" racket/hash json)
+
+(require json "config.rkt")
+
 (provide timeline-event! timeline-push! timeline-adjust!
-         timeline-load! timeline-extract timeline-compact!
+         timeline-load! timeline-extract timeline-compact! timeline-start!
          timeline-merge timeline-relink *timeline-disabled*)
 (module+ debug (provide *timeline*))
 
@@ -10,6 +12,7 @@
 ;; Important: Use 'eq?' based hash tables, process may freeze otherwise
 (define *timeline* (box '()))
 (define *timeline-disabled* (make-parameter true))
+(define *timeline-timers* (mutable-set))
 
 (register-reset (λ () (set-box! *timeline* '())))
 
@@ -33,10 +36,21 @@
       true)
     (void)))
 
+(define/contract (timeline-start! key . values)
+  (-> symbol? jsexpr? ... (-> jsexpr? ... void?))
+  (define tstart (current-inexact-milliseconds))
+  (define (end! . args)
+    (define tend (current-inexact-milliseconds))
+    (apply timeline-push! key (append values args (list (- tend tstart))))
+    (set-remove! *timeline-timers* end!))
+  (set-add! *timeline-timers* end!)
+  end!)
+
 (define (timeline-load! value)
   (set! *timeline* value))
 
 (define (timeline-extract repr)
+  (for ([end! (set->list *timeline-timers*)]) (end!))
   (define end (hasheq 'time (current-inexact-milliseconds)))
   (reverse
    (for/list ([evt (unbox *timeline*)] [next (cons end (unbox *timeline*))])
@@ -104,7 +118,8 @@
 
 (define-timeline method [method])
 (define-timeline rules [rule false] [count +])
-(define-timeline times [input false] [count +])
+(define-timeline times [input false] [time +])
+(define-timeline series [expr false] [var false] [transform false] [time +])
 (define-timeline compiler [before +] [after +])
 (define-timeline outcomes [name false] [prec false] [category false] [time +] [count +])
 (define-timeline accuracy [accuracy])
@@ -112,6 +127,8 @@
 (define-timeline baseline [baseline])
 (define-timeline count [input +] [output +])
 (define-timeline alts #:unmergable)
+(define-timeline inputs #:unmergable)
+(define-timeline outputs #:unmergable)
 (define-timeline sampling #:custom merge-sampling-tables)
 (define-timeline symmetry #:unmergable)
 (define-timeline remove-preprocessing #:unmergable)
@@ -120,7 +137,8 @@
 (define-timeline kept #:unmergable)
 (define-timeline min-error #:unmergable)
 (define-timeline egraph #:unmergable)
-(define-timeline egraph-stop [reason false] [count +])
+(define-timeline stop [reason false] [count +])
+(define-timeline branch #:unmergable)
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above

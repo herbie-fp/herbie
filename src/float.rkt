@@ -2,8 +2,7 @@
 
 
 (require math/bigfloat math/base)
-(require "common.rkt" "interface.rkt" "syntax/types.rkt" "errors.rkt")
-(module+ test (require rackunit "load-plugin.rkt"))
+(require "common.rkt" "interface.rkt" "errors.rkt")
 
 (provide 
  special-value?
@@ -72,6 +71,9 @@
       (largest-ordinary-value repr)))
 
 (module+ test
+  (require rackunit "load-plugin.rkt")
+  (load-herbie-plugins)
+
   (define binary64 (get-representation 'binary64))
   (check-false (special-value? 2.5 binary64))
   (check-true  (special-value? +nan.0 binary64))

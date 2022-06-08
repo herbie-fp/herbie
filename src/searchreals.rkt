@@ -2,8 +2,6 @@
 (require math/bigfloat rival)
 (require "interface.rkt" "timeline.rkt")
 
-(module+ test (require rackunit))
-
 (provide find-intervals hyperrect-weight)
 
 (struct search-space (true false other))

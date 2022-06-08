@@ -1,6 +1,6 @@
 #lang racket
 
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "interface.rkt")
+(require "config.rkt" "float.rkt" "interface.rkt" "programs.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext join-pcontext
          errors batch-errors errors-score oracle-error baseline-error oracle-error-idx)
@@ -82,4 +82,3 @@
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
       (for/vector ([out (in-vector (apply fn point))])
         (point-error out exact repr)))))
-

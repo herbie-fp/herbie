@@ -84,15 +84,13 @@
     currently no workaround.
   </p>
 
-  <h3 id="native-ops">Native <var>operation</var> not supported on your system</h3>
+  <h3 id="deprecated-ops">Operator <var>op</var> is deprecated</h3>
 
   <p>
-    Many <code>libm</code>s don't implement certain functions (for
-    example, Microsoft's <code>libm</code> does not implement the
-    Bessel functions). If you require these functions, please
-    specify <a href="input.html"><code>:precision racket</code></a> to
-    use Herbie's portable double-precision implementation of these
-    functions.
+    Herbie raises this warning when an operation is no longer supported.
+    Input expressions containing these operators may not be portable
+      across different platforms.
+    Consider creating a plugin to support them.
   </p>
 
   <h3 id="value-to-string">Could not uniquely print <var>val</var></h3>
