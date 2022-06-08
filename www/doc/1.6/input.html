@@ -170,6 +170,9 @@
     <dd>Single-precision IEEE-754 floating point</dd>
     <dt><code>binary64</code></dt>
     <dd>Double-precision IEEE-754 floating point</dd>
+    <dt><code>racket</code></dt>
+    <dd>Like <code>binary64</code>, but using Racket math functions
+      rather than your computer's <code>libm</code>.</dd>
   </dl>
 
   <p>By default, <code>binary64</code> is assumed. Herbie also has
@@ -187,7 +190,7 @@
     <dt><code>:herbie-conversions<br/>([<var>prec1</var> <var>prec2</var>] ...)</code></dt>
     <dd>If an expression is computed with precision <code>prec1</code>,
     Herbie is allowed to rewrite all (or some) of the expression so it
-    is computed with precision <code>prec2</code>.</dd>
+    is computed with precision <code>prec2</code> and vice versa.</dd>
   </dl>
 
   <p>For example, to let Herbie introduce single-precision

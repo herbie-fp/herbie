@@ -35,7 +35,7 @@
   browser to Herbie:</p>
   
   <pre class="shell">herbie web
-Herbie 1.4 with seed 841489305
+Herbie 1.6 with seed 841489305
 Find help on https://herbie.uwplse.org/, exit with Ctrl-C
 Your Web application is running at http://localhost:8000/.
 Stop this program at any time to terminate the Web Server.</pre>
@@ -46,8 +46,10 @@ Stop this program at any time to terminate the Web Server.</pre>
 
   <p>
     Type expressions in standard mathematical syntax (parsed
-    by <a href="http://mathjs.org">Math.js</a>) and
-    hit <kbd>Enter</kbd> to have Herbie attempt to improve them.
+    by <a href="http://mathjs.org">Math.js</a>). For each input variable,
+    specify the range of values that Herbie should consider when trying 
+    to improve the expression. Hit the "Improve with Herbie" button to have 
+    Herbie attempt to improve the expression.
   </p>
 
   <figure>
@@ -72,15 +74,15 @@ Stop this program at any time to terminate the Web Server.</pre>
   <p>A <a href="report.html">report</a> can also be generated directly
   from a file of <a href="input.html">input expressions</a>:</p>
   
-  <pre><strong>$</strong> herbie report input.fpcore output/
-Starting Herbie on 3 problems (seed: 1201949741)...
-  1/3	[  22.014s]   39→ 0	Expanding a square
-  2/3	[   8.616s]    0→ 0	Commute and associate
-  3/3	[   1.715s]   29→ 0	Cancel like terms</pre>
+  <pre class="shell">herbie report bench/tutorial.fpcore output/
+Starting Herbie on 3 problems (seed: 1809676410)...
+  1/3   [   1.799s]   39→ 0     Expanding a square
+  2/3   [   3.256s]    0→ 0     Commute and associate
+  3/3   [   0.937s]   29→ 0     Cancel like terms</pre>
 
   <p>
     This command asks Herbie to generate a report from the input
-    expressions in <code>input.fpcore</code> and to save the report in
+    expressions in <code>bench/tutorial.fpcore</code> and to save the report in
     the directory <code>output/</code>. It's best if that directory
     doesn't exist before running this command.
   </p>

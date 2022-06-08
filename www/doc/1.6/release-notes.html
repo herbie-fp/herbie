@@ -2,23 +2,31 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Herbie 1.5 Release Notes</title>
+  <title>Herbie 1.6 Release Notes</title>
   <link rel='stylesheet' type='text/css' href="../../main.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    .showcase {
+      margin: 4em 0 0em 0;
+    }
+    h2 {
+      margin: 1.5em 0 .5em;
+    }
+  </style>
 </head>
 <body>
   <header>
     <a href="../.."><img class="logo" src="../../logo.png" /></a>
-    <h1>Herbie 1.5 Release Notes</h1>
+    <h1>Herbie 1.6 Release Notes</h1>
   </header>
 
   <p>The <a href="../..">Herbie</a> developers are excited to announce
-  Herbie 1.5! This release focuses on multiple precisions, new syntax,
-  and higher accuracy. Our favorite features are below.</p>
+  Herbie 1.6! This release focuses on further integration of <a href="https://github.com/egraphs-good/egg">egg</a>, improved reliability,
+  and a better web interface. Our favorite features are below.</p>
 
   <img width="100%" src="team.png" style="display: block; margin: 4em 0; border-radius: 6px;"
-       alt="The Herbie team, working over Zoom to bring you Herbie 1.5" />
+       alt="The Herbie team, working over Zoom to bring you Herbie 1.6" />
 
   <p><b>What is Herbie?</b> Herbie automatically improves the accuracy
   of floating point expressions. This avoids the bugs, errors, and
@@ -27,122 +35,170 @@
   <p><b>Join us!</b> Join the Herbie developers on the
   <a href="https://fpbench.org">FPBench</a> Slack, at the monthly
   FPBench community meetings, and at
-  <a href="https://fpbench.org/talks/fptalks21.html">FPTalks 2021</a>,
-  where <a href="https://bsaiki.com">Brett</a> will be talking about
-  Herbie 1.5.</p>
+  <a href="https://fpbench.org/talks/fptalks22.html">FPTalks 2022</a>.
+
+  <figure class="showcase">
+    <img src="old-rr-seed-variance.png" style="width: 100%;" />
+    <img src="egg-rr-seed-variance.png" style="width: 100%;" />
+    <figcaption>
+      Comparison of Herbie's total output error (bits) across 100 seeds with
+        the old recursive rewriter (top) versus the egg-based implementation (bottom).
+      The egg-based implementation has lower variability.
+    </figcaption>
+  </figure>
+
+  <h2>Recursive Rewriting with egg</h2>
+
+  Two releases ago, Herbie 1.4 featured a new simplifier that used the
+    <a href="https://github.com/egraphs-good/egg">egg</a> library
+    for a substantial increase in speed.
+  This release further incorporates the egg library into Herbie by replacing
+    the recursive rewriter with an egg-based implementation.
+  Herbie's output is now more stable across seeds compared
+    to the previous implementation, maintains a similar level
+    of performance, and increases accuracy gains overall.
+  This change also makes it easier to add new rewrite rules, 
+  since the egg-based rewriter's behavior is more predictable 
+  than the old recursive rewriter was.
   
   <figure class="showcase">
-    <img src="pareto-screenshot.png" style="width: 100%;" />
-    <figcaption>A screenshot of Herbie with Pareto mode enabled.</figcaption>
+    <img src="interactive-preconditions.png" style="width: 100%;" />
+    <figcaption>
+      Preconditions in the new web interface. For each input, 
+      users are asked to provide a range of values for Herbie 
+      to focus on optimizing over. Input ranges vary depending
+      on the user's application and should always be 
+      supplied to maximize accuracy.
+    </figcaption>
   </figure>
 
-  <h2>New Pareto mode</h2>
+  <h2>Interactive Herbie</h2>
 
-  <p>Traditionally, Herbie has been all about giving you the most
-  accurate way possible to evaluate some mathematical expression.
-  But many of our users need to balance accuracy with speed.</p>
+  <p>
+  Despite the fact that most users interact with Herbie via 
+  the <a href="https://herbie.uwplse.org/demo/">demo page</a>,
+    the web interface has historically had a minimal design,
+    with important features like preconditions hidden behind 
+    advanced configuration dialogs.
+  As part of an ongoing push to make Herbie more user-friendly, 
+    we have added support for preconditions to the main interface, 
+    and have improved the display of warnings and errors.
+  We expect the demo page to change further in the coming year 
+    to provide users with more support in analyzing Herbie's output
+    and testing their own ideas for rewritings.
+  </p>
+
+  <figure class="showcase">
+    <table style="border:1px solid black;">
+      <tr>
+        <td><img src="quadp-old-branch.png" style="width: 100%;" /></td>
+        <td><img src="quadp-short-branch.png" style="width: 100%;" /></td>
+      </tr>
+    </table>
+    <figcaption>
+      Comparison of the midpoint (left) vs. shortest number (right) methods for
+        selecting branch conditions.
+    </figcaption>
+  </figure>
+
+  <h2>Shorter Branch Conditions</h2>
+
+  <p>
+    Herbie now synthesizes branch conditions with shorter split values.
+    Before, Herbie's binary search algorithm would narrow down the set of
+      possible split values to a small interval from which Herbie took the midpoint.
+    Often the midpoint had a long string representation which made it seem
+      like it was chosen with high precision.
+    Now Herbie will choose a value on that same interval with a short string representation.
+    This change makes output programs more readable and highlights the
+      low precision in the result of binary search.
+      
+  </p>
+
+  <figure class="showcase">
+    <img src="system-1.6-changes.png" style="width: 100%;" />
+    <figcaption>
+      System diagram for Herbie 1.6, with key changes in red dotted boxes.
+      From top to bottom: double-precision (binary64) and single-precision (binary32) types
+        are loaded through plugins instead of being embedded in Herbie's core;
+        a new patching subsystem bundles together the various
+        rewriting methods behind a simple interface;
+        recursive rewrite uses egg.
+      Compare Herbie 1.5 and 1.6 system diagrams <a href="../1.5/diagrams.html">here</a>
+        and <a href="../1.6/diagrams.html">here</a>.
+    </figcaption>
+  </figure>
+
+  <h2>Patching and Plugins</h2>
   
-  <p>So Herbie 1.5 has an experimental new <a>pareto mode</a>. When
-  the pareto mode is turned on, Herbie produces multiple outputs
-  that trade off speed for accuracy. Run Herbie with <kbd>--pareto</kbd>
-  to try it out, and if you're interested in more details of how it works,
-  check out our paper at <a href="../../arith21.html">ARITH'21</a>.</p>
-
-  <figure class="showcase">
-    <div class="program math" style="text-align: center;">
-      \(
-      \begin{array}{l}
-      [a, b] = \mathsf{sort}([a, b]) \\
-      b \cdot \sqrt{\frac{a}{b}\cdot\frac{a}{b} + 1}
-      \end{array}
-      \)
-    </div>
-    <figcaption>Herbie using sorting to improve accuracy.</figcaption>
-  </figure>
-
-  <h2>Symmetric expressions</h2>
-
-  <p>We've been working hard improving Herbie's results on its
-  traditional task: finding the most accurate way to evaluate
-  a mathematical expression. In Herbie 1.5, several improvements
-  landed, but the most exciting is the symmetric expressions mode.</p>
-
-  <p>Simply put, it's pretty common for Herbie to be asked to
-  improve the accuracy of an expression where reordering the variables
-  leaves the expression unchanged&mdash;something like
-  <code>log(exp(x) + exp(y))</code>.
-  Often the best way to evaluate that expression requires determining
-  which of <code>x</code> and <code>y</code> is larger.</p>
-
-  <p>With symmetric expressions, Herbie can detect when variable order
-  doesn't matter and sort the variables up front. That often lets
-  Herbie's other components find a clever way to improve accuracy.</p>
-
-  <figure class="showcase">
-    <pre>
-(FPCore dist2 (x y)
-  (+ (* x x) (* y y)))
-
-(FPCore (x y)
-  (/ (sqrt (+ (dist2 x y) x)) (sqrt 2)))
-    </pre>
-    <figcaption>Using a function definition in FPCore. The first
-    FPCore block defines the <code>dist2</code> function, and the
-    second uses that definition. The result is shorter and more
-    readable.</figcaption>
-  </figure>
-
-  <h2>Function definitions</h2>
-
-  <p>While most people use Herbie via the web interface,
-  Herbie also supports the standard <a href="input.html">FPCore</a>
-  format. FPCore offers more control over Herbie, and it's also
-  a good output format for other tools. In this release, we extended
-  Herbie to support function definitions.</p>
-
-  <p>In short, an FPCore can now include a function name between
-  the <code>FPCore</code> keyword and the list of variables. That core
-  can then be referenced by other cores in the same file. Herbie will
-  automatically expand those calls before improving the expression.</p>
-
+  <p>Herbie has undergone a significant architectural change since the previous release.
+  Although this change may not be visible to users, we hope that it
+    makes future Herbie development more streamlined and provides a clearer
+    answer to the question: what is Herbie?
+  In particular, two major improvements include adding the "patch table"
+    and moving number system specifics out of Herbie's
+    core architecture.
+  </p>
+  
+  <p>The patch table manages most rewriting capabilities, provides a
+    minimal interface to generate variants from a set of expressions,
+    and caches variants in case of duplicate input expressions.
+  Creating this subsystem to handle variant generation more cleanly
+    separates the "generate" and "test" parts within Herbie.
+  </p>
+  
+  <p>Herbie's double-precision and single-precision representations
+    are now implemented as plugins that automatically ship
+    with Herbie.
+  Representation-specific operators and definitions are
+    no longer present in Herbie's core architecure.
+  This change makes Herbie representation-agnostic and loads
+    double- and single-precision representations through the plugin interface.
+  Not only is this design cleaner, but these plugins now
+    serve as examples for plugin developers.
+  In the future, we hope to move additional definitions
+    out of core Herbie and into plugins such as error metrics
+    and cost models (Pherbie).
+  </p>
+  <br>
   <h2>Other improvements</h2>
   <ul>
-    <li>Herbie now supports more pluggable number representations,
-    including arbitrary-precision floating-point numbers and also
-    fixed-point numbers. We're still working on better-exposing this
-    to users.</li>
-    <li>Herbie will now introduce some temporary variables to make its
-    output more readable.</li>
-    <li>The series expansion engine was substantially improved, which
-    both reduces timeouts and improves results substantially.</li>
-    <li>A new "retirement community" data structure allows Herbie to
-    consider more candidate programs, and thus produces better,
-    simpler results.</li>
-    <li>You can now give Herbie FPCore input in the web interface.</li>
-    <li>The Herbie timeline data structure (which powers "Metrics"
-    pages) has been dramatically improved, making it easier to add
-    more metrics in the future.</li>
+    <li>Precondition analysis and point sampling are unified under a single function.
+      Sampling multiple functions is now supported.
+    </li>
+    <li>The backup sampler now just computes with MPFR floats
+        at high-precision rather than the old "halfpoints" sampler.
+    </li>
+    <li> Constants are now represented internally as operators.
+      This simplifies the plugin interface as well as Herbie's internals.
+    </li>
+    <li>Support for variary operators has been removed.
+      Relational operators are now expanded when parsed.</li>
+    <li>Constants are always read as exact rational numbers.
+      This enables additional optimizations through constant folding.
+    </li>
+    <li>More output languages are supported in the reports including
+      Fortran, Java, Python, Julia, MatLab, and Wolfram.
+    </li>
+    <li>egg has been updated to 0.8.1 which has led to a performance increase.
+      Make sure to have at least Rust 1.60 when installing from source.
+    </li>
   </ul>
 
   <h2>Deprecations and removals</h2>
   <ul>
-    <li>Support for the Racket 7-series is deprecated and will be
-    removed in the next release. Please upgrade.</li>
-    <li>The <code>egg-herbie</code> support package has been merged
-    into Herbie proper. This means that if you want to install Herbie
-    from source, you will now need a Rust compiler.</li>
-    <li>Support for complex numbers has been deprecated and will be
-    removed in the next release.
+    <li>The Bessel functions <code>j0</code>, <code>j1</code>, <code>y0</code>, and <code>y1</code>
+      have been deprecated and will be removed in the next release.</li>
+    <li>Support for the Racket 7.x has been removed. Please upgrade.</li>
+    <li>Support for complex numbers has been removed.
     Please <a href="mailto:herbie@cs.washington.edu">let us know</a>
     if you are using it. We hope to reimplement this eventually,
     but with a better architecture.</li>
-    <li>The <kbd>precision:double</kbd> flag has been deprecated, and no
-    longer does anything. Use the <code>:precision</code> flag instead.</li>
-    <li>The <kbd>setup:early-exit</kbd> flag has been deprecated, and no
-    longer does anything. Herbie is fast enough now that it's not that
-    important any more!</li>
+    <li>The <kbd>precision:fallback</kbd> flag has been deprecated, and no
+    longer does anything. Use the <code>:precision racket</code> flag instead.</li>
+    <li>Support for <a href="https://github.com/herbie-fp/regraph">regraph</a> has been removed.</li>
   </ul>
-  
+  <br>
   <h2>Try it out!</h2>
 
   <p>
@@ -155,7 +211,7 @@
     mailing list</a>,
     or <a href="https://github.com/uw-plse/herbie">contribute</a>.
   </p>
-  
+  <br>
   <p style="font-weight: bold; text-align: center;">If you find Herbie
   useful, <a href="mailto:herbie@cs.washington.edu">let us know!</p>
 </body>

@@ -38,29 +38,52 @@
   bit posits) are available, but are poorly supported.</p>
 
 
-  <h2 id="complex">Complex Numbers</h2>
+  <h2 id="complex">Complex numbers</h2>
 
-  <p>The <kbd>complex-herbie</kbd> plugin implements support for
-  complex numbers. Install it with:</p>
+  <p>The <kbd>complex-herbie</kbd> plugin has been removed as of Herbie 1.6.
+    This plugin may be brought back in the future.
 
-  <pre class="shell">raco pkg install --auto complex-herbie</pre>
+  <h2 id="complex">Generic floating-point numbers</h2>
 
-  <p>Herbie input parameters are always real numbers; complex
-  numbers must be constructed with <code>complex</code>. The
-  functions <code>re</code>, <code>im</code>, and <code>conj</code>
-  are available on complex numbers, along with the arithmetic
-  operators, <code>exp</code>, <code>log</code>, <code>pow</code>,
-  and <code>sqrt</code>. Complex and real operations use the same
-  syntax, but cannot be mixed: <code>(+ (complex 1 2) 1)</code> is not
-  valid. Herbie reports type errors in such situations.</p>
+  <p>The <kbd>float-herbie</kbd> plugin implements support for any IEEE-754
+    binary floating-point number. To install, check out the
+    <a href="https://github.com/bksaiki/float-herbie">source code</a>
+    and run
+  </p>
 
-  <p>Complex operations are implemented by
-  <a href="https://docs.racket-lang.org/reference/numbers.html#%28tech._complex._number%29">Racket</a>,
-  so results may differ (slightly) from complex numbers in some other
-  language, especially for non-finite complex numbers. In the future,
-  we hope to support complex-number arguments and fully support all
-  complex-number operations.</p>
+  <pre class="shell">raco pkg install</pre>
 
+  <p>
+    at the top-level directory of the repository.
+    Once <kbd>float-herbie</kbd> is installed,
+    specify <code>:precision (float <i>ex</i> <i>nb</i>)</code>
+    to inform Herbie that it should assume the core's inputs and outputs are
+    floating-point numbers with <i>ex</i> exponent bits and <i>nb</i> total bits
+    (sign bit + mantissa bits + exponent bits).
+  </p>
+
+  <h2 id="complex">Generic fixed-point numbers</h2>
+
+  <p>The <kbd>fixedpoint-herbie</kbd> plugin implements support for any fixed-point number.
+    To install, check out the
+    <a href="https://github.com/bksaiki/fixedpoint-herbie">source code</a>
+    and run
+  </p>
+
+  <pre class="shell">raco pkg install</pre>
+
+  <p>
+    at the top-level directory of the repository.
+    Once <kbd>fixedpoint-herbie</kbd> is installed,
+    specify <code>:precision (fixed <i>nb</i> <i>sc</i>)</code>
+    to inform Herbie that it should assume the core's inputs and outputs are
+    signed fixed-point numbers with <i>nb</i> total bits and a scaling factor of
+    2<sup><i>sc</i></sup> (integer formats have a scaling factor of 2<sup>0</sup>).
+    This plugin also supports unsigned fixed-point numbers specified by
+    <code>:precision (ufixed <i>nb</i> <i>sc</i>)</code> and provides
+    simpler aliases for integer formats with <code>:precision (integer <i>nb</i>)</code>
+    and <code>:precision (uinteger <i>nb</i>)</code>.
+  </p>
   
   <h2>Developing plugins</h2>
 
@@ -364,15 +387,13 @@
     <dt>
       <code>
       <table>
-        <tr><td>(<b>register-representation!</b> </td><td> <i>name</i> <i>repr</i>)</td></tr>
+        <tr><td>(<b>register-representation-alias!</b> </td><td> <i>name</i> <i>repr</i>)</td></tr>
       </table>
       </code>
     </dt>
-    <dd>An alternate form of <code>register-representation!</code> used for representation aliasing.
+    <dd>Adds an alias <i>name</i> for an existing representation <i>repr</i>.
       If two representations are equivalent, e.g. <i>(float 8 32)</i> and <i>binary32</i>,
       this procedure can be used to declare the two representations equivalent.
-      The field <i>repr</i> is an existing representation object and <i>name</i>
-      is an alias that should be associated with it.
     </dd>
 
     <dt>

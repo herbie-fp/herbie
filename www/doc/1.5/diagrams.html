@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Diagrams</title>
+  <link rel='stylesheet' type='text/css' href="../../main.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <header>
+    <a href="../.."><img class="logo" src="../../logo.png" /></a>
+    <h1>Diagrams</h1>
+  </header>
+
+  <figure>
+    <img width="100%" src="system-1.5.png" alt="System diagram of Herbie" />
+  </figure>
+
+  <p>
+    High-level system diagram of Herbie. It highlights Herbie's core architecture,
+      external libraries, and user interactions.
+    Basic flow: Herbie passes user input (expression, precondition, etc.) to the
+      mainloop (scheduler) which alternates between generate and test phases multiple times,
+      maintaining and improving a set of accurate expressions at each iteration.
+    Once the generate-and-test phase is complete, Herbie extracts either
+      one or many output expressions using an algorithm called regime inference.
+      Regime inference chooses the "best" (usually most accurate)
+      generated candidate expression or combines multple candidates,
+      each "best" on a smaller part of the input range, with a branch condition.
+  </p>
+  
+</body>
+</html>
