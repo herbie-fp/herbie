@@ -139,7 +139,7 @@
     (raise-user-error 'make-index "No recent nightly runs"))
 
   (define-values (mainline-infos other-infos)
-    (partition (λ (x) (set-member? '("master" "develop") (dict-ref (first x) 'branch)))
+    (partition (λ (x) (set-member? '("master" "develop" "main") (dict-ref (first x) 'branch)))
                branch-infos))
 
   (when (null? mainline-infos)
@@ -151,7 +151,7 @@
                  (group-by
                   (curryr dict-ref 'note)
                   (sort
-                   (filter (λ (x) (set-member? '("master" "develop") (dict-ref x 'branch))) folders)
+                   (filter (λ (x) (set-member? '("master" "develop" "main") (dict-ref x 'branch))) folders)
                    > #:key (curryr dict-ref 'date-unix))))))))
 
   (define crashes
