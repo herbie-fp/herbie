@@ -302,11 +302,6 @@
      (sp (si-cidx si1) expr split-at))
    (list (sp (si-cidx (last sindices)) expr +nan.0))))
 
-(define (point-with-dim index point val)
-  (map (λ (pval pindex) (if (= pindex index) val pval))
-       point
-       (range (length point))))
-
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
 ;; indices = The si's we are considering in this candidate.
