@@ -116,8 +116,8 @@
     <dd>Enables multi-objective improvement. Herbie will attempt to simultaneously
     optimize for both accuracy and expression cost. Rather than generating
     a single "ideal" output expression, Herbie will generate many output expressions.
-    This mode is still considered experimental. This <em>will</em> take a long time to run.
-    We recommend timeouts measured in hours.</dd>
+    This mode is still considered experimental. With this option, Herbie will
+    take a <em>long</em> time to run. We recommend timeouts measured in hours.</dd>
   </dl>
 
   <h2>Web shell options</h2>
@@ -175,10 +175,6 @@
     <tr><td>special</td><td>The gamma, Bessel, and error functions</td></tr>
     <tr><td>numerics</td><td>Numerical compounds <code>expm1</code>, <code>log1p</code>, <code>fma</code>, and <code>hypot</code></td></tr>
   </table>
-
-  <p>All groups except <code>numerics</code> are enabled by default.
-  We recommend turning <code>numerics</code> on if these functions are
-  available in your language.</p>
 
   <h2>Search options</h2>
 
