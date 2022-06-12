@@ -113,6 +113,7 @@
   (unless (set=? vars used)
     (define unused (set-subtract vars used))
     (warn 'unused-variable
+          #:url "faq.html#unused-variable"
           "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
           (string-join (map ~a unused) ", "))))
 
@@ -120,6 +121,7 @@
   (for* ([var vars] [const (all-constants)])
     (when (string-ci=? (symbol->string var) (symbol->string const))
       (warn 'strange-variable
+            #:url "faq.html#strange-variable"
             "unusual variable ~a; did you mean ~a?" var const))))
 
 (define (our-read-syntax port name)

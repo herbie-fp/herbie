@@ -1,0 +1,244 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Input Format</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>The Input Format</h1>
+  </header>
+
+  <p>
+    <a href="../../">Herbie</a> uses
+    the <a href="http://fpbench.org">FPCore</a> format to specify an
+    input program, and has extensive options for precisely describing
+    its context.
+  </p>
+  
+  <h2 id="sec1">General format</h2>
+
+  <p><a href="http://fpbench.org">FPCore</a> format looks like this:</p>
+
+  <pre>(FPCore (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
+  <pre>(FPCore <var>name</var> (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
+
+  <p>
+    Each <var>input</var> is a variable name, like <code>x</code>,
+    used in the <var>expression</var>. Properties are used to specify
+    additional information about the <var>expression</var>'s context.
+    As of version 1.5, Herbie supports named functions.
+    If <var>name</var> is specified, the function can be inlined
+    within any subsequent FPCore in the file.
+  </p>
+
+  <p>
+    The expression is written in prefix form, with every function call
+    parenthesized, as in Lisp. For example, the formula for the
+    hypotenuse of a triangle with legs <i>a</i> and <i>b</i> is:
+  </p>
+
+  <pre>(FPCore (a b) (sqrt (+ (* a a) (* b b))))</pre>
+
+  <p>
+    The semicolon (<kbd>;</kbd>) character introduces a line comment.
+    We recommend the <code>.fpcore</code> file extension for Herbie input files.
+  </p>
+  
+  <h2>Supported functions</h2>
+  
+  <p>
+    Herbie supports all functions
+    from <a href="http://pubs.opengroup.org/onlinepubs/7908799/xsh/math.h.html">math.h</a>
+    with floating-point-only inputs and outputs. The best supported
+    functions include:
+  </p>
+
+  <dl class="function-list">
+    <dt><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>fabs</code></dt>
+    <dd>The usual arithmetic functions</dd>
+    <dt><code>sqrt</code>, <code>cbrt</code></dt>
+    <dd>Square and cube roots</dd>
+    <dt><code>pow</code>, <code>exp</code>, <code>log</code></dt>
+    <dd>Various exponentiations and logarithms</dd>
+    <dt><code>sin</code>, <code>cos</code>, <code>tan</code></dt>
+    <dd>The trigonometric functions</dd>
+    <dt><code>asin</code>, <code>acos</code>, <code>atan</code>, <code>atan2</code></dt>
+    <dd>The inverse trigonometric functions</dd>
+    <dt><code>sinh</code>, <code>cosh</code>, <code>tanh</code></dt>
+    <dd>The hyperbolic functions</dd>
+    <dt><code>asinh</code>, <code>acosh</code>, <code>atanh</code></dt>
+    <dd>The inverse hyperbolic functions</dd>
+    <dt><code>fma</code>, <code>expm1</code>, <code>log1p</code>, <code>hypot</code></dt>
+    <dd>Specialized numeric functions</dd>
+  </dl>
+
+  <p>Herbie also supports the constants <code>PI</code>
+  and <code>E</code>. The arithmetic operators associate to the left,
+  and <code>-</code> is used for both subtraction and negation.</p>
+
+  <p>Herbie links against your computer's <code>libm</code> to
+  evaluate these functions. So, each function has the same behavior in
+  Herbie as in your code.</p>
+
+  <p>On Windows, the Bessel functions are not available in the
+  system <code>libm</code>, so Herbie will use a fallback
+  implementation and print a warning. Turn off the
+  the <kbd>precision:fallback</kbd> <a href="options.html">option</a>
+  to disable those functions instead.</p>
+
+  <h2 id="conditionals">Conditionals</h2>
+  
+  <p>FPCore uses <code>if</code> for conditional expressions:</p>
+
+  <pre>(if <var>cond</var> <var>if-true</var> <var>if-false</var>)</pre>
+
+  <p>
+    The conditional <code><var>cond</var></code> may use:
+  </p>
+  
+  <dl class="function-list">
+    <dt><code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code></dt>
+    <dd>The usual comparison operators</dd>
+    <dt><code>and</code>, <code>or</code>, <code>not</code></dt>
+    <dd>The usual logical operators</dd>
+    <dt><code>TRUE</code>, <code>FALSE</code></dt>
+    <dd>The two boolean values</dd>
+  </dl>
+
+  <p>The comparison functions implement chained comparisons with more than two arguments.</p>
+
+  <h2 id="intermediates">Intermediate variables</h2>
+  
+  <p>Intermediate variables can be defined
+    using <code>let</code> and <code>let*</code>:</p>
+
+  <pre>(let ([<var>variable</var> <var>value</var>] <var>...</var>) <var>body</var>)</pre>
+
+  <p>In both <code>let</code> and <code>let*</code>,
+  each <var>variable</var> is bound to its <var>value</var> and can be
+  used in the <var>body</var>. The difference between <code>let</code>
+  and <code>let*</code> is what order the values are
+  evaluated in:</p>
+
+  <dl>
+    <dt><code>let</code> expressions</dt>
+    <dd>In a <code>let</code> expression, all the values are evaluated
+      in parallel, before they are bound to their variables. This
+      means that later values can't refer to earlier variables in the
+      same <code>let</code> block.</dd>
+
+    <dt><code>let*</code> expressions</dt>
+    <dd>A <code>let*</code> block looks the same as a <code>let</code>
+      block, except the values are evaluated one at a time, and later
+      values can refer to earlier variables.</dd>
+  </dl>
+
+  <p>Note that Herbie treats intermediate values only as a notational
+  convenience, and inlines their values before improving the formula's
+  accuracy. Using intermediate variables will not help Herbie improve
+  a formula's accuracy or speed up its run-time.</p>
+
+  <h2 id="preconditions">Preconditions</h2>
+
+  <p>By default, the arguments to formulas are assumed to be
+  arbitrarily large or small floating-point numbers. However, in most
+  programs a smaller range of argument values is possible.
+  The <code>:pre</code> property (for “precondition”) describes this
+  smaller range.</p>
+
+  <p>Preconditions use comparison and boolean operators, just
+  like <a href="#conditionals">conditional statements</a>:</p>
+
+  <pre>(FPCore (x) :pre (&lt; 1 x 10) (/ 1 (- x 1)))</pre>
+
+  <p>Herbie is particularly efficient when when the precondition is
+  an <code>and</code> of ranges for each variable, but more complex
+  preconditions also work.</p>
+
+  <h2 id="precisions">Precisions</h2>
+
+  <p>Herbie supports both single- and double-precision values; you can
+  specify the precision with the <code>:precision</code> property:</p>
+
+  <dl class="function-list">
+    <dt><code>binary32</code></dt>
+    <dd>Single-precision IEEE-754 floating point</dd>
+    <dt><code>binary64</code></dt>
+    <dd>Double-precision IEEE-754 floating point</dd>
+    <dt><code>racket</code></dt>
+    <dd>Like <code>binary64</code>, but using Racket math functions
+      rather than your computer's <code>libm</code>.</dd>
+  </dl>
+
+  <p>By default, <code>binary64</code> is assumed. Herbie also has
+  a <a href="plugins.html">plugin system</a> to load additional
+  precisions.</p>
+
+  <h2 id="conversions">Conversions</h2>
+
+  <p>Herbie supports conversions between different precisions.
+  All conversions are assumed to be bi-directional. You can
+  specify conversions with the <code>:herbie-conversions</code>
+  property.</p>
+
+  <dl class="function-list">
+    <dt><code>:herbie-conversions<br/>([<var>prec1</var> <var>prec2</var>] ...)</code></dt>
+    <dd>If an expression is computed with precision <code>prec1</code>,
+    Herbie is allowed to rewrite all (or some) of the expression so it
+    is computed with precision <code>prec2</code> and vice versa.</dd>
+  </dl>
+
+  <p>For example, to let Herbie introduce single-precision
+  code when <code>:precision</code> is set to <code>binary64</code> or vice versa,
+  specify <code>:herbie-conversions ((binary64 binary32))</code></p>
+
+  <h2 id="specs">Specifications</h2>
+
+  <p>In some cases, your input program is an approximation of some
+  more complex mathematical expression. The <code>:spec</code> (for
+  “specification”) lets you specify the more complex ideal case.
+  Herbie will then try to modify the input program to make it more
+  accurately evaluate the specification.</p>
+
+  <p>For example, suppose you want to evaluate <code>sin(1/x)</code>
+  via a series expansion. Write:</p>
+
+  <pre>(FPCore (x)
+  :spec (sin (/ 1 x))
+  (+ (/ 1 x) (/ 1 (* 6 (pow x 3)))))</pre>
+
+  <p>Herbie will only use the <code>:spec</code> expression to
+  evaluate error, not to search for accurate expressions.</p>
+
+  <h2 id="properties">Miscellaneous Properties</h2>
+
+  <p>Herbie uses the <code>:name</code> property to name FPCores in
+  its UI. Its value ought to be a string.</p>
+
+  <p>Herbie's output provide additional information in custom
+  properties:</p>
+
+  <dl class="function-list">
+    <dt><code>:herbie-status <var>status</var></code></dt>
+    <dd><var>status</var> describes whether Herbie worked: it is one
+    of <code>success</code>, <code>timeout</code>, <code>error</code>,
+    or <code>crash</code>.</dd>
+    <dt><code>:herbie-time <var>ms</var></code></dt>
+    <dd>The time, in milliseconds, used by Herbie to find a more accurate formula.</dd>
+    <dt><code>:herbie-error-input<br/>([<var>pts</var> <var>err</var>] ...)</code></dt>
+    <dd>The average <var>err</var>or of the input program at <var>pts</var> points. Multiple entries correspond to Herbie's training and test sets.</dd>
+    <dt><code>:herbie-error-output<br/>([<var>pts</var> <var>err</var>] ...)</code></dt>
+    <dd>The computed average error of the output program, similar to <code>:herbie-error-input</code>.</dd>
+  </dl>
+
+  <p>Herbie's benchmark suite also uses properties such
+  as <code>:herbie-target</code> for continuous integration, but these
+  are not supported and their use is discouraged.</p>
+  
+</body>
+</html>

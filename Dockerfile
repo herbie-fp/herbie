@@ -6,7 +6,7 @@
 # Builds output under /herbie/egg-herbie
 FROM rust:1.61.0 as egg-herbie-builder
 WORKDIR /herbie
-COPY . .
+COPY egg-herbie egg-herbie
 RUN cargo build --release --manifest-path=egg-herbie/Cargo.toml
 
 # Production image
@@ -14,7 +14,7 @@ FROM racket/racket:8.5-full AS production
 MAINTAINER Pavel Panchekha <me@pavpanchekha.com>
 COPY --from=egg-herbie-builder /herbie/egg-herbie /src/egg-herbie
 RUN raco pkg install /src/egg-herbie
-ADD src /src/herbie
+COPY src /src/herbie
 RUN raco pkg install --auto /src/herbie
 ENTRYPOINT ["racket", "/src/herbie/herbie.rkt"]
 EXPOSE 80

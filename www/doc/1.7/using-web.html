@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Using Herbie from the Browser</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>Using Herbie from the Browser</h1>
+  </header>
+
+  <p>
+    <a href="../../">Herbie</a> rewrites floating point expressions to
+    make them more accurate. Herbie can be used
+    from <a href="using-cli.html">the command-line</a> or from the
+    browser; this page is about using Herbie from the browser.</p>
+
+
+  <h2 id="interactive">The Herbie web shell</h2>
+
+  <p>
+    The Herbie web shell lets you interact with Herbie through your
+    browser, featuring a convenient input format. The web shell is the
+    friendliest and easiest way to use Herbie. Run the Herbie web
+    shell with this command:
+  </p>
+
+  <pre class="shell">herbie web</pre>
+
+  <p>After a few seconds, the web shell will rev up and direct your
+  browser to Herbie:</p>
+  
+  <pre class="shell">herbie web
+Herbie 1.6 with seed 841489305
+Find help on https://herbie.uwplse.org/, exit with Ctrl-C
+Your Web application is running at http://localhost:8000/.
+Stop this program at any time to terminate the Web Server.</pre>
+
+  <figure>
+    <img width="100%" src="web-main.png" alt="A screenshot of the Herbie web shell main page."/>
+  </figure>
+
+  <p>
+    Type expressions in standard mathematical syntax (parsed
+    by <a href="http://mathjs.org">Math.js</a>). For each input variable,
+    specify the range of values that Herbie should consider when trying 
+    to improve the expression. Hit the "Improve with Herbie" button to have 
+    Herbie attempt to improve the expression.
+  </p>
+
+  <figure>
+    <img width="100%" src="web-progress.png" />
+    <figcaption>Herbie shows improvement logs as it works.</figcaption>
+  </figure>
+
+  <p>
+    The web shell reports Herbie's progress and redirects to a
+    <a href="report.html">report</a> once Herbie is done.
+  </p>
+
+  <p>
+    The web shell can also automatically save the generated reports,
+    and has <a href="options.html">many other options</a> you might
+    want to explore.
+  </p>
+
+
+  <h2 id="batch">Batch report generation</h2>
+
+  <p>A <a href="report.html">report</a> can also be generated directly
+  from a file of <a href="input.html">input expressions</a>:</p>
+  
+  <pre class="shell">herbie report bench/tutorial.fpcore output/
+Starting Herbie on 3 problems (seed: 1809676410)...
+  1/3   [   1.799s]   39→ 0     Expanding a square
+  2/3   [   3.256s]    0→ 0     Commute and associate
+  3/3   [   0.937s]   29→ 0     Cancel like terms</pre>
+
+  <p>
+    This command asks Herbie to generate a report from the input
+    expressions in <code>bench/tutorial.fpcore</code> and to save the report in
+    the directory <code>output/</code>. It's best if that directory
+    doesn't exist before running this command.
+  </p>
+
+  <p>
+    Once generated, open <code>output/results.html</code> in your
+    favorite browser (but see <a href="faq.html">the FAQ</a> if you're
+    using Chrome). That page summarizes Herbie's results for all
+    expression in your input file, and you can click on individual
+    expressions to see their report.
+  </p>
+
+  <p>Batch report generation is the most informative way to run Herbie
+  on a large collection of inputs. Like the web shell, it can be
+  customized through <a href="options.html">command-line options</a>,
+  including parallelizing Herbie with multiple threads.</p>
+
+
+</body>
+</html>
