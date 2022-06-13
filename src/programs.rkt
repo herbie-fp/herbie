@@ -330,12 +330,12 @@
       (if (equal? orepr repr*)
           (let ([args* (map loop args (operator-info op 'itype))])
             (and (andmap identity args*) (cons op args*)))
-          (let ([op* (apply get-parametric-operator 
+          (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+            (let ([op* (apply get-parametric-operator
                             (impl->operator op)
-                            (make-list (length args) repr*)
-                            #:fail-fast? #f)]
-                [args* (map (curryr loop repr*) args)])
-            (and op* (andmap identity args*) (cons op* args*))))]
+                            (make-list (length args) repr*))]
+                  [args* (map (curryr loop repr*) args)])
+            (and (andmap identity args*) (cons op* args*)))))]
      [(? variable?)
       (define var-repr (dict-ref (*var-reprs*) expr))
       (cond
