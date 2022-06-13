@@ -4,7 +4,9 @@ help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket src/herbie.rkt web' to run it."
 
-install: egg-herbie
+install: egg-herbie update
+
+update:
 	raco pkg install --skip-installed --auto --name herbie src/
 	raco pkg update --name herbie src/
 
@@ -29,7 +31,12 @@ minimal-distribution:
 	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
-nightly: install
+nightly:
+	if raco pkg show herbie | grep -q herbie; then \
+	    $(MAKE) update egg-herbie; \
+	else \
+	    $(MAKE) install; \
+	fi;
 	bash infra/nightly.sh reports
 
 start-server: install
