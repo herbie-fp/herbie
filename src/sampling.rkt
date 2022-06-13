@@ -144,6 +144,11 @@
     (set! start now))
   log!)
 
+(define (ival-stuck-false? v)
+  (define (close-enough x y) x)
+  (define ival-close-enough? (close-enough->ival close-enough))
+  (not (ival-hi (ival-close-enough? v))))
+
 (define (ival-eval fn pt #:precision [precision 80])
   (let loop ([precision precision])
     (match-define (list valid exs ...) (parameterize ([bf-precision precision]) (apply fn pt)))
@@ -151,7 +156,7 @@
     (cond
      [(not (ival-hi valid))
       (values 'invalid precision +nan.0)]
-     [(and (not (ival-lo valid)) (ival-lo-fixed? valid))
+     [(ival-stuck-false? valid)
       (values 'unsamplable precision +nan.0)]
      [(ival-lo valid)
       (values 'sampled precision exs)]
