@@ -9,3 +9,5 @@
 
 (define build-deps
   '("rackunit-lib"))
+
+(define deps '(("base" #:version "8.0")))
