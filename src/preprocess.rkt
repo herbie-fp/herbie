@@ -1,6 +1,6 @@
 #lang racket
 
-(require "interface.rkt" "programs.rkt" "float.rkt" "points.rkt")
+(require "interface.rkt" "points.rkt" "float.rkt")
 
 (provide preprocess-pcontext *herbie-preprocess* apply-preprocess)
 
@@ -18,9 +18,6 @@
       [else
        (cons (first current) (loop (rest current) todo (+ index 1)))])))
 
-(define (<-repr repr a b)
-  (< (repr->real a repr) (repr->real b repr)))
-
 (define (apply-to-group variables point group-variables group-function)
   (define indicies
     (map (lambda (var) (index-of variables var)) group-variables))
@@ -31,7 +28,7 @@
 
 (define (sort-group variables point preprocess repr)
   (match-define (list 'sort vars ...) preprocess)
-  (apply-to-group variables point vars (lambda (group) (sort group (curry <-repr repr)))))
+  (apply-to-group variables point vars (lambda (group) (sort group (curryr </total repr)))))
 
 (define (apply-preprocess variables sampled-point preprocess-structs repr)
   (cond

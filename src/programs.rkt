@@ -1,9 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "syntax/syntax.rkt" "float.rkt" "interface.rkt"
-         "timeline.rkt")
-(module+ test (require rackunit "load-plugin.rkt"))
+(require "syntax/syntax.rkt" "interface.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
@@ -13,6 +11,10 @@
          batch-eval-progs eval-prog eval-application
          free-variables replace-expression replace-vars
          apply-repr-change)
+
+(module+ test
+  (require rackunit "load-plugin.rkt")
+  (load-herbie-plugins))
 
 (define expr? (or/c list? symbol? boolean? real?))
 
@@ -34,7 +36,7 @@
 ;; standards, this will have to have more information passed in
 (define (type-of expr repr env)
   (match expr
-   [(? number?) (get-type 'real)]
+   [(? number?) 'real]
    [(? (representation-repr? repr)) (representation-type repr)]
    [(? variable?) (representation-type (dict-ref env expr))]
    [(list 'if cond ift iff) (type-of ift repr env)]
@@ -136,9 +138,6 @@
   (define exprc 0)
   (define varc (length vars))
 
-  ;; Local cache of operator info
-  (define cached-ops (make-hash))
-
   ;; Known representations
   (define bool-repr (get-representation 'bool))
 
@@ -170,7 +169,6 @@
                   (set! exprc (+ 1 exprc))
                   (set! exprs (cons expr exprs))))))
 
-  (define progc (length progs))
   (define names
     (for/list ([prog progs])
       (munge (program-body prog) repr)))
@@ -235,6 +233,7 @@
     [(list 'ceil (? exact-value? a)) (ceiling a)]
     [(list 'round (? exact-value? a)) (round a)]
     ;; Added
+    [(list 'exp 0) 1]
     [(list 'log 1) 0]
     [(list 'cbrt 1) 1]
     [_ #f]))
@@ -331,12 +330,12 @@
       (if (equal? orepr repr*)
           (let ([args* (map loop args (operator-info op 'itype))])
             (and (andmap identity args*) (cons op args*)))
-          (let ([op* (apply get-parametric-operator 
+          (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+            (let ([op* (apply get-parametric-operator
                             (impl->operator op)
-                            (make-list (length args) repr*)
-                            #:fail-fast? #f)]
-                [args* (map (curryr loop repr*) args)])
-            (and op* (andmap identity args*) (cons op* args*))))]
+                            (make-list (length args) repr*))]
+                  [args* (map (curryr loop repr*) args)])
+            (and (andmap identity args*) (cons op* args*)))))]
      [(? variable?)
       (define var-repr (dict-ref (*var-reprs*) expr))
       (cond

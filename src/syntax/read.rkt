@@ -1,7 +1,7 @@
 #lang racket
 
-(require "../config.rkt" "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
-         "../conversions.rkt"
+(require "../common.rkt" "../conversions.rkt" "../errors.rkt"
+         "../programs.rkt" "../interface.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
@@ -113,6 +113,7 @@
   (unless (set=? vars used)
     (define unused (set-subtract vars used))
     (warn 'unused-variable
+          #:url "faq.html#unused-variable"
           "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
           (string-join (map ~a unused) ", "))))
 
@@ -120,6 +121,7 @@
   (for* ([var vars] [const (all-constants)])
     (when (string-ci=? (symbol->string var) (symbol->string const))
       (warn 'strange-variable
+            #:url "faq.html#strange-variable"
             "unusual variable ~a; did you mean ~a?" var const))))
 
 (define (our-read-syntax port name)
@@ -161,3 +163,34 @@
           (if (equal? (length duplicates) 1) "name" "names")
           (string-join (map (curry format "\"~a\"") duplicates) ", ")))
   out)
+
+(module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-builtins)
+
+  (define repr (get-representation 'binary64))
+
+  ;; inlining
+
+  ;; Test classic quadp and quadm examples
+  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
+  (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
+  (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
+  (check-equal? (desugar-program quadp repr (map (curryr cons repr) (list 'x 'y 'z)))
+                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+  (check-equal? (desugar-program quadm repr (map (curryr cons repr) (list 'x 'y 'z)))
+                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+
+  ;; x^5 = x^3 * x^2
+  (register-function! 'sqr (list 'x) repr '(* x x))
+  (register-function! 'cube (list 'x) repr '(* x x x))
+  (define fifth '(* (cube a) (sqr a)))
+  (check-equal? (desugar-program fifth repr (list (cons 'a repr)))
+                '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
+
+  ;; casting edge cases
+  (check-equal? (desugar-program `(cast x) repr `((x . ,repr)))
+                'x)
+  (check-equal? (desugar-program `(cast (! :precision binary64 x)) repr `((x . ,repr)))
+                'x)
+)

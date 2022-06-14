@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt" "types.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
@@ -95,7 +95,9 @@
         (expression->type body env type error!)])]
     [#`(- #,arg)
      (define actual-type (expression->type arg env type error!))
-     (define op* (get-parametric-operator 'neg actual-type #:fail-fast? #f))
+     (define op*
+       (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+         (get-parametric-operator 'neg actual-type)))
      (if op*
          (operator-info op* 'otype)
          (begin
@@ -140,7 +142,9 @@
      (get-representation 'bool)]
     [#`(,(? operator-exists? op) #,exprs ...)
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
-     (define op* (apply get-parametric-operator op actual-types #:fail-fast? #f))
+     (define op*
+       (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+         (apply get-parametric-operator op actual-types)))
      (if op*
          (operator-info op* 'otype)
          (begin

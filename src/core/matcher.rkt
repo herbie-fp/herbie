@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/hash egg-herbie)
+(require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt"
          "../syntax/rules.rkt" "../interface.rkt" "../timeline.rkt" "simplify.rkt")
 
@@ -17,7 +17,6 @@
 ;; Bindings are stored as association lists
 
 (define (merge-bindings binding1 binding2)
-  (define (fail . irr) #f)
   (and binding1
        binding2
        (let/ec quit
@@ -25,8 +24,6 @@
            (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
 
 (define (pattern-match pattern expr)
-  (define (fail . irr) #f)
-
   (match pattern
    [(? number?)
     (and (equal? pattern expr) '())]
@@ -61,134 +58,95 @@
   (match-define (change rule location bindings) cng)
   (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
 
-;;  Depth 1 rewriter
+;;
+;;  Non-recursive rewriter
+;;
 
-(define (rewrite-once expr repr #:rules rules #:root [root-loc '()] #:depth [depth 1])
-  (define type (repr-of expr repr (*var-reprs*)))
+(define (rewrite-once expr repr #:rules rules #:root [root-loc '()])
+  (define expr-repr (repr-of expr repr (*var-reprs*)))
   (reap [sow]
-    (for ([rule rules] #:when (equal? type (rule-otype rule)))
+    (for ([rule rules] #:when (equal? expr-repr (rule-otype rule)))
       (let* ([result (rule-apply rule expr)])
         (when result
-            (sow (list (change rule root-loc (cdr result)))))))))
+          (sow (list (change rule root-loc (cdr result)))))))))
 
 ;;
-;;  Egg rewriter
+;;  Egg recursive rewriter
 ;;
-
 ;; Fallback system
 ;;  batch-egg-rewrite - batched call to egg
 ;;  egg-rewrite - call to egg on an expression (skipped if batch-egg-rewrite called with 1 expr)
-;;  egg-rewrite (with iter limit) - call to egg on an expression with an iter limit (last resort)
-
-; If unsoundness was detected, try running one epxression at a time.
-; Can optionally set iter limit (will give up if unsoundness detected).
-; Returns (cons <rule-count> <variants>).
-(define (egg-rewrite expr repr #:rules rules #:root [root-loc '()] #:limit [iter-limit #f])
-  (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
-  (define irules (rules->irules rules))
-  (timeline-push! 'method (~a (object-name egg-rewrite)))
-  ;; returns a procedure rather than the variants directly:
-  ;; if we need to fallback, we exit the `with-egraph` closure first
-  ;; so the existing egraph gets cleaned up
-  (define result-thunk
-    (with-egraph
-      (lambda (egg-graph)
-        (egraph-add-exprs
-          egg-graph
-          (list expr)
-          (lambda (node-ids)
-            (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t #:limit iter-limit))
-            (cond
-             [(egraph-is-unsound-detected egg-graph)
-              ; give up if iter limit is set
-              ; otherwise try with iter limit
-              (λ ()
-                (if (and iter-limit (>= iter-limit 2))
-                    (cons (hash) '())
-                    (let ([limit (- (length iter-data) 2)])
-                      (egg-rewrite expr repr #:rules rules #:root root-loc #:limit limit))))]
-             [else
-              (define expr-id (first node-ids))
-              (define output (egraph-get-variants egg-graph expr-id expr))
-              (define extracted (egg-exprs->exprs output egg-graph))
-              (define rule-counts
-                (for/hash ([rule rules])
-                  (values (rule-name rule) (egraph-get-times-applied egg-graph (rule-name rule)))))
-              (define variants
-                (for/list ([variant (remove-duplicates extracted)])
-                  (list (change egg-rule root-loc (list (cons 'x variant))))))
-              (λ () (cons rule-counts variants))]))))))
-  (result-thunk))
+;;  egg-rewrite-iter-limit - call to egg on an expression with an iter limit (last resort)
+;;
 
 (define (batch-egg-rewrite exprs
                            repr
                            #:rules rules
                            #:roots [root-locs (make-list (length exprs) '())]
                            #:depths [depths (make-list (length exprs) 1)])
-  (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
+  (define reprs (map (λ (e) (repr-of e repr (*var-reprs*))) exprs))
   (define irules (rules->irules rules))
-  ;; returns a procedure rather than the variants directly:
-  ;; if we need to fallback, we exit the `with-egraph` closure first
-  ;; so the existing egraph gets cleaned up
-  (define result-thunk
-    (with-egraph
-      (λ (egg-graph)
-        (egraph-add-exprs
-          egg-graph
-          exprs
-          (λ (node-ids)
-            (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids #t))
-            (for ([rule rules])
-              (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-              (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
-            (cond
-             [(egraph-is-unsound-detected egg-graph)
-              ; something bad happened
-              ; fallback and run one at a time
+  ; If unsoundness was detected, try running one epxression at a time.
+  ; Can optionally set iter limit (will give up if unsoundness detected).
+  (let loop ([exprs exprs] [root-locs root-locs] [iter-limit #f])
+    ; Returns a procedure rather than the variants directly:
+    ; if we need to fallback, we exit the `with-egraph` closure first
+    ; so the existing egraph gets cleaned up
+    (define result-thunk
+      (with-egraph
+        (λ (egg-graph)
+          (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+          (define iter-data (egg-run-rules egg-graph #:limit iter-limit (*node-limit*) irules node-ids #t))
+          (for ([rule rules])
+            (define count (egraph-get-times-applied egg-graph (rule-name rule)))
+            (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
+          (cond
+           [(egraph-is-unsound-detected egg-graph)
+            ; unsoundness detected, fallback
+            (match* (exprs iter-limit)
+              [((list (? list?) (? list?) (? list?) ...) #f)     ; run expressions individually
               (λ ()
-                (define rule-counts (make-hash))
-                (define iter-limit (and (= (length exprs) 1) (- (length iter-data) 2)))
-                (define variants
                 (for/list ([expr exprs] [root-loc root-locs])
-                  (match-define (cons rcs variants)
-                    (egg-rewrite expr repr #:rules rules #:root root-loc #:limit iter-limit))
-                  (hash-union! rule-counts rcs #:combine +)
-                  variants))
-                  (for ([(name count) (in-hash rule-counts)])
-                    (when (> count 0) (timeline-push! 'rules (~a name) count)))
-                  variants)]
-             [else
-              (define variants
-                (for/list ([id node-ids] [expr exprs] [root-loc root-locs])
-                  (define output (egraph-get-variants egg-graph id expr))
-                  (define extracted (egg-exprs->exprs output egg-graph))
-                  (for/list ([variant (remove-duplicates extracted)])
-                    (list (change egg-rule root-loc (list (cons 'x variant)))))))
-              (λ () variants)]))))))
-  (result-thunk))
+                  (timeline-push! 'method "egg-rewrite")
+                  (car (loop (list expr) (list root-loc) #f))))]
+              [((list (? list?)) #f)                             ; run expressions with iter limit
+              (λ ()
+                (let ([limit (- (length iter-data) 2)])
+                  (timeline-push! 'method "egg-rewrite-iter-limit")
+                  (loop exprs root-locs limit)))]
+              [(_ (? number?))                                   ; give up
+              (timeline-push! 'method "egg-rewrite-fail")
+              (λ () '(()))])]
+           [else
+            (define variants
+              (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
+                (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
+                (define output (egraph-get-variants egg-graph id expr))
+                (define extracted (egg-exprs->exprs output egg-graph))
+                (for/list ([variant (remove-duplicates extracted)])
+                  (list (change egg-rule root-loc (list (cons 'x variant)))))))
+            (λ () variants)]))))
+    (result-thunk)))
 
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
-                             repr 
+                             repr
                              #:rules rules
                              #:roots [root-locs (make-list (length exprs) '())]
-                             #:depths [depths (make-list (length exprs) 1)])
+                             #:depths [depths (make-list (length exprs) 1)]
+                             #:once? [once? #f])
   ; choose correct rr driver
   (cond
-   [(null? exprs) '()]
-   [(flag-set? 'generate 'rr)
-    (define driver batch-egg-rewrite)
-    (timeline-push! 'method (~a (object-name driver)))
-    (debug #:from 'progress #:depth 4 "batched rewriting for" exprs)
-    (define tnow (current-inexact-milliseconds))
-    (begin0 (driver exprs repr #:rules rules #:roots root-locs #:depths depths)
-      (for ([expr exprs])
-        (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]
+   [(or (null? exprs) (null? rules)) (make-list (length exprs) '())]
+   [(or once? (not (flag-set? 'generate 'rr)))
+    (timeline-push! 'method "rewrite-once")
+    (for/list ([expr exprs] [root-loc root-locs] [n (in-naturals 1)])
+      (define timeline-stop! (timeline-start! 'times (~a expr)))
+      (begin0 (rewrite-once expr repr #:rules rules #:root root-loc)
+        (timeline-stop!)))]
    [else
-    (define driver rewrite-once)
-    (timeline-push! 'method (~a (object-name driver)))
-    (for/list ([expr exprs] [root-loc root-locs] [depth depths] [n (in-naturals 1)])
-        (debug #:from 'progress #:depth 4 "[" n "/" (length exprs) "] rewriting for" expr)
-        (define tnow (current-inexact-milliseconds))
-        (begin0 (driver expr repr #:rules rules #:root root-loc #:depth depth)
-          (timeline-push! 'times (~a expr) (- (current-inexact-milliseconds) tnow))))]))
+    (timeline-push! 'method "batch-egg-rewrite")
+    (timeline-push! 'inputs (map ~a exprs))
+    (define out (batch-egg-rewrite exprs repr #:rules rules #:roots root-locs #:depths depths))
+    (timeline-push! 'outputs (map ~a out))
+    out]))

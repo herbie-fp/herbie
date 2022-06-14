@@ -187,6 +187,10 @@ section h1 {
 #language { position: absolute; right: 1em; }
 #precondition { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
 #precondition:before { content: "Precondition"; float: left; color: #444; }
+/* Allow line breaks in display equations (see https://katex.org/docs/issues.html) */
+.katex-display > .katex { white-space: normal }
+.katex-display .base { margin: 0.25em 0 }
+.katex-display { margin: 0.5em 0; }
 #preprocess { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
 #preprocess:before { content: "Preprocess"; float: left; color: #444; }
 

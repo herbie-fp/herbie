@@ -1,8 +1,8 @@
 #lang racket
 
 (require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json)
-(require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" "../interface.rkt")
-(require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt" "../programs.rkt"
+(require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" )
+(require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt"
         "../syntax/sugar.rkt" "../float.rkt")
 (provide all-pages make-page page-error-handler)
 
@@ -129,5 +129,5 @@
     ;(ticks . ,ticks)
     (splitpoints . ,splitpoints)))
     
-  ; (exacts . ,json-exacts)))
+  ; (exacts . ,json-exacts)
   (write-json json-obj out))

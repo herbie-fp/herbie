@@ -47,13 +47,9 @@
             [sym2-append (λ (x y) (string->symbol (string-append (symbol->string x) (symbol->string y))))]
             [name (sym2-append (syntax-e (car (syntax-e (cadr (syntax-e stx))))) '.f64)])
        #`(begin
-           (define fl-proc
+          (define fl-proc
             (get-ffi-obj 'op #f (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
-                         (λ () (warn 'unsupported #:url "faq.html#native-ops"
-                                     "native `~a` not supported on your system, disabling operator. ~a"
-                                     'op
-                                     "Consider using :precision racket for Racket-only operators.")
-                               #f)))
+                          (λ () #f)))
            (when fl-proc
             (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary64))) binary64
               [fl fl-proc] [key value] ...))))]))

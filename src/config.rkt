@@ -11,7 +11,7 @@
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define default-flags
-  #hash([precision . (fallback)]
+  #hash([precision . ()]
         [setup . (simplify search)]
         [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
@@ -21,10 +21,19 @@
   (match* (category flag)
     [('precision 'double)
      (eprintf "The precision:double option has been removed.\n")
-     (eprintf "  Please use :precision binary32 and :precision binary64 instead.\n")
+     (eprintf "  The double-precision representation is specified with :precision binary64.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+    [('precision 'fallback)
+     (eprintf "The precision:fallback option has been removed.\n")
+     (eprintf "  The fallback representation is specified with :precision racket.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+    [('precision 'fallback)
+     (eprintf "The precision:fallback option has been removed.\n")
+     (eprintf "  Please use :precision racket instead.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
     [('generate 'better-rr)
-     (eprintf "The current recursive rewriter does not support the generate:better-rr option.\n")
+     (eprintf "The generate:better-rr option has been removed.\n")
+     (eprintf "  The current recursive rewriter does not support the it.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
     [(_ _)
      (void)]))
@@ -104,7 +113,7 @@
           (if (equal? out "") default out))
       default))
 
-(define *herbie-version* "1.5")
+(define *herbie-version* "1.6")
 
 (define *hostname* (run-command "hostname"))
 

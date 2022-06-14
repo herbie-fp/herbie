@@ -1,17 +1,15 @@
 #lang racket
 
 (require racket/runtime-path math/base)
-(require "config.rkt" "debug.rkt")
+(require "config.rkt")
 (module+ test (require rackunit))
 
-(provide reap ->float32
-         call-with-output-files
+(provide reap
          flip-lists find-duplicates partial-sums
          argmins argmaxs index-of set-disjoint?
          get-seed set-seed!
-         quasisyntax dict sym-append comparator
+         quasisyntax dict sym-append
          format-time format-bits web-resource
-         debug ; from debug.rkt
          (all-from-out "config.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
@@ -32,11 +30,6 @@
   (let ([flsingle identity])
     (local-require racket/flonum)
     flsingle))
-
-(define (->float32 x)
-  (if (>= (string->number (substring (version) 0 1)) 8)
-      (cast-single (exact->inexact x))
-      (real->single-flonum x)))
 
 ;; Utility list functions
 
@@ -177,16 +170,6 @@
    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
    [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
-(define (call-with-output-files names k)
-  (let loop ([names names] [ps '()])
-    (if (null? names)
-        (apply k (reverse ps))
-        (if (car names)
-            (call-with-output-file
-                (car names) #:exists 'replace
-                (λ (p) (loop (cdr names) (cons p ps))))
-            (loop (cdr names) (cons #f ps))))))
-
 (define-runtime-path web-resource-path "web/resources/")
 
 (define (web-resource [name #f])
@@ -197,6 +180,3 @@
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~a args))))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))

@@ -2,7 +2,8 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../interface.rkt" "syntax.rkt" "types.rkt" "sugar.rkt")
+(require "../common.rkt" "../errors.rkt" "../interface.rkt"
+         "syntax.rkt" "sugar.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
@@ -135,6 +136,8 @@
       (*templated-rulesets* (cons (list name 'groups '((var . type) ...)) 
                                   (*templated-rulesets*))))]))
 
+(define *reprs-with-rules* (make-parameter '()))
+
 ;; Add existing rules in rulesets to 'active' rules
 
 (define (add-rules-from-rulesets repr)
@@ -156,8 +159,7 @@
 
 ;; Generate a set of rules by replacing a generic type with a repr
 (define (generate-rules-for type repr)
-  (define typename (type-name type))
-  (define valid? (disjoin (curry equal? typename)
+  (define valid? (disjoin (curry equal? type)
                           (curry set-member? (map representation-name (*reprs-with-rules*)))))
   (*templated-reprs* (set-add (*templated-reprs*) repr)) ; update
   (for ([set (reverse (*templated-rulesets*))] ; preserve rule order
@@ -166,22 +168,16 @@
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
     (define ctx
       (for/list ([v vars] [t types])
-        (cons v
-              (if (equal? t typename)
-                  repr
-                  (get-representation t))))) ;; Only bad one!
+        (define repr* (if (equal? t type) repr (get-representation t)))
+        (cons v repr*)))
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
-        (let ([name* (sym-append (rule-name r) '_ (representation-name repr))]
-              [input* (with-handlers ([exn:fail? (const #f)])
-                        (desugar-program (rule-input r) repr ctx #:full #f))]
-              [output* (with-handlers ([exn:fail? (const #f)])
-                         (desugar-program (rule-output r) repr ctx #:full #f))])
-          (if (and input* output*) ; if successfully desugars, then the rule is valid
-              (cons (rule name* input* output* ctx
-                          (type-of-rule input* output* ctx))
-                    rules*)
-              rules*))))      ; else, assume the expression(s) are not supported in the repr
+        (with-handlers ([exn:fail:user:herbie:missing? (const rules*)])
+          (define name* (sym-append (rule-name r) '_ (representation-name repr)))
+          (define input* (desugar-program (rule-input r) repr ctx #:full #f))
+          (define output* (desugar-program (rule-output r) repr ctx #:full #f))
+          (define rule* (rule name* input* output* ctx (type-of-rule input* output* ctx)))
+          (cons rule* rules*))))
     (unless (empty? rules*)   ; only add the ruleset if it contains one
       (*rulesets* (cons (list rules* groups ctx) (*rulesets*))))))
 

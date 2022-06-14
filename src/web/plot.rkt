@@ -2,7 +2,7 @@
 
 (require math/bigfloat math/flonum plot/no-gui racket/draw)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../syntax/syntax.rkt" "../syntax/types.rkt" "../syntax/read.rkt"
+         "../syntax/syntax.rkt" "../syntax/read.rkt"
          "../alternative.rkt" "../interface.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
@@ -444,13 +444,13 @@
   (alt-plot point-renderers repr #:port out #:kind 'png #:title title))
 
 #;
-(define (make-plots result rdir profile? debug?)
+(define (make-plots result rdir profile?)
   (define (open-file #:type [type #f] idx fun . args)
     (call-with-output-file (build-path rdir (format "plot-~a~a.png" idx (or type ""))) #:exists 'replace
       (apply curry fun args)))
 
   (define vars (program-variables (alt-program (test-success-start-alt result))))
-  (when (and debug? (>= (length vars) 2))
+  (when (>= (length vars) 2)
     (define point-alt-idxs (make-point-alt-idxs result))
     (define newpoints (test-success-newpoints result))
     (define baseline-errs (test-success-baseline-error result))
