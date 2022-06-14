@@ -1,6 +1,6 @@
 #lang racket
 
-(require "syntax/rules.rkt" "syntax/types.rkt"
+(require "syntax/rules.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
          "interface.rkt" "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
@@ -389,7 +389,7 @@
   (define joined-alts
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
-           (equal? (type-name (representation-type repr)) 'real)
+           (equal? (representation-type repr) 'real)
            (not (null? (program-variables (alt-program (car all-alts))))))
       (cond
        [(*pareto-mode*)

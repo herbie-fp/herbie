@@ -4,8 +4,7 @@
 (require "syntax/types.rkt" "errors.rkt")
 
 (provide (struct-out representation) get-representation
-          *output-repr* *var-reprs* *needed-reprs* *reprs-with-rules*
-          real->repr repr->real
+          *output-repr* *var-reprs* *needed-reprs*
           generate-repr)
 
 (module+ internals 
@@ -14,7 +13,6 @@
            register-representation!
            register-representation-alias!))
 
-(define *reprs-with-rules* (make-parameter '()))
 (define *needed-reprs* (make-parameter '()))
 (define *output-repr* (make-parameter #f))
 (define *var-reprs* (make-parameter '()))
@@ -24,7 +22,7 @@
 (struct representation
   (name type repr?
    bf->repr repr->bf ordinal->repr repr->ordinal
-   total-bits special-values)
+   total-bits special-value?)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
@@ -76,7 +74,9 @@
 ;; with the same name. See `register-representation-alias!` for associating
 ;; a representation with a different name.
 (define (register-representation! name type repr? . args)
-  (define repr (apply representation name (get-type type) repr? args))
+  (unless (type-name? type)
+    (raise-herbie-error "Tried to register a representation for type ~a: not found" type))
+  (define repr (apply representation name type repr? args))
   (set! representations (hash-set representations name repr)))
 
 ;; Associates an existing representation with a (possibly different) name.
@@ -91,12 +91,3 @@
 (define-syntax-rule (define-representation (name type repr?) args ...)
   (register-representation! 'name 'type repr? args ...))
 
-;; repr <==> real
-
-(define (real->repr x repr)
-  ((representation-bf->repr repr) (bf x)))
-
-(define (repr->real x repr)
-  (match x
-    [(? boolean?) x]
-    [_ (bigfloat->real ((representation-repr->bf repr) x))]))

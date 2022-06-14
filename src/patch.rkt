@@ -160,8 +160,7 @@
   ;; - check loaded representations
   ;; - if there is only one real representation, allow expansive rules to be run in egg
   ;; This is just a workaround and should definitely be fixed
-  (define real-type (get-type 'real))
-  (define one-real-repr? (= (count (λ (r) (equal? real-type (representation-type r))) (*needed-reprs*)) 1))
+  (define one-real-repr? (= (count (λ (r) (equal? (representation-type r) 'real)) (*needed-reprs*)) 1))
 
   ;; rewrite high-error locations
   (define changelists

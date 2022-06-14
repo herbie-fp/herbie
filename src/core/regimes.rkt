@@ -2,8 +2,7 @@
 
 (require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
-         "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
-         "../points.rkt")
+         "../interface.rkt" "../errors.rkt" "../preprocess.rkt" "../points.rkt")
 (require "../ground-truth.rkt" "../float.rkt" "../pretty-print.rkt") ; For binary search
 
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
@@ -66,7 +65,7 @@
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-name (type-of e repr (*var-reprs*))) 'real))
+   (λ (e) (equal? (type-of e repr (*var-reprs*)) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
@@ -302,11 +301,6 @@
      (timeline-push! 'bstep (value->json p1 repr) (value->json p2 repr) (value->json split-at repr))
      (sp (si-cidx si1) expr split-at))
    (list (sp (si-cidx (last sindices)) expr +nan.0))))
-
-(define (point-with-dim index point val)
-  (map (λ (pval pindex) (if (= pindex index) val pval))
-       point
-       (range (length point))))
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint

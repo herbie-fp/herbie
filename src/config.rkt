@@ -27,8 +27,13 @@
      (eprintf "The precision:fallback option has been removed.\n")
      (eprintf "  The fallback representation is specified with :precision racket.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+    [('precision 'fallback)
+     (eprintf "The precision:fallback option has been removed.\n")
+     (eprintf "  Please use :precision racket instead.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
     [('generate 'better-rr)
-     (eprintf "The current recursive rewriter does not support the generate:better-rr option.\n")
+     (eprintf "The generate:better-rr option has been removed.\n")
+     (eprintf "  The current recursive rewriter does not support the it.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
     [(_ _)
      (void)]))

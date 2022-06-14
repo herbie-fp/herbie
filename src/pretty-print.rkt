@@ -1,6 +1,6 @@
 #lang racket
 
-(require srfi/13 math/bigfloat)
+(require math/bigfloat)
 (provide bigfloat-interval-shortest)
 
 (define (bigfloat->normal-string x)
@@ -11,7 +11,7 @@
    [else
     (define s (bigfloat->string x))
     (define-values (sign s-abs)
-      (if (string-prefix? "-" s)
+      (if (string-prefix? s "-")
           (values '- (substring s 1))
           (values '+ s)))
     (define-values (mantissa e)
@@ -83,6 +83,16 @@
          (digit-interval-shortest (+ x-digit 1) y-digit))
        (build-string (- (string-length b) idx 1) (const #\0)))])))
 
+(define (string-pad s n c)
+  (define k (- n (string-length s)))
+  (if (> k 0)
+      (string-append (build-string k (const c)) s)
+      s))
+
+(module+ main
+  (require rackunit)
+  (check string=? (string-pad "1" 2 #\0) "01"))
+
 (define (integer-interval-shortest a b)
   (define sa (number->string a))
   (define sb (number->string b))
@@ -92,10 +102,9 @@
    [(< b 0)
     (- (integer-interval-shortest (- b) (- a)))]
    [else
-    (string->number
-     (string-interval-shortest
-      (string-pad sa (max (string-length sa) (string-length sb)) #\0)
-      (string-pad sb (max (string-length sa) (string-length sb)) #\0)))]))
+    (define s1 (string-pad sa (max (string-length sa) (string-length sb)) #\0))
+    (define s2 (string-pad sb (max (string-length sa) (string-length sb)) #\0))
+    (string->number (string-interval-shortest s1 s2))]))
 
 (define/contract (bigfloat-interval-shortest x y)
   (->i ([x bigfloat?] [y bigfloat?]) #:pre (x y) (or (bf<= x y) (bfnan? y)) [result bigfloat?])

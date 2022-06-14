@@ -44,7 +44,7 @@
 ;; all points in a pcontext.
 
 (define (point-error out exact repr)
-  (if (special-value? out repr)
+  (if ((representation-special-value? repr) out)
       (+ 1 (expt 2 (representation-total-bits repr)))
       (ulp-difference out exact repr)))
 
