@@ -1,9 +1,9 @@
 #lang racket
 
-(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json)
+(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json plot/no-gui)
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" )
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt"
-        "../syntax/sugar.rkt" "../float.rkt")
+        "../syntax/sugar.rkt" "../float.rkt" "../interface.rkt")
 (provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)
@@ -85,11 +85,11 @@
   (when (string? js-text)
     (display js-text out)))
 
-(require debug/repl)
+; (require debug/repl)
 (define (make-points-json result out repr)
   (define points (test-success-newpoints result))
   (define exacts (test-success-newexacts result))
-  (debug-repl)
+  ; (debug-repl)
   ; (define json-points (for/list ([point points]) (for/list ([value point]) (value->json value repr))))
   ;(define json-exacts (map (lambda (x) (value->json x repr)) exacts))
   (define bit-width (representation-total-bits repr))
@@ -98,16 +98,35 @@
   ; potential issue with end-errors (not like the others)
   (define end-error (map (lambda (err) (ulps->bits err)) ((compose car test-success-end-errors) result)))
   (define target-error (if (test-success-target-error result) (map (lambda (err) (ulps->bits err)) (test-success-target-error result)) #f))
-  ; this is wrong, it returns a procedure or something
+  
+  ; For each var, we want the ticks and splitpoints
   ; choose-ticks would work if I can just get the min and max points
   (define vars (test-vars (test-result-test result)))
   ; use (list-ref sublist idx) on the real version of the lists in json_points to get 
   ; real min and max values for this var
   ; output is real, then map to ordinal to make the pair 
-  ;(define ticks (for/list ([idx (in-range (length vars))]) (choose-ticks (min ) (max ) repr))
+  (define ticks 
+    (for/list ([idx (in-range (length vars))]) 
+      (define points-at-idx (for/list ([point points]) (list-ref point idx)))
+      (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
+      (for/list ([value real-ticks]) 
+        (define val (pre-tick-value value))
+        (define tick-str (if (or (= val 0) (< 0.01 (abs val) 100))
+           (~r (exact->inexact val) #:precision 4)
+           (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
+        (list 
+          tick-str
+          ; (pre-tick-value value)
+          ; (value->json (pre-tick-value value) repr)
+          (real->ordinal (pre-tick-value value) repr)))
+      ))
   (define end-alt (car (test-success-end-alts result)))
   ; 0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre)) has splitpoints (for xre)
-  (define splitpoints (regime-splitpoints end-alt))
+  (define splitpoints 
+    (for/list ([var vars]) 
+      (define split-var? (equal? var (regime-var end-alt)))
+      (if split-var? (regime-splitpoints end-alt) '())
+      ))
 
   ; Note ordinals should be passed as strings so we can detect truncation if necessary.
   ; parts:
@@ -126,7 +145,7 @@
       (start . ,start-error)
       (target . ,target-error)
       (end . ,end-error)))
-    ;(ticks . ,ticks)
+    (ticks . ,ticks)
     (splitpoints . ,splitpoints)))
     
   ; (exacts . ,json-exacts)

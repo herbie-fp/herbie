@@ -7,7 +7,7 @@
          "../sandbox.rkt")
 
 (provide make-axis-plot make-points-plot make-cost-accuracy-plot
-         make-full-cost-accuracy-plot real->ordinal repr-ticks regime-splitpoints)
+         make-full-cost-accuracy-plot real->ordinal repr-ticks regime-splitpoints choose-ticks regime-var)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
