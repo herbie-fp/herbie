@@ -239,6 +239,8 @@ section h1 {
 #functions #function_start.selected { background: pink; }
 #functions #function_end { border: 3px solid blue; }
 #functions #function_end.selected { background: lightblue; }
+#functions #function_target { border: 3px solid green; }
+#functions #function_target.selected { background: lightgreen; }
 
 /* Try it out section */
 

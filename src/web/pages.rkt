@@ -89,7 +89,7 @@
 (define (make-points-json result out repr)
   (define points (test-success-newpoints result))
   (define exacts (test-success-newexacts result))
-  ; (debug-repl)
+  
   ; (define json-points (for/list ([point points]) (for/list ([value point]) (value->json value repr))))
   ;(define json-exacts (map (lambda (x) (value->json x repr)) exacts))
   (define bit-width (representation-total-bits repr))
@@ -102,6 +102,7 @@
   ; For each var, we want the ticks and splitpoints
   ; choose-ticks would work if I can just get the min and max points
   (define vars (test-vars (test-result-test result)))
+  ; (debug-repl)
   ; use (list-ref sublist idx) on the real version of the lists in json_points to get 
   ; real min and max values for this var
   ; output is real, then map to ordinal to make the pair 
@@ -125,7 +126,7 @@
   (define splitpoints 
     (for/list ([var vars]) 
       (define split-var? (equal? var (regime-var end-alt)))
-      (if split-var? (regime-splitpoints end-alt) '())
+      (if split-var? (for/list ([val (regime-splitpoints end-alt)]) (real->ordinal val repr)) '())
       ))
 
   ; Note ordinals should be passed as strings so we can detect truncation if necessary.
@@ -139,14 +140,15 @@
   ; ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
   ; splitpoints: array with the ordinal splitpoints
   (define json-obj `#hasheq(
-    (bits . ,bit-width) 
+    (bits . ,bit-width)
+    (vars . ,(for/list ([var vars]) (symbol->string var)))
     (points . ,json-points) 
     (error . ,`#hasheq(
       (start . ,start-error)
       (target . ,target-error)
       (end . ,end-error)))
-    (ticks . ,ticks)
-    (splitpoints . ,splitpoints)))
+    (ticks_by_varidx . ,ticks)
+    (splitpoints_by_varidx . ,splitpoints)))
     
   ; (exacts . ,json-exacts)
   (write-json json-obj out))
