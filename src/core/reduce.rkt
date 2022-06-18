@@ -6,15 +6,20 @@
 (provide simplify load-rule-hacks)
 
 ;; Cancellation's goal is to cancel (additively or multiplicatively) like terms.
-;; It uses commutativity, cancellation, associativity, and function inverses.
+;; It uses commutativity, identities, inverses, associativity,
+;; distributativity, and function inverses.
 
 (define fn-inverses '())
 (define fn-evaluations (make-hash))
+(define simplify-cache (make-hash))
+(define simplify-node-cache (make-hash))
 
 (register-reset
  (λ ()
   (set! fn-inverses '())
-  (set! fn-evaluations (make-hash))))
+  (set! fn-evaluations (make-hash))
+  (set! simplify-cache (make-hash))
+  (set! simplify-node-cache (make-hash))))
 
 (define (load-rule-hacks)
   (set! fn-inverses
@@ -29,6 +34,9 @@
            (resugar-program (rule-output r) (rule-otype r) #:full #f)))))
 
 (define (simplify expr)
+  (hash-ref! simplify-cache expr (λ () (simplify* expr))))
+
+(define (simplify* expr)
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
@@ -48,6 +56,9 @@
      (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)
+  (hash-ref! simplify-node-cache expr (λ () (simplify-node* expr))))
+
+(define (simplify-node* expr)
   (match expr
     [(? (curry hash-has-key? fn-evaluations)) (hash-ref fn-evaluations expr)]
     [(? number?) expr]
