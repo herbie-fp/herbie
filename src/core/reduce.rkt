@@ -95,25 +95,14 @@
        (append (recurse arg)
                (map negate-term (append-map recurse args)))]
 
-      [`(* ,args ...)
-       (for/list ([term-list (apply cartesian-product (map recurse args))])
-         (list* (apply * (map car term-list))
-                (simplify-node (cons '* (map cadr term-list)))
-                (cons label (append-map cddr term-list))))]
       [`(/ ,arg) ; Prevent fall-through to the next case
        `((1 ,expr))]
       [`(/ ,arg ,args ...)
        (for/list ([term (recurse arg)])
          (list* (car term) (simplify-node (list* '/ (cadr term) args)) (cons label (cddr term))))]
 
-      [`(pow ,arg ,(? integer? n))
-       (cond
-        [(positive? n)
-         (recurse (cons '* (build-list (inexact->exact n) (const arg))) #:label expr)]
-        [(negative? n)
-         `((1 ,expr))]
-        [(zero? n)
-         `((1 1))])]
+      [`(pow ,arg 1)
+       `((1 1))]
       [else
        `((1 ,expr))])))
 
