@@ -507,7 +507,6 @@
 (module+ test
   (require rackunit "../interface.rkt" "../load-plugin.rkt")
   (load-herbie-plugins)
-  (*output-repr* (get-representation 'binary64))
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
 
 (module+ test

@@ -39,13 +39,13 @@
 
 ; In normal mode, cost is not considered so we return a constant
 ; The alt table becomes "degenerate"
-(define (alt-cost* altn)
+(define (alt-cost* altn repr)
   (if (*pareto-mode*)
-      (alt-cost altn)
+      (alt-cost altn repr)
       1))
 
 (define (make-alt-table context initial-alt repr)
-  (define cost (alt-cost* initial-alt))
+  (define cost (alt-cost* initial-alt repr))
   (alt-table (make-immutable-hash
                (for/list ([(pt ex) (in-pcontext context)]
                           [err (errors (alt-program initial-alt) context repr)])
@@ -250,7 +250,7 @@
         (>= cost* mincost)))]))
 
 (define (atab-add-altn atab altn errs repr)
-  (define cost (alt-cost* altn))
+  (define cost (alt-cost* altn repr))
   (match-define (alt-table point->alts alt->points alt->done? alt->cost _ all-alts) atab)
   (define-values (best-pnts tied-pnts tied-errs) (best-and-tied-at-points atab altn cost errs))
   (cond
@@ -314,11 +314,11 @@
       (error (string-append "Reflexive invariant violated. " message))))
 
 ;; The minimality invariant states that every alt must be untied and best on at least one point.
-(define (check-minimality-invariant atab #:message [message ""])
+(define (check-minimality-invariant atab repr #:message [message ""])
   (hash-for-each (alt-table-alt->points atab)
                  (λ (k v)
                     (let ([cnt (for/list ([pt v])
-                                 (let ([cost (alt-cost* k)]
+                                 (let ([cost (alt-cost* k repr)]
                                        [cost-hash (hash-ref (alt-table-point->alts atab) pt)])
                                    (length (cost-rec-altns (hash-ref cost-hash cost)))))])
                       (when (not (= (apply min cnt) 1))

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "cost.rkt")
+(require "cost.rkt" "interface.rkt")
 (provide (struct-out change) (struct-out alt) make-alt alt?
          alt-program alt-add-event *start-prog* *all-alts*
          alt-cost alt-equal?)
@@ -23,8 +23,8 @@
 (define (alt-add-event altn event)
   (alt (alt-program altn) event (list altn)))
 
-(define (alt-cost altn)
-  (program-cost (alt-program altn)))
+(define (alt-cost altn repr)
+  (program-cost (alt-program altn) repr))
 
 (define (alt-equal? x y)
   (equal? (alt-program x) (alt-program y)))
