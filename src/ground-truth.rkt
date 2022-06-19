@@ -3,7 +3,7 @@
 (require math/bigfloat rival)
 (require "errors.rkt" "programs.rkt" "interface.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide make-search-func prepare-points sample-points ground-truth-require-convergence)
+(provide make-search-func sample-points)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -59,10 +59,6 @@
      (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs)))
      (cons (apply ival-and ival-pre (map (curry valid-result? repr) ival-bodies))
            ival-bodies))))
-
-(define (prepare-points prog precondition repr sampler)
-  (define-values (how fn) (make-search-func precondition (list prog) repr))
-  (batch-prepare-points how fn repr sampler))
 
 (define (sample-points precondition progs repr)
   (timeline-event! 'analyze)
