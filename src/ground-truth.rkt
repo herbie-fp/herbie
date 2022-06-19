@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "errors.rkt" "programs.rkt" "interface.rkt" "sampling.rkt")
+(require "errors.rkt" "programs.rkt" "interface.rkt" "sampling.rkt" "timeline.rkt")
 
 (provide make-search-func prepare-points sample-points ground-truth-require-convergence)
 
@@ -65,8 +65,10 @@
   (batch-prepare-points how fn repr sampler))
 
 (define (sample-points precondition progs repr)
+  (timeline-event! 'analyze)
   (define-values (how fn) (make-search-func precondition progs repr))
   (define sampler 
     (parameterize ([ground-truth-require-convergence #f])
       (make-sampler repr precondition progs how fn)))
+  (timeline-event! 'sample)
   (batch-prepare-points how fn repr sampler))
