@@ -5,7 +5,7 @@
          "float.rkt" "interface.rkt" "timeline.rkt"
          "syntax/sugar.rkt")
 
-(provide make-sampler batch-prepare-points)
+(provide make-sampler batch-prepare-points ival-eval)
 
 ;; Much of this code assumes everything supports intervals. Almost
 ;; everything does---we're still missing support for the Gamma and
