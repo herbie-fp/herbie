@@ -3,7 +3,7 @@
 (require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../interface.rkt" "../errors.rkt" "../points.rkt")
-(require "../sampling.rkt" "../float.rkt" "../pretty-print.rkt" rival) ; For binary search
+(require "../sampling.rkt" "../float.rkt" "../pretty-print.rkt" "../ground-truth.rkt" rival) ; For binary search
 
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
@@ -89,13 +89,13 @@
                          (critical-subexpression? prog-body expr)))
     expr))
 
-(define (combine-alts best-option repr sampler)
+(define (combine-alts best-option repr)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
    [(list (si cidx _)) (list-ref alts cidx)]
    [_
     (timeline-event! 'bsearch)
-    (define splitpoints (sindices->spoints pts expr alts splitindices repr sampler))
+    (define splitpoints (sindices->spoints pts expr alts splitindices repr))
 
     (define expr*
       (for/fold
@@ -209,18 +209,20 @@
       `(λ (,var ,@vars*) ,body*)
       #f))
 
-(define (prepend-argument f val pcontext #:length length)
-  (define (f* . args)
-    (list (ival #t) (apply f args)))
+(define (prepend-argument f val pcontext repr #:length length)
   (define-values (newpts newexs newlen)
     (for/fold ([newpts '()] [newexs '()] [newlen 0])
         ([(pt _) (in-pcontext pcontext)]
          #:break (>= newlen length))
       (define pt* (cons val pt))
-      (define-values (result prec ex*) (ival-eval f* pt*))
-      (if (nan? (car ex*))
-          (values newpts newexs newlen)
-          (values (cons pt* newpts) (cons (car ex*) newexs) (+ 1 newlen)))))
+      (define-values (result prec exs) (ival-eval f pt*))
+      (define ex*
+        (if (list? exs)
+            ((representation-bf->repr repr) (ival-lo (car exs)))
+            +nan.0))
+      (if (nan? ex*)
+          (values (cons pt* newpts) (cons ex* newexs) (+ 1 newlen))
+          (values newpts newexs newlen))))
   (when (< newlen length)
     (raise-herbie-error "Cannot sample enough valid points."
                         #:url "faq.html#sample-valid-points"))
@@ -231,7 +233,7 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define (sindices->spoints points expr alts sindices repr sampler)
+(define (sindices->spoints points expr alts sindices repr)
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
 
@@ -239,9 +241,9 @@
   (define var-reprs* (dict-set (*var-reprs*) var repr))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
-  (define start-fn
+  (define-values (_ start-fn)
     (parameterize ([*var-reprs* var-reprs*])
-      (eval-prog start-prog 'fl repr)))
+      (make-search-func `(λ ,(program-variables start-prog) (TRUE)) (list start-prog) repr)))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
@@ -257,7 +259,7 @@
       (with-handlers ([exn:fail:user:herbie?
                        (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
         (define ctx
-          (prepend-argument start-fn v (*pcontext*) #:length (*binary-search-test-points*)))
+          (prepend-argument start-fn v (*pcontext*) repr #:length (*binary-search-test-points*)))
         (parameterize ([*var-reprs* var-reprs*])
           (define acc1 (errors-score (errors prog1 ctx repr)))
           (define acc2 (errors-score (errors prog2 ctx repr)))
@@ -399,14 +401,14 @@
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))
 
-(define (pareto-regimes sorted repr sampler)
+(define (pareto-regimes sorted repr)
   (let loop ([alts sorted] [idx 0])
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
      [else
       (define opt (infer-splitpoints alts repr))
-      (define branched-alt (combine-alts opt repr sampler))
+      (define branched-alt (combine-alts opt repr))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
