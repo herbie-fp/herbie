@@ -107,8 +107,8 @@
                           #f)
                       baseline-errs
                       oracle-errs
-                      (program-cost (test-program test))
-                      (map alt-cost alts)
+                      (program-cost (test-program test) output-repr)
+                      (map (curryr alt-cost output-repr) alts)
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
@@ -179,7 +179,7 @@
     (define end-exprs (map (λ (p) (program-body (resugar-program p (test-output-repr test)))) end-progs))
 
     (define cost&accuracy
-      (list (list (program-cost start-prog) start-score)
+      (list (list (program-cost start-prog (test-output-repr test)) start-score)
             (list (car costs) (car end-scores))
             (map list (cdr costs) (cdr end-scores) (cdr end-exprs))))
 
