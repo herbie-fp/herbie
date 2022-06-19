@@ -3,7 +3,7 @@
 (require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../interface.rkt" "../errors.rkt" "../points.rkt")
-(require "../sampling.rkt" "../float.rkt" "../pretty-print.rkt" "../ground-truth.rkt" rival) ; For binary search
+(require "../float.rkt" "../pretty-print.rkt" "../ground-truth.rkt") ; For binary search
 
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
@@ -215,11 +215,7 @@
         ([(pt _) (in-pcontext pcontext)]
          #:break (>= newlen length))
       (define pt* (cons val pt))
-      (define-values (result prec exs) (ival-eval f pt*))
-      (define ex*
-        (if (list? exs)
-            ((representation-bf->repr repr) (ival-lo (car exs)))
-            +nan.0))
+      (define ex* (apply f pt*))
       (if (nan? ex*)
           (values (cons pt* newpts) (cons ex* newexs) (+ 1 newlen))
           (values newpts newexs newlen))))
@@ -241,9 +237,7 @@
   (define var-reprs* (dict-set (*var-reprs*) var repr))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
-  (define-values (_ start-fn)
-    (parameterize ([*var-reprs* var-reprs*])
-      (make-search-func `(λ ,(program-variables start-prog) (TRUE)) (list start-prog) repr)))
+  (define start-fn (parameterize ([*var-reprs* var-reprs*]) (eval-prog-real start-prog repr)))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
