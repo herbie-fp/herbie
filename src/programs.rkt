@@ -176,7 +176,7 @@
 
   (timeline-push! 'compiler (+ varc size) lt)
   (define exprvec (list->vector (reverse exprs)))
-  (λ args
+  (define (f . args)
     (define v (make-vector lt))
     (for ([arg (in-list args)] [n (in-naturals)] [repr (in-list var-reprs)])
       (vector-set! v n (arg->precision arg repr)))
@@ -186,7 +186,8 @@
           (vector-ref v arg)))
       (vector-set! v n (apply (car expr) tl)))
     (for/vector ([n (in-list names)])
-      (vector-ref v n))))
+      (vector-ref v n)))
+  (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
 
 (module+ test
   (define <binary64> (get-representation 'binary64))
