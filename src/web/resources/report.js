@@ -323,7 +323,6 @@ const ClientGraph = new Component('#graphs', {
                         y: error[name]
                 })).sort(key_fn(d => d.x))
                     .map(({ x, y }, i) => ({ x, y, i }))
-                console.log(data, index)
                 const sliding_window = (A, size) => [...new Array(Math.max(A.length - size, 0))].map((_, i) => {
                     const half = Math.floor(size / 2)
                     i = i + half
@@ -339,7 +338,6 @@ const ClientGraph = new Component('#graphs', {
                 })
                 const bin_size = 128
                 const sliding_window_data = sliding_window(data, bin_size)
-                console.log(sliding_window_data, splitpoints)
                 return [
                     // Plot.areaY(sliding_window_data, {
                     //     x: d => d.x, 
@@ -420,11 +418,9 @@ const ClientGraph = new Component('#graphs', {
             `)
             const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
             options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
-                console.log('clicked variable')
                 render(e.textContent, selected_functions)
             })
             options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
-                console.log('clicked function')
                 render(selected_var_name, toggle(e.id.split('_').slice(1).join('_'), selected_functions))
             })
             document.querySelector('#graphs').replaceChildren(await plot(selected_var_name, selected_functions), options_view)
