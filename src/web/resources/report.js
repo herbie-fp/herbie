@@ -100,9 +100,6 @@ var TryIt = new Component("#try-it", {
 
 const ClientGraph = new Component('#graphs', {
     setup: async () => {
-        // get D3
-        const d3 = await import('https://cdn.skypack.dev/d3@6')
-        const Plot = await import("https://cdn.skypack.dev/@observablehq/plot@0.4")
         const points_json = await (async () => {
             const get_points_store = {}
             
