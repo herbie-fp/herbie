@@ -3,7 +3,7 @@
 (require "../errors.rkt")
 
 (provide type-name? (struct-out representation) get-representation
-         (struct-out context) *context* *output-repr* *var-reprs* *needed-reprs*)
+         (struct-out context) context-extend *context* *output-repr* *var-reprs* *needed-reprs*)
 (module+ internals
   (provide define-type define-representation
            register-generator! register-representation! register-representation-alias!))
