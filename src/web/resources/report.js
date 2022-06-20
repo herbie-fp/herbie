@@ -103,28 +103,6 @@ const ClientGraph = new Component('#graphs', {
         // get D3
         const d3 = await import('https://cdn.skypack.dev/d3@6')
         const Plot = await import("https://cdn.skypack.dev/@observablehq/plot@0.4")
-        // TODO move ordinal<->float64 calculations to a notebook/somewhere archival
-        // // TODO optimize ordinal calculation below
-        // const to_signed_int = float64 => {
-        //     const buffer = new ArrayBuffer(8)
-        //     const view = new DataView(buffer)
-        //     view.setFloat64(0, float64)
-        //     return view.getBigInt64(0)
-        // }
-        // const mbn = x => math.bignumber(to_signed_int(x).toString())
-        // const ordinal = x => to_signed_int(x) >= 0 ? mbn(x) : math.subtract(mbn(-0.0), mbn(x))
-        // const bit_difference = (x, y) => {
-        //     const to_signed_int = float64 => {
-        //         const buffer = new ArrayBuffer(8)
-        //         const view = new DataView(buffer)
-        //         view.setFloat64(0, float64)
-        //         return view.getBigInt64(0)
-        //     }
-        //     const mbn = x => math.bignumber(to_signed_int(x).toString())
-        //     const ordinal = x => to_signed_int(x) >= 0 ? mbn(x) : math.subtract(mbn(-0.0), mbn(x))
-        //     const ulp_difference = (x, y) => math.add(math.abs(math.subtract(ordinal(x), ordinal(y))), 1)
-        //     return math.log2(ulp_difference(x, y).toString())
-        // }
         const points_json = await (async () => {
             const get_points_store = {}
             
