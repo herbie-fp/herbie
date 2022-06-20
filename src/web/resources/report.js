@@ -98,55 +98,6 @@ var TryIt = new Component("#try-it", {
     },
 });
 
-// var FigureTabs = new Component("#graphs > div", {
-//     setup: function() {
-//         var figures = this.elt.getElementsByTagName("figure");
-//         var figure_array = {};
-//         var default_figure = null;
-//         for (var i = 0; i < figures.length; i++) {
-//             var idx = figures[i].id;
-//             var variable = figures[i].getElementsByTagName("var")[0].innerText;
-//             if (figures[i].classList.contains("default")) default_figure = figures[i];
-//             figure_array[idx] = { elt: figures[i], name: variable };
-//             figures[i].style.display = "none";
-//             figures[i].querySelector("figcaption > p").style.display = "none";
-//         }
-//         if (default_figure === null && figures.length > 0) default_figure = figures[0];
-        
-//         var buttons = Object.keys(figure_array).map(function(idx) {
-//             return Element("li", { id: "tab-" + idx }, figure_array[idx].name);
-//         });
-
-//         var tab_bar = Element("ul", { className: "tabbar" }, [
-//             Element("p", "Bits error vs value of"),
-//             buttons,
-//         ]);
-//         this.elt.appendChild(tab_bar);
-
-//         for (var i = 0; i < buttons.length; i++) {
-//             buttons[i].addEventListener("click", this.toggle.bind(this, buttons[i].id));
-//         }
-    
-//         if (default_figure) this.toggle("tab-" + default_figure.id);
-//     },
-//     toggle: function(tabid) {
-//         var id = tabid.substr(4);
-//         var tab = document.getElementById(tabid);
-//         var pane = document.getElementById(id);
-
-//         var old_tab = tab.parentNode.getElementsByClassName("selected");
-//         if (old_tab.length > 0) {
-//             var old_pane = document.getElementById(old_tab[0].id.substr(4));
-//             old_pane.style.display = "none";
-//             old_tab[0].classList.remove("selected")
-//         }
-
-//         tab.classList.add("selected");
-//         pane.style.display = "block";
-//     }
-// });
-
-
 // const OldClientGraph = new Component('#graphs', {
 //     setup: async () => {
         
