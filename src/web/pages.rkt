@@ -85,27 +85,18 @@
   (when (string? js-text)
     (display js-text out)))
 
-; (require debug/repl)
 (define (make-points-json result out repr)
   (define points (test-success-newpoints result))
   (define exacts (test-success-newexacts result))
-  
-  ; (define json-points (for/list ([point points]) (for/list ([value point]) (value->json value repr))))
-  ;(define json-exacts (map (lambda (x) (value->json x repr)) exacts))
   (define bit-width (representation-total-bits repr))
-  (define json-points (for/list ([point points]) (for/list ([value point]) (real->ordinal value repr))))
+  (define json-points (for/list ([point points]) (for/list ([value point]) 
+    (real->ordinal value repr))))
   (define start-error (map (lambda (err) (ulps->bits err)) (test-success-start-error result)))
-  ; potential issue with end-errors (not like the others)
-  (define end-error (map (lambda (err) (ulps->bits err)) ((compose car test-success-end-errors) result)))
-  (define target-error (if (test-success-target-error result) (map (lambda (err) (ulps->bits err)) (test-success-target-error result)) #f))
-  
-  ; For each var, we want the ticks and splitpoints
-  ; choose-ticks would work if I can just get the min and max points
+  (define end-error (map (lambda (err) (ulps->bits err)) 
+    ((compose car test-success-end-errors) result)))
+  (define target-error (if (test-success-target-error result) 
+    (map (lambda (err) (ulps->bits err)) (test-success-target-error result)) #f))
   (define vars (test-vars (test-result-test result)))
-  ; (debug-repl)
-  ; use (list-ref sublist idx) on the real version of the lists in json_points to get 
-  ; real min and max values for this var
-  ; output is real, then map to ordinal to make the pair 
   (define ticks 
     (for/list ([idx (in-range (length vars))]) 
       (define points-at-idx (for/list ([point points]) (list-ref point idx)))
@@ -122,23 +113,26 @@
           (real->ordinal (pre-tick-value value) repr)))
       ))
   (define end-alt (car (test-success-end-alts result)))
-  ; 0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre)) has splitpoints (for xre)
+  ; For testing, 
+  ; 0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre)) usually has splitpoints (for xre)
   (define splitpoints 
     (for/list ([var vars]) 
       (define split-var? (equal? var (regime-var end-alt)))
       (if split-var? (for/list ([val (regime-splitpoints end-alt)]) (real->ordinal val repr)) '())
       ))
 
-  ; Note ordinals should be passed as strings so we can detect truncation if necessary.
-  ; parts:
-  ; bits: int
-  ; points: array of size m like [[x0, x1, ..., xn], ...] where x0 etc. 
-  ; are ordinals representing the real input values
-  ; error: object with fields {start, target, end}, where each field holds 
-  ; an array like [y0, ..., ym] where y0 etc are bits of error for the output 
-  ; on each point
-  ; ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
-  ; splitpoints: array with the ordinal splitpoints
+  ; NOTE ordinals *should* be passed as strings so we can detect truncation if
+  ;   necessary, but this isn't implemented yet. 
+  ; Fields:
+  ;   bits: int representing the maximum possible bits of error
+  ;   vars: array of n string variable names
+  ;   points: array of size m like [[x0, x1, ..., xn], ...] where x0 etc. 
+  ;     are ordinals representing the real input values
+  ;   error: object with fields {start, target, end}, where each field holds 
+  ;     an array like [y0, ..., ym] where y0 etc are bits of error for the output 
+  ;     on each point
+  ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
+  ;   splitpoints: array with the ordinal splitpoints
   (define json-obj `#hasheq(
     (bits . ,bit-width)
     (vars . ,(for/list ([var vars]) (symbol->string var)))
@@ -149,6 +143,5 @@
       (end . ,end-error)))
     (ticks_by_varidx . ,ticks)
     (splitpoints_by_varidx . ,splitpoints)))
-    
-  ; (exacts . ,json-exacts)
+  
   (write-json json-obj out))
