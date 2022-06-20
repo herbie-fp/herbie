@@ -63,36 +63,6 @@ var TogglableFlags = new Component("#flag-list", {
     }
 });
 
-// var FigureColors = new Component("#graphs figure", {
-//     setup: function() {
-//         this.caption = this.elt.querySelector("figcaption");
-//         var imgs = [].slice.call(this.elt.querySelectorAll("img"));
-//         var names = imgs.map(function(i) { return i.getAttribute("data-name"); });
-//         var buttons = names.filter(function(i) { return i; }).map(this.mkbutton);
-//         var caption_text = this.elt.querySelector("figcaption p");
-//         this.caption.insertBefore(Element("div", buttons), caption_text);
-//     },
-//     mkbutton: function(name) {
-//         var title = "Click to toggle " + name.toLowerCase() + " graph";
-//         var control = Element("button", { className: name, title: title}, name);
-//         control.addEventListener("click", this.toggler(control, name));
-//         return control;
-//     },
-//     toggler: function(button, name) {
-//         var figure = this.elt;
-//         var img = figure.querySelector("img[data-name=" + name + "]");
-//         return function() {
-//             if (button.classList.contains("inactive")) {
-//                 button.classList.remove("inactive");
-//                 img.style.display = "";
-//             } else {
-//                 button.classList.add("inactive");
-//                 img.style.display = "none";
-//             }
-//         }
-//     },
-// });
-
 var TryIt = new Component("#try-it", {
     depends: function() {
         if (typeof window.start === "undefined") throw "start() function not defined";
