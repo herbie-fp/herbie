@@ -127,7 +127,7 @@
         (match conv
          [(list repr-name-1 repr-name2)
           (define known-repr?
-            (with-handlers ([exn:user:herbie? (const #f)])
+            (with-handlers ([exn:fail:user:herbie? (const #f)])
               (get-representation (first conv))
               (get-representation (second conv))
               #t))
