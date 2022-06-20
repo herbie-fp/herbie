@@ -189,8 +189,8 @@
       (vector-ref v n))))
 
 (module+ test
+  (*context* (make-debug-context '(a b c)))
   (define <binary64> (get-representation 'binary64))
-  (*var-reprs* (map (curryr cons <binary64>) '(a b c)))
   (define tests
     #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)

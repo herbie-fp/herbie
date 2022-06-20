@@ -59,8 +59,8 @@
     (set-seed! (report-info-seed data))
     (define orig-test (extract-test row))
     (define output-repr (test-output-repr orig-test))
-    (parameterize ([*timeline-disabled* true] [*output-repr* output-repr]
-                   [*var-reprs* (map (curryr cons output-repr) (test-vars orig-test))])
+    (parameterize ([*timeline-disabled* true]
+                   [*context* (context (test-vars orig-test) output-repr (map (const output-repr) (test-vars orig-test)))])
       (define samples
         (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
           (sample-points

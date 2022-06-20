@@ -128,7 +128,7 @@
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")
-  (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x a b c)))
+  (*context* (make-debug-context '(x a b c)))
   (*needed-reprs* (list (get-representation 'binary64) (get-representation 'binary32)))
   (define all-simplify-rules (*simplify-rules*))
 

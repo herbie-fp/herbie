@@ -3,7 +3,7 @@
 (require "../errors.rkt")
 
 (provide type-name? (struct-out representation) get-representation
-         *output-repr* *var-reprs* *needed-reprs*)
+         (struct-out context) *context* *output-repr* *var-reprs* *needed-reprs*)
 (module+ internals
   (provide define-type define-representation
            register-generator! register-representation! register-representation-alias!))
@@ -19,11 +19,7 @@
 (define-type real)
 (define-type bool)
 
-;; Structs
-
-(define *needed-reprs* (make-parameter '()))
-(define *output-repr* (make-parameter #f))
-(define *var-reprs* (make-parameter '()))
+;; Representations
 
 (struct representation
   (name type repr?
@@ -96,3 +92,18 @@
 
 (define-syntax-rule (define-representation (name type repr?) args ...)
   (register-representation! 'name 'type repr? args ...))
+
+;; Contexts
+
+(struct context (vars repr var-reprs) #:transparent)
+
+(define *context* (make-parameter #f))
+(define *needed-reprs* (make-parameter '()))
+
+(define (context-extend ctx var repr)
+  (struct-copy context ctx
+               [vars (cons var (context-vars ctx))]
+               [var-reprs (cons repr (context-var-reprs ctx))]))
+
+(define (*output-repr*) (context-repr (*context*)))
+(define (*var-reprs*) (map cons (context-vars (*context*)) (context-var-reprs (*context*))))

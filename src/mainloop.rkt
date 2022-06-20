@@ -259,8 +259,7 @@
   
 (define (setup-context! specification precondition repr)
   (define vars (program-variables specification))
-  (*output-repr* repr)
-  (*var-reprs* (map (curryr cons repr) vars))
+  (*context* (context vars repr (map (const repr) vars)))
   (when (empty? (*needed-reprs*)) ; if empty, probably debugging
     (*needed-reprs* (list repr (get-representation 'bool))))
 

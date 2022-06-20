@@ -164,8 +164,7 @@
   (define repr (get-representation 'binary64))
   (parameterize ([*start-prog* '(λ (x) 1)]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
-                 [*var-reprs* (list (cons 'x repr))]
-                 [*output-repr* repr])
+                 [*context* (make-debug-context '(x))])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
@@ -246,7 +245,7 @@
                        (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
         (parameterize ([*num-points* (*binary-search-test-points*)]
                        [*timeline-disabled* true]
-                       [*var-reprs* (dict-set (*var-reprs*) var repr)])
+                       [*context* (context-extend (*context*) var repr)])
           (define ctx
             (apply mk-pcontext
                    (prepare-points start-prog
@@ -408,8 +407,7 @@
 
 (module+ test
   (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))]
-                 [*var-reprs* (map (curryr cons repr) '(x y))]
-                 [*output-repr* repr])
+                 [*context* (make-debug-context '(x y))])
     (define sps
       (list (sp 0 '(/.f64 y x) -inf.0)
             (sp 2 '(/.f64 y x) 0.0)

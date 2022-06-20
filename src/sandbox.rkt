@@ -41,8 +41,6 @@
 (define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
   (define output-repr (test-output-repr test))
-  (define output-prec (representation-name output-repr))
-  (*output-repr* output-repr)
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 
   (define (compute-result test)

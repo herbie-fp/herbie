@@ -166,7 +166,7 @@
       (section ([id "history"])
        (h1 "Derivation")
        (ol ([class "history"])
-        ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
+        ,@(parameterize ([*context* (context (test-vars test) repr (map (const repr) (test-vars test)))])
             (render-history end-alt (mk-pcontext newpoints newexacts)
                             (mk-pcontext points exacts) repr))))
 

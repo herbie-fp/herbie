@@ -24,7 +24,7 @@
 (define (check-rule-correct test-rule)
   (match-define (rule name p1 p2 itypes repr) test-rule)
   (define fv (dict-keys itypes))
-  (*var-reprs* itypes)
+  (*context* (context fv repr (map (curry dict-ref itypes) fv)))
 
   (define precondition `(λ ,fv ,(dict-ref *conditions* name '(TRUE))))
   (define progs (list `(λ ,fv ,p1) `(λ ,fv ,p2)))
@@ -39,7 +39,7 @@
 (define (check-rule-fp-safe test-rule)
   (match-define (rule name p1 p2 itypes repr) test-rule)
   (define fv (dict-keys itypes))
-  (*var-reprs* itypes)
+  (*context* (context fv repr (map (curry dict-ref itypes) fv)))
   (define (make-point _)
     (for/list ([v (in-list fv)])
       (random-generate (dict-ref itypes v))))

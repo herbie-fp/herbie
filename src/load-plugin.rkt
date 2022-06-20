@@ -1,6 +1,6 @@
 #lang racket
 (require setup/getinfo racket/runtime-path)
-(require (submod "syntax/types.rkt" internals))
+(require "syntax/types.rkt" (submod "syntax/types.rkt" internals))
 (provide load-herbie-plugins load-herbie-builtins)
 
 (define-runtime-module-path bool-plugin     "reprs/bool.rkt")
@@ -40,3 +40,8 @@
 ;; requiring "load-plugin.rkt" automatically registers
 ;; all built-in representation but does not load them
 (register-generator! generate-builtins)
+
+(define (make-debug-context vars)
+  (load-herbie-builtins)
+  (define repr (get-representation 'binary64))
+  (context vars repr (map (const repr) vars)))
