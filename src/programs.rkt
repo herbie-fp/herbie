@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/syntax.rkt" "interface.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
+(require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables

@@ -1,7 +1,7 @@
 #lang racket
 
 (require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
-         "alternative.rkt" "common.rkt" "errors.rkt" "interface.rkt" "programs.rkt"
+         "alternative.rkt" "common.rkt" "errors.rkt" "programs.rkt"
          "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt")
 
 (provide

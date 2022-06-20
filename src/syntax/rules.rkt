@@ -2,8 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../errors.rkt" "../interface.rkt"
-         "syntax.rkt" "sugar.rkt")
+(require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt" "sugar.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!

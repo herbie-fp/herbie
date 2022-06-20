@@ -2,7 +2,7 @@
 
 (require "../src/common.rkt" "../src/points.rkt" "../src/load-plugin.rkt"
          "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt"
-         "../src/interface.rkt")
+         "../src/syntax/types.rkt")
 
 (define *precision* (make-parameter #f))
 (define *ignore-target* (make-parameter #f))

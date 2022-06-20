@@ -2,9 +2,8 @@
 
 (require math/bigfloat math/flonum plot/no-gui racket/draw)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../syntax/syntax.rkt" "../syntax/read.rkt"
-         "../alternative.rkt" "../interface.rkt" "../core/regimes.rkt" 
-         "../sandbox.rkt")
+         "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/read.rkt"
+         "../alternative.rkt" "../core/regimes.rkt" "../sandbox.rkt")
 
 (provide make-axis-plot make-points-plot make-cost-accuracy-plot
          make-full-cost-accuracy-plot)

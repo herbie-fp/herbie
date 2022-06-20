@@ -1,6 +1,6 @@
 #lang racket
 
-(require "interface.rkt" "points.rkt" "float.rkt")
+(require "syntax/types.rkt" "points.rkt" "float.rkt")
 
 (provide preprocess-pcontext *herbie-preprocess* apply-preprocess)
 

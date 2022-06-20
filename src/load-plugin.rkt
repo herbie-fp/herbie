@@ -1,6 +1,6 @@
 #lang racket
 (require setup/getinfo racket/runtime-path)
-(require (submod "interface.rkt" internals))
+(require (submod "syntax/types.rkt" internals))
 (provide load-herbie-plugins load-herbie-builtins)
 
 (define-runtime-module-path bool-plugin     "reprs/bool.rkt")

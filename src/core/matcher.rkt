@@ -2,7 +2,7 @@
 
 (require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt"
-         "../syntax/rules.rkt" "../interface.rkt" "../timeline.rkt" "simplify.rkt")
+         "../syntax/rules.rkt" "../syntax/types.rkt" "../timeline.rkt" "simplify.rkt")
 
 (provide pattern-match rewrite-expressions change-apply)
 

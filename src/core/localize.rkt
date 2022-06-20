@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat)
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../interface.rkt")
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../syntax/types.rkt")
 
 (provide localize-error get-locations)
 

@@ -2,7 +2,7 @@
 
 (require (only-in xml write-xexpr xexpr?)
          (only-in fpbench core->tex supported-by-lang?))
-(require "../points.rkt" "../float.rkt" "../alternative.rkt" "../interface.rkt"
+(require "../points.rkt" "../float.rkt" "../alternative.rkt" "../syntax/types.rkt"
          "../syntax/rules.rkt" "../core/regimes.rkt" "../common.rkt"
          "common.rkt" "../syntax/sugar.rkt")
 (provide render-history)

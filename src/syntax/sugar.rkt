@@ -1,6 +1,6 @@
 #lang racket
 
-(require "syntax.rkt" "../errors.rkt" "../interface.rkt")
+(require "../errors.rkt" "types.rkt" "syntax.rkt")
 (provide desugar-program resugar-program)
 
 ;; preprocessing

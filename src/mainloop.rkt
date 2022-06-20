@@ -1,10 +1,11 @@
 #lang racket
 
-(require "syntax/rules.rkt"
+(require "common.rkt" "errors.rkt" "timeline.rkt"
+         "syntax/rules.rkt" "syntax/types.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
-         "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
-         "interface.rkt" "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
-         "programs.rkt" "sampling.rkt" "symmetry.rkt" "timeline.rkt")
+         "alternative.rkt" "conversions.rkt"
+         "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
+         "programs.rkt" "sampling.rkt" "symmetry.rkt")
 
 (provide (all-defined-out))
 

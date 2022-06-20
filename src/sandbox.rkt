@@ -1,8 +1,8 @@
 #lang racket
 (require profile math/bigfloat racket/engine json)
-(require "syntax/read.rkt" "syntax/sugar.rkt"
+(require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
-         "datafile.rkt" "errors.rkt" "interface.rkt"
+         "datafile.rkt" "errors.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 

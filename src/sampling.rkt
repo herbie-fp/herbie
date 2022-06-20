@@ -2,7 +2,7 @@
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "errors.rkt" "common.rkt"
-         "float.rkt" "interface.rkt" "timeline.rkt"
+         "float.rkt" "syntax/types.rkt" "timeline.rkt"
          "syntax/sugar.rkt")
 
 (provide make-sampler batch-prepare-points)

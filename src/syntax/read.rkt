@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../conversions.rkt" "../errors.rkt"
-         "../programs.rkt" "../interface.rkt"
+         "../programs.rkt" "types.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)

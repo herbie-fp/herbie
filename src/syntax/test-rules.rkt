@@ -2,7 +2,7 @@
 
 (require rackunit)
 (require "../common.rkt" "../programs.rkt" "../float.rkt"
-         "../ground-truth.rkt" "../interface.rkt" "../load-plugin.rkt"
+         "../ground-truth.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals))
 
 (load-herbie-builtins)

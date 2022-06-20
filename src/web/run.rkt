@@ -2,7 +2,7 @@
 
 (require json)
 (require "../common.rkt" "../syntax/read.rkt" "../syntax/sugar.rkt" "../datafile.rkt"
-         "../interface.rkt" "../profile.rkt" "../timeline.rkt" "../sampling.rkt"
+         "../syntax/types.rkt" "../profile.rkt" "../timeline.rkt" "../sampling.rkt"
          "make-report.rkt" "thread-pool.rkt" "timeline.rkt")
 
 (provide make-report rerun-report replot-report diff-report)
@@ -38,7 +38,7 @@
   (run-tests tests #:dir dir #:profile profile? #:note note #:threads threads))
 
 (define (replot-report json-file #:dir dir)
-  (local-require "../points.rkt" "../interface.rkt" "../sandbox.rkt" "../alternative.rkt"
+  (local-require "../points.rkt" "../sandbox.rkt" "../alternative.rkt"
                  "../ground-truth.rkt" "pages.rkt" "../timeline.rkt")
 
   (define data (read-datafile json-file))

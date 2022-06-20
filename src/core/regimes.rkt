@@ -2,7 +2,7 @@
 
 (require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
-         "../interface.rkt" "../errors.rkt" "../preprocess.rkt" "../points.rkt")
+         "../syntax/types.rkt" "../errors.rkt" "../preprocess.rkt" "../points.rkt")
 (require "../ground-truth.rkt" "../float.rkt" "../pretty-print.rkt") ; For binary search
 
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
