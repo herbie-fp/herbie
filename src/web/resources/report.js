@@ -287,26 +287,12 @@ const ClientGraph = new Component('#graphs', {
             }
             return addTooltips
         })()
-        // const chunk = (A, chunksize) => A.reduce((acc, e, i) => {
-        //     if (i % chunksize == 0) { acc.push([]) }
-        //     acc[acc.length - 1].push(e)
-        //     return acc
-        // }, [])
-        // const average_chunk = A => {
-        //     // HACK to just show a clean line. x values are off because averaging huge x is hard
-        //     const out = ({ x: A[0].x/*A.reduce((acc, v) => acc + v.x, 0) / A.length*/, err: A.reduce((acc, v) => acc + v.err, 0) / A.length })
-        //     //console.log(out)
-        //     return out
-        // }
-
         const plot = async (varName, function_names) => {
             const functions = [
                 { name: 'start', line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000007'} },
                 { name: 'end', line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff07'} },
                 { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0005'}}  // TODO add target support
             ].filter(o => function_names.includes(o.name))
-            
-            // const points = await get_points_memo()
             const index = all_vars.indexOf(varName)
             // NOTE ticks and splitpoints include all vars, so we must index
             const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = points_json
@@ -332,7 +318,6 @@ const ClientGraph = new Component('#graphs', {
             async function line_and_dot_graphs({ name, fn, line, dot, area }) {
                 const key_fn = fn => (a, b) => fn(a) - fn(b)
                 const index = all_vars.indexOf(varName)
-                //(await points_with_err(fn)).sort(key_fn(o => o.x[index])).map((o, i) => (o.i = i, o))
                 const data = grouped_data.map(({ input, error }) => ({
                         x: input[index],
                         y: error[name]
@@ -355,9 +340,7 @@ const ClientGraph = new Component('#graphs', {
                 const bin_size = 128
                 const sliding_window_data = sliding_window(data, bin_size)
                 console.log(sliding_window_data, splitpoints)
-                //const sliding_chunksize = 100
                 return [
-                    
                     // Plot.areaY(sliding_window_data, {
                     //     x: d => d.x, 
                     //     y1: "bottom", 
@@ -395,23 +378,26 @@ const ClientGraph = new Component('#graphs', {
                     }),
                 ]
             }
-            
-            //console.log(domain, choose_ticks_clientside(ordinal_to_real(domain[0]), ordinal_to_real(domain[1])), choose_ticks_clientside(ordinal_to_real(domain[0]), ordinal_to_real(domain[1])).map(v => real_to_ordinal(v)).map(v => ordinal_to_real(v)))
-            // const repr_ticks = d => {
-            //     let v = ordinal_to_real(d)
-            //     if (v == 0 || (.01 < math.abs(v) && math.abs(v) < 100)) { return v.toPrecision(4) }
-            //     return v.toExponential(0)
-            // }
             const out = addTooltips(Plot.plot({
             width: '800',
             height: '400',                
-            x: { tickFormat: d => tick_strings[tick_ordinals.indexOf(d)], ticks: tick_ordinals, label: `value of ${varName}`, labelAnchor: 'center', /*labelOffset: [200, 20], tickRotate: 70, */ domain, grid:true},
-            y: { label: "Bits of error", domain: [0, bits], ticks: new Array(bits/4 + 1).fill(0).map((_, i) => i * 4), tickFormat: d => d % 8 != 0 ? '' : d},
-            marks: await Promise.all([...await extra_axes_and_ticks(), ...functions.map(async config => await line_and_dot_graphs(config)).flat()])
+                x: {
+                    tickFormat: d => tick_strings[tick_ordinals.indexOf(d)],
+                    ticks: tick_ordinals, label: `value of ${varName}`,
+                    labelAnchor: 'center', /*labelOffset: [200, 20], tickRotate: 70, */
+                    domain,
+                    grid: true
+                },
+                y: {
+                    label: "Bits of error", domain: [0, bits],
+                    ticks: new Array(bits / 4 + 1).fill(0).map((_, i) => i * 4),
+                    tickFormat: d => d % 8 != 0 ? '' : d
+                },
+                marks: await Promise.all([...await extra_axes_and_ticks(),
+                    ...functions.map(async config =>
+                                    await line_and_dot_graphs(config)).flat()])
         }))
             out.setAttribute('viewBox', '0 0 800 430')
-            //out.style['grid-area'] = 'small-plots'
-            //out.style.display = 'inline'
             return out
         }
         function html(string) {
@@ -419,7 +405,7 @@ const ClientGraph = new Component('#graphs', {
             t.innerHTML = string;
             return t.content;
         }
-        const all_vars = points_json.vars //start.toString().split(')')[0].split('(')[1].split(',').map(s => s.trim())
+        const all_vars = points_json.vars
         async function render(selected_var_name, selected_functions) {
             const all_fns = ['start', 'end', 'target'].filter(name => points_json.error[name] != false)
             const options_view = html(`
@@ -443,8 +429,7 @@ const ClientGraph = new Component('#graphs', {
             })
             document.querySelector('#graphs').replaceChildren(await plot(selected_var_name, selected_functions), options_view)
         }
-        render(all_vars[0], ['start', 'end'])  // TODO initialize properly -- where to get the varname from...
-        //document.querySelector('#graphs').replaceChildren(plot(await points_with_err(start), start, 'x'), plot(await points_with_err(end), end, 'x'))
+        render(all_vars[0], ['start', 'end'])
     }
 })
 
