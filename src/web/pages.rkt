@@ -25,12 +25,6 @@
     `("graph.html"
       ,(and good? "interactive.js")
       "timeline.html" "timeline.json"
-      ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
-                   #:when good? [type (append (list "" "r" "g" "b") others)]
-                   #:unless (and (equal? type "g") (not (test-output test)))
-                   ;; Don't generate a plot with only one X value else plotting throws an exception
-                   #:when (> (unique-values (test-success-newpoints result) idx) 1))
-          (format "plot-~a~a.png" idx type))
       ,(and good? (>= (length (test-success-end-alts result)) 2) "cost-accuracy.png")
       ,(and good? "points.json")))
   (filter identity pages))
@@ -59,13 +53,7 @@
     ["cost-accuracy.png"
      (make-cost-accuracy-plot result out)]
     ["points.json"
-     (make-points-json result out repr)]
-    [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
-     (make-axis-plot result out (string->number idx))]
-    [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
-     (make-points-plot result out (string->number idx) (string->symbol letter))]
-    [(regexp #rx"^plot-([0-9]+)(o[0-9]+).png$" (list _ idx letter))
-     (make-points-plot result out (string->number idx) letter)]))
+     (make-points-json result out repr)]))
 
 (define (get-interactive-js result repr)
   (define start-prog (alt-program (test-success-start-alt result)))
