@@ -124,14 +124,6 @@ const ClientGraph = new Component('#graphs', {
             return get_points_memo()
         })()
         
-        // const points_with_err = async fn => await Promise.all((await get_points_memo()).map(async ({x, y}, i) => ({
-        //     i,
-        //     x,
-        //     computed: fn(...x),
-        //     exact: y,
-        //     err: new Number(bit_difference(fn(...x), y) )
-        // })))
-        
         const addTooltips = (() => {
             /* addTooltips code adapted from https://observablehq.com/@mkfreeman/plot-tooltip */
             const hover = (tip, pos, text) => {
@@ -307,77 +299,6 @@ const ClientGraph = new Component('#graphs', {
         //     return out
         // }
 
-        // function real_from_signed_int (signed) {
-        //     const buffer = new ArrayBuffer(8)
-        //     const view = new DataView(buffer)
-        //     view.setBigInt64(0, signed)
-        //     return view.getFloat64(0)
-        // }
-        // let mbn_neg_0 = mbn(-0.0)
-        // function real_to_ordinal(real) {
-        //     let signed = to_signed_int(real)
-        //     let mbn = math.bignumber(signed.toString())
-        //     return signed >= 0 ? mbn : math.subtract(mbn_neg_0, mbn)
-        // }
-        // function ordinal_to_real(ordinal) {
-        //     return ordinal >=0 ? real_from_signed_int(BigInt(ordinal)) : real_from_signed_int(BigInt(math.subtract(mbn_neg_0, math.bignumber(ordinal))))
-        // }
-
-        // TODO archive
-        // function choose_ticks_clientside (min, max) {
-        //     function first_power10(min, max) {
-        //         let value = max < 0 ? - (10 ** Math.ceil(Math.log(-max)/ Math.log(10))) : 10 ** (Math.floor(Math.log(max) / Math.log(10)))
-        //         return value <= min ? false : value
-        //         }
-        //     function clamp(x, lo, hi) {
-        //         return Math.min(hi, Math.max(x, lo))
-        //         }
-        //     function choose_between(min, max, number) {
-        //         // ; Returns a given number of ticks, roughly evenly spaced, between min and max
-        //         // ; For any tick, n divisions below max, the tick is an ordinal corresponding to:
-        //         // ;  (a) a power of 10 between n and (n + ε) divisions below max where ε is some tolerance, or
-        //         // ;  (b) a value, n divisions below max
-        //         let sub_range = Math.round((max - min) / (1 + number))
-        //         let near = (x, n) => (x <= n) && (Math.abs((x - n) / sub_range) <= .2)  // <= tolerance
-        //         return [...Array(number)].map((_, i) => i + 1).map(itr => {
-        //         let power10 = first_power10(
-        //             ordinal_to_real(clamp(max - ((itr + 1) * sub_range), min, max)),
-        //             ordinal_to_real(clamp(max - (itr * sub_range), min, max))
-        //         )
-        //         return power10 && near(real_to_ordinal(power10), max - (itr * sub_range)) ? real_to_ordinal(power10)
-        //             : max - (itr - sub_range)
-        //         })
-        //     }
-        //     function pick_spaced_ordinals(necessary, min, max, number) {
-        //         // NOTE use of mathjs bignumber arithmetic is required in this function!
-        //         let sub_range = math.divide(math.bignumber(math.subtract(math.bignumber(max), math.bignumber(min))), math.bignumber(number)) // size of a division on the ordinal range
-        //         let necessary_star = (function loop(necessary) {
-        //         return necessary.length < 2 ? necessary
-        //             : math.smaller(math.subtract(necessary[1], necessary[0]), sub_range) ? loop(necessary.slice(1)) 
-        //             : [necessary[0], ...loop(necessary.slice(1))]
-        //         })(necessary) // filter out necessary points that are too close
-        //         let all = (function loop(necessary, min_star, start) {
-        //         if (start >= number) { return [] }
-        //         if (necessary.length == 0) { return choose_between(min_star, max, number - start) }
-        //         let idx = false
-        //         for (let i=0; i<number; i++) {
-        //             if (math.smallerEq(math.subtract(necessary[0], math.add(min, math.bignumber(math.multiply(i, sub_range)))), sub_range)) {
-        //             idx = i
-        //             break
-        //             }
-        //         }
-        //         return [...choose_between(min_star, necessary[0], idx - start), ...loop(necessary.slice(1), necessary[0], idx + 1)]
-        //         })(necessary_star, min, 0)
-        //         return [...all, ...necessary_star].sort((a, b) => math.subtract(math.bignumber(a), math.bignumber(b)))
-        //     }
-        //     function choose_ticks (min, max) {
-        //         let tick_count = 13
-        //         let necessary = [min, -1.0, 0, 1.0, max].filter(v => (min <= v) && (v <= max) && (min <= max)).map(v => real_to_ordinal(v))
-        //         let major_ticks = pick_spaced_ordinals(necessary, real_to_ordinal(min), real_to_ordinal(max), tick_count).map(v => ordinal_to_real(v))
-        //         return major_ticks
-        //     }
-        //     return choose_ticks(min, max)
-        // }
         const plot = async (varName, function_names) => {
             const functions = [
                 { name: 'start', line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000007'} },
