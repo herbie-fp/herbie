@@ -2,7 +2,7 @@
 
 (require json)
 (require "../common.rkt" "../syntax/read.rkt" "../syntax/sugar.rkt" "../datafile.rkt"
-         "../interface.rkt" "../profile.rkt" "../timeline.rkt" "../sampling.rkt"
+         "../interface.rkt" "../profile.rkt" "../timeline.rkt"
          "make-report.rkt" "thread-pool.rkt" "timeline.rkt")
 
 (provide make-report rerun-report replot-report diff-report)

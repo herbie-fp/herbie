@@ -4,7 +4,7 @@
          "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
          "interface.rkt" "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
-         "programs.rkt" "sampling.rkt" "symmetry.rkt" "timeline.rkt")
+         "programs.rkt" "symmetry.rkt" "timeline.rkt")
 
 (provide (all-defined-out))
 
