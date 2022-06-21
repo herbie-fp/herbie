@@ -79,11 +79,12 @@
   (define bit-width (representation-total-bits repr))
   (define json-points (for/list ([point points]) (for/list ([value point]) 
     (real->ordinal value repr))))
-  (define start-error (map (lambda (err) (ulps->bits err)) (test-success-start-error result)))
-  (define end-error (map (lambda (err) (ulps->bits err)) 
+  (define (ulps->bits-tenths x) (string->number (real->decimal-string (ulps->bits x) 1)))
+  (define start-error (map (lambda (err) (ulps->bits-tenths err)) (test-success-start-error result)))
+  (define end-error (map (lambda (err) (ulps->bits-tenths err)) 
     ((compose car test-success-end-errors) result)))
   (define target-error (if (test-success-target-error result) 
-    (map (lambda (err) (ulps->bits err)) (test-success-target-error result)) #f))
+    (map (lambda (err) (ulps->bits-tenths err)) (test-success-target-error result)) #f))
   (define vars (test-vars (test-result-test result)))
   (define ticks 
     (for/list ([idx (in-range (length vars))]) 
@@ -103,6 +104,9 @@
   (define end-alt (car (test-success-end-alts result)))
   ; For testing, 
   ; 0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre)) usually has splitpoints (for xre)
+  ; (FPCore (xre xim)
+  ; :herbie-target 42
+  ; (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* xre xre) (* xim xim))) xre)))))
   (define splitpoints 
     (for/list ([var vars]) 
       (define split-var? (equal? var (regime-var end-alt)))
