@@ -119,7 +119,7 @@
 
       ,(render-program preprocess test #:to (alt-program end-alt))
 
-      (section ([id "graphs"]))
+      (section ([id "graphs"]) (h1 "Error") (div ([id "graphs-content"])))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive start-alt (car points))

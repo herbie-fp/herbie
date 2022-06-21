@@ -420,7 +420,7 @@ const ClientGraph = new Component('#graphs', {
             options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
                 render(selected_var_name, toggle(e.id.split('_').slice(1).join('_'), selected_functions))
             })
-            document.querySelector('#graphs').replaceChildren(await plot(selected_var_name, selected_functions), options_view)
+            document.querySelector('#graphs-content').replaceChildren(await plot(selected_var_name, selected_functions), options_view)
         }
         render(all_vars[0], ['start', 'end'])
     }
