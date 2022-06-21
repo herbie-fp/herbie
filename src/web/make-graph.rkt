@@ -79,12 +79,12 @@
       (meta ([charset "utf-8"]))
       (title "Result for " ,(~a (test-name test)))
       ,@js-tex-include
-      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
-      (script ([src "interactive.js"]))
-      (script ([src "../report.js"] [type "module"]))
       (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
       (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
       (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
+      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
+      (script ([src "interactive.js"]))
+      (script ([src "../report.js"] [type "module"]))
       )
      (body
       ,(render-menu
