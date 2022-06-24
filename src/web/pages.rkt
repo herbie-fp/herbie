@@ -3,7 +3,7 @@
 (require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json plot/no-gui)
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" )
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt"
-        "../syntax/sugar.rkt" "../float.rkt" "../interface.rkt")
+        "../syntax/sugar.rkt" "../float.rkt" "../interface.rkt" "../syntax/syntax.rkt")
 (provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)
@@ -73,12 +73,17 @@
   (when (string? js-text)
     (display js-text out)))
 
+;(require debug/repl)
 (define (make-points-json result out repr)
   (define points (test-success-newpoints result))
   (define exacts (test-success-newexacts result))
   (define bit-width (representation-total-bits repr))
+  
+  (define (make-ordinal x) ((representation-repr->ordinal repr) x))
+  ; (real->repr (list-ref (list-ref points 0) 0) repr)
+  
   (define json-points (for/list ([point points]) (for/list ([value point]) 
-    (real->ordinal value repr))))
+    (make-ordinal value))))
   (define (ulps->bits-tenths x) (string->number (real->decimal-string (ulps->bits x) 1)))
   (define start-error (map (lambda (err) (ulps->bits-tenths err)) (test-success-start-error result)))
   (define end-error (map (lambda (err) (ulps->bits-tenths err)) 
@@ -86,10 +91,15 @@
   (define target-error (if (test-success-target-error result) 
     (map (lambda (err) (ulps->bits-tenths err)) (test-success-target-error result)) #f))
   (define vars (test-vars (test-result-test result)))
+  ;(debug-repl)
   (define ticks 
     (for/list ([idx (in-range (length vars))]) 
       (define points-at-idx (for/list ([point points]) (list-ref point idx)))
-      (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
+      (define lt (operator-info (get-parametric-operator '< repr repr) 'fl))
+      (define sorted (sort points-at-idx lt))
+      ;(define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
+      ; issue seems to maybe be in choose-ticks now?
+      (define real-ticks (choose-ticks (list-ref sorted 0) (list-ref sorted (sub1 (length sorted)) ) repr))
       (for/list ([value real-ticks]) 
         (define val (pre-tick-value value))
         (define tick-str (if (or (= val 0) (< 0.01 (abs val) 100))
@@ -99,7 +109,7 @@
           tick-str
           ; (pre-tick-value value)
           ; (value->json (pre-tick-value value) repr)
-          (real->ordinal (pre-tick-value value) repr)))
+          (make-ordinal (pre-tick-value value))))
       ))
   (define end-alt (car (test-success-end-alts result)))
   ; For testing, 
@@ -110,7 +120,7 @@
   (define splitpoints 
     (for/list ([var vars]) 
       (define split-var? (equal? var (regime-var end-alt)))
-      (if split-var? (for/list ([val (regime-splitpoints end-alt)]) (real->ordinal val repr)) '())
+      (if split-var? (for/list ([val (regime-splitpoints end-alt)]) (make-ordinal val)) '())
       ))
 
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
