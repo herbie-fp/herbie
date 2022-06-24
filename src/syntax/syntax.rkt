@@ -231,22 +231,25 @@
                            (get-representation 'rtype)
                            (list (cons 'key value) ...)))
 
-(define (get-parametric-operator name #:fail-fast? [fail-fast? #t] . actual-types)
-  (let/ec k
-    (for ([impl (operator-all-impls name)])
-      (define atypes (operator-info impl 'itype))
-      (when (equal? atypes actual-types) (k impl)))
-    (unless fail-fast? (k #f))
-    (raise-herbie-missing-error
-        "Parametric operator (~a ~a) not found"
-        name
-        (string-join (map (λ (r) (format "<~a>" (representation-name r))) actual-types) " "))))
+(define (get-parametric-operator name . actual-types)
+  (or
+   (for/first ([impl (operator-all-impls name)]
+               #:when (equal? (operator-info impl 'itype) actual-types))
+     impl)
+   (raise-herbie-missing-error
+    "Parametric operator (~a ~a) not found"
+    name
+    (string-join (map (λ (r) (format "<~a>" (representation-name r))) actual-types) " "))))
 
 (define (impl->operator name)
   (operator-name (operator-impl-op (hash-ref operator-impls name))))
 
 (define (operator-all-impls name)
   (hash-ref operators-to-impls name))
+
+(define ((comparator test) . args)
+  (for/and ([left args] [right (cdr args)])
+    (test left right)))
 
 ;; real operators
 (define-operator (== real real) bool

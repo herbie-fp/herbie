@@ -3,7 +3,7 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../common.rkt" "../errors.rkt" "../interface.rkt"
-         "syntax.rkt" "types.rkt" "sugar.rkt")
+         "syntax.rkt" "sugar.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
@@ -136,6 +136,8 @@
       (*templated-rulesets* (cons (list name 'groups '((var . type) ...)) 
                                   (*templated-rulesets*))))]))
 
+(define *reprs-with-rules* (make-parameter '()))
+
 ;; Add existing rules in rulesets to 'active' rules
 
 (define (add-rules-from-rulesets repr)
@@ -157,8 +159,7 @@
 
 ;; Generate a set of rules by replacing a generic type with a repr
 (define (generate-rules-for type repr)
-  (define typename (type-name type))
-  (define valid? (disjoin (curry equal? typename)
+  (define valid? (disjoin (curry equal? type)
                           (curry set-member? (map representation-name (*reprs-with-rules*)))))
   (*templated-reprs* (set-add (*templated-reprs*) repr)) ; update
   (for ([set (reverse (*templated-rulesets*))] ; preserve rule order
@@ -167,7 +168,7 @@
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
     (define ctx
       (for/list ([v vars] [t types])
-        (define repr* (if (equal? t typename) repr (get-representation t)))
+        (define repr* (if (equal? t type) repr (get-representation t)))
         (cons v repr*)))
     (define rules*
       (for/fold ([rules* '()]) ([r rules])

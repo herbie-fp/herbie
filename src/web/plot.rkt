@@ -2,7 +2,7 @@
 
 (require math/bigfloat math/flonum plot/no-gui racket/draw)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../syntax/syntax.rkt" "../syntax/types.rkt" "../syntax/read.rkt"
+         "../syntax/syntax.rkt" "../syntax/read.rkt"
          "../alternative.rkt" "../interface.rkt" "../core/regimes.rkt" 
          "../sandbox.rkt")
 
