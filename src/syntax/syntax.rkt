@@ -151,22 +151,6 @@
 
 (require (submod "." hairy))
 
-(when (check-native-1ary-exists? 'j0)
-  (define-operator (j0 real) real
-    [bf bfbesj0] [ival #f] [deprecated #t]))
-
-(when (check-native-1ary-exists? 'j1)
-  (define-operator (j1 real) real
-    [bf bfbesj1] [ival #f] [deprecated #t]))
- 
-(when (check-native-1ary-exists? 'y0)
-  (define-operator (y0 real) real
-    [bf bfbesy0] [ival #f] [deprecated #t]))
-
-(when (check-native-1ary-exists? 'y1)
-  (define-operator (y1 real) real
-    [bf bfbesy1] [ival #f] [deprecated #t]))
-
 ;; Operator implementations
 
 (struct operator-impl (name op itype otype fl bf ival))
