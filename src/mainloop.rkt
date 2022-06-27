@@ -47,7 +47,7 @@
               #:when (set-member? v (*output-repr*)))
       (define rewrite (get-rewrite-operator k))
       (define prog* `(λ ,(program-variables prog) (,rewrite ,(program-body prog))))
-      (alt (apply-repr-change prog*) 'start '()))))
+      (alt (apply-repr-change prog* (*output-repr*)) 'start '()))))
 
 ;; Information
 (define (list-alts)
@@ -84,7 +84,7 @@
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
     (define best (argmin score-alt altns))
-    (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key alt-cost))
+    (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost (*output-repr*))))
     (define simplest (car altns*))
     (define altns** (cdr altns*))
     (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
@@ -393,7 +393,7 @@
            (not (null? (program-variables (alt-program (car all-alts))))))
       (cond
        [(*pareto-mode*)
-        (pareto-regimes (sort all-alts < #:key alt-cost) repr (*sampler*))]
+        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) repr (*sampler*))]
        [else
         (define option (infer-splitpoints all-alts repr))
         (list (combine-alts option repr (*sampler*)))])]
@@ -424,4 +424,4 @@
          [(not best) (values altn new-score '())]
          [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
          [else (values best score (cons altn rest))]))))
-  (cons best (sort rest > #:key alt-cost)))
+  (cons best (sort rest > #:key (curryr alt-cost repr))))

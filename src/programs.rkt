@@ -176,7 +176,7 @@
 
   (timeline-push! 'compiler (+ varc size) lt)
   (define exprvec (list->vector (reverse exprs)))
-  (λ args
+  (define (f . args)
     (define v (make-vector lt))
     (for ([arg (in-list args)] [n (in-naturals)] [repr (in-list var-reprs)])
       (vector-set! v n (arg->precision arg repr)))
@@ -186,7 +186,8 @@
           (vector-ref v arg)))
       (vector-set! v n (apply (car expr) tl)))
     (for/vector ([n (in-list names)])
-      (vector-ref v n))))
+      (vector-ref v n)))
+  (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
 
 (module+ test
   (*context* (make-debug-context '(a b c)))
@@ -268,7 +269,7 @@
    '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
 
 ; Updates the repr of an expression if needed
-(define (apply-repr-change-expr expr)
+(define (apply-repr-change-expr expr output-repr)
   (let loop ([expr expr] [repr #f])
     (match expr
      [(list (? repr-conv? op) body)
@@ -293,12 +294,12 @@
               (list op (loop body irepr)))
           (if repr
               (loop (list op body) repr*)
-              (let* ([conv (get-repr-conv repr* (*output-repr*))]
+              (let* ([conv (get-repr-conv repr* output-repr)]
                      [body* (loop body repr*)])
                 (and conv body* (list conv body*)))))]
      [(list (? rewrite-repr-op? op) body)
       (define irepr (operator-info op 'otype))
-      (define orepr (or repr (*output-repr*)))
+      (define orepr (or repr output-repr))
       (cond
        [(equal? irepr orepr)
         (loop body irepr)]
@@ -307,7 +308,7 @@
         (define body* (loop body irepr))
         (and conv body* (list conv body*))])]
      [(list 'if con ift iff)
-      (define repr* (or repr (*output-repr*)))
+      (define repr* (or repr output-repr))
       (define con*
         (let loop2 ([con con])
           (cond
@@ -345,8 +346,8 @@
         (and cast (list cast expr))])]
      [_ expr])))
 
-(define (apply-repr-change prog)
+(define (apply-repr-change prog repr)
   (match prog
-   [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body))]
-   [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(apply-repr-change-expr body))]
-   [_ (apply-repr-change-expr prog)]))
+   [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body repr))]
+   [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(apply-repr-change-expr body repr))]
+   [_ (apply-repr-change-expr prog repr)]))
