@@ -103,7 +103,7 @@
  [expm1 bfexpm1 ival-expm1]
  [fabs bfabs ival-fabs]
  [floor bffloor ival-floor]
- [lgamma bflog-gamma #f]
+ [lgamma bflog-gamma ival-lgamma]
  [log bflog ival-log]
  [log10 bflog10 ival-log10]
  [log1p bflog1p ival-log1p]
@@ -116,7 +116,7 @@
  [sqrt bfsqrt ival-sqrt]
  [tan bftan ival-tan]
  [tanh bftanh ival-tanh]
- [tgamma bfgamma #f]
+ [tgamma bfgamma ival-tgamma]
  [trunc bftruncate ival-trunc])
 
 (define-2ary-real-operators
