@@ -73,17 +73,21 @@
   (when (string? js-text)
     (display js-text out)))
 
-;(require debug/repl)
+(require debug/repl)
 (define (make-points-json result out repr)
-  (define points (test-success-newpoints result))
-  (define exacts (test-success-newexacts result))
+  ; Immediately convert points to reals to handle posits
+  (define points 
+    (for/list ([point (test-success-newpoints result)]) (for/list ([x point]) (repr->real x repr))))
+  ;(define exacts (test-success-newexacts result))
   (define bit-width (representation-total-bits repr))
   
-  (define (make-ordinal x) ((representation-repr->ordinal repr) x))
-  ; (real->repr (list-ref (list-ref points 0) 0) repr)
+  ;(define (make-ordinal x) ((representation-repr->ordinal repr) x))
+  ; was previously using (real->ordinal some-real repr), but failed on posits
+  ; getting an example value for one of the inputs: (list-ref (list-ref points 0) 0)
+  ; try (make-ordinal (repr->real (list-ref (list-ref points 0) 0) repr))
   
   (define json-points (for/list ([point points]) (for/list ([value point]) 
-    (make-ordinal value))))
+    (real->ordinal value repr))))
   (define (ulps->bits-tenths x) (string->number (real->decimal-string (ulps->bits x) 1)))
   (define start-error (map (lambda (err) (ulps->bits-tenths err)) (test-success-start-error result)))
   (define end-error (map (lambda (err) (ulps->bits-tenths err)) 
@@ -94,12 +98,14 @@
   ;(debug-repl)
   (define ticks 
     (for/list ([idx (in-range (length vars))]) 
+      ; (define idx 0)
       (define points-at-idx (for/list ([point points]) (list-ref point idx)))
-      (define lt (operator-info (get-parametric-operator '< repr repr) 'fl))
-      (define sorted (sort points-at-idx lt))
-      ;(define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
+      ; (define lt (operator-info (get-parametric-operator '< repr repr) 'fl))
+      ; (define sorted (sort points-at-idx lt))
+      (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
       ; issue seems to maybe be in choose-ticks now?
-      (define real-ticks (choose-ticks (list-ref sorted 0) (list-ref sorted (sub1 (length sorted)) ) repr))
+      ; the old plotting code definitely is adapting the choose-ticks output to the specified range
+      ;(define real-ticks (choose-ticks (list-ref sorted 0) (list-ref sorted (sub1 (length sorted)) ) repr))
       (for/list ([value real-ticks]) 
         (define val (pre-tick-value value))
         (define tick-str (if (or (= val 0) (< 0.01 (abs val) 100))
@@ -109,7 +115,7 @@
           tick-str
           ; (pre-tick-value value)
           ; (value->json (pre-tick-value value) repr)
-          (make-ordinal (pre-tick-value value))))
+          (real->ordinal (pre-tick-value value) repr)))
       ))
   (define end-alt (car (test-success-end-alts result)))
   ; For testing, 
@@ -120,7 +126,7 @@
   (define splitpoints 
     (for/list ([var vars]) 
       (define split-var? (equal? var (regime-var end-alt)))
-      (if split-var? (for/list ([val (regime-splitpoints end-alt)]) (make-ordinal val)) '())
+      (if split-var? (for/list ([val (regime-splitpoints end-alt)]) (real->ordinal val repr)) '())
       ))
 
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
