@@ -37,7 +37,8 @@
     as the administrative user.
   </p>
 
-  <p>With Docker installed, you can run the <a href="using-cli.html">Herbie shell</a> with:</p>
+  <p>With Docker installed, you can run the <a href="using-cli.html">Herbie 
+    shell</a> with:</p>
 
   <pre>docker run -it uwplse/herbie shell</pre>
   
@@ -53,11 +54,13 @@
 
   <pre class="shell">docker run -it --rm -p 8000:80 uwplse/herbie</pre>
 
-    and access the server at <a href="http://localhost:8000">http://localhost:8000</a>.
+    and access the server at 
+    <a href="http://localhost:8000">http://localhost:8000</a>.
     </p>
     <p>
       (Herbie's Docker image binds to port 80 by
-    default; this command uses the <code>-p &lt;hostport&gt;:80</code> option to expose Herbie on port 8000.)
+    default; this command uses the <code>-p &lt;hostport&gt;:80</code> 
+    option to expose Herbie on port 8000.)
   </p>
 
   <p>
@@ -106,29 +109,65 @@
     have the correct permissions set.
   </p>
 
-  <h2>For developers: updating the Docker image + Dockerfile</h2>
+  <h2>For developers: using Docker</h2>
+  <h3>Updating the Docker image + Dockerfile</h3>
 
   <p>
-    For building and testing, first clone the repo and confirm that Herbie builds correctly with <code>make install</code>.
+    For building and testing, first clone the repo and confirm that Herbie 
+    builds correctly with <code>make install</code>.
   </p>
   <p>
-    Next, examine the Dockerfile and Makefile together. The Dockerfile should follow a process exactly like the Makefile, except a clean initial environment is assumed. The build may be split into 2 or more stages to limit the size of the resulting image. Each stage consists of a <code>FROM</code> command and a series of further commands to build up the desired environment, and later stages can refer to earlier stages by name--for example, <code>COPY --from=earlier-stage ...</code> can copy files compiled in earlier images. You may need to do things like bumping the version of Rust used for binary compilation or the version of Racket used in production, or adjusting paths to match the newest version of the repo.
+    Next, examine the Dockerfile and Makefile together. The Dockerfile 
+    syntax is described 
+    <a href="https://docs.docker.com/engine/reference/builder/">here</a>. 
+    The Dockerfile should follow a process exactly like the Makefile, 
+    except a clean initial environment is assumed. The build may be split 
+    into 2 or more stages to limit the size of the resulting image. Each 
+    stage consists of a <code>FROM</code> command and a series of further 
+    commands to build up the desired environment, and later stages can 
+    refer to earlier stages by name--for example, 
+    <code>COPY --from=earlier-stage ...</code> can copy files compiled in 
+    earlier images. You may need to do things like bumping the version of 
+    Rust used for binary compilation or the version of Racket used in 
+    production, or adjusting paths to match the newest version of the repo.
   </p>
     <p>
     Once you are ready to build:
     <pre class="shell">docker build -t herbie-testbuild .</pre>
-    from the repo's main directory will build a new test image with the tag <code>herbie-testbuild</code>. You can run this image with
+    from the repo's main directory will build a new test image with the 
+    tag <code>herbie-testbuild</code>. You can run this image with
     <pre class="shell">docker run -p 8000:80 -it herbie-testbuild</pre>
-    and see the web demo in the host machine's browser at <code>http://localhost:8000</code>.
+    and see the web demo in the host machine's browser at 
+    <a href="http://localhost:8000">http://localhost:8000</a>.
   </p>
   
   <p>
-  To open a shell in a running container for testing, first get the container ID with
+  To open a shell in a running container for testing, first get the 
+  container ID with
   <pre class="shell">docker ps</pre>
   and then open a shell in the container as root with
   <pre class="shell">docker exec -it &lt;CONTAINER ID&gt; sh</pre>
   
   The code and egg-herbie binaries should be under <code>/src</code>.
+  </p>
+
+  <h3>
+    Deploying the image
+  </h3>
+  <p>
+    First, make sure you have access to the docker repo you would 
+    like to push the image to (e.g. <code>uwplse/herbie</code>).
+  </p>
+  <p>
+    Then, give the image a name and a tag like this:
+    <pre class="shell">docker tag herbie-testbuild uwplse/herbie:tagname</pre>
+    Once this is done, the tagged image can be pushed to the repo with
+    <pre class="shell">docker push uwplse/herbie:tagname</pre>
+  </p>
+  <p>
+    If you are pushing a new version, make sure to also update the 
+    <code>latest</code> tag:
+    <pre class="shell">docker push uwplse/herbie:latest</pre>
   </p>
 
 </body>
