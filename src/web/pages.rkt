@@ -89,8 +89,10 @@
     (map (lambda (err) (ulps->bits-tenths err)) (test-success-target-error result)) #f))
   (define vars (test-vars (test-result-test result)))
   (define ticks 
-    (for/list ([idx (in-range (length vars))]) 
+    (for/list ([idx (in-range (length vars))]) (let/ec return 
       (define points-at-idx (for/list ([point points]) (list-ref point idx)))
+      ; We bail out since choose-ticks will crash otherwise
+      (if (= (unique-values (test-success-newpoints result) idx) 1) (return #f) #f) 
       (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
       (for/list ([value real-ticks]) 
         (define val (pre-tick-value value))
@@ -99,8 +101,7 @@
            (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
         (list 
           tick-str
-          (real->ordinal (pre-tick-value value) repr)))
-      ))
+          (real->ordinal (pre-tick-value value) repr))))))
   (define end-alt (car (test-success-end-alts result)))
   ; For testing, 
   ; 0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre)) usually has splitpoints (for xre)
