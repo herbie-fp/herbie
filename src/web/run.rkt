@@ -97,7 +97,7 @@
                           (errors (test-target orig-test) test-context output-repr)
                           #f)
                       #f #f
-                      (alt-cost start-alt) (cons end-cost other-costs)
+                      (alt-cost start-alt output-repr) (cons end-cost other-costs)
                       #f))
       (define images (filter (curryr string-suffix? ".png") (all-pages result)))
       (for ([page images])
