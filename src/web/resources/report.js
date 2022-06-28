@@ -176,37 +176,11 @@ const ClientGraph = new Component('#graphs', {
                 const bin_size = 128
                 const sliding_window_data = sliding_window(data, bin_size)
                 return [
-                    // Plot.areaY(sliding_window_data, {
-                    //     x: d => d.x, 
-                    //     y1: "bottom", 
-                    //     y2: "top",
-                    //     ...area
-                    // }),
-                    // Plot.areaY(sliding_window_data, {
-                    //     x: d => d.x, 
-                    //     y1: "bottom_q", 
-                    //     y2: "top_q",
-                    //     ...area
-                    // }),
                     Plot.line(sliding_window_data, {
                         x: "x",
                         y: "average",
                         strokeWidth: 1.3, ...line,
                     }),
-                    // Plot.line(sliding_window_data, {
-                    //     x: "x",
-                    //     y: "average",
-                    //     strokeWidth: 1.3, ...line,
-                    // }),
-                    // Plot.line(chunk(sliding_window_data.map(({ top }) => top), sliding_chunksize).map(average_chunk), {
-                    //     x: d => d.x, y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
-                    // }),
-                    // Plot.line(chunk(sliding_window_data.map(({ bottom }) => bottom), sliding_chunksize).map(average_chunk), {
-                    //     x: d => d.x, y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
-                    // }),
-                    // Plot.line(chunk(sliding_window_data.map(({ middle }) => middle), sliding_chunksize).map(average_chunk), {
-                    //     x: d => d.x, y: "err", strokeWidth: 1.3, ...line, title: d => 'test'
-                    // }),
                     Plot.dot(data, {x: "x", y: "y", r: 1.3,
                         title: d => `x: ${d.x} \n i: ${d.i} \n bits of error: ${d.y}`,
                         ...dot
