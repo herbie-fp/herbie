@@ -73,18 +73,11 @@
   (when (string? js-text)
     (display js-text out)))
 
-(require debug/repl)
 (define (make-points-json result out repr)
   ; Immediately convert points to reals to handle posits
   (define points 
     (for/list ([point (test-success-newpoints result)]) (for/list ([x point]) (repr->real x repr))))
-  ;(define exacts (test-success-newexacts result))
   (define bit-width (representation-total-bits repr))
-  
-  ;(define (make-ordinal x) ((representation-repr->ordinal repr) x))
-  ; was previously using (real->ordinal some-real repr), but failed on posits
-  ; getting an example value for one of the inputs: (list-ref (list-ref points 0) 0)
-  ; try (make-ordinal (repr->real (list-ref (list-ref points 0) 0) repr))
   
   (define json-points (for/list ([point points]) (for/list ([value point]) 
     (real->ordinal value repr))))
@@ -95,17 +88,10 @@
   (define target-error (if (test-success-target-error result) 
     (map (lambda (err) (ulps->bits-tenths err)) (test-success-target-error result)) #f))
   (define vars (test-vars (test-result-test result)))
-  ;(debug-repl)
   (define ticks 
     (for/list ([idx (in-range (length vars))]) 
-      ; (define idx 0)
       (define points-at-idx (for/list ([point points]) (list-ref point idx)))
-      ; (define lt (operator-info (get-parametric-operator '< repr repr) 'fl))
-      ; (define sorted (sort points-at-idx lt))
       (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
-      ; issue seems to maybe be in choose-ticks now?
-      ; the old plotting code definitely is adapting the choose-ticks output to the specified range
-      ;(define real-ticks (choose-ticks (list-ref sorted 0) (list-ref sorted (sub1 (length sorted)) ) repr))
       (for/list ([value real-ticks]) 
         (define val (pre-tick-value value))
         (define tick-str (if (or (= val 0) (< 0.01 (abs val) 100))
@@ -113,8 +99,6 @@
            (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
         (list 
           tick-str
-          ; (pre-tick-value value)
-          ; (value->json (pre-tick-value value) repr)
           (real->ordinal (pre-tick-value value) repr)))
       ))
   (define end-alt (car (test-success-end-alts result)))
