@@ -294,6 +294,9 @@ const ClientGraph = new Component('#graphs', {
             // NOTE ticks and splitpoints include all vars, so we must index
             const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = points_json
             const ticks = ticks_by_varidx[index]
+            if (!ticks) {
+                return html(`<div>The function could not be plotted on the given range for this input.</div>`)
+            }
             const tick_strings = ticks.map(t => t[0])
             const tick_ordinals = ticks.map(t => t[1])
             const tick_0_index = tick_strings.indexOf("0")
