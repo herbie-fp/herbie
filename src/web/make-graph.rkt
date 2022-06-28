@@ -79,10 +79,13 @@
       (meta ([charset "utf-8"]))
       (title "Result for " ,(~a (test-name test)))
       ,@js-tex-include
+      (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
+      (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
+      (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
-      (script ([src "../report.js"]))
       (script ([src "interactive.js"]))
-      (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
+      (script ([src "../report.js"] [type "module"]))
+      )
      (body
       ,(render-menu
         (list
@@ -116,35 +119,7 @@
 
       ,(render-program preprocess test #:to (alt-program end-alt))
 
-      (section ([id "graphs"])
-       (h1 "Error")
-       (div
-        ,@(for/list ([var (test-vars test)] [idx (in-naturals)])
-            (cond
-             [(> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
-              (define split-var? (equal? var (regime-var end-alt)))
-              (define title "The X axis uses an exponential scale")
-              `(figure ([id ,(format "fig-~a" idx)] [class ,(if split-var? "default" "")])
-                ,@(reverse ; buttons are sorted R/L
-                    (for/list ([alt other-alts] [idx2 (in-naturals)] #:when alt-plots?)
-                      (let ([name (format "Other~a" idx2)])
-                        `(img ([width "800"] [height "300"] [title ,title] [data-name ,name]
-                               [src ,(format "plot-~ao~a.png" idx idx2)])))))
-                (img ([width "800"] [height "300"] [title ,title]
-                      [src ,(format "plot-~a.png" idx)]))
-                (img ([width "800"] [height "300"] [title ,title] [data-name "Input"]
-                      [src ,(format "plot-~ar.png" idx)]))
-                ,(if target-error
-                     `(img ([width "800"] [height "300"] [title ,title] [data-name "Target"]
-                            [src ,(format "plot-~ag.png" idx)]))
-                     "")
-                (img ([width "800"] [height "300"] [title ,title] [data-name "Result"]
-                      [src ,(format "plot-~ab.png" idx)]))
-                (figcaption (p "Bits error versus " (var ,(~a var)))))]
-             [else ""]))
-       ,(if alt-plots?
-             ""
-             `(p "Too many alternatives generated, ignoring plots"))))
+      (section ([id "graphs"]) (h1 "Error") (div ([id "graphs-content"])))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive start-alt (car points))

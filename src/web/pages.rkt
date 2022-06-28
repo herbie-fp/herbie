@@ -1,9 +1,9 @@
 #lang racket
 
-(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json)
+(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json plot/no-gui)
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" )
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt"
-        "../syntax/sugar.rkt" "../float.rkt")
+        "../syntax/sugar.rkt" "../float.rkt" "../interface.rkt" "../syntax/syntax.rkt")
 (provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)
@@ -25,12 +25,6 @@
     `("graph.html"
       ,(and good? "interactive.js")
       "timeline.html" "timeline.json"
-      ,@(for/list ([v (test-vars test)] [idx (in-naturals)]
-                   #:when good? [type (append (list "" "r" "g" "b") others)]
-                   #:unless (and (equal? type "g") (not (test-output test)))
-                   ;; Don't generate a plot with only one X value else plotting throws an exception
-                   #:when (> (unique-values (test-success-newpoints result) idx) 1))
-          (format "plot-~a~a.png" idx type))
       ,(and good? (>= (length (test-success-end-alts result)) 2) "cost-accuracy.png")
       ,(and good? "points.json")))
   (filter identity pages))
@@ -59,13 +53,7 @@
     ["cost-accuracy.png"
      (make-cost-accuracy-plot result out)]
     ["points.json"
-     (make-points-json result out repr)]
-    [(regexp #rx"^plot-([0-9]+).png$" (list _ idx))
-     (make-axis-plot result out (string->number idx))]
-    [(regexp #rx"^plot-([0-9]+)([rbg]).png$" (list _ idx letter))
-     (make-points-plot result out (string->number idx) (string->symbol letter))]
-    [(regexp #rx"^plot-([0-9]+)(o[0-9]+).png$" (list _ idx letter))
-     (make-points-plot result out (string->number idx) letter)]))
+     (make-points-json result out repr)]))
 
 (define (get-interactive-js result repr)
   (define start-prog (alt-program (test-success-start-alt result)))
@@ -86,9 +74,63 @@
     (display js-text out)))
 
 (define (make-points-json result out repr)
-  (define points (test-success-newpoints result))
-  (define exacts (test-success-newexacts result))
-  (define json-points (for/list ([point points]) (for/list ([value point]) (value->json value repr))))
-  (define json-exacts (map (lambda (x) (value->json x repr)) exacts))
-  (define json-obj `#hasheq((points . ,json-points) (exacts . ,json-exacts)))
+  ; Immediately convert points to reals to handle posits
+  (define points 
+    (for/list ([point (test-success-newpoints result)]) (for/list ([x point]) (repr->real x repr))))
+  (define bit-width (representation-total-bits repr))
+  
+  (define json-points (for/list ([point points]) (for/list ([value point]) 
+    (real->ordinal value repr))))
+  (define (ulps->bits-tenths x) (string->number (real->decimal-string (ulps->bits x) 1)))
+  (define start-error (map (lambda (err) (ulps->bits-tenths err)) (test-success-start-error result)))
+  (define end-error (map (lambda (err) (ulps->bits-tenths err)) 
+    ((compose car test-success-end-errors) result)))
+  (define target-error (if (test-success-target-error result) 
+    (map (lambda (err) (ulps->bits-tenths err)) (test-success-target-error result)) #f))
+  (define vars (test-vars (test-result-test result)))
+  (define ticks 
+    (for/list ([idx (in-range (length vars))]) (let/ec return 
+      (define points-at-idx (for/list ([point points]) (list-ref point idx)))
+      ; We bail out since choose-ticks will crash otherwise
+      (if (= (unique-values (test-success-newpoints result) idx) 1) (return #f) #f) 
+      (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
+      (for/list ([value real-ticks]) 
+        (define val (pre-tick-value value))
+        (define tick-str (if (or (= val 0) (< 0.01 (abs val) 100))
+           (~r (exact->inexact val) #:precision 4)
+           (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
+        (list 
+          tick-str
+          (real->ordinal (pre-tick-value value) repr))))))
+  (define end-alt (car (test-success-end-alts result)))
+
+  (define splitpoints 
+    (for/list ([var vars]) 
+      (define split-var? (equal? var (regime-var end-alt)))
+      (if split-var? (for/list ([val (regime-splitpoints end-alt)]) (real->ordinal val repr)) '())
+      ))
+
+  ; NOTE ordinals *should* be passed as strings so we can detect truncation if
+  ;   necessary, but this isn't implemented yet. 
+  ; Fields:
+  ;   bits: int representing the maximum possible bits of error
+  ;   vars: array of n string variable names
+  ;   points: array of size m like [[x0, x1, ..., xn], ...] where x0 etc. 
+  ;     are ordinals representing the real input values
+  ;   error: object with fields {start, target, end}, where each field holds 
+  ;     an array like [y0, ..., ym] where y0 etc are bits of error for the output 
+  ;     on each point
+  ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
+  ;   splitpoints: array with the ordinal splitpoints
+  (define json-obj `#hasheq(
+    (bits . ,bit-width)
+    (vars . ,(for/list ([var vars]) (symbol->string var)))
+    (points . ,json-points) 
+    (error . ,`#hasheq(
+      (start . ,start-error)
+      (target . ,target-error)
+      (end . ,end-error)))
+    (ticks_by_varidx . ,ticks)
+    (splitpoints_by_varidx . ,splitpoints)))
+  
   (write-json json-obj out))
