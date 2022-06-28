@@ -103,11 +103,7 @@
           tick-str
           (real->ordinal (pre-tick-value value) repr))))))
   (define end-alt (car (test-success-end-alts result)))
-  ; For testing, 
-  ; 0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre)) usually has splitpoints (for xre)
-  ; (FPCore (xre xim)
-  ; :herbie-target 42
-  ; (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* xre xre) (* xim xim))) xre)))))
+
   (define splitpoints 
     (for/list ([var vars]) 
       (define split-var? (equal? var (regime-var end-alt)))
