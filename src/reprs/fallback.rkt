@@ -146,35 +146,3 @@
 (define-operator-impl (>= >=.rkt racket racket) bool
   [fl >=])
 
-;; Deprecated
-
-;; copied from <herbie>/syntax/syntax.rkt
-(module hairy racket/base
-  (require ffi/unsafe)
-  (provide check-native-1ary-exists?)
-
-  (define (check-native-1ary-exists? op)
-    (let ([f32-name (string->symbol (string-append (symbol->string op) "f"))])
-      (or (get-ffi-obj op #f (_fun _double -> _double) (λ () #f))
-          (get-ffi-obj f32-name #f (_fun _float -> _float) (λ () #f)))))
-)
-
-(require (submod "." hairy))
-
-; can't load these without native support
-
-(when (check-native-1ary-exists? 'j0)
-  (define-operator-impl (j0 j0.rkt racket) racket
-    [fl (from-bigfloat bfbesj0)]))
-
-(when (check-native-1ary-exists? 'j1)
-  (define-operator-impl (j1 j1.rkt racket) racket
-    [fl (from-bigfloat bfbesj1)]))
- 
-(when (check-native-1ary-exists? 'y0)
-  (define-operator-impl (y0 y0.rkt racket) racket
-    [fl (from-bigfloat bfbesy0)]))
-
-(when (check-native-1ary-exists? 'y1)
-  (define-operator-impl (y1 y1.rkt racket) racket
-    [fl (from-bigfloat bfbesy1)]))

@@ -6,8 +6,8 @@ FUNCTIONS = {}
     FUNCTIONS[op] = [["real", "real"], "real"];
 });
 ("fabs sqrt exp log sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh " +
- "cbrt ceil erf erfc exp2 expm1 floor j0 j1 lgamma log10 log1p log2 logb rint " + 
- "round tgamma trunc y0 y1").split(" ").forEach(function(op) {
+ "cbrt ceil erf erfc exp2 expm1 floor lgamma log10 log1p log2 logb rint " + 
+ "round tgamma trunc").split(" ").forEach(function(op) {
      FUNCTIONS[op] = [["real"], "real"];
 });
 FUNCTIONS["fma"] = [["real", "real", "real"], "real"];
