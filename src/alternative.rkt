@@ -1,6 +1,6 @@
 #lang racket
 
-(require "cost.rkt" "interface.rkt")
+(require "cost.rkt")
 (provide (struct-out change) (struct-out alt) make-alt alt?
          alt-program alt-add-event *start-prog* *all-alts*
          alt-cost alt-equal?)
