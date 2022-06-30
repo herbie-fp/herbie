@@ -164,19 +164,15 @@
    #:combine (λ (a b) b)))
 
 (define (minimize-alts atab)
-  (define (get-essential pnts->alts)
-    (define essential (mutable-set))
-    (for* ([cost-hash (hash-values pnts->alts)]
-           [rec (hash-values cost-hash)])
-      (let ([altns (cost-rec-altns rec)])
-        (cond
-         [(> (length altns) 1) (void)]
-         [(= (length altns) 1) (set-add! essential (car altns))]
-         [else (error "This point has no alts which are best at it!" rec)])))
-    (set->list essential))
-
-  (define (get-tied-alts essential-alts alts->pnts)
-    (remove* essential-alts (hash-keys alts->pnts)))
+  (define (get-tied pnts->alts alts->pnts)
+    (define alts (list->mutable-set (hash-keys alts->pnts)))
+    (for* ([cost-hash (in-hash-values pnts->alts)]
+           [rec (in-hash-values cost-hash)])
+      (match (cost-rec-altns rec)
+        [(list alt) (set-remove! alts alt)]
+        [(list) (error "This point has no alts which are best at it!" rec)]
+        [_ (void)]))
+    (set->list alts))
 
   (define (worst atab altns)
     (let* ([alts->pnts (curry hash-ref (alt-table-alt->points atab))]
@@ -194,8 +190,7 @@
   (let loop ([cur-atab atab])
     (let* ([alts->pnts (alt-table-alt->points cur-atab)]
            [pnts->alts (alt-table-point->alts cur-atab)]
-           [essential-alts (get-essential pnts->alts)]
-           [tied-alts (get-tied-alts essential-alts alts->pnts)])
+           [tied-alts (get-tied pnts->alts alts->pnts)])
       (if (null? tied-alts)
           cur-atab
           (loop (rm-alts cur-atab (worst cur-atab tied-alts)))))))
