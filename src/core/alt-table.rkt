@@ -105,12 +105,6 @@
       (alt-table point->alts alt->points alt->done? alt->cost
                  context (alt-table-all atab)))))
 
-;; Helper Functions
-
-(define (hash-remove* hash keys)
-  (for/fold ([hash hash]) ([key keys])
-    (hash-remove hash key)))
-
 ;; Implementation
 
 (define (best-and-tied-at-points atab altn cost errs)
@@ -193,30 +187,25 @@
            [tied-alts (get-tied pnts->alts alts->pnts)])
       (if (null? tied-alts)
           cur-atab
-          (loop (rm-alts cur-atab (worst cur-atab tied-alts)))))))
+          (loop (rm-alt cur-atab (worst cur-atab tied-alts)))))))
 
-(define (rm-alts atab . altns)
+(define (rm-alt atab altn)
   (match-define (alt-table point->alts alt->points alt->done? alt->cost _ _) atab)
-  (define rel-points
-    (remove-duplicates
-     (append-map (curry hash-ref (alt-table-alt->points atab)) altns)))
+  (define changed-points (hash-ref (alt-table-alt->points atab) altn))
 
-  (define pnts->alts*
-    (hash-union
-      point->alts
-      (for/hash ([pnt rel-points])
-        (define cost-hash
-          (for/hash ([(cost rec) (hash-ref point->alts pnt)])
-            (values cost (cost-rec (cost-rec-berr rec)
-                                   (remove* altns (cost-rec-altns rec))))))
-        (values pnt cost-hash))
-      #:combine (λ (a b) b)))
+  (define pnts->alts* (make-hash (hash->list point->alts)))
+  (for ([pnt (in-list changed-points)])
+    (hash-set! pnts->alts*
+               pnt
+               (for/hash ([(cost rec) (hash-ref point->alts pnt)])
+                 (define altns* (remq altn (cost-rec-altns rec)))
+                 (values cost (struct-copy cost-rec rec [altns altns*])))))
 
   (struct-copy alt-table atab
-               [point->alts pnts->alts*]
-               [alt->points (hash-remove* alt->points altns)]
-               [alt->done? (hash-remove* alt->done? altns)]
-               [alt->cost (hash-remove* alt->cost altns)]))
+               [point->alts (make-immutable-hash (hash->list pnts->alts*))]
+               [alt->points (hash-remove alt->points altn)]
+               [alt->done? (hash-remove alt->done? altn)]
+               [alt->cost (hash-remove alt->cost altn)]))
 
 (define (is-nan? expr)
   (and (impl-exists? expr) (equal? (impl->operator expr) 'NAN)))
