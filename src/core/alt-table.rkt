@@ -228,9 +228,10 @@
 
 (define (atab-add-altns atab altns repr)
   (define progs (map alt-program altns))
-  (define errss (apply vector-map list (batch-errors progs (alt-table-context atab) repr)))
-  (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-vector errss)])
-    (atab-add-altn atab altn errs repr)))
+  (define errss (flip-lists (batch-errors progs (alt-table-context atab) repr)))
+  (minimize-alts
+   (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)])
+     (atab-add-altn atab altn errs repr))))
 
 (define (worse-than? point->alts altn cost tied-pnts tied-errs)
   (cond
@@ -265,8 +266,8 @@
     (define alts->done?* (hash-set alt->done? altn #f))
     (define alt->cost* (hash-set alt->cost altn cost))
     (define all-alts* (cons altn all-alts))
-    (minimize-alts (alt-table pnts->alts*2 alts->pnts*2 alts->done?*
-                              alt->cost* (alt-table-context atab) all-alts*))]))
+    (alt-table pnts->alts*2 alts->pnts*2 alts->done?*
+               alt->cost* (alt-table-context atab) all-alts*)]))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))

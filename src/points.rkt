@@ -1,9 +1,9 @@
 #lang racket
 
-(require "config.rkt" "float.rkt" "interface.rkt" "programs.rkt")
+(require "config.rkt" "common.rkt" "float.rkt" "interface.rkt" "programs.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext join-pcontext
-         errors batch-errors errors-score oracle-error baseline-error oracle-error-idx)
+         errors batch-errors errors-score)
 
 ;; pcontexts are Herbie's standard data structure for storing
 ;; ground-truth information. They contain 1) a set of sampled input
@@ -48,22 +48,6 @@
       (+ 1 (expt 2 (representation-total-bits repr)))
       (ulp-difference out exact repr)))
 
-(define (eval-errors eval-fn pcontext repr)
-  (for/list ([(point exact) (in-pcontext pcontext)])
-    (point-error (apply eval-fn point) exact repr)))
-
-(define (oracle-error-idx alt-bodies points exacts repr)
-  (for/list ([point points] [exact exacts])
-    (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact repr)) (range (length alt-bodies))))))
-
-(define (oracle-error alt-bodies pcontext repr)
-  (for/list ([(point exact) (in-pcontext pcontext)])
-    (argmin identity (map (λ (alt) (point-error (apply alt point) exact repr)) alt-bodies))))
-
-(define (baseline-error alt-bodies pcontext newpcontext repr)
-  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext repr))) alt-bodies))
-  (eval-errors baseline newpcontext repr))
-
 (define (average . s)
   (/ (apply + s) (length s)))
 
@@ -71,14 +55,11 @@
   (apply (if (flag-set? 'reduce 'avg-error) average max) (map ulps->bits e)))
 
 (define (errors prog pcontext repr)
-  (define fn (eval-prog prog 'fl repr))
-  (for/list ([(point exact) (in-pcontext pcontext)])
-    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
-      (point-error (apply fn point) exact repr))))
+  (map first (batch-errors (list prog) pcontext repr)))
 
 (define (batch-errors progs pcontext repr)
   (define fn (batch-eval-progs progs 'fl repr))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
-      (for/vector ([out (in-vector (apply fn point))])
+      (for/list ([out (in-vector (apply fn point))])
         (point-error out exact repr)))))
