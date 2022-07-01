@@ -127,25 +127,25 @@
 (define (remove-chnged-pnts point->alts alt->points alt->cost chnged-pnts cost)
   (define chnged-entries (map (curry hash-ref point->alts) chnged-pnts))
   (define chnged-altns (mutable-set))
-  (for* ([entry chnged-entries] #:when (set-member? (hash-keys entry) cost)
+  (for* ([entry chnged-entries] #:when (hash-has-key? entry cost)
          [altn (cost-rec-altns (hash-ref entry cost))])
     (set-add! chnged-altns altn))
-  (hash-union
-   alt->points
-   (for/hash ([altn (in-set chnged-altns)])
-     (values altn (remove* chnged-pnts (hash-ref alt->points altn))))
-   #:combine (λ (a b) b)))
+  (define althash (make-hasheq (hash->list alt->points)))
+  (for ([altn (in-set chnged-altns)])
+    (define pnts* (set->list (set-subtract (list->set (hash-ref althash altn)) chnged-altns)))
+    (hash-set! althash altn pnts*))
+  (make-immutable-hash (hash->list althash)))
 
 (define (override-at-pnts points->alts pnts altn cost errs)
   (define pnt->errs
     (for/hash ([(pnt ex) (in-pcontext (*pcontext*))] [err errs])
       (values pnt err)))
-  (hash-union
-    points->alts
-    (for/hash ([pnt pnts])
-      (values pnt (hash-set (hash-ref points->alts pnt) cost
-                            (cost-rec (hash-ref pnt->errs pnt) (list altn)))))
-    #:combine (λ (a b) b)))
+  (define pnthash (make-hasheq (hash->list points->alts)))
+  (for ([pnt (in-list pnts)])
+    (define cost-hash (hash-ref points->alts pnt))
+    (define new-rec (cost-rec (hash-ref pnt->errs pnt) (list altn)))
+    (hash-set! pnthash pnt (hash-set cost-hash cost new-rec)))
+  (make-immutable-hash (hash->list pnthash)))
 
 (define (append-at-pnts points->alts pnts altn cost)
   (hash-union
@@ -187,7 +187,9 @@
             (set-remove! tied-alts (set-first alt-set))
             #f)
           alt-set)))
-  (minimize-alts* atab tied-alts flat-sets '()))
+  ;; We do the vector-filter here but not in later iterations because
+  ;; that seems like the best balance for maximum speed.
+  (minimize-alts* atab tied-alts (vector-filter identity flat-sets) '()))
 
 (define (minimize-alts* atab tied flat-sets removed)
   (cond
