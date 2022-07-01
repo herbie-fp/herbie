@@ -42,7 +42,7 @@
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts repr)
         (program-variables (alt-program (first alts)))))
-  (define err-lsts (map vector->list (batch-errors (map alt-program alts) (*pcontext*) repr)))
+  (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) repr))
   (define options
     ;; We can only combine alts for which the branch expression is
     ;; critical, to enable binary search.
