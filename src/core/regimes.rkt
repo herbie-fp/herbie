@@ -2,8 +2,8 @@
 
 (require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
-         "../interface.rkt" "../errors.rkt" "../preprocess.rkt" "../points.rkt")
-(require "../ground-truth.rkt" "../float.rkt" "../pretty-print.rkt") ; For binary search
+         "../interface.rkt" "../errors.rkt" "../points.rkt")
+(require "../float.rkt" "../pretty-print.rkt" "../ground-truth.rkt") ; For binary search
 
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
@@ -89,13 +89,13 @@
                          (critical-subexpression? prog-body expr)))
     expr))
 
-(define (combine-alts best-option repr sampler)
+(define (combine-alts best-option repr)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
    [(list (si cidx _)) (list-ref alts cidx)]
    [_
     (timeline-event! 'bsearch)
-    (define splitpoints (sindices->spoints pts expr alts splitindices repr sampler))
+    (define splitpoints (sindices->spoints pts expr alts splitindices repr))
 
     (define expr*
       (for/fold
@@ -119,13 +119,6 @@
     (define splitpoint* (struct-copy sp splitpoint [cidx (index-of alts** alt)]))
     (define splitpoints** (append splitpoints* (list splitpoint*)))
     (values alts** splitpoints**)))
-
-(define (sort-errors-by-expr context errors expr variables repr)
-  (define fn (eval-prog `(λ ,variables ,expr) 'fl repr))
-  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (list pt ex))
-		   (λ (x1 x2) (</total x1 x2 repr))
-                   #:key (λ (pts) (apply fn (first pts))))])
-    (mk-pcontext (map first p&e) (map second p&e))))
 
 (define (option-on-expr alts err-lsts expr repr)
   (define timeline-stop! (timeline-start! 'branch (~a expr)))
@@ -216,18 +209,35 @@
       `(λ (,var ,@vars*) ,body*)
       #f))
 
+(define (prepend-argument f val pcontext repr #:length length)
+  (define-values (newpts newexs newlen)
+    (for/fold ([newpts '()] [newexs '()] [newlen 0])
+        ([(pt _) (in-pcontext pcontext)]
+         #:break (>= newlen length))
+      (define pt* (cons val pt))
+      (define ex* (apply f pt*))
+      (if (nan? ex*)
+          (values (cons pt* newpts) (cons ex* newexs) (+ 1 newlen))
+          (values newpts newexs newlen))))
+  (when (< newlen length)
+    (raise-herbie-error "Cannot sample enough valid points."
+                        #:url "faq.html#sample-valid-points"))
+  (mk-pcontext newpts newexs))
+
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define (sindices->spoints points expr alts sindices repr sampler)
+(define (sindices->spoints points expr alts sindices repr)
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
 
   (define var (gensym 'branch))
+  (define var-reprs* (dict-set (*var-reprs*) var repr))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
+  (define start-fn (parameterize ([*var-reprs* var-reprs*]) (eval-prog-real start-prog repr)))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
@@ -236,24 +246,15 @@
     (define current-guess v1)
     (define sampling-fail? #f)
 
-    (define eq-repr (get-parametric-operator '== repr repr))
     (define (pred v)
       (set! iters (+ 1 iters))
       (set! best-guess current-guess)
       (set! current-guess v)
       (with-handlers ([exn:fail:user:herbie?
                        (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
-        (parameterize ([*num-points* (*binary-search-test-points*)]
-                       [*timeline-disabled* true]
-                       [*var-reprs* (dict-set (*var-reprs*) var repr)])
-          (define ctx
-            (apply mk-pcontext
-                   (prepare-points start-prog
-                                   `(λ ,(program-variables start-prog)
-                                      (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
-                                   repr
-                                   (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
-                                                                   (sampler) (*herbie-preprocess*) repr))))))
+        (define ctx
+          (prepend-argument start-fn v (*pcontext*) repr #:length (*binary-search-test-points*)))
+        (parameterize ([*var-reprs* var-reprs*])
           (define acc1 (errors-score (errors prog1 ctx repr)))
           (define acc2 (errors-score (errors prog2 ctx repr)))
           (- acc1 acc2))))
@@ -394,14 +395,14 @@
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))
 
-(define (pareto-regimes sorted repr sampler)
+(define (pareto-regimes sorted repr)
   (let loop ([alts sorted] [idx 0])
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
      [else
       (define opt (infer-splitpoints alts repr))
-      (define branched-alt (combine-alts opt repr sampler))
+      (define branched-alt (combine-alts opt repr))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 

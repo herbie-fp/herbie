@@ -1,9 +1,9 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "errors.rkt" "programs.rkt" "interface.rkt" "sampling.rkt")
+(require "errors.rkt" "programs.rkt" "interface.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide make-search-func prepare-points sample-points ground-truth-require-convergence)
+(provide sample-points eval-prog-real)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -60,13 +60,23 @@
      (cons (apply ival-and ival-pre (map (curry valid-result? repr) ival-bodies))
            ival-bodies))))
 
-(define (prepare-points prog precondition repr sampler)
-  (define-values (how fn) (make-search-func precondition (list prog) repr))
-  (batch-prepare-points how fn repr sampler))
+(define (eval-prog-real prog repr)
+  (define pre `(λ ,(program-variables prog) (TRUE)))
+  (define-values (how fn) (make-search-func pre (list prog) repr))
+  (define (f . pt)
+    (define-values (result prec exs) (ival-eval fn pt))
+    (match exs
+      [(list (ival lo hi))
+       ((representation-bf->repr repr) lo)]
+      [(? nan?)
+       +nan.0]))
+  (procedure-rename f '<eval-prog-real>))
 
 (define (sample-points precondition progs repr)
+  (timeline-event! 'analyze)
   (define-values (how fn) (make-search-func precondition progs repr))
   (define sampler 
     (parameterize ([ground-truth-require-convergence #f])
       (make-sampler repr precondition progs how fn)))
+  (timeline-event! 'sample)
   (batch-prepare-points how fn repr sampler))
