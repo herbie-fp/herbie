@@ -166,8 +166,6 @@
  expm1
  fabs
  floor
- j0
- j1
  lgamma
  log
  log10
@@ -182,9 +180,7 @@
  tan
  tanh
  tgamma
- trunc
- y0
- y1)
+ trunc)
 
 (define-2ary-libm-operators
  atan2

@@ -31,7 +31,7 @@
     "web-server-lib"
     "draw-lib"
     ("egg-herbie" #:version "1.6")
-    ("rival" #:version "1.4")
+    ("rival" #:version "1.7")
     ("fpbench" #:version "2.0.3")))
 
 (define build-deps
