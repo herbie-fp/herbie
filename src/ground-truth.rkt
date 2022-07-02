@@ -49,7 +49,7 @@
 
 (define (eval-prog-real prog repr)
   (define pre `(λ ,(program-variables prog) (TRUE)))
-  (define-values (how fn) (make-search-func pre (list prog) repr))
+  (define fn (make-search-func pre (list prog) repr))
   (define (f . pt)
     (define-values (result prec exs) (ival-eval fn pt))
     (match exs
