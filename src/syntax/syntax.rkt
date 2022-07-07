@@ -103,7 +103,7 @@
  [expm1 bfexpm1 ival-expm1]
  [fabs bfabs ival-fabs]
  [floor bffloor ival-floor]
- [lgamma bflog-gamma #f]
+ [lgamma bflog-gamma ival-lgamma]
  [log bflog ival-log]
  [log10 bflog10 ival-log10]
  [log1p bflog1p ival-log1p]
@@ -116,7 +116,7 @@
  [sqrt bfsqrt ival-sqrt]
  [tan bftan ival-tan]
  [tanh bftanh ival-tanh]
- [tgamma bfgamma #f]
+ [tgamma bfgamma ival-tgamma]
  [trunc bftruncate ival-trunc])
 
 (define-2ary-real-operators
@@ -150,22 +150,6 @@
 )
 
 (require (submod "." hairy))
-
-(when (check-native-1ary-exists? 'j0)
-  (define-operator (j0 real) real
-    [bf bfbesj0] [ival #f] [deprecated #t]))
-
-(when (check-native-1ary-exists? 'j1)
-  (define-operator (j1 real) real
-    [bf bfbesj1] [ival #f] [deprecated #t]))
- 
-(when (check-native-1ary-exists? 'y0)
-  (define-operator (y0 real) real
-    [bf bfbesy0] [ival #f] [deprecated #t]))
-
-(when (check-native-1ary-exists? 'y1)
-  (define-operator (y1 real) real
-    [bf bfbesy1] [ival #f] [deprecated #t]))
 
 ;; Operator implementations
 

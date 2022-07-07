@@ -203,7 +203,6 @@
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
-      ;; When we are in ival mode, we don't use repr, so pass in #f
       (define iv (apply (eval-prog e 'ival <binary64>) p))
       (define val (apply (eval-prog e 'bf <binary64>) p))
       (check-in-interval? iv val))))

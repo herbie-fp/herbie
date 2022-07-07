@@ -3,9 +3,9 @@
 (require "common.rkt" "errors.rkt" "timeline.rkt"
          "syntax/rules.rkt" "syntax/types.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
-         "alternative.rkt" "conversions.rkt"
+         "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
          "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
-         "programs.rkt" "sampling.rkt" "symmetry.rkt")
+         "programs.rkt" "symmetry.rkt" "timeline.rkt")
 
 (provide (all-defined-out))
 
@@ -35,8 +35,6 @@
 (define (^patched^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-patched! (^shell-state^) newval))
   (shellstate-patched (^shell-state^)))
-
-(define *sampler* (make-parameter #f))
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn)
@@ -263,27 +261,7 @@
   (when (empty? (*needed-reprs*)) ; if empty, probably debugging
     (*needed-reprs* (list repr (get-representation 'bool))))
 
-  (timeline-event! 'analyze)
-  (define-values (how fn) (make-search-func precondition (list specification) repr))
-  (define sampler 
-    (parameterize ([ground-truth-require-convergence #f])
-      (make-sampler repr precondition (list specification) how fn)))
-  (*sampler* sampler)
-
-  (timeline-event! 'sample)
-  (define seed (get-seed))
-  ;; Temporary, to align with the `main` branch
-  (define reeval-pts 8000)
-  (define ctx1
-    (parameterize ([*num-points* (- (*num-points*) reeval-pts)])
-      (when seed (set-seed! seed))
-      (random)
-      (apply mk-pcontext (prepare-points specification precondition repr sampler))))
-  (define ctx2
-    (parameterize ([*num-points* reeval-pts])
-      (when seed (set-seed! seed))
-      (apply mk-pcontext (prepare-points specification precondition repr sampler))))
-  (join-pcontext ctx1 ctx2))
+  (apply mk-pcontext (sample-points precondition (list specification) repr)))
 
 (define (initialize-alt-table! prog pcontext repr)
   (define alt (make-alt prog))
@@ -393,10 +371,10 @@
            (not (null? (program-variables (alt-program (car all-alts))))))
       (cond
        [(*pareto-mode*)
-        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) repr (*sampler*))]
+        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) repr)]
        [else
         (define option (infer-splitpoints all-alts repr))
-        (list (combine-alts option repr (*sampler*)))])]
+        (list (combine-alts option repr))])]
      [else
       (list (argmin score-alt all-alts))]))
   (timeline-event! 'simplify)

@@ -71,17 +71,16 @@
         (define processed-test-context
           (preprocess-pcontext (test-vars test) test-context (*herbie-preprocess*) output-repr))
 
-        (define fns
-          (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
-               (remove-duplicates (*all-alts*))))
+        (define all-errss
+          (flip-lists
+           (batch-errors (map alt-program (append alts (*all-alts*)))
+                         processed-test-context output-repr)))
 
-        (define end-errss (map (λ (x) (errors (alt-program x) processed-test-context output-repr)) alts))
-        (define baseline-errs (baseline-error fns train-context processed-test-context output-repr))
-        (define oracle-errs (oracle-error fns processed-test-context output-repr))
-        (define end-score (errors-score (car end-errss)))
-
+        (define-values (end-errs other-errs) (split-at all-errss (length alts)))
+        (define baseline-errs (argmax errors-score other-errs))
+        (define oracle-errs (map (curry apply max) (flip-lists other-errs)))
         (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
-        (timeline-adjust! 'regimes 'accuracy end-score)
+        (timeline-adjust! 'regimes 'accuracy (errors-score (first end-errs)))
         (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
         (timeline-adjust! 'regimes 'name (test-name test))
         (timeline-adjust! 'regimes 'link ".")
@@ -99,7 +98,7 @@
                       (errors (alt-program (car alts)) train-context output-repr)
                       newpoints newexacts
                       (errors (test-program test) processed-test-context output-repr)
-                      end-errss
+                      end-errs
                       (if (test-output test)
                           (errors (test-target test) processed-test-context output-repr)
                           #f)

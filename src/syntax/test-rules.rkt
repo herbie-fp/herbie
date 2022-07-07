@@ -71,10 +71,6 @@
   (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
-    (unless (and (expr-supports? (rule-input test-rule) 'ival)
-                 (expr-supports? (rule-output test-rule) 'ival))
-      (fail-check "Rule does not support ival sampling"))
-
     (test-case (~a (rule-name test-rule))
       (check-rule-correct test-rule)))
 

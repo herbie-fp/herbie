@@ -6,7 +6,7 @@
          "../alternative.rkt" "../core/regimes.rkt" "../sandbox.rkt")
 
 (provide make-axis-plot make-points-plot make-cost-accuracy-plot
-         make-full-cost-accuracy-plot)
+         make-full-cost-accuracy-plot real->ordinal repr-ticks regime-splitpoints choose-ticks regime-var)
 
 (struct color-theme (scatter line fit))
 (define *red-theme* (color-theme "pink" "red" "darkred"))
@@ -424,12 +424,12 @@
                #:y-min 0 #:y-max y-max)))
 
 
-(define (make-alt-plots point-alt-idxs alt-idxs title out result)
+#;(define (make-alt-plots point-alt-idxs alt-idxs title out result)
   (define best-alt-point-renderers (best-alt-points point-alt-idxs alt-idxs))
   (define repr (test-output-repr (test-result-test result)))
   (alt-plot best-alt-point-renderers repr #:port out #:kind 'png #:title title))
 
-(define (make-point-alt-idxs result)
+#;(define (make-point-alt-idxs result)
   (define repr (test-output-repr (test-result-test result)))
   (define all-alts (test-success-all-alts result))
   (define all-alt-bodies (map (λ (alt) (eval-prog (alt-program alt) 'fl repr)) all-alts))
@@ -437,7 +437,7 @@
   (define newexacts (test-success-newexacts result))
   (oracle-error-idx all-alt-bodies newpoints newexacts repr))
 
-(define (make-contour-plot point-colors var-idxs title out result)
+#;(define (make-contour-plot point-colors var-idxs title out result)
   (define point-renderers (herbie-ratio-point-renderers point-colors var-idxs))
   (define repr (test-output-repr (test-result-test result)))
   (alt-plot point-renderers repr #:port out #:kind 'png #:title title))

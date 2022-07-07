@@ -5,23 +5,7 @@
          "float.rkt" "syntax/types.rkt" "timeline.rkt"
          "syntax/sugar.rkt")
 
-(provide make-sampler batch-prepare-points)
-
-;; Much of this code assumes everything supports intervals. Almost
-;; everything does---we're still missing support for the Gamma and
-;; Bessel functions. But at least none of the benchmarks use those.
-(module+ test
-  (require "syntax/read.rkt")
-  (require racket/runtime-path)
-  (require rackunit "load-plugin.rkt")
-
-  (define-runtime-path benchmarks "../bench/")
-  (load-herbie-builtins)
-  
-  (define exprs
-    (let ([tests (load-tests benchmarks)])
-      (append (map test-program tests) (map test-precondition tests))))
-  (check-true (andmap (compose (curryr expr-supports? 'ival) program-body) exprs)))
+(provide make-sampler batch-prepare-points ival-eval)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
@@ -106,10 +90,10 @@
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
-(define (make-sampler repr precondition programs how search-func)
+(define (make-sampler repr precondition programs search-func)
   (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
   (cond
-   [(and (flag-set? 'setup 'search) (equal? how 'ival) (not (empty? reprs))
+   [(and (flag-set? 'setup 'search) (not (empty? reprs))
          (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
     (timeline-push! 'method "search")
     (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
@@ -165,10 +149,9 @@
      [else
       (loop precision*)])))
 
-(define (batch-prepare-points how fn repr sampler)
+(define (batch-prepare-points fn repr sampler)
   ;; If we're using the bf fallback, start at the max precision
-  (define starting-precision
-    (match how ['ival (bf-precision)] ['bf (*max-mpfr-prec*)]))
+  (define starting-precision (bf-precision))
   (define <-bf (representation-bf->repr repr))
   (define logger (point-logger 'body (map car (*var-reprs*))))
 
