@@ -80,7 +80,7 @@
   (define genexpr (approximate expr* var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
+      (desugar-program (genexpr) (*context*) #:full #f))))
 
 (define (taylor-alt altn)
   (define prog (alt-program altn))

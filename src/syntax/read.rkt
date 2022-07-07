@@ -28,6 +28,11 @@
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
 
+(define (test-context test)
+  (define output-repr (get-representation (test-output-repr-name test)))
+  (define var-reprs (map get-representation (test-var-repr-names test)))
+  (context (test-vars test) output-repr var-reprs))
+
 (define (test-var-reprs test)
   (for/list ([(k v) (in-dict (test-var-repr-names test))])
     (cons k (get-representation v))))
@@ -63,10 +68,10 @@
   (define default-repr (get-representation default-prec))
   (define var-reprs 
     (for/list ([arg args] [arg-name arg-names])
-      (cons arg-name
-            (if (and (list? arg) (set-member? args ':precision))
-                (get-representation (cadr (member ':precision args)))
-                default-repr))))
+      (if (and (list? arg) (set-member? args ':precision))
+          (get-representation (cadr (member ':precision args)))
+          default-repr)))
+  (define ctx (context arg-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table
   (when func-name (register-function! func-name args default-repr body))
@@ -83,10 +88,10 @@
   (generate-conversions convs)
 
   ;; inline and desugar
-  (define body* (desugar-program body default-repr var-reprs))
-  (define pre* (desugar-program (dict-ref prop-dict ':pre 'TRUE) default-repr var-reprs))
-  (define target (desugar-program (dict-ref prop-dict ':herbie-target #f) default-repr var-reprs))
-  (define spec (desugar-program (dict-ref prop-dict ':spec body) default-repr var-reprs))
+  (define body* (desugar-program body ctx))
+  (define pre* (desugar-program (dict-ref prop-dict ':pre 'TRUE) ctx))
+  (define target (desugar-program (dict-ref prop-dict ':herbie-target #f) ctx))
+  (define spec (desugar-program (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
   (check-weird-variables arg-names)
 
@@ -169,6 +174,7 @@
   (load-herbie-builtins)
 
   (define repr (get-representation 'binary64))
+  (define ctx (make-debug-context '(x y z)))
 
   ;; inlining
 
@@ -176,21 +182,18 @@
   (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
   (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
   (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
-  (check-equal? (desugar-program quadp repr (map (curryr cons repr) (list 'x 'y 'z)))
+  (check-equal? (desugar-program quadp ctx)
                 '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
-  (check-equal? (desugar-program quadm repr (map (curryr cons repr) (list 'x 'y 'z)))
+  (check-equal? (desugar-program quadm ctx)
                 '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
 
   ;; x^5 = x^3 * x^2
   (register-function! 'sqr (list 'x) repr '(* x x))
   (register-function! 'cube (list 'x) repr '(* x x x))
   (define fifth '(* (cube a) (sqr a)))
-  (check-equal? (desugar-program fifth repr (list (cons 'a repr)))
+  (check-equal? (desugar-program fifth ctx)
                 '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
 
   ;; casting edge cases
-  (check-equal? (desugar-program `(cast x) repr `((x . ,repr)))
-                'x)
-  (check-equal? (desugar-program `(cast (! :precision binary64 x)) repr `((x . ,repr)))
-                'x)
-)
+  (check-equal? (desugar-program `(cast x) ctx) 'x)
+  (check-equal? (desugar-program `(cast (! :precision binary64 x)) ctx) 'x))

@@ -11,14 +11,15 @@
   (define vars (table-row-vars row))
   (define repr (get-representation (table-row-precision row)))
   (define var-reprs (map (curryr cons repr) vars))
+  (define ctx (context vars repr (map (const repr) vars)))
   (test (table-row-name row)
         (table-row-identifier row)
         (table-row-vars row)
-        (desugar-program (table-row-input row) repr var-reprs)
-        (desugar-program (table-row-output row) repr var-reprs)
+        (desugar-program (table-row-input row) ctx)
+        (desugar-program (table-row-output row) ctx)
         (table-row-target-prog row) 
-        (desugar-program (table-row-spec row) repr var-reprs)
-        (desugar-program (table-row-pre row) repr var-reprs)
+        (desugar-program (table-row-spec row) ctx)
+        (desugar-program (table-row-pre row) ctx)
         (table-row-preprocess row)
         (representation-name repr)
         (for/list ([(k v) (in-dict var-reprs)]) (cons k (representation-name v)))
@@ -58,9 +59,9 @@
         #:unless (set-member? '("error" "crash") (table-row-status row)))
     (set-seed! (report-info-seed data))
     (define orig-test (extract-test row))
-    (define output-repr (test-output-repr orig-test))
-    (parameterize ([*timeline-disabled* true]
-                   [*context* (context (test-vars orig-test) output-repr (map (const output-repr) (test-vars orig-test)))])
+    (define context (test-context orig-test))
+    (define output-repr (context-repr context))
+    (parameterize ([*timeline-disabled* true] [*context* context])
       (define samples
         (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
           (sample-points
@@ -81,7 +82,7 @@
       (define other-progs (map second (third ca)))
       (define other-progs*
         (for/list ([prog other-progs])
-          `(λ ,(test-vars orig-test) ,(desugar-program prog output-repr (*var-reprs*)))))
+          `(λ ,(test-vars orig-test) ,(desugar-program prog context))))
 
       (define end-errs (errors (alt-program end-alt) test-context output-repr))
       (define other-errs (map (curryr errors test-context output-repr) other-progs*))
