@@ -234,10 +234,10 @@
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
 
   (define var (gensym 'branch))
-  (define var-reprs* (dict-set (*var-reprs*) var repr))
+  (define ctx* (context-extend (*context*) var repr))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
-  (define start-fn (parameterize ([*var-reprs* var-reprs*]) (eval-prog-real start-prog repr)))
+  (define start-fn (parameterize ([*context* ctx*]) (eval-prog-real start-prog repr)))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
@@ -254,7 +254,7 @@
                        (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
         (define ctx
           (prepend-argument start-fn v (*pcontext*) repr #:length (*binary-search-test-points*)))
-        (parameterize ([*context* (context-extend (*context*) var repr)])
+        (parameterize ([*context* ctx*])
           (define acc1 (errors-score (errors prog1 ctx repr)))
           (define acc2 (errors-score (errors prog2 ctx repr)))
           (- acc1 acc2))))
