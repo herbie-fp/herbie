@@ -40,16 +40,16 @@
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
-(define (make-search-func precondition programs repr)
-  (define fns (batch-eval-progs (cons precondition programs) 'ival repr))
+(define (make-search-func precondition programs ctx)
+  (define fns (batch-eval-progs (cons precondition programs) 'ival ctx))
   (λ inputs
     (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs)))
-    (cons (apply ival-and ival-pre (map (curry valid-result? repr) ival-bodies))
+    (cons (apply ival-and ival-pre (map (curry valid-result? (context-repr ctx)) ival-bodies))
           ival-bodies)))
 
-(define (eval-prog-real prog repr)
+(define (eval-prog-real prog ctx)
   (define pre `(λ ,(program-variables prog) (TRUE)))
-  (define fn (make-search-func pre (list prog) repr))
+  (define fn (make-search-func pre (list prog) ctx))
   (define (f . pt)
     (define-values (result prec exs) (ival-eval fn pt))
     (match exs
@@ -61,8 +61,7 @@
 
 (define (sample-points precondition progs ctx)
   (timeline-event! 'analyze)
-  (define repr (context-repr ctx))
-  (define fn (make-search-func precondition progs repr))
+  (define fn (make-search-func precondition progs ctx))
   (define sampler 
     (parameterize ([ground-truth-require-convergence #f])
       (make-sampler ctx precondition progs fn)))

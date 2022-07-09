@@ -141,9 +141,9 @@
       (section ([id "history"])
        (h1 "Derivation")
        (ol ([class "history"])
-        ,@(parameterize ([*context* (context (test-vars test) repr (map (const repr) (test-vars test)))])
+        ,@(parameterize ([*context* (test-context test)])
             (render-history end-alt (mk-pcontext newpoints newexacts)
-                            (mk-pcontext points exacts) repr))))
+                            (mk-pcontext points exacts) ctx))))
 
       ,(if (not (null? other-alts))
            `(section ([id "alternatives"])

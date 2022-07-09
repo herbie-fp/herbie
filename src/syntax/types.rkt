@@ -4,7 +4,7 @@
 
 (provide type-name? (struct-out representation) get-representation
          (struct-out context) *context* context-extend context-lookup
-         *output-repr* *var-reprs* *needed-reprs*)
+         *needed-reprs*)
 (module+ internals
   (provide define-type define-representation
            register-generator! register-representation! register-representation-alias!))
@@ -108,6 +108,3 @@
 
 (define (context-lookup ctx var)
   (dict-ref (map cons (context-vars ctx) (context-var-reprs ctx)) var))
-
-(define (*output-repr*) (context-repr (*context*)))
-(define (*var-reprs*) (map cons (context-vars (*context*)) (context-var-reprs (*context*))))

@@ -7,8 +7,8 @@
          "common.rkt" "../syntax/sugar.rkt")
 (provide render-history)
 
-(define (split-pcontext pcontext splitpoints alts repr)
-  (define preds (splitpoints->point-preds splitpoints alts repr))
+(define (split-pcontext pcontext splitpoints alts ctx)
+  (define preds (splitpoints->point-preds splitpoints alts ctx))
 
   (for/list ([pred preds])
     (define-values (pts* exs*)
@@ -39,12 +39,14 @@
         ""
         (format " < ~a" (value->string end repr))))))
 
-(define/contract (render-history altn pcontext pcontext2 repr)
-  (-> alt? pcontext? pcontext? representation? (listof xexpr?))
+(define/contract (render-history altn pcontext pcontext2 ctx)
+  (-> alt? pcontext? pcontext? context? (listof xexpr?))
+
+  (define repr (context-repr ctx))
   (define err
-    (format-bits (errors-score (errors (alt-program altn) pcontext repr))))
+    (format-bits (errors-score (errors (alt-program altn) pcontext ctx))))
   (define err2
-    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2 repr)))))
+    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2 ctx)))))
 
   (match altn
     [(alt prog 'start (list))
@@ -53,7 +55,7 @@
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[" ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
     [(alt prog `(start ,strategy) `(,prev))
-     `(,@(render-history prev pcontext pcontext2 repr)
+     `(,@(render-history prev pcontext pcontext2 ctx)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
     [(alt _ `(regimes ,splitpoints) prevs)
@@ -66,17 +68,17 @@
         ,@(apply
            append
            (for/list ([entry prevs] [idx (in-naturals)]
-                      [new-pcontext (split-pcontext pcontext splitpoints prevs repr)]
-                      [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs repr)])
+                      [new-pcontext (split-pcontext pcontext splitpoints prevs ctx)]
+                      [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs ctx)])
              (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
              (define condition (string-join (map (curryr interval->string repr) entry-ivals) " or "))
              `((h2 (code "if " (span ([class "condition"]) ,condition)))
-               (ol ,@(render-history entry new-pcontext new-pcontext2 repr))))))
+               (ol ,@(render-history entry new-pcontext new-pcontext2 ctx))))))
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
-     `(,@(render-history prev pcontext pcontext2 repr)
+     `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Taylor expanded in " ,(~a var)
               " around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
@@ -86,7 +88,7 @@
 
     [(alt prog `(simplify ,loc) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
-     `(,@(render-history prev pcontext pcontext2 repr)
+     `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
                                                       (core->tex prog* #:loc loc #:color "blue") 
@@ -95,19 +97,19 @@
 
     [(alt prog `initial-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
-     `(,@(render-history prev pcontext pcontext2 repr)
+     `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
-     `(,@(render-history prev pcontext pcontext2 repr)
+     `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
     [(alt prog (list 'change cng) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
-     `(,@(render-history prev pcontext pcontext2 repr)
+     `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 

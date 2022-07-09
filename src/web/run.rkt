@@ -84,18 +84,18 @@
         (for/list ([prog other-progs])
           `(λ ,(test-vars orig-test) ,(desugar-program prog context))))
 
-      (define end-errs (errors (alt-program end-alt) test-context output-repr))
-      (define other-errs (map (curryr errors test-context output-repr) other-progs*))
+      (define end-errs (errors (alt-program end-alt) test-context context))
+      (define other-errs (map (curryr errors test-context context) other-progs*))
 
       (define result
         (test-success orig-test #f #f #f #f
                       start-alt (cons end-alt (map make-alt other-progs*))
                       #f #f #f #f #f
                       newpoints newexacts
-                      (errors (alt-program start-alt) test-context output-repr)
+                      (errors (alt-program start-alt) test-context context)
                       (cons end-errs other-errs)
                       (if (test-output orig-test)
-                          (errors (test-target orig-test) test-context output-repr)
+                          (errors (test-target orig-test) test-context context)
                           #f)
                       #f #f
                       (alt-cost start-alt output-repr) (cons end-cost other-costs)

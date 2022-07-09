@@ -102,11 +102,15 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define (eval-prog prog mode repr)
-  (define f (batch-eval-progs (list prog) mode repr))
+(define (eval-prog prog mode ctx)
+  (define f (batch-eval-progs (list prog) mode ctx))
   (λ args (vector-ref (apply f args) 0)))
 
-(define (batch-eval-progs progs mode repr)
+(define (batch-eval-progs progs mode ctx)
+  (define repr (context-repr ctx))
+  (define vars (context-vars ctx))
+  (define var-reprs (context-var-reprs ctx))
+
   (define real->precision
     (match mode
      ['fl (λ (x repr) (real->repr x repr))]
@@ -118,9 +122,6 @@
      ['fl (λ (x repr) x)]
      ['bf (λ (x repr) (if (bigfloat? x) x ((representation-repr->bf repr) x)))]
      ['ival (λ (x repr) (if (ival? x) x (ival ((representation-repr->bf repr) x))))]))
-
-  (define vars (if (empty? progs) '() (program-variables (first progs))))
-  (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
 
   ;; Expression cache
   (define exprs '())
@@ -187,7 +188,6 @@
 
 (module+ test
   (*context* (make-debug-context '(a b c)))
-  (define <binary64> (get-representation 'binary64))
   (define tests
     #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
@@ -199,8 +199,8 @@
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
-      (define iv (apply (eval-prog e 'ival <binary64>) p))
-      (define val (apply (eval-prog e 'bf <binary64>) p))
+      (define iv (apply (eval-prog e 'ival (*context*)) p))
+      (define val (apply (eval-prog e 'bf (*context*)) p))
       (check-in-interval? iv val))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149

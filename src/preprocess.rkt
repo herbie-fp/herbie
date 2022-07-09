@@ -30,14 +30,15 @@
   (match-define (list 'sort vars ...) preprocess)
   (apply-to-group variables point vars (lambda (group) (sort group (curryr </total repr)))))
 
-(define (apply-preprocess variables sampled-point preprocess-structs repr)
+(define (apply-preprocess sampled-point preprocess-structs ctx)
   (cond
     [(empty? preprocess-structs)
      sampled-point]
     ;; Add more preprocess cases here- for now, only symmetry-group exists
     [else
-     (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs) repr)]))
+     (define pt* (sort-group (context-vars ctx) sampled-point (first preprocess-structs) (context-repr ctx)))
+     (apply-preprocess pt* (rest preprocess-structs) ctx)]))
 
-(define (preprocess-pcontext variables pcontext preprocess-structs repr)
+(define (preprocess-pcontext pcontext preprocess-structs ctx)
   (for/pcontext ([(pt ex) pcontext])
-    (values (apply-preprocess variables pt preprocess-structs repr) ex)))
+    (values (apply-preprocess pt preprocess-structs ctx) ex)))
