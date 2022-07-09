@@ -6,7 +6,7 @@
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
-         test-precondition
+         test-precondition test-context
          test-output-repr test-var-reprs test-conversions)
 
 
