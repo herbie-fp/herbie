@@ -187,7 +187,7 @@
   (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
 
 (module+ test
-  (*context* (make-debug-context '(a b c)))
+  (define ctx (make-debug-context '(a b c)))
   (define tests
     #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
@@ -199,8 +199,8 @@
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
-      (define iv (apply (eval-prog e 'ival (*context*)) p))
-      (define val (apply (eval-prog e 'bf (*context*)) p))
+      (define iv (apply (eval-prog e 'ival ctx) p))
+      (define val (apply (eval-prog e 'bf ctx) p))
       (check-in-interval? iv val))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149

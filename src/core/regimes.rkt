@@ -156,27 +156,26 @@
       (list-ref errs (si-cidx si)))))
 
 (module+ test
-  (define repr (get-representation 'binary64))
+  (define ctx (make-debug-context '(x)))
   (parameterize ([*start-prog* '(λ (x) 1)]
-                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
-                 [*context* (make-debug-context '(x))])
+                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
     ;; This is a basic sanity test
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts 'x (*context*))
+           (option-on-expr alts err-lsts 'x ctx)
            '(1 0))
 
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts '1 (*context*))
+           (option-on-expr alts err-lsts '1 ctx)
            '(0))
 
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts '(if (==.f64 x 0.5) 1 +nan.0) (*context*))
+           (option-on-expr alts err-lsts '(if (==.f64 x 0.5) 1 +nan.0) ctx)
            '(1 0))))
 
 ;; (pred p1) and (not (pred p2))
@@ -238,10 +237,10 @@
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl ctx))
 
   (define var (gensym 'branch))
-  (define ctx* (context-extend (*context*) var repr))
+  (define ctx* (context-extend ctx var repr))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
-  (define start-fn (parameterize ([*context* ctx*]) (eval-prog-real start-prog ctx)))
+  (define start-fn (eval-prog-real start-prog ctx))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
@@ -258,10 +257,9 @@
                        (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
         (define pctx
           (prepend-argument start-fn v (*pcontext*) repr #:length (*binary-search-test-points*)))
-        (parameterize ([*context* ctx*])
           (define acc1 (errors-score (errors prog1 pctx ctx*)))
           (define acc2 (errors-score (errors prog2 pctx ctx*)))
-          (- acc1 acc2))))
+          (- acc1 acc2)))
     (define pt (binary-search-floats pred v1 v2 repr))
     (when sampling-fail?
       (set! pt best-guess))
@@ -411,8 +409,7 @@
       (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
 (module+ test
-  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))]
-                 [*context* (make-debug-context '(x y))])
+  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))])
     (define sps
       (list (sp 0 '(/.f64 y x) -inf.0)
             (sp 2 '(/.f64 y x) 0.0)

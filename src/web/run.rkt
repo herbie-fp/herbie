@@ -61,7 +61,7 @@
     (define orig-test (extract-test row))
     (define context (test-context orig-test))
     (define output-repr (context-repr context))
-    (parameterize ([*timeline-disabled* true] [*context* context])
+    (parameterize ([*timeline-disabled* true])
       (define samples
         (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
           (sample-points
