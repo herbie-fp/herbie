@@ -36,7 +36,7 @@
   (match expr
    [(? number?) 'real]
    [(? variable?) (representation-type (context-lookup ctx expr))]
-   [(list 'if cond ift iff) (type-of ift repr ctx)]
+   [(list 'if cond ift iff) (type-of ift ctx)]
    [(list op args ...) (representation-type (operator-info op 'otype))]))
 
 ;; Returns repr name
@@ -45,7 +45,7 @@
   (match expr
    [(? number?) (context-repr ctx)]
    [(? variable?) (context-lookup ctx expr)]
-   [(list 'if cond ift iff) (repr-of ift repr ctx)]
+   [(list 'if cond ift iff) (repr-of ift ctx)]
    [(list op args ...) (operator-info op 'otype)]))
 
 (define (expr-supports? expr field)
