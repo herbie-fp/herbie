@@ -45,7 +45,7 @@
               #:when (set-member? v (*output-repr*)))
       (define rewrite (get-rewrite-operator k))
       (define prog* `(λ ,(program-variables prog) (,rewrite ,(program-body prog))))
-      (alt (apply-repr-change prog* (*output-repr*)) 'start '()))))
+      (alt (apply-repr-change prog* (*context*)) 'start '()))))
 
 ;; Information
 (define (list-alts)

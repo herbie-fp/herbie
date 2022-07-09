@@ -196,7 +196,7 @@
       (let loop ([cl cl] [altn altn])
         (if (null? cl)
             (cons altn done)
-            (let ([prog* (apply-repr-change (change-apply (car cl) (alt-program altn)) (*output-repr*))])
+            (let ([prog* (apply-repr-change (change-apply (car cl) (alt-program altn)) (*context*))])
               (if (program-body prog*)
                   (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
                   done))))))
