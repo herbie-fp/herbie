@@ -3,7 +3,7 @@
 (require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json plot/no-gui)
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" )
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt"
-        "../syntax/sugar.rkt" "../float.rkt" "../interface.rkt" "../syntax/syntax.rkt")
+        "../syntax/sugar.rkt" "../float.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
 (provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)
