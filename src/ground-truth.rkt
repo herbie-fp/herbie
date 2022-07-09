@@ -59,11 +59,12 @@
        +nan.0]))
   (procedure-rename f '<eval-prog-real>))
 
-(define (sample-points precondition progs repr)
+(define (sample-points precondition progs ctx)
   (timeline-event! 'analyze)
+  (define repr (context-repr ctx))
   (define fn (make-search-func precondition progs repr))
   (define sampler 
     (parameterize ([ground-truth-require-convergence #f])
-      (make-sampler repr precondition progs fn)))
+      (make-sampler ctx precondition progs fn)))
   (timeline-event! 'sample)
-  (batch-prepare-points fn repr sampler))
+  (batch-prepare-points fn ctx sampler))

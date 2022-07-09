@@ -67,7 +67,7 @@
           (sample-points
            (test-precondition test)
            (list (or (test-specification test) (test-program test)))
-           output-repr)))
+           context)))
       (define-values (train-context test-context)
         (split-pcontext (apply mk-pcontext samples) (*num-points*) (*reeval-pts*))) 
       (define start-alt (make-alt (test-program orig-test)))

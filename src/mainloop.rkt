@@ -261,7 +261,7 @@
   (when (empty? (*needed-reprs*)) ; if empty, probably debugging
     (*needed-reprs* (list repr (get-representation 'bool))))
 
-  (apply mk-pcontext (sample-points precondition (list specification) repr)))
+  (apply mk-pcontext (sample-points precondition (list specification) (*context*))))
 
 (define (initialize-alt-table! prog pcontext repr)
   (define alt (make-alt prog))
