@@ -85,7 +85,7 @@
 (define (taylor-alt altn)
   (define prog (alt-program altn))
   (define expr (program-body prog))
-  (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
+  (define repr (repr-of expr (*context*)))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
@@ -166,16 +166,16 @@
   (define changelists
     (if one-real-repr?
         (merge-changelists
-          (rewrite-expressions exprs (*output-repr*) #:rules (append expansive-rules normal-rules) #:roots locs)
-          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs #:once? #t))
+          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules) #:roots locs)
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))
         (merge-changelists
-          (rewrite-expressions exprs (*output-repr*) #:rules normal-rules #:roots locs)
-          (rewrite-expressions exprs (*output-repr*) #:rules expansive-rules #:roots locs #:once? #t)
-          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs #:once? #t))))
+          (rewrite-expressions exprs (*context*) #:rules normal-rules #:roots locs)
+          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:roots locs #:once? #t)
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))))
 
   ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
-    (rewrite-expressions lowexprs (*output-repr*)
+    (rewrite-expressions lowexprs (*context*)
                          #:rules reprchange-rules
                          #:roots lowlocs
                          #:once? #t))

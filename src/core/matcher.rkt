@@ -62,8 +62,8 @@
 ;;  Non-recursive rewriter
 ;;
 
-(define (rewrite-once expr repr #:rules rules #:root [root-loc '()])
-  (define expr-repr (repr-of expr repr (*var-reprs*)))
+(define (rewrite-once expr ctx #:rules rules #:root [root-loc '()])
+  (define expr-repr (repr-of expr ctx))
   (reap [sow]
     (for ([rule rules] #:when (equal? expr-repr (rule-otype rule)))
       (let* ([result (rule-apply rule expr)])
@@ -80,11 +80,11 @@
 ;;
 
 (define (batch-egg-rewrite exprs
-                           repr
+                           ctx
                            #:rules rules
                            #:roots [root-locs (make-list (length exprs) '())]
                            #:depths [depths (make-list (length exprs) 1)])
-  (define reprs (map (λ (e) (repr-of e repr (*var-reprs*))) exprs))
+  (define reprs (map (λ (e) (repr-of e ctx)) exprs))
   (define irules (rules->irules rules))
   ; If unsoundness was detected, try running one epxression at a time.
   ; Can optionally set iter limit (will give up if unsoundness detected).
@@ -130,7 +130,7 @@
 
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
-                             repr
+                             ctx
                              #:rules rules
                              #:roots [root-locs (make-list (length exprs) '())]
                              #:depths [depths (make-list (length exprs) 1)]
@@ -142,11 +142,11 @@
     (timeline-push! 'method "rewrite-once")
     (for/list ([expr exprs] [root-loc root-locs] [n (in-naturals 1)])
       (define timeline-stop! (timeline-start! 'times (~a expr)))
-      (begin0 (rewrite-once expr repr #:rules rules #:root root-loc)
+      (begin0 (rewrite-once expr ctx #:rules rules #:root root-loc)
         (timeline-stop!)))]
    [else
     (timeline-push! 'method "batch-egg-rewrite")
     (timeline-push! 'inputs (map ~a exprs))
-    (define out (batch-egg-rewrite exprs repr #:rules rules #:roots root-locs #:depths depths))
+    (define out (batch-egg-rewrite exprs ctx #:rules rules #:roots root-locs #:depths depths))
     (timeline-push! 'outputs (map ~a out))
     out]))

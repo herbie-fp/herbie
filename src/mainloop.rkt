@@ -355,7 +355,8 @@
   (extract!))
 
 (define (extract!)
-  (define repr (*output-repr*))
+  (define ctx (*context))
+  (define repr (context-repr ctx))
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* (atab-active-alts (^table^)))
 
@@ -371,9 +372,9 @@
            (not (null? (program-variables (alt-program (car all-alts))))))
       (cond
        [(*pareto-mode*)
-        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) repr)]
+        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
        [else
-        (define option (infer-splitpoints all-alts repr))
+        (define option (infer-splitpoints all-alts ctx))
         (list (combine-alts option repr))])]
      [else
       (list (argmin score-alt all-alts))]))

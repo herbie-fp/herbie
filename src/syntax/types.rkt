@@ -3,7 +3,8 @@
 (require "../errors.rkt")
 
 (provide type-name? (struct-out representation) get-representation
-         (struct-out context) context-extend *context* *output-repr* *var-reprs* *needed-reprs*)
+         (struct-out context) *context* context-extend context-lookup
+         *output-repr* *var-reprs* *needed-reprs*)
 (module+ internals
   (provide define-type define-representation
            register-generator! register-representation! register-representation-alias!))
@@ -104,6 +105,9 @@
   (struct-copy context ctx
                [vars (cons var (context-vars ctx))]
                [var-reprs (cons repr (context-var-reprs ctx))]))
+
+(define (context-lookup ctx var)
+  (dict-ref (map cons (context-vars ctx) (context-var-reprs ctx)) var))
 
 (define (*output-repr*) (context-repr (*context*)))
 (define (*var-reprs*) (map cons (context-vars (*context*)) (context-var-reprs (*context*))))

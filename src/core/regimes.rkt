@@ -35,12 +35,13 @@
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts repr)
+(define (infer-splitpoints alts ctx)
   (timeline-event! 'regimes)
   (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts))
+  (define repr (context-repr ctx))
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
-        (exprs-to-branch-on alts repr)
+        (exprs-to-branch-on alts ctx)
         (program-variables (alt-program (first alts)))))
   (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) repr))
   (define options
@@ -59,13 +60,13 @@
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   best)
 
-(define (exprs-to-branch-on alts repr)
+(define (exprs-to-branch-on alts ctx)
   (define alt-critexprs (map (compose all-critical-subexpressions alt-program) alts))
   (define start-critexprs (all-critical-subexpressions (*start-prog*)))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-of e repr (*var-reprs*)) 'real))
+   (λ (e) (equal? (type-of e ctx) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
@@ -395,14 +396,14 @@
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))
 
-(define (pareto-regimes sorted repr)
+(define (pareto-regimes sorted ctx)
   (let loop ([alts sorted] [idx 0])
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
      [else
-      (define opt (infer-splitpoints alts repr))
-      (define branched-alt (combine-alts opt repr))
+      (define opt (infer-splitpoints alts ctx))
+      (define branched-alt (combine-alts opt (context-repr ctx)))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 

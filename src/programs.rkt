@@ -32,24 +32,20 @@
 
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
-;; TODO(interface): Once we update the syntax checker to FPCore 1.1
-;; standards, this will have to have more information passed in
-(define (type-of expr repr env)
+(define (type-of expr ctx)
   (match expr
    [(? number?) 'real]
-   [(? (representation-repr? repr)) (representation-type repr)]
-   [(? variable?) (representation-type (dict-ref env expr))]
-   [(list 'if cond ift iff) (type-of ift repr env)]
+   [(? variable?) (representation-type (context-lookup ctx expr))]
+   [(list 'if cond ift iff) (type-of ift repr ctx)]
    [(list op args ...) (representation-type (operator-info op 'otype))]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
-(define (repr-of expr repr env)
+(define (repr-of expr ctx)
   (match expr
-   [(? number?) repr]
-   [(? (representation-repr? repr)) repr]
-   [(? variable?) (dict-ref env expr)]
-   [(list 'if cond ift iff) (repr-of ift repr env)]
+   [(? number?) (context-repr ctx)]
+   [(? variable?) (context-lookup ctx expr)]
+   [(list 'if cond ift iff) (repr-of ift repr ctx)]
    [(list op args ...) (operator-info op 'otype)]))
 
 (define (expr-supports? expr field)
