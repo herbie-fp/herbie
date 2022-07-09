@@ -409,6 +409,7 @@
       (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
 (module+ test
+  (define context (make-debug-context '(x y)))
   (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))])
     (define sps
       (list (sp 0 '(/.f64 y x) -inf.0)
@@ -419,7 +420,7 @@
                   (splitpoints->point-preds
                     sps
                     (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
-                    repr))
+                    context))
 
     (check-pred p0? '(0.0 -1.0))
     (check-pred p2? '(-1.0 1.0))

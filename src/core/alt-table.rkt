@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/hash)
-(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt")
+(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt" "../syntax/types.rkt")
 
 (provide
  (contract-out
@@ -45,7 +45,7 @@
       1))
 
 (define (make-alt-table pcontext initial-alt ctx)
-  (define cost (alt-cost* initial-alt repr))
+  (define cost (alt-cost* initial-alt (context-repr ctx)))
   (alt-table (make-immutable-hash
                (for/list ([(pt ex) (in-pcontext pcontext)]
                           [err (errors (alt-program initial-alt) pcontext ctx)])
@@ -244,7 +244,7 @@
   (define errss (flip-lists (batch-errors progs (alt-table-context atab) ctx)))
   (minimize-alts
    (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)])
-     (atab-add-altn atab altn errs repr))))
+     (atab-add-altn atab altn errs (context-repr ctx)))))
 
 (define (worse-than? point->alts altn cost tied-pnts tied-errs)
   (cond

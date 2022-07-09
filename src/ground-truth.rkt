@@ -48,6 +48,7 @@
           ival-bodies)))
 
 (define (eval-prog-real prog ctx)
+  (define repr (context-repr ctx))
   (define pre `(λ ,(program-variables prog) (TRUE)))
   (define fn (make-search-func pre (list prog) ctx))
   (define (f . pt)
