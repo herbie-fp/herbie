@@ -30,7 +30,10 @@
 
 (define (test-context test)
   (define output-repr (get-representation (test-output-repr-name test)))
-  (define var-reprs (map get-representation (test-var-repr-names test)))
+  (define vars (test-vars test))
+  (define var-reprs
+    (for/list ([var vars])
+      (get-representation (dict-ref (test-var-repr-names test) var))))
   (context (test-vars test) output-repr var-reprs))
 
 (define (test-var-reprs test)
