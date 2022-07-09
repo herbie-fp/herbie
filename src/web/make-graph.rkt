@@ -70,7 +70,6 @@
   (define end-error (car end-errors))
   (define other-alts (cdr end-alts))
   (define other-errors (cdr end-errors))
-  (define alt-plots? (< (* (length other-alts) (length (test-vars test))) 100))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
