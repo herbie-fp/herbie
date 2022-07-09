@@ -120,7 +120,7 @@
 
   (define orig-prog (alt-program (^next-alt^)))
   (define vars (program-variables orig-prog))
-  (define loc-errs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
+  (define loc-errs (localize-error (alt-program (^next-alt^)) (*context*)))
 
   ; high-error locations
   (^locs^
