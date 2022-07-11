@@ -108,7 +108,7 @@
         pre*
         (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
-        (for/list ([(k v) (in-dict var-reprs)]) (cons k (representation-name v)))
+        (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
         conv-syntax))
 
 (define (check-unused-variables vars precondition expr)
