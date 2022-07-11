@@ -1,4 +1,4 @@
-name: Integration Tests for the Herbie Tools
+name: Tool tests
 
 on: [push]
 
