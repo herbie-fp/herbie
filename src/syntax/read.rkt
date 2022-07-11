@@ -177,7 +177,7 @@
   (load-herbie-builtins)
 
   (define repr (get-representation 'binary64))
-  (define ctx (make-debug-context '(x y z)))
+  (define ctx (make-debug-context '(x y z a)))
 
   ;; inlining
 

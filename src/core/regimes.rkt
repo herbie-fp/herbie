@@ -382,7 +382,7 @@
        (nan? (sp-point (last splitpoints)))))
 
 (define/contract (splitpoints->point-preds splitpoints alts ctx)
-  (-> valid-splitpoints? (listof alt?) representation? (listof procedure?))
+  (-> valid-splitpoints? (listof alt?) context? (listof procedure?))
 
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
