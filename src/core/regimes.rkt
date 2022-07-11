@@ -240,7 +240,7 @@
   (define ctx* (context-extend ctx var repr))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
-  (define start-fn (eval-prog-real start-prog ctx))
+  (define start-fn (eval-prog-real start-prog ctx*))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
