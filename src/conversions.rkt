@@ -2,7 +2,7 @@
 
 (require (submod "syntax/rules.rkt" internals)
          (submod "syntax/syntax.rkt" internals)
-         "common.rkt" "interface.rkt" "errors.rkt"
+         "common.rkt" "syntax/types.rkt" "errors.rkt"
          "syntax/syntax.rkt")
 
 (provide generate-conversions generate-prec-rewrites *conversions*)

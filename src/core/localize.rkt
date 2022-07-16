@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat)
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../interface.rkt")
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../syntax/types.rkt")
 
 (provide localize-error get-locations)
 
@@ -17,21 +17,21 @@
   (for/list ([(p e) (in-pcontext (*pcontext*))])
     c))
 
-(define (localize-on-expression expr vars cache repr)
+(define (localize-on-expression expr vars cache ctx repr)
   (hash-ref! cache expr
              (λ ()
                 (match expr
                   [(? number?)
                    (cons (repeat (bf expr)) (repeat 1))]
                   [(? variable?)
-                   (cons (map (curryr representation-repr->bf (dict-ref (*var-reprs*) expr))
+                   (cons (map (curryr representation-repr->bf (context-lookup ctx expr))
                               (dict-ref vars expr))
                          (repeat 1))]
                   [`(if ,c ,ift ,iff)
-                   (let ([exact-ift (car (localize-on-expression ift vars cache repr))]
-                         [exact-iff (car (localize-on-expression iff vars cache repr))]
+                   (let ([exact-ift (car (localize-on-expression ift vars cache ctx repr))]
+                         [exact-iff (car (localize-on-expression iff vars cache ctx repr))]
                          [exact-cond (for/list ([(p _) (in-pcontext (*pcontext*))])
-				       (apply (eval-prog `(λ ,(map car vars) ,c) 'bf repr) p))])
+				       (apply (eval-prog `(λ ,(map car vars) ,c) 'bf ctx) p))])
                      (cons (for/list ([c exact-cond] [t exact-ift] [f exact-iff]) (if c t f))
                            (repeat 1)))]
                   [`(,f)
@@ -49,7 +49,7 @@
                    (define argexacts
                      (flip-lists
                       (for/list ([arg args] [repr argreprs])
-                        (car (localize-on-expression arg vars cache repr)))))
+                        (car (localize-on-expression arg vars cache ctx repr)))))
                    (define argapprox
                      (for/list ([pt argexacts])
                        (for/list ([val pt] [arg<-bf arg<-bfs])
@@ -81,7 +81,8 @@
 
 ;; Returns a list of locations and errors sorted
 ;; by error scores in descending order
-(define (localize-error prog repr)
+(define (localize-error prog ctx)
+  (define repr (context-repr ctx))
   (define varmap (map cons (program-variables prog)
 		      (flip-lists (for/list ([(p e) (in-pcontext (*pcontext*))])
 				    p))))
@@ -90,7 +91,7 @@
         *analyze-cache*
         (make-hash)))
 
-  (localize-on-expression (program-body prog) varmap cache repr)
+  (localize-on-expression (program-body prog) varmap cache ctx repr)
   (sort
     (reap [sow]
       (for ([(expr ex&err) (in-hash cache)])

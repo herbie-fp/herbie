@@ -1,9 +1,10 @@
 #lang racket
 
-(require "syntax/rules.rkt"
+(require "common.rkt" "errors.rkt" "timeline.rkt"
+         "syntax/rules.rkt" "syntax/types.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
-         "interface.rkt" "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
+         "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
          "programs.rkt" "symmetry.rkt" "timeline.rkt")
 
 (provide (all-defined-out))
@@ -36,15 +37,15 @@
   (shellstate-patched (^shell-state^)))
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
-(define (starting-alts altn)
+(define (starting-alts altn ctx)
   (define prog (alt-program altn))
   (filter (λ (altn) (program-body (alt-program altn)))
     (for/list ([(k v) (in-hash (*conversions*))]
-              #:unless (equal? k (*output-repr*))
-              #:when (set-member? v (*output-repr*)))
+              #:unless (equal? k (context-repr ctx))
+              #:when (set-member? v (context-repr ctx)))
       (define rewrite (get-rewrite-operator k))
       (define prog* `(λ ,(program-variables prog) (,rewrite ,(program-body prog))))
-      (alt (apply-repr-change prog* (*output-repr*)) 'start '()))))
+      (alt (apply-repr-change prog* ctx) 'start '()))))
 
 ;; Information
 (define (list-alts)
@@ -72,16 +73,17 @@
   (void))
 
 (define (score-alt alt)
-  (errors-score (errors (alt-program alt) (*pcontext*) (*output-repr*))))
+  (errors-score (errors (alt-program alt) (*pcontext*) (*context*))))
 
 ; Pareto mode alt picking
 (define (choose-mult-alts from)
+  (define repr (context-repr (*context*)))
   (define altns (filter (compose list? program-body alt-program) from))
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
     (define best (argmin score-alt altns))
-    (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost (*output-repr*))))
+    (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost repr)))
     (define simplest (car altns*))
     (define altns** (cdr altns*))
     (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
@@ -119,7 +121,7 @@
 
   (define orig-prog (alt-program (^next-alt^)))
   (define vars (program-variables orig-prog))
-  (define loc-errs (localize-error (alt-program (^next-alt^)) (*output-repr*)))
+  (define loc-errs (localize-error (alt-program (^next-alt^)) (*context*)))
 
   ; high-error locations
   (^locs^
@@ -186,7 +188,7 @@
   (define new-alts (^patched^))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-  (^table^ (atab-add-altns (^table^) new-alts (*output-repr*)))
+  (^table^ (atab-add-altns (^table^) new-alts (*context*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
@@ -211,7 +213,7 @@
   (void))
 
 (define (inject-candidate! prog)
-  (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*output-repr*)))
+  (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*context*)))
   (void))
 
 (define (finish-iter!)
@@ -256,22 +258,21 @@
   
 (define (setup-context! specification precondition repr)
   (define vars (program-variables specification))
-  (*output-repr* repr)
-  (*var-reprs* (map (curryr cons repr) vars))
+  (*context* (context vars repr (map (const repr) vars)))
   (when (empty? (*needed-reprs*)) ; if empty, probably debugging
     (*needed-reprs* (list repr (get-representation 'bool))))
 
-  (apply mk-pcontext (sample-points precondition (list specification) repr)))
+  (apply mk-pcontext (sample-points precondition (list specification) (*context*))))
 
-(define (initialize-alt-table! prog pcontext repr)
+(define (initialize-alt-table! prog pcontext ctx)
   (define alt (make-alt prog))
   (*start-prog* prog)
-  (define table (make-alt-table (*pcontext*) alt repr))
+  (define table (make-alt-table (*pcontext*) alt ctx))
 
   ; Add starting alt in every precision
   (^table^
    (if (*pareto-mode*)
-       (atab-add-altns table (starting-alts alt) repr)
+       (atab-add-altns table (starting-alts alt ctx) ctx)
        table))
 
   (when (flag-set? 'setup 'simplify)
@@ -308,19 +309,19 @@
   (timeline-push! 'symmetry (map ~a new-preprocess))
   (*herbie-preprocess* (append preprocess new-preprocess))
 
-  (define processed-pcontext (preprocess-pcontext vars pcontext (*herbie-preprocess*) (*output-repr*)))
+  (define processed-pcontext (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
 
   (match-define (cons best rest) (mutate! prog iters processed-pcontext))
 
   (*herbie-preprocess* (remove-unnecessary-preprocessing best pcontext (*herbie-preprocess*)))
   (cons best rest))
 
-(define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two)
+(define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two ctx)
   (define vars (program-variables (alt-program alt)))
-  (define pcontext1 (preprocess-pcontext vars pcontext preprocessing-one (*output-repr*)))
-  (define pcontext2 (preprocess-pcontext vars pcontext preprocessing-two (*output-repr*)))
-  (<= (errors-score (errors (alt-program alt) pcontext1 (*output-repr*)))
-      (errors-score (errors (alt-program alt) pcontext2 (*output-repr*)))))
+  (define pcontext1 (preprocess-pcontext pcontext preprocessing-one ctx))
+  (define pcontext2 (preprocess-pcontext pcontext preprocessing-two ctx))
+  (<= (errors-score (errors (alt-program alt) pcontext1 (*context*)))
+      (errors-score (errors (alt-program alt) pcontext2 (*context*)))))
 
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))
@@ -333,7 +334,7 @@
       (cond
         [(>= i (length preprocessing))
          (values preprocessing removed)]
-        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing)
+        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing (*context*))
          (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
         [else
          (loop preprocessing (+ i 1) removed)])))
@@ -346,7 +347,7 @@
 
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)
-  (initialize-alt-table! prog (*pcontext*) (*output-repr*))
+  (initialize-alt-table! prog (*pcontext*) (*context*))
 
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (run-iter!)
@@ -355,7 +356,8 @@
   (extract!))
 
 (define (extract!)
-  (define repr (*output-repr*))
+  (define ctx (*context*))
+  (define repr (context-repr ctx))
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* (atab-active-alts (^table^)))
 
@@ -371,10 +373,10 @@
            (not (null? (program-variables (alt-program (car all-alts))))))
       (cond
        [(*pareto-mode*)
-        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) repr)]
+        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
        [else
-        (define option (infer-splitpoints all-alts repr))
-        (list (combine-alts option repr))])]
+        (define option (infer-splitpoints all-alts ctx))
+        (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
   (timeline-event! 'simplify)
@@ -393,7 +395,7 @@
 
   ; find the best, sort the rest by cost
   (define alts* (remove-duplicates cleaned-alts alt-equal?))
-  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*output-repr*))) alts*))
+  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts*))
   (define-values (best end-score rest)
     (for/fold ([best #f] [score #f] [rest #f])
               ([altn (in-list alts*)] [errs (in-list errss)])

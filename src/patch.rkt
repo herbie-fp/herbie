@@ -1,7 +1,7 @@
 #lang racket
 
 (require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
-         "alternative.rkt" "common.rkt" "errors.rkt" "interface.rkt" "programs.rkt"
+         "alternative.rkt" "common.rkt" "errors.rkt" "programs.rkt"
          "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt")
 
 (provide
@@ -80,12 +80,12 @@
   (define genexpr (approximate expr* var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (desugar-program (genexpr) repr (*var-reprs*) #:full #f))))
+      (desugar-program (genexpr) (*context*) #:full #f))))
 
 (define (taylor-alt altn)
   (define prog (alt-program altn))
   (define expr (program-body prog))
-  (define repr (repr-of expr (*output-repr*) (*var-reprs*)))
+  (define repr (repr-of expr (*context*)))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
@@ -166,16 +166,16 @@
   (define changelists
     (if one-real-repr?
         (merge-changelists
-          (rewrite-expressions exprs (*output-repr*) #:rules (append expansive-rules normal-rules) #:roots locs)
-          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs #:once? #t))
+          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules) #:roots locs)
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))
         (merge-changelists
-          (rewrite-expressions exprs (*output-repr*) #:rules normal-rules #:roots locs)
-          (rewrite-expressions exprs (*output-repr*) #:rules expansive-rules #:roots locs #:once? #t)
-          (rewrite-expressions exprs (*output-repr*) #:rules reprchange-rules #:roots locs #:once? #t))))
+          (rewrite-expressions exprs (*context*) #:rules normal-rules #:roots locs)
+          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:roots locs #:once? #t)
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))))
 
   ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
-    (rewrite-expressions lowexprs (*output-repr*)
+    (rewrite-expressions lowexprs (*context*)
                          #:rules reprchange-rules
                          #:roots lowlocs
                          #:once? #t))
@@ -196,7 +196,7 @@
       (let loop ([cl cl] [altn altn])
         (if (null? cl)
             (cons altn done)
-            (let ([prog* (apply-repr-change (change-apply (car cl) (alt-program altn)) (*output-repr*))])
+            (let ([prog* (apply-repr-change (change-apply (car cl) (alt-program altn)) (*context*))])
               (if (program-body prog*)
                   (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
                   done))))))

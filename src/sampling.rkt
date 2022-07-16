@@ -2,7 +2,7 @@
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "errors.rkt" "common.rkt"
-         "float.rkt" "interface.rkt" "timeline.rkt"
+         "float.rkt" "syntax/types.rkt" "timeline.rkt"
          "syntax/sugar.rkt")
 
 (provide make-sampler batch-prepare-points ival-eval)
@@ -90,8 +90,9 @@
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
-(define (make-sampler repr precondition programs search-func)
-  (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
+(define (make-sampler ctx precondition programs search-func)
+  (define repr (context-repr ctx))
+  (define reprs (context-var-reprs ctx))
   (cond
    [(and (flag-set? 'setup 'search) (not (empty? reprs))
          (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
@@ -149,11 +150,12 @@
      [else
       (loop precision*)])))
 
-(define (batch-prepare-points fn repr sampler)
+(define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
+  (define repr (context-repr ctx))
   (define starting-precision (bf-precision))
   (define <-bf (representation-bf->repr repr))
-  (define logger (point-logger 'body (map car (*var-reprs*))))
+  (define logger (point-logger 'body (context-vars ctx)))
 
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])

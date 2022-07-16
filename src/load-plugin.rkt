@@ -1,7 +1,7 @@
 #lang racket
 (require setup/getinfo racket/runtime-path)
-(require (submod "interface.rkt" internals))
-(provide load-herbie-plugins load-herbie-builtins)
+(require "syntax/types.rkt" (submod "syntax/types.rkt" internals))
+(provide load-herbie-plugins load-herbie-builtins make-debug-context)
 
 (define-runtime-module-path bool-plugin     "reprs/bool.rkt")
 (define-runtime-module-path binary32-plugin "reprs/binary32.rkt")
@@ -40,3 +40,8 @@
 ;; requiring "load-plugin.rkt" automatically registers
 ;; all built-in representation but does not load them
 (register-generator! generate-builtins)
+
+(define (make-debug-context vars)
+  (load-herbie-builtins)
+  (define repr (get-representation 'binary64))
+  (context vars repr (map (const repr) vars)))

@@ -8,7 +8,7 @@
                           *expr-cse-able?*))
 
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
-         "../interface.rkt" "../syntax/sugar.rkt")
+         "../syntax/types.rkt" "../syntax/sugar.rkt")
 
 (provide render-menu render-warnings render-large render-program
          program->fpcore render-reproduction js-tex-include)

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "interface.rkt" "syntax/syntax.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt")
 (provide program-cost expr-cost)
 
 (define (operator-cost op)

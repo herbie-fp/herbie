@@ -1,7 +1,7 @@
 #lang racket
 
 (require (only-in xml write-xexpr))
-(require "../common.rkt" "../datafile.rkt" "../interface.rkt" "../pareto.rkt"
+(require "../common.rkt" "../datafile.rkt" "../syntax/types.rkt" "../pareto.rkt"
          "common.rkt" "plot.rkt")
 
 (provide make-report-page)

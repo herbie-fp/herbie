@@ -1,6 +1,6 @@
 #lang racket
 
-(require "syntax.rkt" "../errors.rkt" "../interface.rkt")
+(require "../errors.rkt" "types.rkt" "syntax.rkt")
 (provide desugar-program resugar-program)
 
 ;; preprocessing
@@ -173,7 +173,9 @@
          expr)]
     [(? variable?) expr]))
 
-(define (desugar-program prog repr var-reprs #:full [full? #t])
+(define (desugar-program prog ctx #:full [full? #t])
+  (define repr (context-repr ctx))
+  (define var-reprs (map cons (context-vars ctx) (context-var-reprs ctx)))
   (if full?
       (expand-parametric (expand prog) repr var-reprs full?)
       (expand-parametric prog repr var-reprs full?)))

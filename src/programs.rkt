@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/syntax.rkt" "interface.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
+(require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
@@ -32,24 +32,20 @@
 
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
-;; TODO(interface): Once we update the syntax checker to FPCore 1.1
-;; standards, this will have to have more information passed in
-(define (type-of expr repr env)
+(define (type-of expr ctx)
   (match expr
    [(? number?) 'real]
-   [(? (representation-repr? repr)) (representation-type repr)]
-   [(? variable?) (representation-type (dict-ref env expr))]
-   [(list 'if cond ift iff) (type-of ift repr env)]
+   [(? variable?) (representation-type (context-lookup ctx expr))]
+   [(list 'if cond ift iff) (type-of ift ctx)]
    [(list op args ...) (representation-type (operator-info op 'otype))]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
-(define (repr-of expr repr env)
+(define (repr-of expr ctx)
   (match expr
-   [(? number?) repr]
-   [(? (representation-repr? repr)) repr]
-   [(? variable?) (dict-ref env expr)]
-   [(list 'if cond ift iff) (repr-of ift repr env)]
+   [(? number?) (context-repr ctx)]
+   [(? variable?) (context-lookup ctx expr)]
+   [(list 'if cond ift iff) (repr-of ift ctx)]
    [(list op args ...) (operator-info op 'otype)]))
 
 (define (expr-supports? expr field)
@@ -106,11 +102,15 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define (eval-prog prog mode repr)
-  (define f (batch-eval-progs (list prog) mode repr))
+(define (eval-prog prog mode ctx)
+  (define f (batch-eval-progs (list prog) mode ctx))
   (λ args (vector-ref (apply f args) 0)))
 
-(define (batch-eval-progs progs mode repr)
+(define (batch-eval-progs progs mode ctx)
+  (define repr (context-repr ctx))
+  (define vars (context-vars ctx))
+  (define var-reprs (context-var-reprs ctx))
+
   (define real->precision
     (match mode
      ['fl (λ (x repr) (real->repr x repr))]
@@ -122,9 +122,6 @@
      ['fl (λ (x repr) x)]
      ['bf (λ (x repr) (if (bigfloat? x) x ((representation-repr->bf repr) x)))]
      ['ival (λ (x repr) (if (ival? x) x (ival ((representation-repr->bf repr) x))))]))
-
-  (define vars (if (empty? progs) '() (program-variables (first progs))))
-  (define var-reprs (map (curry dict-ref (*var-reprs*)) vars))
 
   ;; Expression cache
   (define exprs '())
@@ -190,8 +187,7 @@
   (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
 
 (module+ test
-  (define <binary64> (get-representation 'binary64))
-  (*var-reprs* (map (curryr cons <binary64>) '(a b c)))
+  (define ctx (make-debug-context '(a b c)))
   (define tests
     #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
@@ -203,8 +199,8 @@
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
-      (define iv (apply (eval-prog e 'ival <binary64>) p))
-      (define val (apply (eval-prog e 'bf <binary64>) p))
+      (define iv (apply (eval-prog e 'ival ctx) p))
+      (define val (apply (eval-prog e 'bf ctx) p))
       (check-in-interval? iv val))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
@@ -268,7 +264,7 @@
    '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
 
 ; Updates the repr of an expression if needed
-(define (apply-repr-change-expr expr output-repr)
+(define (apply-repr-change-expr expr ctx)
   (let loop ([expr expr] [repr #f])
     (match expr
      [(list (? repr-conv? op) body)
@@ -293,12 +289,12 @@
               (list op (loop body irepr)))
           (if repr
               (loop (list op body) repr*)
-              (let* ([conv (get-repr-conv repr* output-repr)]
+              (let* ([conv (get-repr-conv repr* (context-repr ctx))]
                      [body* (loop body repr*)])
                 (and conv body* (list conv body*)))))]
      [(list (? rewrite-repr-op? op) body)
       (define irepr (operator-info op 'otype))
-      (define orepr (or repr output-repr))
+      (define orepr (or repr (context-repr ctx)))
       (cond
        [(equal? irepr orepr)
         (loop body irepr)]
@@ -307,7 +303,7 @@
         (define body* (loop body irepr))
         (and conv body* (list conv body*))])]
      [(list 'if con ift iff)
-      (define repr* (or repr output-repr))
+      (define repr* (or repr (context-repr ctx)))
       (define con*
         (let loop2 ([con con])
           (cond
@@ -337,7 +333,7 @@
                   [args* (map (curryr loop repr*) args)])
             (and (andmap identity args*) (cons op* args*)))))]
      [(? variable?)
-      (define var-repr (dict-ref (*var-reprs*) expr))
+      (define var-repr (context-lookup ctx expr))
       (cond
        [(equal? var-repr repr) expr]
        [else ; insert a cast if the variable precision is not the same
@@ -345,8 +341,8 @@
         (and cast (list cast expr))])]
      [_ expr])))
 
-(define (apply-repr-change prog repr)
+(define (apply-repr-change prog ctx)
   (match prog
-   [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body repr))]
-   [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(apply-repr-change-expr body repr))]
-   [_ (apply-repr-change-expr prog repr)]))
+   [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body ctx))]
+   [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(apply-repr-change-expr body ctx))]
+   [_ (apply-repr-change-expr prog ctx)]))

@@ -1,6 +1,6 @@
 #lang racket
 (require math/bigfloat rival)
-(require "interface.rkt" "timeline.rkt")
+(require "syntax/types.rkt" "timeline.rkt")
 
 (provide find-intervals hyperrect-weight)
 

@@ -505,8 +505,7 @@
                               ,(factorial n))))))))))
 
 (module+ test
-  (require rackunit "../interface.rkt" "../load-plugin.rkt")
-  (load-herbie-plugins)
+  (require rackunit "../syntax/types.rkt" "../load-plugin.rkt")
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
 
 (module+ test

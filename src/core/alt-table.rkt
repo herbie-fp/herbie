@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/hash)
-(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt")
+(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt" "../syntax/types.rkt")
 
 (provide
  (contract-out
@@ -44,16 +44,16 @@
       (alt-cost altn repr)
       1))
 
-(define (make-alt-table context initial-alt repr)
-  (define cost (alt-cost* initial-alt repr))
+(define (make-alt-table pcontext initial-alt ctx)
+  (define cost (alt-cost* initial-alt (context-repr ctx)))
   (alt-table (make-immutable-hash
-               (for/list ([(pt ex) (in-pcontext context)]
-                          [err (errors (alt-program initial-alt) context repr)])
+               (for/list ([(pt ex) (in-pcontext pcontext)]
+                          [err (errors (alt-program initial-alt) pcontext ctx)])
                  (cons pt (hash cost (cost-rec err (list initial-alt))))))
-             (hash initial-alt (for/list ([(pt ex) (in-pcontext context)]) pt))
+             (hash initial-alt (for/list ([(pt ex) (in-pcontext pcontext)]) pt))
              (hash initial-alt #f)
              (hash initial-alt cost)
-             context
+             pcontext
              (list initial-alt)))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
@@ -239,12 +239,12 @@
 (define (is-nan? expr)
   (and (impl-exists? expr) (equal? (impl->operator expr) 'NAN)))
 
-(define (atab-add-altns atab altns repr)
+(define (atab-add-altns atab altns ctx)
   (define progs (map alt-program altns))
-  (define errss (flip-lists (batch-errors progs (alt-table-context atab) repr)))
+  (define errss (flip-lists (batch-errors progs (alt-table-context atab) ctx)))
   (minimize-alts
    (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)])
-     (atab-add-altn atab altn errs repr))))
+     (atab-add-altn atab altn errs (context-repr ctx)))))
 
 (define (worse-than? point->alts altn cost tied-pnts tied-errs)
   (cond

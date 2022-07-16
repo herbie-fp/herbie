@@ -1,7 +1,7 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../conversions.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
+(require "../common.rkt" "../conversions.rkt" "../errors.rkt" "types.rkt" "syntax.rkt")
 (provide assert-program!)
 
 
@@ -126,7 +126,11 @@
       (for ([conv conversions])
         (match conv
          [(list repr-name-1 repr-name2)
-          (define known-repr? (and (generate-repr (first conv)) (generate-repr (second conv))))
+          (define known-repr?
+            (with-handlers ([exn:fail:user:herbie? (const #f)])
+              (get-representation (first conv))
+              (get-representation (second conv))
+              #t))
           (unless known-repr? (error! conversion-stx "Unknown precision in conversion ~a" conv))]
          [_ (error! conversion-stx "Invalid conversion ~a; Valid example: (binary64 binary32)" conv)]))
       (generate-conversions (map (curry map get-representation) conversions))]

@@ -2,8 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../errors.rkt" "../interface.rkt"
-         "syntax.rkt" "sugar.rkt")
+(require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt" "sugar.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
@@ -166,20 +165,21 @@
        #:when (or (empty? (third set)) ; no type ctx
                   (andmap (λ (p) (valid? (cdr p))) (third set))))
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
-    (define ctx
+    (define var-reprs
       (for/list ([v vars] [t types])
-        (define repr* (if (equal? t type) repr (get-representation t)))
-        (cons v repr*)))
+        (if (equal? t type) repr (get-representation t))))
+    (define ctx (context vars repr var-reprs))
+    (define vrhash (map cons vars var-reprs))
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
         (with-handlers ([exn:fail:user:herbie:missing? (const rules*)])
           (define name* (sym-append (rule-name r) '_ (representation-name repr)))
-          (define input* (desugar-program (rule-input r) repr ctx #:full #f))
-          (define output* (desugar-program (rule-output r) repr ctx #:full #f))
-          (define rule* (rule name* input* output* ctx (type-of-rule input* output* ctx)))
+          (define input* (desugar-program (rule-input r) ctx #:full #f))
+          (define output* (desugar-program (rule-output r) ctx #:full #f))
+          (define rule* (rule name* input* output* vrhash (type-of-rule input* output* vrhash)))
           (cons rule* rules*))))
     (unless (empty? rules*)   ; only add the ruleset if it contains one
-      (*rulesets* (cons (list rules* groups ctx) (*rulesets*))))))
+      (*rulesets* (cons (list rules* groups vrhash) (*rulesets*))))))
 
 ;; Generate rules for new reprs
 

@@ -1,8 +1,8 @@
 #lang racket
 (require profile math/bigfloat racket/engine json)
-(require "syntax/read.rkt" "syntax/sugar.rkt"
+(require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
-         "datafile.rkt" "errors.rkt" "interface.rkt"
+         "datafile.rkt" "errors.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 
@@ -41,8 +41,7 @@
 (define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
   (define output-repr (test-output-repr test))
-  (define output-prec (representation-name output-repr))
-  (*output-repr* output-repr)
+  (define context (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 
   (define (compute-result test)
@@ -71,12 +70,12 @@
 
         (when seed (set-seed! seed))
         (define processed-test-context
-          (preprocess-pcontext (test-vars test) test-context (*herbie-preprocess*) output-repr))
+          (preprocess-pcontext test-context (*herbie-preprocess*) context))
 
         (define all-errss
           (flip-lists
            (batch-errors (map alt-program (append alts (*all-alts*)))
-                         processed-test-context output-repr)))
+                         processed-test-context context)))
 
         (define-values (end-errs other-errs) (split-at all-errss (length alts)))
         (define baseline-errs (argmax errors-score other-errs))
@@ -96,13 +95,13 @@
                       (timeline-extract output-repr)
                       warning-log (make-alt (test-program test)) alts
                       (*herbie-preprocess*) points exacts
-                      (errors (test-program test) train-context output-repr)
-                      (errors (alt-program (car alts)) train-context output-repr)
+                      (errors (test-program test) train-context context)
+                      (errors (alt-program (car alts)) train-context context)
                       newpoints newexacts
-                      (errors (test-program test) processed-test-context output-repr)
+                      (errors (test-program test) processed-test-context context)
                       end-errs
                       (if (test-output test)
-                          (errors (test-target test) processed-test-context output-repr)
+                          (errors (test-target test) processed-test-context context)
                           #f)
                       baseline-errs
                       oracle-errs

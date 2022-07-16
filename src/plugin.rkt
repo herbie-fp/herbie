@@ -1,8 +1,7 @@
 #lang racket
 
-(require (submod "syntax/types.rkt" internals) (submod "interface.rkt" internals)
-         (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals)
-         "errors.rkt" "interface.rkt")
+(require "errors.rkt" "syntax/types.rkt" (submod "syntax/types.rkt" internals)
+         (submod "syntax/syntax.rkt" internals) (submod "syntax/rules.rkt" internals))
 
 (provide define-type define-representation define-operator-impl
          define-operator define-ruleset define-ruleset*

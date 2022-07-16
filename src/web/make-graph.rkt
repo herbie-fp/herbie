@@ -5,7 +5,7 @@
                           [core-common-subexpr-elim core-cse]))
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../interface.rkt"
+         "../alternative.rkt" "../syntax/types.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
          "common.rkt" "history.rkt" "../syntax/sugar.rkt")
          
@@ -70,7 +70,6 @@
   (define end-error (car end-errors))
   (define other-alts (cdr end-alts))
   (define other-errors (cdr end-errors))
-  (define alt-plots? (< (* (length other-alts) (length (test-vars test))) 100))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -141,9 +140,8 @@
       (section ([id "history"])
        (h1 "Derivation")
        (ol ([class "history"])
-        ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
-            (render-history end-alt (mk-pcontext newpoints newexacts)
-                            (mk-pcontext points exacts) repr))))
+        ,@(render-history end-alt (mk-pcontext newpoints newexacts)
+                          (mk-pcontext points exacts) (test-context test))))
 
       ,(if (not (null? other-alts))
            `(section ([id "alternatives"])

@@ -2,7 +2,7 @@
 
 
 (require math/bigfloat math/base)
-(require "common.rkt" "interface.rkt" "errors.rkt")
+(require "common.rkt" "syntax/types.rkt" "errors.rkt")
 
 (provide 
  ulp-difference ulps->bits

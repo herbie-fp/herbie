@@ -1,6 +1,6 @@
 #lang racket
 
-(require "config.rkt" "common.rkt" "float.rkt" "interface.rkt" "programs.rkt")
+(require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext join-pcontext
          errors batch-errors errors-score)
@@ -54,12 +54,12 @@
 (define (errors-score e)
   (apply (if (flag-set? 'reduce 'avg-error) average max) (map ulps->bits e)))
 
-(define (errors prog pcontext repr)
-  (map first (batch-errors (list prog) pcontext repr)))
+(define (errors prog pcontext ctx)
+  (map first (batch-errors (list prog) pcontext ctx)))
 
-(define (batch-errors progs pcontext repr)
-  (define fn (batch-eval-progs progs 'fl repr))
+(define (batch-errors progs pcontext ctx)
+  (define fn (batch-eval-progs progs 'fl ctx))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
       (for/list ([out (in-vector (apply fn point))])
-        (point-error out exact repr)))))
+        (point-error out exact (context-repr ctx))))))
