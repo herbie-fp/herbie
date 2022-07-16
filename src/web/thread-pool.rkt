@@ -78,6 +78,9 @@
   (define workers
     (for/list ([wid (in-range threads)])
       (make-worker seed profile? dir)))
+  (define workers-dead
+    (for/list ([worker workers])
+      (place-dead-evt worker)))
 
   (define work
     (for/list ([id (in-naturals)] [prog progs])
@@ -95,19 +98,18 @@
                          (eprintf "Terminating after ~a problem~a!\n"
                                   (length out) (if (= (length out) 1) ""  "s"))
                          out)])
-        (match-define `(done ,id ,more ,tr) (apply sync workers))
-
-        (when (not (null? work))
-          (place-channel-put more `(apply ,more ,@(car work)))
-          (set! work (cdr work)))
-
-        (define out* (cons (cons id tr) out))
-
-        (print-test-result (length out*) (length progs) tr)
-
-        (if (= (length out*) (length progs))
-            out*
-            (loop out*)))))
+        (match (apply sync (append workers workers-dead))
+          [`(done ,id ,more ,tr)
+           (when (not (null? work))
+             (place-channel-put more `(apply ,more ,@(car work)))
+             (set! work (cdr work)))
+           (define out* (cons (cons id tr) out))
+           (print-test-result (length out*) (length progs) tr)
+           (if (= (length out*) (length progs))
+               out*
+               (loop out*))]
+          [(? evt?) ; In this case it is a place-dead-event
+           (error "Thread crashed. Unrecoverable. Terminating immediately.")]))))
   (for-each place-kill workers)
   (map cdr (sort outs < #:key car)))
 
