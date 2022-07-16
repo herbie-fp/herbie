@@ -31,12 +31,7 @@ minimal-distribution:
 	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
-nightly:
-	if raco pkg show herbie | grep -q herbie; then \
-	    $(MAKE) update egg-herbie; \
-	else \
-	    $(MAKE) install; \
-	fi;
+nightly: install
 	bash infra/nightly.sh reports
 
 start-server: install
