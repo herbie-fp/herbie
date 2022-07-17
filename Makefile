@@ -7,11 +7,11 @@ help:
 install: clean egg-herbie update
 
 clean:
-	raco pkg remove --force herbie && echo "Warning: uninstalling old herbie" || :
-	raco pkg remove --force egg-herbie && echo "Warning: uninstalling old egg-herbie" || :
-	raco pkg remove --force egg-herbie-linux && echo "Warning: uninstalling old egg-herbie" || :
-	raco pkg remove --force egg-herbie-windows && echo "Warning: uninstalling old egg-herbie" || :
-	raco pkg remove --force egg-herbie-osx && echo "Warning: uninstalling old egg-herbie" || :
+	raco pkg remove --force herbie && echo "Uninstalled old herbie" || :
+	raco pkg remove --force egg-herbie && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force egg-herbie-linux && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 
 update:
 	raco pkg install --skip-installed --auto --name herbie src/
