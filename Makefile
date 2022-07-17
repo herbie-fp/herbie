@@ -4,7 +4,14 @@ help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket src/herbie.rkt web' to run it."
 
-install: egg-herbie update
+install: clean egg-herbie update
+
+clean:
+	raco pkg remove --force herbie && echo "Warning: uninstalling old herbie" || :
+	raco pkg remove --force egg-herbie && echo "Warning: uninstalling old egg-herbie" || :
+	raco pkg remove --force egg-herbie-linux && echo "Warning: uninstalling old egg-herbie" || :
+	raco pkg remove --force egg-herbie-windows && echo "Warning: uninstalling old egg-herbie" || :
+	raco pkg remove --force egg-herbie-osx && echo "Warning: uninstalling old egg-herbie" || :
 
 update:
 	raco pkg install --skip-installed --auto --name herbie src/
