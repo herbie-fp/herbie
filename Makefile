@@ -8,7 +8,7 @@ install: egg-herbie update
 
 update:
 	raco pkg install --skip-installed --auto --name herbie src/
-	raco pkg update --name herbie src/
+	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
 	cargo build --release --manifest-path=egg-herbie/Cargo.toml
