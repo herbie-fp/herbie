@@ -17,7 +17,7 @@
   (start-alt end-alts preprocess points exacts
    start-est-error end-est-error newpoints newexacts
    start-error end-errors target-error
-   baseline-error oracle-error start-cost end-costs all-alts))
+   start-cost end-costs all-alts))
 (struct test-failure test-result (exn))
 (struct test-timeout test-result ())
 
@@ -72,17 +72,10 @@
         (define processed-test-context
           (preprocess-pcontext test-context (*herbie-preprocess*) context))
 
-        (define all-errss
+        (define end-errs
           (flip-lists
-           (batch-errors (map alt-program (append alts (*all-alts*)))
-                         processed-test-context context)))
+           (batch-errors (map alt-program alts) processed-test-context context)))
 
-        (define-values (end-errs other-errs) (split-at all-errss (length alts)))
-        (define baseline-errs (argmax errors-score other-errs))
-        (define oracle-errs (map (curry apply max) (flip-lists other-errs)))
-        (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
-        (timeline-adjust! 'regimes 'accuracy (errors-score (first end-errs)))
-        (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
         (timeline-adjust! 'regimes 'name (test-name test))
         (timeline-adjust! 'regimes 'link ".")
         (print-warnings)
@@ -103,8 +96,6 @@
                       (if (test-output test)
                           (errors (test-target test) processed-test-context context)
                           #f)
-                      baseline-errs
-                      oracle-errs
                       (program-cost (test-program test) output-repr)
                       (map (curryr alt-cost output-repr) alts)
                       (*all-alts*)))))

@@ -63,7 +63,7 @@
    (test-success test bits time timeline warnings
                  start-alt end-alts preprocess points exacts start-est-error end-est-error
                  newpoints newexacts start-error end-errors target-error
-                 baseline-error oracle-error start-cost costs all-alts)
+                 start-cost costs all-alts)
    result)
   (define repr (test-output-repr test))
   (define end-alt (car end-alts))

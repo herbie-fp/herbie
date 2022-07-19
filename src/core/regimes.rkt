@@ -57,6 +57,10 @@
           (sow (option-on-expr sound-alts err-lsts bexpr ctx))))))
   (define best (argmin (compose errors-score option-errors) options))
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
+  (define err-lsts* (flip-lists err-lsts))
+  (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
+  (timeline-push! 'accuracy (errors-score (option-errors best)))
+  (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
   best)
 
 (define (exprs-to-branch-on alts ctx)
