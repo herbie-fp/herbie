@@ -57,6 +57,9 @@
           (sow (option-on-expr sound-alts err-lsts bexpr ctx))))))
   (define best (argmin (compose errors-score option-errors) options))
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
+  (timeline-push! 'outputs
+                  (for/list ([sidx (option-split-indices best)])
+                    (~a (program-body (alt-program (list-ref alts (si-cidx sidx)))))))
   (define err-lsts* (flip-lists err-lsts))
   (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
   (timeline-push! 'accuracy (errors-score (option-errors best)))
