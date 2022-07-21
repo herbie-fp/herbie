@@ -72,6 +72,7 @@
          ,@(dict-call curr render-phase-times #:extra n 'times)
          ,@(dict-call curr render-phase-series #:extra n 'series)
          ,@(dict-call curr render-phase-bstep 'bstep)
+         ,@(dict-call curr render-phase-branches 'branch)
          ,@(dict-call curr render-phase-sampling 'sampling)
          ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
@@ -281,6 +282,13 @@
   `((dt "Compiler")
     (dd (p "Compiled " ,(~a size) " to " ,(~a compiled) " computations "
            "(" ,(format-percent (- size compiled) size) " saved)"))))
+
+(define (render-phase-branches branches)
+  `((dt "Results")
+    (dd (table ([class "times"])
+         ,@(for/list ([rec (in-list branches)])
+             (match-define (list expr score time) rec)
+             `(tr (td ,(format-time time)) (td ,(format-bits score) "b") (td (code ,expr))))))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
