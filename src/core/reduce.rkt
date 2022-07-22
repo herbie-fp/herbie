@@ -143,7 +143,9 @@
      (let ([terms (gather-multiplicative-terms arg)])
        (define head-cbrt (expt (car terms) 1/3))
        (cond
-        [(equal? (expt (inexact->exact head-cbrt) 3) (car terms))
+        [(and
+          (not (nan? head-cbrt)) (not (infinite? head-cbrt))
+          (equal? (expt (inexact->exact head-cbrt) 3) (car terms)))
          (cons head-cbrt
                (for/list ([term (cdr terms)])
                  (cons (/ (car term) 3) (cdr term))))]
