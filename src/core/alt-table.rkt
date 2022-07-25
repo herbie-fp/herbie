@@ -203,8 +203,8 @@
          [alt->cost (if (*pareto-mode*)
                         (curry hash-ref (alt-table-alt->cost atab))
                         backup-alt-cost)]
-    ; There must always be a not-done tied alt,
-    ; since before adding any alts there weren't any tied alts
+         ;; There must always be a not-done tied alt,
+         ;; since before adding any alts there weren't any tied alts
          [undone-altns (filter (compose not alts->done?) altns)])
     (argmax alt->cost
       (argmins (compose length alts->pnts)
@@ -277,21 +277,44 @@
 
 (define (atab-add-altn atab altn errs repr)
   (define cost (alt-cost* altn repr))
-  (match-define (alt-table point->alts alt->points alt->done? alt->cost _ all-alts) atab)
-  (define-values (best-pnts tied-pnts tied-errs) (best-and-tied-at-points atab altn cost errs))
-  (cond
-   [(or (ormap (curry alt-equal? altn) (set->list all-alts))
-        (and (null? best-pnts) (worse-than? point->alts altn cost tied-pnts tied-errs)))
-    atab]
-   [else
-    (define alts->pnts*1 (remove-chnged-pnts point->alts alt->points alt->cost best-pnts cost))
-    (define alts->pnts*2 (hash-set alts->pnts*1 altn (append best-pnts tied-pnts)))
-    (define pnts->alts*1 (override-at-pnts point->alts best-pnts altn cost errs))
-    (define pnts->alts*2 (append-at-pnts pnts->alts*1 tied-pnts altn cost))
-    (define alts->done?* (hash-set alt->done? altn #f))
-    (define alt->cost* (hash-set alt->cost altn cost))
-    (alt-table pnts->alts*2 alts->pnts*2 alts->done?*
-               alt->cost* (alt-table-context atab) all-alts)]))
+  (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext all-alts) atab)
+
+  ; Update point->alts
+  (define point->alts*
+    (for/hash ([(pt ex) (in-pcontext pcontext)] [err errs])
+      (values pt
+              (make-immutable-hash
+               (cons
+                (cons cost (cost-rec err (list altn)))
+                (filter
+                 identity
+                 (for/list ([(k v) (in-hash (hash-ref point->alts pt))]
+                            #:when (or (> cost k) (> err (cost-rec-berr v))
+                                       (and (= cost k) (= err (cost-rec-berr v)))))
+                   (cond
+                    [(< k cost) (cons k v)] ; Entry is lower-cost, keep it
+                    [(< (cost-rec-berr v) err) (cons k v)] ; Entry is more-accurate, keep it
+                    [(and (= (cost-rec-berr v) err) (= k cost))
+                     ;; Entry is tied with new altn, add it
+                     (cons k (cost-rec (cost-rec-berr v) (set-add (cost-rec-altns v) altn)))]
+                    [else
+                     ;; Entry is worse than altn, remove it
+                     #f]))))))))
+
+  (define alt->points* (make-hasheq))
+  (for ([(pt recs) (in-hash point->alts*)])
+    (for ([(cost rec) (in-hash recs)])
+      (for ([alt (in-list (cost-rec-altns rec))])
+        (hash-update! alt->points* alt (curry cons pt) '()))))
+
+  (if (hash-has-key? alt->points* altn)
+      (alt-table point->alts*
+                 (make-immutable-hash (hash->list alt->points*))
+                 (hash-set alt->done? altn #f)
+                 (hash-set alt->cost altn cost)
+                 pcontext
+                 all-alts)
+      atab))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))
