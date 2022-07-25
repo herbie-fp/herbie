@@ -205,21 +205,22 @@
                [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab*)))]))
 
 (define (pareto-add curve altn cost err)
-  (make-immutable-hash
-   (cons
-    (cons cost (cost-rec err (list altn)))
-    (filter
-     identity
-     (for/list ([(k v) (in-hash curve)])
-       (cond
-        [(< k cost) (cons k v)] ; Entry is lower-cost, keep it
-        [(< (cost-rec-berr v) err) (cons k v)] ; Entry is more-accurate, keep it
-        [(and (= (cost-rec-berr v) err) (= k cost))
-         ;; Entry is tied with new altn, add it
-         (cons k (cost-rec (cost-rec-berr v) (set-add (cost-rec-altns v) altn)))]
-        [else
-         ;; Entry is worse than altn, remove it
-         #f]))))))
+  (define added? #f)
+  (define out
+    (for/hash ([(k v) (in-hash curve)])
+      (cond
+       [(< k cost) (values k v)] ; Entry is lower-cost, keep it
+       [(< (cost-rec-berr v) err) (values k v)] ; Entry is more-accurate, keep it
+       [(and (= (cost-rec-berr v) err) (= k cost))
+        ;; Entry is tied with new altn, add it
+        (set! added? #t)
+        (values k (cost-rec (cost-rec-berr v) (set-add (cost-rec-altns v) altn)))]
+       [else
+        (set! added? #t)
+        ;; Entry is worse than altn, replace with new point
+        (values cost (cost-rec err (list altn)))])))
+  (if added? out (hash-set out cost (cost-rec err (list altn)))))
+  
 
 (define (invert-index idx)
   (define alt->points* (make-hasheq))
