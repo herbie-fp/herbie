@@ -204,6 +204,32 @@
   (struct-copy alt-table atab*
                [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab*)))]))
 
+(define (pareto-add curve altn cost err)
+  (make-immutable-hash
+   (cons
+    (cons cost (cost-rec err (list altn)))
+    (filter
+     identity
+     (for/list ([(k v) (in-hash curve)])
+       (cond
+        [(< k cost) (cons k v)] ; Entry is lower-cost, keep it
+        [(< (cost-rec-berr v) err) (cons k v)] ; Entry is more-accurate, keep it
+        [(and (= (cost-rec-berr v) err) (= k cost))
+         ;; Entry is tied with new altn, add it
+         (cons k (cost-rec (cost-rec-berr v) (set-add (cost-rec-altns v) altn)))]
+        [else
+         ;; Entry is worse than altn, remove it
+         #f]))))))
+
+(define (invert-index idx)
+  (define alt->points* (make-hasheq))
+  (for ([(pt recs) (in-hash idx)])
+    (for ([(cost rec) (in-hash recs)])
+      (for ([alt (in-list (cost-rec-altns rec))])
+        (hash-set! alt->points* alt
+                   (cons pt (hash-ref alt->points* alt '()))))))
+  (make-immutable-hash (hash->list alt->points*)))
+
 (define (atab-add-altn atab altn errs repr)
   (define cost (alt-cost* altn repr))
   (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext all-alts) atab)
@@ -211,34 +237,12 @@
   ; Update point->alts
   (define point->alts*
     (for/hash ([(pt ex) (in-pcontext pcontext)] [err errs])
-      (values pt
-              (make-immutable-hash
-               (cons
-                (cons cost (cost-rec err (list altn)))
-                (filter
-                 identity
-                 (for/list ([(k v) (in-hash (hash-ref point->alts pt))]
-                            #:when (or (> cost k) (> err (cost-rec-berr v))
-                                       (and (= cost k) (= err (cost-rec-berr v)))))
-                   (cond
-                    [(< k cost) (cons k v)] ; Entry is lower-cost, keep it
-                    [(< (cost-rec-berr v) err) (cons k v)] ; Entry is more-accurate, keep it
-                    [(and (= (cost-rec-berr v) err) (= k cost))
-                     ;; Entry is tied with new altn, add it
-                     (cons k (cost-rec (cost-rec-berr v) (set-add (cost-rec-altns v) altn)))]
-                    [else
-                     ;; Entry is worse than altn, remove it
-                     #f]))))))))
-
-  (define alt->points* (make-hasheq))
-  (for ([(pt recs) (in-hash point->alts*)])
-    (for ([(cost rec) (in-hash recs)])
-      (for ([alt (in-list (cost-rec-altns rec))])
-        (hash-update! alt->points* alt (curry cons pt) '()))))
+      (values pt (pareto-add (hash-ref point->alts pt) altn cost err))))
+  (define alt->points* (invert-index point->alts*))
 
   (if (hash-has-key? alt->points* altn)
       (alt-table point->alts*
-                 (make-immutable-hash (hash->list alt->points*))
+                 alt->points*
                  (hash-set alt->done? altn #f)
                  (hash-set alt->cost altn cost)
                  pcontext
