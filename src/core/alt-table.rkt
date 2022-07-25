@@ -201,18 +201,59 @@
   (define out
     (for/hash ([(k v) (in-hash curve)])
       (cond
-       [(< k cost) (values k v)] ; Entry is lower-cost, keep it
-       [(< (cost-rec-berr v) err) (values k v)] ; Entry is more-accurate, keep it
+       ;; Pareto-incomparable
+       [(and (< k cost) (> (cost-rec-berr v) err))
+        (values k v)]
+       [(and (> k cost) (< (cost-rec-berr v) err))
+        (values k v)]
+       ;; Tied
        [(and (= (cost-rec-berr v) err) (= k cost))
-        ;; Entry is tied with new altn, add it
         (set! added? #t)
-        (values k (cost-rec (cost-rec-berr v) (set-add (cost-rec-altns v) altn)))]
+        (values k (cost-rec err (set-add (cost-rec-altns v) altn)))]
+       ;; Pareto-better
+       [(and (<= cost k) (<= err (cost-rec-berr v)))
+        (set! added? #t)
+        (values cost (cost-rec err (list altn)))]
+       ;; Pareto-worse
        [else
         (set! added? #t)
-        ;; Entry is worse than altn, replace with new point
-        (values cost (cost-rec err (list altn)))])))
+        (values k v)])))
   (if added? out (hash-set out cost (cost-rec err (list altn)))))
-  
+
+(module+ test
+  (require rackunit)
+
+  (define (make-pareto pts)
+    (for/hash ([pt (in-list pts)])
+      (match-define (list cost err altns ...) pt)
+      (values cost (cost-rec err altns))))
+
+  (define (from-pareto pts)
+    (sort 
+     (for/list ([(cost rec) (in-hash pts)])
+       (list* cost (cost-rec-berr rec) (cost-rec-altns rec)))
+     < #:key first))
+
+  (check-equal? (from-pareto (make-pareto '((1 5 a) (2 3 b) (5 1 a b))))
+                '((1 5 a) (2 3 b) (5 1 a b)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '()) 'a 1 5))
+                '((1 5 a)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (5 1 b))) 'c 3 3))
+                '((1 5 a) (3 3 c) (5 1 b)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b))) 'c 5 1))
+                '((1 5 a) (3 3 b) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((3 3 b) (5 1 c))) 'a 1 5))
+                '((1 5 a) (3 3 b) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 1 5))
+                '((1 5 d a) (3 3 b) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 3 3))
+                '((1 5 a) (3 3 d b) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 2 2))
+                '((1 5 a) (2 2 d) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 1 a))) 'b 1 3))
+                '((1 1 a)))
+
+)
 
 (define (invert-index idx)
   (define alt->points* (make-hasheq))
