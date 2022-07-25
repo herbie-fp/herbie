@@ -13,9 +13,6 @@
   (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
                              #:only-fresh boolean?
                              . -> . (values alt? alt-table?)))
-  (atab-peek-alt (alt-table? #:picking-func ((listof alt?) . -> . (or/c alt? boolean?))
-                             #:only-fresh boolean?
-                             . -> . (or/c alt? boolean?)))
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-context (alt-table? . -> . pcontext?))
   (atab-min-errors (alt-table? . -> . (listof real?)))
@@ -58,16 +55,11 @@
 
 (define (atab-pick-alt atab #:picking-func [pick car]
            #:only-fresh [only-fresh? #t])
-  (let* ([picked (atab-peek-alt atab #:picking-func pick #:only-fresh only-fresh?)]
-         [atab* (struct-copy alt-table atab
-                             [alt->done? (hash-set (alt-table-alt->done? atab)
-                                                   picked #t)])])
-    (values picked atab*)))
-
-(define (atab-peek-alt atab #:picking-func [pick car] #:only-fresh [only-fresh? #f])
-  (pick (if only-fresh?
-      (atab-not-done-alts atab)
-      (atab-active-alts atab))))
+  (define options (if only-fresh? (atab-not-done-alts atab) (atab-active-alts atab)))
+  (define picked (pick options))
+  (values picked
+          (struct-copy alt-table atab
+                       [alt->done? (hash-set (alt-table-alt->done? atab) picked #t)])))
 
 (define (atab-active-alts atab)
   (hash-keys (alt-table-alt->points atab)))
