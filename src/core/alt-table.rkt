@@ -68,7 +68,8 @@
   (alt-table-all atab))
 
 (define (atab-completed? atab)
-  (andmap identity (hash-values (alt-table-alt->done? atab))))
+  (andmap (curry hash-ref (alt-table-alt->done? atab))
+          (hash-keys (alt-table-alt->points atab))))
 
 ;; Split the alt table into several alt tables, each of which corresponds to a pred
 ;; in 'preds', and only contains points which satisfy that pred.
