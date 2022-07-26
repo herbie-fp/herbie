@@ -14,7 +14,6 @@
                              #:only-fresh boolean?
                              . -> . (values alt? alt-table?)))
   (atab-completed? (alt-table? . -> . boolean?))
-  (atab-context (alt-table? . -> . pcontext?))
   (atab-min-errors (alt-table? . -> . (listof real?)))
   (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
 
@@ -22,10 +21,6 @@
 
 (struct alt-table (point->alts alt->points alt->done? alt->cost context all) #:prefab)
 (struct cost-rec (berr altns) #:prefab)
-
-(define atab-context alt-table-context)
-
-(define in-atab-pcontext (compose in-pcontext atab-context))
 
 (define (backup-alt-cost altn)
   (let loop ([expr (program-body (alt-program altn))])
@@ -77,7 +72,7 @@
   (for/list ([pred preds])
     (define-values (pts exs)
       (for/lists (pts exs)
-        ([(pt ex) (in-atab-pcontext atab)] #:when (pred pt))
+        ([(pt ex) (in-pcontext (alt-table-context atab))] #:when (pred pt))
           (values pt ex)))
     (define point->alts
       (for/hash ([pt pts])
@@ -193,7 +188,9 @@
   (define atab*
     (atab-prune
      (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)])
-       (atab-add-altn atab altn errs (context-repr ctx)))))
+       (if (hash-has-key? (alt-table-alt->points atab) altn)
+           atab
+           (atab-add-altn atab altn errs (context-repr ctx))))))
   (struct-copy alt-table atab*
                [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab*)))]))
 
@@ -210,7 +207,7 @@
        ;; Tied
        [(and (= (cost-rec-berr v) err) (= k cost))
         (set! added? #t)
-        (values k (cost-rec err (set-add (cost-rec-altns v) altn)))]
+        (values k (cost-rec err (cons altn (cost-rec-altns v))))]
        ;; Pareto-better
        [(and (<= cost k) (<= err (cost-rec-berr v)))
         (set! added? #t)
