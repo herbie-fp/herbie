@@ -156,25 +156,16 @@
   (for/fold ([hash hash]) ([key keys])
     (hash-remove hash key)))
 
-(define (atab-remove* atab . altns)
-  (match-define (alt-table point->alts alt->points alt->done? alt->cost _ _) atab)
-  (define rel-points
-    (remove-duplicates
-     (append-map (curry hash-ref (alt-table-alt->points atab)) altns)))
-  
-  (define altn-set (list->seteq altns))
+(define (list-remove lst elts)
+  (set->list (set-subtract (list->set lst) elts)))
 
+(define (atab-remove* atab . altns)
+  (match-define (alt-table point->alts alt->points alt->done? alt->cost pctx _) atab)
+
+  (define altns* (list->set altns))
   (define pnts->alts*
-    (hash-union
-      point->alts
-      (for/hash ([pnt rel-points])
-        (define cost-hash
-          (for/hash ([(cost rec) (hash-ref point->alts pnt)])
-            (values cost (cost-rec (cost-rec-berr rec)
-                                   (set->list (set-subtract (list->seteq (cost-rec-altns rec))
-                                                            altn-set))))))
-        (values pnt cost-hash))
-      #:combine (λ (a b) b)))
+    (for/hash ([(pt curve) (in-hash point->alts)])
+      (values pt (pareto-map (curryr list-remove altns*) curve))))
 
   (struct-copy alt-table atab
                [point->alts pnts->alts*]
@@ -193,6 +184,10 @@
            (atab-add-altn atab altn errs (context-repr ctx))))))
   (struct-copy alt-table atab*
                [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab*)))]))
+
+(define (pareto-map f curve)
+  (for/hash ([(cost rec) (in-hash curve)])
+    (values cost (cost-rec (cost-rec-berr rec) (f (cost-rec-altns rec))))))
 
 (define (pareto-add curve altn cost err)
   (define added? #f)
