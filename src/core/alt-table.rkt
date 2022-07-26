@@ -131,17 +131,16 @@
       (set-remove! removable last))))
 
 (define (worst atab altns)
-  (let* ([alts->pnts (curry hash-ref (alt-table-alt->points atab))]
-         [alts->done? (curry hash-ref (alt-table-alt->done? atab))]
-         [alt->cost (if (*pareto-mode*)
-                        (curry hash-ref (alt-table-alt->cost atab))
-                        backup-alt-cost)]
-         ;; There must always be a not-done tied alt,
-         ;; since before adding any alts there weren't any tied alts
-         [undone-altns (filter (compose not alts->done?) altns)])
-    (argmax alt->cost
-      (argmins (compose length alts->pnts)
-               (if (null? undone-altns) altns undone-altns)))))
+  (define (alt-num-points a)
+    (length (hash-ref (alt-table-alt->points atab) a)))
+  (define (alt-done? a)
+    (if (hash-ref (alt-table-alt->done? atab) a) 1 0))
+  (define (alt-cost a)
+    (if (*pareto-mode*)
+        (hash-ref (alt-table-alt->cost atab) a)
+        (backup-alt-cost a)))
+
+  (argmax alt-cost (argmins alt-num-points (argmins alt-done? altns))))
 
 (define (atab-prune atab)
   (define sc (atab->set-cover atab))
