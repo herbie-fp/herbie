@@ -177,13 +177,15 @@
   (define progs (map alt-program altns))
   (define errss (flip-lists (batch-errors progs (alt-table-context atab) ctx)))
   (define atab*
-    (atab-prune
-     (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)])
-       (if (hash-has-key? (alt-table-alt->points atab) altn)
-           atab
-           (atab-add-altn atab altn errs (context-repr ctx))))))
-  (struct-copy alt-table atab*
-               [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab*)))]))
+    (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)])
+      (if (hash-has-key? (alt-table-alt->points atab) altn)
+          atab
+          (atab-add-altn atab altn errs (context-repr ctx)))))
+  (define atab** (struct-copy alt-table atab* [alt->points (invert-index (alt-table-point->alts atab*))]))
+  (define atab*** (atab-prune atab**))
+  (struct-copy alt-table atab***
+               [alt->points (invert-index (alt-table-point->alts atab***))]
+               [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab***)))]))
 
 (define (pareto-map f curve)
   (for/hash ([(cost rec) (in-hash curve)])
@@ -265,16 +267,13 @@
   (define point->alts*
     (for/hash ([(pt ex) (in-pcontext pcontext)] [err errs])
       (values pt (pareto-add (hash-ref point->alts pt) altn cost err))))
-  (define alt->points* (invert-index point->alts*))
 
-  (if (hash-has-key? alt->points* altn)
-      (alt-table point->alts*
-                 alt->points*
-                 (hash-set alt->done? altn #f)
-                 (hash-set alt->cost altn cost)
-                 pcontext
-                 all-alts)
-      atab))
+  (alt-table point->alts*
+             (hash-set alt->points altn #f)
+             (hash-set alt->done? altn #f)
+             (hash-set alt->cost altn cost)
+             pcontext
+             #f))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))
