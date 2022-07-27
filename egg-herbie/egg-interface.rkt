@@ -86,9 +86,6 @@
                                        _string/utf-8
                                        _string/utf-8
                                        -> _pointer))
-                                          _uint ;; node id
-                                          _uint ;; iteration
-                                          -> _pointer)) ;; string pointer
 
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants (_fun _egraph-pointer

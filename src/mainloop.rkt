@@ -5,7 +5,7 @@
          "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
          "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
-         "programs.rkt" "symmetry.rkt" "timeline.rkt")
+         "programs.rkt" "symmetry.rkt" "timeline.rkt" "soundiness.rkt")
 
 (provide (all-defined-out))
 
@@ -396,12 +396,12 @@
   (timeline-event! 'soundness)
   (define alts*
     (for/list ([altn alts-deduplicated])
-              (add-soundiness altn (*pcontext*) (*output-repr*))))
+              (add-soundiness altn (*pcontext*) (*context*))))
   
   (timeline-event! 'end)
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   ; find the best, sort the rest by cost
-  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*output-repr*))) alts*))
+  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts*))
   (define-values (best end-score rest)
     (for/fold ([best #f] [score #f] [rest #f])
               ([altn (in-list alts*)] [errs (in-list errss)])

@@ -6,7 +6,7 @@
 
 (provide simplify-expr simplify-batch
          make-simplification-combinations
-         rules->irules egg-run-rules)
+         rules->irules egg-run-rules (struct-out simplify-result))
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -70,14 +70,11 @@
   (define driver simplify-batch-egg)
   (timeline-push! 'inputs (map ~a exprs))
 
-  (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
   (define results (driver exprs #:rules rls #:precompute precompute? #:prove prove?))
   (define out
     (for/list ([result results] [expr exprs])
               (remove-duplicates (cons (simplify-result expr "") result))))
   (timeline-push! 'outputs (map ~a (apply append out)))
-  (debug #:from 'simplify "Simplified to:\n  "
-         (string-join (map ~a (map (compose simplify-result-expr last) out)) "\n  "))
     
   out)
 
@@ -124,7 +121,7 @@
                                   (error (string-append
                                           "Failed to produce proof for "
                                           (~a expr) " to " (~a result))))
-                            (simplify-result result proof))))))))
+                            (simplify-result result proof))))))
 
 
 (define (stop-reason->string sr)

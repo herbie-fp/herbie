@@ -43,7 +43,7 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
         C: FnMut(Id) -> Self::Cost,
     {
         if let Math::Pow([_, _, i]) = enode {
-            if let Some(n) = &self.egraph[*i].data {
+            if let Some((n, _reason)) = &self.egraph[*i].data {
                 if !n.denom().is_one() && n.denom().is_odd() {
                     return usize::MAX;
                 }
@@ -235,8 +235,8 @@ impl Analysis<Math> for ConstantFold {
             }
             (Some(_), None) => DidMerge(false, true),
             (Some(a), Some(ref b)) => {
-                if a != b && !self.unsound.swap(true, Ordering::SeqCst) {
-                    log::warn!("Bad merge detected: {} != {}", a, b);
+                if a.0 != b.0 && !self.unsound.swap(true, Ordering::SeqCst) {
+                    log::warn!("Bad merge detected: {} != {}", a.0, b.0);
                 }
                 DidMerge(false, false)
             }
