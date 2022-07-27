@@ -182,42 +182,6 @@
   res)
 
 ;; result function is a function that takes the ids of the nodes
-<<<<<<< HEAD
-;; egraph-add-exprs returns the result of result-function
-(define (egraph-add-exprs eg-data exprs result-function)
-  (define egg-exprs
-    (map
-     (lambda (expr) (expr->egg-expr expr eg-data))
-     exprs))
-  ;;(println "adding egg exprs")
-  ;;(println egg-exprs)
-    
-  #;
-  (debug #:from 'simplify (format "Sending expressions to egg_math:\n ~a"
-                                  (string-join egg-exprs "\n ")))
-      
-  (define expr-results
-    (map
-     (lambda (expr)
-       (egraph_add_expr (egraph-data-egraph-pointer eg-data) expr))
-     egg-exprs))
-  
-  (define node-ids
-    (for/list ([result expr-results])
-      (if (EGraphAddResult-successp result)
-          (EGraphAddResult-id result)
-          (raise (egg-add-exn
-               (string-append "Failed to add expr to egraph")
-               (current-continuation-marks))))))
-
-  (define res (result-function node-ids))
-
-  (for/list ([result expr-results])
-    (egraph_addresult_destroy result))
-
-  res)
-
-=======
 (define (egraph-add-expr eg-data expr)
   (define egg-expr (expr->egg-expr expr eg-data))
   (define result (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
@@ -226,7 +190,6 @@
             "Failed to add expr to egraph"
             (current-continuation-marks))))
   (- result 1))
->>>>>>> main
 
 (module+ test
 
