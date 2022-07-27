@@ -149,7 +149,7 @@
                                (</total prev val repr))))
   (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
-  (timeline-stop! (errors-score (option-errors out)))
+  (timeline-stop! (errors-score (option-errors out)) (length split-indices))
   out)
 
 (define/contract (pick-errors split-indices pts err-lsts repr)
