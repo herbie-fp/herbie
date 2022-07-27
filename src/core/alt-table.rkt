@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/hash)
-(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt" "../syntax/types.rkt")
+(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt" "../syntax/types.rkt" "../pareto.rkt")
 
 (provide
  (contract-out
@@ -20,7 +20,6 @@
 ;; Public API
 
 (struct alt-table (point->alts alt->points alt->done? alt->cost context all) #:prefab)
-(struct cost-rec (berr altns) #:prefab)
 
 (define (backup-alt-cost altn)
   (let loop ([expr (program-body (alt-program altn))])
@@ -41,7 +40,7 @@
   (alt-table (make-immutable-hash
                (for/list ([(pt ex) (in-pcontext pcontext)]
                           [err (errors (alt-program initial-alt) pcontext ctx)])
-                 (cons pt (hash cost (cost-rec err (list initial-alt))))))
+                 (cons pt (list (pareto-point cost err (list initial-alt))))))
              (hash initial-alt (for/list ([(pt ex) (in-pcontext pcontext)]) pt))
              (hash initial-alt #f)
              (hash initial-alt cost)
@@ -104,10 +103,10 @@
   
   (define tied (list->mutable-seteq (hash-keys alts->pnts)))
   (define coverage '())
-  (for* ([cost-hash (hash-values pnts->alts)] [rec (hash-values cost-hash)])
-    (match (cost-rec-altns rec)
+  (for* ([pcurve (in-hash-values pnts->alts)] [ppt (in-list pcurve)])
+    (match (pareto-point-data ppt)
       [(list)
-       (error "This point has no alts which are best at it!" rec)]
+       (error "This point has no alts which are best at it!" ppt)]
       [(list altn)
        (set-remove! tied altn)]
       [altns
@@ -188,45 +187,51 @@
                [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab***)))]))
 
 (define (pareto-map f curve)
-  (for/hash ([(cost rec) (in-hash curve)])
-    (values cost (cost-rec (cost-rec-berr rec) (f (cost-rec-altns rec))))))
+  (for/list ([ppt (in-list curve)])
+    (struct-copy pareto-point ppt [data (f (pareto-point-data ppt))])))
+
+(define (pareto-compare pt1 pt2)
+  (match-define (pareto-point cost1 err1 data1) pt1)
+  (match-define (pareto-point cost2 err2 data2) pt2)
+  (cond
+   [(and (= cost1 cost2)  (= err1 err2))  '=]
+   [(and (<= cost1 cost2) (<= err1 err2)) '<]
+   [(and (>= cost1 cost2) (>= err1 err2)) '>]
+   [else '<>]))
 
 (define (pareto-add curve altn cost err)
-  (define added? #f)
-  (define out
-    (for/hash ([(k v) (in-hash curve)])
-      (cond
-       ;; Pareto-incomparable
-       [(and (< k cost) (> (cost-rec-berr v) err))
-        (values k v)]
-       [(and (> k cost) (< (cost-rec-berr v) err))
-        (values k v)]
-       ;; Tied
-       [(and (= (cost-rec-berr v) err) (= k cost))
-        (set! added? #t)
-        (values k (cost-rec err (cons altn (cost-rec-altns v))))]
-       ;; Pareto-better
-       [(and (<= cost k) (<= err (cost-rec-berr v)))
-        (set! added? #t)
-        (values cost (cost-rec err (list altn)))]
-       ;; Pareto-worse
-       [else
-        (set! added? #t)
-        (values k v)])))
-  (if added? out (hash-set out cost (cost-rec err (list altn)))))
+  (define new-ppt (pareto-point cost err (list altn)))
+  (let loop ([curve curve])
+    ; The curve is sorted so that highest accuracy is first
+    (match curve
+      [(cons ppt rest)
+       (match (pareto-compare new-ppt ppt)
+         ['<
+          (loop rest)]
+         ['>
+          curve]
+         ['=
+          (cons (struct-copy pareto-point ppt [data (cons altn (pareto-point-data ppt))]) rest)]
+         ['<>
+          (cons ppt (loop rest))])]
+      ['()
+       (list (pareto-point cost err (list altn)))])))
 
 (module+ test
   (require rackunit)
 
   (define (make-pareto pts)
-    (for/hash ([pt (in-list pts)])
-      (match-define (list cost err altns ...) pt)
-      (values cost (cost-rec err altns))))
+    (sort
+     (for/list ([pt (in-list pts)])
+       (match-define (list cost err altns ...) pt)
+       (pareto-point cost err altns))
+     < #:key pareto-point-error))
 
   (define (from-pareto pts)
     (sort 
-     (for/list ([(cost rec) (in-hash pts)])
-       (list* cost (cost-rec-berr rec) (cost-rec-altns rec)))
+     (for/list ([ppt (in-list pts)])
+       (match-define (pareto-point cost err altns) ppt)
+       (list* cost err altns))
      < #:key first))
 
   (check-equal? (from-pareto (make-pareto '((1 5 a) (2 3 b) (5 1 a b))))
@@ -246,24 +251,21 @@
   (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 2 2))
                 '((1 5 a) (2 2 d) (5 1 c)))
   (check-equal? (from-pareto (pareto-add (make-pareto '((1 1 a))) 'b 1 3))
-                '((1 1 a)))
-
-)
+                '((1 1 a))))
 
 (define (invert-index idx)
   (define alt->points* (make-hasheq))
-  (for ([(pt recs) (in-hash idx)])
-    (for ([(cost rec) (in-hash recs)])
-      (for ([alt (in-list (cost-rec-altns rec))])
+  (for* ([(pt curve) (in-hash idx)]
+         [ppt (in-list curve)]
+         [alt (in-list (pareto-point-data ppt))])
         (hash-set! alt->points* alt
-                   (cons pt (hash-ref alt->points* alt '()))))))
+                   (cons pt (hash-ref alt->points* alt '()))))
   (make-immutable-hash (hash->list alt->points*)))
 
 (define (atab-add-altn atab altn errs repr)
   (define cost (alt-cost* altn repr))
   (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext all-alts) atab)
 
-  ; Update point->alts
   (define point->alts*
     (for/hash ([(pt ex) (in-pcontext pcontext)] [err errs])
       (values pt (pareto-add (hash-ref point->alts pt) altn cost err))))
@@ -282,28 +284,26 @@
 (define (atab-min-errors atab)
   (define pnt->alts (alt-table-point->alts atab))
   (for/list ([(pt ex) (in-pcontext (alt-table-context atab))])
-    (for/fold ([best #f]) ([rec (hash-values (hash-ref pnt->alts pt))])
-      (let ([err (cost-rec-berr rec)])
-        (cond [(not best) err]
-              [(< err best) err]
-              [(>= err best) best])))))
+    (define curve (hash-ref pnt->alts pt))
+    ;; Curve is sorted so lowest error is first
+    (pareto-point-error (first curve))))
 
 ;; The completeness invariant states that at any time, for every point there exists some
 ;; alt that is best at it.
 (define (check-completeness-invariant atab #:message [message ""])
-  (if (for/and ([(pt ch) (in-hash (alt-table-point->alts atab))])
-        (for/or ([(c rec) (in-hash ch)])
-          (not (null? (cost-rec-altns rec)))))
+  (if (for/and ([(pt curve) (in-hash (alt-table-point->alts atab))])
+        (for/and ([ppt (in-list curve)])
+          (not (null? (pareto-point-data ppt)))))
       atab
       (error (string-append "Completeness invariant violated. " message))))
 
 (define (pnt-maps-to-alt? pt altn pnt->alts)
-  (define cost-hash (hash-ref pnt->alts pt))
-  (for ([rec (hash-values cost-hash)])
-    (member altn (cost-rec-altns rec))))
+  (define curve (hash-ref pnt->alts pt))
+  (for/or ([ppt (in-list curve)])
+    (set-member? (pareto-point-data ppt) curve)))
 
 (define (alt-maps-to-pnt? altn pt alt->pnts)
-  (member pt (hash-ref alt->pnts altn)))
+  (set-member? (hash-ref alt->pnts altn) pt))
 
 ;; The reflexive invariant is this: a) For every alternative, for every point it maps to,
 ;; those points also map back to the alternative. b) For every point, for every alternative
@@ -314,35 +314,23 @@
   (if (and 
         (for/and ([(altn pnts) (in-hash alt->pnts)])
           (andmap (curryr pnt-maps-to-alt? altn pnt->alts) pnts))
-        (for/and ([(pt ch) (in-hash pnt->alts)])
-          (for/and ([(c rec) (in-hash ch)])
-            (andmap (curryr alt-maps-to-pnt? pt alt->pnts) (cost-rec-altns rec)))))
+        (for/and ([(pt curve) (in-hash pnt->alts)]) ; Minor
+          (for/and ([ppt (in-list curve)])
+            (andmap (curryr alt-maps-to-pnt? pt alt->pnts) (pareto-point-data ppt)))))
       atab
       (error (string-append "Reflexive invariant violated. " message))))
 
 ;; The minimality invariant states that every alt must be untied and best on at least one point.
 (define (check-minimality-invariant atab repr #:message [message ""])
-  (hash-for-each (alt-table-alt->points atab)
-                 (λ (k v)
-                    (let ([cnt (for/list ([pt v])
-                                 (let ([cost (alt-cost* k repr)]
-                                       [cost-hash (hash-ref (alt-table-point->alts atab) pt)])
-                                   (length (cost-rec-altns (hash-ref cost-hash cost)))))])
-                      (when (not (= (apply min cnt) 1))
-                        (error (string-append "Minimality invariant violated. " message)))))))
+  (for ([(alt pts) (in-hash (alt-table-alt->points atab))])
+    (unless (for/or ([pt (in-list pts)])
+              (define curve (hash-ref (alt-table-point->alts atab) pt))
+              (for/or ([ppt (in-list curve)])
+                (equal? (pareto-point-data ppt) (list alt))))
+      (error 'check-atab "Minimality invariant violated: ~a" message))))
 
 ; In normal mode, ensure that for each point, the hash contains a single cost
 (define (check-normal-mode-flatness atab)
-  (for ([(pt ch) (in-hash (alt-table-point->alts atab))])
-    (when (not (= (length (hash-keys ch)) 1))
+  (for ([(pt curve) (in-hash (alt-table-point->alts atab))])
+    (unless (= (length curve) 1)
       (error "Point to alternative hash table not flat"))))
-
-(define (assert-points-orphaned alts->pnts opnts all-pnts #:message [msg ""])
-  (hash-for-each alts->pnts
-     (λ (altn pnts)
-       (when (ormap (curryr member pnts) opnts)
-         (error (string-append "Assert Failed: The given points were not orphaned. " msg)))))
-  (let ([hopefully-unorphaned-points (remove* opnts all-pnts)]
-  [actually-unorphaned-points (remove-duplicates (apply append (hash-values alts->pnts)))])
-    (when (ormap (negate (curryr member actually-unorphaned-points)) hopefully-unorphaned-points)
-      (error (string-append "Assert Failed: Points other than the given points were orphaned. " msg)))))

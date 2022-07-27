@@ -1,6 +1,8 @@
 #lang racket
 
-(provide generate-pareto-curve)
+(provide generate-pareto-curve (struct-out pareto-point))
+
+(struct pareto-point (cost error data) #:prefab)
 
 (define *pareto-ensure-convex* (make-parameter #t))
 
