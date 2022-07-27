@@ -394,9 +394,11 @@
     (remove-duplicates cleaned-alts alt-equal?))
   
   (timeline-event! 'soundness)
+  ;; TODO run soundiness check on alts at the end
   (define alts*
     (for/list ([altn alts-deduplicated])
-              (add-soundiness altn (*pcontext*) (*context*))))
+              altn
+              #;(add-soundiness altn (*pcontext*) (*context*))))
   
   (timeline-event! 'end)
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
