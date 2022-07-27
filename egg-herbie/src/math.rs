@@ -70,7 +70,6 @@ impl IterationData<Math, ConstantFold> for IterData {
     }
 }
 
-
 // operators from FPCore
 define_language! {
     pub enum Math {
@@ -113,7 +112,6 @@ impl Default for ConstantFold {
     }
 }
 
-
 impl Analysis<Math> for ConstantFold {
     type Data = Option<(Constant, (PatternAst<Math>, Subst))>;
     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
@@ -140,27 +138,27 @@ impl Analysis<Math> for ConstantFold {
                 Math::Mul([_p, a, b]) => x(a)? * x(b)?,
                 Math::Div([_p, a, b]) => {
                     if x(b)?.is_zero() {
-                        return None
+                        return None;
                     } else {
                         x(a)? / x(b)?
                     }
-                },
+                }
                 Math::Neg([_p, a]) => -x(a)?.clone(),
                 Math::Pow([_p, a, b]) => {
                     if is_zero(a) {
                         if x(b)?.is_positive() {
                             Ratio::new(BigInt::from(0), BigInt::from(1))
                         } else {
-                            return None
+                            return None;
                         }
                     } else if is_zero(b) {
                         Ratio::new(BigInt::from(1), BigInt::from(1))
                     } else if x(b)?.is_integer() {
                         Pow::pow(x(a)?, x(b)?.to_integer())
                     } else {
-                        return None
+                        return None;
                     }
-                },
+                }
                 Math::Sqrt([_p, a]) => {
                     let a = x(a)?;
                     if *a.numer() > BigInt::from(0) && *a.denom() > BigInt::from(0) {
@@ -170,24 +168,24 @@ impl Analysis<Math> for ConstantFold {
                         if is_perfect {
                             Ratio::new(s1, s2)
                         } else {
-                            return None
+                            return None;
                         }
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Math::Log([_p, a]) => {
                     if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
                         Ratio::new(BigInt::from(0), BigInt::from(1))
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Math::Cbrt([_p, a]) => {
                     if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
                         Ratio::new(BigInt::from(1), BigInt::from(1))
                     } else {
-                        return None
+                        return None;
                     }
                 }
                 Math::Fabs([_p, a]) => x(a)?.clone().abs(),
@@ -195,7 +193,7 @@ impl Analysis<Math> for ConstantFold {
                 Math::Ceil([_p, a]) => x(a)?.ceil(),
                 Math::Round([_p, a]) => x(a)?.round(),
 
-                _ => return None
+                _ => return None,
             },
             {
                 let mut pattern: PatternAst<Math> = Default::default();
@@ -205,7 +203,9 @@ impl Analysis<Math> for ConstantFold {
                     if let Some(constant) = x(&child) {
                         pattern.add(ENodeOrVar::ENode(Math::Constant(constant)));
                     } else {
-                        let var = ("?".to_string() + &var_counter.to_string()).parse().unwrap();
+                        let var = ("?".to_string() + &var_counter.to_string())
+                            .parse()
+                            .unwrap();
                         pattern.add(ENodeOrVar::Var(var));
                         subst.insert(var, child);
                         var_counter += 1;
@@ -220,7 +220,8 @@ impl Analysis<Math> for ConstantFold {
                 });
                 pattern.add(ENodeOrVar::ENode(head));
                 (pattern, subst)
-            }))
+            },
+        ))
     }
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
@@ -244,7 +245,12 @@ impl Analysis<Math> for ConstantFold {
     fn modify(egraph: &mut EGraph, class_id: Id) {
         let class = &mut egraph[class_id];
         if let Some((c, (pat, subst))) = class.data.clone() {
-            egraph.union_instantiations(&pat, &format!("{}", c).parse().unwrap(), &subst, "metadata-eval".to_string());
+            egraph.union_instantiations(
+                &pat,
+                &format!("{}", c).parse().unwrap(),
+                &subst,
+                "metadata-eval".to_string(),
+            );
 
             if egraph.analysis.prune {
                 egraph[class_id].nodes.retain(|n| n.is_leaf())

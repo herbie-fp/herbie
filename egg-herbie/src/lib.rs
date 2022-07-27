@@ -5,10 +5,10 @@ use egg::{Extractor, Id, Iteration, Language, StopReason, Symbol};
 use indexmap::IndexMap;
 use math::*;
 
-use std::time::Duration;
 use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
 unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
@@ -27,7 +27,7 @@ unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
 pub struct Context {
     iteration: usize,
     runner: Option<Runner>,
-    rules: Vec<Rewrite>
+    rules: Vec<Rewrite>,
 }
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
@@ -282,7 +282,7 @@ unsafe fn make_empty_string() -> *const c_char {
     let best_str = CString::new("".to_string()).unwrap();
     let best_str_pointer = best_str.as_ptr();
     std::mem::forget(best_str);
-    best_str_pointer   
+    best_str_pointer
 }
 
 // TODO free memory of resulting string through ffi
@@ -290,7 +290,8 @@ unsafe fn make_empty_string() -> *const c_char {
 pub unsafe extern "C" fn egraph_get_proof(
     ptr: *mut Context,
     expr: *const c_char,
-    goal: *const c_char) -> *const c_char {
+    goal: *const c_char,
+) -> *const c_char {
     ffirun(|| {
         let ctx = &mut *ptr;
 
@@ -299,15 +300,15 @@ pub unsafe extern "C" fn egraph_get_proof(
         let expr_rec = match cstring_to_recexpr(expr) {
             None => {
                 return make_empty_string();
-            },
-            Some(rec_expr) => rec_expr
+            }
+            Some(rec_expr) => rec_expr,
         };
 
         let goal_rec = match cstring_to_recexpr(goal) {
             None => {
                 return make_empty_string();
-            },
-            Some(rec_expr) => rec_expr
+            }
+            Some(rec_expr) => rec_expr,
         };
 
         let mut runner = ctx
