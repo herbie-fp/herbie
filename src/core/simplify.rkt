@@ -74,7 +74,7 @@
   (define out
     (for/list ([result results] [expr exprs])
               (remove-duplicates (cons (simplify-result expr "") result))))
-  (timeline-push! 'outputs (map ~a (apply append out)))
+  (timeline-push! 'outputs (map (compose ~a simplify-result) (apply append out)))
     
   out)
 
