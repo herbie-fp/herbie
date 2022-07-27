@@ -164,7 +164,7 @@
   (define altns* (list->set altns))
   (define pnts->alts*
     (for/hash ([(pt curve) (in-hash point->alts)])
-      (values pt (pareto-map (curryr list-remove altns*) curve))))
+      (values pt (pareto-map (curry remq* altns) curve))))
 
   (struct-copy alt-table atab
                [point->alts pnts->alts*]
@@ -186,73 +186,6 @@
                [alt->points (invert-index (alt-table-point->alts atab***))]
                [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab***)))]))
 
-(define (pareto-map f curve)
-  (for/list ([ppt (in-list curve)])
-    (struct-copy pareto-point ppt [data (f (pareto-point-data ppt))])))
-
-(define (pareto-compare pt1 pt2)
-  (match-define (pareto-point cost1 err1 data1) pt1)
-  (match-define (pareto-point cost2 err2 data2) pt2)
-  (cond
-   [(and (= cost1 cost2)  (= err1 err2))  '=]
-   [(and (<= cost1 cost2) (<= err1 err2)) '<]
-   [(and (>= cost1 cost2) (>= err1 err2)) '>]
-   [else '<>]))
-
-(define (pareto-add curve altn cost err)
-  (define new-ppt (pareto-point cost err (list altn)))
-  (let loop ([curve curve])
-    ; The curve is sorted so that highest accuracy is first
-    (match curve
-      [(cons ppt rest)
-       (match (pareto-compare new-ppt ppt)
-         ['<
-          (loop rest)]
-         ['>
-          curve]
-         ['=
-          (cons (struct-copy pareto-point ppt [data (cons altn (pareto-point-data ppt))]) rest)]
-         ['<>
-          (cons ppt (loop rest))])]
-      ['()
-       (list (pareto-point cost err (list altn)))])))
-
-(module+ test
-  (require rackunit)
-
-  (define (make-pareto pts)
-    (sort
-     (for/list ([pt (in-list pts)])
-       (match-define (list cost err altns ...) pt)
-       (pareto-point cost err altns))
-     < #:key pareto-point-error))
-
-  (define (from-pareto pts)
-    (sort 
-     (for/list ([ppt (in-list pts)])
-       (match-define (pareto-point cost err altns) ppt)
-       (list* cost err altns))
-     < #:key first))
-
-  (check-equal? (from-pareto (make-pareto '((1 5 a) (2 3 b) (5 1 a b))))
-                '((1 5 a) (2 3 b) (5 1 a b)))
-  (check-equal? (from-pareto (pareto-add (make-pareto '()) 'a 1 5))
-                '((1 5 a)))
-  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (5 1 b))) 'c 3 3))
-                '((1 5 a) (3 3 c) (5 1 b)))
-  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b))) 'c 5 1))
-                '((1 5 a) (3 3 b) (5 1 c)))
-  (check-equal? (from-pareto (pareto-add (make-pareto '((3 3 b) (5 1 c))) 'a 1 5))
-                '((1 5 a) (3 3 b) (5 1 c)))
-  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 1 5))
-                '((1 5 d a) (3 3 b) (5 1 c)))
-  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 3 3))
-                '((1 5 a) (3 3 d b) (5 1 c)))
-  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 2 2))
-                '((1 5 a) (2 2 d) (5 1 c)))
-  (check-equal? (from-pareto (pareto-add (make-pareto '((1 1 a))) 'b 1 3))
-                '((1 1 a))))
-
 (define (invert-index idx)
   (define alt->points* (make-hasheq))
   (for* ([(pt curve) (in-hash idx)]
@@ -268,7 +201,8 @@
 
   (define point->alts*
     (for/hash ([(pt ex) (in-pcontext pcontext)] [err errs])
-      (values pt (pareto-add (hash-ref point->alts pt) altn cost err))))
+      (define ppt (pareto-point cost err (list altn)))
+      (values pt (pareto-union (list ppt) (hash-ref point->alts pt)))))
 
   (alt-table point->alts*
              (hash-set alt->points altn #f)
