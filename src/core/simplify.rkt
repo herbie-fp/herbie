@@ -81,49 +81,6 @@
     
   out)
 
-(lazy-require
- [regraph (make-regraph rule-phase precompute-phase prune-phase extractor-phase
-                        regraph-count regraph-cost regraph-extract)])
-
-(define (eval-application* op . args)
-  (apply eval-application (impl->operator op) args))
-
-(define/contract (simplify-batch-regraph exprs #:rules rls #:precompute precompute? #:prove prove?)
-  (-> (listof expr?) #:rules (listof rule?) #:precompute boolean? #:prove boolean? (listof (listof simplify-result?)))
-  (timeline-push! 'method "regraph")
-
-  (define start-time (current-inexact-milliseconds))
-  (define (log rg iter)
-    (define cnt (regraph-count rg))
-    (define cost (regraph-cost rg))
-    (debug #:from 'simplify #:depth 2 "iteration " iter ": " cnt " enodes " "(cost " cost ")")
-    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
-
-  (define rg (make-regraph exprs #:limit (*node-limit*)))
-
-  (define phases
-    (list (rule-phase (map rule-input rls) (map rule-output rls))
-          (and precompute? (precompute-phase eval-application*))
-          prune-phase
-          extractor-phase))
-
-  (for/and ([iter (in-naturals 0)])
-    (log rg iter)
-    (define initial-cnt (regraph-count rg))
-    ;; Iterates the egraph by applying each of the given rules to the egraph
-    (for ([phase phases] #:when phase) (phase rg))
-    (and (< initial-cnt (regraph-count rg) (*node-limit*))))
-
-  (log rg "done")
-  (map (lambda (a) (list (simplify-result a ""))) (regraph-extract rg)))
-
-(lazy-require
- [egg-herbie (with-egraph egraph-add-exprs egraph-run
-                          egraph-is-unsound-detected egraph-get-proof
-                          egraph-get-times-applied egraph-get-simplest egraph-get-cost
-                          egg-expr->expr make-ffi-rules free-ffi-rules
-                          iteration-data-num-nodes iteration-data-time)])
-
 (define (translate-proof proof-str egg-graph)
   (map (lambda (s)
            (egg-expr->expr s egg-graph))

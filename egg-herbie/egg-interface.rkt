@@ -11,7 +11,6 @@
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
          egraph_get_proof destroy_string
-         (struct-out EGraphAddResult)
          (struct-out EGraphIter)
          (struct-out FFIRule))
 
