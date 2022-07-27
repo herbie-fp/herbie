@@ -112,15 +112,15 @@
        (set-remove! tied altn)]
       [altns
        (set! coverage (cons (list->vector altns) coverage))]))
-  (set-cover tied coverage))
+  (set-cover tied (list->vector coverage)))
 
 (define (set-cover-remove! sc altn)
   (match-define (set-cover removable coverage) sc)
   (set-remove! removable altn)
-  (for ([s (in-list coverage)])
+  (for ([j (in-naturals)] [s (in-vector coverage)] #:when s)
     (define count 0)
     (define last #f)
-    (for ([i (in-naturals)] [a (in-vector s)])
+    (for ([i (in-naturals)] [a (in-vector s)] #:when a)
       (cond
        [(eq? a altn)
         (vector-set! s i #f)]
@@ -128,6 +128,7 @@
         (set! count (add1 count))
         (set! last a)]))
     (when (= count 1)
+      (vector-set! coverage j #f)
       (set-remove! removable last))))
 
 (define (worst atab altns)
