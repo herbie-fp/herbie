@@ -239,17 +239,19 @@
 
 (define (render-phase-alts alts)
   `((dt "Alt Table")
-    (dd (table ([class "times"])
-         (thead (tr (th "Status") (th "Error") (th "Program")))
-         ,@(for/list ([rec (in-list alts)])
-             (match-define (list expr status score) rec)
-             `(tr
-               ,(match status
-                  ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
-                  ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
-                  ["fresh" `(td)])
-               (td ,(format-bits score) "b")
-               (td (pre ,expr))))))))
+    (dd (details
+         (summary "Click to see full alt table")
+         (table ([class "times"])
+                (thead (tr (th "Status") (th "Error") (th "Program")))
+                ,@(for/list ([rec (in-list alts)])
+                    (match-define (list expr status score) rec)
+                    `(tr
+                      ,(match status
+                         ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
+                         ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
+                         ["fresh" `(td)])
+                      (td ,(format-bits score) "b")
+                      (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
   `((dt "Calls")
