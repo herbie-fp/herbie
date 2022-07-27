@@ -35,6 +35,20 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
+var Subreport = new Component("#subreports", {
+    setup: function() {
+        this.elt.classList.add("no-subreports");
+        this.button = Element("a", {id: "subreports-toggle"}, "See subreports");
+        this.button.addEventListener("click", this.toggle);
+        this.elt.insertBefore(this.button, this.elt.children[0]);
+    },
+    toggle: function() {
+        this.elt.classList.toggle("no-subreports");
+        var changed_only = this.elt.classList.contains("no-subreports");
+        this.button.innerText = changed_only ? "See subreports" : "Hide subreports";
+    }
+});
+
 var TogglableFlags = new Component("#flag-list", {
     setup: function() {
         this.elt.classList.add("changed-flags");
@@ -47,36 +61,6 @@ var TogglableFlags = new Component("#flag-list", {
         var changed_only = this.elt.classList.contains("changed-flags");
         this.button.innerText = changed_only ? "see all" : "see diff";
     }
-});
-
-var FigureColors = new Component("#graphs figure", {
-    setup: function() {
-        this.caption = this.elt.querySelector("figcaption");
-        var imgs = [].slice.call(this.elt.querySelectorAll("img"));
-        var names = imgs.map(function(i) { return i.getAttribute("data-name"); });
-        var buttons = names.filter(function(i) { return i; }).map(this.mkbutton);
-        var caption_text = this.elt.querySelector("figcaption p");
-        this.caption.insertBefore(Element("div", buttons), caption_text);
-    },
-    mkbutton: function(name) {
-        var title = "Click to toggle " + name.toLowerCase() + " graph";
-        var control = Element("button", { className: name, title: title}, name);
-        control.addEventListener("click", this.toggler(control, name));
-        return control;
-    },
-    toggler: function(button, name) {
-        var figure = this.elt;
-        var img = figure.querySelector("img[data-name=" + name + "]");
-        return function() {
-            if (button.classList.contains("inactive")) {
-                button.classList.remove("inactive");
-                img.style.display = "";
-            } else {
-                button.classList.add("inactive");
-                img.style.display = "none";
-            }
-        }
-    },
 });
 
 var TryIt = new Component("#try-it", {
@@ -114,53 +98,147 @@ var TryIt = new Component("#try-it", {
     },
 });
 
-var FigureTabs = new Component("#graphs > div", {
-    setup: function() {
-        var figures = this.elt.getElementsByTagName("figure");
-        var figure_array = {};
-        var default_figure = null;
-        for (var i = 0; i < figures.length; i++) {
-            var idx = figures[i].id;
-            var variable = figures[i].getElementsByTagName("var")[0].innerText;
-            if (figures[i].classList.contains("default")) default_figure = figures[i];
-            figure_array[idx] = { elt: figures[i], name: variable };
-            figures[i].style.display = "none";
-            figures[i].querySelector("figcaption > p").style.display = "none";
-        }
-        if (default_figure === null && figures.length > 0) default_figure = figures[0];
+const ClientGraph = new Component('#graphs', {
+    setup: async () => {
+        const points_json = await (async () => {
+            const get_points_store = {}
+            
+            const get_points_memo = async () => {
+                if (get_points_store.value) { return get_points_store.value }
+                const ps = await get_json('points.json')
+                get_points_store.value = ps
+                return get_points_store.value
+            }
+            const get_json = url => fetch(url, {
+                // body: `_body_`,
+                headers: {"content-type": "text/plain"},
+                method: "GET",
+                mode: 'cors'
+                }).then(async response => {
+                //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
+                return await response.json()
+            })
+            return get_points_memo()
+        })()
         
-        var buttons = Object.keys(figure_array).map(function(idx) {
-            return Element("li", { id: "tab-" + idx }, figure_array[idx].name);
-        });
+        const plot = async (varName, function_names) => {
+            const functions = [
+                { name: 'start', line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000007'} },
+                { name: 'end', line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff07'} },
+                { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0005'}}  // TODO add target support
+            ].filter(o => function_names.includes(o.name))
+            const index = all_vars.indexOf(varName)
+            // NOTE ticks and splitpoints include all vars, so we must index
+            const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = points_json
+            const ticks = ticks_by_varidx[index]
+            if (!ticks) {
+                return html(`<div>The function could not be plotted on the given range for this input.</div>`)
+            }
+            const tick_strings = ticks.map(t => t[0])
+            const tick_ordinals = ticks.map(t => t[1])
+            const tick_0_index = tick_strings.indexOf("0")
+            const splitpoints = splitpoints_by_varidx[index]
+            const grouped_data = points.map((p, i) => ({
+                input: p,
+                error: Object.fromEntries(function_names.map(name => ([name, error[name][i]])))
+            }))
+            const domain = [Math.min(...tick_ordinals), Math.max(...tick_ordinals)]
 
-        var tab_bar = Element("ul", { className: "tabbar" }, [
-            Element("p", "Bits error vs value of"),
-            buttons,
-        ]);
-        this.elt.appendChild(tab_bar);
+            async function extra_axes_and_ticks() {
+                return [
+                    ...splitpoints.map(p => Plot.ruleX([p], { stroke: "lightgray", strokeWidth: 4 })),
+                    ...(tick_0_index > -1 ? [Plot.ruleX([tick_ordinals[tick_0_index]])] : []),
+                ]
+            }
 
-        for (var i = 0; i < buttons.length; i++) {
-            buttons[i].addEventListener("click", this.toggle.bind(this, buttons[i].id));
+
+            async function line_and_dot_graphs({ name, fn, line, dot, area }) {
+                const key_fn = fn => (a, b) => fn(a) - fn(b)
+                const index = all_vars.indexOf(varName)
+                const data = grouped_data.map(({ input, error }) => ({
+                        x: input[index],
+                        y: error[name]
+                })).sort(key_fn(d => d.x))
+                    .map(({ x, y }, i) => ({ x, y, i }))
+                const sliding_window = (A, size) => [...new Array(Math.max(A.length - size, 0))].map((_, i) => {
+                    const half = Math.floor(size / 2)
+                    i = i + half
+                    const slice = A.slice(i - half, i - half + size).sort(key_fn(o => o.y))
+                    const x = A[i].x
+                    const top = slice[Math.floor(slice.length * .95)].y
+                    const top_q = slice[Math.floor(slice.length * .75)].y
+                    const bottom = slice[Math.floor(slice.length * .05)].y
+                    const bottom_q = slice[Math.floor(slice.length * .25)].y
+                    const middle = slice[Math.floor(slice.length * .5)].y
+                    const average = slice.reduce((acc, e) => e.y + acc, 0) / slice.length
+                    return { x, top, middle, bottom, average, top_q, bottom_q }
+                })
+                const bin_size = 128
+                const sliding_window_data = sliding_window(data, bin_size)
+                return [
+                    Plot.line(sliding_window_data, {
+                        x: "x",
+                        y: "average",
+                        strokeWidth: 1.3, ...line,
+                    }),
+                    Plot.dot(data, {x: "x", y: "y", r: 1.3,
+                        title: d => `x: ${d.x} \n i: ${d.i} \n bits of error: ${d.y}`,
+                        ...dot
+                    }),
+                ]
+            }
+            const out = Plot.plot({
+                width: '800',
+                height: '400',                
+                    x: {
+                        tickFormat: d => tick_strings[tick_ordinals.indexOf(d)],
+                        ticks: tick_ordinals, label: `value of ${varName}`,
+                        labelAnchor: 'center', /*labelOffset: [200, 20], tickRotate: 70, */
+                        domain,
+                        grid: true
+                    },
+                    y: {
+                        label: "Bits of error", domain: [0, bits],
+                        ticks: new Array(bits / 4 + 1).fill(0).map((_, i) => i * 4),
+                        tickFormat: d => d % 8 != 0 ? '' : d
+                    },
+                    marks: await Promise.all([...await extra_axes_and_ticks(),
+                        ...functions.map(async config =>
+                                        await line_and_dot_graphs(config)).flat()])
+            })
+            out.setAttribute('viewBox', '0 0 800 430')
+            return out
         }
-    
-        if (default_figure) this.toggle("tab-" + default_figure.id);
-    },
-    toggle: function(tabid) {
-        var id = tabid.substr(4);
-        var tab = document.getElementById(tabid);
-        var pane = document.getElementById(id);
-
-        var old_tab = tab.parentNode.getElementsByClassName("selected");
-        if (old_tab.length > 0) {
-            var old_pane = document.getElementById(old_tab[0].id.substr(4));
-            old_pane.style.display = "none";
-            old_tab[0].classList.remove("selected")
+        function html(string) {
+            const t = document.createElement('template');
+            t.innerHTML = string;
+            return t.content;
         }
-
-        tab.classList.add("selected");
-        pane.style.display = "block";
+        const all_vars = points_json.vars
+        async function render(selected_var_name, selected_functions) {
+            const all_fns = ['start', 'end', 'target'].filter(name => points_json.error[name] != false)
+            const options_view = html(`
+                <div id="plot_options">
+                <div id="variables">
+                    Bits of error vs. ${all_vars.map(v => `<span class="variable ${selected_var_name == v ? 'selected' : ''}">${v}</span>`).join('')}
+                </div>
+                <div id="functions">
+                    ${all_fns.map(fn => `<div id="function_${fn}" class="function ${selected_functions.includes(fn) ? 'selected' : ''}"></div>`).join('')}
+                </div>
+                </div>
+            `)
+            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+            options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
+                render(e.textContent, selected_functions)
+            })
+            options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
+                render(selected_var_name, toggle(e.id.split('_').slice(1).join('_'), selected_functions))
+            })
+            document.querySelector('#graphs-content').replaceChildren(await plot(selected_var_name, selected_functions), options_view)
+        }
+        render(all_vars[0], ['start', 'end'])
     }
-});
+})
 
 var RenderMath = new Component(".math", {
     depends: function() {

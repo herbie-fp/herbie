@@ -2,7 +2,7 @@
 
 (require "../src/common.rkt" "../src/points.rkt" "../src/load-plugin.rkt"
          "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt"
-         "../src/interface.rkt")
+         "../src/syntax/types.rkt")
 
 (define *precision* (make-parameter #f))
 (define *ignore-target* (make-parameter #f))
@@ -43,7 +43,7 @@
       [(test-success test bits time timeline warnings
                      start-alt end-alts preprocess points exacts start-est-error end-est-error
                      newpoints newexacts start-error end-errors target-error
-                     baseline-error oracle-error start-cost costs all-alts)
+                     start-cost costs all-alts)
        (define end-error (car end-errors))
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
@@ -89,10 +89,11 @@
     (when given-seed (set-seed! given-seed))]
    [("--precision") prec "Which precision to use for tests"
     (*precision* (get-representation (string->symbol prec)))]
+   [("--num-iters") num "The number of iterations to use for the main loop"
+    (*num-iterations* (string->number num))]
    [("--pareto") "Enables Pherbie"
     (*pareto-mode* #t)
     (*ignore-target* #t)
-    (*num-iterations* 2)   ; keep iters low
     (*timeout* (* 1000 60 10))
     (disable-flag! 'rules 'numerics)] ; causes time to increase
    #:args bench-dir

@@ -13,7 +13,7 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.3.1
+        uses: Bogdanp/setup-racket@v1.8
         with:
           version: stable
       - name: Install Rust compiler

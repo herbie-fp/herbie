@@ -1,68 +1,72 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../errors.rkt" "../interface.rkt" "syntax.rkt")
+(require "../common.rkt" "../conversions.rkt" "../errors.rkt" "types.rkt" "syntax.rkt")
 (provide assert-program!)
-(module+ test (require rackunit "../load-plugin.rkt"))
 
-(define (check-expression* stx vars error!)
-  (match stx
-    [#`,(? number?) (void)]
-    [#`,(? constant-operator?) (void)]
-    [#`,(? variable? var)
-     (unless (set-member? vars stx)
-       (error! stx "Unknown variable ~a" var))]
-    [#`(let* ((#,vars* #,vals) ...) #,body)
-     (define bindings
-       (for/fold ([vars vars]) ([var vars*] [val vals])
-         (unless (identifier? var)
-           (error! var "Invalid variable name ~a" var))
-         (check-expression* val vars error!)
-         (bound-id-set-union vars (immutable-bound-id-set (list var)))))
-     (check-expression* body bindings error!)]
-    [#`(let ((#,vars* #,vals) ...) #,body)
-     ;; These are unfolded by desugaring
-     (for ([var vars*] [val vals])
-       (unless (identifier? var)
-         (error! var "Invalid variable name ~a" var))
-       (check-expression* val vars error!))
-     (check-expression* body (bound-id-set-union vars (immutable-bound-id-set vars*)) error!)]
-    [#`(let #,varlist #,body)
-     (error! stx "Invalid `let` expression variable list ~a" (syntax->datum varlist))
-     (check-expression* body vars error!)]
-    [#`(let #,args ...)
-     (error! stx "Invalid `let` expression with ~a arguments (expects 2)" (length args))
-     (unless (null? args) (check-expression* (last args) vars error!))]
-    [#`(if #,cond #,ift #,iff)
-     (check-expression* cond vars error!)
-     (check-expression* ift vars error!)
-     (check-expression* iff vars error!)]
-    [#`(if #,args ...)
-     (error! stx "Invalid `if` expression with ~a arguments (expects 3)" (length args))
-     (unless (null? args) (check-expression* (last args) vars error!))]
-    [#`(! #,props ... #,body)
-     (check-properties* props '() body)
-     (check-expression* body vars error!)]
-    [#`(,(? (curry set-member? '(+ - * / and or = != < > <= >=))) #,args ...)
-     ;; These expand by associativity so we don't check the number of arguments
-     (for ([arg args]) (check-expression* arg vars error!))]
-    [#`(#,f-syntax #,args ...)
-     (define f (syntax->datum f-syntax))
-     (cond
-      [(operator-exists? f)
+
+
+(define (check-expression* stx vars error! deprecated-ops)
+  (let loop ([stx stx] [vars vars])
+    (match stx
+     [#`,(? number?) (void)]
+     [#`,(? constant-operator?) (void)]
+     [#`,(? variable? var)
+      (unless (set-member? vars stx)
+        (error! stx "Unknown variable ~a" var))]
+     [#`(let* ((#,vars* #,vals) ...) #,body)
+      (define bindings
+        (for/fold ([vars vars]) ([var vars*] [val vals])
+          (unless (identifier? var)
+            (error! var "Invalid variable name ~a" var))
+          (loop val vars)
+          (bound-id-set-union vars (immutable-bound-id-set (list var)))))
+      (loop body bindings)]
+     [#`(let ((#,vars* #,vals) ...) #,body)
+      ;; These are unfolded by desugaring
+      (for ([var vars*] [val vals])
+        (unless (identifier? var)
+          (error! var "Invalid variable name ~a" var))
+        (loop val vars))
+      (loop body (bound-id-set-union vars (immutable-bound-id-set vars*)))]
+     [#`(let #,varlist #,body)
+      (error! stx "Invalid `let` expression variable list ~a" (syntax->datum varlist))
+      (loop body vars)]
+     [#`(let #,args ...)
+      (error! stx "Invalid `let` expression with ~a arguments (expects 2)" (length args))
+      (unless (null? args) (loop (last args) vars))]
+     [#`(if #,cond #,ift #,iff)
+      (loop cond vars)
+      (loop ift vars)
+      (loop iff vars)]
+     [#`(if #,args ...)
+      (error! stx "Invalid `if` expression with ~a arguments (expects 3)" (length args))
+      (unless (null? args) (loop (last args) vars))]
+     [#`(! #,props ... #,body)
+      (check-properties* props '() body deprecated-ops)
+      (loop body vars)]
+     [#`(,(? (curry set-member? '(+ - * / and or = != < > <= >=))) #,args ...)
+      ;; These expand by associativity so we don't check the number of arguments
+      (for ([arg args]) (loop arg vars))]
+     [#`(#,f-syntax #,args ...)
+      (define f (syntax->datum f-syntax))
+      (cond
+       [(operator-exists? f)
         (define arity (length (real-operator-info f 'itype)))
         (unless (= arity (length args))
           (error! stx "Operator ~a given ~a arguments (expects ~a)"
-                  f (length args) arity))]
-      [(hash-has-key? (*functions*) f)
+                  f (length args) arity))
+        (when (operator-deprecated? f)
+          (set-add! deprecated-ops f))]
+       [(hash-has-key? (*functions*) f)
         (match-define (list vars _ _) (hash-ref (*functions*) f))
         (unless (= (length vars) (length args))
           (error! stx "Function ~a given ~a arguments (expects ~a)"
                   f (length args) (length vars)))]
-      [else
+       [else
         (error! stx "Unknown operator ~a" f)])
-     (for ([arg args]) (check-expression* arg vars error!))]
-    [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))]))
+      (for ([arg args]) (loop arg vars))]
+     [_ (error! stx "Unknown syntax ~a" (syntax->datum stx))])))
 
 (define (check-property* prop error!)
   (unless (identifier? prop)
@@ -71,7 +75,7 @@
   (unless (equal? (substring name 0 1) ":")
     (error! prop "Invalid property name ~a" prop)))
 
-(define (check-properties* props vars error!)
+(define (check-properties* props vars error! deprecated-ops)
   (define prop-dict
     (let loop ([props props] [out '()])
       (match props
@@ -97,7 +101,7 @@
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
-    (define known-repr? (generate-repr (syntax->datum prec)))
+    (define known-repr? (get-representation (syntax->datum prec)))
     (unless known-repr?
       (error! prec "Unknown :precision ~a" prec)))
 
@@ -109,21 +113,30 @@
         (error! cite "Invalid :cite ~a; must be a list" cite)))   
 
   (when (dict-has-key? prop-dict ':pre)
-    (check-expression* (dict-ref prop-dict ':pre) vars error!))
+    (check-expression* (dict-ref prop-dict ':pre) vars error! deprecated-ops))
 
   (when (dict-has-key? prop-dict ':herbie-target)
-    (check-expression* (dict-ref prop-dict ':herbie-target) vars error!))
+    (check-expression* (dict-ref prop-dict ':herbie-target) vars error! deprecated-ops))
     
   (when (dict-has-key? prop-dict ':herbie-conversions)
-    (define conversions (dict-ref prop-dict ':herbie-conversions))
-    (if (list? (syntax-e conversions))
-        (for ([conv (syntax->datum conversions)])
-          (unless (and (list? conv) (= (length conv) 2))
-            (error! conversions "Invalid conversion ~a; Valid example: (binary64 binary32)" conv))
-          (define known-repr? (and (generate-repr (first conv)) (generate-repr (second conv))))
-          (unless known-repr?
-            (error! conversions "Unknown precision in conversion ~a" conv)))
-        (error! conversions "Invalid :herbie-conversions ~a; must be a list" conversions))))
+    (define conversion-stx (dict-ref prop-dict ':herbie-conversions))
+    (cond
+     [(list? (syntax-e conversion-stx))
+      (define conversions (syntax->datum conversion-stx))
+      (for ([conv conversions])
+        (match conv
+         [(list repr-name-1 repr-name2)
+          (define known-repr?
+            (with-handlers ([exn:fail:user:herbie? (const #f)])
+              (get-representation (first conv))
+              (get-representation (second conv))
+              #t))
+          (unless known-repr? (error! conversion-stx "Unknown precision in conversion ~a" conv))]
+         [_ (error! conversion-stx "Invalid conversion ~a; Valid example: (binary64 binary32)" conv)]))
+      (generate-conversions (map (curry map get-representation) conversions))]
+     [else
+      (error! conversion-stx "Invalid :herbie-conversions ~a; must be a list" conversion-stx)]))
+)
 
 (define (check-program* stx vars props body error!)
   (unless (list? vars)
@@ -134,8 +147,14 @@
       (error! stx "Argument ~a is not a variable name" var))
    (when (check-duplicate-identifier vars*)
       (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*))))
-  (check-properties* props (immutable-bound-id-set vars*) error!)
-  (check-expression* body (immutable-bound-id-set vars*) error!))
+  (define deprecated-ops (mutable-set))
+  (check-properties* props (immutable-bound-id-set vars*) error! deprecated-ops)
+  (check-expression* body (immutable-bound-id-set vars*) error! deprecated-ops)
+  (for ([op (in-set deprecated-ops)])
+    (define message
+      (format (syntax->error-format-string stx)
+        (format "operator `~a` is deprecated." op)))
+    (warn 'deprecated #:url "faq.html#deprecated-ops" message)))
 
 (define (check-fpcore* stx error!)
   (match stx
@@ -150,16 +169,6 @@
    [_
     (error! stx "Not an FPCore: ~a" stx)]))
 
-(define (assert-expression! stx vars)
-  (define errs
-    (reap [sow]
-          (define (error! stx fmt . args)
-            (define args* (map (λ (x) (if (syntax? x) (syntax->datum x) x)) args))
-            (sow (cons stx (apply format fmt args*))))
-          (check-expression* stx vars error!)))
-  (unless (null? errs)
-    (raise-herbie-syntax-error "Invalid expression" #:locations errs)))
-
 (define (assert-program! stx)
   (define errs
     (reap [sow]
@@ -168,10 +177,14 @@
             (sow (cons stx (apply format fmt args*))))
           (check-fpcore* stx error!)))
   (unless (null? errs)
-    (raise-herbie-syntax-error "Invalid program" #:locations errs)))
+    (raise-herbie-syntax-error "Invalid program" #:locations errs))
+  (print-warnings))
 
 ;; testing FPCore format
 (module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-builtins)
+
   (define (get-errs stx)
     (reap [sow]
           (define (error! stx fmt . args)

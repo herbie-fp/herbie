@@ -1,8 +1,7 @@
 #lang racket
 
-(require "types.rkt" "syntax.rkt" "../interface.rkt")
+(require "../errors.rkt" "types.rkt" "syntax.rkt")
 (provide desugar-program resugar-program)
-(module+ test (require rackunit))
 
 ;; preprocessing
 (define (expand expr)
@@ -97,22 +96,14 @@
          (define orepr (operator-info op 'otype))
          (define-values (body* rtype) (loop body irepr))
          (values (list op body*) orepr)]
-        [(list (and (or 're 'im) op) arg)
-         ; TODO: this special case can be removed when complex-herbie is moved to a composite type
-         (define-values (arg* atype) (loop arg 'complex))
-         (values (list op arg*) (get-representation 'binary64))]
-        [(list 'complex re im)
-         ; TODO: this special case can be removed when complex-herbie is moved to a composite type
-         (define-values (re* re-type) (loop re 'binary64))
-         (define-values (im* im-type) (loop im 'binary64))
-         (values (list 'complex re* im*) (get-representation 'complex))]
         [(or (? constant-operator? x) (list x)) ; constant
          (let/ec k
            (for/list ([name (operator-all-impls x)])
              (define rtype (operator-info name 'otype))
              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
                (k (list name) rtype)))
-           (error 'sugar "Could not find constant implementation for ~a at ~a" x (representation-name repr)))]
+           (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
+                                        x (representation-name repr)))]
         [(list op args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
@@ -136,8 +127,8 @@
           [else
            (define conv (get-repr-conv vrepr repr))
            (unless conv
-             (error 'expand-parametric "Conversion does not exist: ~a -> ~a\n"
-                    (representation-name vrepr) (representation-name repr)))
+             (raise-herbie-missing-error "Conversion does not exist: ~a -> ~a"
+                (representation-name vrepr) (representation-name repr)))
            (values (list conv expr) repr)])]))) 
   expr*)
 
@@ -168,8 +159,6 @@
      (if (and full? (equal? op* 'neg) (= (length args) 1)) ; if only unparameterizing, leave 'neg' alone
          (cons '- args*)
          (cons op* args*))]
-    [(? (conjoin complex? (negate real?)))
-     `(complex ,(real-part expr) ,(imag-part expr))]
     [(? number?)
      (if full?
          (match expr
@@ -184,7 +173,9 @@
          expr)]
     [(? variable?) expr]))
 
-(define (desugar-program prog repr var-reprs #:full [full? #t])
+(define (desugar-program prog ctx #:full [full? #t])
+  (define repr (context-repr ctx))
+  (define var-reprs (map cons (context-vars ctx) (context-var-reprs ctx)))
   (if full?
       (expand-parametric (expand prog) repr var-reprs full?)
       (expand-parametric prog repr var-reprs full?)))
@@ -201,31 +192,3 @@
     [(list? expr)
      (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
     [#t expr]))
-
-#;(module+ test
-  (define repr (get-representation 'binary64))
-
-  ;; inlining
-
-  ;; Test classic quadp and quadm examples
-  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
-  (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
-  (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
-  (check-equal? (desugar-program quadp repr (map (curryr cons repr) (list 'x 'y 'z)))
-                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
-  (check-equal? (desugar-program quadm repr (map (curryr cons repr) (list 'x 'y 'z)))
-                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
-
-  ;; x^5 = x^3 * x^2
-  (register-function! 'sqr (list 'x) repr '(* x x))
-  (register-function! 'cube (list 'x) repr '(* x x x))
-  (define fifth '(* (cube a) (sqr a)))
-  (check-equal? (desugar-program fifth repr (list (cons 'a repr)))
-                '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
-
-  ;; casting edge cases
-  (check-equal? (desugar-program `(cast x) repr `((x . ,repr)))
-                'x)
-  (check-equal? (desugar-program `(cast (! :precision binary64 x)) repr `((x . ,repr)))
-                'x)
-)

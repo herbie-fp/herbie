@@ -117,10 +117,38 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 .help-button:hover { background: #444; cursor: pointer; }
 
 /* Links at the top */
-
 #links { border-bottom: 1px solid #ddd; line-height: 2; overflow: auto; }
-#links div:first-child { float: right; }
+#links .right { float: right; }
 #links a + a { margin-left: 1em; }
+
+/* Subreports */
+
+#subreports-toggle {
+    color: #2A6496;
+    text-decoration: none;
+    cursor: pointer;
+    margin-left: 1em;
+}
+
+.active, #subreports-toggle:hover {
+    text-decoration: underline;
+    color: #295785
+}
+
+#subreports.no-subreports #with-subreports { display: none; }
+#subreports #with-subreports { display: block; border-top: 1px solid #ddd; }
+
+#subreport-table {
+    padding: 5px 0 5px 1em;
+}
+
+#subreport-table table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+#subreport-table table tr th { line-height: 25px; padding-right: 10px; }
+#subreport-table table tr td { line-height: 25px; padding-right: 10px; }
 
 /* Detail page layout */
 
@@ -159,6 +187,10 @@ section h1 {
 #language { position: absolute; right: 1em; }
 #precondition { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
 #precondition:before { content: "Precondition"; float: left; color: #444; }
+/* Allow line breaks in display equations (see https://katex.org/docs/issues.html) */
+.katex-display > .katex { white-space: normal }
+.katex-display .base { margin: 0.25em 0 }
+.katex-display { margin: 0.5em 0; }
 #preprocess { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
 #preprocess:before { content: "Preprocess"; float: left; color: #444; }
 
@@ -183,6 +215,32 @@ section h1 {
 .tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
 .tabbar li:hover { background: #e4e4e4; }
 .tabbar li.selected { background: #d3d3d3; }
+
+#plot_options { display: grid; grid-template-columns: auto auto; }
+#variables { justify-self: start; }
+#functions { justify-self: end; }
+
+#variables .selected { background-color: lightgray; }
+#variables .variable { margin-right: 3px; padding-left: 2px; padding-right: 2px; padding-bottom: 2px; }
+
+#functions { margin-right: 40px; }
+#functions .function {
+    width: 20px;
+    height: 20px;
+    /* border: 1px solid #000; */
+    border-radius: 50%;
+    /* box-shadow: inset 0px 0px 0px 1px black; */
+    box-sizing: border-box; /* Include padding and border in element's width and height */
+    display: inline-block;
+    margin-left: 5px;
+}
+
+#functions #function_start { border: 3px solid red; }
+#functions #function_start.selected { background: pink; }
+#functions #function_end { border: 3px solid blue; }
+#functions #function_end.selected { background: lightblue; }
+#functions #function_target { border: 3px solid green; }
+#functions #function_target.selected { background: lightgreen; }
 
 /* Try it out section */
 

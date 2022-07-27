@@ -1,6 +1,6 @@
 #lang racket
 
-(require "interface.rkt" "syntax/syntax.rkt" "syntax/sugar.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt")
 (provide program-cost expr-cost)
 
 (define (operator-cost op)
@@ -13,8 +13,8 @@
        [(? repr-conv?) 2]
        [_ 100])))
 
-(define (expr-cost expr)
-  (let loop ([expr expr] [repr (*output-repr*)])
+(define (expr-cost expr repr)
+  (let loop ([expr expr] [repr repr])
     (match expr
      [(list 'if cond ift iff)
       (+ 1 (loop cond repr) (max (loop ift repr) (loop iff repr)))]
@@ -23,6 +23,6 @@
       (apply + (operator-cost op) (map loop args ireprs))]
      [_ (representation-total-bits repr)])))
 
-(define (program-cost prog)
+(define (program-cost prog repr)
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
-  (expr-cost body))
+  (expr-cost body repr))

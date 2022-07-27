@@ -1,23 +1,11 @@
 #lang racket
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
-(require "searchreals.rkt" "programs.rkt" "config.rkt" "errors.rkt" "common.rkt"
-         "float.rkt" "alternative.rkt" "interface.rkt"
-         "timeline.rkt" "syntax/types.rkt" "syntax/sugar.rkt")
-(module+ test (require rackunit "load-plugin.rkt"))
-(provide make-sampler batch-prepare-points)
+(require "searchreals.rkt" "programs.rkt" "errors.rkt" "common.rkt"
+         "float.rkt" "syntax/types.rkt" "timeline.rkt"
+         "syntax/sugar.rkt")
 
-;; Much of this code assumes everything supports intervals. Almost
-;; everything does---we're still missing support for the Gamma and
-;; Bessel functions. But at least none of the benchmarks use those.
-(module+ test
-  (require "syntax/read.rkt")
-  (require racket/runtime-path)
-  (define-runtime-path benchmarks "../bench/")
-  (define exprs
-    (let ([tests (load-tests benchmarks)])
-      (append (map test-program tests) (map test-precondition tests))))
-  (check-true (andmap (compose (curryr expr-supports? 'ival) program-body) exprs)))
+(provide make-sampler batch-prepare-points ival-eval)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
@@ -34,16 +22,14 @@
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
-  (match (type-name (representation-type repr))
-    ['real
-     (define bound (bound-ordinary-values repr))
-     (define bflo (match lo [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
-     (define bfhi (match hi [-inf.0 (bf- bound)] [+inf.0 bound] [x (bf x)]))
-     (ival (bfstep bflo (if lo? 0 1)) (bfstep bfhi (if hi? 0 -1)))]
-    ['bool
-     (ival #f #t)]))
+  (match (representation-type repr)
+    ['real (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1)))]
+    ['bool (ival #f #t)]))
 
 (module+ test
+  (require rackunit "load-plugin.rkt")
+  (load-herbie-builtins)
+
   (define repr (get-representation 'binary64))
   (check-equal? (precondition->hyperrects
                  '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))
@@ -104,11 +90,12 @@
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
-(define (make-sampler repr precondition programs how search-func)
-  (define reprs (map (curry dict-ref (*var-reprs*)) (program-variables precondition)))
+(define (make-sampler ctx precondition programs search-func)
+  (define repr (context-repr ctx))
+  (define reprs (context-var-reprs ctx))
   (cond
-   [(and (flag-set? 'setup 'search) (equal? how 'ival) (not (empty? reprs))
-         (andmap (compose (curry equal? 'real) type-name representation-type) (cons repr reprs)))
+   [(and (flag-set? 'setup 'search) (not (empty? reprs))
+         (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
     (timeline-push! 'method "search")
     (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
     (define hyperrects
@@ -142,6 +129,11 @@
     (set! start now))
   log!)
 
+(define (ival-stuck-false? v)
+  (define (close-enough x y) x)
+  (define ival-close-enough? (close-enough->ival close-enough))
+  (not (ival-hi (ival-close-enough? v))))
+
 (define (ival-eval fn pt #:precision [precision 80])
   (let loop ([precision precision])
     (match-define (list valid exs ...) (parameterize ([bf-precision precision]) (apply fn pt)))
@@ -149,7 +141,7 @@
     (cond
      [(not (ival-hi valid))
       (values 'invalid precision +nan.0)]
-     [(and (not (ival-lo valid)) (ival-lo-fixed? valid))
+     [(ival-stuck-false? valid)
       (values 'unsamplable precision +nan.0)]
      [(ival-lo valid)
       (values 'sampled precision exs)]
@@ -158,12 +150,12 @@
      [else
       (loop precision*)])))
 
-(define (batch-prepare-points how fn repr sampler)
+(define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
-  (define starting-precision
-    (match how ['ival (bf-precision)] ['bf (*max-mpfr-prec*)]))
+  (define repr (context-repr ctx))
+  (define starting-precision (bf-precision))
   (define <-bf (representation-bf->repr repr))
-  (define logger (point-logger 'body (map car (*var-reprs*))))
+  (define logger (point-logger 'body (context-vars ctx)))
 
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
@@ -174,13 +166,14 @@
       (logger status precision pt)
 
       (cond
-       [(and (list? out) (andmap (curryr ordinary-value? repr) pt))
+       [(and (list? out) (not (ormap (representation-special-value? repr) pt)))
         (define exs (map (compose <-bf ival-lo) out))
         (if (>= (+ 1 sampled) (*num-points*))
             (values (cons pt points) (cons exs exactss))
             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
        [else
         (when (>= skipped (*max-skipped-points*))
+          (timeline-compact! 'outcomes)
           (raise-herbie-error "Cannot sample enough valid points."
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exactss)])))

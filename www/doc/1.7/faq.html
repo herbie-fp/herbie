@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie FAQ</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <a href="../../"><img class="logo" src="../../logo.png" /></a>
+    <h1>Common Errors and Warnings</h1>
+  </header>
+
+  <p><a href="../../">Herbie</a> automatically transforms floating
+  point expressions into more accurate forms. This page troubleshoots
+  common Herbie errors, warnings, and known issues.</p>
+
+
+  <h2>Common errors</h2>
+
+  <p>
+    Herbie error messages refer to this second for additional
+    information and debugging tips.
+  </p>
+
+  <h3 id="invalid-syntax">Invalid syntax</h3>
+
+  <p>
+    This error means you mis-formatted Herbie's input. Common errors
+    include misspelled function names and parenthesized expressions
+    that should not be parenthesized. For example, in
+    <code>(- (exp (x)) 1)</code>, the expression <code>x</code> is a
+    variable so shouldn't be parenthesized. <code>(- (exp x) 1)</code>
+    would be the correct way to write that expression.
+    The <a href="input.html">input format</a> documentation has more
+    details on Herbie's syntax.
+  </p>
+
+  <h3 id="sample-valid-points">Cannot sample enough valid points</h3>
+
+  <p>This error occurs when Herbie is unable to find enough valid
+  points. For example, the expression <code>(acos (+ 1000 x))</code>
+  is invalid unless <code>(&lt;= -1001 x -999)</code>, a rather narrow
+  range. The simplest fix is to increase
+  the <a href="options.html"><code>--num-analysis</code> flag</a>.
+  Specifying the range of valid points as
+  a <a href="input.html#preconditions">precondition</a> can also help.
+  </p>
+
+  <h3 id="no-valid-values">No valid values</h3>
+
+  <p>This error indicates that your input has no valid inputs, usually
+  due to an overly restriction precondition. For example, the
+  precondition <code>(&lt 3 x 2)</code> excludes all inputs. The
+  solution is to fix the precondition or input program.</p>
+
+
+  <h2>Common warnings</h2>
+
+  <p>Herbie warnings refer to this section for explanations and common
+  actions to take.</p>
+
+  <h3 id="ground-truth">Could not determine a ground truth</h3>
+
+  <p>
+    Herbie raises this warning when some inputs require more than
+    10,000 bits to compute an exact ground truth. For example, to
+    compute <code>(/ (exp x) (exp x))</code> for very
+    large <code>x</code>, absurdly large exponents would be required.
+    Herbie discards such inputs and raises this warning. If you see
+    this warning, you should add a restrictive precondition, such
+    as <code>:pre (&lt; -100 x 100)</code>, to prevent large inputs.
+  </p>
+
+  <h3 id="value-to-string">Could not uniquely print <var>val</var></h3>
+
+  <p>
+    Herbie will raise this warning when it needs more than 10,000 bits
+    to produce a string representation for a given value. This is
+    likely the result of a bug in a third-party plugin.
+  </p>
+
+  <h3 id="unsound-rules">Unsound rule application detected</h3>
+  
+  <p>
+    Herbie uses a set of algebraic rewrite rules in order to simplify
+    expressions, but these rules can sometimes lead to a
+    contradiction. Herbie will automatically compensate for this, and
+    in most cases nothing needs to be done. However, Herbie may have
+    failed to simplify the output.
+  </p>
+
+  <h3 id="unused-variable">Unused variable <var>var</var></h3>
+  
+  <p>
+    The input FPCore contains a variable that is not
+      used in the body expression.
+  </p>
+
+  <h3 id="strange-variable">Strange variable <var>var</var></h3>
+  
+  <p>
+    The input expression contains a variable that is similar in name
+      to named constants, e.g. <var>e</var> instead of <var>E</var>.
+  </p>
+
+  <h2>Known bugs</h2>
+
+  <p>Bugs that cannot be directly fixed are documented in this section.</p>
+
+  <h3>Missing reports chart on Chrome</h3>
+
+  <p>
+    When using Chrome to view web pages on your local machine, Herbie
+    reports cannot draw the arrow chart due to security restrictions.
+    <a href="http://www.chrome-allow-file-access-from-file.com/">Run
+    Chrome with <code>--allow-file-access-from-files</code></a> to fix
+    this error.
+  </p>
+
+</body>
+</html>

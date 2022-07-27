@@ -1,45 +1,33 @@
 #lang racket
 
-(require pkg/lib racket/lazy-require)
+(require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt")
-(provide simplify-expr simplify-batch make-simplification-combinations
-         (struct-out simplify-result))
-(module+ test (require rackunit "../load-plugin.rkt"))
 
-; make sure to check both package scopes
-(define (is-installed? name)
-  (or (hash-has-key? (installed-pkg-table #:scope 'installation) name)
-      (hash-has-key? (installed-pkg-table #:scope 'user) name)))
+(provide simplify-expr simplify-batch
+         make-simplification-combinations
+         rules->irules egg-run-rules)
+
+(module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-plugins))
 
 ;; One module to rule them all, the great simplify. It uses egg-herbie
 ;; to simplify an expression as much as possible without making
 ;; unnecessary changes. We do this by creating an egraph, saturating
 ;; it partially, then extracting the simplest expression from it.
 ;;
-;; If egg-herbie is not available, simplify uses regraph instead.
-;;
 ;; Simplify makes only one guarantee: that the input is mathematically
 ;; equivalent to the output. For any exact x, evaluating the input on
 ;; x will yield the same expression as evaluating the output on x.
-
-;; fall back on herbie-egraph if egg-herbie is unavailable
-(define use-egg-math?
-  (or (is-installed? "egg-herbie")
-      (is-installed? "egg-herbie-windows")
-      (is-installed? "egg-herbie-osx")
-      (is-installed? "egg-herbie-linux")))
 
 ;; prefab struct used to send rules to egg-herbie
 (struct irule (name input output) #:prefab)
 (struct simplify-result (expr proof))
 
 (define (rules->irules rules)
-  (if use-egg-math?
-      (for/list ([rule rules])
-        (irule (rule-name rule) (rule-input rule) (rule-output rule)))
-      (list)))
-
+  (for/list ([rule rules])
+    (irule (rule-name rule) (rule-input rule) (rule-output rule))))
 
 ;; given an alt, locations, and a hash from expr to simplification options
 ;; make all combinations of the alt using the simplification options available
@@ -79,20 +67,15 @@
 (define/contract (simplify-batch exprs #:rules rls #:precompute [precompute? false] #:prove [prove? false])
   (->* ((listof expr?) #:rules (listof rule?)) (#:precompute boolean? #:prove boolean?) (listof (listof simplify-result?)))
 
-  (define driver
-    (cond
-     [use-egg-math?
-      simplify-batch-egg]
-     [else
-      (warn 'simplify #:url "faq.html#egg-herbie"
-            "Falling back on regraph because egg-herbie package not installed")
-      simplify-batch-regraph]))
+  (define driver simplify-batch-egg)
+  (timeline-push! 'inputs (map ~a exprs))
 
   (debug #:from 'simplify "Simplifying using " driver ":\n  " (string-join (map ~a exprs) "\n  "))
   (define results (driver exprs #:rules rls #:precompute precompute? #:prove prove?))
   (define out
     (for/list ([result results] [expr exprs])
               (remove-duplicates (cons (simplify-result expr "") result))))
+  (timeline-push! 'outputs (map ~a (apply append out)))
   (debug #:from 'simplify "Simplified to:\n  "
          (string-join (map ~a (map (compose simplify-result-expr last) out)) "\n  "))
     
@@ -153,18 +136,17 @@
 
   (with-egraph
    (lambda (egg-graph)
-     (egraph-add-exprs
-      egg-graph
-      exprs
-      (lambda (node-ids)
-        (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
+     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+     (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
         
-        (when (egraph-is-unsound-detected egg-graph)
-          (warn 'unsound-rules #:url "faq.html#unsound-rules"
-               "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
+     (when (egraph-is-unsound-detected egg-graph)
+       (warn 'unsound-rules #:url "faq.html#unsound-rules"
+             "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
         
         (for ([rule rls])
-             (timeline-push! 'rules (~a (rule-name rule)) (egraph-get-times-applied egg-graph (rule-name rule))))
+             (define count (egraph-get-times-applied egg-graph (rule-name rule)))
+             (when (> count 0)
+                   (timeline-push! 'rules (~a (rule-name rule)) count)))
         
         (define all-iterations
           (map (lambda (id)
@@ -187,39 +169,39 @@
                                           (~a expr) " to " (~a result))))
                             (simplify-result result proof))))))))
 
-(define (egg-run-rules egg-graph node-limit irules node-ids precompute?)
+
+(define (stop-reason->string sr)
+  (match sr
+   ['saturated  "saturated"]
+   ['iter-limit "iter limit"]
+   ['node-limit "node limit"]
+   ['unsound    "unsound"]))
+
+(define (egg-run-rules egg-graph node-limit irules node-ids precompute? #:limit [iter-limit #f])
   (define ffi-rules (make-ffi-rules irules))
   (define start-time (current-inexact-milliseconds))
 
   #;(define (timeline-cost iter)
-    
-    (define cnt (egraph-get-size egg-graph))
-    
-    (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
+      (define cnt (egraph-get-size egg-graph)) 
+      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
   
-  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute?))
+  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
+  (let loop ([iter iteration-data] [counter 0] [time 0])
+    (unless (null? iter)
+      (define cnt (iteration-data-num-nodes (first iter)))
+      (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph node-id counter)) node-ids)))
+      (define new-time (+ time (iteration-data-time (first iter))))
+      (timeline-push! 'egraph counter cnt cost new-time)
+      (loop (rest iter) (+ counter 1) new-time)))
 
-  (let loop
-    ([iter iteration-data] [counter 0] [time 0])
-    (cond
-      [(empty? iter)
-       void]
-      [else
-       (define cnt (iteration-data-num-nodes (first iter)))
-       (define cost
-           (apply +
-                  (map (lambda (node-id) (egraph-get-cost egg-graph node-id counter)) node-ids)))
-       (debug #:from 'simplify #:depth 2 "iteration " counter ": " cnt " enodes " "(cost " cost ")")
-       (define new-time (+ time (iteration-data-time (first iter))))
-       (timeline-push! 'egraph counter cnt cost new-time)
-       (loop (rest iter) (+ counter 1) new-time)]))
-
+  (define sr (egraph-stop-reason egg-graph))
+  (timeline-push! 'stop (stop-reason->string sr) 1)
+  
   (free-ffi-rules ffi-rules)
   iteration-data)
 
 (module+ test
-  (require "../interface.rkt" "../syntax/rules.rkt")
-  (*var-reprs* (map (curryr cons (get-representation 'binary64)) '(x a b c)))
+  (require "../syntax/types.rkt" "../syntax/rules.rkt")
   (*needed-reprs* (list (get-representation 'binary64) (get-representation 'binary32)))
   (define all-simplify-rules (*simplify-rules*))
 

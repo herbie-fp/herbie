@@ -1,12 +1,16 @@
 #lang racket
 
+(require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
-         "../syntax/types.rkt" "../interface.rkt" "../errors.rkt" "../preprocess.rkt"
-         "../points.rkt")
-(require "../ground-truth.rkt" "../float.rkt") ; For binary search
-(module+ test (require rackunit "../load-plugin.rkt"))
+         "../syntax/types.rkt" "../errors.rkt" "../points.rkt")
+(require "../float.rkt" "../pretty-print.rkt" "../ground-truth.rkt") ; For binary search
+
 (provide infer-splitpoints (struct-out sp) splitpoints->point-preds combine-alts
          pareto-regimes)
+
+(module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-builtins))
 
 (struct option (split-indices alts pts expr errors) #:transparent
 	#:methods gen:custom-write
@@ -31,39 +35,44 @@
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts repr)
-  (debug "Finding splitpoints for:" alts #:from 'regime #:depth 2)
+(define (infer-splitpoints alts ctx)
   (timeline-event! 'regimes)
+  (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts))
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
-        (exprs-to-branch-on alts repr)
+        (exprs-to-branch-on alts ctx)
         (program-variables (alt-program (first alts)))))
-  (debug "Trying" (length branch-exprs) "branch expressions:" branch-exprs
-         #:from 'regime-changes #:depth 3)
+  (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
   (define options
     ;; We can only combine alts for which the branch expression is
     ;; critical, to enable binary search.
     (reap [sow]
       (for ([bexpr branch-exprs])
-        (define unsound-option (option-on-expr alts bexpr repr))
+        (define unsound-option (option-on-expr alts err-lsts bexpr ctx))
         (sow unsound-option)
         (define sound-alts (filter (λ (alt) (critical-subexpression? (program-body (alt-program alt)) bexpr)) alts))
         (when (and (> (length sound-alts) 1)
                    (for/or ([si (option-split-indices unsound-option)])
                      (not (set-member? sound-alts (list-ref alts (si-cidx si))))))
-          (sow (option-on-expr sound-alts bexpr repr))))))
+          (sow (option-on-expr sound-alts err-lsts bexpr ctx))))))
   (define best (argmin (compose errors-score option-errors) options))
-  (debug "Found split indices:" best #:from 'regime #:depth 3)
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
+  (timeline-push! 'outputs
+                  (for/list ([sidx (option-split-indices best)])
+                    (~a (program-body (alt-program (list-ref alts (si-cidx sidx)))))))
+  (define err-lsts* (flip-lists err-lsts))
+  (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
+  (timeline-push! 'accuracy (errors-score (option-errors best)))
+  (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
   best)
 
-(define (exprs-to-branch-on alts repr)
+(define (exprs-to-branch-on alts ctx)
   (define alt-critexprs (map (compose all-critical-subexpressions alt-program) alts))
   (define start-critexprs (all-critical-subexpressions (*start-prog*)))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-name (type-of e repr (*var-reprs*))) 'real))
+   (λ (e) (equal? (type-of e ctx) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
   
 ;; Requires that expr is not a λ expression
@@ -87,19 +96,19 @@
                          (critical-subexpression? prog-body expr)))
     expr))
 
-(define (combine-alts best-option repr sampler)
+(define (combine-alts best-option ctx)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
    [(list (si cidx _)) (list-ref alts cidx)]
    [_
     (timeline-event! 'bsearch)
-    (define splitpoints (sindices->spoints pts expr alts splitindices repr sampler))
-    (debug #:from 'regimes "Found splitpoints:" splitpoints ", with alts" alts)
+    (define splitpoints (sindices->spoints pts expr alts splitindices ctx))
 
     (define expr*
       (for/fold
           ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
           ([splitpoint (cdr (reverse splitpoints))])
+        (define repr (repr-of (sp-bexpr splitpoint) ctx))
         (define <=-operator (get-parametric-operator '<= repr repr))
         `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
@@ -119,28 +128,29 @@
     (define splitpoints** (append splitpoints* (list splitpoint*)))
     (values alts** splitpoints**)))
 
-(define (sort-context-on-expr context expr variables repr)
-  (define fn (eval-prog `(λ ,variables ,expr) 'fl repr))
-  (let ([p&e (sort (for/list ([(pt ex) (in-pcontext context)]) (list pt ex))
-		   (λ (x1 x2) (</total x1 x2 repr))
-                   #:key (λ (pts) (apply fn (first pts))))])
-    (mk-pcontext (map first p&e) (map second p&e))))
+(define (option-on-expr alts err-lsts expr ctx)
+  (define repr (repr-of expr ctx))
+  (define timeline-stop! (timeline-start! 'branch (~a expr)))
 
-(define (option-on-expr alts expr repr)
-  (debug #:from 'regimes #:depth 4 "Trying to branch on" expr "from" alts)
   (define vars (program-variables (alt-program (first alts))))
-  (define pcontext* (sort-context-on-expr (*pcontext*) expr vars repr))
-  (define pts (for/list ([(pt ex) (in-pcontext pcontext*)]) pt))
-  (define fn (eval-prog `(λ ,vars ,expr) 'fl repr))
+  (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
+  (define fn (eval-prog `(λ ,vars ,expr) 'fl ctx))
   (define splitvals (for/list ([pt pts]) (apply fn pt)))
+  (define big-table ; val and errors for each alt, per point
+    (for/list ([(pt ex) (in-pcontext (*pcontext*))] [err-lst err-lsts])
+      (list* pt (apply fn pt) err-lst)))
+  (match-define (list pts* splitvals* err-lsts* ...)
+                (flip-lists (sort big-table (curryr </total repr) #:key second)))
+
+  (define bit-err-lsts* (map (curry map ulps->bits) err-lsts*))
+
   (define can-split? (append (list #f)
-                             (for/list ([val (cdr splitvals)] [prev splitvals])
+                             (for/list ([val (cdr splitvals*)] [prev splitvals*])
                                (</total prev val repr))))
-  (define err-lsts
-    (for/list ([alt alts]) (errors (alt-program alt) pcontext* repr)))
-  (define bit-err-lsts (map (curry map ulps->bits) err-lsts))
-  (define split-indices (err-lsts->split-indices bit-err-lsts can-split?))
-  (option split-indices alts pts expr (pick-errors split-indices pts err-lsts repr)))
+  (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
+  (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
+  (timeline-stop! (errors-score (option-errors out)))
+  out)
 
 (define/contract (pick-errors split-indices pts err-lsts repr)
   (->i ([sis (listof si?)] 
@@ -153,27 +163,26 @@
       (list-ref errs (si-cidx si)))))
 
 (module+ test
-  (define repr (get-representation 'binary64))
+  (define ctx (make-debug-context '(x)))
   (parameterize ([*start-prog* '(λ (x) 1)]
-                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))]
-                 [*var-reprs* (list (cons 'x repr))]
-                 [*output-repr* repr])
+                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
+    (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
     ;; This is a basic sanity test
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts 'x repr)
+           (option-on-expr alts err-lsts 'x ctx)
            '(1 0))
 
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts '1 repr)
+           (option-on-expr alts err-lsts '1 ctx)
            '(0))
 
     (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts '(if (==.f64 x 0.5) 1 +nan.0) repr)
+           (option-on-expr alts err-lsts '(if (==.f64 x 0.5) 1 +nan.0) ctx)
            '(1 0))))
 
 ;; (pred p1) and (not (pred p2))
@@ -184,15 +193,22 @@
      ; (only works for floats, problematic since p1 and p2 are repr values)
      ; (this is handled by catching all sampling errors, so we can comment this out)
      ; [(nan? midpoint) p1]
-     [(<= (ulp-difference p1 p2 repr) (expt 2 48)) midpoint]
-	   [else
+     [(<= (ulp-difference p1 p2 repr) (expt 2 48))
+      ((representation-bf->repr repr)
+       (bigfloat-interval-shortest
+        ((representation-repr->bf repr) p1)
+        ((representation-repr->bf repr) p2)))]
+     [else
       ; cmp usually equals 0 if sampling failed
       ; if so, give up and return the current midpoint
       (define cmp (pred midpoint))
       (cond
        [(negative? cmp) (binary-search-floats pred midpoint p2 repr)]
        [(positive? cmp) (binary-search-floats pred p1 midpoint repr)]
-       [else midpoint])])))
+       [else ((representation-bf->repr repr)
+              (bigfloat-interval-shortest
+               ((representation-repr->bf repr) p1)
+               ((representation-repr->bf repr) p2)))])])))
 
 (define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
@@ -201,80 +217,99 @@
       `(λ (,var ,@vars*) ,body*)
       #f))
 
+(define (prepend-argument f val pcontext repr #:length length)
+  (define-values (newpts newexs newlen)
+    (for/fold ([newpts '()] [newexs '()] [newlen 0])
+        ([(pt _) (in-pcontext pcontext)]
+         #:break (>= newlen length))
+      (define pt* (cons val pt))
+      (define ex* (apply f pt*))
+      (if (nan? ex*)
+          (values (cons pt* newpts) (cons ex* newexs) (+ 1 newlen))
+          (values newpts newexs newlen))))
+  (when (< newlen length)
+    (raise-herbie-error "Cannot sample enough valid points."
+                        #:url "faq.html#sample-valid-points"))
+  (mk-pcontext newpts newexs))
+
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define (sindices->spoints points expr alts sindices repr sampler)
+(define (sindices->spoints points expr alts sindices ctx)
+  (define repr (repr-of expr ctx))
+
   (define eval-expr
-    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl repr))
+    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl ctx))
 
   (define var (gensym 'branch))
+  (define ctx* (context-extend ctx var repr))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
+  (define start-fn (eval-prog-real start-prog ctx*))
 
-  (define eq-repr (get-parametric-operator '== repr repr))
-  
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
+
+    (define best-guess #f)
+    (define current-guess v1)
+    (define sampling-fail? #f)
+
     (define (pred v)
       (set! iters (+ 1 iters))
-      (with-handlers ([exn:fail:user:herbie? (const 0)]) ; couldn't sample points
-        (parameterize ([*num-points* (*binary-search-test-points*)]
-                       [*timeline-disabled* true]
-                       [*var-reprs* (dict-set (*var-reprs*) var repr)])
-          (define ctx
-            (apply mk-pcontext
-                   (prepare-points start-prog
-                                   `(λ ,(program-variables start-prog)
-                                      (,eq-repr ,(caadr start-prog) ,(repr->real v repr)))
-                                   repr
-                                   (λ () (cons v (apply-preprocess (program-variables (alt-program (car alts)))
-                                                                   (sampler) (*herbie-preprocess*) repr))))))
-          (- (errors-score (errors prog1 ctx repr))
-             (errors-score (errors prog2 ctx repr))))))
-      (define pt (binary-search-floats pred v1 v2 repr))
-    (timeline-push! 'bstep (value->json v1 repr) (value->json v2 repr) iters (value->json pt repr))
+      (set! best-guess current-guess)
+      (set! current-guess v)
+      (with-handlers ([exn:fail:user:herbie?
+                       (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
+        (define pctx
+          (prepend-argument start-fn v (*pcontext*) repr #:length (*binary-search-test-points*)))
+          (define acc1 (errors-score (errors prog1 pctx ctx*)))
+          (define acc2 (errors-score (errors prog2 pctx ctx*)))
+          (- acc1 acc2)))
+    (define pt (binary-search-floats pred v1 v2 repr))
+    (when sampling-fail?
+      (set! pt best-guess))
     pt)
 
-  (define (sidx->spoint sidx next-sidx)
-    (define prog1 (list-ref progs (si-cidx sidx)))
-    (define prog2 (list-ref progs (si-cidx next-sidx)))
-
-    (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx sidx)))))
-    (define p2 (apply eval-expr (list-ref points (si-pidx sidx))))
-
-    (sp (si-cidx sidx) expr (find-split prog1 prog2 p1 p2)))
-
-  (define (regimes-sidx->spoint sidx)
-    (sp (si-cidx sidx) expr (apply eval-expr (list-ref points (- (si-pidx sidx) 1)))))
-
-  (define final-sp (sp (si-cidx (last sindices)) expr +nan.0))
+  ; a little more rigorous than it sounds:
+  ; finds the shortest number `x` near `p1` such that
+  ; `x1` is in `[p1, p2]` and is no larger than
+  ;  - if `p1` is negative, `p1 / 2`
+  ;  - if `p1` is positive, `p1 * 2`
+  (define (left-point p1 p2)
+    (let ([left ((representation-repr->bf repr) p1)]
+          [right ((representation-repr->bf repr) p2)])
+      ((representation-bf->repr repr)
+        (if (bfnegative? left)
+            (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+            (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
 
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
          ;; Binary search is only valid if we correctly extracted the branch expression
          (andmap identity (cons start-prog progs))))
-  (if use-binary
-      (debug #:from 'binary-search "Improving bounds with binary search for" expr "and" alts)
-      (debug #:from 'binary-search "Only using regimes for bounds on" expr "and" alts))
-      
+  
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
-     (cond
-       [use-binary
-        (with-handlers ([exn:fail:user:herbie:sampling?
-                         (lambda (e) (regimes-sidx->spoint si1))])
-          (sidx->spoint si1 si2))]
-       [else
-        (regimes-sidx->spoint si1)]))
-   (list final-sp)))
+     (define timeline-stop! (timeline-start! 'times (~a expr)))
+     (define prog1 (list-ref progs (si-cidx si1)))
+     (define prog2 (list-ref progs (si-cidx si2)))
 
-(define (point-with-dim index point val)
-  (map (λ (pval pindex) (if (= pindex index) val pval))
-       point
-       (range (length point))))
+     (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
+     (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
+
+     (define split-at
+       (if use-binary
+           (with-handlers ([exn:fail:user:herbie:sampling? (const p1)])
+             (find-split prog1 prog2 p1 p2))
+           (left-point p1 p2)))
+     (timeline-stop!)
+
+     (timeline-push! 'method (if use-binary "binary-search" "left-value"))
+     (timeline-push! 'bstep (value->json p1 repr) (value->json p2 repr) (value->json split-at repr))
+     (sp (si-cidx si1) expr split-at))
+   (list (sp (si-cidx (last sindices)) expr +nan.0))))
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
@@ -353,39 +388,36 @@
   (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1)
        (nan? (sp-point (last splitpoints)))))
 
-(define/contract (splitpoints->point-preds splitpoints alts repr)
-  (-> valid-splitpoints? (listof alt?) representation? (listof procedure?))
+(define/contract (splitpoints->point-preds splitpoints alts ctx)
+  (-> valid-splitpoints? (listof alt?) context? (listof procedure?))
 
-  (define vars (program-variables (alt-program (first alts))))
-  (define expr `(λ ,vars ,(sp-bexpr (car splitpoints))))
-  (define prog (eval-prog expr 'fl repr))
+  (define bexpr (sp-bexpr (car splitpoints)))
+  (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
+  (define prog (eval-prog `(λ ,(context-vars ctx*) ,bexpr) 'fl ctx*))
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
       (define val (apply prog pt))
       (for/first ([right splitpoints]
                   #:when (or (equal? (sp-point right) +nan.0)
-                             (<=/total val (sp-point right) repr)))
+                             (<=/total val (sp-point right) (context-repr ctx*))))
         ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
         (equal? (sp-cidx right) i)))))
 
-(define (pareto-regimes sorted repr sampler)
+(define (pareto-regimes sorted ctx)
   (let loop ([alts sorted] [idx 0])
-    (debug "Computing regimes starting at alt" (+ idx 1) "of"
-            (length sorted) #:from 'regime #:depth 2)
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
      [else
-      (define opt (infer-splitpoints alts repr))
-      (define branched-alt (combine-alts opt repr sampler))
+      (define opt (infer-splitpoints alts ctx))
+      (define branched-alt (combine-alts opt ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
 (module+ test
-  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))]
-                 [*var-reprs* (map (curryr cons repr) '(x y))]
-                 [*output-repr* repr])
+  (define context (make-debug-context '(x y)))
+  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))])
     (define sps
       (list (sp 0 '(/.f64 y x) -inf.0)
             (sp 2 '(/.f64 y x) 0.0)
@@ -395,7 +427,7 @@
                   (splitpoints->point-preds
                     sps
                     (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
-                    repr))
+                    context))
 
     (check-pred p0? '(0.0 -1.0))
     (check-pred p2? '(-1.0 1.0))

@@ -94,8 +94,6 @@
  [expm1 (from-bigfloat bfexpm1)]
  [fabs abs]
  [floor floor]
- [j0 (from-bigfloat bfbesj0)]
- [j1 (from-bigfloat bfbesj1)]
  [lgamma log-gamma]
  [log (no-complex log)]
  [log10 (no-complex (λ (x) (log x 10)))]
@@ -110,9 +108,7 @@
  [tan tan]
  [tanh tanh]
  [tgamma gamma]
- [trunc truncate]
- [y0 (from-bigfloat bfbesy0)]
- [y1 (from-bigfloat bfbesy1)])
+ [trunc truncate])
 
 (define-2ary-fallback-operators
  [+ +]
@@ -149,3 +145,4 @@
 
 (define-operator-impl (>= >=.rkt racket racket) bool
   [fl >=])
+

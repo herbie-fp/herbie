@@ -1,7 +1,7 @@
 #lang racket
 
 (require (only-in xml write-xexpr))
-(require "../common.rkt" "../datafile.rkt" "../interface.rkt" "../pareto.rkt"
+(require "../common.rkt" "../datafile.rkt" "../syntax/types.rkt" "../pareto.rkt"
          "common.rkt" "plot.rkt")
 
 (provide make-report-page)
@@ -34,7 +34,33 @@
     ["timeout" "TIME"]
     [_ (format-bits (- (table-row-start result) (table-row-result result)) #:sign #t)]))
 
-(define (make-report-page out info dir)
+(define (format-subreports rss)
+  (define (round* x) (inexact->exact (round x)))
+  (match-define (list (cons reports paths) ...) rss)
+  `(div ([id "subreport-table"])
+    (table
+      (tr (th "Subreport") (th "Time") (th "Passed") (th "Tests") (th "Bits"))
+      ,@(for/list ([report reports] [path paths])
+          (let ([index (path->string (build-path path "results.html"))]
+                [time (apply + (map table-row-time (report-info-tests report)))]
+                [passed (for/sum ([row (report-info-tests report)])
+                          (if (member (table-row-status row)
+                              '("gt-target" "eq-target" "imp-start"))
+                              1 0))]
+                [available (for/sum ([row (report-info-tests report)])
+                            (if (not (equal? (table-row-status row) "ex-start")) 1 0))]
+                [nbench (length (report-info-tests report))]
+                [gained (for/sum ([row (report-info-tests report)])
+                          (or (table-row-result row) 0))]
+                [start (for/sum ([row (report-info-tests report)])
+                          (or (table-row-start row) 0))])
+            `(tr (td (a ([href ,index]) ,(report-info-note report)))
+                 (td ,(format-time time))
+                 (td ,(~a passed) "/" ,(~a available))
+                 (td ,(~a nbench))
+                 (td ,(~a (round* (- start gained))) "/" ,(~a (round* start)))))))))
+
+(define (make-report-page out info dir #:merge-data [merge-data #f])
   (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
 
   (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
@@ -97,11 +123,19 @@
  
      (body
       (nav ([id "links"])
-       (div
+       (div ([class "right"])
         (a ([href "timeline.html"]) "Metrics"))
        (div
-        (a ([href "#about"]) "Flags")
-        (a ([href "#results"]) "Results")))
+        ,(if merge-data
+            `(div ([id "subreports"])
+                (a ([href "#about"]) "Flags")
+                (a ([href "#results"]) "Results")
+                (div ([id "with-subreports"])
+                  ,(format-subreports merge-data)))
+            `(div
+              (a ([href "#about"]) "Flags")
+              (a ([href "#results"]) "Results")
+              (div ([id "subreports"] [style "display: none"]))))))
 
       (div ((id "large"))
        ,(render-large "Time" (format-time total-time))

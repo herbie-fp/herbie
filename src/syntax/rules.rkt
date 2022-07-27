@@ -2,7 +2,7 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../interface.rkt" "syntax.rkt" "types.rkt" "sugar.rkt")
+(require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt" "sugar.rkt")
 
 (provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
 (module+ internals (provide define-ruleset define-ruleset* register-ruleset!
@@ -135,6 +135,8 @@
       (*templated-rulesets* (cons (list name 'groups '((var . type) ...)) 
                                   (*templated-rulesets*))))]))
 
+(define *reprs-with-rules* (make-parameter '()))
+
 ;; Add existing rules in rulesets to 'active' rules
 
 (define (add-rules-from-rulesets repr)
@@ -156,34 +158,28 @@
 
 ;; Generate a set of rules by replacing a generic type with a repr
 (define (generate-rules-for type repr)
-  (define typename (type-name type))
-  (define valid? (disjoin (curry equal? typename)
+  (define valid? (disjoin (curry equal? type)
                           (curry set-member? (map representation-name (*reprs-with-rules*)))))
   (*templated-reprs* (set-add (*templated-reprs*) repr)) ; update
   (for ([set (reverse (*templated-rulesets*))] ; preserve rule order
        #:when (or (empty? (third set)) ; no type ctx
                   (andmap (λ (p) (valid? (cdr p))) (third set))))
     (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
-    (define ctx
+    (define var-reprs
       (for/list ([v vars] [t types])
-        (cons v
-              (if (equal? t typename)
-                  repr
-                  (get-representation t))))) ;; Only bad one!
+        (if (equal? t type) repr (get-representation t))))
+    (define ctx (context vars repr var-reprs))
+    (define vrhash (map cons vars var-reprs))
     (define rules*
       (for/fold ([rules* '()]) ([r rules])
-        (let ([name* (sym-append (rule-name r) '_ (representation-name repr))]
-              [input* (with-handlers ([exn:fail? (const #f)])
-                        (desugar-program (rule-input r) repr ctx #:full #f))]
-              [output* (with-handlers ([exn:fail? (const #f)])
-                         (desugar-program (rule-output r) repr ctx #:full #f))])
-          (if (and input* output*) ; if successfully desugars, then the rule is valid
-              (cons (rule name* input* output* ctx
-                          (type-of-rule input* output* ctx))
-                    rules*)
-              rules*))))      ; else, assume the expression(s) are not supported in the repr
+        (with-handlers ([exn:fail:user:herbie:missing? (const rules*)])
+          (define name* (sym-append (rule-name r) '_ (representation-name repr)))
+          (define input* (desugar-program (rule-input r) ctx #:full #f))
+          (define output* (desugar-program (rule-output r) ctx #:full #f))
+          (define rule* (rule name* input* output* vrhash (type-of-rule input* output* vrhash)))
+          (cons rule* rules*))))
     (unless (empty? rules*)   ; only add the ruleset if it contains one
-      (*rulesets* (cons (list rules* groups ctx) (*rulesets*))))))
+      (*rulesets* (cons (list rules* groups vrhash) (*rulesets*))))))
 
 ;; Generate rules for new reprs
 
@@ -421,7 +417,7 @@
   [exp-0        (exp 0)              1]
   [exp-1-e      (exp 1)              E]
   [1-exp        1                    (exp 0)]
-  [e-exp-1      E                    (exp 1)])
+  [e-exp-1      (E)                  (exp 1)])
 
 (define-ruleset* exp-distribute (exponents simplify)
   #:type ([a real] [b real])
@@ -501,7 +497,7 @@
   [log-div      (log (/ a b))       (- (log a) (log b))]
   [log-rec      (log (/ 1 a))       (neg (log a))]
   [log-pow      (log (pow a b))     (* b (log a))]
-  [log-E        (log E)             1])
+  [log-E        (log (E))           1])
 
 (define-ruleset* log-factor (exponents)
   #:type ([a real] [b real])
@@ -519,26 +515,26 @@
   [-1-add-sin  (+ (* (sin a) (sin a)) -1)  (neg (* (cos a) (cos a)))]
   [sub-1-cos   (- (* (cos a) (cos a)) 1)   (neg (* (sin a) (sin a)))]
   [sub-1-sin   (- (* (sin a) (sin a)) 1)   (neg (* (cos a) (cos a)))]
-  [sin-PI/6    (sin (/ PI 6))        1/2]
-  [sin-PI/4    (sin (/ PI 4))        (/ (sqrt 2) 2)]
-  [sin-PI/3    (sin (/ PI 3))        (/ (sqrt 3) 2)]
-  [sin-PI/2    (sin (/ PI 2))        1]
-  [sin-PI      (sin PI)              0]
-  [sin-+PI     (sin (+ x PI))        (neg (sin x))]
-  [sin-+PI/2   (sin (+ x (/ PI 2)))  (cos x)]
-  [cos-PI/6    (cos (/ PI 6))        (/ (sqrt 3) 2)]
-  [cos-PI/4    (cos (/ PI 4))        (/ (sqrt 2) 2)]
-  [cos-PI/3    (cos (/ PI 3))        1/2]
-  [cos-PI/2    (cos (/ PI 2))        0]
-  [cos-PI      (cos PI)              -1]
-  [cos-+PI     (cos (+ x PI))        (neg (cos x))]
-  [cos-+PI/2   (cos (+ x (/ PI 2)))  (neg (sin x))]
-  [tan-PI/6    (tan (/ PI 6))        (/ 1 (sqrt 3))]
-  [tan-PI/4    (tan (/ PI 4))        1]
-  [tan-PI/3    (tan (/ PI 3))        (sqrt 3)]
-  [tan-PI      (tan PI)              0]
-  [tan-+PI     (tan (+ x PI))        (tan x)]
-  [tan-+PI/2   (tan (+ x (/ PI 2)))  (/ -1 (tan x))]
+  [sin-PI/6    (sin (/ (PI) 6))        1/2]
+  [sin-PI/4    (sin (/ (PI) 4))        (/ (sqrt 2) 2)]
+  [sin-PI/3    (sin (/ (PI) 3))        (/ (sqrt 3) 2)]
+  [sin-PI/2    (sin (/ (PI) 2))        1]
+  [sin-PI      (sin (PI))              0]
+  [sin-+PI     (sin (+ x (PI)))        (neg (sin x))]
+  [sin-+PI/2   (sin (+ x (/ (PI) 2)))  (cos x)]
+  [cos-PI/6    (cos (/ (PI) 6))        (/ (sqrt 3) 2)]
+  [cos-PI/4    (cos (/ (PI) 4))        (/ (sqrt 2) 2)]
+  [cos-PI/3    (cos (/ (PI) 3))        1/2]
+  [cos-PI/2    (cos (/ (PI) 2))        0]
+  [cos-PI      (cos (PI))              -1]
+  [cos-+PI     (cos (+ x (PI)))        (neg (cos x))]
+  [cos-+PI/2   (cos (+ x (/ (PI) 2)))  (neg (sin x))]
+  [tan-PI/6    (tan (/ (PI) 6))        (/ 1 (sqrt 3))]
+  [tan-PI/4    (tan (/ (PI) 4))        1]
+  [tan-PI/3    (tan (/ (PI) 3))        (sqrt 3)]
+  [tan-PI      (tan (PI))              0]
+  [tan-+PI     (tan (+ x (PI)))        (tan x)]
+  [tan-+PI/2   (tan (+ x (/ (PI) 2)))  (/ -1 (tan x))]
   [hang-0p-tan (/ (sin a) (+ 1 (cos a)))     (tan (/ a 2))]
   [hang-0m-tan (/ (neg (sin a)) (+ 1 (cos a))) (tan (/ (neg a) 2))]
   [hang-p0-tan (/ (- 1 (cos a)) (sin a))     (tan (/ a 2))]
@@ -612,9 +608,9 @@
   [sin-asin    (sin (asin x))         x]
   [cos-acos    (cos (acos x))         x]
   [tan-atan    (tan (atan x))         x]
-  [atan-tan    (atan (tan x))         (remainder x PI)]
-  [asin-sin    (asin (sin x))         (- (fabs (remainder (+ x (/ PI 2)) (* 2 PI))) (/ PI 2))]
-  [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 PI)))])
+  [atan-tan    (atan (tan x))         (remainder x (PI))]
+  [asin-sin    (asin (sin x))         (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2))]
+  [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 (PI))))])
 
 (define-ruleset* trig-inverses-simplified (trigonometry)
   #:type ([x real])
@@ -630,11 +626,11 @@
   [tan-acos    (tan (acos x))         (/ (sqrt (- 1 (* x x))) x)]
   [sin-atan    (sin (atan x))         (/ x (sqrt (+ 1 (* x x))))]
   [cos-atan    (cos (atan x))         (/ 1 (sqrt (+ 1 (* x x))))]
-  [asin-acos   (asin x)               (- (/ PI 2) (acos x))]
-  [acos-asin   (acos x)               (- (/ PI 2) (asin x))]
-  [asin-neg    (asin (neg x))           (neg (asin x))]
-  [acos-neg    (acos (neg x))           (- PI (acos x))]
-  [atan-neg    (atan (neg x))           (neg (atan x))])
+  [asin-acos   (asin x)               (- (/ (PI) 2) (acos x))]
+  [acos-asin   (acos x)               (- (/ (PI) 2) (asin x))]
+  [asin-neg    (asin (neg x))         (neg (asin x))]
+  [acos-neg    (acos (neg x))         (- (PI) (acos x))]
+  [atan-neg    (atan (neg x))         (neg (atan x))])
 
 ; Hyperbolic trigonometric functions
 (define-ruleset* htrig-reduce (hyperbolic simplify)

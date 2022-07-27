@@ -6,11 +6,12 @@
 
 (module+ test (require rackunit))
 
-(provide egraph-run egraph-add-exprs with-egraph
-         egraph-get-simplest egg-expr->expr egg-add-exn?
+(provide egraph-run egraph-add-expr with-egraph
+         egraph-get-simplest egraph-get-variants
+         egg-expr->expr egg-exprs->exprs egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost
-         egraph-is-unsound-detected egraph-get-times-applied
-         egraph-get-proof
+         egraph-stop-reason egraph-is-unsound-detected
+         egraph-get-times-applied egraph-get-proof
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -26,11 +27,27 @@
   (destroy_string ptr)
   str)
 
+(define (egraph-get-variants egraph-data node-id orig-expr)
+  (define expr-str (expr->egg-expr orig-expr egraph-data))
+  (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
+  (define str (cast ptr _pointer _string/utf-8))
+  (destroy_string ptr)
+  str)
+
 (define (egraph-get-cost egraph-data node-id iteration)
   (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
 
 (define (egraph-is-unsound-detected egraph-data)
-  (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))  
+  (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
+
+(define (egraph-stop-reason egraph-data)
+  (define sr (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data)))
+  (match sr
+   [0 'saturated]
+   [1 'iter-limit]
+   [2 'node-limit]
+   [3 'unsound]
+   [else (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
 (define (make-raw-string s)
   (define b (string->bytes/utf-8 s))
@@ -65,9 +82,14 @@
            (convert-iteration-data (ptr-add egraphiters 1 _EGraphIter) (- size 1)))]
     [else empty]))
 
-
-(define (egraph-run egraph-data node-limit ffi-rules precompute?)
-  (define-values (egraphiters res-len) (egraph_run (egraph-data-egraph-pointer egraph-data) node-limit ffi-rules precompute?))
+;; runs rules on an egraph
+;; can optionally specify an iter limit
+(define (egraph-run egraph-data node-limit ffi-rules precompute? [iter-limit #f])
+  (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
+  (define-values (egraphiters res-len)
+    (if iter-limit
+        (egraph_run_with_iter_limit egraph-ptr iter-limit node-limit ffi-rules precompute?)
+        (egraph_run egraph-ptr node-limit ffi-rules precompute?)))
   (define res (convert-iteration-data egraphiters res-len))
   (destroy_egraphiters res-len egraphiters)
   res)
@@ -80,9 +102,20 @@
   (egraph_destroy (egraph-data-egraph-pointer egraph))
   res)
 
+;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
   (define parsed (read (open-input-string expr)))
   (egg-parsed->expr parsed (egraph-data-egg->herbie-dict eg-data)))
+
+;; Like `egg-expr->expr` but expected the string to
+;; parse into a list of S-exprs
+(define (egg-exprs->exprs exprs eg-data)
+  (define port (open-input-string exprs))
+  (let loop ([parse (read port)] [exprs '()])
+    (if (eof-object? parse)
+        (reverse exprs)
+        (let ([expr (egg-parsed->expr parse (egraph-data-egg->herbie-dict eg-data))])
+          (loop (read port) (cons expr exprs))))))
 
 (define (egg-parsed->expr parsed rename-dict)
   (match parsed
@@ -149,6 +182,7 @@
   res)
 
 ;; result function is a function that takes the ids of the nodes
+<<<<<<< HEAD
 ;; egraph-add-exprs returns the result of result-function
 (define (egraph-add-exprs eg-data exprs result-function)
   (define egg-exprs
@@ -183,6 +217,16 @@
 
   res)
 
+=======
+(define (egraph-add-expr eg-data expr)
+  (define egg-expr (expr->egg-expr expr eg-data))
+  (define result (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
+  (when (= result 0)
+    (raise (egg-add-exn
+            "Failed to add expr to egraph"
+            (current-continuation-marks))))
+  (- result 1))
+>>>>>>> main
 
 (module+ test
 

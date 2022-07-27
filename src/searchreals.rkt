@@ -1,8 +1,6 @@
 #lang racket
 (require math/bigfloat rival)
-(require "interface.rkt" "timeline.rkt")
-
-(module+ test (require rackunit))
+(require "syntax/types.rkt" "timeline.rkt")
 
 (provide find-intervals hyperrect-weight)
 
@@ -42,10 +40,12 @@
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
       (define res (apply ival-fn rect))
+      (match-define (ival lo hi) res)
+      (match-define (ival err err?) (ival-error? res))
       (cond
-       [(or (ival-err res) (not (ival-hi res)))
+       [(or err (not hi))
         (values true* (cons rect false*) other*)]
-       [(and (not (ival-err? res)) (ival-lo res))
+       [(and (not err?) lo)
         (values (cons rect true*) false* other*)]
        [else
         (define range (list-ref rect split-var))

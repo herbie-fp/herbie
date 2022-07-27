@@ -1,19 +1,42 @@
-.PHONY: help install nightly index start-server deploy
+.PHONY: help install egg-herbie nightly index start-server deploy
 
 help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket src/herbie.rkt web' to run it."
 
-install:
-	cd ./egg-herbie && cargo update
+install: clean egg-herbie update
+
+clean:
+	raco pkg remove --force herbie && echo "Uninstalled old herbie" || :
+	raco pkg remove --force egg-herbie && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force egg-herbie-linux && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
+
+update:
+	raco pkg install --skip-installed --auto --name herbie src/
+	raco pkg update --name herbie --deps search-auto src/
+
+egg-herbie:
 	cargo build --release --manifest-path=egg-herbie/Cargo.toml
 	raco pkg remove --force egg-herbie && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force egg-herbie-linux && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force egg-herbie-windows && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
-	raco pkg install --skip-installed --auto --name herbie src/
-	raco pkg update --name herbie src/
+
+distribution: minimal-distribution
+	cp -r bench herbie-compiled/
+
+minimal-distribution:
+	mkdir -p herbie-compiled/
+	cp README.md herbie-compiled/
+	cp LICENSE.md herbie-compiled/
+	cp logo.png herbie-compiled/
+	raco exe -o herbie --orig-exe --embed-dlls --vv src/herbie.rkt
+	[ ! -f herbie.exe ] || (raco distribute herbie-compiled herbie.exe && rm herbie.exe)
+	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
+	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly: install
 	bash infra/nightly.sh reports

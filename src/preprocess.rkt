@@ -1,6 +1,6 @@
 #lang racket
 
-(require "interface.rkt" "programs.rkt" "float.rkt" "points.rkt")
+(require "syntax/types.rkt" "points.rkt" "float.rkt")
 
 (provide preprocess-pcontext *herbie-preprocess* apply-preprocess)
 
@@ -18,9 +18,6 @@
       [else
        (cons (first current) (loop (rest current) todo (+ index 1)))])))
 
-(define (<-repr repr a b)
-  (< (repr->real a repr) (repr->real b repr)))
-
 (define (apply-to-group variables point group-variables group-function)
   (define indicies
     (map (lambda (var) (index-of variables var)) group-variables))
@@ -31,16 +28,17 @@
 
 (define (sort-group variables point preprocess repr)
   (match-define (list 'sort vars ...) preprocess)
-  (apply-to-group variables point vars (lambda (group) (sort group (curry <-repr repr)))))
+  (apply-to-group variables point vars (lambda (group) (sort group (curryr </total repr)))))
 
-(define (apply-preprocess variables sampled-point preprocess-structs repr)
+(define (apply-preprocess sampled-point preprocess-structs ctx)
   (cond
     [(empty? preprocess-structs)
      sampled-point]
     ;; Add more preprocess cases here- for now, only symmetry-group exists
     [else
-     (apply-preprocess variables (sort-group variables sampled-point (first preprocess-structs) repr) (rest preprocess-structs) repr)]))
+     (define pt* (sort-group (context-vars ctx) sampled-point (first preprocess-structs) (context-repr ctx)))
+     (apply-preprocess pt* (rest preprocess-structs) ctx)]))
 
-(define (preprocess-pcontext variables pcontext preprocess-structs repr)
+(define (preprocess-pcontext pcontext preprocess-structs ctx)
   (for/pcontext ([(pt ex) pcontext])
-    (values (apply-preprocess variables pt preprocess-structs repr) ex)))
+    (values (apply-preprocess pt preprocess-structs ctx) ex)))

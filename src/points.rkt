@@ -1,9 +1,9 @@
 #lang racket
 
-(require "float.rkt" "common.rkt" "programs.rkt" "config.rkt" "errors.rkt" "interface.rkt")
+(require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext
-         errors batch-errors errors-score oracle-error baseline-error oracle-error-idx)
+(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext join-pcontext
+         errors batch-errors errors-score)
 
 ;; pcontexts are Herbie's standard data structure for storing
 ;; ground-truth information. They contain 1) a set of sampled input
@@ -35,29 +35,18 @@
   (define-values (exs-a exs-b) (vector-split-at exs num-a))
   (values (pcontext pts-a exs-a) (pcontext pts-b exs-b)))
 
+(define (join-pcontext . ctxs)
+  (pcontext
+   (apply vector-append (map pcontext-points ctxs))
+   (apply vector-append (map pcontext-exacts ctxs))))
+
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
 
 (define (point-error out exact repr)
-  (if (ordinary-value? out repr)
-      (ulp-difference out exact repr)
-      (+ 1 (expt 2 (representation-total-bits repr)))))
-
-(define (eval-errors eval-fn pcontext repr)
-  (for/list ([(point exact) (in-pcontext pcontext)])
-    (point-error (apply eval-fn point) exact repr)))
-
-(define (oracle-error-idx alt-bodies points exacts repr)
-  (for/list ([point points] [exact exacts])
-    (list point (argmin (λ (i) (point-error ((list-ref alt-bodies i) point) exact repr)) (range (length alt-bodies))))))
-
-(define (oracle-error alt-bodies pcontext repr)
-  (for/list ([(point exact) (in-pcontext pcontext)])
-    (argmin identity (map (λ (alt) (point-error (apply alt point) exact repr)) alt-bodies))))
-
-(define (baseline-error alt-bodies pcontext newpcontext repr)
-  (define baseline (argmin (λ (alt) (errors-score (eval-errors alt pcontext repr))) alt-bodies))
-  (eval-errors baseline newpcontext repr))
+  (if ((representation-special-value? repr) out)
+      (+ 1 (expt 2 (representation-total-bits repr)))
+      (ulp-difference out exact repr)))
 
 (define (average . s)
   (/ (apply + s) (length s)))
@@ -65,16 +54,12 @@
 (define (errors-score e)
   (apply (if (flag-set? 'reduce 'avg-error) average max) (map ulps->bits e)))
 
-(define (errors prog pcontext repr)
-  (define fn (eval-prog prog 'fl repr))
-  (for/list ([(point exact) (in-pcontext pcontext)])
-    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" prog point) (raise e))])
-      (point-error (apply fn point) exact repr))))
+(define (errors prog pcontext ctx)
+  (map first (batch-errors (list prog) pcontext ctx)))
 
-(define (batch-errors progs pcontext repr)
-  (define fn (batch-eval-progs progs 'fl repr))
+(define (batch-errors progs pcontext ctx)
+  (define fn (batch-eval-progs progs 'fl ctx))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
-      (for/vector ([out (in-vector (apply fn point))])
-        (point-error out exact repr)))))
-
+      (for/list ([out (in-vector (apply fn point))])
+        (point-error out exact (context-repr ctx))))))

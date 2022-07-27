@@ -1,7 +1,6 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
-(require "../common.rkt" "../syntax/read.rkt" "../sandbox.rkt"
-         "../datafile.rkt" "common.rkt")
+(require "../common.rkt" "../datafile.rkt" "common.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -65,11 +64,15 @@
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
+         ,@(dict-call curr render-phase-egraph 'egraph)
+         ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
          ,@(dict-call curr render-phase-alts 'alts)
+         ,@(dict-call curr render-phase-inputs 'inputs 'outputs)
          ,@(dict-call curr render-phase-times #:extra n 'times)
+         ,@(dict-call curr render-phase-series #:extra n 'series)
          ,@(dict-call curr render-phase-bstep 'bstep)
-         ,@(dict-call curr render-phase-egraph 'egraph)
+         ,@(dict-call curr render-phase-branches 'branch)
          ,@(dict-call curr render-phase-sampling 'sampling)
          ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
@@ -102,7 +105,7 @@
   `((dt "Local error")
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
-          (thead (tr (td "New") (td "Error") (td "Program")))
+          (thead (tr (th "New") (th "Error") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
               (match-define (list expr err new?) rec)
               `(tr (td ,(if new? "✓" ""))
@@ -111,13 +114,16 @@
 
 (define (render-phase-bstep iters)
   `((dt "Steps")
-    (dd (table ([class "times"])
-               (tr (th "Iters") (th ([colspan "2"]) "Range") (th "Point"))
-               ,@(for/list ([rec (in-list iters)])
-                   (match-define (list v1 v2 iters pt) rec)
-                   `(tr (td ,(~a iters)) 
-                        (td (pre ,(~a v1))) (td (pre ,(~a v2)))
-                        (td (pre ,(~a pt)))))))))
+    (dd (table
+         (tr (th "Iters") (th "Point") (th) (th ([colspan "3"]) "Range") (th))
+         ,@(for/list ([rec (in-list iters)])
+             (match-define (list v1 v2 pt) rec)
+             `(tr (td (pre ,(~a pt)))
+                  (td "∈ [")
+                  (td (pre ,(~a v1)))
+                  (td ", ")
+                  (td (pre ,(~a v2)))
+                  (td "]")))))))
 
 (define (render-phase-egraph iters)
   (define costs (map third iters))
@@ -132,6 +138,14 @@
               (match-define (list iter nodes cost t) rec)
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
+(define (render-phase-stop data)
+  (match-define (list (list reasons counts) ...) data)
+  `((dt "Stop Event")
+    (dd
+      (table ([class "times"])
+        ,@(for/list ([reason reasons] [count counts])
+          `(tr (td ,(~a count) "×")
+               (td ,(~a reason))))))))
 
 (define (format-percent num den)
   (string-append
@@ -232,7 +246,7 @@
 (define (render-phase-alts alts)
   `((dt "Alt Table")
     (dd (table ([class "times"])
-         (thead (tr (td "Status") (td "Error") (td "Program")))
+         (thead (tr (th "Status") (th "Error") (th "Program")))
          ,@(for/list ([rec (in-list alts)])
              (match-define (list expr status score) rec)
              `(tr
@@ -254,6 +268,19 @@
                    (match-define (list expr time) rec)
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
+(define (render-phase-series n times)
+  `((dt "Calls")
+    (dd (p ,(~a (length times)) " calls:")
+        (canvas ([id ,(format "calls-~a" n)]
+                 [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map fourth times)) ")")
+        (table ([class "times"])
+               (thead (tr (th "Time") (th "Variable") (th) (th "Point") (th "Expression")))
+               ,@(for/list ([rec (in-list (sort times > #:key fourth))] [_ (in-range 5)])
+                   (match-define (list expr var transform time) rec)
+                   `(tr (td ,(format-time time))
+                        (td (pre ,var)) (td "@") (td ,transform) (td (pre ,expr))))))))
+
 (define (render-phase-compiler compiler)
   (match-define (list (list sizes compileds) ...) compiler)
   (define size (apply + sizes))
@@ -262,6 +289,13 @@
     (dd (p "Compiled " ,(~a size) " to " ,(~a compiled) " computations "
            "(" ,(format-percent (- size compiled) size) " saved)"))))
 
+(define (render-phase-branches branches)
+  `((dt "Results")
+    (dd (table ([class "times"])
+         ,@(for/list ([rec (in-list branches)])
+             (match-define (list expr score time) rec)
+             `(tr (td ,(format-time time)) (td ,(format-bits score) "b") (td (code ,expr))))))))
+
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
     (dd (table ([class "times"])
@@ -269,6 +303,20 @@
              (match-define (list prog precision category time count) rec)
              `(tr (td ,(format-time time)) (td ,(~a count) "×") (td ,(~a prog))
                   (td ,(~a precision)) (td ,(~a category))))))))
+
+(define (render-phase-inputs inputs outputs)
+  `((dt "Calls")
+    (dd ,@(for/list ([call inputs] [output outputs] [n (in-naturals 1)])
+            `(details
+              (summary "Call " ,(~a n))
+              (table
+               (thead (tr (th "Inputs")))
+               ,@(for/list ([arg call])
+                   `(tr (td (pre ,(~a arg))))))
+              (table
+               (thead (tr (th "Outputs")))
+               ,@(for/list ([out output])
+                   `(tr (td (pre ,(~a out)))))))))))
 
 ;; This next part handles summarizing several timelines into one details section for the report page.
 

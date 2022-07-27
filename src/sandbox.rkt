@@ -1,16 +1,15 @@
 #lang racket
 (require profile math/bigfloat racket/engine json)
-(require "common.rkt" "errors.rkt" "debug.rkt" "points.rkt" "programs.rkt" "ground-truth.rkt"
-         "mainloop.rkt" "alternative.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "interface.rkt" "datafile.rkt" "syntax/read.rkt" "syntax/rules.rkt" "profile.rkt"
-         (submod "syntax/rules.rkt" internals) "syntax/syntax.rkt" "conversions.rkt"
-         "syntax/sugar.rkt" "preprocess.rkt" "sampling.rkt" "cost.rkt")
+(require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
+         "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
+         "datafile.rkt" "errors.rkt"
+         "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
+         "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 
 (provide get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result)
-
 
 ;; These cannot move between threads!
 (struct test-result (test bits time timeline warnings))
@@ -18,7 +17,7 @@
   (start-alt end-alts preprocess points exacts
    start-est-error end-est-error newpoints newexacts
    start-error end-errors target-error
-   baseline-error oracle-error start-cost end-costs all-alts))
+   start-cost end-costs all-alts))
 (struct test-failure test-result (exn))
 (struct test-timeout test-result ())
 
@@ -39,28 +38,18 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-(define (get-test-result test
-                         #:seed [seed #f]
-                         #:profile [profile? #f]
-                         #:debug [debug? #f]
-                         #:debug-port [debug-port #f]
-                         #:debug-level [debug-level #f])
+(define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
   (define output-repr (test-output-repr test))
-  (define output-prec (representation-name output-repr))
-  (*output-repr* output-repr)
+  (define context (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 
   (define (compute-result test)
-    (parameterize ([*debug-port* (or debug-port (*debug-port*))]
-                   [*timeline-disabled* false]
+    (parameterize ([*timeline-disabled* false]
                    [*warnings-disabled* true])
       (define start-time (current-inexact-milliseconds))
       (when seed (set-seed! seed))
       (random) ;; Child process uses deterministic but different seed from evaluator
-      (match debug-level
-        [(cons x y) (set-debug-level! x y)]
-        [_ (void)])
 
       (generate-prec-rewrites (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
@@ -81,20 +70,12 @@
 
         (when seed (set-seed! seed))
         (define processed-test-context
-          (preprocess-pcontext (test-vars test) test-context (*herbie-preprocess*) output-repr))
+          (preprocess-pcontext test-context (*herbie-preprocess*) context))
 
-        (define fns
-          (map (λ (alt) (eval-prog (alt-program alt) 'fl output-repr))
-               (remove-duplicates (*all-alts*))))
+        (define end-errs
+          (flip-lists
+           (batch-errors (map alt-program alts) processed-test-context context)))
 
-        (define end-errss (map (λ (x) (errors (alt-program x) processed-test-context output-repr)) alts))
-        (define baseline-errs (baseline-error fns train-context processed-test-context output-repr))
-        (define oracle-errs (oracle-error fns processed-test-context output-repr))
-        (define end-score (errors-score (car end-errss)))
-
-        (timeline-adjust! 'regimes 'oracle (errors-score oracle-errs))
-        (timeline-adjust! 'regimes 'accuracy end-score)
-        (timeline-adjust! 'regimes 'baseline (errors-score baseline-errs))
         (timeline-adjust! 'regimes 'name (test-name test))
         (timeline-adjust! 'regimes 'link ".")
         (print-warnings)
@@ -107,18 +88,16 @@
                       (timeline-extract output-repr)
                       warning-log (make-alt (test-program test)) alts
                       (*herbie-preprocess*) points exacts
-                      (errors (test-program test) train-context output-repr)
-                      (errors (alt-program (car alts)) train-context output-repr)
+                      (errors (test-program test) train-context context)
+                      (errors (alt-program (car alts)) train-context context)
                       newpoints newexacts
-                      (errors (test-program test) processed-test-context output-repr)
-                      end-errss
+                      (errors (test-program test) processed-test-context context)
+                      end-errs
                       (if (test-output test)
-                          (errors (test-target test) processed-test-context output-repr)
+                          (errors (test-target test) processed-test-context context)
                           #f)
-                      baseline-errs
-                      oracle-errs
-                      (program-cost (test-program test))
-                      (map alt-cost alts)
+                      (program-cost (test-program test) output-repr)
+                      (map (curryr alt-cost output-repr) alts)
                       (*all-alts*)))))
 
   (define (on-exception start-time e)
@@ -189,7 +168,7 @@
     (define end-exprs (map (λ (p) (program-body (resugar-program p (test-output-repr test)))) end-progs))
 
     (define cost&accuracy
-      (list (list (program-cost start-prog) start-score)
+      (list (list (program-cost start-prog (test-output-repr test)) start-score)
             (list (car costs) (car end-scores))
             (map list (cdr costs) (cdr end-scores) (cdr end-exprs))))
 

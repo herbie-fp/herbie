@@ -1,9 +1,7 @@
 #lang racket
 
 (require math/number-theory)
-(require "../common.rkt")
-(require "../programs.rkt")
-(require "reduce.rkt")
+(require "../common.rkt" "../programs.rkt" "reduce.rkt")
 (provide approximate)
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
@@ -11,8 +9,6 @@
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
   (match-define (cons offset coeffs) (taylor var expr*))
 
-  (debug #:from 'approximate "Taking taylor expansion of" expr* "in" var)
-  
   (define i 0)
   (define terms '())
 
@@ -67,6 +63,14 @@
               outside-expt)))))
 
 (define n-sum-to-cache (make-hash))
+(define logcache (make-hash '((1 . ((1 -1 1))))))
+(define series-cache (make-hash))
+
+(register-reset
+ (λ ()
+  (set! n-sum-to-cache (make-hash))
+  (set! logcache (make-hash '((1 . ((1 -1 1))))))
+  (set! series-cache (make-hash))))
 
 (define (n-sum-to n k)
   (hash-ref! n-sum-to-cache (cons n k)
@@ -87,15 +91,11 @@
           (loop (- i (length seg)) (+ sum 1))
           (list-ref seg i)))))
 
-(define taylor-expansion-known
-  '(+ - neg * / sqrt cbrt exp sin cos log pow))
-
-(register-reset
- (λ ()
-  (set! n-sum-to-cache (make-hash))
-  (set! logcache (make-hash '((1 . ((1 -1 1))))))))
-
 (define (taylor var expr)
+  (define var-cache (hash-ref! series-cache var (λ () (make-hash))))
+  (hash-ref! var-cache expr (λ () (taylor* var expr))))
+
+(define (taylor* var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
   (match expr
     [(? (curry equal? var))
@@ -111,7 +111,7 @@
     [`(neg ,arg)
      (taylor-negate ((curry taylor var) arg))]
     [`(- ,arg1 ,arg2)
-     (taylor-add (taylor var arg1) (taylor-negate (taylor var arg2)))]
+     (taylor var `(+ ,arg1 (neg ,arg2)))]
     [`(* ,left ,right)
      (taylor-mult (taylor var left) (taylor var right))]
     [`(/ 1 ,arg)
@@ -171,6 +171,10 @@
                         ((cdr rest) n))))))]
     [`(pow ,base ,(? exact-integer? power))
      (taylor-pow (normalize-series (taylor var base)) power)]
+    [`(pow ,base 1/2)
+     (taylor-sqrt (taylor var base))]
+    [`(pow ,base 1/3)
+     (taylor-cbrt (taylor var base))]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
     [`(expm1 ,arg) (taylor var `(- (exp ,arg) 1))]
@@ -335,17 +339,20 @@
          [offset* (- offset (modulo offset 3))]
          [coeffs (cdr num*)]
          [coeffs* (if (= (modulo offset 3) 0) coeffs (λ (n) (if (= n 0) 0 (coeffs (+ n (modulo offset 3))))))]
+         [f0 (simplify `(cbrt ,(coeffs* 0)))]
          [hash (make-hash)])
-    (hash-set! hash 0 (simplify `(cbrt ,(coeffs* 0))))
-    (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 3 (cbrt ,(coeffs* 0))))))
+    (hash-set! hash 0 f0)
+    (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 3 (cbrt (* ,f0 ,f0))))))
     (letrec ([f (λ (n)
                    (hash-ref! hash n
                               (λ ()
                                  (simplify
                                   `(/ (- ,(coeffs* n)
-                                         (+ ,@(for/list ([j (in-range 1 n)] [k (in-range 1 n)] #:when (<= (+ j k) n))
-                                                `(* 2 (* ,(f j) ,(f k) ,(f (- n j k)))))))
-                                      (* 3 ,(f 0)))))))])
+                                         ,@(for*/list ([terms (n-sum-to 3 n)]
+                                                       #:unless (set-member? terms n))
+                                             (match-define (list a b c) terms)
+                                             `(* ,(f a) ,(f b) ,(f c))))
+                                      (* 3 ,f0 ,f0))))))])
       (cons (/ offset* 3) f))))
 
 (define (taylor-pow coeffs n)
@@ -469,7 +476,6 @@
 (define (logstep table)
   (lognormalize (loggenerate table)))
 
-(define logcache (make-hash (list (cons 1 '((1 -1 1))))))
 (define logbiggest 1)
 
 (define (logcompute i)
@@ -499,6 +505,14 @@
                               ,(factorial n))))))))))
 
 (module+ test
-  (require rackunit "../interface.rkt" "../load-plugin.rkt")
-  (*output-repr* (get-representation 'binary64))
+  (require rackunit "../syntax/types.rkt" "../load-plugin.rkt")
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
+
+(module+ test
+  (define (coeffs expr #:n [n 7])
+    (match-define fn (zero-series (taylor 'x expr)))
+    (build-list n fn))
+
+  (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
+  (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
+  )

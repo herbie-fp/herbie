@@ -1,12 +1,12 @@
 #lang racket
 
-(require "../config.rkt" "../common.rkt" "../errors.rkt" "../programs.rkt" "../interface.rkt"
-         "../conversions.rkt"
+(require "../common.rkt" "../conversions.rkt" "../errors.rkt"
+         "../programs.rkt" "types.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
          test-program test-target test-specification load-tests parse-test
-         test-precondition
+         test-precondition test-context
          test-output-repr test-var-reprs test-conversions)
 
 
@@ -27,6 +27,14 @@
 
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
+
+(define (test-context test)
+  (define output-repr (get-representation (test-output-repr-name test)))
+  (define vars (test-vars test))
+  (define var-reprs
+    (for/list ([var vars])
+      (get-representation (dict-ref (test-var-repr-names test) var))))
+  (context (test-vars test) output-repr var-reprs))
 
 (define (test-var-reprs test)
   (for/list ([(k v) (in-dict (test-var-repr-names test))])
@@ -59,13 +67,14 @@
         ['() '()]
         [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
 
-  (define default-repr (get-representation (dict-ref prop-dict ':precision (*default-precision*))))
+  (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
+  (define default-repr (get-representation default-prec))
   (define var-reprs 
     (for/list ([arg args] [arg-name arg-names])
-      (cons arg-name
-            (if (and (list? arg) (set-member? args ':precision))
-                (get-representation (cadr (member ':precision args)))
-                default-repr))))
+      (if (and (list? arg) (set-member? args ':precision))
+          (get-representation (cadr (member ':precision args)))
+          default-repr)))
+  (define ctx (context arg-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table
   (when func-name (register-function! func-name args default-repr body))
@@ -82,10 +91,10 @@
   (generate-conversions convs)
 
   ;; inline and desugar
-  (define body* (desugar-program body default-repr var-reprs))
-  (define pre* (desugar-program (dict-ref prop-dict ':pre 'TRUE) default-repr var-reprs))
-  (define target (desugar-program (dict-ref prop-dict ':herbie-target #f) default-repr var-reprs))
-  (define spec (desugar-program (dict-ref prop-dict ':spec body) default-repr var-reprs))
+  (define body* (desugar-program body ctx))
+  (define pre* (desugar-program (dict-ref prop-dict ':pre 'TRUE) ctx))
+  (define target (desugar-program (dict-ref prop-dict ':herbie-target #f) ctx))
+  (define spec (desugar-program (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
   (check-weird-variables arg-names)
 
@@ -99,7 +108,7 @@
         pre*
         (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
-        (for/list ([(k v) (in-dict var-reprs)]) (cons k (representation-name v)))
+        (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
         conv-syntax))
 
 (define (check-unused-variables vars precondition expr)
@@ -112,6 +121,7 @@
   (unless (set=? vars used)
     (define unused (set-subtract vars used))
     (warn 'unused-variable
+          #:url "faq.html#unused-variable"
           "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
           (string-join (map ~a unused) ", "))))
 
@@ -119,6 +129,7 @@
   (for* ([var vars] [const (all-constants)])
     (when (string-ci=? (symbol->string var) (symbol->string const))
       (warn 'strange-variable
+            #:url "faq.html#strange-variable"
             "unusual variable ~a; did you mean ~a?" var const))))
 
 (define (our-read-syntax port name)
@@ -160,3 +171,32 @@
           (if (equal? (length duplicates) 1) "name" "names")
           (string-join (map (curry format "\"~a\"") duplicates) ", ")))
   out)
+
+(module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-builtins)
+
+  (define repr (get-representation 'binary64))
+  (define ctx (make-debug-context '(x y z a)))
+
+  ;; inlining
+
+  ;; Test classic quadp and quadm examples
+  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
+  (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
+  (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
+  (check-equal? (desugar-program quadp ctx)
+                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+  (check-equal? (desugar-program quadm ctx)
+                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+
+  ;; x^5 = x^3 * x^2
+  (register-function! 'sqr (list 'x) repr '(* x x))
+  (register-function! 'cube (list 'x) repr '(* x x x))
+  (define fifth '(* (cube a) (sqr a)))
+  (check-equal? (desugar-program fifth ctx)
+                '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
+
+  ;; casting edge cases
+  (check-equal? (desugar-program `(cast x) ctx) 'x)
+  (check-equal? (desugar-program `(cast (! :precision binary64 x)) ctx) 'x))

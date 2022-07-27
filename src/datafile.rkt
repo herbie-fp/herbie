@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/date json)
-(require "common.rkt" "interface.rkt")
+(require "common.rkt")
 
 (provide
  (struct-out table-row) (struct-out report-info)
@@ -132,7 +132,7 @@
 (define (unique? a)
   (or (null? a) (andmap (curry equal? (car a)) (cdr a))))
 
-(define (merge-datafiles dfs #:dirs [dirs #f])
+(define (merge-datafiles dfs #:dirs [dirs #f] #:name [name #f])
   (when (null? dfs)
     (error' merge-datafiles "Cannot merge no datafiles"))
   (for ([f (in-list (list report-info-commit report-info-hostname report-info-seed
@@ -151,7 +151,7 @@
    (report-info-flags (first dfs))
    (report-info-points (first dfs))
    (report-info-iterations (first dfs))
-   (~a (cons 'merged (map report-info-note dfs)))
+   (if name (~a name) (~a (cons 'merged (map report-info-note dfs))))
    (for/list ([df (in-list dfs)] [dir (in-list dirs)]
               #:when true
               [test (in-list (report-info-tests df))])

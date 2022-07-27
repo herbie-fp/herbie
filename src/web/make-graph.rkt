@@ -5,7 +5,7 @@
                           [core-common-subexpr-elim core-cse]))
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../interface.rkt"
+         "../alternative.rkt" "../syntax/types.rkt"
          "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
          "common.rkt" "history.rkt" "../syntax/sugar.rkt")
          
@@ -63,14 +63,13 @@
    (test-success test bits time timeline warnings
                  start-alt end-alts preprocess points exacts start-est-error end-est-error
                  newpoints newexacts start-error end-errors target-error
-                 baseline-error oracle-error start-cost costs all-alts)
+                 start-cost costs all-alts)
    result)
   (define repr (test-output-repr test))
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
   (define other-alts (cdr end-alts))
   (define other-errors (cdr end-errors))
-  (define alt-plots? (< (* (length other-alts) (length (test-vars test))) 100))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -78,11 +77,14 @@
      (head
       (meta ([charset "utf-8"]))
       (title "Result for " ,(~a (test-name test)))
-      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       ,@js-tex-include
-      (script ([src "../report.js"]))
+      (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
+      (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
+      (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
+      (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       (script ([src "interactive.js"]))
-      (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"])))
+      (script ([src "../report.js"] [type "module"]))
+      )
      (body
       ,(render-menu
         (list
@@ -95,7 +97,6 @@
          '("Reproduce" . "#reproduce"))
         (list
          '("Report" . "../results.html")
-         '("Log" . "debug.txt")
          '("Metrics" . "timeline.html")))
 
       (section ([id "large"])
@@ -117,35 +118,7 @@
 
       ,(render-program preprocess test #:to (alt-program end-alt))
 
-      (section ([id "graphs"])
-       (h1 "Error")
-       (div
-        ,@(for/list ([var (test-vars test)] [idx (in-naturals)])
-            (cond
-             [(> (length (remove-duplicates (map (curryr list-ref idx) newpoints))) 1)
-              (define split-var? (equal? var (regime-var end-alt)))
-              (define title "The X axis uses an exponential scale")
-              `(figure ([id ,(format "fig-~a" idx)] [class ,(if split-var? "default" "")])
-                ,@(reverse ; buttons are sorted R/L
-                    (for/list ([alt other-alts] [idx2 (in-naturals)] #:when alt-plots?)
-                      (let ([name (format "Other~a" idx2)])
-                        `(img ([width "800"] [height "300"] [title ,title] [data-name ,name]
-                               [src ,(format "plot-~ao~a.png" idx idx2)])))))
-                (img ([width "800"] [height "300"] [title ,title]
-                      [src ,(format "plot-~a.png" idx)]))
-                (img ([width "800"] [height "300"] [title ,title] [data-name "Input"]
-                      [src ,(format "plot-~ar.png" idx)]))
-                ,(if target-error
-                     `(img ([width "800"] [height "300"] [title ,title] [data-name "Target"]
-                            [src ,(format "plot-~ag.png" idx)]))
-                     "")
-                (img ([width "800"] [height "300"] [title ,title] [data-name "Result"]
-                      [src ,(format "plot-~ab.png" idx)]))
-                (figcaption (p "Bits error versus " (var ,(~a var)))))]
-             [else ""]))
-       ,(if alt-plots?
-             ""
-             `(p "Too many alternatives generated, ignoring plots"))))
+      (section ([id "graphs"]) (h1 "Error") (div ([id "graphs-content"])))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive start-alt (car points))
@@ -167,9 +140,8 @@
       (section ([id "history"])
        (h1 "Derivation")
        (ol ([class "history"])
-        ,@(parameterize ([*output-repr* repr] [*var-reprs* (map (curryr cons repr) (test-vars test))])
-            (render-history end-alt (mk-pcontext newpoints newexacts)
-                            (mk-pcontext points exacts) repr))))
+        ,@(render-history end-alt (mk-pcontext newpoints newexacts)
+                          (mk-pcontext points exacts) (test-context test))))
 
       ,(if (not (null? other-alts))
            `(section ([id "alternatives"])

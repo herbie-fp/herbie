@@ -1,8 +1,7 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt" "matcher.rkt" "../interface.rkt"
-         "../syntax/rules.rkt" "../syntax/syntax.rkt"
-         "../syntax/sugar.rkt" "../syntax/types.rkt")
+(require "../common.rkt" "../programs.rkt" "matcher.rkt"
+         "../syntax/rules.rkt" "../syntax/syntax.rkt" "../syntax/sugar.rkt")
 
 (provide simplify load-rule-hacks)
 
@@ -12,6 +11,15 @@
 
 (define fn-inverses '())
 (define fn-evaluations (make-hash))
+(define simplify-cache (make-hash))
+(define simplify-node-cache (make-hash))
+
+(register-reset
+ (λ ()
+  (set! fn-inverses '())
+  (set! fn-evaluations (make-hash))
+  (set! simplify-cache (make-hash))
+  (set! simplify-node-cache (make-hash))))
 
 (define (load-rule-hacks)
   (set! fn-inverses
@@ -26,6 +34,9 @@
            (resugar-program (rule-output r) (rule-otype r) #:full #f)))))
 
 (define (simplify expr)
+  (hash-ref! simplify-cache expr (λ () (simplify* expr))))
+
+(define (simplify* expr)
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
@@ -34,7 +45,7 @@
     [`(lambda ,vars ,body)
      `(λ ,vars ,(simplify body))]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-     (simplify-node (list op (simplify body)))]
+     (list op (simplify body))]
     [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary 
      (define args* (map simplify args))
      (define val (apply eval-application op args*))
@@ -45,6 +56,9 @@
      (or val (simplify-node (list* op args*)))]))
 
 (define (simplify-node expr)
+  (hash-ref! simplify-node-cache expr (λ () (simplify-node* expr))))
+
+(define (simplify-node* expr)
   (match expr
     [(? (curry hash-has-key? fn-evaluations)) (hash-ref fn-evaluations expr)]
     [(? number?) expr]
@@ -67,7 +81,7 @@
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
 
-(define (gather-additive-terms expr #:label [label #f] )
+(define (gather-additive-terms expr #:label [label #f])
   (define (recurse subexpr #:label [label #f])
     (gather-additive-terms subexpr #:label label))
 
@@ -81,25 +95,14 @@
        (append (recurse arg)
                (map negate-term (append-map recurse args)))]
 
-      [`(* ,args ...)
-       (for/list ([term-list (apply cartesian-product (map recurse args))])
-         (list* (apply * (map car term-list))
-                (simplify-node (cons '* (map cadr term-list)))
-                (cons label (append-map cddr term-list))))]
       [`(/ ,arg) ; Prevent fall-through to the next case
        `((1 ,expr))]
       [`(/ ,arg ,args ...)
        (for/list ([term (recurse arg)])
          (list* (car term) (simplify-node (list* '/ (cadr term) args)) (cons label (cddr term))))]
 
-      [`(pow ,arg ,(? integer? n))
-       (cond
-        [(positive? n)
-         (recurse (cons '* (build-list (inexact->exact n) (const arg))) #:label expr)]
-        [(negative? n)
-         `((1 ,expr))]
-        [(zero? n)
-         `((1 1))])]
+      [`(pow ,arg 1)
+       `((1 1))]
       [else
        `((1 ,expr))])))
 
@@ -257,9 +260,5 @@
     [`(-1 . ,x) `(/ 1 ,x)]
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
-    [`(,power . ,x)
-     (define base* (desugar-program x (*output-repr*) (*var-reprs*) #:full #f))
-     (match (type-name (type-of base* (*output-repr*) (*var-reprs*)))
-       ['real `(pow ,x ,power)]
-       ['complex `(pow ,x (complex ,power 0))])]))
+    [`(,power . ,x) `(pow ,x ,power)]))
 

@@ -66,7 +66,7 @@
 
   <p>
     Herbie raises this warning when some inputs require more than
-    10 000 bits to compute an exact ground truth. For example, to
+    10,000 bits to compute an exact ground truth. For example, to
     compute <code>(/ (exp x) (exp x))</code> for very
     large <code>x</code>, absurdly large exponents would be required.
     Herbie discards such inputs and raises this warning. If you see
@@ -84,35 +84,21 @@
     currently no workaround.
   </p>
 
-  <h3 id="native-ops">Native <var>operation</var> not supported on your system</h3>
+  <h3 id="deprecated-ops">Operator <var>op</var> is deprecated</h3>
 
   <p>
-    Many <code>libm</code>s don't implement certain functions (for
-    example, Microsoft's <code>libm</code> does not implement the
-    Bessel functions). If you require these functions, please
-    specify <a href="input.html"><code>:precision racket</code></a> to
-    use Herbie's portable double-precision implementation of these
-    functions.
+    Herbie raises this warning when an operation is no longer supported.
+    Input expressions containing these operators may not be portable
+      across different platforms.
+    Consider creating a plugin to support them.
   </p>
 
-  <h3 id="value-to-string">Could uniquely print <var>val</var></h3>
+  <h3 id="value-to-string">Could not uniquely print <var>val</var></h3>
 
   <p>
     Herbie will raise this warning when it needs more than 10,000 bits
     to produce a string representation for a given value. This is
     likely the result of a bug in a third-party plugin.
-  </p>
-
-  <h3 id="egg-herbie">Falling back on regraph because egg-herbie package not installed</h3>
-
-  <p>
-    Herbie can use either the <code>egg-herbie</code>
-    or <code>regraph</code> package to simplify
-    expressions; <code>egg-herbie</code> is much faster, but uses
-    compiled binaries that cannot be installed on some systems. Herbie
-    will then fall back to <code>regraph</code>, and get similar
-    results but run roughly twice as long.
-    Install <code>egg-herbie</code> with <code>raco</code>.
   </p>
 
   <h3 id="unsound-rules">Unsound rule application detected</h3>
@@ -125,6 +111,19 @@
     failed to simplify the output.
   </p>
 
+  <h3 id="unused-variable">Unused variable <var>var</var></h3>
+  
+  <p>
+    The input FPCore contains a variable that is not
+      used in the body expression.
+  </p>
+
+  <h3 id="strange-variable">Strange variable <var>var</var></h3>
+  
+  <p>
+    The input expression contains a variable that is similar in name
+      to named constants, e.g. <var>e</var> instead of <var>E</var>.
+  </p>
 
   <h2>Known bugs</h2>
 

@@ -26,8 +26,8 @@
 (define (alt-add-event altn event)
   (alt (alt-program altn) event (list altn)))
 
-(define (alt-cost altn)
-  (program-cost (alt-program altn)))
+(define (alt-cost altn repr)
+  (program-cost (alt-program altn) repr))
 
 (define (alt-map f altn)
   (f

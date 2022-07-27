@@ -1,10 +1,11 @@
 #lang racket
 
-(require "common.rkt" "interface.rkt" "errors.rkt"
-         "syntax/rules.rkt" "syntax/syntax.rkt"
-         (submod "syntax/rules.rkt" internals) (submod "syntax/syntax.rkt" internals))
-(module+ test (require "load-plugin.rkt"))
-(provide generate-conversions generate-prec-rewrites get-rewrite-operator *conversions*)
+(require (submod "syntax/rules.rkt" internals)
+         (submod "syntax/syntax.rkt" internals)
+         "common.rkt" "syntax/types.rkt" "errors.rkt"
+         "syntax/syntax.rkt")
+
+(provide generate-conversions generate-prec-rewrites *conversions*)
 
 (define *conversions* (make-parameter (hash)))
 
@@ -20,10 +21,6 @@
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (string->symbol (string-replace* (~a (representation-name repr)) replace-table)))
 
-(define (get-rewrite-operator repr)
-  (define rewrite (sym-append '<- (repr->symbol repr)))
-  (get-parametric-operator rewrite repr))
-
 ;; Generates conversion, repr-rewrite operators for prec1 and prec2
 (define (generate-conversion-ops repr1 repr2)
   (define prec1* (repr->symbol repr1))
@@ -32,6 +29,9 @@
   ;; Repr conversions, e.g. repr1->repr2
   (define conv1 (sym-append prec1* '-> prec2*))
   (define conv2 (sym-append prec2* '-> prec1*))
+
+  ;; Try generating a user-defined implementation
+  (generate-conversion-impl! conv1 conv2 repr1 repr2)
 
   (unless (impl-exists? conv1)
     (define impl (compose (representation-bf->repr repr2) (representation-repr->bf repr1)))
@@ -47,16 +47,12 @@
   (define repr-rewrite1 (sym-append '<- prec1*))
   (define repr-rewrite2 (sym-append '<- prec2*))
 
-  (unless (operator-exists? repr-rewrite1)
-    (register-operator! repr-rewrite1 (list 'real) 'real
-      (list (cons 'bf identity) (cons 'ival identity)))
-    (register-operator-impl! repr-rewrite1 repr-rewrite1 (list repr1) repr1
+  (unless (impl-exists? repr-rewrite1)
+    (register-operator-impl! 'convert repr-rewrite1 (list repr1) repr1
       (list (cons 'fl identity))))
 
-  (unless (operator-exists? repr-rewrite2)
-    (register-operator! repr-rewrite2 (list 'real) 'real
-      (list (cons 'bf identity) (cons 'ival identity)))
-    (register-operator-impl! repr-rewrite2 repr-rewrite2 (list repr2) repr2
+  (unless (impl-exists? repr-rewrite2)
+    (register-operator-impl! 'convert repr-rewrite2 (list repr2) repr2
       (list (cons 'fl identity)))))
 
 ;; creates precision rewrite: prec1 <==> prec2
@@ -100,15 +96,13 @@
 
 ;; generate conversions, precision rewrites, etc.
 (define (generate-prec-rewrites convs)
-  (define reprs
-    (for/fold ([reprs '()]) ([conv convs])
-      (define repr1 (first conv))
-      (define repr2 (last conv))
-      (*conversions* (hash-update (*conversions*) repr1 (curry cons repr2) '()))
-      (*conversions* (hash-update (*conversions*) repr2 (curry cons repr1) '()))
-      (generate-prec-rewrite repr1 repr2)
-      (set-union reprs (list repr1 repr2))))
-  (*needed-reprs* (set-union reprs (*needed-reprs*))))
+  (for ([conv convs])
+    (define repr1 (first conv))
+    (define repr2 (last conv))
+    (*conversions* (hash-update (*conversions*) repr1 (curry cons repr2) '()))
+    (*conversions* (hash-update (*conversions*) repr2 (curry cons repr1) '()))
+    (generate-prec-rewrite repr1 repr2)
+    (*needed-reprs* (set-union (*needed-reprs*) (list repr1 repr2)))))
 
 ;; invoked before desugaring
 (define (generate-conversions convs)
@@ -122,9 +116,11 @@
             (representation-name repr1) (representation-name repr2)))
     (set-add! convs* (cons repr1 repr2))))
 
-
 ;; try built in reprs
 (module+ test
+  (require "load-plugin.rkt")
+  (load-herbie-plugins)
+  
   (define convs (list (map get-representation '(binary64 binary32))))
   (generate-conversions convs)
   (generate-prec-rewrites convs))
