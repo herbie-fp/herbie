@@ -92,7 +92,7 @@
 (define *binary-search-accuracy* (make-parameter 48))
 
 ;; Pherbie related options
-(define *pareto-mode* (make-parameter #f))
+(define *pareto-mode* (make-parameter #t))
 (define *pareto-pick-limit* (make-parameter 5))
 
 ;; In mainloop, cache improvements between iterations
@@ -132,9 +132,3 @@
 
 (define (reset!)
   (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn-rec))))
-
-;; OBSOLETE
-
-;; In periodicity analysis,
-;; this is how small the period of a function must be to count as periodic
-(define *max-period-coeff* 20)
