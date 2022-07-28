@@ -2,10 +2,11 @@
 
 (require "common.rkt" "errors.rkt" "timeline.rkt"
          "syntax/rules.rkt" "syntax/types.rkt"
-         "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
-         "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
-         "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
-         "programs.rkt" "symmetry.rkt" "timeline.rkt")
+         "alternative.rkt" "conversions.rkt"
+         "patch.rkt" "points.rkt" "programs.rkt"
+         "ground-truth.rkt" "preprocess.rkt" "symmetry.rkt"
+         "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
+         "core/regimes.rkt" "core/bsearch.rkt")
 
 (provide (all-defined-out))
 
@@ -356,6 +357,17 @@
     (print-warnings))
 
   (extract!))
+
+(define (pareto-regimes sorted ctx)
+  (let loop ([alts sorted] [idx 0])
+    (cond
+     [(null? alts) '()]
+     [(= (length alts) 1) (list (car alts))]
+     [else
+      (define opt (infer-splitpoints alts ctx))
+      (define branched-alt (combine-alts opt ctx))
+      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
+      (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
 (define (extract!)
   (define ctx (*context*))
