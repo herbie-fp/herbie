@@ -9,7 +9,8 @@
   (atab-active-alts (alt-table? . -> . (listof alt?)))
   (atab-all-alts (alt-table? . -> . (listof alt?)))
   (atab-not-done-alts (alt-table? . -> . (listof alt?)))
-  (atab-add-altns (alt-table? (listof alt?) any/c . -> . alt-table?))
+  (atab-eval-altns (alt-table? (listof alt?) context? . -> . (values any/c any/c)))
+  (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
   (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
                              #:only-fresh boolean?
                              . -> . (values alt? alt-table?)))
@@ -172,9 +173,12 @@
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
-(define (atab-add-altns atab altns ctx)
-  (define progs (map alt-program altns))
-  (define errss (flip-lists (batch-errors progs (alt-table-context atab) ctx)))
+(define (atab-eval-altns atab altns ctx)
+  (define errss (flip-lists (batch-errors (map alt-program altns) (alt-table-context atab) ctx)))
+  (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
+  (values errss costs))
+
+(define (atab-add-altns atab altns errss costs)
   (define atab*
     (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)])
       (if (hash-has-key? (alt-table-alt->points atab) altn)
@@ -195,8 +199,7 @@
                    (cons pt (hash-ref alt->points* alt '()))))
   (make-immutable-hash (hash->list alt->points*)))
 
-(define (atab-add-altn atab altn errs repr)
-  (define cost (alt-cost* altn repr))
+(define (atab-add-altn atab altn errs cost)
   (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext all-alts) atab)
 
   (define point->alts*
