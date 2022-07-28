@@ -109,10 +109,11 @@
 (define (render-phase-bstep iters)
   `((dt "Steps")
     (dd (table
-         (tr (th "Iters") (th "Point") (th) (th ([colspan "3"]) "Range") (th))
+         (tr (th "Time") (th "Point") (th) (th ([colspan "3"]) "Range") (th))
          ,@(for/list ([rec (in-list iters)])
-             (match-define (list v1 v2 pt) rec)
-             `(tr (td (pre ,(~a pt)))
+             (match-define (list v1 v2 pt time) rec)
+             `(tr (td ,(format-time time))
+                  (td (pre ,(~a pt)))
                   (td "∈ [")
                   (td (pre ,(~a v1)))
                   (td ", ")
@@ -239,17 +240,19 @@
 
 (define (render-phase-alts alts)
   `((dt "Alt Table")
-    (dd (table ([class "times"])
-         (thead (tr (th "Status") (th "Error") (th "Program")))
-         ,@(for/list ([rec (in-list alts)])
-             (match-define (list expr status score) rec)
-             `(tr
-               ,(match status
-                  ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
-                  ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
-                  ["fresh" `(td)])
-               (td ,(format-bits score) "b")
-               (td (pre ,expr))))))))
+    (dd (details
+         (summary "Click to see full alt table")
+         (table ([class "times"])
+                (thead (tr (th "Status") (th "Error") (th "Program")))
+                ,@(for/list ([rec (in-list alts)])
+                    (match-define (list expr status score) rec)
+                    `(tr
+                      ,(match status
+                         ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
+                         ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
+                         ["fresh" `(td)])
+                      (td ,(format-bits score) "b")
+                      (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
   `((dt "Calls")
@@ -286,9 +289,13 @@
 (define (render-phase-branches branches)
   `((dt "Results")
     (dd (table ([class "times"])
+               (thead (tr (td "Time") (td "Error") (td "Segments") (td "Branch")))
          ,@(for/list ([rec (in-list branches)])
-             (match-define (list expr score time) rec)
-             `(tr (td ,(format-time time)) (td ,(format-bits score) "b") (td (code ,expr))))))))
+             (match-define (list expr score splits time) rec)
+             `(tr (td ,(format-time time))
+                  (td ,(format-bits score) "b")
+                  (td ,(~a splits))
+                  (td (code ,expr))))))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
