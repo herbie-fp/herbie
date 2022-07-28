@@ -184,11 +184,13 @@
   (unless (^patched^)
     (raise-user-error 'finalize-iter! "No candidates ready for pruning!"))
 
-  (timeline-event! 'prune)
+  (timeline-event! 'eval)
   (define new-alts (^patched^))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-  (^table^ (atab-add-altns (^table^) new-alts (*context*)))
+  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
+  (timeline-event! 'prune)
+  (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
