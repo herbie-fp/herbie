@@ -216,7 +216,9 @@
   (void))
 
 (define (inject-candidate! prog)
-  (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*context*)))
+  (define new-alts (list (make-alt prog)))
+  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
+  (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (void))
 
 (define (finish-iter!)
@@ -275,7 +277,9 @@
   ; Add starting alt in every precision
   (^table^
    (if (*pareto-mode*)
-       (atab-add-altns table (starting-alts alt ctx) ctx)
+       (let ([new-alts (starting-alts alt ctx)])
+         (define-values (errss costs) (atab-eval-altns table new-alts ctx))
+         (atab-add-altns table new-alts errss costs))
        table))
 
   (when (flag-set? 'setup 'simplify)
