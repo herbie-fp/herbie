@@ -146,7 +146,7 @@
   
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
-     (define timeline-stop! (timeline-start! 'times (~a expr)))
+     (define timeline-stop! (timeline-start! 'bstep))
      (define prog1 (list-ref progs (si-cidx si1)))
      (define prog2 (list-ref progs (si-cidx si2)))
 
@@ -158,9 +158,8 @@
            (with-handlers ([exn:fail:user:herbie:sampling? (const p1)])
              (find-split prog1 prog2 p1 p2))
            (left-point p1 p2)))
-     (timeline-stop!)
+     (timeline-stop! (value->json p1 repr) (value->json p2 repr) (value->json split-at repr))
 
      (timeline-push! 'method (if use-binary "binary-search" "left-value"))
-     (timeline-push! 'bstep (value->json p1 repr) (value->json p2 repr) (value->json split-at repr))
      (sp (si-cidx si1) expr split-at))
    (list (sp (si-cidx (last sindices)) expr +nan.0))))
