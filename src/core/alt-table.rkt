@@ -180,10 +180,10 @@
 
 (define (atab-add-altns atab altns errss costs)
   (define atab*
-    (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)])
+    (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
       (if (hash-has-key? (alt-table-alt->points atab) altn)
           atab
-          (atab-add-altn atab altn errs (context-repr ctx)))))
+          (atab-add-altn atab altn errs cost))))
   (define atab** (struct-copy alt-table atab* [alt->points (invert-index (alt-table-point->alts atab*))]))
   (define atab*** (atab-prune atab**))
   (struct-copy alt-table atab***
