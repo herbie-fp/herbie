@@ -147,6 +147,8 @@
                   (cons 1 `(cbrt ,(car terms)))
                   (for/list ([term (cdr terms)])
                     (cons (/ (car term) 3) (cdr term))))))]
+    [`(pow ,arg 0)
+     '(1)]
     [`(pow ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
        (define exact-pow (eval-application 'pow (car terms) a))
