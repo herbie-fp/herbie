@@ -34,7 +34,6 @@
   (define demo-public #f)
 
   (define threads #f)
-  (define report-profile? #f)
   (define report-note #f)
 
   (define pareto-timeout (* 1000 60 60 2))
@@ -113,9 +112,9 @@
     [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count num))]
     [("--profile") "Whether to profile each run"
-     (set! report-profile? true)]
+     (void)]
     #:args (input output)
-    (make-report (list input) #:dir output #:profile report-profile? #:note report-note #:threads threads)]
+    (make-report (list input) #:dir output #:note report-note #:threads threads)]
    [reproduce "Rerun an HTML report"
     #:once-each
     [("--note") note "Add a note for this run"
@@ -123,9 +122,9 @@
     [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count num))]
     [("--profile") "Whether to profile each run"
-     (set! report-profile? true)]
+     (void)]
     #:args (input output)
-    (rerun-report input #:dir output #:profile report-profile? #:note report-note #:threads threads)]
+    (rerun-report input #:dir output #:note report-note #:threads threads)]
    [replot "Regenerate plots for an HTML report"
     #:args (input output)
     (replot-report input #:dir output)]

@@ -111,11 +111,10 @@
   (define (in-engine _)
     (set! timeline *timeline*)
     (if profile?
-        (parameterize ([current-output-port (or profile? (current-output-port))])
-          (profile-thunk
-           (λ () (compute-result test))
-           #:order 'total
-           #:render (λ (p order) (write-json (profile->json p)))))
+        (profile-thunk
+         (λ () (compute-result test))
+         #:order 'total
+         #:render (λ (p order) (write-json (profile->json p) pp)))
         (compute-result test)))
 
   ; CS versions <= 8.2: problems with scheduler
