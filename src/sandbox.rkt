@@ -114,7 +114,7 @@
         (profile-thunk
          (λ () (compute-result test))
          #:order 'total
-         #:render (λ (p order) (write-json (profile->json p) pp)))
+         #:render (λ (p order) (write-json (profile->json p) profile?)))
         (compute-result test)))
 
   ; CS versions <= 8.2: problems with scheduler
