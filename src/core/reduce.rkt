@@ -149,16 +149,15 @@
                     (cons (/ (car term) 3) (cdr term))))))]
     [`(pow ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
-       (cond
-        [(and (real? (expt (car terms) a)) (exact? (expt (car terms) a)))
-         (cons (expt (car terms) a)
-               (for/list ([term (cdr terms)])
-                 (cons (* a (car term)) (cdr term))))]
-        [else
-         (list* 1
-                (cons a (car terms))
-                (for/list ([term (cdr terms)])
-                  (cons (* a (car term)) (cdr term))))]))]
+       (define exact-pow (eval-application 'pow (car terms) a))
+       (if exact-pow
+           (cons exact-pow
+                 (for/list ([term (cdr terms)])
+                   (cons (* a (car term)) (cdr term))))
+           (list* 1
+                  (cons a (car terms))
+                  (for/list ([term (cdr terms)])
+                    (cons (* a (car term)) (cdr term))))))]
     [else
      `(1 (1 . ,expr))]))
 
