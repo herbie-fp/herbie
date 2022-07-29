@@ -127,18 +127,15 @@
                      (map negate-term (append-map cdr dens)))))]
     [`(sqrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cond
-        [(negative? (car terms))
-         `(1 (1 . ,expr))]
-        [(exact? (sqrt (car terms)))
-         (cons (sqrt (car terms))
-               (for/list ([term (cdr terms)])
-                 (cons (/ (car term) 2) (cdr term))))]
-        [else
-         (list* 1
-                (cons 1 `(sqrt ,(car terms)))
-                (for/list ([term (cdr terms)])
-                  (cons (/ (car term) 2) (cdr term))))]))]
+       (define exact-sqrt (eval-application 'sqrt (car terms)))
+       (if exact-sqrt
+           (cons exact-sqrt
+                 (for/list ([term (cdr terms)])
+                   (cons (/ (car term) 2) (cdr term))))
+           (list* 1
+                  (cons 1 `(sqrt ,(car terms)))
+                  (for/list ([term (cdr terms)])
+                    (cons (/ (car term) 2) (cdr term))))))]
     [`(cbrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
        (define exact-cbrt (eval-application 'cbrt (car terms)))
