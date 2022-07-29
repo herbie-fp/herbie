@@ -141,19 +141,15 @@
                   (cons (/ (car term) 2) (cdr term))))]))]
     [`(cbrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (define head-cbrt (expt (car terms) 1/3))
-       (cond
-        [(and
-          (not (nan? head-cbrt)) (not (infinite? head-cbrt))
-          (equal? (expt (inexact->exact head-cbrt) 3) (car terms)))
-         (cons head-cbrt
-               (for/list ([term (cdr terms)])
-                 (cons (/ (car term) 3) (cdr term))))]
-        [else
-         (list* 1
-                (cons 1 `(cbrt ,(car terms)))
-                (for/list ([term (cdr terms)])
-                  (cons (/ (car term) 3) (cdr term))))]))]
+       (define exact-cbrt (eval-application 'cbrt (car terms)))
+       (if exact-cbrt
+           (cons exact-cbrt
+                 (for/list ([term (cdr terms)])
+                   (cons (/ (car term) 3) (cdr term))))
+           (list* 1
+                  (cons 1 `(cbrt ,(car terms)))
+                  (for/list ([term (cdr terms)])
+                    (cons (/ (car term) 3) (cdr term))))))]
     [`(pow ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
        (cond
