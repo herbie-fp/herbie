@@ -224,6 +224,13 @@
         (real? s1) (real? s2)
         (exact? s1) (exact? s2)
         (/ s1 s2)))]
+    [(list 'cbrt (? exact-value? a))
+     (define inexact-num (inexact->exact (expt (numerator a) 1/3)))
+     (define inexact-den (inexact->exact (expt (denominator a) 1/3)))
+     (and (real? inexact-num) (real? inexact-den)
+          (= (expt inexact-num 3) (numerator a))
+          (= (expt inexact-den 3) (denominator a))
+          (/ inexact-num inexact-den))]
     [(list 'fabs (? exact-value? a)) (abs a)]
     [(list 'floor (? exact-value? a)) (floor a)]
     [(list 'ceil (? exact-value? a)) (ceiling a)]
@@ -231,7 +238,6 @@
     ;; Added
     [(list 'exp 0) 1]
     [(list 'log 1) 0]
-    [(list 'cbrt 1) 1]
     [_ #f]))
 
 (module+ test

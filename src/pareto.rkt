@@ -1,6 +1,83 @@
 #lang racket
 
-(provide generate-pareto-curve)
+(provide generate-pareto-curve (struct-out pareto-point) pareto-map pareto-union)
+
+(struct pareto-point (cost error data) #:prefab)
+
+(define (pareto-compare pt1 pt2)
+  (match-define (pareto-point cost1 err1 data1) pt1)
+  (match-define (pareto-point cost2 err2 data2) pt2)
+  (cond
+   [(and (= cost1 cost2)  (= err1 err2))  '=]
+   [(and (<= cost1 cost2) (<= err1 err2)) '<]
+   [(and (>= cost1 cost2) (>= err1 err2)) '>]
+   [else '<>]))
+
+(define (pareto-map f curve)
+  (for/list ([ppt (in-list curve)])
+    (struct-copy pareto-point ppt [data (f (pareto-point-data ppt))])))
+
+(module+ test
+  (require rackunit)
+
+  (define (make-pareto pts)
+    (sort
+     (for/list ([pt (in-list pts)])
+       (match-define (list cost err altns ...) pt)
+       (pareto-point cost err altns))
+     < #:key pareto-point-error))
+
+  (define (from-pareto pts)
+    (sort 
+     (for/list ([ppt (in-list pts)])
+       (match-define (pareto-point cost err altns) ppt)
+       (list* cost err altns))
+     < #:key first))
+  
+  (define (pareto-add curve d c e)
+    (pareto-union (list (pareto-point c e (list d))) curve))
+
+  (check-equal? (from-pareto (make-pareto '((1 5 a) (2 3 b) (5 1 a b))))
+                '((1 5 a) (2 3 b) (5 1 a b)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '()) 'a 1 5))
+                '((1 5 a)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (5 1 b))) 'c 3 3))
+                '((1 5 a) (3 3 c) (5 1 b)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b))) 'c 5 1))
+                '((1 5 a) (3 3 b) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((3 3 b) (5 1 c))) 'a 1 5))
+                '((1 5 a) (3 3 b) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 1 5))
+                '((1 5 d a) (3 3 b) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 3 3))
+                '((1 5 a) (3 3 d b) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 5 a) (3 3 b) (5 1 c))) 'd 2 2))
+                '((1 5 a) (2 2 d) (5 1 c)))
+  (check-equal? (from-pareto (pareto-add (make-pareto '((1 1 a))) 'b 1 3))
+                '((1 1 a))))
+
+
+(define (pareto-union curve1 curve2)
+  (let loop ([curve1 curve1] [curve2 curve2])
+    ; The curve is sorted so that highest accuracy is first
+    (match* (curve1 curve2)
+      [('() _) curve2]
+      [(_ '()) curve1]
+      [((cons ppt1 rest1) (cons ppt2 rest2))
+       (match (pareto-compare ppt1 ppt2)
+         ['<
+          (loop curve1 rest2)]
+         ['>
+          (loop rest1 curve2)]
+         ['=
+          (define joint
+            (struct-copy pareto-point ppt1
+                         [data (append (pareto-point-data ppt1) (pareto-point-data ppt2))]))
+          (cons joint (loop rest1 rest2))]
+         ['<>
+          (if (< (pareto-point-error ppt1) (pareto-point-error ppt2))
+              (cons ppt1 (loop rest1 curve2))
+              (cons ppt2 (loop curve1 rest2)))])])))
 
 (define *pareto-ensure-convex* (make-parameter #t))
 

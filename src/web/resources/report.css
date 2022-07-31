@@ -314,17 +314,21 @@ table.states { min-width: 50%; }
 table.states td:last-child, table.states tfoot { font-weight: bold; }
 table pre { padding: 0; margin: 0; text-align: left; font-size: 110%; }
 
-/* Timeline colors */
+/* Timeline colors -- Uses Tango color scheme */
 
-.timeline-analyze  { --phase-color: #fff024; }
 .timeline-sample   { --phase-color: #edd400; }
+.timeline-analyze  { --phase-color: #fce94f; }
+
+.timeline-eval     { --phase-color: #204a87; }
+.timeline-prune    { --phase-color: #3465a4; }
 .timeline-localize { --phase-color: #729fcf; }
-.timeline-series   { --phase-color: #fcaf3e; }
-.timeline-rewrite  { --phase-color: #8f5902; }
+
+.timeline-series   { --phase-color: #4e9a06; }
+.timeline-rewrite  { --phase-color: #73d216; }
 .timeline-simplify { --phase-color: #8ae234; }
-.timeline-prune    { --phase-color: #ad7fa8; }
+
 .timeline-regimes  { --phase-color: #a40000; }
-.timeline-bsearch  { --phase-color: #8c0000; }
+.timeline-bsearch  { --phase-color: #cc0000; }
 
 /* Code sample to reproduce */
 
