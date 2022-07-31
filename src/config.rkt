@@ -79,6 +79,7 @@
 (define *max-skipped-points* (make-parameter 100))
 
 ;; Maximum MPFR precision allowed during exact evaluation
+(define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
 
 ;; The maximum size of an egraph
