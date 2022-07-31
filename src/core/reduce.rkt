@@ -127,43 +127,39 @@
                      (map negate-term (append-map cdr dens)))))]
     [`(sqrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cond
-        [(negative? (car terms))
-         `(1 (1 . ,expr))]
-        [(exact? (sqrt (car terms)))
-         (cons (sqrt (car terms))
-               (for/list ([term (cdr terms)])
-                 (cons (/ (car term) 2) (cdr term))))]
-        [else
-         (list* 1
-                (cons 1 `(sqrt ,(car terms)))
-                (for/list ([term (cdr terms)])
-                  (cons (/ (car term) 2) (cdr term))))]))]
+       (define exact-sqrt (eval-application 'sqrt (car terms)))
+       (if exact-sqrt
+           (cons exact-sqrt
+                 (for/list ([term (cdr terms)])
+                   (cons (/ (car term) 2) (cdr term))))
+           (list* 1
+                  (cons 1 `(sqrt ,(car terms)))
+                  (for/list ([term (cdr terms)])
+                    (cons (/ (car term) 2) (cdr term))))))]
     [`(cbrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (define head-cbrt (expt (car terms) 1/3))
-       (cond
-        [(equal? (expt (inexact->exact head-cbrt) 3) (car terms))
-         (cons head-cbrt
-               (for/list ([term (cdr terms)])
-                 (cons (/ (car term) 3) (cdr term))))]
-        [else
-         (list* 1
-                (cons 1 `(cbrt ,(car terms)))
-                (for/list ([term (cdr terms)])
-                  (cons (/ (car term) 3) (cdr term))))]))]
+       (define exact-cbrt (eval-application 'cbrt (car terms)))
+       (if exact-cbrt
+           (cons exact-cbrt
+                 (for/list ([term (cdr terms)])
+                   (cons (/ (car term) 3) (cdr term))))
+           (list* 1
+                  (cons 1 `(cbrt ,(car terms)))
+                  (for/list ([term (cdr terms)])
+                    (cons (/ (car term) 3) (cdr term))))))]
+    [`(pow ,arg 0)
+     '(1)]
     [`(pow ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
-       (cond
-        [(and (real? (expt (car terms) a)) (exact? (expt (car terms) a)))
-         (cons (expt (car terms) a)
-               (for/list ([term (cdr terms)])
-                 (cons (* a (car term)) (cdr term))))]
-        [else
-         (list* 1
-                (cons a (car terms))
-                (for/list ([term (cdr terms)])
-                  (cons (* a (car term)) (cdr term))))]))]
+       (define exact-pow (eval-application 'pow (car terms) a))
+       (if exact-pow
+           (cons exact-pow
+                 (for/list ([term (cdr terms)])
+                   (cons (* a (car term)) (cdr term))))
+           (list* 1
+                  (cons a (car terms))
+                  (for/list ([term (cdr terms)])
+                    (cons (* a (car term)) (cdr term))))))]
     [else
      `(1 (1 . ,expr))]))
 
