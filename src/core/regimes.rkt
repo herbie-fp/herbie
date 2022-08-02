@@ -96,7 +96,7 @@
 
 (define (option-on-expr alts err-lsts expr ctx)
   (define repr (repr-of expr ctx))
-  (define timeline-stop! (timeline-start! 'branch (~a expr)))
+  (define timeline-stop! (timeline-start! 'times (~a expr)))
 
   (define vars (program-variables (alt-program (first alts))))
   (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
@@ -115,7 +115,8 @@
                                (</total prev val repr))))
   (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
-  (timeline-stop! (errors-score (option-errors out)) (length split-indices))
+  (timeline-stop!)
+  (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices))
   out)
 
 (define/contract (pick-errors split-indices pts err-lsts repr)
