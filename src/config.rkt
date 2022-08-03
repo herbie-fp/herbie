@@ -73,16 +73,17 @@
 (define *num-iterations* (make-parameter 4))
 
 ;; The maximum depth for splitting the space when searching for valid areas of points.
-(define *max-find-range-depth* (make-parameter 14))
+(define *max-find-range-depth* (make-parameter 12))
 
 ;; The maximum number of consecutive skipped points for sampling valid points
 (define *max-skipped-points* (make-parameter 100))
 
 ;; Maximum MPFR precision allowed during exact evaluation
+(define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
 
 ;; The maximum size of an egraph
-(define *node-limit* (make-parameter 5000))
+(define *node-limit* (make-parameter 8000))
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))

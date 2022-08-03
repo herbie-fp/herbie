@@ -96,11 +96,15 @@
 
     <dt><code>--num-analysis N</code></dt>
     <dd>The number of input subdivisions to use when searching for
-      valid input points. The default is 14. Increasing this option
+      valid input points. The default is 12. Increasing this option
       will slow Herbie down, but may fix the
       "<a href="faq.html#sample-valid-points">Cannot sample enough
-      valid points</a>" error.
-    </dd>
+      valid points</a>" error.</dd>
+    
+    <dt><code>--num-enodes N</code></dt>
+    <dd>The number of equivalence graph nodes to use when doing
+    algebraic reasoning. The default is 8000. Increasing this option
+    will slow Herbie down, but may improve results slightly.</dd>
     
     <dt><code>--timeout T</code></dt>
     <dd>The timeout to use per-input, in seconds. A fractional number

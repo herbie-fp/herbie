@@ -134,7 +134,7 @@
   (define ival-close-enough? (close-enough->ival close-enough))
   (not (ival-hi (ival-close-enough? v))))
 
-(define (ival-eval fn pt #:precision [precision 80])
+(define (ival-eval fn pt #:precision [precision (*starting-prec*)])
   (let loop ([precision precision])
     (match-define (list valid exs ...) (parameterize ([bf-precision precision]) (apply fn pt)))
     (define precision* (exact-floor (* precision 2)))
@@ -153,7 +153,7 @@
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define repr (context-repr ctx))
-  (define starting-precision (bf-precision))
+  (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
   (define logger (point-logger 'body (context-vars ctx)))
 
