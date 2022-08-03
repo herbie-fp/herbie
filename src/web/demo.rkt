@@ -174,7 +174,7 @@
            [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
             (semaphore-post sema)]
            [else
-            (eprintf "Job ~a started..." hash)
+            (eprintf "Job ~a started on ~a..." hash formula)
 
             (define result (get-test-result (parse-test formula) #:seed seed))
 
