@@ -97,16 +97,34 @@
     `(p ([id "use-fpcore-input"]) "You can also "
        (a "use FPCore")
        ".")
-    `(form ([action ,(url improve)] [method "post"] [id "formula"]
-            [data-progress ,(url improve-start)])
-          
-        (textarea ([name "formula"] [autofocus "true"] [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
-        (input ([name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"]))
-        (table ([id "input-ranges"]))
-        (ul ([id "errors"]))
-        (ul ([id "warnings"]))
-        (button ([id "run_herbie"] [type "submit"] [tabindex "-1"]) "Improve with Herbie")
-        (pre ([id "progress"] [style "display: none;"])))
+    (cond
+      [(thread-running? *worker-thread*)
+       `(form ([action ,(url improve)] [method "post"] [id "formula"]
+               [data-progress ,(url improve-start)])
+          (textarea ([name "formula"] [autofocus "true"]
+                     [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
+          (input ([name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"]))
+          (table ([id "input-ranges"]))
+          (ul ([id "errors"]))
+          (ul ([id "warnings"]))
+          (button ([id "run_herbie"] [type "submit"] [tabindex "-1"]) "Improve with Herbie")
+          (pre ([id "progress"] [style "display: none;"])))]
+      [(*demo?*)
+       `(p ([id "crashed"])
+           "Unfortunately, the online Herbie demo has crashed. The maintainers "
+           "have been notified and will restart Herbie when they've got a moment, "
+           "but if it's been a few days, it can help to "
+           (a ([href "https://github.com/herbie-fp/herbie/issues/new"]
+               [title "File a Herbie issue on Github"])
+              "file an issue") ".")]
+      [else
+       `(p ([id "crashed"])
+            "Unfortunately Herbie has crashed. You'll need to restart Herbie to "
+            "continue using it. Please also "
+            (a ([href "https://github.com/herbie-fp/herbie/issues/new"]
+                [title "File a Herbie issue on Github"])
+               "file a bug report")
+            " with any error messages you find in your terminal.")])
 
     (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "
