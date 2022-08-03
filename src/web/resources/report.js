@@ -349,7 +349,7 @@ var Profile = new Component("#profile", {
             Element("span", {
                 className: "pct",
                 title: "Self-time: " + pct(node.self, that.json.cpu_time) }, [
-                    pct(node.total, that.json.total_time)
+                    node.total
                 ]),
         ]);
         var elt = Element("div", { className: "profile-row" }, [
