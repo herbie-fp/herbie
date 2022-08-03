@@ -146,19 +146,19 @@
   
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
-     (define timeline-stop! (timeline-start! 'bstep))
      (define prog1 (list-ref progs (si-cidx si1)))
      (define prog2 (list-ref progs (si-cidx si2)))
 
      (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
      (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
 
+     (define timeline-stop! (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
      (define split-at
        (if use-binary
            (with-handlers ([exn:fail:user:herbie:sampling? (const p1)])
              (find-split prog1 prog2 p1 p2))
            (left-point p1 p2)))
-     (timeline-stop! (value->json p1 repr) (value->json p2 repr) (value->json split-at repr))
+     (timeline-stop!)
 
      (timeline-push! 'method (if use-binary "binary-search" "left-value"))
      (sp (si-cidx si1) expr split-at))

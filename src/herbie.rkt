@@ -36,7 +36,6 @@
   (define threads #f)
   (define report-note #f)
 
-  (define pareto-timeout (* 1000 60 60 2))
   (define timeout-set? #f)
 
   (define seed (random 1 (expt 2 31)))
@@ -63,8 +62,9 @@
    [("--num-analysis") num "The number of input analysis iterations to use"
     (*max-find-range-depth* (string->number num))]
    [("--pareto") "Enables Pareto-Herbie (Pherbie)"
-    (*pareto-mode* #t)
-    (unless timeout-set? (*timeout* pareto-timeout))]
+    (*pareto-mode* #t)]
+   [("--no-pareto") "Disables Pareto-Herbie (Pherbie)"
+    (*pareto-mode* #f)]
    #:multi
    [("-o" "--disable") flag "Disable a flag (formatted category:name)"
     (define tf (string->flag flag))
