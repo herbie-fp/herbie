@@ -127,6 +127,7 @@
       (engine-result eng)
       (parameterize ([*timeline-disabled* false])
         (timeline-load! timeline)
+        (timeline-compact! 'outcomes)
         (print-warnings)
         (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
 
