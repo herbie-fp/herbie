@@ -174,6 +174,6 @@
       (for/list ([n (in-range 1 1000 10)])
         (cons (+ k n) (- 1100 k n)))))
   (define pts* (generate-pareto-curve pts))
-  (check-true (monotonically-decreasing? pts*) pts*)
+  (check-pred monotonically-decreasing? pts*)
   (when (*pareto-ensure-convex*)
-    (check-true (convex? pts*) pts*)))
+    (check-pred convex? pts*)))
