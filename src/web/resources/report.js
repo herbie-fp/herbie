@@ -321,6 +321,10 @@ function pct(val, base) {
     return Math.floor(val/base * 10000) / 100 + "%";
 }
 
+function time(s) {
+    return Math.floor(s / 1000 * 100) / 100 + "s";
+}
+
 function path(p) {
     if (!p) {
         return "???";
@@ -374,7 +378,7 @@ var Profile = new Component("#profile", {
             Element("span", {
                 className: "pct",
                 title: "Self-time: " + pct(node.self, that.json.cpu_time) }, [
-                    pct(node.total, that.json.total_time)
+                    time(node.total),
                 ]),
         ]);
         var elt = Element("div", { className: "profile-row" }, [
