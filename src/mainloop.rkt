@@ -376,8 +376,7 @@
 (define (extract!)
   (define ctx (*context*))
   (define repr (context-repr ctx))
-  (define all-alts (atab-all-alts (^table^)))
-  (*all-alts* (atab-active-alts (^table^)))
+  (define all-alts (atab-active-alts (^table^)))
 
   (define ndone-alts (atab-not-done-alts (^table^)))
   (for ([alt (atab-active-alts (^table^))])

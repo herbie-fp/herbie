@@ -7,7 +7,6 @@
  (contract-out
   (make-alt-table (pcontext? alt? any/c . -> . alt-table?))
   (atab-active-alts (alt-table? . -> . (listof alt?)))
-  (atab-all-alts (alt-table? . -> . (listof alt?)))
   (atab-not-done-alts (alt-table? . -> . (listof alt?)))
   (atab-eval-altns (alt-table? (listof alt?) context? . -> . (values any/c any/c)))
   (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
@@ -20,7 +19,7 @@
 
 ;; Public API
 
-(struct alt-table (point->alts alt->points alt->done? alt->cost context all) #:prefab)
+(struct alt-table (point->alts alt->points alt->done? alt->cost context) #:prefab)
 
 (define (backup-alt-cost altn)
   (let loop ([expr (program-body (alt-program altn))])
@@ -45,8 +44,7 @@
              (hash initial-alt (for/list ([(pt ex) (in-pcontext pcontext)]) pt))
              (hash initial-alt #f)
              (hash initial-alt cost)
-             pcontext
-             (list initial-alt)))
+             pcontext))
 
 (define (atab-pick-alt atab #:picking-func [pick car]
            #:only-fresh [only-fresh? #t])
@@ -58,9 +56,6 @@
 
 (define (atab-active-alts atab)
   (hash-keys (alt-table-alt->points atab)))
-
-(define (atab-all-alts atab)
-  (alt-table-all atab))
 
 (define (atab-completed? atab)
   (andmap (curry hash-ref (alt-table-alt->done? atab))
@@ -89,9 +84,7 @@
       (for/hash ([alt (in-hash-keys alt->points)])
         (values alt (hash-ref (alt-table-alt->cost atab) alt))))
     (define context (mk-pcontext pts exs))
-    (atab-prune
-      (alt-table point->alts alt->points alt->done? alt->cost
-                 context (alt-table-all atab)))))
+    (atab-prune (alt-table point->alts alt->points alt->done? alt->cost context))))
 
 ;; Helper Functions
 
@@ -100,7 +93,7 @@
 (struct set-cover (removable coverage))
 
 (define (atab->set-cover atab)
-  (match-define (alt-table pnts->alts alts->pnts alt->done? alt->cost _ _) atab)
+  (match-define (alt-table pnts->alts alts->pnts alt->done? alt->cost _) atab)
   
   (define tied (list->mutable-seteq (hash-keys alts->pnts)))
   (define coverage '())
@@ -160,7 +153,7 @@
   (set->list (set-subtract (list->set lst) elts)))
 
 (define (atab-remove* atab . altns)
-  (match-define (alt-table point->alts alt->points alt->done? alt->cost pctx _) atab)
+  (match-define (alt-table point->alts alt->points alt->done? alt->cost pctx) atab)
 
   (define altns* (list->set altns))
   (define pnts->alts*
@@ -187,8 +180,7 @@
   (define atab** (struct-copy alt-table atab* [alt->points (invert-index (alt-table-point->alts atab*))]))
   (define atab*** (atab-prune atab**))
   (struct-copy alt-table atab***
-               [alt->points (invert-index (alt-table-point->alts atab***))]
-               [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab***)))]))
+               [alt->points (invert-index (alt-table-point->alts atab***))]))
 
 (define (invert-index idx)
   (define alt->points* (make-hasheq))
@@ -200,7 +192,7 @@
   (make-immutable-hash (hash->list alt->points*)))
 
 (define (atab-add-altn atab altn errs cost)
-  (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext all-alts) atab)
+  (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext) atab)
 
   (define point->alts*
     (for/hash ([(pt ex) (in-pcontext pcontext)] [err errs])
@@ -211,8 +203,7 @@
              (hash-set alt->points altn #f)
              (hash-set alt->done? altn #f)
              (hash-set alt->cost altn cost)
-             pcontext
-             #f))
+             pcontext))
 
 (define (atab-not-done-alts atab)
   (filter (negate (curry hash-ref (alt-table-alt->done? atab)))

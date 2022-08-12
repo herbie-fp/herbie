@@ -17,7 +17,7 @@
   (start-alt end-alts preprocess points exacts
    start-est-error end-est-error newpoints newexacts
    start-error end-errors target-error
-   start-cost end-costs all-alts))
+   start-cost end-costs))
 (struct test-failure test-result (exn))
 (struct test-timeout test-result ())
 
@@ -97,8 +97,7 @@
                           (errors (test-target test) processed-test-context context)
                           #f)
                       (program-cost (test-program test) output-repr)
-                      (map (curryr alt-cost output-repr) alts)
-                      (*all-alts*)))))
+                      (map (curryr alt-cost output-repr) alts)))))
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* false])

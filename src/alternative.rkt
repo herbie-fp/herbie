@@ -2,7 +2,7 @@
 
 (require "cost.rkt")
 (provide (struct-out change) (struct-out alt) make-alt alt?
-         alt-program alt-add-event *start-prog* *all-alts*
+         alt-program alt-add-event *start-prog*
          alt-cost alt-equal?)
 
 ;; Alts are a lightweight audit trail.
@@ -34,4 +34,3 @@
 ;; exorcised
 
 (define *start-prog* (make-parameter '()))
-(define *all-alts* (make-parameter '()))
