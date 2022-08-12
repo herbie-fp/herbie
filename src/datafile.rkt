@@ -81,7 +81,7 @@
           (note . ,note)
           (tests . ,(map simplify-test tests))))]))
 
-  (call-with-atomic-output-file file (curry write-json data)))
+  (call-with-atomic-output-file file (λ (p name) (write-json data p))))
 
 (define (flags->list flags)
   (for*/list ([rec (hash->list flags)] [fl (cdr rec)])
