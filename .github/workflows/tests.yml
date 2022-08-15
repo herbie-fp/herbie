@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        racket-version: [ '8.0', 'stable' ]
+        racket-version: [ '8.0', '8.5' ]
         precision: [ 'binary32', 'binary64' ]
     steps:
       - name: "Install Packages"
