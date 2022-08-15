@@ -43,7 +43,7 @@
       [(test-success test bits time timeline warnings
                      start-alt end-alts preprocess points exacts start-est-error end-est-error
                      newpoints newexacts start-error end-errors target-error
-                     start-cost costs all-alts)
+                     start-cost costs)
        (define end-error (car end-errors))
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
