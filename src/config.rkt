@@ -73,16 +73,17 @@
 (define *num-iterations* (make-parameter 4))
 
 ;; The maximum depth for splitting the space when searching for valid areas of points.
-(define *max-find-range-depth* (make-parameter 14))
+(define *max-find-range-depth* (make-parameter 12))
 
 ;; The maximum number of consecutive skipped points for sampling valid points
 (define *max-skipped-points* (make-parameter 100))
 
 ;; Maximum MPFR precision allowed during exact evaluation
+(define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
 
 ;; The maximum size of an egraph
-(define *node-limit* (make-parameter 5000))
+(define *node-limit* (make-parameter 8000))
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
@@ -92,7 +93,7 @@
 (define *binary-search-accuracy* (make-parameter 48))
 
 ;; Pherbie related options
-(define *pareto-mode* (make-parameter #f))
+(define *pareto-mode* (make-parameter #t))
 (define *pareto-pick-limit* (make-parameter 5))
 
 ;; In mainloop, cache improvements between iterations
@@ -132,9 +133,3 @@
 
 (define (reset!)
   (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn-rec))))
-
-;; OBSOLETE
-
-;; In periodicity analysis,
-;; this is how small the period of a function must be to count as periodic
-(define *max-period-coeff* 20)

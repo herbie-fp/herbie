@@ -15,7 +15,7 @@ jobs:
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.8
         with:
-          version: stable
+          version: 8.5
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1
         with:
@@ -45,7 +45,7 @@ jobs:
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.8
         with:
-          version: stable
+          version: 8.5
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1
         with:
@@ -64,4 +64,4 @@ jobs:
       - name: "Install SoftPosit support"
         run: raco pkg install --no-cache --auto --name softposit-herbie plugin/
       - name: "Run posit benchmarks"
-        run: racket infra/travis.rkt --seed 0 --pareto infra/bench/posit-pherbie.fpcore
+        run: racket infra/travis.rkt --seed 0 --pareto plugin/bench/posits.fpcore infra/bench/posit-pherbie.fpcore

@@ -96,11 +96,15 @@
 
     <dt><code>--num-analysis N</code></dt>
     <dd>The number of input subdivisions to use when searching for
-      valid input points. The default is 14. Increasing this option
+      valid input points. The default is 12. Increasing this option
       will slow Herbie down, but may fix the
       "<a href="faq.html#sample-valid-points">Cannot sample enough
-      valid points</a>" error.
-    </dd>
+      valid points</a>" error.</dd>
+    
+    <dt><code>--num-enodes N</code></dt>
+    <dd>The number of equivalence graph nodes to use when doing
+    algebraic reasoning. The default is 8000. Increasing this option
+    will slow Herbie down, but may improve results slightly.</dd>
     
     <dt><code>--timeout T</code></dt>
     <dd>The timeout to use per-input, in seconds. A fractional number
@@ -112,12 +116,11 @@
       threads, or <code>yes</code> can be passed to tell Herbie to use
       all of the hardware threads.</dd>
 
-    <dt><code>--pareto</code></dt>
-    <dd>Enables multi-objective improvement. Herbie will attempt to simultaneously
-    optimize for both accuracy and expression cost. Rather than generating
-    a single "ideal" output expression, Herbie will generate many output expressions.
-    This mode is still considered experimental. With this option, Herbie will
-    take a <em>long</em> time to run. We recommend timeouts measured in hours.</dd>
+    <dt><code>--no-pareto</code></dt>
+    <dd>Disables cost-aware search. Herbie will only return a single
+    program, which optimizes exclusively for accuracy. This mode is
+    still considered experimental. Herbie will also be slightly
+    faster.</dd>
   </dl>
 
   <h2>Web shell options</h2>

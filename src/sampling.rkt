@@ -2,7 +2,7 @@
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "errors.rkt" "common.rkt"
-         "float.rkt" "syntax/types.rkt" "timeline.rkt"
+         "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
          "syntax/sugar.rkt")
 
 (provide make-sampler batch-prepare-points ival-eval)
@@ -134,7 +134,7 @@
   (define ival-close-enough? (close-enough->ival close-enough))
   (not (ival-hi (ival-close-enough? v))))
 
-(define (ival-eval fn pt #:precision [precision 80])
+(define (ival-eval fn pt #:precision [precision (*starting-prec*)])
   (let loop ([precision precision])
     (match-define (list valid exs ...) (parameterize ([bf-precision precision]) (apply fn pt)))
     (define precision* (exact-floor (* precision 2)))
@@ -153,7 +153,7 @@
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define repr (context-repr ctx))
-  (define starting-precision (bf-precision))
+  (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
   (define logger (point-logger 'body (context-vars ctx)))
 

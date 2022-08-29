@@ -2,10 +2,11 @@
 
 (require "common.rkt" "errors.rkt" "timeline.rkt"
          "syntax/rules.rkt" "syntax/types.rkt"
-         "core/alt-table.rkt" "core/localize.rkt" "core/regimes.rkt" "core/simplify.rkt"
-         "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
-         "patch.rkt" "points.rkt" "preprocess.rkt" "ground-truth.rkt"
-         "programs.rkt" "symmetry.rkt" "timeline.rkt" "soundiness.rkt")
+         "alternative.rkt" "conversions.rkt"
+         "patch.rkt" "points.rkt" "programs.rkt"
+         "ground-truth.rkt" "preprocess.rkt" "symmetry.rkt"
+         "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
+         "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt")
 
 (provide (all-defined-out))
 
@@ -184,11 +185,13 @@
   (unless (^patched^)
     (raise-user-error 'finalize-iter! "No candidates ready for pruning!"))
 
-  (timeline-event! 'prune)
+  (timeline-event! 'eval)
   (define new-alts (^patched^))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-  (^table^ (atab-add-altns (^table^) new-alts (*context*)))
+  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
+  (timeline-event! 'prune)
+  (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
 
@@ -213,7 +216,9 @@
   (void))
 
 (define (inject-candidate! prog)
-  (^table^ (atab-add-altns (^table^) (list (make-alt prog)) (*context*)))
+  (define new-alts (list (make-alt prog)))
+  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
+  (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (void))
 
 (define (finish-iter!)
@@ -272,7 +277,9 @@
   ; Add starting alt in every precision
   (^table^
    (if (*pareto-mode*)
-       (atab-add-altns table (starting-alts alt ctx) ctx)
+       (let ([new-alts (starting-alts alt ctx)])
+         (define-values (errss costs) (atab-eval-altns table new-alts ctx))
+         (atab-add-altns table new-alts errss costs))
        table))
 
   (when (flag-set? 'setup 'simplify)
@@ -354,6 +361,17 @@
     (print-warnings))
 
   (extract!))
+
+(define (pareto-regimes sorted ctx)
+  (let loop ([alts sorted] [idx 0])
+    (cond
+     [(null? alts) '()]
+     [(= (length alts) 1) (list (car alts))]
+     [else
+      (define opt (infer-splitpoints alts ctx))
+      (define branched-alt (combine-alts opt ctx))
+      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
+      (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
 
 (define (extract!)
   (define ctx (*context*))

@@ -128,12 +128,10 @@
        (div
         ,(if merge-data
             `(div ([id "subreports"])
-                (a ([href "#about"]) "Flags")
                 (a ([href "#results"]) "Results")
                 (div ([id "with-subreports"])
                   ,(format-subreports merge-data)))
             `(div
-              (a ([href "#about"]) "Flags")
               (a ([href "#results"]) "Results")
               (div ([id "subreports"] [style "display: none"]))))))
 

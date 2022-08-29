@@ -1,6 +1,6 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
-(require "../common.rkt" "../datafile.rkt" "common.rkt")
+(require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -112,18 +112,28 @@
                   (td ,(format-bits err) "b")
                   (td (pre ,(~a expr)))))))))
 
+(define (format-value v)
+  (cond
+   [(real? v)
+    (~a v)]
+   [(equal? (hash-ref v 'type) "real")
+    (hash-ref v 'value)]
+   [else
+    (define repr (get-representation (hash-ref v 'type)))
+    (value->string
+     ((representation-ordinal->repr repr)
+      (string->number (hash-ref v 'ordinal)))
+     repr)]))
+
 (define (render-phase-bstep iters)
   `((dt "Steps")
     (dd (table
-         (tr (th "Iters") (th "Point") (th) (th ([colspan "3"]) "Range") (th))
+         (tr (th "Time") (th "Left") (th "Right"))
          ,@(for/list ([rec (in-list iters)])
-             (match-define (list v1 v2 pt) rec)
-             `(tr (td (pre ,(~a pt)))
-                  (td "∈ [")
-                  (td (pre ,(~a v1)))
-                  (td ", ")
-                  (td (pre ,(~a v2)))
-                  (td "]")))))))
+             (match-define (list v1 v2 time) rec)
+             `(tr (td ,(format-time time))
+                  (td (pre ,(format-value v1)))
+                  (td (pre ,(format-value v2)))))))))
 
 (define (render-phase-egraph iters)
   (define costs (map third iters))
@@ -245,17 +255,19 @@
 
 (define (render-phase-alts alts)
   `((dt "Alt Table")
-    (dd (table ([class "times"])
-         (thead (tr (th "Status") (th "Error") (th "Program")))
-         ,@(for/list ([rec (in-list alts)])
-             (match-define (list expr status score) rec)
-             `(tr
-               ,(match status
-                  ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
-                  ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
-                  ["fresh" `(td)])
-               (td ,(format-bits score) "b")
-               (td (pre ,expr))))))))
+    (dd (details
+         (summary "Click to see full alt table")
+         (table ([class "times"])
+                (thead (tr (th "Status") (th "Error") (th "Program")))
+                ,@(for/list ([rec (in-list alts)])
+                    (match-define (list expr status score) rec)
+                    `(tr
+                      ,(match status
+                         ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
+                         ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
+                         ["fresh" `(td)])
+                      (td ,(format-bits score) "b")
+                      (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
   `((dt "Calls")
@@ -292,9 +304,12 @@
 (define (render-phase-branches branches)
   `((dt "Results")
     (dd (table ([class "times"])
+               (thead (tr (th "Error") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
-             (match-define (list expr score time) rec)
-             `(tr (td ,(format-time time)) (td ,(format-bits score) "b") (td (code ,expr))))))))
+             (match-define (list expr score splits) rec)
+             `(tr (td ,(format-bits score) "b")
+                  (td ,(~a splits))
+                  (td (code ,expr))))))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Results")

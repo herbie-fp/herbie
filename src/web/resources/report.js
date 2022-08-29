@@ -123,9 +123,9 @@ const ClientGraph = new Component('#graphs', {
         
         const plot = async (varName, function_names) => {
             const functions = [
-                { name: 'start', line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000007'} },
-                { name: 'end', line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff07'} },
-                { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0005'}}  // TODO add target support
+                { name: 'start', line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000035'} },
+                { name: 'end', line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff35'} },
+                { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0035'}}
             ].filter(o => function_names.includes(o.name))
             const index = all_vars.indexOf(varName)
             // NOTE ticks and splitpoints include all vars, so we must index
@@ -160,28 +160,53 @@ const ClientGraph = new Component('#graphs', {
                         y: error[name]
                 })).sort(key_fn(d => d.x))
                     .map(({ x, y }, i) => ({ x, y, i }))
-                const sliding_window = (A, size) => [...new Array(Math.max(A.length - size, 0))].map((_, i) => {
+                // const sliding_window = (A, size) => [...new Array(Math.max(A.length - size, 0))].map((_, i) => {
+                //     const half = Math.floor(size / 2)
+                //     i = i + half
+                //     const slice = A.slice(i - half, i - half + size).sort(key_fn(o => o.y))
+                //     const x = A[i].x
+                //     const top = slice[Math.floor(slice.length * .95)].y
+                //     const top_q = slice[Math.floor(slice.length * .75)].y
+                //     const bottom = slice[Math.floor(slice.length * .05)].y
+                //     const bottom_q = slice[Math.floor(slice.length * .25)].y
+                //     const middle = slice[Math.floor(slice.length * .5)].y
+                //     const average = slice.reduce((acc, e) => e.y + acc, 0) / slice.length
+                //     return { x, top, middle, bottom, average, top_q, bottom_q }
+                // })
+                const sliding_window = (A, size) => {
                     const half = Math.floor(size / 2)
-                    i = i + half
-                    const slice = A.slice(i - half, i - half + size).sort(key_fn(o => o.y))
-                    const x = A[i].x
-                    const top = slice[Math.floor(slice.length * .95)].y
-                    const top_q = slice[Math.floor(slice.length * .75)].y
-                    const bottom = slice[Math.floor(slice.length * .05)].y
-                    const bottom_q = slice[Math.floor(slice.length * .25)].y
-                    const middle = slice[Math.floor(slice.length * .5)].y
-                    const average = slice.reduce((acc, e) => e.y + acc, 0) / slice.length
-                    return { x, top, middle, bottom, average, top_q, bottom_q }
-                })
+                    const running_sum = A.reduce((acc, v) => (acc.length > 0 ? acc.push(v.y + acc[acc.length - 1]) : acc.push(v.y), acc), [])
+                    const xs = 
+                    console.log('running', running_sum)
+                    return running_sum.reduce((acc, v, i) => {
+                    const length = 
+                        (i - half) < 0 ? half + i
+                        : (i + half) >= running_sum.length ? (running_sum.length - (i - half))
+                        : size
+                    const top =
+                        (i + half) >= running_sum.length ? running_sum[running_sum.length - 1]
+                        : running_sum[i + half]
+                    const bottom =
+                        (i - half) < 0 ? 0
+                        : running_sum[i - half]
+                    acc.push({average: (top - bottom) / length, x: A[i].x, length})
+                    return acc
+                    }, [])
+                }
+                const compress = (L, out_len, chunk_compressor = points => points[0]) => L.reduce((acc, pt, i) => i % Math.floor(L.length / out_len) == 0 ? (acc.push(chunk_compressor(L.slice(i, i + Math.floor(L.length / out_len)))), acc) : acc, [])
                 const bin_size = 128
-                const sliding_window_data = sliding_window(data, bin_size)
+                const sliding_window_data = compress(
+                    sliding_window(data, bin_size), 800, points => ({
+                        average: points.reduce((acc, e) => e.average + acc, 0) / points.length,
+                        x: points.reduce((acc, e) => e.x + acc, 0) / points.length
+                    }))
                 return [
                     Plot.line(sliding_window_data, {
                         x: "x",
                         y: "average",
-                        strokeWidth: 1.3, ...line,
+                        strokeWidth: 2, ...line,
                     }),
-                    Plot.dot(data, {x: "x", y: "y", r: 1.3,
+                    Plot.dot(compress(data, 800), {x: "x", y: "y", r: 1.3,
                         title: d => `x: ${d.x} \n i: ${d.i} \n bits of error: ${d.y}`,
                         ...dot
                     }),
@@ -296,6 +321,10 @@ function pct(val, base) {
     return Math.floor(val/base * 10000) / 100 + "%";
 }
 
+function time(s) {
+    return Math.floor(s / 1000 * 100) / 100 + "s";
+}
+
 function path(p) {
     if (!p) {
         return "???";
@@ -349,7 +378,7 @@ var Profile = new Component("#profile", {
             Element("span", {
                 className: "pct",
                 title: "Self-time: " + pct(node.self, that.json.cpu_time) }, [
-                    pct(node.total, that.json.total_time)
+                    time(node.total),
                 ]),
         ]);
         var elt = Element("div", { className: "profile-row" }, [
