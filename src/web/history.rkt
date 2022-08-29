@@ -95,12 +95,12 @@
                                                       "ERROR") 
                                                   "\\]")
            ;; TODO display soundiness here in comments
-           #;(div ([class "math"]) "Proof")
-           #;,@(for/list ([step proof] [data soundiness])
+           (div ([class "math"]) "Proof")
+           ,@(for/list ([step proof] [data soundiness])
                        (define text (format "~a: ~a points increase in error, ~a points decrease in error"
                                     step (first data) (second data)))
                        `(div ([class "math"])
-                             ,(if #f (> (first data) 0)
+                             ,(if (> (first data) 0)
                                   `(b ,text)
                                   text)))))]
 

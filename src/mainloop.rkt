@@ -398,7 +398,7 @@
   (define alts*
     (for/list ([altn alts-deduplicated])
               altn
-              #;(add-soundiness altn (*pcontext*) (*context*))))
+              (add-soundiness altn (*pcontext*) (*context*))))
   
   (timeline-event! 'end)
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
