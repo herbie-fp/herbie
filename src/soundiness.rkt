@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "alternative.rkt" "points.rkt" "programs.rkt")
+(require "alternative.rkt" "points.rkt" "programs.rkt" "core/simplify.rkt")
 
 (provide add-soundiness)
 
@@ -46,7 +46,9 @@
 
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
-    [(alt prog `(simplify ,loc ,proof #f) `(,prev))
+    [(alt prog `(simplify ,loc ,input #f) `(,prev))
+     (define proof
+       (get-proof input (location-get loc prog) (location-get loc (alt-program prev))))
      (define vars (program-variables prog))
      (alt prog `(simplify ,loc ,proof ,(get-proof-errors proof pcontext ctx vars)) `(,prev))]
     [else

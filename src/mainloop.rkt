@@ -400,8 +400,9 @@
   (timeline-event! 'simplify)
   (define progss*
     (simplify-batch
-      (map (compose program-body alt-program) joined-alts)
-      #:rules (*fp-safe-simplify-rules*) #:precompute #t))
+      (simplify-input 
+        (map (compose program-body alt-program) joined-alts) empty
+        (*fp-safe-simplify-rules*) #t)))
   (define cleaned-alts
     (remove-duplicates
       (for/list ([altn joined-alts] [progs progss*])
@@ -415,7 +416,6 @@
   ;; TODO run soundiness check on alts at the end
   (define alts*
     (for/list ([altn alts-deduplicated])
-              altn
               (add-soundiness altn (*pcontext*) (*context*))))
   
   (timeline-event! 'end)
