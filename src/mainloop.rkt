@@ -413,10 +413,7 @@
     (remove-duplicates cleaned-alts alt-equal?))
   
   (timeline-event! 'soundness)
-  ;; TODO run soundiness check on alts at the end
-  (define alts*
-    (for/list ([altn alts-deduplicated])
-              (add-soundiness altn (*pcontext*) (*context*))))
+  (define alts* alts-deduplicated)
   
   (timeline-event! 'end)
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
@@ -430,4 +427,6 @@
          [(not best) (values altn new-score '())]
          [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
          [else (values best score (cons altn rest))]))))
-  (cons best (sort rest > #:key (curryr alt-cost repr))))
+  (define best-annotated
+    (add-soundiness best (*pcontext*) (*context*)))
+  (cons best-annotated (sort rest > #:key (curryr alt-cost repr))))
