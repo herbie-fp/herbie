@@ -40,8 +40,8 @@
      (alt p `(regimes ,splitpoints) (map (curry alt-map f) prevs))]
     [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
      (alt prog `(taylor ,pt ,var ,loc) `(,(alt-map f prev)))]
-    [(alt prog `(simplify ,loc ,proof ,soundiness) `(,prev))
-     (alt prog `(simplify ,loc ,proof ,soundiness) `(,(alt-map f prev)))]
+     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
+      (alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,(alt-map f prev)))]
     [(alt prog `initial-simplify `(,prev))
      (alt prog `initial-simplify `(,(alt-map f prev)))]
     [(alt prog `final-simplify `(,prev))

@@ -52,7 +52,7 @@
         (match-define (simplify-result replacement) replacement-result)
         (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
         (if (not (equal? (alt-program child) child*))
-            (alt child* `(simplify ,loc ,input #f) (list child))
+            (alt child* `(simplify ,loc ,input #f #f) (list child))
             child))))
 
   ; Simplify-streaming lite

@@ -46,11 +46,11 @@
 
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
-    [(alt prog `(simplify ,loc ,input #f) `(,prev))
+    [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
      (define proof
        (get-proof input (location-get loc prog) (location-get loc (alt-program prev))))
      (define vars (program-variables prog))
-     (alt prog `(simplify ,loc ,proof ,(get-proof-errors proof pcontext ctx vars)) `(,prev))]
+     (alt prog `(simplify ,loc ,input ,proof ,(get-proof-errors proof pcontext ctx vars)) `(,prev))]
     [else
      altn]))
 
