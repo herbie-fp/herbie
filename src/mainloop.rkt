@@ -420,7 +420,7 @@
   
   (timeline-event! 'end)
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  ; find the best, sort the rest by cost
+  ;; find the best, sort the rest by cost
   (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts*))
   (define-values (best end-score rest)
     (for/fold ([best #f] [score #f] [rest #f])

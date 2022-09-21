@@ -27,7 +27,7 @@
 
 ;; The input and output of simplify- simplify is re-run when proofs are needed
 (struct simplify-input (exprs proofs rules precompute?))
-(struct simplify-result (expr proof))
+(struct simplify-result (expr))
 
 (define (rules->irules rules)
   (for/list ([rule rules])
@@ -49,7 +49,7 @@
   (define options
     (for/list ([option location-options])
       (for/fold ([child child]) ([replacement-result option] [loc locs])
-        (match-define (simplify-result replacement no-proof) replacement-result)
+        (match-define (simplify-result replacement) replacement-result)
         (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
         (if (not (equal? (alt-program child) child*))
             (alt child* `(simplify ,loc ,input #f) (list child))
@@ -100,12 +100,12 @@
                                 (simplify-result
                                   (egg-expr->expr
                                    (egraph-get-simplest egg-graph id iter)
-                                   egg-graph) #f)))
+                                   egg-graph))))
                  node-ids))))
-                  
+
   (define out
     (for/list ([result results] [expr (simplify-input-exprs input)])
-              (remove-duplicates (cons (simplify-result expr "") result))))
+      (remove-duplicates (cons (simplify-result expr) result))))
   (timeline-push! 'outputs (map (compose ~a simplify-result-expr) (apply append out)))
     
   out)
