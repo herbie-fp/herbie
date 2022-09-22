@@ -406,7 +406,7 @@
   (define cleaned-alts
     (remove-duplicates
       (for/list ([altn joined-alts] [progs progss*])
-        (alt `(λ ,(program-variables (alt-program altn)) ,(simplify-result-expr (last progs)))
+        (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
               'final-simplify (list altn)))
       alt-equal?))
   (define alts-deduplicated

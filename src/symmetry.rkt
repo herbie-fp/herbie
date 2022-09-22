@@ -8,7 +8,7 @@
     (for/list ([swap (in-combinations vars 2)])
       (match-define (list a b) swap)
       (replace-vars (list (cons a b) (cons b a)) expr)))
-  (define out (map (compose simplify-result-expr last)
+  (define out (map last
                    (simplify-batch (simplify-input (cons expr swapt) empty (*simplify-rules*) true))))
   (match-define (cons orig swapt*) out)
   (for/list ([swap* swapt*] [swap (in-combinations vars 2)]
@@ -28,7 +28,7 @@
             (index-of vars b)
             '()
             'real)))
-  (define groups (map (compose simplify-result-expr last)
+  (define groups (map last
                       (simplify-batch (simplify-input (range (length vars)) empty rules* false))))
   (map (lambda (group) (map car group)) (group-by cdr (map cons vars groups))))
 

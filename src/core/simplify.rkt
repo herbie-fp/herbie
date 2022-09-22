@@ -6,7 +6,7 @@
 
 (provide simplify-expr simplify-batch get-proof
          make-simplification-combinations
-         rules->irules egg-run-rules (struct-out simplify-result)
+         rules->irules egg-run-rules
          (struct-out simplify-input))
 
 (module+ test
@@ -27,7 +27,6 @@
 
 ;; The input and output of simplify- simplify is re-run when proofs are needed
 (struct simplify-input (exprs proofs rules precompute?))
-(struct simplify-result (expr))
 
 (define (rules->irules rules)
   (for/list ([rule rules])
@@ -48,8 +47,7 @@
   
   (define options
     (for/list ([option location-options])
-      (for/fold ([child child]) ([replacement-result option] [loc locs])
-        (match-define (simplify-result replacement) replacement-result)
+      (for/fold ([child child]) ([replacement option] [loc locs])
         (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
         (if (not (equal? (alt-program child) child*))
             (alt child* `(simplify ,loc ,input #f #f) (list child))
@@ -62,7 +60,7 @@
         (append (list option child) all))))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
-  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) simplify-result?)
+  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
   (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
 
 
@@ -80,13 +78,13 @@
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
-(define (simplify-batch input)
-  #;(->* (struct/dc simplify-input
-                  [exprs (listof expr?)]
-                  [proofs (listof (cons/c expr? expr?))]
-                  [rules (listof rule?)]
-                  [precompute? boolean?])
-       (listof (listof simplify-result?)))
+(define/contract (simplify-batch input)
+  (->* ((struct/c simplify-input
+                  (listof expr?)
+                  (listof (cons/c expr? expr?))
+                  (listof rule?)
+                  boolean?))
+         (listof (listof expr?)))
 
   (timeline-push! 'inputs (map ~a (simplify-input-exprs input)))
 
@@ -96,17 +94,16 @@
             input
             (lambda (egg-graph node-ids iter-data)
                  (map (lambda (id)
-                      (for/list ([iter (in-range (length iter-data))])
-                                (simplify-result
+                        (for/list ([iter (in-range (length iter-data))])
                                   (egg-expr->expr
                                    (egraph-get-simplest egg-graph id iter)
-                                   egg-graph))))
+                                   egg-graph)))
                  node-ids))))
 
   (define out
     (for/list ([result results] [expr (simplify-input-exprs input)])
-      (remove-duplicates (cons (simplify-result expr) result))))
-  (timeline-push! 'outputs (map (compose ~a simplify-result-expr) (apply append out)))
+      (remove-duplicates (cons expr result))))
+  (timeline-push! 'outputs (map ~a (apply append out)))
     
   out)
 
@@ -184,7 +181,7 @@
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
-    (map (compose simplify-result-expr last) (simplify-batch (simplify-input args empty (*simplify-rules*) true))))
+    (map last (simplify-batch (simplify-input args empty (*simplify-rules*) true))))
 
   (define test-exprs
     #hash([1 . 1]
