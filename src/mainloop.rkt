@@ -412,21 +412,25 @@
   (define alts-deduplicated
     (remove-duplicates cleaned-alts alt-equal?))
   
-  (timeline-event! 'soundness)
-  (define alts* alts-deduplicated)
+
   
-  (timeline-event! 'end)
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   ;; find the best, sort the rest by cost
-  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts*))
+  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts-deduplicated))
   (define-values (best end-score rest)
     (for/fold ([best #f] [score #f] [rest #f])
-              ([altn (in-list alts*)] [errs (in-list errss)])
+              ([altn (in-list alts-deduplicated)] [errs (in-list errss)])
       (let ([new-score (errors-score errs)])
         (cond
          [(not best) (values altn new-score '())]
          [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
          [else (values best score (cons altn rest))]))))
+
+  (timeline-event! 'soundness)
+
   (define best-annotated
     (add-soundiness best (*pcontext*) (*context*)))
+
+  (timeline-event! 'end)
+  
   (cons best-annotated (sort rest > #:key (curryr alt-cost repr))))
