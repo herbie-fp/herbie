@@ -93,8 +93,7 @@
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
                                                       (core->tex prog* #:loc loc #:color "blue") 
                                                       "ERROR") 
-                                                  "\\]")
-           ;; TODO display soundiness here in comments
+                "\\]")
            (div ([class "math"]) "Proof")
            ,@(for/list ([step proof] [data soundiness])
                        (define text (format "~a: ~a points increase in error, ~a points decrease in error"

@@ -285,7 +285,6 @@ unsafe fn make_empty_string() -> *const c_char {
     best_str_pointer
 }
 
-// TODO free memory of resulting string through ffi
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_proof(
     ptr: *mut Context,
