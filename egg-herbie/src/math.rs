@@ -232,7 +232,6 @@ impl Analysis<Math> for ConstantFold {
                 *to = Some(c);
                 DidMerge(true, false)
             }
-            (Some(_), None) => DidMerge(false, true),
             (Some(a), Some(ref b)) => {
                 if a.0 != b.0 && !self.unsound.swap(true, Ordering::SeqCst) {
                     log::warn!("Bad merge detected: {} != {}", a.0, b.0);
