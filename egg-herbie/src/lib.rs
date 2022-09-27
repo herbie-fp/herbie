@@ -2,6 +2,7 @@ pub mod math;
 pub mod rules;
 
 use egg::{Extractor, Id, Iteration, Language, StopReason, Symbol};
+use egg_smol::{EGraph};
 use indexmap::IndexMap;
 use math::*;
 
@@ -10,6 +11,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
+use symbolic_expressions::{Sexp, parser};
 
 unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
     match CStr::from_ptr(c_string).to_str() {
@@ -24,34 +26,53 @@ unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
     }
 }
 
+unsafe fn cstring_to_sexp(c_string: *const c_char) -> Option<Sexp>
+{
+    match CStr::from_ptr(c_string).to_str() {
+        Ok(expr_string) => match parser::parse_str(expr_string) {
+            Ok(expr) => Some(expr),
+            Err(err) => {
+                eprintln!("{}", err);
+                None
+            }
+        },
+        Err(_error) => None,
+    }
+}
+
 pub struct Context {
     iteration: usize,
     runner: Option<Runner>,
+    egglog: EGraph,
     rules: Vec<Rewrite>,
 }
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
         iteration: 0,
         runner: Some(Runner::new(Default::default()).with_explanations_enabled()),
+        egglog: EGraph::default(),
         rules: vec![],
     }))
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_destroy(ptr: *mut Context) {
     std::mem::drop(Box::from_raw(ptr))
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
-    let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
-    std::mem::drop(array)
+    std::mem::drop(Box::from_raw(slice::from_raw_parts_mut(ptr, size as usize)))
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
     std::mem::drop(CString::from_raw(ptr));
 }
@@ -101,6 +122,7 @@ fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char) -> u32 {
     ffirun(|| {
         let _ = env_logger::try_init();
@@ -113,13 +135,42 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
         assert_eq!(ctx.iteration, 0);
 
         let result = match cstring_to_recexpr(expr) {
-            None => 0 as u32,
+            None => 0,
             Some(rec_expr) => {
                 runner = runner.with_expr(&rec_expr);
                 let id = *runner.roots.last().unwrap();
                 let id = usize::from(id) as u32;
                 assert!(id < u32::MAX);
-                id + 1 as u32
+                id + 1
+            }
+        };
+
+        ctx.runner = Some(runner);
+        result
+    })
+}
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const c_char) -> u32 {
+    ffirun(|| {
+        let _ = env_logger::try_init();
+        let ctx = &mut *ptr;
+        let mut runner = ctx
+            .runner
+            .take()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        assert_eq!(ctx.iteration, 0);
+
+        let result = match cstring_to_recexpr(expr) {
+            None => 0,
+            Some(rec_expr) => {
+                runner = runner.with_expr(&rec_expr);
+                let id = *runner.roots.last().unwrap();
+                let id = usize::from(id) as u32;
+                assert!(id < u32::MAX);
+                id + 1
             }
         };
 
@@ -144,6 +195,7 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_run_with_iter_limit(
     ptr: *mut Context,
     output_size: *mut u32,
@@ -199,6 +251,7 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_run(
     ptr: *mut Context,
     output_size: *mut u32,
@@ -219,6 +272,23 @@ pub unsafe extern "C" fn egraph_run(
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn egraph_run_egglog(
+    ptr: *mut Context,
+    output_size: *mut u32,
+    node_limit: u32,
+    rules_array_ptr: *const *mut FFIRule,
+    is_constant_folding_enabled: bool,
+    rules_array_length: u32,
+) {
+    ffirun(|| {
+        let ctx = &mut *ptr;
+    });
+}
+
+    
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
     ffirun(|| {
         let ctx = &*ptr;
@@ -257,6 +327,7 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_get_simplest(
     ptr: *mut Context,
     node_id: u32,
@@ -286,6 +357,7 @@ unsafe fn make_empty_string() -> *const c_char {
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_get_proof(
     ptr: *mut Context,
     expr: *const c_char,
@@ -325,6 +397,7 @@ pub unsafe extern "C" fn egraph_get_proof(
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_get_variants(
     ptr: *mut Context,
     node_id: u32,
@@ -375,6 +448,7 @@ pub unsafe extern "C" fn egraph_get_variants(
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
     ffirun(|| {
         let ctx = &*ptr;
@@ -387,6 +461,7 @@ pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *const i8) -> u32 {
     ffirun(|| {
         let ctx = &*ptr;
@@ -404,6 +479,7 @@ pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *cons
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: u32) -> u32 {
     ffirun(|| {
         let ctx = &*ptr;
@@ -418,6 +494,7 @@ pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: 
 }
 
 #[no_mangle]
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_get_size(ptr: *mut Context) -> u32 {
     ffirun(|| {
         let ctx = &*ptr;
