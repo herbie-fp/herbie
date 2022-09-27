@@ -6,6 +6,8 @@ use egg_smol::{EGraph};
 use indexmap::IndexMap;
 use math::*;
 
+use num_rational::Rational64;
+
 use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -44,6 +46,7 @@ pub struct Context {
     iteration: usize,
     runner: Option<Runner>,
     egglog: EGraph,
+    egglog_gen: usize,
     rules: Vec<Rewrite>,
 }
 
@@ -51,10 +54,14 @@ pub struct Context {
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
+    let egglog_header = std::include_str!("./herbie.egg");
+    let mut egglog = EGraph::default();
+    egglog.parse_and_run_program(egglog_header).unwrap();
     Box::into_raw(Box::new(Context {
         iteration: 0,
         runner: Some(Runner::new(Default::default()).with_explanations_enabled()),
-        egglog: EGraph::default(),
+        egglog,
+        egglog_gen: 1,
         rules: vec![],
     }))
 }
@@ -150,32 +157,101 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
     })
 }
 
+pub fn remove_types(expr: &Sexp) -> Sexp {
+    match expr {
+        Sexp::List(list) => {
+            Sexp::List(vec![remove_types(&list[0])]
+                        .into_iter()
+                        .chain(
+                            list.iter()
+                                .skip(2)
+                                .map(remove_types)
+                        ).collect())
+        }
+        Sexp::String(atom) => Sexp::String(atom.to_string()),
+        Sexp::Empty => Sexp::Empty
+    }
+}
+
+pub fn convert_egglog(expr: &Sexp) -> Sexp {
+    match expr {
+        Sexp::String(atom) => {
+            if let Ok(rat) = atom.parse::<Rational64>() {
+                Sexp::List(vec![Sexp::String("Num".to_string()),
+                                Sexp::List(vec![Sexp::String("rational".to_string()),
+                                                Sexp::String(rat.numer().to_string()),
+                                                Sexp::String(rat.denom().to_string())])])
+            } else {
+                Sexp::List(vec![Sexp::String("Var".to_string()),
+                                Sexp::String("\"".to_string() + &atom.to_string() + "\"")])
+            }
+        }
+        Sexp::List(list) => {
+            let op = match list[0].to_string().as_str() {
+                "+" => "Add",
+                "-" => "Sub",
+                "*" => "Mul",
+                "/" => "Div",
+                "pow" => "Pow",
+                "neg" => "Neg",
+                "sqrt" => "Sqrt",
+                "fabs" => "Fabs",
+                "ceil" => "Ceil",
+                "floor" => "Floor",
+                "round" => "Round",
+                "log" => "Log",
+                "cbrt" => "Cbrt",
+                _ => "other",
+            };
+            let front = if op == "other" && list.len() == 2 {
+                vec![Sexp::String("Unary".to_string()),
+                     Sexp::String("\"".to_string() + &list[0].to_string() + "\"")]
+            } else if op == "other" && list.len() == 3 {
+                vec![Sexp::String("Binary".to_string()),
+                     Sexp::String("\"".to_string() + &list[0].to_string() + "\"")]
+            } else if op != "other" {
+                   vec![Sexp::String(op.to_string())]
+            } else {
+                panic!("Unknown operation: {}", expr);
+            };
+
+            Sexp::List(front
+                        .into_iter()
+                        .chain(
+                            list.iter()
+                                .skip(1)
+                                .map(convert_egglog)
+                        ).collect())
+        }
+        Sexp::Empty => panic!("Trying to convert empty expression"),
+
+    }
+}
+
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const c_char) -> u32 {
     ffirun(|| {
         let _ = env_logger::try_init();
         let ctx = &mut *ptr;
-        let mut runner = ctx
-            .runner
-            .take()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
         assert_eq!(ctx.iteration, 0);
 
-        let result = match cstring_to_recexpr(expr) {
+        match cstring_to_sexp(expr) {
             None => 0,
-            Some(rec_expr) => {
-                runner = runner.with_expr(&rec_expr);
-                let id = *runner.roots.last().unwrap();
-                let id = usize::from(id) as u32;
-                assert!(id < u32::MAX);
-                id + 1
-            }
-        };
+            Some(sexpr) => {
+                let name = "eggvar_".to_string() + &ctx.egglog_gen.to_string();
+                let expr = Sexp::List(
+                    vec![Sexp::String("define".to_string()),
+                        Sexp::String(name),
+                        convert_egglog(&remove_types(&sexpr))]);
+                eprintln!("Adding egglog expr: {}", expr);
+                ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 
-        ctx.runner = Some(runner);
-        result
+                ctx.egglog_gen += 1;
+                (ctx.egglog_gen - 1) as u32
+            }
+        }
     })
 }
 
@@ -276,14 +352,22 @@ pub unsafe extern "C" fn egraph_run(
 pub unsafe extern "C" fn egraph_run_egglog(
     ptr: *mut Context,
     output_size: *mut u32,
-    node_limit: u32,
-    rules_array_ptr: *const *mut FFIRule,
-    is_constant_folding_enabled: bool,
-    rules_array_length: u32,
-) {
+) -> *const EGraphIter {
     ffirun(|| {
         let ctx = &mut *ptr;
-    });
+        let [search, apply, rebuild] = ctx.egglog.run_rules(3);
+
+        let mut iters = vec![EGraphIter {
+            numnodes: 0,
+            numclasses: 0,
+            time: search.as_secs_f64() + apply.as_secs_f64() + rebuild.as_secs_f64(),
+        }];
+
+        std::ptr::write(output_size, iters.len() as u32);
+        let ptr = iters.as_mut_ptr();
+        std::mem::forget(iters);
+        ptr
+    })
 }
 
     

@@ -12,6 +12,7 @@
          make-ffi-rules free-ffi-rules egraph-get-cost
          egraph-stop-reason egraph-is-unsound-detected
          egraph-get-times-applied egraph-get-proof
+         egraph-add-expr-egglog egglog-run
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -94,6 +95,13 @@
   (destroy_egraphiters res-len egraphiters)
   res)
 
+(define (egglog-run egraph-data)
+  (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
+  (define-values (egraphiters res-len)
+    (egraph_run_egglog egraph-ptr))
+  (define res (convert-iteration-data egraphiters res-len))
+  (destroy_egraphiters res-len egraphiters)
+  res)
 
 ;; calls the function on a new egraph, and cleans up
 (define (with-egraph egraph-function)
@@ -186,6 +194,15 @@
             "Failed to add expr to egraph"
             (current-continuation-marks))))
   (- result 1))
+
+(define (egraph-add-expr-egglog eg-data expr)
+  (define egg-expr (expr->egg-expr expr eg-data))
+  (define result (egraph_add_expr_egglog (egraph-data-egraph-pointer eg-data) egg-expr))
+  (when (= result 0)
+    (raise (egg-add-exn
+            "Failed to add expr to egraph"
+            (current-continuation-marks))))
+  result)
 
 (module+ test
 

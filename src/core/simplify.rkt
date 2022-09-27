@@ -124,7 +124,10 @@
   (with-egraph
    (lambda (egg-graph)
      (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+     (define other-node-ids (map (curry egraph-add-expr-egglog egg-graph) exprs))
+     (define iter-data-egglog (egglog-run egg-graph))
      (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
+
         
      (when (egraph-is-unsound-detected egg-graph)
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
