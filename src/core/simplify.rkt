@@ -125,15 +125,15 @@
    (lambda (egg-graph)
      (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
      (define other-node-ids (map (curry egraph-add-expr-egglog egg-graph) exprs))
-     (define iter-data-egglog (egglog-run egg-graph))
-     (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
+     (define iter-data (egglog-run egg-graph))
+     #;(define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
 
         
      (when (egraph-is-unsound-detected egg-graph)
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
              "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
         
-        (for ([rule rules])
+     #;(for ([rule rules])
              (define count (egraph-get-times-applied egg-graph (rule-name rule)))
              (when (> count 0)
                    (timeline-push! 'rules (~a (rule-name rule)) count)))

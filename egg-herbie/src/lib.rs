@@ -201,6 +201,7 @@ pub fn convert_egglog(expr: &Sexp) -> Sexp {
                 "round" => "Round",
                 "log" => "Log",
                 "cbrt" => "Cbrt",
+                "if" => "If",
                 _ => "other",
             };
             let front = if op == "other" && list.len() == 2 {
@@ -432,6 +433,33 @@ pub unsafe extern "C" fn egraph_get_simplest(
         best_str_pointer
     })
 }
+
+
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn egglog_get_simplest(
+    ptr: *mut Context,
+    node_id: u32,
+) -> *const c_char {
+    ffirun(|| {
+        let ctx = &mut *ptr;
+        let query = Sexp::List(
+            vec![
+                Sexp::String("extract".to_string()),
+                Sexp::String("eggvar_".to_string() + &node_id.to_string()),
+            ]
+        );
+
+        let best = ctx.egglog.parse_and_run_program(&query.to_string()).unwrap()[0].clone();
+
+        let best_str = CString::new(best).unwrap();
+        let best_str_pointer = best_str.as_ptr();
+        std::mem::forget(best_str);
+        best_str_pointer
+    })
+}
+
+
 
 unsafe fn make_empty_string() -> *const c_char {
     let best_str = CString::new("".to_string()).unwrap();

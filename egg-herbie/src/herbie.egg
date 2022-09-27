@@ -27,7 +27,9 @@
   (Ceil Math)
   (Floor Math)
   (Round Math)
-  (Log Math))
+  (Log Math)
+  (If Math Math Math)
+  )
 
 (define r-zero (rational 0 1))
 (define r-one  (rational 1 1))
@@ -36,7 +38,7 @@
 (define one  (Num r-one))
 (define two  (Num r-two))
 (define three (Num (rational 3 1)))
-(define neg-one (Neg "f64" one))
+(define neg-one (Neg one))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
