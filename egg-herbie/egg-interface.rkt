@@ -12,7 +12,7 @@
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
          egraph_get_proof destroy_string
-         egraph_run_egglog
+         egraph_run_egglog egglog_get_simplest
          (struct-out EGraphIter)
          (struct-out FFIRule))
 
@@ -92,6 +92,10 @@
                                          _uint ;; node id
                                          _uint ;; iteration
                                          -> _pointer))
+
+(define-eggmath egglog_get_simplest (_fun _egraph-pointer
+                                          _uint ;; node id
+                                          -> _pointer))
 
 (define-eggmath egraph_get_proof (_fun _egraph-pointer
                                        _string/utf-8

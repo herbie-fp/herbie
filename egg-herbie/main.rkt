@@ -13,6 +13,7 @@
          egraph-stop-reason egraph-is-unsound-detected
          egraph-get-times-applied egraph-get-proof
          egraph-add-expr-egglog egglog-run
+         egglog-get-simplest
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -24,6 +25,12 @@
 
 (define (egraph-get-simplest egraph-data node-id iteration)
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+  (define str (cast ptr _pointer _string/utf-8))
+  (destroy_string ptr)
+  str)
+
+(define (egglog-get-simplest egraph-data node-id)
+  (define ptr (egglog_get_simplest (egraph-data-egraph-pointer egraph-data) node-id))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
   str)

@@ -28,6 +28,8 @@
 ;; The input and output of simplify- simplify is re-run when proofs are needed
 (struct simplify-input (exprs proofs rules precompute?))
 
+(define EGGLOG-ENABLED #t)
+
 (define (rules->irules rules)
   (for/list ([rule rules])
     (irule (rule-name rule) (rule-input rule) (rule-output rule))))
@@ -65,15 +67,18 @@
 
 
 
+;; TODO get proofs from egglog
 (define (get-proof input start end)
-  (run-simplify-input
-    input
-    (lambda (egg-graph node-ids iter-data)
+  (if EGGLOG-ENABLED
+      empty
+      (run-simplify-input
+       input
+       (lambda (egg-graph node-ids iter-data)
          (begin
            (define proof (egraph-get-proof egg-graph start end))
            (when (equal? proof "")
              (error (format "Failed to produce proof for ~a to ~a" start end)))
-           (translate-proof proof egg-graph)))))
+            (translate-proof proof egg-graph))))))
 
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
@@ -90,14 +95,18 @@
 
 
   (define results
-          (run-simplify-input
-            input
-            (lambda (egg-graph node-ids iter-data)
-                 (map (lambda (id)
-                        (for/list ([iter (in-range (length iter-data))])
-                                  (egg-expr->expr
-                                   (egraph-get-simplest egg-graph id iter)
-                                   egg-graph)))
+    (run-simplify-input
+     input
+     (lambda (egg-graph node-ids iter-data)
+       (map (lambda (id)
+              (for/list ([iter (in-range (length iter-data))])
+                (egg-expr->expr
+
+
+                 (if EGGLOG-ENABLED
+                     (egglog-get-simplest egg-graph id)
+                     (egraph-get-simplest egg-graph id iter))
+                 egg-graph)))
                  node-ids))))
 
   (define out
@@ -123,20 +132,25 @@
 
   (with-egraph
    (lambda (egg-graph)
-     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
-     (define other-node-ids (map (curry egraph-add-expr-egglog egg-graph) exprs))
-     (define iter-data (egglog-run egg-graph))
-     #;(define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
-
+     (define node-ids
+       (map (curry
+             (if EGGLOG-ENABLED egraph-add-expr-egglog egraph-add-expr)
+             egg-graph)
+            exprs))
+     (define iter-data
+       (if EGGLOG-ENABLED
+           (egglog-run egg-graph)
+           (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true))))
         
      (when (egraph-is-unsound-detected egg-graph)
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
              "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
         
-     #;(for ([rule rules])
-             (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-             (when (> count 0)
-                   (timeline-push! 'rules (~a (rule-name rule)) count)))
+     (when (not EGGLOG-ENABLED)
+       (for ([rule rules])
+         (define count (egraph-get-times-applied egg-graph (rule-name rule)))
+         (when (> count 0)
+           (timeline-push! 'rules (~a (rule-name rule)) count))))
 
         (egraph-func egg-graph node-ids iter-data))))
 

@@ -50,7 +50,9 @@
      (define proof
        (get-proof input (location-get loc prog) (location-get loc (alt-program prev))))
      (define vars (program-variables prog))
-     (alt prog `(simplify ,loc ,input ,proof ,(get-proof-errors proof pcontext ctx vars)) `(,prev))]
+     (if (empty? proof)
+         (alt prog `(simplify ,loc ,input ,empty ,empty) `(,prev))
+         (alt prog `(simplify ,loc ,input ,proof ,(get-proof-errors proof pcontext ctx vars)) `(,prev)))]
     [else
      altn]))
 
