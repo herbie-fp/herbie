@@ -44,17 +44,27 @@
   proof-diffs)
   
 
-(define (add-soundiness-to pcontext ctx altn)
+(define (add-soundiness-to pcontext ctx simplify-cache altn)
   (match altn
     [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
-     (define proof
-       (get-proof input (location-get loc prog) (location-get loc (alt-program prev))))
-     (define vars (program-variables prog))
-     (alt prog `(simplify ,loc ,input ,proof ,(get-proof-errors proof pcontext ctx vars)) `(,prev))]
+     (match-define (cons proof errors)
+       (cond
+         [(hash-has-key? simplify-cache input)
+          (hash-ref simplify-cache input)]
+         [else
+          (define proof
+            (get-proof input (location-get loc prog) (location-get loc (alt-program prev))))
+          (define vars (program-variables prog))
+          (cons proof (get-proof-errors proof pcontext ctx vars))
+          ]))
+     (alt prog `(simplify ,loc ,input ,proof ,errors) `(,prev))]
     [else
      altn]))
 
-(define (add-soundiness alt pcontext ctx)
-  (alt-map
-   (curry add-soundiness-to pcontext ctx)
-   alt))
+
+(define (add-soundiness alts pcontext ctx)
+  (define simplify-cache (hasheq))
+  (for/list ([altn alts])
+    (alt-map
+     (curry add-soundiness-to pcontext ctx simplify-cache)
+     altn)))

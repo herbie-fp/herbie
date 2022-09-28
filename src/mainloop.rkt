@@ -429,7 +429,7 @@
   (timeline-event! 'soundness)
 
   (define best-annotated
-    (add-soundiness best (*pcontext*) (*context*)))
+    (first (add-soundiness (list best) (*pcontext*) (*context*))))
 
   (timeline-event! 'end)
   
