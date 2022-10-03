@@ -78,6 +78,8 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
             ("cbrt", "Cbrt"),
             ("if", "If"),
             ("fma", "Fma"),
+            ("PI", "PI"),
+            ("E", "E"),
     ]);
 
     let egglog_mapping: HashMap<String, String> = egglog_mapping_not_owned.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
