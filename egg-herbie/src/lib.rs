@@ -317,7 +317,6 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
         match cstring_to_sexp(expr) {
             None => 0,
             Some(sexpr) => {
-                eprintln!("Adding expr: {}", sexpr);
                 let name = "eggvar_".to_string() + &ctx.egglog_gen.to_string();
                 let expr = Sexp::List(
                     vec![Sexp::String("define".to_string()),
@@ -527,7 +526,6 @@ pub unsafe extern "C" fn egglog_get_simplest(
         let (_cost, extracted) = ctx.egglog.extract(value);
 
         let converted = add_types(&unconvert_egglog(ctx, &parser::parse_str(&extracted.to_string()).unwrap()));
-        println!("Extracted: {}", converted);
 
 
         let best_str = CString::new(converted.to_string()).unwrap();
