@@ -535,6 +535,58 @@ pub unsafe extern "C" fn egglog_get_simplest(
     })
 }
 
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn egglog_get_variants(
+    ptr: *mut Context,
+    node_id: u32,
+    orig_expr: *const c_char,
+) -> *const c_char {
+    ffirun(|| {
+        let ctx = &*ptr;
+        let runner = ctx
+            .runner
+            .as_ref()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        // root (id, expr)
+        let id = Id::from(node_id as usize);
+        let orig_recexpr =
+            cstring_to_recexpr(orig_expr).unwrap_or_else(|| panic!("could not parse expr"));
+        let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
+
+        // extractor
+        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let mut cache: IndexMap<Id, RecExpr> = Default::default();
+
+        // extract variants
+        let mut exprs = vec![];
+        for n in &runner.egraph[id].nodes {
+            // assuming same ops in an eclass cannot
+            // have different precisions
+            if !n.matches(head_node) {
+                // extract if not in cache
+                n.for_each(|id| {
+                    if cache.get(&id).is_none() {
+                        let (_, best) = extractor.find_best(id);
+                        cache.insert(id, best);
+                    }
+                });
+
+                exprs.push(n.join_recexprs(|id| cache.get(&id).unwrap().as_ref()));
+            }
+        }
+
+        // format
+        let expr_strs: Vec<String> = exprs.iter().map(|r| r.to_string()).collect();
+        let best_str = CString::new(expr_strs.join(" ")).unwrap();
+        let best_str_pointer = best_str.as_ptr();
+        std::mem::forget(best_str);
+        best_str_pointer
+    })
+}
+
+
 
 
 unsafe fn make_empty_string() -> *const c_char {
@@ -634,6 +686,7 @@ pub unsafe extern "C" fn egraph_get_variants(
         best_str_pointer
     })
 }
+
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]

@@ -2,7 +2,7 @@
 
 (require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/rules.rkt" "../alternative.rkt")
+         "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt")
 
 (provide simplify-expr simplify-batch get-proof
          make-simplification-combinations
@@ -27,8 +27,6 @@
 
 ;; The input and output of simplify- simplify is re-run when proofs are needed
 (struct simplify-input (exprs proofs rules precompute?))
-
-(define EGGLOG-ENABLED #t)
 
 (define (rules->irules rules)
   (for/list ([rule rules])
@@ -69,7 +67,9 @@
 
 ;; TODO get proofs from egglog
 (define (get-proof input start end)
-  (if EGGLOG-ENABLED
+  (when (*egglog-enabled*)
+    (error "egglog enabled! oh no"))
+  (if (*egglog-enabled*)
       empty
       (run-simplify-input
        input
@@ -92,6 +92,8 @@
          (listof (listof expr?)))
 
   (timeline-push! 'inputs (map ~a (simplify-input-exprs input)))
+  (when (*egglog-enabled*)
+    (error "egglog enabled! oh no"))
 
 
   (define results
@@ -103,7 +105,7 @@
                 (egg-expr->expr
 
 
-                 (if EGGLOG-ENABLED
+                 (if (*egglog-enabled*)
                      (egglog-get-simplest egg-graph id)
                      (egraph-get-simplest egg-graph id iter))
                  egg-graph)))
@@ -134,11 +136,11 @@
    (lambda (egg-graph)
      (define node-ids
        (map (curry
-             (if EGGLOG-ENABLED egraph-add-expr-egglog egraph-add-expr)
+             (if (*egglog-enabled*) egraph-add-expr-egglog egraph-add-expr)
              egg-graph)
             exprs))
      (define iter-data
-       (if EGGLOG-ENABLED
+       (if (*egglog-enabled*)
            (egglog-run egg-graph)
            (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true))))
         
@@ -146,11 +148,10 @@
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
              "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
         
-     (when (not EGGLOG-ENABLED)
-       (for ([rule rules])
+     #;(for ([rule rules])
          (define count (egraph-get-times-applied egg-graph (rule-name rule)))
          (when (> count 0)
-           (timeline-push! 'rules (~a (rule-name rule)) count))))
+           (timeline-push! 'rules (~a (rule-name rule)) count)))
 
         (egraph-func egg-graph node-ids iter-data))))
 

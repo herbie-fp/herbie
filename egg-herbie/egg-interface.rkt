@@ -9,6 +9,7 @@
          egraph_run egraph_run_with_iter_limit
          egraph_get_stop_reason
          egraph_get_simplest egraph_get_variants
+         egglog_get_variants
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
          egraph_get_proof destroy_string
@@ -107,6 +108,12 @@
                                           _uint           ;; node id
                                           _string/utf-8   ;; original expr
                                           -> _pointer))   ;; string pointer
+
+(define-eggmath egglog_get_variants
+  (_fun _egraph-pointer
+        _uint ;; node id
+        _string/utf-8 ;; original expr
+        -> _pointer)) ;; string pointer
 
 (define-eggmath egraph_get_cost (_fun _egraph-pointer
                                       _uint ;; node id

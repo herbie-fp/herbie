@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "errors.rkt" "load-plugin.rkt" "sandbox.rkt")
+(require "common.rkt" "multi-command-line.rkt" "errors.rkt" "load-plugin.rkt" "sandbox.rkt" "config.rkt")
 
 ;; Load all the plugins
 (load-herbie-plugins)
@@ -55,6 +55,8 @@
     (when given-seed (set-seed! given-seed))]
    [("--num-iters") num "The number of iterations to use for the main loop"
     (*num-iterations* (string->number num))]
+   [("--egglog-disabled") "Use egg instead of eggsmol"
+                          (*egglog-enabled* #f)]
    [("--num-points") num "The number of points to use during sampling"
     (*num-points* (string->number num))]
    [("--num-enodes") num "The number of enodes to use during simplification"

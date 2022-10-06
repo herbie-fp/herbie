@@ -72,6 +72,9 @@
 ;; Number of iterations of the core loop for improving program accuracy
 (define *num-iterations* (make-parameter 4))
 
+;; Use egglog instead of egg
+(define *egglog-enabled* (make-parameter #t))
+
 ;; The maximum depth for splitting the space when searching for valid areas of points.
 (define *max-find-range-depth* (make-parameter 12))
 
