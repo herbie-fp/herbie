@@ -67,8 +67,6 @@
 
 ;; TODO get proofs from egglog
 (define (get-proof input start end)
-  (when (*egglog-enabled*)
-    (error "egglog enabled! oh no"))
   (if (*egglog-enabled*)
       empty
       (run-simplify-input
@@ -92,9 +90,6 @@
          (listof (listof expr?)))
 
   (timeline-push! 'inputs (map ~a (simplify-input-exprs input)))
-  (when (*egglog-enabled*)
-    (error "egglog enabled! oh no"))
-
 
   (define results
     (run-simplify-input

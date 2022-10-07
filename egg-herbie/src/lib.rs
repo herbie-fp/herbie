@@ -244,8 +244,10 @@ pub fn unconvert_egglog(context: &Context, expr: &Sexp) -> Sexp {
                 let op = context.egglog_mapping_rev.get(&list[0].to_string());
 
                 if op.is_none() {
-                    assert!(list[0].to_string() == "Unary" || list[0].to_string() == "Binary");
-
+                    let is_valid = list[0].to_string() == "Unary" || list[0].to_string() == "Binary";
+                    if !is_valid {
+                        panic!("Expected Unary or Binary, got {}", list[0]);
+                    }
                     
 
                     Sexp::List(vec![Sexp::String(list[1].to_string())].into_iter()
@@ -535,50 +537,41 @@ pub unsafe extern "C" fn egglog_get_simplest(
     })
 }
 
+pub fn excluded_operator(op: &str) -> bool {
+    let excluded = std::collections::HashSet::from(["zero", "one", "two", "three", "neg-one"]);
+    excluded.contains(op)
+}
+
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egglog_get_variants(
     ptr: *mut Context,
     node_id: u32,
-    orig_expr: *const c_char,
+    _orig_expr: *const c_char,
 ) -> *const c_char {
     ffirun(|| {
-        let ctx = &*ptr;
-        let runner = ctx
-            .runner
-            .as_ref()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
-
-        // root (id, expr)
-        let id = Id::from(node_id as usize);
-        let orig_recexpr =
-            cstring_to_recexpr(orig_expr).unwrap_or_else(|| panic!("could not parse expr"));
-        let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
-
-        // extractor
-        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
-        let mut cache: IndexMap<Id, RecExpr> = Default::default();
-
-        // extract variants
-        let mut exprs = vec![];
-        for n in &runner.egraph[id].nodes {
-            // assuming same ops in an eclass cannot
-            // have different precisions
-            if !n.matches(head_node) {
-                // extract if not in cache
-                n.for_each(|id| {
-                    if cache.get(&id).is_none() {
-                        let (_, best) = extractor.find_best(id);
-                        cache.insert(id, best);
+        let ctx = &mut *ptr;
+        let value = ctx.egglog.eval_closed_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string())).unwrap();
+        let exprs = ctx.egglog.extract_variants(value, 100_000).into_iter().filter_map(|expr| {
+            let parsed = parser::parse_str(&expr.to_string()).unwrap();
+            if let Sexp::List(inner) = &parsed {
+                if inner.len() == 1 {
+                    if let Sexp::String(v) = &inner[0] {
+                        if v.starts_with("eggvar_") || excluded_operator(v) {
+                            return None;
+                        }
                     }
-                });
-
-                exprs.push(n.join_recexprs(|id| cache.get(&id).unwrap().as_ref()));
+               }
             }
-        }
+            Some(add_types(&unconvert_egglog(ctx, &parsed)))
+        }).collect::<Vec<Sexp>>();
 
         // format
         let expr_strs: Vec<String> = exprs.iter().map(|r| r.to_string()).collect();
+        /*println!("Variants!:");
+        for expr in &expr_strs {
+            println!("    {}", expr);
+        }*/
         let best_str = CString::new(expr_strs.join(" ")).unwrap();
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);

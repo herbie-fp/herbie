@@ -33,6 +33,7 @@
   (Fma Math Math Math)
   )
 
+;; shorthands- must be added to the exclude list of extraction
 (define r-zero (rational 0 1))
 (define r-one  (rational 1 1))
 (define r-two  (rational 2 1))
