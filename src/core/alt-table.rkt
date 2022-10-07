@@ -212,13 +212,22 @@
   (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
   (values errss costs))
 
+(define (sort-altns altns errss costs)
+  (define unsorted (map list altns errss costs))
+  (define sorted (sort unsorted expr>? #:key (compose program-body alt-program first)))
+  (values (map first sorted) (map second sorted) (map third sorted)))
+
 (define (atab-add-altns atab altns errss costs)
+  ;; sort by total order function
+  (define-values (altns* errss* costs*) (sort-altns altns errss costs))
+  ;; add to table
   (define atab*
-    (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
+    (for/fold ([atab atab]) ([altn (in-list altns*)] [errs (in-list errss*)] [cost (in-list costs*)])
       (if (hash-has-key? (alt-table-alt->points atab) altn)
           atab
           (atab-add-altn atab altn errs cost))))
   (define atab** (struct-copy alt-table atab* [alt->points (invert-index (alt-table-point->alts atab*))]))
+  ;; prune
   (define atab*** (atab-prune atab**))
   (struct-copy alt-table atab***
                [alt->points (invert-index (alt-table-point->alts atab***))]
