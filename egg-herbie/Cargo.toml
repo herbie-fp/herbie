@@ -5,7 +5,7 @@ authors = [ "Oliver Flatt <oflatt@gmail.com>", "Max Willsey <me@mwillsey.com>" ]
 edition = "2018"
 
 [dependencies]
-egg = "0.8"
+egg = "0.9.1"
 
 log = "0.4"
 indexmap = "1"
