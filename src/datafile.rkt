@@ -64,7 +64,7 @@
           (time . ,time)
           (bits . ,bits)
           (link . ,(~a link))
-          (cost-accuracy . ,(~a cost-accuracy*))))]))
+          (cost-accuracy . ,cost-accuracy*)))]))
   
   (define data
     (match info
@@ -127,7 +127,16 @@
                                 (get 'start) (get 'end) (get 'target)
                                 (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
                                 (get 'time) (get 'bits) (get 'link)
-                                (parse-string (hash-ref test 'cost-accuracy "()"))))))))
+                                (let ([ca (hash-ref test 'cost-accuracy "()")])
+                                  (cond
+                                   [(string? ca)
+                                    (parse-string ca)]
+                                   [else
+                                    (match-define (list start end others) ca)
+                                    (list start end
+                                          (for/list ([other (in-list others)])
+                                            (match-define (list cost err expr) other)
+                                            (list cost err (parse-string expr))))]))))))))
 
 (define (unique? a)
   (or (null? a) (andmap (curry equal? (car a)) (cdr a))))

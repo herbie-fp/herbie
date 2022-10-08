@@ -39,11 +39,11 @@
     (filter
      (conjoin (negate eof-object?) identity)
      (for/list ([dir (in-list dirs)])
-       (with-handlers ([exn? (const #f)])
+      ;  (with-handlers ([exn? (const #f)])
          (let ([df (read-datafile (build-path outdir dir "results.json"))])
           (if (eof-object? df)
               eof
-              (cons df dir)))))))
+              (cons df dir))))))
   (define dfs (map car rss))
   (define joint-rs (merge-datafiles dfs #:dirs dirs #:name name))
   (write-datafile (build-path outdir "results.json") joint-rs)
