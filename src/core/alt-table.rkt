@@ -126,8 +126,8 @@
      [(= a b) 0]
      [else 1])]))
 
-(define (expr>? a b)
-  (> (expr-cmp a b) 0))
+(define (expr<? a b)
+  (< (expr-cmp a b) 0))
 
 ;; Implementation
 
@@ -179,7 +179,7 @@
 
 (define (atab-prune atab)
   (define sc (atab->set-cover atab))
-  (define removable (sort (set->list (set-cover-removable sc)) expr>?
+  (define removable (sort (set->list (set-cover-removable sc)) expr<?
                           #:key (compose program-body alt-program)))
   (let loop ([removed '()] [removable removable])
     (if (set-empty? (set-cover-removable sc))
@@ -214,7 +214,7 @@
 
 (define (sort-altns altns errss costs)
   (define unsorted (map list altns errss costs))
-  (define sorted (sort unsorted expr>? #:key (compose program-body alt-program first)))
+  (define sorted (sort unsorted expr<? #:key (compose program-body alt-program first)))
   (values (map first sorted) (map second sorted) (map third sorted)))
 
 (define (atab-add-altns atab altns errss costs)
@@ -222,7 +222,7 @@
   (define-values (altns* errss* costs*) (sort-altns altns errss costs))
   ;; add to table
   (define atab*
-    (for/fold ([atab atab]) ([altn (in-list altns*)] [errs (in-list errss*)] [cost (in-list costs*)])
+    (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
       (if (hash-has-key? (alt-table-alt->points atab) altn)
           atab
           (atab-add-altn atab altn errs cost))))
@@ -260,7 +260,7 @@
 (define (atab-not-done-alts atab)
   (define altns (hash-keys (alt-table-alt->points atab)))
   (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
-  (sort (filter not-done? altns) expr>? #:key (compose program-body alt-program)))
+  (sort (filter not-done? altns) expr<? #:key (compose program-body alt-program)))
 
 (define (atab-min-errors atab)
   (define pnt->alts (alt-table-point->alts atab))
