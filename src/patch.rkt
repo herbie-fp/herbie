@@ -249,8 +249,10 @@
                  #:when true [loc locs])
         (location-get loc (alt-program child))))
 
+    (define input
+      (simplify-input to-simplify empty (*simplify-rules*) true))
     (define simplification-options
-      (simplify-batch to-simplify #:rules (*simplify-rules*) #:precompute true))
+      (simplify-batch input))
 
     (define simplify-hash
       (make-immutable-hash (map cons to-simplify simplification-options)))
@@ -258,7 +260,7 @@
     (define simplified
       (apply append
              (for/list ([child (in-list children)] [locs locs-list])
-              (make-simplification-combinations child locs simplify-hash))))
+              (make-simplification-combinations child locs simplify-hash input))))
 
     ; dedup for cache
     (define simplified* (remove-duplicates simplified alt-equal?))

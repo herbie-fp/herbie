@@ -86,14 +86,22 @@
                                                       "ERROR")        
                                                   "\\]")))]
 
-    [(alt prog `(simplify ,loc) `(,prev))
+    [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
                                                       (core->tex prog* #:loc loc #:color "blue") 
                                                       "ERROR") 
-                                                  "\\]")))]
+                "\\]")
+           (div ([class "math"]) "Proof")
+           ,@(for/list ([step proof] [data soundiness])
+                       (define text (format "~a: ~a points increase in error, ~a points decrease in error"
+                                    step (first data) (second data)))
+                       `(div ([class "math"])
+                             ,(if (> (first data) 0)
+                                  `(b ,text)
+                                  text)))))]
 
     [(alt prog `initial-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))

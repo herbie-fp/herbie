@@ -1,5 +1,4 @@
 use egg::*;
-
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use num_bigint::BigInt;
@@ -44,7 +43,7 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
         C: FnMut(Id) -> Self::Cost,
     {
         if let Math::Pow([_, _, i]) = enode {
-            if let Some(n) = &self.egraph[*i].data {
+            if let Some((n, _reason)) = &self.egraph[*i].data {
                 if !n.denom().is_one() && n.denom().is_odd() {
                     return usize::MAX;
                 }
@@ -114,87 +113,115 @@ impl Default for ConstantFold {
 }
 
 impl Analysis<Math> for ConstantFold {
-    type Data = Option<Constant>;
+    type Data = Option<(Constant, (PatternAst<Math>, Subst))>;
     fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
         if !egraph.analysis.constant_fold {
             return None;
         }
 
-        let x = |id: &Id| egraph[*id].data.as_ref();
+        let x = |id: &Id| egraph[*id].data.clone().map(|x| x.0);
         let is_zero = |id: &Id| {
             let data = egraph[*id].data.as_ref();
             match data {
-                Some(data) => data.is_zero(),
+                Some(data) => data.0.is_zero(),
                 None => false,
             }
         };
 
-        match enode {
-            Math::Constant(c) => Some(c.clone()),
+        Some((
+            match enode {
+                Math::Constant(c) => c.clone(),
 
-            // real
-            Math::Add([_p, a, b]) => Some(x(a)? + x(b)?),
-            Math::Sub([_p, a, b]) => Some(x(a)? - x(b)?),
-            Math::Mul([_p, a, b]) => Some(x(a)? * x(b)?),
-            Math::Div([_p, a, b]) => {
-                if x(b)?.is_zero() {
-                    None
-                } else {
-                    Some(x(a)? / x(b)?)
-                }
-            }
-            Math::Neg([_p, a]) => Some(-x(a)?.clone()),
-            Math::Pow([_p, a, b]) => {
-                if is_zero(a) {
-                    if x(b)?.is_positive() {
-                        Some(Ratio::new(BigInt::from(0), BigInt::from(1)))
+                // real
+                Math::Add([_p, a, b]) => x(a)? + x(b)?,
+                Math::Sub([_p, a, b]) => x(a)? - x(b)?,
+                Math::Mul([_p, a, b]) => x(a)? * x(b)?,
+                Math::Div([_p, a, b]) => {
+                    if x(b)?.is_zero() {
+                        return None;
                     } else {
-                        None
+                        x(a)? / x(b)?
                     }
-                } else if is_zero(b) {
-                    Some(Ratio::new(BigInt::from(1), BigInt::from(1)))
-                } else if x(b)?.is_integer() {
-                    Some(Pow::pow(x(a)?, x(b)?.to_integer()))
-                } else {
-                    None
                 }
-            }
-            Math::Sqrt([_p, a]) => {
-                let a = x(a)?;
-                if *a.numer() > BigInt::from(0) && *a.denom() > BigInt::from(0) {
-                    let s1 = a.numer().sqrt();
-                    let s2 = a.denom().sqrt();
-                    let is_perfect = &(&s1 * &s1) == a.numer() && &(&s2 * &s2) == a.denom();
-                    if is_perfect {
-                        Some(Ratio::new(s1, s2))
+                Math::Neg([_p, a]) => -x(a)?.clone(),
+                Math::Pow([_p, a, b]) => {
+                    if is_zero(a) {
+                        if x(b)?.is_positive() {
+                            Ratio::new(BigInt::from(0), BigInt::from(1))
+                        } else {
+                            return None;
+                        }
+                    } else if is_zero(b) {
+                        Ratio::new(BigInt::from(1), BigInt::from(1))
+                    } else if x(b)?.is_integer() {
+                        Pow::pow(x(a)?, x(b)?.to_integer())
                     } else {
-                        None
+                        return None;
                     }
-                } else {
-                    None
                 }
-            }
-            Math::Log([_p, a]) => {
-                if x(a)? == &Ratio::new(BigInt::from(1), BigInt::from(1)) {
-                    Some(Ratio::new(BigInt::from(0), BigInt::from(1)))
-                } else {
-                    None
+                Math::Sqrt([_p, a]) => {
+                    let a = x(a)?;
+                    if *a.numer() > BigInt::from(0) && *a.denom() > BigInt::from(0) {
+                        let s1 = a.numer().sqrt();
+                        let s2 = a.denom().sqrt();
+                        let is_perfect = &(&s1 * &s1) == a.numer() && &(&s2 * &s2) == a.denom();
+                        if is_perfect {
+                            Ratio::new(s1, s2)
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        return None;
+                    }
                 }
-            }
-            Math::Cbrt([_p, a]) => {
-                if x(a)? == &Ratio::new(BigInt::from(1), BigInt::from(1)) {
-                    Some(Ratio::new(BigInt::from(1), BigInt::from(1)))
-                } else {
-                    None
+                Math::Log([_p, a]) => {
+                    if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
+                        Ratio::new(BigInt::from(0), BigInt::from(1))
+                    } else {
+                        return None;
+                    }
                 }
-            }
-            Math::Fabs([_p, a]) => Some(x(a)?.clone().abs()),
-            Math::Floor([_p, a]) => Some(x(a)?.floor()),
-            Math::Ceil([_p, a]) => Some(x(a)?.ceil()),
-            Math::Round([_p, a]) => Some(x(a)?.round()),
+                Math::Cbrt([_p, a]) => {
+                    if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
+                        Ratio::new(BigInt::from(1), BigInt::from(1))
+                    } else {
+                        return None;
+                    }
+                }
+                Math::Fabs([_p, a]) => x(a)?.clone().abs(),
+                Math::Floor([_p, a]) => x(a)?.floor(),
+                Math::Ceil([_p, a]) => x(a)?.ceil(),
+                Math::Round([_p, a]) => x(a)?.round(),
 
-            _ => None,
-        }
+                _ => return None,
+            },
+            {
+                let mut pattern: PatternAst<Math> = Default::default();
+                let mut var_counter = 0;
+                let mut subst: Subst = Default::default();
+                enode.for_each(|child| {
+                    if let Some(constant) = x(&child) {
+                        pattern.add(ENodeOrVar::ENode(Math::Constant(constant)));
+                    } else {
+                        let var = ("?".to_string() + &var_counter.to_string())
+                            .parse()
+                            .unwrap();
+                        pattern.add(ENodeOrVar::Var(var));
+                        subst.insert(var, child);
+                        var_counter += 1;
+                    }
+                });
+                let mut counter = 0;
+                let mut head = enode.clone();
+                head.update_children(|_child| {
+                    let res = Id::from(counter);
+                    counter += 1;
+                    res
+                });
+                pattern.add(ENodeOrVar::ENode(head));
+                (pattern, subst)
+            },
+        ))
     }
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
@@ -206,20 +233,26 @@ impl Analysis<Math> for ConstantFold {
                 DidMerge(true, false)
             }
             (Some(a), Some(ref b)) => {
-                if a != b && !self.unsound.swap(true, Ordering::SeqCst) {
-                    log::warn!("Bad merge detected: {} != {}", a, b);
+                if a.0 != b.0 && !self.unsound.swap(true, Ordering::SeqCst) {
+                    log::warn!("Bad merge detected: {} != {}", a.0, b.0);
                 }
                 DidMerge(false, false)
             }
         }
     }
 
-    fn modify(egraph: &mut EGraph, id: Id) {
-        if let Some(constant) = egraph[id].data.clone() {
-            let added = egraph.add(Math::Constant(constant));
-            egraph.union(id, added);
+    fn modify(egraph: &mut EGraph, class_id: Id) {
+        let class = &mut egraph[class_id];
+        if let Some((c, (pat, subst))) = class.data.clone() {
+            egraph.union_instantiations(
+                &pat,
+                &format!("{}", c).parse().unwrap(),
+                &subst,
+                "metadata-eval".to_string(),
+            );
+
             if egraph.analysis.prune {
-                egraph[id].nodes.retain(|n| n.is_leaf())
+                egraph[class_id].nodes.retain(|n| n.is_leaf())
             }
         }
     }

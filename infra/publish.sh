@@ -10,7 +10,7 @@ upload () {
     B=$(git rev-parse --abbrev-ref HEAD)
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
-    racket infra/make-index.rkt --relpath "$RDIR" index.cache "$DIR"
+    racket -y infra/make-index.rkt --relpath "$RDIR" index.cache "$DIR"
     rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
     find "$DIR" -name "*.txt" -exec gzip -f {} \;
     find "$DIR" -name "*.json" -exec gzip -f {} \;
@@ -29,7 +29,7 @@ upload () {
 index () {
     DIR="$1"
     rsync "$RHOST:$RHOSTDIR/index.cache" index.cache
-    racket infra/make-index.rkt index.cache
+    racket -y infra/make-index.rkt index.cache
     rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
     rsync --recursive \
           "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/resources/report.js" \
@@ -44,7 +44,7 @@ reindex () {
           --include 'results.json' --include 'results.json.gz' --include '*/' --exclude '*' \
           "$RHOST:$RHOSTDIR/" "$DIR/"
     find "$DIR" -name "results.json.gz" -exec gunzip -f {} \;
-    racket infra/make-index.rkt "$DIR"
+    racket -y infra/make-index.rkt "$DIR"
     rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
     rsync "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/resources/report.js" \
           "$RHOST:$RHOSTDIR/"
