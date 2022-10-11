@@ -37,12 +37,13 @@
                   start-bits end-bits target-bits start-est end-est
                   time bits link cost-accuracy)
        (define cost-accuracy*
-         (if (null? cost-accuracy)
-             '()
-             (list (first cost-accuracy)
-                   (second cost-accuracy)
-                   (for/list ([entry (third cost-accuracy)])
-                    (list (first entry) (second entry) (~s (third entry)))))))
+        (match cost-accuracy
+          [(list) (list)]
+          [(list start best others)
+            (list start best
+                  (for/list ([other (in-list others)])
+                    (match-define (list cost error expr) other)
+                    (list cost error (~a expr))))]))
        (make-hash
         `((name . ,name)
           (identifier . ,(~s identifier))
@@ -111,6 +112,15 @@
                        (match (hash-ref test 'vars)
                          [(list names ...) (map string->symbol names)]
                          [string-lst (parse-string string-lst)]))
+                     (define cost-accuracy
+                       (match (hash-ref test 'cost-accuracy '())
+                         [(list) (list)]
+                         [(list start best others)
+                           (list start best
+                                 (for/list ([other (in-list others)])
+                                   (match-define (list cost err expr) other)
+                                   (list cost err (parse-string expr))))]
+                         [(? string? s) (parse-string s)]))
                      (table-row (get 'name)
                                 (parse-string (hash-ref test 'identifier "#f"))
                                 (get 'status)
@@ -127,16 +137,7 @@
                                 (get 'start) (get 'end) (get 'target)
                                 (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
                                 (get 'time) (get 'bits) (get 'link)
-                                (let ([ca (hash-ref test 'cost-accuracy "()")])
-                                  (cond
-                                   [(string? ca)
-                                    (parse-string ca)]
-                                   [else
-                                    (match-define (list start end others) ca)
-                                    (list start end
-                                          (for/list ([other (in-list others)])
-                                            (match-define (list cost err expr) other)
-                                            (list cost err (parse-string expr))))]))))))))
+                                cost-accuracy))))))
 
 (define (unique? a)
   (or (null? a) (andmap (curry equal? (car a)) (cdr a))))
