@@ -124,12 +124,6 @@
   (define vars (program-variables orig-prog))
   (define loc-errs (localize-error (alt-program (^next-alt^)) (*context*)))
 
-  ;; low-error locations should not overlap with high-error locations
-  (define rest-loc-errs
-    (if (> (length loc-errs) (*localize-expressions-limit*))
-        (drop loc-errs (*localize-expressions-limit*))
-        '()))
-
   ; high-error locations
   (^locs^
     (for/list ([(err expr) (in-dict loc-errs)]
@@ -141,7 +135,7 @@
   ; low-error locations (Pherbie-only with multi-precision)
   (^lowlocs^
     (if (and (*pareto-mode*) (not (hash-empty? (*conversions*))))
-        (for/list ([(err expr) (in-dict (reverse rest-loc-errs))]
+        (for/list ([(err expr) (in-dict (reverse loc-errs))]
                    [i (in-range (*localize-expressions-limit*))])
           (timeline-push! 'locations (~a expr) (errors-score err) #f)
           (cons vars expr)) 
