@@ -6,7 +6,7 @@
          "patch.rkt" "points.rkt" "programs.rkt"
          "ground-truth.rkt" "preprocess.rkt" "symmetry.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
-         "core/regimes.rkt" "core/bsearch.rkt")
+         "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt")
 
 (provide (all-defined-out))
 
@@ -164,8 +164,8 @@
            [(list 'change cng)
             (match-define (change rule loc binds) cng)
             (list 'change (change rule (append loc0 (cdr loc)) binds))]
-           [(list 'simplify loc)
-            (list 'simplify (append loc0 (cdr loc)))]))
+            [`(simplify ,loc ,input ,proof ,soundiness)
+             (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
         (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))
         (alt prog* event* (list (loop (first prev))))])))
   
@@ -400,26 +400,37 @@
   (timeline-event! 'simplify)
   (define progss*
     (simplify-batch
-      (map (compose program-body alt-program) joined-alts)
-      #:rules (*fp-safe-simplify-rules*) #:precompute #t))
+      (simplify-input 
+        (map (compose program-body alt-program) joined-alts) empty
+        (*fp-safe-simplify-rules*) #t)))
   (define cleaned-alts
     (remove-duplicates
       (for/list ([altn joined-alts] [progs progss*])
         (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
               'final-simplify (list altn)))
       alt-equal?))
-  (timeline-event! 'end)
-  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
+  (define alts-deduplicated
+    (remove-duplicates cleaned-alts alt-equal?))
+  
 
-  ; find the best, sort the rest by cost
-  (define alts* (remove-duplicates cleaned-alts alt-equal?))
-  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts*))
+  
+  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
+  ;; find the best, sort the rest by cost
+  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts-deduplicated))
   (define-values (best end-score rest)
     (for/fold ([best #f] [score #f] [rest #f])
-              ([altn (in-list alts*)] [errs (in-list errss)])
+              ([altn (in-list alts-deduplicated)] [errs (in-list errss)])
       (let ([new-score (errors-score errs)])
         (cond
          [(not best) (values altn new-score '())]
          [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
          [else (values best score (cons altn rest))]))))
-  (cons best (sort rest > #:key (curryr alt-cost repr))))
+
+  (timeline-event! 'soundness)
+
+  (define best-annotated
+    (first (add-soundiness (list best) (*pcontext*) (*context*))))
+
+  (timeline-event! 'end)
+  
+  (cons best-annotated (sort rest > #:key (curryr alt-cost repr))))

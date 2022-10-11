@@ -27,6 +27,7 @@ unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
 pub struct Context {
     iteration: usize,
     runner: Option<Runner>,
+    rules: Vec<Rewrite>,
 }
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
@@ -34,7 +35,8 @@ pub struct Context {
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
         iteration: 0,
-        runner: Some(Runner::new(Default::default())),
+        runner: Some(Runner::new(Default::default()).with_explanations_enabled()),
+        rules: vec![],
     }))
 }
 
@@ -45,12 +47,13 @@ pub unsafe extern "C" fn egraph_destroy(ptr: *mut Context) {
 
 #[no_mangle]
 pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
-    let _array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
+    let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
+    std::mem::drop(array)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
-    let _str = CString::from_raw(ptr);
+    std::mem::drop(CString::from_raw(ptr));
 }
 
 #[repr(C)]
@@ -172,6 +175,7 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
             }
 
             let rules: Vec<Rewrite> = rules::mk_rules(&ffi_tuples);
+            ctx.rules = rules;
 
             runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
             runner = runner
@@ -185,7 +189,7 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
                         Ok(())
                     }
                 })
-                .run(&rules);
+                .run(&ctx.rules);
         }
         std::ptr::write(output_size, runner.iterations.len() as u32);
         let res = runner_egraphiters(&runner);
@@ -271,6 +275,52 @@ pub unsafe extern "C" fn egraph_get_simplest(
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
         best_str_pointer
+    })
+}
+
+unsafe fn make_empty_string() -> *const c_char {
+    let best_str = CString::new("".to_string()).unwrap();
+    let best_str_pointer = best_str.as_ptr();
+    std::mem::forget(best_str);
+    best_str_pointer
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_proof(
+    ptr: *mut Context,
+    expr: *const c_char,
+    goal: *const c_char,
+) -> *const c_char {
+    ffirun(|| {
+        let ctx = &mut *ptr;
+
+        assert_eq!(ctx.iteration, 0);
+
+        let expr_rec = match cstring_to_recexpr(expr) {
+            None => {
+                return make_empty_string();
+            }
+            Some(rec_expr) => rec_expr,
+        };
+
+        let goal_rec = match cstring_to_recexpr(goal) {
+            None => {
+                return make_empty_string();
+            }
+            Some(rec_expr) => rec_expr,
+        };
+
+        let mut runner = ctx
+            .runner
+            .take()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        let mut proof = runner.explain_equivalence(&expr_rec, &goal_rec);
+        ctx.runner = Some(runner);
+        let string = CString::new(proof.get_flat_string()).unwrap();
+        let string_pointer = string.as_ptr();
+        std::mem::forget(string);
+        string_pointer
     })
 }
 

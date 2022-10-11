@@ -47,7 +47,7 @@ function run {
   fi
 
   rm -rf "$OUTDIR/$name"
-  racket "src/herbie.rkt" report \
+  racket -y "src/herbie.rkt" report \
     --note "$name" \
     "$@" \
     "$bench" "$OUTDIR/$name" \
@@ -72,5 +72,5 @@ else
 
   # merge reports
   echo "merging $dirs"
-  racket infra/merge.rkt --name "$(basename $BENCH .fpcore)" "$OUTDIR" $dirs
+  racket -y infra/merge.rkt --name "$(basename $BENCH .fpcore)" "$OUTDIR" $dirs
 fi

@@ -11,7 +11,7 @@
          egg-expr->expr egg-exprs->exprs egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost
          egraph-stop-reason egraph-is-unsound-detected
-         egraph-get-times-applied
+         egraph-get-times-applied egraph-get-proof
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -119,6 +119,10 @@
 
 (define (egg-parsed->expr parsed rename-dict)
   (match parsed
+    [`(Rewrite=> ,rule ,expr)
+      `(Rewrite=> ,rule ,(egg-parsed->expr expr rename-dict))]
+    [`(Rewrite<= ,rule ,expr)
+      `(Rewrite<= ,rule ,(egg-parsed->expr expr rename-dict))]
     [(list first-parsed second-parsed rest-parsed ...)
      (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
       (if (equal? second-parsed 'real)
@@ -164,6 +168,14 @@
       new-key]))
 
 (struct egg-add-exn exn:fail ())
+
+(define (egraph-get-proof egraph-data expr goal)
+  (define egg-expr (expr->egg-expr expr egraph-data))
+  (define egg-goal (expr->egg-expr goal egraph-data))
+  (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+  (define res (cast pointer _pointer _string/utf-8))
+  (destroy_string pointer)
+  res)
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)

@@ -10,7 +10,7 @@
          egraph_get_simplest egraph_get_variants
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
-         destroy_string
+         egraph_get_proof destroy_string
          (struct-out EGraphIter)
          (struct-out FFIRule))
 
@@ -50,7 +50,6 @@
 
 (define-eggmath destroy_egraphiters (_fun _uint _EGraphIter-pointer -> _void))
 
-
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _bool))
 
 (define-eggmath egraph_run_with_iter_limit
@@ -79,9 +78,14 @@
 
 ;; node number -> s-expr string
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer
-                                          _uint ;; node id
-                                          _uint ;; iteration
-                                          -> _pointer)) ;; string pointer
+                                         _uint ;; node id
+                                         _uint ;; iteration
+                                         -> _pointer))
+
+(define-eggmath egraph_get_proof (_fun _egraph-pointer
+                                       _string/utf-8
+                                       _string/utf-8
+                                       -> _pointer))
 
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants (_fun _egraph-pointer
