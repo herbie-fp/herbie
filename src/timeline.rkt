@@ -1,6 +1,6 @@
 #lang racket
 
-(require json "config.rkt")
+(require json "config.rkt" racket/hash)
 
 (provide timeline-event! timeline-push! timeline-adjust!
          timeline-load! timeline-extract timeline-compact! timeline-start!
@@ -104,13 +104,13 @@
 
 (define (merge-sampling-tables l1 l2)
   (let loop ([l1 (sort l1 < #:key first)] [l2 (sort l2 < #:key first)])
-    (match-define (list n1 wt1 wo1 wf1) (car l1))
-    (match-define (list n2 wt2 wo2 wf2) (car l2))
-    (define rec (list n1 (+ wt1 wt2) (+ wo1 wo2) (+ wf1 wf2)))
+    (match-define (list n1 t1) (car l1))
+    (match-define (list n2 t2) (car l2))
+    (define rec (list n1 (hash-union t1 t2 #:combine +)))
     (match* ((cdr l1) (cdr l2))
             [('() '()) (list rec)]
-            [('() l2*) (cons rec (loop (list (list (+ n1 1) wt1 wo1 wf1)) l2*))]
-            [(l1* '()) (cons rec (loop l1* (list (list (+ n2 1) wt2 wo2 wf2))))]
+            [('() l2*) (cons rec (loop (list (list (+ n1 1) t1)) l2*))]
+            [(l1* '()) (cons rec (loop l1* (list (list (+ n2 1) t2))))]
             [(l1* l2*) (cons rec (loop l1* l2*))])))
 
 (define-timeline type #:custom (λ (a b) a))

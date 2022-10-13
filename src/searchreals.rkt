@@ -58,19 +58,26 @@
            (values true* false* (cons rect other*))])])))
   (search-space true* false* other*))
 
+(define (make-sampling-table reprs true false other)
+  (define total-weight (expt 2 (apply + (map representation-total-bits reprs))))
+  (define true-weight (apply + (map (curryr hyperrect-weight reprs) true)))
+  (define other-weight (apply + (map (curryr hyperrect-weight reprs) other)))
+  (define out (make-hash))
+  (hash-set! out 'valid (exact->inexact (/ true-weight total-weight)))
+  (hash-set! out 'unknown (exact->inexact (/ other-weight total-weight)))
+  (for ([(reason rect) (in-dict false)])
+    (define weight (exact->inexact (/ (hyperrect-weight rect reprs) total-weight)))
+    (hash-update! out reason (curry + weight) 0))
+  (define total (apply + (hash-values out)))
+  (hash-update! out 'precondition (curry + (- 1 total)) 0)
+  out)
+
 (define (find-intervals ival-fn rects #:reprs reprs #:fuel [depth 128])
   (if (or (null? rects) (null? (first rects)))
       (map (curryr cons 'other) rects)
       (let loop ([space (apply make-search-space rects)] [n 0])
         (match-define (search-space true false other) space)
-
-        (define wt (total-weight reprs true))
-        (define wo (total-weight reprs other))
-        ;; Since the initial rects need not be whole space (but the
-        ;; missing area is implicitly "false") we don't measure the
-        ;; size of the "false" set.
-        (define wf (- 1 wt wo))
-        (timeline-push! 'sampling n wt wo wf)
+        (timeline-push! 'sampling n (make-sampling-table reprs true false other))
 
         (define n* (remainder n (length (first rects))))
         (if (or (>= n depth) (empty? (search-space-other space)))
