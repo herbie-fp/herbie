@@ -30,22 +30,26 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (valid-result? repr out)
-  (ival-and (ival-not (is-infinite-interval repr out))
-            (if (ground-truth-require-convergence)
-                (is-samplable-interval repr out)
-                (ival (ival-hi (is-samplable-interval repr out))))
-            (ival-not (ival-error? out))))
-
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func precondition programs ctx)
   (define fns (batch-eval-progs (cons precondition programs) 'ival ctx))
   (λ inputs
+    (define repr (context-repr ctx))
     (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs)))
-    (cons (apply ival-and ival-pre (map (curry valid-result? (context-repr ctx)) ival-bodies))
-          ival-bodies)))
+    (for/list ([y ival-bodies])
+      (ival-then
+       ; The two `invalid` ones have to go first, because later checks
+       ; can error if the input is erroneous
+       (ival-assert (ival-not (ival-error? y)) 'invalid)
+       (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
+       (ival-assert ival-pre 'precondition)
+       (ival-assert (ival-not (is-infinite-interval repr y)) 'infinite)
+       (if (ground-truth-require-convergence)
+           (ival-assert (is-samplable-interval repr y) 'unsamplable)
+           (ival #t))
+       y))))
 
 (define (eval-prog-real prog ctx)
   (define repr (context-repr ctx))

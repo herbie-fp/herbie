@@ -40,12 +40,11 @@
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
       (define res (apply ival-fn rect))
-      (match-define (ival lo hi) res)
-      (match-define (ival err err?) (ival-error? res))
+      (match-define (ival err err?) (apply ival-and (map ival-error? res)))
       (cond
-       [(or err (not hi))
-        (values true* (cons rect false*) other*)]
-       [(and (not err?) lo)
+       [err
+        (values true* (cons (cons err rect) false*) other*)]
+       [(not err?)
         (values (cons rect true*) false* other*)]
        [else
         (define range (list-ref rect split-var))
