@@ -4,9 +4,9 @@
 set -e -x
 
 
-racket src/herbie.rkt report bench/ egglogreport
+racket src/herbie.rkt report bench/hamming egglogreport
 
-racket src/herbie.rkt report --egglog-disabled bench/ vanillareport
+racket src/herbie.rkt report --egglog-disabled bench/hamming vanillareport
 
 
 bash egglogreport.sh

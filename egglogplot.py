@@ -27,9 +27,16 @@ def test_error_diff(test):
 def plot_error():
   tests_sorted = list(tests)
   tests_sorted.sort(key = lambda test: test_error_diff(test))
-  print(tests_sorted)
+  xs = range(len(tests_sorted))
+  ys = list(map(lambda test: test_error_diff(test), tests_sorted))
+
+  fig = plt.figure()
+  ax = fig.add_subplot()
+  ax.plot(xs, ys, color = "black", marker = "o", linestyle = "None")
+  plt.savefig(output_plot_error)  
 
 plot_error()
+
 #plt.savefig('egglogreport/error.pdf')
 
 
