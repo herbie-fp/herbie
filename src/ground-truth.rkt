@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat rival)
+(require math/bigfloat rival racket/hash)
 (require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
 (provide sample-points eval-prog-real)
@@ -64,11 +64,19 @@
        +nan.0]))
   (procedure-rename f '<eval-prog-real>))
 
+(define (combine-tables t1 t2)
+  (define t2-total (apply + (hash-values t2)))
+  (define t1-unknown (hash-ref t1 'unknown 0))
+  (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-unknown))))
+  (for/fold ([t1 (hash-remove t1 'unknown)]) ([(k v) (in-hash t2)])
+    (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-unknown)))))
+
 (define (sample-points precondition progs ctx)
   (timeline-event! 'analyze)
   (define fn (make-search-func precondition progs ctx))
-  (define sampler 
+  (match-define (cons sampler table)
     (parameterize ([ground-truth-require-convergence #f])
       (make-sampler ctx precondition progs fn)))
   (timeline-event! 'sample)
-  (batch-prepare-points fn ctx sampler))
+  (match-define (cons table2 results) (batch-prepare-points fn ctx sampler))
+  (cons (combine-tables table table2) results))

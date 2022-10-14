@@ -64,10 +64,10 @@
     (parameterize ([*timeline-disabled* true])
       (define samples
         (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-          (sample-points
-           (test-precondition test)
-           (list (or (test-specification test) (test-program test)))
-           context)))
+          (cdr (sample-points
+                (test-precondition test)
+                (list (or (test-specification test) (test-program test)))
+                context))))
       (define-values (train-context test-context)
         (split-pcontext (apply mk-pcontext samples) (*num-points*) (*reeval-pts*))) 
       (define start-alt (make-alt (test-program orig-test)))

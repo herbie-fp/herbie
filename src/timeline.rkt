@@ -130,6 +130,7 @@
 (define-timeline inputs #:unmergable)
 (define-timeline outputs #:unmergable)
 (define-timeline sampling #:custom merge-sampling-tables)
+(define-timeline bogosity #:custom (λ (x y) (list (hash-union (car x) (car y) #:combine +))))
 (define-timeline symmetry #:unmergable)
 (define-timeline remove-preprocessing #:unmergable)
 (define-timeline locations #:unmergable)

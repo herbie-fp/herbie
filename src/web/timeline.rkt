@@ -78,6 +78,7 @@
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-compiler 'compiler)
+         ,@(dict-call curr render-phase-bogosity 'bogosity)
          )))
 
 (define (if-cons test x l)
@@ -93,6 +94,23 @@
     (dd (table ([class "times"])
                ,@(for/list ([alg (group-by identity algorithm)])
                    `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
+
+(define (render-phase-bogosity bogosity)
+  (match-define (list domain-info) bogosity)
+  (define total (round (apply + (hash-values domain-info))))
+
+  (define tags '(valid unknown infinite unsamplable invalid precondition))
+
+  `((dt "Bogosity")
+    (dd (div ((class "bogosity"))
+        ,@(for/list ([tag tags])
+            `(div
+              ([class ,(format "bogosity-~a" tag)]
+               [data-id ,(format "bogosity-~a" tag)]
+               [data-type ,(~a tag)]
+               [data-timespan ,(~a (hash-ref domain-info tag 0))]
+               [title ,(format "~a (~a)" tag
+                               (format-percent (hash-ref domain-info tag 0) total))])))))))
 
 
 (define (render-phase-locations locations)
@@ -180,7 +198,7 @@
              `(tr 
                (td ,(format-percent
                      (hash-ref (car table) 'valid 0)
-                     (+ (hash-ref (car table) 'valid) (hash-ref (car table) 'unknown))))
+                     (+ (hash-ref (car table) 'valid 0) (hash-ref (car table) 'unknown 0))))
                ,@(for/list ([(name sym) (in-dict fields)])
                    `(td ,(format-percent (hash-ref (car table) sym 0) total)))
                (td ,(~a n))))))))

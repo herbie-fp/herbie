@@ -98,13 +98,13 @@
          (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
     (timeline-push! 'method "search")
     (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
-    (define hyperrects
+    (match-define (cons hyperrects sampling-table)
       (find-intervals search-func hyperrects-analysis
                       #:reprs reprs #:fuel (*max-find-range-depth*)))
-    (make-hyperrect-sampler hyperrects reprs)]
+    (cons (make-hyperrect-sampler hyperrects reprs) sampling-table)]
    [else
     (timeline-push! 'method "random")
-    (λ () (map random-generate reprs))]))
+    (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
@@ -143,6 +143,7 @@
   (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
   (define logger (point-logger 'body (context-vars ctx)))
+  (define outcomes (make-hash))
 
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
@@ -150,6 +151,7 @@
 
       (define-values (status precision out)
         (ival-eval fn pt #:precision starting-precision))
+      (hash-update! outcomes status (curry + 1) 0)
       (logger status precision pt)
 
       (cond
@@ -165,4 +167,4 @@
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exactss)])))
   (timeline-compact! 'outcomes)
-  (cons points (flip-lists exactss)))
+  (cons outcomes (cons points (flip-lists exactss))))
