@@ -1,8 +1,20 @@
 #lang racket
 
-(provide generate-pareto-curve (struct-out pareto-point) pareto-map pareto-union)
+(provide (struct-out pareto-point) pareto-map pareto-union pareto-minimize pareto-combine)
 
 (struct pareto-point (cost error data) #:prefab)
+
+(define (ppt->pt ppt)
+  (list (pareto-point-cost ppt) (pareto-point-error ppt)))
+  
+(define (pt->ppt pt)
+  (pareto-point (first pt) (second pt) (list)))
+
+(define (add-combinations ppt0 frontier)
+  (match-define (pareto-point cost0 err0 _) ppt0)
+  (for/list ([ppt (in-list frontier)])
+    (match-define (pareto-point cost err _) ppt)
+    (pareto-point (+ cost0 cost) (+ err0 err) (list))))
 
 (define (pareto-compare pt1 pt2)
   (match-define (pareto-point cost1 err1 data1) pt1)
@@ -16,6 +28,72 @@
 (define (pareto-map f curve)
   (for/list ([ppt (in-list curve)])
     (struct-copy pareto-point ppt [data (f (pareto-point-data ppt))])))
+
+;; Takes two lists of `pareto-point` structs that are Pareto-optimal
+;; and returns the Pareto-optimal subset of their union.
+(define (pareto-union curve1 curve2)
+  (let loop ([curve1 curve1] [curve2 curve2])
+    ; The curve is sorted so that highest accuracy is first
+    (match* (curve1 curve2)
+      [('() _) curve2]
+      [(_ '()) curve1]
+      [((cons ppt1 rest1) (cons ppt2 rest2))
+       (match (pareto-compare ppt1 ppt2)
+         ['<
+          (loop curve1 rest2)]
+         ['>
+          (loop rest1 curve2)]
+         ['=
+          (define joint-data (append (pareto-point-data ppt1) (pareto-point-data ppt2)))
+          (define joint (struct-copy pareto-point ppt1 [data joint-data]))
+          (cons joint (loop rest1 rest2))]
+         ['<>
+          (if (< (pareto-point-error ppt1) (pareto-point-error ppt2))
+              (cons ppt1 (loop rest1 curve2))
+              (cons ppt2 (loop curve1 rest2)))])])))
+
+;; Takes a pareto frontier and returns the points that form a convex frontier.
+(define (pareto-convex ppts)
+  (let loop ([ppts* '()] [ppts ppts])
+    (match ppts
+     [(list p0 p1 p2 pns ...)
+      (match-define (pareto-point p0x p0y _) p0)
+      (match-define (pareto-point p1x p1y _) p1)
+      (match-define (pareto-point p2x p2y _) p2)
+      ; if { p0, p1, p2 } are not convex:
+      ;   discard p1
+      ;   try backtracking one point (if not continue)
+      ; else move forward one point
+      (define m01 (/ (- p1y p0y) (- p1x p0x)))
+      (define m12 (/ (- p2y p1y) (- p2x p1x)))
+      (match* ((> m12 m01) (null? ppts*))
+        [(#t #t) (loop ppts* (append (list p0 p2) pns))]
+        [(#t #f) (loop (rest ppts*) (append (list (first ppts*) p0 p2) pns))]
+        [(#f _) (loop (cons p0 ppts*) (append (list p1 p2) pns))])]
+     [_ (append (reverse ppts*) ppts)])))
+
+;; Takes a list of `pareto-point` structs
+;; and returns the Pareto-optimal subset.
+(define (pareto-minimize ppts #:convex? [convex? #f])
+  (define ppts* (sort ppts < #:key pareto-point-cost))
+  (define minimized
+    (for/fold ([minimized '()]) ([ppt (in-list ppts*)])
+      (pareto-union (list ppt) minimized)))
+  (if convex? (pareto-convex minimized) minimized))
+
+;; Creates a synthetic frontier from multiple frontiers
+;; as described in the ARITH '21 paper.
+(define (pareto-combine frontiers #:convex? [convex? #f])
+  (define (finalize f) (if convex? (pareto-convex f) f))
+  (define frontiers* (map (λ (f) (pareto-minimize (map pt->ppt f))) frontiers))
+  (define combined
+    (for/fold ([combined (list)]) ([frontier (in-list frontiers*)])
+      (if (null? combined)
+          (finalize frontier)
+          (for/fold ([combined* (list)]) ([ppt (in-list combined)])
+            (let ([ppts (pareto-minimize (add-combinations ppt frontier))])
+              (finalize (pareto-union ppts combined*)))))))
+  (map ppt->pt combined))
 
 (module+ test
   (require rackunit)
@@ -55,125 +133,3 @@
                 '((1 5 a) (2 2 d) (5 1 c)))
   (check-equal? (from-pareto (pareto-add (make-pareto '((1 1 a))) 'b 1 3))
                 '((1 1 a))))
-
-
-(define (pareto-union curve1 curve2)
-  (let loop ([curve1 curve1] [curve2 curve2])
-    ; The curve is sorted so that highest accuracy is first
-    (match* (curve1 curve2)
-      [('() _) curve2]
-      [(_ '()) curve1]
-      [((cons ppt1 rest1) (cons ppt2 rest2))
-       (match (pareto-compare ppt1 ppt2)
-         ['<
-          (loop curve1 rest2)]
-         ['>
-          (loop rest1 curve2)]
-         ['=
-          (define joint
-            (struct-copy pareto-point ppt1
-                         [data (append (pareto-point-data ppt1) (pareto-point-data ppt2))]))
-          (cons joint (loop rest1 rest2))]
-         ['<>
-          (if (< (pareto-point-error ppt1) (pareto-point-error ppt2))
-              (cons ppt1 (loop rest1 curve2))
-              (cons ppt2 (loop curve1 rest2)))])])))
-
-(define *pareto-ensure-convex* (make-parameter #t))
-
-(define (paired-less? elem1 elem2)
-  (let ([c1 (car elem1)] [c2 (car elem2)])
-    (if (= c1 c2)
-        (> (cdr elem1) (cdr elem2))
-        (< c1 c2))))
-
-;;; For testing ;;;
-
-(define (monotonically-decreasing? pts)
-  (let loop ([x 0] [y +inf.0] [pts pts])
-    (cond
-     [(null? pts) #t]
-     [(or (< (caar pts) x) (> (cdar pts) y)) #f]
-     [else (loop (caar pts) (cdar pts) (cdr pts))])))
-
-(define (convex? pts)
-  (let loop ([pts pts])
-    (match pts
-     [(list p0 p1 p2 pns ...)
-      (define m01 (/ (- (cdr p1) (cdr p0)) (- (car p1) (car p0))))
-      (define m12 (/ (- (cdr p2) (cdr p1)) (- (car p2) (car p1))))
-      (if (< m12 m01)
-          #f
-          (loop (cdr pts)))]
-     [_ #t])))
-
-; Takes a set of monotonically decreasing points (x, y), x >= 0
-; and returns the subset of them that form a convex function
-(define (convex-points pts)
-  (let loop ([pts* '()] [pts pts])
-    (match pts
-     [(list p0 p1 p2 pns ...)
-      (define m01 (/ (- (cdr p1) (cdr p0)) (- (car p1) (car p0))))
-      (define m12 (/ (- (cdr p2) (cdr p1)) (- (car p2) (car p1))))
-      ; if { p0, p1, p2 } are not convex:
-      ;   discard p1
-      ;   try backtracking one point (if not continue)
-      ; else move forward one point
-      (if (< m12 m01)
-          (if (null? pts*)
-              (loop pts* (append (list p0 p2) pns))
-              (loop (cdr pts*) (append (list (car pts*) p0 p2) pns)))
-          (loop (cons (car pts) pts*) (cdr pts)))]
-     [_ (append (reverse pts*) pts)])))
-
-; Take the first set of points {(x, y)}
-;   If x_i = x_j, take the point with higher y
-;   As x increases, y should decrease;
-;     remove points that break this property
-; Add the remaining points to the next set of points (cartesian product)
-;   to form a new set of (n * m) points
-;   Repeat the process above ...
-(define (sum-pareto-pnts pts)
-  (let loop ([pts pts] [h (make-hash `((0 . 0)))]) ; keep a hash of costs and partial sums
-    (cond
-     [(null? pts) h]
-     [(null? (car pts)) (loop (cdr pts) h)]
-     [else
-      (define h* (make-hash))
-      (for* ([(x y) (in-hash h)] [pt (car pts)])  ; make a new hash: h + pts, dedup by taking max
-        (hash-update! h* (+ x (car pt))
-                      (λ (x) (min x (+ y (cdr pt))))
-                      (+ y (cdr pt))))
-      (for/fold ([best +inf.0]) ([x (sort (hash-keys h*) <)]) 
-        (let ([y (hash-ref h* x)])  ; as x increases, y must decrease; remove increased points
-          (cond
-           [(< y best) y]
-           [else
-            (hash-remove! h* x)
-            best])))
-      (loop (cdr pts) h*)])))
-
-; Create a pareto curve across tests
-(define/contract (generate-pareto-curve pts)
-  (-> (listof cons?) (listof cons?))
-  (cond
-   [(null? pts) '()]
-   [else
-    (define pts* (map (curryr sort paired-less?) pts))
-    (define coords (hash->list (sum-pareto-pnts pts*)))
-    (define sorted (sort coords < #:key car))
-    (if (*pareto-ensure-convex*)
-        (convex-points sorted)
-        sorted)]))
-
-(module+ test
-  (require rackunit)
-
-  (define pts
-    (for/list ([k (in-range 1 100)])
-      (for/list ([n (in-range 1 1000 10)])
-        (cons (+ k n) (- 1100 k n)))))
-  (define pts* (generate-pareto-curve pts))
-  (check-pred monotonically-decreasing? pts*)
-  (when (*pareto-ensure-convex*)
-    (check-pred convex? pts*)))
