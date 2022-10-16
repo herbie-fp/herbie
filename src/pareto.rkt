@@ -31,9 +31,9 @@
 
 ;; Takes two lists of `pareto-point` structs that are Pareto-optimal
 ;; and returns the Pareto-optimal subset of their union.
+;; The curves most be sorted using the same method.
 (define (pareto-union curve1 curve2)
   (let loop ([curve1 curve1] [curve2 curve2])
-    ; The curve is sorted so that highest accuracy is first
     (match* (curve1 curve2)
       [('() _) curve2]
       [(_ '()) curve1]
@@ -52,7 +52,8 @@
               (cons ppt1 (loop rest1 curve2))
               (cons ppt2 (loop curve1 rest2)))])])))
 
-;; Takes a pareto frontier and returns the points that form a convex frontier.
+;; Takes a Pareto frontier and returns the subset of
+;; points that are convex.
 (define (pareto-convex ppts)
   (let loop ([ppts* '()] [ppts ppts])
     (match ppts
@@ -69,7 +70,7 @@
       (match* ((> m12 m01) (null? ppts*))
         [(#t #t) (loop ppts* (append (list p0 p2) pns))]
         [(#t #f) (loop (rest ppts*) (append (list (first ppts*) p0 p2) pns))]
-        [(#f _) (loop (cons p0 ppts*) (append (list p1 p2) pns))])]
+        [(#f _)  (loop (cons p0 ppts*) (append (list p1 p2) pns))])]
      [_ (append (reverse ppts*) ppts)])))
 
 ;; Takes a list of `pareto-point` structs
