@@ -100,6 +100,7 @@ var TryIt = new Component("#try-it", {
 
 const ClientGraph = new Component('#graphs', {
     setup: async () => {
+        console.log("make error graph");
         const points_json = await (async () => {
             const get_points_store = {}
             
@@ -265,6 +266,12 @@ const ClientGraph = new Component('#graphs', {
     }
 })
 
+
+const CostAccuracy = new Component('#cost-accuracy', {
+    setup: function() {
+        console.log("make cost accuracy");
+    }
+})
 var RenderMath = new Component(".math", {
     depends: function() {
         if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";
