@@ -22,7 +22,7 @@
     [atan-tan-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]))
 
 (define (check-rule-correct test-rule)
-  (match-define (rule name p1 p2 _ _ itypes repr) test-rule)
+  (match-define (rule name p1 p2 itypes repr) test-rule)
   (define fv (dict-keys itypes))
   (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
 
@@ -37,7 +37,7 @@
        (check-eq? (ulp-difference v1 v2 repr) 1))))
 
 (define (check-rule-fp-safe test-rule)
-  (match-define (rule name p1 p2 _ _ itypes repr) test-rule)
+  (match-define (rule name p1 p2 itypes repr) test-rule)
   (define fv (dict-keys itypes))
   (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
   (define (make-point _)

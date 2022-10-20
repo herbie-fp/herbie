@@ -63,6 +63,7 @@
 
 (define (make-ffi-rules rules)
   (for/list [(rule rules)]
+    ; (printf "~a -> ~a\n" (irule-input rule) (to-egg-pattern (irule-input rule)))
     (define name (make-raw-string (symbol->string (irule-name rule))))
     (define left (make-raw-string (to-egg-pattern (irule-input rule))))
     (define right (make-raw-string (to-egg-pattern (irule-output rule))))

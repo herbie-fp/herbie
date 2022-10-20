@@ -4,33 +4,19 @@
 
 (require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt" "sugar.rkt")
 
-(provide (struct-out rule) *rules* *simplify-rules* *fp-safe-simplify-rules*)
-(module+ internals (provide define-ruleset define-ruleset* register-ruleset!
-                            *rulesets* generate-rules-for *templated-reprs*))
+(provide (struct-out rule) rule-egg-input rule-egg-output
+         *rules* *simplify-rules* *fp-safe-simplify-rules*)
+
+(module+ internals
+  (provide define-ruleset define-ruleset* register-ruleset! *rulesets*))
 
 ;; Rulesets
 (define *rulesets* (make-parameter '()))
 
 ;; Cached rules
-(define all-rules (make-parameter '()))
-(define simplify-rules (make-parameter '()))
-(define fp-safe-simplify-rules (make-parameter '()))
-
-;; Exported parameters to update and access rules
-(define *rules*
-  (make-derived-parameter all-rules 
-                          identity 
-                          (λ (_) (generate-missing-rules) (all-rules))))
-
-(define *simplify-rules*
-  (make-derived-parameter simplify-rules 
-                          identity 
-                          (λ (_) (generate-missing-rules) (simplify-rules))))
-
-(define *fp-safe-simplify-rules*
-  (make-derived-parameter fp-safe-simplify-rules 
-                          identity 
-                          (λ (_) (generate-missing-rules) (fp-safe-simplify-rules))))
+(define *rules* (make-parameter '()))
+(define *simplify-rules* (make-parameter '()))
+(define *fp-safe-simplify-rules* (make-parameter '()))
 
 ;; Update parameters
 
@@ -42,13 +28,32 @@
 ;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag       ('fp-safe' does not imply 'simplify')
 ;;
 
-(struct rule (name input output egg-input egg-output itypes otype)
+(struct rule (name input output itypes otype)
         ;; Input and output are patterns
         ;; itypes is a mapping, variable name -> representation
         ;; otype is a representation
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
            (fprintf port "#<rule ~a>" (rule-name rule)))])
+
+;; TODO: field-like access that regenerates each time
+;; Just a little dumb ...
+
+(define (rule-egg-input r)
+  (define-values (input* _) (expr->egg-expr (rule-input r)))
+  input*)
+
+(define (rule-egg-output r)
+  (define-values (output* _) (expr->egg-expr (rule-output r)))
+  output*)
+
+(define (rule-egg-input-patterns r)
+  (define-values (_ pats) (expr->egg-expr (rule-input r)))
+  pats)
+
+(define (rule-egg-output-patterns r)
+  (define-values (_ pats) (expr->egg-expr (rule-output r)))
+  pats)
 
 (define (rule-ops-supported? rule)
   (define (ops-in-expr expr)
@@ -70,34 +75,37 @@
 
 (define (update-rules rules groups)
   (when (ormap (curry flag-set? 'rules) groups)       ; update all
-    (all-rules (append (all-rules) rules))
+    (*rules* (append (*rules*) rules))
     (when (set-member? groups 'simplify)              ; update simplify
-      (simplify-rules (append (simplify-rules) rules))  
-      (when (set-member? groups 'fp-safe)         ; update fp-safe
-        (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
+      (*simplify-rules* (append (*simplify-rules*) rules))  
+      (when (set-member? groups 'fp-safe)             ; update fp-safe
+        (*fp-safe-simplify-rules* (append (*fp-safe-simplify-rules*) rules))))))
 
 ;;
 ;;  Rule munging for egg
 ;;
+
+(define (get-signature op-or-impl)
+    (if (operator-exists? op-or-impl)
+        (cons (real-operator-info op-or-impl 'otype)
+              (real-operator-info op-or-impl 'itype))
+        (cons (operator-info op-or-impl 'otype)
+              (real-operator-info op-or-impl 'itype))))
 
 (define (expr->egg-expr expr)
   (define ppatterns (make-hash))
   (define (get-pattern key)
     (hash-ref! ppatterns key
                (λ () (string->symbol (format "p~a" (hash-count ppatterns))))))
-  (define (get-sig op-or-impl)
-    (if (operator-exists? op-or-impl)
-        (cons (real-operator-info op-or-impl 'otype)
-              (real-operator-info op-or-impl 'itype))
-        (cons (operator-info op-or-impl 'otype)
-              (real-operator-info op-or-impl 'itype))))
-  (let loop ([expr expr])
-    (match expr
-      [(list if cond ift iff)
-       (list 'if 'real cond ift iff)]
-      [(list op args ...)
-       (cons op (cons (get-pattern (get-sig op)) (map loop args)))]
-      [_ expr])))
+  (define expr*
+    (let loop ([expr expr])
+      (match expr
+        [(list 'if cond ift iff)
+         (list 'if 'real cond ift iff)]
+        [(list op args ...)
+         (cons op (cons (get-pattern (get-signature op)) (map loop args)))]
+        [_ expr])))
+  (values expr* (hash-keys ppatterns)))
 
 ;;
 ;;  Rule loading
@@ -136,10 +144,8 @@
   (define rules*
     (for/list ([r rules])
       (match-define (list rname input output) r)
-      (define input* (expr->egg-expr input))
-      (define output* (expr->egg-expr output))
-      (rule rname input output input* output* var-ctx
-                  (repr-of-rule input output var-ctx))))
+      (rule rname input output var-ctx
+            (repr-of-rule input output var-ctx))))
   (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
   (update-rules rules* groups))
       
@@ -150,12 +156,6 @@
    [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
     (register-ruleset! 'name 'groups `((var . ,(get-representation 'type)) ...)
                        '((rname input output) ...))]))
-
-;; Templated rulesets defined by types. These are used to generate duplicate rules that
-;; are valid in any representation of the same underlying type.
-
-(define *templated-rulesets* (make-parameter '()))
-(define *templated-reprs* (make-parameter '()))
 
 (define (type-of-rule input output ctx)
   (cond
@@ -177,12 +177,24 @@
 
 (define (register-ruleset*! name groups var-ctx rules)
   (define rules*
-    (for/list ([r rules])
+    (for/fold ([rules* '()] #:result (reverse rules*)) ([r rules])
       (match-define (list rname input output) r)
-      (define input* (expr->egg-expr input))
-      (define output* (expr->egg-expr output))
-      (rule rname input output input* output* var-ctx
-                  (type-of-rule input output var-ctx))))
+      (define r* (rule rname input output var-ctx
+                       (type-of-rule input output var-ctx)))
+      (if (andmap (curry set-member? (rule-egg-input-patterns r*))
+                  (rule-egg-output-patterns r*))
+          (cons r* rules*)
+          ;; Generic expansive rules, i.e. x -> f(x) cannot be run in egg
+          ;; since f(x) typically requires precision nodes
+          ;; which cannot be inferred from just a node `x`
+          ;; TODO: possible solution is to have special classes of rules
+          ;;
+          ;;  Rule(p) = { x -> f(x, p )}
+          ;;  
+          ;; where `p` is a representation. This rule must be instatiated with a precision
+          ;; but that's absoutely fine because it's meaningless without a precision.
+          ;; Of course, this requires a custom applier.
+          rules*)))
   (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
   (update-rules rules* groups))
   
@@ -193,16 +205,6 @@
    [(define-ruleset* name groups #:type ([var type] ...) [rname input output] ...)
     (register-ruleset*! 'name 'groups `((var . 'type) ...)
                         '((rname input output) ...))]))
-
-(define *reprs-with-rules* (make-parameter '()))
-
-;; Generate rules for new reprs
-
-(define (generate-rules-for type repr)
-  (void))
-
-(define (generate-missing-rules)
-  (void))
 
 ; Commutativity
 (define-ruleset* commutativity (arithmetic simplify fp-safe)
@@ -429,7 +431,7 @@
 
 (define-ruleset* exp-constants (exponents simplify fp-safe)
   [exp-0        (exp 0)              1]
-  [exp-1-e      (exp 1)              E]
+  [exp-1-e      (exp 1)              (E)]
   [1-exp        1                    (exp 0)]
   [e-exp-1      (E)                  (exp 1)])
 

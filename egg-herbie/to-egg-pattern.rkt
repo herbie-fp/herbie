@@ -11,22 +11,25 @@
         [#f (list (~s op) "real")])
       #f))
 
-(define (to-egg-pattern datum)
-  (cond
-    [(list? datum)
+(define (to-egg-pattern expr)
+  (match expr
+    [(list op 'real args ...)
      (string-join
-      (cons
-       (~s (first datum))
-       (map (lambda (sub-expr) (to-egg-pattern sub-expr))
-            (rest datum)))
+      (cons (~s op) (cons "real" (map (λ (sub-expr) (to-egg-pattern sub-expr)) args)))
       " "
       #:before-first "("
       #:after-last ")")]
-    [(symbol? datum)
-     (format "?~a" datum)]
-    [(number? datum)
-     (number->string datum)]
-    [else
+    [(list op args ...)
+     (string-join
+      (cons (~s op) (map (λ (sub-expr) (to-egg-pattern sub-expr)) args))
+      " "
+      #:before-first "("
+      #:after-last ")")]
+    [(? symbol?)
+     (format "?~a" expr)]
+    [(? number?)
+     (number->string expr)]
+    [_
      (error "expected list, number, or symbol")]))
 
 (module+ test
