@@ -13,15 +13,9 @@
 
 (define (to-egg-pattern expr)
   (match expr
-    [(list op 'real args ...)
+    [(list op prec args ...)
      (string-join
-      (cons (~s op) (cons "real" (map (λ (sub-expr) (to-egg-pattern sub-expr)) args)))
-      " "
-      #:before-first "("
-      #:after-last ")")]
-    [(list op args ...)
-     (string-join
-      (cons (~s op) (map (λ (sub-expr) (to-egg-pattern sub-expr)) args))
+      (cons (~s op) (cons (~s prec) (map (λ (sub-expr) (to-egg-pattern sub-expr)) args)))
       " "
       #:before-first "("
       #:after-last ")")]
@@ -30,7 +24,7 @@
     [(? number?)
      (number->string expr)]
     [_
-     (error "expected list, number, or symbol")]))
+     (error "expected list, number, or symbol: " expr)]))
 
 (module+ test
   (check-equal? (to-egg-pattern `(+ a b)) "(+ ?a ?b)")

@@ -13,19 +13,28 @@
 ;; Rulesets
 (define *rulesets* (make-parameter '()))
 
-;; Cached rules
-(define *rules* (make-parameter '()))
-(define *simplify-rules* (make-parameter '()))
-(define *fp-safe-simplify-rules* (make-parameter '()))
+(define all-rules (make-parameter '()))
+(define simplify-rules (make-parameter '()))
+(define fp-safe-simplify-rules (make-parameter '()))
 
-;; Update parameters
+;; Exported parameters to update and access rules
+(define *rules*
+  (make-derived-parameter all-rules 
+                          identity 
+                          (λ (_) (generate-expansive-rules) (all-rules))))
 
-;; Note on rules
-;; fp-safe-simplify ⊂ simplify ⊂ all
+(define *simplify-rules*
+  (make-derived-parameter simplify-rules 
+                          identity 
+                          (λ (_) (generate-expansive-rules) (simplify-rules))))
+
+(define *fp-safe-simplify-rules*
+  (make-derived-parameter fp-safe-simplify-rules 
+                          identity 
+                          (λ (_) (generate-expansive-rules) (fp-safe-simplify-rules))))
+
 ;;
-;; all                    requires at least one tag of an active group of rules
-;; simplify               same req. as all + 'simplify' tag
-;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag       ('fp-safe' does not imply 'simplify')
+;;  Rules
 ;;
 
 (struct rule (name input output itypes otype)
@@ -73,13 +82,49 @@
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
 
+;; Note on rules
+;; fp-safe-simplify ⊂ simplify ⊂ all
+;;
+;; all                    requires at least one tag of an active group of rules
+;; simplify               same req. as all + 'simplify' tag
+;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag ('fp-safe' does not imply 'simplify')
+;;
+
 (define (update-rules rules groups)
   (when (ormap (curry flag-set? 'rules) groups)       ; update all
-    (*rules* (append (*rules*) rules))
+    (all-rules (append (all-rules) rules))
     (when (set-member? groups 'simplify)              ; update simplify
-      (*simplify-rules* (append (*simplify-rules*) rules))  
+      (simplify-rules (append (simplify-rules) rules))  
       (when (set-member? groups 'fp-safe)             ; update fp-safe
-        (*fp-safe-simplify-rules* (append (*fp-safe-simplify-rules*) rules))))))
+        (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
+
+(define *expansive-rulesets* (make-parameter '()))
+(define *expansive-rules-reprs* (make-parameter '()))
+
+;; Instantiates an expansive rule at a particular precision
+(define (generate-expansive-rules)
+  (for ([repr (in-list (*needed-reprs*))]
+        #:unless (set-member? (*expansive-rules-reprs*) repr))
+    (for ([ruleset (in-list (*expansive-rulesets*))])
+      (match-define (list rules groups var-ctx) ruleset)
+      (define type (representation-type repr))
+      (when (andmap (λ (p) (equal? type (cdr p))) var-ctx)
+        (define var-ctx* (map (λ (p) (cons (car p) repr)) var-ctx))
+        (define sugar-ctx (context (map car var-ctx) repr (map cdr var-ctx*)))
+        (define rules*
+          (for/fold ([rules* '()] #:result (reverse rules*)) ([r (in-list rules)])
+            (match-define (rule rname input output _ otype) r)
+            (cond
+              [(equal? otype type)
+               (define input* (desugar-program input sugar-ctx))
+               (define output* (desugar-program output sugar-ctx))
+               (cons (rule rname input* output* var-ctx*
+                           (repr-of-rule input* output* var-ctx*))
+                     rules*)]
+              [else
+               rules*])))
+        (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))))
+    (*expansive-rules-reprs* (cons repr (*expansive-rules-reprs*)))))
 
 ;;
 ;;  Rule munging for egg
@@ -87,21 +132,19 @@
 
 (define (get-signature op-or-impl)
     (if (operator-exists? op-or-impl)
-        (cons (real-operator-info op-or-impl 'otype)
-              (real-operator-info op-or-impl 'itype))
-        (cons (operator-info op-or-impl 'otype)
-              (real-operator-info op-or-impl 'itype))))
+        (real-operator-info op-or-impl 'otype)
+        (operator-info op-or-impl 'otype)))
 
 (define (expr->egg-expr expr)
   (define ppatterns (make-hash))
   (define (get-pattern key)
     (hash-ref! ppatterns key
-               (λ () (string->symbol (format "p~a" (hash-count ppatterns))))))
+               (λ () (string->symbol (format "?p~a" (hash-count ppatterns))))))
   (define expr*
     (let loop ([expr expr])
       (match expr
         [(list 'if cond ift iff)
-         (list 'if 'real cond ift iff)]
+         (list 'if 'real (loop cond) (loop ift) (loop iff))]
         [(list op args ...)
          (cons op (cons (get-pattern (get-signature op)) (map loop args)))]
         [_ expr])))
@@ -176,14 +219,16 @@
               input output)]))
 
 (define (register-ruleset*! name groups var-ctx rules)
-  (define rules*
-    (for/fold ([rules* '()] #:result (reverse rules*)) ([r rules])
+  (define-values (rules* expansive-rules*)
+    (for/fold ([rules* '()] [expansive-rules* '()]
+               #:result (values (reverse rules*) (reverse expansive-rules*)))
+              ([r rules])
       (match-define (list rname input output) r)
       (define r* (rule rname input output var-ctx
                        (type-of-rule input output var-ctx)))
       (if (andmap (curry set-member? (rule-egg-input-patterns r*))
                   (rule-egg-output-patterns r*))
-          (cons r* rules*)
+          (values (cons r* rules*) expansive-rules*)
           ;; Generic expansive rules, i.e. x -> f(x) cannot be run in egg
           ;; since f(x) typically requires precision nodes
           ;; which cannot be inferred from just a node `x`
@@ -194,16 +239,19 @@
           ;; where `p` is a representation. This rule must be instatiated with a precision
           ;; but that's absoutely fine because it's meaningless without a precision.
           ;; Of course, this requires a custom applier.
-          rules*)))
+          (values rules* (cons r* expansive-rules*)))))
+
   (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
-  (update-rules rules* groups))
+  (update-rules rules* groups)
+  (unless (null? expansive-rules*)
+    (*expansive-rulesets* (cons (list rules* groups var-ctx) (*expansive-rulesets*)))))
   
 (define-syntax define-ruleset*
   (syntax-rules ()
    [(define-ruleset* name groups [rname input output] ...)
     (define-ruleset* name groups #:type () [rname input output] ...)]
    [(define-ruleset* name groups #:type ([var type] ...) [rname input output] ...)
-    (register-ruleset*! 'name 'groups `((var . 'type) ...)
+    (register-ruleset*! 'name 'groups `((var . type) ...)
                         '((rname input output) ...))]))
 
 ; Commutativity
