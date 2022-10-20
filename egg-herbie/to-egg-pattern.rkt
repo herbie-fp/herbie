@@ -15,8 +15,8 @@
   (cond
     [(list? datum)
      (string-join
-      (append
-       (extract-operator (first datum))
+      (cons
+       (~s (first datum))
        (map (lambda (sub-expr) (to-egg-pattern sub-expr))
             (rest datum)))
       " "
@@ -30,7 +30,7 @@
      (error "expected list, number, or symbol")]))
 
 (module+ test
-  (check-equal? (to-egg-pattern `(+ a b)) "(+ real ?a ?b)")
-  (check-equal? (to-egg-pattern `(/ c (- 2 a))) "(/ real ?c (- real 2 ?a))")
-  (check-equal? (to-egg-pattern `(cos.f64 (PI.f64))) "(cos f64 (PI f64))")
-  (check-equal? (to-egg-pattern `(if (TRUE) x y)) "(if real (TRUE real) ?x ?y)"))
+  (check-equal? (to-egg-pattern `(+ a b)) "(+ ?a ?b)")
+  (check-equal? (to-egg-pattern `(/ c (- 2 a))) "(/ ?c (- real 2 ?a))")
+  (check-equal? (to-egg-pattern `(cos f64 (PI f64))) "(cos ?f64 (PI ?f64))")
+  (check-equal? (to-egg-pattern `(if (TRUE) x y)) "(if (TRUE) ?x ?y)"))

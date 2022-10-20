@@ -64,8 +64,11 @@
 
 (define (rewrite-once expr ctx #:rules rules #:root [root-loc '()])
   (define expr-repr (repr-of expr ctx))
+  (define (match-otype? otype)
+    (or (equal? otype (representation-type expr-repr))
+        (equal? otype expr-repr)))
   (reap [sow]
-    (for ([rule rules] #:when (equal? expr-repr (rule-otype rule)))
+    (for ([rule rules] #:when (match-otype? (rule-otype rule)))
       (let* ([result (rule-apply rule expr)])
         (when result
           (sow (list (change rule root-loc (cdr result)))))))))

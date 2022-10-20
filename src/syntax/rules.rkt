@@ -42,7 +42,7 @@
 ;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag       ('fp-safe' does not imply 'simplify')
 ;;
 
-(struct rule (name input output itypes otype)
+(struct rule (name input output egg-input egg-output itypes otype)
         ;; Input and output are patterns
         ;; itypes is a mapping, variable name -> representation
         ;; otype is a representation
@@ -76,6 +76,33 @@
       (when (set-member? groups 'fp-safe)         ; update fp-safe
         (fp-safe-simplify-rules (append (fp-safe-simplify-rules) rules))))))
 
+;;
+;;  Rule munging for egg
+;;
+
+(define (expr->egg-expr expr)
+  (define ppatterns (make-hash))
+  (define (get-pattern key)
+    (hash-ref! ppatterns key
+               (λ () (string->symbol (format "p~a" (hash-count ppatterns))))))
+  (define (get-sig op-or-impl)
+    (if (operator-exists? op-or-impl)
+        (cons (real-operator-info op-or-impl 'otype)
+              (real-operator-info op-or-impl 'itype))
+        (cons (operator-info op-or-impl 'otype)
+              (real-operator-info op-or-impl 'itype))))
+  (let loop ([expr expr])
+    (match expr
+      [(list if cond ift iff)
+       (list 'if 'real cond ift iff)]
+      [(list op args ...)
+       (cons op (cons (get-pattern (get-sig op)) (map loop args)))]
+      [_ expr])))
+
+;;
+;;  Rule loading
+;;
+
 (define (reprs-in-expr expr)
   (remove-duplicates
     (let loop ([expr expr])
@@ -86,15 +113,17 @@
         (append (operator-info op 'itype) (append-map loop args))]
       [_ '()]))))
 
-(define (type-of-rule input output ctx)
-  (cond   ; special case for 'if', return the 'type-of-rule' of the ift branch
+(define (repr-of-rule input output ctx)
+  (cond
     [(list? input) 
       (if (equal? (car input) 'if)
-          (type-of-rule (caddr input) output ctx)
+          ; special case for 'if'
+          ; return the 'type-of-rule' of the ift branch
+          (repr-of-rule (caddr input) output ctx)
           (operator-info (car input) 'otype))]
     [(list? output)
       (if (equal? (car output) 'if)
-          (type-of-rule input (caddr output) ctx)
+          (repr-of-rule input (caddr output) ctx)
           (operator-info (car output) 'otype))]
     [(symbol? input) (dict-ref ctx input)]   ; fallback: if symbol, check ctx for type
     [(symbol? output) (dict-ref ctx output)]
@@ -107,9 +136,12 @@
   (define rules*
     (for/list ([r rules])
       (match-define (list rname input output) r)
-      (rule rname input output var-ctx
-            (type-of-rule input output var-ctx))))
-  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
+      (define input* (expr->egg-expr input))
+      (define output* (expr->egg-expr output))
+      (rule rname input output input* output* var-ctx
+                  (repr-of-rule input output var-ctx))))
+  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
+  (update-rules rules* groups))
       
 (define-syntax define-ruleset
   (syntax-rules ()
@@ -125,70 +157,52 @@
 (define *templated-rulesets* (make-parameter '()))
 (define *templated-reprs* (make-parameter '()))
 
+(define (type-of-rule input output ctx)
+  (cond
+    [(list? input) 
+      (if (equal? (car input) 'if)
+          ; special case for 'if'
+          ; return the 'type-of-rule' of the ift branch
+          (type-of-rule (caddr input) output ctx)
+          (real-operator-info (car input) 'otype))]
+    [(list? output)
+      (if (equal? (car output) 'if)
+          (type-of-rule input (caddr output) ctx)
+          (real-operator-info (car output) 'otype))]
+    [(symbol? input) (dict-ref ctx input)]   ; fallback: if symbol, check ctx for type
+    [(symbol? output) (dict-ref ctx output)]
+    [else
+      (error 'type-of-rule "Could not compute type of rule ~a -> ~a"
+              input output)]))
+
+(define (register-ruleset*! name groups var-ctx rules)
+  (define rules*
+    (for/list ([r rules])
+      (match-define (list rname input output) r)
+      (define input* (expr->egg-expr input))
+      (define output* (expr->egg-expr output))
+      (rule rname input output input* output* var-ctx
+                  (type-of-rule input output var-ctx))))
+  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
+  (update-rules rules* groups))
+  
 (define-syntax define-ruleset*
   (syntax-rules ()
-    [(_ name groups [rname input output] ...)
-     (define-ruleset* name groups #:type () [rname input output] ...)]
-    [(_ name groups #:type ([var type] ...) [rname input output] ...)
-     (begin
-      (define name (list (rule 'rname 'input 'output '((var . type) ...) 'unknown) ...))
-      (*templated-rulesets* (cons (list name 'groups '((var . type) ...)) 
-                                  (*templated-rulesets*))))]))
+   [(define-ruleset* name groups [rname input output] ...)
+    (define-ruleset* name groups #:type () [rname input output] ...)]
+   [(define-ruleset* name groups #:type ([var type] ...) [rname input output] ...)
+    (register-ruleset*! 'name 'groups `((var . 'type) ...)
+                        '((rname input output) ...))]))
 
 (define *reprs-with-rules* (make-parameter '()))
 
-;; Add existing rules in rulesets to 'active' rules
-
-(define (add-rules-from-rulesets repr)
-  (*reprs-with-rules* (set-add (*reprs-with-rules*) repr)) ; update
-  (define valid? (curry set-member? (*reprs-with-rules*)))
-
-  (define (valid-rule r)
-    (define in-reprs (reprs-in-expr (rule-input r)))
-    (define out-reprs (reprs-in-expr (rule-output r)))
-    (define all-reprs (set-union (list (rule-otype r)) in-reprs out-reprs))
-    (and (andmap valid? all-reprs) (ormap (curry equal? repr) all-reprs)))
-
-  (for ([set (*rulesets*)])
-    (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
-    (when (andmap valid? types)
-      (define rules* (filter valid-rule rules))
-      (unless (empty? rules*)   ; only add the ruleset if it contains one
-        (update-rules rules* groups)))))
-
-;; Generate a set of rules by replacing a generic type with a repr
-(define (generate-rules-for type repr)
-  (define valid? (disjoin (curry equal? type)
-                          (curry set-member? (map representation-name (*reprs-with-rules*)))))
-  (*templated-reprs* (set-add (*templated-reprs*) repr)) ; update
-  (for ([set (reverse (*templated-rulesets*))] ; preserve rule order
-       #:when (or (empty? (third set)) ; no type ctx
-                  (andmap (λ (p) (valid? (cdr p))) (third set))))
-    (match-define `((,rules ...) (,groups ...) ((,vars . ,types) ...)) set)
-    (define var-reprs
-      (for/list ([v vars] [t types])
-        (if (equal? t type) repr (get-representation t))))
-    (define ctx (context vars repr var-reprs))
-    (define vrhash (map cons vars var-reprs))
-    (define rules*
-      (for/fold ([rules* '()]) ([r rules])
-        (with-handlers ([exn:fail:user:herbie:missing? (const rules*)])
-          (define name* (sym-append (rule-name r) '_ (representation-name repr)))
-          (define input* (desugar-program (rule-input r) ctx #:full #f))
-          (define output* (desugar-program (rule-output r) ctx #:full #f))
-          (define rule* (rule name* input* output* vrhash (type-of-rule input* output* vrhash)))
-          (cons rule* rules*))))
-    (unless (empty? rules*)   ; only add the ruleset if it contains one
-      (*rulesets* (cons (list rules* groups vrhash) (*rulesets*))))))
-
 ;; Generate rules for new reprs
 
+(define (generate-rules-for type repr)
+  (void))
+
 (define (generate-missing-rules)
-  (for ([repr (*needed-reprs*)])
-    (unless (set-member? (*templated-reprs*) repr)
-      (generate-rules-for (representation-type repr) repr))
-    (unless (set-member? (*reprs-with-rules*) repr)
-      (add-rules-from-rulesets repr))))
+  (void))
 
 ; Commutativity
 (define-ruleset* commutativity (arithmetic simplify fp-safe)

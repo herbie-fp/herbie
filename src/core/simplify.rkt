@@ -30,7 +30,12 @@
 
 (define (rules->irules rules)
   (for/list ([rule rules])
-    (irule (rule-name rule) (rule-input rule) (rule-output rule))))
+    (irule (rule-name rule)
+           ;; we actually want the egg-friendly expression
+           ;; still some more munging on the egg side
+           ;; since we want to pass string across the FFI boundary
+           (rule-egg-input rule)
+           (rule-egg-output rule))))
 
 ;; given an alt, locations, and a hash from expr to simplification options
 ;; make all combinations of the alt using the simplification options available
