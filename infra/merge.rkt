@@ -49,7 +49,7 @@
   (write-datafile (build-path outdir "results.json") joint-rs)
   (call-with-output-file (build-path outdir "results.html")
     #:exists 'replace
-    (curryr make-report-page joint-rs #f #:merge-data rss)))
+    (curryr make-report-page joint-rs outdir #:merge-data rss)))
 
 (module+ main
   (define name #f)
