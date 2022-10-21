@@ -1,6 +1,7 @@
 #lang racket
 
-(provide (struct-out pareto-point) pareto-map pareto-union pareto-minimize pareto-combine)
+(provide (struct-out pareto-point) pareto-map pareto-union
+         pareto-minimize pareto-convex pareto-combine)
 
 (struct pareto-point (cost error data) #:prefab)
 
@@ -10,7 +11,7 @@
 (define (pt->ppt pt)
   (pareto-point (first pt) (second pt) (list)))
 
-(define (add-combinations ppt0 frontier)
+(define (pareto-shift ppt0 frontier)
   (match-define (pareto-point cost0 err0 _) ppt0)
   (for/list ([ppt (in-list frontier)])
     (match-define (pareto-point cost err _) ppt)
@@ -34,6 +35,7 @@
 ;; The curves most be sorted using the same method.
 (define (pareto-union curve1 curve2)
   (let loop ([curve1 curve1] [curve2 curve2])
+    ; The curve is sorted so that highest accuracy is first
     (match* (curve1 curve2)
       [('() _) curve2]
       [(_ '()) curve1]
@@ -75,26 +77,25 @@
 
 ;; Takes a list of `pareto-point` structs
 ;; and returns the Pareto-optimal subset.
-(define (pareto-minimize ppts #:convex? [convex? #f])
+(define (pareto-minimize ppts)
   (define ppts* (sort ppts < #:key pareto-point-cost))
-  (define minimized
-    (for/fold ([minimized '()]) ([ppt (in-list ppts*)])
-      (pareto-union (list ppt) minimized)))
-  (if convex? (pareto-convex minimized) minimized))
+  (for/fold ([minimized '()]) ([ppt (in-list ppts*)])
+    (pareto-union (list ppt) minimized)))
 
 ;; Creates a synthetic frontier from multiple frontiers
 ;; as described in the ARITH '21 paper.
 (define (pareto-combine frontiers #:convex? [convex? #f])
   (define (finalize f) (if convex? (pareto-convex f) f))
   (define frontiers* (map (λ (f) (pareto-minimize (map pt->ppt f))) frontiers))
-  (define combined
-    (for/fold ([combined (list)]) ([frontier (in-list frontiers*)])
-      (if (null? combined)
-          (finalize frontier)
-          (for/fold ([combined* (list)]) ([ppt (in-list combined)])
-            (let ([ppts (pareto-minimize (add-combinations ppt frontier))])
-              (finalize (pareto-union ppts combined*)))))))
-  (map ppt->pt combined))
+  (for/fold ([combined (list)] #:result (map ppt->pt combined))
+            ([frontier (in-list frontiers*)])
+    (if (null? combined)
+        (finalize frontier)
+        (for/fold ([combined* (list)] #:result (finalize combined*))
+                  ([ppt (in-list combined)])
+          (let ([ppts (pareto-minimize (pareto-shift ppt frontier))])
+            (pareto-union ppts combined*))))))
+
 
 (module+ test
   (require rackunit)
