@@ -135,7 +135,7 @@
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
   (define repr (test-output-repr test))
-  (table-row (test-name test) #f status
+  (table-row (test-name test) (test-identifier test) status
              (resugar-program (program-body (test-precondition test)) repr)
              (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
              (representation-name (test-output-repr test))
@@ -152,7 +152,6 @@
   (cond
    [(test-success? result)
     (define name (test-name test))
-    (define identifier (test-identifier test))
     (define start-errors  (test-success-start-error result))
     (define end-errorss   (test-success-end-errors result))
     (define target-errors (test-success-target-error result))
@@ -188,7 +187,6 @@
            [else "uni-start"])))
 
     (struct-copy table-row (dummy-table-row result status link)
-                 [identifier identifier]
                  [output (car end-exprs)]
                  [start start-score] [result end-score] [target target-score]
                  [start-est est-start-score] [result-est est-end-score]
