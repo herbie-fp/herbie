@@ -3,7 +3,7 @@
 (require math/bigfloat rival racket/hash)
 (require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide sample-points eval-prog-real)
+(provide sample-points batch-prepare-points)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))

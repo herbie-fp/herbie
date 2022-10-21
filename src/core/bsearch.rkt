@@ -71,20 +71,13 @@
       `(λ (,var ,@vars*) ,body*)
       #f))
 
-(define (prepend-argument f val pcontext repr #:length length)
-  (define-values (newpts newexs newlen)
-    (for/fold ([newpts '()] [newexs '()] [newlen 0])
-        ([(pt _) (in-pcontext pcontext)]
-         #:break (>= newlen length))
-      (define pt* (cons val pt))
-      (define ex* (apply f pt*))
-      (if (nan? ex*)
-          (values (cons pt* newpts) (cons ex* newexs) (+ 1 newlen))
-          (values newpts newexs newlen))))
-  (when (< newlen length)
-    (raise-herbie-error "Cannot sample enough valid points."
-                        #:url "faq.html#sample-valid-points"))
-  (mk-pcontext newpts newexs))
+(define (prepend-argument fn val pcontext ctx #:length length)
+  (define (new-sampler)
+    (define-values (pt ex) (random-ref (in-pcontext pcontext)))
+    (cons val pt))
+  (apply mk-pcontext
+         (parameterize ([*num-points* length])
+           (cdr (batch-prepare-points fn ctx new-sampler)))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
@@ -101,7 +94,9 @@
   (define ctx* (context-extend ctx var repr))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
-  (define start-fn (eval-prog-real start-prog ctx*))
+
+  ; Not totally clear if this should actually use the precondition
+  (define start-fn (make-search-fn `(λ ,(program-variables start-prog) (TRUE)) ctx*))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
