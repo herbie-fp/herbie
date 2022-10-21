@@ -96,7 +96,8 @@
   (define start-prog (extract-subexpression (*start-prog*) var expr))
 
   ; Not totally clear if this should actually use the precondition
-  (define start-fn (make-search-func `(λ ,(program-variables start-prog) (TRUE)) ctx*))
+  (define precondition `(λ ,(program-variables start-prog) (TRUE)))
+  (define start-fn (make-search-func precondition (list start-prog) ctx*))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
