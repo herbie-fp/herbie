@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat)
+(require math/bigfloat racket/random)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "regimes.rkt" "../float.rkt"
          "../pretty-print.rkt" "../ground-truth.rkt")
@@ -96,7 +96,7 @@
   (define start-prog (extract-subexpression (*start-prog*) var expr))
 
   ; Not totally clear if this should actually use the precondition
-  (define start-fn (make-search-fn `(λ ,(program-variables start-prog) (TRUE)) ctx*))
+  (define start-fn (make-search-func `(λ ,(program-variables start-prog) (TRUE)) ctx*))
 
   (define (find-split prog1 prog2 v1 v2)
     (define iters 0)
