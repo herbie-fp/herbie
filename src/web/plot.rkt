@@ -132,9 +132,8 @@
   (define info (regime-info altn))
   (and info (sp-bexpr (car info))))
 
-;;; Cost vs. Accuracy (internal, single benchmark)
+;;; Cost vs. Accuracy JSON (internal, single benchmark)
 (define (make-cost-accuracy-json result out)
-  (displayln "cost accuracy")
   (define repr (test-output-repr (test-result-test result)))
   (define bits (representation-total-bits repr))
   (define costs (test-success-end-costs result))
@@ -144,15 +143,27 @@
   (define err0 (errors-score (test-success-start-error result)))
 
   (define xmax (argmax identity (cons cost0 costs)))
+  (define xmin (argmax identity (cons cost0 costs)))
 
   (define json-obj `#hasheq(
     (first . ,(list cost0 err0))
     (best . ,(list xmax bits))
     (points . ,
       (for/list ([acost costs] [aerr errs]) (list acost aerr)))))
-  (displayln json-obj)
   (write-json json-obj out))
 
+;;; Cost vs. Accuracy JSON (internal, entire suite)
+(define (make-full-cost-accuracy-json y-max start pts out)
+  (match-define (list (cons costs scores) ...) pts)
+  (define x-max (argmax identity (cons (car start) costs)))
+  
+  (define json-obj `#hasheq(
+    (first . ,(list (car start) (cdr start)))
+    (best . ,(list x-max y-max))
+    (points . ,
+      (for/list ([acost costs] [aerr scores]) (list acost aerr)))))
+  (write-json json-obj out))
+  
 ;;; Cost vs. Accuracy (internal, single benchmark)
 (define (make-cost-accuracy-plot result out)
   (define repr (test-output-repr (test-result-test result)))

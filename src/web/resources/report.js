@@ -268,8 +268,77 @@ const ClientGraph = new Component('#graphs', {
 
 
 const CostAccuracy = new Component('#cost-accuracy', {
-    setup: function() {
+    setup: async () => {
         console.log("make cost accuracy");
+        const points_json = await (async () => {
+            const get_points_store = {}
+            
+            const get_points_memo = async () => {
+                if (get_points_store.value) { return get_points_store.value }
+                const ps = await get_json('cost-accuracy.json');
+                get_points_store.value = ps;
+                return get_points_store.value;
+            }
+            const get_json = url => fetch(url, {
+                // body: `_body_`,
+                headers: {"content-type": "text/plain"},
+                method: "GET",
+                mode: 'cors'
+                }).then(async response => {
+                //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
+                return await response.json()
+            })
+            return get_points_memo()
+        })()
+
+        const plot = async () => {
+            // NOTE ticks and splitpoints include all vars, so we must index
+            const { best, first, points } = points_json;
+
+            const out = Plot.plot({
+                marks: [
+                    Plot.dot(points, {x: d => d[0], y: d => d[1], fill: "red", stroke: "black"}),
+                    Plot.dot(first, {x: first[0], y: first[1], fill: "black"})
+                ],
+                grid: true,
+                width: '800',
+                height: '400',                
+                    x: {
+                        label: `Cost`,
+                        domain: [0, best[0] * 2]
+                    },
+                    y: {
+                        label: "Bits of error",
+                        domain: [0, best[1]]
+                    },
+            })
+            out.setAttribute('viewBox', '0 0 800 430')
+            return out
+        }
+        function html(string) {
+            const t = document.createElement('template');
+            t.innerHTML = string;
+            return t.content;
+        }
+        async function render() {
+            const options_view = html(`
+                <div id="plot_options">
+                <div id="variables">
+                </div>
+                <div id="functions">
+                </div>
+                </div>
+            `)
+            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+            options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
+                render()
+            })
+            options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
+                render()
+            })
+            document.querySelector('#pareto-content').replaceChildren(await plot(), options_view)
+        }
+        render()
     }
 })
 var RenderMath = new Component(".math", {
