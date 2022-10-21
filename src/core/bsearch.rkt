@@ -72,12 +72,12 @@
       #f))
 
 (define (prepend-argument fn val pcontext ctx #:length length)
-  (define (new-sampler)
-    (define-values (pt ex) (random-ref (in-pcontext pcontext)))
-    (cons val pt))
+  (define pts (for/list ([(pt ex) (in-pcontext pcontext)]) pt))
+  (define (new-sampler) (cons val (random-ref pts)))
   (apply mk-pcontext
          (parameterize ([*num-points* length])
-           (cdr (batch-prepare-points fn ctx new-sampler)))))
+           ; TODO: will need `cdr` once ival-assert is merged
+           (batch-prepare-points fn ctx new-sampler))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
@@ -113,7 +113,7 @@
       (with-handlers ([exn:fail:user:herbie?
                        (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
         (define pctx
-          (prepend-argument start-fn v (*pcontext*) repr #:length (*binary-search-test-points*)))
+          (prepend-argument start-fn v (*pcontext*) ctx* #:length (*binary-search-test-points*)))
           (define acc1 (errors-score (errors prog1 pctx ctx*)))
           (define acc2 (errors-score (errors prog2 pctx ctx*)))
           (- acc1 acc2)))
