@@ -3,7 +3,7 @@
 (require math/bigfloat)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../syntax/types.rkt")
 
-(provide localize-error get-locations)
+(provide localize-error)
 
 (define (all-subexpressions expr)
   (remove-duplicates
@@ -15,20 +15,6 @@
              [(? variable?) (void)]
              [(list op args ...)
               (for-each loop args)])))))
-
-;; Returns the locations of `subexpr` within `expr`
-(define (get-locations expr subexpr)
-  (let loop ([expr expr] [loc '()])
-    (match expr
-      [(== subexpr)
-       (list (reverse loc))]
-      [(list op args ...)
-       (apply
-        append
-        (for/list ([arg (in-list args)] [i (in-naturals 1)])
-          (loop arg (cons i loc))))]
-      [_
-       (list)])))
 
 (define (localize-error prog ctx)
   (define expr (program-body prog))

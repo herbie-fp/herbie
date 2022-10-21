@@ -143,6 +143,20 @@
 
   (void))
 
+;; Returns the locations of `subexpr` within `expr`
+(define (get-locations expr subexpr)
+  (let loop ([expr expr] [loc '()])
+    (match expr
+      [(== subexpr)
+       (list (reverse loc))]
+      [(list op args ...)
+       (apply
+        append
+        (for/list ([arg (in-list args)] [i (in-naturals 1)])
+          (loop arg (cons i loc))))]
+      [_
+       (list)])))
+
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; extracts the base expression of a patch
