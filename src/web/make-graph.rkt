@@ -162,7 +162,6 @@
           `(section ([id "cost-accuracy"])
             (h1 "Error")
             (div ([id "pareto-content"]))
-            (p "cost estimate")
             (img ([width "800"] [height "300"] [title "cost-accuracy"]
                   [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
             "")

@@ -308,7 +308,7 @@ const MergedCostAccuracy = new Component('#merged-cost-accuracy', {
                     },
                     y: {
                         label: "Sum of error bits",
-                        domain: [0, best[1]]
+                        domain: [0, best[1]],
                     },
             })
             out.setAttribute('viewBox', '0 0 800 460')
@@ -383,7 +383,9 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     },
                     y: {
                         label: "Bits of error",
-                        domain: [0, best[1]]
+                        domain: [0, best[1]],
+                        ticks: new Array(best[1] / 4 + 1).fill(0).map((_, i) => i * 4),
+                        tickFormat: d => d % 8 != 0 ? '' : d
                     },
             })
             out.setAttribute('viewBox', '0 0 800 430')
