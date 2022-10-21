@@ -55,47 +55,47 @@
       (with-handlers ([exn? (curry on-exception start-time)])
         (rollback-improve!)
 
-        (match-define (cons domain-stats joint-context)
+        (define joint-pcontext
           (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
             (setup-context!
              (or (test-specification test) (test-program test)) (test-precondition test)
              output-repr)))
         (timeline-push! 'bogosity domain-stats)
-        (define-values (train-context test-context)
-          (split-pcontext joint-context (*num-points*) (*reeval-pts*))) 
+        (define-values (train-pcontext test-pcontext)
+          (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
 
         (define alts
-          (run-improve! (test-program test) train-context (*num-iterations*)
+          (run-improve! (test-program test) train-pcontext (*num-iterations*)
                         #:specification (test-specification test)
                         #:preprocess (test-preprocess test)))
 
         (when seed (set-seed! seed))
-        (define processed-test-context
-          (preprocess-pcontext test-context (*herbie-preprocess*) context))
+        (define processed-test-pcontext
+          (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
 
         (define end-errs
           (flip-lists
-           (batch-errors (map alt-program alts) processed-test-context context)))
+           (batch-errors (map alt-program alts) processed-test-pcontext context)))
 
         (timeline-adjust! 'regimes 'name (test-name test))
         (timeline-adjust! 'regimes 'link ".")
         (print-warnings)
 
-        (define-values (points exacts) (get-p&es train-context))
-        (define-values (newpoints newexacts) (get-p&es processed-test-context))
+        (define-values (points exacts) (get-p&es train-pcontext))
+        (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
         (test-success test
                       (bf-precision)
                       (- (current-inexact-milliseconds) start-time)
                       (timeline-extract output-repr)
                       warning-log (make-alt (test-program test)) alts
                       (*herbie-preprocess*) points exacts
-                      (errors (test-program test) train-context context)
-                      (errors (alt-program (car alts)) train-context context)
+                      (errors (test-program test) train-pcontext context)
+                      (errors (alt-program (car alts)) train-pcontext context)
                       newpoints newexacts
-                      (errors (test-program test) processed-test-context context)
+                      (errors (test-program test) processed-test-pcontext context)
                       end-errs
                       (if (test-output test)
-                          (errors (test-target test) processed-test-context context)
+                          (errors (test-target test) processed-test-pcontext context)
                           #f)
                       (program-cost (test-program test) output-repr)
                       (map (curryr alt-cost output-repr) alts)
