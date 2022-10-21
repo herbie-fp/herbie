@@ -39,7 +39,7 @@
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
       (define res (apply ival-fn rect))
-      (match-define (ival err err?) (apply ival-and (map ival-error? res)))
+      (match-define (ival err err?) (apply ival-or (map ival-error? res)))
       (cond
        [err
         (values true* (cons (cons err rect) false*) other*)]

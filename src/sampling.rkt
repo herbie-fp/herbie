@@ -125,7 +125,7 @@
 (define (ival-eval fn pt #:precision [precision (*starting-prec*)])
   (let loop ([precision precision])
     (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
-    (match-define (ival err err?) (apply ival-and (map ival-error? exs)))
+    (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
     (define precision* (exact-floor (* precision 2)))
     (cond
      [err

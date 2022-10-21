@@ -67,7 +67,7 @@
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
   (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
-  (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-unknown))))
+  (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-base))))
   (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)])
       ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
