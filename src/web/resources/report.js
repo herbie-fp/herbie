@@ -305,7 +305,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
                 height: '400',                
                     x: {
                         label: `Cost`,
-                        domain: [0, best[0] * 2]
+                        domain: [0, best[0]]
                     },
                     y: {
                         label: "Bits of error",

@@ -69,7 +69,10 @@
    [(> (length pareto-points) 1) ; generate the scatterplot if necessary
     (call-with-output-file (build-path dir "cost-accuracy.png")
       #:exists 'replace
-      (λ (out) (make-full-cost-accuracy-plot pareto-max pareto-start pareto-points out)))]
+      (λ (out) (make-full-cost-accuracy-plot pareto-max pareto-start pareto-points out)))
+    (call-with-output-file (build-path dir "cost-accuracy.json")
+      #:exists 'replace
+      (λ (out) (make-full-cost-accuracy-json pareto-max pareto-start pareto-points out)))]
    [else
     (when (file-exists? (build-path dir "cost-accuracy.png"))
       (delete-file (build-path dir "cost-accuracy.png")))])
@@ -118,7 +121,9 @@
       (meta ((charset "utf-8")))
       (link ((rel "stylesheet") (type "text/css") (href "report.css")))
       (script ((src "report.js")))
-      (script ((src "https://d3js.org/d3.v3.min.js") (charset "utf-8")))
+      (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
+      (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
+      (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
       (script ((type "text/javascript") (src "arrow-chart.js"))))
  
      (body
@@ -176,8 +181,10 @@
                           "»"))
                      "")))))
      ,(if (> (length pareto-points) 1)
-         `(div ([id "scatterplot"] [style "margin-top: 2.5em"])
-             (img ([width "800"] [height "300"] [title "cost-accuracy"]
-                   [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
+          `(section ([id "cost-accuracy"])
+            (h1 "Error")
+            (div ([id "pareto-content"]))
+            (img ([width "800"] [height "300"] [title "cost-accuracy"]
+                  [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
            "")))
    out))

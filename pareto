@@ -1,0 +1,2 @@
+src/web/make-report.rkt:(define (trs->pareto trs)
+src/web/make-report.rkt:  (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))

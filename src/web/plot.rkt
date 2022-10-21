@@ -5,7 +5,7 @@
          "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/read.rkt"
          "../alternative.rkt" "../core/regimes.rkt" "../sandbox.rkt")
 
-(provide make-cost-accuracy-plot make-cost-accuracy-json make-full-cost-accuracy-plot
+(provide make-cost-accuracy-plot make-cost-accuracy-json make-full-cost-accuracy-plot make-full-cost-accuracy-json
          real->ordinal regime-splitpoints choose-ticks regime-var)
 
 ;; Racket 8.1 compatability
@@ -147,7 +147,7 @@
 
   (define json-obj `#hasheq(
     (first . ,(list cost0 err0))
-    (best . ,(list xmax bits))
+    (best . ,(list (* 2 xmax) bits))
     (points . ,
       (for/list ([acost costs] [aerr errs]) (list acost aerr)))))
   (write-json json-obj out))
