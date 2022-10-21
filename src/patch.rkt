@@ -223,31 +223,9 @@
     (timeline-event! 'simplify)
     (define children (^final^))
 
-    ;; We want to avoid simplifying if possible, so we only
-    ;; simplify things produced by function calls in the rule
-    ;; pattern. This means no simplification if the rule output as
-    ;; a whole is not a function call pattern, and no simplifying
-    ;; subexpressions that don't correspond to function call
-    ;; patterns.
-    (define locs-list
-      (for/list ([child (in-list children)] [n (in-naturals 1)])
-        (match (alt-event child)
-          [(list 'taylor _ _ loc) (list loc)]
-          [(list 'change cng)
-           (match-define (change rule loc _) cng)
-           (define pattern (rule-output rule))
-           (cond
-            [(not (list? pattern)) '()]
-            [else
-             (for/list ([pos (in-naturals 1)]
-                        [arg-pattern (cdr pattern)] #:when (list? arg-pattern))
-               (append loc (list pos)))])]
-          [_ (list '(2))])))
-
     (define to-simplify
-      (for/list ([child (in-list children)] [locs locs-list]
-                 #:when true [loc locs])
-        (location-get loc (alt-program child))))
+      (for/list ([child (in-list children)])
+        (program-body (alt-program child))))
 
     (define input
       (simplify-input to-simplify empty (*simplify-rules*) true))
@@ -258,21 +236,22 @@
       (make-immutable-hash (map cons to-simplify simplification-options)))
 
     (define simplified
-      (apply append
-             (for/list ([child (in-list children)] [locs locs-list])
-              (make-simplification-combinations child locs simplify-hash input))))
+      (remove-duplicates
+       (apply append
+              (for/list ([child (in-list children)])
+                (make-simplification-combinations child (list '(2)) simplify-hash input)))
+       alt-equal?))
 
     ; dedup for cache
-    (define simplified* (remove-duplicates simplified alt-equal?))
     (unless (and (null? (^queued^)) (null? (^queuedlow^)))  ; don't run for simplify-only
-      (for ([altn (in-list simplified*)])
+      (for ([altn (in-list simplified)])
         (define cachable (map (compose program-body alt-program) (^queued^)))
         (let ([expr0 (get-starting-expr altn)])
           (when (set-member? cachable expr0)
             (add-patch! (get-starting-expr altn) altn)))))
     
-    (timeline-push! 'count (length locs-list) (length simplified*))
-    (^final^ simplified*))
+    (timeline-push! 'count (length children) (length simplified))
+    (^final^ simplified))
   (void))
 
 (define (patch-table-clear!)
