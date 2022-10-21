@@ -181,9 +181,10 @@
                           "»"))
                      "")))))
      ,(if (> (length pareto-points) 1)
-          `(section ([id "cost-accuracy"])
+          `(section ([id "merged-cost-accuracy"])
             (h1 "Error")
             (div ([id "pareto-content"]))
+            (p "Sum of cost estimate")
             (img ([width "800"] [height "300"] [title "cost-accuracy"]
                   [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
            "")))
