@@ -40,7 +40,7 @@
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define bf-values (apply exact-fn pt))
-    (define bfhash (make-hash (map cons subexprs (vector->list bf-values))))
+    (define bfhash (make-hash (map cons subexprs bf-values)))
     (for ([expr (in-list subexprs)])
       (define err
         (match expr

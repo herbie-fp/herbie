@@ -140,7 +140,7 @@
 
 (define (eval-prog prog mode ctx)
   (define f (batch-eval-progs (list prog) mode ctx))
-  (λ args (vector-ref (apply f args) 0)))
+  (λ args (first (apply f args))))
 
 (define (batch-eval-progs progs mode ctx)
   (define repr (context-repr ctx))
@@ -218,7 +218,7 @@
         (for/list ([arg (in-list (cdr expr))])
           (vector-ref v arg)))
       (vector-set! v n (apply (car expr) tl)))
-    (for/vector ([n (in-list names)])
+    (for/list ([n (in-list names)])
       (vector-ref v n)))
   (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
 

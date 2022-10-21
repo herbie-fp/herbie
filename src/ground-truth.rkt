@@ -37,7 +37,7 @@
   (define fns (batch-eval-progs (cons precondition programs) 'ival ctx))
   (λ inputs
     (define repr (context-repr ctx))
-    (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs)))
+    (match-define (list ival-pre ival-bodies ...) (apply fns inputs))
     (for/list ([y ival-bodies])
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
