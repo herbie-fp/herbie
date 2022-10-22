@@ -8,10 +8,10 @@
 
 (provide egraph-run egraph-add-expr with-egraph
          egraph-get-simplest egraph-get-variants
-         egg-expr->expr egg-exprs->exprs egg-add-exn?
          make-ffi-rules free-ffi-rules egraph-get-cost
          egraph-stop-reason egraph-is-unsound-detected
          egraph-get-times-applied egraph-get-proof
+         egg-add-exn?
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -21,18 +21,45 @@
 (struct irule (name input output) #:prefab)
 (struct iteration-data (num-nodes num-eclasses time))
 
+(define (egg-parsed->expr expr rename-dict)
+  (let loop ([expr expr])
+    (match expr
+      [(list 'Rewrite=> rule expr)
+       (list 'Rewrite=> rule (loop expr))]
+      [(list 'Rewrite<= rule expr)
+       (list 'Rewrite<= rule (loop expr))]
+      [(list op prec args ...)
+       (cons op (cons prec (map loop args)))]
+      [(? number?) expr]
+      [else (hash-ref rename-dict expr)])))
+
+;; Converts a string expression from egg into a Racket S-expr
+(define (egg-expr->expr expr eg-data)
+  (define parsed (read (open-input-string expr)))
+  (egg-parsed->expr parsed (egraph-data-egg->herbie-dict eg-data)))
+
+;; Like `egg-expr->expr` but expected the string to
+;; parse into a list of S-exprs
+(define (egg-exprs->exprs exprs eg-data)
+  (define port (open-input-string exprs))
+  (let loop ([parse (read port)] [exprs '()])
+    (if (eof-object? parse)
+        (reverse exprs)
+        (let ([expr (egg-parsed->expr parse (egraph-data-egg->herbie-dict eg-data))])
+          (loop (read port) (cons expr exprs))))))
+
 (define (egraph-get-simplest egraph-data node-id iteration)
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
-  str)
+  (egg-expr->expr str egraph-data))
 
 (define (egraph-get-variants egraph-data node-id orig-expr)
   (define expr-str (expr->egg-expr orig-expr egraph-data))
   (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
-  str)
+  (egg-exprs->exprs str egraph-data))
 
 (define (egraph-get-cost egraph-data node-id iteration)
   (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
@@ -102,33 +129,6 @@
   (egraph_destroy (egraph-data-egraph-pointer egraph))
   res)
 
-;; Converts a string expression from egg into a Racket S-expr
-(define (egg-expr->expr expr eg-data)
-  (define parsed (read (open-input-string expr)))
-  (egg-parsed->expr parsed (egraph-data-egg->herbie-dict eg-data)))
-
-;; Like `egg-expr->expr` but expected the string to
-;; parse into a list of S-exprs
-(define (egg-exprs->exprs exprs eg-data)
-  (define port (open-input-string exprs))
-  (let loop ([parse (read port)] [exprs '()])
-    (if (eof-object? parse)
-        (reverse exprs)
-        (let ([expr (egg-parsed->expr parse (egraph-data-egg->herbie-dict eg-data))])
-          (loop (read port) (cons expr exprs))))))
-
-(define (egg-parsed->expr expr rename-dict)
-  (let loop ([expr expr])
-    (match expr
-      [(list 'Rewrite=> rule expr)
-       (list 'Rewrite=> rule (loop expr))]
-      [(list 'Rewrite<= rule expr)
-       (list Rewrite<= rule (loop expr))]
-      [(list op prec args ...)
-       (cons op (cons prec (map loop args)))]
-      [(? number?) expr]
-      [else (hash-ref rename-dict expr)])))
-
 ;; takes a Racket expression and returns an egg pattern
 (define (expr->egg-pattern expr)
   (match expr
@@ -184,9 +184,12 @@
   (define egg-expr (expr->egg-expr expr egraph-data))
   (define egg-goal (expr->egg-expr goal egraph-data))
   (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
-  (define res (cast pointer _pointer _string/utf-8))
+  (define proof (cast pointer _pointer _string/utf-8))
   (destroy_string pointer)
-  res)
+  (when (equal? proof "")
+    (error 'egraph-get-proof "failed to produce proof for ~a to ~a" expr goal))
+  (map (curryr egg-expr->expr egraph-data)
+       (string-split proof "\n")))
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)

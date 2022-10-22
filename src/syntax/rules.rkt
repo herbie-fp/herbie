@@ -133,25 +133,9 @@
 ;;  Rule munging for egg
 ;;
 
-;; TODO: no symbol munging
-;; copied from `egg-herbie/to-egg-pattern.rkt`
-(define/contract (expand-operator op)
-  (-> symbol? (list/c symbol? symbol?))
-  (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s op))
-    [(list _ op* prec) (list (string->symbol op*) (string->symbol prec))]
-    [#f (list (string->symbol op) 'real)]))
-
-;; Translates a Herbie expression into an egg expression
-;; given a pair of variable dictionaries.
-;; Originally in `egg-herbie/main.rkt`
-(define (expr->egg-expr expr)
-  (match expr
-    [(list 'if cond ift iff)
-      (list 'if 'real (expr->egg-expr cond) (expr->egg-expr ift) (expr->egg-expr iff))]
-    [(list op args ...)
-      (match-define (list op* prec) (expand-operator op))
-      (cons op* (cons prec (map expr->egg-expr args)))]
-    [_ expr]))
+(define (expand-operator impl)
+  (list (impl->operator impl)
+        (representation-name (operator-info impl 'otype))))
 
 ;; Translates a Herbie rule LHS or RHS into an egg pattern
 ;; suitable for egg-herbie.
@@ -173,8 +157,17 @@
         [_ expr])))
   (values expr* (hash-keys ppatterns)))
 
-;; Translates an egg expression back into a Herbie expression
-(define (egg-expr->expr 
+;; Translates a Herbie expression into an egg expression
+;; given a pair of variable dictionaries.
+;; Originally in `egg-herbie/main.rkt`
+(define (expr->egg-expr expr)
+  (match expr
+    [(list 'if cond ift iff)
+     (list 'if 'real (expr->egg-expr cond) (expr->egg-expr ift) (expr->egg-expr iff))]
+    [(list op args ...)
+     (match-define (list op* prec) (expand-operator op))
+     (cons op* (cons prec (map expr->egg-expr args)))]
+    [_ expr]))
 
 ;;
 ;;  Rule loading

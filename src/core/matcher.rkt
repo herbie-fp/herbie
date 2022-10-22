@@ -1,8 +1,8 @@
 #lang racket
 
 (require egg-herbie)
-(require "../common.rkt" "../programs.rkt" "../alternative.rkt"
-         "../syntax/rules.rkt" "../syntax/types.rkt" "../timeline.rkt" "simplify.rkt")
+(require "../common.rkt" "../programs.rkt" "../alternative.rkt" "../timeline.rkt"
+         "../syntax/rules.rkt" "../syntax/types.rkt" "simplify.rkt")
 
 (provide pattern-match rewrite-expressions change-apply)
 
@@ -128,8 +128,7 @@
             (define variants
               (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
-                (define output (egraph-get-variants egg-graph id expr))
-                (define extracted (egg-exprs->exprs output egg-graph))
+                (define extracted (map egg-expr->expr (egraph-get-variants egg-graph id expr)))
                 (for/list ([variant (remove-duplicates extracted)])
                   (list (change egg-rule root-loc (list (cons 'x variant)))))))
             (λ () variants)]))))

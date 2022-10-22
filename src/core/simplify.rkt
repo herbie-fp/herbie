@@ -1,12 +1,12 @@
 #lang racket
 
 (require egg-herbie)
-(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/rules.rkt" "../alternative.rkt")
+(require "../alternative.rkt" "../common.rkt" "../errors.rkt" "../programs.rkt"
+         "../timeline.rkt" "../syntax/rules.rkt" "../syntax/types.rkt")
 
 (provide simplify-expr simplify-batch get-proof
          make-simplification-combinations
-         rules->irules egg-run-rules
+         rules->irules egg-run-rules egg-expr->expr
          (struct-out simplify-input))
 
 (module+ test
@@ -68,6 +68,42 @@
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
   (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
 
+(define (egg-op->impl op prec expr)
+  (define repr (get-representation prec))
+  (define possible-impls
+    (filter (λ (impl) (equal? (operator-info impl 'otype) repr))
+            (operator-all-impls op)))
+  (match possible-impls
+    [(list impl) impl]
+    [_ (error 'egg-expr->impl
+              "could not translate egg expr: ~a, impls: ~a"
+              expr possible-impls)]))
+
+(define (egg-expr->expr expr)
+  (define-values (expr* _)
+    (let loop ([expr expr])
+     (match expr
+      [(list 'Rewrite=> rule expr)
+       (define-values (expr* otype) (loop expr))
+       (values (list 'Rewrite=> rule expr*) otype)]
+      [(list 'Rewrite<= rule expr)
+       (define-values (expr* otype) (loop expr))
+       (values (list 'Rewrite<= rule expr*) otype)]
+      [(list 'if 'real cond ift iff)
+       (define-values (cond* cond-type) (loop cond))
+       (define-values (ift* ift-type) (loop ift))
+       (define-values (iff* iff-type) (loop iff))
+       (values (list 'if cond* ift* iff*) ift-type)]
+      [(list op prec args ...)
+       (define-values (args* types*)
+          (for/lists (l1 l2) ([arg (in-list args)])
+            (loop arg)))
+       (define op* (apply get-parametric-operator op types*))
+       (values (cons op* args*) (get-representation prec))]
+      [(? number?) (values expr (context-repr (*context*)))]
+      [_ (values expr (context-lookup (*context*) expr))])))
+  expr*)
+
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
@@ -87,9 +123,7 @@
             (lambda (egg-graph node-ids iter-data)
                  (map (lambda (id)
                         (for/list ([iter (in-range (length iter-data))])
-                                  (egg-expr->expr
-                                   (egraph-get-simplest egg-graph id iter)
-                                   egg-graph)))
+                          (egg-expr->expr (egraph-get-simplest egg-graph id iter))))
                  node-ids))))
 
   (define out
@@ -106,15 +140,7 @@
     (lambda (egg-graph node-ids iter-data)
       (define start* (expr->egg-expr start))
       (define end* (expr->egg-expr end))
-      (define proof (egraph-get-proof egg-graph start* end*))
-      (when (equal? proof "")
-        (error (format "Failed to produce proof for ~a to ~a" start end)))
-      (translate-proof proof egg-graph))))
-
-(define (translate-proof proof-str egg-graph)
-  (map (lambda (s)
-           (egg-expr->expr s egg-graph))
-       (string-split proof-str "\n")))
+      (map egg-expr->expr (egraph-get-proof egg-graph start* end*)))))
 
 (define (run-simplify-input input egraph-func)
   (define exprs (simplify-input-exprs input))
