@@ -65,7 +65,7 @@
    [else (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
 (define (make-raw-string s)
-  (define b (string->bytes/utf-8 (~a s)))
+  (define b (string->bytes/utf-8 s))
   (define n (bytes-length b))
   (define ptr (malloc 'raw (+ n 1)))
   (memcpy ptr b n)
@@ -78,8 +78,8 @@
 (define (make-ffi-rules rules)
   (for/list ([rule (in-list rules)])
     (define name (make-raw-string (symbol->string (rule-name rule))))
-    (define left (make-raw-string (pattern->egg (rule-input rule))))
-    (define right (make-raw-string (pattern->egg (rule-output rule))))
+    (define left (make-raw-string (~a (pattern->egg (rule-input rule)))))
+    (define right (make-raw-string (~a (pattern->egg (rule-output rule)))))
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
