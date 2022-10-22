@@ -5,7 +5,8 @@
 (require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt" "sugar.rkt")
 
 (provide (struct-out rule) rule-egg-input rule-egg-output
-         *rules* *simplify-rules* *fp-safe-simplify-rules*)
+         *rules* *simplify-rules* *fp-safe-simplify-rules*
+         expr->egg-pattern expr->egg-expr)
 
 (module+ internals
   (provide define-ruleset define-ruleset* register-ruleset! *rulesets*))
@@ -49,19 +50,19 @@
 ;; Just a little dumb ...
 
 (define (rule-egg-input r)
-  (define-values (input* _) (expr->egg-expr (rule-input r)))
+  (define-values (input* _) (expr->egg-pattern (rule-input r)))
   input*)
 
 (define (rule-egg-output r)
-  (define-values (output* _) (expr->egg-expr (rule-output r)))
+  (define-values (output* _) (expr->egg-pattern (rule-output r)))
   output*)
 
 (define (rule-egg-input-patterns r)
-  (define-values (_ pats) (expr->egg-expr (rule-input r)))
+  (define-values (_ pats) (expr->egg-pattern (rule-input r)))
   pats)
 
 (define (rule-egg-output-patterns r)
-  (define-values (_ pats) (expr->egg-expr (rule-output r)))
+  (define-values (_ pats) (expr->egg-pattern (rule-output r)))
   pats)
 
 (define (rule-ops-supported? rule)
@@ -118,37 +119,62 @@
               [(equal? otype type)
                (define input* (desugar-program input sugar-ctx))
                (define output* (desugar-program output sugar-ctx))
-               (cons (rule rname input* output* var-ctx*
-                           (repr-of-rule input* output* var-ctx*))
-                     rules*)]
+               (define r* (rule rname input* output* var-ctx*
+                                (repr-of-rule input* output* var-ctx*)))
+               (cons r* rules*)]
               [else
                rules*])))
-        (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))))
+        (unless (null? rules*)
+          (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
+          (update-rules rules* groups))))
     (*expansive-rules-reprs* (cons repr (*expansive-rules-reprs*)))))
 
 ;;
 ;;  Rule munging for egg
 ;;
 
-(define (get-signature op-or-impl)
-    (if (operator-exists? op-or-impl)
-        (real-operator-info op-or-impl 'otype)
-        (operator-info op-or-impl 'otype)))
+;; TODO: no symbol munging
+;; copied from `egg-herbie/to-egg-pattern.rkt`
+(define/contract (expand-operator op)
+  (-> symbol? (list/c symbol? symbol?))
+  (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s op))
+    [(list _ op* prec) (list (string->symbol op*) (string->symbol prec))]
+    [#f (list (string->symbol op) 'real)]))
 
+;; Translates a Herbie expression into an egg expression
+;; given a pair of variable dictionaries.
+;; Originally in `egg-herbie/main.rkt`
 (define (expr->egg-expr expr)
+  (match expr
+    [(list 'if cond ift iff)
+      (list 'if 'real (expr->egg-expr cond) (expr->egg-expr ift) (expr->egg-expr iff))]
+    [(list op args ...)
+      (match-define (list op* prec) (expand-operator op))
+      (cons op* (cons prec (map expr->egg-expr args)))]
+    [_ expr]))
+
+;; Translates a Herbie rule LHS or RHS into an egg pattern
+;; suitable for egg-herbie.
+(define (expr->egg-pattern expr)
   (define ppatterns (make-hash))
   (define (get-pattern key)
-    (hash-ref! ppatterns key
+    (hash-ref! ppatterns (real-operator-info key 'otype)
                (λ () (string->symbol (format "?p~a" (hash-count ppatterns))))))
   (define expr*
     (let loop ([expr expr])
       (match expr
         [(list 'if cond ift iff)
          (list 'if 'real (loop cond) (loop ift) (loop iff))]
+        [(list (? operator-exists? op) args ...)
+         (cons op (cons (get-pattern op) (map loop args)))]
         [(list op args ...)
-         (cons op (cons (get-pattern (get-signature op)) (map loop args)))]
+         (match-define (list op* prec) (expand-operator op))
+         (cons op* (cons prec (map loop args)))]
         [_ expr])))
   (values expr* (hash-keys ppatterns)))
+
+;; Translates an egg expression back into a Herbie expression
+(define (egg-expr->expr 
 
 ;;
 ;;  Rule loading
@@ -226,25 +252,29 @@
       (match-define (list rname input output) r)
       (define r* (rule rname input output var-ctx
                        (type-of-rule input output var-ctx)))
-      (if (andmap (curry set-member? (rule-egg-input-patterns r*))
-                  (rule-egg-output-patterns r*))
-          (values (cons r* rules*) expansive-rules*)
-          ;; Generic expansive rules, i.e. x -> f(x) cannot be run in egg
-          ;; since f(x) typically requires precision nodes
-          ;; which cannot be inferred from just a node `x`
-          ;; TODO: possible solution is to have special classes of rules
-          ;;
-          ;;  Rule(p) = { x -> f(x, p )}
-          ;;  
-          ;; where `p` is a representation. This rule must be instatiated with a precision
-          ;; but that's absoutely fine because it's meaningless without a precision.
-          ;; Of course, this requires a custom applier.
-          (values rules* (cons r* expansive-rules*)))))
+      (cond
+        [(andmap (curry set-member? (rule-egg-input-patterns r*))
+                 (rule-egg-output-patterns r*))
+         (values (cons r* rules*) expansive-rules*)]
+        [else
+         ;; Generic expansive rules, i.e. x -> f(x) cannot be run in egg
+         ;; since f(x) typically requires precision nodes
+         ;; which cannot be inferred from just a node `x`
+         ;; TODO: possible solution is to have special classes of rules
+         ;;
+         ;;  Rule(f, p) = { x -> f(x, p) }
+         ;;  
+         ;; where `p` is a representation. This rule must be instatiated with a precision
+         ;; but that's absoutely fine because it's meaningless without a precision.
+         ;; Of course, this requires a custom applier.
+         (values rules* (cons r* expansive-rules*))])))
 
   (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
   (update-rules rules* groups)
   (unless (null? expansive-rules*)
-    (*expansive-rulesets* (cons (list rules* groups var-ctx) (*expansive-rulesets*)))))
+    (*expansive-rulesets*
+      (cons (list expansive-rules* groups var-ctx)
+            (*expansive-rulesets*)))))
   
 (define-syntax define-ruleset*
   (syntax-rules ()

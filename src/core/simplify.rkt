@@ -68,18 +68,6 @@
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
   (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
 
-
-
-(define (get-proof input start end)
-  (run-simplify-input
-    input
-    (lambda (egg-graph node-ids iter-data)
-         (begin
-           (define proof (egraph-get-proof egg-graph start end))
-           (when (equal? proof "")
-             (error (format "Failed to produce proof for ~a to ~a" start end)))
-           (translate-proof proof egg-graph)))))
-
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
@@ -92,7 +80,6 @@
          (listof (listof expr?)))
 
   (timeline-push! 'inputs (map ~a (simplify-input-exprs input)))
-
 
   (define results
           (run-simplify-input
@@ -112,6 +99,18 @@
     
   out)
 
+
+(define (get-proof input start end)
+  (run-simplify-input
+    input
+    (lambda (egg-graph node-ids iter-data)
+      (define start* (expr->egg-expr start))
+      (define end* (expr->egg-expr end))
+      (define proof (egraph-get-proof egg-graph start* end*))
+      (when (equal? proof "")
+        (error (format "Failed to produce proof for ~a to ~a" start end)))
+      (translate-proof proof egg-graph))))
+
 (define (translate-proof proof-str egg-graph)
   (map (lambda (s)
            (egg-expr->expr s egg-graph))
@@ -127,20 +126,24 @@
   (define irules (rules->irules rules))
 
   (with-egraph
-   (lambda (egg-graph)
-     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
-     (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
+    (lambda (egg-graph)
+      (define node-ids
+        (for/list ([expr (in-list exprs)])
+          (egraph-add-expr egg-graph (expr->egg-expr expr))))
+      (define iter-data
+        (egg-run-rules egg-graph (*node-limit*) irules
+                       node-ids (and precompute? true)))
         
-     (when (egraph-is-unsound-detected egg-graph)
-       (warn 'unsound-rules #:url "faq.html#unsound-rules"
-             "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
+      (when (egraph-is-unsound-detected egg-graph)
+        (warn 'unsound-rules #:url "faq.html#unsound-rules"
+              "Unsound rule application detected in e-graph."
+              "Results from simplify may not be sound."))
         
-        (for ([rule rules])
-             (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-             (when (> count 0)
-                   (timeline-push! 'rules (~a (rule-name rule)) count)))
+      (for ([rule rules])
+        (define count (egraph-get-times-applied egg-graph (rule-name rule)))
+        (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
 
-        (egraph-func egg-graph node-ids iter-data))))
+      (egraph-func egg-graph node-ids iter-data))))
 
 
 (define (stop-reason->string sr)

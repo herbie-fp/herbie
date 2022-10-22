@@ -2,7 +2,7 @@
 
 (require ffi/unsafe ffi/unsafe/define racket/runtime-path)
 
-(require "./to-egg-pattern.rkt" "./egg-interface.rkt")
+(require "egg-interface.rkt")
 
 (module+ test (require rackunit))
 
@@ -63,10 +63,9 @@
 
 (define (make-ffi-rules rules)
   (for/list [(rule rules)]
-    ; (printf "~a -> ~a\n" (irule-input rule) (to-egg-pattern (irule-input rule)))
     (define name (make-raw-string (symbol->string (irule-name rule))))
-    (define left (make-raw-string (to-egg-pattern (irule-input rule))))
-    (define right (make-raw-string (to-egg-pattern (irule-output rule))))
+    (define left (make-raw-string (expr->egg-pattern (irule-input rule))))
+    (define right (make-raw-string (expr->egg-pattern (irule-output rule))))
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
@@ -118,55 +117,66 @@
         (let ([expr (egg-parsed->expr parse (egraph-data-egg->herbie-dict eg-data))])
           (loop (read port) (cons expr exprs))))))
 
-(define (egg-parsed->expr parsed rename-dict)
-  (match parsed
-    [`(Rewrite=> ,rule ,expr)
-      `(Rewrite=> ,rule ,(egg-parsed->expr expr rename-dict))]
-    [`(Rewrite<= ,rule ,expr)
-      `(Rewrite<= ,rule ,(egg-parsed->expr expr rename-dict))]
-    [(list first-parsed second-parsed rest-parsed ...)
-     (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
-      (if (equal? second-parsed 'real)
-          first-parsed
-          (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
-      (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
-    [(or (? number?))
-     parsed]
-    [else
-     (hash-ref rename-dict parsed)]))
+(define (egg-parsed->expr expr rename-dict)
+  (let loop ([expr expr])
+    (match expr
+      [(list 'Rewrite=> rule expr)
+       (list 'Rewrite=> rule (loop expr))]
+      [(list 'Rewrite<= rule expr)
+       (list Rewrite<= rule (loop expr))]
+      [(list op prec args ...)
+       (cons op (cons prec (map loop args)))]
+      [(? number?) expr]
+      [else (hash-ref rename-dict expr)])))
 
-;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
+;; takes a Racket expression and returns an egg pattern
+(define (expr->egg-pattern expr)
+  (match expr
+    [(list op prec args ...)
+     (string-join
+      (cons (~a op) (cons (~a prec) (map expr->egg-pattern args)))
+      " "
+      #:before-first "("
+      #:after-last ")")]
+    [(? symbol?)
+     (format "?~a" expr)]
+    [(? number?)
+     (number->string expr)]
+    [_
+     (error "expected list, number, or symbol: " expr)]))
+
+;; returns a pair of the string representing an egg expr,
+;; and updates the hash tables in the egraph
 (define (expr->egg-expr expr egg-data)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
   (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict))
 
 (define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
-  (cond
-    [(list? expr)
-     (string-join
-      (append
-       (extract-operator (first expr))
-       (map (lambda (e) (expr->egg-expr-helper e egg->herbie-dict herbie->egg-dict))
-            (rest expr)))
-      " "
-      #:before-first "("
-      #:after-last ")")]
-    [(and (number? expr) (exact? expr) (real? expr))
-     (number->string expr)]
-    [(hash-has-key? herbie->egg-dict expr)
-     (symbol->string (hash-ref herbie->egg-dict expr))]
-    [else
-     (define new-key (format "h~a" (number->string (hash-count herbie->egg-dict))))
-     (define new-key-symbol (string->symbol new-key))
+  (let loop ([expr expr])
+    (match expr
+      [(list op prec args ...)
+       (string-join
+         (cons (~a op) (cons (~a prec) (map loop args)))
+         " "
+         #:before-first "("
+         #:after-last ")")]
+      [(? number?)
+       (number->string expr)]
+      [(? (curry hash-has-key? herbie->egg-dict))
+       (symbol->string (hash-ref herbie->egg-dict expr))]
+      [else
+       (define new-key (format "h~a" (hash-count herbie->egg-dict)))
+       (define new-key-symbol (string->symbol new-key))
          
-     (hash-set! herbie->egg-dict
-                expr
-                new-key-symbol)
-     (hash-set! egg->herbie-dict
-                new-key-symbol
-                expr)
-      new-key]))
+       (hash-set! herbie->egg-dict
+                  expr
+                  new-key-symbol)
+       (hash-set! egg->herbie-dict
+                  new-key-symbol
+                  expr)
+
+       new-key])))
 
 (struct egg-add-exn exn:fail ())
 
@@ -191,14 +201,14 @@
 (module+ test
 
   (define test-exprs
-    (list (cons '(+ y x) "(+ real h0 h1)")
-          (cons '(+ x y) "(+ real h1 h0)")
-          (cons '(- 2 (+ x y)) "(- real 2 (+ real h1 h0))")
-          (cons '(- z (+ (+ y 2) x)) "(- real h2 (+ real (+ real h0 2) h1))")
-          (cons '(*.f64 x y) "(* f64 h1 h0)")
-          (cons '(+.f32 (*.f32 x y) 2) "(+ f32 (* f32 h1 h0) 2)")
-          (cons '(cos.f64 (PI.f64)) "(cos f64 (PI f64))")
-          (cons '(if (TRUE) x y) "(if real (TRUE real) h1 h0)")))
+    (list (cons '(+ y x) "(+ h0 h1)")
+          (cons '(+ x y) "(+ h1 h0)")
+          (cons '(- 2 (+ x y)) "(- 2 (+ h1 h0))")
+          (cons '(- z (+ (+ y 2) x)) "(- h2 (+ (+ h0 2) h1))")
+          (cons '(* x y) "(* h1 h0)")
+          (cons '(+ (* x y) 2) "(+ (* h1 h0) 2)")
+          (cons '(cos (PI)) "(cos (PI))")
+          (cons '(if (TRUE) x y) "(if (TRUE) h1 h0)")))
 
   (define nil
     (with-egraph
