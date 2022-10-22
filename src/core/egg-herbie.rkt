@@ -15,35 +15,26 @@
          (struct-out iteration-data))
 
 (define (extract-operator op)
-  (if (symbol? op)
-      (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s op))
-        [(list _ op* prec)  (list op* prec)]
-        [#f (list (~s op) "real")])
-      #f))
+  (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s op))
+    [(list _ op* prec)  (list op* prec)]
+    [#f (list (~s op) "real")]))
 
 (define (to-egg-pattern datum)
-  (cond
-    [(list? datum)
-     (string-join
-      (append
-       (extract-operator (first datum))
-       (map (lambda (sub-expr) (to-egg-pattern sub-expr))
-            (rest datum)))
-      " "
-      #:before-first "("
-      #:after-last ")")]
-    [(symbol? datum)
+  (match datum
+    [(list (? symbol? head) args ...)
+     (match-define (list op prec) (extract-operator head))
+     (format "(~a ~a ~a)" op prec
+             (string-join (map to-egg-pattern args) " "))]
+    [(? symbol?)
      (format "?~a" datum)]
-    [(number? datum)
-     (number->string datum)]
-    [else
-     (error "expected list, number, or symbol")]))
+    [(? number?)
+     (number->string datum)]))
 
 (module+ test
   (check-equal? (to-egg-pattern `(+ a b)) "(+ real ?a ?b)")
   (check-equal? (to-egg-pattern `(/ c (- 2 a))) "(/ real ?c (- real 2 ?a))")
-  (check-equal? (to-egg-pattern `(cos.f64 (PI.f64))) "(cos f64 (PI f64))")
-  (check-equal? (to-egg-pattern `(if (TRUE) x y)) "(if real (TRUE real) ?x ?y)"))
+  (check-equal? (to-egg-pattern `(cos.f64 (PI.f64))) "(cos f64 (PI f64 ))")
+  (check-equal? (to-egg-pattern `(if (TRUE) x y)) "(if real (TRUE real ) ?x ?y)"))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
@@ -172,14 +163,12 @@
 (define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
   (cond
     [(list? expr)
-     (string-join
-      (append
-       (extract-operator (first expr))
-       (map (lambda (e) (expr->egg-expr-helper e egg->herbie-dict herbie->egg-dict))
-            (rest expr)))
-      " "
-      #:before-first "("
-      #:after-last ")")]
+     (match-define (list op prec) (extract-operator (first expr)))
+     (format "(~a ~a ~a)" op prec
+             (string-join
+              (map (lambda (e) (expr->egg-expr-helper e egg->herbie-dict herbie->egg-dict))
+                   (rest expr))
+              " "))]
     [(and (number? expr) (exact? expr) (real? expr))
      (number->string expr)]
     [(hash-has-key? herbie->egg-dict expr)
@@ -225,17 +214,16 @@
           (cons '(- z (+ (+ y 2) x)) "(- real h2 (+ real (+ real h0 2) h1))")
           (cons '(*.f64 x y) "(* f64 h1 h0)")
           (cons '(+.f32 (*.f32 x y) 2) "(+ f32 (* f32 h1 h0) 2)")
-          (cons '(cos.f64 (PI.f64)) "(cos f64 (PI f64))")
-          (cons '(if (TRUE) x y) "(if real (TRUE real) h1 h0)")))
+          (cons '(cos.f64 (PI.f64)) "(cos f64 (PI f64 ))")
+          (cons '(if (TRUE) x y) "(if real (TRUE real ) h1 h0)")))
 
-  (define nil
-    (with-egraph
-     (lambda (egg-graph)
-      (for/list ([(in expected-out) (in-dict test-exprs)])
-        (let* ([out (expr->egg-expr in egg-graph)]
-               [computed-in (egg-expr->expr out egg-graph)])
-          (check-equal? out expected-out)
-          (check-equal? computed-in in))))))
+  (with-egraph
+   (lambda (egg-graph)
+     (for ([(in expected-out) (in-dict test-exprs)])
+       (let* ([out (expr->egg-expr in egg-graph)]
+              [computed-in (egg-expr->expr out egg-graph)])
+         (check-equal? out expected-out)
+         (check-equal? computed-in in)))))
 
   (define extended-expr-list
     (list
@@ -246,12 +234,9 @@
      '(* 23/54 r)
      '(+ 3/2 1.4)))
 
-  (define extended-results
-   (with-egraph
-    (lambda (egg-graph)
-      (for/list ([expr
-                  extended-expr-list])
-        (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph)))))
-  (for ([res extended-results] [expected extended-expr-list])
-    (check-equal? res expected))
-  )
+  (with-egraph
+   (lambda (egg-graph)
+     (for ([expr extended-expr-list])
+       (check-equal? 
+        (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph)
+        expr)))))
