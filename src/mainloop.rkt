@@ -1,9 +1,8 @@
 #lang racket
 
-(require "common.rkt" "errors.rkt" "timeline.rkt"
-         "syntax/rules.rkt" "syntax/types.rkt"
-         "alternative.rkt" "conversions.rkt"
-         "patch.rkt" "points.rkt" "programs.rkt"
+(require "common.rkt" "errors.rkt" "alternative.rkt" "timeline.rkt"
+         "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt"
+         "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
          "ground-truth.rkt" "preprocess.rkt" "symmetry.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
          "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt")

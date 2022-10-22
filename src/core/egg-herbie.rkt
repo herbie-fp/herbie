@@ -12,8 +12,8 @@
 
 (define (extract-operator op)
   (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s op))
-    [(list _ op* prec)  (list op* prec)]
-    [#f (list (~s op) "real")]))
+    [(list _ op* prec)  (list (string->symbol op*) (string->symbol prec))]
+    [#f (list op 'real)]))
 
 (define (pattern->egg datum)
   (match datum

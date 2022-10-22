@@ -1,8 +1,9 @@
 #lang racket
 
 (require math/bigfloat racket/random)
-(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
-         "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "regimes.rkt" "../float.rkt"
+(require "../common.rkt" "../alternative.rkt" "../timeline.rkt" "../errors.rkt"
+         "../syntax/types.rkt" "../syntax/syntax.rkt"
+         "../programs.rkt" "../points.rkt" "regimes.rkt" "../float.rkt"
          "../pretty-print.rkt" "../ground-truth.rkt")
 
 (provide combine-alts)
