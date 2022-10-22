@@ -1,8 +1,7 @@
 #lang racket
 
-(require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/rules.rkt" "../alternative.rkt")
+         "../syntax/rules.rkt" "../alternative.rkt" "egg-herbie.rkt")
 
 (provide simplify-expr simplify-batch get-proof
          rules->irules egg-run-rules

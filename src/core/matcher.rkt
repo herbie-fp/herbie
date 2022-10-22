@@ -1,7 +1,6 @@
 #lang racket
 
-(require egg-herbie)
-(require "../common.rkt" "../programs.rkt" "../alternative.rkt"
+(require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
          "../syntax/rules.rkt" "../syntax/types.rkt" "../timeline.rkt" "simplify.rkt")
 
 (provide pattern-match rewrite-expressions change-apply)
