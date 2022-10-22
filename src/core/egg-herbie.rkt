@@ -2,16 +2,17 @@
 
 (require egg-herbie)
 (require ffi/unsafe ffi/unsafe/define)
-(require "../syntax/rules.rkt")
+(require "../syntax/rules.rkt" "../timeline.rkt")
 
 (module+ test (require rackunit))
 
 (provide egraph-run egraph-add-expr with-egraph
          egraph-get-simplest egraph-get-variants
          egg-expr->expr egg-exprs->exprs
-         make-ffi-rules free-ffi-rules egraph-get-cost
-         egraph-stop-reason egraph-is-unsound-detected
+         make-ffi-rules free-ffi-rules
+         egraph-is-unsound-detected
          egraph-get-times-applied egraph-get-proof
+         egg-run-rules
          (struct-out iteration-data))
 
 (define (extract-operator op)
@@ -63,10 +64,10 @@
 (define (egraph-stop-reason egraph-data)
   (define sr (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data)))
   (match sr
-   [0 'saturated]
-   [1 'iter-limit]
-   [2 'node-limit]
-   [3 'unsound]
+   [0 "saturated"]
+   [1 "iter limit"]
+   [2 "node limit"]
+   [3 "unsound"]
    [else (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
 (define (make-raw-string s)
@@ -240,3 +241,25 @@
        (check-equal? 
         (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph)
         expr)))))
+
+(define (egg-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
+  (define ffi-rules (make-ffi-rules rules))
+  (define start-time (current-inexact-milliseconds))
+
+  #;(define (timeline-cost iter)
+      (define cnt (egraph-get-size egg-graph)) 
+      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
+  
+  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
+  (let loop ([iter iteration-data] [counter 0] [time 0])
+    (unless (null? iter)
+      (define cnt (iteration-data-num-nodes (first iter)))
+      (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph node-id counter)) node-ids)))
+      (define new-time (+ time (iteration-data-time (first iter))))
+      (timeline-push! 'egraph counter cnt cost new-time)
+      (loop (rest iter) (+ counter 1) new-time)))
+
+  (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
+  
+  (free-ffi-rules ffi-rules)
+  iteration-data)

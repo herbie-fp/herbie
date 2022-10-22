@@ -4,7 +4,6 @@
          "../syntax/rules.rkt" "../alternative.rkt" "egg-herbie.rkt")
 
 (provide simplify-expr simplify-batch get-proof
-         egg-run-rules
          (struct-out simplify-input))
 
 (module+ test
@@ -91,36 +90,6 @@
 
         (egraph-func egg-graph node-ids iter-data))))
 
-
-(define (stop-reason->string sr)
-  (match sr
-   ['saturated  "saturated"]
-   ['iter-limit "iter limit"]
-   ['node-limit "node limit"]
-   ['unsound    "unsound"]))
-
-(define (egg-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
-  (define ffi-rules (make-ffi-rules rules))
-  (define start-time (current-inexact-milliseconds))
-
-  #;(define (timeline-cost iter)
-      (define cnt (egraph-get-size egg-graph)) 
-      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
-  
-  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
-  (let loop ([iter iteration-data] [counter 0] [time 0])
-    (unless (null? iter)
-      (define cnt (iteration-data-num-nodes (first iter)))
-      (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph node-id counter)) node-ids)))
-      (define new-time (+ time (iteration-data-time (first iter))))
-      (timeline-push! 'egraph counter cnt cost new-time)
-      (loop (rest iter) (+ counter 1) new-time)))
-
-  (define sr (egraph-stop-reason egg-graph))
-  (timeline-push! 'stop (stop-reason->string sr) 1)
-  
-  (free-ffi-rules ffi-rules)
-  iteration-data)
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")
