@@ -204,8 +204,14 @@
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")
-  (*needed-reprs* (list (get-representation 'binary64) (get-representation 'binary32)))
+  (define f64-repr (get-representation 'binary64))
+  (define f32-repr (get-representation 'binary32))
   (define all-simplify-rules (*simplify-rules*))
+  (define vars '(x a b c))
+
+  ;; set parameters
+  (*needed-reprs* (list f64-repr f32-repr))
+  (*context* (context vars f64-repr (map (const f64-repr) vars)))
 
   ;; check that no rules in simplify match on bare variables
   ;; this would be bad because we don't want to match type-specific operators on a value of a different type

@@ -204,14 +204,14 @@
 (module+ test
 
   (define test-exprs
-    (list (cons '(+ y x) "(+ h0 h1)")
-          (cons '(+ x y) "(+ h1 h0)")
-          (cons '(- 2 (+ x y)) "(- 2 (+ h1 h0))")
-          (cons '(- z (+ (+ y 2) x)) "(- h2 (+ (+ h0 2) h1))")
-          (cons '(* x y) "(* h1 h0)")
-          (cons '(+ (* x y) 2) "(+ (* h1 h0) 2)")
-          (cons '(cos (PI)) "(cos (PI))")
-          (cons '(if (TRUE) x y) "(if (TRUE) h1 h0)")))
+    (list (cons '(+ p0 y x) "(+ p0 h0 h1)")
+          (cons '(+ p0 x y) "(+ p0 h1 h0)")
+          (cons '(- p0 2 (+ p0 x y)) "(- p0 2 (+ p0 h1 h0))")
+          (cons '(- p0 z (+ p0 (+ p0 y 2) x)) "(- p0 h2 (+ p0 (+ p0 h0 2) h1))")
+          (cons '(* p0 x y) "(* p0 h1 h0)")
+          (cons '(+ p0 (* p0 x y) 2) "(+ p0 (* p0 h1 h0) 2)")
+          (cons '(cos p0 (PI p0)) "(cos p0 (PI p0))")
+          (cons '(if real (TRUE p0) x y) "(if real (TRUE p0) h1 h0)")))
 
   (define nil
     (with-egraph

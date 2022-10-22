@@ -117,9 +117,10 @@
             (match-define (rule rname input output _ otype) r)
             (cond
               [(equal? otype type)
+               (define rname* (sym-append rname '- (representation-name repr)))
                (define input* (desugar-program input sugar-ctx))
                (define output* (desugar-program output sugar-ctx))
-               (define r* (rule rname input* output* var-ctx*
+               (define r* (rule rname* input* output* var-ctx*
                                 (repr-of-rule input* output* var-ctx*)))
                (cons r* rules*)]
               [else

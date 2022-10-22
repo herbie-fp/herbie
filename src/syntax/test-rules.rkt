@@ -70,6 +70,7 @@
 (module+ test
   (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
+
   (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
     (test-case (~a (rule-name test-rule))
       (check-rule-correct test-rule)))
