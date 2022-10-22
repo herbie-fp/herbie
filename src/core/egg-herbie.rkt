@@ -6,12 +6,9 @@
 
 (module+ test (require rackunit))
 
-(provide egraph-run egraph-add-expr with-egraph
+(provide with-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
-         egraph-get-proof
-         egraph-is-unsound-detected
-         egraph-run-rules
-         (struct-out iteration-data))
+         egraph-get-proof egraph-is-unsound-detected)
 
 (define (extract-operator op)
   (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s op))
