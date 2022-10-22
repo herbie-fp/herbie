@@ -15,22 +15,21 @@
     [(list _ op* prec)  (list op* prec)]
     [#f (list (~s op) "real")]))
 
-(define (to-egg-pattern datum)
+(define (pattern->egg datum)
   (match datum
     [(list (? symbol? head) args ...)
      (match-define (list op prec) (extract-operator head))
-     (format "(~a ~a ~a)" op prec
-             (string-join (map to-egg-pattern args) " "))]
+     `(,op ,prec ,@(map pattern->egg args))]
     [(? symbol?)
-     (format "?~a" datum)]
+     (string->symbol (format "?~a" datum))]
     [(? number?)
-     (number->string datum)]))
+     datum]))
 
 (module+ test
-  (check-equal? (to-egg-pattern `(+ a b)) "(+ real ?a ?b)")
-  (check-equal? (to-egg-pattern `(/ c (- 2 a))) "(/ real ?c (- real 2 ?a))")
-  (check-equal? (to-egg-pattern `(cos.f64 (PI.f64))) "(cos f64 (PI f64 ))")
-  (check-equal? (to-egg-pattern `(if (TRUE) x y)) "(if real (TRUE real ) ?x ?y)"))
+  (check-equal? (pattern->egg `(+ a b)) '(+ real ?a ?b))
+  (check-equal? (pattern->egg `(/ c (- 2 a))) '(/ real ?c (- real 2 ?a)))
+  (check-equal? (pattern->egg `(cos.f64 (PI.f64))) '(cos f64 (PI f64)))
+  (check-equal? (pattern->egg `(if (TRUE) x y)) '(if real (TRUE real) ?x ?y)))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
@@ -66,7 +65,7 @@
    [else (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
 (define (make-raw-string s)
-  (define b (string->bytes/utf-8 s))
+  (define b (string->bytes/utf-8 (~a s)))
   (define n (bytes-length b))
   (define ptr (malloc 'raw (+ n 1)))
   (memcpy ptr b n)
@@ -79,8 +78,8 @@
 (define (make-ffi-rules rules)
   (for/list ([rule (in-list rules)])
     (define name (make-raw-string (symbol->string (rule-name rule))))
-    (define left (make-raw-string (to-egg-pattern (rule-input rule))))
-    (define right (make-raw-string (to-egg-pattern (rule-output rule))))
+    (define left (make-raw-string (pattern->egg (rule-input rule))))
+    (define right (make-raw-string (pattern->egg (rule-output rule))))
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
@@ -125,12 +124,8 @@
 ;; Like `egg-expr->expr` but expected the string to
 ;; parse into a list of S-exprs
 (define (egg-exprs->exprs exprs eg-data)
-  (define port (open-input-string exprs))
-  (let loop ([parse (read port)] [exprs '()])
-    (if (eof-object? parse)
-        (reverse exprs)
-        (let ([expr (egg-parsed->expr parse (egraph-data-egg->herbie-dict eg-data))])
-          (loop (read port) (cons expr exprs))))))
+  (for/list ([egg-expr (in-port read (open-input-string exprs))])
+    (egg-parsed->expr egg-expr (egraph-data-egg->herbie-dict eg-data))))
 
 (define (egg-parsed->expr parsed rename-dict)
   (match parsed
@@ -138,15 +133,15 @@
       `(Rewrite=> ,rule ,(egg-parsed->expr expr rename-dict))]
     [`(Rewrite<= ,rule ,expr)
       `(Rewrite<= ,rule ,(egg-parsed->expr expr rename-dict))]
-    [(list first-parsed second-parsed rest-parsed ...)
-     (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
-      (if (equal? second-parsed 'real)
-          first-parsed
-          (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
-      (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
-    [(or (? number?))
-     parsed]
-    [else
+    [(list op prec rest-parsed ...)
+     (define new-op
+       (if (equal? prec 'real)
+           op
+           (string->symbol (format "~s.~s" op prec))))
+     (cons new-op (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
+    [(? number? num)
+     num]
+    [_
      (hash-ref rename-dict parsed)]))
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
