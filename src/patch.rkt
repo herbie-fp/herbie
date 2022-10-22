@@ -222,24 +222,26 @@
   (when (flag-set? 'generate 'simplify)
     (timeline-event! 'simplify)
     (define children (^final^))
+    (define variables (context-vars (*context*)))
 
     (define to-simplify
       (for/list ([child (in-list children)])
         (program-body (alt-program child))))
 
-    (define input
+    (define input-struct
       (simplify-input to-simplify empty (*simplify-rules*) true))
     (define simplification-options
-      (simplify-batch input))
-
-    (define simplify-hash
-      (make-immutable-hash (map cons to-simplify simplification-options)))
+      (simplify-batch input-struct))
 
     (define simplified
       (remove-duplicates
-       (apply append
-              (for/list ([child (in-list children)])
-                (make-simplification-combinations child (list '(2)) simplify-hash input)))
+       (for/list ([child (in-list children)] [input (in-list to-simplify)]
+                  [outputs (in-list simplification-options)]
+                  #:when true
+                  [output outputs])
+         (if (equal? input output)
+             child
+             (alt `(λ ,variables ,output) `(simplify (2) ,input-struct #f #f) (list child))))
        alt-equal?))
 
     ; dedup for cache

@@ -5,7 +5,6 @@
          "../syntax/rules.rkt" "../alternative.rkt")
 
 (provide simplify-expr simplify-batch get-proof
-         make-simplification-combinations
          rules->irules egg-run-rules
          (struct-out simplify-input))
 
@@ -31,33 +30,6 @@
 (define (rules->irules rules)
   (for/list ([rule rules])
     (irule (rule-name rule) (rule-input rule) (rule-output rule))))
-
-;; given an alt, locations, and a hash from expr to simplification options
-;; make all combinations of the alt using the simplification options available
-(define (make-simplification-combinations child locs simplify-hash input)
-  ;; use this for simplify streaming
-  ;; (define location-options
-  ;;   (apply cartesian-product
-  ;;    (for/list ([loc locs])
-  ;;      (hash-ref simplify-hash (location-get loc (alt-program child)))))))
-  (define location-options
-    (apply cartesian-product
-     (for/list ([loc locs])
-       (list (last (hash-ref simplify-hash (location-get loc (alt-program child))))))))
-  
-  (define options
-    (for/list ([option location-options])
-      (for/fold ([child child]) ([replacement option] [loc locs])
-        (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
-        (if (not (equal? (alt-program child) child*))
-            (alt child* `(simplify ,loc ,input #f #f) (list child))
-            child))))
-
-  ; Simplify-streaming lite
-  (for/fold ([all '()] #:result (reverse all)) ([option (in-list options)])
-    (if (alt-equal? option child)
-        (cons option all)
-        (append (list option child) all))))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
