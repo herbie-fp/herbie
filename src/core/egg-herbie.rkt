@@ -98,7 +98,7 @@
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
-  (for [(rule rules)]
+  (for ([rule (in-list rules)])
     (free (FFIRule-name rule))
     (free (FFIRule-left rule))
     (free (FFIRule-right rule))
