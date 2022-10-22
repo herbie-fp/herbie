@@ -183,7 +183,7 @@
   (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (define res (cast pointer _pointer _string/utf-8))
   (destroy_string pointer)
-  (for ([line (in-list (string-split res "\n"))])
+  (for/list ([line (in-list (string-split res "\n"))])
     (egg-expr->expr line egraph-data)))
 
 ;; result function is a function that takes the ids of the nodes
