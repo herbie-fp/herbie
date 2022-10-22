@@ -4,31 +4,15 @@
          "../syntax/rules.rkt" "../alternative.rkt" "egg-herbie.rkt")
 
 (provide simplify-expr simplify-batch get-proof
-         rules->irules egg-run-rules
+         egg-run-rules
          (struct-out simplify-input))
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
   (load-herbie-plugins))
 
-;; One module to rule them all, the great simplify. It uses egg-herbie
-;; to simplify an expression as much as possible without making
-;; unnecessary changes. We do this by creating an egraph, saturating
-;; it partially, then extracting the simplest expression from it.
-;;
-;; Simplify makes only one guarantee: that the input is mathematically
-;; equivalent to the output. For any exact x, evaluating the input on
-;; x will yield the same expression as evaluating the output on x.
-
-;; prefab struct used to send rules to egg-herbie
-(struct irule (name input output) #:prefab)
-
 ;; The input and output of simplify- simplify is re-run when proofs are needed
 (struct simplify-input (exprs proofs rules precompute?))
-
-(define (rules->irules rules)
-  (for/list ([rule rules])
-    (irule (rule-name rule) (rule-input rule) (rule-output rule))))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
@@ -90,12 +74,11 @@
   (define rules (simplify-input-rules input))
   
   (timeline-push! 'method "egg-herbie")
-  (define irules (rules->irules rules))
 
   (with-egraph
    (lambda (egg-graph)
      (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
-     (define iter-data (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true)))
+     (define iter-data (egg-run-rules egg-graph (*node-limit*) rules node-ids (and precompute? true)))
         
      (when (egraph-is-unsound-detected egg-graph)
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
@@ -116,8 +99,8 @@
    ['node-limit "node limit"]
    ['unsound    "unsound"]))
 
-(define (egg-run-rules egg-graph node-limit irules node-ids precompute? #:limit [iter-limit #f])
-  (define ffi-rules (make-ffi-rules irules))
+(define (egg-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
+  (define ffi-rules (make-ffi-rules rules))
   (define start-time (current-inexact-milliseconds))
 
   #;(define (timeline-cost iter)

@@ -1,13 +1,14 @@
 #lang racket
 
-(require ffi/unsafe ffi/unsafe/define racket/runtime-path)
 (require egg-herbie)
+(require ffi/unsafe ffi/unsafe/define)
+(require "../syntax/rules.rkt")
 
 (module+ test (require rackunit))
 
 (provide egraph-run egraph-add-expr with-egraph
          egraph-get-simplest egraph-get-variants
-         egg-expr->expr egg-exprs->exprs egg-add-exn?
+         egg-expr->expr egg-exprs->exprs
          make-ffi-rules free-ffi-rules egraph-get-cost
          egraph-stop-reason egraph-is-unsound-detected
          egraph-get-times-applied egraph-get-proof
@@ -47,8 +48,6 @@
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
-;; interface struct for accepting rules
-(struct irule (name input output) #:prefab)
 (struct iteration-data (num-nodes num-eclasses time))
 
 (define (egraph-get-simplest egraph-data node-id iteration)
@@ -92,10 +91,10 @@
                             (make-raw-string (symbol->string rule-name))))
 
 (define (make-ffi-rules rules)
-  (for/list [(rule rules)]
-    (define name (make-raw-string (symbol->string (irule-name rule))))
-    (define left (make-raw-string (to-egg-pattern (irule-input rule))))
-    (define right (make-raw-string (to-egg-pattern (irule-output rule))))
+  (for/list ([rule (in-list rules)])
+    (define name (make-raw-string (symbol->string (rule-name rule))))
+    (define left (make-raw-string (to-egg-pattern (rule-input rule))))
+    (define right (make-raw-string (to-egg-pattern (rule-output rule))))
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
