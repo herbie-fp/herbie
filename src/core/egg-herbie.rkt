@@ -8,11 +8,9 @@
 
 (provide egraph-run egraph-add-expr with-egraph
          egraph-get-simplest egraph-get-variants
-         egg-expr->expr egg-exprs->exprs
-         make-ffi-rules free-ffi-rules
-         egraph-is-unsound-detected
          egraph-get-proof
-         egg-run-rules
+         egraph-is-unsound-detected
+         egraph-run-rules
          (struct-out iteration-data))
 
 (define (extract-operator op)
@@ -46,14 +44,14 @@
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
-  str)
+  (egg-expr->expr str egraph-data))
 
 (define (egraph-get-variants egraph-data node-id orig-expr)
   (define expr-str (expr->egg-expr orig-expr egraph-data))
   (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
-  str)
+  (egg-exprs->exprs str egraph-data))
 
 (define (egraph-get-cost egraph-data node-id iteration)
   (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
@@ -193,7 +191,8 @@
   (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (define res (cast pointer _pointer _string/utf-8))
   (destroy_string pointer)
-  res)
+  (for ([line (in-list (string-split res "\n"))])
+    (egg-expr->expr line egraph-data)))
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)
@@ -243,7 +242,7 @@
 
 (define ffi-rules-cache #f)
 
-(define (egg-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
+(define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
   (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) rules))
     (when ffi-rules-cache (free-ffi-rules (cdr ffi-rules-cache)))
     (set! ffi-rules-cache (cons rules (make-ffi-rules rules))))
@@ -261,8 +260,8 @@
 
   (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
 
-  (for ([rule (in-list ffi-rules)])
-    (define count (egraph-get-times-applied egg-graph rule))
+  (for ([ffi-rule (in-list ffi-rules)] [rule (in-list rules)])
+    (define count (egraph-get-times-applied egg-graph ffi-rule))
     (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
 
   iteration-data)

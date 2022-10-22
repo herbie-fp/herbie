@@ -94,7 +94,7 @@
       (with-egraph
         (λ (egg-graph)
           (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
-          (define iter-data (egg-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t))
+          (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t))
           (cond
            [(egraph-is-unsound-detected egg-graph)
             ; unsoundness detected, fallback
@@ -117,8 +117,7 @@
               (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
                 (define output (egraph-get-variants egg-graph id expr))
-                (define extracted (egg-exprs->exprs output egg-graph))
-                (for/list ([variant (remove-duplicates extracted)])
+                (for/list ([variant (remove-duplicates output)])
                   (list (change egg-rule root-loc (list (cons 'x variant)))))))
             (λ () variants)]))))
     (result-thunk)))

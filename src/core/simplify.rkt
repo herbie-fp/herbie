@@ -18,16 +18,14 @@
   (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
 
 
-
 (define (get-proof input start end)
   (run-simplify-input
     input
     (lambda (egg-graph node-ids iter-data)
-         (begin
-           (define proof (egraph-get-proof egg-graph start end))
-           (when (equal? proof "")
-             (error (format "Failed to produce proof for ~a to ~a" start end)))
-           (translate-proof proof egg-graph)))))
+      (define proof (egraph-get-proof egg-graph start end))
+      (when (null? proof)
+        (error (format "Failed to produce proof for ~a to ~a" start end)))
+      proof)))
 
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
@@ -44,15 +42,13 @@
 
 
   (define results
-          (run-simplify-input
-            input
-            (lambda (egg-graph node-ids iter-data)
-                 (map (lambda (id)
-                        (for/list ([iter (in-range (length iter-data))])
-                                  (egg-expr->expr
-                                   (egraph-get-simplest egg-graph id iter)
-                                   egg-graph)))
-                 node-ids))))
+    (run-simplify-input
+     input
+     (lambda (egg-graph node-ids iter-data)
+       (map (lambda (id)
+              (for/list ([iter (in-range (length iter-data))])
+                (egraph-get-simplest egg-graph id iter)))
+            node-ids))))
 
   (define out
     (for/list ([result results] [expr (simplify-input-exprs input)])
@@ -60,11 +56,6 @@
   (timeline-push! 'outputs (map ~a (apply append out)))
     
   out)
-
-(define (translate-proof proof-str egg-graph)
-  (map (lambda (s)
-           (egg-expr->expr s egg-graph))
-       (string-split proof-str "\n")))
 
 (define (run-simplify-input input egraph-func)
   (define exprs (simplify-input-exprs input))
@@ -77,7 +68,7 @@
   (with-egraph
    (lambda (egg-graph)
      (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
-     (define iter-data (egg-run-rules egg-graph (*node-limit*) rules node-ids (and precompute? true)))
+     (define iter-data (egraph-run-rules egg-graph (*node-limit*) rules node-ids (and precompute? true)))
         
      (when (egraph-is-unsound-detected egg-graph)
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
