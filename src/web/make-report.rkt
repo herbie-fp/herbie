@@ -67,15 +67,9 @@
   (cond
    [(not dir) (void)]
    [(> (length pareto-points) 1) ; generate the scatterplot if necessary
-    (call-with-output-file (build-path dir "cost-accuracy.png")
-      #:exists 'replace
-      (λ (out) (make-full-cost-accuracy-plot pareto-max pareto-start pareto-points out)))
     (call-with-output-file (build-path dir "cost-accuracy.json")
       #:exists 'replace
-      (λ (out) (make-full-cost-accuracy-json pareto-max pareto-start pareto-points out)))]
-   [else
-    (when (file-exists? (build-path dir "cost-accuracy.png"))
-      (delete-file (build-path dir "cost-accuracy.png")))])
+      (λ (out) (make-full-cost-accuracy-json pareto-max pareto-start pareto-points out)))])
 
   (define table-labels
     '("Test" "Start" "Result" "Target" "Time"))
@@ -183,8 +177,6 @@
      ,(if (> (length pareto-points) 1)
           `(section ([id "merged-cost-accuracy"])
             (h1 "Error")
-            (div ([id "pareto-content"]))
-            (img ([width "800"] [height "300"] [title "cost-accuracy"]
-                  [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
+            (div ([id "pareto-content"])))
            "")))
    out))
