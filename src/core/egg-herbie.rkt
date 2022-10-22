@@ -56,13 +56,12 @@
   (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
 
 (define (egraph-stop-reason egraph-data)
-  (define sr (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data)))
-  (match sr
+  (match (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data))
    [0 "saturated"]
    [1 "iter limit"]
    [2 "node limit"]
    [3 "unsound"]
-   [else (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
+   [sr (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
 (define (make-raw-string s)
   (define b (string->bytes/utf-8 s))
