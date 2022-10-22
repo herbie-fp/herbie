@@ -11,7 +11,7 @@
          egg-expr->expr egg-exprs->exprs
          make-ffi-rules free-ffi-rules
          egraph-is-unsound-detected
-         egraph-get-times-applied egraph-get-proof
+         egraph-get-proof
          egg-run-rules
          (struct-out iteration-data))
 
@@ -78,9 +78,8 @@
   (ptr-set! ptr _byte n 0)
   ptr)
 
-(define (egraph-get-times-applied egraph-data rule-name)
-  (egraph_get_times_applied (egraph-data-egraph-pointer egraph-data)
-                            (make-raw-string (symbol->string rule-name))))
+(define (egraph-get-times-applied egraph-data rule)
+  (egraph_get_times_applied (egraph-data-egraph-pointer egraph-data) (FFIRule-name rule)))
 
 (define (make-ffi-rules rules)
   (for/list ([rule (in-list rules)])
@@ -242,15 +241,16 @@
         (egg-expr->expr (expr->egg-expr expr egg-graph) egg-graph)
         expr)))))
 
-(define (egg-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
-  (define ffi-rules (make-ffi-rules rules))
-  (define start-time (current-inexact-milliseconds))
+(define ffi-rules-cache #f)
 
-  #;(define (timeline-cost iter)
-      (define cnt (egraph-get-size egg-graph)) 
-      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
-  
+(define (egg-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
+  (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) rules))
+    (when ffi-rules-cache (free-ffi-rules (cdr ffi-rules-cache)))
+    (set! ffi-rules-cache (cons rules (make-ffi-rules rules))))
+  (define ffi-rules (cdr ffi-rules-cache))
+
   (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
+
   (let loop ([iter iteration-data] [counter 0] [time 0])
     (unless (null? iter)
       (define cnt (iteration-data-num-nodes (first iter)))
@@ -260,6 +260,9 @@
       (loop (rest iter) (+ counter 1) new-time)))
 
   (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
-  
-  (free-ffi-rules ffi-rules)
+
+  (for ([rule (in-list ffi-rules)])
+    (define count (egraph-get-times-applied egg-graph rule))
+    (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
+
   iteration-data)

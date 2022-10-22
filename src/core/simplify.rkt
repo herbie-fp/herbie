@@ -82,13 +82,8 @@
      (when (egraph-is-unsound-detected egg-graph)
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
              "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
-        
-        (for ([rule rules])
-             (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-             (when (> count 0)
-                   (timeline-push! 'rules (~a (rule-name rule)) count)))
 
-        (egraph-func egg-graph node-ids iter-data))))
+     (egraph-func egg-graph node-ids iter-data))))
 
 
 (module+ test

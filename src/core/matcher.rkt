@@ -95,9 +95,6 @@
         (λ (egg-graph)
           (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
           (define iter-data (egg-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t))
-          (for ([rule rules])
-            (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-            (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
           (cond
            [(egraph-is-unsound-detected egg-graph)
             ; unsoundness detected, fallback
