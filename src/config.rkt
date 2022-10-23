@@ -78,6 +78,8 @@
 ;; The maximum number of consecutive skipped points for sampling valid points
 (define *max-skipped-points* (make-parameter 100))
 
+(define *max-bsearch-bits* (make-parameter 48))
+
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
