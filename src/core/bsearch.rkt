@@ -6,7 +6,15 @@
          "../programs.rkt" "../points.rkt" "regimes.rkt" "../float.rkt"
          "../pretty-print.rkt" "../ground-truth.rkt")
 
-(provide combine-alts)
+(provide combine-alts (struct-out sp) splitpoints->point-preds)
+
+(module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-builtins))
+
+;; A splitpoint (sp a b pt) means we should use alt a if b < pt
+;; The last splitpoint uses +nan.0 for pt and represents the "else"
+(struct sp (cidx bexpr point) #:prefab)
 
 (define (combine-alts best-option ctx)
   (match-define (option splitindices alts pts expr _) best-option)
@@ -49,8 +57,8 @@
     (define p3 (midpoint p1 p2 repr))
     (define cmp (pred p3))
     (cond
-     [(negative? cmp) (binary-search-floats pred midpoint p2 repr)]
-     [(positive? cmp) (binary-search-floats pred p1 midpoint repr)]
+     [(negative? cmp) (binary-search-floats pred p3 p2 repr)]
+     [(positive? cmp) (binary-search-floats pred p1 p3 repr)]
      ;; cmp = 0 usually means sampling failed, so we give up
      [else (values p1 p2)])]))
 
@@ -145,3 +153,42 @@
      (timeline-push! 'method (if use-binary "binary-search" "left-value"))
      (sp (si-cidx si1) expr split-at))
    (list (sp (si-cidx (last sindices)) expr +nan.0))))
+
+(define (valid-splitpoints? splitpoints)
+  (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1)
+       (nan? (sp-point (last splitpoints)))))
+
+(define/contract (splitpoints->point-preds splitpoints alts ctx)
+  (-> valid-splitpoints? (listof alt?) context? (listof procedure?))
+
+  (define bexpr (sp-bexpr (car splitpoints)))
+  (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
+  (define prog (eval-prog `(λ ,(context-vars ctx*) ,bexpr) 'fl ctx*))
+
+  (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
+    (λ (pt)
+      (define val (apply prog pt))
+      (for/first ([right splitpoints]
+                  #:when (or (equal? (sp-point right) +nan.0)
+                             (<=/total val (sp-point right) (context-repr ctx*))))
+        ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
+        (equal? (sp-cidx right) i)))))
+
+(module+ test
+  (define context (make-debug-context '(x y)))
+  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))])
+    (define sps
+      (list (sp 0 '(/.f64 y x) -inf.0)
+            (sp 2 '(/.f64 y x) 0.0)
+            (sp 0 '(/.f64 y x) +inf.0)
+            (sp 1 '(/.f64 y x) +nan.0)))
+    (match-define (list p0? p1? p2?)
+                  (splitpoints->point-preds
+                    sps
+                    (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
+                    context))
+
+    (check-pred p0? '(0.0 -1.0))
+    (check-pred p2? '(-1.0 1.0))
+    (check-pred p0? '(+1.0 1.0))
+    (check-pred p1? '(0.0 0.0))))
