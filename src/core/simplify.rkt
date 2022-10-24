@@ -2,7 +2,7 @@
 
 (require egg-herbie)
 (require "../alternative.rkt" "../common.rkt" "../errors.rkt" "../programs.rkt"
-         "../timeline.rkt" "../syntax/rules.rkt" "../syntax/types.rkt")
+         "../timeline.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt")
 
 (provide simplify-expr simplify-batch get-proof
          make-simplification-combinations
@@ -94,6 +94,15 @@
        (define-values (ift* ift-type) (loop ift))
        (define-values (iff* iff-type) (loop iff))
        (values (list 'if cond* ift* iff*) ift-type)]
+      [(list (? constant-operator? op) prec)
+       (define repr (get-representation prec))
+       (let/ec k
+           (for/list ([name (operator-all-impls op)])
+             (define rtype (operator-info name 'otype))
+             (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
+               (k (list name) rtype)))
+           (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
+                                        op (representation-name repr)))]
       [(list op prec args ...)
        (define-values (args* types*)
           (for/lists (l1 l2) ([arg (in-list args)])

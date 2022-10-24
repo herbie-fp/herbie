@@ -135,8 +135,10 @@
 ;;
 
 (define (expand-operator impl)
-  (list (impl->operator impl)
-        (representation-name (operator-info impl 'otype))))
+  (define op (impl->operator impl))
+  (define otype (representation-name (operator-info impl 'otype)))
+  (when (equal? otype 'racket) (printf "~a -> ~a ~a\n" impl op otype))
+  (list op otype))
 
 ;; Translates a Herbie rule LHS or RHS into an egg pattern
 ;; suitable for egg-herbie.
