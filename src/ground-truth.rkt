@@ -46,9 +46,11 @@
        (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
        (ival-assert ival-pre 'precondition)
        (ival-assert (ival-not (is-infinite-interval repr y)) 'infinite)
-       (if (ground-truth-require-convergence)
-           (ival-assert (is-samplable-interval repr y) 'unsamplable)
-           (ival #t))
+       (ival-assert
+        (if (ground-truth-require-convergence)
+            (is-samplable-interval repr y)
+            (ival (ival-hi (is-samplable-interval repr y))))
+        'unsamplable)
        y))))
 
 (define (eval-prog-real prog ctx)
