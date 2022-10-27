@@ -149,7 +149,16 @@
       ((set (lo e) (neg ha))
        (set (hi e) (neg la))))
 
-; TODO: Sqrt
+; TODO: better sqrt
+(rule ((= e (Sqrt a))
+       (= la (lo a))
+       (= ha (hi a)))
+      ((set (lo e) 0)))
+
+; Sqrt infer downwards
+(rule ((= e (Sqrt a)))
+      ((set (lo e) 0)))
+
 ; TODO: Cbrt
 
 (rule ((= e (Fabs a))
@@ -243,6 +252,19 @@
 (rewrite (Add (Mul a a) (Neg one))          (Mul (Add a one) (Sub a one)))
 (rewrite (Pow a b) (Mul (Pow a (Div b two)) (Pow a (Div b two))))
 (rewrite (Mul (Pow a b) (Pow a b))                           (Pow a (Mul two b)))
+
+
+;; Difference of squares flip
+(rewrite
+       (Mul (Add a b))
+       (Div (Sub (Mul a a) (Mul b b)) (Sub a b))
+       :when
+       ((non-zero (Sub a b))))
+(rewrite
+       (Mul (Sub a b))
+       (Div (Sub (Mul a a) (Mul b b)) (Add a b))
+       :when 
+       ((non-zero (Add a b))))
 
 ;; Identity
 ;; This isn't subsumed by const folding since this can return results
