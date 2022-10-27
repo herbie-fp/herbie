@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat rival)
+(require math/bigfloat rival racket/hash)
 (require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
 (provide sample-points eval-prog-real)
@@ -30,22 +30,28 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (valid-result? repr out)
-  (ival-and (ival-not (is-infinite-interval repr out))
-            (if (ground-truth-require-convergence)
-                (is-samplable-interval repr out)
-                (ival (ival-hi (is-samplable-interval repr out))))
-            (ival-not (ival-error? out))))
-
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func precondition programs ctx)
   (define fns (batch-eval-progs (cons precondition programs) 'ival ctx))
   (λ inputs
+    (define repr (context-repr ctx))
     (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs)))
-    (cons (apply ival-and ival-pre (map (curry valid-result? (context-repr ctx)) ival-bodies))
-          ival-bodies)))
+    (for/list ([y ival-bodies])
+      (ival-then
+       ; The two `invalid` ones have to go first, because later checks
+       ; can error if the input is erroneous
+       (ival-assert (ival-not (ival-error? y)) 'invalid)
+       (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
+       (ival-assert ival-pre 'precondition)
+       (ival-assert (ival-not (is-infinite-interval repr y)) 'infinite)
+       (ival-assert
+        (if (ground-truth-require-convergence)
+            (is-samplable-interval repr y)
+            (ival (ival-hi (is-samplable-interval repr y))))
+        'unsamplable)
+       y))))
 
 (define (eval-prog-real prog ctx)
   (define repr (context-repr ctx))
@@ -60,11 +66,20 @@
        +nan.0]))
   (procedure-rename f '<eval-prog-real>))
 
+(define (combine-tables t1 t2)
+  (define t2-total (apply + (hash-values t2)))
+  (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
+  (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-base))))
+  (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)])
+      ([(k v) (in-hash t2)])
+    (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
+
 (define (sample-points precondition progs ctx)
   (timeline-event! 'analyze)
   (define fn (make-search-func precondition progs ctx))
-  (define sampler 
+  (match-define (cons sampler table)
     (parameterize ([ground-truth-require-convergence #f])
       (make-sampler ctx precondition progs fn)))
   (timeline-event! 'sample)
-  (batch-prepare-points fn ctx sampler))
+  (match-define (cons table2 results) (batch-prepare-points fn ctx sampler))
+  (cons (combine-tables table table2) results))

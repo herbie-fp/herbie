@@ -55,11 +55,12 @@
       (with-handlers ([exn? (curry on-exception start-time)])
         (rollback-improve!)
 
-        (define joint-context
+        (match-define (cons domain-stats joint-context)
           (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
             (setup-context!
              (or (test-specification test) (test-program test)) (test-precondition test)
              output-repr)))
+        (timeline-push! 'bogosity domain-stats)
         (define-values (train-context test-context)
           (split-pcontext joint-context (*num-points*) (*reeval-pts*))) 
 
