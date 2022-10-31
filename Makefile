@@ -4,7 +4,7 @@ help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket src/herbie.rkt web' to run it."
 
-install: clean egg-herbie update
+install: clean egg-herbie-pkg update
 
 clean:
 	raco pkg remove --force herbie && echo "Uninstalled old herbie" || :
@@ -17,13 +17,15 @@ update:
 	raco pkg install --skip-installed --auto --name herbie src/
 	raco pkg update --name herbie --deps search-auto src/
 
-egg-herbie:
-	cargo build --release --manifest-path=egg-herbie/Cargo.toml
+egg-herbie-pkg: egg-herbie
 	raco pkg remove --force egg-herbie && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force egg-herbie-linux && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force egg-herbie-windows && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
+
+egg-herbie:
+	cargo build --release --manifest-path=egg-herbie/Cargo.toml
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/

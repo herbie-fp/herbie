@@ -37,10 +37,11 @@
 (define r-zero (rational 0 1))
 (define r-one  (rational 1 1))
 (define r-two  (rational 2 1))
+(define r-three (rational 3 1))
 (define zero (Num r-zero) :cost 10000000)
 (define one  (Num r-one) :cost 10000000)
 (define two  (Num r-two) :cost 10000000)
-(define three (Num (rational 3 1)) :cost 10000000)
+(define three (Num r-three) :cost 10000000)
 (define neg-one (Neg one) :cost 10000000)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -149,17 +150,28 @@
       ((set (lo e) (neg ha))
        (set (hi e) (neg la))))
 
-; TODO: better sqrt
+(rule ((= e (Sqrt a)))
+      ((set (lo e) r-zero)))
+
+;; TODO: better evaluation of sqrt
 (rule ((= e (Sqrt a))
-       (= la (lo a))
-       (= ha (hi a)))
-      ((set (lo e) 0)))
+       (= loa (lo a)))
+      (
+        (set (lo e) (sqrt loa))
+      ))
+(rule ((= e (Sqrt a))
+       (= hia (hi a)))
+      (
+        (set (hi e) (sqrt hia))
+      ))
 
 ; Sqrt infer downwards
 (rule ((= e (Sqrt a)))
-      ((set (lo e) 0)))
+      ((set (lo a) r-zero)))
+
 
 ; TODO: Cbrt
+
 
 (rule ((= e (Fabs a))
        (= la (lo a))
@@ -196,6 +208,9 @@
 ;; --------
 ;; These rewrites were compiled from src/syntax/rules.rkt in the herbie repo,
 ;; using all rewrites in the `simplify` rewrite group.
+
+(add-ruleset analysis)
+(clear-rules)
 
 ;; Commutativity
 (rewrite (Add a b) (Add b a))
@@ -250,21 +265,13 @@
 (rewrite (Sub (Mul a a) (Mul b b))                           (Mul (Add a b) (Sub a b)))
 (rewrite (Sub (Mul a a) one)                (Mul (Add a one) (Sub a one)))
 (rewrite (Add (Mul a a) (Neg one))          (Mul (Add a one) (Sub a one)))
-(rewrite (Pow a b) (Mul (Pow a (Div b two)) (Pow a (Div b two))))
+
+(rule ((= e (Pow a b))
+       (= loa (lo a))
+       (> loa r-zero))
+      ((set (Pow a b) (Mul (Pow a (Div b two)) (Pow a (Div b two))))))
 (rewrite (Mul (Pow a b) (Pow a b))                           (Pow a (Mul two b)))
 
-
-;; Difference of squares flip
-(rewrite
-       (Mul (Add a b))
-       (Div (Sub (Mul a a) (Mul b b)) (Sub a b))
-       :when
-       ((non-zero (Sub a b))))
-(rewrite
-       (Mul (Sub a b))
-       (Div (Sub (Mul a a) (Mul b b)) (Add a b))
-       :when 
-       ((non-zero (Add a b))))
 
 ;; Identity
 ;; This isn't subsumed by const folding since this can return results
@@ -308,7 +315,7 @@
   :when ((non-zero x)
          (non-zero y)))
 
-; FIXME: this rule can't be expressed in its full generality;
+; TODO: FIXME: this rule can't be expressed in its full generality;
 ;        we can't express the general rule x -> 1/x since
 ;        we can't quantify over Math yet
 ;        for now we just apply it to vars
@@ -486,18 +493,131 @@
 (rewrite (Add (Unary "cosh" x) (Unary "sinh" x)) (Unary "exp" x))
 (rewrite (Sub (Unary "cosh" x) (Unary "sinh" x)) (Unary "exp" (Neg x)))
 
-;; Unimplemented: misc. rewrites (conditionals, specialized numerical fns)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;; Testing
-;; -------
-;; In actuality, herbie would be responsible for plugging exprs in here.
-;; For our purposes, we take some test cases from herbie
-;; (src/core/simplify.rkt)
+;; --------------------------------------------------
+;; -----------------------------------------------
+;; OTHER RULES FROM HERBIE- polynomials, fractions, ect
 
-;;(push)
+;; Difference of squares flip
+;; demand for the rule
+(rule
+       ((= (Add a b) t1))
+       ((Sub a b)))
+(rewrite
+       (Add a b)
+       (Div (Sub (Mul a a) (Mul b b)) (Sub a b))
+       :when
+       ((non-zero (Sub a b))))
+
+;; demand for the rule
+(rule
+       ((= (Sub a b) t1))
+       ((Add a b)))
+(rewrite
+       (Sub a b)
+       (Div (Sub (Mul a a) (Mul b b)) (Add a b))
+       :when 
+       ((non-zero (Add a b))))
+
+
+;; difference-of-cubes
+;; sum of cubes
+(rewrite
+       (Add (Pow a three) (Pow b three))
+       (Mul (Plus (Mul a a) (Sub (Mul b b) (Mul a b)))
+            (Plus a b)))
+;; difference of cubes
+(rewrite (Sub (Pow a three) (Pow b three))
+         (Mul (Plus (Mul a a) (Add (Mul b b) (Mul a b)))
+              (Sub a b)))
+
+;; flip3-+
+;; demand
+(rule ((= t1 (Add a b)))
+      ((Add (Mul a a) (Sub (Mul b b) (Mul a b)))))
+(rewrite (Add a b)
+         (Div (Add (Pow a three) (Pow b three))
+              (Add (Mul a a) (- (Mul b b) (Mul a b))))
+         :when ((non-zero (Add (Mul a a) (Sub (Mul b b) (Mul a b))))))
+
+;;flip3--
+;; demand
+(rule ((= t1 (Sub a b)))
+      ((Add (Mul a a) (Add (Mul b b) (Mul a b)))))
+(rewrite (Sub a b)
+         (Div (Sub (Pow a three) (Pow b three))
+              (Add (Mul a a) (Add (Mul b b) (Mul a b))))
+         :when ((non-zero (Add (Mul a a) (Add (Mul b b) (Mul a b))))))
+
+
+;;fractions transform
+(rewrite (Sub (Div a c) (Div b c))
+         (Div (Sub a b) c))
+
+(rewrite (Add (Div a c) (Div b c))
+         (Div (Add a b) c))
+
+(rewrite (Add (Div a b) (Div c d))
+         (Div (Add (Mul a d) (Mul b c))
+              (Mul b d)))
+
+(rewrite (Sub (Div a b) (Div c d))
+         (Div (Sub (Mul a d) (Mul b c))
+              (Mul b d)))
+
+(rewrite (Mul (Div a b) (Div c d))
+         (Div (Mul a c) (Mul b d)))
+
+(rewrite (Div a b)
+         (Div (Neg a) (Neg b)))
+
+
+;; squares transform
+(rule ((= t1 (Sqrt (Mul x y)))
+       (= lox (lo x))
+       (= loy (lo y))
+       (>= lox r-zero)
+       (>= loy r-zero))
+      ((set (Sqrt (Mul x y))
+            (Mul (Sqrt x) (Sqrt y)))))
+
+(rule ((= t1 (Sqrt (Div x y)))
+       (non-zero (Sqrt y)))
+      ((set (Div (Sqrt x) (Sqrt y))
+            t1)))
+
+(rewrite (Sqrt (Pow x y))
+         (Pow x (Div y 2)))
+
+(rewrite (Pow (Sqrt x) y)
+         (Pow x (Div y 2)))
+       
+(rewrite (Mul (Sqrt x) (Sqrt y))
+         (Sqrt (Mul x y)))
+
+(rewrite (Div (Sqrt x) (Sqrt y))
+         (Sqrt (Div x y))
+         :when ((non-zero y)))
+
+; TODO: FIXME: this rule can't be expressed
+;(rule ((= t1 x)
+       ;(= lox (lo x))
+       ;(>= lox r-zero))
+      ;(Mul (Sqrt x) (Sqrt x)))
+
+
+
+
+(add-ruleset rules)
+(clear-rules)
+
+;; Herbie then adds expressions here and runs them
+
 ;;(define e (Add one zero))
+;;(load-ruleset analysis)
+;;(run 10)
+;;(clear-rules)
+
+;;(load-ruleset rules)
 ;;(run 1)
-;;(check (= e one))
-;;(pop)
+;;(clear-rules)

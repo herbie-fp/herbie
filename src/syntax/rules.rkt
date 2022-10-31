@@ -320,9 +320,11 @@
   [difference-cubes (- (pow a 3) (pow b 3))
                     (* (+ (* a a) (+ (* b b) (* a b))) (- a b))]
   [flip3-+          (+ a b)
-                    (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))))]
+                    (/ (+ (pow a 3) (pow b 3))
+                       (+ (* a a) (- (* b b) (* a b))))]
   [flip3--          (- a b)
-                    (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))))])
+                    (/ (- (pow a 3) (pow b 3))
+                       (+ (* a a) (+ (* b b) (* a b))))])
 
 ; Dealing with fractions
 (define-ruleset* fractions-distribute (fractions simplify)

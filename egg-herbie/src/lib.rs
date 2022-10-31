@@ -429,6 +429,28 @@ pub unsafe extern "C" fn egraph_run(
     )
 }
 
+fn egglog_run_rules(egglog: &mut EGraph, iters: usize) -> (Duration, Duration, Duration) {
+    let mut search = Duration::default();
+    let mut apply = Duration::default();
+    let mut rebuild: Duration = Duration::default();
+    for _i in 0..iters {
+        egglog.load_ruleset("analysis".into());
+        let [s, a, r] = egglog.run_rules(10);
+        search += s;
+        apply += a;
+        rebuild += r;
+        egglog.clear_rules();
+
+        egglog.load_ruleset("rules".into());
+        let [s, a, r] = egglog.run_rules(1);
+        search += s;
+        apply += a;
+        rebuild += r;
+        egglog.clear_rules();
+    }
+    (search, apply, rebuild)
+}
+
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn egraph_run_egglog(
@@ -437,7 +459,8 @@ pub unsafe extern "C" fn egraph_run_egglog(
 ) -> *const EGraphIter {
     ffirun(|| {
         let ctx = &mut *ptr;
-        let [search, apply, rebuild] = ctx.egglog.run_rules(3);
+
+        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 2);
 
         let mut iters = vec![EGraphIter {
             numnodes: 0,
