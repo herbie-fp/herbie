@@ -29,6 +29,7 @@
   (Floor Math)
   (Round Math)
   (Log Math)
+  (Exp Math)
   (If Math Math Math)
   (Fma Math Math Math)
   )
@@ -361,36 +362,43 @@
 (rewrite (Mul x (Mul x x)) (Pow x three))
 
 ;; Exponentials
-(rewrite (Unary "exp" (Log x)) x)
-(rewrite (Log (Unary "exp" x)) x)
+(rule ((= t1 (Exp (Log x)))
+       (= lox (lo x))
+       (>= lox r-zero))
+      ((set (Exp (Log x))
+            x)))
+(rewrite (Log (Exp x)) x)
 
-(rewrite (Unary "exp" zero) one)
-(rewrite (Unary "exp" one) (E))
-;; (rewrite one               (Unary "exp" zero))
-(rewrite (E)       (Unary "exp" one))
+(rewrite (Exp zero) one)
+(rewrite (Exp one) (E))
+;; (rewrite one               (Exp zero))
+(rewrite (E)       (Exp one))
 
-(rewrite (Unary "exp" (Add a b)) (Mul (Unary "exp" a) (Unary "exp" b)))
-(rewrite (Unary "exp" (Sub a b)) (Div (Unary "exp" a) (Unary "exp" b)))
-(rewrite (Unary "exp" (Neg a))   (Div one (Unary "exp" a)))
+(rewrite (Exp (Add a b)) (Mul (Exp a) (Exp b)))
+(rewrite (Exp (Sub a b)) (Div (Exp a) (Exp b)))
+(rewrite (Exp (Neg a))   (Div one (Exp a)))
 
-(rewrite (Mul (Unary "exp" a) (Unary "exp" b))      (Unary "exp" (Add a b)))
-(rewrite (Div one (Unary "exp" a)) (Unary "exp" (Neg a)))
-(rewrite (Div (Unary "exp" a) (Unary "exp" b))      (Unary "exp" (Sub a b)))
-(rewrite (Unary "exp" (Mul a b))                    (Pow (Unary "exp" a) b))
-(rewrite (Unary "exp" (Div a two)) (Sqrt (Unary "exp" a)))
-(rewrite (Unary "exp" (Div a three)) (Cbrt (Unary "exp" a)))
-(rewrite (Unary "exp" (Mul a two)) (Mul (Unary "exp" a) (Unary "exp" a)))
-(rewrite (Unary "exp" (Mul a three)) (Pow (Unary "exp" a) three))
+(rewrite (Mul (Exp a) (Exp b))      (Exp (Add a b)))
+(rewrite (Div one (Exp a)) (Exp (Neg a)))
+(rewrite (Div (Exp a) (Exp b))      (Exp (Sub a b)))
+(rewrite (Exp (Mul a b))                    (Pow (Exp a) b))
+(rewrite (Exp (Div a two)) (Sqrt (Exp a)))
+(rewrite (Exp (Div a three)) (Cbrt (Exp a)))
+(rewrite (Exp (Mul a two)) (Mul (Exp a) (Exp a)))
+(rewrite (Exp (Mul a three)) (Pow (Exp a) three))
 
 ;; Powers
 (rewrite (Pow a neg-one) (Div one a))
 (rewrite (Pow a one) a)
 
+;; TODO: FIXME: can't express
+; (rewrite a (Pow a one))
+
 ; 0^0 is undefined
 (rewrite (Pow a zero) one :when ((non-zero a)))
 (rewrite (Pow one a) one)
 
-(rewrite (Unary "Exp" (Mul (Log a) b)) (Pow a b))
+(rewrite (Exp (Mul (Log a) b)) (Pow a b))
 (rewrite (Mul (Pow a b) a) (Pow a (Add b one)))
 (rewrite (Pow a (Num (rational 1 2))) (Sqrt a))
 (rewrite (Pow a two) (Mul a a))
@@ -484,14 +492,14 @@
 (rewrite (Unary "tan" (Neg x)) (Neg (Unary "cos" x)))
 
 ; Hyperbolics
-(rewrite (Unary "sinh" x) (Div (Sub (Unary "exp" x) (Unary "exp" (Neg x))) two))
-(rewrite (Unary "cosh" x) (Div (Add (Unary "exp" x) (Unary "exp" (Neg x))) two))
-(rewrite (Unary "tanh" x) (Div (Sub (Unary "exp" x) (Unary "exp" (Neg x))) (Add (Unary "exp" x) (Unary "exp" (Neg x)))))
-(rewrite (Unary "tanh" x) (Div (Sub (Unary "exp" (Mul two x)) one) (Add (Unary "exp" (Mul two x)) one)))
-(rewrite (Unary "tanh" x) (Div (Sub one (Unary "exp" (Mul (Num (rational -2 1)) x))) (Add one (Unary "exp" (Mul (Num (rational -2 1)) x)))))
+(rewrite (Unary "sinh" x) (Div (Sub (Exp x) (Exp (Neg x))) two))
+(rewrite (Unary "cosh" x) (Div (Add (Exp x) (Exp (Neg x))) two))
+(rewrite (Unary "tanh" x) (Div (Sub (Exp x) (Exp (Neg x))) (Add (Exp x) (Exp (Neg x)))))
+(rewrite (Unary "tanh" x) (Div (Sub (Exp (Mul two x)) one) (Add (Exp (Mul two x)) one)))
+(rewrite (Unary "tanh" x) (Div (Sub one (Exp (Mul (Num (rational -2 1)) x))) (Add one (Exp (Mul (Num (rational -2 1)) x)))))
 (rewrite (Sub (Mul (Unary "cosh" x) (Unary "cosh" x)) (Mul (Unary "sinh" x) (Unary "sinh" x))) one)
-(rewrite (Add (Unary "cosh" x) (Unary "sinh" x)) (Unary "exp" x))
-(rewrite (Sub (Unary "cosh" x) (Unary "sinh" x)) (Unary "exp" (Neg x)))
+(rewrite (Add (Unary "cosh" x) (Unary "sinh" x)) (Exp x))
+(rewrite (Sub (Unary "cosh" x) (Unary "sinh" x)) (Exp (Neg x)))
 
 
 ;; --------------------------------------------------
@@ -524,11 +532,11 @@
 ;; sum of cubes
 (rewrite
        (Add (Pow a three) (Pow b three))
-       (Mul (Plus (Mul a a) (Sub (Mul b b) (Mul a b)))
-            (Plus a b)))
+       (Mul (Add (Mul a a) (Sub (Mul b b) (Mul a b)))
+            (Add a b)))
 ;; difference of cubes
 (rewrite (Sub (Pow a three) (Pow b three))
-         (Mul (Plus (Mul a a) (Add (Mul b b) (Mul a b)))
+         (Mul (Add (Mul a a) (Add (Mul b b) (Mul a b)))
               (Sub a b)))
 
 ;; flip3-+
@@ -537,7 +545,7 @@
       ((Add (Mul a a) (Sub (Mul b b) (Mul a b)))))
 (rewrite (Add a b)
          (Div (Add (Pow a three) (Pow b three))
-              (Add (Mul a a) (- (Mul b b) (Mul a b))))
+              (Add (Mul a a) (Sub (Mul b b) (Mul a b))))
          :when ((non-zero (Add (Mul a a) (Sub (Mul b b) (Mul a b))))))
 
 ;;flip3--
@@ -587,10 +595,10 @@
             t1)))
 
 (rewrite (Sqrt (Pow x y))
-         (Pow x (Div y 2)))
+         (Pow x (Div y two)))
 
 (rewrite (Pow (Sqrt x) y)
-         (Pow x (Div y 2)))
+         (Pow x (Div y two)))
        
 (rewrite (Mul (Sqrt x) (Sqrt y))
          (Sqrt (Mul x y)))
@@ -606,6 +614,27 @@
       ;(Mul (Sqrt x) (Sqrt x)))
 
 
+;; cubes transform
+
+(rewrite (Cbrt (Mul x y))
+         (Mul (Cbrt x) (Cbrt y)))
+(rewrite (Cbrt (Div x y))
+         (Div (Cbrt x) (Cbrt y)))
+(rewrite (Mul (Cbrt x) (Cbrt y))
+         (Cbrt (Mul x y)))
+(rewrite (Div (Cbrt x) (Cbrt y))
+         (Cbrt (Div x y)))
+; TODO: FIXME: this rule can't be expressed
+;(rule x
+;      (Mul (Cbrt x) (Mul (Cbrt x) (Cbrt x))))
+;(rule x (Cbrt (Pow x three)))
+
+
+;; pow transform
+(rewrite (Pow (Exp a) b)
+         (Exp (Mul a b)))
+(rewrite (Pow a b)
+         (Exp (Mul (Log a) b)))
 
 
 (add-ruleset rules)

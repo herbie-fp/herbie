@@ -76,6 +76,7 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
             ("round", "Round"),
             ("log", "Log"),
             ("cbrt", "Cbrt"),
+            ("exp", "Exp"),
             ("if", "If"),
             ("fma", "Fma"),
             ("PI", "PI"),
@@ -547,7 +548,7 @@ pub unsafe extern "C" fn egglog_get_simplest(
 ) -> *const c_char {
     ffirun(|| {
         let ctx = &mut *ptr;
-        let value = ctx.egglog.eval_closed_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string())).unwrap();
+        let (_, value) = ctx.egglog.eval_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string()), None, false).unwrap();
         let (_cost, extracted) = ctx.egglog.extract(value);
 
         let converted = add_types(&unconvert_egglog(ctx, &parser::parse_str(&extracted.to_string()).unwrap()));
@@ -574,7 +575,7 @@ pub unsafe extern "C" fn egglog_get_variants(
 ) -> *const c_char {
     ffirun(|| {
         let ctx = &mut *ptr;
-        let value = ctx.egglog.eval_closed_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string())).unwrap();
+        let (_, value) = ctx.egglog.eval_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string()), None, false).unwrap();
         let exprs = ctx.egglog.extract_variants(value, 100_000).into_iter().filter_map(|expr| {
             let parsed = parser::parse_str(&expr.to_string()).unwrap();
             if let Sexp::List(inner) = &parsed {
