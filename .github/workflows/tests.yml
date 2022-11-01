@@ -31,3 +31,30 @@ jobs:
       - name: "Install dependencies"
         run: make install
       - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 bench/hamming/
+
+  determinism:
+    name: "Determinism tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v1.8
+        with:
+          version: 8.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      - name: "Run (1st time)"
+        run: racket src/herbie.rkt report --threads yes --seed 1 bench/hamming graphs0
+      - name: "Run (2nd time)"
+        run: racket src/herbie.rkt report --threads yes --seed 1 bench/hamming graphs1
+      - name: "Check for determinism"
+        run: racket infra/diff.rkt graphs0 graphs1
