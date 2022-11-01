@@ -1,7 +1,8 @@
 #lang racket
 
 (require racket/hash)
-(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt" "../syntax/types.rkt" "../pareto.rkt")
+(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt"
+         "../syntax/types.rkt" "../pareto.rkt")
 
 (provide
  (contract-out
@@ -56,15 +57,28 @@
           (struct-copy alt-table atab
                        [alt->done? (hash-set (alt-table-alt->done? atab) picked #t)])))
 
-(define (atab-active-alts atab)
-  (hash-keys (alt-table-alt->points atab)))
-
-(define (atab-all-alts atab)
-  (alt-table-all atab))
-
 (define (atab-completed? atab)
   (andmap (curry hash-ref (alt-table-alt->done? atab))
           (hash-keys (alt-table-alt->points atab))))
+
+;; Alt getters need to be treated with care:
+;;   - Internal hash tables and sets may cause
+;;     non-deterministic behavior in ordering.
+;;   - Need to sort to ensure some predictable order
+
+(define (order-altns altns)
+    (sort altns expr<? #:key (compose program-body alt-program)))
+
+(define (atab-active-alts atab)
+  (order-altns (hash-keys (alt-table-alt->points atab))))
+
+(define (atab-all-alts atab)
+  (order-altns (alt-table-all atab)))
+
+(define (atab-not-done-alts atab)
+  (define altns (hash-keys (alt-table-alt->points atab)))
+  (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
+  (order-altns (filter not-done? altns)))
 
 ;; Split the alt table into several alt tables, each of which corresponds to a pred
 ;; in 'preds', and only contains points which satisfy that pred.
@@ -92,42 +106,6 @@
     (atab-prune
       (alt-table point->alts alt->points alt->done? alt->cost
                  context (alt-table-all atab)))))
-
-;; Helper Functions
-
-(define (expr-cmp a b)
-  (match* (a b)
-   [((? list?) (? list?))
-    (define len-a (length a))
-    (define len-b (length b))
-    (cond
-     [(< len-a len-b) -1]
-     [(> len-a len-b) 1]
-     [else
-      (let loop ([a a] [b b])
-        (if (null? a)
-            0
-            (let ([cmp (expr-cmp (car a) (car b))])
-              (if (zero? cmp)
-                  (loop (cdr a) (cdr b))
-                  cmp))))])]
-   [((? list?) _) 1]
-   [(_ (? list?)) -1]
-   [((? symbol?) (? symbol?))
-    (cond
-     [(symbol<? a b) -1]
-     [(symbol=? a b) 0]
-     [else 1])]
-   [((? symbol?) _) 1]
-   [(_ (? symbol?)) -1]
-   [(_ _)
-    (cond
-     [(< a b) -1]
-     [(= a b) 0]
-     [else 1])]))
-
-(define (expr<? a b)
-  (< (expr-cmp a b) 0))
 
 ;; Implementation
 
@@ -256,11 +234,6 @@
              (hash-set alt->cost altn cost)
              pcontext
              #f))
-
-(define (atab-not-done-alts atab)
-  (define altns (hash-keys (alt-table-alt->points atab)))
-  (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
-  (sort (filter not-done? altns) expr<? #:key (compose program-body alt-program)))
 
 (define (atab-min-errors atab)
   (define pnt->alts (alt-table-point->alts atab))
