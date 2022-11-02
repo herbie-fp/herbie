@@ -77,6 +77,13 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
             ("log", "Log"),
             ("cbrt", "Cbrt"),
             ("exp", "Exp"),
+            ("sin", "Sin"),
+            ("cos", "Cos"),
+            ("tan", "Tan"),
+            ("atan", "Atan"),
+            ("atan2", "Atan2"),
+            ("asin", "Asin"),
+            ("acos", "Acos"),
             ("if", "If"),
             ("fma", "Fma"),
             ("PI", "PI"),
@@ -562,7 +569,7 @@ pub unsafe extern "C" fn egglog_get_simplest(
 }
 
 pub fn excluded_operator(op: &str) -> bool {
-    let excluded = std::collections::HashSet::from(["zero", "one", "two", "three", "neg-one"]);
+    let excluded = std::collections::HashSet::from(["zero", "one", "two", "three", "four", "neg-one"]);
     excluded.contains(op)
 }
 
