@@ -47,6 +47,7 @@
 (define r-two  (rational 2 1))
 (define r-three (rational 3 1))
 (define r-four (rational 4 1))
+(define r-neg-one (rational -1 1))
 (define zero (Num r-zero) :cost 10000000)
 (define one  (Num r-one) :cost 10000000)
 (define two  (Num r-two) :cost 10000000)
@@ -70,8 +71,6 @@
 (relation non-zero (Math))
 (relation non-negative (Math))
 (relation positive (Math))
-
-(relation greater-than (Math Math))
 
 ;; First, constant folding!
 ;; We don't need an explicit constant folding analysis, we can just union
@@ -111,9 +110,7 @@
 
 (rule ((= l (lo e))
        (> l r-zero))
-      ((greater-than e zero)))
-(rule ((greater-than e zero))
-       ((positive e)))
+      ((positive e)))
 
 (rule ((= e (Num ve)))
       ((set (lo e) ve)
@@ -225,27 +222,6 @@
       ((set (hi e) (round ha))))
 
 ; TODO: Log
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Greater-than analysis
-
-
-(rule ((greater-than a b)
-       (greater-than b c))
-       ((greater-than a c)))
-
-
-(rule ((= t1 (Add a b))
-       (positive b))
-      ((greater-than (Add a b) a)))
-(rule ((= t1 (Mul a b))
-       (= lob (lo b))
-       (> lob one))
-     ((greater-than t1 a one)))
-(rule ((= t1 (Sqrt a))
-       (positive a))
-      ((greater-than a t1)))
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -593,11 +569,20 @@
          (Div (Add (Pow a three) (Pow b three))
               (Add (Mul a a) (Sub (Mul b b) (Mul a b))))
          :when ((non-zero (Add (Mul a a) (Sub (Mul b b) (Mul a b))))))
+(rewrite (Add a b)
+         (Div (Add (Pow a three) (Pow b three))
+              (Add (Mul a a) (Sub (Mul b b) (Mul a b))))
+         :when ((non-zero a) (non-zero b)))
 
 ;;flip3--
 ;; demand
 (rule ((= t1 (Sub a b)))
       ((Add (Mul a a) (Add (Mul b b) (Mul a b)))))
+(rewrite (Sub a b)
+         (Div (Sub (Pow a three) (Pow b three))
+              (Add (Mul a a) (Add (Mul b b) (Mul a b))))
+         :when ((non-zero a)
+                (non-zero b))) ;; when a and b are non-zero a^2+b^2-ab is positive => a^2+b^2+ab is positive
 (rewrite (Sub a b)
          (Div (Sub (Pow a three) (Pow b three))
               (Add (Mul a a) (Add (Mul b b) (Mul a b))))
@@ -806,24 +791,24 @@
 
 
 ;; trig inverses
-(rule ((= t1 (Sin (ASin x)))
+(rule ((= t1 (Sin (Asin x)))
        (= l (lo t1))
        (= h (hi t1))
-       (>= l neg-one)
-       (<= h one))
+       (>= l r-neg-one)
+       (<= h r-one))
     ((union x t1)))  
-(rule ((= t1 (Cos (ACos x)))
+(rule ((= t1 (Cos (Acos x)))
        (= l (lo t1))
        (= h (hi t1))
-       (>= l neg-one)
-       (<= h one))
+       (>= l r-neg-one)
+       (<= h r-one))
     ((union x t1)))  
-(rewrite (Tan (ATan x)) x)
+(rewrite (Tan (Atan x)) x)
 (rule ((= t1 (Atan (Tan x)))
        (= l (lo t1))
        (= h (hi t1))
-       (>= l neg-one)
-       (<= h one))
+       (>= l r-neg-one)
+       (<= h r-one))
     ((union x t1)))
 
 
