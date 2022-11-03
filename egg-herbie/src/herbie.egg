@@ -39,6 +39,9 @@
   (Atan2 Math Math)
   (Asin Math)
   (Acos Math)
+  (Hypot Math Math)
+  (Expm1 Math)
+  (Log1p Math)
   )
 
 ;; shorthands- must be added to the exclude list of extraction
@@ -71,6 +74,7 @@
 (relation non-zero (Math))
 (relation non-negative (Math))
 (relation positive (Math))
+(relation neq (Math Math))
 
 ;; First, constant folding!
 ;; We don't need an explicit constant folding analysis, we can just union
@@ -222,6 +226,46 @@
       ((set (hi e) (round ha))))
 
 ; TODO: Log
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Not equals analysis
+
+(rule ((neq a b))
+      ((neq b a)))
+
+(rule ((= t1 (Add a b))
+       (= lob (lo b))
+       (> lob r-zero))
+      ((neq (Add a b) a)))
+
+(rule ((= t1 (Add a b))
+       (= hib (hi b))
+       (< hib r-zero))
+      ((neq (Add a b) a)))
+
+(rule ((= t1 (Mul a b))
+       (= lob (lo b))
+       (> lob r-one))
+      ((neq (Mul a b) a)))
+
+(rule ((= t1 (Mul a b))
+       (= hib (hi b))
+       (< hib r-neg-one))
+      ((neq (Mul a b) a)))
+
+;; monotonic functions
+(rule ((= t1 (Sqrt a))
+       (= t2 (Sqrt b))
+       (neq a b))
+      ((neq (Sqrt a) (Sqrt b))))
+
+(rule ((= t1 (Cbrt a))
+       (= t2 (Cbrt b))
+       (neq a b))
+      ((neq (Cbrt a) (Cbrt b))))
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -562,6 +606,7 @@
               (Sub a b)))
 
 ;; flip3-+
+;; TODO: refactor this into an OR between all these conditions
 ;; demand
 (rule ((= t1 (Add a b)))
       ((Add (Mul a a) (Sub (Mul b b) (Mul a b)))))
@@ -572,7 +617,16 @@
 (rewrite (Add a b)
          (Div (Add (Pow a three) (Pow b three))
               (Add (Mul a a) (Sub (Mul b b) (Mul a b))))
-         :when ((non-zero a) (non-zero b)))
+         :when ((non-zero a)))
+(rewrite (Add a b)
+         (Div (Add (Pow a three) (Pow b three))
+              (Add (Mul a a) (Sub (Mul b b) (Mul a b))))
+         :when ((non-zero b)))
+(rewrite (Add a b)
+         (Div (Add (Pow a three) (Pow b three))
+              (Add (Mul a a) (Sub (Mul b b) (Mul a b))))
+         :when ((neq a b)))
+
 
 ;;flip3--
 ;; demand
@@ -581,8 +635,15 @@
 (rewrite (Sub a b)
          (Div (Sub (Pow a three) (Pow b three))
               (Add (Mul a a) (Add (Mul b b) (Mul a b))))
-         :when ((non-zero a)
-                (non-zero b))) ;; when a and b are non-zero a^2+b^2-ab is positive => a^2+b^2+ab is positive
+         :when ((non-zero a))) ;; when a and b are non-zero a^2+b^2-ab is positive => a^2+b^2+ab is positive
+(rewrite (Sub a b)
+         (Div (Sub (Pow a three) (Pow b three))
+              (Add (Mul a a) (Add (Mul b b) (Mul a b))))
+         :when ((non-zero b)))
+(rewrite (Sub a b)
+         (Div (Sub (Pow a three) (Pow b three))
+              (Add (Mul a a) (Add (Mul b b) (Mul a b))))
+         :when ((neq a b)))
 (rewrite (Sub a b)
          (Div (Sub (Pow a three) (Pow b three))
               (Add (Mul a a) (Add (Mul b b) (Mul a b))))
@@ -813,6 +874,29 @@
 
 
 
+;; specialied numerical functions
+(rewrite (Sub (Exp x) one)
+         (Expm1 x))
+(rewrite (Log (Add one x))
+         (Log1p x))
+(rewrite (Log1p (Expm1 x)) x)
+(rule ((= t1 (Expm1 (Log1p x)))
+       (= l (lo x))
+       (> l r-neg-one))
+       ((union x t1)))
+(rewrite (Sqrt (Add (Mul x x) (Mul y y)))
+         (Hypot x y))
+(rewrite (Sqrt (Add one (Mul y y)))
+         (Hypot one y))
+(rewrite (Add (Mul x y) z)
+         (Fma x y z))
+(rewrite (Sub (Mul x y) z)
+         (Fma x y (Neg z)))
+(rewrite (Fma x y z)
+         (Add (Mul x y) z))
+(rewrite (Expm1 x) (Sub (Exp x) one))
+(rewrite (Log1p x) (Log (Add one x)))
+(rewrite (Hypot x y) (Sqrt (Add (Mul x x) (Mul y y))))
 
 (add-ruleset rules)
 (clear-rules)

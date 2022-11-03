@@ -84,6 +84,9 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
             ("atan2", "Atan2"),
             ("asin", "Asin"),
             ("acos", "Acos"),
+            ("hypot", "Hypot"),
+            ("expm1", "Expm1"),
+            ("log1p", "Log1p"),
             ("if", "If"),
             ("fma", "Fma"),
             ("PI", "PI"),
@@ -555,6 +558,12 @@ pub unsafe extern "C" fn egglog_get_simplest(
 ) -> *const c_char {
     ffirun(|| {
         let ctx = &mut *ptr;
+        // first do a small soundness check
+        let (_, valzero) = ctx.egglog.eval_expr(&Expr::var("zero"), None, false).unwrap();
+        let (_, valone) = ctx.egglog.eval_expr(&Expr::var("one"), None, false).unwrap();
+        assert_ne!(valzero, valone);
+
+        
         let (_, value) = ctx.egglog.eval_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string()), None, false).unwrap();
         let (_cost, extracted) = ctx.egglog.extract(value);
 
