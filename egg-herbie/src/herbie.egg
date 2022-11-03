@@ -890,10 +890,11 @@
          (Hypot one y))
 (rewrite (Add (Mul x y) z)
          (Fma x y z))
-(rewrite (Sub (Mul x y) z)
-         (Fma x y (Neg z)))
 (rewrite (Fma x y z)
          (Add (Mul x y) z))
+(rewrite (Sub (Mul x y) z)
+         (Fma x y (Neg z)))
+
 (rewrite (Expm1 x) (Sub (Exp x) one))
 (rewrite (Log1p x) (Log (Add one x)))
 (rewrite (Hypot x y) (Sqrt (Add (Mul x x) (Mul y y))))

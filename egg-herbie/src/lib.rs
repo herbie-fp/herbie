@@ -338,6 +338,7 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
                         Sexp::String(":cost".to_string()),
                         Sexp::String("10000000".to_string()),
                         ]);
+
                 
                 ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 
@@ -569,7 +570,6 @@ pub unsafe extern "C" fn egglog_get_simplest(
 
         let converted = add_types(&unconvert_egglog(ctx, &parser::parse_str(&extracted.to_string()).unwrap()));
 
-
         let best_str = CString::new(converted.to_string()).unwrap();
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
@@ -608,9 +608,9 @@ pub unsafe extern "C" fn egglog_get_variants(
 
         // format
         let expr_strs: Vec<String> = exprs.iter().map(|r| r.to_string()).collect();
-        /*println!("Variants!:");
-        for expr in &expr_strs {
-            println!("    {}", expr);
+        
+        /*for expr in &expr_strs {
+            println!("variant  {}", expr);
         }*/
         let best_str = CString::new(expr_strs.join(" ")).unwrap();
         let best_str_pointer = best_str.as_ptr();
