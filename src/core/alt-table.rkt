@@ -61,13 +61,13 @@
   (andmap (curry hash-ref (alt-table-alt->done? atab))
           (hash-keys (alt-table-alt->points atab))))
 
-;; Alt getters need to be treated with care:
+;; Extracting lists from sets or hash tables
+;; need to be treated with care:
 ;;   - Internal hash tables and sets may cause
 ;;     non-deterministic behavior in ordering.
 ;;   - Need to sort to ensure some predictable order
-
 (define (order-altns altns)
-    (sort altns expr<? #:key (compose program-body alt-program)))
+  (sort altns expr<? #:key (compose program-body alt-program)))
 
 (define (atab-active-alts atab)
   (order-altns (hash-keys (alt-table-alt->points atab))))
@@ -113,7 +113,6 @@
 
 (define (atab->set-cover atab)
   (match-define (alt-table pnts->alts alts->pnts alt->done? alt->cost _ _) atab)
-  
   (define tied (list->mutable-seteq (hash-keys alts->pnts)))
   (define coverage '())
   (for* ([pcurve (in-hash-values pnts->alts)] [ppt (in-list pcurve)])
@@ -143,7 +142,8 @@
       (vector-set! coverage j #f)
       (set-remove! removable last))))
 
-(define (worst atab altns)
+(define (worst atab removable)
+  ;; Metrics for "worst" alt
   (define (alt-num-points a)
     (length (hash-ref (alt-table-alt->points atab) a)))
   (define (alt-done? a)
@@ -152,20 +152,22 @@
     (if (*pareto-mode*)
         (hash-ref (alt-table-alt->cost atab) a)
         (backup-alt-cost a)))
-
-  (argmax alt-cost (argmins alt-num-points (argmins alt-done? altns))))
+  ;; Rank by multiple metrics
+  (define not-done (argmins alt-done? (set->list removable)))
+  (define least-best-points (argmins alt-num-points not-done))
+  (define worst-cost (argmaxs alt-cost least-best-points))
+  ;; The set may have non-deterministic behavior,
+  ;; so we can only rely on some total order
+  (first (order-altns worst-cost)))
 
 (define (atab-prune atab)
   (define sc (atab->set-cover atab))
-  (define removable (sort (set->list (set-cover-removable sc)) expr<?
-                          #:key (compose program-body alt-program)))
-  (let loop ([removed '()] [removable removable])
+  (let loop ([removed '()])
     (if (set-empty? (set-cover-removable sc))
         (apply atab-remove* atab removed)
-        (let ([worst-alt (worst atab removable)])
+        (let ([worst-alt (worst atab (set-cover-removable sc))])
           (set-cover-remove! sc worst-alt)
-          (loop (cons worst-alt removed)
-                (filter (curry set-member? (set-cover-removable sc)) removable))))))
+          (loop (cons worst-alt removed))))))
 
 (define (hash-remove* hash keys)
   (for/fold ([hash hash]) ([key keys])
@@ -190,22 +192,13 @@
   (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
   (values errss costs))
 
-(define (sort-altns altns errss costs)
-  (define unsorted (map list altns errss costs))
-  (define sorted (sort unsorted expr<? #:key (compose program-body alt-program first)))
-  (values (map first sorted) (map second sorted) (map third sorted)))
-
 (define (atab-add-altns atab altns errss costs)
-  ;; sort by total order function
-  (define-values (altns* errss* costs*) (sort-altns altns errss costs))
-  ;; add to table
   (define atab*
     (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
       (if (hash-has-key? (alt-table-alt->points atab) altn)
           atab
           (atab-add-altn atab altn errs cost))))
   (define atab** (struct-copy alt-table atab* [alt->points (invert-index (alt-table-point->alts atab*))]))
-  ;; prune
   (define atab*** (atab-prune atab**))
   (struct-copy alt-table atab***
                [alt->points (invert-index (alt-table-point->alts atab***))]

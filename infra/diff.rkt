@@ -23,6 +23,9 @@
    #:args (outdir1 outdir2)
    (define df1 (read-datafile (build-path outdir1 "results.json")))
    (define df2 (read-datafile (build-path outdir2 "results.json")))
-   (unless (datafile-tests-equal? df1 df2)
-     (printf "datafiles do not have the same output expressions\n")
-     (exit 1))))
+   (cond
+     [(datafile-tests-equal? df1 df2)
+      (printf "Matching output expressions\n")]
+     [else
+      (printf "Output expressions do not match!!\n")
+      (exit 1)])))
