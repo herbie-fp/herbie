@@ -447,7 +447,7 @@ fn egglog_run_rules(egglog: &mut EGraph, iters: usize) -> (Duration, Duration, D
     let mut rebuild: Duration = Duration::default();
     for _i in 0..iters {
         egglog.load_ruleset("analysis".into());
-        let [s, a, r] = egglog.run_rules(10);
+        let [s, a, r] = egglog.run_rules(5);
         search += s;
         apply += a;
         rebuild += r;
@@ -562,7 +562,9 @@ pub unsafe extern "C" fn egglog_get_simplest(
         // first do a small soundness check
         let (_, valzero) = ctx.egglog.eval_expr(&Expr::var("zero"), None, false).unwrap();
         let (_, valone) = ctx.egglog.eval_expr(&Expr::var("one"), None, false).unwrap();
-        assert_ne!(valzero, valone);
+        if valzero == valone {
+            eprintln!("Warning: unsoundness detected (zero == one)");
+        }
 
         
         let (_, value) = ctx.egglog.eval_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string()), None, false).unwrap();

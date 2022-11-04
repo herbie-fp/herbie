@@ -899,6 +899,11 @@
 (rewrite (Log1p x) (Log (Add one x)))
 (rewrite (Hypot x y) (Sqrt (Add (Mul x x) (Mul y y))))
 
+(rewrite (Sub (Mul a b) (Mul c d))
+         (Add (Fma a b (Neg (Mul d c)))
+              (Fma (Neg d) c (Mul d c))))
+
+
 (add-ruleset rules)
 (clear-rules)
 
