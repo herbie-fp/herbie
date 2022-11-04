@@ -195,13 +195,9 @@
   (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
   (values errss costs))
 
-(define (atab-progs atab)
-  (for/set ([(altn _) (in-hash (alt-table-alt->points atab))])
-    (alt-program altn)))
-
 (define (atab-add-altns atab altns errss costs)
   (define-values (atab* progs*)
-    (for/fold ([atab atab] [progs (atab-progs atab)])
+    (for/fold ([atab atab] [progs (set-map (alt-table-all atab) alt-program)])
               ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
       ;; this is subtle, we actually want to check for duplicates
       ;; in terms of expressions, not alts: the default `equal?`
