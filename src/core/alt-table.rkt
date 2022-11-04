@@ -61,11 +61,17 @@
   (andmap (curry hash-ref (alt-table-alt->done? atab))
           (hash-keys (alt-table-alt->points atab))))
 
+;;
 ;; Extracting lists from sets or hash tables
 ;; need to be treated with care:
 ;;   - Internal hash tables and sets may cause
 ;;     non-deterministic behavior in ordering.
 ;;   - Need to sort to ensure some predictable order
+;;
+;; But why?? Still unclear.
+;; If the conversion from seteq or hasheq to list is guarded
+;; by sorting shouldn't everything else be deterministic???
+;;
 (define (order-altns altns)
   (sort altns expr<? #:key (compose program-body alt-program)))
 
@@ -175,12 +181,9 @@
 
 (define (atab-remove* atab . altns)
   (match-define (alt-table point->alts alt->points alt->done? alt->cost pctx _) atab)
-
-  (define altns* (list->set altns))
   (define pnts->alts*
     (for/hash ([(pt curve) (in-hash point->alts)])
       (values pt (pareto-map (curry remq* altns) curve))))
-
   (struct-copy alt-table atab
                [point->alts pnts->alts*]
                [alt->points (hash-remove* alt->points altns)]
@@ -192,13 +195,24 @@
   (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
   (values errss costs))
 
+(define (atab-progs atab)
+  (for/set ([(altn _) (in-hash (alt-table-alt->points atab))])
+    (alt-program altn)))
+
 (define (atab-add-altns atab altns errss costs)
-  (define atab*
-    (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
-      (if (hash-has-key? (alt-table-alt->points atab) altn)
-          atab
-          (atab-add-altn atab altn errs cost))))
-  (define atab** (struct-copy alt-table atab* [alt->points (invert-index (alt-table-point->alts atab*))]))
+  (define-values (atab* progs*)
+    (for/fold ([atab atab] [progs (atab-progs atab)])
+              ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
+      ;; this is subtle, we actually want to check for duplicates
+      ;; in terms of expressions, not alts: the default `equal?`
+      ;; returns #f for the same expression with different derivations.
+      (let ([prog (alt-program altn)])
+        (if (set-member? progs prog)
+            (values atab progs)
+            (values (atab-add-altn atab altn errs cost) (set-add progs prog))))))
+  (define atab**
+    (struct-copy alt-table atab*
+                 [alt->points (invert-index (alt-table-point->alts atab*))]))
   (define atab*** (atab-prune atab**))
   (struct-copy alt-table atab***
                [alt->points (invert-index (alt-table-point->alts atab***))]
