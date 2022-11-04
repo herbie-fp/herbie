@@ -371,6 +371,7 @@
 (rewrite (Mul neg-one x) (Neg x))
  
 (rewrite (Sub a b) (Add a (Neg b)))
+(rewrite (Sub a b) (Neg (Sub b a)))
 (rewrite (Add a (Neg b)) (Sub a b))
 (rewrite (Neg x) (Sub zero x))
 (rewrite (Neg x) (Mul neg-one x))
@@ -774,10 +775,9 @@
 (rewrite (Cos (Add a b))
          (Sub (Mul (Cos a) (Cos b))
               (Mul (Sin a) (Sin b))))
-;; TODO: When is this rule sound?
-;(rewrite (Tan (Add x y))
-         ;(Div (Add (Tan x) (Tan y))
-              ;(Sub one (Mul (Tan x) (Tan y)))))
+(rewrite (Tan (Add x y))
+         (Div (Add (Tan x) (Tan y))
+              (Sub one (Mul (Tan x) (Tan y)))))
 (rewrite (Sin (Sub x y))
          (Sub (Mul (Sin x) (Cos y))
                (Mul (Cos x) (Sin y))))

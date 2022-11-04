@@ -339,7 +339,7 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
                         Sexp::String("10000000".to_string()),
                         ]);
 
-                
+                //println!("Adding {}", expr);
                 ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 
                 ctx.egglog_gen += 1;

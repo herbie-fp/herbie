@@ -142,6 +142,14 @@
   (for/list ([i (in-range len)])
     (apply append (for/list ([lst lsts]) (list-ref lst i)))))
 
+(define (unsound-expr? expr)
+  (cond
+    [(list? expr)
+     (or (equal? expr `(sqrt.f64 -1))
+         (for/or ([child expr])
+           (unsound-expr? child)))]
+    [else #f]))
+
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
@@ -152,6 +160,12 @@
 
   ;; get subexprs and locations
   (define exprs (map (compose program-body alt-program) (^queued^)))
+
+  (for ([expr exprs])
+    (when (unsound-expr? expr)
+      (println expr)
+      (error "Sqrt neg one detected!")))
+
   (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
   (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
   (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root

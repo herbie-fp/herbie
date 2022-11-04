@@ -22,7 +22,7 @@ vanilla_tests = dict(map(lambda row: (row["input"], row), vanilla_data))
 egglog_tests = dict(map(lambda row: (row["input"], row), egglog_data))
 
 def test_error_diff(test):
-  return vanilla_tests[test]["end"] - egglog_tests[test]["end"]
+  return egglog_tests[test]["end"] - vanilla_tests[test]["end"]
 
 def plot_error():
   tests_sorted = list(tests)

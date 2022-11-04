@@ -68,8 +68,8 @@
     (for ([rule rules] #:when (equal? expr-repr (rule-otype rule)))
       (let* ([result (rule-apply rule expr)])
         (when result
-          (sow (list (change rule root-loc (cdr result)))))))))
-
+          (sow (list (change rule root-loc (cdr
+                                            result)))))))))
 ;;
 ;;  Egg recursive rewriter
 ;;
@@ -84,6 +84,7 @@
                            #:rules rules
                            #:roots [root-locs (make-list (length exprs) '())]
                            #:depths [depths (make-list (length exprs) 1)])
+
   (define reprs (map (λ (e) (repr-of e ctx)) exprs))
   (define irules (rules->irules rules))
   ; If unsoundness was detected, try running one epxression at a time.

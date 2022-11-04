@@ -67,7 +67,8 @@
 
 ;; TODO get proofs from egglog
 (define (get-proof input start end)
-  (if (*egglog-enabled*)
+  empty
+  #;(if (*egglog-enabled*)
       empty
       (run-simplify-input
        input
