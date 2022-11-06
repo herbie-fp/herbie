@@ -6,9 +6,6 @@
 
 (provide make-report-page)
 
-(define (try-list-accessor acc fail)
-  (λ (l) (if (null? l) fail (acc l))))
-
 (define (badge-label result)
   (match (table-row-status result)
     ["error" "ERR"]
