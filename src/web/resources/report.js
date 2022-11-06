@@ -100,7 +100,6 @@ var TryIt = new Component("#try-it", {
 
 const ClientGraph = new Component('#graphs', {
     setup: async () => {
-        console.log("make error graph");
         const points_json = await (async () => {
             const get_points_store = {}
             
@@ -268,13 +267,12 @@ const ClientGraph = new Component('#graphs', {
 
 const MergedCostAccuracy = new Component('#merged-cost-accuracy', {
     setup: async () => {
-        console.log("make cost accuracy");
         const points_json = await (async () => {
             const get_points_store = {}
             
             const get_points_memo = async () => {
                 if (get_points_store.value) { return get_points_store.value }
-                const ps = await get_json('cost-accuracy.json');
+                const ps = await get_json('../results.json');
                 get_points_store.value = ps;
                 return get_points_store.value;
             }
@@ -292,23 +290,23 @@ const MergedCostAccuracy = new Component('#merged-cost-accuracy', {
 
         const plot = async () => {
             // NOTE ticks and splitpoints include all vars, so we must index
-            const { best, first, points } = points_json;
-
+            const costAccuracy = points_json["cost-accuracy"];
             const out = Plot.plot({
                 marks: [
-                    Plot.line(points, {x: d => d[0], y: d => d[1], stroke: "red"}),
-                    Plot.dot(first, {x: first[0], y: first[1], fill: "black"})
+                    Plot.line(costAccuracy[2], {x: d => d[0], y: d => d[1], stroke: "red"}),
+                    Plot.dot(costAccuracy[2], {x: d => d[0], y: d => d[1], fill: "red", stroke: "black"}),
+                    Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "black"})
                 ],
                 grid: true,
                 width: '800',
                 height: '400',                
                     x: {
                         label: `Cost`,
-                        domain: [0, best[0]]
+                        domain: [0, costAccuracy[0][0]]
                     },
                     y: {
                         label: "Sum of error bits",
-                        domain: [0, best[1]],
+                        domain: [0, costAccuracy[0][1]],
                     },
             })
             out.setAttribute('viewBox', '0 0 800 460')
@@ -343,15 +341,16 @@ const MergedCostAccuracy = new Component('#merged-cost-accuracy', {
 
 const CostAccuracy = new Component('#cost-accuracy', {
     setup: async () => {
-        console.log("make cost accuracy");
-        const points_json = await (async () => {
-            const get_points_store = {}
+        const content = document.querySelector('#pareto-content');
+        
+        const results_json = await (async () => {
+            const get_results_store = {}
             
-            const get_points_memo = async () => {
-                if (get_points_store.value) { return get_points_store.value }
-                const ps = await get_json('cost-accuracy.json');
-                get_points_store.value = ps;
-                return get_points_store.value;
+            const get_results_memo = async () => {
+                if (get_results_store.value) { return get_results_store.value }
+                const ps = await get_json('../results.json');
+                get_results_store.value = ps;
+                return get_results_store.value;
             }
             const get_json = url => fetch(url, {
                 // body: `_body_`,
@@ -362,29 +361,66 @@ const CostAccuracy = new Component('#cost-accuracy', {
                 //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
                 return await response.json()
             })
-            return get_points_memo()
+            return get_results_memo()
         })()
 
         const plot = async () => {
             // NOTE ticks and splitpoints include all vars, so we must index
-            const { best, first, points } = points_json;
+            const tests = results_json.tests;
+            
+            let benchmark;
+
+            // find right test by iterating through results_json
+            for (let test of tests) {
+                console.log(test);
+                if (test.name == content.dataset.benchmarkName) {
+                    benchmark = test;
+                    break;
+                }
+            }
+
+            console.log(benchmark);
+
+            const costAccuracy = benchmark["cost-accuracy"];
+            
+            // find maximum x and y values
+            let xmax = costAccuracy[0][0];
+            let ymax = costAccuracy[0][1];
+
+            if (costAccuracy[1][0] > xmax) xmax = costAccuracy[1][0];
+            if (costAccuracy[1][1] > ymax) ymax = costAccuracy[1][1];
+            
+            for (let point of costAccuracy[2]) {
+                console.log(`x: ${point[0]} y: ${point[1]}`)
+                if (point[0] > xmax) xmax = point[0];
+                if (point[1] > ymax) ymax = point[1];
+            }
+
+            // ceiling ymax to nearest multiple of 16
+            const range = Math.ceil(ymax/16) * 16;
+
+            // composite array for both best and other points so the line graph
+            // contains the best point as well.
+            const allpoints = [costAccuracy[1], ...costAccuracy[2]];
 
             const out = Plot.plot({
                 marks: [
-                    Plot.dot(points, {x: d => d[0], y: d => d[1], fill: "red", stroke: "black"}),
-                    Plot.dot(first, {x: first[0], y: first[1], fill: "black"})
+                    Plot.dot(costAccuracy[0], {x: costAccuracy[0][0], y: costAccuracy[0][1], fill: "black"}),
+                    Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "red", stroke: "blue", title: d => "best"}),
+                    Plot.dot(costAccuracy[2], {x: d => d[0], y: d => d[1], fill: "red", stroke: "black", title: d => `x: ${d[0]} y: ${d[1]} exp: ${d[2]}`}),
+                    Plot.line(allpoints, {x: d => d[0], y: d => d[1], stroke: "red"})
                 ],
                 grid: true,
                 width: '800',
                 height: '400',                
                     x: {
                         label: `Cost`,
-                        domain: [0, best[0]]
+                        domain: [0, 2 * xmax]
                     },
                     y: {
                         label: "Bits of error",
-                        domain: [0, best[1]],
-                        ticks: new Array(best[1] / 4 + 1).fill(0).map((_, i) => i * 4),
+                        domain: [0, range],
+                        ticks: new Array(range / 4 + 1).fill(0).map((_, i) => i * 4),
                         tickFormat: d => d % 8 != 0 ? '' : d
                     },
             })
@@ -412,7 +448,10 @@ const CostAccuracy = new Component('#cost-accuracy', {
             options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
                 render()
             })
-            document.querySelector('#pareto-content').replaceChildren(await plot(), options_view)
+
+            
+
+            content.replaceChildren(await plot(), options_view)
         }
         render()
     }

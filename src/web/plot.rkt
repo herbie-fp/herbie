@@ -5,7 +5,7 @@
          "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/read.rkt"
          "../alternative.rkt" "../core/regimes.rkt" "../sandbox.rkt")
 
-(provide make-cost-accuracy-plot make-cost-accuracy-json make-full-cost-accuracy-plot make-full-cost-accuracy-json
+(provide make-cost-accuracy-plot make-full-cost-accuracy-plot make-full-cost-accuracy-json
          real->ordinal regime-splitpoints choose-ticks regime-var)
 
 ;; Racket 8.1 compatability
@@ -131,26 +131,6 @@
   (-> alt? (or/c expr? #f))
   (define info (regime-info altn))
   (and info (sp-bexpr (car info))))
-
-;;; Cost vs. Accuracy JSON (internal, single benchmark)
-(define (make-cost-accuracy-json result out)
-  (define repr (test-output-repr (test-result-test result)))
-  (define bits (representation-total-bits repr))
-  (define costs (test-success-end-costs result))
-  (define errs (map errors-score (test-success-end-errors result)))
-
-  (define cost0 (test-success-start-cost result))
-  (define err0 (errors-score (test-success-start-error result)))
-
-  (define xmax (argmax identity (cons cost0 costs)))
-  (define xmin (argmax identity (cons cost0 costs)))
-
-  (define json-obj `#hasheq(
-    (first . ,(list cost0 err0))
-    (best . ,(list (* 2 xmax) bits))
-    (points . ,
-      (for/list ([acost costs] [aerr errs]) (list acost aerr)))))
-  (write-json json-obj out))
 
 ;;; Cost vs. Accuracy JSON (internal, entire suite)
 (define (make-full-cost-accuracy-json y-max start pts out)

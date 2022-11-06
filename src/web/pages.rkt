@@ -25,8 +25,7 @@
     `("graph.html"
       ,(and good? "interactive.js")
       "timeline.html" "timeline.json"
-      ,(and good? "points.json")
-      ,(and good? "cost-accuracy.json")))
+      ,(and good? "points.json")))
   (filter identity pages))
 
 (define ((page-error-handler result page) e)
@@ -50,8 +49,6 @@
      (make-timeline (test-name test) (test-result-timeline result) out)]
     ["timeline.json"
      (write-json (test-result-timeline result) out)]
-    ["cost-accuracy.json"
-     (make-cost-accuracy-json result out)]
     ["points.json"
      (make-points-json result out repr)]))
 

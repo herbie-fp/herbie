@@ -161,7 +161,7 @@
       ,(if (not (null? other-alts))
           `(section ([id "cost-accuracy"])
             (h1 "Error")
-            (div ([id "pareto-content"])))
+            (div ([id "pareto-content"] [data-benchmark-name ,(~a (test-name test))])))
             "")
 
       ,(render-reproduction test)))
