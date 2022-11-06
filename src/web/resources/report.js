@@ -291,9 +291,11 @@ const MergedCostAccuracy = new Component('#merged-cost-accuracy', {
         const plot = async () => {
             // NOTE ticks and splitpoints include all vars, so we must index
             const costAccuracy = points_json["cost-accuracy"];
+            const sortLine = [...costAccuracy[2]];
+            sortLine.sort((a, b) => {return a[0]-b[0]});
             const out = Plot.plot({
                 marks: [
-                    Plot.line(costAccuracy[2], {x: d => d[0], y: d => d[1], stroke: "red"}),
+                    Plot.line(sortLine, {x: d => d[0], y: d => d[1], stroke: "red"}),
                     Plot.dot(costAccuracy[2], {x: d => d[0], y: d => d[1], fill: "red", stroke: "black"}),
                     Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "black"})
                 ],
@@ -391,7 +393,6 @@ const CostAccuracy = new Component('#cost-accuracy', {
             if (costAccuracy[1][1] > ymax) ymax = costAccuracy[1][1];
             
             for (let point of costAccuracy[2]) {
-                console.log(`x: ${point[0]} y: ${point[1]}`)
                 if (point[0] > xmax) xmax = point[0];
                 if (point[1] > ymax) ymax = point[1];
             }
@@ -402,11 +403,13 @@ const CostAccuracy = new Component('#cost-accuracy', {
             // composite array for both best and other points so the line graph
             // contains the best point as well.
             const allpoints = [costAccuracy[1], ...costAccuracy[2]];
+            allpoints.sort((a, b) => {return a[0]-b[0]});
+            console.log(allpoints);
 
             const out = Plot.plot({
                 marks: [
                     Plot.dot(costAccuracy[0], {x: costAccuracy[0][0], y: costAccuracy[0][1], fill: "black"}),
-                    Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "red", stroke: "blue", title: d => "best"}),
+                    Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "red", stroke: "blue", title: d => `x: ${costAccuracy[1][0]} y: ${costAccuracy[1][1]} best`}),
                     Plot.dot(costAccuracy[2], {x: d => d[0], y: d => d[1], fill: "red", stroke: "black", title: d => `x: ${d[0]} y: ${d[1]} exp: ${d[2]}`}),
                     Plot.line(allpoints, {x: d => d[0], y: d => d[1], stroke: "red"})
                 ],

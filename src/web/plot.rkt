@@ -5,7 +5,7 @@
          "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/read.rkt"
          "../alternative.rkt" "../core/regimes.rkt" "../sandbox.rkt")
 
-(provide make-cost-accuracy-plot make-full-cost-accuracy-plot make-full-cost-accuracy-json
+(provide make-cost-accuracy-plot make-full-cost-accuracy-plot 
          real->ordinal regime-splitpoints choose-ticks regime-var)
 
 ;; Racket 8.1 compatability
@@ -132,18 +132,6 @@
   (define info (regime-info altn))
   (and info (sp-bexpr (car info))))
 
-;;; Cost vs. Accuracy JSON (internal, entire suite)
-(define (make-full-cost-accuracy-json y-max start pts out)
-  (match-define (list (cons costs scores) ...) pts)
-  (define x-max (argmax identity (cons (car start) costs)))
-  
-  (define json-obj `#hasheq(
-    (first . ,(list (car start) (cdr start)))
-    (best . ,(list x-max y-max))
-    (points . ,
-      (for/list ([acost costs] [aerr scores]) (list acost aerr)))))
-  (write-json json-obj out))
-  
 ;;; Cost vs. Accuracy (internal, single benchmark)
 (define (make-cost-accuracy-plot result out)
   (define repr (test-output-repr (test-result-test result)))
