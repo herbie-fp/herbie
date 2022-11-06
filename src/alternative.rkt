@@ -3,7 +3,7 @@
 (require "cost.rkt")
 (provide (struct-out change) (struct-out alt) make-alt alt?
          alt-program alt-add-event *start-prog* *all-alts*
-         alt-cost alt-equal? alt-map)
+         alt-cost alt-equal? alt-map unsound-expr?)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -11,6 +11,15 @@
 ;; They are a labeled linked list of changes.
 
 (struct change (rule location bindings) #:transparent)
+
+(define (unsound-expr? expr)
+  (cond
+    [(list? expr)
+     (or (equal? expr `(sqrt.f64 -1))
+         (for/or ([child expr])
+           (unsound-expr? child)))]
+    [else #f]))
+
 
 (struct alt (program event prevs)
         #:methods gen:custom-write

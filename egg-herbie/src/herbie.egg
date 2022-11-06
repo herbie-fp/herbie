@@ -337,6 +337,10 @@
        (> loa r-zero))
       ((set (Pow a b) (Mul (Pow a (Div b two)) (Pow a (Div b two))))))
 (rewrite (Mul (Pow a b) (Pow a b))                           (Pow a (Mul two b)))
+(rewrite (Pow a three)
+         (Mul a (Mul a a)))
+(rewrite (Pow a four)
+         (Mul (Pow a two) (Pow a two)))
 
 
 ;; Identity

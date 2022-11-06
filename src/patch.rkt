@@ -142,13 +142,6 @@
   (for/list ([i (in-range len)])
     (apply append (for/list ([lst lsts]) (list-ref lst i)))))
 
-(define (unsound-expr? expr)
-  (cond
-    [(list? expr)
-     (or (equal? expr `(sqrt.f64 -1))
-         (for/or ([child expr])
-           (unsound-expr? child)))]
-    [else #f]))
 
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))

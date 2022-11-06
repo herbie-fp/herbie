@@ -16,10 +16,10 @@ vanilla_data = json.load(open(results_file_vanilla))["tests"]
 egglog_data = json.load(open(results_file_egglog))["tests"]
 
 
-tests = set(map(lambda row: row["input"], vanilla_data))
+tests = set(map(lambda row: row["name"], vanilla_data))
 assert (len(tests) == len(vanilla_data))
-vanilla_tests = dict(map(lambda row: (row["input"], row), vanilla_data))
-egglog_tests = dict(map(lambda row: (row["input"], row), egglog_data))
+vanilla_tests = dict(map(lambda row: (row["name"], row), vanilla_data))
+egglog_tests = dict(map(lambda row: (row["name"], row), egglog_data))
 
 def test_error_diff(test):
   return egglog_tests[test]["end"] - vanilla_tests[test]["end"]

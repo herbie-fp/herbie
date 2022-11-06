@@ -8,11 +8,11 @@ cargo build --release --manifest-path=egg-herbie/Cargo.toml
 
 SEED=0
 CORES=5
-BENCHMARKS="bench/hamming"
+BENCHMARKS="quad2p.fpcore"
 
-racket src/herbie.rkt report --threads "$CORES" --seed "$SEED" "$BENCHMARKS" egglogreport
+racket src/herbie.rkt report --threads "$CORES" --no-pareto --seed "$SEED" "$BENCHMARKS" egglogreport
 
-racket src/herbie.rkt report --threads "$CORES"  --seed "$SEED" --disable generate:egglog "$BENCHMARKS" vanillareport
+racket src/herbie.rkt report --threads "$CORES"  --seed "$SEED" --disable generate:egglog --no-pareto "$BENCHMARKS" vanillareport
 
 
 bash egglogreport.sh

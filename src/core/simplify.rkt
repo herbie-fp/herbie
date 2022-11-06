@@ -121,6 +121,9 @@
 
 (define (run-simplify-input input egraph-func)
   (define exprs (simplify-input-exprs input))
+  (for ([expr exprs])
+    (when (unsound-expr? expr)
+      (error (format "Unsound expression: ~a" expr))))
   (define precompute? (simplify-input-precompute? input))
   (define proofs (simplify-input-proofs input))
   (define rules (simplify-input-rules input))
