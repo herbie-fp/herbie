@@ -9,24 +9,6 @@
 (define (try-list-accessor acc fail)
   (λ (l) (if (null? l) fail (acc l))))
 
-(define (trs->pareto trs)
-  (define cas (map table-row-cost-accuracy trs))
-  (define starts (map (try-list-accessor first (list 0 0)) cas))
-  (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
-                                       (list (list 0 0)))
-                    cas))
-  (define reprs (map (compose get-representation table-row-precision) trs))
-
-  (define start
-    (for/fold ([x 0] [y 0] #:result (cons x y)) ([s starts])
-      (values (+ x (first s)) (+ y (second s)))))
-  (define ptss*
-    (for/list ([pts ptss])
-      (for/list ([pt pts])
-        (cons (first pt) (second pt)))))
-  (define ymax (apply + (map representation-total-bits reprs)))
-  (values start (generate-pareto-curve ptss*) ymax))
-
 (define (badge-label result)
   (match (table-row-status result)
     ["error" "ERR"]
@@ -62,14 +44,6 @@
 
 (define (make-report-page out info dir #:merge-data [merge-data #f])
   (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
-
-  (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
-  (cond
-   [(not dir) (void)]
-   [(> (length pareto-points) 1) ; generate the scatterplot if necessary
-    (call-with-output-file (build-path dir "cost-accuracy.json")
-      #:exists 'replace
-      (λ (out) (make-full-cost-accuracy-json pareto-max pareto-start pareto-points out)))])
 
   (define table-labels
     '("Test" "Start" "Result" "Target" "Time"))
@@ -174,9 +148,7 @@
                            (href ,(format "~a/graph.html" (table-row-link result))))
                           "»"))
                      "")))))
-     ,(if (> (length pareto-points) 1)
           `(section ([id "merged-cost-accuracy"])
             (h1 "Error")
-            (div ([id "pareto-content"])))
-           "")))
+            (div ([id "pareto-content"])))))
    out))
