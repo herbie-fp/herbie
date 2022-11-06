@@ -98,11 +98,11 @@
         (λ (egg-graph)
           (define node-ids
             (map (curry
-                  (if (*egglog-enabled*)
+                  (if (flag-set? 'generate 'egglog)
                       egraph-add-expr-egglog
                       egraph-add-expr) egg-graph) exprs))
           (define iter-data
-            (if (*egglog-enabled*)
+            (if (flag-set? 'generate 'egglog)
                 (egglog-run egg-graph)
                 (egg-run-rules egg-graph #:limit iter-limit (*node-limit*) irules node-ids #t)))
 
@@ -110,7 +110,7 @@
             (define count (egraph-get-times-applied egg-graph (rule-name rule)))
             (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
           (cond
-            [(and (not (*egglog-enabled*)) (egraph-is-unsound-detected egg-graph))
+            [(and (not (flag-set? 'generate 'egglog)) (egraph-is-unsound-detected egg-graph))
             ; unsoundness detected, fallback
             (match* (exprs iter-limit)
               [((list (? list?) (? list?) (? list?) ...) #f)     ; run expressions individually
@@ -131,7 +131,7 @@
               (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
                 (define output 
-                  ((if (*egglog-enabled*)
+                  ((if (flag-set? 'generate 'egglog)
                       egglog-get-variants egraph-get-variants)
                     egg-graph id expr))
                 (define extracted (egg-exprs->exprs output egg-graph))

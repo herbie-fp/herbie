@@ -27,6 +27,12 @@ def test_error_diff(test):
 def plot_error():
   tests_sorted = list(tests)
   tests_sorted.sort(key = lambda test: test_error_diff(test))
+  for test in tests_sorted:
+    print(egglog_tests[test]["name"])
+    print(egglog_tests[test]["end"])
+    print(vanilla_tests[test]["end"])
+    print(test_error_diff(test))
+  
   xs = range(len(tests_sorted))
   ys = list(map(lambda test: test_error_diff(test), tests_sorted))
 

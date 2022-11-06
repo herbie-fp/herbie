@@ -54,9 +54,7 @@
     (define given-seed (read (open-input-string int)))
     (when given-seed (set-seed! given-seed))]
    [("--num-iters") num "The number of iterations to use for the main loop"
-    (*num-iterations* (string->number num))]
-   [("--egglog-disabled") "Use egg instead of eggsmol"
-                          (*egglog-enabled* #f)]
+                    (*num-iterations* (string->number num))]
    [("--num-points") num "The number of points to use during sampling"
     (*num-points* (string->number num))]
    [("--num-enodes") num "The number of enodes to use during simplification"
