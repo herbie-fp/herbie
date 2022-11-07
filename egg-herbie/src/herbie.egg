@@ -692,7 +692,7 @@
             t1)))
 
 (rewrite (Sqrt (Pow x y))
-         (Pow x (Div y two)))
+         (Pow x (Div y two)) :when ((non-negative x)))
 
 (rewrite (Pow (Sqrt x) y)
          (Pow x (Div y two)))

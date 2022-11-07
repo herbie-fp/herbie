@@ -403,12 +403,16 @@
       (simplify-input 
         (map (compose program-body alt-program) joined-alts) empty
         (*fp-safe-simplify-rules*) #t)))
+
+  ;; TODO: we don't have fp-safe for egglog yet
   (define cleaned-alts
-    (remove-duplicates
-      (for/list ([altn joined-alts] [progs progss*])
-        (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
-              'final-simplify (list altn)))
-      alt-equal?))
+    (if (flag-set? 'generate 'egglog)
+        joined-alts
+      (remove-duplicates
+        (for/list ([altn joined-alts] [progs progss*])
+          (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
+                'final-simplify (list altn)))
+        alt-equal?)))
   (define alts-deduplicated
     (remove-duplicates cleaned-alts alt-equal?))
   
