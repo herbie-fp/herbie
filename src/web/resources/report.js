@@ -272,7 +272,7 @@ const MergedCostAccuracy = new Component('#merged-cost-accuracy', {
             
             const get_points_memo = async () => {
                 if (get_points_store.value) { return get_points_store.value }
-                const ps = await get_json('../results.json');
+                const ps = await get_json('results.json');
                 get_points_store.value = ps;
                 return get_points_store.value;
             }
