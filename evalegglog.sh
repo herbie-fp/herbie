@@ -7,8 +7,8 @@ set -e -x
 cargo build --release --manifest-path=egg-herbie/Cargo.toml
 
 SEED=0
-CORES=1
-BENCHMARKS="bench/hamming"
+CORES=4
+BENCHMARKS="bench/"
 
 racket src/herbie.rkt report --threads "$CORES" --no-pareto --seed "$SEED" "$BENCHMARKS" egglogreport
 

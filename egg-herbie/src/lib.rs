@@ -447,7 +447,7 @@ fn egglog_run_rules(egglog: &mut EGraph, iters: usize) -> (Duration, Duration, D
     let mut rebuild: Duration = Duration::default();
     for _i in 0..iters {
         egglog.load_ruleset("analysis".into());
-        let [s, a, r] = egglog.run_rules(10);
+        let [s, a, r] = egglog.run_rules(4);
         search += s;
         apply += a;
         rebuild += r;
@@ -472,7 +472,7 @@ pub unsafe extern "C" fn egraph_run_egglog(
     ffirun(|| {
         let ctx = &mut *ptr;
 
-        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 3);
+        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 2);
 
         let mut iters = vec![EGraphIter {
             numnodes: 0,

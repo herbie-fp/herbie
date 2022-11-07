@@ -15,8 +15,11 @@
 (define (unsound-expr? expr)
   (cond
     [(list? expr)
-     (or (equal? expr `(sqrt.f64 -1))
-         (equal? expr `(sqrt -1))
+     (or (and
+          (equal? (length expr) 2)
+          (or (equal? (first expr) `sqrt.f64)
+              (equal? (first expr) `sqrt))
+          (and (number? (second expr)) (negative? (second expr))))
          (for/or ([child expr])
            (unsound-expr? child)))]
     [else #f]))
