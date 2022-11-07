@@ -339,7 +339,7 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
                         Sexp::String("10000000".to_string()),
                         ]);
 
-                println!("Adding {}", expr);
+                //println!("Adding {}", expr);
                 ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 
                 ctx.egglog_gen += 1;
@@ -563,7 +563,8 @@ pub unsafe extern "C" fn egglog_get_simplest(
         let (_, valzero) = ctx.egglog.eval_expr(&Expr::var("zero"), None, false).unwrap();
         let (_, valone) = ctx.egglog.eval_expr(&Expr::var("one"), None, false).unwrap();
         if valzero == valone {
-            eprintln!("Warning: unsoundness detected (zero == one)");
+            eprintln!("Warning: unsoundness detected (zero == one), {:?}", valzero);
+            //eprintln!("{:?}", CStr::from_ptr(egglog_get_variants(ptr, node_id, 0 as *const c_char)).to_str());
         }
 
         
@@ -593,6 +594,16 @@ pub unsafe extern "C" fn egglog_get_variants(
 ) -> *const c_char {
     ffirun(|| {
         let ctx = &mut *ptr;
+
+        // first do a small soundness check
+        let (_, valzero) = ctx.egglog.eval_expr(&Expr::var("zero"), None, false).unwrap();
+        let (_, valone) = ctx.egglog.eval_expr(&Expr::var("one"), None, false).unwrap();
+        if valzero == valone {
+            eprintln!("Warning: unsoundness detected (zero == one), {:?}", valzero);
+        }
+
+
+
         let (_, value) = ctx.egglog.eval_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string()), None, false).unwrap();
         let exprs = ctx.egglog.extract_variants(value, 100_000).into_iter().filter_map(|expr| {
             let parsed = parser::parse_str(&expr.to_string()).unwrap();

@@ -113,7 +113,9 @@
 
     (define series-expansions*
       (filter-not
-        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
+       (λ (x)
+         (or (expr-contains? (program-body (alt-program x)) is-nan?)
+             (unsound-expr? (alt-program x))))
         series-expansions))
 
     ; TODO: accuracy stats for timeline

@@ -826,8 +826,8 @@
          (Mul two (Mul (Cos (Div (Add x y) two))
                        (Cos (Div (Sub x y) two)))))
 (rewrite (Mul (Cos x) (Cos y))
-       (Div (Add (Sin (Sub x y))
-                 (Sin (Add x y)))
+       (Div (Add (Cos (Add x y))
+                 (Cos (Sub x y)))
        two))
 (rewrite (Mul (Sin x) (Sin y))
        (Div (Sub (Cos (Sub x y))
@@ -903,9 +903,6 @@
 (rewrite (Log1p x) (Log (Add one x)))
 (rewrite (Hypot x y) (Sqrt (Add (Mul x x) (Mul y y))))
 
-(rewrite (Sub (Mul a b) (Mul c d))
-         (Add (Fma a b (Neg (Mul d c)))
-              (Fma (Neg d) c (Mul d c))))
 
 
 (add-ruleset rules)

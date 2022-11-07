@@ -16,13 +16,14 @@
   (cond
     [(list? expr)
      (or (equal? expr `(sqrt.f64 -1))
+         (equal? expr `(sqrt -1))
          (for/or ([child expr])
            (unsound-expr? child)))]
     [else #f]))
 
 
 (struct alt (program event prevs)
-        #:methods gen:custom-write
+  #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (fprintf port "#<alt ~a>" (alt-program alt)))])
 
