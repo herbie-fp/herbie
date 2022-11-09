@@ -17,8 +17,8 @@ num-rational = "0.4.0"
 num-traits = "0.2.15"
 env_logger = { version = "0.9", default-features = false }
 
-#egg-smol = { path = "../../egg-smol" }
-egg-smol = { git = "ssh://git@github.com/oflatt/egg-smol.git", rev = "0eaf147f9633daa713fb72fc5343715027020af4" }
+egg-smol = { path = "../../egg-smol" }
+#egg-smol = { git = "ssh://git@github.com/oflatt/egg-smol.git", rev = "0eaf147f9633daa713fb72fc5343715027020af4" }
 symbolic_expressions = "5.0.3"
 
 [lib]

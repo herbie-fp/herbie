@@ -8,7 +8,7 @@ use math::*;
 
 use std::collections::HashMap;
 
-use num_rational::Rational64;
+use num_rational::BigRational;
 
 use std::cmp::min;
 use std::ffi::{CStr, CString};
@@ -239,13 +239,14 @@ pub fn add_types(expr: &Sexp) -> Sexp {
     }
 }
 
+
 pub fn unconvert_egglog(context: &Context, expr: &Sexp) -> Sexp {
     match expr {
         Sexp::List(list) => {
             if list[0] == Sexp::String("Num".to_string()) {
                 if let Sexp::List(inner) = &list[1] {
                     assert_eq!(inner[0].to_string(), "rational");
-                    Sexp::String(format!("{}/{}", inner[1], inner[2]))
+                    Sexp::String(format!("{}/{}", inner[1].to_string(), inner[2].to_string()))
                 } else {
                     panic!("Num should have a list as second element");
                 }
@@ -282,11 +283,12 @@ pub fn unconvert_egglog(context: &Context, expr: &Sexp) -> Sexp {
 pub fn convert_egglog(ctx: &Context, expr: &Sexp) -> Sexp {
     match expr {
         Sexp::String(atom) => {
-            if let Ok(rat) = atom.parse::<Rational64>() {
+            if let Ok(rat) = atom.parse::<BigRational>() {
                 Sexp::List(vec![Sexp::String("Num".to_string()),
-                                Sexp::List(vec![Sexp::String("rational".to_string()),
-                                                Sexp::String(rat.numer().to_string()),
-                                                Sexp::String(rat.denom().to_string())])])
+                                Sexp::List(
+                                    vec![Sexp::String("rational".to_string()),
+                                         Sexp::String("\"".to_owned() + &rat.numer().to_string() + "\""),
+                                         Sexp::String("\"".to_owned() + &rat.denom().to_string() + "\"")])])
             } else {
                 Sexp::List(vec![Sexp::String("Var".to_string()),
                                 Sexp::String("\"".to_string() + &atom.to_string() + "\"")])
@@ -339,7 +341,6 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
                         Sexp::String("10000000".to_string()),
                         ]);
 
-                //println!("Adding {}", expr);
                 ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 
                 ctx.egglog_gen += 1;
