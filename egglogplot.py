@@ -53,6 +53,12 @@ macro_port = open(macro_file, "w")
 def save_macro(name, val):
   macro_port.write("\\newcommand{\\%s}{%s}\n" % (name, val))
 
+def save_macro_round(name, val):
+  macro_port.write("\\newcommand{\\%s}{%s}\n" % (name, round(val, 2)))
+
+def save_macro_percent(name, val):
+  macro_port.write("\\newcommand{\\%s}{%s\\%%}\n" % (name, round((val * 100.0), 2)))
+
 def generate_macros():
   num_tests = len(tests)
   save_macro("numtests", num_tests)
@@ -60,5 +66,14 @@ def generate_macros():
   save_macro("numbettererror", num_better_error)
   num_worse_error = len(list(filter(lambda test: test_error_diff(test) > 0, tests)))
   save_macro("numworseerror", num_worse_error)
+
+  save_macro("numwithinone", len(list(filter(lambda test: abs(test_error_diff(test)) <= 1, tests))))
+  save_macro("numgreaterone", len(list(filter(lambda test: abs(test_error_diff(test)) > 1, tests))))
+  save_macro("numlessnegone", len(list(filter(lambda test: test_error_diff(test) < -1, tests))))
+
+  save_macro_round("timeegglogminutes", sum(map(lambda test: egglog_tests[test]["time"], tests)) / (1000 * 60.0))
+  save_macro_round("timevanillaminutes", sum(map(lambda test: vanilla_tests[test]["time"], tests)) / (1000.0 * 60.0))
+  save_macro_percent("besttimepercentofvanilla", min(map(lambda test: (egglog_tests[test]["time"] / vanilla_tests[test]["time"]), tests)))
+
   
 generate_macros()
