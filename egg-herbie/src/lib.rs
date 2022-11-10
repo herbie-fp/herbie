@@ -450,7 +450,7 @@ fn egglog_run_rules(egglog: &mut EGraph, iters: usize) -> (Duration, Duration, D
     let mut rebuild: Duration = Duration::default();
     for _i in 0..iters {
         egglog.load_ruleset("analysis".into());
-        let [s, a, r] = egglog.run_rules(4);
+        let [s, a, r] = egglog.run_rules(3);
         search += s;
         apply += a;
         rebuild += r;

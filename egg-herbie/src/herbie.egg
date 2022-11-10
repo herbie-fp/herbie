@@ -864,11 +864,11 @@
 
 
 ;; log factor
-(rewrite (Add (Log a) (Log b))
+(rewrite (Add (Log a) (Log b)) ;; we know a and b pos
        (Log (Mul a b)))
-(rewrite (Sub (Log a) (Log b))
+(rewrite (Sub (Log a) (Log b)) ;; a and b positive
          (Log (Div a b)))
-(rewrite (Neg (Log a)) (Log (Div one a)))
+(rewrite (Neg (Log a)) (Log (Div one a))) ;; a positive
 
 
 ;; trig expand
@@ -918,17 +918,18 @@
          (Add (Num (rational "1" "2"))
               (Mul (Num (rational "1" "2"))
                    (Cos (Mul two x)))))
-(rewrite (Sub (Sin x) (Sin y))
-         (Mul two (Mul (Sin (Div (Add x y) two))
-                       (Cos (Div (Sub x y) two)))))
-(rewrite (Sub (Cos x) (Cos y))
-         (Mul two (Mul (Cos (Div (Add x y) two))
-                       (Cos (Div (Sub x y) two)))))
-(rewrite (Mul (Cos x) (Cos y))
+
+(rewrite (Sub (Sin x) (Sin y)) ;; verified
+         (Mul two (Mul (Sin (Div (Sub x y) two))
+                       (Cos (Div (Add x y) two)))))
+(rewrite (Sub (Cos x) (Cos y)) ;; verified
+         (Mul (Neg two) (Mul (Sin (Div (Add x y) two))
+                             (Sin (Div (Sub x y) two)))))
+(rewrite (Mul (Cos x) (Cos y)) ;; verified
        (Div (Add (Cos (Add x y))
                  (Cos (Sub x y)))
        two))
-(rewrite (Mul (Sin x) (Sin y))
+(rewrite (Mul (Sin x) (Sin y)) ;; verified
        (Div (Sub (Cos (Sub x y))
                  (Cos (Add x y)))
        two))
