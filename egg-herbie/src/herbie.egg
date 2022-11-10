@@ -71,6 +71,8 @@
 ; TODO: unbounded intervals?
 (function hi (Math) Rational :merge (min old new))
 (function lo (Math) Rational :merge (max old new))
+;; universe is a hack so we can quantify over it
+(relation universe (Math))
 (relation non-zero (Math))
 (relation non-negative (Math))
 (relation positive (Math))
@@ -167,8 +169,6 @@
           (max (max (/ la lb) (/ la hb))
                (max (/ ha lb) (/ ha hb))))))
 
-; TODO: Pow
-
 (rule ((= e (Neg a))
        (= la (lo a))
        (= ha (hi a)))
@@ -247,12 +247,14 @@
 
 (rule ((= t1 (Mul a b))
        (= lob (lo b))
-       (> lob r-one))
+       (> lob r-one)
+       (non-zero a))
       ((neq (Mul a b) a)))
 
 (rule ((= t1 (Mul a b))
        (= hib (hi b))
-       (< hib r-neg-one))
+       (< hib r-neg-one)
+       (non-zero a))
       ((neq (Mul a b) a)))
 
 ;; monotonic functions
@@ -267,6 +269,74 @@
       ((neq (Cbrt a) (Cbrt b))))
 
 
+;; UNIVERSE
+
+(rule ((= t (Num a)))
+      ((universe t)))
+(rule ((= t (Var a)))
+      ((universe t)))
+(rule ((= t (Unary a b)))
+      ((universe t)))
+(rule ((= t (Binary a b c)))
+      ((universe t)))
+(rule ((= t (PI)))
+      ((universe t)))
+(rule ((= t (E)))
+      ((universe t)))
+
+(rule ((= t (Add a b)))
+      ((universe t)))
+(rule ((= t (Sub a b)))
+      ((universe t)))
+(rule ((= t (Mul a b)))
+      ((universe t)))
+(rule ((= t (Div a b)))
+      ((universe t)))
+(rule ((= t (Pow a b)))
+      ((universe t)))
+(rule ((= t (Neg a)))
+      ((universe t)))
+(rule ((= t (Sqrt a)))
+      ((universe t)))
+(rule ((= t (Cbrt a)))
+      ((universe t)))
+(rule ((= t (Fabs a)))
+      ((universe t)))
+(rule ((= t (Ceil a)))
+      ((universe t)))
+(rule ((= t (Floor a)))
+      ((universe t)))
+(rule ((= t (Round a)))
+      ((universe t)))
+(rule ((= t (Log a)))
+      ((universe t)))
+(rule ((= t (Exp a)))
+      ((universe t)))
+(rule ((= t (If a b c)))
+      ((universe t)))
+(rule ((= t (Fma a b c)))
+      ((universe t)))
+(rule ((= t (Sin a)))
+      ((universe t)))
+(rule ((= t (Cos a)))
+      ((universe t)))
+(rule ((= t (Tan a)))
+      ((universe t)))
+(rule ((= t (Atan a)))
+      ((universe t)))
+(rule ((= t (Atan2 a b)))
+      ((universe t)))
+(rule ((= t (Asin a)))
+      ((universe t)))
+(rule ((= t (Acos a)))
+      ((universe t)))
+(rule ((= t (Hypot a b)))
+      ((universe t)))
+(rule ((= t (Expm1 a)))
+      ((universe t)))
+(rule ((= t (Log1p a)))
+      ((universe t)))
+      
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -277,6 +347,41 @@
 
 (add-ruleset analysis)
 (clear-rules)
+
+
+;; INJECTIVITY ooooohh
+
+(rule ((= t1 (Add a b))
+       (= t2 (Add a c))
+       (= t1 t2))
+       ((union b c)))
+
+(rule ((= t1 (Mul a b))
+       (= t2 (Mul a c))
+       (= t1 t2)
+       (non-zero a))
+       ((union b c)))
+
+(rule ((= t1 (Div a b))
+       (= t2 (Div a c))
+       (= t1 t2)
+       (non-zero a))
+       ((union b c)))
+
+(rule ((= t1 (Div a b))
+       (= t2 (Div c b))
+       (= t1 t2))
+       ((union a c)))
+
+(rule ((= t1 (Sqrt a))
+       (= t2 (Sqrt b))
+       (= t1 t2))
+       ((union a b)))
+
+(rule ((= t1 (Cbrt a))
+       (= t2 (Cbrt b))
+       (= t1 t2))
+       ((union a b)))
 
 ;; Commutativity
 (rewrite (Add a b) (Add b a))
@@ -343,6 +448,7 @@
          (Mul (Pow a two) (Pow a two)))
 
 
+
 ;; Identity
 ;; This isn't subsumed by const folding since this can return results
 ;; even if we can't evaluate a precise value for x
@@ -381,12 +487,8 @@
   :when ((non-zero x)
          (non-zero y)))
 
-; TODO: FIXME: this rule can't be expressed in its full generality;
-;        we can't express the general rule x -> 1/x since
-;        we can't quantify over Math yet
-;        for now we just apply it to vars
-;        it's also p slow lmao
-(rewrite (Var x) (Mul one (Var x)))
+(rule ((universe t))
+      ((union t (Mul one t))))
 
 ;; Fractions
 (rewrite (Div (Sub a b) c)         (Sub (Div a c) (Div b c)))
@@ -457,8 +559,8 @@
 (rewrite (Pow a one) a)
 (rewrite (Div one a) (Pow a neg-one))
 
-;; TODO: FIXME: can't express
-; (rewrite a (Pow a one))
+(rule ((universe a))
+      ((union (Pow a one) a)))
 
 ; 0^0 is undefined
 (rewrite (Pow a zero) one :when ((non-zero a)))
@@ -555,7 +657,7 @@
 
 (rewrite (Sin (Neg x)) (Neg (Sin x)))
 (rewrite (Cos (Neg x)) (Cos x))
-(rewrite (Tan (Neg x)) (Neg (Cos x)))
+(rewrite (Tan (Neg x)) (Neg (Tan x)))
 
 ; Hyperbolics
 (rewrite (Unary "sinh" x) (Div (Sub (Exp x) (Exp (Neg x))) two))
@@ -699,11 +801,10 @@
          (Sqrt (Div x y))
          :when ((non-zero y)))
 
-; TODO: FIXME: this rule can't be expressed
-;(rule ((= t1 x)
-       ;(= lox (lo x))
-       ;(>= lox r-zero))
-      ;(Mul (Sqrt x) (Sqrt x)))
+(rule ((universe t)
+       (= lox (lo t))
+       (>= lox r-zero))
+      ((union t (Mul (Sqrt t) (Sqrt t)))))
 
 
 ;; cubes transform
@@ -716,10 +817,10 @@
          (Cbrt (Mul x y)))
 (rewrite (Div (Cbrt x) (Cbrt y))
          (Cbrt (Div x y)))
-; TODO: FIXME: this rule can't be expressed
-;(rule x
-;      (Mul (Cbrt x) (Mul (Cbrt x) (Cbrt x))))
-;(rule x (Cbrt (Pow x three)))
+(rule ((universe x))
+      ((union x (Mul (Cbrt x) (Mul (Cbrt x) (Cbrt x))))))
+(rule ((universe x))
+      ((union x (Cbrt (Pow x three)))))
 
 
 ;; pow transform- soundness on these could use more thinking
@@ -743,9 +844,10 @@
          (Pow a (Sub b c)))
 (rewrite (Pow a (Sub b c))
          (Div (Pow a b) (Pow a c)) :when ((non-zero a)))
+;; a could be negative, and also a*b could be negative
 (rewrite (Pow a (Mul b c))
          (Pow (Pow a b) c)
-         :when ((non-negative a)))
+         :when ((non-negative a) (non-negative (Pow a b))))
 (rewrite (Pow a (Add b c))
          (Mul (Pow a b) (Pow a c))
          :when ((non-negative a)))

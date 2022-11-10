@@ -341,6 +341,8 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
                         Sexp::String("10000000".to_string()),
                         ]);
 
+                println!("{}", expr);
+
                 ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 
                 ctx.egglog_gen += 1;
@@ -473,7 +475,7 @@ pub unsafe extern "C" fn egraph_run_egglog(
     ffirun(|| {
         let ctx = &mut *ptr;
 
-        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 2);
+        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 4);
 
         let mut iters = vec![EGraphIter {
             numnodes: 0,
