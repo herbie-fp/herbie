@@ -341,7 +341,7 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
                         Sexp::String("10000000".to_string()),
                         ]);
 
-                println!("{}", expr);
+                //println!("{}", expr);
 
                 ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 
@@ -444,11 +444,15 @@ pub unsafe extern "C" fn egraph_run(
     )
 }
 
-fn egglog_run_rules(egglog: &mut EGraph, iters: usize) -> (Duration, Duration, Duration) {
+fn egglog_run_rules(egglog: &mut EGraph, node_limit: usize) -> (Duration, Duration, Duration) {
+    egglog.node_limit = node_limit;
     let mut search = Duration::default();
     let mut apply = Duration::default();
     let mut rebuild: Duration = Duration::default();
-    for _i in 0..iters {
+    for _i in 0..10 {
+        if egglog.num_tuples() > node_limit {
+            break;
+        }
         egglog.load_ruleset("analysis".into());
         let [s, a, r] = egglog.run_rules(3);
         search += s;
@@ -456,6 +460,9 @@ fn egglog_run_rules(egglog: &mut EGraph, iters: usize) -> (Duration, Duration, D
         rebuild += r;
         egglog.clear_rules();
 
+        if egglog.num_tuples() > node_limit {
+            break;
+        }
         egglog.load_ruleset("rules".into());
         let [s, a, r] = egglog.run_rules(1);
         search += s;
@@ -475,7 +482,7 @@ pub unsafe extern "C" fn egraph_run_egglog(
     ffirun(|| {
         let ctx = &mut *ptr;
 
-        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 4);
+        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 8_000);
 
         let mut iters = vec![EGraphIter {
             numnodes: 0,

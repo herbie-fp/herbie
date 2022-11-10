@@ -6,7 +6,7 @@ set -e -x
 # build egg-herbie to make sure updated
 cargo build --release --manifest-path=egg-herbie/Cargo.toml
 
-SEED=0
+SEED=10
 CORES=4
 BENCHMARKS="bench/"
 
