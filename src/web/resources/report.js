@@ -322,19 +322,9 @@ const MergedCostAccuracy = new Component('#merged-cost-accuracy', {
         async function render() {
             const options_view = html(`
                 <div id="plot_options">
-                <div id="variables">
-                </div>
-                <div id="functions">
-                </div>
                 </div>
             `)
             const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-            options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
-                render()
-            })
-            options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
-                render()
-            })
             document.querySelector('#pareto-content').replaceChildren(await plot(), options_view)
         }
         render()
@@ -438,21 +428,9 @@ const CostAccuracy = new Component('#cost-accuracy', {
         async function render() {
             const options_view = html(`
                 <div id="plot_options">
-                <div id="variables">
-                </div>
-                <div id="functions">
-                </div>
                 </div>
             `)
             const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-            options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
-                render()
-            })
-            options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
-                render()
-            })
-
-            
 
             content.replaceChildren(await plot(), options_view)
         }
