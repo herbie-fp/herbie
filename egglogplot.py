@@ -79,11 +79,12 @@ def makecdf(data):
 def histogram_error():
   fig = plt.figure()
   errors = list(map(lambda test: test_error_diff(test), tests))
-  error_filtered = list(filter(lambda error: error < HIST_CUTOFF and abs(error) > 1, errors))
+  error_filtered = list(filter(lambda error: error < HIST_CUTOFF, errors))
   bins = list(range(-HIST_CUTOFF-1, HIST_CUTOFF+1))
   bins_filtered = list(filter(lambda bin: bin % 2 == 1, bins))
 
   plt.hist(error_filtered, bins = bins_filtered, color = "blue", alpha = 0.5)
+  plt.yscale("log")
   plt.savefig(output_plot_hist)  
 
 def histogram_size():

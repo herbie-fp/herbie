@@ -446,7 +446,7 @@ pub unsafe extern "C" fn egraph_run(
 
 fn egglog_run_rules(egglog: &mut EGraph, node_limit: usize) -> (Duration, Duration, Duration) {
     egglog.node_limit = node_limit;
-    egglog.match_limit = 1_000;
+    egglog.match_limit = 500;
     let mut search = Duration::default();
     let mut apply = Duration::default();
     let mut rebuild: Duration = Duration::default();
@@ -483,7 +483,7 @@ pub unsafe extern "C" fn egraph_run_egglog(
     ffirun(|| {
         let ctx = &mut *ptr;
 
-        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 30_000);
+        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 5_000);
 
         let mut iters = vec![EGraphIter {
             numnodes: 0,
