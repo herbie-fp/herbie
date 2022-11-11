@@ -9,7 +9,7 @@ cargo build --release --manifest-path=egg-herbie/Cargo.toml
 SEED=0
 CORES=16
 BENCHMARKS="bench/"
-TIMEOUT=300
+TIMEOUT=500
 
 racket src/herbie.rkt report --threads "$CORES" --no-pareto --seed "$SEED" --timeout "$TIMEOUT"  "$BENCHMARKS" egglogreport
 

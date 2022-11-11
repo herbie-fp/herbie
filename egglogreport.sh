@@ -10,4 +10,4 @@ mkdir egglogdata
 VANILLA=vanillareport
 EGGLOG=egglogreport
 
-python3 egglogplot.py "$VANILLA/results.json" "$EGGLOG/results.json" "egglogdata/error.pdf" "egglogdata/macros.tex" "egglogdata/errorhist.pdf"
+python3 egglogplot.py "$VANILLA/results.json" "$EGGLOG/results.json" "egglogdata/error.pdf" "egglogdata/macros.tex" "egglogdata"

@@ -483,7 +483,7 @@ pub unsafe extern "C" fn egraph_run_egglog(
     ffirun(|| {
         let ctx = &mut *ptr;
 
-        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 15_000);
+        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 30_000);
 
         let mut iters = vec![EGraphIter {
             numnodes: 0,
