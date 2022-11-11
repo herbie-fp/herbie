@@ -17,6 +17,14 @@
     [(list? expr)
      (or (and
           (equal? (length expr) 2)
+          (or (equal? (first expr) `pow.f64)
+              (equal? (first expr) `pow))
+          (number? (first expr))
+          (number? (second expr))
+          (negative? (first expr))
+          (not (integer? (second expr))))
+         (and
+          (equal? (length expr) 2)
           (or (equal? (first expr) `sqrt.f64)
               (equal? (first expr) `sqrt))
           (and (number? (second expr)) (negative? (second expr))))

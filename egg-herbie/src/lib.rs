@@ -8,7 +8,7 @@ use math::*;
 
 use std::collections::HashMap;
 
-use num_rational::BigRational;
+use num_rational::Rational64;
 
 use std::cmp::min;
 use std::ffi::{CStr, CString};
@@ -283,7 +283,7 @@ pub fn unconvert_egglog(context: &Context, expr: &Sexp) -> Sexp {
 pub fn convert_egglog(ctx: &Context, expr: &Sexp) -> Sexp {
     match expr {
         Sexp::String(atom) => {
-            if let Ok(rat) = atom.parse::<BigRational>() {
+            if let Ok(rat) = atom.parse::<Rational64>() {
                 Sexp::List(vec![Sexp::String("Num".to_string()),
                                 Sexp::List(
                                     vec![Sexp::String("rational".to_string()),
@@ -446,10 +446,11 @@ pub unsafe extern "C" fn egraph_run(
 
 fn egglog_run_rules(egglog: &mut EGraph, node_limit: usize) -> (Duration, Duration, Duration) {
     egglog.node_limit = node_limit;
+    egglog.match_limit = 1_000;
     let mut search = Duration::default();
     let mut apply = Duration::default();
     let mut rebuild: Duration = Duration::default();
-    for _i in 0..10 {
+    for _i in 0..100 {
         if egglog.num_tuples() > node_limit {
             break;
         }
@@ -482,7 +483,7 @@ pub unsafe extern "C" fn egraph_run_egglog(
     ffirun(|| {
         let ctx = &mut *ptr;
 
-        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 8_000);
+        let (search, apply, rebuild) = egglog_run_rules(&mut ctx.egglog, 15_000);
 
         let mut iters = vec![EGraphIter {
             numnodes: 0,

@@ -245,17 +245,6 @@
        (< hib r-zero))
       ((neq (Add a b) a)))
 
-(rule ((= t1 (Mul a b))
-       (= lob (lo b))
-       (> lob r-one)
-       (non-zero a))
-      ((neq (Mul a b) a)))
-
-(rule ((= t1 (Mul a b))
-       (= hib (hi b))
-       (< hib r-neg-one)
-       (non-zero a))
-      ((neq (Mul a b) a)))
 
 ;; monotonic functions
 (rule ((= t1 (Sqrt a))

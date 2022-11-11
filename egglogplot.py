@@ -20,6 +20,7 @@ egglog_data = json.load(open(results_file_egglog))["tests"]
 
 tests_unfiltered = set(map(lambda row: row["name"], vanilla_data))
 assert (len(tests_unfiltered) == len(vanilla_data))
+assert (len(vanilla_data) == len(egglog_data))
 
 vanilla_tests = dict(map(lambda row: (row["name"], row), vanilla_data))
 egglog_tests = dict(map(lambda row: (row["name"], row), egglog_data))
@@ -45,7 +46,7 @@ def plot_error():
   ax.scatter(xs, ys, color = "black", marker = "o", linestyle = "None", facecolors='none')
   plt.savefig(output_plot_error)  
 
-HIST_CUTOFF = 20
+HIST_CUTOFF = 60
 
 def makecdf(data):
   copy = data.copy()
@@ -64,7 +65,7 @@ def makecdf(data):
 def histogram_error():
   fig = plt.figure()
   errors = list(map(lambda test: test_error_diff(test), tests))
-  error_filtered = list(filter(lambda error: error < HIST_CUTOFF and error != 0, errors))
+  error_filtered = list(filter(lambda error: error < HIST_CUTOFF and abs(error) > 1, errors))
   bins = list(range(-HIST_CUTOFF-1, HIST_CUTOFF+1))
   bins_filtered = list(filter(lambda bin: bin % 2 == 1, bins))
 

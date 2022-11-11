@@ -7,4 +7,7 @@ if [ -d "egglogdata" ]; then rm -Rf egglogdata; fi
 
 mkdir egglogdata
 
-python3 egglogplot.py "vanillareport/results.json" "egglogreport/results.json" "egglogdata/error.pdf" "egglogdata/macros.tex" "egglogdata/errorhist.pdf"
+VANILLA=vanillareport
+EGGLOG=egglogreport
+
+python3 egglogplot.py "$VANILLA/results.json" "$EGGLOG/results.json" "egglogdata/error.pdf" "egglogdata/macros.tex" "egglogdata/errorhist.pdf"
