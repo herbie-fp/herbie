@@ -458,6 +458,16 @@ var Timeline = new Component(".timeline", {
     }
 });
 
+var Bogosity = new Component(".bogosity", {
+    setup: function() {
+        var ts = this.elt.children;
+        for (var i = 0; i < ts.length; i++) {
+            var timespan = +ts[i].getAttribute("data-timespan");
+            ts[i].style.flexGrow = timespan;
+        }
+    }
+});
+
 var Implementations = new Component("#program", {
     setup: function() {
         this.dropdown = this.elt.querySelector("select");

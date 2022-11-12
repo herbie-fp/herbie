@@ -330,6 +330,25 @@ table pre { padding: 0; margin: 0; text-align: left; font-size: 110%; }
 .timeline-regimes  { --phase-color: #a40000; }
 .timeline-bsearch  { --phase-color: #cc0000; }
 
+/* Bogosity colors */
+
+.bogosity {
+    display: flex; margin-bottom: 1em; height: 1em;
+    border-radius: .5em; overflow: clip;
+}
+.bogosity > div { background: var(--phase-color); display: inline-block; }
+@media print {
+    .bogosity { border: none; }
+    .bogosity > div { outline: 1px solid black; }
+}
+
+.bogosity-valid { --phase-color: #4e9a06; }
+.bogosity-infinite { --phase-color: #8ae234; }
+.bogosity-unknown { --phase-color: #000000; }
+.bogosity-unsamplable { --phase-color: #a40000; }
+.bogosity-invalid { --phase-color: #204a87; }
+.bogosity-precondition { --phase-color: #729fcf; }
+
 /* Code sample to reproduce */
 
 #reproduce pre { padding: 1em; margin: 0; font-family: monospace; overflow-x: auto; }

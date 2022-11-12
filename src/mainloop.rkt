@@ -269,7 +269,9 @@
   (when (empty? (*needed-reprs*)) ; if empty, probably debugging
     (*needed-reprs* (list repr (get-representation 'bool))))
 
-  (apply mk-pcontext (sample-points precondition (list specification) (*context*))))
+  (match-define (cons domain pts+exs)
+                (sample-points precondition (list specification) (*context*)))
+  (cons domain (apply mk-pcontext pts+exs)))
 
 (define (initialize-alt-table! prog pcontext ctx)
   (define alt (make-alt prog))
