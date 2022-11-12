@@ -76,8 +76,7 @@ function make_graph(node, data, start, end) {
 }
 
 function draw_results(node) {
-    d3.json("results.json", function(err, data) {
-        if (err) return console.error(err);
+    d3.json("results.json").then(function(data) {
         precision = data.bit_width;
         precision_step = Math.round(precision / 8);
 
@@ -140,7 +139,7 @@ function draw_results(node) {
                 ARROWS[i].addEventListener("mouseout", clear);
             })(i);
         }
-    });
+    }).catch(function (err) { if (err) return console.error(err) });
 }
 
 var ArrowChart = new Component("svg.arrow-chart", {
