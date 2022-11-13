@@ -48,7 +48,8 @@
       (for/list ([pt pts])
         (cons (first pt) (second pt)))))
   (define ymax (apply + (map representation-total-bits reprs)))
-  (values start (generate-pareto-curve ptss*) ymax))
+  (define frontier (map (λ (pt) (cons (first pt) (second pt))) (pareto-combine ptss #:convex? #t)))
+  (values start frontier ymax))
 
 (define (write-datafile file info)
   (define (simplify-test test)
