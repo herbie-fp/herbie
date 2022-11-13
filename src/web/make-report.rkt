@@ -6,24 +6,6 @@
 
 (provide make-report-page)
 
-(define (try-list-accessor acc fail)
-  (λ (l) (if (null? l) fail (acc l))))
-
-(define (trs->pareto trs)
-  (define cas (map table-row-cost-accuracy trs))
-  (define starts (map (try-list-accessor first (list 0 0)) cas))
-  (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
-                                       (list (list 0 0)))
-                    cas))
-  (define reprs (map (compose get-representation table-row-precision) trs))
-
-  (define start
-    (for/fold ([x 0] [y 0] #:result (cons x y)) ([s starts])
-      (values (+ x (first s)) (+ y (second s)))))
-  (define ymax (apply + (map representation-total-bits reprs)))
-  (define frontier (map (λ (pt) (cons (first pt) (second pt))) (pareto-combine ptss #:convex? #t)))
-  (values start frontier ymax))
-
 (define (badge-label result)
   (match (table-row-status result)
     ["error" "ERR"]
@@ -59,17 +41,6 @@
 
 (define (make-report-page out info dir #:merge-data [merge-data #f])
   (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
-
-  (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
-  (cond
-   [(not dir) (void)]
-   [(> (length pareto-points) 1) ; generate the scatterplot if necessary
-    (call-with-output-file (build-path dir "cost-accuracy.png")
-      #:exists 'replace
-      (λ (out) (make-full-cost-accuracy-plot pareto-max pareto-start pareto-points out)))]
-   [else
-    (when (file-exists? (build-path dir "cost-accuracy.png"))
-      (delete-file (build-path dir "cost-accuracy.png")))])
 
   (define table-labels
     '("Test" "Start" "Result" "Target" "Time"))
@@ -115,7 +86,9 @@
       (meta ((charset "utf-8")))
       (link ((rel "stylesheet") (type "text/css") (href "report.css")))
       (script ((src "report.js")))
-      (script ((src "https://d3js.org/d3.v3.min.js") (charset "utf-8")))
+      (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
+      (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
+      (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
       (script ((type "text/javascript") (src "arrow-chart.js"))))
  
      (body
@@ -172,9 +145,7 @@
                            (href ,(format "~a/graph.html" (table-row-link result))))
                           "»"))
                      "")))))
-     ,(if (> (length pareto-points) 1)
-         `(div ([id "scatterplot"] [style "margin-top: 2.5em"])
-             (img ([width "800"] [height "300"] [title "cost-accuracy"]
-                   [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
-           "")))
+          `(section ([id "merged-cost-accuracy"])
+            (h1 "Error")
+            (div ([id "pareto-content"])))))
    out))
