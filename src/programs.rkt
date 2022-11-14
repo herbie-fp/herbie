@@ -5,7 +5,7 @@
 
 (provide (all-from-out "syntax/syntax.rkt")
          program-body program-variables
-         expr? expr-supports? expr-contains?
+         expr? expr-supports? expr-contains? expr<?
          type-of repr-of
          location-do location-get
          batch-eval-progs eval-prog eval-application
@@ -63,6 +63,42 @@
     (match expr
      [(list elems ...) (ormap loop elems)]
      [term (pred term)])))
+
+;; Total order on expressions
+
+(define (expr-cmp a b)
+  (match* (a b)
+   [((? list?) (? list?))
+    (define len-a (length a))
+    (define len-b (length b))
+    (cond
+     [(< len-a len-b) -1]
+     [(> len-a len-b) 1]
+     [else
+      (let loop ([a a] [b b])
+        (if (null? a)
+            0
+            (let ([cmp (expr-cmp (car a) (car b))])
+              (if (zero? cmp)
+                  (loop (cdr a) (cdr b))
+                  cmp))))])]
+   [((? list?) _) 1]
+   [(_ (? list?)) -1]
+   [((? symbol?) (? symbol?))
+    (cond
+     [(symbol<? a b) -1]
+     [(symbol=? a b) 0]
+     [else 1])]
+   [((? symbol?) _) 1]
+   [(_ (? symbol?)) -1]
+   [(_ _)
+    (cond
+     [(< a b) -1]
+     [(= a b) 0]
+     [else 1])]))
+
+(define (expr<? a b)
+  (< (expr-cmp a b) 0))
 
 ;; Converting constants
 
