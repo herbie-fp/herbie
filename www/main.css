@@ -1,8 +1,12 @@
-html {font-family: sans-serif; font-size: 16px; line-height: 1.4;}
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif&family=IBM+Plex+Mono&family=Ruda:wght@600&display=swap');
 
-body { max-width: 650px; margin: 3em auto;}
+html { font-family: 'IBM Plex Serif', serif; font-size: 16px; line-height: 1.4; }
+body { max-width: 650px; margin: 8em auto 3em;}
 
-h1, h2, h3 {letter-spacing: .125em; font-weight: 600; clear: both; }
+h1, h2, h3 {
+    font-family: 'Ruda', sans-serif; letter-spacing: .06ch; font-weight: 600;
+    clear: both;
+}
 h1 {font-size: 20px; line-height: 1; margin: 4em 0 .5em; }
 h2 {font-size: 18px; line-height: 1.125; margin: 3em 0 .25em; }
 h3 {font-size: 17px; line-height: 1.286; margin: 1.5em 0 .2em; font-weight: 400; }
@@ -36,7 +40,7 @@ header li:first-child::before { content: none; }
 
 svg {margin: 0 auto; display: block;}
 
-pre {padding-left: 2em; font-size: 16px; font-family: monospace;}
+pre { padding-left: 2em; font-size: 16px; font-family: 'IBM Plex Mono', monospace; }
 pre.shell:before { content: "$"; margin-right: 1ex; font-weight: bold; }
 
 div.column-container { display: flex; justify-content: space-around;}
@@ -55,7 +59,7 @@ a:hover {text-decoration: underline; color: #295785}
 }
 #num-jobs { font-weight: bold; }
 
-dl { margin: 1em .5em; }
+dl { margin: 1em 0; }
 dl dd { margin: .5em 1em; }
 dl.function-list dt { font-weight: bold; float: left; width: 220px; clear: left; margin-bottom: .5em; }
 dl.function-list dd { clear: right; margin: 0; }
