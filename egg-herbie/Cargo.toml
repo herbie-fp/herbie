@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 egg = "0.9.1"
-
 log = "0.4"
 indexmap = "1"
 libc = "0.2.125"
@@ -18,7 +17,7 @@ num-traits = "0.2.15"
 env_logger = { version = "0.9", default-features = false }
 
 #egg-smol = { path = "../../egg-smol" }
-egg-smol = { git = "ssh://git@github.com/oflatt/egg-smol.git", rev = "2d728f3aac2ccedf196d32a16331964710599440" }
+egg-smol = { git = "https://github.com/oflatt/egg-smol", rev = "2d728f3aac2ccedf196d32a16331964710599440" }
 symbolic_expressions = "5.0.3"
 
 [lib]
