@@ -150,6 +150,7 @@
      [else
       (loop precision*)])))
 
+
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define repr (context-repr ctx))

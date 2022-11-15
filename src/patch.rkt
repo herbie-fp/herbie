@@ -2,7 +2,8 @@
 
 (require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
          "alternative.rkt" "common.rkt" "errors.rkt" "programs.rkt"
-         "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt")
+         "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt" "core/reduce.rkt"
+         "ground-truth.rkt")
 
 (provide
   (contract-out
@@ -74,23 +75,43 @@
 ;;      Taylor is successful in generating an expression but
 ;;      external desugaring fails because of an unsupported/mismatched
 ;;      operator
-
-(define (taylor-expr expr repr var f finv)
+(define (taylor-expr expr ctx repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
-  (define genexpr (approximate expr* var #:transform (cons f finv)))
-  (λ ()
-    (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (desugar-program (genexpr) (*context*) #:full #f))))
+  ;; apply the transformation to the variable
+  (define expr-transformed (simplify (replace-expression expr* var (f var))))
+  (define genexpr (approximate expr-transformed var))
 
-(define (taylor-alt altn)
+  ;; Check to make sure the expression is valid at zero
+  (if (valid-at-point?
+       `(lambda ,(context-vars ctx)
+          ,(desugar-program
+            expr-transformed
+            ctx #:full #t))
+       ctx
+       (map (lambda (v) 0.0) (context-vars ctx)))
+      (λ ()
+        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+          (define res
+            (desugar-program
+             (simplify (replace-expression (genexpr) var (finv var)))
+             ctx #:full #f))
+
+          (when (unsound-expr? res)
+            (error (format "Taylor expansion of ~a in ~a resulted in unsound program: ~a" expr-transformed var res)))
+
+          res))
+      (λ () #f)))
+
+(define (taylor-alt altn ctx)
   (define prog (alt-program altn))
   (define expr (program-body prog))
+  (define vars (program-variables prog))
   (define repr (repr-of expr (*context*)))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-      (define genexpr (taylor-expr expr repr var f finv))
+      (define genexpr (taylor-expr expr ctx repr var f finv))
       (for ([i (in-range 4)])
         (define replace (genexpr))
         (when replace
@@ -105,7 +126,8 @@
       (apply append
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
           (define expr (program-body (alt-program altn)))
-          (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
+          (filter-not (curry alt-equal? altn)
+                      (taylor-alt altn (*context*))))))
 
     ; Probably unnecessary, at least CI passes!
     (define (is-nan? x)
@@ -114,9 +136,8 @@
     (define series-expansions*
       (filter-not
        (λ (x)
-         (or (expr-contains? (program-body (alt-program x)) is-nan?)
-             (unsound-expr? (alt-program x))))
-        series-expansions))
+         (or (expr-contains? (program-body (alt-program x)) is-nan?)))
+       series-expansions))
 
     ; TODO: accuracy stats for timeline
     (timeline-push! 'count (length (^queued^)) (length series-expansions*))
@@ -158,8 +179,7 @@
 
   (for ([expr exprs])
     (when (unsound-expr? expr)
-      (println expr)
-      (error "Sqrt neg one detected!")))
+      (error (format "Unsound expression: ~a" expr))))
 
   (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
   (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root

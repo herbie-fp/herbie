@@ -4,10 +4,9 @@
 (require "../common.rkt" "../programs.rkt" "reduce.rkt")
 (provide approximate)
 
-(define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
+(define (approximate expr var #:iters [iters 5])
   (load-rule-hacks)
-  (define expr* (simplify (replace-expression expr var ((car tform) var))))
-  (match-define (cons offset coeffs) (taylor var expr*))
+  (match-define (cons offset coeffs) (taylor var expr))
 
   (define i 0)
   (define terms '())
@@ -22,8 +21,7 @@
           (simplify (make-sum (reverse terms))))]
      [_
       (define term `(* ,coeff ,(make-monomial var (- i offset 1))))
-      (define term* (simplify (replace-expression term var ((cdr tform) var))))
-      (set! terms (cons term* terms))
+      (set! terms (cons term terms))
       (simplify (make-sum (reverse terms)))]))
 
   next)

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "cost.rkt")
+(require "cost.rkt" "programs.rkt")
 (provide (struct-out change) (struct-out alt) make-alt alt?
          alt-program alt-add-event *start-prog* *all-alts*
          alt-cost alt-equal? alt-map unsound-expr?)
@@ -12,7 +12,8 @@
 
 (struct change (rule location bindings) #:transparent)
 
-(define (unsound-expr? expr)
+(define/contract (unsound-expr? expr)
+  (-> expr? boolean?)
   (cond
     [(list? expr)
      (or (and

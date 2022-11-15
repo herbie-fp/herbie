@@ -1,3 +1,0 @@
-(FPCore (x eps)
- :name "2cos (problem 3.3.5)"
- (- (cos (+ x eps)) (cos x)))

@@ -3,7 +3,7 @@
 (require math/bigfloat rival)
 (require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide sample-points eval-prog-real)
+(provide sample-points eval-prog-real valid-at-point?)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -59,6 +59,12 @@
       [(? nan?)
        +nan.0]))
   (procedure-rename f '<eval-prog-real>))
+
+(define (valid-at-point? prog ctx pt)
+  (not
+   (equal?
+    (apply (eval-prog-real prog ctx) pt)
+    +nan.0)))
 
 (define (sample-points precondition progs ctx)
   (timeline-event! 'analyze)
