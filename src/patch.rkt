@@ -230,14 +230,9 @@
                   (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
                   done))))))
 
-  (define rewritten*
-    (if (and (*pareto-mode*) (> (length rewritten) 1000))
-        (take rewritten 1000)
-        rewritten))
-        
-  (timeline-push! 'count (length (^queued^)) (length rewritten*))
+  (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline
-  (^rewrites^ rewritten*)
+  (^rewrites^ rewritten)
   (void))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -126,15 +126,17 @@
 
   ; high-error locations
   (^locs^
-    (for/list ([(err expr) (in-dict loc-errs)] [i (in-range (*localize-expressions-limit*))])
+    (for/list ([(err expr) (in-dict loc-errs)]
+               [i (in-range (*localize-expressions-limit*))])
       (timeline-push! 'locations (~a expr) (errors-score err)
                       (not (patch-table-has-expr? expr)))
       (cons vars expr)))
 
-  ; low-error locations
+  ; low-error locations (Pherbie-only with multi-precision)
   (^lowlocs^
-    (if (*pareto-mode*)
-        (for/list ([(err expr) (in-dict (reverse loc-errs))] [i (in-range (*localize-expressions-limit*))])
+    (if (and (*pareto-mode*) (not (hash-empty? (*conversions*))))
+        (for/list ([(err expr) (in-dict (reverse loc-errs))]
+                   [i (in-range (*localize-expressions-limit*))])
           (timeline-push! 'locations (~a expr) (errors-score err) #f)
           (cons vars expr)) 
         '()))
@@ -434,7 +436,7 @@
   (timeline-event! 'soundness)
 
   (define best-annotated
-    (add-soundiness best (*pcontext*) (*context*)))
+    (first (add-soundiness (list best) (*pcontext*) (*context*))))
 
   (timeline-event! 'end)
   

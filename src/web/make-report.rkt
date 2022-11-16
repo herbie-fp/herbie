@@ -20,12 +20,9 @@
   (define start
     (for/fold ([x 0] [y 0] #:result (cons x y)) ([s starts])
       (values (+ x (first s)) (+ y (second s)))))
-  (define ptss*
-    (for/list ([pts ptss])
-      (for/list ([pt pts])
-        (cons (first pt) (second pt)))))
   (define ymax (apply + (map representation-total-bits reprs)))
-  (values start (generate-pareto-curve ptss*) ymax))
+  (define frontier (map (λ (pt) (cons (first pt) (second pt))) (pareto-combine ptss #:convex? #t)))
+  (values start frontier ymax))
 
 (define (badge-label result)
   (match (table-row-status result)
