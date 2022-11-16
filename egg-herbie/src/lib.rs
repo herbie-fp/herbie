@@ -186,7 +186,7 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
         let content = cstring_to_string(expr);
         let expr = format!("(define {} {} :cost 10000000)", name, content);
 
-        //println!("{}", expr);
+        println!("{}", expr);
 
         ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 

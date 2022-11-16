@@ -105,8 +105,9 @@
                      (egglog-get-simplest egg-graph id)
                      (egraph-get-simplest egg-graph id iter)))
                 (egg-expr->expr
-                 output
-                 egg-graph)))
+                 ctx
+                 egg-graph
+                 output)))
                  node-ids))))
 
   (define out
@@ -115,11 +116,6 @@
   (timeline-push! 'outputs (map ~a (apply append out)))
     
   out)
-
-(define (translate-proof proof-str egg-graph)
-  (map (lambda (s)
-           (egg-expr->expr s egg-graph))
-       (string-split proof-str "\n")))
 
 (define (run-simplify-input ctx input egraph-func)
   (define exprs (simplify-input-exprs input))
