@@ -2,7 +2,7 @@
 
 (require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt"
-         "../syntax/rules.rkt" "../syntax/types.rkt" "../timeline.rkt" "simplify.rkt" "../config.rkt")
+         "../syntax/rules.rkt" "../syntax/types.rkt" "../timeline.rkt" "simplify.rkt" "../config.rkt" "../syntax/egraph-conversion.rkt")
 
 (provide pattern-match rewrite-expressions change-apply)
 
@@ -96,16 +96,17 @@
     (define result-thunk
       (with-egraph
         (λ (egg-graph)
+          (define expr-strings
+            (map (lambda (e) (expr->egg-expr (vartypes-symbols ctx) e egg-graph))
+                 exprs))
           (define node-ids
             (map (curry
                   (if (flag-set? 'generate 'egglog)
                       egraph-add-expr-egglog
                       egraph-add-expr)
-                  (vartypes-symbols ctx) egg-graph) exprs))
+                  (vartypes-symbols ctx) egg-graph) expr-strings))
           (define iter-data
-            (if (flag-set? 'generate 'egglog)
-                (egglog-run egg-graph)
-                (egg-run-rules egg-graph #:limit iter-limit (*node-limit*) irules node-ids #t)))
+            (egglog-run egg-graph))
 
           #;(for ([rule rules])
             (define count (egraph-get-times-applied egg-graph (rule-name rule)))
@@ -131,10 +132,11 @@
             (define variants
               (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
+                (define expr-str (expr->egg-expr (vartypes-symbols ctx) expr egg-graph))
                 (define output 
                   ((if (flag-set? 'generate 'egglog)
                       egglog-get-variants egraph-get-variants)
-                   (vartypes-symbols ctx) egg-graph id expr))
+                   (vartypes-symbols ctx) egg-graph id expr-str))
                 (define extracted (egg-exprs->exprs output egg-graph))
                 (for/list ([variant (remove-duplicates extracted)])
                   (list (change egg-rule root-loc (list (cons 'x variant)))))))

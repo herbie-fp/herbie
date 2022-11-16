@@ -75,7 +75,7 @@
 (define four (Num r-four) :cost 10000000)
 
 ;; numbers have a special type, since they can be any time
-(define real (Type "real"))
+(define real (Type "real") :cost 10000000)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

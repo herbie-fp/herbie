@@ -2,11 +2,11 @@
 
 (require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt" "../syntax/types.rkt")
+         "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt" "../syntax/types.rkt" "../syntax/egraph-conversion.rkt")
 
 (provide simplify-expr simplify-batch get-proof
          make-simplification-combinations
-         rules->irules egg-run-rules
+         rules->irules
          (struct-out simplify-input))
 
 (module+ test
@@ -101,12 +101,11 @@
      (lambda (egg-graph node-ids iter-data)
        (map (lambda (id)
               (for/list ([iter (in-range (length iter-data))])
-                (egg-expr->expr
-
-
-                 (if (flag-set? 'generate 'egglog)
+                (define output (if (flag-set? 'generate 'egglog)
                      (egglog-get-simplest egg-graph id)
-                     (egraph-get-simplest egg-graph id iter))
+                     (egraph-get-simplest egg-graph id iter)))
+                (egg-expr->expr
+                 output
                  egg-graph)))
                  node-ids))))
 
@@ -136,16 +135,17 @@
 
   (with-egraph
    (lambda (egg-graph)
+     (define expr-strings
+       (map (lambda (e) (expr->egg-expr (vartypes-symbols ctx) e egg-graph))
+            exprs))
      (define node-ids
        (map (curry
              (if (flag-set? 'generate 'egglog) egraph-add-expr-egglog egraph-add-expr)
              (vartypes-symbols ctx)
              egg-graph)
-            exprs))
+            expr-strings))
      (define iter-data
-       (if (flag-set? 'generate 'egglog)
-           (egglog-run egg-graph)
-           (egg-run-rules egg-graph (*node-limit*) irules node-ids (and precompute? true))))
+       (egglog-run egg-graph))
         
      (when (egraph-is-unsound-detected egg-graph)
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
@@ -166,28 +166,6 @@
    ['node-limit "node limit"]
    ['unsound    "unsound"]))
 
-(define (egg-run-rules egg-graph node-limit irules node-ids precompute? #:limit [iter-limit #f])
-  (define ffi-rules (make-ffi-rules irules))
-  (define start-time (current-inexact-milliseconds))
-
-  #;(define (timeline-cost iter)
-      (define cnt (egraph-get-size egg-graph)) 
-      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
-  
-  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
-  (let loop ([iter iteration-data] [counter 0] [time 0])
-    (unless (null? iter)
-      (define cnt (iteration-data-num-nodes (first iter)))
-      (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph node-id counter)) node-ids)))
-      (define new-time (+ time (iteration-data-time (first iter))))
-      (timeline-push! 'egraph counter cnt cost new-time)
-      (loop (rest iter) (+ counter 1) new-time)))
-
-  (define sr (egraph-stop-reason egg-graph))
-  (timeline-push! 'stop (stop-reason->string sr) 1)
-  
-  (free-ffi-rules ffi-rules)
-  iteration-data)
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")

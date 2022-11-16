@@ -8,12 +8,12 @@
 
 (provide egraph-run egraph-add-expr with-egraph
          egraph-get-simplest egraph-get-variants
-         egg-expr->expr egg-exprs->exprs egg-add-exn?
-         make-ffi-rules free-ffi-rules egraph-get-cost
+         egg-add-exn?
+         free-ffi-rules egraph-get-cost
          egraph-stop-reason egraph-is-unsound-detected
-         egraph-get-times-applied egraph-get-proof
          egraph-add-expr-egglog egglog-run
          egglog-get-simplest egglog-get-variants
+         (struct-out egraph-data)
          (struct-out iteration-data))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
@@ -35,15 +35,13 @@
   (destroy_string ptr)
   str)
 
-(define (egglog-get-variants vartypes egraph-data node-id orig-expr)
-  (define expr-str (expr->egg-expr vartypes orig-expr egraph-data))
+(define (egglog-get-variants vartypes egraph-data node-id expr-str)
   (define ptr (egglog_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
   str)
 
-(define (egraph-get-variants vartypes egraph-data node-id orig-expr)
-  (define expr-str (expr->egg-expr vartypes  orig-expr egraph-data))
+(define (egraph-get-variants vartypes egraph-data node-id expr-str)
   (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
@@ -76,12 +74,6 @@
   (egraph_get_times_applied (egraph-data-egraph-pointer egraph-data)
                             (make-raw-string (symbol->string rule-name))))
 
-(define (make-ffi-rules rules)
-  (for/list [(rule rules)]
-    (define name (make-raw-string (symbol->string (irule-name rule))))
-    (define left (make-raw-string (to-egg-pattern (irule-input rule))))
-    (define right (make-raw-string (to-egg-pattern (irule-output rule))))
-    (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
   (for [(rule rules)]
@@ -124,146 +116,28 @@
   (egraph_destroy (egraph-data-egraph-pointer egraph))
   res)
 
-;; Converts a string expression from egg into a Racket S-expr
-(define (egg-expr->expr expr eg-data)
-  (define parsed (read (open-input-string expr)))
-  (egg-parsed->expr parsed (egraph-data-egg->herbie-dict eg-data)))
 
-;; Like `egg-expr->expr` but expected the string to
-;; parse into a list of S-exprs
-(define (egg-exprs->exprs exprs eg-data)
-  (define port (open-input-string exprs))
-  (let loop ([parse (read port)] [exprs '()])
-    (if (eof-object? parse)
-        (reverse exprs)
-        (let ([expr (egg-parsed->expr parse (egraph-data-egg->herbie-dict eg-data))])
-          (loop (read port) (cons expr exprs))))))
-
-(define special-egg-names
-  (make-hash `((+ . Add)
-               (- . Sub)
-               (* . Mul)
-               (/ . Div)
-               (< . Less)
-               (> . Greater)
-               (<= . LessEq)
-               (>= . GreaterEq)
-               (== . Eq)
-               (!= . NotEq)
-               )))
-(define special-egg-names-reversed
-  (make-hash
-   (map (lambda (x) (cons (cdr x) (car x)))
-        (hash->list special-egg-names))))
-
-
-(define (egg-name->name egg-name-symbol)
-  (define egg-name (symbol->string egg-name-symbol))
-  (define special (hash-ref special-egg-names-reversed egg-name-symbol #f))
-  (if special
-      special
-      (string->symbol
-       (string-append
-        (string-downcase (substring egg-name 0 1))
-        (substring egg-name 1)))))
-
-(define (name->egg-name name-symbol)
-  (define name (symbol->string name-symbol))
-  (define special (hash-ref special-egg-names name-symbol #f))
-  (if special
-      special
-      (string->symbol
-       (string-append
-        (string-upcase (substring name 0 1))
-        (substring name 1)))))
-
-
-;; renames variables back to non upper case
-;; special names in map
-(define (egg-parsed->expr parsed rename-dict)
-  (match parsed
-    [`(Rewrite=> ,rule ,expr)
-      `(Rewrite=> ,rule ,(egg-parsed->expr expr rename-dict))]
-    [`(Rewrite<= ,rule ,expr)
-      `(Rewrite<= ,rule ,(egg-parsed->expr expr rename-dict))]
-    [`(Num (rational ,num ,denom))
-     (/ num denom)]
-    [`(Var ,type ,var)
-     (egg-parsed->expr var rename-dict)]
-    [`(,first-parsed (Type ,second-parsed) ,rest-parsed ...)
-     (define op (egg-name->name first-parsed))
-     (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
-      (if (equal? second-parsed 'real)
-          op
-          (string->symbol (string-append (~s op) "." (~s second-parsed))))
-      (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
-    [(or (? number?))
-     parsed]
-    [else
-     (hash-ref rename-dict parsed)]))
-
-;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
-(define (expr->egg-expr vartypes expr egg-data)
-  (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
-  (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
-  (format "~s" (expr->egg-expr-helper vartypes expr egg->herbie-dict herbie->egg-dict)))
-
-;; Needs the vartypes so we can look up var types
-(define (expr->egg-expr-helper vartypes expr egg->herbie-dict herbie->egg-dict)
-  (cond
-    [(list? expr)
-     (match-define (list name type) (extract-operator (first expr)))
-     (append
-      (list (name->egg-name (string->symbol name)) `(Type ,type))
-      (map (lambda (e) (expr->egg-expr-helper vartypes e egg->herbie-dict herbie->egg-dict))
-           (rest expr)))]
-    [(and (number? expr) (exact? expr) (real? expr))
-     `(Num (rational ,(number->string (numerator expr)) ,(number->string (denominator expr))))]
-    [(hash-has-key? herbie->egg-dict expr)
-     `(Var (Type ,(symbol->string (dict-ref vartypes expr)))
-           ,(symbol->string (hash-ref herbie->egg-dict expr)))]
-    [else
-     (define new-key (format "h~a" (number->string (hash-count herbie->egg-dict))))
-     (define new-key-symbol (string->symbol new-key))
-         
-     (hash-set! herbie->egg-dict
-                expr
-                new-key-symbol)
-     (hash-set! egg->herbie-dict
-                new-key-symbol
-                expr)
-     `(Var (Type ,(symbol->string (dict-ref vartypes expr)))
-           ,new-key)]))
 
 (struct egg-add-exn exn:fail ())
 
-(define (egraph-get-proof egraph-data expr goal)
-  (define egg-expr (expr->egg-expr expr egraph-data))
-  (define egg-goal (expr->egg-expr goal egraph-data))
-  (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
-  (define res (cast pointer _pointer _string/utf-8))
-  (destroy_string pointer)
-  res)
-
 ;; result function is a function that takes the ids of the nodes
-(define (egraph-add-expr eg-data expr)
-  (define egg-expr (expr->egg-expr expr eg-data))
-  (define result (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
+(define (egraph-add-expr eg-data expr-string)
+  (define result (egraph_add_expr (egraph-data-egraph-pointer eg-data) expr-string))
   (when (= result 0)
     (raise (egg-add-exn
             "Failed to add expr to egraph"
             (current-continuation-marks))))
   (- result 1))
 
-(define (egraph-add-expr-egglog vartypes eg-data expr)
-  (define egg-expr (expr->egg-expr vartypes expr eg-data))
-  (define result (egraph_add_expr_egglog (egraph-data-egraph-pointer eg-data) egg-expr))
+(define (egraph-add-expr-egglog vartypes eg-data expr-string)
+  (define result (egraph_add_expr_egglog (egraph-data-egraph-pointer eg-data) expr-string))
   (when (= result 0)
     (raise (egg-add-exn
             "Failed to add expr to egraph"
             (current-continuation-marks))))
   result)
 
+#;
 (module+ test
 
   (define test-exprs
