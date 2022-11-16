@@ -139,7 +139,7 @@
      (define node-ids
        (map (curry
              (if (flag-set? 'generate 'egglog) egraph-add-expr-egglog egraph-add-expr)
-             (vartypes ctx)
+             (vartypes-symbols ctx)
              egg-graph)
             exprs))
      (define iter-data

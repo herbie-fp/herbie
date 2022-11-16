@@ -101,7 +101,7 @@
                   (if (flag-set? 'generate 'egglog)
                       egraph-add-expr-egglog
                       egraph-add-expr)
-                  (vartypes ctx) egg-graph) exprs))
+                  (vartypes-symbols ctx) egg-graph) exprs))
           (define iter-data
             (if (flag-set? 'generate 'egglog)
                 (egglog-run egg-graph)
@@ -134,7 +134,7 @@
                 (define output 
                   ((if (flag-set? 'generate 'egglog)
                       egglog-get-variants egraph-get-variants)
-                    egg-graph id expr))
+                   (vartypes-symbols ctx) egg-graph id expr))
                 (define extracted (egg-exprs->exprs output egg-graph))
                 (for/list ([variant (remove-duplicates extracted)])
                   (list (change egg-rule root-loc (list (cons 'x variant)))))))

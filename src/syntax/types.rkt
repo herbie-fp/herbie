@@ -3,7 +3,7 @@
 (require "../errors.rkt")
 
 (provide type-name? (struct-out representation) get-representation
-         (struct-out context) *context* context-extend context-lookup vartypes
+         (struct-out context) *context* context-extend context-lookup vartypes-symbols
          *needed-reprs*)
 (module+ internals
   (provide define-type define-representation
@@ -111,3 +111,9 @@
 
 (define (vartypes ctx)
   (map cons (context-vars ctx) (context-var-reprs ctx)))
+
+(define (vartypes-symbols ctx)
+  (map
+   (lambda (a b)
+     (cons a (representation-name b)))
+   (context-vars ctx) (context-var-reprs ctx)))

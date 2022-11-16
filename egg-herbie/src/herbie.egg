@@ -11,14 +11,25 @@
   (Var HerbieType String)
 
   ; Custom ops
-  (PI)
-  (E)
+  (PI HerbieType)
+  (E HerbieType)
+  (INFINITY HerbieType)
+  (TRUE HerbieType)
+  (FALSE HerbieType)
 
-  ; Constant-folding ops
+  ; comparison
+  (Less HerbieType Math Math)
+  (LessEq HerbieType Math Math)
+  (Greater HerbieType Math Math)
+  (GreaterEq HerbieType Math Math)
+  (Eq HerbieType Math Math)
+  (NotEq HerbieType Math Math)
   (Add HerbieType Math Math)
   (Sub HerbieType Math Math)
   (Mul HerbieType Math Math)
   (Div HerbieType Math Math)
+
+  ;; named exactly as herbie but with caps
   (Pow HerbieType Math Math)
   (Neg HerbieType Math)
   (Sqrt HerbieType Math)
@@ -44,6 +55,9 @@
   (Sinh HerbieType Math)
   (Cosh HerbieType Math)
   (Tanh HerbieType Math)
+  (Not HerbieType Math)
+  (And HerbieType Math Math)
+  (Or HerbieType Math Math)
   )
 
 ;; shorthands- must be added to the exclude list of extraction
@@ -269,9 +283,9 @@
       ((universe t real)))
 (rule ((= t (Var ty a)))
       ((universe t ty)))
-(rule ((= t (PI)))
+(rule ((= t (PI real)))
       ((universe t real)))
-(rule ((= t (E)))
+(rule ((= t (E real)))
       ((universe t real)))
 
 (rule ((= t (Add ty a b)))
@@ -527,9 +541,9 @@
 (rewrite (Log ty (Exp ty x)) x)
 
 (rewrite (Exp ty zero) one)
-(rewrite (Exp ty one) (E))
+(rewrite (Exp ty one) (E real))
 ;; (rewrite one               (Exp ty zero))
-(rewrite (E)       (Exp real one))
+(rewrite (E real)       (Exp real one))
 
 (rewrite (Exp ty (Add ty a b)) (Mul ty (Exp ty a) (Exp ty b)))
 (rewrite (Exp ty (Sub ty a b)) (Div ty (Exp ty a) (Exp ty b)))
@@ -571,7 +585,7 @@
 (rewrite (Log ty (Div ty a b)) (Sub ty (Log ty a) (Log ty b)) :when ((positive a) (positive b)))
 (rewrite (Log ty (Div ty one a)) (Neg ty (Log ty a)))
 (rewrite (Log ty (Pow ty a b)) (Mul ty b (Log ty a)) :when ((positive a)))
-(rewrite (Log ty (E)) one)
+(rewrite (Log ty (E real)) one)
 
 ;; Trigonometry
 (rewrite (Add ty (Mul ty (Cos ty a) (Cos ty a)) (Mul ty (Sin ty a) (Sin ty a))) ;;verified
@@ -588,45 +602,45 @@
          (Neg ty (Mul ty (Sin ty a) (Sin ty a))))
 (rewrite (Sub ty (Mul ty (Sin ty a) (Sin ty a)) one)  ;; verified
          (Neg ty (Mul ty (Cos ty a) (Cos ty a))))
-(rewrite (Sin ty (Div ty (PI) (Num (rational "6" "1"))))  ;;verified     
+(rewrite (Sin ty (Div ty (PI real) (Num (rational "6" "1"))))  ;;verified     
          (Num (rational "1" "2")))
-(rewrite (Sin ty (Div ty (PI) (Num (rational "4" "1"))))       ;; verified
+(rewrite (Sin ty (Div ty (PI real) (Num (rational "4" "1"))))       ;; verified
          (Div ty (Sqrt ty two) two))
-(rewrite (Sin ty (Div ty (PI) three))   ;;verified
+(rewrite (Sin ty (Div ty (PI real) three))   ;;verified
          (Div ty (Sqrt ty three) two))
-(rewrite (Sin ty (Div ty (PI) two)) ;;verified      
+(rewrite (Sin ty (Div ty (PI real) two)) ;;verified      
          one)
-(rewrite (Sin ty (PI))  ;;verified
+(rewrite (Sin ty (PI real))  ;;verified
          zero)
-(rewrite (Sin ty (Add ty x (PI)))  ;; verified    
+(rewrite (Sin ty (Add ty x (PI real)))  ;; verified    
          (Neg ty (Sin ty x)))
-(rewrite (Sin ty (Add ty x (Div ty (PI) two))) ;; verified
+(rewrite (Sin ty (Add ty x (Div ty (PI real) two))) ;; verified
          (Cos ty x))
-(rewrite (Cos ty (Div ty (PI) (Num (rational "6" "1"))))   ;; verified
+(rewrite (Cos ty (Div ty (PI real) (Num (rational "6" "1"))))   ;; verified
          (Div ty (Sqrt ty three) two))
-(rewrite (Cos ty (Div ty (PI) (Num (rational "4" "1"))))       ;; verified
+(rewrite (Cos ty (Div ty (PI real) (Num (rational "4" "1"))))       ;; verified
          (Div ty (Sqrt ty two) two))
-(rewrite (Cos ty (Div ty (PI) three))      ;; verified
+(rewrite (Cos ty (Div ty (PI real) three))      ;; verified
          (Num (rational "1" "2")))
-(rewrite (Cos ty (Div ty (PI) two))   ;; verified
+(rewrite (Cos ty (Div ty (PI real) two))   ;; verified
          zero)
-(rewrite (Cos ty (PI))     ;; verified
+(rewrite (Cos ty (PI real))     ;; verified
          (Num (rational "-1" "1")))
-(rewrite (Cos ty (Add ty x (PI)))  ;; verified
+(rewrite (Cos ty (Add ty x (PI real)))  ;; verified
          (Neg ty (Cos ty x)))
-(rewrite (Cos ty (Add ty x (Div ty (PI) two))) ;; verified
+(rewrite (Cos ty (Add ty x (Div ty (PI real) two))) ;; verified
          (Neg ty (Sin ty x)))
-(rewrite (Tan ty (Div ty (PI) (Num (rational "6" "1"))))  ;; verified
+(rewrite (Tan ty (Div ty (PI real) (Num (rational "6" "1"))))  ;; verified
          (Div ty one (Sqrt ty three)))
-(rewrite (Tan ty (Div ty (PI) (Num (rational "4" "1"))))  ;; verified
+(rewrite (Tan ty (Div ty (PI real) (Num (rational "4" "1"))))  ;; verified
          one)
-(rewrite (Tan ty (Div ty (PI) three)) ;; verified
+(rewrite (Tan ty (Div ty (PI real) three)) ;; verified
          (Sqrt ty three))
-(rewrite (Tan ty (PI))  ;; verified
+(rewrite (Tan ty (PI real))  ;; verified
          zero)
-(rewrite (Tan ty (Add ty x (PI)))  ;; verified   
+(rewrite (Tan ty (Add ty x (PI real)))  ;; verified   
          (Tan ty x))
-(rewrite (Tan ty (Add ty x (Div ty (PI) two))) ;; verified
+(rewrite (Tan ty (Add ty x (Div ty (PI real) two))) ;; verified
          (Div ty neg-one (Tan ty x)))
 (rewrite (Div ty (Sin ty a) (Add ty one (Cos ty a)))  ;; verified
          (Tan ty (Div ty a two)))

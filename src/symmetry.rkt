@@ -19,7 +19,7 @@
 
 (define (connected-components expr)
   (define vars (program-variables expr))
-  (define ctx (context vars 'real (map (λ (v) 'real) vars)))
+  (define ctx (context vars (get-representation 'binary64) (map (λ (v) (get-representation 'binary64)) vars)))
   (define body (program-body expr))
 
   (define swaps (get-swaps ctx vars body))

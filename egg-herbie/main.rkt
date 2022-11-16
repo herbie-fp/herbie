@@ -143,29 +143,39 @@
   (make-hash `((+ . Add)
                (- . Sub)
                (* . Mul)
-               (/ . Div))))
+               (/ . Div)
+               (< . Less)
+               (> . Greater)
+               (<= . LessEq)
+               (>= . GreaterEq)
+               (== . Eq)
+               (!= . NotEq)
+               )))
 (define special-egg-names-reversed
   (make-hash
    (map (lambda (x) (cons (cdr x) (car x)))
         (hash->list special-egg-names))))
 
-(define (egg-name->name egg-name)
-  (define special (hash-ref special-egg-names-reversed egg-name #f))
-  (if special
-      special
-      (string-append
-       (string-downcase (substring egg-name 0 1))
-       (substring egg-name 1))))
 
-(define (name->egg-name name)
-  (println name)
-  (define special (hash-ref special-egg-names name #f))
-  (println special)
+(define (egg-name->name egg-name-symbol)
+  (define egg-name (symbol->string egg-name-symbol))
+  (define special (hash-ref special-egg-names-reversed egg-name-symbol #f))
   (if special
       special
-      (string-append
-       (string-upcase (substring name 0 1))
-       (substring name 1))))
+      (string->symbol
+       (string-append
+        (string-downcase (substring egg-name 0 1))
+        (substring egg-name 1)))))
+
+(define (name->egg-name name-symbol)
+  (define name (symbol->string name-symbol))
+  (define special (hash-ref special-egg-names name-symbol #f))
+  (if special
+      special
+      (string->symbol
+       (string-append
+        (string-upcase (substring name 0 1))
+        (substring name 1)))))
 
 
 ;; renames variables back to non upper case
@@ -176,16 +186,16 @@
       `(Rewrite=> ,rule ,(egg-parsed->expr expr rename-dict))]
     [`(Rewrite<= ,rule ,expr)
       `(Rewrite<= ,rule ,(egg-parsed->expr expr rename-dict))]
-    [`(Num ,num)
-     (egg-parsed->expr num rename-dict)]
-    [`(Var ,var)
+    [`(Num (rational ,num ,denom))
+     (/ num denom)]
+    [`(Var ,type ,var)
      (egg-parsed->expr var rename-dict)]
-    [(list first-parsed second-parsed rest-parsed ...)
+    [`(,first-parsed (Type ,second-parsed) ,rest-parsed ...)
+     (define op (egg-name->name first-parsed))
      (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
-      (egg-name->name
-       (if (equal? second-parsed 'real)
-           (string->symbol first-parsed)
-           (string->symbol (string-append (~s first-parsed) "." (~s second-parsed)))))
+      (if (equal? second-parsed 'real)
+          op
+          (string->symbol (string-append (~s op) "." (~s second-parsed))))
       (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
     [(or (? number?))
      parsed]
@@ -196,7 +206,7 @@
 (define (expr->egg-expr vartypes expr egg-data)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
-  (format "~a" (expr->egg-expr-helper vartypes expr egg->herbie-dict herbie->egg-dict)))
+  (format "~s" (expr->egg-expr-helper vartypes expr egg->herbie-dict herbie->egg-dict)))
 
 ;; Needs the vartypes so we can look up var types
 (define (expr->egg-expr-helper vartypes expr egg->herbie-dict herbie->egg-dict)
@@ -204,13 +214,13 @@
     [(list? expr)
      (match-define (list name type) (extract-operator (first expr)))
      (append
-      (list (name->egg-name name) `(Type ,(symbol->string type)))
+      (list (name->egg-name (string->symbol name)) `(Type ,type))
       (map (lambda (e) (expr->egg-expr-helper vartypes e egg->herbie-dict herbie->egg-dict))
            (rest expr)))]
     [(and (number? expr) (exact? expr) (real? expr))
-     `(Num expr)]
+     `(Num (rational ,(number->string (numerator expr)) ,(number->string (denominator expr))))]
     [(hash-has-key? herbie->egg-dict expr)
-     `(Var ,(dict-ref vartypes expr)
+     `(Var (Type ,(symbol->string (dict-ref vartypes expr)))
            ,(symbol->string (hash-ref herbie->egg-dict expr)))]
     [else
      (define new-key (format "h~a" (number->string (hash-count herbie->egg-dict))))
@@ -222,7 +232,8 @@
      (hash-set! egg->herbie-dict
                 new-key-symbol
                 expr)
-     `(Var ,(dict-ref vartypes expr) ,new-key)]))
+     `(Var (Type ,(symbol->string (dict-ref vartypes expr)))
+           ,new-key)]))
 
 (struct egg-add-exn exn:fail ())
 

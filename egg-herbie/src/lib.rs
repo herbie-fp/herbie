@@ -17,30 +17,27 @@ use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 use symbolic_expressions::{Sexp, parser};
 
-unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
-    match CStr::from_ptr(c_string).to_str() {
-        Ok(expr_string) => match expr_string.parse() {
-            Ok(expr) => Some(expr),
-            Err(err) => {
-                eprintln!("{}", err);
-                None
-            }
-        },
-        Err(_error) => None,
-    }
+unsafe fn cstring_to_string(c_string: *const c_char) -> String {
+    CStr::from_ptr(c_string).to_str().expect("Failed to unwrap c string!").to_string()
 }
 
 unsafe fn cstring_to_sexp(c_string: *const c_char) -> Option<Sexp>
 {
-    match CStr::from_ptr(c_string).to_str() {
-        Ok(expr_string) => match parser::parse_str(expr_string) {
-            Ok(expr) => Some(expr),
-            Err(err) => {
-                eprintln!("{}", err);
-                None
-            }
-        },
-        Err(_error) => None,
+    match parser::parse_str(&cstring_to_string(c_string)) {
+        Ok(expr) => Some(expr),
+        Err(err) => {
+            None
+        }
+    }
+}
+
+unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr>
+{
+    match cstring_to_string(c_string).parse::<RecExpr>() {
+        Ok(expr) => Some(expr),
+        Err(err) => {
+            None
+        }
     }
 }
 
@@ -185,26 +182,16 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
 
         assert_eq!(ctx.iteration, 0);
 
-        match cstring_to_sexp(expr) {
-            None => 0,
-            Some(sexpr) => {
-                let name = "eggvar_".to_string() + &ctx.egglog_gen.to_string();
-                let expr = Sexp::List(
-                    vec![Sexp::String("define".to_string()),
-                        Sexp::String(name),
-                        sexpr,
-                        Sexp::String(":cost".to_string()),
-                        Sexp::String("10000000".to_string()),
-                        ]);
+        let name = "eggvar_".to_string() + &ctx.egglog_gen.to_string();
+        let content = cstring_to_string(expr);
+        let expr = format!("(define {} {} :cost 10000000)", name, content);
 
-                println!("{}", expr);
+        //println!("{}", expr);
 
-                ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
+        ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 
-                ctx.egglog_gen += 1;
-                (ctx.egglog_gen - 1) as u32
-            }
-        }
+        ctx.egglog_gen += 1;
+        (ctx.egglog_gen - 1) as u32
     })
 }
 
