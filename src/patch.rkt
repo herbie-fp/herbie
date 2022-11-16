@@ -286,7 +286,7 @@
     (define input
       (simplify-input to-simplify empty (*simplify-rules*) true))
     (define simplification-options
-      (simplify-batch input))
+      (simplify-batch (*context*) input))
 
     (define simplify-hash
       (make-immutable-hash (map cons to-simplify simplification-options)))

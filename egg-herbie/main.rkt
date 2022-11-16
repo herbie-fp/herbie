@@ -35,15 +35,15 @@
   (destroy_string ptr)
   str)
 
-(define (egglog-get-variants egraph-data node-id orig-expr)
-  (define expr-str (expr->egg-expr orig-expr egraph-data))
+(define (egglog-get-variants vartypes egraph-data node-id orig-expr)
+  (define expr-str (expr->egg-expr vartypes orig-expr egraph-data))
   (define ptr (egglog_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
   str)
 
-(define (egraph-get-variants egraph-data node-id orig-expr)
-  (define expr-str (expr->egg-expr orig-expr egraph-data))
+(define (egraph-get-variants vartypes egraph-data node-id orig-expr)
+  (define expr-str (expr->egg-expr vartypes  orig-expr egraph-data))
   (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
@@ -139,17 +139,53 @@
         (let ([expr (egg-parsed->expr parse (egraph-data-egg->herbie-dict eg-data))])
           (loop (read port) (cons expr exprs))))))
 
+(define special-egg-names
+  (make-hash `((+ . Add)
+               (- . Sub)
+               (* . Mul)
+               (/ . Div))))
+(define special-egg-names-reversed
+  (make-hash
+   (map (lambda (x) (cons (cdr x) (car x)))
+        (hash->list special-egg-names))))
+
+(define (egg-name->name egg-name)
+  (define special (hash-ref special-egg-names-reversed egg-name #f))
+  (if special
+      special
+      (string-append
+       (string-downcase (substring egg-name 0 1))
+       (substring egg-name 1))))
+
+(define (name->egg-name name)
+  (println name)
+  (define special (hash-ref special-egg-names name #f))
+  (println special)
+  (if special
+      special
+      (string-append
+       (string-upcase (substring name 0 1))
+       (substring name 1))))
+
+
+;; renames variables back to non upper case
+;; special names in map
 (define (egg-parsed->expr parsed rename-dict)
   (match parsed
     [`(Rewrite=> ,rule ,expr)
       `(Rewrite=> ,rule ,(egg-parsed->expr expr rename-dict))]
     [`(Rewrite<= ,rule ,expr)
       `(Rewrite<= ,rule ,(egg-parsed->expr expr rename-dict))]
+    [`(Num ,num)
+     (egg-parsed->expr num rename-dict)]
+    [`(Var ,var)
+     (egg-parsed->expr var rename-dict)]
     [(list first-parsed second-parsed rest-parsed ...)
      (cons       ; parameterized operators: (name type args ...) => (name.type args ...)
-      (if (equal? second-parsed 'real)
-          first-parsed
-          (string->symbol (string-append (~s first-parsed) "." (~s second-parsed))))
+      (egg-name->name
+       (if (equal? second-parsed 'real)
+           (string->symbol first-parsed)
+           (string->symbol (string-append (~s first-parsed) "." (~s second-parsed)))))
       (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
     [(or (? number?))
      parsed]
@@ -157,26 +193,25 @@
      (hash-ref rename-dict parsed)]))
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
-(define (expr->egg-expr expr egg-data)
+(define (expr->egg-expr vartypes expr egg-data)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
-  (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict))
+  (format "~a" (expr->egg-expr-helper vartypes expr egg->herbie-dict herbie->egg-dict)))
 
-(define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
+;; Needs the vartypes so we can look up var types
+(define (expr->egg-expr-helper vartypes expr egg->herbie-dict herbie->egg-dict)
   (cond
     [(list? expr)
-     (string-join
-      (append
-       (extract-operator (first expr))
-       (map (lambda (e) (expr->egg-expr-helper e egg->herbie-dict herbie->egg-dict))
-            (rest expr)))
-      " "
-      #:before-first "("
-      #:after-last ")")]
+     (match-define (list name type) (extract-operator (first expr)))
+     (append
+      (list (name->egg-name name) `(Type ,(symbol->string type)))
+      (map (lambda (e) (expr->egg-expr-helper vartypes e egg->herbie-dict herbie->egg-dict))
+           (rest expr)))]
     [(and (number? expr) (exact? expr) (real? expr))
-     (number->string expr)]
+     `(Num expr)]
     [(hash-has-key? herbie->egg-dict expr)
-     (symbol->string (hash-ref herbie->egg-dict expr))]
+     `(Var ,(dict-ref vartypes expr)
+           ,(symbol->string (hash-ref herbie->egg-dict expr)))]
     [else
      (define new-key (format "h~a" (number->string (hash-count herbie->egg-dict))))
      (define new-key-symbol (string->symbol new-key))
@@ -187,7 +222,7 @@
      (hash-set! egg->herbie-dict
                 new-key-symbol
                 expr)
-      new-key]))
+     `(Var ,(dict-ref vartypes expr) ,new-key)]))
 
 (struct egg-add-exn exn:fail ())
 
@@ -209,8 +244,8 @@
             (current-continuation-marks))))
   (- result 1))
 
-(define (egraph-add-expr-egglog eg-data expr)
-  (define egg-expr (expr->egg-expr expr eg-data))
+(define (egraph-add-expr-egglog vartypes eg-data expr)
+  (define egg-expr (expr->egg-expr vartypes expr eg-data))
   (define result (egraph_add_expr_egglog (egraph-data-egraph-pointer eg-data) egg-expr))
   (when (= result 0)
     (raise (egg-add-exn

@@ -100,7 +100,8 @@
             (map (curry
                   (if (flag-set? 'generate 'egglog)
                       egraph-add-expr-egglog
-                      egraph-add-expr) egg-graph) exprs))
+                      egraph-add-expr)
+                  (vartypes ctx) egg-graph) exprs))
           (define iter-data
             (if (flag-set? 'generate 'egglog)
                 (egglog-run egg-graph)

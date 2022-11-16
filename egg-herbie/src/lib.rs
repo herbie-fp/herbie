@@ -67,30 +67,6 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
             ("-", "Sub"),
             ("*", "Mul"),
             ("/", "Div"),
-            ("pow", "Pow"),
-            ("neg", "Neg"),
-            ("sqrt", "Sqrt"),
-            ("fabs", "Fabs"),
-            ("ceil", "Ceil"),
-            ("floor", "Floor"),
-            ("round", "Round"),
-            ("log", "Log"),
-            ("cbrt", "Cbrt"),
-            ("exp", "Exp"),
-            ("sin", "Sin"),
-            ("cos", "Cos"),
-            ("tan", "Tan"),
-            ("atan", "Atan"),
-            ("atan2", "Atan2"),
-            ("asin", "Asin"),
-            ("acos", "Acos"),
-            ("hypot", "Hypot"),
-            ("expm1", "Expm1"),
-            ("log1p", "Log1p"),
-            ("if", "If"),
-            ("fma", "Fma"),
-            ("PI", "PI"),
-            ("E", "E"),
     ]);
 
     let egglog_mapping: HashMap<String, String> = egglog_mapping_not_owned.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
@@ -199,126 +175,6 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
     })
 }
 
-pub fn remove_types(expr: &Sexp) -> Sexp {
-    match expr {
-        Sexp::List(list) => {
-            Sexp::List(vec![remove_types(&list[0])]
-                        .into_iter()
-                        .chain(
-                            list.iter()
-                                .skip(2)
-                                .map(remove_types)
-                        ).collect())
-        }
-        Sexp::String(atom) => Sexp::String(atom.to_string()),
-        Sexp::Empty => Sexp::Empty
-    }
-}
-
-pub fn op_to_type(op: &str) -> String {
-    match op {
-        "if" => "real".to_string(),
-        _ => "f64".to_string()
-    }
-}
-
-pub fn add_types(expr: &Sexp) -> Sexp {
-    match expr {
-        Sexp::List(list) => {
-            Sexp::List(vec![list[0].clone(),
-                            Sexp::String(op_to_type(&list[0].to_string())),]
-                        .into_iter()
-                        .chain(
-                            list.iter()
-                                .skip(1)
-                                .map(add_types)
-                        ).collect())
-        }
-        Sexp::String(atom) => Sexp::String(atom.to_string()),
-        Sexp::Empty => Sexp::Empty
-    }
-}
-
-
-pub fn unconvert_egglog(context: &Context, expr: &Sexp) -> Sexp {
-    match expr {
-        Sexp::List(list) => {
-            if list[0] == Sexp::String("Num".to_string()) {
-                if let Sexp::List(inner) = &list[1] {
-                    assert_eq!(inner[0].to_string(), "rational");
-                    Sexp::String(format!("{}/{}", inner[1].to_string(), inner[2].to_string()))
-                } else {
-                    panic!("Num should have a list as second element");
-                }
-            } else if list[0] == Sexp::String("Var".to_string()) {
-                Sexp::String(list[1].to_string())
-            } else {
-                let op = context.egglog_mapping_rev.get(&list[0].to_string());
-
-                if op.is_none() {
-                    let is_valid = list[0].to_string() == "Unary" || list[0].to_string() == "Binary";
-                    if !is_valid {
-                        panic!("Expected Unary or Binary, got {}", list[0]);
-                    }
-                    
-
-                    Sexp::List(vec![Sexp::String(list[1].to_string())].into_iter()
-                                .chain(
-                                    list.iter().skip(2).map(|x| unconvert_egglog(context, x)))
-                                .collect())
-                } else {
-                    let op = op.unwrap();
-                    let mut new_list = vec![Sexp::String(op.to_string())];
-                    new_list.extend(list.iter().skip(1).map(|x| unconvert_egglog(context, x)));
-                    Sexp::List(new_list)
-                }
-            }
-        }
-        Sexp::String(_atom) => expr.clone(),
-        Sexp::Empty => panic!("Trying to convert empty expression"),
-    }
-}
-
-
-pub fn convert_egglog(ctx: &Context, expr: &Sexp) -> Sexp {
-    match expr {
-        Sexp::String(atom) => {
-            if let Ok(rat) = atom.parse::<Rational64>() {
-                Sexp::List(vec![Sexp::String("Num".to_string()),
-                                Sexp::List(
-                                    vec![Sexp::String("rational".to_string()),
-                                         Sexp::String("\"".to_owned() + &rat.numer().to_string() + "\""),
-                                         Sexp::String("\"".to_owned() + &rat.denom().to_string() + "\"")])])
-            } else {
-                Sexp::List(vec![Sexp::String("Var".to_string()),
-                                Sexp::String("\"".to_string() + &atom.to_string() + "\"")])
-            }
-        }
-        Sexp::List(list) => {
-            let op = ctx.egglog_mapping.get(&list[0].to_string());
-            let front = if op == None && list.len() == 2 {
-                vec![Sexp::String("Unary".to_string()),
-                     Sexp::String("\"".to_string() + &list[0].to_string() + "\"")]
-            } else if op == None && list.len() == 3 {
-                vec![Sexp::String("Binary".to_string()),
-                     Sexp::String("\"".to_string() + &list[0].to_string() + "\"")]
-            } else if let Some(converted) = op {
-                   vec![Sexp::String(converted.to_string())]
-            } else {
-                panic!("Unknown operation: {}", expr);
-            };
-
-            Sexp::List(front
-                        .into_iter()
-                        .chain(
-                            list.iter()
-                                .skip(1)
-                                .map(|item| convert_egglog(ctx, item))
-                        ).collect())
-        }
-        Sexp::Empty => panic!("Trying to convert empty expression"),
-    }
-}
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
@@ -336,12 +192,12 @@ pub unsafe extern "C" fn egraph_add_expr_egglog(ptr: *mut Context, expr: *const 
                 let expr = Sexp::List(
                     vec![Sexp::String("define".to_string()),
                         Sexp::String(name),
-                        convert_egglog(&ctx, &remove_types(&sexpr)),
+                        sexpr,
                         Sexp::String(":cost".to_string()),
                         Sexp::String("10000000".to_string()),
                         ]);
 
-                //println!("{}", expr);
+                println!("{}", expr);
 
                 ctx.egglog.parse_and_run_program(&expr.to_string()).unwrap();
 
@@ -582,7 +438,7 @@ pub unsafe extern "C" fn egglog_get_simplest(
         let (_, value) = ctx.egglog.eval_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string()), None, false).unwrap();
         let (_cost, extracted) = ctx.egglog.extract(value);
 
-        let converted = add_types(&unconvert_egglog(ctx, &parser::parse_str(&extracted.to_string()).unwrap()));
+        let converted = parser::parse_str(&extracted.to_string()).unwrap();
 
         let best_str = CString::new(converted.to_string()).unwrap();
         let best_str_pointer = best_str.as_ptr();
@@ -627,7 +483,7 @@ pub unsafe extern "C" fn egglog_get_variants(
                     }
                }
             }
-            Some(add_types(&unconvert_egglog(ctx, &parsed)))
+            Some(parsed)
         }).collect::<Vec<Sexp>>();
 
         // format

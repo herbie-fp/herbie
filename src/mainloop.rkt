@@ -400,6 +400,7 @@
   (timeline-event! 'simplify)
   (define progss*
     (simplify-batch
+     ctx
       (simplify-input 
         (map (compose program-body alt-program) joined-alts) empty
         (*fp-safe-simplify-rules*) #t)))

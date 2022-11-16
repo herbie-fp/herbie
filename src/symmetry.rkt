@@ -1,15 +1,17 @@
 #lang racket
-(require "common.rkt" "programs.rkt" "core/simplify.rkt" "syntax/rules.rkt")
+(require "common.rkt" "programs.rkt" "core/simplify.rkt" "syntax/rules.rkt" "syntax/types.rkt")
 
 (provide connected-components)
 
-(define (get-swaps vars expr)
+(define (get-swaps ctx vars expr)
   (define swapt
     (for/list ([swap (in-combinations vars 2)])
       (match-define (list a b) swap)
       (replace-vars (list (cons a b) (cons b a)) expr)))
   (define out (map last
-                   (simplify-batch (simplify-input (cons expr swapt) empty (*simplify-rules*) true))))
+                   (simplify-batch
+                    ctx
+                    (simplify-input (cons expr swapt) empty (*simplify-rules*) true))))
   (match-define (cons orig swapt*) out)
   (for/list ([swap* swapt*] [swap (in-combinations vars 2)]
              #:when (equal? swap* orig))
@@ -17,9 +19,10 @@
 
 (define (connected-components expr)
   (define vars (program-variables expr))
+  (define ctx (context vars 'real (map (λ (v) 'real) vars)))
   (define body (program-body expr))
 
-  (define swaps (get-swaps vars body))
+  (define swaps (get-swaps ctx vars body))
   (define rules*
     (for/list ([swap swaps])
       (match-define (list a b) swap)
@@ -29,7 +32,9 @@
             '()
             'real)))
   (define groups (map last
-                      (simplify-batch (simplify-input (range (length vars)) empty rules* false))))
+                      (simplify-batch
+                       ctx
+                       (simplify-input (range (length vars)) empty rules* false))))
   (map (lambda (group) (map car group)) (group-by cdr (map cons vars groups))))
 
 

@@ -2,7 +2,7 @@
 
 (require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt")
+         "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt" "../syntax/types.rkt")
 
 (provide simplify-expr simplify-batch get-proof
          make-simplification-combinations
@@ -59,9 +59,9 @@
         (cons option all)
         (append (list option child) all))))
 
-(define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
-  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
-  (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
+(define/contract (simplify-expr ctx expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
+  (->* (context? expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
+  (last (first (simplify-batch ctx (list expr) #:rules rls #:precompute precompute?))))
 
 
 
@@ -82,8 +82,9 @@
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
-(define/contract (simplify-batch input)
-  (->* ((struct/c simplify-input
+(define/contract (simplify-batch ctx input)
+  (->* (context?
+        (struct/c simplify-input
                   (listof expr?)
                   (listof (cons/c expr? expr?))
                   (listof rule?)
@@ -95,6 +96,7 @@
 
   (define results
     (run-simplify-input
+     ctx
      input
      (lambda (egg-graph node-ids iter-data)
        (map (lambda (id)
@@ -120,7 +122,7 @@
            (egg-expr->expr s egg-graph))
        (string-split proof-str "\n")))
 
-(define (run-simplify-input input egraph-func)
+(define (run-simplify-input ctx input egraph-func)
   (define exprs (simplify-input-exprs input))
   (for ([expr exprs])
     (when (unsound-expr? expr)
@@ -137,6 +139,7 @@
      (define node-ids
        (map (curry
              (if (flag-set? 'generate 'egglog) egraph-add-expr-egglog egraph-add-expr)
+             (vartypes ctx)
              egg-graph)
             exprs))
      (define iter-data
@@ -197,9 +200,13 @@
     (check-true
      (not (symbol? (rule-input rule)))
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
+
+  (define ctx (context (list 'x 'y 'z) 'binary64 (list 'binary64 'binary64 'binary64)))
   
   (define (test-simplify . args)
-    (map last (simplify-batch (simplify-input args empty (*simplify-rules*) true))))
+    (map last (simplify-batch
+               ctx
+               (simplify-input args empty (*simplify-rules*) true))))
 
   (define test-exprs
     #hash([1 . 1]
