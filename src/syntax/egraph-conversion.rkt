@@ -1,6 +1,7 @@
 #lang racket
 
-(require egg-herbie "syntax.rkt" "types.rkt" "../programs.rkt")
+(require egg-herbie "syntax.rkt" "types.rkt"
+         "../programs.rkt" "../errors.rkt")
 (provide egg-expr->expr egg-exprs->exprs
          expr->egg-expr)
 
@@ -93,20 +94,33 @@
      (define children-types
        (map cdr children))
      (define children-parsed (map car children))
+
+     (define repr
+       (cond
+         [(equal? op 'if)
+          (second children-types)]
+         [else
+          (get-representation second-parsed)]))
      (define parametric
-       (if (equal? op 'if)
-           'if
+       (cond
+         [(equal? op 'if)
+          'if]
+         [(constant-operator? op)
+          (let/ec k
+            (for/list ([name (operator-all-impls op)])
+              (define rtype (operator-info name 'otype))
+              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
+                (k name)))
+            (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
+                                        op (representation-name repr)))]
+         [else
            (apply
             (curry get-parametric-operator
                    op)
-            children-types)))
-     (define type
-       (if (equal? op 'if)
-           (second children-types)
-           (operator-info parametric 'otype)))
+            children-types)]))
 
      (cons (cons parametric children-parsed)
-           type)]
+           repr)]
     [else
      (error (format "Unrecognized egg expression ~a" parsed))]))
 

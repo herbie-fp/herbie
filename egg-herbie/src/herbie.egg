@@ -335,9 +335,9 @@
 
 
 ;; soundness check
-(rule ((= (Num ty n) (Num ty m))
-       (!= n m))
-      ((panic "Unsoundness detected!")))
+;(rule ((= (Num ty n) (Num ty m))
+       ;(!= n m))
+      ;((panic "Unsoundness detected!")))
 
 (add-ruleset analysis)
 (clear-rules)
