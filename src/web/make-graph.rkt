@@ -19,14 +19,6 @@
       [(alt _ _ (list)) #f]
       [(alt _ _ (list prev _ ...)) (loop prev)])))
 
-(define (regime-splitpoints altn)
-  (map sp-point (drop-right (regime-info altn) 1)))
-
-(define/contract (regime-var altn)
-  (-> alt? (or/c expr? #f))
-  (define info (regime-info altn))
-  (and info (sp-bexpr (car info))))
-
 (define/contract (render-interactive start-prog point)
   (-> alt? (listof number?) xexpr?)
   `(section ([id "try-it"])
