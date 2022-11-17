@@ -5,9 +5,6 @@
 
 (provide add-soundiness)
 
-(lazy-require
- [egg-herbie (egg-expr->expr)])
-
 (define (remove-rewrites proof)
   (match proof
     [`(Rewrite=> ,rule ,something)

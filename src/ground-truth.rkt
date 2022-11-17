@@ -3,7 +3,7 @@
 (require math/bigfloat rival racket/hash)
 (require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide sample-points eval-prog-real)
+(provide sample-points batch-prepare-points make-search-func)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -37,7 +37,7 @@
   (define fns (batch-eval-progs (cons precondition programs) 'ival ctx))
   (λ inputs
     (define repr (context-repr ctx))
-    (match-define (list ival-pre ival-bodies ...) (vector->list (apply fns inputs)))
+    (match-define (list ival-pre ival-bodies ...) (apply fns inputs))
     (for/list ([y ival-bodies])
       (ival-then
        ; The two `invalid` ones have to go first, because later checks

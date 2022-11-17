@@ -3,7 +3,7 @@
 (require math/bigfloat math/flonum json plot/no-gui racket/draw)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/read.rkt"
-         "../alternative.rkt" "../core/regimes.rkt" "../sandbox.rkt")
+         "../alternative.rkt" "../core/bsearch.rkt" "../sandbox.rkt")
 
 (provide make-cost-accuracy-plot make-full-cost-accuracy-plot 
          real->ordinal regime-splitpoints choose-ticks regime-var)

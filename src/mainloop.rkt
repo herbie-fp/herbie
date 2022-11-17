@@ -1,9 +1,8 @@
 #lang racket
 
-(require "common.rkt" "errors.rkt" "timeline.rkt"
-         "syntax/rules.rkt" "syntax/types.rkt"
-         "alternative.rkt" "conversions.rkt"
-         "patch.rkt" "points.rkt" "programs.rkt"
+(require "common.rkt" "errors.rkt" "alternative.rkt" "timeline.rkt"
+         "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt"
+         "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
          "ground-truth.rkt" "preprocess.rkt" "symmetry.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
          "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt")
@@ -143,6 +142,20 @@
 
   (void))
 
+;; Returns the locations of `subexpr` within `expr`
+(define (get-locations expr subexpr)
+  (let loop ([expr expr] [loc '()])
+    (match expr
+      [(== subexpr)
+       (list (reverse loc))]
+      [(list op args ...)
+       (apply
+        append
+        (for/list ([arg (in-list args)] [i (in-naturals 1)])
+          (loop arg (cons i loc))))]
+      [_
+       (list)])))
+
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; extracts the base expression of a patch
@@ -166,8 +179,8 @@
            [(list 'change cng)
             (match-define (change rule loc binds) cng)
             (list 'change (change rule (append loc0 (cdr loc)) binds))]
-            [`(simplify ,loc ,input ,proof ,soundiness)
-             (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
+           [`(simplify ,loc ,input ,proof ,soundiness)
+            (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
         (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))
         (alt prog* event* (list (loop (first prev))))])))
   

@@ -1,8 +1,8 @@
 #lang racket
 
-(require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
-         "alternative.rkt" "common.rkt" "errors.rkt" "programs.rkt"
-         "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
+(require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
+(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt")
 
 (provide
   (contract-out
@@ -222,57 +222,38 @@
   (when (flag-set? 'generate 'simplify)
     (timeline-event! 'simplify)
     (define children (^final^))
-
-    ;; We want to avoid simplifying if possible, so we only
-    ;; simplify things produced by function calls in the rule
-    ;; pattern. This means no simplification if the rule output as
-    ;; a whole is not a function call pattern, and no simplifying
-    ;; subexpressions that don't correspond to function call
-    ;; patterns.
-    (define locs-list
-      (for/list ([child (in-list children)] [n (in-naturals 1)])
-        (match (alt-event child)
-          [(list 'taylor _ _ loc) (list loc)]
-          [(list 'change cng)
-           (match-define (change rule loc _) cng)
-           (define pattern (rule-output rule))
-           (cond
-            [(not (list? pattern)) '()]
-            [else
-             (for/list ([pos (in-naturals 1)]
-                        [arg-pattern (cdr pattern)] #:when (list? arg-pattern))
-               (append loc (list pos)))])]
-          [_ (list '(2))])))
+    (define variables (context-vars (*context*)))
 
     (define to-simplify
-      (for/list ([child (in-list children)] [locs locs-list]
-                 #:when true [loc locs])
-        (location-get loc (alt-program child))))
+      (for/list ([child (in-list children)])
+        (program-body (alt-program child))))
 
-    (define input
+    (define input-struct
       (simplify-input to-simplify empty (*simplify-rules*) true))
     (define simplification-options
-      (simplify-batch input))
-
-    (define simplify-hash
-      (make-immutable-hash (map cons to-simplify simplification-options)))
+      (simplify-batch input-struct))
 
     (define simplified
-      (apply append
-             (for/list ([child (in-list children)] [locs locs-list])
-              (make-simplification-combinations child locs simplify-hash input))))
+      (remove-duplicates
+       (for/list ([child (in-list children)] [input (in-list to-simplify)]
+                  [outputs (in-list simplification-options)]
+                  #:when true
+                  [output outputs])
+         (if (equal? input output)
+             child
+             (alt `(λ ,variables ,output) `(simplify (2) ,input-struct #f #f) (list child))))
+       alt-equal?))
 
     ; dedup for cache
-    (define simplified* (remove-duplicates simplified alt-equal?))
     (unless (and (null? (^queued^)) (null? (^queuedlow^)))  ; don't run for simplify-only
-      (for ([altn (in-list simplified*)])
+      (for ([altn (in-list simplified)])
         (define cachable (map (compose program-body alt-program) (^queued^)))
         (let ([expr0 (get-starting-expr altn)])
           (when (set-member? cachable expr0)
             (add-patch! (get-starting-expr altn) altn)))))
     
-    (timeline-push! 'count (length locs-list) (length simplified*))
-    (^final^ simplified*))
+    (timeline-push! 'count (length children) (length simplified))
+    (^final^ simplified))
   (void))
 
 (define (patch-table-clear!)
