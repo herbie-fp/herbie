@@ -72,8 +72,7 @@
 (define (prepend-argument fn val pcontext ctx)
   (define pts (for/list ([(pt ex) (in-pcontext pcontext)]) pt))
   (define (new-sampler) (cons val (random-ref pts)))
-  ;; TODO: will need `cdr` once ival-assert is merged
-  (apply mk-pcontext (batch-prepare-points fn ctx new-sampler)))
+  (apply mk-pcontext (cdr (batch-prepare-points fn ctx new-sampler))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the

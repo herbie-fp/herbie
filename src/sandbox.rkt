@@ -55,7 +55,7 @@
       (with-handlers ([exn? (curry on-exception start-time)])
         (rollback-improve!)
 
-        (define joint-pcontext
+        (match-define (cons domain-stats joint-pcontext)
           (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
             (setup-context!
              (or (test-specification test) (test-program test)) (test-precondition test)
