@@ -25,11 +25,9 @@
 (define deps
   '(("base" #:version "8.0")
     "math-lib"
-    "plot-lib"
     "profile-lib"
     "rackunit-lib"
     "web-server-lib"
-    "draw-lib"
     ("egg-herbie" #:version "1.6")
     ("rival" #:version "1.7")
     ("fpbench" #:version "2.0.3")))
