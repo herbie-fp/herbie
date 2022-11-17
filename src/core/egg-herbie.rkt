@@ -2,8 +2,8 @@
 
 (require egg-herbie)
 (require ffi/unsafe ffi/unsafe/define)
-(require "../syntax/rules.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../errors.rkt" "../timeline.rkt")
+(require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
+         "../common.rkt" "../errors.rkt" "../timeline.rkt")
 
 (module+ test (require rackunit))
 
@@ -59,6 +59,72 @@
        (values renamed (context-lookup (*context*) renamed))])))
   expr*)
 
+(define (expr->egg-pattern+vars expr)
+  (define ppatterns (make-hash))
+  (define (get-pattern key)
+    (hash-ref! ppatterns (real-operator-info key 'otype)
+               (λ () (string->symbol (format "?p~a" (hash-count ppatterns))))))
+  (define expr*
+    (let loop ([expr expr])
+      (match expr
+        [(list 'if cond ift iff)
+         (list 'if 'real (loop cond) (loop ift) (loop iff))]
+        [(list (? operator-exists? op) args ...)
+         (cons op (cons (get-pattern op) (map loop args)))]
+        [(list op args ...)
+         (define-values (op* prec) (expand-operator op))
+         (cons op* (cons prec (map loop args)))]
+        [(? number?) expr]
+        [_ (format "?~a" expr)])))
+  (values expr* (hash-keys ppatterns)))
+
+;; Translates a Herbie rule LHS or RHS into a
+;; pattern suitable for use in egg.
+(define (expr->egg-pattern expr)
+  (define-values (expr* _) (expr->egg-pattern+vars expr))
+  expr*)
+
+;; Translates a Herbie rule into possibly multiple rules
+(define (rule->egg-rules r)
+  (match-define (rule rname input output itypes otype) r)
+  (define-values (input* input-pats) (expr->egg-pattern+vars input))
+  (define-values (output* output-pats) (expr->egg-pattern+vars output))
+  (cond
+    [(andmap representation? (cons otype itypes))
+     ;; Representation-specific rule
+     ;; nothing special here: just return the 1 rule
+     (list (cons input* output*))]
+    [(andmap (curry set-member? input-pats) output-pats)
+     ;; Non-expansive rules
+     ;; also nothing special here: just return the 1 rule
+     (list (cons input* output*))]
+    [else
+     ;; Expansive rules, i.e. x -> f(x) cannot be run in egg
+     ;; since f(x) typically requires precision nodes
+     ;; which cannot be inferred from just a node `x`
+     ;; TODO: possible solution is to have special classes of rules
+     ;;
+     ;;  Rule(f, p) = { x -> f(x, p) }
+     ;;  
+     ;; where `p` is a representation.
+     ;; This rule must be instantiated with a precision.
+     ;;
+     ;; While it may be possible to implement with a custom applier,
+     ;; the hackier solution is just to duplicate the rule over
+     ;; every possible representation before it enters the egraph.
+     (reap [sow]
+       (for ([repr (in-list (*needed-reprs*))])
+         (define type (representation-type repr))
+         (when (andmap (λ (p) (equal? type (cdr p))) itypes)
+           (define itypes* (map (λ (p) (cons (car p) repr)) itypes))
+           (define sugar-ctx (context (map car itypes) repr (map cdr itypes*)))
+           (when (equal? otype type)
+             (define rname* (sym-append rname '- (representation-name repr)))
+             (define input* (desugar-program input sugar-ctx))
+             (define output* (desugar-program output sugar-ctx))
+             (sow (cons input* output*))))))]))
+              
+
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
 (define (expr->egg-expr expr egg-data)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
@@ -66,10 +132,8 @@
   (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict))
 
 (define (expand-operator impl)
-  (define op (impl->operator impl))
-  (define otype (representation-name (operator-info impl 'otype)))
-  (when (equal? otype 'racket) (printf "~a -> ~a ~a\n" impl op otype))
-  (list op otype))
+  (values (impl->operator impl)
+          (representation-name (operator-info impl 'otype))))
 
 (define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
   (let loop ([expr expr])
@@ -77,7 +141,7 @@
       [(list 'if cond ift iff)
        (list 'if 'real (loop cond) (loop ift) (loop iff))]
       [(list op args ...)
-       (match-define (list op* prec) (expand-operator op))
+       (define-values (op* prec) (expand-operator op))
        (cons op* (cons prec (map loop args)))]
       [(? number?)
        expr]
@@ -172,10 +236,11 @@
   ptr)
 
 (define (make-ffi-rules rules)
-  (for/list ([rule (in-list rules)])
+  (for*/list ([rule (in-list rules)]
+              [(lhs rhs) (in-dict (rule->egg-rules rule))])
     (define name (make-raw-string (symbol->string (rule-name rule))))
-    (define left (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
-    (define right (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
+    (define left (make-raw-string (~a lhs)))
+    (define right (make-raw-string (~a rhs)))
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
