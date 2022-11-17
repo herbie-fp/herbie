@@ -132,7 +132,7 @@
   (with-egraph
    (lambda (egg-graph)
      (define expr-strings
-       (map (lambda (e) (expr->egg-expr (vartypes-symbols ctx) e egg-graph))
+       (map (lambda (e) (expr->egg-expr  ctx e egg-graph))
             exprs))
      (define node-ids
        (map (curry

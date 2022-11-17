@@ -7,7 +7,7 @@
 
 (datatype Math
   ; Ground terms
-  (Num Rational)
+  (Num HerbieType Rational)
   (Var HerbieType String)
 
   ; Custom ops
@@ -67,15 +67,6 @@
 (define r-three (rational "3" "1"))
 (define r-four (rational "4" "1"))
 (define r-neg-one (rational "-1" "1"))
-(define zero (Num r-zero) :cost 10000000)
-(define one  (Num r-one) :cost 10000000)
-(define two  (Num r-two) :cost 10000000)
-(define three (Num r-three) :cost 10000000)
-(define neg-one (Num r-neg-one) :cost 10000000)
-(define four (Num r-four) :cost 10000000)
-
-;; numbers have a special type, since they can be any time
-(define real (Type "real") :cost 10000000)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -102,20 +93,20 @@
 ;; with nums when we can
 
 ; Cases
-(rewrite (Add ty (Num a) (Num b)) (Num (+ a b)))
-(rewrite (Sub ty (Num a) (Num b)) (Num (- a b)))
-(rewrite (Mul ty (Num a) (Num b)) (Num (* a b)))
-(rewrite (Div ty (Num a) (Num b)) (Num (/ a b)))
-(rewrite (Pow ty (Num a) (Num b)) (Num (pow a b)))
-(rewrite (Neg ty (Num a)) (Num (neg a)))
+(rewrite (Add ty (Num ty a) (Num ty b)) (Num ty (+ a b)))
+(rewrite (Sub ty (Num ty a) (Num ty b)) (Num ty (- a b)))
+(rewrite (Mul ty (Num ty a) (Num ty b)) (Num ty (* a b)))
+(rewrite (Div ty (Num ty a) (Num ty b)) (Num ty (/ a b)))
+(rewrite (Pow ty (Num ty a) (Num ty b)) (Num ty (pow a b)))
+(rewrite (Neg ty (Num ty a)) (Num ty (neg a)))
 ;; TODO unimplemented
-;; (rewrite (Sqrt (Num a)) (Num res) :when ((= res (sqrt a))))
-;; (rewrite (Cbrt (Num a)) (Num res) :when ((= res (cbrt a))))
-(rewrite (Fabs ty (Num a)) (Num (abs a)))
-(rewrite (Ceil ty (Num a)) (Num (ceil a)))
-(rewrite (Floor ty (Num a)) (Num (floor a)))
-(rewrite (Round ty (Num a)) (Num (round a)))
-(rewrite (Log ty (Num a)) (Num res) :when ((= res (log a))))
+;; (rewrite (Sqrt (Num ty a)) (Num ty res) :when ((= res (sqrt a))))
+;; (rewrite (Cbrt (Num ty a)) (Num ty res) :when ((= res (cbrt a))))
+(rewrite (Fabs ty (Num ty a)) (Num ty (abs a)))
+(rewrite (Ceil ty (Num ty a)) (Num ty (ceil a)))
+(rewrite (Floor ty (Num ty a)) (Num ty (floor a)))
+(rewrite (Round ty (Num ty a)) (Num ty (round a)))
+(rewrite (Log ty (Num ty a)) (Num ty res) :when ((= res (log a))))
 
 ;; To check if something is zero, we check that zero is not contained in the
 ;; interval. There are two possible (overlapping!) cases:
@@ -137,7 +128,7 @@
        (> l r-zero))
       ((positive e)))
 
-(rule ((= e (Num ve)))
+(rule ((= e (Num ty ve)))
       ((set (lo e) ve)
        (set (hi e) ve)))
 
@@ -279,14 +270,14 @@
 
 ;; UNIVERSE
 
-(rule ((= t (Num a)))
-      ((universe t real)))
+(rule ((= t (Num ty a)))
+      ((universe t ty)))
 (rule ((= t (Var ty a)))
       ((universe t ty)))
-(rule ((= t (PI real)))
-      ((universe t real)))
-(rule ((= t (E real)))
-      ((universe t real)))
+(rule ((= t (PI ty)))
+      ((universe t ty)))
+(rule ((= t (E ty)))
+      ((universe t ty)))
 
 (rule ((= t (Add ty a b)))
       ((universe t ty)))
@@ -342,15 +333,22 @@
       ((universe t ty)))
       
 
+
+;; soundness check
+(rule ((= (Num ty n) (Num ty m))
+       (!= n m))
+      ((panic "Unsoundness detected!")))
+
+(add-ruleset analysis)
+(clear-rules)
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; Rewrites
 ;; --------
 ;; These rewrites were compiled from src/syntax/rules.rkt in the herbie repo,
 ;; using all rewrites in the `simplify` rewrite group.
-
-(add-ruleset analysis)
-(clear-rules)
 
 
 ;; INJECTIVITY ooooohh
@@ -410,7 +408,7 @@
 (rewrite (Div ty (Div ty b c) a) (Div ty b (Mul ty a c)) :when ((non-zero a)))
 
 ;; Counting
-(rewrite (Add ty x x) (Mul ty two x))
+(rewrite (Add ty x x) (Mul ty (Num ty r-two) x))
 
 ;; Distributivity
 (rewrite (Mul ty a (Add ty b c))         (Add ty (Mul ty a b) (Mul ty a c)))
@@ -419,8 +417,8 @@
 (rewrite (Sub ty (Mul ty a b) (Mul ty a c)) (Mul ty a (Sub ty b c)))
 (rewrite (Add ty (Mul ty b a) (Mul ty c a)) (Mul ty a (Add ty b c)))
 (rewrite (Sub ty (Mul ty b a) (Mul ty c a)) (Mul ty a (Sub ty b c)))
-(rewrite (Add ty (Mul ty b a) a)         (Mul ty (Add ty b one) a))
-(rewrite (Add ty a (Mul ty c a))         (Mul ty (Add ty c one) a))
+(rewrite (Add ty (Mul ty b a) a)         (Mul ty (Add ty b (Num ty r-one)) a))
+(rewrite (Add ty a (Mul ty c a))         (Mul ty (Add ty c (Num ty r-one)) a))
 
 (rewrite (Neg ty (Mul ty a b))       (Mul ty (Neg ty a) b))
 (rewrite (Neg ty (Mul ty a b))       (Mul ty a (Neg ty b)))
@@ -438,61 +436,61 @@
 (rewrite (Mul ty (Mul ty a b) (Mul ty a b))                           (Mul ty (Mul ty a a) (Mul ty b b)))
 (rewrite (Mul ty (Mul ty a a) (Mul ty b b))                           (Mul ty (Mul ty a b) (Mul ty a b)))
 (rewrite (Sub ty (Mul ty a a) (Mul ty b b))                           (Mul ty (Add ty a b) (Sub ty a b)))
-(rewrite (Sub ty (Mul ty a a) one)                (Mul ty (Add ty a one) (Sub ty a one)))
-(rewrite (Add ty (Mul ty a a) (Neg ty one))          (Mul ty (Add ty a one) (Sub ty a one)))
+(rewrite (Sub ty (Mul ty a a) (Num ty r-one))                (Mul ty (Add ty a (Num ty r-one)) (Sub ty a (Num ty r-one))))
+(rewrite (Add ty (Mul ty a a) (Neg ty (Num ty r-one)))          (Mul ty (Add ty a (Num ty r-one)) (Sub ty a (Num ty r-one))))
 
 (rule ((= e (Pow ty a b))
        (= loa (lo a))
        (> loa r-zero))
-      ((set (Pow ty a b) (Mul ty (Pow ty a (Div ty b two)) (Pow ty a (Div ty b two))))))
-(rewrite (Mul ty (Pow ty a b) (Pow ty a b))                           (Pow ty a (Mul ty two b)))
-(rewrite (Pow ty a three)
+      ((set (Pow ty a b) (Mul ty (Pow ty a (Div ty b (Num ty r-two))) (Pow ty a (Div ty b (Num ty r-two)))))))
+(rewrite (Mul ty (Pow ty a b) (Pow ty a b))                           (Pow ty a (Mul ty (Num ty r-two) b)))
+(rewrite (Pow ty a (Num ty r-three))
          (Mul ty a (Mul ty a a)))
-(rewrite (Pow ty a four)
-         (Mul ty (Pow ty a two) (Pow ty a two)))
+(rewrite (Pow ty a (Num ty r-four))
+         (Mul ty (Pow ty a (Num ty r-two)) (Pow ty a (Num ty r-two))))
 
 
 
 ;; Identity
 ;; This isn't subsumed by const folding since this can return results
 ;; even if we can't evaluate a precise value for x
-(rewrite (Div ty one (Div ty one x))
+(rewrite (Div ty (Num ty r-one) (Div ty (Num ty r-one) x))
          x)
-(rewrite (Mul ty x (Div ty one x))
-         one)
-(rewrite (Mul ty (Div ty one x) x)
-         one)
+(rewrite (Mul ty x (Div ty (Num ty r-one) x))
+         (Num ty r-one))
+(rewrite (Mul ty (Div ty (Num ty r-one) x) x)
+         (Num ty r-one))
 
-(rewrite (Sub ty x x) zero)
-(rewrite (Div ty x x) one)
-(rewrite (Div ty zero x) zero)
-(rewrite (Mul ty zero x) zero)
-(rewrite (Mul ty x zero) zero)
+(rewrite (Sub ty x x) (Num ty r-zero))
+(rewrite (Div ty x x) (Num ty r-one))
+(rewrite (Div ty (Num ty r-zero) x) (Num ty r-zero))
+(rewrite (Mul ty (Num ty r-zero) x) (Num ty r-zero))
+(rewrite (Mul ty x (Num ty r-zero)) (Num ty r-zero))
 
-(rewrite (Add ty zero x) x)
-(rewrite (Add ty x zero) x)
-(rewrite (Sub ty zero x) (Neg ty x))
-(rewrite (Sub ty x zero) x)
+(rewrite (Add ty (Num ty r-zero) x) x)
+(rewrite (Add ty x (Num ty r-zero)) x)
+(rewrite (Sub ty (Num ty r-zero) x) (Neg ty x))
+(rewrite (Sub ty x (Num ty r-zero)) x)
 (rewrite (Neg ty (Neg ty x)) x)
-(rewrite (Mul ty one x) x)
-(rewrite (Mul ty x one) x)
-(rewrite (Div ty x one) x)
-(rewrite (Mul ty neg-one x) (Neg ty x))
+(rewrite (Mul ty (Num ty r-one) x) x)
+(rewrite (Mul ty x (Num ty r-one)) x)
+(rewrite (Div ty x (Num ty r-one)) x)
+(rewrite (Mul ty (Num ty r-neg-one) x) (Neg ty x))
  
 (rewrite (Sub ty a b) (Add ty a (Neg ty b)))
 (rewrite (Sub ty a b) (Neg ty (Sub ty b a)))
 (rewrite (Add ty a (Neg ty b)) (Sub ty a b))
-(rewrite (Neg ty x) (Sub ty zero x))
-(rewrite (Neg ty x) (Mul ty neg-one x))
+(rewrite (Neg ty x) (Sub ty (Num ty r-zero) x))
+(rewrite (Neg ty x) (Mul ty (Num ty r-neg-one) x))
 
-(rewrite (Div ty x y) (Mul ty x (Div ty one y)))
-(rewrite (Mul ty x (Div ty one y)) (Div ty x y))
-(rewrite (Div ty x y) (Div ty one (Div ty y x))
+(rewrite (Div ty x y) (Mul ty x (Div ty (Num ty r-one) y)))
+(rewrite (Mul ty x (Div ty (Num ty r-one) y)) (Div ty x y))
+(rewrite (Div ty x y) (Div ty (Num ty r-one) (Div ty y x))
   :when ((non-zero x)
          (non-zero y)))
 
 (rule ((universe t ty))
-      ((union t (Mul ty one t))))
+      ((union t (Mul ty (Num ty r-one) t))))
 
 ;; Fractions
 (rewrite (Div ty (Sub ty a b) c)         (Sub ty (Div ty a c) (Div ty b c)))
@@ -514,23 +512,23 @@
 (rewrite (Fabs ty (Div ty a b)) (Div ty (Fabs ty a) (Fabs ty b)))
 
 ;; Cube root
-(rewrite (Pow ty (Cbrt ty  x) three)    x)
-(rewrite (Cbrt ty  (Pow ty x three))    x)
+(rewrite (Pow ty (Cbrt ty  x) (Num ty r-three))    x)
+(rewrite (Cbrt ty  (Pow ty x (Num ty r-three)))    x)
 (rewrite (Mul ty (Mul ty (Cbrt ty  x) (Cbrt ty  x)) (Cbrt ty  x)) x)
 (rewrite (Mul ty (Cbrt ty  x) (Mul ty (Cbrt ty  x) (Cbrt ty  x))) x)
-(rewrite (Pow ty (Neg ty x) three)     (Neg ty (Pow ty x three)))
+(rewrite (Pow ty (Neg ty x) (Num ty r-three))     (Neg ty (Pow ty x (Num ty r-three))))
 
-(rewrite (Pow ty (Mul ty x y) three)
-         (Mul ty (Pow ty x three) (Pow ty y three)))
-(rewrite (Pow ty (Div ty x y) three)
-         (Div ty (Pow ty x three) (Pow ty y three)))
+(rewrite (Pow ty (Mul ty x y) (Num ty r-three))
+         (Mul ty (Pow ty x (Num ty r-three)) (Pow ty y (Num ty r-three))))
+(rewrite (Pow ty (Div ty x y) (Num ty r-three))
+         (Div ty (Pow ty x (Num ty r-three)) (Pow ty y (Num ty r-three))))
  
-(rewrite (Pow ty x three) (Mul ty x (Mul ty x x)))
+(rewrite (Pow ty x (Num ty r-three)) (Mul ty x (Mul ty x x)))
 ; FIXME: this rewrite is slow and has the potential to blow up the egraph
 ;        this is bc this rule and the second-to-last difference of squares rule
 ;        have some cyclic behavior goin on
 ;        the last identity rule compounds this behavior
-(rewrite (Mul ty x (Mul ty x x)) (Pow ty x three))
+(rewrite (Mul ty x (Mul ty x x)) (Pow ty x (Num ty r-three)))
 
 ;; Exponentials
 (rule ((= t1 (Exp ty (Log ty x))) ;; verified
@@ -540,136 +538,136 @@
             x)))
 (rewrite (Log ty (Exp ty x)) x)
 
-(rewrite (Exp ty zero) one)
-(rewrite (Exp ty one) (E real))
+(rewrite (Exp ty (Num ty r-zero)) (Num ty r-one))
+(rewrite (Exp ty (Num ty r-one)) (E ty))
 ;; (rewrite one               (Exp ty zero))
-(rewrite (E real)       (Exp real one))
+(rewrite (E ty)       (Exp ty (Num ty r-one)))
 
 (rewrite (Exp ty (Add ty a b)) (Mul ty (Exp ty a) (Exp ty b)))
 (rewrite (Exp ty (Sub ty a b)) (Div ty (Exp ty a) (Exp ty b)))
-(rewrite (Exp ty (Neg ty a))   (Div ty one (Exp ty a)))
+(rewrite (Exp ty (Neg ty a))   (Div ty (Num ty r-one) (Exp ty a)))
 
 (rewrite (Mul ty (Exp ty a) (Exp ty b))      (Exp ty (Add ty a b)))
-(rewrite (Div ty one (Exp ty a)) (Exp ty (Neg ty a)))
+(rewrite (Div ty (Num ty r-one) (Exp ty a)) (Exp ty (Neg ty a)))
 (rewrite (Div ty (Exp ty a) (Exp ty b))      (Exp ty (Sub ty a b)))
 (rewrite (Exp ty (Mul ty a b))                    (Pow ty (Exp ty a) b))
-(rewrite (Exp ty (Div ty a two)) (Sqrt ty (Exp ty a)))
-(rewrite (Exp ty (Div ty a three)) (Cbrt ty  (Exp ty a)))
-(rewrite (Exp ty (Mul ty a two)) (Mul ty (Exp ty a) (Exp ty a)))
-(rewrite (Exp ty (Mul ty a three)) (Pow ty (Exp ty a) three))
+(rewrite (Exp ty (Div ty a (Num ty r-two))) (Sqrt ty (Exp ty a)))
+(rewrite (Exp ty (Div ty a (Num ty r-three))) (Cbrt ty  (Exp ty a)))
+(rewrite (Exp ty (Mul ty a (Num ty r-two))) (Mul ty (Exp ty a) (Exp ty a)))
+(rewrite (Exp ty (Mul ty a (Num ty r-three))) (Pow ty (Exp ty a) (Num ty r-three)))
 
 ;; Powers
-(rewrite (Pow ty a neg-one) (Div ty one a))
-(rewrite (Pow ty a one) a)
-(rewrite (Div ty one a) (Pow ty a neg-one))
+(rewrite (Pow ty a (Num ty r-neg-one)) (Div ty (Num ty r-one) a))
+(rewrite (Pow ty a (Num ty r-one)) a)
+(rewrite (Div ty (Num ty r-one) a) (Pow ty a (Num ty r-neg-one)))
 
 (rule ((universe a ty))
-      ((union (Pow ty a one) a)))
+      ((union (Pow ty a (Num ty r-one)) a)))
 
 ; 0^0 is undefined
-(rewrite (Pow ty a zero) one :when ((non-zero a)))
-(rewrite (Pow ty one a) one)
+(rewrite (Pow ty a (Num ty r-zero)) (Num ty r-one) :when ((non-zero a)))
+(rewrite (Pow ty (Num ty r-one) a) (Num ty r-one))
 
 (rewrite (Exp ty (Mul ty (Log ty a) b)) (Pow ty a b))
-(rewrite (Mul ty (Pow ty a b) a) (Pow ty a (Add ty b one)))
-(rewrite (Pow ty a (Num (rational "1" "2"))) (Sqrt ty a))
-(rewrite (Pow ty a two) (Mul ty a a))
-(rewrite (Pow ty a (Num (rational "1" "3"))) (Cbrt ty  a))
-(rewrite (Pow ty a three) (Mul ty (Mul ty a a) a))
+(rewrite (Mul ty (Pow ty a b) a) (Pow ty a (Add ty b (Num ty r-one))))
+(rewrite (Pow ty a (Num ty (rational "1" "2"))) (Sqrt ty a))
+(rewrite (Pow ty a (Num ty r-two)) (Mul ty a a))
+(rewrite (Pow ty a (Num ty (rational "1" "3"))) (Cbrt ty  a))
+(rewrite (Pow ty a (Num ty r-three)) (Mul ty (Mul ty a a) a))
 
 ; 0^0 is undefined
-(rewrite (Pow ty zero a) zero :when ((non-zero a)))
+(rewrite (Pow ty (Num ty r-zero) a) (Num ty r-zero) :when ((non-zero a)))
 
 ;; Logarithms
 (rewrite (Log ty (Mul ty a b)) (Add ty (Log ty a) (Log ty b)) :when ((positive a) (positive b)))
 (rewrite (Log ty (Div ty a b)) (Sub ty (Log ty a) (Log ty b)) :when ((positive a) (positive b)))
-(rewrite (Log ty (Div ty one a)) (Neg ty (Log ty a)))
+(rewrite (Log ty (Div ty (Num ty r-one) a)) (Neg ty (Log ty a)))
 (rewrite (Log ty (Pow ty a b)) (Mul ty b (Log ty a)) :when ((positive a)))
-(rewrite (Log ty (E real)) one)
+(rewrite (Log ty (E ty)) (Num ty r-one))
 
 ;; Trigonometry
 (rewrite (Add ty (Mul ty (Cos ty a) (Cos ty a)) (Mul ty (Sin ty a) (Sin ty a))) ;;verified
-         one)
-(rewrite (Sub ty one (Mul ty (Cos ty a) (Cos ty a))) ;; verified
+         (Num ty r-one))
+(rewrite (Sub ty (Num ty r-one) (Mul ty (Cos ty a) (Cos ty a))) ;; verified
          (Mul ty (Sin ty a) (Sin ty a)))
-(rewrite (Sub ty one (Mul ty (Sin ty a) (Sin ty a))) ;; verified
+(rewrite (Sub ty (Num ty r-one) (Mul ty (Sin ty a) (Sin ty a))) ;; verified
          (Mul ty (Cos ty a) (Cos ty a)))
-(rewrite (Add ty (Mul ty (Cos ty a) (Cos ty a)) (Num (rational "-1" "1"))) ;; verified
+(rewrite (Add ty (Mul ty (Cos ty a) (Cos ty a)) (Num ty (rational "-1" "1"))) ;; verified
          (Neg ty (Mul ty (Sin ty a) (Sin ty a))))
-(rewrite (Add ty (Mul ty (Sin ty a) (Sin ty a)) (Num (rational "-1" "1"))) ;; verified
+(rewrite (Add ty (Mul ty (Sin ty a) (Sin ty a)) (Num ty (rational "-1" "1"))) ;; verified
          (Neg ty (Mul ty (Cos ty a) (Cos ty a))))
-(rewrite (Sub ty (Mul ty (Cos ty a) (Cos ty a)) one)  ;; verified
+(rewrite (Sub ty (Mul ty (Cos ty a) (Cos ty a)) (Num ty r-one))  ;; verified
          (Neg ty (Mul ty (Sin ty a) (Sin ty a))))
-(rewrite (Sub ty (Mul ty (Sin ty a) (Sin ty a)) one)  ;; verified
+(rewrite (Sub ty (Mul ty (Sin ty a) (Sin ty a)) (Num ty r-one))  ;; verified
          (Neg ty (Mul ty (Cos ty a) (Cos ty a))))
-(rewrite (Sin ty (Div ty (PI real) (Num (rational "6" "1"))))  ;;verified     
-         (Num (rational "1" "2")))
-(rewrite (Sin ty (Div ty (PI real) (Num (rational "4" "1"))))       ;; verified
-         (Div ty (Sqrt ty two) two))
-(rewrite (Sin ty (Div ty (PI real) three))   ;;verified
-         (Div ty (Sqrt ty three) two))
-(rewrite (Sin ty (Div ty (PI real) two)) ;;verified      
-         one)
-(rewrite (Sin ty (PI real))  ;;verified
-         zero)
-(rewrite (Sin ty (Add ty x (PI real)))  ;; verified    
+(rewrite (Sin ty (Div ty (PI ty) (Num ty (rational "6" "1"))))  ;;verified     
+         (Num ty (rational "1" "2")))
+(rewrite (Sin ty (Div ty (PI ty) (Num ty (rational "4" "1"))))       ;; verified
+         (Div ty (Sqrt ty (Num ty r-two)) (Num ty r-two)))
+(rewrite (Sin ty (Div ty (PI ty) (Num ty r-three)))   ;;verified
+         (Div ty (Sqrt ty (Num ty r-three)) (Num ty r-two)))
+(rewrite (Sin ty (Div ty (PI ty) (Num ty r-two))) ;;verified      
+         (Num ty r-one))
+(rewrite (Sin ty (PI ty))  ;;verified
+         (Num ty r-zero))
+(rewrite (Sin ty (Add ty x (PI ty)))  ;; verified    
          (Neg ty (Sin ty x)))
-(rewrite (Sin ty (Add ty x (Div ty (PI real) two))) ;; verified
+(rewrite (Sin ty (Add ty x (Div ty (PI ty) (Num ty r-two)))) ;; verified
          (Cos ty x))
-(rewrite (Cos ty (Div ty (PI real) (Num (rational "6" "1"))))   ;; verified
-         (Div ty (Sqrt ty three) two))
-(rewrite (Cos ty (Div ty (PI real) (Num (rational "4" "1"))))       ;; verified
-         (Div ty (Sqrt ty two) two))
-(rewrite (Cos ty (Div ty (PI real) three))      ;; verified
-         (Num (rational "1" "2")))
-(rewrite (Cos ty (Div ty (PI real) two))   ;; verified
-         zero)
-(rewrite (Cos ty (PI real))     ;; verified
-         (Num (rational "-1" "1")))
-(rewrite (Cos ty (Add ty x (PI real)))  ;; verified
+(rewrite (Cos ty (Div ty (PI ty) (Num ty (rational "6" "1"))))   ;; verified
+         (Div ty (Sqrt ty (Num ty r-three)) (Num ty r-two)))
+(rewrite (Cos ty (Div ty (PI ty) (Num ty (rational "4" "1"))))       ;; verified
+         (Div ty (Sqrt ty (Num ty r-two)) (Num ty r-two)))
+(rewrite (Cos ty (Div ty (PI ty) (Num ty r-three)))      ;; verified
+         (Num ty (rational "1" "2")))
+(rewrite (Cos ty (Div ty (PI ty) (Num ty r-two)))   ;; verified
+         (Num ty r-zero))
+(rewrite (Cos ty (PI ty))     ;; verified
+         (Num ty (rational "-1" "1")))
+(rewrite (Cos ty (Add ty x (PI ty)))  ;; verified
          (Neg ty (Cos ty x)))
-(rewrite (Cos ty (Add ty x (Div ty (PI real) two))) ;; verified
+(rewrite (Cos ty (Add ty x (Div ty (PI ty) (Num ty r-two)))) ;; verified
          (Neg ty (Sin ty x)))
-(rewrite (Tan ty (Div ty (PI real) (Num (rational "6" "1"))))  ;; verified
-         (Div ty one (Sqrt ty three)))
-(rewrite (Tan ty (Div ty (PI real) (Num (rational "4" "1"))))  ;; verified
-         one)
-(rewrite (Tan ty (Div ty (PI real) three)) ;; verified
-         (Sqrt ty three))
-(rewrite (Tan ty (PI real))  ;; verified
-         zero)
-(rewrite (Tan ty (Add ty x (PI real)))  ;; verified   
+(rewrite (Tan ty (Div ty (PI ty) (Num ty (rational "6" "1"))))  ;; verified
+         (Div ty (Num ty r-one) (Sqrt ty (Num ty r-three))))
+(rewrite (Tan ty (Div ty (PI ty) (Num ty (rational "4" "1"))))  ;; verified
+         (Num ty r-one))
+(rewrite (Tan ty (Div ty (PI ty) (Num ty r-three))) ;; verified
+         (Sqrt ty (Num ty r-three)))
+(rewrite (Tan ty (PI ty))  ;; verified
+         (Num ty r-zero))
+(rewrite (Tan ty (Add ty x (PI ty)))  ;; verified   
          (Tan ty x))
-(rewrite (Tan ty (Add ty x (Div ty (PI real) two))) ;; verified
-         (Div ty neg-one (Tan ty x)))
-(rewrite (Div ty (Sin ty a) (Add ty one (Cos ty a)))  ;; verified
-         (Tan ty (Div ty a two)))
-(rewrite (Div ty (Neg ty (Sin ty a)) (Add ty one (Cos ty a))) ;; verified
-         (Tan ty (Div ty (Neg ty a) two)))
-(rewrite (Div ty (Sub ty one (Cos ty a)) (Sin ty a))  ;; verified
-         (Tan ty (Div ty a two)))
-(rewrite (Div ty (Sub ty one (Cos ty a)) (Neg ty (Sin ty a))) ;; verified
-         (Tan ty (Div ty (Neg ty a) two)))
+(rewrite (Tan ty (Add ty x (Div ty (PI ty) (Num ty r-two)))) ;; verified
+         (Div ty (Num ty r-neg-one) (Tan ty x)))
+(rewrite (Div ty (Sin ty a) (Add ty (Num ty r-one) (Cos ty a)))  ;; verified
+         (Tan ty (Div ty a (Num ty r-two))))
+(rewrite (Div ty (Neg ty (Sin ty a)) (Add ty (Num ty r-one) (Cos ty a))) ;; verified
+         (Tan ty (Div ty (Neg ty a) (Num ty r-two))))
+(rewrite (Div ty (Sub ty (Num ty r-one) (Cos ty a)) (Sin ty a))  ;; verified
+         (Tan ty (Div ty a (Num ty r-two))))
+(rewrite (Div ty (Sub ty (Num ty r-one) (Cos ty a)) (Neg ty (Sin ty a))) ;; verified
+         (Tan ty (Div ty (Neg ty a) (Num ty r-two))))
 (rewrite (Div ty (Add ty (Sin ty a) (Sin ty b)) (Add ty (Cos ty a) (Cos ty b))) ;; verified
-         (Tan ty (Div ty (Add ty a b) two)))
+         (Tan ty (Div ty (Add ty a b) (Num ty r-two))))
 (rewrite (Div ty (Sub ty (Sin ty a) (Sin ty b)) (Add ty (Cos ty a) (Cos ty b))) ;;verified
-         (Tan ty (Div ty (Sub ty a b) two)))
+         (Tan ty (Div ty (Sub ty a b) (Num ty r-two))))
 
-(rewrite (Sin ty zero) zero) ;; verified
-(rewrite (Cos ty zero) one) ;; verified
-(rewrite (Tan ty zero) zero) ;; verified
+(rewrite (Sin ty (Num ty r-zero)) (Num ty r-zero)) ;; verified
+(rewrite (Cos ty (Num ty r-zero)) (Num ty r-one)) ;; verified
+(rewrite (Tan ty (Num ty r-zero)) (Num ty r-zero)) ;; verified
 
 (rewrite (Sin ty (Neg ty x)) (Neg ty (Sin ty x))) ;; verified
 (rewrite (Cos ty (Neg ty x)) (Cos ty x)) ;; verified
 (rewrite (Tan ty (Neg ty x)) (Neg ty (Tan ty x))) ;; verified
 
 ; Hyperbolics
-(rewrite (Sinh ty x) (Div ty (Sub ty (Exp ty x) (Exp ty (Neg ty x))) two))
-(rewrite (Cosh ty x) (Div ty (Add ty (Exp ty x) (Exp ty (Neg ty x))) two))
+(rewrite (Sinh ty x) (Div ty (Sub ty (Exp ty x) (Exp ty (Neg ty x))) (Num ty r-two)))
+(rewrite (Cosh ty x) (Div ty (Add ty (Exp ty x) (Exp ty (Neg ty x))) (Num ty r-two)))
 (rewrite (Tanh ty x) (Div ty (Sub ty (Exp ty x) (Exp ty (Neg ty x))) (Add ty (Exp ty x) (Exp ty (Neg ty x)))))
-(rewrite (Tanh ty x) (Div ty (Sub ty (Exp ty (Mul ty two x)) one) (Add ty (Exp ty (Mul ty two x)) one)))
-(rewrite (Tanh ty x) (Div ty (Sub ty one (Exp ty (Mul ty (Num (rational "-2" "1")) x))) (Add ty one (Exp ty (Mul ty (Num (rational "-2" "1")) x)))))
-(rewrite (Sub ty (Mul ty (Cosh ty x) (Cosh ty x)) (Mul ty (Sinh ty x) (Sinh ty x))) one)
+(rewrite (Tanh ty x) (Div ty (Sub ty (Exp ty (Mul ty (Num ty r-two) x)) (Num ty r-one)) (Add ty (Exp ty (Mul ty (Num ty r-two) x)) (Num ty r-one))))
+(rewrite (Tanh ty x) (Div ty (Sub ty (Num ty r-one) (Exp ty (Mul ty (Num ty (rational "-2" "1")) x))) (Add ty (Num ty r-one) (Exp ty (Mul ty (Num ty (rational "-2" "1")) x)))))
+(rewrite (Sub ty (Mul ty (Cosh ty x) (Cosh ty x)) (Mul ty (Sinh ty x) (Sinh ty x))) (Num ty r-one))
 (rewrite (Add ty (Cosh ty x) (Sinh ty x)) (Exp ty x))
 (rewrite (Sub ty (Cosh ty x) (Sinh ty x)) (Exp ty (Neg ty x)))
 
@@ -703,11 +701,11 @@
 ;; difference-of-cubes
 ;; sum of cubes
 (rewrite
-       (Add ty (Pow ty a three) (Pow ty b three))
+       (Add ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
        (Mul ty (Add ty (Mul ty a a) (Sub ty (Mul ty b b) (Mul ty a b)))
             (Add ty a b)))
 ;; difference of cubes
-(rewrite (Sub ty (Pow ty a three) (Pow ty b three))
+(rewrite (Sub ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
          (Mul ty (Add ty (Mul ty a a) (Add ty (Mul ty b b) (Mul ty a b)))
               (Sub ty a b)))
 
@@ -717,19 +715,19 @@
 (rule ((= t1 (Add ty a b)))
       ((Add ty (Mul ty a a) (Sub ty (Mul ty b b) (Mul ty a b)))))
 (rewrite (Add ty a b)
-         (Div ty (Add ty (Pow ty a three) (Pow ty b three))
+         (Div ty (Add ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
               (Add ty (Mul ty a a) (Sub ty (Mul ty b b) (Mul ty a b))))
          :when ((non-zero (Add ty (Mul ty a a) (Sub ty (Mul ty b b) (Mul ty a b))))))
 (rewrite (Add ty a b)
-         (Div ty (Add ty (Pow ty a three) (Pow ty b three))
+         (Div ty (Add ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
               (Add ty (Mul ty a a) (Sub ty (Mul ty b b) (Mul ty a b))))
          :when ((non-zero a)))
 (rewrite (Add ty a b)
-         (Div ty (Add ty (Pow ty a three) (Pow ty b three))
+         (Div ty (Add ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
               (Add ty (Mul ty a a) (Sub ty (Mul ty b b) (Mul ty a b))))
          :when ((non-zero b)))
 (rewrite (Add ty a b)
-         (Div ty (Add ty (Pow ty a three) (Pow ty b three))
+         (Div ty (Add ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
               (Add ty (Mul ty a a) (Sub ty (Mul ty b b) (Mul ty a b))))
          :when ((neq a b)))
 
@@ -739,19 +737,19 @@
 (rule ((= t1 (Sub ty a b)))
       ((Add ty (Mul ty a a) (Add ty (Mul ty b b) (Mul ty a b)))))
 (rewrite (Sub ty a b)
-         (Div ty (Sub ty (Pow ty a three) (Pow ty b three))
+         (Div ty (Sub ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
               (Add ty (Mul ty a a) (Add ty (Mul ty b b) (Mul ty a b))))
          :when ((non-zero a))) ;; when a and b are non-zero a^2+b^2-ab is positive => a^2+b^2+ab is positive
 (rewrite (Sub ty a b)
-         (Div ty (Sub ty (Pow ty a three) (Pow ty b three))
+         (Div ty (Sub ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
               (Add ty (Mul ty a a) (Add ty (Mul ty b b) (Mul ty a b))))
          :when ((non-zero b)))
 (rewrite (Sub ty a b)
-         (Div ty (Sub ty (Pow ty a three) (Pow ty b three))
+         (Div ty (Sub ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
               (Add ty (Mul ty a a) (Add ty (Mul ty b b) (Mul ty a b))))
          :when ((neq a b)))
 (rewrite (Sub ty a b)
-         (Div ty (Sub ty (Pow ty a three) (Pow ty b three))
+         (Div ty (Sub ty (Pow ty a (Num ty r-three)) (Pow ty b (Num ty r-three)))
               (Add ty (Mul ty a a) (Add ty (Mul ty b b) (Mul ty a b))))
          :when ((non-zero (Add ty (Mul ty a a) (Add ty (Mul ty b b) (Mul ty a b))))))
 
@@ -793,10 +791,10 @@
             t1)))
 
 (rewrite (Sqrt ty (Pow ty x y))
-         (Pow ty x (Div ty y two)) :when ((non-negative x)))
+         (Pow ty x (Div ty y (Num ty r-two))) :when ((non-negative x)))
 
 (rewrite (Pow ty (Sqrt ty x) y)
-         (Pow ty x (Div ty y two)))
+         (Pow ty x (Div ty y (Num ty r-two))))
        
 (rewrite (Mul ty (Sqrt ty x) (Sqrt ty y))
          (Sqrt ty (Mul ty x y)))
@@ -824,7 +822,7 @@
 (rule ((universe x ty))
       ((union x (Mul ty (Cbrt ty  x) (Mul ty (Cbrt ty  x) (Cbrt ty  x))))))
 (rule ((universe x ty))
-      ((union x (Cbrt ty  (Pow ty x three)))))
+      ((union x (Cbrt ty  (Pow ty x (Num ty r-three))))))
 
 
 (rewrite (Pow ty (Exp ty a) b) ;; verified
@@ -843,8 +841,8 @@
          (Pow ty a (Mul ty b c))
          :when ((non-negative a)))
 (rewrite (Pow ty a (Neg ty b)) ;; verified
-         (Div ty one (Pow ty a b)) :when ((non-zero a)))
-(rewrite (Div ty one (Pow ty a b)) ;; verified
+         (Div ty (Num ty r-one) (Pow ty a b)) :when ((non-zero a)))
+(rewrite (Div ty (Num ty r-one) (Pow ty a b)) ;; verified
          (Pow ty a (Neg ty b)))
 (rewrite (Div ty (Pow ty a b) (Pow ty a c)) ;; verified
          (Pow ty a (Sub ty b c)))
@@ -861,10 +859,10 @@
          (Mul ty (Pow ty b a) (Pow ty c a))
          :when ((non-negative b) (non-negative c))) ;; or a is an integer!
 (rewrite (Sqrt ty a)
-         (Pow ty a (Div ty one two)))
-(rewrite (Mul ty a a) (Pow ty a two))
-(rewrite (Cbrt ty  a) (Pow ty a (Div ty one three)))
-(rewrite (Mul ty (Mul ty a a) a) (Pow ty a three))
+         (Pow ty a (Div ty (Num ty r-one) (Num ty r-two))))
+(rewrite (Mul ty a a) (Pow ty a (Num ty r-two)))
+(rewrite (Cbrt ty  a) (Pow ty a (Div ty (Num ty r-one) (Num ty r-three))))
+(rewrite (Mul ty (Mul ty a a) a) (Pow ty a (Num ty r-three)))
 
 
 ;; log factor
@@ -872,7 +870,7 @@
        (Log ty (Mul ty a b)))
 (rewrite (Sub ty (Log ty a) (Log ty b)) ;; a and b positive
          (Log ty (Div ty a b)))
-(rewrite (Neg ty (Log ty a)) (Log ty (Div ty one a))) ;; a positive
+(rewrite (Neg ty (Log ty a)) (Log ty (Div ty (Num ty r-one) a))) ;; a positive
 
 
 ;; trig expand
@@ -884,7 +882,7 @@
               (Mul ty (Sin ty a) (Sin ty b)))) ;; verified
 (rewrite (Tan ty (Add ty x y)) ;; verified
          (Div ty (Add ty (Tan ty x) (Tan ty y))
-              (Sub ty one (Mul ty (Tan ty x) (Tan ty y)))))
+              (Sub ty (Num ty r-one) (Mul ty (Tan ty x) (Tan ty y)))))
 (rewrite (Sin ty (Sub ty x y)) ;; verified
          (Sub ty (Mul ty (Sin ty x) (Cos ty y))
                (Mul ty (Cos ty x) (Sin ty y))))
@@ -892,71 +890,71 @@
          (Add ty (Mul ty (Cos ty x) (Cos ty y))
               (Mul ty (Sin ty x) (Sin ty y))))
        
-(rewrite (Sin ty (Mul ty two x)) ;; verified
-         (Mul ty two (Mul ty (Sin ty x) (Cos ty x))))
-(rewrite (Sin ty (Mul ty three x)) ;; verified
-         (Sub ty (Mul ty three (Sin ty x))
-              (Mul ty four (Pow ty (Sin ty x) three))))
-(rewrite (Mul ty two (Mul ty (Sin ty x) (Cos ty x))) ;; verified
-         (Sin ty (Mul ty two x)))
-(rewrite (Sub ty (Mul ty three (Sin ty x)) ;; verified
-              (Mul ty four (Pow ty (Sin ty x) three)))
-         (Sin ty (Mul ty three x)))
-(rewrite (Cos ty (Mul ty two x))
+(rewrite (Sin ty (Mul ty (Num ty r-two) x)) ;; verified
+         (Mul ty (Num ty r-two) (Mul ty (Sin ty x) (Cos ty x))))
+(rewrite (Sin ty (Mul ty (Num ty r-three) x)) ;; verified
+         (Sub ty (Mul ty (Num ty r-three) (Sin ty x))
+              (Mul ty (Num ty r-four) (Pow ty (Sin ty x) (Num ty r-three)))))
+(rewrite (Mul ty (Num ty r-two) (Mul ty (Sin ty x) (Cos ty x))) ;; verified
+         (Sin ty (Mul ty (Num ty r-two) x)))
+(rewrite (Sub ty (Mul ty (Num ty r-three) (Sin ty x)) ;; verified
+              (Mul ty (Num ty r-four) (Pow ty (Sin ty x) (Num ty r-three))))
+         (Sin ty (Mul ty (Num ty r-three) x)))
+(rewrite (Cos ty (Mul ty (Num ty r-two) x))
          (Sub ty (Mul ty (Cos ty x) (Cos ty x))
               (Mul ty (Sin ty x) (Sin ty x))))
-(rewrite (Cos ty (Mul ty three x))
-         (Sub ty (Mul ty four (Pow ty (Cos ty x) three))
-              (Mul ty three (Cos ty x))))
+(rewrite (Cos ty (Mul ty (Num ty r-three) x))
+         (Sub ty (Mul ty (Num ty r-four) (Pow ty (Cos ty x) (Num ty r-three)))
+              (Mul ty (Num ty r-three) (Cos ty x))))
 (rewrite (Sub ty (Mul ty (Cos ty x) (Cos ty x))
               (Mul ty (Sin ty x) (Sin ty x)))
-              (Cos ty (Mul ty two x)))
-(rewrite  (Sub ty (Mul ty four (Pow ty (Cos ty x) three))
-              (Mul ty three (Cos ty x)))
-              (Cos ty (Mul ty three x)))
+              (Cos ty (Mul ty (Num ty r-two) x)))
+(rewrite  (Sub ty (Mul ty (Num ty r-four) (Pow ty (Cos ty x) (Num ty r-three)))
+              (Mul ty (Num ty r-three) (Cos ty x)))
+              (Cos ty (Mul ty (Num ty r-three) x)))
 (rewrite (Mul ty (Sin ty x) (Sin ty x))
-         (Sub ty (Num (rational "1" "2"))
-              (Mul ty (Num (rational "1" "2"))
-                   (Cos ty (Mul ty two x)))))
+         (Sub ty (Num ty (rational "1" "2"))
+              (Mul ty (Num ty (rational "1" "2"))
+                   (Cos ty (Mul ty (Num ty r-two) x)))))
 (rewrite (Mul ty (Cos ty x) (Cos ty x))
-         (Add ty (Num (rational "1" "2"))
-              (Mul ty (Num (rational "1" "2"))
-                   (Cos ty (Mul ty two x)))))
+         (Add ty (Num ty (rational "1" "2"))
+              (Mul ty (Num ty (rational "1" "2"))
+                   (Cos ty (Mul ty (Num ty r-two) x)))))
 
 (rewrite (Sub ty (Sin ty x) (Sin ty y)) ;; verified
-         (Mul ty two (Mul ty (Sin ty (Div ty (Sub ty x y) two))
-                       (Cos ty (Div ty (Add ty x y) two)))))
+         (Mul ty (Num ty r-two) (Mul ty (Sin ty (Div ty (Sub ty x y) (Num ty r-two)))
+                       (Cos ty (Div ty (Add ty x y) (Num ty r-two))))))
 (rewrite (Sub ty (Cos ty x) (Cos ty y)) ;; verified
-         (Mul ty (Neg ty two) (Mul ty (Sin ty (Div ty (Add ty x y) two))
-                             (Sin ty (Div ty (Sub ty x y) two)))))
+         (Mul ty (Neg ty (Num ty r-two)) (Mul ty (Sin ty (Div ty (Add ty x y) (Num ty r-two)))
+                             (Sin ty (Div ty (Sub ty x y) (Num ty r-two))))))
 (rewrite (Mul ty (Cos ty x) (Cos ty y)) ;; verified
        (Div ty (Add ty (Cos ty (Add ty x y))
                  (Cos ty (Sub ty x y)))
-       two))
+       (Num ty r-two)))
 (rewrite (Mul ty (Sin ty x) (Sin ty y)) ;; verified
        (Div ty (Sub ty (Cos ty (Sub ty x y))
                  (Cos ty (Add ty x y)))
-       two))
+       (Num ty r-two)))
 (rewrite (Mul ty (Sin ty x) (Cos ty y))
          (Div ty (Add ty (Sin ty (Sub ty x y))
                    (Sin ty (Add ty x y)))
-              two))
+              (Num ty r-two)))
 (rewrite (Sub ty (Atan ty x) (Atan ty y))
-         (Atan2 ty (Sub ty x y) (Add ty one (Mul ty x y))))
+         (Atan2 ty (Sub ty x y) (Add ty (Num ty r-one) (Mul ty x y))))
 (rewrite (Add ty (Atan ty x) (Atan ty y))
-         (Atan2 ty (Add ty x y) (Sub ty one (Mul ty x y))))
+         (Atan2 ty (Add ty x y) (Sub ty (Num ty r-one) (Mul ty x y))))
 (rewrite (Tan ty x) (Div ty (Sin ty x) (Cos ty x)))
 (rewrite (Div ty (Sin ty x) (Cos ty x)) (Tan ty x))
-(rewrite (Tan ty (Div ty (Add ty x y) two))
+(rewrite (Tan ty (Div ty (Add ty x y) (Num ty r-two)))
          (Div ty (Add ty (Sin ty x) (Sin ty y))
               (Add ty (Cos ty x) (Cos ty y))))
-(rewrite (Tan ty (Div ty (Sub ty x y) two))
+(rewrite (Tan ty (Div ty (Sub ty x y) (Num ty r-two)))
          (Div ty (Sub ty (Sin ty x) (Sin ty y))
               (Add ty (Cos ty x) (Cos ty y))))
 (rewrite (Mul ty (Sin ty x) (Sin ty x))
-         (Sub ty one (Mul ty (Cos ty x) (Cos ty x))))
+         (Sub ty (Num ty r-one) (Mul ty (Cos ty x) (Cos ty x))))
 (rewrite (Mul ty (Cos ty x) (Cos ty x))
-         (Sub ty one (Mul ty (Sin ty x) (Sin ty x))))
+         (Sub ty (Num ty r-one) (Mul ty (Sin ty x) (Sin ty x))))
 
 
 ;; trig inverses
@@ -983,9 +981,9 @@
 
 
 ;; specialied numerical functions
-(rewrite (Sub ty (Exp ty x) one)
+(rewrite (Sub ty (Exp ty x) (Num ty r-one))
          (Expm1 ty x))
-(rewrite (Log ty (Add ty one x))
+(rewrite (Log ty (Add ty (Num ty r-one) x))
          (Log1p ty x))
 (rewrite (Log1p ty (Expm1 ty x)) x)
 (rule ((= t1 (Expm1 ty (Log1p ty x)))
@@ -994,8 +992,8 @@
        ((union x t1)))
 (rewrite (Sqrt ty (Add ty (Mul ty x x) (Mul ty y y)))
          (Hypot ty x y))
-(rewrite (Sqrt ty (Add ty one (Mul ty y y)))
-         (Hypot ty one y))
+(rewrite (Sqrt ty (Add ty (Num ty r-one) (Mul ty y y)))
+         (Hypot ty (Num ty r-one) y))
 (rewrite (Add ty (Mul ty x y) z)
          (Fma ty x y z))
 (rewrite (Fma ty x y z)
@@ -1003,8 +1001,8 @@
 (rewrite (Sub ty (Mul ty x y) z)
          (Fma ty x y (Neg ty z)))
 
-(rewrite (Expm1 ty x) (Sub ty (Exp ty x) one))
-(rewrite (Log1p ty x) (Log ty (Add ty one x)))
+(rewrite (Expm1 ty x) (Sub ty (Exp ty x) (Num ty r-one)))
+(rewrite (Log1p ty x) (Log ty (Add ty (Num ty r-one) x)))
 (rewrite (Hypot ty x y) (Sqrt ty (Add ty (Mul ty x x) (Mul ty y y))))
 
 

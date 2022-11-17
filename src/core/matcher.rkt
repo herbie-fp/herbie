@@ -97,7 +97,7 @@
       (with-egraph
         (λ (egg-graph)
           (define expr-strings
-            (map (lambda (e) (expr->egg-expr (vartypes-symbols ctx) e egg-graph))
+            (map (lambda (e) (expr->egg-expr ctx e egg-graph))
                  exprs))
           (define node-ids
             (map (curry
@@ -132,12 +132,12 @@
             (define variants
               (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
-                (define expr-str (expr->egg-expr (vartypes-symbols ctx) expr egg-graph))
+                (define expr-str (expr->egg-expr ctx expr egg-graph))
                 (define output 
                   ((if (flag-set? 'generate 'egglog)
                       egglog-get-variants egraph-get-variants)
                    (vartypes-symbols ctx) egg-graph id expr-str))
-                (define extracted (egg-exprs->exprs output egg-graph))
+                (define extracted (egg-exprs->exprs ctx output egg-graph))
                 (for/list ([variant (remove-duplicates extracted)])
                   (list (change egg-rule root-loc (list (cons 'x variant)))))))
             (λ () variants)]))))

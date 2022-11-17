@@ -47,8 +47,6 @@ pub struct Context {
     egglog: EGraph,
     egglog_gen: usize,
     rules: Vec<Rewrite>,
-    egglog_mapping: HashMap<String, String>,
-    egglog_mapping_rev: HashMap<String, String>,
 }
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
@@ -59,25 +57,12 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
     let mut egglog = EGraph::default();
     egglog.parse_and_run_program(egglog_header).unwrap();
 
-    let egglog_mapping_not_owned = HashMap::from([
-            ("+", "Add"),
-            ("-", "Sub"),
-            ("*", "Mul"),
-            ("/", "Div"),
-    ]);
-
-    let egglog_mapping: HashMap<String, String> = egglog_mapping_not_owned.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
-
-    let egglog_mapping_rev = egglog_mapping.iter().map(|(k, v)| (v.to_string(), k.to_string())).collect();
-
     Box::into_raw(Box::new(Context {
         iteration: 0,
         runner: Some(Runner::new(Default::default()).with_explanations_enabled()),
         egglog,
         egglog_gen: 1,
         rules: vec![],
-        egglog_mapping,
-        egglog_mapping_rev,
     }))
 }
 
@@ -413,15 +398,6 @@ pub unsafe extern "C" fn egglog_get_simplest(
 ) -> *const c_char {
     ffirun(|| {
         let ctx = &mut *ptr;
-        // first do a small soundness check
-        let (_, valzero) = ctx.egglog.eval_expr(&Expr::var("zero"), None, false).unwrap();
-        let (_, valone) = ctx.egglog.eval_expr(&Expr::var("one"), None, false).unwrap();
-        if valzero == valone {
-            eprintln!("Warning: unsoundness detected (zero == one), {:?}", valzero);
-            //eprintln!("{:?}", CStr::from_ptr(egglog_get_variants(ptr, node_id, 0 as *const c_char)).to_str());
-        }
-
-        
         let (_, value) = ctx.egglog.eval_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string()), None, false).unwrap();
         let (_cost, extracted) = ctx.egglog.extract(value);
 
@@ -435,7 +411,7 @@ pub unsafe extern "C" fn egglog_get_simplest(
 }
 
 pub fn excluded_operator(op: &str) -> bool {
-    let excluded = std::collections::HashSet::from(["zero", "one", "two", "three", "four", "neg-one"]);
+    let excluded = std::collections::HashSet::from(["zero"]);
     excluded.contains(op)
 }
 
@@ -448,15 +424,6 @@ pub unsafe extern "C" fn egglog_get_variants(
 ) -> *const c_char {
     ffirun(|| {
         let ctx = &mut *ptr;
-
-        // first do a small soundness check
-        let (_, valzero) = ctx.egglog.eval_expr(&Expr::var("zero"), None, false).unwrap();
-        let (_, valone) = ctx.egglog.eval_expr(&Expr::var("one"), None, false).unwrap();
-        if valzero == valone {
-            eprintln!("Warning: unsoundness detected (zero == one), {:?}", valzero);
-        }
-
-
 
         let (_, value) = ctx.egglog.eval_expr(&Expr::var("eggvar_".to_string() + &node_id.to_string()), None, false).unwrap();
         let exprs = ctx.egglog.extract_variants(value, 100_000).into_iter().filter_map(|expr| {

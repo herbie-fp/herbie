@@ -1,12 +1,9 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "alternative.rkt" "points.rkt" "programs.rkt" "core/simplify.rkt")
+(require "alternative.rkt" "points.rkt" "programs.rkt" "core/simplify.rkt" "syntax/egraph-conversion.rkt")
 
 (provide add-soundiness)
-
-(lazy-require
- [egg-herbie (egg-expr->expr)])
 
 (define (remove-rewrites proof)
   (match proof
@@ -19,30 +16,34 @@
     [else proof]))
 
 (define (get-proof-errors proof pcontext ctx program-vars)
-  (define proof-programs
-    (map (lambda (expr)
-           `(λ ,program-vars
-              ,(remove-rewrites expr)))
-         proof))
-  (define proof-errors
-    (map (lambda (x) (errors x pcontext ctx)) (remove-rewrites proof-programs)))
-  (define proof-diffs
-    (cons (list 0 0)
-          (for/list ([prev proof-errors] [current (rest proof-errors)])
-                    (define num-increase
-                      (for/sum ([a prev] [b current])
-                               (if (> b a)
-                                   1
-                                   0)))
-                    (define num-decrease
-                      (for/sum ([a prev] [b current])
-                               (if (< b a)
-                                   1
-                                   0)))
-                    (list num-increase
-                          num-decrease (length prev)))))
-  proof-diffs)
-  
+  (cond
+    [(empty? proof)
+     (list (list 0 0))]
+    [else
+      (define proof-programs
+        (map (lambda (expr)
+              `(λ ,program-vars
+                  ,(remove-rewrites expr)))
+            proof))
+      (define proof-errors
+        (map (lambda (x) (errors x pcontext ctx)) (remove-rewrites proof-programs)))
+      (define proof-diffs
+        (cons (list 0 0)
+              (for/list ([prev proof-errors] [current (rest proof-errors)])
+                        (define num-increase
+                          (for/sum ([a prev] [b current])
+                                  (if (> b a)
+                                      1
+                                      0)))
+                        (define num-decrease
+                          (for/sum ([a prev] [b current])
+                                  (if (< b a)
+                                      1
+                                      0)))
+                        (list num-increase
+                              num-decrease (length prev)))))
+      proof-diffs]))
+    
 
 (define (add-soundiness-to pcontext ctx simplify-cache altn)
   (match altn
