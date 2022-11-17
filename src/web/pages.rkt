@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json plot/no-gui)
+(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json)
 (require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" )
 (require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt"
         "../syntax/sugar.rkt" "../float.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
@@ -92,13 +92,13 @@
       (if (= (unique-values (test-success-newpoints result) idx) 1) (return #f) #f) 
       (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
       (for/list ([value real-ticks]) 
-        (define val (pre-tick-value value))
+        (define val (car value))
         (define tick-str (if (or (= val 0) (< 0.01 (abs val) 100))
            (~r (exact->inexact val) #:precision 4)
            (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
         (list 
           tick-str
-          (real->ordinal (pre-tick-value value) repr))))))
+          (real->ordinal (car value) repr))))))
   (define end-alt (car (test-success-end-alts result)))
 
   (define splitpoints 
