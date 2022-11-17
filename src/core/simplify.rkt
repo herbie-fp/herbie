@@ -17,60 +17,6 @@
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
   (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
 
-(define (egg-op->impl op prec expr)
-  (define repr (get-representation prec))
-  (define possible-impls
-    (filter (λ (impl) (equal? (operator-info impl 'otype) repr))
-            (operator-all-impls op)))
-  (match possible-impls
-    [(list impl) impl]
-    [_ (error 'egg-expr->impl
-              "could not translate egg expr: ~a, impls: ~a"
-              expr possible-impls)]))
-
-; (define (egg-expr->expr expr)
-;   (define-values (expr* _)
-;     (let loop ([expr expr])
-;      (match expr
-;       [(list 'Rewrite=> rule expr)
-;        (define-values (expr* otype) (loop expr))
-;        (values (list 'Rewrite=> rule expr*) otype)]
-;       [(list 'Rewrite<= rule expr)
-;        (define-values (expr* otype) (loop expr))
-;        (values (list 'Rewrite<= rule expr*) otype)]
-;       [(list 'if 'real cond ift iff)
-;        (define-values (cond* cond-type) (loop cond))
-;        (define-values (ift* ift-type) (loop ift))
-;        (define-values (iff* iff-type) (loop iff))
-;        (values (list 'if cond* ift* iff*) ift-type)]
-;       [(list (? constant-operator? op) prec)
-;        (define repr (get-representation prec))
-;        (let/ec k
-;            (for/list ([name (operator-all-impls op)])
-;              (define rtype (operator-info name 'otype))
-;              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
-;                (k (list name) rtype)))
-;            (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
-;                                         op (representation-name repr)))]
-;       [(list op prec args ...)
-;        (define-values (args* types*)
-;           (for/lists (l1 l2) ([arg (in-list args)])
-;             (loop arg)))
-;        (define op* (apply get-parametric-operator op types*))
-;        (values (cons op* args*) (get-representation prec))]
-;       [(? number?) (values expr (context-repr (*context*)))]
-;       [_ (values expr (context-lookup (*context*) expr))])))
-;   expr*)
-
-(define (get-proof input start end)
-  (run-simplify-input
-    input
-    (lambda (egg-graph node-ids iter-data)
-      (define proof (egraph-get-proof egg-graph start end))
-      (when (null? proof)
-        (error (format "Failed to produce proof for ~a to ~a" start end)))
-      proof)))
-
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
@@ -119,6 +65,14 @@
 
      (egraph-func egg-graph node-ids iter-data))))
 
+(define (get-proof input start end)
+  (run-simplify-input
+    input
+    (lambda (egg-graph node-ids iter-data)
+      (define proof (egraph-get-proof egg-graph start end))
+      (when (null? proof)
+        (error (format "Failed to produce proof for ~a to ~a" start end)))
+      proof)))
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")

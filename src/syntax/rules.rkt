@@ -4,9 +4,8 @@
 
 (require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt" "sugar.rkt")
 
-(provide (struct-out rule) rule-egg-input rule-egg-output
-         *rules* *simplify-rules* *fp-safe-simplify-rules*
-         expr->egg-pattern expr->egg-expr)
+(provide *rules* *simplify-rules* *fp-safe-simplify-rules*
+         (struct-out rule) expr->egg-pattern)
 
 (module+ internals
   (provide define-ruleset define-ruleset* register-ruleset! *rulesets*))
@@ -49,20 +48,12 @@
 ;; TODO: field-like access that regenerates each time
 ;; Just a little dumb ...
 
-(define (rule-egg-input r)
-  (define-values (input* _) (expr->egg-pattern (rule-input r)))
-  input*)
-
-(define (rule-egg-output r)
-  (define-values (output* _) (expr->egg-pattern (rule-output r)))
-  output*)
-
 (define (rule-egg-input-patterns r)
-  (define-values (_ pats) (expr->egg-pattern (rule-input r)))
+  (define-values (_ pats) (expr->egg-pattern+vars (rule-input r)))
   pats)
 
 (define (rule-egg-output-patterns r)
-  (define-values (_ pats) (expr->egg-pattern (rule-output r)))
+  (define-values (_ pats) (expr->egg-pattern+vars (rule-output r)))
   pats)
 
 (define (rule-ops-supported? rule)
@@ -140,9 +131,7 @@
   (when (equal? otype 'racket) (printf "~a -> ~a ~a\n" impl op otype))
   (list op otype))
 
-;; Translates a Herbie rule LHS or RHS into an egg pattern
-;; suitable for egg-herbie.
-(define (expr->egg-pattern expr)
+(define (expr->egg-pattern+vars expr)
   (define ppatterns (make-hash))
   (define (get-pattern key)
     (hash-ref! ppatterns (real-operator-info key 'otype)
@@ -157,20 +146,15 @@
         [(list op args ...)
          (match-define (list op* prec) (expand-operator op))
          (cons op* (cons prec (map loop args)))]
-        [_ expr])))
+        [(? number?) expr]
+        [_ (format "?~a" expr)])))
   (values expr* (hash-keys ppatterns)))
 
-;; Translates a Herbie expression into an egg expression
-;; given a pair of variable dictionaries.
-;; Originally in `egg-herbie/main.rkt`
-(define (expr->egg-expr expr)
-  (match expr
-    [(list 'if cond ift iff)
-     (list 'if 'real (expr->egg-expr cond) (expr->egg-expr ift) (expr->egg-expr iff))]
-    [(list op args ...)
-     (match-define (list op* prec) (expand-operator op))
-     (cons op* (cons prec (map expr->egg-expr args)))]
-    [_ expr]))
+;; Translates a Herbie rule LHS or RHS into a
+;; pattern suitable for use in egg.
+(define (expr->egg-pattern expr)
+  (define-values (expr* _) (expr->egg-pattern+vars expr))
+  expr*)
 
 ;;
 ;;  Rule loading

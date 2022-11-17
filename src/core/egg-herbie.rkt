@@ -2,28 +2,14 @@
 
 (require egg-herbie)
 (require ffi/unsafe ffi/unsafe/define)
-(require "../syntax/rules.rkt" "../timeline.rkt")
+(require "../syntax/rules.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
+         "../errors.rkt" "../timeline.rkt")
 
 (module+ test (require rackunit))
 
 (provide with-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected)
-
-(define (extract-operator op)
-  (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s op))
-    [(list _ op* prec)  (list (string->symbol op*) (string->symbol prec))]
-    [#f (list op 'real)]))
-
-(define (pattern->egg datum)
-  (match datum
-    [(list (? symbol? head) args ...)
-     (match-define (list op prec) (extract-operator head))
-     `(,op ,prec ,@(map pattern->egg args))]
-    [(? symbol?)
-     (string->symbol (format "?~a" datum))]
-    [(? number?)
-     datum]))
 
 ;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
@@ -36,21 +22,42 @@
   (for/list ([egg-expr (in-port read (open-input-string exprs))])
     (egg-parsed->expr egg-expr (egraph-data-egg->herbie-dict eg-data))))
 
-(define (egg-parsed->expr parsed rename-dict)
-  (match parsed
-    [`(Rewrite=> ,rule ,expr)
-     `(Rewrite=> ,rule ,(egg-parsed->expr expr rename-dict))]
-    [`(Rewrite<= ,rule ,expr)
-     `(Rewrite<= ,rule ,(egg-parsed->expr expr rename-dict))]
-    [(list op 'real rest-parsed ...)
-     (cons op (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
-    [(list op prec rest-parsed ...)
-     (define new-op (string->symbol (format "~s.~s" op prec)))
-     (cons new-op (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
-    [(? number? num)
-     num]
-    [_
-     (hash-ref rename-dict parsed)]))
+(define (egg-parsed->expr expr rename-dict)
+  (define-values (expr* _)
+    (let loop ([expr expr])
+     (match expr
+      [(list 'Rewrite=> rule expr)
+       (define-values (expr* otype) (loop expr))
+       (values (list 'Rewrite=> rule expr*) otype)]
+      [(list 'Rewrite<= rule expr)
+       (define-values (expr* otype) (loop expr))
+       (values (list 'Rewrite<= rule expr*) otype)]
+      [(list op 'real args ...)
+       (define args*
+         (for/list ([arg (in-list args)])
+           (let-values ([(arg* _) (loop arg)])
+             arg*)))
+       (values (cons op args*) 'real)]
+      [(list (? constant-operator? op) prec)
+       (define repr (get-representation prec))
+       (let/ec k
+           (for/list ([name (operator-all-impls op)])
+             (define rtype (operator-info name 'otype))
+             (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
+               (k (list name) rtype)))
+           (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
+                                        op (representation-name repr)))]
+      [(list op prec args ...)
+       (define-values (args* types*)
+          (for/lists (l1 l2) ([arg (in-list args)])
+            (loop arg)))
+       (define op* (apply get-parametric-operator op types*))
+       (values (cons op* args*) (get-representation prec))]
+      [(? number?) (values expr (context-repr (*context*)))]
+      [_
+       (define renamed (hash-ref rename-dict expr))
+       (values renamed (context-lookup (*context*) renamed))])))
+  expr*)
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
 (define (expr->egg-expr expr egg-data)
@@ -58,26 +65,35 @@
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
   (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict))
 
+(define (expand-operator impl)
+  (define op (impl->operator impl))
+  (define otype (representation-name (operator-info impl 'otype)))
+  (when (equal? otype 'racket) (printf "~a -> ~a ~a\n" impl op otype))
+  (list op otype))
+
 (define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
-  (cond
-    [(list? expr)
-     (match-define (list op prec) (extract-operator (first expr)))
-     `(,op ,prec ,@(map (curryr expr->egg-expr-helper egg->herbie-dict herbie->egg-dict) (rest expr)))]
-    [(and (number? expr) (exact? expr) (real? expr))
-     expr]
-    [(hash-has-key? herbie->egg-dict expr)
-     (hash-ref herbie->egg-dict expr)]
-    [else
-     (define replacement (string->symbol (format "h~a" (hash-count herbie->egg-dict))))
-     (hash-set! herbie->egg-dict expr replacement)
-     (hash-set! egg->herbie-dict replacement expr)
-     replacement]))
+  (let loop ([expr expr])
+    (match expr
+      [(list 'if cond ift iff)
+       (list 'if 'real (loop cond) (loop ift) (loop iff))]
+      [(list op args ...)
+       (match-define (list op* prec) (expand-operator op))
+       (cons op* (cons prec (map loop args)))]
+      [(? number?)
+       expr]
+      [(? (curry hash-has-key? herbie->egg-dict))
+       (hash-ref herbie->egg-dict expr)]
+      [else
+       (define replacement (string->symbol (format "h~a" (hash-count herbie->egg-dict))))
+       (hash-set! herbie->egg-dict expr replacement)
+       (hash-set! egg->herbie-dict replacement expr)
+       replacement])))
 
 (module+ test
-  (check-equal? (pattern->egg `(+ a b)) '(+ real ?a ?b))
-  (check-equal? (pattern->egg `(/ c (- 2 a))) '(/ real ?c (- real 2 ?a)))
-  (check-equal? (pattern->egg `(cos.f64 (PI.f64))) '(cos f64 (PI f64)))
-  (check-equal? (pattern->egg `(if (TRUE) x y)) '(if real (TRUE real) ?x ?y))
+  (check-equal? (expr->egg-pattern `(+ a b)) '(+ real ?a ?b))
+  (check-equal? (expr->egg-pattern `(/ c (- 2 a))) '(/ real ?c (- real 2 ?a)))
+  (check-equal? (expr->egg-pattern `(cos.f64 (PI.f64))) '(cos f64 (PI f64)))
+  (check-equal? (expr->egg-pattern `(if (TRUE) x y)) '(if real (TRUE real) ?x ?y))
 
   (define test-exprs
     (list (cons '(+ y x) "(+ real h0 h1)")
@@ -155,12 +171,11 @@
   (ptr-set! ptr _byte n 0)
   ptr)
 
-
 (define (make-ffi-rules rules)
   (for/list ([rule (in-list rules)])
     (define name (make-raw-string (symbol->string (rule-name rule))))
-    (define left (make-raw-string (~a (pattern->egg (rule-input rule)))))
-    (define right (make-raw-string (~a (pattern->egg (rule-output rule)))))
+    (define left (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
+    (define right (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
