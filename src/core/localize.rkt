@@ -1,9 +1,9 @@
 #lang racket
 
 (require math/bigfloat)
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../syntax/types.rkt")
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
 
-(provide localize-error get-locations)
+(provide localize-error)
 
 (define (all-subexpressions expr)
   (remove-duplicates
@@ -16,20 +16,6 @@
              [(list op args ...)
               (for-each loop args)])))))
 
-;; Returns the locations of `subexpr` within `expr`
-(define (get-locations expr subexpr)
-  (let loop ([expr expr] [loc '()])
-    (match expr
-      [(== subexpr)
-       (list (reverse loc))]
-      [(list op args ...)
-       (apply
-        append
-        (for/list ([arg (in-list args)] [i (in-naturals 1)])
-          (loop arg (cons i loc))))]
-      [_
-       (list)])))
-
 (define (localize-error prog ctx)
   (define expr (program-body prog))
   (define subexprs (all-subexpressions expr))
@@ -40,7 +26,7 @@
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define bf-values (apply exact-fn pt))
-    (define bfhash (make-hash (map cons subexprs (vector->list bf-values))))
+    (define bfhash (make-hash (map cons subexprs bf-values)))
     (for ([expr (in-list subexprs)])
       (define err
         (match expr

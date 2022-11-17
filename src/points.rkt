@@ -61,5 +61,5 @@
   (define fn (batch-eval-progs progs 'fl ctx))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
-      (for/list ([out (in-vector (apply fn point))])
+      (for/list ([out (in-list (apply fn point))])
         (point-error out exact (context-repr ctx))))))

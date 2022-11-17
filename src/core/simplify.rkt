@@ -1,68 +1,17 @@
 #lang racket
 
-(require egg-herbie)
-(require "../alternative.rkt" "../common.rkt" "../errors.rkt" "../programs.rkt"
-         "../timeline.rkt" "../syntax/rules.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt")
+(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
+         "../syntax/rules.rkt" "../alternative.rkt" "egg-herbie.rkt")
 
 (provide simplify-expr simplify-batch get-proof
-         make-simplification-combinations
-         rules->irules egg-run-rules egg-expr->expr
          (struct-out simplify-input))
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
   (load-herbie-plugins))
 
-;; One module to rule them all, the great simplify. It uses egg-herbie
-;; to simplify an expression as much as possible without making
-;; unnecessary changes. We do this by creating an egraph, saturating
-;; it partially, then extracting the simplest expression from it.
-;;
-;; Simplify makes only one guarantee: that the input is mathematically
-;; equivalent to the output. For any exact x, evaluating the input on
-;; x will yield the same expression as evaluating the output on x.
-
-;; prefab struct used to send rules to egg-herbie
-(struct irule (name input output) #:prefab)
-
 ;; The input and output of simplify- simplify is re-run when proofs are needed
 (struct simplify-input (exprs proofs rules precompute?))
-
-(define (rules->irules rules)
-  (for/list ([rule rules])
-    (irule (rule-name rule)
-           ;; we actually want the egg-friendly expression
-           ;; still some more munging on the egg side
-           ;; since we want to pass string across the FFI boundary
-           (rule-egg-input rule)
-           (rule-egg-output rule))))
-
-;; given an alt, locations, and a hash from expr to simplification options
-;; make all combinations of the alt using the simplification options available
-(define (make-simplification-combinations child locs simplify-hash input)
-  ;; use this for simplify streaming
-  ;; (define location-options
-  ;;   (apply cartesian-product
-  ;;    (for/list ([loc locs])
-  ;;      (hash-ref simplify-hash (location-get loc (alt-program child)))))))
-  (define location-options
-    (apply cartesian-product
-     (for/list ([loc locs])
-       (list (last (hash-ref simplify-hash (location-get loc (alt-program child))))))))
-  
-  (define options
-    (for/list ([option location-options])
-      (for/fold ([child child]) ([replacement option] [loc locs])
-        (define child* (location-do loc (alt-program child) (lambda (_) replacement)))
-        (if (not (equal? (alt-program child) child*))
-            (alt child* `(simplify ,loc ,input #f #f) (list child))
-            child))))
-
-  ; Simplify-streaming lite
-  (for/fold ([all '()] #:result (reverse all)) ([option (in-list options)])
-    (if (alt-equal? option child)
-        (cons option all)
-        (append (list option child) all))))
 
 (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
@@ -79,39 +28,48 @@
               "could not translate egg expr: ~a, impls: ~a"
               expr possible-impls)]))
 
-(define (egg-expr->expr expr)
-  (define-values (expr* _)
-    (let loop ([expr expr])
-     (match expr
-      [(list 'Rewrite=> rule expr)
-       (define-values (expr* otype) (loop expr))
-       (values (list 'Rewrite=> rule expr*) otype)]
-      [(list 'Rewrite<= rule expr)
-       (define-values (expr* otype) (loop expr))
-       (values (list 'Rewrite<= rule expr*) otype)]
-      [(list 'if 'real cond ift iff)
-       (define-values (cond* cond-type) (loop cond))
-       (define-values (ift* ift-type) (loop ift))
-       (define-values (iff* iff-type) (loop iff))
-       (values (list 'if cond* ift* iff*) ift-type)]
-      [(list (? constant-operator? op) prec)
-       (define repr (get-representation prec))
-       (let/ec k
-           (for/list ([name (operator-all-impls op)])
-             (define rtype (operator-info name 'otype))
-             (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
-               (k (list name) rtype)))
-           (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
-                                        op (representation-name repr)))]
-      [(list op prec args ...)
-       (define-values (args* types*)
-          (for/lists (l1 l2) ([arg (in-list args)])
-            (loop arg)))
-       (define op* (apply get-parametric-operator op types*))
-       (values (cons op* args*) (get-representation prec))]
-      [(? number?) (values expr (context-repr (*context*)))]
-      [_ (values expr (context-lookup (*context*) expr))])))
-  expr*)
+; (define (egg-expr->expr expr)
+;   (define-values (expr* _)
+;     (let loop ([expr expr])
+;      (match expr
+;       [(list 'Rewrite=> rule expr)
+;        (define-values (expr* otype) (loop expr))
+;        (values (list 'Rewrite=> rule expr*) otype)]
+;       [(list 'Rewrite<= rule expr)
+;        (define-values (expr* otype) (loop expr))
+;        (values (list 'Rewrite<= rule expr*) otype)]
+;       [(list 'if 'real cond ift iff)
+;        (define-values (cond* cond-type) (loop cond))
+;        (define-values (ift* ift-type) (loop ift))
+;        (define-values (iff* iff-type) (loop iff))
+;        (values (list 'if cond* ift* iff*) ift-type)]
+;       [(list (? constant-operator? op) prec)
+;        (define repr (get-representation prec))
+;        (let/ec k
+;            (for/list ([name (operator-all-impls op)])
+;              (define rtype (operator-info name 'otype))
+;              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
+;                (k (list name) rtype)))
+;            (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
+;                                         op (representation-name repr)))]
+;       [(list op prec args ...)
+;        (define-values (args* types*)
+;           (for/lists (l1 l2) ([arg (in-list args)])
+;             (loop arg)))
+;        (define op* (apply get-parametric-operator op types*))
+;        (values (cons op* args*) (get-representation prec))]
+;       [(? number?) (values expr (context-repr (*context*)))]
+;       [_ (values expr (context-lookup (*context*) expr))])))
+;   expr*)
+
+(define (get-proof input start end)
+  (run-simplify-input
+    input
+    (lambda (egg-graph node-ids iter-data)
+      (define proof (egraph-get-proof egg-graph start end))
+      (when (null? proof)
+        (error (format "Failed to produce proof for ~a to ~a" start end)))
+      proof)))
 
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
@@ -127,13 +85,13 @@
   (timeline-push! 'inputs (map ~a (simplify-input-exprs input)))
 
   (define results
-          (run-simplify-input
-            input
-            (lambda (egg-graph node-ids iter-data)
-                 (map (lambda (id)
-                        (for/list ([iter (in-range (length iter-data))])
-                          (egg-expr->expr (egraph-get-simplest egg-graph id iter))))
-                 node-ids))))
+    (run-simplify-input
+     input
+     (lambda (egg-graph node-ids iter-data)
+       (map (lambda (id)
+              (for/list ([iter (in-range (length iter-data))])
+                (egraph-get-simplest egg-graph id iter)))
+            node-ids))))
 
   (define out
     (for/list ([result results] [expr (simplify-input-exprs input)])
@@ -142,15 +100,6 @@
     
   out)
 
-
-(define (get-proof input start end)
-  (run-simplify-input
-    input
-    (lambda (egg-graph node-ids iter-data)
-      (define start* (expr->egg-expr start))
-      (define end* (expr->egg-expr end))
-      (map egg-expr->expr (egraph-get-proof egg-graph start* end*)))))
-
 (define (run-simplify-input input egraph-func)
   (define exprs (simplify-input-exprs input))
   (define precompute? (simplify-input-precompute? input))
@@ -158,58 +107,18 @@
   (define rules (simplify-input-rules input))
   
   (timeline-push! 'method "egg-herbie")
-  (define irules (rules->irules rules))
 
   (with-egraph
-    (lambda (egg-graph)
-      (define node-ids
-        (for/list ([expr (in-list exprs)])
-          (egraph-add-expr egg-graph (expr->egg-expr expr))))
-      (define iter-data
-        (egg-run-rules egg-graph (*node-limit*) irules
-                       node-ids (and precompute? true)))
+   (lambda (egg-graph)
+     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+     (define iter-data (egraph-run-rules egg-graph (*node-limit*) rules node-ids (and precompute? true)))
         
-      (when (egraph-is-unsound-detected egg-graph)
-        (warn 'unsound-rules #:url "faq.html#unsound-rules"
-              "Unsound rule application detected in e-graph."
-              "Results from simplify may not be sound."))
-        
-      (for ([rule rules])
-        (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-        (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
+     (when (egraph-is-unsound-detected egg-graph)
+       (warn 'unsound-rules #:url "faq.html#unsound-rules"
+             "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
 
-      (egraph-func egg-graph node-ids iter-data))))
+     (egraph-func egg-graph node-ids iter-data))))
 
-
-(define (stop-reason->string sr)
-  (match sr
-   ['saturated  "saturated"]
-   ['iter-limit "iter limit"]
-   ['node-limit "node limit"]
-   ['unsound    "unsound"]))
-
-(define (egg-run-rules egg-graph node-limit irules node-ids precompute? #:limit [iter-limit #f])
-  (define ffi-rules (make-ffi-rules irules))
-  (define start-time (current-inexact-milliseconds))
-
-  #;(define (timeline-cost iter)
-      (define cnt (egraph-get-size egg-graph)) 
-      (timeline-push! 'egraph iter cnt cost (- (current-inexact-milliseconds) start-time)))
-  
-  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
-  (let loop ([iter iteration-data] [counter 0] [time 0])
-    (unless (null? iter)
-      (define cnt (iteration-data-num-nodes (first iter)))
-      (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph node-id counter)) node-ids)))
-      (define new-time (+ time (iteration-data-time (first iter))))
-      (timeline-push! 'egraph counter cnt cost new-time)
-      (loop (rest iter) (+ counter 1) new-time)))
-
-  (define sr (egraph-stop-reason egg-graph))
-  (timeline-push! 'stop (stop-reason->string sr) 1)
-  
-  (free-ffi-rules ffi-rules)
-  iteration-data)
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")

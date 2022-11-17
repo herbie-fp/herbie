@@ -222,7 +222,9 @@
         (let ([info (read-datafile data-file)])
           (struct-copy report-info info [tests (cons data (report-info-tests info))]))
         (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
-  (write-datafile data-file info)
+  (define tmp-file (build-path (*demo-output*) "results.tmp"))
+  (write-datafile tmp-file info)
+  (rename-file-or-directory tmp-file data-file #:exists-ok #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (run-improve hash formula)

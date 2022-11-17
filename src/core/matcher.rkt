@@ -1,8 +1,8 @@
 #lang racket
 
-(require egg-herbie)
-(require "../common.rkt" "../programs.rkt" "../alternative.rkt" "../timeline.rkt"
-         "../syntax/rules.rkt" "../syntax/types.rkt" "simplify.rkt")
+(require "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/rules.rkt")
+(require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
+         "../timeline.rkt")
 
 (provide pattern-match rewrite-expressions change-apply)
 
@@ -88,7 +88,6 @@
                            #:roots [root-locs (make-list (length exprs) '())]
                            #:depths [depths (make-list (length exprs) 1)])
   (define reprs (map (λ (e) (repr-of e ctx)) exprs))
-  (define irules (rules->irules rules))
   ; If unsoundness was detected, try running one epxression at a time.
   ; Can optionally set iter limit (will give up if unsoundness detected).
   (let loop ([exprs exprs] [root-locs root-locs] [iter-limit #f])
@@ -98,15 +97,8 @@
     (define result-thunk
       (with-egraph
         (λ (egg-graph)
-          (define node-ids
-            (for/list ([expr (in-list exprs)])
-              (egraph-add-expr egg-graph (expr->egg-expr expr))))
-          (define iter-data
-            (egg-run-rules egg-graph #:limit iter-limit
-                           (*node-limit*) irules node-ids #t))
-          (for ([rule rules])
-            (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-            (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
+          (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+          (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t))
           (cond
            [(egraph-is-unsound-detected egg-graph)
             ; unsoundness detected, fallback
@@ -128,8 +120,8 @@
             (define variants
               (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
-                (define extracted (map egg-expr->expr (egraph-get-variants egg-graph id expr)))
-                (for/list ([variant (remove-duplicates extracted)])
+                (define output (egraph-get-variants egg-graph id expr))
+                (for/list ([variant (remove-duplicates output)])
                   (list (change egg-rule root-loc (list (cons 'x variant)))))))
             (λ () variants)]))))
     (result-thunk)))

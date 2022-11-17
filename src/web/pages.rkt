@@ -25,7 +25,6 @@
     `("graph.html"
       ,(and good? "interactive.js")
       "timeline.html" "timeline.json"
-      ,(and good? (>= (length (test-success-end-alts result)) 2) "cost-accuracy.png")
       ,(and good? "points.json")))
   (filter identity pages))
 
@@ -50,8 +49,6 @@
      (make-timeline (test-name test) (test-result-timeline result) out)]
     ["timeline.json"
      (write-json (test-result-timeline result) out)]
-    ["cost-accuracy.png"
-     (make-cost-accuracy-plot result out)]
     ["points.json"
      (make-points-json result out repr)]))
 
