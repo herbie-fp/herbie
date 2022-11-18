@@ -1,0 +1,3 @@
+[submodule "src/egglog/egg-smol"]
+	path = src/egglog/egg-smol
+	url = https://github.com/oflatt/egg-smol
