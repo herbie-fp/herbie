@@ -78,7 +78,6 @@
 ;; The non-zero analysis is built off the interval analysis (in order to prove
 ;; that rewrites are sound, even if some parts of an expr can't be const-evaled)
 
-; TODO: unbounded intervals?
 (function hi (Math) Rational :merge (min old new))
 (function lo (Math) Rational :merge (max old new))
 ;; universe is a hack so we can quantify over it
@@ -86,21 +85,19 @@
 (relation non-zero (Math))
 (relation non-negative (Math))
 (relation positive (Math))
-(relation neq (Math Math))
 
 ;; First, constant folding!
 ;; We don't need an explicit constant folding analysis, we can just union
 ;; with nums when we can
 
-; Cases
 (rewrite (Add ty (Num ty a) (Num ty b)) (Num ty (+ a b)))
 (rewrite (Sub ty (Num ty a) (Num ty b)) (Num ty (- a b)))
 (rewrite (Mul ty (Num ty a) (Num ty b)) (Num ty (* a b)))
 (rewrite (Div ty (Num ty a) (Num ty b)) (Num ty (/ a b)))
 (rewrite (Pow ty (Num ty a) (Num ty b)) (Num ty (pow a b)))
 (rewrite (Neg ty (Num ty a)) (Num ty (neg a)))
+(rewrite (Sqrt (Num ty a)) (Num ty (sqrt a)) :when ((= res (sqrt a))))
 ;; TODO unimplemented
-;; (rewrite (Sqrt (Num ty a)) (Num ty res) :when ((= res (sqrt a))))
 ;; (rewrite (Cbrt (Num ty a)) (Num ty res) :when ((= res (cbrt a))))
 (rewrite (Fabs ty (Num ty a)) (Num ty (abs a)))
 (rewrite (Ceil ty (Num ty a)) (Num ty (ceil a)))
@@ -235,39 +232,6 @@
        (= ha (hi a)))
       ((set (hi e) (round ha))))
 
-; TODO: Log
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Not equals analysis
-
-(rule ((neq a b))
-      ((neq b a)))
-
-(rule ((= t1 (Add ty a b))
-       (= lob (lo b))
-       (> lob r-zero))
-      ((neq (Add ty a b) a)))
-
-(rule ((= t1 (Add ty a b))
-       (= hib (hi b))
-       (< hib r-zero))
-      ((neq (Add ty a b) a)))
-
-
-;; monotonic functions
-(rule ((= t1 (Sqrt ty a))
-       (= t2 (Sqrt ty b))
-       (neq a b))
-      ((neq (Sqrt ty a) (Sqrt ty b))))
-
-(rule ((= t1 (Cbrt ty  a))
-       (= t2 (Cbrt ty  b))
-       (neq a b))
-      ((neq (Cbrt ty  a) (Cbrt ty  b))))
-
-
 ;; UNIVERSE
 
 (rule ((= t (Num ty a)))
@@ -335,9 +299,9 @@
 
 
 ;; soundness check
-;(rule ((= (Num ty n) (Num ty m))
-       ;(!= n m))
-      ;((panic "Unsoundness detected!")))
+(rule ((= (Num ty n) (Num ty m))
+       (!= n m))
+      ((panic "Unsoundness detected!")))
 
 (add-ruleset analysis)
 (clear-rules)

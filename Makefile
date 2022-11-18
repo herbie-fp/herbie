@@ -24,8 +24,8 @@ egg-herbie-pkg: egg-herbie
 	raco pkg remove --force egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
 
-egg-herbie:
-	cargo build --release --manifest-path=egg-herbie/Cargo.toml
+egglog:
+	cargo build --release --manifest-path=src/egglog/egg-smol/Cargo.toml
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/

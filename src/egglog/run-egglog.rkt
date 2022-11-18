@@ -1,12 +1,15 @@
 #lang racket
 
-(provide build-egglog)
+(require racket/runtime-path)
+(require egg-herbie)
+(require "egraph-conversion.rkt")
+
+(provide run-egglog)
+
+(define-runtime-path egglog-binary
+  "egg-smol/target/release/egg-smol")
 
 (define header
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;;
-  ;; Datatypes
-
   `((datatype HerbieType (Type String))
     (datatype Math
               ; Ground terms
@@ -95,10 +98,8 @@
     (rewrite (Pow ty (Num ty a) (Num ty b))
              (Num ty (pow a b)))
     (rewrite (Neg ty (Num ty a)) (Num ty (neg a)))
-    (rewrite (Sqrt (Num ty a))
-             (Num ty (sqrt a))
-             :when
-             ((= res (sqrt a))))
+    (rewrite (Sqrt ty (Num ty a))
+             (Num ty (sqrt a)))
     ;; TODO unimplemented
     ;; (rewrite (Cbrt (Num ty a)) (Num ty res) :when ((= res (cbrt a))))
     (rewrite (Fabs ty (Num ty a)) (Num ty (abs a)))
@@ -777,16 +778,6 @@
                        (Sub ty (Mul ty b b) (Mul ty a b))))
              :when
              ((non-zero b)))
-    (rewrite (Add ty a b)
-             (Div ty
-                  (Add ty
-                       (Pow ty a (Num ty r-three))
-                       (Pow ty b (Num ty r-three)))
-                  (Add ty
-                       (Mul ty a a)
-                       (Sub ty (Mul ty b b) (Mul ty a b))))
-             :when
-             ((neq a b)))
     ;;flip3--
     ;; demand
     (rule ((= t1 (Sub ty a b)))
@@ -815,16 +806,6 @@
                        (Add ty (Mul ty b b) (Mul ty a b))))
              :when
              ((non-zero b)))
-    (rewrite (Sub ty a b)
-             (Div ty
-                  (Sub ty
-                       (Pow ty a (Num ty r-three))
-                       (Pow ty b (Num ty r-three)))
-                  (Add ty
-                       (Mul ty a a)
-                       (Add ty (Mul ty b b) (Mul ty a b))))
-             :when
-             ((neq a b)))
     (rewrite (Sub ty a b)
              (Div ty
                   (Sub ty
@@ -1143,5 +1124,67 @@
     (add-ruleset rules)
     (clear-rules)))
 
-(define (build-egglog)
-  header)
+
+(define (varname i)
+  (string->symbol
+   (string-append "eggvar" (number->string i))))
+
+(define (build-exprs ctx eggdata exprs)
+  (for/list ([expr exprs] [i (in-naturals)])
+    `(define ,(varname i)
+       ,(expr->egglog ctx expr eggdata)
+       :cost 10000000)))
+
+(define (build-runner)
+  (define analysis-iter
+    `((load-ruleset analysis)
+      (run 10)
+      (clear-rules)))
+  (define rules-iter
+    `((load-ruleset rules)
+      (run 1)
+      (clear-rules)))
+  (append analysis-iter rules-iter))
+
+(define (build-extract exprs variants)
+  (for/list ([expr exprs] [i (in-naturals)])
+    (if variants
+        `(extract ,(varname i) :variants ,variants)
+        `(extract ,(varname i)))))
+
+(define (build-egglog ctx eggdata exprs variants)
+  (append
+   header
+   (build-exprs ctx eggdata exprs)
+   (build-runner)
+   (build-extract exprs variants)))
+
+
+(define (run-egglog ctx exprs [variants #f])
+  (define eggdata
+    (egraph-data #f (make-hash)
+                 (make-hash)))
+  (define-values (egglog-process out in err)
+    (subprocess #f #f (current-error-port) egglog-binary))
+
+  (define egglog-program
+    (build-egglog ctx eggdata exprs variants))
+
+  #;(for ([line egglog-program])
+      (writeln line))
+  (for ([line egglog-program])
+    (writeln line in))
+  (flush-output in)
+
+  (define results
+    (for/list ([expr exprs])
+      (egglog->expr ctx eggdata (read out))))
+
+  (for ([res results])
+    (writeln res))
+
+  (subprocess-kill egglog-process #t)
+
+  results)
+
+

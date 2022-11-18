@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "alternative.rkt" "points.rkt" "programs.rkt" "core/simplify.rkt" "syntax/egraph-conversion.rkt")
+(require "alternative.rkt" "points.rkt" "programs.rkt" "core/simplify.rkt" "egglog/egraph-conversion.rkt")
 
 (provide add-soundiness)
 

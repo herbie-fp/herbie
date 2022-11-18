@@ -1,9 +1,9 @@
 #lang racket
 
-(require egg-herbie "syntax.rkt" "types.rkt"
+(require egg-herbie "../syntax/syntax.rkt" "../syntax/types.rkt"
          "../programs.rkt" "../errors.rkt")
 (provide egg-expr->expr egg-exprs->exprs
-         expr->egg-expr)
+         expr->egg-expr expr->egglog egglog->expr)
 
 (define (extract-operator impl types)
   (cond
@@ -21,6 +21,9 @@
 (define (egg-expr->expr ctx egg-data expr)
   (define parsed (read (open-input-string expr)))
   (car (egg-parsed->expr ctx parsed (egraph-data-egg->herbie-dict egg-data))))
+
+(define (egglog->expr ctx egg-data expr)
+  (car (egg-parsed->expr ctx expr (egraph-data-egg->herbie-dict egg-data))))
 
 ;; Like `egg-expr->expr` but expected the string to
 ;; parse into a list of S-exprs
@@ -129,6 +132,11 @@
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
   (format "~s" (car (expr->egg-expr-helper ctx expr egg->herbie-dict herbie->egg-dict))))
+
+(define (expr->egglog ctx expr egg-data)
+  (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
+  (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
+  (car (expr->egg-expr-helper ctx expr egg->herbie-dict herbie->egg-dict)))
 
 ;; Needs the vartypes so we can look up var types
 (define (expr->egg-expr-helper ctx expr egg->herbie-dict herbie->egg-dict)

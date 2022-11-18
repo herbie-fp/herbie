@@ -2,7 +2,7 @@
 
 (require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt" "../syntax/types.rkt" "../syntax/egraph-conversion.rkt")
+         "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt" "../syntax/types.rkt" "../egglog/egraph-conversion.rkt" "../egglog/run-egglog.rkt")
 
 (provide simplify-expr simplify-batch get-proof
          make-simplification-combinations
@@ -97,27 +97,16 @@
   (define results
     (run-simplify-input
      ctx
-     input
-     (lambda (egg-graph node-ids iter-data)
-       (map (lambda (id)
-              (for/list ([iter (in-range (length iter-data))])
-                (define output (if (flag-set? 'generate 'egglog)
-                     (egglog-get-simplest egg-graph id)
-                     (egraph-get-simplest egg-graph id iter)))
-                (egg-expr->expr
-                 ctx
-                 egg-graph
-                 output)))
-                 node-ids))))
+     input))
 
   (define out
     (for/list ([result results] [expr (simplify-input-exprs input)])
-      (remove-duplicates (cons expr result))))
+      (remove-duplicates (list expr result))))
   (timeline-push! 'outputs (map ~a (apply append out)))
     
   out)
 
-(define (run-simplify-input ctx input egraph-func)
+(define (run-simplify-input ctx input)
   (define exprs (simplify-input-exprs input))
   (for ([expr exprs])
     (when (unsound-expr? expr)
@@ -128,31 +117,7 @@
   
   (timeline-push! 'method "egg-herbie")
   (define irules (rules->irules rules))
-
-  (with-egraph
-   (lambda (egg-graph)
-     (define expr-strings
-       (map (lambda (e) (expr->egg-expr  ctx e egg-graph))
-            exprs))
-     (define node-ids
-       (map (curry
-             (if (flag-set? 'generate 'egglog) egraph-add-expr-egglog egraph-add-expr)
-             (vartypes-symbols ctx)
-             egg-graph)
-            expr-strings))
-     (define iter-data
-       (egglog-run egg-graph))
-        
-     (when (egraph-is-unsound-detected egg-graph)
-       (warn 'unsound-rules #:url "faq.html#unsound-rules"
-             "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
-        
-     #;(for ([rule rules])
-         (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-         (when (> count 0)
-           (timeline-push! 'rules (~a (rule-name rule)) count)))
-
-        (egraph-func egg-graph node-ids iter-data))))
+  (run-egglog ctx (simplify-input-exprs input)))
 
 
 (define (stop-reason->string sr)
