@@ -25,38 +25,37 @@
 (define (egg-parsed->expr expr rename-dict)
   (define-values (expr* _)
     (let loop ([expr expr])
-     (match expr
-      [(list 'Rewrite=> rule expr)
-       (define-values (expr* otype) (loop expr))
-       (values (list 'Rewrite=> rule expr*) otype)]
-      [(list 'Rewrite<= rule expr)
-       (define-values (expr* otype) (loop expr))
-       (values (list 'Rewrite<= rule expr*) otype)]
-      [(list op 'real args ...)
-       (define args*
-         (for/list ([arg (in-list args)])
-           (let-values ([(arg* _) (loop arg)])
-             arg*)))
-       (values (cons op args*) 'real)]
-      [(list (? constant-operator? op) prec)
-       (define repr (get-representation prec))
-       (let/ec k
-           (for/list ([name (operator-all-impls op)])
-             (define rtype (operator-info name 'otype))
-             (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
-               (k (list name) rtype)))
-           (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
+      (match expr
+        [(list 'Rewrite=> rule expr)
+         (define-values (expr* otype) (loop expr))
+         (values (list 'Rewrite=> rule expr*) otype)]
+        [(list 'Rewrite<= rule expr)
+         (define-values (expr* otype) (loop expr))
+         (values (list 'Rewrite<= rule expr*) otype)]
+        [(list 'if 'real cond ift iff)
+         (define-values (cond* cond-type) (loop cond))
+         (define-values (ift* ift-type) (loop ift))
+         (define-values (iff* iff-type) (loop iff))
+         (values (list 'if cond* ift* iff*) ift-type)]
+        [(list (? constant-operator? op) prec)
+         (define repr (get-representation prec))
+         (let/ec k
+            (for/list ([name (operator-all-impls op)])
+              (define rtype (operator-info name 'otype))
+              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
+                (k (list name) rtype)))
+            (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
                                         op (representation-name repr)))]
-      [(list op prec args ...)
-       (define-values (args* types*)
-          (for/lists (l1 l2) ([arg (in-list args)])
-            (loop arg)))
-       (define op* (apply get-parametric-operator op types*))
-       (values (cons op* args*) (get-representation prec))]
-      [(? number?) (values expr (context-repr (*context*)))]
-      [_
-       (define renamed (hash-ref rename-dict expr))
-       (values renamed (context-lookup (*context*) renamed))])))
+        [(list op prec args ...)
+         (define-values (args* types*)
+           (for/lists (l1 l2) ([arg (in-list args)])
+             (loop arg)))
+         (define op* (apply get-parametric-operator op types*))
+         (values (cons op* args*) (get-representation prec))]
+        [(? number?) (values expr (context-repr (*context*)))]
+        [_
+         (define renamed (hash-ref rename-dict expr))
+         (values renamed (context-lookup (*context*) renamed))])))
   expr*)
 
 (define (expr->egg-pattern+vars expr)
@@ -69,11 +68,11 @@
       (match expr
         [(list 'if cond ift iff)
          (list 'if 'real (loop cond) (loop ift) (loop iff))]
-        [(list (? operator-exists? op) args ...)
-         (cons op (cons (get-pattern op) (map loop args)))]
-        [(list op args ...)
+        [(list (? impl-exists? op) args ...)
          (define-values (op* prec) (expand-operator op))
          (cons op* (cons prec (map loop args)))]
+        [(list (? operator-exists? op) args ...)
+         (cons op (cons (get-pattern op) (map loop args)))]
         [(? number?) expr]
         [_ (format "?~a" expr)])))
   (values expr* (hash-keys ppatterns)))
@@ -84,9 +83,22 @@
   (define-values (expr* _) (expr->egg-pattern+vars expr))
   expr*)
 
+;; Given a list of types, computes the product of all possible
+;; representation assignments where each element
+;; is a dictionary mapping type to representation
+(define (type-combinations types)
+  (reap [sow]
+    (let loop ([types types] [assigns '()])
+      (match types
+        [(list) (sow assigns)]
+        [(list type rest ...)
+         (for ([repr (in-list (*needed-reprs*))]
+               #:when (equal? (representation-type repr) type))
+           (loop rest (cons (cons type repr) assigns)))]))))
+
 ;; Translates a Herbie rule into possibly multiple rules
 (define (rule->egg-rules r)
-  (match-define (rule rname input output itypes otype) r)
+  (match-define (rule name input output itypes otype) r)
   (define-values (input* input-pats) (expr->egg-pattern+vars input))
   (define-values (output* output-pats) (expr->egg-pattern+vars output))
   (cond
@@ -109,20 +121,16 @@
      ;; where `p` is a representation.
      ;; This rule must be instantiated with a precision.
      ;;
-     ;; While it may be possible to implement with a custom applier,
-     ;; the hackier solution is just to duplicate the rule over
-     ;; every possible representation before it enters the egraph.
+     ;; The hacky solution is just to duplicate the rule over
+     ;; every possible representation assignment before it enters the egraph.
      (reap [sow]
-       (for ([repr (in-list (*needed-reprs*))])
-         (define type (representation-type repr))
-         (when (andmap (λ (p) (equal? type (cdr p))) itypes)
-           (define itypes* (map (λ (p) (cons (car p) repr)) itypes))
-           (define sugar-ctx (context (map car itypes) repr (map cdr itypes*)))
-           (when (equal? otype type)
-             (define rname* (sym-append rname '- (representation-name repr)))
-             (define input* (desugar-program input sugar-ctx))
-             (define output* (desugar-program output sugar-ctx))
-             (sow (cons input* output*))))))]))
+       (define types (remove-duplicates (cons otype (map cdr itypes))))
+       (for ([type-ctx (in-list (type-combinations types))])
+         (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
+         (define sugar-ctx (context (map car itypes) (dict-ref type-ctx otype) (map cdr itypes*)))
+         (define input* (expr->egg-pattern (desugar-program input sugar-ctx)))
+         (define output* (expr->egg-pattern (desugar-program output sugar-ctx)))
+         (sow (cons input* output*))))]))
               
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph

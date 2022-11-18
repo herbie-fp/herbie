@@ -352,10 +352,10 @@
 
 (define (constant-operator? op)
   (and (symbol? op)
-       (or (and (hash-has-key? operators op) 
+       (or (and (hash-has-key? operators op)
                 (null? (operator-itype (hash-ref operators op))))
            (and (hash-has-key? operator-impls op)
-                (null? (operator-itype (hash-ref operator-impls op)))))))
+                (null? (operator-impl-itype (hash-ref operator-impls op)))))))
 
 (define (variable? var)
   (and (symbol? var)
