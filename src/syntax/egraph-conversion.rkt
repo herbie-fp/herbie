@@ -161,7 +161,7 @@
       `(Var (Type ,(symbol->string (representation-name type)))
             ,(symbol->string (hash-ref herbie->egg-dict expr)))
       type)]
-    [else
+    [(symbol? expr)
      (define new-key (format "h~a" (number->string (hash-count herbie->egg-dict))))
      (define new-key-symbol (string->symbol new-key))
 
@@ -175,6 +175,8 @@
      (cons
       `(Var (Type ,(symbol->string (representation-name type)))
             ,new-key)
-      type)]))
+      type)]
+    [else
+     (error (format "Unrecognized expression ~a" expr))]))
 
 

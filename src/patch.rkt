@@ -133,11 +133,16 @@
     (define (is-nan? x)
       (and (impl-exists? x) (equal? (impl->operator x) 'NAN)))
 
+    (define (is-inf? x)
+      (and (impl-exists? x) (equal? (impl->operator x) 'INFINITY)))
+
     (define series-expansions*
       (filter-not
        (λ (x)
-         (or (expr-contains? (program-body (alt-program x)) is-nan?)))
+         (or (expr-contains? (program-body (alt-program x)) is-nan?)
+             (expr-contains? (program-body (alt-program x)) is-inf?)))
        series-expansions))
+
 
     ; TODO: accuracy stats for timeline
     (timeline-push! 'count (length (^queued^)) (length series-expansions*))

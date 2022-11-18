@@ -125,7 +125,8 @@
        (cons (if (ormap (compose (curry = 0) car) dens) 'NAN (apply / (car num) (map car dens)))
              (append (cdr num)
                      (map negate-term (append-map cdr dens)))))]
-    [`(sqrt ,arg)
+    ;; commented out unsoundness
+    #;[`(sqrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
        (define exact-sqrt (eval-application 'sqrt (car terms)))
        (if exact-sqrt
@@ -149,7 +150,8 @@
                     (cons (/ (car term) 3) (cdr term))))))]
     [`(pow ,arg 0)
      '(1)]
-    [`(pow ,arg ,(? real? a))
+    ;; commented out unsoundness
+    #;[`(pow ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
        (define exact-pow (eval-application 'pow (car terms) a))
        (if exact-pow
