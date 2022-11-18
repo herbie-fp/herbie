@@ -8,7 +8,7 @@
 
 (lazy-require
  ["web/demo.rkt" (run-demo)]
- ["web/run.rkt" (make-report rerun-report replot-report diff-report)]
+ ["web/run.rkt" (make-report rerun-report diff-report)]
  ["shell.rkt" (run-shell)]
  ["improve.rkt" (run-improve)])
 
@@ -125,9 +125,6 @@
      (void)]
     #:args (input output)
     (rerun-report input #:dir output #:note report-note #:threads threads)]
-   [replot "Regenerate plots for an HTML report"
-    #:args (input output)
-    (replot-report input #:dir output)]
    [diff "Diff two HTML reports"
     #:args (old new)
     (diff-report old new)]

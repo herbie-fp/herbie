@@ -5,7 +5,7 @@
          "../syntax/types.rkt" "../profile.rkt" "../timeline.rkt" "../sampling.rkt"
          "make-report.rkt" "thread-pool.rkt" "timeline.rkt")
 
-(provide make-report rerun-report replot-report diff-report)
+(provide make-report rerun-report diff-report)
 
 (define (extract-test row)
   (define vars (table-row-vars row))
@@ -37,75 +37,6 @@
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
   (run-tests tests #:dir dir #:note note #:threads threads))
-
-(define (replot-report json-file #:dir dir)
-  (local-require "../points.rkt" "../sandbox.rkt" "../alternative.rkt"
-                 "../ground-truth.rkt" "pages.rkt" "../timeline.rkt")
-
-  (define data (read-datafile json-file))
-  ;; This must create a `test-success` object with the following fields set to something real:
-  ;; test; end-alt; newpoints; start-error; target-error; end-error
-  (*flags* (report-info-flags data))
-  (set-seed! (report-info-seed data))
-  (*num-points* (report-info-points data))
-  (*num-iterations* (report-info-iterations data))
-
-  (define (get-p&es context)
-    (for/lists (pts exs)
-        ([(pt ex) (in-pcontext context)])
-      (values pt ex)))
-
-  (for ([row (report-info-tests data)] [index (in-naturals)]
-        #:unless (set-member? '("error" "crash") (table-row-status row)))
-    (set-seed! (report-info-seed data))
-    (define orig-test (extract-test row))
-    (define context (test-context orig-test))
-    (define output-repr (context-repr context))
-    (parameterize ([*timeline-disabled* true])
-      (define samples
-        (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-          (cdr (sample-points
-                (test-precondition test)
-                (list (or (test-specification test) (test-program test)))
-                context))))
-      (define-values (train-context test-context)
-        (split-pcontext (apply mk-pcontext samples) (*num-points*) (*reeval-pts*))) 
-      (define start-alt (make-alt (test-program orig-test)))
-      (define end-alt (make-alt `(λ ,(test-vars orig-test) ,(test-output orig-test))))
-      (define-values (newpoints newexacts) (get-p&es test-context))
-
-      ; Pherbie specific
-      (define ca (table-row-cost-accuracy row))
-      (define start-cost (first (first ca)))
-      (define end-cost (first (second ca)))
-      (define other-costs (map first (third ca)))
-      (define other-progs (map second (third ca)))
-      (define other-progs*
-        (for/list ([prog other-progs])
-          `(λ ,(test-vars orig-test) ,(desugar-program prog context))))
-
-      (define end-errs (errors (alt-program end-alt) test-context context))
-      (define other-errs (map (curryr errors test-context context) other-progs*))
-
-      (define result
-        (test-success orig-test #f #f #f #f
-                      start-alt (cons end-alt (map make-alt other-progs*))
-                      #f #f #f #f #f
-                      newpoints newexacts
-                      (errors (alt-program start-alt) test-context context)
-                      (cons end-errs other-errs)
-                      (if (test-output orig-test)
-                          (errors (test-target orig-test) test-context context)
-                          #f)
-                      #f #f
-                      (alt-cost start-alt output-repr) (cons end-cost other-costs)
-                      #f))
-      (define images (filter (curryr string-suffix? ".png") (all-pages result)))
-      (for ([page images])
-        (with-handlers ([exn:fail? (page-error-handler result page)])
-          (call-with-output-file (build-path dir (table-row-link row) page)
-            #:exists 'replace
-            (λ (out) (make-page page out result #f))))))))
 
 (define (read-json-files info dir name)
   (filter
