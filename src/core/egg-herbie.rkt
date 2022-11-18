@@ -86,13 +86,13 @@
 ;; Given a list of types, computes the product of all possible
 ;; representation assignments where each element
 ;; is a dictionary mapping type to representation
-(define (type-combinations types)
+(define (type-combinations types [reprs (*needed-reprs*)])
   (reap [sow]
     (let loop ([types types] [assigns '()])
       (match types
         [(list) (sow assigns)]
         [(list type rest ...)
-         (for ([repr (in-list (*needed-reprs*))]
+         (for ([repr (in-list reprs)]
                #:when (equal? (representation-type repr) type))
            (loop rest (cons (cons type repr) assigns)))]))))
 
@@ -103,34 +103,26 @@
   (define-values (output* output-pats) (expr->egg-pattern+vars output))
   (cond
     [(andmap representation? (cons otype itypes))
-     ;; Representation-specific rule
+     ;; rules over representations
      ;; nothing special here: just return the 1 rule
      (list (cons input* output*))]
-    [(andmap (curry set-member? input-pats) output-pats)
-     ;; Non-expansive rules
-     ;; also nothing special here: just return the 1 rule
-     (list (cons input* output*))]
     [else
-     ;; Expansive rules, i.e. x -> f(x) cannot be run in egg
-     ;; since f(x) typically requires precision nodes
-     ;; which cannot be inferred from just a node `x`
-     ;; TODO: possible solution is to have special classes of rules
-     ;;
-     ;;  Rule(f, p) = { x -> f(x, p) }
-     ;;  
-     ;; where `p` is a representation.
-     ;; This rule must be instantiated with a precision.
-     ;;
-     ;; The hacky solution is just to duplicate the rule over
-     ;; every possible representation assignment before it enters the egraph.
+     ;; rules over types
+     ;; must instantiate the rule over all possible
+     ;; representation combinations, keeping in mind that
+     ;; representations may not support certain operators
      (reap [sow]
        (define types (remove-duplicates (cons otype (map cdr itypes))))
        (for ([type-ctx (in-list (type-combinations types))])
          (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
          (define sugar-ctx (context (map car itypes) (dict-ref type-ctx otype) (map cdr itypes*)))
-         (define input* (expr->egg-pattern (desugar-program input sugar-ctx)))
-         (define output* (expr->egg-pattern (desugar-program output sugar-ctx)))
-         (sow (cons input* output*))))]))
+         (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
+           ;; The easier way to tell if every operator is supported
+           ;; in a given representation is to just try to desguar
+           ;; the expression and catch any errors.
+           (define input* (expr->egg-pattern (desugar-program input sugar-ctx #:full #f)))
+           (define output* (expr->egg-pattern (desugar-program output sugar-ctx #:full #f)))
+           (sow (cons input* output*)))))]))
               
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph

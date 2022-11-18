@@ -73,7 +73,9 @@
 (define (make-points-json result out repr)
   ; Immediately convert points to reals to handle posits
   (define points 
-    (for/list ([point (test-success-newpoints result)]) (for/list ([x point]) (repr->real x repr))))
+    (for/list ([point (test-success-newpoints result)])
+      (for/list ([x point])
+        (repr->real x repr))))
   (define bit-width (representation-total-bits repr))
   
   (define json-points (for/list ([point points]) (for/list ([value point]) 
@@ -104,8 +106,10 @@
   (define splitpoints 
     (for/list ([var vars]) 
       (define split-var? (equal? var (regime-var end-alt)))
-      (if split-var? (for/list ([val (regime-splitpoints end-alt)]) (real->ordinal val repr)) '())
-      ))
+      (if split-var?
+          (for/list ([val (regime-splitpoints end-alt)])
+            (real->ordinal (repr->real val repr) repr))
+          '())))
 
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
   ;   necessary, but this isn't implemented yet. 
