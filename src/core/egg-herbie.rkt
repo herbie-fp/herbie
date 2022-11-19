@@ -9,7 +9,8 @@
 
 (provide with-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
-         egraph-get-proof egraph-is-unsound-detected)
+         egraph-get-proof egraph-is-unsound-detected
+         rule->egg-rules)
 
 ;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
@@ -37,6 +38,12 @@
          (define-values (ift* ift-type) (loop ift))
          (define-values (iff* iff-type) (loop iff))
          (values (list 'if cond* ift* iff*) ift-type)]
+        [(list op 'real args ...)
+         (define args*
+           (for/list ([arg (in-list args)])
+             (define-values (arg* _) (loop arg))
+             arg*))
+         (values (cons op (map loop args*)) 'real)]
         [(list (? constant-operator? op) prec)
          (define repr (get-representation prec))
          (let/ec k
@@ -52,7 +59,8 @@
              (loop arg)))
          (define op* (apply get-parametric-operator op types*))
          (values (cons op* args*) (get-representation prec))]
-        [(? number?) (values expr (context-repr (*context*)))]
+        [(? number?)
+         (values expr (context-repr (*context*)))]
         [_
          (define renamed (hash-ref rename-dict expr))
          (values renamed (context-lookup (*context*) renamed))])))
@@ -74,7 +82,7 @@
         [(list (? operator-exists? op) args ...)
          (cons op (cons (get-pattern op) (map loop args)))]
         [(? number?) expr]
-        [_ (format "?~a" expr)])))
+        [_ (string->symbol (format "?~a" expr))])))
   (values expr* (hash-keys ppatterns)))
 
 ;; Translates a Herbie rule LHS or RHS into a
@@ -99,13 +107,11 @@
 ;; Translates a Herbie rule into possibly multiple rules
 (define (rule->egg-rules r)
   (match-define (rule name input output itypes otype) r)
-  (define-values (input* input-pats) (expr->egg-pattern+vars input))
-  (define-values (output* output-pats) (expr->egg-pattern+vars output))
   (cond
     [(andmap representation? (cons otype itypes))
      ;; rules over representations
      ;; nothing special here: just return the 1 rule
-     (list (cons input* output*))]
+     (list r)]
     [else
      ;; rules over types
      ;; must instantiate the rule over all possible
@@ -114,16 +120,17 @@
      (reap [sow]
        (define types (remove-duplicates (cons otype (map cdr itypes))))
        (for ([type-ctx (in-list (type-combinations types))])
+         (define otype* (dict-ref type-ctx otype))
          (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
-         (define sugar-ctx (context (map car itypes) (dict-ref type-ctx otype) (map cdr itypes*)))
+         (define sugar-ctx (context (map car itypes) otype* (map cdr itypes*)))
          (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
            ;; The easier way to tell if every operator is supported
            ;; in a given representation is to just try to desguar
            ;; the expression and catch any errors.
-           (define input* (expr->egg-pattern (desugar-program input sugar-ctx #:full #f)))
-           (define output* (expr->egg-pattern (desugar-program output sugar-ctx #:full #f)))
-           (sow (cons input* output*)))))]))
-              
+           (define name* (sym-append (rule-name r) '_ (representation-name otype*)))
+           (define input* (desugar-program input sugar-ctx #:full #f))
+           (define output* (desugar-program output sugar-ctx #:full #f))
+           (sow (rule name* input* output* itypes* otype*)))))]))
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
 (define (expr->egg-expr expr egg-data)
@@ -131,9 +138,11 @@
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
   (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict))
 
-(define (expand-operator impl)
-  (values (impl->operator impl)
-          (representation-name (operator-info impl 'otype))))
+(define (expand-operator op-or-impl)
+  (if (impl-exists? op-or-impl)
+      (values (impl->operator op-or-impl)
+              (representation-name (operator-info op-or-impl 'otype)))
+      (values op-or-impl 'real)))
 
 (define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
   (let loop ([expr expr])
@@ -154,20 +163,26 @@
        replacement])))
 
 (module+ test
-  (check-equal? (expr->egg-pattern `(+ a b)) '(+ real ?a ?b))
-  (check-equal? (expr->egg-pattern `(/ c (- 2 a))) '(/ real ?c (- real 2 ?a)))
-  (check-equal? (expr->egg-pattern `(cos.f64 (PI.f64))) '(cos f64 (PI f64)))
-  (check-equal? (expr->egg-pattern `(if (TRUE) x y)) '(if real (TRUE real) ?x ?y))
+  (require "../load-plugin.rkt")
+  (load-herbie-builtins)
+
+  (check-equal? (expr->egg-pattern `(+ a b)) '(+ ?p0 ?a ?b))
+  (check-equal? (expr->egg-pattern `(/ c (- 2 a))) '(/ ?p0 ?c (- ?p0 2 ?a)))
+  (check-equal? (expr->egg-pattern `(cos.f64 (PI.f64))) '(cos binary64 (PI binary64)))
+  (check-equal? (expr->egg-pattern `(if (TRUE) x y)) '(if real (TRUE bool) ?x ?y))
+
+  (define f64 (get-representation 'binary64))
+  (*context* (context '(x y z) f64 (list f64 f64 f64)))
 
   (define test-exprs
-    (list (cons '(+ y x) "(+ real h0 h1)")
-          (cons '(+ x y) "(+ real h1 h0)")
-          (cons '(- 2 (+ x y)) "(- real 2 (+ real h1 h0))")
-          (cons '(- z (+ (+ y 2) x)) "(- real h2 (+ real (+ real h0 2) h1))")
-          (cons '(*.f64 x y) "(* f64 h1 h0)")
-          (cons '(+.f32 (*.f32 x y) 2) "(+ f32 (* f32 h1 h0) 2)")
-          (cons '(cos.f64 (PI.f64)) "(cos f64 (PI f64))")
-          (cons '(if (TRUE) x y) "(if real (TRUE real) h1 h0)")))
+    (list (cons '(+.f64 y x) "(+ binary64 h0 h1)")
+          (cons '(+.f64 x y) "(+ binary64 h1 h0)")
+          (cons '(-.f64 2 (+.f64 x y)) "(- binary64 2 (+ binary64 h1 h0))")
+          (cons '(-.f64 z (+.f64 (+.f64 y 2) x)) "(- binary64 h2 (+ binary64 (+ binary64 h0 2) h1))")
+          (cons '(*.f64 x y) "(* binary64 h1 h0)")
+          (cons '(+.f64 (*.f64 x y) 2) "(+ binary64 (* binary64 h1 h0) 2)")
+          (cons '(cos.f32 (PI.f32)) "(cos binary32 (PI binary32))")
+          (cons '(if (TRUE) x y) "(if real (TRUE bool) h1 h0)")))
 
   (with-egraph
    (lambda (egg-graph)
@@ -176,6 +191,8 @@
               [computed-in (egg-expr->expr out egg-graph)])
          (check-equal? out expected-out)
          (check-equal? computed-in in)))))
+
+  (*context* (context '(x a b c r) f64 (list f64 f64 f64 f64 f64)))
 
   (define extended-expr-list
     (list
@@ -189,9 +206,10 @@
   (with-egraph
    (lambda (egg-graph)
      (for ([expr extended-expr-list])
+       (define expr* (desugar-program expr (*context*) #:full #f))
        (check-equal? 
-        (egg-expr->expr (~a (expr->egg-expr expr egg-graph)) egg-graph)
-        expr)))))
+        (egg-expr->expr (~a (expr->egg-expr expr* egg-graph)) egg-graph)
+        expr*)))))
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
@@ -237,10 +255,10 @@
 
 (define (make-ffi-rules rules)
   (for*/list ([rule (in-list rules)]
-              [(lhs rhs) (in-dict (rule->egg-rules rule))])
-    (define name (make-raw-string (symbol->string (rule-name rule))))
-    (define left (make-raw-string (~a lhs)))
-    (define right (make-raw-string (~a rhs)))
+              [rule* (in-list (rule->egg-rules rule))])
+    (define name (make-raw-string (symbol->string (rule-name rule*))))
+    (define left (make-raw-string (~a (expr->egg-pattern (rule-input rule*)))))
+    (define right (make-raw-string (~a (expr->egg-pattern (rule-output rule*)))))
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)

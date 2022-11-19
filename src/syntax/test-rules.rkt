@@ -3,7 +3,8 @@
 (require rackunit)
 (require "../common.rkt" "../programs.rkt" "../float.rkt"
          "../ground-truth.rkt" "types.rkt" "../load-plugin.rkt"
-         "rules.rkt" (submod "rules.rkt" internals))
+         "rules.rkt" (submod "rules.rkt" internals)
+         "../core/egg-herbie.rkt")
 
 (load-herbie-builtins)
 
@@ -63,20 +64,24 @@
    (for ([name names])
      (eprintf "Checking ~a...\n" name)
      (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
-     (check-rule-correct rule)
-     (when (set-member? (*fp-safe-simplify-rules*) rule)
-      (check-rule-fp-safe rule)))))
+     (for ([rule* (rule->egg-rules rule)])
+      (check-rule-correct rule*)
+      (when (set-member? (*fp-safe-simplify-rules*) rule*)
+        (check-rule-fp-safe rule*))))))
 
 (module+ test
   (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
 
-  (for* ([test-ruleset (*rulesets*)] [test-rule (first test-ruleset)])
-    (test-case (~a (rule-name test-rule))
-      (check-rule-correct test-rule)))
+  (for* ([test-ruleset (*rulesets*)]
+         [test-rule (first test-ruleset)]
+         [test-rule* (rule->egg-rules test-rule)])
+    (test-case (~a (rule-name test-rule*))
+      (check-rule-correct test-rule*)))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
-         #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
-    (test-case (~a (rule-name test-rule))
-      (check-rule-fp-safe test-rule))))
+         [test-rule* (rule->egg-rules test-rule)]
+         #:when (set-member? (*fp-safe-simplify-rules*) test-rule*))
+    (test-case (~a (rule-name test-rule*))
+      (check-rule-fp-safe test-rule*))))
