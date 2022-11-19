@@ -91,47 +91,6 @@
   (define-values (expr* _) (expr->egg-pattern+vars expr))
   expr*)
 
-;; Given a list of types, computes the product of all possible
-;; representation assignments where each element
-;; is a dictionary mapping type to representation
-(define (type-combinations types [reprs (*needed-reprs*)])
-  (reap [sow]
-    (let loop ([types types] [assigns '()])
-      (match types
-        [(list) (sow assigns)]
-        [(list type rest ...)
-         (for ([repr (in-list reprs)]
-               #:when (equal? (representation-type repr) type))
-           (loop rest (cons (cons type repr) assigns)))]))))
-
-;; Translates a Herbie rule into possibly multiple rules
-(define (rule->egg-rules r)
-  (match-define (rule name input output itypes otype) r)
-  (cond
-    [(andmap representation? (cons otype itypes))
-     ;; rules over representations
-     ;; nothing special here: just return the 1 rule
-     (list r)]
-    [else
-     ;; rules over types
-     ;; must instantiate the rule over all possible
-     ;; representation combinations, keeping in mind that
-     ;; representations may not support certain operators
-     (reap [sow]
-       (define types (remove-duplicates (cons otype (map cdr itypes))))
-       (for ([type-ctx (in-list (type-combinations types))])
-         (define otype* (dict-ref type-ctx otype))
-         (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
-         (define sugar-ctx (context (map car itypes) otype* (map cdr itypes*)))
-         (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
-           ;; The easier way to tell if every operator is supported
-           ;; in a given representation is to just try to desguar
-           ;; the expression and catch any errors.
-           (define name* (sym-append (rule-name r) '_ (representation-name otype*)))
-           (define input* (desugar-program input sugar-ctx #:full #f))
-           (define output* (desugar-program output sugar-ctx #:full #f))
-           (sow (rule name* input* output* itypes* otype*)))))]))
-
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
 (define (expr->egg-expr expr egg-data)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
@@ -211,6 +170,65 @@
         (egg-expr->expr (~a (expr->egg-expr expr* egg-graph)) egg-graph)
         expr*)))))
 
+
+;; Given a list of types, computes the product of all possible
+;; representation assignments where each element
+;; is a dictionary mapping type to representation
+(define (type-combinations types [reprs (*needed-reprs*)])
+  (reap [sow]
+    (let loop ([types types] [assigns '()])
+      (match types
+        [(list) (sow assigns)]
+        [(list type rest ...)
+         (for ([repr (in-list reprs)]
+               #:when (equal? (representation-type repr) type))
+           (loop rest (cons (cons type repr) assigns)))]))))
+
+;; Translates a Herbie rule into possibly multiple rules
+(define (rule->egg-rules r)
+  (match-define (rule name input output itypes otype) r)
+  (cond
+    [(andmap representation? (cons otype itypes))
+     ;; rules over representations
+     ;; nothing special here: just return the 1 rule
+     (list r)]
+    [else
+     ;; rules over types
+     ;; must instantiate the rule over all possible
+     ;; representation combinations, keeping in mind that
+     ;; representations may not support certain operators
+     (reap [sow]
+       (define types (remove-duplicates (cons otype (map cdr itypes))))
+       (for ([type-ctx (in-list (type-combinations types))])
+         ;; Strange corner case:
+         ;; Rules containing comparators cause desugaring to misbehave.
+         ;; The reported output type is bool but then desugaring
+         ;; thinks there will be a cast somewhere
+         (define otype*
+           (if (equal? otype 'bool)
+               (dict-ref type-ctx 'real (get-representation 'bool))
+               (dict-ref type-ctx otype)))
+
+         (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
+         (define sugar-ctx (context (map car itypes) otype* (map cdr itypes*)))
+         (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
+           ;; The easier way to tell if every operator is supported
+           ;; in a given representation is to just try to desguar
+           ;; the expression and catch any errors.
+           (define name* (sym-append (rule-name r) '_ (representation-name otype*)))
+           (define input* (desugar-program input sugar-ctx #:full #f))
+           (define output* (desugar-program output sugar-ctx #:full #f))
+           (sow (rule name* input* output* itypes* otype*)))))]))
+
+(module+ test
+  ;; Make sure all built-in rules are valid in some
+  ;; configurationof representations
+  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
+  (for ([rule (in-list (*rules*))])
+    (test-case (~a (rule-name rule))
+               (check-true (> (length (rule->egg-rules rule)) 0))))
+)
+
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
@@ -254,11 +272,10 @@
   ptr)
 
 (define (make-ffi-rules rules)
-  (for*/list ([rule (in-list rules)]
-              [rule* (in-list (rule->egg-rules rule))])
-    (define name (make-raw-string (symbol->string (rule-name rule*))))
-    (define left (make-raw-string (~a (expr->egg-pattern (rule-input rule*)))))
-    (define right (make-raw-string (~a (expr->egg-pattern (rule-output rule*)))))
+  (for*/list ([rule (in-list rules)])
+    (define name (make-raw-string (symbol->string (rule-name rule))))
+    (define left (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
+    (define right (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
@@ -321,9 +338,16 @@
 (define ffi-rules-cache #f)
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
-  (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) rules))
+  ;; expand the rules first due to some bad but currently
+  ;; necessary reasons (see `rule->egg-rules` for details).
+  (define egg-rules
+    (for/fold ([rules* '()] #:result (reverse rules*)) ([rule (in-list rules)])
+      (append (rule->egg-rules rule) rules*)))
+
+  ;; check the cache in case we used these rules previously
+  (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) egg-rules))
     (when ffi-rules-cache (free-ffi-rules (cdr ffi-rules-cache)))
-    (set! ffi-rules-cache (cons rules (make-ffi-rules rules))))
+    (set! ffi-rules-cache (cons egg-rules (make-ffi-rules egg-rules))))
   (define ffi-rules (cdr ffi-rules-cache))
 
   (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
@@ -338,7 +362,7 @@
 
   (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
 
-  (for ([ffi-rule (in-list ffi-rules)] [rule (in-list rules)])
+  (for ([ffi-rule (in-list ffi-rules)] [rule (in-list egg-rules)])
     (define count (egraph-get-times-applied egg-graph ffi-rule))
     (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
 
