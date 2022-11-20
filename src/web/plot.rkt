@@ -71,13 +71,10 @@
   (define tick-count 13)
   (define necessary (map (curryr real->ordinal repr) 
                          (filter (λ (x) (<= min x max)) (list min -1.0 0.0 1.0 max))))
-  (define major-ticks
-    (map
-      (curryr ordinal->real repr)
-      (pick-spaced-ordinals necessary (real->ordinal min repr) (real->ordinal max repr)
-                            tick-count repr)))
-  (for/list ([tick major-ticks])
-    (cons tick #t)))
+  (map
+    (curryr ordinal->real repr)
+    (pick-spaced-ordinals necessary (real->ordinal min repr) (real->ordinal max repr)
+                          tick-count repr)))
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))

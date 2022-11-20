@@ -91,14 +91,13 @@
       ; We bail out since choose-ticks will crash otherwise
       (if (= (unique-values (test-success-newpoints result) idx) 1) (return #f) #f) 
       (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
-      (for/list ([value real-ticks]) 
-        (define val (car value))
+      (for/list ([val real-ticks]) 
         (define tick-str (if (or (= val 0) (< 0.01 (abs val) 100))
            (~r (exact->inexact val) #:precision 4)
            (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
         (list 
           tick-str
-          (real->ordinal (car value) repr))))))
+          (real->ordinal val repr))))))
   (define end-alt (car (test-success-end-alts result)))
 
   (define splitpoints 
