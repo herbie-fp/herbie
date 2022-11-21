@@ -1,0 +1,497 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Herbie Papers</title>
+<link rel='stylesheet' type='text/css' href='main.css' />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<header>
+  <img class="logo" src="logo.png" />
+  <h1>Herbie Related Papers</h1>
+</header>
+
+<p>This page describes papers related to the <a href="../../">Herbie
+project</a>, either because they describe Herbie and its internals or
+because they were inspired by our work on Herbie. In total, this page
+lists over a dozen publications, including papers
+in <span style="color:#2A6496;">★</span>&nbsp;major venues and which
+received 🏆&nbsp;awards.</p>
+
+<h2>PLDI’15: Herbie <span class="badges">★ 🏆</span></h2>
+
+<details>
+  <summary>
+    <a href="pldi15-paper.pdf">Automatically Improving Accuracy for Floating Point Expressions</a>
+    was published at
+    <a href="http://conf.researchr.org/home/pldi2015">★&nbsp;PLDI 2015</a>,
+    where it won the 🏆&nbsp;<em>Distinguished Paper Award</em>.
+    The paper introduces Herbie, describes its internals, and
+    relates experiments describing its effectiveness.
+  </summary>
+
+  <blockquote class="abstract">
+    <p>Scientific and engineering applications depend on floating
+    point arithmetic to approximate real arithmetic. This
+    approximation introduces rounding error, which can accumulate to
+    produce unacceptable results. While the numerical methods
+    literature provides techniques to mitigate rounding error,
+    applying these techniques requires manually rearranging
+    expressions and understanding the finer details of floating point
+    arithmetic.</p>
+    <p>We introduce Herbie, a tool which <em>automatically</em>
+    discovers the rewrites experts perform to improve accuracy.
+    Herbie's heuristic search estimates and localizes rounding error
+    using sampled points (rather than static error analysis), applies
+    a database of rules to generate improvements, takes series
+    expansions, and combines improvements for different input regions.
+    We evaluated Herbie on examples from a classic numerical methods
+    textbook, and found that Herbie was able to improve accuracy on
+    each example, some by up to 60 bits, while imposing a median
+    performance overhead of 40%. Colleagues in machine learning have
+    used Herbie to significantly improve the results of a clustering
+    algorithm, and a mathematical library has accepted two patches
+    generated using Herbie.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="pldi15-paper.pdf">paper</a>,
+  <a href="https://www.youtube.com/watch?v=qnkElmpTtBw">video abstract</a>,
+  <a href="https://www.youtube.com/watch?v=RNzsvp6NLOY">conference talk</a>,
+  and <a href="pldi15-slides.pdf">conference talk slides</a> are available.
+</p>
+
+<h2>NSV’16: FPBench</h2>
+
+<details>
+  <summary>
+    <a href="http://fpbench.org/nsv16-paper.pdf">Toward a Standard
+    Benchmark Format and Suite for Floating-Point Analysis</a> was
+    published at <a href="https://nsv2016.pages.ist.ac.at/">NSV'16</a>.
+    The paper presents the motivation behind FPBench and describes a
+    preliminary version of the FPBench standards.
+  </summary>
+  <blockquote class="abstract">
+    <p>We introduce FPBench, a standard benchmark format for
+    validation and optimization of numerical accuracy in
+    floating-point computations. FPBench is a first step toward
+    addressing an increasing need in our community for comparisons and
+    combinations of tools from different application domains. To this
+    end, FPBench provides a basic floating-point benchmark format and
+    accuracy measures for comparing different tools. The FPBench
+    format and measures allow comparing and composing different
+    floating-point tools. We describe the FPBench format and measures
+    and show that FPBench expresses benchmarks from recent papers in
+    the literature, by building an initial benchmark suite drawn from
+    these papers. We intend for FPBench to grow into a standard
+    benchmark suite for the members of the floating-point tools
+    research community.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="http://fpbench.org/nsv16-paper.pdf">paper</a>,
+  <a href="https://www.youtube.com/watch?v=SRE2Gky381M">conference talk</a>,
+  and <a href="http://fpbench.org/nsv16-slides.pdf">conference talk
+  slides</a> are available. The standards presented in the paper have
+  grown to become the <a href="http://fpbench.org/">FPBench
+  project</a>.
+</p>
+
+<h2>PLDI’18: Herbgrind <span class="badges">★</span></h2>
+
+<details>
+  <summary>
+    <a href="http://herbgrind.ucsd.edu/herbgrind-pldi18.pdf">Finding
+    Root Causes of Floating Point Error</a> was published
+    at <a href="https://conf.researchr.org/home/pldi-2018">★&nbsp;PLDI
+    2018</a>. The paper describes how Herbgrind tracks error and
+    discovers root causes for floating-point error.
+  </summary>
+  <blockquote class="abstract">
+    <p>Floating-point arithmetic plays a central role in science,
+    engineering, and finance by enabling developers to approximate
+    real arithmetic. To address numerical issues in large
+    floating-point applications, developers must identify root causes,
+    which is difficult because floating-point errors are generally
+    non-local, non-compositional, and non-uniform.</p>
+    <p>This paper presents Herbgrind, a tool to help developers
+    identify and address root causes in numerical code written in
+    low-level languages like C/C++ and Fortran. Herbgrind dynamically
+    tracks dependencies between operations and program outputs to
+    avoid false positives and abstracts erroneous computations to
+    simplified program fragments whose improvement can reduce output
+    error. We perform several case studies applying Herbgrind to
+    large, expert-crafted numerical programs and show that it scales
+    to applications spanning hundreds of thousands of lines, correctly
+    handling the low-level details of modern floating point hardware
+    and mathematical libraries and tracking error across function
+    boundaries and through the heap.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="http://herbgrind.ucsd.edu/herbgrind-pldi18.pdf">paper</a>,
+  <a href="https://www.youtube.com/watch?v=bFL6PaPrz8Y">conference talk</a>,
+  and <a href="http://herbgrind.ucsd.edu/pldi18-talk/">conference talk
+  slides</a> are available. Herbgrind is available
+  on <a href="http://herbgrind.ucsd.edu/">its website</a>.
+</p>
+
+<h2>FM’18 short: Daisy/Herbie</h2>
+
+<details>
+  <summary>
+    <a href="http://fpbench.org/fm18-paper.pdf">Combining Tools for
+    Optimization and Analysis of Floating-Point Computations</a> was
+    published
+    at <a href="https://www.win.tue.nl/~evink/FM2018/">FM'18'</a>. The
+    paper describes how different floating-point analysis tools can be
+    combined using tools provided by the FPBench project.
+  </summary>
+  <blockquote class="abstract">
+    <p>Recent renewed interest in optimizing and analyzing
+    floating-point programs has lead to a diverse array of new tools
+    for numerical programs. These tools are often complementary, each
+    focusing on a distinct aspect of numerical programming. Building
+    reliable floating point applications typically requires addressing
+    several of these aspects, which makes easy composition essential.
+    This paper describes the composition of two recent floating-point
+    tools: Herbie, which performs accuracy optimization, and Daisy,
+    which performs accuracy verification. We find that the combination
+    provides numerous benefits to users, such as being able to use
+    Daisy to check whether Herbie's unsound optimizations improved the
+    worst-case roundoff error, as well as benefits to tool authors,
+    including uncovering a number of bugs in both tools. The
+    combination also allowed us to compare the different program
+    rewriting techniques implemented by these tools for the first
+    time. The paper lays out a road map for combining other
+    floating-point tools and for surmounting common challenges.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="http://fpbench.org/fm18-paper.pdf">paper</a> is available.
+</p>
+
+<h2>Correctness’19: Multi-precision Herbie</h2>
+
+<details>
+  <summary>
+    <a href="https://sc19.supercomputing.org/proceedings/workshops/workshop_files/ws_corr102s1-file1.pdf">Toward
+    Multi-Precision, Multi-Format Numerics</a> was published at
+    <a href="https://sc19.supercomputing.org/proceedings/workshops/workshop_sessions.html#sess118">Correctness'19</a>.
+    The paper describes Herbie's model of multi-precision/multi-format
+    code.
+  </summary>
+  <blockquote class="abstract">
+    <p>Recent research has provided new, domain-specific number
+    systems that accelerate modern workloads. Using these number
+    systems effectively requires analyzing subtle multi-format,
+    multi-precision (MPMF) code. Ideally, recent programming tools
+    that automate numerical analysis tasks could help make MPMF
+    programs both accurate and fast. However, three key challenges
+    must be addressed: existing automated tools are difficult to
+    compose due to subtle incompatibilities; there is no "gold
+    standard" for correct MPMF execution; and no methodology exists
+    for generalizing existing, IEEE-754-specialized tools to support
+    MPMF. In this paper we report on recent work towards mitigating
+    these related challenges. First, we extend the FPBench standard to
+    support multi-precision, multi-format (MPMF) applications. Second,
+    we present Titanic, a tool which provides reference results for
+    arbitrary MPMF computations. Third, we describe our experience
+    adapting an existing numerical tool to support MPMF programs.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://sc19.supercomputing.org/proceedings/workshops/workshop_files/ws_corr102s1-file1.pdf">paper</a> is available.
+</p>
+
+<h2>NSV’20: Towards Numerical Assistants <span class="badges">🏆</span></h2>
+
+<details>
+  <summary>
+    <em>Towards Numerical Assistants: Trust, Measurement, Community,
+    and Generality for the Numerical Workbench</em> was published
+    at <a href="https://nsv2020.github.io/">NSV'20</a>, where it was an
+    🏆&nbsp;<em>invited talk</em>. The talk described the goals
+    driving Herbie's development up to 2020.
+  </summary>
+  <blockquote class="abstract">
+    <p>The last few years have seen an explosion of work on tools that address numerical error in scientific, mathematical, and engineering software. The resulting tools can provide essential guidance to expert non-experts: scientists, mathematicians, and engineers for whom mathematical computation is essential but who may have little formal training in numerical methods. It is now time for these tools to move into practice.</p>
+    <p>Practitioners need a "numerical workbench" that not only succeeds as a research artifact but as a daily tool. We describe our experience adapting Herbie, a tool for numerical error repair, from a research prototype to a reliable workhorse for daily use. In particular, we focus on how we worked to increase user trust and use internal measurement to polish the tool. Looking more broadly, we show that community development and an investment in the generality of our tools, such as through the FPBench project, will better support users and strengthen our research community.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://www.youtube.com/watch?v=E2KtVa7j2eY">conference
+  talk</a>
+  and <a href="https://nsv2020.github.io/nsv2020_slides_herbie_fpbench.pdf">conference
+  talk slides</a> are available.
+</p>
+
+<h2>POPL’21: Egg <span class="badges">★ 🏆</span></h2>
+
+<details>
+  <summary>
+    <a href="https://dl.acm.org/doi/10.1145/3434304"><code>egg</code>:
+    Fast and extensible equality saturation</a> was published at
+    <a href="https://conf.researchr.org/home/pldi-2021">★&nbsp;PLDI 2021</a>,
+    where it won the 🏆&nbsp;<em>Distinguished Paper Award</em>.
+    The paper describes a new library for equality saturation used by Herbie.
+  </summary>
+  <blockquote class="abstract">
+    <p>An e-graph efficiently represents a congruence relation over
+    many expressions. Although they were originally developed in the
+    late 1970s for use in automated theorem provers, a more recent
+    technique known as equality saturation repurposes e-graphs to
+    implement state-of-the-art, rewrite-driven compiler optimizations
+    and program synthesizers. However, e-graphs remain unspecialized
+    for this newer use case. Equality saturation workloads exhibit
+    distinct characteristics and often require ad-hoc e-graph
+    extensions to incorporate transformations beyond purely syntactic
+    rewrites.</p>
+    <p>This work contributes two techniques that make e-graphs fast
+    and extensible, specializing them to equality saturation. A new
+    amortized invariant restoration technique called rebuilding takes
+    advantage of equality saturation's distinct workload, providing
+    asymptotic speedups over current techniques in practice. A general
+    mechanism called e-class analyses integrates domain-specific
+    analyses into the e-graph, reducing the need for ad hoc
+    manipulation.</p>
+    <p>We implemented these techniques in a new open-source library
+    called egg. Our case studies on three previously published
+    applications of equality saturation highlight how egg's
+    performance and flexibility enable state-of-the-art results across
+    diverse domains.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://dl.acm.org/doi/10.1145/3434304">paper</a>, <a href="https://www.youtube.com/watch?v=ap29SzDAzP0">video
+  abstract</a>, and <a href="https://www.youtube.com/watch?v=LKELTEOFY-s">conference
+  talk</a> are available.
+</p>
+
+<h2>ArXiv’21: Rival</h2>
+
+<details>
+  <summary>
+    <a href="https://arxiv.org/pdf/2107.05784.pdf">An Interval
+    Arithmetic for Robust Error Estimation</a> is an unpublished
+    manuscript. This paper describes Herbie's interval arithmetic
+    library.
+  </summary>
+  <blockquote class="abstract">
+    <p>Interval arithmetic is a simple way to compute a mathematical expression to an arbitrary accuracy, widely used for verifying floating-point computations. Yet this simplicity belies challenges. Some inputs violate preconditions or cause domain errors. Others cause the algorithm to enter an infinite loop and fail to compute a ground truth. Plus, finding valid inputs is itself a challenge when invalid and unsamplable points make up the vast majority of the input space. These issues can make interval arithmetic brittle and temperamental.</p>
+    <p>This paper introduces three extensions to interval arithmetic to address these challenges. Error intervals express rich notions of input validity and indicate whether all or some points in an interval violate implicit or explicit preconditions. Movability flags detect futile recomputations and prevent timeouts by indicating whether a higher-precision recomputation will yield a more accurate result. Andinput search restricts sampling to valid, samplable points, so they are easier to find. We compare these extensions to the state-of-the-art technical computing software Mathematica, and demonstrate that our extensions are able to resolve 60.3% more challenging inputs, return 10.2x fewer completely indeterminate results, and avoid 64 cases of fatal error.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://arxiv.org/pdf/2107.05784.pdf">paper</a> is available.
+</p>
+
+<h2>ARITH’21: Pareto Herbie <span class="badges">★</span></h2>
+
+<details>
+  <summary>
+    <a href="arith21-paper.pdf">Combining Precision Tuning and Rewriting</a>
+    was published at
+    <a href="http://arith2021.arithsymposium.org">★&nbsp;ARITH 2021</a>.
+    The paper introduces Herbie's pareto mode and describes the
+    modification to Herbie that enable it.
+  </summary>
+
+  <blockquote class="abstract">
+    <p>Precision tuning and rewriting can improve both the accuracy
+      and speed of floating point expressions, yet these techniques are
+      typically applied separately. This paper explores how
+      finer-grained interleaving of precision tuning and rewriting can
+      help automatically generate a richer set of Pareto-optimal
+      accuracy versus speed trade-offs.</p>
+    <p>We introduce Pherbie (Pareto Herbie), a tool providing both
+      precision tuning and rewriting, and evaluate interleaving these
+      two strategies at different granularities. Our results demonstrate
+      that finer-grained interleavings improve both the Pareto curve of
+      candidate implementations and overall optimization time. On a
+      popular set of tests from the FPBench suite, Pherbie finds both
+      implementations that are significantly more accurate for a given
+      cost and significantly faster for a given accuracy bound compared
+      to baselines using precision tuning and rewriting alone or in
+      sequence.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="arith21-paper.pdf">paper</a>,
+  <a href="https://www.youtube.com/watch?v=ytWhp0I8KVw">conference talk</a>,
+  and <a href="arith21-slides.pdf">conference talk slides</a> are available.
+</p>
+
+<h2>OOPSLA’21: Ruler <span class="badges">★ 🏆</span></h2>
+
+<details>
+  <summary>
+    <a href="https://dl.acm.org/doi/pdf/10.1145/3485496">Rewrite Rule
+    Inference Using Equality Saturation</a> was published
+    in <a href="https://2021.splashcon.org/track/splash-2021-oopsla">OOPSLA'21</a>, 
+    where it won the 🏆&nbsp;<em>Distinguished Paper Award</em>. The
+    paper describes how rewrite rules, like the ones Herbie uses, can
+    be synthesized from examples.
+  </summary>
+  <blockquote class="abstract">
+    <p>Many compilers, synthesizers, and theorem provers rely on rewrite rules to simplify expressions or prove equivalences. Developing rewrite rules can be difficult: rules may be subtly incorrect, profitable rules are easy to miss, and rulesets must be rechecked or extended whenever semantics are tweaked. Large rulesets can also be challenging to apply: redundant rules slow down rule-based search and frustrate debugging.</p>
+    <p>This paper explores how equality saturation, a promising technique that uses e-graphs to apply rewrite rules, can also be used to infer rewrite rules. E-graphs can compactly represent the exponentially large sets of enumerated terms and potential rewrite rules. We show that equality saturation efficiently shrinks both sets, leading to faster synthesis of smaller, more general rulesets.</p>
+    <p>We prototyped these strategies in a tool dubbed Ruler. Compared to a similar tool built on CVC4, Ruler synthesizes 5.8× smaller rulesets 25× faster without compromising on proving power. In an end-to-end case study, we show Ruler-synthesized rules which perform as well as those crafted by domain experts, and addressed a longstanding issue in a popular open source tool.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://dl.acm.org/doi/pdf/10.1145/3485496">paper</a> and
+  <a href="https://www.youtube.com/watch?v=5VGTXMgebOo">conference talk</a>
+  are available.
+</p>
+
+<h2>Correctness’21: Rising Heterogeneity</h2>
+
+<details>
+  <summary>
+    <a href="https://web.cs.ucdavis.edu/~rubio/includes/correctness21.pdf">Guarding
+    Numerics Amidst Rising Heterogeneity</a> was published
+    at <a href="https://correctness-workshop.github.io/2021/">Correctness'21</a>.
+    The paper warns that Herbie and similar tools must adapt to
+    hardware accelerators and GPUs.
+  </summary>
+  <blockquote class="abstract">
+    New heterogeneous computing platforms—especially GPUs
+    and other accelerators—are being introduced at a brisk pace,
+    motivated by the goals of exploiting parallelism and reducing
+    data movement. Unfortunately, their sheer variety as well as
+    the optimization options supported by them have been observed
+    to alter the computed numerical results to the extent that
+    reproducible results are no longer possible to obtain without extra
+    effort. Our main contribution in this paper is to document the
+    scope and magnitude of this problem which we classify under the
+    heading of numerics. We propose a taxonomy to classify specific
+    problems to be addressed by the community, a few immediately
+    actionable topics as the next steps, and also forums within which
+    to continue discussions.
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://web.cs.ucdavis.edu/~rubio/includes/correctness21.pdf">paper</a> is available.
+</p>
+
+<h2>EGRAPHS’22: Synthesizing Identities</h2>
+
+<details>
+  <summary>
+    <a href="https://dl.acm.org/doi/10.1145/3520308.3534506">Synthesizing
+    mathematical identities with e-graphs</a> was published
+    at <a href="https://pldi22.sigplan.org/home/egraphs-2022">EGRAPHS'22</a>.
+    The paper describes how identities derived from mathematical
+    expressions can be used to improve accuracy.
+  </summary>
+  <blockquote class="abstract">
+    <p>Identities compactly describe properties of a mathematical
+    expression and can be leveraged into faster and more accurate
+    function implementations. However, identities must currently be
+    discovered manually, which requires a lot of expertise. We propose
+    a two-phase synthesis and deduplication pipeline that discovers
+    these identities automatically. In the synthesis step, a set of
+    rewrite rules is composed, using an e-graph, to discover candidate
+    identities. However, most of these candidates are duplicates,
+    which a secondary de-duplication step discards using integer
+    linear programming and another e-graph. Applied to a set of 61
+    benchmarks, the synthesis phase generates 7 215 candidate
+    identities which the de-duplication phase then reduces down to 125
+    core identities.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://dl.acm.org/doi/10.1145/3520308.3534506">paper</a>
+  is available.
+</p>
+
+<h2>PLDI’22: OpTuner <span class="badges">★</span></h2>
+
+<details>
+  <summary>
+    <em>Choosing Mathematical Function Implementations for Speed and Accuracy</em>
+    was published
+    at <a href="https://pldi22.sigplan.org/">PLDI'22</a>. The paper
+    describes how multiple implementations of functions
+    like <code>sin</code> can be combined to achieve better
+    combinations of accuracy and precision.
+  </summary>
+  <blockquote class="abstract">
+    <p>Standard implementations of functions like <code>sin</code>
+    and <code>exp</code> optimize for accuracy, not speed, because
+    they are intended for general-purpose use. But just like many
+    applications tolerate inaccuracy from cancellation, rounding
+    error, and singularities, many application could also tolerate
+    less-accurate function implementations. This raises an intriguing
+    possibility: speeding up numerical code by using different
+    function implementations.</p>
+    <p>This paper thus introduces OpTuner, an automated tool for
+    selecting the best implementation for each mathematical function
+    call site. OpTuner uses error Taylor series and integer linear
+    programming to compute optimal assignments of 297 function
+    implementations to call sites and presents the user with a
+    speed-accuracy Pareto curve. In a case study on the POV-Ray ray
+    tracer, OpTuner speeds up a critical computation by 2.48×, leading
+    to a whole program speedup of 1.09× with no change in the program
+    output; human efforts result in slower code and lower-quality
+    output. On a broader study of 36 standard benchmarks, OpTuner
+    demonstrates speedups of 2.05× for negligible decreases in
+    accuracy and of up to 5.37× for error-tolerant applications.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://www.youtube.com/watch?v=5ausmx4dVHw">conference
+  talk</a> is available.
+</p>
+
+<h2>FMCAD’22: Egg Proofs <span class="badges">★</span></h2>
+
+<details>
+  <summary>
+    <a href="https://repositum.tuwien.at/bitstream/20.500.12708/81325/1/Flatt-2022-Small%20Proofs%20from%20Congruence%20Closure-vor.pdf">Small
+    Proofs from Congruence Closure</a> was published
+    in <a href="https://fmcad.forsyte.at/FMCAD22/">FMCAD'22</a>. The
+    paper describes how <code>egg</code> computes auditable proofs of
+    the rewrites it performs, which are used in Herbie as a debugging
+    tool.
+  </summary>
+  <blockquote class="abstract">
+    <p>Satisfiability Modulo Theory (SMT) solvers and equality
+    saturation engines must generate proof certificates from
+    e-graph-based congruence closure procedures to enable verification
+    and conflict clause generation. Smaller proof certificates speed
+    up these activities. Though the problem of generating proofs of
+    minimal size is known to be NP-complete, existing proof
+    minimization algorithms for congruence closure generate
+    unnecessarily large proofs and introduce asymptotic overhead over
+    the core congruence closure procedure. In this paper, we introduce
+    an <code>O(n<sup>5</sup>)</code> time algorithm which generates
+    optimal proofs under a new relaxed “proof tree size” metric that
+    directly bounds proof size. We then relax this approach further to
+    a practical <code>O(n log(n))</code> greedy algorithm which
+    generates small proofs with no asymptotic overhead. We implemented
+    our techniques in the egg equality saturation toolkit, yielding
+    the first certifying equality saturation engine. We show that our
+    greedy approach in egg quickly generates substantially smaller
+    proofs than the state-of-the-art Z3 SMT solver on a corpus of
+    3 760 benchmarks.
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://repositum.tuwien.at/bitstream/20.500.12708/81325/1/Flatt-2022-Small%20Proofs%20from%20Congruence%20Closure-vor.pdf">paper</a>
+  and <a href="https://www.youtube.com/watch?v=_KnAHFdqWT0">conference
+  talk</a> are available.
+</p>
