@@ -8,7 +8,8 @@
          type-of repr-of
          location-do location-get
          batch-eval-progs eval-prog eval-application
-         free-variables replace-expression replace-vars)
+         free-variables unsound-expr?
+         replace-expression replace-vars)
 
 (module+ test
   (require rackunit "load-plugin.rkt")
@@ -281,6 +282,19 @@
    [(list op args ...)
     (cons op (map (curryr replace-expression needle needle*) args))]
    [x x]))
+
+(define/contract (unsound-expr? expr)
+  (-> expr? boolean?)
+  (match expr
+    [`(pow ,(? (and/c number? negative?) x)
+           ,(? (compose not integer?) y))
+     #t]
+    [`(sqrt ,(? (and/c number? negative?) num))
+     #t]
+    [(? list?)
+     (for/or ([child expr])
+       (unsound-expr? child))]
+    [else #f]))
 
 (module+ test
   (check-equal? (replace-expression '(λ (x) (- x (sin x))) 'x 1)

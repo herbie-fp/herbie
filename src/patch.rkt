@@ -2,7 +2,7 @@
 
 (require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
 (require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
-(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt")
+(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "ground-truth.rkt" "core/reduce.rkt")
 
 (provide
   (contract-out
@@ -77,17 +77,23 @@
 
 (define (taylor-expr expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
+  (define expr-transformed (simplify (replace-expression expr* var (f var))))
   (define genexpr (approximate expr* var #:transform (cons f finv)))
   (if (valid-at-point?
-       `(lambda ,(context-vars ctx)
+       `(lambda ,(context-vars (*context*))
           ,(desugar-program
             expr-transformed
-            ctx #:full #t))
-       ctx
-       (map (lambda (v) 0.0) (context-vars ctx)))
+            (*context*) #:full #t))
+       (*context*)
+       (map (lambda (v) 0.0) (context-vars (*context*))))
       (λ ()
         (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-          (desugar-program (genexpr) (*context*) #:full #f)))
+          (define res (genexpr))
+
+          (when (unsound-expr? res)
+            (error (format "Taylor expansion of ~a in ~a resulted in unsound program: ~a" expr* var res)))
+
+          (desugar-program res (*context*) #:full #f)))
       (λ () #f)))
 
 (define (taylor-alt altn)
