@@ -2,7 +2,7 @@
 
 (require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
 (require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
-(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "ground-truth.rkt" "core/reduce.rkt")
+(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "ground-truth.rkt" "core/reduce.rkt" "points.rkt")
 
 (provide
   (contract-out
@@ -65,6 +65,14 @@
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
 
+(define (taylor-valid? expr)
+  (for/or ([(point ex) (in-pcontext (*pcontext*))])
+    (valid-at-point?
+     `(lambda ,(context-vars (*context*))
+        ,expr)
+     (*context*)
+     point)))
+
 ;; Taylor is problematic since it doesn't know what reprs are
 ;; There are two types of errors that occur due to this inconsistency
 ;;  - reduce:
@@ -79,22 +87,16 @@
   (define expr* (resugar-program expr repr #:full #f))
   (define expr-transformed (simplify (replace-expression expr* var (f var))))
   (define genexpr (approximate expr* var #:transform (cons f finv)))
-  (if (valid-at-point?
-       `(lambda ,(context-vars (*context*))
-          ,(desugar-program
-            expr-transformed
-            (*context*) #:full #t))
-       (*context*)
-       (map (lambda (v) 0.0) (context-vars (*context*))))
-      (λ ()
-        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-          (define res (genexpr))
+  (λ ()
+    (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+      (define res (desugar-program (genexpr) (*context*) #:full #f))
 
-          (when (unsound-expr? res)
-            (error (format "Taylor expansion of ~a in ~a resulted in unsound program: ~a" expr* var res)))
-
-          (desugar-program res (*context*) #:full #f)))
-      (λ () #f)))
+      (cond
+        [(taylor-valid? res)
+         (when (unsound-expr? res)
+           (error (format "Taylor expansion of ~a in ~a resulted in unsound program: ~a" expr* var res)))
+         res]
+        [else #f]))))
 
 (define (taylor-alt altn)
   (define prog (alt-program altn))
