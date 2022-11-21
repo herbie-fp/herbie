@@ -78,9 +78,17 @@
 (define (taylor-expr expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
   (define genexpr (approximate expr* var #:transform (cons f finv)))
-  (λ ()
-    (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (desugar-program (genexpr) (*context*) #:full #f))))
+  (if (valid-at-point?
+       `(lambda ,(context-vars ctx)
+          ,(desugar-program
+            expr-transformed
+            ctx #:full #t))
+       ctx
+       (map (lambda (v) 0.0) (context-vars ctx)))
+      (λ ()
+        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+          (desugar-program (genexpr) (*context*) #:full #f)))
+      (λ () #f)))
 
 (define (taylor-alt altn)
   (define prog (alt-program altn))

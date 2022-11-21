@@ -3,7 +3,7 @@
 (require math/bigfloat rival racket/hash)
 (require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide sample-points batch-prepare-points make-search-func)
+(provide sample-points batch-prepare-points make-search-func valid-at-point?)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -65,6 +65,12 @@
       [(? nan?)
        +nan.0]))
   (procedure-rename f '<eval-prog-real>))
+
+(define (valid-at-point? prog ctx pt)
+  (not
+   (equal?
+    (apply (eval-prog-real prog ctx) pt)
+    +nan.0)))
 
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
