@@ -4,6 +4,7 @@
          web-server/dispatchers/dispatch web-server/dispatch/extend
          web-server/http/bindings web-server/configuration/responders
          web-server/managers/none)
+(require json)
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt")
@@ -37,6 +38,7 @@
    [("improve") #:method (or "post" "get" "put") improve]
    [("check-status" (string-arg)) check-status]
    [("up") check-up]
+   [("api" (string-arg)) #:method (or "post" "get" "put") call-api-fn]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
@@ -308,6 +310,23 @@
 
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
+
+(define (call-api-fn req endpoint)
+  (define post-body (request-post-data/raw req))
+  (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
+  ;; use hash-ref to access values in the object, e.g.
+  ;; (hash-ref post-data 'key)
+  ;; test via Herbie demo page: (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({a: 42})})).json()
+  (define json-obj (hasheq
+                     'endpoint endpoint
+                     'data post-data
+                     ))
+  (response
+    200 #"OK"
+    (current-seconds) APPLICATION/JSON-MIME-TYPE
+    empty
+    (λ (op) (write-json json-obj op)))
+  )
 
 (define (response/error title body)
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
