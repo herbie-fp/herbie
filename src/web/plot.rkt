@@ -1,40 +1,11 @@
 #lang racket
 
-(require math/bigfloat math/flonum json plot/no-gui racket/draw)
+(require math/bigfloat math/flonum) 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/read.rkt"
          "../alternative.rkt" "../core/bsearch.rkt" "../sandbox.rkt")
 
-(provide make-cost-accuracy-plot make-full-cost-accuracy-plot 
-         real->ordinal regime-splitpoints choose-ticks regime-var)
-
-;; Racket 8.1 compatability
-
-(define (plot-file-compat renderer-tree output [kind 'auto]
-                          #:x-min [x-min #f] #:x-max [x-max #f]
-                          #:y-min [y-min #f] #:y-max [y-max #f]
-                          #:width [width (plot-width)]
-                          #:height [height (plot-height)]
-                          #:title [title (plot-title)]
-                          #:x-label [x-label (plot-x-label)]
-                          #:y-label [y-label (plot-y-label)]
-                      ;   #:aspect-ratio [aspect-ratio (plot-aspect-ratio)]    (added Racket 8.1)
-                          #:legend-anchor [legend-anchor (plot-legend-anchor)])
-  (define bm (make-bitmap width height))
-  (define dc (send bm make-dc))
-  (plot/dc renderer-tree dc 0 0 width height
-           #:x-min x-min #:x-max x-max #:y-min y-min #:y-max y-max
-           #:title title #:x-label x-label #:y-label y-label
-        ;  #:aspect-ratio aspect-ratio                                  (added Racket 8.1)
-           #:legend-anchor legend-anchor)
-  (send bm save-file output kind))
-
-(define plot-file    ; handle buggy `plot-file` in 8.1
-  (if (string=? (version) "8.1")
-      plot-file-compat
-      (let ()
-        (local-require (only-in plot/no-gui [plot-file plot-file*]))
-        plot-file*)))
+(provide real->ordinal regime-splitpoints choose-ticks regime-var) 
 
 ;;  Repr conversions
 
@@ -43,14 +14,6 @@
 
 (define (real->ordinal x repr) 
   ((representation-repr->ordinal repr) (real->repr x repr))) 
-
-(define (repr-transform repr)
-  (invertible-function 
-    (curryr real->ordinal repr)
-    (compose (curryr ordinal->real repr) round)))
-
-(define (repr-axis repr)
-  (make-axis-transform (repr-transform repr)))
 
 (define (first-power10 min max repr)
   (define value
@@ -108,13 +71,10 @@
   (define tick-count 13)
   (define necessary (map (curryr real->ordinal repr) 
                          (filter (λ (x) (<= min x max)) (list min -1.0 0.0 1.0 max))))
-  (define major-ticks
-    (map
-      (curryr ordinal->real repr)
-      (pick-spaced-ordinals necessary (real->ordinal min repr) (real->ordinal max repr)
-                            tick-count repr)))
-  (for/list ([tick major-ticks])
-    (pre-tick tick #t)))
+  (map
+    (curryr ordinal->real repr)
+    (pick-spaced-ordinals necessary (real->ordinal min repr) (real->ordinal max repr)
+                          tick-count repr)))
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
@@ -131,69 +91,3 @@
   (-> alt? (or/c expr? #f))
   (define info (regime-info altn))
   (and info (sp-bexpr (car info))))
-
-;;; Cost vs. Accuracy (internal, single benchmark)
-(define (make-cost-accuracy-plot result out)
-  (define repr (test-output-repr (test-result-test result)))
-  (define bits (representation-total-bits repr))
-  (define costs (test-success-end-costs result))
-  (define errs (map errors-score (test-success-end-errors result)))
-
-  (define cost0 (test-success-start-cost result))
-  (define err0 (errors-score (test-success-start-error result)))
-
-  (define xmax (argmax identity (cons cost0 costs)))
-  (define xmin (argmax identity (cons cost0 costs)))
-
-  (parameterize ([plot-width 800] [plot-height 300]
-                 [plot-background-alpha 0]
-                 [plot-font-size 10]
-                 [plot-x-tick-label-anchor 'top]
-                 [plot-x-label "Cost"]
-                 [plot-x-far-axis? #t]
-                 [plot-x-far-ticks no-ticks]
-                 [plot-y-ticks (linear-ticks #:number 9 #:base 32 #:divisors '(2 4 8))]
-                 [plot-y-far-axis? #t]
-                 [plot-y-axis? #t]
-                 [plot-y-label "Error (bits)"])
-    (define pnts (points (map vector costs errs)
-                         #:sym 'fullcircle
-                         #:size 9
-                         #:fill-color "red"))
-    (define spnt (points (list (vector cost0 err0))
-                         #:sym 'fullsquare
-                         #:color "black"
-                         #:size 15))
-    (plot-file (list spnt pnts (y-tick-lines))
-               out 'png
-               #:x-min 0 #:x-max (+ xmax xmin)
-               #:y-min 0 #:y-max bits)))
-
-;;; Cost vs. Accuracy (internal, entire suite)
-(define (make-full-cost-accuracy-plot y-max start pts out)
-  (match-define (list (cons costs scores) ...) pts)
-  (define x-max (argmax identity (cons (car start) costs)))
-  (parameterize ([plot-width 800] [plot-height 300]
-                 [plot-background-alpha 0]
-                 [plot-font-size 10]
-                 [plot-x-tick-label-anchor 'top]
-                 [plot-x-label "Cost"]
-                 [plot-x-far-axis? #t]
-                 [plot-x-far-ticks no-ticks]
-                 [plot-y-ticks (linear-ticks #:number 9)]
-                 [plot-y-far-axis? #t]
-                 [plot-y-axis? #t]
-                 [plot-y-label "Error (bits)"])
-    (define spnt (points (list (vector (car start) (cdr start)))
-                         #:sym 'fullsquare
-                         #:color "black"
-                         #:size 15))
-    (define curve (lines (map vector (map car pts) (map cdr pts))
-                         #:color "red"
-                         #:width 4))
-    (plot-file (list spnt curve (y-tick-lines))
-               out 'png
-               #:x-min 0 #:x-max x-max
-               #:y-min 0 #:y-max y-max)))
-
-
