@@ -1180,7 +1180,7 @@
     (for/list ([expr exprs])
       (egglog->expr ctx eggdata (read out))))
 
-  (for ([res results])
+  #;(for ([res results])
     (writeln res))
 
   (subprocess-kill egglog-process #t)

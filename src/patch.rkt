@@ -92,14 +92,12 @@
       (λ ()
         (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
           (define res
-            (desugar-program
-             (simplify (replace-expression (genexpr) var (finv var)))
-             ctx #:full #f))
+            (simplify (replace-expression (genexpr) var (finv var))))
 
           (when (unsound-expr? res)
             (error (format "Taylor expansion of ~a in ~a resulted in unsound program: ~a" expr-transformed var res)))
 
-          res))
+          (desugar-program res ctx #:full #f)))
       (λ () #f)))
 
 (define (taylor-alt altn ctx)
