@@ -6,7 +6,7 @@
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 
-(provide get-test-result *reeval-pts* *timeout*
+(provide get-sample get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result)
@@ -37,6 +37,51 @@
   (for/lists (pts exs)
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
+
+(define (get-sample test #:seed [seed #f] #:profile [profile? #f])
+  (define timeline #f)
+  (define output-repr (test-output-repr test))
+  (define context (test-context test))
+  (*needed-reprs* (list output-repr (get-representation 'bool)))
+
+  (parameterize ([*timeline-disabled* false]
+                  [*warnings-disabled* true])
+    (define start-time (current-inexact-milliseconds))
+    (when seed (set-seed! seed))
+    (random) ;; Child process uses deterministic but different seed from evaluator
+
+    (generate-prec-rewrites (test-conversions test))
+    (rollback-improve!)
+
+    (match-define (cons domain-stats joint-pcontext)
+      (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+        (setup-context!
+          (or (test-specification test) (test-program test)) (test-precondition test)
+          output-repr)))
+    (timeline-push! 'bogosity domain-stats)
+    (define-values (train-pcontext test-pcontext)
+      (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
+
+    (define alts
+      (run-improve! (test-program test) train-pcontext (*num-iterations*)
+                    #:specification (test-specification test)
+                    #:preprocess (test-preprocess test)))
+
+    (when seed (set-seed! seed))
+    (define processed-test-pcontext
+      (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
+
+    (define end-errs
+      (flip-lists
+        (batch-errors (map alt-program alts) processed-test-pcontext context)))
+
+    (timeline-adjust! 'regimes 'name (test-name test))
+    (timeline-adjust! 'regimes 'link ".")
+    (print-warnings)
+
+    (define-values (points exacts) (get-p&es train-pcontext))
+    (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
+    (for/list ([point points] [exact exacts]) (list point exact))))
 
 (define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
