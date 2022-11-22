@@ -9,7 +9,7 @@
          real-operator-info operator-info 
          impl->operator all-constants operator-all-impls
          *functions* register-function!
-         get-parametric-operator
+         get-parametric-operator get-parametric-constant
          generate-conversion-impl!
          repr-conv? rewrite-repr-op?
          get-repr-conv get-rewrite-operator)
@@ -171,7 +171,8 @@
 (define/contract (operator-info operator field)
   (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
   (unless (hash-has-key? operator-impls operator)
-    (raise-herbie-missing-error "Unknown operator ~a" operator))
+    (error 'operator-info "Unknown operator ~a" operator))
+    ; (raise-herbie-missing-error "Unknown operator ~a" operator))
   (define accessor
     (match field
       ['itype operator-impl-itype]
@@ -224,6 +225,16 @@
     "Parametric operator (~a ~a) not found"
     name
     (string-join (map (λ (r) (format "<~a>" (representation-name r))) actual-types) " "))))
+
+(define (get-parametric-constant name repr)
+  (let/ec k
+    (for/list ([impl (operator-all-impls name)])
+      (define rtype (operator-info impl 'otype))
+      (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
+        (k impl)))
+      (raise-herbie-missing-error
+        "Could not find constant implementation for ~a at ~a"
+        name (representation-name repr))))
 
 (define (impl->operator name)
   (operator-name (operator-impl-op (hash-ref operator-impls name))))

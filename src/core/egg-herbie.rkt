@@ -10,7 +10,7 @@
 (provide with-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected
-         rule->egg-rules)
+         rule->egg-rules expand-rules)
 
 ;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
@@ -28,45 +28,42 @@
 ;; information through `*context*`.
 (define (egg-parsed->expr expr rename-dict)
   (define-values (expr* _)
-    (let loop ([expr expr])
+    (let loop ([expr expr] [repr (context-repr (*context*))])
       (match expr
         [(list 'Rewrite=> rule expr)
-         (define-values (expr* otype) (loop expr))
+         (define-values (expr* otype) (loop expr repr))
          (values (list 'Rewrite=> rule expr*) otype)]
         [(list 'Rewrite<= rule expr)
-         (define-values (expr* otype) (loop expr))
+         (define-values (expr* otype) (loop expr repr))
          (values (list 'Rewrite<= rule expr*) otype)]
         [(list 'if 'real cond ift iff)
-         (define-values (cond* cond-type) (loop cond))
-         (define-values (ift* ift-type) (loop ift))
-         (define-values (iff* iff-type) (loop iff))
+         (define-values (cond* cond-type) (loop cond repr))
+         (define-values (ift* ift-type) (loop ift repr))
+         (define-values (iff* iff-type) (loop iff repr))
          (values (list 'if cond* ift* iff*) ift-type)]
-        [(list op 'real args ...)
-         (define args*
-           (for/list ([arg (in-list args)])
-             (define-values (arg* _) (loop arg))
-             arg*))
-         (values (cons op (map loop args*)) 'real)]
+        [(list (? repr-conv? op) 'real arg)
+         (define itype (first (operator-info op 'itype)))
+         (define-values (arg* arg-type) (loop arg itype))
+         (values (list op arg*) (operator-info op 'otype))]
         [(list (? constant-operator? op) prec)
-         (define repr (get-representation prec))
-         (let/ec k
-            (for/list ([name (operator-all-impls op)])
-              (define rtype (operator-info name 'otype))
-              (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
-                (k (list name) rtype)))
-            (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
-                                        op (representation-name repr)))]
+         (define cnst (get-parametric-constant op (get-representation prec)))
+         (define rtype (operator-info cnst 'otype))
+         (values (list cnst) rtype)]
         [(list op prec args ...)
+         (define otype (if (equal? prec 'bool) repr (get-representation prec)))
          (define-values (args* types*)
            (for/lists (l1 l2) ([arg (in-list args)])
-             (loop arg)))
+             (loop arg otype)))
          (define op* (apply get-parametric-operator op types*))
-         (values (cons op* args*) (get-representation prec))]
+         (values (cons op* args*) (operator-info op* 'otype))]
         [(? number?)
-         (values expr (context-repr (*context*)))]
+         (values expr repr)]
         [_
+         ;; Maybe we should look up in the context,
+         ;; but simpler just to return the
+         ;; current subexpression representation
          (define renamed (hash-ref rename-dict expr))
-         (values renamed (context-lookup (*context*) renamed))])))
+         (values renamed repr)])))
   expr*)
 
 (define (expr->egg-pattern+vars expr)
@@ -79,6 +76,8 @@
       (match expr
         [(list 'if cond ift iff)
          (list 'if 'real (loop cond) (loop ift) (loop iff))]
+        [(list (? repr-conv? op) arg)
+         (list op 'real (loop arg))]
         [(list (? impl-exists? op) args ...)
          (define-values (op* prec) (expand-operator op))
          (cons op* (cons prec (map loop args)))]
@@ -111,6 +110,8 @@
     (match expr
       [(list 'if cond ift iff)
        (list 'if 'real (loop cond) (loop ift) (loop iff))]
+      [(list (? repr-conv? op) arg)
+       (list op 'real (loop arg))]
       [(list op args ...)
        (define-values (op* prec) (expand-operator op))
        (cons op* (cons prec (map loop args)))]
@@ -207,18 +208,19 @@
          ;; Rules containing comparators cause desugaring to misbehave.
          ;; The reported output type is bool but then desugaring
          ;; thinks there will be a cast somewhere
-         (define otype*
+         (define otype* (dict-ref type-ctx otype))
+         (define sugar-otype
            (if (equal? otype 'bool)
                (dict-ref type-ctx 'real (get-representation 'bool))
-               (dict-ref type-ctx otype)))
+               otype*))
 
          (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
-         (define sugar-ctx (context (map car itypes) otype* (map cdr itypes*)))
+         (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
          (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
            ;; The easier way to tell if every operator is supported
            ;; in a given representation is to just try to desguar
            ;; the expression and catch any errors.
-           (define name* (sym-append (rule-name r) '_ (representation-name otype*)))
+           (define name* (sym-append (rule-name r) '_ (representation-name sugar-otype)))
            (define input* (desugar-program input sugar-ctx #:full #f))
            (define output* (desugar-program output sugar-ctx #:full #f))
            (sow (rule name* input* output* itypes* otype*)))))]))
@@ -343,19 +345,19 @@
 (define ffi-rules-cache #f)
 
 (define (expand-rules rules)
-  (for/fold ([rules* '()] [egg->herbie (hash)]
-             #:result (values (reverse rules*) egg->herbie))
+  (for/fold ([rules* '()] [canon-names (hash)]
+             #:result (values (reverse rules*) canon-names))
             ([rule (in-list rules)])
     (let ([expanded (rule->egg-rules rule)]
           [orig-name (rule-name rule)])
       (values (append expanded rules*)
-              (for/fold ([egg->herbie* egg->herbie]) ([exp-rule (in-list expanded)])
-                (hash-set egg->herbie (rule-name exp-rule) orig-name))))))
+              (for/fold ([canon-names* canon-names]) ([exp-rule (in-list expanded)])
+                (hash-set canon-names* (rule-name exp-rule) orig-name))))))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
   ;; expand the rules first due to some bad but currently
   ;; necessary reasons (see `rule->egg-rules` for details).
-  (define-values (egg-rules egg->herbie) (expand-rules rules))
+  (define-values (egg-rules canon-names) (expand-rules rules))
 
   ;; check the cache in case we used these rules previously
   (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) egg-rules))
@@ -381,7 +383,7 @@
   (define rule-apps (make-hash))
   (for ([ffi-rule (in-list ffi-rules)] [rule (in-list egg-rules)])
     (define count (egraph-get-times-applied egg-graph ffi-rule))
-    (define canon-name (hash-ref egg->herbie (rule-name rule)))
+    (define canon-name (hash-ref canon-names (rule-name rule)))
     (hash-update! rule-apps canon-name (curry + count) count))
 
   (for ([(name count) (in-hash rule-apps)])

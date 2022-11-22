@@ -67,11 +67,26 @@
   (define (match-otype? otype)
     (or (equal? otype (representation-type expr-repr))
         (equal? otype expr-repr)))
-  (reap [sow]
-    (for ([rule rules] #:when (match-otype? (rule-otype rule)))
-      (let* ([result (rule-apply rule expr)])
-        (when result
-          (sow (list (change rule root-loc (cdr result)))))))))
+
+  ;; we want rules over representations
+  (define-values (rules* canon-names) (expand-rules rules))
+  (define rule-apps (make-hash))
+
+  ;; actually match
+  (define changelists
+    (reap [sow]
+      (for ([rule rules*] #:when (match-otype? (rule-otype rule)))
+        (let* ([result (rule-apply rule expr)])
+          (when result
+            (define canon-name (hash-ref canon-names (rule-name rule)))
+            (hash-update! rule-apps canon-name (curry + 1) 1)
+            (sow (list (change rule root-loc (cdr result)))))))))
+
+  ;; rule statistics
+  (for ([(name count) (in-hash rule-apps)])
+    (when (> count 0) (timeline-push! 'rules (~a name) count)))
+
+  changelists)
 
 ;;
 ;;  Egg recursive rewriter
