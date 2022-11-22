@@ -23,6 +23,9 @@
   (for/list ([egg-expr (in-port read (open-input-string exprs))])
     (egg-parsed->expr egg-expr (egraph-data-egg->herbie-dict eg-data))))
 
+;; Converts an S-expr from egg into one Herbie understands
+;; This is really messy since it require outside
+;; information through `*context*`.
 (define (egg-parsed->expr expr rename-dict)
   (define-values (expr* _)
     (let loop ([expr expr])
@@ -222,7 +225,7 @@
 
 (module+ test
   ;; Make sure all built-in rules are valid in some
-  ;; configurationof representations
+  ;; configuration of representations
   (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (for ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
@@ -272,7 +275,7 @@
   ptr)
 
 (define (make-ffi-rules rules)
-  (for*/list ([rule (in-list rules)])
+  (for/list ([rule (in-list rules)])
     (define name (make-raw-string (symbol->string (rule-name rule))))
     (define left (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
     (define right (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
@@ -319,10 +322,12 @@
 (define (convert-iteration-data egraphiters size)
   (cond
     [(> size 0)
-     (cons (iteration-data (EGraphIter-numnodes egraphiters) (EGraphIter-numeclasses egraphiters) (EGraphIter-time egraphiters))
+     (cons (iteration-data (EGraphIter-numnodes egraphiters)
+                           (EGraphIter-numeclasses egraphiters)
+                           (EGraphIter-time egraphiters))
            (convert-iteration-data (ptr-add egraphiters 1 _EGraphIter) (- size 1)))]
     [else empty]))
-
+  
 ;; runs rules on an egraph
 ;; can optionally specify an iter limit
 (define (egraph-run egraph-data node-limit ffi-rules precompute? [iter-limit #f])
@@ -337,12 +342,20 @@
 
 (define ffi-rules-cache #f)
 
+(define (expand-rules rules)
+  (for/fold ([rules* '()] [egg->herbie (hash)]
+             #:result (values (reverse rules*) egg->herbie))
+            ([rule (in-list rules)])
+    (let ([expanded (rule->egg-rules rule)]
+          [orig-name (rule-name rule)])
+      (values (append expanded rules*)
+              (for/fold ([egg->herbie* egg->herbie]) ([exp-rule (in-list expanded)])
+                (hash-set egg->herbie (rule-name exp-rule) orig-name))))))
+
 (define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
   ;; expand the rules first due to some bad but currently
   ;; necessary reasons (see `rule->egg-rules` for details).
-  (define egg-rules
-    (for/fold ([rules* '()] #:result (reverse rules*)) ([rule (in-list rules)])
-      (append (rule->egg-rules rule) rules*)))
+  (define-values (egg-rules egg->herbie) (expand-rules rules))
 
   ;; check the cache in case we used these rules previously
   (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) egg-rules))
@@ -350,8 +363,10 @@
     (set! ffi-rules-cache (cons egg-rules (make-ffi-rules egg-rules))))
   (define ffi-rules (cdr ffi-rules-cache))
 
+  ;; run the rules
   (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
 
+  ;; get cost statistics
   (let loop ([iter iteration-data] [counter 0] [time 0])
     (unless (null? iter)
       (define cnt (iteration-data-num-nodes (first iter)))
@@ -362,8 +377,14 @@
 
   (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
 
+  ;; get rule statistics
+  (define rule-apps (make-hash))
   (for ([ffi-rule (in-list ffi-rules)] [rule (in-list egg-rules)])
     (define count (egraph-get-times-applied egg-graph ffi-rule))
-    (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
+    (define canon-name (hash-ref egg->herbie (rule-name rule)))
+    (hash-update! rule-apps canon-name (curry + count) count))
+
+  (for ([(name count) (in-hash rule-apps)])
+    (when (> count 0) (timeline-push! 'rules (~a name) count)))
 
   iteration-data)
