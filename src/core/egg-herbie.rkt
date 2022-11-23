@@ -188,6 +188,20 @@
                #:when (equal? (representation-type repr) type))
            (loop rest (cons (cons type repr) assigns)))]))))
 
+(define (reprs-in-expr expr)
+  (define reprs (mutable-set))
+  (let loop ([expr expr])
+    (match expr
+     [(list 'if cond ift iff)
+      (loop cond) (loop ift) (loop iff)]
+     [(list op args ...)
+      (set-add! reprs (operator-info op 'otype))
+      (for ([itype (operator-info op 'itype)])
+        (set-add! reprs itype))
+      (for-each loop args)]
+     [_ (void)]))
+  (set->list reprs))
+
 ;; Translates a Herbie rule into possibly multiple rules
 (define (rule->egg-rules r)
   (match-define (rule name input output itypes otype) r)
@@ -195,7 +209,11 @@
     [(andmap representation? (cons otype (map cdr itypes)))
      ;; rules over representations
      ;; nothing special here: just return the 1 rule
-     (list r)]
+     ;; validate that we support the operators
+     (if (andmap (curry set-member? (*needed-reprs*))
+                 (append (reprs-in-expr input) (reprs-in-expr output)))
+         (list r)
+         (list))]
     [else
      ;; rules over types
      ;; must instantiate the rule over all possible
@@ -220,10 +238,12 @@
            ;; The easier way to tell if every operator is supported
            ;; in a given representation is to just try to desguar
            ;; the expression and catch any errors.
-           (define name* (sym-append (rule-name r) '_ (representation-name sugar-otype)))
+           (define name* (sym-append name '_ (representation-name sugar-otype)))
            (define input* (desugar-program input sugar-ctx #:full #f))
            (define output* (desugar-program output sugar-ctx #:full #f))
-           (sow (rule name* input* output* itypes* otype*)))))]))
+           (when (andmap (curry set-member? (*needed-reprs*))
+                         (append (reprs-in-expr input*) (reprs-in-expr output*)))
+             (sow (rule name* input* output* itypes* otype*))))))]))
 
 (module+ test
   ;; Make sure all built-in rules are valid in some
