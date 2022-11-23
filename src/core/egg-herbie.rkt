@@ -192,7 +192,7 @@
 (define (rule->egg-rules r)
   (match-define (rule name input output itypes otype) r)
   (cond
-    [(andmap representation? (cons otype itypes))
+    [(andmap representation? (cons otype (map cdr itypes)))
      ;; rules over representations
      ;; nothing special here: just return the 1 rule
      (list r)]
