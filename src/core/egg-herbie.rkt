@@ -24,47 +24,42 @@
     (egg-parsed->expr egg-expr (egraph-data-egg->herbie-dict eg-data))))
 
 ;; Converts an S-expr from egg into one Herbie understands
-;; This is really messy since it require outside
-;; information through `*context*`.
 (define (egg-parsed->expr expr rename-dict)
-  (define-values (expr* _)
-    (let loop ([expr expr] [repr (context-repr (*context*))])
-      (match expr
-        [(list 'Rewrite=> rule expr)
-         (define-values (expr* otype) (loop expr repr))
-         (values (list 'Rewrite=> rule expr*) otype)]
-        [(list 'Rewrite<= rule expr)
-         (define-values (expr* otype) (loop expr repr))
-         (values (list 'Rewrite<= rule expr*) otype)]
-        [(list 'if 'real cond ift iff)
-         (define-values (cond* cond-type) (loop cond repr))
-         (define-values (ift* ift-type) (loop ift repr))
-         (define-values (iff* iff-type) (loop iff repr))
-         (values (list 'if cond* ift* iff*) ift-type)]
-        [(list (? repr-conv? op) 'real arg)
-         (define itype (first (operator-info op 'itype)))
-         (define-values (arg* arg-type) (loop arg itype))
-         (values (list op arg*) (operator-info op 'otype))]
-        [(list (? constant-operator? op) prec)
-         (define cnst (get-parametric-constant op (get-representation prec)))
-         (define rtype (operator-info cnst 'otype))
-         (values (list cnst) rtype)]
-        [(list op prec args ...)
-         (define otype (if (equal? prec 'bool) repr (get-representation prec)))
-         (define-values (args* types*)
-           (for/lists (l1 l2) ([arg (in-list args)])
-             (loop arg otype)))
-         (define op* (apply get-parametric-operator op types*))
-         (values (cons op* args*) (operator-info op* 'otype))]
-        [(? number?)
-         (values expr repr)]
-        [_
-         ;; Maybe we should look up in the context,
-         ;; but simpler just to return the
-         ;; current subexpression representation
-         (define renamed (hash-ref rename-dict expr))
-         (values renamed repr)])))
-  expr*)
+  (let loop ([expr expr])
+    (match expr
+      [(list 'Rewrite=> rule expr)
+       (list 'Rewrite=> rule (loop expr))]
+      [(list 'Rewrite<= rule expr)
+       (list 'Rewrite<= rule (loop expr))]
+      [(list 'if 'real cond ift iff)
+       (list 'if (loop cond) (loop ift) (loop iff))]
+      [(list (? repr-conv? op) 'real arg)
+       (list op (loop arg))]
+      [(list op prec)
+       (match-define (list '$Type otype) prec)
+       (list (get-parametric-constant op (get-representation otype)))]
+      [(list op prec args ...)
+       (match-define (list '$Type otype itypes ...) prec)
+       (define op* (apply get-parametric-operator op (map get-representation itypes)))
+       (cons op* (map loop args))]
+      [(? number?)
+       expr]
+      [_
+       (hash-ref rename-dict expr)])))
+
+;; Expands operators into (op, prec) so
+;; that the egraph can happily constant fold
+;; and so that we can recover the implementation
+;; The ugly solution is to make prec = '(type otype itypes).
+(define (expand-operator op-or-impl)
+  (cond
+    [(impl-exists? op-or-impl)
+     (define op (impl->operator op-or-impl))
+     (define itypes (map representation-name (operator-info op-or-impl 'itype)))
+     (define otype (representation-name (operator-info op-or-impl 'otype)))
+     (values op (cons '$Type (cons otype itypes)))]
+    [else
+     (values op-or-impl 'real)]))
 
 (define (expr->egg-pattern+vars expr)
   (define ppatterns (make-hash))
@@ -99,12 +94,6 @@
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
   (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict))
 
-(define (expand-operator op-or-impl)
-  (if (impl-exists? op-or-impl)
-      (values (impl->operator op-or-impl)
-              (representation-name (operator-info op-or-impl 'otype)))
-      (values op-or-impl 'real)))
-
 (define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
   (let loop ([expr expr])
     (match expr
@@ -131,21 +120,32 @@
 
   (check-equal? (expr->egg-pattern `(+ a b)) '(+ ?p0 ?a ?b))
   (check-equal? (expr->egg-pattern `(/ c (- 2 a))) '(/ ?p0 ?c (- ?p0 2 ?a)))
-  (check-equal? (expr->egg-pattern `(cos.f64 (PI.f64))) '(cos binary64 (PI binary64)))
-  (check-equal? (expr->egg-pattern `(if (TRUE) x y)) '(if real (TRUE bool) ?x ?y))
-
-  (define f64 (get-representation 'binary64))
-  (*context* (context '(x y z) f64 (list f64 f64 f64)))
+  (check-equal? (expr->egg-pattern `(cos.f64 (PI.f64)))
+                '(cos ($Type binary64 binary64) (PI ($Type binary64))))
+  (check-equal? (expr->egg-pattern `(if (TRUE) x y))
+                '(if real (TRUE ($Type bool)) ?x ?y))
 
   (define test-exprs
-    (list (cons '(+.f64 y x) "(+ binary64 h0 h1)")
-          (cons '(+.f64 x y) "(+ binary64 h1 h0)")
-          (cons '(-.f64 2 (+.f64 x y)) "(- binary64 2 (+ binary64 h1 h0))")
-          (cons '(-.f64 z (+.f64 (+.f64 y 2) x)) "(- binary64 h2 (+ binary64 (+ binary64 h0 2) h1))")
-          (cons '(*.f64 x y) "(* binary64 h1 h0)")
-          (cons '(+.f64 (*.f64 x y) 2) "(+ binary64 (* binary64 h1 h0) 2)")
-          (cons '(cos.f32 (PI.f32)) "(cos binary32 (PI binary32))")
-          (cons '(if (TRUE) x y) "(if real (TRUE bool) h1 h0)")))
+    (list (cons '(+.f64 y x)
+                "(+ ($Type binary64 binary64 binary64) h0 h1)")
+          (cons '(+.f64 x y)
+                "(+ ($Type binary64 binary64 binary64) h1 h0)")
+          (cons '(-.f64 2 (+.f64 x y))
+                (~a '(- ($Type binary64 binary64 binary64) 2
+                        (+ ($Type binary64 binary64 binary64) h1 h0))))
+          (cons '(-.f64 z (+.f64 (+.f64 y 2) x))
+                (~a '(- ($Type binary64 binary64 binary64) h2
+                        (+ ($Type binary64 binary64 binary64)
+                            (+ ($Type binary64 binary64 binary64) h0 2) h1))))
+          (cons '(*.f64 x y)
+                "(* ($Type binary64 binary64 binary64) h1 h0)")
+          (cons '(+.f64 (*.f64 x y) 2)
+                (~a '(+ ($Type binary64 binary64 binary64)
+                        (* ($Type binary64 binary64 binary64) h1 h0) 2)))
+          (cons '(cos.f32 (PI.f32))
+                "(cos ($Type binary32 binary32) (PI ($Type binary32)))")
+          (cons '(if (TRUE) x y)
+                "(if real (TRUE ($Type bool)) h1 h0)")))
 
   (with-egraph
    (lambda (egg-graph)
@@ -155,6 +155,7 @@
          (check-equal? out expected-out)
          (check-equal? computed-in in)))))
 
+  (define f64 (get-representation 'binary64))
   (*context* (context '(x a b c r) f64 (list f64 f64 f64 f64 f64)))
 
   (define extended-expr-list
