@@ -380,15 +380,16 @@
   (extract!))
 
 (define (pareto-regimes sorted ctx)
-  (let loop ([alts sorted] [idx 0])
+  (let loop ([alts sorted])
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
      [else
       (define opt (infer-splitpoints alts ctx))
       (define branched-alt (combine-alts opt ctx))
+      ;c finds highest index of alts
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons branched-alt (loop (take alts high) (+ idx (- (length alts) high))))])))
+      (cons branched-alt (loop (take alts high)))])))
 
 (define (extract!)
   (define ctx (*context*))
