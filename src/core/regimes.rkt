@@ -22,8 +22,6 @@
 ;; pidx = Point index: The index of the point to the left of which we should split.
 (struct si (cidx pidx) #:prefab)
 
-(define check-pick-unsound #t)
-
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
