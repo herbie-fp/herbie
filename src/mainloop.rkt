@@ -387,7 +387,6 @@
      [else
       (define opt (infer-splitpoints alts ctx))
       (define branched-alt (combine-alts opt ctx))
-      ;c finds highest index of alts
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons branched-alt (loop (take alts high)))])))
 
