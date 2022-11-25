@@ -33,18 +33,7 @@
         (exprs-to-branch-on alts ctx)
         (program-variables (alt-program (first alts)))))
   (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
-  (define options
-    ;; We can only combine alts for which the branch expression is
-    ;; critical, to enable binary search.
-    (reap [sow]
-      (for ([bexpr branch-exprs])
-        (define unsound-option (option-on-expr alts err-lsts bexpr ctx))
-        (sow unsound-option)
-        (define sound-alts (filter (λ (alt) (critical-subexpression? (program-body (alt-program alt)) bexpr)) alts))
-        (when (and (> (length sound-alts) 1)
-                   (for/or ([si (option-split-indices unsound-option)])
-                     (not (set-member? sound-alts (list-ref alts (si-cidx si))))))
-          (sow (option-on-expr sound-alts err-lsts bexpr ctx))))))
+  (define options (for/list ([bexpr branch-exprs]) (option-on-expr alts err-lsts bexpr ctx)))
   (define best (argmin (compose errors-score option-errors) options))
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
