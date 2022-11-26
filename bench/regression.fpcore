@@ -79,8 +79,8 @@
   (acos (- 1 x)))
 
 (FPCore (x y)
-  :name "bu329 (missed optimization)"
-  :pre (>= y 0)
+  :name "bug329 (missed optimization)"
+  :pre (>= x 0)
   :herbie-target
   (atan2 y x)
 
@@ -89,7 +89,7 @@
 (FPCore (x)
   :name "bug333 (missed optimization)"
   :herbie-target
-  (/ (* 2 x) (+ (sqrt (+ x 1)) (sqrt (- x 1))))
+  (/ 2 (+ (sqrt (+ x 1)) (sqrt (- x 1))))
   
   (- (sqrt (+ x 1)) (sqrt (- x 1))))
 
@@ -104,7 +104,7 @@
   :name "bug500 (missed optimization)"
   :herbie-target
   (if (< (fabs x) 0.07)
-      (+ (- (/ (pow x 3) 6) (/ (pow x 5) 120)) (/ (pow x 7) 5040))
+      (- (+ (- (/ (pow x 3) 6) (/ (pow x 5) 120)) (/ (pow x 7) 5040)))
       (- (sin x) x))
 
   (- (sin x) x))
