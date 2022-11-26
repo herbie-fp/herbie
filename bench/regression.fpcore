@@ -78,7 +78,7 @@
 
   (acos (- 1 x)))
 
-(FPCore (x)
+(FPCore (x y)
   :name "bu329 (missed optimization)"
   :pre (>= y 0)
   :herbie-target
