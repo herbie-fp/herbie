@@ -105,7 +105,8 @@
 (FPCore (a b)
   :name "bug366, discussion (missed optimization)"
   :herbie-target
-  (* (sqrt (+ a b)) (sqrt (- a b)))
+  (let* ([fa (fabs a)] [fb (fabs b)])
+    (* (sqrt (+ fa fb)) (sqrt (- fa fb))))
 
   (sqrt (- (* a a) (* b b))))
 
