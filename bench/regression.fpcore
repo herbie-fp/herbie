@@ -73,6 +73,7 @@
 
 (FPCore (x)
   :name "bug323 (missed optimization)"
+  :pre (<= 0 x 0.5)
   :herbie-target
   (* 2 (asin (sqrt (/ x 2))))
 
@@ -88,10 +89,11 @@
 
 (FPCore (x)
   :name "bug333 (missed optimization)"
+  :pre (<= -1 x 1)
   :herbie-target
-  (/ 2 (+ (sqrt (+ x 1)) (sqrt (- x 1))))
+  (/ (* 2 x) (+ (sqrt (+ 1 x)) (sqrt (- 1 x))))
   
-  (- (sqrt (+ x 1)) (sqrt (- x 1))))
+  (- (sqrt (+ 1 x)) (sqrt (- 1 x))))
 
 (FPCore (x y z)
   :name "bug366 (missed optimization)"
@@ -100,8 +102,16 @@
 
   (sqrt (+ (* x x) (+ (* y y) (* z z)))))
 
+(FPCore (a b)
+  :name "bug366, discussion (missed optimization)"
+  :herbie-target
+  (* (sqrt (+ a b)) (sqrt (- a b)))
+
+  (sqrt (- (* a a) (* b b))))
+
 (FPCore (x)
   :name "bug500 (missed optimization)"
+  :pre (< -1e3 x 1e3)
   :herbie-target
   (if (< (fabs x) 0.07)
       (- (+ (- (/ (pow x 3) 6) (/ (pow x 5) 120)) (/ (pow x 7) 5040)))
