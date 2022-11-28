@@ -66,6 +66,16 @@
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
 
+
+
+(define (taylor-valid? expr)
+  (for/or ([(point ex) (in-pcontext (*pcontext*))])
+    (valid-at-point?
+     `(lambda ,(context-vars (*context*))
+        ,expr)
+     (*context*)
+     point)))
+
 ;; Taylor is problematic since it doesn't know what reprs are
 ;; There are two types of errors that occur due to this inconsistency
 ;;  - reduce:
@@ -82,23 +92,19 @@
   (define genexpr (approximate expr-transformed var))
 
   ;; Check to make sure the expression is valid at zero
-  (if (valid-at-point?
-       `(lambda ,(context-vars ctx)
-          ,(desugar-program
-            expr-transformed
-            ctx #:full #t))
-       ctx
-       (map (lambda (v) 0.0) (context-vars ctx)))
-      (λ ()
-        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-          (define res
-            (simplify (replace-expression (genexpr) var (finv var))))
+  (λ ()
+    (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+      (define res
+        (desugar-program
+          (simplify (replace-expression (genexpr) var (finv var)))
+          (*context*) #:full #f))
 
-          (when (unsound-expr? res)
-            (error (format "Taylor expansion of ~a in ~a resulted in unsound program: ~a" expr-transformed var res)))
-
-          (desugar-program res ctx #:full #f)))
-      (λ () #f)))
+      (cond
+        [(taylor-valid? res)
+         (when (unsound-expr? res)
+           (error (format "Taylor expansion of ~a in ~a resulted in unsound program: ~a" expr* var res)))
+         res]
+        [else #f]))))
 
 (define (taylor-alt altn ctx)
   (define prog (alt-program altn))
