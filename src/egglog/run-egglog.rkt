@@ -1148,7 +1148,7 @@
 (define (build-extract exprs variants)
   (for/list ([expr exprs] [i (in-naturals)])
     (if variants
-        `(extract ,(varname i) :variants ,variants)
+        `(extract :variants ,variants ,(varname i))
         `(extract ,(varname i)))))
 
 (define (build-egglog ctx eggdata exprs variants)
