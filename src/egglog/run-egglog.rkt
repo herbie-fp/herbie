@@ -1161,7 +1161,7 @@
 
 (define (run-egglog ctx exprs [variants #f])
   (define eggdata
-    (egraph-data #f (make-hash)
+    (egraph-data (make-hash)
                  (make-hash)))
   (define-values (egglog-process out in err)
     (subprocess #f #f (current-error-port) egglog-binary))

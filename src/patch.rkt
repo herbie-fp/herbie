@@ -69,14 +69,6 @@
 
 
 
-(define (taylor-valid? expr)
-  (for/or ([(point ex) (in-pcontext (*pcontext*))])
-    (valid-at-point?
-     `(lambda ,(context-vars (*context*))
-        ,expr)
-     (*context*)
-     point)))
-
 ;; Taylor is problematic since it doesn't know what reprs are
 ;; There are two types of errors that occur due to this inconsistency
 ;;  - reduce:
@@ -88,7 +80,6 @@
 ;;      operator
 (define (taylor-expr expr ctx repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
-  (define expr-transformed (simplify (replace-expression expr* var (f var))))
   (define genexpr (approximate expr* var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
@@ -146,7 +137,7 @@
                (define expr (program-body (alt-program altn)))
                (filter-not (curry alt-equal? altn)
                            (taylor-alt altn (*context*))))))
-                           
+
     (define series-expansions*
       (filter-valid series-expansions))
 
@@ -271,7 +262,7 @@
     (define input-struct
       (simplify-input to-simplify empty (*simplify-rules*) true))
     (define simplification-options
-      (simplify-batch input-struct))
+      (simplify-batch (*context*) input-struct))
 
     (define simplified
       (remove-duplicates

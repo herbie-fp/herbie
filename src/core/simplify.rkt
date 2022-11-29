@@ -5,7 +5,6 @@
 
 (provide simplify-expr simplify-batch get-proof
          make-simplification-combinations
-         rules->irules
          (struct-out simplify-input))
 
 (module+ test
@@ -14,10 +13,6 @@
 
 ;; The input and output of simplify- simplify is re-run when proofs are needed
 (struct simplify-input (exprs proofs rules precompute?))
-
-(define (rules->irules rules)
-  (for/list ([rule rules])
-    (irule (rule-name rule) (rule-input rule) (rule-output rule))))
 
 ;; given an alt, locations, and a hash from expr to simplification options
 ;; make all combinations of the alt using the simplification options available
@@ -103,7 +98,6 @@
   (define rules (simplify-input-rules input))
 
   (timeline-push! 'method "egglog")
-  (define irules (rules->irules rules))
   (run-egglog ctx (simplify-input-exprs input)))
 
 
