@@ -4,6 +4,8 @@
 (require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
 (require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "ground-truth.rkt" "core/reduce.rkt" "points.rkt")
 
+(require math/bigfloat)
+
 (provide
   (contract-out
    [patch-table-has-expr? (-> expr? boolean?)]
@@ -65,14 +67,6 @@
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
 
-(define (taylor-valid? expr)
-  (for/or ([(point ex) (in-pcontext (*pcontext*))])
-    (valid-at-point?
-     `(lambda ,(context-vars (*context*))
-        ,expr)
-     (*context*)
-     point)))
-
 ;; Taylor is problematic since it doesn't know what reprs are
 ;; There are two types of errors that occur due to this inconsistency
 ;;  - reduce:
@@ -90,13 +84,7 @@
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
       (define res (desugar-program (genexpr) (*context*) #:full #f))
-
-      (cond
-        [(taylor-valid? res)
-         (when (unsound-expr? res)
-           (error (format "Taylor expansion of ~a in ~a resulted in unsound program: ~a" expr* var res)))
-         res]
-        [else #f]))))
+      res)))
 
 (define (taylor-alt altn)
   (define prog (alt-program altn))
@@ -114,6 +102,31 @@
           (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))
       (timeline-stop!))))
 
+
+(define taylor-sample (list 0.0 0.5 -0.5 (bigfloat->flonum (bfprev +inf.bf)) (bigfloat->flonum (bfnext -inf.bf))))
+
+(define (filter-valid alts)
+  (define programs
+    (map alt-program alts))
+  (define points
+    (for/list ([num taylor-sample])
+      (for/list ([var (context-vars (*context*))])
+        num)))
+  (define point-evals
+    (for/list ([point points])
+      ((eval-progs-real programs (*context*)) point)))
+  (define program-results
+    (transpose point-evals))
+  (filter
+   identity
+   (for/list ([res program-results] [prog programs])
+     (if (empty?
+          (filter
+           (lambda (x) (not (equal? x +nan.0)))
+           res))
+         #f
+         prog))))
+
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
@@ -123,14 +136,8 @@
           (define expr (program-body (alt-program altn)))
           (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
 
-    ; Probably unnecessary, at least CI passes!
-    (define (is-nan? x)
-      (and (impl-exists? x) (equal? (impl->operator x) 'NAN)))
-
     (define series-expansions*
-      (filter-not
-        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
-        series-expansions))
+      (filter-valid series-expansions))
 
     ; TODO: accuracy stats for timeline
     (timeline-push! 'count (length (^queued^)) (length series-expansions*))

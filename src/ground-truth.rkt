@@ -1,9 +1,9 @@
 #lang racket
 
 (require math/bigfloat rival racket/hash)
-(require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
+(require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "config.rkt")
 
-(provide sample-points batch-prepare-points make-search-func valid-at-point?)
+(provide sample-points batch-prepare-points make-search-func eval-progs-real)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -53,24 +53,18 @@
         'unsamplable)
        y))))
 
-(define (eval-prog-real prog ctx)
+(define (eval-progs-real progs ctx)
   (define repr (context-repr ctx))
-  (define pre `(λ ,(program-variables prog) (TRUE)))
-  (define fn (make-search-func pre (list prog) ctx))
-  (define (f . pt)
-    (define-values (result prec exs) (ival-eval fn pt))
-    (match exs
-      [(list (ival lo hi))
-       ((representation-bf->repr repr) lo)]
-      [(? nan?)
-       +nan.0]))
+  (define pre `(λ ,(context-vars ctx) (TRUE)))
+  (define fn (make-search-func pre progs ctx))
+  (define (f pt)
+    (define exs (parameterize ([bf-precision 53])
+                  (apply fn pt)))
+    (for/list ([ex exs])
+      (if (ival-error? ex)
+          +nan.0
+          ((representation-bf->repr repr) (ival-lo ex)))))
   (procedure-rename f '<eval-prog-real>))
-
-(define (valid-at-point? prog ctx pt)
-  (not
-   (equal?
-    (apply (eval-prog-real prog ctx) pt)
-    +nan.0)))
 
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
