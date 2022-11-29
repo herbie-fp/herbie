@@ -3,7 +3,7 @@
 (require "cost.rkt" "programs.rkt")
 (provide (struct-out change) (struct-out alt) make-alt alt?
          alt-program alt-add-event *start-prog* *all-alts*
-         alt-cost alt-equal? alt-map unsound-expr?)
+         alt-cost alt-equal? alt-map)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -11,19 +11,6 @@
 ;; They are a labeled linked list of changes.
 
 (struct change (rule location bindings) #:transparent)
-
-(define/contract (unsound-expr? expr)
-  (-> expr? boolean?)
-  (match expr
-    [`(pow ,(? (and/c number? negative?) x)
-           ,(? (compose not integer?) y))
-     #t]
-    [`(sqrt ,(? (and/c number? negative?) num))
-     #t]
-    [(? list?)
-     (for/or ([child expr])
-       (unsound-expr? child))]
-    [else #f]))
 
 
 (struct alt (program event prevs)

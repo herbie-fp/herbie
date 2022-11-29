@@ -1,9 +1,11 @@
 #lang racket
 
-(require egg-herbie "../syntax/syntax.rkt" "../syntax/types.rkt"
+(require "../syntax/syntax.rkt" "../syntax/types.rkt"
          "../programs.rkt" "../errors.rkt")
 (provide egg-expr->expr egg-exprs->exprs
-         expr->egg-expr expr->egglog egglog->expr)
+         expr->egg-expr expr->egglog egglog->expr (struct-out egraph-data))
+
+(struct egraph-data (egg->herbie-dict herbie->egg-dict))
 
 (define (extract-operator impl types)
   (cond

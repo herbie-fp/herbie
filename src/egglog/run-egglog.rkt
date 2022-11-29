@@ -1,7 +1,6 @@
 #lang racket
 
 (require racket/runtime-path)
-(require egg-herbie)
 (require "egraph-conversion.rkt")
 
 (provide run-egglog)

@@ -1,8 +1,8 @@
 #lang racket
 
 (require "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/rules.rkt")
-(require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
-         "../timeline.rkt")
+(require "../common.rkt" "../programs.rkt" "../alternative.rkt"
+         "../timeline.rkt" "../egglog/egraph-conversion.rkt" "../egglog/run-egglog.rkt")
 
 (provide pattern-match rewrite-expressions change-apply)
 
@@ -84,63 +84,7 @@
                            #:rules rules
                            #:roots [root-locs (make-list (length exprs) '())]
                            #:depths [depths (make-list (length exprs) 1)])
-
-  (define reprs (map (λ (e) (repr-of e ctx)) exprs))
-  ; If unsoundness was detected, try running one epxression at a time.
-  ; Can optionally set iter limit (will give up if unsoundness detected).
-  (let loop ([exprs exprs] [root-locs root-locs] [iter-limit #f])
-    ; Returns a procedure rather than the variants directly:
-    ; if we need to fallback, we exit the `with-egraph` closure first
-    ; so the existing egraph gets cleaned up
-    (define result-thunk
-      (with-egraph
-        (λ (egg-graph)
-          (define expr-strings
-            (map (lambda (e) (expr->egg-expr ctx e egg-graph))
-                 exprs))
-          (define node-ids
-            (map (curry
-                  (if (flag-set? 'generate 'egglog)
-                      egraph-add-expr-egglog
-                      egraph-add-expr)
-                  (vartypes-symbols ctx) egg-graph) expr-strings))
-          (define iter-data
-            (egglog-run egg-graph))
-
-          #;(for ([rule rules])
-            (define count (egraph-get-times-applied egg-graph (rule-name rule)))
-            (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
-          (cond
-            [(and (not (flag-set? 'generate 'egglog)) (egraph-is-unsound-detected egg-graph))
-            ; unsoundness detected, fallback
-            (match* (exprs iter-limit)
-              [((list (? list?) (? list?) (? list?) ...) #f)     ; run expressions individually
-              (λ ()
-                (for/list ([expr exprs] [root-loc root-locs])
-                  (timeline-push! 'method "egg-rewrite")
-                  (car (loop (list expr) (list root-loc) #f))))]
-              [((list (? list?)) #f)                             ; run expressions with iter limit
-              (λ ()
-                (let ([limit (- (length iter-data) 2)])
-                  (timeline-push! 'method "egg-rewrite-iter-limit")
-                  (loop exprs root-locs limit)))]
-              [(_ (? number?))                                   ; give up
-              (timeline-push! 'method "egg-rewrite-fail")
-              (λ () '(()))])]
-           [else
-            (define variants
-              (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
-                (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
-                (define expr-str (expr->egg-expr ctx expr egg-graph))
-                (define output 
-                  ((if (flag-set? 'generate 'egglog)
-                      egglog-get-variants egraph-get-variants)
-                   (vartypes-symbols ctx) egg-graph id expr-str))
-                (define extracted (egg-exprs->exprs ctx output egg-graph))
-                (for/list ([variant (remove-duplicates extracted)])
-                  (list (change egg-rule root-loc (list (cons 'x variant)))))))
-            (λ () variants)]))))
-    (result-thunk)))
+  (run-egglog ctx exprs 10000))
 
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs

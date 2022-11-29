@@ -102,7 +102,7 @@
   (define proofs (simplify-input-proofs input))
   (define rules (simplify-input-rules input))
 
-  (timeline-push! 'method "egg-herbie")
+  (timeline-push! 'method "egglog")
   (define irules (rules->irules rules))
   (run-egglog ctx (simplify-input-exprs input)))
 
