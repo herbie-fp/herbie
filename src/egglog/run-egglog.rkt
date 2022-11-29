@@ -1147,9 +1147,7 @@
 
 (define (build-extract exprs variants)
   (for/list ([expr exprs] [i (in-naturals)])
-    (if variants
-        `(extract :variants ,variants ,(varname i))
-        `(extract ,(varname i)))))
+    `(extract :variants ,variants ,(varname i))))
 
 (define (build-egglog ctx eggdata exprs variants)
   (append
@@ -1159,7 +1157,8 @@
    (build-extract exprs variants)))
 
 
-(define (run-egglog ctx exprs [variants #f])
+;; 0 variants means just extract the best expression
+(define (run-egglog ctx exprs #:variants [variants 0])
   (define eggdata
     (egraph-data (make-hash)
                  (make-hash)))
@@ -1169,7 +1168,7 @@
   (define egglog-program
     (build-egglog ctx eggdata exprs variants))
 
-  #;(for ([line egglog-program])
+  (for ([line egglog-program])
       (writeln line))
   (for ([line egglog-program])
     (writeln line in))
@@ -1177,10 +1176,11 @@
 
   (define results
     (for/list ([expr exprs])
-      (egglog->expr ctx eggdata (read out))))
+      (map (curry egglog->expr ctx eggdata) (read out))))
 
-  #;(for ([res results])
+  (for ([res results])
     (writeln res))
+  (flush-output)
 
   (subprocess-kill egglog-process #t)
 

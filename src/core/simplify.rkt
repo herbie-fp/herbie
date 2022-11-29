@@ -98,7 +98,7 @@
   (define rules (simplify-input-rules input))
 
   (timeline-push! 'method "egglog")
-  (run-egglog ctx (simplify-input-exprs input)))
+  (map first (run-egglog ctx (simplify-input-exprs input))))
 
 
 (define (stop-reason->string sr)

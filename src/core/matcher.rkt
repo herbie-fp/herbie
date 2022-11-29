@@ -84,7 +84,7 @@
                            #:rules rules
                            #:roots [root-locs (make-list (length exprs) '())]
                            #:depths [depths (make-list (length exprs) 1)])
-  (run-egglog ctx exprs 10000))
+  (run-egglog ctx exprs #:variants 10000))
 
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
@@ -106,5 +106,6 @@
     (timeline-push! 'method "batch-egg-rewrite")
     (timeline-push! 'inputs (map ~a exprs))
     (define out (batch-egg-rewrite exprs ctx #:rules rules #:roots root-locs #:depths depths))
+    (println out)
     (timeline-push! 'outputs (map ~a out))
     out]))
