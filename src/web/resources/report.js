@@ -265,6 +265,178 @@ const ClientGraph = new Component('#graphs', {
     }
 })
 
+const MergedCostAccuracy = new Component('#merged-cost-accuracy', {
+    setup: async () => {
+        const points_json = await (async () => {
+            const get_points_store = {}
+            
+            const get_points_memo = async () => {
+                if (get_points_store.value) { return get_points_store.value }
+                const ps = await get_json('results.json');
+                get_points_store.value = ps;
+                return get_points_store.value;
+            }
+            const get_json = url => fetch(url, {
+                // body: `_body_`,
+                headers: {"content-type": "text/plain"},
+                method: "GET",
+                mode: 'cors'
+                }).then(async response => {
+                //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
+                return await response.json()
+            })
+            return get_points_memo()
+        })()
+
+        const plot = async () => {
+            // NOTE ticks and splitpoints include all vars, so we must index
+            const costAccuracy = points_json["cost-accuracy"];
+            const sortLine = [...costAccuracy[2]];
+            sortLine.sort((a, b) => {return a[0]-b[0]});
+            const out = Plot.plot({
+                marks: [
+                    Plot.line(sortLine, {x: d => d[0], y: d => d[1], stroke: "red"}),
+                    Plot.dot(costAccuracy[2], {x: d => d[0], y: d => d[1], fill: "red", stroke: "black"}),
+                    Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "black"})
+                ],
+                grid: true,
+                width: '800',
+                height: '400',                
+                    x: {
+                        label: `Cost`,
+                        domain: [0, costAccuracy[0][0]]
+                    },
+                    y: {
+                        label: "Sum of error bits",
+                        domain: [0, costAccuracy[0][1]],
+                    },
+            })
+            out.setAttribute('viewBox', '0 0 800 460')
+            return out
+        }
+        function html(string) {
+            const t = document.createElement('template');
+            t.innerHTML = string;
+            return t.content;
+        }
+        async function render() {
+            const options_view = html(`
+                <div id="plot_options">
+                </div>
+            `)
+            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+            document.querySelector('#pareto-content').replaceChildren(await plot(), options_view)
+        }
+        render()
+    }
+})
+
+const CostAccuracy = new Component('#cost-accuracy', {
+    setup: async () => {
+        const content = document.querySelector('#pareto-content');
+        
+        const results_json = await (async () => {
+            const get_results_store = {}
+            
+            const get_results_memo = async () => {
+                if (get_results_store.value) { return get_results_store.value }
+                const ps = await get_json('../results.json');
+                get_results_store.value = ps;
+                return get_results_store.value;
+            }
+            const get_json = url => fetch(url, {
+                // body: `_body_`,
+                headers: {"content-type": "text/plain"},
+                method: "GET",
+                mode: 'cors'
+                }).then(async response => {
+                //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
+                return await response.json()
+            })
+            return get_results_memo()
+        })()
+
+        const plot = async () => {
+            // NOTE ticks and splitpoints include all vars, so we must index
+            const tests = results_json.tests;
+            
+            let benchmark;
+
+            // find right test by iterating through results_json
+            for (let test of tests) {
+                console.log(test);
+                if (test.name == content.dataset.benchmarkName) {
+                    benchmark = test;
+                    break;
+                }
+            }
+
+            console.log(benchmark);
+
+            const costAccuracy = benchmark["cost-accuracy"];
+            
+            // find maximum x and y values
+            let xmax = costAccuracy[0][0];
+            let ymax = costAccuracy[0][1];
+
+            if (costAccuracy[1][0] > xmax) xmax = costAccuracy[1][0];
+            if (costAccuracy[1][1] > ymax) ymax = costAccuracy[1][1];
+            
+            for (let point of costAccuracy[2]) {
+                if (point[0] > xmax) xmax = point[0];
+                if (point[1] > ymax) ymax = point[1];
+            }
+
+            // ceiling ymax to nearest multiple of 16
+            const range = Math.ceil(ymax/16) * 16;
+
+            // composite array for both best and other points so the line graph
+            // contains the best point as well.
+            const allpoints = [costAccuracy[1], ...costAccuracy[2]];
+            allpoints.sort((a, b) => {return a[0]-b[0]});
+            console.log(allpoints);
+
+            const out = Plot.plot({
+                marks: [
+                    Plot.dot(costAccuracy[0], {x: costAccuracy[0][0], y: costAccuracy[0][1], fill: "black"}),
+                    Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "red", stroke: "blue", title: d => `x: ${costAccuracy[1][0]} y: ${costAccuracy[1][1]} best`}),
+                    Plot.dot(costAccuracy[2], {x: d => d[0], y: d => d[1], fill: "red", stroke: "black", title: d => `x: ${d[0]} y: ${d[1]} exp: ${d[2]}`}),
+                    Plot.line(allpoints, {x: d => d[0], y: d => d[1], stroke: "red"})
+                ],
+                grid: true,
+                width: '800',
+                height: '400',                
+                    x: {
+                        label: `Cost`,
+                        domain: [0, 2 * xmax]
+                    },
+                    y: {
+                        label: "Bits of error",
+                        domain: [0, range],
+                        ticks: new Array(range / 4 + 1).fill(0).map((_, i) => i * 4),
+                        tickFormat: d => d % 8 != 0 ? '' : d
+                    },
+            })
+            out.setAttribute('viewBox', '0 0 800 430')
+            return out
+        }
+        function html(string) {
+            const t = document.createElement('template');
+            t.innerHTML = string;
+            return t.content;
+        }
+        async function render() {
+            const options_view = html(`
+                <div id="plot_options">
+                </div>
+            `)
+            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+
+            content.replaceChildren(await plot(), options_view)
+        }
+        render()
+    }
+})
 var RenderMath = new Component(".math", {
     depends: function() {
         if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";
@@ -282,6 +454,16 @@ var Timeline = new Component(".timeline", {
             var type = ts[i].getAttribute("data-type");
             ts[i].style.flexGrow = timespan;
             ts[i].title = type + " (" + Math.round(timespan/100)/10 + "s)";
+        }
+    }
+});
+
+var Bogosity = new Component(".bogosity", {
+    setup: function() {
+        var ts = this.elt.children;
+        for (var i = 0; i < ts.length; i++) {
+            var timespan = +ts[i].getAttribute("data-timespan");
+            ts[i].style.flexGrow = timespan;
         }
     }
 });

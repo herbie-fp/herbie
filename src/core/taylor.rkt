@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/number-theory)
-(require "../common.rkt" "../programs.rkt" "reduce.rkt")
+(require "../common.rkt" "../programs.rkt" "reduce.rkt" "../syntax/syntax.rkt")
 (provide approximate)
 
 (define (approximate expr var #:iters [iters 5])

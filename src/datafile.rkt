@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/date json)
-(require "common.rkt")
+(require "common.rkt" "./syntax/types.rkt" "pareto.rkt")
 
 (provide
  (struct-out table-row) (struct-out report-info)
@@ -28,6 +28,28 @@
                (*num-iterations*)
                note
                tests))
+
+(define (try-list-accessor acc fail)
+  (λ (l) (if (null? l) fail (acc l))))
+
+(define (trs->pareto trs)
+  (define cas (map table-row-cost-accuracy trs))
+  (define starts (map (try-list-accessor first (list 0 0)) cas))
+  (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
+                                       (list (list 0 0)))
+                    cas))
+  (define reprs (map (compose get-representation table-row-precision) trs))
+
+  (define start
+    (for/fold ([x 0] [y 0] #:result (cons x y)) ([s starts])
+      (values (+ x (first s)) (+ y (second s)))))
+  (define ptss*
+    (for/list ([pts ptss])
+      (for/list ([pt pts])
+        (cons (first pt) (second pt)))))
+  (define ymax (apply + (map representation-total-bits reprs)))
+  (define frontier (map (λ (pt) (cons (first pt) (second pt))) (pareto-combine ptss #:convex? #t)))
+  (values start frontier ymax))
 
 (define (write-datafile file info)
   (define (simplify-test test)
@@ -66,7 +88,16 @@
           (bits . ,bits)
           (link . ,(~a link))
           (cost-accuracy . ,cost-accuracy*)))]))
-  
+
+  (define (merged-cost-accuracy tests)
+      (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
+      (match-define (list (cons costs scores) ...) pareto-points)
+      (define x-max (argmax identity (cons (car pareto-start) costs)))
+      (list 
+          (list x-max pareto-max)
+          (list (car pareto-start) (cdr pareto-start))
+          (for/list ([acost costs] [aerr scores]) (list acost aerr))))
+
   (define data
     (match info
       [(report-info date commit branch hostname seed flags points iterations note tests)
@@ -80,7 +111,8 @@
           (points . ,points)
           (iterations . ,iterations)
           (note . ,note)
-          (tests . ,(map simplify-test tests))))]))
+          (tests . ,(map simplify-test tests))
+          (cost-accuracy . ,(merged-cost-accuracy tests))))]))
 
   (call-with-atomic-output-file file (λ (p name) (write-json data p))))
 

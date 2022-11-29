@@ -1,0 +1,54 @@
+(FPCore (x)
+  :name "Rust f64::asinh"
+  :spec (asinh x)
+
+  :herbie-target
+  (let* ([ax (fabs x)] [ix (/ 1 ax)])
+    (copysign (log1p (+ ax (/ ax (+ (hypot 1 ix) ix)))) x))
+
+  (copysign (log (+ (fabs x) (sqrt (+ (* x x) 1)))) x))
+
+(FPCore (x)
+  :name "Rust f32::asinh"
+  :spec (asinh x)
+  :precision binary32
+
+  :herbie-target
+  (let* ([ax (fabs x)] [ix (/ 1 ax)])
+    (copysign (log1p (+ ax (/ ax (+ (hypot 1 ix) ix)))) x))
+
+  (copysign (log (+ (fabs x) (sqrt (+ (* x x) 1)))) x))
+
+(FPCore (x)
+  :name "Rust f64::acosh"
+  :spec (acosh x)
+  :pre (>= x 1)
+
+  :herbie-target
+  (log (+ x (* (sqrt (- x 1)) (sqrt (+ x 1)))))
+
+  (log (+ x (sqrt (- (* x x) 1)))))
+
+(FPCore (x)
+  :name "Rust f32::acosh"
+  :spec (acosh x)
+  :precision binary32
+  :pre (>= x 1)
+
+  :herbie-target
+  (log (+ x (* (sqrt (- x 1)) (sqrt (+ x 1)))))
+
+  (log (+ x (sqrt (- (* x x) 1)))))
+
+(FPCore (x)
+  :name "Rust f64::atanh"
+  :spec (atanh x)
+
+  (* 0.5 (log1p (/ (* 2 x) (- 1 x)))))
+
+(FPCore (x)
+  :name "Rust f32::atanh"
+  :spec (atanh x)
+  :precision binary32
+
+  (* 0.5 (log1p (/ (* 2 x) (- 1 x)))))

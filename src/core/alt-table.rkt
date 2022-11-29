@@ -1,7 +1,8 @@
 #lang racket
 
 (require racket/hash)
-(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt" "../syntax/types.rkt" "../pareto.rkt")
+(require "../common.rkt" "../alternative.rkt" "../points.rkt" "../programs.rkt"
+         "../syntax/types.rkt" "../pareto.rkt")
 
 (provide
  (contract-out
@@ -56,15 +57,34 @@
           (struct-copy alt-table atab
                        [alt->done? (hash-set (alt-table-alt->done? atab) picked #t)])))
 
-(define (atab-active-alts atab)
-  (hash-keys (alt-table-alt->points atab)))
-
-(define (atab-all-alts atab)
-  (alt-table-all atab))
-
 (define (atab-completed? atab)
   (andmap (curry hash-ref (alt-table-alt->done? atab))
           (hash-keys (alt-table-alt->points atab))))
+
+;;
+;; Extracting lists from sets or hash tables
+;; need to be treated with care:
+;;   - Internal hash tables and sets may cause
+;;     non-deterministic behavior in ordering.
+;;   - Need to sort to ensure some predictable order
+;;
+;; But why?? Still unclear.
+;; If the conversion from seteq or hasheq to list is guarded
+;; by sorting shouldn't everything else be deterministic???
+;;
+(define (order-altns altns)
+  (sort altns expr<? #:key (compose program-body alt-program)))
+
+(define (atab-active-alts atab)
+  (order-altns (hash-keys (alt-table-alt->points atab))))
+
+(define (atab-all-alts atab)
+  (order-altns (alt-table-all atab)))
+
+(define (atab-not-done-alts atab)
+  (define altns (hash-keys (alt-table-alt->points atab)))
+  (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
+  (order-altns (filter not-done? altns)))
 
 ;; Split the alt table into several alt tables, each of which corresponds to a pred
 ;; in 'preds', and only contains points which satisfy that pred.
@@ -93,49 +113,12 @@
       (alt-table point->alts alt->points alt->done? alt->cost
                  context (alt-table-all atab)))))
 
-;; Helper Functions
-
-(define (expr-cmp a b)
-  (match* (a b)
-   [((? list?) (? list?))
-    (define len-a (length a))
-    (define len-b (length b))
-    (cond
-     [(< len-a len-b) -1]
-     [(> len-a len-b) 1]
-     [else
-      (let loop ([a a] [b b])
-        (if (null? a)
-            0
-            (let ([cmp (expr-cmp (car a) (car b))])
-              (if (zero? cmp)
-                  (loop (cdr a) (cdr b))
-                  cmp))))])]
-   [((? list?) _) 1]
-   [(_ (? list?)) -1]
-   [((? symbol?) (? symbol?))
-    (cond
-     [(symbol<? a b) -1]
-     [(symbol=? a b) 0]
-     [else 1])]
-   [((? symbol?) _) 1]
-   [(_ (? symbol?)) -1]
-   [(_ _)
-    (cond
-     [(< a b) -1]
-     [(= a b) 0]
-     [else 1])]))
-
-(define (expr<? a b)
-  (< (expr-cmp a b) 0))
-
 ;; Implementation
 
 (struct set-cover (removable coverage))
 
 (define (atab->set-cover atab)
   (match-define (alt-table pnts->alts alts->pnts alt->done? alt->cost _ _) atab)
-  
   (define tied (list->mutable-seteq (hash-keys alts->pnts)))
   (define coverage '())
   (for* ([pcurve (in-hash-values pnts->alts)] [ppt (in-list pcurve)])
@@ -165,7 +148,8 @@
       (vector-set! coverage j #f)
       (set-remove! removable last))))
 
-(define (worst atab altns)
+(define (worst atab removable)
+  ;; Metrics for "worst" alt
   (define (alt-num-points a)
     (length (hash-ref (alt-table-alt->points atab) a)))
   (define (alt-done? a)
@@ -174,20 +158,22 @@
     (if (*pareto-mode*)
         (hash-ref (alt-table-alt->cost atab) a)
         (backup-alt-cost a)))
-
-  (argmax alt-cost (argmins alt-num-points (argmins alt-done? altns))))
+  ;; Rank by multiple metrics
+  (define not-done (argmins alt-done? (set->list removable)))
+  (define least-best-points (argmins alt-num-points not-done))
+  (define worst-cost (argmaxs alt-cost least-best-points))
+  ;; The set may have non-deterministic behavior,
+  ;; so we can only rely on some total order
+  (first (order-altns worst-cost)))
 
 (define (atab-prune atab)
   (define sc (atab->set-cover atab))
-  (define removable (sort (set->list (set-cover-removable sc)) expr<?
-                          #:key (compose program-body alt-program)))
-  (let loop ([removed '()] [removable removable])
+  (let loop ([removed '()])
     (if (set-empty? (set-cover-removable sc))
         (apply atab-remove* atab removed)
-        (let ([worst-alt (worst atab removable)])
+        (let ([worst-alt (worst atab (set-cover-removable sc))])
           (set-cover-remove! sc worst-alt)
-          (loop (cons worst-alt removed)
-                (filter (curry set-member? (set-cover-removable sc)) removable))))))
+          (loop (cons worst-alt removed))))))
 
 (define (hash-remove* hash keys)
   (for/fold ([hash hash]) ([key keys])
@@ -195,12 +181,9 @@
 
 (define (atab-remove* atab . altns)
   (match-define (alt-table point->alts alt->points alt->done? alt->cost pctx _) atab)
-
-  (define altns* (list->set altns))
   (define pnts->alts*
     (for/hash ([(pt curve) (in-hash point->alts)])
       (values pt (pareto-map (curry remq* altns) curve))))
-
   (struct-copy alt-table atab
                [point->alts pnts->alts*]
                [alt->points (hash-remove* alt->points altns)]
@@ -212,22 +195,20 @@
   (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
   (values errss costs))
 
-(define (sort-altns altns errss costs)
-  (define unsorted (map list altns errss costs))
-  (define sorted (sort unsorted expr<? #:key (compose program-body alt-program first)))
-  (values (map first sorted) (map second sorted) (map third sorted)))
-
 (define (atab-add-altns atab altns errss costs)
-  ;; sort by total order function
-  (define-values (altns* errss* costs*) (sort-altns altns errss costs))
-  ;; add to table
-  (define atab*
-    (for/fold ([atab atab]) ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
-      (if (hash-has-key? (alt-table-alt->points atab) altn)
-          atab
-          (atab-add-altn atab altn errs cost))))
-  (define atab** (struct-copy alt-table atab* [alt->points (invert-index (alt-table-point->alts atab*))]))
-  ;; prune
+  (define-values (atab* progs*)
+    (for/fold ([atab atab] [progs (set-map (alt-table-all atab) alt-program)])
+              ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
+      ;; this is subtle, we actually want to check for duplicates
+      ;; in terms of expressions, not alts: the default `equal?`
+      ;; returns #f for the same expression with different derivations.
+      (let ([prog (alt-program altn)])
+        (if (set-member? progs prog)
+            (values atab progs)
+            (values (atab-add-altn atab altn errs cost) (set-add progs prog))))))
+  (define atab**
+    (struct-copy alt-table atab*
+                 [alt->points (invert-index (alt-table-point->alts atab*))]))
   (define atab*** (atab-prune atab**))
   (struct-copy alt-table atab***
                [alt->points (invert-index (alt-table-point->alts atab***))]
@@ -256,11 +237,6 @@
              (hash-set alt->cost altn cost)
              pcontext
              #f))
-
-(define (atab-not-done-alts atab)
-  (define altns (hash-keys (alt-table-alt->points atab)))
-  (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
-  (sort (filter not-done? altns) expr<? #:key (compose program-body alt-program)))
 
 (define (atab-min-errors atab)
   (define pnt->alts (alt-table-point->alts atab))

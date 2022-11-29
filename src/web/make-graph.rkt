@@ -6,7 +6,7 @@
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../syntax/types.rkt"
-         "../syntax/read.rkt" "../core/regimes.rkt" "../sandbox.rkt"
+         "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
          "common.rkt" "history.rkt" "../syntax/sugar.rkt")
          
 (provide make-graph)
@@ -18,14 +18,6 @@
       [(alt _ `(regimes ,splitpoints) prevs) splitpoints]
       [(alt _ _ (list)) #f]
       [(alt _ _ (list prev _ ...)) (loop prev)])))
-
-(define (regime-splitpoints altn)
-  (map sp-point (drop-right (regime-info altn) 1)))
-
-(define/contract (regime-var altn)
-  (-> alt? (or/c expr? #f))
-  (define info (regime-info altn))
-  (and info (sp-bexpr (car info))))
 
 (define/contract (render-interactive start-prog point)
   (-> alt? (listof number?) xexpr?)
@@ -161,8 +153,7 @@
       ,(if (not (null? other-alts))
           `(section ([id "cost-accuracy"])
             (h1 "Error")
-            (img ([width "800"] [height "300"] [title "cost-accuracy"]
-                  [data-name "Cost Accuracy"] [src "cost-accuracy.png"])))
+            (div ([id "pareto-content"] [data-benchmark-name ,(~a (test-name test))])))
             "")
 
       ,(render-reproduction test)))

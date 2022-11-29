@@ -4,7 +4,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
-(provide infer-splitpoints (struct-out sp) splitpoints->point-preds (struct-out option) (struct-out si))
+(provide infer-splitpoints (struct-out option) (struct-out si))
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -16,14 +16,6 @@
            (display "#<option " port)
            (write (option-split-indices opt) port)
            (display ">" port))])
-
-;; TODO: splitpoint lists sp ends with +nan.0. These is suspect, for multi-precision, but I think is sound.
-
-;; Struct representing a splitpoint
-;; cidx = Candidate index: the index of the candidate program that should be used to the left of this splitpoint
-;; bexpr = Branch Expression: The expression that this splitpoint should split on
-;; point = Split Point: The point at which we should split.
-(struct sp (cidx bexpr point) #:prefab)
 
 ;; Struct representing a splitindex
 ;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
@@ -225,41 +217,3 @@
   ;; Extract the splitpoints from our data structure, and reverse it.
   (reverse (cse-indices (vector-ref final (- num-points 1)))))
 
-(define (valid-splitpoints? splitpoints)
-  (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1)
-       (nan? (sp-point (last splitpoints)))))
-
-(define/contract (splitpoints->point-preds splitpoints alts ctx)
-  (-> valid-splitpoints? (listof alt?) context? (listof procedure?))
-
-  (define bexpr (sp-bexpr (car splitpoints)))
-  (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
-  (define prog (eval-prog `(λ ,(context-vars ctx*) ,bexpr) 'fl ctx*))
-
-  (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
-    (λ (pt)
-      (define val (apply prog pt))
-      (for/first ([right splitpoints]
-                  #:when (or (equal? (sp-point right) +nan.0)
-                             (<=/total val (sp-point right) (context-repr ctx*))))
-        ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
-        (equal? (sp-cidx right) i)))))
-
-(module+ test
-  (define context (make-debug-context '(x y)))
-  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))])
-    (define sps
-      (list (sp 0 '(/.f64 y x) -inf.0)
-            (sp 2 '(/.f64 y x) 0.0)
-            (sp 0 '(/.f64 y x) +inf.0)
-            (sp 1 '(/.f64 y x) +nan.0)))
-    (match-define (list p0? p1? p2?)
-                  (splitpoints->point-preds
-                    sps
-                    (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
-                    context))
-
-    (check-pred p0? '(0.0 -1.0))
-    (check-pred p2? '(-1.0 1.0))
-    (check-pred p0? '(+1.0 1.0))
-    (check-pred p1? '(0.0 0.0))))

@@ -1,8 +1,8 @@
 #lang racket
 
-(require egg-herbie)
-(require "../common.rkt" "../programs.rkt" "../alternative.rkt"
-         "../syntax/rules.rkt" "../syntax/types.rkt" "../timeline.rkt" "simplify.rkt" "../config.rkt" "../egglog/egraph-conversion.rkt")
+(require "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/rules.rkt")
+(require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
+         "../timeline.rkt")
 
 (provide pattern-match rewrite-expressions change-apply)
 
@@ -86,7 +86,6 @@
                            #:depths [depths (make-list (length exprs) 1)])
 
   (define reprs (map (λ (e) (repr-of e ctx)) exprs))
-  (define irules (rules->irules rules))
   ; If unsoundness was detected, try running one epxression at a time.
   ; Can optionally set iter limit (will give up if unsoundness detected).
   (let loop ([exprs exprs] [root-locs root-locs] [iter-limit #f])

@@ -1,6 +1,5 @@
 #lang racket
 
-(require egg-herbie)
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt" "../syntax/types.rkt" "../egglog/egraph-conversion.rkt" "../egglog/run-egglog.rkt")
 
@@ -12,18 +11,6 @@
 (module+ test
   (require rackunit "../load-plugin.rkt")
   (load-herbie-plugins))
-
-;; One module to rule them all, the great simplify. It uses egg-herbie
-;; to simplify an expression as much as possible without making
-;; unnecessary changes. We do this by creating an egraph, saturating
-;; it partially, then extracting the simplest expression from it.
-;;
-;; Simplify makes only one guarantee: that the input is mathematically
-;; equivalent to the output. For any exact x, evaluating the input on
-;; x will yield the same expression as evaluating the output on x.
-
-;; prefab struct used to send rules to egg-herbie
-(struct irule (name input output) #:prefab)
 
 ;; The input and output of simplify- simplify is re-run when proofs are needed
 (struct simplify-input (exprs proofs rules precompute?))
@@ -42,9 +29,9 @@
   ;;      (hash-ref simplify-hash (location-get loc (alt-program child)))))))
   (define location-options
     (apply cartesian-product
-     (for/list ([loc locs])
-       (list (last (hash-ref simplify-hash (location-get loc (alt-program child))))))))
-  
+           (for/list ([loc locs])
+             (list (last (hash-ref simplify-hash (location-get loc (alt-program child))))))))
+
   (define options
     (for/list ([option location-options])
       (for/fold ([child child]) ([replacement option] [loc locs])
@@ -69,15 +56,15 @@
 (define (get-proof input start end)
   empty
   #;(if (flag-set? 'generate 'egglog)
-      empty
-      (run-simplify-input
-       input
-       (lambda (egg-graph node-ids iter-data)
-         (begin
-           (define proof (egraph-get-proof egg-graph start end))
-           (when (equal? proof "")
-             (error (format "Failed to produce proof for ~a to ~a" start end)))
-            (translate-proof proof egg-graph))))))
+        empty
+        (run-simplify-input
+         input
+         (lambda (egg-graph node-ids iter-data)
+           (begin
+             (define proof (egraph-get-proof egg-graph start end))
+             (when (equal? proof "")
+               (error (format "Failed to produce proof for ~a to ~a" start end)))
+             (translate-proof proof egg-graph))))))
 
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
@@ -89,7 +76,7 @@
                   (listof (cons/c expr? expr?))
                   (listof rule?)
                   boolean?))
-         (listof (listof expr?)))
+       (listof (listof expr?)))
 
   (timeline-push! 'inputs (map ~a (simplify-input-exprs input)))
 
@@ -103,7 +90,7 @@
     (for/list ([result results] [expr (simplify-input-exprs input)])
       (remove-duplicates (list expr result))))
   (timeline-push! 'outputs (map ~a (apply append out)))
-    
+
   out)
 
 (define (run-simplify-input ctx input)
@@ -114,7 +101,7 @@
   (define precompute? (simplify-input-precompute? input))
   (define proofs (simplify-input-proofs input))
   (define rules (simplify-input-rules input))
-  
+
   (timeline-push! 'method "egg-herbie")
   (define irules (rules->irules rules))
   (run-egglog ctx (simplify-input-exprs input)))
@@ -122,10 +109,10 @@
 
 (define (stop-reason->string sr)
   (match sr
-   ['saturated  "saturated"]
-   ['iter-limit "iter limit"]
-   ['node-limit "node limit"]
-   ['unsound    "unsound"]))
+    ['saturated  "saturated"]
+    ['iter-limit "iter limit"]
+    ['node-limit "node limit"]
+    ['unsound    "unsound"]))
 
 
 (module+ test
@@ -141,7 +128,7 @@
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
 
   (define ctx (context (list 'x 'y 'z) 'binary64 (list 'binary64 'binary64 'binary64)))
-  
+
   (define (test-simplify . args)
     (map last (simplify-batch
                ctx
@@ -161,7 +148,7 @@
           [(-.f64 (+.f64 x 1) 1) . x]
           [(/.f64 (*.f64 x 3) x) . 3]
           [(-.f64 (*.f64 (sqrt.f64 (+.f64 x 1)) (sqrt.f64 (+.f64 x 1)))
-              (*.f64 (sqrt.f64 x) (sqrt.f64 x))) . 1]
+                  (*.f64 (sqrt.f64 x) (sqrt.f64 x))) . 1]
           [(+.f64 1/5 3/10) . 1/2]
           [(cos.f64 (PI.f64)) . -1]
           ;; this test is problematic and runs out of nodes currently
@@ -172,15 +159,15 @@
   (define outputs (apply test-simplify (hash-keys test-exprs)))
   (for ([(original target) test-exprs] [output outputs])
     (with-check-info (['original original])
-       (check-equal? output target)))
+      (check-equal? output target)))
 
-  (check set-member? '((*.f64 x 6) (*.f64 6 x)) 
-                     (first (test-simplify '(+.f64 (+.f64 (+.f64 (+.f64 (+.f64 x x) x) x) x) x))))
+  (check set-member? '((*.f64 x 6) (*.f64 6 x))
+         (first (test-simplify '(+.f64 (+.f64 (+.f64 (+.f64 (+.f64 x x) x) x) x) x))))
 
   (define no-crash-exprs
-    '((exp.f64 (/.f64 (/.f64 (*.f64 (*.f64 c a) 4) 
-                      (-.f64 (neg.f64 b) (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 4 (*.f64 a c)))))) (*.f64 2 a)))))
+    '((exp.f64 (/.f64 (/.f64 (*.f64 (*.f64 c a) 4)
+                             (-.f64 (neg.f64 b) (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 4 (*.f64 a c)))))) (*.f64 2 a)))))
 
   (for ([expr no-crash-exprs])
     (with-check-info (['original expr])
-       (check-not-exn (λ () (test-simplify expr))))))
+      (check-not-exn (λ () (test-simplify expr))))))

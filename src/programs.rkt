@@ -3,14 +3,13 @@
 (require math/bigfloat rival)
 (require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
 
-(provide (all-from-out "syntax/syntax.rkt")
-         program-body program-variables
-         expr? expr-supports? expr-contains?
+(provide program-body program-variables
+         expr? expr-contains? expr<?
          type-of repr-of
          location-do location-get
          batch-eval-progs eval-prog eval-application
-         free-variables replace-expression replace-vars
-         apply-repr-change)
+         free-variables unsound-expr?
+         replace-expression replace-vars)
 
 (module+ test
   (require rackunit "load-plugin.rkt")
@@ -48,21 +47,47 @@
    [(list 'if cond ift iff) (repr-of ift ctx)]
    [(list op args ...) (operator-info op 'otype)]))
 
-(define (expr-supports? expr field)
-  (let loop ([expr expr])
-    (match expr
-      [(list 'if cond ift iff)
-       (and (loop cond) (loop ift) (loop iff))]   ; if is special-cased and always supported
-      [(list op args ...)
-       (and (operator-info op field) (andmap loop args))]
-      [(? variable?) true]
-      [(? number?) true])))
-
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
     (match expr
      [(list elems ...) (ormap loop elems)]
      [term (pred term)])))
+
+;; Total order on expressions
+
+(define (expr-cmp a b)
+  (match* (a b)
+   [((? list?) (? list?))
+    (define len-a (length a))
+    (define len-b (length b))
+    (cond
+     [(< len-a len-b) -1]
+     [(> len-a len-b) 1]
+     [else
+      (let loop ([a a] [b b])
+        (if (null? a)
+            0
+            (let ([cmp (expr-cmp (car a) (car b))])
+              (if (zero? cmp)
+                  (loop (cdr a) (cdr b))
+                  cmp))))])]
+   [((? list?) _) 1]
+   [(_ (? list?)) -1]
+   [((? symbol?) (? symbol?))
+    (cond
+     [(symbol<? a b) -1]
+     [(symbol=? a b) 0]
+     [else 1])]
+   [((? symbol?) _) 1]
+   [(_ (? symbol?)) -1]
+   [(_ _)
+    (cond
+     [(< a b) -1]
+     [(= a b) 0]
+     [else 1])]))
+
+(define (expr<? a b)
+  (< (expr-cmp a b) 0))
 
 ;; Converting constants
 
@@ -104,7 +129,7 @@
 
 (define (eval-prog prog mode ctx)
   (define f (batch-eval-progs (list prog) mode ctx))
-  (λ args (vector-ref (apply f args) 0)))
+  (λ args (first (apply f args))))
 
 (define (batch-eval-progs progs mode ctx)
   (define repr (context-repr ctx))
@@ -182,7 +207,7 @@
         (for/list ([arg (in-list (cdr expr))])
           (vector-ref v arg)))
       (vector-set! v n (apply (car expr) tl)))
-    (for/vector ([n (in-list names)])
+    (for/list ([n (in-list names)])
       (vector-ref v n)))
   (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
 
@@ -258,6 +283,19 @@
     (cons op (map (curryr replace-expression needle needle*) args))]
    [x x]))
 
+(define/contract (unsound-expr? expr)
+  (-> expr? boolean?)
+  (match expr
+    [`(pow ,(? (and/c number? negative?) x)
+           ,(? (compose not integer?) y))
+     #t]
+    [`(sqrt ,(? (and/c number? negative?) num))
+     #t]
+    [(? list?)
+     (for/or ([child expr])
+       (unsound-expr? child))]
+    [else #f]))
+
 (module+ test
   (check-equal? (replace-expression '(λ (x) (- x (sin x))) 'x 1)
                 '(λ (x) (- 1 (sin 1))))
@@ -269,86 +307,3 @@
     '(/ 1 cos))
    '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
 
-; Updates the repr of an expression if needed
-(define (apply-repr-change-expr expr ctx)
-  (let loop ([expr expr] [repr #f])
-    (match expr
-     [(list (? repr-conv? op) body)
-      (define irepr (first (operator-info op 'itype)))
-      (define orepr (operator-info op 'otype))
-      (define repr* (or repr orepr))
-      (define body* (loop body irepr))
-      (cond
-       [(not body*) #f] ; propagate failed repr-change
-       [else
-        (define new-conv (get-repr-conv irepr repr*)) ; try to find a single conversion
-        (if new-conv
-            (list new-conv body*)
-            (let ([second-conv (get-repr-conv orepr repr*)]) ; try a two-step conversion
-              (and second-conv (list second-conv (list op body*)))))])]
-     [(list (? rewrite-repr-op? rr) (list (? repr-conv? op) body))  ; repr change on a conversion
-      (define irepr (first (operator-info op 'itype)))
-      (define repr* (operator-info rr 'otype))
-      (if (equal? repr* irepr)
-          (if repr
-              (loop body irepr) ; if the conversions are inverses and not the top
-              (list op (loop body irepr)))
-          (if repr
-              (loop (list op body) repr*)
-              (let* ([conv (get-repr-conv repr* (context-repr ctx))]
-                     [body* (loop body repr*)])
-                (and conv body* (list conv body*)))))]
-     [(list (? rewrite-repr-op? op) body)
-      (define irepr (operator-info op 'otype))
-      (define orepr (or repr (context-repr ctx)))
-      (cond
-       [(equal? irepr orepr)
-        (loop body irepr)]
-       [else
-        (define conv (get-repr-conv irepr orepr))
-        (define body* (loop body irepr))
-        (and conv body* (list conv body*))])]
-     [(list 'if con ift iff)
-      (define repr* (or repr (context-repr ctx)))
-      (define con*
-        (let loop2 ([con con])
-          (cond
-           [(set-member? '((TRUE) (FALSE)) con)
-            con]
-           [else
-            (match-define (list op args ...) con)
-            (define args*
-              (for/list ([arg args] [atype (operator-info op 'itype)])
-                (if (equal? (representation-type atype) 'bool)
-                    (loop2 arg)
-                    (loop arg atype))))
-            (cons op args*)])))
-      (define ift* (loop ift repr*))
-      (define iff* (loop iff repr*))
-      (and ift* iff* `(if ,con* ,ift* ,iff*))]
-     [(list (? operator? op) args ...) 
-      (define orepr (operator-info op 'otype))
-      (define repr* (or repr orepr))
-      (if (equal? orepr repr*)
-          (let ([args* (map loop args (operator-info op 'itype))])
-            (and (andmap identity args*) (cons op args*)))
-          (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-            (let ([op* (apply get-parametric-operator
-                            (impl->operator op)
-                            (make-list (length args) repr*))]
-                  [args* (map (curryr loop repr*) args)])
-            (and (andmap identity args*) (cons op* args*)))))]
-     [(? variable?)
-      (define var-repr (context-lookup ctx expr))
-      (cond
-       [(equal? var-repr repr) expr]
-       [else ; insert a cast if the variable precision is not the same
-        (define cast (get-repr-conv var-repr repr))
-        (and cast (list cast expr))])]
-     [_ expr])))
-
-(define (apply-repr-change prog ctx)
-  (match prog
-   [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body ctx))]
-   [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(apply-repr-change-expr body ctx))]
-   [_ (apply-repr-change-expr prog ctx)]))

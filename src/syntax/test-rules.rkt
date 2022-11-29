@@ -30,7 +30,7 @@
   (define progs (list `(λ ,fv ,p1) `(λ ,fv ,p2)))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
-      (sample-points precondition progs ctx)))
+      (cdr (sample-points precondition progs ctx))))
 
   (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
       (with-check-info (['point (map cons fv pt)] ['input v1] ['output v2])

@@ -1,17 +1,18 @@
 #lang racket
 
-(require "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt"
-         "alternative.rkt" "common.rkt" "errors.rkt" "programs.rkt"
-         "timeline.rkt" "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/types.rkt" "core/reduce.rkt"
-         "ground-truth.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
+(require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
+(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "ground-truth.rkt" "core/reduce.rkt" "points.rkt")
+
+(require math/bigfloat)
 
 (provide
-  (contract-out
-   [patch-table-has-expr? (-> expr? boolean?)]
-   [patch-table-run-simplify (-> (listof alt?) (listof alt?))]
-   [patch-table-run (-> (listof (cons/c (listof symbol?) expr?))
-                        (listof (cons/c (listof symbol?) expr?))
-                        (listof alt?))]))
+ (contract-out
+  [patch-table-has-expr? (-> expr? boolean?)]
+  [patch-table-run-simplify (-> (listof alt?) (listof alt?))]
+  [patch-table-run (-> (listof (cons/c (listof symbol?) expr?))
+                       (listof (cons/c (listof symbol?) expr?))
+                       (listof alt?))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -23,7 +24,7 @@
 
 ; patch table may be invalidated between runs
 (register-reset
-  (λ () (set! *patch-table* (patchtable (make-hash) '() '() #f #f #f))))
+ (λ () (set! *patch-table* (patchtable (make-hash) '() '() #f #f #f))))
 
 ; setters / getters
 
@@ -59,7 +60,7 @@
 
 (define transforms-to-try
   (let ([invert-x (λ (x) `(/ 1 ,x))] [exp-x (λ (x) `(exp ,x))] [log-x (λ (x) `(log ,x))]
-	[ninvert-x (λ (x) `(/ 1 (neg ,x)))])
+                                     	[ninvert-x (λ (x) `(/ 1 (neg ,x)))])
     `((0 ,identity ,identity)
       (inf ,invert-x ,invert-x)
       (-inf ,ninvert-x ,ninvert-x)
@@ -87,24 +88,12 @@
 ;;      operator
 (define (taylor-expr expr ctx repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
-  ;; apply the transformation to the variable
   (define expr-transformed (simplify (replace-expression expr* var (f var))))
-  (define genexpr (approximate expr-transformed var))
-
-  ;; Check to make sure the expression is valid at zero
+  (define genexpr (approximate expr* var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (define res
-        (desugar-program
-          (simplify (replace-expression (genexpr) var (finv var)))
-          (*context*) #:full #f))
-
-      (cond
-        [(taylor-valid? res)
-         (when (unsound-expr? res)
-           (error (format "Taylor expansion of ~a in ~a resulted in unsound program: ~a" expr* var res)))
-         res]
-        [else #f]))))
+      (define res (desugar-program (genexpr) (*context*) #:full #f))
+      res)))
 
 (define (taylor-alt altn ctx)
   (define prog (alt-program altn))
@@ -112,41 +101,54 @@
   (define vars (program-variables prog))
   (define repr (repr-of expr (*context*)))
   (reap [sow]
-    (for* ([var (free-variables expr)] [transform-type transforms-to-try])
-      (match-define (list name f finv) transform-type)
-      (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-      (define genexpr (taylor-expr expr ctx repr var f finv))
-      (for ([i (in-range 4)])
-        (define replace (genexpr))
-        (when replace
-          (define expr* (list (first prog) (second prog) replace))
-          (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))
-      (timeline-stop!))))
+        (for* ([var (free-variables expr)] [transform-type transforms-to-try])
+          (match-define (list name f finv) transform-type)
+          (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
+          (define genexpr (taylor-expr expr ctx repr var f finv))
+          (for ([i (in-range 4)])
+            (define replace (genexpr))
+            (when replace
+              (define expr* (list (first prog) (second prog) replace))
+              (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))
+          (timeline-stop!))))
+
+
+(define taylor-sample (list 0.0 0.5 -0.5 (bigfloat->flonum (bfprev +inf.bf)) (bigfloat->flonum (bfnext -inf.bf))))
+
+(define (filter-valid alts)
+  (define programs
+    (map alt-program alts))
+  (define points
+    (for/list ([num taylor-sample])
+      (for/list ([var (context-vars (*context*))])
+        num)))
+  (define point-evals
+    (for/list ([point points])
+      ((eval-progs-real programs (*context*)) point)))
+  (define program-results
+    (transpose point-evals))
+  (filter
+   identity
+   (for/list ([res program-results] [prog programs])
+     (if (empty?
+          (filter
+           (lambda (x) (not (equal? x +nan.0)))
+           res))
+         #f
+         prog))))
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
     (define series-expansions
       (apply append
-        (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
-          (define expr (program-body (alt-program altn)))
-          (filter-not (curry alt-equal? altn)
-                      (taylor-alt altn (*context*))))))
-
-    ; Probably unnecessary, at least CI passes!
-    (define (is-nan? x)
-      (and (impl-exists? x) (equal? (impl->operator x) 'NAN)))
-
-    (define (is-inf? x)
-      (and (impl-exists? x) (equal? (impl->operator x) 'INFINITY)))
-
+             (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
+               (define expr (program-body (alt-program altn)))
+               (filter-not (curry alt-equal? altn)
+                           (taylor-alt altn (*context*))))))
+                           
     (define series-expansions*
-      (filter-not
-       (λ (x)
-         (or (expr-contains? (program-body (alt-program x)) is-nan?)
-             (expr-contains? (program-body (alt-program x)) is-inf?)))
-       series-expansions))
-
+      (filter-valid series-expansions))
 
     ; TODO: accuracy stats for timeline
     (timeline-push! 'count (length (^queued^)) (length series-expansions*))
@@ -161,10 +163,10 @@
 ;  - normal: everything else
 (define (partition-rules rules)
   (let-values ([(expansive normal)
-                  (partition (compose variable? rule-input) rules)])
+                (partition (compose variable? rule-input) rules)])
     (let-values ([(reprchange expansive*)
                   (partition (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?))
-                                     expansive)])
+                             expansive)])
       (values reprchange expansive* normal))))
 
 (define (merge-changelists . lsts)
@@ -204,12 +206,12 @@
   (define changelists
     (if one-real-repr?
         (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules) #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))
+         (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules) #:roots locs)
+         (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))
         (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules normal-rules #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:roots locs #:once? #t)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))))
+         (rewrite-expressions exprs (*context*) #:rules normal-rules #:roots locs)
+         (rewrite-expressions exprs (*context*) #:rules expansive-rules #:roots locs #:once? #t)
+         (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))))
 
   ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
@@ -226,11 +228,11 @@
   (define rule-counts
     (for ([rgroup (group-by identity rules-used)])
       (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
-  
+
   (define rewritten
     (for/fold ([done '()] #:result (reverse done))
               ([cls comb-changelists] [altn altns]
-              #:when true [cl cls])
+                                      #:when true [cl cls])
       (let loop ([cl cl] [altn altn])
         (if (null? cl)
             (cons altn done)
@@ -248,8 +250,8 @@
 
 (define (get-starting-expr altn)
   (match (alt-event altn)
-   [(list 'patch) (program-body (alt-program altn))]
-   [_ (get-starting-expr (first (alt-prevs altn)))]))
+    [(list 'patch) (program-body (alt-program altn))]
+    [_ (get-starting-expr (first (alt-prevs altn)))]))
 
 (define (simplify!)
   (unless (or (^series^) (^rewrites^))
@@ -260,57 +262,38 @@
   (when (flag-set? 'generate 'simplify)
     (timeline-event! 'simplify)
     (define children (^final^))
-
-    ;; We want to avoid simplifying if possible, so we only
-    ;; simplify things produced by function calls in the rule
-    ;; pattern. This means no simplification if the rule output as
-    ;; a whole is not a function call pattern, and no simplifying
-    ;; subexpressions that don't correspond to function call
-    ;; patterns.
-    (define locs-list
-      (for/list ([child (in-list children)] [n (in-naturals 1)])
-        (match (alt-event child)
-          [(list 'taylor _ _ loc) (list loc)]
-          [(list 'change cng)
-           (match-define (change rule loc _) cng)
-           (define pattern (rule-output rule))
-           (cond
-            [(not (list? pattern)) '()]
-            [else
-             (for/list ([pos (in-naturals 1)]
-                        [arg-pattern (cdr pattern)] #:when (list? arg-pattern))
-               (append loc (list pos)))])]
-          [_ (list '(2))])))
+    (define variables (context-vars (*context*)))
 
     (define to-simplify
-      (for/list ([child (in-list children)] [locs locs-list]
-                 #:when true [loc locs])
-        (location-get loc (alt-program child))))
+      (for/list ([child (in-list children)])
+        (program-body (alt-program child))))
 
-    (define input
+    (define input-struct
       (simplify-input to-simplify empty (*simplify-rules*) true))
     (define simplification-options
-      (simplify-batch (*context*) input))
-
-    (define simplify-hash
-      (make-immutable-hash (map cons to-simplify simplification-options)))
+      (simplify-batch input-struct))
 
     (define simplified
-      (apply append
-             (for/list ([child (in-list children)] [locs locs-list])
-              (make-simplification-combinations child locs simplify-hash input))))
+      (remove-duplicates
+       (for/list ([child (in-list children)] [input (in-list to-simplify)]
+                                             [outputs (in-list simplification-options)]
+                                             #:when true
+                                             [output outputs])
+         (if (equal? input output)
+             child
+             (alt `(λ ,variables ,output) `(simplify (2) ,input-struct #f #f) (list child))))
+       alt-equal?))
 
     ; dedup for cache
-    (define simplified* (remove-duplicates simplified alt-equal?))
     (unless (and (null? (^queued^)) (null? (^queuedlow^)))  ; don't run for simplify-only
-      (for ([altn (in-list simplified*)])
+      (for ([altn (in-list simplified)])
         (define cachable (map (compose program-body alt-program) (^queued^)))
         (let ([expr0 (get-starting-expr altn)])
           (when (set-member? cachable expr0)
             (add-patch! (get-starting-expr altn) altn)))))
-    
-    (timeline-push! 'count (length locs-list) (length simplified*))
-    (^final^ simplified*))
+
+    (timeline-push! 'count (length children) (length simplified))
+    (^final^ simplified))
   (void))
 
 (define (patch-table-clear!)
@@ -328,8 +311,8 @@
 (define (patch-table-add! expr vars down?)
   (when (patch-table-has-expr? expr)
     (raise-user-error 'patch-table-add!
-      "attempting to add previously patched expression: ~a"
-      expr))
+                      "attempting to add previously patched expression: ~a"
+                      expr))
   (define altn* (alt `(λ ,vars ,expr) `(patch) '()))
   (if down?
       (^queuedlow^ (cons altn* (^queuedlow^)))
@@ -345,31 +328,31 @@
 (define (patch-table-run locs lowlocs)
   (define cached
     (for/fold ([qed '()] [ced '()]
-              #:result (begin0 (reverse ced) (^queued^ (reverse qed))))
+                         #:result (begin0 (reverse ced) (^queued^ (reverse qed))))
               ([(vars expr) (in-dict locs)])
       (if (patch-table-has-expr? expr)
           (values qed (cons expr ced))
           (let ([altn* (alt `(λ ,vars ,expr) `(patch) '())])
             (values (cons altn* qed) ced)))))
   (^queuedlow^
-    (for/list ([(vars expr) (in-dict lowlocs)])
-      (alt `(λ ,vars ,expr) `(patch) '())))
+   (for/list ([(vars expr) (in-dict lowlocs)])
+     (alt `(λ ,vars ,expr) `(patch) '())))
   (cond
-   [(and (null? (^queued^))       ; only fetch cache
-         (null? (^queuedlow^)))
-    (append-map patch-table-get cached)]
-   [else                          ; run patches
-    (if (null? (^queued^))
-        (^series^ '())
-        (gen-series!))
-    (gen-rewrites!)
-    (simplify!)
-    (begin0 (apply append (^final^) (map patch-table-get cached))
-      (patch-table-clear!))]))
+    [(and (null? (^queued^))       ; only fetch cache
+          (null? (^queuedlow^)))
+     (append-map patch-table-get cached)]
+    [else                          ; run patches
+     (if (null? (^queued^))
+         (^series^ '())
+         (gen-series!))
+     (gen-rewrites!)
+     (simplify!)
+     (begin0 (apply append (^final^) (map patch-table-get cached))
+             (patch-table-clear!))]))
 
 (define (patch-table-run-simplify altns)
   (^rewrites^ (append altns (if (^rewrites^) (^rewrites^) '())))
   (simplify!)
   (begin0 (^final^)
-    (patch-table-clear!)))
-          
+          (patch-table-clear!)))
+

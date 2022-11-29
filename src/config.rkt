@@ -6,14 +6,14 @@
 (define all-flags
   #hash([precision . (double fallback)]
         [setup . (simplify search)]
-        [generate . (egglog rr taylor simplify better-rr)]
+        [generate . (rr taylor simplify better-rr)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define default-flags
   #hash([precision . ()]
         [setup . (simplify search)]
-        [generate . (egglog rr taylor simplify)]
+        [generate . (rr taylor simplify)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
@@ -69,17 +69,17 @@
 ;; Number of points to sample for evaluating program accuracy
 (define *num-points* (make-parameter 256))
 
+
 ;; Number of iterations of the core loop for improving program accuracy
 (define *num-iterations* (make-parameter 4))
-
-;; Use egglog instead of egg
-(define *egglog-enabled* (make-parameter #t))
 
 ;; The maximum depth for splitting the space when searching for valid areas of points.
 (define *max-find-range-depth* (make-parameter 12))
 
 ;; The maximum number of consecutive skipped points for sampling valid points
 (define *max-skipped-points* (make-parameter 100))
+
+(define *max-bsearch-bits* (make-parameter 48))
 
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *starting-prec* (make-parameter 256))

@@ -16,10 +16,10 @@
 
 (register-reset
  (λ ()
-  (set! fn-inverses '())
-  (set! fn-evaluations (make-hash))
-  (set! simplify-cache (make-hash))
-  (set! simplify-node-cache (make-hash))))
+   (set! fn-inverses '())
+   (set! fn-evaluations (make-hash))
+   (set! simplify-cache (make-hash))
+   (set! simplify-node-cache (make-hash))))
 
 (define (load-rule-hacks)
   (set! fn-inverses
@@ -46,7 +46,7 @@
      `(λ ,vars ,(simplify body))]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
      (list op (simplify body))]
-    [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary 
+    [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary
      (define args* (map simplify args))
      (define val (apply eval-application op args*))
      (or val (simplify-node (list* op args*)))]
@@ -125,18 +125,18 @@
        (cons (if (ormap (compose (curry = 0) car) dens) 'NAN (apply / (car num) (map car dens)))
              (append (cdr num)
                      (map negate-term (append-map cdr dens)))))]
-    ;; commented out unsoundness
+    ;; Commented out due to unsoundness issues
     #;[`(sqrt ,arg)
-     (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-sqrt (eval-application 'sqrt (car terms)))
-       (if exact-sqrt
-           (cons exact-sqrt
-                 (for/list ([term (cdr terms)])
-                   (cons (/ (car term) 2) (cdr term))))
-           (list* 1
-                  (cons 1 `(sqrt ,(car terms)))
-                  (for/list ([term (cdr terms)])
-                    (cons (/ (car term) 2) (cdr term))))))]
+       (let ([terms (gather-multiplicative-terms arg)])
+         (define exact-sqrt (eval-application 'sqrt (car terms)))
+         (if exact-sqrt
+             (cons exact-sqrt
+                   (for/list ([term (cdr terms)])
+                     (cons (/ (car term) 2) (cdr term))))
+             (list* 1
+                    (cons 1 `(sqrt ,(car terms)))
+                    (for/list ([term (cdr terms)])
+                      (cons (/ (car term) 2) (cdr term))))))]
     [`(cbrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
        (define exact-cbrt (eval-application 'cbrt (car terms)))
@@ -150,18 +150,18 @@
                     (cons (/ (car term) 3) (cdr term))))))]
     [`(pow ,arg 0)
      '(1)]
-    ;; commented out unsoundness
+    ;; Commented out due to unsoundness issues
     #;[`(pow ,arg ,(? real? a))
-     (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-pow (eval-application 'pow (car terms) a))
-       (if exact-pow
-           (cons exact-pow
-                 (for/list ([term (cdr terms)])
-                   (cons (* a (car term)) (cdr term))))
-           (list* 1
-                  (cons a (car terms))
-                  (for/list ([term (cdr terms)])
-                    (cons (* a (car term)) (cdr term))))))]
+       (let ([terms (gather-multiplicative-terms arg)])
+         (define exact-pow (eval-application 'pow (car terms) a))
+         (if exact-pow
+             (cons exact-pow
+                   (for/list ([term (cdr terms)])
+                     (cons (* a (car term)) (cdr term))))
+             (list* 1
+                    (cons a (car terms))
+                    (for/list ([term (cdr terms)])
+                      (cons (* a (car term)) (cdr term))))))]
     [else
      `(1 (1 . ,expr))]))
 
@@ -171,7 +171,7 @@
       (let ([sum (hash-ref! h (cadr term) (λ () 0))])
         (hash-set! h (cadr term) (+ (car term) sum))))
     (reap [sow]
-     (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k))))))))
+          (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k))))))))
 
 (define (combine-mterms terms)
   (cons
@@ -193,15 +193,15 @@
 (define (make-addition-node terms)
   (let-values ([(pos neg) (partition (λ (x) (and (real? (car x)) (positive? (car x)))) terms)])
     (cond
-     [(and (null? pos) (null? neg))
-      0]
-     [(null? pos)
-      `(neg ,(make-addition-node* (map negate-term neg)))]
-     [(null? neg)
-      (make-addition-node* pos)]
-     [else
-      `(- ,(make-addition-node* pos)
-          ,(make-addition-node* (map negate-term neg)))])))
+      [(and (null? pos) (null? neg))
+       0]
+      [(null? pos)
+       `(neg ,(make-addition-node* (map negate-term neg)))]
+      [(null? neg)
+       (make-addition-node* pos)]
+      [else
+       `(- ,(make-addition-node* pos)
+           ,(make-addition-node* (map negate-term neg)))])))
 
 ;; TODO : Use (- x y) when it is simpler
 (define (make-addition-node* terms)
@@ -235,14 +235,14 @@
 (define (make-multiplication-subsubnode terms)
   (let-values ([(pos neg) (partition (compose positive? car) terms)])
     (cond
-     [(and (null? pos) (null? neg)) 1]
-     [(null? pos)
-      `(/ 1 ,(make-multiplication-subsubsubnode (map negate-term neg)))]
-     [(null? neg)
-      (make-multiplication-subsubsubnode pos)]
-     [else
-      `(/ ,(make-multiplication-subsubsubnode pos)
-          ,(make-multiplication-subsubsubnode (map negate-term neg)))])))
+      [(and (null? pos) (null? neg)) 1]
+      [(null? pos)
+       `(/ 1 ,(make-multiplication-subsubsubnode (map negate-term neg)))]
+      [(null? neg)
+       (make-multiplication-subsubsubnode pos)]
+      [else
+       `(/ ,(make-multiplication-subsubsubnode pos)
+           ,(make-multiplication-subsubsubnode (map negate-term neg)))])))
 
 (define (make-multiplication-subsubsubnode terms)
   (match terms

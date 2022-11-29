@@ -98,53 +98,40 @@
          (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
     (timeline-push! 'method "search")
     (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
-    (define hyperrects
-      (find-intervals (compose car search-func) hyperrects-analysis
+    (match-define (cons hyperrects sampling-table)
+      (find-intervals search-func hyperrects-analysis
                       #:reprs reprs #:fuel (*max-find-range-depth*)))
-    (make-hyperrect-sampler hyperrects reprs)]
+    (cons (make-hyperrect-sampler hyperrects reprs) sampling-table)]
    [else
     (timeline-push! 'method "random")
-    (λ () (map random-generate reprs))]))
+    (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
 (define (point-logger name vars)
   (define start (current-inexact-milliseconds))
-  (define (log! . args)
+  (define (log! status precision pt)
     (define now (current-inexact-milliseconds))
-    (match-define (list category prec)
-      (match args
-        [`(exit ,prec ,pt)
-         (define key (list 'exit prec))
-         (warn 'ground-truth #:url "faq.html#ground-truth"
+    (when (equal? status 'exit)
+      (warn 'ground-truth #:url "faq.html#ground-truth"
                "could not determine a ground truth for program ~a" name
                #:extra (for/list ([var vars] [val pt])
-                         (format "~a = ~a" var val)))
-         key]
-        [`(unsamplable ,prec ,pt) (list 'overflowed prec)]
-        [`(sampled ,prec ,pt) (list 'valid prec)]
-        [`(invalid ,prec ,pt) (list 'invalid prec)]))
+                         (format "~a = ~a" var val))))
     (define dt (- now start))
-    (timeline-push! 'outcomes (~a name) prec (~a category) dt 1)
+    (timeline-push! 'outcomes (~a name) precision (~a status) dt 1)
     (set! start now))
   log!)
 
-(define (ival-stuck-false? v)
-  (define (close-enough x y) x)
-  (define ival-close-enough? (close-enough->ival close-enough))
-  (not (ival-hi (ival-close-enough? v))))
-
 (define (ival-eval fn pt #:precision [precision (*starting-prec*)])
   (let loop ([precision precision])
-    (match-define (list valid exs ...) (parameterize ([bf-precision precision]) (apply fn pt)))
+    (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
+    (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
     (define precision* (exact-floor (* precision 2)))
     (cond
-     [(not (ival-hi valid))
-      (values 'invalid precision +nan.0)]
-     [(ival-stuck-false? valid)
-      (values 'unsamplable precision +nan.0)]
-     [(ival-lo valid)
-      (values 'sampled precision exs)]
+     [err
+      (values (or err 'bad) precision +nan.0)]
+     [(not err?)
+      (values 'valid precision exs)]
      [(> precision* (*max-mpfr-prec*))
       (values 'exit precision +nan.0)]
      [else
@@ -157,6 +144,7 @@
   (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
   (define logger (point-logger 'body (context-vars ctx)))
+  (define outcomes (make-hash))
 
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
@@ -164,6 +152,7 @@
 
       (define-values (status precision out)
         (ival-eval fn pt #:precision starting-precision))
+      (hash-update! outcomes status (curry + 1) 0)
       (logger status precision pt)
 
       (cond
@@ -179,4 +168,4 @@
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exactss)])))
   (timeline-compact! 'outcomes)
-  (cons points (flip-lists exactss)))
+  (cons outcomes (cons points (flip-lists exactss))))
