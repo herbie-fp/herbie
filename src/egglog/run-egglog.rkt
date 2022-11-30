@@ -1137,7 +1137,7 @@
 (define (build-iter)
   (define analysis-iter
     `((load-ruleset analysis)
-      (run 10)
+      (run 3)
       (clear-rules)))
   (define rules-iter
     `((load-ruleset rules)
@@ -1147,7 +1147,7 @@
 
 (define (build-runner)
   (apply append
-     (for/list ([iter (in-range 2)])
+         (for/list ([iter (in-range 2)])
           (build-iter))))
 
 (define (build-extract exprs variants)
@@ -1188,7 +1188,7 @@
     (writeln res))
   #;(flush-output)
 
-  (subprocess-kill egglog-process #t)
+  (subprocess-kill egglog-process #f)
 
   results)
 
