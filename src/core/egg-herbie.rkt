@@ -361,28 +361,36 @@
   (destroy_egraphiters res-len egraphiters)
   res)
 
+;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
 (define ffi-rules-cache #f)
 
+;; expand the rules first due to some bad but currently
+;; necessary reasons (see `rule->egg-rules` for details).
+;; checks the cache in case we used them previously
 (define (expand-rules rules)
-  (for/fold ([rules* '()] [canon-names (hash)]
-             #:result (values (reverse rules*) canon-names))
-            ([rule (in-list rules)])
-    (let ([expanded (rule->egg-rules rule)]
-          [orig-name (rule-name rule)])
-      (values (append expanded rules*)
-              (for/fold ([canon-names* canon-names]) ([exp-rule (in-list expanded)])
-                (hash-set canon-names* (rule-name exp-rule) orig-name))))))
+  (define key (cons rules (*needed-reprs*)))
+  (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) key))
+    ; free any rules in the cache
+    (when ffi-rules-cache
+      (match-define (list _ ffi-rules _) (cdr ffi-rules-cache))
+      (free-ffi-rules ffi-rules))
+    ; instantiate rules
+    (define-values (egg-rules canon-names)
+      (for/fold ([rules* '()] [canon-names (hash)] #:result (values (reverse rules*) canon-names))
+                ([rule (in-list rules)])
+        (define expanded (rule->egg-rules rule))
+        (define orig-name (rule-name rule))
+        (values (append expanded rules*)
+                (for/fold ([canon-names* canon-names])
+                          ([exp-rule (in-list expanded)])
+                  (hash-set canon-names* (rule-name exp-rule) orig-name)))))
+    ; update the cache
+    (set! ffi-rules-cache (cons key (list egg-rules (make-ffi-rules egg-rules) canon-names))))
+  (cdr ffi-rules-cache))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
-  ;; expand the rules first due to some bad but currently
-  ;; necessary reasons (see `rule->egg-rules` for details).
-  (define-values (egg-rules canon-names) (expand-rules rules))
-
-  ;; check the cache in case we used these rules previously
-  (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) egg-rules))
-    (when ffi-rules-cache (free-ffi-rules (cdr ffi-rules-cache)))
-    (set! ffi-rules-cache (cons egg-rules (make-ffi-rules egg-rules))))
-  (define ffi-rules (cdr ffi-rules-cache))
+  ;; expand rules (will also check cache)
+  (match-define (list egg-rules ffi-rules canon-names) (expand-rules rules))
 
   ;; run the rules
   (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
@@ -395,7 +403,6 @@
       (define new-time (+ time (iteration-data-time (first iter))))
       (timeline-push! 'egraph counter cnt cost new-time)
       (loop (rest iter) (+ counter 1) new-time)))
-
   (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
 
   ;; get rule statistics
