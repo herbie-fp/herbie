@@ -64,7 +64,7 @@
 
 (define (rewrite-once expr ctx #:rules rules #:root [root-loc '()])
   ;; we want rules over representations
-  (define-values (rules* canon-names) (expand-rules rules))
+  (match-define (list rules* _ canon-names) (expand-rules rules))
   (define rule-apps (make-hash))
   ;; actually match
   (define expr-repr (repr-of expr ctx))
