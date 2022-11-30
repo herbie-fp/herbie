@@ -116,7 +116,7 @@
 
 (module+ test
   (require "../load-plugin.rkt")
-  (load-herbie-builtins)
+  (*context* (make-debug-context '()))
 
   (check-equal? (expr->egg-pattern `(+ a b)) '(+ ?p0 ?a ?b))
   (check-equal? (expr->egg-pattern `(/ c (- 2 a))) '(/ ?p0 ?c (- ?p0 2 ?a)))
@@ -155,9 +155,7 @@
          (check-equal? out expected-out)
          (check-equal? computed-in in)))))
 
-  (define f64 (get-representation 'binary64))
-  (*context* (context '(x a b c r) f64 (list f64 f64 f64 f64 f64)))
-
+  (*context* (make-debug-context '(x a b c r)))
   (define extended-expr-list
     (list
      '(/ (- (exp x) (exp (- x))) 2)

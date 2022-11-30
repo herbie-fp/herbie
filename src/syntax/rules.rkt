@@ -17,6 +17,24 @@
 (define *simplify-rules* (make-parameter '()))
 (define *fp-safe-simplify-rules* (make-parameter '()))
 
+;; Note on rules
+;; fp-safe-simplify ⊂ simplify ⊂ all
+;;
+;; all                    requires at least one tag of an active group of rules
+;; simplify               same req. as all + 'simplify' tag
+;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag ('fp-safe' does not imply 'simplify')
+;;
+
+(define (update-rules rules groups)
+  (when (ormap (curry flag-set? 'rules) groups)             ; update all
+    (*rules* (append (*rules*) rules))
+    (when (set-member? groups 'simplify)                    ; update simplify
+      (*simplify-rules* (append (*simplify-rules*) rules))
+      (when (set-member? groups 'fp-safe)                   ; update fp-safe
+        (*fp-safe-simplify-rules*
+          (append (*fp-safe-simplify-rules*) rules))))))
+
+;; Rule struct
 
 (struct rule (name input output itypes otype)
         ;; Input and output are patterns
@@ -44,54 +62,31 @@
       (match-define (list rules groups types) ruleset)
       (list (filter rule-ops-supported? rules) groups types)))))
 
-;; Note on rules
-;; fp-safe-simplify ⊂ simplify ⊂ all
-;;
-;; all                    requires at least one tag of an active group of rules
-;; simplify               same req. as all + 'simplify' tag
-;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag ('fp-safe' does not imply 'simplify')
-;;
-
-(define (update-rules rules groups)
-  (when (ormap (curry flag-set? 'rules) groups)             ; update all
-    (*rules* (append (*rules*) rules))
-    (when (set-member? groups 'simplify)                    ; update simplify
-      (*simplify-rules* (append (*simplify-rules*) rules))
-      (when (set-member? groups 'fp-safe)                   ; update fp-safe
-        (*fp-safe-simplify-rules*
-          (append (*fp-safe-simplify-rules*) rules))))))
-
 ;;
 ;;  Rule loading
 ;;
 
-(define (reprs-in-expr expr)
-  (remove-duplicates
-    (let loop ([expr expr])
-      (match expr
-      [(list 'if cond ift iff)
-        (append (loop cond) (loop ift) (loop iff))]
-      [(list op args ...)
-        (append (operator-info op 'itype) (append-map loop args))]
-      [_ '()]))))
-
-(define (repr-of-rule input output ctx)
-  (cond
-    [(list? input) 
-      (if (equal? (car input) 'if)
-          ; special case for 'if'
-          ; return the 'type-of-rule' of the ift branch
-          (repr-of-rule (caddr input) output ctx)
-          (operator-info (car input) 'otype))]
-    [(list? output)
-      (if (equal? (car output) 'if)
-          (repr-of-rule input (caddr output) ctx)
-          (operator-info (car output) 'otype))]
-    [(symbol? input) (dict-ref ctx input)]   ; fallback: if symbol, check ctx for type
-    [(symbol? output) (dict-ref ctx output)]
-    [else
-      (error 'type-of-rule "Could not compute type of rule ~a -> ~a"
-              input output)]))
+(define-values (type-of-rule repr-of-rule)
+  (let () ; `let` not `begin` since these are expanded in different phases
+    (define ((type/repr-of-rule get-info name) input output ctx)
+      (let loop ([input input] [output output])
+        (cond [(list? input)    (if (equal? (car input) 'if)
+                                    ; special case for 'if'
+                                    ; return the 'type/repr-of-rule' of the ift branch
+                                    (loop (caddr input) output)
+                                    (get-info (car input) 'otype))]
+              [(list? output)   (if (equal? (car output) 'if)
+                                    ; special case for 'if'
+                                    ; return the 'type/repr-of-rule' of the ift branch
+                                    (loop input (caddr output))
+                                    (get-info (car output) 'otype))]
+              ;; fallback: if symbol, check the ctx for the type
+              [(symbol? input)  (dict-ref ctx input)]
+              [(symbol? output) (dict-ref ctx output)]
+              [else             (error name "could not compute type of rule ~a -> ~a"
+                                            input output)])))
+    (values (type/repr-of-rule real-operator-info 'type-of-rule)
+            (type/repr-of-rule operator-info 'repr-of-rule))))
 
 ;; Rulesets defined by reprs. These rulesets are unique
 (define (register-ruleset! name groups var-ctx rules)
@@ -110,24 +105,6 @@
    [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
     (register-ruleset! 'name 'groups `((var . ,(get-representation 'type)) ...)
                        '((rname input output) ...))]))
-
-(define (type-of-rule input output ctx)
-  (cond
-    [(list? input) 
-      (if (equal? (car input) 'if)
-          ; special case for 'if'
-          ; return the 'type-of-rule' of the ift branch
-          (type-of-rule (caddr input) output ctx)
-          (real-operator-info (car input) 'otype))]
-    [(list? output)
-      (if (equal? (car output) 'if)
-          (type-of-rule input (caddr output) ctx)
-          (real-operator-info (car output) 'otype))]
-    [(symbol? input) (dict-ref ctx input)]   ; fallback: if symbol, check ctx for type
-    [(symbol? output) (dict-ref ctx output)]
-    [else
-      (error 'type-of-rule "Could not compute type of rule ~a -> ~a"
-              input output)]))
 
 (define (register-ruleset*! name groups var-ctx rules)
   (define rules*

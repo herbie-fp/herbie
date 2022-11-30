@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "matcher.rkt"
-         "../syntax/rules.rkt" "../syntax/syntax.rkt" "../syntax/sugar.rkt")
+         "../syntax/rules.rkt" "../syntax/syntax.rkt")
 
 (provide simplify load-rule-hacks)
 
