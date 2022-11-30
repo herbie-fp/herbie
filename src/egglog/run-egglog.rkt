@@ -8,6 +8,11 @@
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
+(define-runtime-path egglog-output
+  "../../report")
+(define egg-counter 0)
+(define egg-iters 2)
+
 (define header
   `((datatype HerbieType (Type String))
     (datatype Math
@@ -1147,7 +1152,7 @@
 
 (define (build-runner)
   (apply append
-         (for/list ([iter (in-range 2)])
+         (for/list ([iter (in-range egg-iters)])
           (build-iter))))
 
 (define (build-extract exprs variants)
@@ -1173,8 +1178,12 @@
   (define egglog-program
     (build-egglog ctx eggdata exprs variants))
 
-  #;(for ([line egglog-program])
-      (writeln line))
+  ;; save the egglog program
+  (define egglog-file (open-output-file (build-path egglog-output (format "egglog~s.egg" egg-counter))))
+  (for ([line egglog-program])
+    (writeln line egglog-file))
+  (close-output-port egglog-file)
+  (set! egg-counter (add1 egg-counter))
 
   (for ([line egglog-program])
     (writeln line in))
@@ -1182,7 +1191,11 @@
 
   (define results
     (for/list ([expr exprs])
-      (map (curry egglog->expr ctx eggdata) (read out))))
+      (read out)))
+
+  (define converted
+    (for/list ([variants results])
+      (map (curry egglog->expr ctx eggdata) variants)))
 
   #;(for ([res results])
     (writeln res))
@@ -1190,6 +1203,6 @@
 
   (subprocess-kill egglog-process #f)
 
-  results)
+  converted)
 
 

@@ -92,7 +92,7 @@
        [root-loc root-locs]
        [expr-repr reprs])
     (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
-    (for/list ([variant variants])
+    (for/list ([variant (remove-duplicates variants)])
       (list (change egg-rule root-loc (list (cons 'x variant)))))))
 
 ;;  Recursive rewrite chooser
