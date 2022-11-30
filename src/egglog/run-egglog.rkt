@@ -1134,7 +1134,7 @@
        ,(expr->egglog ctx expr eggdata)
        :cost 10000000)))
 
-(define (build-runner)
+(define (build-iter)
   (define analysis-iter
     `((load-ruleset analysis)
       (run 10)
@@ -1144,6 +1144,11 @@
       (run 1)
       (clear-rules)))
   (append analysis-iter rules-iter))
+
+(define (build-runner)
+  (apply append
+     (for/list ([iter (in-range 2)])
+          (build-iter))))
 
 (define (build-extract exprs variants)
   (for/list ([expr exprs] [i (in-naturals)])
@@ -1168,8 +1173,9 @@
   (define egglog-program
     (build-egglog ctx eggdata exprs variants))
 
-  (for ([line egglog-program])
+  #;(for ([line egglog-program])
       (writeln line))
+
   (for ([line egglog-program])
     (writeln line in))
   (flush-output in)
@@ -1178,9 +1184,9 @@
     (for/list ([expr exprs])
       (map (curry egglog->expr ctx eggdata) (read out))))
 
-  (for ([res results])
+  #;(for ([res results])
     (writeln res))
-  (flush-output)
+  #;(flush-output)
 
   (subprocess-kill egglog-process #t)
 

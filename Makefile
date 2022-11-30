@@ -1,28 +1,17 @@
-.PHONY: help install egg-herbie nightly index start-server deploy
+.PHONY: help install egglog nightly index start-server deploy
 
 help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket src/herbie.rkt web' to run it."
 
-install: clean egg-herbie-pkg update
+install: clean egglog update
 
 clean:
 	raco pkg remove --force herbie && echo "Uninstalled old herbie" || :
-	raco pkg remove --force egg-herbie && echo "Uninstalled old egg-herbie" || :
-	raco pkg remove --force egg-herbie-linux && echo "Uninstalled old egg-herbie" || :
-	raco pkg remove --force egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
-	raco pkg remove --force egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 
 update:
 	raco pkg install --skip-installed --auto --name herbie src/
 	raco pkg update --name herbie --deps search-auto src/
-
-egg-herbie-pkg: egg-herbie
-	raco pkg remove --force egg-herbie && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
-	raco pkg remove --force egg-herbie-linux && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
-	raco pkg remove --force egg-herbie-windows && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
-	raco pkg remove --force egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
-	raco pkg install ./egg-herbie
 
 egglog:
 	cargo build --release --manifest-path=src/egglog/egg-smol/Cargo.toml

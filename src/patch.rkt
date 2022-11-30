@@ -167,7 +167,6 @@
   (for/list ([i (in-range len)])
     (apply append (for/list ([lst lsts]) (list-ref lst i)))))
 
-
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
