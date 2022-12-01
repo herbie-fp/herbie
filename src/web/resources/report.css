@@ -279,6 +279,8 @@ section h1 {
 .history .rule { text-decoration: underline; }
 .history .event { display: block; margin: .5em 0; }
 
+.history .proof { overflow: auto;  }
+
 /* Process / debug info */
 
 #process-info { background: #ddd; }

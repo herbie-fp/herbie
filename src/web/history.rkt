@@ -4,7 +4,7 @@
          (only-in fpbench core->tex supported-by-lang?))
 (require "../points.rkt" "../float.rkt" "../alternative.rkt" "../syntax/types.rkt"
          "../syntax/rules.rkt" "../core/bsearch.rkt" "../common.rkt"
-         "common.rkt" "../syntax/sugar.rkt")
+         "common.rkt" "../syntax/sugar.rkt" "../programs.rkt")
 (provide render-history)
 
 (define (split-pcontext pcontext splitpoints alts ctx)
@@ -38,6 +38,23 @@
     (if (equal? end +nan.0)
         ""
         (format " < ~a" (value->string end repr))))))
+
+(define (splice-proof-step step)
+  (let/ec k
+    (let loop ([expr step] [loc '()])
+      (match expr
+        [(list 'Rewrite=> rule sub)
+         (define loc* (reverse loc))
+         (k 'Rewrite=> rule loc* (location-do loc* step (λ _ sub)))]
+        [(list 'Rewrite<= rule sub)
+         (define loc* (reverse loc))
+         (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
+        [(list op args ...)
+         (for ([arg (in-list args)] [i (in-naturals 1)])
+           (loop arg (cons i loc)))]
+        [_ (void)]))
+    (error 'splice-proof-step
+           "Proof is missing the rewrite ~a" step)))
 
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))
@@ -94,14 +111,22 @@
                                                       (core->tex prog* #:loc loc #:color "blue") 
                                                       "ERROR") 
                 "\\]")
-           (div ([class "math"]) "Proof")
-           ,@(for/list ([step proof] [data soundiness])
-                       (define text (format "~a: ~a points increase in error, ~a points decrease in error"
-                                    step (first data) (second data)))
-                       `(div ([class "math"])
-                             ,(if (> (first data) 0)
-                                  `(b ,text)
-                                  text)))))]
+           (p "Proof")
+           (div ([class "proof"])
+           (table
+            ,@(for/list ([step (reverse (rest proof))]
+                         [data (reverse (rest soundiness))])
+                (define-values (dir rule loc expr) (splice-proof-step step))
+                (define prog* (program->fpcore (list 'λ '() (resugar-program expr repr))))
+               `(tr
+                  (th ,(~a rule))
+                  (td (div ([class "math"])
+                    "\\[\\leadsto " ,(core->tex prog* #:loc (cons 2 loc) #:color "blue") "\\]"))))
+             ,(let ([prog* (program->fpcore (list 'λ '() (resugar-program (first proof) repr)))])
+               `(tr
+                  (th "")
+                  (td (div ([class "math"])
+                    "\\[\\leadsto " ,(core->tex prog* #:loc (cons 2 loc) #:color "blue") "\\]"))))))))]
 
     [(alt prog `initial-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
