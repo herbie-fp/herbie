@@ -11,10 +11,14 @@
 (define-runtime-path egglog-output
   "../../report")
 (define egg-counter 0)
-(define egg-iters 2)
+(define egg-iters 10)
+(define egg-node-limit 5000)
+(define egg-match-limit 500)
 
 (define header
-  `((datatype HerbieType (Type String))
+  `((set-option node_limit ,egg-node-limit)
+    (set-option match_limit ,egg-match-limit)
+    (datatype HerbieType (Type String))
     (datatype Math
               ; Ground terms
               (Num HerbieType Rational)
