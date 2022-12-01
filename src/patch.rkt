@@ -119,13 +119,13 @@
     (transpose point-evals))
   (filter
    identity
-   (for/list ([res program-results] [prog programs])
+   (for/list ([res program-results] [alt alts])
      (if (empty?
           (filter
            (lambda (x) (not (equal? x +nan.0)))
            res))
          #f
-         prog))))
+         alt))))
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
