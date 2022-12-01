@@ -53,8 +53,23 @@
          (for ([arg (in-list args)] [i (in-naturals 1)])
            (loop arg (cons i loc)))]
         [_ (void)]))
-    (error 'splice-proof-step
-           "Proof is missing the rewrite ~a" step)))
+    (k 'Goal #f #f step)))
+
+;; If consecutive proof steps are step(N-1) to stepN
+;; then the rewrite information is actually attached to step(N-1).
+;; Take the rewrite information and associate it with stepN.
+(define (arrange-proof proof soundiness)
+  (for/list ([stepn   (reverse proof)]
+             [stepn-1 (cons #f (reverse (cdr proof)))]
+             [sound   (reverse soundiness)])
+    (cond
+      [stepn-1
+       (define-values (dirn rulen locn exprn) (splice-proof-step stepn))
+       (define-values (dirn-1 rulen-1 locn-1 exprn-1) (splice-proof-step stepn-1))
+       (list dirn-1 rulen-1 locn-1 exprn sound)]
+      [else
+       (define-values (dirn rulen locn exprn) (splice-proof-step stepn))
+       (list #f #f #f exprn #f)])))
 
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))
@@ -111,22 +126,29 @@
                                                       (core->tex prog* #:loc loc #:color "blue") 
                                                       "ERROR") 
                 "\\]")
-           (p "Proof")
            (div ([class "proof"])
-           (table
-            ,@(for/list ([step (reverse (rest proof))]
-                         [data (reverse (rest soundiness))])
-                (define-values (dir rule loc expr) (splice-proof-step step))
-                (define prog* (program->fpcore (list 'λ '() (resugar-program expr repr))))
-               `(tr
-                  (th ,(~a rule))
-                  (td (div ([class "math"])
-                    "\\[\\leadsto " ,(core->tex prog* #:loc (cons 2 loc) #:color "blue") "\\]"))))
-             ,(let ([prog* (program->fpcore (list 'λ '() (resugar-program (first proof) repr)))])
-               `(tr
-                  (th "")
-                  (td (div ([class "math"])
-                    "\\[\\leadsto " ,(core->tex prog* #:loc (cons 2 loc) #:color "blue") "\\]"))))))))]
+             (details
+               (summary "Proof")
+               (table
+                ,@(for/list ([step (arrange-proof proof soundiness)])
+                    (match-define (list dir rule loc expr sound) step)
+                    (define prog* (program->fpcore (list 'λ '() (resugar-program expr repr))))
+                   `(tr (th ,(if dir 
+                                `(p ,(~a rule)
+                                    (span ([class "info"])
+                                      "Dir "
+                                      ,(match dir
+                                         ['Rewrite<= "<="]
+                                         ['Rewrite=> "=>"])
+                                      ,(format " ↑ ~a" (first sound))
+                                      ,(format " ↓ ~a" (second sound))))
+                                `(p "[Start]")))
+                        (td (div ([class "math"])
+                              "\\[ "
+                             ,(if dir
+                                  (core->tex prog* #:loc (cons 2 loc) #:color "blue")
+                                  (core->tex prog*))
+                              "\\]")))))))))]
 
     [(alt prog `initial-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
