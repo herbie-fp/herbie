@@ -61,7 +61,8 @@
     (define exs (parameterize ([bf-precision 53])
                   (apply fn pt)))
     (for/list ([ex exs])
-      (if (ival-error? ex)
+      (match-define (ival err err?) (ival-error? ex))
+      (if err?
           +nan.0
           ((representation-bf->repr repr) (ival-lo ex)))))
   (procedure-rename f '<eval-prog-real>))
