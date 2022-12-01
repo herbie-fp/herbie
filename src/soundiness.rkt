@@ -1,7 +1,7 @@
 #lang racket
 
 (require "alternative.rkt" "points.rkt" "programs.rkt"
-         "core/simplify.rkt" "syntax/types.rkt")
+         "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/types.rkt")
 
 (provide add-soundiness)
 
@@ -13,6 +13,16 @@
      (remove-rewrites something)]
     [(list _ ...)
      (map remove-rewrites proof)]
+    [else proof]))
+
+(define (canonicalize-rewrite proof)
+  (match proof
+    [`(Rewrite=> ,rule ,something)
+     (list 'Rewrite=> (get-canon-rule-name rule rule) something)]
+    [`(Rewrite<= ,rule ,something)
+     (list 'Rewrite<= (get-canon-rule-name rule rule) something)]
+    [(list _ ...)
+     (map canonicalize-rewrite proof)]
     [else proof]))
 
 (define (get-proof-errors proof pcontext ctx program-vars)
@@ -51,7 +61,8 @@
                     ;; we need to construct the proof for the full expression
                     (define proof*
                       (for/list ([step proof])
-                        (program-body (location-do loc prog (λ _ step)))))
+                        (let ([step* (canonicalize-rewrite step)])
+                          (program-body (location-do loc prog (λ _ step*))))))
                     (define vars (program-variables prog))
                     (cons proof* (get-proof-errors proof* pcontext ctx vars)))))
      (alt prog `(simplify ,loc ,input ,proof ,errors) `(,prev))]
