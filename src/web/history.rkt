@@ -58,18 +58,21 @@
 ;; If consecutive proof steps are step(N-1) to stepN
 ;; then the rewrite information is actually attached to step(N-1).
 ;; Take the rewrite information and associate it with stepN.
-(define (arrange-proof proof soundiness)
-  (for/list ([stepn   (reverse proof)]
-             [stepn-1 (cons #f (reverse (cdr proof)))]
+(define (compute-proof proof soundiness)
+  (define spliced
+    (for/list ([step (in-list proof)])
+      (define-values (dir rule loc expr) (splice-proof-step step))
+      (list dir rule loc expr)))
+  (for/list ([stepn   (reverse spliced)]
+             [stepn-1 (cons #f (reverse (cdr spliced)))]
              [sound   (reverse soundiness)])
+    (match-define (list _ _ _ expr) stepn)
     (cond
       [stepn-1
-       (define-values (dirn rulen locn exprn) (splice-proof-step stepn))
-       (define-values (dirn-1 rulen-1 locn-1 exprn-1) (splice-proof-step stepn-1))
-       (list dirn-1 rulen-1 locn-1 exprn sound)]
+       (match-define (list dir rule loc _) stepn-1)
+       (list dir rule loc expr sound)]
       [else
-       (define-values (dirn rulen locn exprn) (splice-proof-step stepn))
-       (list #f #f #f exprn #f)])))
+       (list #f #f #f expr #f)])))
 
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))
@@ -120,6 +123,7 @@
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
+     (define proof* (compute-proof proof soundiness))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
@@ -130,19 +134,23 @@
              (details
                (summary "Proof")
                (table
-                ,@(for/list ([step (arrange-proof proof soundiness)])
+                ,@(for/list ([step proof*])
                     (match-define (list dir rule loc expr sound) step)
                     (define prog* (program->fpcore (list 'λ '() (resugar-program expr repr))))
+                    (define err
+                      (let ([prog (list 'λ (program-variables prog) expr)])
+                        (format-bits (errors-score (errors prog pcontext ctx)))))
                    `(tr (th ,(if dir 
-                                `(p ,(~a rule)
-                                    (span ([class "info"])
-                                      "Dir "
-                                      ,(match dir
-                                         ['Rewrite<= "<="]
-                                         ['Rewrite=> "=>"])
-                                      ,(format " ↑ ~a" (first sound))
-                                      ,(format " ↓ ~a" (second sound))))
-                                `(p "[Start]")))
+                                (let ([tag (string-append "Dir "
+                                                          (match dir
+                                                            ['Rewrite<= "<="]
+                                                            ['Rewrite=> "=>"])
+                                                          (format " ↑ ~a" (first sound))
+                                                          (format " ↓ ~a" (second sound)))])
+                                 `(p ,(~a rule)
+                                      (span ([class "info"] [title ,tag]) ,err)))
+                                `(p "[Start]"
+                                    (span ([class "info"]) ,err))))
                         (td (div ([class "math"])
                               "\\[ "
                              ,(if dir
