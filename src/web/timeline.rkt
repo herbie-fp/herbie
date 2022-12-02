@@ -65,6 +65,7 @@
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
          ,@(dict-call curr render-phase-egraph 'egraph)
+         ,@(dict-call curr render-phase-egglog 'egglog)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
          ,@(dict-call curr render-phase-alts 'alts)
@@ -146,6 +147,9 @@
              `(tr (td ,(format-time time))
                   (td (pre ,(format-value v1)))
                   (td (pre ,(format-value v2)))))))))
+
+(define (render-phase-egglog program)
+  `((button ((onclick ,(format "copyToClipboard(`~a`)" (first program)))) "Copy egglog to clipboard")))
 
 (define (render-phase-egraph iters)
   (define costs (map third iters))

@@ -718,4 +718,8 @@ function run_components() {
     }
 }
 
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+}
+
 window.addEventListener("load", run_components);

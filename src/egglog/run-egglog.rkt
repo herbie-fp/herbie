@@ -1,17 +1,14 @@
 #lang racket
 
 (require racket/runtime-path)
-(require "egraph-conversion.rkt")
+(require "egraph-conversion.rkt" "../timeline.rkt")
 
 (provide run-egglog)
 
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
-(define-runtime-path egglog-output
-  "../../report")
-(define egg-counter 0)
-(define egg-iters 10)
+(define egg-iters 4)
 (define egg-node-limit 5000)
 (define egg-match-limit 500)
 
@@ -1183,11 +1180,8 @@
     (build-egglog ctx eggdata exprs variants))
 
   ;; save the egglog program
-  (define egglog-file (open-output-file (build-path egglog-output (format "egglog~s.egg" egg-counter))))
-  (for ([line egglog-program])
-    (writeln line egglog-file))
-  (close-output-port egglog-file)
-  (set! egg-counter (add1 egg-counter))
+  (timeline-push! 'egglog (~s egglog-program))
+
 
   (for ([line egglog-program])
     (writeln line in))
