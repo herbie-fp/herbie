@@ -28,10 +28,16 @@ jobs:
         run: make install
 
       - name: "Start server"
-        run: racket src/herbie.rkt web --port 8000 & && sleep 4s
+        run: racket src/herbie.rkt web --port 8000 &
+      
+      - name: "Pause 4 seconds"
+        run: sleep 4s
 
-      - name: "Install node v19"
-        run: curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E bash - && sudo apt-get install -y nodejs
+      - name: "Get node v19"
+        run: curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E bash -
+        
+      - name: "Install node"
+        run: sudo apt-get install -y nodejs
 
       - name: "Test the endpoint"
         run: node infra/testApi.mjs
