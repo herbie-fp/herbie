@@ -40,4 +40,4 @@ jobs:
         run: sudo apt-get install -y nodejs
 
       - name: "Test the endpoint"
-        run: node infra/testApi.mjs
+        run: nodejs infra/testApi.mjs
