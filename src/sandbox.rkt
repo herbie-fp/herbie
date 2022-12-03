@@ -59,7 +59,7 @@
       (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
 
     (when seed (set-seed! seed))
-    (define-values (points exacts) (get-p&es train-pcontext))
+    (define-values (points exacts) (get-p&es test-pcontext))
     (for/list ([point points] [exact exacts]) (list point exact))))
 
 (define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
