@@ -33,11 +33,22 @@ jobs:
       - name: "Pause 4 seconds"
         run: sleep 4s
 
-      - name: "Get node v19"
-        run: curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E bash -
-        
-      - name: "Install node"
-        run: sudo apt-get install -y nodejs
+      # - name: "Get node v19"
+      #   run: curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E bash -
+      
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # - name: "Install node"
+      #   run: sudo apt-get install -y nodejs
+
+      - name: "Print node version"
+        run: node --version
+      
+      # - name: "Test fetch"
+      #   run: node -e "fetch('https://google.com')"
 
       - name: "Test the endpoint"
-        run: nodejs infra/testApi.mjs
+        run: node infra/testApi.mjs
