@@ -151,12 +151,12 @@
 ;  - expansive: rules of the form `x -> f(x)` that are not reprchange
 ;  - normal: everything else
 (define (partition-rules rules)
-  (let-values ([(expansive normal)
-                  (partition (compose variable? rule-input) rules)])
-    (let-values ([(reprchange expansive*)
-                  (partition (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?))
-                                     expansive)])
-      (values reprchange expansive* normal))))
+  (define-values (expansive-or-repr-change normal)
+    (partition (compose variable? rule-input) rules))
+  (define-values (reprchange expansive*)
+    (partition (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?))
+               expansive-or-repr-change))
+  (values reprchange expansive* normal))
 
 (define (merge-changelists . lsts)
   (unless (apply = (map length lsts))
@@ -217,12 +217,15 @@
               ([cls comb-changelists] [altn altns]
               #:when true [cl cls])
       (let loop ([cl cl] [altn altn])
-        (if (null? cl)
-            (cons altn done)
-            (let ([prog* (apply-repr-change (change-apply (car cl) (alt-program altn)) (*context*))])
-              (if (program-body prog*)
-                  (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
-                  done))))))
+        (cond
+          [(null? cl)
+           (cons altn done)]
+          [else
+           (define change-app (change-apply (car cl) (alt-program altn)))
+           (define prog* (apply-repr-change change-app (*context*)))
+           (if (program-body prog*)
+               (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
+               done)]))))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline

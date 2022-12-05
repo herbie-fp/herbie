@@ -63,12 +63,24 @@
 ;;
 
 (define (rewrite-once expr ctx #:rules rules #:root [root-loc '()])
+  ;; we want rules over representations
+  (match-define (list rules* _ canon-names) (expand-rules rules))
+  (define rule-apps (make-hash))
+  ;; actually match
   (define expr-repr (repr-of expr ctx))
-  (reap [sow]
-    (for ([rule rules] #:when (equal? expr-repr (rule-otype rule)))
-      (let* ([result (rule-apply rule expr)])
-        (when result
-          (sow (list (change rule root-loc (cdr result)))))))))
+  (define changelists
+    (reap [sow]
+      (for ([rule rules*] #:when (equal? expr-repr (rule-otype rule)))
+        (let* ([result (rule-apply rule expr)])
+          (when result
+            (define canon-name (hash-ref canon-names (rule-name rule)))
+            (hash-update! rule-apps canon-name (curry + 1) 1)
+            (sow (list (change rule root-loc (cdr result)))))))))
+  ;; rule statistics
+  (for ([(name count) (in-hash rule-apps)])
+    (when (> count 0) (timeline-push! 'rules (~a name) count)))
+
+  changelists)
 
 ;;
 ;;  Egg recursive rewriter
