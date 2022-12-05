@@ -48,31 +48,26 @@
   proof-diffs)
   
 
-(define (add-soundiness-to pcontext ctx simplify-cache altn)
+(define (add-soundiness-to pcontext ctx altn)
   (match altn
     [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
-     (match-define (cons proof errors)
-       (hash-ref! simplify-cache input
-                  (λ ()
-                    (define proof (get-proof input
-                                             (location-get loc prog)
-                                             (location-get loc (alt-program prev))))
-                    ;; Proofs are actually on subexpressions,
-                    ;; we need to construct the proof for the full expression
-                    (define proof*
-                      (for/list ([step proof])
-                        (let ([step* (canonicalize-rewrite step)])
-                          (program-body (location-do loc prog (λ _ step*))))))
-                    (define vars (program-variables prog))
-                    (cons proof* (get-proof-errors proof* pcontext ctx vars)))))
-     (alt prog `(simplify ,loc ,input ,proof ,errors) `(,prev))]
+     (define proof (get-proof input
+                              (location-get loc prog)
+                              (location-get loc (alt-program prev))))
+     ;; Proofs are actually on subexpressions,
+     ;; we need to construct the proof for the full expression
+     (define proof*
+       (for/list ([step proof])
+         (let ([step* (canonicalize-rewrite step)])
+           (program-body (location-do loc prog (λ _ step*))))))
+     (define errors
+       (let ([vars (program-variables prog)])
+         (get-proof-errors proof* pcontext ctx vars)))
+     (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
     [else
      altn]))
 
 
 (define (add-soundiness alts pcontext ctx)
-  (define simplify-cache (make-hash))
   (for/list ([altn alts])
-    (alt-map
-     (curry add-soundiness-to pcontext ctx simplify-cache)
-     altn)))
+    (alt-map (curry add-soundiness-to pcontext ctx) altn)))

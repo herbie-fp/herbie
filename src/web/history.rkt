@@ -136,7 +136,7 @@
                (table
                 ,@(for/list ([step proof*])
                     (match-define (list dir rule loc expr sound) step)
-                    (define prog* (program->fpcore (list 'λ '() (resugar-program expr repr))))
+                    (define step-prog (program->fpcore (list 'λ '() (resugar-program expr repr))))
                     (define err
                       (let ([prog (list 'λ (program-variables prog) expr)])
                         (format-bits (errors-score (errors prog pcontext ctx)))))
@@ -154,8 +154,8 @@
                         (td (div ([class "math"])
                               "\\[ "
                              ,(if dir
-                                  (core->tex prog* #:loc (cons 2 loc) #:color "blue")
-                                  (core->tex prog*))
+                                  (core->tex step-prog #:loc (cons 2 loc) #:color "blue")
+                                  (core->tex step-prog))
                               "\\]")))))))))]
 
     [(alt prog `initial-simplify `(,prev))
