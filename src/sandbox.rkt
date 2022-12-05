@@ -172,18 +172,19 @@
             (list (car costs) (car end-scores))
             (map list (cdr costs) (cdr end-scores) (cdr end-exprs))))
 
+    (define fuzz 0.1)
     (define status
       (if target-score
           (cond
-           [(< end-score (- target-score 1)) "gt-target"]
-           [(< end-score (+ target-score 1)) "eq-target"]
-           [(> end-score (+ start-score 1)) "lt-start"]
-           [(> end-score (- start-score 1)) "eq-start"]
-           [(> end-score (+ target-score 1)) "lt-target"])
+           [(< end-score (- target-score fuzz)) "gt-target"]
+           [(< end-score (+ target-score fuzz)) "eq-target"]
+           [(> end-score (+ start-score fuzz)) "lt-start"]
+           [(> end-score (- start-score fuzz)) "eq-start"]
+           [(> end-score (+ target-score fuzz)) "lt-target"])
           (cond
            [(and (< start-score 1) (< end-score (+ start-score 1))) "ex-start"]
            [(< end-score (- start-score 1)) "imp-start"]
-           [(< end-score (+ start-score 1)) "apx-start"]
+           [(< end-score (+ start-score fuzz)) "apx-start"]
            [else "uni-start"])))
 
     (struct-copy table-row (dummy-table-row result status link)

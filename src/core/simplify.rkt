@@ -45,22 +45,6 @@
   (->* (context? expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
   (last (first (simplify-batch ctx (list expr) #:rules rls #:precompute precompute?))))
 
-
-
-;; TODO get proofs from egglog
-(define (get-proof input start end)
-  empty
-  #;(if (flag-set? 'generate 'egglog)
-        empty
-        (run-simplify-input
-         input
-         (lambda (egg-graph node-ids iter-data)
-           (begin
-             (define proof (egraph-get-proof egg-graph start end))
-             (when (equal? proof "")
-               (error (format "Failed to produce proof for ~a to ~a" start end)))
-             (translate-proof proof egg-graph))))))
-
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
@@ -74,7 +58,6 @@
        (listof (listof expr?)))
 
   (timeline-push! 'inputs (map ~a (simplify-input-exprs input)))
-
 
   (define results
     (run-simplify-input
@@ -108,10 +91,23 @@
     ['node-limit "node limit"]
     ['unsound    "unsound"]))
 
+(define (get-proof input start end)
+  (run-simplify-input
+   input
+   (lambda (egg-graph node-ids iter-data)
+     (define proof (egraph-get-proof egg-graph start end))
+     (when (null? proof)
+       (error (format "Failed to produce proof for ~a to ~a" start end)))
+     proof)))
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")
-  (*needed-reprs* (list (get-representation 'binary64) (get-representation 'binary32)))
+
+  ;; set parameters
+  (define vars '(x a b c))
+  (*context* (make-debug-context vars))
+  (*needed-reprs* (list (get-representation 'binary64)
+                        (get-representation 'binary32)))
   (define all-simplify-rules (*simplify-rules*))
 
   ;; check that no rules in simplify match on bare variables
@@ -145,6 +141,7 @@
                   (*.f64 (sqrt.f64 x) (sqrt.f64 x))) . 1]
           [(+.f64 1/5 3/10) . 1/2]
           [(cos.f64 (PI.f64)) . -1]
+          [(pow.f64 (E.f64) 1) . (E.f64)]
           ;; this test is problematic and runs out of nodes currently
           ;[(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
           ))
