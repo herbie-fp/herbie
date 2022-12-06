@@ -35,6 +35,10 @@
      (eprintf "The generate:better-rr option has been removed.\n")
      (eprintf "  The current recursive rewriter does not support the it.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+    [('generate 'rr)
+     (eprintf "The generate:rr option has been removed.\n")
+     (eprintf "  The current recursive rewriter does not support the it.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
     [(_ _)
      (void)]))
 

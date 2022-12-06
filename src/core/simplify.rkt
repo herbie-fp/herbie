@@ -92,7 +92,8 @@
     ['unsound    "unsound"]))
 
 (define (get-proof input start end)
-  (run-simplify-input
+  empty
+  #;(run-simplify-input
    input
    (lambda (egg-graph node-ids iter-data)
      (define proof (egraph-get-proof egg-graph start end))

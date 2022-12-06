@@ -58,29 +58,6 @@
   (match-define (change rule location bindings) cng)
   (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
 
-;;
-;;  Non-recursive rewriter
-;;
-
-(define (rewrite-once expr ctx #:rules rules #:root [root-loc '()])
-  ;; we want rules over representations
-  (match-define (list rules* _ canon-names) (expand-rules rules))
-  (define rule-apps (make-hash))
-  ;; actually match
-  (define expr-repr (repr-of expr ctx))
-  (define changelists
-    (reap [sow]
-      (for ([rule rules*] #:when (equal? expr-repr (rule-otype rule)))
-        (let* ([result (rule-apply rule expr)])
-          (when result
-            (define canon-name (hash-ref canon-names (rule-name rule)))
-            (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow (list (change rule root-loc (cdr result)))))))))
-  ;; rule statistics
-  (for ([(name count) (in-hash rule-apps)])
-    (when (> count 0) (timeline-push! 'rules (~a name) count)))
-
-  changelists)
 
 ;;
 ;;  Egg recursive rewriter
@@ -116,13 +93,7 @@
                              #:once? [once? #f])
   ; choose correct rr driver
   (cond
-   [(or (null? exprs) (null? rules)) (make-list (length exprs) '())]
-   [(or once? (not (flag-set? 'generate 'rr)))
-    (timeline-push! 'method "rewrite-once")
-    (for/list ([expr exprs] [root-loc root-locs] [n (in-naturals 1)])
-      (define timeline-stop! (timeline-start! 'times (~a expr)))
-      (begin0 (rewrite-once expr ctx #:rules rules #:root root-loc)
-        (timeline-stop!)))]
+    [(or (null? exprs) (null? rules)) (make-list (length exprs) '())]
    [else
     (timeline-push! 'method "batch-egg-rewrite")
     (timeline-push! 'inputs (map ~a exprs))
