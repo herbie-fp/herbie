@@ -4,7 +4,7 @@
 (require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
 (require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "ground-truth.rkt" "core/reduce.rkt" "points.rkt")
 
-(require math/bigfloat)
+(require math/bigfloat rival)
 
 (provide
   (contract-out
@@ -103,7 +103,12 @@
       (timeline-stop!))))
 
 
-(define taylor-sample (list 0.0 0.5 -0.5 (bigfloat->flonum (bfprev +inf.bf)) (bigfloat->flonum (bfnext -inf.bf))))
+(define taylor-sample
+  (parameterize ([bf-precision 53])
+    (map (lambda (num) (ival num))
+         (list (bf 0.0) (bf 0.5) (bf -0.5)
+               (bfprev +inf.bf)
+               (bfnext -inf.bf)))))
 
 (define (filter-valid alts)
   (define programs
