@@ -12,6 +12,13 @@
 (define egg-node-limit 5000)
 (define egg-match-limit 500)
 
+
+;; TODO: make the following true
+;; The egglog rules follow error-preserving semantics
+;; If a program in the egraph errors, then it's okay to rewrite it to
+;; something that errors for exactly the same input points
+;; It is not okay to rewrite it to something that errors on fewer points
+
 (define header
   `((set-option node_limit ,egg-node-limit)
     (set-option match_limit ,egg-match-limit)
@@ -116,16 +123,16 @@
              :when
              ((= res (log a))))
     ;; To check if something is zero, we check that zero is not contained in the
-    ;; interval. There are two possible (overlapping!) cases:
-    ;; - There exists a lo interval, in which case it must be larger than 0
-    ;; - There exists a hi interval, in which case it must be smaller than 0
-    ;; This assumes that intervals are well-formed: lo <= hi at all times.
+    ;; interval.
     (rule ((= l (lo e)) (> l r-zero)) ((non-zero e)))
     (rule ((= h (hi e)) (< h r-zero)) ((non-zero e)))
     (rule ((= l (lo e)) (>= l r-zero)) ((non-negative e)))
     (rule ((= l (lo e)) (> l r-zero)) ((positive e)))
     (rule ((= e (Num ty ve)))
           ((set (lo e) ve) (set (hi e) ve)))
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; INTERVAL ANALYSIS
     ;; The interval analyses are similar to the constant-folding analysis,
     ;; except we have to take the lower/upper bound of the results we get
     (rule ((= e (Add ty a b)) (= la (lo a)) (= lb (lo b)))
@@ -165,13 +172,13 @@
     (rule ((= e (Neg ty a)) (= la (lo a)) (= ha (hi a)))
           ((set (lo e) (neg ha)) (set (hi e) (neg la))))
     (rule ((= e (Sqrt ty a))) ((set (lo e) r-zero)))
+    (rule ((= e (Exp ty a))) ((set (lo e) r-zero)))
+    (rule ((= e (Exp ty a))) ((non-zero e)))
     ;; TODO: better evaluation of sqrt
     (rule ((= e (Sqrt ty a)) (= loa (lo a)))
           ((set (lo e) (sqrt loa))))
     (rule ((= e (Sqrt ty a)) (= hia (hi a)))
           ((set (hi e) (sqrt hia))))
-    ; Sqrt infer downwards
-    (rule ((= e (Sqrt ty a))) ((set (lo a) r-zero)))
     ; TODO: Cbrt
     (rule ((= e (Fabs ty a)) (= la (lo a)) (= ha (hi a)))
           ((set (lo e) (min (abs la) (abs ha)))
@@ -224,13 +231,12 @@
           ((panic "Unsoundness detected!")))
     (add-ruleset analysis)
     (clear-rules)
+
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;;
     ;; Rewrites
     ;; --------
-    ;; These rewrites were compiled from src/syntax/rules.rkt in the herbie repo,
-    ;; using all rewrites in the `simplify` rewrite group.
-    ;; INJECTIVITY ooooohh
+    ;; INJECTIVITY
     (rule ((= t1 (Add ty a b)) (= t2 (Add ty a c))
                                (= t1 t2))
           ((union b c)))
@@ -273,24 +279,22 @@
              (Mul ty (Mul ty a b) c))
     (rewrite (Mul ty (Mul ty a b) c)
              (Mul ty a (Mul ty b c)))
-    (rewrite (Mul ty a (Div ty b c))
+    (rewrite (Mul ty a (Div ty b c)) ;; not defined when c is zero
              (Div ty (Mul ty a b) c))
-    (rewrite (Mul ty (Div ty a b) c)
+    (rewrite (Mul ty (Div ty a b) c) ;; not defined when b is zero
              (Div ty (Mul ty a c) b))
-    (rewrite (Div ty a (Mul ty b c))
+    (rewrite (Div ty a (Mul ty b c)) ;; not defined when b or c is zero
              (Div ty (Div ty a b) c))
-    (rewrite (Div ty (Mul ty b c) a)
+    (rewrite (Div ty (Mul ty b c) a) ;; not defined when a is zero
              (Div ty b (Div ty a c))
              :when
              ((non-zero c)))
-    (rewrite (Div ty a (Div ty b c))
+    (rewrite (Div ty a (Div ty b c)) ;; not defined when b or c is zero
              (Mul ty (Div ty a b) c)
              :when
              ((non-zero c)))
-    (rewrite (Div ty (Div ty b c) a)
-             (Div ty b (Mul ty a c))
-             :when
-             ((non-zero a)))
+    (rewrite (Div ty (Div ty b c) a) ;; not defined when a or c is zero
+             (Div ty b (Mul ty a c)))
     ;; Counting
     (rewrite (Add ty x x) (Mul ty (Num ty r-two) x))
     ;; Distributivity
@@ -318,8 +322,10 @@
              (Add ty (Neg ty a) (Neg ty b)))
     (rewrite (Add ty (Neg ty a) (Neg ty b))
              (Neg ty (Add ty a b)))
-    (rewrite (Div ty (Neg ty a) b) (Neg ty (Div ty a b)))
-    (rewrite (Neg ty (Div ty a b)) (Div ty (Neg ty a) b))
+    (rewrite (Div ty (Neg ty a) b) ;; not defined when b is zero
+             (Neg ty (Div ty a b)))
+    (rewrite (Neg ty (Div ty a b)) ;; not defined when b is zero
+             (Div ty (Neg ty a) b))
     (rewrite (Sub ty a (Mul ty (Neg ty b) c))
              (Add ty a (Mul ty b c)))
     (rewrite (Sub ty a (Mul ty b c))
@@ -340,11 +346,11 @@
                   (Add ty a (Num ty r-one))
                   (Sub ty a (Num ty r-one))))
     (rule
-     ((= e (Pow ty a b)) (= loa (lo a)) (> loa r-zero))
+     ((= e (Pow ty a b)) (= loa (lo a)) (> loa r-zero)) ;; always defined if a > 0
      ((set (Pow ty a b)
            (Mul ty
                 (Pow ty a (Div ty b (Num ty r-two)))
-                (Pow ty a (Div ty b (Num ty r-two)))))))
+                (Pow ty a (Div ty b (Num ty r-two))))))) ;; so rhs always defined
     (rewrite (Mul ty (Pow ty a b) (Pow ty a b))
              (Pow ty a (Mul ty (Num ty r-two) b)))
     (rewrite (Pow ty a (Num ty r-three))
@@ -353,19 +359,25 @@
              (Mul ty
                   (Pow ty a (Num ty r-two))
                   (Pow ty a (Num ty r-two))))
+
     ;; Identity
-    ;; This isn't subsumed by const folding since this can return results
-    ;; even if we can't evaluate a precise value for x
     (rewrite
-     (Div ty (Num ty r-one) (Div ty (Num ty r-one) x))
-     x)
-    (rewrite (Mul ty x (Div ty (Num ty r-one) x))
-             (Num ty r-one))
-    (rewrite (Mul ty (Div ty (Num ty r-one) x) x)
-             (Num ty r-one))
+     (Div ty (Num ty r-one) (Div ty (Num ty r-one) x)) ;; not defined when x is zero
+     x
+     :when ((non-zero x)))
+    (rewrite (Mul ty x (Div ty (Num ty r-one) x)) ;; not defined when x is zero
+             (Num ty r-one)
+             :when ((non-zero x)))
+    (rewrite (Mul ty (Div ty (Num ty r-one) x) x) ;; not defined when x is zero
+             (Num ty r-one)
+             :when ((non-zero x)))
     (rewrite (Sub ty x x) (Num ty r-zero))
-    (rewrite (Div ty x x) (Num ty r-one))
-    (rewrite (Div ty (Num ty r-zero) x) (Num ty r-zero))
+    (rewrite (Div ty x x) ;; not defined for x=0
+             (Num ty r-one)
+             :when ((non-zero x)))
+    (rewrite (Div ty (Num ty r-zero) x)
+             (Num ty r-zero)
+             :when ((non-zero x))) ;; not defined for x=0
     (rewrite (Mul ty (Num ty r-zero) x) (Num ty r-zero))
     (rewrite (Mul ty x (Num ty r-zero)) (Num ty r-zero))
     (rewrite (Add ty (Num ty r-zero) x) x)
@@ -375,27 +387,27 @@
     (rewrite (Neg ty (Neg ty x)) x)
     (rewrite (Mul ty (Num ty r-one) x) x)
     (rewrite (Mul ty x (Num ty r-one)) x)
-    (rewrite (Div ty x (Num ty r-one)) x)
+    (rewrite (Div ty x (Num ty r-one)) x) ;; always defined
     (rewrite (Mul ty (Num ty r-neg-one) x) (Neg ty x))
     (rewrite (Sub ty a b) (Add ty a (Neg ty b)))
     (rewrite (Sub ty a b) (Neg ty (Sub ty b a)))
     (rewrite (Add ty a (Neg ty b)) (Sub ty a b))
     (rewrite (Neg ty x) (Sub ty (Num ty r-zero) x))
     (rewrite (Neg ty x) (Mul ty (Num ty r-neg-one) x))
-    (rewrite (Div ty x y)
+    (rewrite (Div ty x y) ;; not defined for y=0
              (Mul ty x (Div ty (Num ty r-one) y)))
-    (rewrite (Mul ty x (Div ty (Num ty r-one) y))
+    (rewrite (Mul ty x (Div ty (Num ty r-one) y)) ;; not defined for y=0
              (Div ty x y))
-    (rewrite (Div ty x y)
+    (rewrite (Div ty x y) ;; not defined when y is zero
              (Div ty (Num ty r-one) (Div ty y x))
              :when
              ((non-zero x) (non-zero y)))
     (rule ((universe t ty))
           ((union t (Mul ty (Num ty r-one) t))))
     ;; Fractions
-    (rewrite (Div ty (Sub ty a b) c)
+    (rewrite (Div ty (Sub ty a b) c) ;; not defined when c zero
              (Sub ty (Div ty a c) (Div ty b c)))
-    (rewrite (Div ty (Mul ty a b) (Mul ty c d))
+    (rewrite (Div ty (Mul ty a b) (Mul ty c d)) ;; not defined when c or d is zero
              (Mul ty (Div ty a c) (Div ty b d)))
     ;; Square root
     (rewrite (Mul ty (Sqrt ty x) (Sqrt ty x)) x)
@@ -409,7 +421,7 @@
     (rewrite (Fabs ty (Mul ty x x)) (Mul ty x x))
     (rewrite (Fabs ty (Mul ty a b))
              (Mul ty (Fabs ty a) (Fabs ty b)))
-    (rewrite (Fabs ty (Div ty a b))
+    (rewrite (Fabs ty (Div ty a b)) ;; not defined when b is zero
              (Div ty (Fabs ty a) (Fabs ty b)))
     ;; Cube root
     (rewrite (Pow ty (Cbrt ty x) (Num ty r-three)) x)
@@ -426,7 +438,7 @@
              (Mul ty
                   (Pow ty x (Num ty r-three))
                   (Pow ty y (Num ty r-three))))
-    (rewrite (Pow ty (Div ty x y) (Num ty r-three))
+    (rewrite (Pow ty (Div ty x y) (Num ty r-three)) ;; not defined when y is zero
              (Div ty
                   (Pow ty x (Num ty r-three))
                   (Pow ty y (Num ty r-three))))
@@ -451,29 +463,29 @@
     (rewrite (Exp ty (Add ty a b))
              (Mul ty (Exp ty a) (Exp ty b)))
     (rewrite (Exp ty (Sub ty a b))
-             (Div ty (Exp ty a) (Exp ty b)))
+             (Div ty (Exp ty a) (Exp ty b))) ;; always defined
     (rewrite (Exp ty (Neg ty a))
-             (Div ty (Num ty r-one) (Exp ty a)))
+             (Div ty (Num ty r-one) (Exp ty a))) ;; always defined
     (rewrite (Mul ty (Exp ty a) (Exp ty b))
              (Exp ty (Add ty a b)))
-    (rewrite (Div ty (Num ty r-one) (Exp ty a))
+    (rewrite (Div ty (Num ty r-one) (Exp ty a)) ;; always defined
              (Exp ty (Neg ty a)))
-    (rewrite (Div ty (Exp ty a) (Exp ty b))
+    (rewrite (Div ty (Exp ty a) (Exp ty b)) ;; always defined
              (Exp ty (Sub ty a b)))
     (rewrite (Exp ty (Mul ty a b)) (Pow ty (Exp ty a) b))
-    (rewrite (Exp ty (Div ty a (Num ty r-two)))
-             (Sqrt ty (Exp ty a)))
-    (rewrite (Exp ty (Div ty a (Num ty r-three)))
+    (rewrite (Exp ty (Div ty a (Num ty r-two))) ;; always defined
+             (Sqrt ty (Exp ty a))) ;; always defined
+    (rewrite (Exp ty (Div ty a (Num ty r-three))) ;; always defined
              (Cbrt ty (Exp ty a)))
     (rewrite (Exp ty (Mul ty a (Num ty r-two)))
              (Mul ty (Exp ty a) (Exp ty a)))
     (rewrite (Exp ty (Mul ty a (Num ty r-three)))
              (Pow ty (Exp ty a) (Num ty r-three)))
     ;; Powers
-    (rewrite (Pow ty a (Num ty r-neg-one))
+    (rewrite (Pow ty a (Num ty r-neg-one)) ;; not defined for a=0
              (Div ty (Num ty r-one) a))
-    (rewrite (Pow ty a (Num ty r-one)) a)
-    (rewrite (Div ty (Num ty r-one) a)
+    (rewrite (Pow ty a (Num ty r-one)) a) ;; always defined
+    (rewrite (Div ty (Num ty r-one) a) ;; not defined when a=0
              (Pow ty a (Num ty r-neg-one)))
     (rule ((universe a ty))
           ((union (Pow ty a (Num ty r-one)) a)))
@@ -503,16 +515,17 @@
              (Add ty (Log ty a) (Log ty b))
              :when
              ((positive a) (positive b)))
-    (rewrite (Log ty (Div ty a b))
+    (rewrite (Log ty (Div ty a b)) ;; not defined for b=0
              (Sub ty (Log ty a) (Log ty b))
              :when
              ((positive a) (positive b)))
-    (rewrite (Log ty (Div ty (Num ty r-one) a))
-             (Neg ty (Log ty a)))
-    (rewrite (Log ty (Pow ty a b))
+    (rewrite (Log ty (Div ty (Num ty r-one) a)) ;; not defined for a=0
+             (Neg ty (Log ty a)) ;; not defined for a <= 0
+             :when ((positive a)))
+    (rewrite (Log ty (Pow ty a b)) ;; not defined for b=0
              (Mul ty b (Log ty a))
              :when
-             ((positive a)))
+             ((positive a) (non-zero b)))
     (rewrite (Log ty (E ty)) (Num ty r-one))
     ;; Trigonometry
     (rewrite (Add ty
@@ -824,6 +837,17 @@
                (Add ty
                     (Mul ty a a)
                     (Add ty (Mul ty b b) (Mul ty a b))))))
+    (rewrite (Sub ty a b)
+             (If ty (NotEq ty b (Num ty r-zero))
+                 (Div ty
+                      (Sub ty
+                           (Pow ty a (Num ty r-three))
+                           (Pow ty b (Num ty r-three)))
+                      (Add ty
+                           (Mul ty a a)
+                           (Add ty (Mul ty b b) (Mul ty a b))))
+                 (Sub ty a b)))
+
     ;;fractions transform
     (rewrite (Sub ty (Div ty a c) (Div ty b c))
              (Div ty (Sub ty a b) c))
