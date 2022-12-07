@@ -1,0 +1,144 @@
+; -*- mode: scheme -*-
+
+;
+; Level-of-Detail computation
+; Direct3D 11.3
+; Section 7.8.11
+;
+; Texture limits from Section 21
+; Derivatives computed from coordinates in normalized texture space [0, 1]^N
+; so reasonable to bound them between [0, 1]
+; But LOD says to bail if they're too small => let's just say 10^(-10)
+;
+
+(FPCore (w h dX.u dX.v dY.u dY.v)
+  :name "Anisotropic x16 LOD (LOD)"
+  :precision binary32
+  :pre (and (<= 1 w 16384)
+            (<= 1 h 16384)
+            (<= -1 dX.u 1)
+            (<= -1 dX.v 1)
+            (<= -1 dY.u 1)
+            (<= -1 dY.v 1))
+
+  (let ([dX.u (* w dX.u)]
+        [dX.v (* h dX.v)]
+        [dY.u (* w dY.u)]
+        [dY.v (* h dY.v)]
+        [maxAniso     16])
+    
+    (let* ([dX2  (+ (* dX.u dX.u) (* dX.v dX.v))]
+           [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
+           [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
+
+           [isMajorX    (> dX2 dY2)]
+           [major2      (if isMajorX dX2 dY2)]
+           [major       (sqrt major2)]
+           [normMajor   (/ 1 major2)]
+           [ratioAniso  (/ major2 det)]
+
+           [minor       (if (> ratioAniso maxAniso)
+                            (/ major maxAniso)
+                            (/ det major))])
+
+      (log2 minor))))
+
+(FPCore (w h dX.u dX.v dY.u dY.v)
+  :name "Anisotropic x16 LOD (ratio of anisotropy)"
+  :precision binary32
+  :pre (and (<= 1 w 16384)
+            (<= 1 h 16384)
+            (<= -1 dX.u 1)
+            (<= -1 dX.v 1)
+            (<= -1 dY.u 1)
+            (<= -1 dY.v 1))
+
+  (let ([dX.u (* w dX.u)]
+        [dX.v (* h dX.v)]
+        [dY.u (* w dY.u)]
+        [dY.v (* h dY.v)]
+        [maxAniso     16])
+    
+    (let* ([dX2  (+ (* dX.u dX.u) (* dX.v dX.v))]
+           [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
+           [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
+
+           [isMajorX    (> dX2 dY2)]
+           [major2      (if isMajorX dX2 dY2)]
+           [major       (sqrt major2)]
+           [normMajor   (/ 1 major2)]
+           [ratioAniso  (/ major2 det)]
+
+           [minor       (if (> ratioAniso maxAniso)
+                            (/ major maxAniso)
+                            (/ det major))])
+
+      ratioAniso)))
+
+(FPCore (w h dX.u dX.v dY.u dY.v)
+  :name "Anisotropic x16 LOD (line direction, u)"
+  :precision binary32
+  :pre (and (<= 1 w 16384)
+            (<= 1 h 16384)
+            (<= -1 dX.u 1)
+            (<= -1 dX.v 1)
+            (<= -1 dY.u 1)
+            (<= -1 dY.v 1))
+
+  (let ([dX.u (* w dX.u)]
+        [dX.v (* h dX.v)]
+        [dY.u (* w dY.u)]
+        [dY.v (* h dY.v)]
+        [maxAniso     16])
+    
+    (let* ([dX2  (+ (* dX.u dX.u) (* dX.v dX.v))]
+           [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
+           [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
+
+           [isMajorX    (> dX2 dY2)]
+           [major2      (if isMajorX dX2 dY2)]
+           [major       (sqrt major2)]
+           [normMajor   (/ 1 major2)]
+           [ratioAniso  (/ major2 det)]
+
+           [minor       (if (> ratioAniso maxAniso)
+                            (/ major maxAniso)
+                            (/ det major))])
+
+      (if isMajorX
+          (* normMajor dX.u)
+          (* normMajor dY.u)))))
+
+(FPCore (w h dX.u dX.v dY.u dY.v)
+  :name "Anisotropic x16 LOD (line direction, v)"
+  :precision binary32
+  :pre (and (<= 1 w 16384)
+            (<= 1 h 16384)
+            (<= -1 dX.u 1)
+            (<= -1 dX.v 1)
+            (<= -1 dY.u 1)
+            (<= -1 dY.v 1))
+
+  (let ([dX.u (* w dX.u)]
+        [dX.v (* h dX.v)]
+        [dY.u (* w dY.u)]
+        [dY.v (* h dY.v)]
+        [maxAniso     16])
+    
+    (let* ([dX2  (+ (* dX.u dX.u) (* dX.v dX.v))]
+           [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
+           [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
+
+           [isMajorX    (> dX2 dY2)]
+           [major2      (if isMajorX dX2 dY2)]
+           [major       (sqrt major2)]
+           [normMajor   (/ 1 major2)]
+           [ratioAniso  (/ major2 det)]
+
+           [minor       (if (> ratioAniso maxAniso)
+                            (/ major maxAniso)
+                            (/ det major))])
+
+      (if isMajorX
+          (* normMajor dX.v)
+          (* normMajor dY.v)))))
