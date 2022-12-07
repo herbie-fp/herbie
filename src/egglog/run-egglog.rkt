@@ -796,12 +796,17 @@
                        (Sub ty (Mul ty b b) (Mul ty a b))))
              :when
              ((non-zero b)))
+    (rewrite (Add ty a b)
+             (If ty (NotEq ty b (Num ty r-zero))
+                 (Div ty
+                      (Add ty
+                           (Pow ty a (Num ty r-three))
+                           (Pow ty b (Num ty r-three)))
+                      (Add ty
+                           (Mul ty a a)
+                           (Sub ty (Mul ty b b) (Mul ty a b))))
+                 (Add ty a b)))
     ;;flip3--
-    ;; demand
-    (rule ((= t1 (Sub ty a b)))
-          ((Add ty
-                (Mul ty a a)
-                (Add ty (Mul ty b b) (Mul ty a b)))))
     (rewrite
      (Sub ty a b)
      (Div ty
@@ -1197,7 +1202,7 @@
   (define eggdata
     (egraph-data (make-hash)
                  (make-hash)))
-  (define-values (egglog-process out in err)
+  (define-values (egglog-process egglog-output egglog-in err)
     (subprocess #f #f (current-error-port) egglog-binary))
 
   (define egglog-program
@@ -1208,23 +1213,17 @@
 
 
   (for ([line egglog-program])
-    (writeln line in))
-  (flush-output in)
+    (writeln line egglog-in))
+  (close-output-port egglog-in)
 
   (define results
     (for/list ([expr exprs])
-      (read out)))
+      (read egglog-output)))
+  (flush-output)
 
   (define converted
     (for/list ([variants results])
       (map (curry egglog->expr ctx eggdata) variants)))
 
-  #;(for ([res results])
-    (writeln res))
-  #;(flush-output)
-
-  (subprocess-kill egglog-process #f)
-
   converted)
-
 
