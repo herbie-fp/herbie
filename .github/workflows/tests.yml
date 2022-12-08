@@ -9,6 +9,8 @@ jobs:
   hamming:
     name: "Integration tests (Hamming)"
     runs-on: ubuntu-latest
+    with:
+      submodules: recursive
     strategy:
       matrix:
         racket-version: [ '8.0', '8.5' ]

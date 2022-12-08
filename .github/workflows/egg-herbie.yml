@@ -9,6 +9,8 @@ jobs:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
 
     runs-on: ${{ matrix.os }}
+    with:
+      submodules: recursive
 
     steps:
       - uses: actions/checkout@master

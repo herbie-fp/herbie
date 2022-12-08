@@ -9,6 +9,8 @@ jobs:
   job1:
     name: Create Initial Release
     runs-on: ubuntu-latest
+    with:
+      submodules: recursive
     outputs: 
       upload_url: ${{ steps.create_release.outputs.upload_url }} 
     
