@@ -40,10 +40,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule --recurse-submodules
-
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Install Racket
         uses: Bogdanp/setup-racket@v1.8
         with:

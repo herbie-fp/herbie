@@ -23,9 +23,10 @@ jobs:
             default: true
             override: true
             components: rustfmt, clippy
-      - uses: actions/checkout@master
-      - name: Checkout submodules
-        run: git submodule --recurse-submodules
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: "Install dependencies"
         run: make install
       - name: "Check out softposit-herbie master"

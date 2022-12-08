@@ -27,9 +27,10 @@ jobs:
             default: true
             override: true
             components: rustfmt, clippy
-      - uses: actions/checkout@master
-      - name: Checkout submodules
-        run: git submodule --recurse-submodules
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: "Install dependencies"
         run: make install
       - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 bench/hamming/
