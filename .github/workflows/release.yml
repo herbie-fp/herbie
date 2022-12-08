@@ -13,8 +13,6 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }} 
     
     steps:
-      - name: Checkout submodules
-        run: git submodule --recurse-submodules
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -43,6 +41,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Checkout submodules
+        run: git submodule --recurse-submodules
 
       - name: Install Racket
         uses: Bogdanp/setup-racket@v1.8

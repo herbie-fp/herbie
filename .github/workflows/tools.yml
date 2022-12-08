@@ -10,8 +10,6 @@ jobs:
     name: "The shell tool"
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout submodules
-        run: git submodule --recurse-submodules
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
@@ -26,6 +24,8 @@ jobs:
             override: true
             components: rustfmt, clippy
       - uses: actions/checkout@master
+      - name: Checkout submodules
+        run: git submodule --recurse-submodules
       - name: "Install dependencies"
         run: make install
       - run: <bench/tutorial.fpcore racket src/herbie.rkt shell >/tmp/out.fpcore

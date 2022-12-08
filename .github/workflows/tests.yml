@@ -14,8 +14,6 @@ jobs:
         racket-version: [ '8.0', '8.5' ]
         precision: [ 'binary32', 'binary64' ]
     steps:
-      - name: Checkout submodules
-        run: git submodule --recurse-submodules
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
@@ -30,6 +28,8 @@ jobs:
             override: true
             components: rustfmt, clippy
       - uses: actions/checkout@master
+      - name: Checkout submodules
+        run: git submodule --recurse-submodules
       - name: "Install dependencies"
         run: make install
       - run: racket infra/travis.rkt --precision ${{ matrix.precision }} --seed 0 bench/hamming/
