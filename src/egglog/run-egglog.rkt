@@ -1180,7 +1180,7 @@
   (apply append
          (for/list ([line egglog-program])
            (match line
-             [`(rewriteif ,lhs ,rhs :when ((non-zero ,expr)))
+             [`(,(or `rewriteif `rewrite) ,lhs ,rhs :when ((non-zero ,expr)))
               (list
                `(rewrite ,lhs ,rhs :when ((non-zero ,expr)))
                `(rewrite ,lhs

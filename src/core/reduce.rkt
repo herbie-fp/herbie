@@ -68,7 +68,8 @@
     [`(exp (* ,c (log ,x)))
      `(pow ,x ,c)]
     [else
-     (let/ec return
+     expr
+     #;(let/ec return
        (for ([pattern fn-inverses])
          (match (pattern-match pattern expr)
            [#f (void)]
