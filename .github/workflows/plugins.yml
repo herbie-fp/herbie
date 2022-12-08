@@ -9,9 +9,9 @@ jobs:
   softposit:
     name: "Plugin tests (Posits)"
     runs-on: ubuntu-latest
-    with:
-      submodules: recursive
     steps:
+      - name: Checkout submodules
+        run: git submodule --recurse-submodules
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"

@@ -9,13 +9,13 @@ jobs:
   hamming:
     name: "Integration tests (Hamming)"
     runs-on: ubuntu-latest
-    with:
-      submodules: recursive
     strategy:
       matrix:
         racket-version: [ '8.0', '8.5' ]
         precision: [ 'binary32', 'binary64' ]
     steps:
+      - name: Checkout submodules
+        run: git submodule --recurse-submodules
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"

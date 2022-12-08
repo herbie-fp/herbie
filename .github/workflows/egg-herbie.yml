@@ -9,10 +9,10 @@ jobs:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
 
     runs-on: ${{ matrix.os }}
-    with:
-      submodules: recursive
 
     steps:
+      - name: Checkout submodules
+        run: git submodule --recurse-submodules
       - uses: actions/checkout@master
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.8
