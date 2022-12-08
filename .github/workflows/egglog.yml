@@ -1,4 +1,4 @@
-name: Build egg-herbie on all three OSes
+name: Build and test egglog on all three OSes
 
 on: [push]
 
@@ -11,9 +11,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@master
-      - name: Checkout submodules
-        run: git submodule --recurse-submodules
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.8
         with:
@@ -25,9 +26,7 @@ jobs:
             default: true
             override: true
             components: rustfmt, clippy
-      - run: cd egg-herbie && cargo clippy --tests
-        continue-on-error: true
-      - run: cd egg-herbie && cargo test
-      - run: cd egg-herbie && cargo fmt -- --check
-      - run: cd egg-herbie && cargo build --release
-      - run: cd egg-herbie && raco test ./
+      - run: cd src/egglog/egg-smol && cargo clippy --tests
+      - run: cd src/egglog/egg-smol && cargo test
+      - run: cd src/egglog/egg-smol && cargo fmt -- --check
+      - run: cd src/egglog/egg-smol && cargo build --release
