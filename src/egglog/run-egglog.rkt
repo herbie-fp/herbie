@@ -8,7 +8,7 @@
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
-(define egg-iters 4)
+(define egg-iters 20)
 (define egg-node-limit 5000)
 (define egg-match-limit 500)
 
@@ -731,7 +731,7 @@
              ((non-zero (Sub ty a b))))
     ;; demand for the rule
     (rule ((= (Sub ty a b) t1)) ((Add ty a b)))
-    (rewrite (Sub ty a b)
+    (rewriteif (Sub ty a b)
              (Div ty
                   (Sub ty (Mul ty a a) (Mul ty b b))
                   (Add ty a b))
@@ -786,7 +786,7 @@
                        (Sub ty (Mul ty b b) (Mul ty a b))))
              :when
              ((non-zero a)))
-    (rewrite (Add ty a b)
+    (rewriteif (Add ty a b)
              (Div ty
                   (Add ty
                        (Pow ty a (Num ty r-three))
@@ -796,16 +796,6 @@
                        (Sub ty (Mul ty b b) (Mul ty a b))))
              :when
              ((non-zero b)))
-    (rewrite (Add ty a b)
-             (If ty (NotEq ty b (Num ty r-zero))
-                 (Div ty
-                      (Add ty
-                           (Pow ty a (Num ty r-three))
-                           (Pow ty b (Num ty r-three)))
-                      (Add ty
-                           (Mul ty a a)
-                           (Sub ty (Mul ty b b) (Mul ty a b))))
-                 (Add ty a b)))
     ;;flip3--
     (rewrite
      (Sub ty a b)
@@ -829,7 +819,7 @@
                        (Add ty (Mul ty b b) (Mul ty a b))))
              :when
              ((non-zero b)))
-    (rewrite (Sub ty a b)
+    (rewriteif (Sub ty a b)
              (Div ty
                   (Sub ty
                        (Pow ty a (Num ty r-three))
@@ -842,16 +832,6 @@
                (Add ty
                     (Mul ty a a)
                     (Add ty (Mul ty b b) (Mul ty a b))))))
-    (rewrite (Sub ty a b)
-             (If ty (NotEq ty b (Num ty r-zero))
-                 (Div ty
-                      (Sub ty
-                           (Pow ty a (Num ty r-three))
-                           (Pow ty b (Num ty r-three)))
-                      (Add ty
-                           (Mul ty a a)
-                           (Add ty (Mul ty b b) (Mul ty a b))))
-                 (Sub ty a b)))
 
     ;;fractions transform
     (rewrite (Sub ty (Div ty a c) (Div ty b c))
@@ -1196,6 +1176,22 @@
    (build-runner)
    (build-extract exprs variants)))
 
+(define (rewrite-if egglog-program)
+  (apply append
+         (for/list ([line egglog-program])
+           (match line
+             [`(rewriteif ,lhs ,rhs :when ((non-zero ,expr)))
+              (list
+               `(rewrite ,lhs ,rhs :when ((non-zero ,expr)))
+               `(rewrite ,lhs
+                         (If ty (NotEq ty ,expr (Num ty r-zero)) ,rhs ,lhs)))
+              ]
+             [else
+              (list line)]))))
+
+
+(define (apply-egglog-macros egglog-program)
+  (rewrite-if egglog-program))
 
 ;; 0 variants means just extract the best expression
 (define (run-egglog ctx exprs #:variants [variants 0])
@@ -1206,7 +1202,8 @@
     (subprocess #f #f (current-error-port) egglog-binary))
 
   (define egglog-program
-    (build-egglog ctx eggdata exprs variants))
+    (apply-egglog-macros (build-egglog ctx eggdata exprs variants)))
+
 
   ;; save the egglog program
   (timeline-push! 'egglog (~s egglog-program))
@@ -1219,7 +1216,7 @@
   (define results
     (for/list ([expr exprs])
       (read egglog-output)))
-  (flush-output)
+  (close-input-port egglog-output)
 
   (define converted
     (for/list ([variants results])
