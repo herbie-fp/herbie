@@ -3,7 +3,7 @@
 (require math/bigfloat rival racket/hash)
 (require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "config.rkt")
 
-(provide sample-points batch-prepare-points make-search-func eval-progs-real)
+(provide sample-points batch-prepare-points make-search-func check-valid-on)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -24,8 +24,13 @@
 (define (is-samplable-interval repr interval)
   (define <-bf (representation-bf->repr repr))
   (define (close-enough? lo hi)
-    (let ([lo* (<-bf lo)] [hi* (<-bf hi)])
-      (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
+    (cond
+      [(or (boolean? lo) (boolean? hi))
+       (equal? lo hi)]
+      [else ;; cover the boolean case first
+       (define lo* (<-bf lo))
+       (define hi* (<-bf hi))
+       (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))]))
   ((close-enough->ival close-enough?) interval))
 
 (define ground-truth-require-convergence (make-parameter #t))
@@ -53,7 +58,7 @@
         'unsamplable)
        y))))
 
-(define (eval-progs-real progs ctx)
+(define (check-valid-on progs ctx)
   (define repr (context-repr ctx))
   (define pre `(λ ,(context-vars ctx) (TRUE)))
   (define fn (make-search-func pre progs ctx))
@@ -62,9 +67,7 @@
                   (apply fn pt)))
     (for/list ([ex exs])
       (match-define (ival err err?) (ival-error? ex))
-      (if err?
-          +nan.0
-          ((representation-bf->repr repr) (ival-lo ex)))))
+      (not err?)))
   (procedure-rename f '<eval-prog-real>))
 
 (define (combine-tables t1 t2)

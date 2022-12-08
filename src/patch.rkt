@@ -113,20 +113,17 @@
     (for/list ([num taylor-sample])
       (for/list ([var (context-vars (*context*))])
         num)))
-  (define point-evals
+  (define point-validity
     (for/list ([point points])
-      ((eval-progs-real programs (*context*)) point)))
+      ((check-valid-on programs (*context*)) point)))
   (define program-results
-    (transpose point-evals))
+    (transpose point-validity))
   (filter
    identity
    (for/list ([res program-results] [alt alts])
-     (if (empty?
-          (filter
-           (lambda (x) (not (equal? x +nan.0)))
-           res))
-         #f
-         alt))))
+     (if (ormap identity res)
+         alt
+         #f))))
 
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
