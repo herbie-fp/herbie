@@ -27,7 +27,7 @@
               ; Ground terms
               (Num HerbieType Rational)
               (Var HerbieType String)
-              ; Custom ops
+              ; Constants
               (PI HerbieType)
               (E HerbieType)
               (INFINITY HerbieType)
@@ -91,6 +91,12 @@
     ;; that rewrites are sound, even if some parts of an expr can't be const-evaled)
     (function hi (Math) Rational :merge (min old new))
     (function lo (Math) Rational :merge (max old new))
+
+    ;; Evaluation to find the most accurate program
+    (function ground-truth (Math f64))
+    (function best (Math f64))
+    (function float-lo (Math f64))
+
     ;; universe is a hack so we can quantify over it
     (relation universe (Math HerbieType))
     (relation non-zero (Math))
@@ -1184,8 +1190,7 @@
               (list
                `(rewrite ,lhs ,rhs :when ((non-zero ,expr)))
                `(rewrite ,lhs
-                         (If ty (NotEq ty ,expr (Num ty r-zero)) ,rhs ,lhs)))
-              ]
+                         (If ty (NotEq ty ,expr (Num ty r-zero)) ,rhs ,lhs)))]
              [else
               (list line)]))))
 

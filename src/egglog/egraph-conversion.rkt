@@ -55,6 +55,10 @@
                (== . Eq)
                (!= . NotEq)
                (E . E)
+               (PI . PI)
+               (INFINITY . INFINITY)
+               (TRUE . TRUE)
+               (FALSE . FALSE)
                )))
 (define special-egg-names-reversed
   (make-hash
