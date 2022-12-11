@@ -3,7 +3,7 @@
 (require "../common.rkt" "../programs.rkt" "matcher.rkt"
          "../syntax/syntax.rkt" "../syntax/sugar.rkt")
 
-(provide simplify load-rule-hacks)
+(provide simplify)
 
 ;; Cancellation's goal is to cancel (additively or multiplicatively) like terms.
 ;; It uses commutativity, identities, inverses, associativity,
@@ -45,24 +45,24 @@
     ['(cos 0) 1]
     ['(sin (PI)) 0]
     ['(cos (PI)) -1]
-    ['(exp 1) (E)]
+    ['(exp 1) '(E)]
     ['(tan 0) 0]
     ['(sinh 0) 0]
     ['(log (E)) 1]
     ['(exp 0) 1]
     ['(tan (PI)) 0]
     ['(cosh 0) 1]
-    ['(cos (/ (PI) 6)) (/ (sqrt 3) 2)]
-    ['(tan (/ (PI) 3)) (sqrt 3)]
+    ['(cos (/ (PI) 6)) '(/ (sqrt 3) 2)]
+    ['(tan (/ (PI) 3)) '(sqrt 3)]
     ['(tan (/ (PI) 4)) 1]
     ['(cos (/ (PI) 2)) 0]
-    ['(tan (/ (PI) 6)) (/ 1 (sqrt 3))]
-    ['(sin (/ (PI) 3)) (/ (sqrt 3) 2)]
+    ['(tan (/ (PI) 6)) '(/ 1 (sqrt 3))]
+    ['(sin (/ (PI) 3)) '(/ (sqrt 3) 2)]
     ['(sin (/ (PI) 6)) 1/2]
-    ['(sin (/ (PI) 4)) (/ (sqrt 2) 2)]
+    ['(sin (/ (PI) 4)) '(/ (sqrt 2) 2)]
     ['(sin (/ (PI) 2)) 1]
     ['(cos (/ (PI) 3)) 1/2]
-    ['(cos (/ (PI) 4)) (/ (sqrt 2) 2)]
+    ['(cos (/ (PI) 4)) '(/ (sqrt 2) 2)]
     [_ expr]))
 
 (define (simplify-inverses expr)
