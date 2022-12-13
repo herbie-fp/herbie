@@ -141,16 +141,13 @@
                       (let ([prog (list 'λ (program-variables prog) expr)])
                         (format-bits (errors-score (errors prog pcontext ctx)))))
                    `(tr (th ,(if dir 
-                                (let ([tag (string-append "Dir "
-                                                          (match dir
-                                                            ['Rewrite<= "<="]
-                                                            ['Rewrite=> "=>"])
-                                                          (format " ↑ ~a" (first sound))
+                                (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
+                                      [tag (string-append (format " ↑ ~a" (first sound))
                                                           (format " ↓ ~a" (second sound)))])
-                                 `(p ,(~a rule)
+                                 `(p ,(format "~a [~a]" rule dir)
                                       (span ([class "info"] [title ,tag]) ,err)))
-                                `(p "[Start]"
-                                    (span ([class "info"]) ,err))))
+                               `(p "[Start]"
+                                   (span ([class "info"]) ,err))))
                         (td (div ([class "math"])
                               "\\[ "
                              ,(if dir
