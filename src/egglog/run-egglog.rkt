@@ -79,29 +79,27 @@
     (define r-two (rational "2" "1"))
     (define r-three (rational "3" "1"))
     (define r-four (rational "4" "1"))
-    (define r-neg-one (rational "-1" "1"))
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;;
-    ;; Analyses
-    ;; --------
-    ;; This example has three analyses:
-    ;; an interval analysis consisting of a hi and lo component
-    ;; and a non-zero analysis.
-    ;; The non-zero analysis is built off the interval analysis (in order to prove
-    ;; that rewrites are sound, even if some parts of an expr can't be const-evaled)
-    (function hi (Math) Rational :merge (min old new))
+    (define r-neg-one (rational "-1" "1"))))
+
+;; TODO: rewrite analysis to use interval type
+(define analysis
+  `((function hi (Math) Rational :merge (min old new))
     (function lo (Math) Rational :merge (max old new))
 
-    ;; Evaluation to find the most accurate program
-    (function ground-truth (Math f64))
-    (function best (Math f64))
-    (function float-lo (Math f64))
+    ;; Compute ground truth for a program for a particular input point indexed by the i64
+    (function ival (Math i64) Interval :merge (intersect old new))
+    (function bval (Math i64) BoolInterval :merge (or old new))
+    (relation point (i64))
 
     ;; universe is a hack so we can quantify over it
     (relation universe (Math HerbieType))
     (relation non-zero (Math))
     (relation non-negative (Math))
     (relation positive (Math))
+
+    ;; Floating point evaluation
+
+
     ;; First, constant folding!
     ;; We don't need an explicit constant folding analysis, we can just union
     ;; with nums when we can
@@ -236,14 +234,10 @@
     (rule ((= (Num ty n) (Num ty m)) (!= n m))
           ((panic "Unsoundness detected!")))
     (add-ruleset analysis)
-    (clear-rules)
+    (clear-rules)))
 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;;
-    ;; Rewrites
-    ;; --------
-    ;; INJECTIVITY
-    (rule ((= t1 (Add ty a b)) (= t2 (Add ty a c))
+(define rewrites
+  `((rule ((= t1 (Add ty a b)) (= t2 (Add ty a c))
                                (= t1 t2))
           ((union b c)))
     (rule ((= t1 (Mul ty a b)) (= t2 (Mul ty a c))
@@ -1141,9 +1135,24 @@
              (Log ty (Add ty (Num ty r-one) x)))
     (rewrite (Hypot ty x y)
              (Sqrt ty (Add ty (Mul ty x x) (Mul ty y y))))
-    (add-ruleset rules)
+    (add-ruleset rewrites)
     (clear-rules)))
 
+;; the script adds a (point i i) for every point i
+(define ground-truth
+  `((rule ((= term (Num ty r))
+           (point i))
+          ((set (ival term i) (interval r r))))
+    (rule ((= term PI)
+           (point i))
+          ((set (ival term i) (interval-pi))))
+    (rule ((= term INFINITY)
+           (point i))
+          ((set (ival term i) (interval-inf))))
+    (rule ((= term 
+    
+    (add-ruleset ground-truth)
+    (clear-rules)))
 
 (define (varname i)
   (string->symbol
@@ -1161,15 +1170,19 @@
       (run 3)
       (clear-rules)))
   (define rules-iter
-    `((load-ruleset rules)
+    `((load-ruleset rewrites)
       (run 1)
       (clear-rules)))
   (append analysis-iter rules-iter))
 
 (define (build-runner)
-  (apply append
-         (for/list ([iter (in-range egg-iters)])
-          (build-iter))))
+  (append
+   (apply append
+          (for/list ([iter (in-range egg-iters)])
+            (build-iter)))
+   `((add-ruleset ground-truth)
+     (run 20)
+     (clear-rules))))
 
 (define (build-extract exprs variants)
   (for/list ([expr exprs] [i (in-naturals)])
@@ -1178,6 +1191,9 @@
 (define (build-egglog ctx eggdata exprs variants)
   (append
    header
+   analysis
+   rewrites
+   ground-truth
    (build-exprs ctx eggdata exprs)
    (build-runner)
    (build-extract exprs variants)))
