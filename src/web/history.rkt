@@ -55,24 +55,14 @@
         [_ (void)]))
     (k 'Goal #f #f step)))
 
-;; If consecutive proof steps are step(N-1) to stepN
-;; then the rewrite information is actually attached to step(N-1).
-;; Take the rewrite information and associate it with stepN.
+;; Extracts render information from the proof
 (define (compute-proof proof soundiness)
-  (define spliced
-    (for/list ([step (in-list proof)])
-      (define-values (dir rule loc expr) (splice-proof-step step))
-      (list dir rule loc expr)))
-  (for/list ([stepn   (reverse spliced)]
-             [stepn-1 (cons #f (reverse (cdr spliced)))]
-             [sound   (reverse soundiness)])
-    (match-define (list _ _ _ expr) stepn)
-    (cond
-      [stepn-1
-       (match-define (list dir rule loc _) stepn-1)
-       (list dir rule loc expr sound)]
-      [else
-       (list #f #f #f expr #f)])))
+  (for/list ([step (in-list proof)] [sound soundiness])
+     (define-values (dir rule loc expr) (splice-proof-step step))
+     (if (eq? dir 'Goal)
+         (list #f #f #f expr #f)
+         (list dir rule loc expr sound))))
+
 
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))

@@ -52,8 +52,8 @@
   (match altn
     [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
      (define proof (get-proof input
-                              (location-get loc prog)
-                              (location-get loc (alt-program prev))))
+                              (location-get loc (alt-program prev))
+                              (location-get loc prog)))
      ;; Proofs are actually on subexpressions,
      ;; we need to construct the proof for the full expression
      (define proof*
