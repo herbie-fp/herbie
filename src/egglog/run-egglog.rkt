@@ -2,6 +2,7 @@
 
 (require racket/runtime-path)
 (require "egraph-conversion.rkt" "../timeline.rkt")
+(require (for-syntax syntax/parse))
 
 (provide run-egglog)
 
@@ -19,6 +20,50 @@
 ;; something that errors for exactly the same input points
 ;; It is not okay to rewrite it to something that errors on fewer points
 
+
+(define bool-ops
+  `(TRUE FALSE))
+(define num-ops
+  `(PI E INFINITY))
+(define *-ops
+  (append num-ops bool-ops))
+
+
+(define bool-bool-ops
+  `(Not))
+(define num-num-ops
+  `(Neg Sqrt Cbrt Fabs Ceil Floor Round Log Exp
+        Sin Cos Tan Atan Asin Acos Expm1 Log1p
+        Sinh Cosh Tanh))
+(define *-*-ops
+  (append bool-bool-ops num-num-ops))
+
+
+(define num-num-bool-ops
+  (list 'Less 'LessEq 'Greater 'GreaterEq 'Eq 'NotEq))
+(define num-num-num-ops
+  `(Add Sub Mul Div Pow Atan2 Hypot))
+(define bool-bool-bool-ops
+  `(And Or))
+(define *-*-*-ops
+  (append num-num-bool-ops num-num-num-ops
+          bool-bool-bool-ops))
+
+(define bool-num-num-num-ops
+  `(If))
+(define num-num-num-num-ops
+  `(Fma))
+(define *-*-*-*-ops
+  (append num-num-num-num-ops bool-num-num-num-ops))
+
+(define-syntax (expand-for-list stx)
+  (syntax-parse stx
+    [(_expand-for-list list var:id body)
+     #'(for/list ([ele list])
+         (let ([var ele])
+           body))]))
+
+
 (define header
   `((set-option node_limit ,egg-node-limit)
     (set-option match_limit ,egg-match-limit)
@@ -27,52 +72,15 @@
               ; Ground terms
               (Num HerbieType Rational)
               (Var HerbieType String)
-              ; Constants
-              (PI HerbieType)
-              (E HerbieType)
-              (INFINITY HerbieType)
-              (TRUE HerbieType)
-              (FALSE HerbieType)
               ; comparison
-              (Less HerbieType Math Math)
-              (LessEq HerbieType Math Math)
-              (Greater HerbieType Math Math)
-              (GreaterEq HerbieType Math Math)
-              (Eq HerbieType Math Math)
-              (NotEq HerbieType Math Math)
-              (Add HerbieType Math Math)
-              (Sub HerbieType Math Math)
-              (Mul HerbieType Math Math)
-              (Div HerbieType Math Math)
-              ;; named exactly as herbie but with caps
-              (Pow HerbieType Math Math)
-              (Neg HerbieType Math)
-              (Sqrt HerbieType Math)
-              (Cbrt HerbieType Math) ; cube root
-              (Fabs HerbieType Math)
-              (Ceil HerbieType Math)
-              (Floor HerbieType Math)
-              (Round HerbieType Math)
-              (Log HerbieType Math)
-              (Exp HerbieType Math)
-              (If HerbieType Math Math Math)
-              (Fma HerbieType Math Math Math)
-              (Sin HerbieType Math)
-              (Cos HerbieType Math)
-              (Tan HerbieType Math)
-              (Atan HerbieType Math)
-              (Atan2 HerbieType Math Math)
-              (Asin HerbieType Math)
-              (Acos HerbieType Math)
-              (Hypot HerbieType Math Math)
-              (Expm1 HerbieType Math)
-              (Log1p HerbieType Math)
-              (Sinh HerbieType Math)
-              (Cosh HerbieType Math)
-              (Tanh HerbieType Math)
-              (Not HerbieType Math)
-              (And HerbieType Math Math)
-              (Or HerbieType Math Math))
+              ,@(expand-for-list *-*-*-*-ops Op
+                                 `(,Op HerbieType Math Math Math))
+              ,@(expand-for-list *-*-*-ops Op
+                                 `(,Op HerbieType Math Math))
+              ,@(expand-for-list *-*-ops Op
+                                 `(,Op HerbieType Math))
+              ,@(expand-for-list *-ops Op
+                                 `(,Op HerbieType)))
     ;; shorthands- must be added to the exclude list of extraction
     (define r-zero (rational "0" "1"))
     (define r-one (rational "1" "1"))
@@ -1138,18 +1146,29 @@
     (add-ruleset rewrites)
     (clear-rules)))
 
-;; the script adds a (point i i) for every point i
+;; the script adds a (point i) for every point i
 (define ground-truth
   `((rule ((= term (Num ty r))
            (point i))
           ((set (ival term i) (interval r r))))
-    (rule ((= term PI)
+    (rule ((= term (PI ty))
            (point i))
           ((set (ival term i) (interval-pi))))
-    (rule ((= term INFINITY)
+    (rule ((= term (INFINITY ty))
            (point i))
           ((set (ival term i) (interval-inf))))
-    (rule ((= term 
+    (rule ((= term (TRUE ty))
+           (point i))
+          ((set (bval term i) (true-interval))))
+    (rule ((= term (FALSE ty))
+           (point i))
+          ((set (bval term i) (false-interval))))
+    #;(expand-for-ops ,int-int-bool-ops Binary
+                      (rule ((= term (Binary ty x y))
+                             (= x-interval (ival x i))
+                             (= y-interval (ival y i)))
+                            ((set (bval term i)
+                                  (< x-interval y-interval)))))
     
     (add-ruleset ground-truth)
     (clear-rules)))
@@ -1188,6 +1207,17 @@
   (for/list ([expr exprs] [i (in-naturals)])
     `(extract :variants ,variants ,(varname i))))
 
+(define (build-ground-truth-extract exprs)
+  (append
+   (for/list ([expr exprs] [i (in-naturals)])
+     `(point ,i)) ;; initialize the number of points
+   `((load-ruleset ground-truth)
+     (run 10)
+     (clear-rules)) ;; run ground truth computation
+
+   ;; TODO run ground truth extraction
+   ))
+
 (define (build-egglog ctx eggdata exprs variants)
   (append
    header
@@ -1196,7 +1226,12 @@
    ground-truth
    (build-exprs ctx eggdata exprs)
    (build-runner)
-   (build-extract exprs variants)))
+   ;; normal extraction
+   (build-extract exprs variants)
+
+   ;; extraction using ground truth
+   (build-ground-truth-extract exprs)
+   ))
 
 (define (rewrite-if egglog-program)
   (apply append
