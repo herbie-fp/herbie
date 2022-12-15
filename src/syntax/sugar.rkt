@@ -97,13 +97,9 @@
          (define-values (body* rtype) (loop body irepr))
          (values (list op body*) orepr)]
         [(or (? constant-operator? x) (list x)) ; constant
-         (let/ec k
-           (for/list ([name (operator-all-impls x)])
-             (define rtype (operator-info name 'otype))
-             (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
-               (k (list name) rtype)))
-           (raise-herbie-missing-error "Could not find constant implementation for ~a at ~a"
-                                        x (representation-name repr)))]
+         (define cnst (get-parametric-constant x repr))
+         (define rtype (operator-info cnst 'otype))
+         (values (list cnst) rtype)]
         [(list op args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])
