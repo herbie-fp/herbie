@@ -1200,6 +1200,11 @@
            (point i))
           ((set (bval term i) (false-interval))))
 
+    ,@(expand-for-list *-*-ops Op
+                       `(rule ((= term (,Op ty x))
+                               (= x-interval (,(tval Op 0) x i)))
+                              ((set (,(tval Op 1) term i)
+                                    (,(ival-op Op) x-interval)))))
     ,@(expand-for-list *-*-*-ops Op
                        `(rule ((= term (,Op ty x y))
                                (= x-interval (,(tval Op 0) x i))
