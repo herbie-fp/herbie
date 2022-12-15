@@ -20,41 +20,74 @@
 ;; something that errors for exactly the same input points
 ;; It is not okay to rewrite it to something that errors on fewer points
 
+(define op-type (make-hash))
 
 (define bool-ops
   `(TRUE FALSE))
+(for ([op bool-ops])
+  (hash-set! op-type op (list 'bool)))
 (define num-ops
   `(PI E INFINITY))
+(for ([op num-ops])
+  (hash-set! op-type op (list 'num)))
 (define *-ops
   (append num-ops bool-ops))
 
 
 (define bool-bool-ops
   `(Not))
+(for ([op bool-bool-ops])
+  (hash-set! op-type op (list 'bool 'bool)))
 (define num-num-ops
   `(Neg Sqrt Cbrt Fabs Ceil Floor Round Log Exp
         Sin Cos Tan Atan Asin Acos Expm1 Log1p
         Sinh Cosh Tanh))
+(for ([op num-num-ops])
+  (hash-set! op-type op (list 'num 'num)))
 (define *-*-ops
   (append bool-bool-ops num-num-ops))
 
 
 (define num-num-bool-ops
   (list 'Less 'LessEq 'Greater 'GreaterEq 'Eq 'NotEq))
+(for ([op num-num-bool-ops])
+  (hash-set! op-type op (list 'num 'num 'bool)))
 (define num-num-num-ops
   `(Add Sub Mul Div Pow Atan2 Hypot))
+(for ([op num-num-num-ops])
+  (hash-set! op-type op (list 'num 'num 'num)))
 (define bool-bool-bool-ops
   `(And Or))
+(for ([op bool-bool-bool-ops])
+  (hash-set! op-type op (list 'bool 'bool 'bool)))
 (define *-*-*-ops
   (append num-num-bool-ops num-num-num-ops
           bool-bool-bool-ops))
 
 (define bool-num-num-num-ops
   `(If))
+(for ([op bool-num-num-num-ops])
+  (hash-set! op-type op (list 'bool 'num 'num 'num)))
 (define num-num-num-num-ops
   `(Fma))
+(for ([op num-num-num-num-ops])
+  (hash-set! op-type op (list 'num 'num 'num 'num)))
 (define *-*-*-*-ops
   (append num-num-num-num-ops bool-num-num-num-ops))
+
+(define all-ops (append *-*-*-*-ops *-*-*-ops *-*-ops *-ops))
+
+(define (type op n)
+  (list-ref (hash-ref op-type op) n))
+(define (tval op n)
+  (match (list-ref (hash-ref op-type op) n)
+    ['num 'ival]
+    ['bool 'bval]))
+
+
+(define (ival-op op)
+  (string->symbol
+   (string-append "ival-" (symbol->string op))))
 
 (define-syntax (expand-for-list stx)
   (syntax-parse stx
@@ -96,7 +129,7 @@
 
     ;; Compute ground truth for a program for a particular input point indexed by the i64
     (function ival (Math i64) Interval :merge (intersect old new))
-    (function bval (Math i64) BoolInterval :merge (or old new))
+    (function bval (Math i64) BooleanInterval :merge (ival-Or old new))
     (relation point (i64))
 
     ;; universe is a hack so we can quantify over it
@@ -1153,16 +1186,26 @@
           ((set (ival term i) (interval r r))))
     (rule ((= term (PI ty))
            (point i))
-          ((set (ival term i) (interval-pi))))
+          ((set (ival term i) (interval-Pi))))
     (rule ((= term (INFINITY ty))
            (point i))
-          ((set (ival term i) (interval-inf))))
+          ((set (ival term i) (interval-Inf))))
+    (rule ((= term (E ty))
+           (point i))
+          ((set (ival term i) (interval-E))))
     (rule ((= term (TRUE ty))
            (point i))
           ((set (bval term i) (true-interval))))
     (rule ((= term (FALSE ty))
            (point i))
           ((set (bval term i) (false-interval))))
+
+    ,@(expand-for-list *-*-*-ops Op
+                       `(rule ((= term (,Op ty x y))
+                               (= x-interval (,(tval Op 0) x i))
+                               (= y-interval (,(tval Op 1) y i)))
+                              ((set (,(tval Op 2) term i)
+                                    (,(ival-op Op) x-interval y-interval)))))
     #;(expand-for-ops ,int-int-bool-ops Binary
                       (rule ((= term (Binary ty x y))
                              (= x-interval (ival x i))
