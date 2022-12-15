@@ -131,7 +131,7 @@
    [(equal? (hash-ref v 'type) "real")
     (hash-ref v 'value)]
    [else
-    (define repr (get-representation (hash-ref v 'type)))
+    (define repr (get-representation (read (open-input-string (hash-ref v 'type)))))
     (value->string
      ((representation-ordinal->repr repr)
       (string->number (hash-ref v 'ordinal)))

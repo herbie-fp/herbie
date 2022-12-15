@@ -3,6 +3,7 @@
 ; This is a cool example that fails in cases of overflow
 
 (FPCore (lo hi x)
+  :name "xlohi (overflows)"
   :pre (and (< lo -1e308) (> hi 1e308))
   :precision binary64
   (/ (- x lo) (- hi lo)))
@@ -10,7 +11,7 @@
 ; These once crashed Herbie
 
 (FPCore (x y z a)
- :name "tan-example"
+ :name "tan-example (used to crash)"
  :pre (and (or (== x 0) (<= 0.5884142 x 505.5909))
            (or (<= -1.796658e+308 y -9.425585e-310) (<= 1.284938e-309 y 1.751224e+308))
            (or (<= -1.776707e+308 z -8.599796e-310) (<= 3.293145e-311 z 1.725154e+308))
@@ -22,47 +23,99 @@
   (/ (cos (* 2 x)) (* (pow c 2) (* (* x (pow s 2)) x))))
 
 (FPCore (x)
+  :name "x (used to be hard to sample)"
   :pre (or (== x 0) (== x 10))
   x)
 
 ; These should yield the same result
 
 (FPCore (r a b)
- :name "rsin A"
+ :name "rsin A (should all be same)"
  (/ (* r (sin b)) (cos (+ a b))))
 
 (FPCore (r a b)
- :name "rsin B"
+ :name "rsin B (should all be same)"
  (* r (/ (sin b) (cos (+ a b)))))
 
 ; These should yield the same result
 
 (FPCore (x)
- :name "sqrt A"
+ :name "sqrt A (should all be same)"
  (sqrt (+ (* x x) (* x x))))
 
 (FPCore (x)
- :name "sqrt B"
+ :name "sqrt B (should all be same)"
  (sqrt (* (* 2 x) x)))
 
 (FPCore (x)
- :name "sqrt C"
+ :name "sqrt C (should all be same)"
  (sqrt (* 2 (* x x))))
 
 (FPCore (x)
- :name "sqrt D"
+ :name "sqrt D (should all be same)"
  (sqrt (* 2 (pow x 2))))
 
 (FPCore (x)
- :name "sqrt E"
+ :name "sqrt E (should all be same)"
  (sqrt (+ (pow x 2) (pow x 2))))
 
 ; This used to cause crashes
 
 (FPCore (w l)
- :name "exp-w crasher"
+ :name "exp-w (used to crash)"
  (* (exp (- w)) (pow l (exp w))))
 
 (FPCore (x)
- :name "expfmod"
+ :name "expfmod (used to be hard to sample)"
  (* (fmod (exp x) (sqrt (cos x))) (exp (- x))))
+
+; Regression tests from user-filed bugs
+
+(FPCore (x)
+  :name "bug323 (missed optimization)"
+  :pre (<= 0 x 0.5)
+  :herbie-target
+  (* 2 (asin (sqrt (/ x 2))))
+
+  (acos (- 1 x)))
+
+(FPCore (x y)
+  :name "bug329 (missed optimization)"
+  :pre (>= x 0)
+  :herbie-target
+  (atan2 y x)
+
+  (atan (/ y x)))
+
+(FPCore (x)
+  :name "bug333 (missed optimization)"
+  :pre (<= -1 x 1)
+  :herbie-target
+  (/ (* 2 x) (+ (sqrt (+ 1 x)) (sqrt (- 1 x))))
+  
+  (- (sqrt (+ 1 x)) (sqrt (- 1 x))))
+
+(FPCore (x y z)
+  :name "bug366 (missed optimization)"
+  :herbie-target
+  (hypot x (hypot y z))
+
+  (sqrt (+ (* x x) (+ (* y y) (* z z)))))
+
+(FPCore (a b)
+  :name "bug366, discussion (missed optimization)"
+  :herbie-target
+  (let* ([fa (fabs a)] [fb (fabs b)])
+    (* (sqrt (+ fa fb)) (sqrt (- fa fb))))
+
+  (sqrt (- (* a a) (* b b))))
+
+(FPCore (x)
+  :name "bug500 (missed optimization)"
+  :pre (< -1e3 x 1e3)
+  :herbie-target
+  (if (< (fabs x) 0.07)
+      (- (+ (- (/ (pow x 3) 6) (/ (pow x 5) 120)) (/ (pow x 7) 5040)))
+      (- (sin x) x))
+
+  (- (sin x) x))

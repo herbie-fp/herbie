@@ -87,7 +87,7 @@
   (shift 31 ordinal->float32)
   (unshift 31 float32->ordinal)
   32
-  (disjoin nan? infinite?))
+  (λ (x) (and (number? x) (or (nan? x) (infinite? x)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
