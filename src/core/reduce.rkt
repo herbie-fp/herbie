@@ -17,16 +17,6 @@
   (set! simplify-cache (make-hash))
   (set! simplify-node-cache (make-hash))))
 
-(define (load-rule-hacks)
-  (set! fn-inverses
-        (remove-duplicates
-         (map
-          (λ (r) (rule-input r))
-          (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
-  (set! fn-evaluations
-        (for/hash ([r (*rules*)] #:when (null? (free-variables (rule-input r))))
-          (values (rule-input r) (rule-output r)))))
-
 (define (simplify expr)
   (hash-ref! simplify-cache expr (λ () (simplify* expr))))
 
