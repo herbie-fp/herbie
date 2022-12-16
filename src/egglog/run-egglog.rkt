@@ -1211,12 +1211,15 @@
                                (= y-interval (,(tval Op 1) y i)))
                               ((set (,(tval Op 2) term i)
                                     (,(ival-op Op) x-interval y-interval)))))
-    #;(expand-for-ops ,int-int-bool-ops Binary
-                      (rule ((= term (Binary ty x y))
-                             (= x-interval (ival x i))
-                             (= y-interval (ival y i)))
-                            ((set (bval term i)
-                                  (< x-interval y-interval)))))
+
+    ,@(expand-for-list *-*-*-*-ops Op
+                       `(rule ((= term (,Op ty x y z))
+                               (= x-interval (,(tval Op 0) x i))
+                               (= y-interval (,(tval Op 1) y i))
+                               (= z-interval (,(tval Op 2) z i)))
+                              ((set (,(tval Op 3) term i)
+                                    (,(ival-op Op) x-interval y-interval
+                                                   z-interval)))))
     
     (add-ruleset ground-truth)
     (clear-rules)))
