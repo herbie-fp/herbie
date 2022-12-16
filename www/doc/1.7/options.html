@@ -264,24 +264,5 @@
       try to branch on variables.</dd>
   </dl>
 
-  <h2>Upgrading from Herbie 1.0</h2>
-
-  <p>Herbie 1.0 used
-  a <a href="../1.0/using-herbie.html">different</a> command line
-  syntax, without multiple tools. Translate like so:</p>
-
-  <ul>
-    <li><code>herbie-1.0</code> → <code>herbie-1.4 shell</code></li>
-    <li><code>herbie-1.0 file</code> → <code>herbie-1.4 improve file -</code></li>
-    <li><code>herbie-1.0 files ...</code> → <code>cat files ... | herbie-1.4 improve - -</code><br/>
-      Alternatively, collect the files into a directory and run <code>herbie-1.4 improve dir/ -</code></li>
-  </ul>
-
-  <p>The new syntax somewhat changes Herbie's behavior, such as by
-  using the input expression as the output if Herbie times out. It
-  also makes it easier to write Herbie's output to a file without
-  using command-line redirection.</p>
-
-
 </body>
 </html>
