@@ -1,7 +1,7 @@
 #lang racket
 
 (require "alternative.rkt" "points.rkt" "programs.rkt"
-         "core/simplify.rkt" "syntax/types.rkt")
+         "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/types.rkt")
 
 (provide add-soundiness)
 
@@ -13,6 +13,16 @@
      (remove-rewrites something)]
     [(list _ ...)
      (map remove-rewrites proof)]
+    [else proof]))
+
+(define (canonicalize-rewrite proof)
+  (match proof
+    [`(Rewrite=> ,rule ,something)
+     (list 'Rewrite=> (get-canon-rule-name rule rule) something)]
+    [`(Rewrite<= ,rule ,something)
+     (list 'Rewrite<= (get-canon-rule-name rule rule) something)]
+    [(list _ ...)
+     (map canonicalize-rewrite proof)]
     [else proof]))
 
 (define (get-proof-errors proof pcontext ctx program-vars)
@@ -38,30 +48,26 @@
   proof-diffs)
   
 
-(define (add-soundiness-to pcontext ctx simplify-cache altn)
+(define (add-soundiness-to pcontext ctx altn)
   (match altn
     [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
-     (match-define (cons proof errors)
-       (hash-ref! simplify-cache input
-                  (λ ()
-                    (define proof (get-proof input
-                                             (location-get loc prog)
-                                             (location-get loc (alt-program prev))))
-                    ;; Proofs are actually on subexpressions,
-                    ;; we need to construct the proof for the full expression
-                    (define proof*
-                      (for/list ([step proof])
-                        (program-body (location-do loc prog (λ _ step)))))
-                    (define vars (program-variables prog))
-                    (cons proof* (get-proof-errors proof* pcontext ctx vars)))))
-     (alt prog `(simplify ,loc ,input ,proof ,errors) `(,prev))]
+     (define proof (get-proof input
+                              (location-get loc (alt-program prev))
+                              (location-get loc prog)))
+     ;; Proofs are actually on subexpressions,
+     ;; we need to construct the proof for the full expression
+     (define proof*
+       (for/list ([step proof])
+         (let ([step* (canonicalize-rewrite step)])
+           (program-body (location-do loc prog (λ _ step*))))))
+     (define errors
+       (let ([vars (program-variables prog)])
+         (get-proof-errors proof* pcontext ctx vars)))
+     (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
     [else
      altn]))
 
 
 (define (add-soundiness alts pcontext ctx)
-  (define simplify-cache (make-hash))
   (for/list ([altn alts])
-    (alt-map
-     (curry add-soundiness-to pcontext ctx simplify-cache)
-     altn)))
+    (alt-map (curry add-soundiness-to pcontext ctx) altn)))

@@ -10,7 +10,7 @@
 (provide with-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected
-         rule->egg-rules expand-rules)
+         rule->egg-rules expand-rules get-canon-rule-name)
 
 ;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
@@ -363,6 +363,16 @@
 
 ;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
 (define ffi-rules-cache #f)
+
+;; Tries to look up the canonical name of a rule using the cache.
+;; Obviously dangerous if the cache is invalid.
+(define (get-canon-rule-name name [failure #f])
+  (cond
+    [ffi-rules-cache
+     (match-define (list _ _ canon-names) (cdr ffi-rules-cache))
+     (hash-ref canon-names name failure)]
+    [else
+     failure]))
 
 ;; expand the rules first due to some bad but currently
 ;; necessary reasons (see `rule->egg-rules` for details).
