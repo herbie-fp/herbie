@@ -121,7 +121,7 @@
     (for/list ([point points])
       ((eval-progs-real programs (*context*)) point)))
   (define program-results
-    (transpose point-evals))
+    (flip-lists point-evals))
   (filter
    identity
    (for/list ([res program-results] [alt alts])

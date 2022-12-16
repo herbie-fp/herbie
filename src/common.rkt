@@ -9,7 +9,7 @@
          argmins argmaxs index-of set-disjoint?
          get-seed set-seed!
          quasisyntax dict sym-append
-         format-time format-bits web-resource transpose
+         format-time format-bits web-resource
          (all-from-out "config.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
@@ -32,10 +32,6 @@
     flsingle))
 
 ;; Utility list functions
-
-(define (transpose xss)
-  (apply map list xss))
-
 (define (argmins f lst)
   (let loop ([lst lst] [best-score #f] [best-elts '()])
     (if (null? lst)

@@ -8,8 +8,7 @@
          type-of repr-of
          location-do location-get
          batch-eval-progs eval-prog eval-application
-         free-variables
-         replace-expression replace-vars)
+         free-variables replace-expression replace-vars)
 
 (module+ test
   (require rackunit "load-plugin.rkt")
