@@ -193,16 +193,16 @@
   (define changelists
     (if one-real-repr?
         (merge-changelists
-         (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules) #:roots locs)
-         (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))
+         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules (append expansive-rules normal-rules) #:roots locs)
+         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules reprchange-rules #:roots locs #:once? #t))
         (merge-changelists
-         (rewrite-expressions exprs (*context*) #:rules normal-rules #:roots locs)
-         (rewrite-expressions exprs (*context*) #:rules expansive-rules #:roots locs #:once? #t)
-         (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))))
+         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules normal-rules #:roots locs)
+         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules expansive-rules #:roots locs #:once? #t)
+         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules reprchange-rules #:roots locs #:once? #t))))
 
   ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
-    (rewrite-expressions lowexprs (*context*)
+    (rewrite-expressions lowexprs (*context*) (*pcontext*)
                          #:rules reprchange-rules
                          #:roots lowlocs
                          #:once? #t))
@@ -261,7 +261,7 @@
     (define input-struct
       (simplify-input to-simplify empty (*simplify-rules*) true))
     (define simplification-options
-      (simplify-batch (*context*) input-struct))
+      (simplify-batch (*context*) (*pcontext*) input-struct))
 
     (define simplified
       (remove-duplicates

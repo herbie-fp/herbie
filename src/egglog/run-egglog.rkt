@@ -1,7 +1,8 @@
 #lang racket
 
 (require racket/runtime-path)
-(require "egraph-conversion.rkt" "../timeline.rkt")
+(require "egraph-conversion.rkt" "../timeline.rkt"
+         "../syntax/types.rkt" "../points.rkt")
 (require (for-syntax syntax/parse))
 
 (provide run-egglog)
@@ -129,7 +130,9 @@
 
     ;; Compute ground truth for a program for a particular input point indexed by the i64
     (function ival (Math i64) Interval :merge (intersect old new))
+    (function best-float (Math) f64)
     (function bval (Math i64) BooleanInterval :merge (ival-Or old new))
+    (function best-bool (Math) f64)
     (relation point (i64))
 
     ;; universe is a hack so we can quantify over it
@@ -1246,30 +1249,36 @@
   (append analysis-iter rules-iter))
 
 (define (build-runner)
-  (append
-   (apply append
-          (for/list ([iter (in-range egg-iters)])
-            (build-iter)))
-   `((add-ruleset ground-truth)
-     (run 20)
-     (clear-rules))))
+  (apply append
+         (for/list ([iter (in-range egg-iters)])
+            (build-iter))))
 
 (define (build-extract exprs variants)
   (for/list ([expr exprs] [i (in-naturals)])
     `(extract :variants ,variants ,(varname i))))
 
-(define (build-ground-truth-extract exprs)
+(define (build-ground-truth-extract ctx pctx exprs eggdata)
   (append
-   (for/list ([expr exprs] [i (in-naturals)])
+   (for/list ([(point exact) (in-pcontext pctx)] [i (in-naturals)])
      `(point ,i)) ;; initialize the number of points
+   (apply append
+          (for/list ([(point expected) (in-pcontext pctx)]
+                     [i (in-naturals)])
+            (for/list ([var (context-vars ctx)]
+                       [num point])
+              `(set (ival ,(expr->egglog ctx var eggdata)
+                          ,i)
+                    (interval ,num ,num)))))
    `((load-ruleset ground-truth)
-     (run 10)
+     (set-option match_limit 10000000)
+     (set-option node_limit 10000000)
+     (run 4)
      (clear-rules)) ;; run ground truth computation
 
    ;; TODO run ground truth extraction
    ))
 
-(define (build-egglog ctx eggdata exprs variants)
+(define (build-egglog ctx pctx eggdata exprs variants)
   (append
    header
    analysis
@@ -1281,7 +1290,7 @@
    (build-extract exprs variants)
 
    ;; extraction using ground truth
-   (build-ground-truth-extract exprs)
+   (build-ground-truth-extract ctx pctx exprs eggdata)
    ))
 
 (define (rewrite-if egglog-program)
@@ -1301,7 +1310,7 @@
   (rewrite-if egglog-program))
 
 ;; 0 variants means just extract the best expression
-(define (run-egglog ctx exprs #:variants [variants 0])
+(define (run-egglog ctx pctx exprs #:variants [variants 0])
   (define eggdata
     (egraph-data (make-hash)
                  (make-hash)))
@@ -1309,11 +1318,11 @@
     (subprocess #f #f (current-error-port) egglog-binary))
 
   (define egglog-program
-    (apply-egglog-macros (build-egglog ctx eggdata exprs variants)))
+    (apply-egglog-macros (build-egglog ctx pctx eggdata exprs variants)))
 
 
   ;; save the egglog program
-  (timeline-push! 'egglog (~s egglog-program))
+  (timeline-push! 'egglog (apply ~s #:separator "\n" egglog-program))
 
 
   (for ([line egglog-program])

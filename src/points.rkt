@@ -16,7 +16,7 @@
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
 
 (define/contract (mk-pcontext points exacts)
-  (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
+  (-> (listof (listof any/c)) (listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
 
 (define-syntax-rule (for/pcontext ([(pt ex) pcontext] other ...) body ...)

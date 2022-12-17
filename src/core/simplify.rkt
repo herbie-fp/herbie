@@ -1,9 +1,10 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt" "../syntax/types.rkt" "../egglog/egraph-conversion.rkt" "../egglog/run-egglog.rkt")
+         "../syntax/rules.rkt" "../alternative.rkt" "../config.rkt" "../syntax/types.rkt" "../egglog/egraph-conversion.rkt" "../egglog/run-egglog.rkt"
+         "../points.rkt")
 
-(provide simplify-expr simplify-batch get-proof
+(provide simplify-batch get-proof
          make-simplification-combinations
          (struct-out simplify-input))
 
@@ -41,15 +42,12 @@
         (cons option all)
         (append (list option child) all))))
 
-(define/contract (simplify-expr ctx expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
-  (->* (context? expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
-  (last (first (simplify-batch ctx (list expr) #:rules rls #:precompute precompute?))))
-
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
-(define/contract (simplify-batch ctx input)
+(define/contract (simplify-batch ctx pctx input)
   (->* (context?
+        pcontext?
         (struct/c simplify-input
                   (listof expr?)
                   (listof (cons/c expr? expr?))
@@ -62,6 +60,7 @@
   (define results
     (run-simplify-input
      ctx
+     pctx
      input))
 
   (define out
@@ -71,7 +70,7 @@
 
   out)
 
-(define (run-simplify-input ctx input)
+(define (run-simplify-input ctx pctx input)
   (define exprs (simplify-input-exprs input))
   (for ([expr exprs])
     (when (unsound-expr? expr)
@@ -81,7 +80,7 @@
   (define rules (simplify-input-rules input))
 
   (timeline-push! 'method "egglog")
-  (map first (run-egglog ctx (simplify-input-exprs input))))
+  (map first (run-egglog ctx pctx (simplify-input-exprs input))))
 
 
 (define (stop-reason->string sr)
@@ -123,6 +122,7 @@
   (define (test-simplify . args)
     (map last (simplify-batch
                ctx
+               empty
                (simplify-input args empty (*simplify-rules*) true))))
 
   (define test-exprs

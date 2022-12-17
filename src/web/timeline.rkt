@@ -148,6 +148,7 @@
                   (td (pre ,(format-value v1)))
                   (td (pre ,(format-value v2)))))))))
 
+
 (define (render-phase-egglog program)
   `((button ((onclick ,(format "copyToClipboard(`~a`)" (first program)))) "Copy egglog to clipboard")))
 
