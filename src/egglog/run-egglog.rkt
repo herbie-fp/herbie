@@ -500,10 +500,8 @@
     (rewrite (Mul ty x (Mul ty x x))
              (Pow ty x (Num ty r-three)))
     ;; Exponentials
-    (rule ((= t1 (Exp ty (Log ty x))) ;; verified
-           (= lox (lo x))
-           (>= lox r-zero))
-          ((set (Exp ty (Log ty x)) x)))
+    (rewrite (Exp ty (Log ty x))
+             x :when ((positive x)))
     (rewrite (Log ty (Exp ty x)) x)
     (rewrite (Exp ty (Num ty r-zero)) (Num ty r-one))
     (rewrite (Exp ty (Num ty r-one)) (E ty))
