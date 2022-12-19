@@ -398,7 +398,8 @@
                 (Pow ty a (Div ty b (Num ty r-two)))
                 (Pow ty a (Div ty b (Num ty r-two))))))) ;; so rhs always defined
     (rewrite (Mul ty (Pow ty a b) (Pow ty a b))
-             (Pow ty a (Mul ty (Num ty r-two) b)))
+             (Pow ty a (Mul ty (Num ty r-two) b)) ;; could be more defined for fractional b
+             :when ((non-negative a)))
     (rewrite (Pow ty a (Num ty r-three))
              (Mul ty a (Mul ty a a)))
     (rewrite (Pow ty a (Num ty r-four))
@@ -456,7 +457,9 @@
     (rewrite (Div ty (Mul ty a b) (Mul ty c d)) ;; not defined when c or d is zero
              (Mul ty (Div ty a c) (Div ty b d)))
     ;; Square root
-    (rewrite (Mul ty (Sqrt ty x) (Sqrt ty x)) x)
+    (rewrite (Mul ty (Sqrt ty x) (Sqrt ty x))
+             x
+             :when ((non-negative x)))
     (rewrite (Sqrt ty (Mul ty x x)) (Fabs ty x))
     (rewrite (Mul ty (Neg ty x) (Neg ty x)) (Mul ty x x))
     (rewrite (Mul ty (Fabs ty x) (Fabs ty x)) (Mul ty x x))
@@ -541,9 +544,12 @@
              :when
              ((non-zero a)))
     (rewrite (Pow ty (Num ty r-one) a) (Num ty r-one))
-    (rewrite (Exp ty (Mul ty (Log ty a) b)) (Pow ty a b))
+    (rewrite (Exp ty (Mul ty (Log ty a) b)) ;; not defined for a <= 0
+             (Pow ty a b)
+             :when ((positive a)))
     (rewrite (Mul ty (Pow ty a b) a)
-             (Pow ty a (Add ty b (Num ty r-one))))
+             (Pow ty a (Add ty b (Num ty r-one)))
+             :when ((positive a)))
     (rewrite (Pow ty a (Num ty (rational "1" "2")))
              (Sqrt ty a))
     (rewrite (Pow ty a (Num ty r-two)) (Mul ty a a))
