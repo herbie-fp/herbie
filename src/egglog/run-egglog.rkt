@@ -10,7 +10,8 @@
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
-(define egg-iters 20)
+(define egg-iters 0)
+(define ground-truth-iters 7)
 (define egg-node-limit 5000)
 (define egg-match-limit 500)
 
@@ -130,9 +131,9 @@
 
     ;; Compute ground truth for a program for a particular input point indexed by the i64
     (function ival (Math i64) Interval :merge (intersect old new))
-    (function best-float (Math) f64)
+    (function best-float (Math i64) f64 :merge (assert-eq old new))
     (function bval (Math i64) BooleanInterval :merge (ival-Or old new))
-    (function best-bool (Math) f64)
+    (function best-bool (Math i64) BooleanInterval :merge (assert-eq old new))
     (relation point (i64))
 
     ;; universe is a hack so we can quantify over it
@@ -1223,7 +1224,12 @@
                               ((set (,(tval Op 3) term i)
                                     (,(ival-op Op) x-interval y-interval
                                                    z-interval)))))
-    
+
+    (rule ((= interval (ival term i)))
+          ((set (best-float term i) (to-f64 interval))))
+    (rule ((= binterval (bval term i)))
+          ((set (best-bool term i) (to-bool binterval))))
+
     (add-ruleset ground-truth)
     (clear-rules)))
 
@@ -1272,7 +1278,7 @@
    `((load-ruleset ground-truth)
      (set-option match_limit 10000000)
      (set-option node_limit 10000000)
-     (run 4)
+     (run ,ground-truth-iters)
      (clear-rules)) ;; run ground truth computation
 
    ;; TODO run ground truth extraction

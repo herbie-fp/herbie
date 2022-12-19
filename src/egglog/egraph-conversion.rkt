@@ -93,11 +93,13 @@
   (match parsed
     [`(Num ,type (rational ,num ,denom))
      (cons (/ num denom) (context-repr ctx))]
-    [`(Var ,type ,var)
+    [`(Var ,type ,var-str)
+     (define var (string->symbol var-str))
      (define name (hash-ref rename-dict var))
      (cons name (context-lookup ctx name))]
     [(list first-parsed `(Type ,second-parsed) rest-parsed ...)
      (define op (egg-name->name first-parsed))
+     (define type (string->symbol second-parsed))
      (define children
        (map (curryr (curry egg-parsed->expr ctx) rename-dict) rest-parsed))
      (define children-types
@@ -109,7 +111,7 @@
          [(equal? op 'if)
           (second children-types)]
          [else
-          (get-representation second-parsed)]))
+          (get-representation type)]))
      (define parametric
        (cond
          [(equal? op 'if)
