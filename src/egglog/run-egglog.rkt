@@ -10,7 +10,7 @@
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
-(define egg-iters 0)
+(define egg-iters 10)
 (define ground-truth-iters 7)
 (define egg-node-limit 5000)
 (define egg-match-limit 500)
@@ -101,6 +101,7 @@
 
 (define header
   `((set-option node_limit ,egg-node-limit)
+    (set-option use_backoff 0)
     (set-option match_limit ,egg-match-limit)
     (datatype HerbieType (Type String))
     (datatype Math
@@ -724,18 +725,18 @@
     (rewrite (Tan ty (Neg ty x))
              (Neg ty (Tan ty x))) ;; verified
     ; Hyperbolics
-    (rewrite (Sinh ty x)
+    (rewrite (Sinh ty x) ;; always defined
              (Div ty
                   (Sub ty (Exp ty x) (Exp ty (Neg ty x)))
                   (Num ty r-two)))
-    (rewrite (Cosh ty x)
+    (rewrite (Cosh ty x) ;; always defined
              (Div ty
                   (Add ty (Exp ty x) (Exp ty (Neg ty x)))
                   (Num ty r-two)))
-    (rewrite (Tanh ty x)
+    (rewrite (Tanh ty x) ;; always defined
              (Div ty
                   (Sub ty (Exp ty x) (Exp ty (Neg ty x)))
-                  (Add ty (Exp ty x) (Exp ty (Neg ty x)))))
+                  (Add ty (Exp ty x) (Exp ty (Neg ty x))))) ;; always defined
     (rewrite (Tanh ty x)
              (Div ty
                   (Sub ty
@@ -743,7 +744,7 @@
                        (Num ty r-one))
                   (Add ty
                        (Exp ty (Mul ty (Num ty r-two) x))
-                       (Num ty r-one))))
+                       (Num ty r-one)))) ;; always defined
     (rewrite
      (Tanh ty x)
      (Div
@@ -754,7 +755,7 @@
       (Add
        ty
        (Num ty r-one)
-       (Exp ty (Mul ty (Num ty (rational "-2" "1")) x)))))
+       (Exp ty (Mul ty (Num ty (rational "-2" "1")) x))))) ;; always defined
     (rewrite (Sub ty
                   (Mul ty (Cosh ty x) (Cosh ty x))
                   (Mul ty (Sinh ty x) (Sinh ty x)))
@@ -762,16 +763,14 @@
     (rewrite (Add ty (Cosh ty x) (Sinh ty x)) (Exp ty x))
     (rewrite (Sub ty (Cosh ty x) (Sinh ty x))
              (Exp ty (Neg ty x)))
-    ;; --------------------------------------------------
-    ;; -----------------------------------------------
-    ;; OTHER RULES FROM HERBIE- polynomials, fractions, ect
+
     ;; Difference of squares flip
     ;; demand for the rule
     (rule ((= (Add ty a b) t1)) ((Sub ty a b)))
     (rewrite (Add ty a b)
              (Div ty
                   (Sub ty (Mul ty a a) (Mul ty b b))
-                  (Sub ty a b))
+                  (Sub ty a b)) ;; defined when a-b != 0
              :when
              ((non-zero (Sub ty a b))))
     ;; demand for the rule
@@ -779,14 +778,14 @@
     (rewriteif (Sub ty a b)
              (Div ty
                   (Sub ty (Mul ty a a) (Mul ty b b))
-                  (Add ty a b))
+                  (Add ty a b)) ;; defined when a+b != 0
              :when
              ((non-zero (Add ty a b))))
     ;; difference-of-cubes
     ;; sum of cubes
     (rewrite (Add ty
                   (Pow ty a (Num ty r-three))
-                  (Pow ty b (Num ty r-three)))
+                  (Pow ty b (Num ty r-three))) ;; always defined
              (Mul ty
                   (Add ty
                        (Mul ty a a)
@@ -795,7 +794,7 @@
     ;; difference of cubes
     (rewrite (Sub ty
                   (Pow ty a (Num ty r-three))
-                  (Pow ty b (Num ty r-three)))
+                  (Pow ty b (Num ty r-three))) ;; always defined
              (Mul ty
                   (Add ty
                        (Mul ty a a)
@@ -853,7 +852,7 @@
                (Add ty (Mul ty b b) (Mul ty a b))))
      :when
      ((non-zero
-       a))) ;; when a and b are non-zero a^2+b^2-ab is positive => a^2+b^2+ab is positive
+       a))) ;; when a or b are non-zero a^2+b^2-ab is positive => a^2+b^2+ab is positive
     (rewrite (Sub ty a b)
              (Div ty
                   (Sub ty
@@ -878,66 +877,66 @@
                     (Mul ty a a)
                     (Add ty (Mul ty b b) (Mul ty a b))))))
 
+    ;; The following rules that involve Pow often have over-specific conditions
     ;;fractions transform
-    (rewrite (Sub ty (Div ty a c) (Div ty b c))
+    (rewrite (Sub ty (Div ty a c) (Div ty b c)) ;; not defined when c = 0
              (Div ty (Sub ty a b) c))
-    (rewrite (Add ty (Div ty a c) (Div ty b c))
+    (rewrite (Add ty (Div ty a c) (Div ty b c)) ;; not defined when c = 0
              (Div ty (Add ty a b) c))
-    (rewrite (Add ty (Div ty a b) (Div ty c d))
+    (rewrite (Add ty (Div ty a b) (Div ty c d)) ;; not define when b = 0 or when d = 0
              (Div ty
                   (Add ty (Mul ty a d) (Mul ty b c))
                   (Mul ty b d)))
-    (rewrite (Sub ty (Div ty a b) (Div ty c d))
+    (rewrite (Sub ty (Div ty a b) (Div ty c d)) ;; not define when b = 0 or when d = 0
              (Div ty
                   (Sub ty (Mul ty a d) (Mul ty b c))
                   (Mul ty b d)))
-    (rewrite (Mul ty (Div ty a b) (Div ty c d))
+    (rewrite (Mul ty (Div ty a b) (Div ty c d)) ;; not define when b = 0 or when d = 0
              (Div ty (Mul ty a c) (Mul ty b d)))
-    (rewrite (Div ty a b) (Div ty (Neg ty a) (Neg ty b)))
+    (rewrite (Div ty a b) (Div ty (Neg ty a) (Neg ty b))) ;; not defined when b = 0
     ;; squares transform
-    (rule ((= t1 (Sqrt ty (Mul ty x y))) (= lox (lo x))
-                                         (= loy (lo y))
-                                         (>= lox r-zero)
-                                         (>= loy r-zero))
-          ((set (Sqrt ty (Mul ty x y))
-                (Mul ty (Sqrt ty x) (Sqrt ty y)))))
-    (rule ((= t1 (Sqrt ty (Div ty x y)))
-           (non-zero (Sqrt ty y)))
-          ((set (Div ty (Sqrt ty x) (Sqrt ty y)) t1)))
-    (rewrite (Sqrt ty (Pow ty x y))
+    (rewrite (Sqrt ty (Mul ty x y))
+             (Mul ty (Sqrt ty x) (Sqrt ty y)) ;; not defined for negative x or y
+             :when ((non-negative x) (non-negative y)))
+    (rewrite (Sqrt ty (Div ty x y)) ;; not defined for negative x/y or y = 0
+             (Div ty (Sqrt ty x) (Sqrt ty y))
+             :when ((non-negative y) (non-negative x)))
+    (rewrite (Sqrt ty (Pow ty x y)) ;; always defined for non-negative x
              (Pow ty x (Div ty y (Num ty r-two)))
              :when
              ((non-negative x)))
-    (rewrite (Pow ty (Sqrt ty x) y)
-             (Pow ty x (Div ty y (Num ty r-two))))
-    (rewrite (Mul ty (Sqrt ty x) (Sqrt ty y))
-             (Sqrt ty (Mul ty x y)))
-    (rewrite (Div ty (Sqrt ty x) (Sqrt ty y))
-             (Sqrt ty (Div ty x y))
+    (rewrite (Pow ty (Sqrt ty x) y) ;; defined for non-negative x
+             (Pow ty x (Div ty y (Num ty r-two)))
+             :when ((non-negative x)))
+    (rewrite (Mul ty (Sqrt ty x) (Sqrt ty y)) ;; x and y non-negative
+             (Sqrt ty (Mul ty x y))
+             :when ((non-negative x) (non-negative y)))
+    (rewrite (Div ty (Sqrt ty x) (Sqrt ty y)) ;; x non-negative, y positive
+             (Sqrt ty (Div ty x y)) ;; x*y non-negative, y non-zero
              :when
-             ((non-zero y)))
-    (rule ((universe t ty) (= lox (lo t)) (>= lox r-zero))
+             ((positive y) (non-negative x)))
+    (rule ((universe t ty) (non-negative t))
           ((union t (Mul ty (Sqrt ty t) (Sqrt ty t)))))
     ;; cubes transform
     (rewrite (Cbrt ty (Mul ty x y))
              (Mul ty (Cbrt ty x) (Cbrt ty y)))
-    (rewrite (Cbrt ty (Div ty x y))
+    (rewrite (Cbrt ty (Div ty x y)) ;; not defined for y=0
              (Div ty (Cbrt ty x) (Cbrt ty y)))
     (rewrite (Mul ty (Cbrt ty x) (Cbrt ty y))
              (Cbrt ty (Mul ty x y)))
-    (rewrite (Div ty (Cbrt ty x) (Cbrt ty y))
+    (rewrite (Div ty (Cbrt ty x) (Cbrt ty y)) ;; not defined for y=0
              (Cbrt ty (Div ty x y)))
     (rule ((universe x ty))
           ((union x
                   (Mul ty
                        (Cbrt ty x)
-                       (Mul ty (Cbrt ty x) (Cbrt ty x))))))
+                       (Mul ty (Cbrt ty x) (Cbrt ty x)))))) ;; always defined
     (rule ((universe x ty))
-          ((union x (Cbrt ty (Pow ty x (Num ty r-three))))))
-    (rewrite (Pow ty (Exp ty a) b) ;; verified
+          ((union x (Cbrt ty (Pow ty x (Num ty r-three)))))) ;; always defined
+    (rewrite (Pow ty (Exp ty a) b) ;; always defined
              (Exp ty (Mul ty a b)))
-    (rewrite (Pow ty a b) ;; verified
-             (Exp ty (Mul ty (Log ty a) b))
+    (rewrite (Pow ty a b) ;; defined for non-negative a
+             (Exp ty (Mul ty (Log ty a) b)) ;; defined for positive a
              :when
              ((positive a)))
     (rewrite
@@ -946,44 +945,45 @@
           a
           (Add ty
                b
-               c))) ;; two integers cannot sum to a fraction
-    (rewrite (Mul ty (Pow ty b a) (Pow ty c a)) ;; verified
+               c))
+     :when ((positive a)))
+    (rewrite (Mul ty (Pow ty b a) (Pow ty c a)) ;; valid when b and c are positive
              (Pow ty
-                  (Mul ty b c)
-                  a)) ;; either neg -> a is an integer
-    ;; if a is zero, both b and zero must be strictly positive
-    ;; if a is positive, a^b is positive
-    (rewrite (Pow ty (Pow ty a b) c) ;; verified
+                  (Mul ty b c) ;; valid when b*c positive
+                  a)
+             :when ((positive b) (positive c)))
+    (rewrite (Pow ty (Pow ty a b) c) ;; a positive -> a^b positive
              (Pow ty a (Mul ty b c))
              :when
-             ((non-negative a)))
-    (rewrite (Pow ty a (Neg ty b)) ;; verified
+             ((positive a)))
+    (rewrite (Pow ty a (Neg ty b))
              (Div ty (Num ty r-one) (Pow ty a b))
              :when
              ((non-zero a)))
     (rewrite
-     (Div ty (Num ty r-one) (Pow ty a b)) ;; verified
-     (Pow ty a (Neg ty b)))
-    (rewrite (Div ty (Pow ty a b) (Pow ty a c)) ;; verified
-             (Pow ty a (Sub ty b c)))
+     (Div ty (Num ty r-one) (Pow ty a b))
+     (Pow ty a (Neg ty b)) ;; could be more defined when a = 0
+     :when ((non-zero a)))
+    (rewrite (Div ty (Pow ty a b) (Pow ty a c))
+             (Pow ty a (Sub ty b c))
+             :when ((positive a)))
     (rewrite (Pow ty a (Sub ty b c))
              (Div ty (Pow ty a b) (Pow ty a c))
              :when
              ((positive a)))
-    ;; a could be negative, and also a*b could be negative
     (rewrite (Pow ty a (Mul ty b c))
              (Pow ty (Pow ty a b) c)
              :when
-             ((non-negative a) (non-negative (Pow ty a b))))
+             ((positive a) (positive (Pow ty a b))))
     (rewrite (Pow ty a (Add ty b c))
              (Mul ty (Pow ty a b) (Pow ty a c))
              :when
-             ((non-negative a)))
+             ((positive a)))
     (rewrite (Pow ty (Mul ty b c) a)
              (Mul ty (Pow ty b a) (Pow ty c a))
              :when
-             ((non-negative b)
-              (non-negative c))) ;; or a is an integer!
+             ((positive b)
+              (positive c))) ;; overly specific
     (rewrite
      (Sqrt ty a)
      (Pow ty a (Div ty (Num ty r-one) (Num ty r-two))))
@@ -995,14 +995,18 @@
              (Pow ty a (Num ty r-three)))
     ;; log factor
     (rewrite
-     (Add ty (Log ty a) (Log ty b)) ;; we know a and b pos
-     (Log ty (Mul ty a b)))
+     (Add ty (Log ty a) (Log ty b))
+     (Log ty (Mul ty a b))
+     :when
+     ((positive a) (positive b)))
     (rewrite
-     (Sub ty (Log ty a) (Log ty b)) ;; a and b positive
-     (Log ty (Div ty a b)))
+     (Sub ty (Log ty a) (Log ty b))
+     (Log ty (Div ty a b))
+     :when ((positive a) (positive b)))
     (rewrite
-     (Neg ty (Log ty a))
-     (Log ty (Div ty (Num ty r-one) a))) ;; a positive
+     (Neg ty (Log ty a)) ;; error when a <= 0
+     (Log ty (Div ty (Num ty r-one) a)))
+
     ;; trig expand
     (rewrite
      (Sin ty (Add ty a b))
