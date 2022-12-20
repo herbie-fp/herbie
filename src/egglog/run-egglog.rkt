@@ -16,11 +16,13 @@
 (define egg-match-limit 500)
 
 
-;; TODO: make the following true
 ;; The egglog rules follow error-preserving semantics
 ;; If a program in the egraph errors, then it's okay to rewrite it to
 ;; something that errors for exactly the same input points
 ;; It is not okay to rewrite it to something that errors on fewer points
+
+;; Operations that error on some point of the domain include:
+;; Div, Pow, Log, Log1p, Sqrt, Tan, asin, acos, atan2
 
 (define op-type (make-hash))
 
@@ -1304,8 +1306,7 @@
    (build-extract exprs variants)
 
    ;; extraction using ground truth
-   (build-ground-truth-extract ctx pctx exprs eggdata)
-   ))
+   (build-ground-truth-extract ctx pctx exprs eggdata)))
 
 (define (rewrite-if egglog-program)
   (apply append
