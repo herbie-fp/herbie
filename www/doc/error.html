@@ -1,0 +1,174 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Herbie Input Format</title>
+<link rel='stylesheet' type='text/css' href='../../main.css'>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script type="text/javascript" src="toc.js"></script>
+
+<header>
+  <h1>What is Error?</h1>
+  <a href="../../"><img class="logo" src="../../logo-car.png" /></a>
+  <nav>
+    <ul>
+      <li><a href="../../demo/">Try</a></li>
+      <li><a href="installing.html">Install</a></li>
+      <li><a href="tutorial.html">Learn</a></li>
+    </ul>
+  </nav>
+</header>
+
+<p>
+  <a href="../../">Herbie</a> helps you identify and correct floating
+  point error in your numeric programs. But what is floating point
+  error, how does Herbie measure it, and how does it address it?
+</p>
+
+<h2>Why rounding matters</h2>
+
+<p>In mathematics, we work with real numbers, but on a computer, we
+typically use floating-point numbers. Because there are infinitely
+many real numbers, but only finitely many floating-point numbers, some
+real numbers can't be accurately represented. This means that every
+time you do an operation, the true result typically has to
+be <em>rounded</em> to a representable one.</p>
+
+<p>Take an extreme example: the code <code>1e100 + 1</code>, which
+increments a huge number, in IEEE 754 double-precision floating-point
+(which Herbie calls <code>binary64</code>). There's an exact
+real-number answer to this (a one followed by 99 zeros and then
+another 1), but the closest <em>floating-point</em> value is the same
+as for <code>1e100</code>.</p>
+
+<p>Errors like this can cause problems. In the example above, the
+answers differ by one part per googol, which is pretty small. But the
+error can grow. For example, since <code>1e100 + 1</code> rounds to
+the same value as <code>1e100</code>, the larger computation
+
+<pre>(1e100 + 1) - 1e100</pre>
+
+returns <code>0</code> instead of the correct answer, <code>1</code>.
+Now the difference is pretty stark, and can grow even bigger through
+later operations.</p>
+
+<h2>Bits of error</h2>
+
+<p>There are lots of ways to <em>measure</em> how much rounding error
+there is in a computation. Most people find the notions of absolute
+and relative error most intuitive, but Herbie internally uses a more
+complex notion called <em>bits of error</em>.</p>
+
+<p>The bits of error metric imagines you have a list of all of the
+possible floating-point numbers, from largest to smallest. In that
+list, compare the floating-point value you computed to the one closest
+to the true answer. If they are the same, that's called 0 bits of
+error; if they are one apart, that's called one bit of error; three
+apart is two bits of error; and so on.</p>
+
+<p>In general, if the two floating-point values are <var>n</var> items
+apart, Herbie says they have <code>log2(n + 1)</code> bits of error.
+Values like <code>0</code> and <code>-0</code> are treated as having 0
+bits of error, and <code>NaN</code> is considered to have the maximum
+number of bits of error against non-<code>NaN</code> values. While
+there's all sorts of theoretical justifications, Herbie mainly uses
+this error metric because we've found it to give the best
+results. </p>
+
+<p>On a single input, the best way to interpret the "bits of error"
+metric is that it tells you roughly how many bits of the answer,
+starting at the end, are useless. With zero bits of error, you have
+the best answer possible. With four bits, that's still pretty good
+because it's four out of 64. But with 40 or 50 bits of error, you're
+getting less accuracy out of the computation than even a
+single-precision floating-point value. And it's even possible to have
+something like 58 or 60 bits of error, in which case even the sign and
+exponent bits (which in double-precision floating-point occupy the top
+12 bits of the number) are incorrect.</p>
+
+<h2>Average error</h2>
+
+<p>Bits of error measures the error of a computation for some specific
+input. But usually you're interested in the error of a computation
+across many possible inputs. Herbie measures this error by taking the
+average error across many randomly-sampled valid inputs.</p>
+
+<p>Typically, most inputs points either have very little error, or a
+whole lot. So when computing average error, Herbie's averaging a lot
+of points with zero or one bits of error, with a lot of points with 40
+or 50 or 60 bits of error. In that sense, you can think of average
+error as measuring mostly what <em>fraction</em> of inputs points are
+accurate. If Herbie says your computation averages 16 bits of error,
+out of a possible 64, what it's really saying is that about a quarter
+of inputs produce usable outputs.</p>
+
+<p>Interpreting average error also requires understanding which inputs
+are valid and how they are sampled.</p>
+
+<h2>Valid inputs</h2>
+
+<p>Herbie considers an input valid if its true, real-number output 1)
+exists; 2) rounds to a finite number; 3) can be computed; and 4)
+satisfies the user's precondition. Let's dive into each
+requirement.</p>
+
+<ol>
+  <li>An output can fail to exist for an input if that input does
+    something like divide by zero or take the square root of a
+    negative number. Then that input is invalid.</li>
+  <li>An output can fail to round to a finite number if it is very
+    big. For example, the computation <code>(pow 2 1e6)</code>
+    computes two to the power of one million, and the output is too
+    big to be represented by any finite floating-point number. Then
+    this input is invalid.</li>
+  <li>An output can fail to be computed in some rare situations. For
+    example, the computation <code>(/ (exp 1e9) (exp 1e9))</code>,
+    which divides two identical but gargantuan numbers, does have an
+    exact real-number answer (one) but causes errors within Herbie
+    because the intermediate steps are too large. Then this input is
+    invalid.</li>
+  <li>Finally, an output can fail to satisfy the user's precondition.
+    Preconditions can be basically anything, but most often they
+    specify a range of inputs. For example, if the precondition
+    is <code>(&lt; 1 x 2)</code>, then the input <code>x = 3</code> is
+    invalid.</li>
+</ol>
+
+<p>Herbie's average error metric only averages over valid points. This
+means that by changing your precondition, you can change the average
+error measured by Herbie, because changing the precondition changes
+which points are valid. This is useful if you know there's a rare
+error that but Herbie thinks error is low: you can change your
+precondition to focus on the points with error. By invalidating some
+of the low-error points, you increase Herbie's estimate of average
+error and let it focus on addressing the problem.</p>
+
+<h2>Sampling inputs</h2>
+
+<p>When randomly sampling inputs, Herbie considers each valid input
+equally likely. Importantly, this does not mean that it uses a uniform
+distribution, because floating-point values themselves are not
+uniformly distributed.</p>
+
+<p>For example, there are as many floating-point values between 1 and
+2 as there are between one and one half, because floating-point value
+uses an exponential encoding. But that means that if you're looking at
+a computation where the input comes from the interval <kbd>[0.5,
+2]</kbd>, Herbie will weight the first third of that range twice as
+high as the other two thirds.</p>
+
+<p>This can produce unintuitive results, especially for intervals that
+cross 0. For example, in the interval <kbd>[0, 1]</kbd>, the second
+half of that interval (from one half to one) has a tiny proportion of
+the weight (in double-precision floating-point, about 0.1%). If Herbie
+can improve accuracy by a little bit between zero and one half, while
+dramatically reducing accuracy between one half and one, it will think
+that that's an accuracy improvement. You might disagree.</p>
+
+<p>Unfortunately, there's no way for Herbie to intuit exactly what you
+mean, so understanding this error distribution is essential to
+understanding Herbie's outputs. For example, if Herbie reports that
+the error changed from 16 bits of error to 15.9 bits of error, it's
+essential to know: is the improvement happening on inputs between one
+half and one, or between <code>1e-100</code> and <code>2e-100</code>?
+To answer this question, it's important to look over
+the <a href="report.html">reports and graphs</a> generated by
+Herbie.</p>
