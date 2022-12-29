@@ -11,47 +11,12 @@ figure { margin: 0; }
 #large .number { font-size: 3em; display: block; }
 @media print { #large { margin-top: 0; }}
 
-/* Arrow chart */
+/* Plots at the top */
 
-#graph { float: left; cursor: pointer; }
-#graph line { pointer-events: all; }
-#graph .good * { stroke: black; fill: black; }
-#graph .bad * { stroke: darkred; fill: darkred; }
-#graph .nodiff * { stroke: gray; fill: gray; }
-#graph .gridline { stroke: rgb(80%, 80%, 80%); }
-#graph .guide { stroke: rgb(60%, 60%, 60%); }
-#graph text { text-anchor: middle; }
-#graph .arrow { stroke-width: 3px; stroke-opacity: 0.6; fill-opacity: 0.6; }
-#graph .arrow:hover { stroke-opacity: 1.0; fill-opacity: 1.0; }
-#graph.highlight-one .arrow {opacity: .5;}
-#graph.highlight-one .arrow.highlight {opacity: 1;}
-
-/* Per-input badges */
-
-#test-badges {  cursor: pointer; list-style: none inside none; padding: 0; width: 300px; float: right; margin: 10px 0; font-size: 12pt; }
-#test-badges li { height: 40px; line-height: 40px; width: 75px; float: left; text-align: center; }
-#test-badges a { color: black; }
-#test-badges a:hover { color: black; text-decoration: none; }
-#test-badges li:hover { font-size: 15pt; }
-#test-badges.highlight-one li { opacity: .333; }
-#test-badges.highlight-one li.highlight { opacity: 1; }
-
-li.imp-start  {background-color: #87fc70;}
-li.apx-start  {background-color: #ff9500;}
-li.uni-start  {background-color: #ff5e3a; color: #f7f7f7;}
-li.ex-start   {background-color: #e0f8d8;}
-
-li.gt-target  {background-color: #0bd318;}
-li.eq-target  {background-color: #87fc70;}
-li.lt-target  {background-color: #ffdb4c;}
-li.eq-start   {background-color: #ff9500;}
-li.lt-start   {background-color: #ff5e3a; color: #f7f7f7;}
-#test-badges li.crash      {
-    background-color: #ff9d87; color:#ed2b00; border: 2px solid #ff5e3a;
-    width: 71px; height: 36px; line-height: 36px;
-}
-#test-badges li.error      {background-color: #4a4a4a; color: #f7f7f7;}
-li.timeout    {background-color: #8e8e93; color: #f7f7f7;}
+figure { display: flex; flex-direction: row; gap: 1em; margin: 2em 0; }
+figure div { flex: 1; border: 1px solid #ddd; padding: 1ex; }
+figure h2 { font-size: 1em; font-family: 'Ruda', serif; margin: 0; }
+figure .domain, figure .tick { color: #888; }
 
 /* Flag list / configuration */
 

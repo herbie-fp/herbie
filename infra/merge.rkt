@@ -61,6 +61,5 @@
     (apply merge-reports outdir name dirs)
     (apply merge-timelines outdir dirs)
     (apply merge-profiles outdir dirs)
-    (copy-file (web-resource "arrow-chart.js") (build-path outdir "arrow-chart.js") #t)
     (copy-file (web-resource "report.js") (build-path outdir "report.js") #t)
     (copy-file (web-resource "report.css") (build-path outdir "report.css") #t)))

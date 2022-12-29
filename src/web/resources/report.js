@@ -265,69 +265,65 @@ const ClientGraph = new Component('#graphs', {
     }
 })
 
-const MergedCostAccuracy = new Component('#merged-cost-accuracy', {
-    setup: async () => {
-        const points_json = await (async () => {
-            const get_points_store = {}
-            
-            const get_points_memo = async () => {
-                if (get_points_store.value) { return get_points_store.value }
-                const ps = await get_json('results.json');
-                get_points_store.value = ps;
-                return get_points_store.value;
-            }
-            const get_json = url => fetch(url, {
-                // body: `_body_`,
-                headers: {"content-type": "text/plain"},
-                method: "GET",
-                mode: 'cors'
-                }).then(async response => {
-                //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
-                return await response.json()
-            })
-            return get_points_memo()
-        })()
+const ResultPlot = new Component('#xy', {
+    setup: async function() {
+        console.log(this);
+        let response = await fetch("results.json", {
+            headers: {"content-type": "text/plain"},
+            method: "GET",
+            mode: "cors",
+        });
+        let data = (await response.json()).tests;
+        this.elt.appendChild(this.plot(data));
+    },
 
-        const plot = async () => {
-            // NOTE ticks and splitpoints include all vars, so we must index
-            const costAccuracy = points_json["cost-accuracy"];
-            const sortLine = [...costAccuracy[2]];
-            sortLine.sort((a, b) => {return a[0]-b[0]});
-            const out = Plot.plot({
-                marks: [
-                    Plot.line(sortLine, {x: d => d[0], y: d => d[1], stroke: "red"}),
-                    Plot.dot(costAccuracy[2], {x: d => d[0], y: d => d[1], fill: "red", stroke: "black"}),
-                    Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "black"})
-                ],
-                grid: true,
-                width: '800',
-                height: '400',                
-                    x: {
-                        label: `Cost`,
-                        domain: [0, costAccuracy[0][0]]
-                    },
-                    y: {
-                        label: "Sum of error bits",
-                        domain: [0, costAccuracy[0][1]],
-                    },
-            })
-            out.setAttribute('viewBox', '0 0 800 460')
-            return out
-        }
-        function html(string) {
-            const t = document.createElement('template');
-            t.innerHTML = string;
-            return t.content;
-        }
-        async function render() {
-            const options_view = html(`
-                <div id="plot_options">
-                </div>
-            `)
-            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-            document.querySelector('#pareto-content').replaceChildren(await plot(), options_view)
-        }
-        render()
+    plot: function(tests) {
+        const out = Plot.plot({
+            marks: [
+                Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
+                Plot.dot(tests, {x: d => d.start/64, y: d => d.end/64, fill: "black", strokeWidth: 2,}),
+            ],
+            marginBottom: 0,
+            marginRight: 0,
+            width: '400',
+            height: '400',
+            x: { nice: true, line: true, tickFormat: "%", },
+            y: { nice: true, line: true, tickFormat: "%", },
+        })
+        out.setAttribute('viewBox', '0 0 420 420')
+        return out;
+    }
+})
+
+const MergedCostAccuracy = new Component('#pareto', {
+    setup: async function() {
+        let response = await fetch('results.json', {
+            headers: {"content-type": "text/plain"},
+            method: "GET",
+            mode: 'cors'
+        });
+        let json = await response.json();
+        this.elt.appendChild(this.plot(json["cost-accuracy"], json.tests.length));
+    },
+
+    plot: function(json, n) {
+        const sortLine = [...json[2]];
+        sortLine.sort((a, b) => {return a[0]-b[0]});
+        const ymax = 64 * n;
+        const out = Plot.plot({
+            marks: [
+                Plot.line(sortLine, {x: d => d[0], y: d => d[1] / ymax, stroke: "black", strokeWidth: 2,}),
+                Plot.dot(json[1], {x: json[1][0], y: json[1][1] / ymax, stroke: "red", symbol: "square"})
+            ],
+            width: '400',
+            height: '400',                
+            x: { type: "log", line: true, },
+            y: { line: true, nice: true, domain: [0, 1], tickFormat: "%", },
+            marginBottom: 0,
+            marginRight: 0,
+        })
+        out.setAttribute('viewBox', '0 0 420 420')
+        return out;
     }
 })
 
