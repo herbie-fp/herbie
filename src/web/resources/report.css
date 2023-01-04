@@ -279,6 +279,12 @@ section h1 {
 .history .rule { text-decoration: underline; }
 .history .event { display: block; margin: .5em 0; }
 
+.history .proof { width: 100%; overflow: auto; }
+.history .proof table { padding: 0 .5em; }
+.history .proof table th { text-align: left; font-weight: normal; }
+.history .proof table th .info { display: block; color: #666; }
+.history .proof table td { text-align: left; }
+
 /* Process / debug info */
 
 #process-info { background: #ddd; }

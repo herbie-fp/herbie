@@ -59,7 +59,8 @@
        [(or -inf.0 -inf.f) (hash 'type "real" 'value "-inf")]
        [(or +inf.0 +inf.f) (hash 'type "real" 'value "+inf")]
        [(or +nan.0 +nan.f) (hash 'type "real" 'value "NaN")])]
-    [_ (hash 'type (~a repr) 'ordinal (~a ((representation-repr->ordinal repr) x)))]))
+    [_ (hash 'type (~a (representation-name repr))
+             'ordinal (~a ((representation-repr->ordinal repr) x)))]))
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits

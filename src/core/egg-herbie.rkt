@@ -2,28 +2,15 @@
 
 (require egg-herbie)
 (require ffi/unsafe ffi/unsafe/define)
-(require "../syntax/rules.rkt" "../timeline.rkt")
+(require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
+         "../common.rkt" "../errors.rkt" "../timeline.rkt")
 
 (module+ test (require rackunit))
 
 (provide with-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
-         egraph-get-proof egraph-is-unsound-detected)
-
-(define (extract-operator op)
-  (match (regexp-match #px"([^\\s^\\.]+)\\.([^\\s]+)" (~s op))
-    [(list _ op* prec)  (list (string->symbol op*) (string->symbol prec))]
-    [#f (list op 'real)]))
-
-(define (pattern->egg datum)
-  (match datum
-    [(list (? symbol? head) args ...)
-     (match-define (list op prec) (extract-operator head))
-     `(,op ,prec ,@(map pattern->egg args))]
-    [(? symbol?)
-     (string->symbol (format "?~a" datum))]
-    [(? number?)
-     datum]))
+         egraph-get-proof egraph-is-unsound-detected
+         rule->egg-rules expand-rules get-canon-rule-name)
 
 ;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
@@ -36,21 +23,70 @@
   (for/list ([egg-expr (in-port read (open-input-string exprs))])
     (egg-parsed->expr egg-expr (egraph-data-egg->herbie-dict eg-data))))
 
-(define (egg-parsed->expr parsed rename-dict)
-  (match parsed
-    [`(Rewrite=> ,rule ,expr)
-     `(Rewrite=> ,rule ,(egg-parsed->expr expr rename-dict))]
-    [`(Rewrite<= ,rule ,expr)
-     `(Rewrite<= ,rule ,(egg-parsed->expr expr rename-dict))]
-    [(list op 'real rest-parsed ...)
-     (cons op (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
-    [(list op prec rest-parsed ...)
-     (define new-op (string->symbol (format "~s.~s" op prec)))
-     (cons new-op (map (curryr egg-parsed->expr rename-dict) rest-parsed))]
-    [(? number? num)
-     num]
-    [_
-     (hash-ref rename-dict parsed)]))
+;; Converts an S-expr from egg into one Herbie understands
+(define (egg-parsed->expr expr rename-dict)
+  (let loop ([expr expr])
+    (match expr
+      [(list 'Rewrite=> rule expr)
+       (list 'Rewrite=> rule (loop expr))]
+      [(list 'Rewrite<= rule expr)
+       (list 'Rewrite<= rule (loop expr))]
+      [(list 'if 'real cond ift iff)
+       (list 'if (loop cond) (loop ift) (loop iff))]
+      [(list (? repr-conv? op) 'real arg)
+       (list op (loop arg))]
+      [(list op prec)
+       (match-define (list '$Type otype) prec)
+       (list (get-parametric-constant op (get-representation otype)))]
+      [(list op prec args ...)
+       (match-define (list '$Type otype itypes ...) prec)
+       (define op* (apply get-parametric-operator op (map get-representation itypes)))
+       (cons op* (map loop args))]
+      [(? number?)
+       expr]
+      [_
+       (hash-ref rename-dict expr)])))
+
+;; Expands operators into (op, prec) so
+;; that the egraph can happily constant fold
+;; and so that we can recover the implementation
+;; The ugly solution is to make prec = '(type otype itypes).
+(define (expand-operator op-or-impl)
+  (cond
+    [(impl-exists? op-or-impl)
+     (define op (impl->operator op-or-impl))
+     (define itypes (map representation-name (operator-info op-or-impl 'itype)))
+     (define otype (representation-name (operator-info op-or-impl 'otype)))
+     (values op (cons '$Type (cons otype itypes)))]
+    [else
+     (values op-or-impl 'real)]))
+
+(define (expr->egg-pattern+vars expr)
+  (define ppatterns (make-hash))
+  (define (get-pattern key)
+    (hash-ref! ppatterns (real-operator-info key 'otype)
+               (λ () (string->symbol (format "?p~a" (hash-count ppatterns))))))
+  (define expr*
+    (let loop ([expr expr])
+      (match expr
+        [(list 'if cond ift iff)
+         (list 'if 'real (loop cond) (loop ift) (loop iff))]
+        [(list (? repr-conv? op) arg)
+         (list op 'real (loop arg))]
+        [(list (? impl-exists? op) args ...)
+         (define-values (op* prec) (expand-operator op))
+         (cons op* (cons prec (map loop args)))]
+        [(list (? operator-exists? op) args ...)
+         (cons op (cons (get-pattern op) (map loop args)))]
+        [(? number?) expr]
+        [_ (string->symbol (format "?~a" expr))])))
+  (values expr* (hash-keys ppatterns)))
+
+;; Translates a Herbie rule LHS or RHS into a
+;; pattern suitable for use in egg.
+(define (expr->egg-pattern expr)
+  (define-values (expr* _) (expr->egg-pattern+vars expr))
+  expr*)
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
 (define (expr->egg-expr expr egg-data)
@@ -59,35 +95,57 @@
   (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict))
 
 (define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
-  (cond
-    [(list? expr)
-     (match-define (list op prec) (extract-operator (first expr)))
-     `(,op ,prec ,@(map (curryr expr->egg-expr-helper egg->herbie-dict herbie->egg-dict) (rest expr)))]
-    [(and (number? expr) (exact? expr) (real? expr))
-     expr]
-    [(hash-has-key? herbie->egg-dict expr)
-     (hash-ref herbie->egg-dict expr)]
-    [else
-     (define replacement (string->symbol (format "h~a" (hash-count herbie->egg-dict))))
-     (hash-set! herbie->egg-dict expr replacement)
-     (hash-set! egg->herbie-dict replacement expr)
-     replacement]))
+  (let loop ([expr expr])
+    (match expr
+      [(list 'if cond ift iff)
+       (list 'if 'real (loop cond) (loop ift) (loop iff))]
+      [(list (? repr-conv? op) arg)
+       (list op 'real (loop arg))]
+      [(list op args ...)
+       (define-values (op* prec) (expand-operator op))
+       (cons op* (cons prec (map loop args)))]
+      [(? number?)
+       expr]
+      [(? (curry hash-has-key? herbie->egg-dict))
+       (hash-ref herbie->egg-dict expr)]
+      [else
+       (define replacement (string->symbol (format "h~a" (hash-count herbie->egg-dict))))
+       (hash-set! herbie->egg-dict expr replacement)
+       (hash-set! egg->herbie-dict replacement expr)
+       replacement])))
 
 (module+ test
-  (check-equal? (pattern->egg `(+ a b)) '(+ real ?a ?b))
-  (check-equal? (pattern->egg `(/ c (- 2 a))) '(/ real ?c (- real 2 ?a)))
-  (check-equal? (pattern->egg `(cos.f64 (PI.f64))) '(cos f64 (PI f64)))
-  (check-equal? (pattern->egg `(if (TRUE) x y)) '(if real (TRUE real) ?x ?y))
+  (require "../load-plugin.rkt")
+  (*context* (make-debug-context '()))
+
+  (check-equal? (expr->egg-pattern `(+ a b)) '(+ ?p0 ?a ?b))
+  (check-equal? (expr->egg-pattern `(/ c (- 2 a))) '(/ ?p0 ?c (- ?p0 2 ?a)))
+  (check-equal? (expr->egg-pattern `(cos.f64 (PI.f64)))
+                '(cos ($Type binary64 binary64) (PI ($Type binary64))))
+  (check-equal? (expr->egg-pattern `(if (TRUE) x y))
+                '(if real (TRUE ($Type bool)) ?x ?y))
 
   (define test-exprs
-    (list (cons '(+ y x) "(+ real h0 h1)")
-          (cons '(+ x y) "(+ real h1 h0)")
-          (cons '(- 2 (+ x y)) "(- real 2 (+ real h1 h0))")
-          (cons '(- z (+ (+ y 2) x)) "(- real h2 (+ real (+ real h0 2) h1))")
-          (cons '(*.f64 x y) "(* f64 h1 h0)")
-          (cons '(+.f32 (*.f32 x y) 2) "(+ f32 (* f32 h1 h0) 2)")
-          (cons '(cos.f64 (PI.f64)) "(cos f64 (PI f64))")
-          (cons '(if (TRUE) x y) "(if real (TRUE real) h1 h0)")))
+    (list (cons '(+.f64 y x)
+                "(+ ($Type binary64 binary64 binary64) h0 h1)")
+          (cons '(+.f64 x y)
+                "(+ ($Type binary64 binary64 binary64) h1 h0)")
+          (cons '(-.f64 2 (+.f64 x y))
+                (~a '(- ($Type binary64 binary64 binary64) 2
+                        (+ ($Type binary64 binary64 binary64) h1 h0))))
+          (cons '(-.f64 z (+.f64 (+.f64 y 2) x))
+                (~a '(- ($Type binary64 binary64 binary64) h2
+                        (+ ($Type binary64 binary64 binary64)
+                            (+ ($Type binary64 binary64 binary64) h0 2) h1))))
+          (cons '(*.f64 x y)
+                "(* ($Type binary64 binary64 binary64) h1 h0)")
+          (cons '(+.f64 (*.f64 x y) 2)
+                (~a '(+ ($Type binary64 binary64 binary64)
+                        (* ($Type binary64 binary64 binary64) h1 h0) 2)))
+          (cons '(cos.f32 (PI.f32))
+                "(cos ($Type binary32 binary32) (PI ($Type binary32)))")
+          (cons '(if (TRUE) x y)
+                "(if real (TRUE ($Type bool)) h1 h0)")))
 
   (with-egraph
    (lambda (egg-graph)
@@ -97,6 +155,7 @@
          (check-equal? out expected-out)
          (check-equal? computed-in in)))))
 
+  (*context* (make-debug-context '(x a b c r)))
   (define extended-expr-list
     (list
      '(/ (- (exp x) (exp (- x))) 2)
@@ -109,9 +168,90 @@
   (with-egraph
    (lambda (egg-graph)
      (for ([expr extended-expr-list])
+       (define expr* (desugar-program expr (*context*) #:full #f))
        (check-equal? 
-        (egg-expr->expr (~a (expr->egg-expr expr egg-graph)) egg-graph)
-        expr)))))
+        (egg-expr->expr (~a (expr->egg-expr expr* egg-graph)) egg-graph)
+        expr*)))))
+
+
+;; Given a list of types, computes the product of all possible
+;; representation assignments where each element
+;; is a dictionary mapping type to representation
+(define (type-combinations types [reprs (*needed-reprs*)])
+  (reap [sow]
+    (let loop ([types types] [assigns '()])
+      (match types
+        [(list) (sow assigns)]
+        [(list type rest ...)
+         (for ([repr (in-list reprs)]
+               #:when (equal? (representation-type repr) type))
+           (loop rest (cons (cons type repr) assigns)))]))))
+
+(define (reprs-in-expr expr)
+  (define reprs (mutable-set))
+  (let loop ([expr expr])
+    (match expr
+     [(list 'if cond ift iff)
+      (loop cond) (loop ift) (loop iff)]
+     [(list op args ...)
+      (set-add! reprs (operator-info op 'otype))
+      (for ([itype (operator-info op 'itype)])
+        (set-add! reprs itype))
+      (for-each loop args)]
+     [_ (void)]))
+  (set->list reprs))
+
+;; Translates a Herbie rule into possibly multiple rules
+(define (rule->egg-rules r)
+  (match-define (rule name input output itypes otype) r)
+  (cond
+    [(andmap representation? (cons otype (map cdr itypes)))
+     ;; rules over representations
+     ;; nothing special here: just return the 1 rule
+     ;; validate that we support the operators
+     (if (andmap (curry set-member? (*needed-reprs*))
+                 (append (reprs-in-expr input) (reprs-in-expr output)))
+         (list r)
+         (list))]
+    [else
+     ;; rules over types
+     ;; must instantiate the rule over all possible
+     ;; representation combinations, keeping in mind that
+     ;; representations may not support certain operators
+     (reap [sow]
+       (define types (remove-duplicates (cons otype (map cdr itypes))))
+       (for ([type-ctx (in-list (type-combinations types))])
+         ;; Strange corner case:
+         ;; Rules containing comparators cause desugaring to misbehave.
+         ;; The reported output type is bool but then desugaring
+         ;; thinks there will be a cast somewhere
+         (define otype* (dict-ref type-ctx otype))
+         (define sugar-otype
+           (if (equal? otype 'bool)
+               (dict-ref type-ctx 'real (get-representation 'bool))
+               otype*))
+
+         (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
+         (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
+         (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
+           ;; The easier way to tell if every operator is supported
+           ;; in a given representation is to just try to desguar
+           ;; the expression and catch any errors.
+           (define name* (sym-append name '_ (representation-name sugar-otype)))
+           (define input* (desugar-program input sugar-ctx #:full #f))
+           (define output* (desugar-program output sugar-ctx #:full #f))
+           (when (andmap (curry set-member? (*needed-reprs*))
+                         (append (reprs-in-expr input*) (reprs-in-expr output*)))
+             (sow (rule name* input* output* itypes* otype*))))))]))
+
+(module+ test
+  ;; Make sure all built-in rules are valid in some
+  ;; configuration of representations
+  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
+  (for ([rule (in-list (*rules*))])
+    (test-case (~a (rule-name rule))
+               (check-true (> (length (rule->egg-rules rule)) 0))))
+)
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
@@ -155,12 +295,11 @@
   (ptr-set! ptr _byte n 0)
   ptr)
 
-
 (define (make-ffi-rules rules)
   (for/list ([rule (in-list rules)])
     (define name (make-raw-string (symbol->string (rule-name rule))))
-    (define left (make-raw-string (~a (pattern->egg (rule-input rule)))))
-    (define right (make-raw-string (~a (pattern->egg (rule-output rule)))))
+    (define left (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
+    (define right (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
     (make-FFIRule name left right)))
 
 (define (free-ffi-rules rules)
@@ -204,10 +343,12 @@
 (define (convert-iteration-data egraphiters size)
   (cond
     [(> size 0)
-     (cons (iteration-data (EGraphIter-numnodes egraphiters) (EGraphIter-numeclasses egraphiters) (EGraphIter-time egraphiters))
+     (cons (iteration-data (EGraphIter-numnodes egraphiters)
+                           (EGraphIter-numeclasses egraphiters)
+                           (EGraphIter-time egraphiters))
            (convert-iteration-data (ptr-add egraphiters 1 _EGraphIter) (- size 1)))]
     [else empty]))
-
+  
 ;; runs rules on an egraph
 ;; can optionally specify an iter limit
 (define (egraph-run egraph-data node-limit ffi-rules precompute? [iter-limit #f])
@@ -220,16 +361,51 @@
   (destroy_egraphiters res-len egraphiters)
   res)
 
+;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
 (define ffi-rules-cache #f)
 
-(define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
-  (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) rules))
-    (when ffi-rules-cache (free-ffi-rules (cdr ffi-rules-cache)))
-    (set! ffi-rules-cache (cons rules (make-ffi-rules rules))))
-  (define ffi-rules (cdr ffi-rules-cache))
+;; Tries to look up the canonical name of a rule using the cache.
+;; Obviously dangerous if the cache is invalid.
+(define (get-canon-rule-name name [failure #f])
+  (cond
+    [ffi-rules-cache
+     (match-define (list _ _ canon-names) (cdr ffi-rules-cache))
+     (hash-ref canon-names name failure)]
+    [else
+     failure]))
 
+;; expand the rules first due to some bad but currently
+;; necessary reasons (see `rule->egg-rules` for details).
+;; checks the cache in case we used them previously
+(define (expand-rules rules)
+  (define key (cons rules (*needed-reprs*)))
+  (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) key))
+    ; free any rules in the cache
+    (when ffi-rules-cache
+      (match-define (list _ ffi-rules _) (cdr ffi-rules-cache))
+      (free-ffi-rules ffi-rules))
+    ; instantiate rules
+    (define-values (egg-rules canon-names)
+      (for/fold ([rules* '()] [canon-names (hash)] #:result (values (reverse rules*) canon-names))
+                ([rule (in-list rules)])
+        (define expanded (rule->egg-rules rule))
+        (define orig-name (rule-name rule))
+        (values (append expanded rules*)
+                (for/fold ([canon-names* canon-names])
+                          ([exp-rule (in-list expanded)])
+                  (hash-set canon-names* (rule-name exp-rule) orig-name)))))
+    ; update the cache
+    (set! ffi-rules-cache (cons key (list egg-rules (make-ffi-rules egg-rules) canon-names))))
+  (cdr ffi-rules-cache))
+
+(define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
+  ;; expand rules (will also check cache)
+  (match-define (list egg-rules ffi-rules canon-names) (expand-rules rules))
+
+  ;; run the rules
   (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
 
+  ;; get cost statistics
   (let loop ([iter iteration-data] [counter 0] [time 0])
     (unless (null? iter)
       (define cnt (iteration-data-num-nodes (first iter)))
@@ -237,11 +413,16 @@
       (define new-time (+ time (iteration-data-time (first iter))))
       (timeline-push! 'egraph counter cnt cost new-time)
       (loop (rest iter) (+ counter 1) new-time)))
-
   (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
 
-  (for ([ffi-rule (in-list ffi-rules)] [rule (in-list rules)])
+  ;; get rule statistics
+  (define rule-apps (make-hash))
+  (for ([ffi-rule (in-list ffi-rules)] [rule (in-list egg-rules)])
     (define count (egraph-get-times-applied egg-graph ffi-rule))
-    (when (> count 0) (timeline-push! 'rules (~a (rule-name rule)) count)))
+    (define canon-name (hash-ref canon-names (rule-name rule)))
+    (hash-update! rule-apps canon-name (curry + count) count))
+
+  (for ([(name count) (in-hash rule-apps)])
+    (when (> count 0) (timeline-push! 'rules (~a name) count)))
 
   iteration-data)
