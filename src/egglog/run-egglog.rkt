@@ -14,6 +14,8 @@
 (define ground-truth-iters 7)
 (define egg-node-limit 5000)
 (define egg-match-limit 500)
+;; Number of points from the point context to take
+(define egg-num-sample 10)
 
 
 ;; The egglog rules follow error-preserving semantics
@@ -1275,11 +1277,11 @@
 
 (define (build-ground-truth-extract ctx pctx exprs eggdata)
   (append
-   (for/list ([(point exact) (in-pcontext pctx)] [i (in-naturals)])
+   (for/list ([(point exact) (in-pcontext pctx)] [i (in-range egg-num-sample)])
      `(point ,i)) ;; initialize the number of points
    (apply append
           (for/list ([(point expected) (in-pcontext pctx)]
-                     [i (in-naturals)])
+                     [i (in-range egg-num-sample)])
             (for/list ([var (context-vars ctx)]
                        [num point])
               `(set (ival ,(expr->egglog ctx var eggdata)
