@@ -557,11 +557,11 @@
              (Cbrt ty a))
     (rewrite (Pow ty a (Num ty r-three))
              (Mul ty (Mul ty a a) a))
-    ; 0^0 is undefined
+    ; 0^0  or 0 ^ negative is undefined
     (rewrite (Pow ty (Num ty r-zero) a)
              (Num ty r-zero)
              :when
-             ((non-zero a)))
+             ((positive a)))
     ;; Logarithms
     (rewrite (Log ty (Mul ty a b))
              (Add ty (Log ty a) (Log ty b))
