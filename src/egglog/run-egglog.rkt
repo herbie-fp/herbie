@@ -287,7 +287,9 @@
     (clear-rules)))
 
 (define rewrites
-  `((rule ((= t1 (Add ty a b)) (= t2 (Add ty a c))
+  `(
+    ;; injectivity rules don't seem to do anything
+    #;((rule ((= t1 (Add ty a b)) (= t2 (Add ty a c))
                                (= t1 t2))
           ((union b c)))
     (rule ((= t1 (Mul ty a b)) (= t2 (Mul ty a c))
@@ -304,7 +306,7 @@
     (rule ((= t1 (Sqrt ty a)) (= t2 (Sqrt ty b)) (= t1 t2))
           ((union a b)))
     (rule ((= t1 (Cbrt ty a)) (= t2 (Cbrt ty b)) (= t1 t2))
-          ((union a b)))
+          ((union a b))))
     ;; Commutativity
     (rewrite (Add ty a b) (Add ty b a))
     (rewrite (Mul ty a b) (Mul ty b a))
