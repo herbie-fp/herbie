@@ -86,6 +86,7 @@
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
+(define *proof-max-length* (make-parameter 100))
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))

@@ -12,21 +12,39 @@
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name)
 
+
+(define (flatten-let term environment)
+  (match term
+    [`(let (,var ,term) ,body)
+     (hash-set! environment var (flatten-let term environment))
+     (flatten-let body environment)]
+    [(? symbol?)
+     (hash-ref environment term term)]
+    [(? list?)
+     (map (curryr flatten-let environment) term)]
+    [(? number?)
+     term]
+    [else (error "Unknown term ~a" term)]))
+
 ;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
   (define parsed (read (open-input-string expr)))
-  (egg-parsed->expr parsed (egraph-data-egg->herbie-dict eg-data)))
+  (egg-parsed->expr (flatten-let parsed (make-hash))
+                    (egraph-data-egg->herbie-dict eg-data)))
 
 ;; Like `egg-expr->expr` but expected the string to
 ;; parse into a list of S-exprs
 (define (egg-exprs->exprs exprs eg-data)
   (for/list ([egg-expr (in-port read (open-input-string exprs))])
-    (egg-parsed->expr egg-expr (egraph-data-egg->herbie-dict eg-data))))
+    (egg-parsed->expr (flatten-let egg-expr (make-hash))
+                      (egraph-data-egg->herbie-dict eg-data))))
 
 ;; Converts an S-expr from egg into one Herbie understands
 (define (egg-parsed->expr expr rename-dict)
   (let loop ([expr expr])
     (match expr
+      [`(Explanation ,body ...)
+       `(Explanation ,@(map loop body))]
       [(list 'Rewrite=> rule expr)
        (list 'Rewrite=> rule (loop expr))]
       [(list 'Rewrite<= rule expr)
@@ -319,14 +337,75 @@
 
 (struct egg-add-exn exn:fail ())
 
+
+;; Performs a product, but traverses the elements in order
+(define (sequential-product elements)
+  (cond
+    [(empty? elements) (list empty)]
+    [else
+     (append
+      (for/list ([head (drop-right (first elements) 1)])
+        (cons head (map first (rest elements))))
+      (for/list ([other (in-list (sequential-product (rest elements)))])
+        (cons (last (first elements)) other)))]))
+
+(module+ test
+  (check-equal?
+   (sequential-product `((1 2) (3 4 5) (6)))
+   `((1 3 6) (2 3 6) (2 4 6) (2 5 6)))
+
+  (expand-proof-term '(Explanation (+ x y) (+ y x)) (box 10)))
+
+
+;; returns a flattened list of terms
+(define (expand-proof-term term budget)
+  (match term
+    [(? (lambda (x) (<= (unbox budget) 0)))
+     (list #f)]
+    [`(Explanation ,body ...)
+     (expand-proof body budget)]
+    [(? symbol?)
+     (list term)]
+    [(? number?)
+     (list term)]
+    [(? list?)
+     (define children (map (curryr expand-proof-term budget) term))
+     (cond 
+       [(member (list #f) children)
+        (list #f)]
+       [else
+        (define res (sequential-product children))
+        (set-box! budget (- (unbox budget) (length res)))
+        res])]
+    [else (error "Unknown proof term ~a" term)]))
+
+;; converts a let-bound tree explanation
+;; into a flattened proof for use by Herbie
+(define (expand-proof proof budget)
+  (define res
+    (apply append
+           (map (curryr expand-proof-term budget) proof)))
+  (set-box! budget (- (unbox budget) (length proof)))
+  (if (member #f res)
+      (list #f)
+      res))
+
 (define (egraph-get-proof egraph-data expr goal)
   (define egg-expr (~a (expr->egg-expr expr egraph-data)))
   (define egg-goal (~a (expr->egg-expr goal egraph-data)))
   (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (define res (cast pointer _pointer _string/utf-8))
   (destroy_string pointer)
-  (for/list ([line (in-list (string-split res "\n"))])
-    (egg-expr->expr line egraph-data)))
+  (define env (make-hash))
+  (define converted
+    (for/list ([line (in-list (string-split res "\n"))])
+      (egg-expr->expr line egraph-data)))
+  (define expanded
+    (expand-proof
+     converted
+     (box (*proof-max-length*))))
+
+  (filter identity expanded))
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)

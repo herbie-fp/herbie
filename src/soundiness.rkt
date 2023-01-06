@@ -29,6 +29,7 @@
   (define proof-programs
     (for/list ([step (in-list proof)])
       `(λ ,program-vars ,(remove-rewrites step))))
+  (println proof-programs)
   (define proof-errors (batch-errors proof-programs pcontext ctx))
   (define proof-diffs
     (cons (list 0 0)
