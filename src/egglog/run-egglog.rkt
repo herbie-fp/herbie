@@ -136,10 +136,11 @@
 
     ;; Compute ground truth for a program for a particular input point indexed by the i64
     (function ival (Math i64) Interval :merge (intersect old new))
-    (function best-float (Math i64) f64 :merge (assert-eq old new))
+    (function true-float (Math i64) f64 :merge (assert-eq old new))
     (function bval (Math i64) BooleanInterval :merge (ival-Or old new))
-    (function best-bool (Math i64) BooleanInterval :merge (assert-eq old new))
+    (function true-bool (Math i64) BooleanInterval :merge (assert-eq old new))
     (relation point (i64))
+
 
     ;; universe is a hack so we can quantify over it
     (relation universe (Math HerbieType))
@@ -1240,9 +1241,9 @@
                                                    z-interval)))))
 
     (rule ((= interval (ival term i)))
-          ((set (best-float term i) (to-f64 interval))))
+          ((set (true-float term i) (to-f64 interval))))
     (rule ((= binterval (bval term i)))
-          ((set (best-bool term i) (to-bool binterval))))
+          ((set (true-bool term i) (to-bool binterval))))
 
     (add-ruleset ground-truth)
     (clear-rules)))
@@ -1277,7 +1278,30 @@
   (for/list ([expr exprs] [i (in-naturals)])
     `(extract :variants ,variants ,(varname i))))
 
-(define (build-ground-truth-extract ctx pctx exprs eggdata)
+(define (ast-prefix op)
+  (string->symbol (string-append "Ast" (symbol->string op))))
+
+(define (build-math-ast ctx exprs eggdata)
+  `((datatype AstMath
+              (AstNum HerbieType Rational)
+              (AstVar HerbieType String)
+              ,@(expand-for-list *-*-*-*-ops Op
+                                 `(,(ast-prefix Op) HerbieType Math Math Math))
+              ,@(expand-for-list *-*-*-ops Op
+                                 `(,(ast-prefix Op) HerbieType Math Math))
+              ,@(expand-for-list *-*-ops Op
+                                 `(,(ast-prefix Op) HerbieType Math))
+              ,@(expand-for-list *-ops Op
+                                 `(,(ast-prefix Op)  HerbieType)))))
+
+(define (build-ground-truth-extracct ctx exprs eggdata)
+  (append
+   (build-math-ast ctx exprs eggdata)
+   `(
+     (
+      )))
+
+  (define (build-ground-truth-compute ctx pctx exprs eggdata)
   (append
    (for/list ([(point exact) (in-pcontext pctx)] [i (in-range egg-num-sample)])
      `(point ,i)) ;; initialize the number of points
@@ -1310,7 +1334,7 @@
    (build-extract exprs variants)
 
    ;; extraction using ground truth
-   (build-ground-truth-extract ctx pctx exprs eggdata)))
+   (build-ground-truth-compute ctx pctx exprs eggdata)))
 
 (define (rewrite-if egglog-program)
   (apply append
