@@ -10,7 +10,8 @@
 (provide with-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected
-         rule->egg-rules expand-rules get-canon-rule-name)
+         rule->egg-rules expand-rules get-canon-rule-name
+         remove-rewrites)
 
 
 (define (flatten-let term environment)
@@ -337,17 +338,28 @@
 
 (struct egg-add-exn exn:fail ())
 
+(define (remove-rewrites proof)
+  (match proof
+    [`(Rewrite=> ,rule ,something)
+     (remove-rewrites something)]
+    [`(Rewrite<= ,rule ,something)
+     (remove-rewrites something)]
+    [(list _ ...)
+     (map remove-rewrites proof)]
+    [else proof]))
 
 ;; Performs a product, but traverses the elements in order
+;; This is the core logic of flattening a proof given flattened proofs for each child of a node
 (define (sequential-product elements)
   (cond
     [(empty? elements) (list empty)]
     [else
+     (define without-rewrites (remove-rewrites (last (first elements))))
      (append
-      (for/list ([head (drop-right (first elements) 1)])
+      (for/list ([head (first elements)])
         (cons head (map first (rest elements))))
-      (for/list ([other (in-list (sequential-product (rest elements)))])
-        (cons (last (first elements)) other)))]))
+      (for/list ([other (in-list (rest (sequential-product (rest elements))))])
+        (cons without-rewrites other)))]))
 
 (module+ test
   (check-equal?
@@ -358,6 +370,7 @@
 
 
 ;; returns a flattened list of terms
+;; The first term has no rewrite- the rest have exactly one rewrite
 (define (expand-proof-term term budget)
   (match term
     [(? (lambda (x) (<= (unbox budget) 0)))
@@ -379,17 +392,31 @@
         res])]
     [else (error "Unknown proof term ~a" term)]))
 
+
+;; Remove the front term if it doesn't have any rewrites
+(define (remove-front-term proof)
+  (if (equal? (remove-rewrites (first proof)) (first proof))
+      (rest proof)
+      proof))
+
 ;; converts a let-bound tree explanation
 ;; into a flattened proof for use by Herbie
 (define (expand-proof proof budget)
+  (define expanded
+          (map (curryr expand-proof-term budget) proof))
+  ;; get rid of any unnecessary terms
+  (define contiguous
+    (cons (first expanded) (map remove-front-term (rest expanded))))
+  ;; append together the proofs
   (define res
-    (apply append
-           (map (curryr expand-proof-term budget) proof)))
+    (apply append contiguous))
+
   (set-box! budget (- (unbox budget) (length proof)))
   (if (member #f res)
       (list #f)
       res))
 
+;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal)
   (define egg-expr (~a (expr->egg-expr expr egraph-data)))
   (define egg-goal (~a (expr->egg-expr goal egraph-data)))
@@ -405,7 +432,9 @@
      converted
      (box (*proof-max-length*))))
 
-  (filter identity expanded))
+  (if (member #f expanded)
+      #f
+      expanded))
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)
