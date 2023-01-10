@@ -15,8 +15,11 @@ figure { margin: 0; }
 
 figure { display: flex; flex-direction: row; gap: 1em; margin: 2em 0; }
 figure div { flex: 1; border: 1px solid #ddd; padding: 1ex; }
-figure h2 { font-size: 1em; font-family: 'Ruda', serif; margin: 0; }
+figure h2 { font-size: 1em; font-family: 'IBM Plex Serif', serif; margin: 0; }
 figure .domain, figure .tick { color: #888; }
+figure text { font-family: 'IBM Plex Serif', serif; }
+figcaption { font-size: 80%; color: #666; padding-top: 1ex; }
+svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 
 /* Flag list / configuration */
 

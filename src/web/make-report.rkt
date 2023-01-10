@@ -113,9 +113,21 @@
 
       (figure
        (div ([id "xy"])
-            (h2 "Output vs Input Accuracy"))
+            (h2 "Output vs Input Accuracy")
+            (svg)
+            (figcaption "Each point represents a Herbie run below. Its "
+                        "horizontal position shows initial accuracy, "
+                        "and vertical position shows final accuracy. "
+                        "Points above the line are improved by Herbie."))
        (div ([id "pareto"])
-            (h2 "Accuracy vs Cost")))
+            (h2 "Accuracy vs Cost")
+            (svg)
+            (figcaption "A joint cost-accuracy pareto curve for the "
+                        "Herbie runs below. Accuracy is on the vertical "
+                        "axis, and cost is on the vertical axis. Down "
+                        "and to the left is better. The initial programs "
+                        "are shown by the red square.")
+            ))
 
      (table ((id "results") (class ,(string-join (map ~a classes) " ")))
       (thead

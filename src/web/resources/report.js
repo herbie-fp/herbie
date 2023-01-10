@@ -35,6 +35,24 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
+// Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
+// However, simplified because we don't need hit box data
+function on(mark, listeners = {}) {
+  const render = mark.render;
+  mark.render = function (facet, { x, y }, channels) {
+    const data = this.data;
+    const g = render.apply(this, arguments);
+    const r = d3.select(g).selectChildren();
+    for (const [type, callback] of Object.entries(listeners)) {
+      r.on(type, function(event, i) {
+          return callback(event, data[i]);
+      });
+    }
+    return g;
+  };
+  return mark;
+}
+
 var Subreport = new Component("#subreports", {
     setup: function() {
         this.elt.classList.add("no-subreports");
@@ -273,17 +291,23 @@ const ResultPlot = new Component('#xy', {
             method: "GET",
             mode: "cors",
         });
+        let stub = this.elt.querySelector("svg");
         let data = (await response.json()).tests;
-        this.elt.appendChild(this.plot(data));
+        this.elt.replaceChild(this.plot(data), stub)
     },
 
     plot: function(tests) {
         const out = Plot.plot({
             marks: [
                 Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
-                Plot.dot(tests, {x: d => d.start/64, y: d => d.end/64,
-                                 fill: "#00a", strokeWidth: 2,}),
+                on(Plot.dot(tests, {
+                    x: d => 1 - d.start/64, y: d => 1 - d.end/64,
+                    fill: "#00a", strokeWidth: 2,
+                }), {
+                    click: (e, d) => { window.location = d.link + "/graph.html"; },
+                }),
             ],
+            className: "clickable",
             marginBottom: 0,
             marginRight: 0,
             width: '400',
@@ -303,8 +327,9 @@ const MergedCostAccuracy = new Component('#pareto', {
             method: "GET",
             mode: 'cors'
         });
+        let stub = this.elt.querySelector("svg");
         let json = await response.json();
-        this.elt.appendChild(this.plot(json["cost-accuracy"], json.tests.length));
+        this.elt.replaceChild(this.plot(json["cost-accuracy"], json.tests.length), stub)
     },
 
     plot: function(json, n) {
@@ -313,7 +338,7 @@ const MergedCostAccuracy = new Component('#pareto', {
         const ymax = 64 * n;
         const out = Plot.plot({
             marks: [
-                Plot.line(sortLine, {x: d => d[0], y: d => d[1] / ymax,
+                Plot.line(sortLine, {x: d => d[0], y: d => 1 - d[1] / ymax,
                                      stroke: "#00a", strokeWidth: 2}),
                 Plot.dot(json[1], {x: json[1][0], y: json[1][1] / ymax,
                                    stroke: "#d00", symbol: "square", strokeWidth: 2})
