@@ -2,11 +2,11 @@
 (require profile math/bigfloat racket/engine json)
 (require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
-         "datafile.rkt" "errors.rkt"
+         "datafile.rkt" "errors.rkt" "float.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 
-(provide get-sample get-test-result *reeval-pts* *timeout*
+(provide get-errors get-sample get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result)
@@ -61,6 +61,33 @@
     (when seed (set-seed! seed))
     (define-values (points exacts) (get-p&es test-pcontext))
     (for/list ([point points] [exact exacts]) (list point exact))))
+
+(define (get-errors test #:seed [seed #f] #:profile [profile? #f])
+  (define timeline #f)
+  (define output-repr (test-output-repr test))
+  (define context (test-context test))
+  (*needed-reprs* (list output-repr (get-representation 'bool)))
+  (generate-prec-rewrites (test-conversions test))
+
+  (parameterize ([*timeline-disabled* false]
+                  [*warnings-disabled* true])
+    (when seed (set-seed! seed))
+    (random) ;; Child process uses deterministic but different seed from evaluator
+
+    (match-define (cons domain-stats joint-pcontext)
+      (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+        (setup-context!
+          (or (test-specification test) (test-program test)) (test-precondition test)
+          output-repr)))
+    (define-values (train-pcontext test-pcontext)
+      (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
+    
+    (define errs
+      (errors (test-program test) test-pcontext context))
+
+    (when seed (set-seed! seed))
+    (define-values (points exacts) (get-p&es test-pcontext))
+    (for/list ([point points] [err errs]) (list point (format-bits (ulps->bits err))))))
 
 (define (run-herbie test)
   (define seed (get-seed))

@@ -323,16 +323,30 @@
   (hasheq
     'points result))
 
+;; (await fetch('/api/analyze', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x eps) :precision binary64 (- (cos (+ x eps)) (cos x)))", seed: 5})})).json()
+(define (handle-analyze-endpoint post-data)
+  (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
+  (define seed (hash-ref post-data `seed))
+  (eprintf "Job started on ~a..." formula)
+
+  (define result (get-errors (parse-test formula) #:seed seed))
+
+  (eprintf " complete\n")
+  (hasheq
+    'points result))
+
 (define (call-api-fn req endpoint)
   (define post-body (request-post-data/raw req))
   (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
   ;; use hash-ref to access values in the object, e.g.
   ;; (hash-ref post-data 'key)
   ;; test via Herbie demo page: (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({a: 42})})).json()
-  (define json-obj (if (equal? endpoint "sample") (handle-sample-endpoint post-data) (hasheq
+  (define json-obj (if (equal? endpoint "sample") (handle-sample-endpoint post-data) 
+                  (if (equal? endpoint "analyze") (handle-analyze-endpoint post-data)
+                      (hasheq
                      'endpoint endpoint
                      'data post-data
-                     )))
+                     ))))
   (response
     200 #"OK"
     (current-seconds) APPLICATION/JSON-MIME-TYPE
