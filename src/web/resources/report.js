@@ -281,7 +281,8 @@ const ResultPlot = new Component('#xy', {
         const out = Plot.plot({
             marks: [
                 Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
-                Plot.dot(tests, {x: d => d.start/64, y: d => d.end/64, fill: "black", strokeWidth: 2,}),
+                Plot.dot(tests, {x: d => d.start/64, y: d => d.end/64,
+                                 fill: "#00a", strokeWidth: 2,}),
             ],
             marginBottom: 0,
             marginRight: 0,
@@ -312,12 +313,14 @@ const MergedCostAccuracy = new Component('#pareto', {
         const ymax = 64 * n;
         const out = Plot.plot({
             marks: [
-                Plot.line(sortLine, {x: d => d[0], y: d => d[1] / ymax, stroke: "black", strokeWidth: 2,}),
-                Plot.dot(json[1], {x: json[1][0], y: json[1][1] / ymax, stroke: "red", symbol: "square"})
+                Plot.line(sortLine, {x: d => d[0], y: d => d[1] / ymax,
+                                     stroke: "#00a", strokeWidth: 2}),
+                Plot.dot(json[1], {x: json[1][0], y: json[1][1] / ymax,
+                                   stroke: "#d00", symbol: "square", strokeWidth: 2})
             ],
             width: '400',
             height: '400',                
-            x: { type: "log", line: true, },
+            x: { line: true, },
             y: { line: true, nice: true, domain: [0, 1], tickFormat: "%", },
             marginBottom: 0,
             marginRight: 0,
