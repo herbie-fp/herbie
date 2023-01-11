@@ -64,7 +64,6 @@
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
-  (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
   (call-with-output-file (build-path dir "results.html")
     (curryr make-report-page info dir) #:exists 'replace)
   (define timeline (merge-timeline-jsons (read-json-files info dir "timeline.json")))
