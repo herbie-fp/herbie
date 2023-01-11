@@ -311,7 +311,7 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
+;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x eps) :precision binary64 (- (cos (+ x eps)) (cos x)))", seed: 5})})).json()
 (define (handle-sample-endpoint post-data)
   (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
   (define seed (hash-ref post-data `seed))
@@ -323,13 +323,14 @@
   (hasheq
     'points result))
 
-;; (await fetch('/api/analyze', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x eps) :precision binary64 (- (cos (+ x eps)) (cos x)))", seed: 5})})).json()
+;; (await fetch('/api/analyze', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x eps) :precision binary64 (- (cos (+ x eps)) (cos x)))", sample: })})).json()
 (define (handle-analyze-endpoint post-data)
   (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
-  (define seed (hash-ref post-data `seed))
+  (define pts+exs (hash-ref post-data `sample))
+  (displayln pts+exs)
   (eprintf "Job started on ~a..." formula)
 
-  (define result (get-errors (parse-test formula) #:seed seed))
+  (define result (get-errors (parse-test formula) pts+exs))
 
   (eprintf " complete\n")
   (hasheq
