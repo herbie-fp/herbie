@@ -49,7 +49,6 @@
     (when seed (set-seed! seed))
     (random) ;; Child process uses deterministic but different seed from evaluator
 
-
     (match-define (cons domain-stats joint-pcontext)
       (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
         (setup-context!
@@ -60,7 +59,6 @@
 
     (when seed (set-seed! seed))
     (define-values (points exacts) (get-p&es test-pcontext))
-    (displayln points)
     (for/list ([point points] [exact exacts]) (list point exact))))
 
 (define (get-errors test pts+exs #:seed [seed #f] #:profile [profile? #f])
@@ -70,6 +68,17 @@
   (*needed-reprs* (list output-repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
+  ;; Set up context without resampling points
+  ;(define (setup-context-no-resample! specification precondition repr)
+  ;  (define vars (program-variables specification))
+  ;  (*context* (context vars repr (map (const repr) vars)))
+  ;  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
+  ;    (*needed-reprs* (list repr (get-representation 'bool)))))
+
+  ;(setup-context-no-resample!
+  ;  (or (test-specification test) (test-program test)) (test-precondition test)
+  ;  output-repr)
+
   (parameterize ([*timeline-disabled* true]
                   [*warnings-disabled* true])
     (when seed (set-seed! seed))
@@ -77,14 +86,17 @@
 
     ; I feel like there's a simpler way to split a list of cons into two lists this...
     (define pts (for/list ([ptex pts+exs]) (car ptex)))
-    (define exs (for/list ([ptex pts+exs]) (real->double-flonum (first (cdr ptex)))))
-
-    (displayln exs)
+    (define exs (for/list ([ptex pts+exs]) (real->double-flonum (car (cdr ptex)))))
 
     (define joint-pcontext (mk-pcontext pts exs))
 
+    (define processed-pcontext
+      (preprocess-pcontext joint-pcontext (*herbie-preprocess*) context))
+    (define-values (newpoints newexacts) (get-p&es processed-pcontext))
+    (displayln newpoints)
+
     (define errs
-      (errors (test-program test) joint-pcontext context))
+      (errors (test-program test) processed-pcontext context))
 
     (when seed (set-seed! seed))
     (define-values (points exacts) (get-p&es joint-pcontext))

@@ -327,7 +327,6 @@
 (define (handle-analyze-endpoint post-data)
   (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
   (define pts+exs (hash-ref post-data `sample))
-  (displayln pts+exs)
   (eprintf "Job started on ~a..." formula)
 
   (define result (get-errors (parse-test formula) pts+exs))
