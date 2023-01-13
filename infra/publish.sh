@@ -11,7 +11,7 @@ upload () {
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
 
-    nightly-results download index.cache
+    nightly-results download index.cache index.cache
     racket -y infra/make-index.rkt --relpath "$RDIR" index.cache "$DIR"
     nightly-results publish --name index.cache index.cache
     nightly-results publish --name index.html index.html
@@ -25,7 +25,7 @@ upload () {
 }
 
 index () {
-    nightly-results download index.cache
+    nightly-results download index.cache index.cache
     racket -y infra/make-index.rkt index.cache
     nightly-results publish --name index.cache index.cache
     nightly-results publish --name index.html index.html
