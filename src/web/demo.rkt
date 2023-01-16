@@ -38,7 +38,7 @@
    [("improve") #:method (or "post" "get" "put") improve]
    [("check-status" (string-arg)) check-status]
    [("up") check-up]
-   [("api" (string-arg)) #:method (or "post" "get" "put") call-api-fn]
+   [("api" "sample") #:method "post" sample-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
@@ -311,8 +311,19 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
+(define (post-with-json-response fn) (lambda (req)
+  (define post-body (request-post-data/raw req))
+  (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
+  (response
+    200 #"OK"
+    (current-seconds) APPLICATION/JSON-MIME-TYPE
+    empty
+    (λ (op) (write-json (fn post-data) op)))
+))
+
+; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
-(define (handle-sample-endpoint post-data)
+(define sample-endpoint (post-with-json-response (lambda (post-data)
   (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
   (define seed (hash-ref post-data `seed))
   (eprintf "Job started on ~a..." formula)
@@ -321,24 +332,8 @@
 
   (eprintf " complete\n")
   (hasheq
-    'points result))
-
-(define (call-api-fn req endpoint)
-  (define post-body (request-post-data/raw req))
-  (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
-  ;; use hash-ref to access values in the object, e.g.
-  ;; (hash-ref post-data 'key)
-  ;; test via Herbie demo page: (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({a: 42})})).json()
-  (define json-obj (if (equal? endpoint "sample") (handle-sample-endpoint post-data) (hasheq
-                     'endpoint endpoint
-                     'data post-data
-                     )))
-  (response
-    200 #"OK"
-    (current-seconds) APPLICATION/JSON-MIME-TYPE
-    empty
-    (λ (op) (write-json json-obj op)))
-  )
+    'points result)
+)))
 
 (define (response/error title body)
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
