@@ -315,7 +315,7 @@ pub unsafe extern "C" fn egraph_get_proof(
             .take()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
 
-        let mut proof = runner.explain_equivalence(&expr_rec, &goal_rec);
+        let proof = runner.explain_equivalence(&expr_rec, &goal_rec);
         ctx.runner = Some(runner);
         let string = CString::new(proof.get_string_with_let().replace("\n", "")).unwrap();
         let string_pointer = string.as_ptr();
