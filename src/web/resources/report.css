@@ -83,6 +83,14 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
  vertical-align: top; text-align: center;
 }
 .help-button:hover { background: #444; cursor: pointer; }
+h1 > .help-button {
+    vertical-align: text-top;
+    font-size: small;
+    margin-left: 5px;
+    background: #ddd;
+    color: #999;
+    rotate: 270deg;
+}
 
 /* Links at the top */
 #links { border-bottom: 1px solid #ddd; line-height: 2; overflow: auto; }
