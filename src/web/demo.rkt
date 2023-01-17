@@ -196,7 +196,7 @@
            [else
             (eprintf "Job ~a started on ~a..." hash formula)
 
-            (define result (get-test-result (parse-test formula) #:seed seed))
+            (define result (get-test-result 'improve (parse-test formula) #:seed seed))
 
             (hash-set! *completed-jobs* hash result)
 
@@ -328,7 +328,7 @@
   (define seed (hash-ref post-data `seed))
   (eprintf "Job started on ~a..." formula)
 
-  (define result (get-sample (parse-test formula) #:seed seed))
+  (define result (get-test-result 'sample (parse-test formula) #:seed seed))
 
   (eprintf " complete\n")
   (hasheq
