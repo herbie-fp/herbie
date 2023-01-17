@@ -288,7 +288,7 @@ function setup_state(state, form) {
     form.fpcore.removeAttribute("disabled");
     form.math.removeAttribute("disabled");
 
-    document.querySelector('#use-fpcore-input a').onclick = function(evt) {
+    document.querySelector('#use-fpcore').onclick = function(evt) {
         if (form.math.value) {
             if (!check_errors()) {
                 alert("Please fix all errors before attempting to use FPCore input.")
@@ -299,17 +299,25 @@ function setup_state(state, form) {
         }
         setup_state("fpcore", form);
     }
+    document.querySelector('#show-example').onclick = function (evt) {
+        form.math.value = "sqrt(x + 1) - sqrt(x)"
+        CHECK_ERRORS_AND_DRAW_RANGES()
+        document.querySelector('#x_low').value = "0";
+        document.querySelector('#x_high').value = "1.79e308";
+        window.KNOWN_INPUT_RANGES['x'] = [0, 1.79e308]
+        update_run_button_mathjs(form)
+    }
 
     if (state == "math") {
         form.fpcore.style.display = "none";
         form.math.style.display = "block";
         form.input_ranges.style.display = "table";
-        document.querySelector('#use-fpcore-input').style.display = 'block';
+        document.querySelector('#options').style.display = 'block';
         document.querySelector("#lisp-instructions").style.display = "none";
         document.querySelector("#mathjs-instructions").style.display = "block";
         update_run_button_mathjs(form)
     } else {
-        document.querySelector('#use-fpcore-input').style.display = 'none';
+        document.querySelector('#options').style.display = 'none';
         form.fpcore.style.display = "block";
         form.math.style.display = "none";
         form.input_ranges.style.display = "none";
@@ -339,12 +347,14 @@ function update_run_button_mathjs(form) {
     try {
         varnames = get_varnames_mathjs(form.math.value)
     } catch (e) {
+        console.log("Couldn't get varnames:", e)
         button.setAttribute('disabled', 'true')
         return;
     }
     if (form.math.value && varnames.every(varname => no_range_errors(KNOWN_INPUT_RANGES[varname]))) {
         button.removeAttribute('disabled')
     } else {
+        console.log('There are still range errors.', )
         button.setAttribute('disabled', 'true')
     }
 }
@@ -491,6 +501,7 @@ function onload() {
         const range_div = document.querySelector('#input-ranges')
         range_div.replaceChildren(...varnames.map(range_inputs))
     }
+    CHECK_ERRORS_AND_DRAW_RANGES = check_errors_and_draw_ranges // HACK
     check_errors_and_draw_ranges()
     
     form.math.addEventListener("input", function () {
