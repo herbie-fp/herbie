@@ -201,6 +201,8 @@ section h1 {
     box-sizing: border-box; /* Include padding and border in element's width and height */
     display: inline-block;
     margin-left: 5px;
+    margin-top: 3px;
+    vertical-align: text-bottom;
 }
 
 #functions #function_start { border: 3px solid red; }
