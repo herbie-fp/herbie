@@ -85,7 +85,7 @@
     (random) ;; Child process uses deterministic but different seed from evaluator
 
     ; I feel like there's a simpler way to split a list of cons into two lists this...
-    (define pts (for/list ([ptex pts+exs]) (car ptex)))
+    (define pts (for/list ([ptex pts+exs]) (map real->double-flonum (car ptex))))
     (define exs (for/list ([ptex pts+exs]) (real->double-flonum (car (cdr ptex)))))
 
     (define joint-pcontext (mk-pcontext pts exs))
