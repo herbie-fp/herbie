@@ -4,7 +4,7 @@
          (only-in fpbench core->tex supported-by-lang?))
 (require "../points.rkt" "../float.rkt" "../alternative.rkt" "../syntax/types.rkt"
          "../syntax/rules.rkt" "../core/bsearch.rkt" "../common.rkt"
-         "common.rkt" "../syntax/sugar.rkt")
+         "common.rkt" "../syntax/sugar.rkt" "../programs.rkt")
 (provide render-history)
 
 (define (split-pcontext pcontext splitpoints alts ctx)
@@ -38,6 +38,31 @@
     (if (equal? end +nan.0)
         ""
         (format " < ~a" (value->string end repr))))))
+
+(define (splice-proof-step step)
+  (let/ec k
+    (let loop ([expr step] [loc '()])
+      (match expr
+        [(list 'Rewrite=> rule sub)
+         (define loc* (reverse loc))
+         (k 'Rewrite=> rule loc* (location-do loc* step (λ _ sub)))]
+        [(list 'Rewrite<= rule sub)
+         (define loc* (reverse loc))
+         (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
+        [(list op args ...)
+         (for ([arg (in-list args)] [i (in-naturals 1)])
+           (loop arg (cons i loc)))]
+        [_ (void)]))
+    (k 'Goal #f #f step)))
+
+;; Extracts render information from the proof
+(define (compute-proof proof soundiness)
+  (for/list ([step (in-list proof)] [sound soundiness])
+     (define-values (dir rule loc expr) (splice-proof-step step))
+     (if (eq? dir 'Goal)
+         (list #f #f #f expr #f)
+         (list dir rule loc expr sound))))
+
 
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))
@@ -88,20 +113,20 @@
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
+     (define proof*
+       (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
                                                       (core->tex prog* #:loc loc #:color "blue") 
                                                       "ERROR") 
                 "\\]")
-           (div ([class "math"]) "Proof")
-           ,@(for/list ([step proof] [data soundiness])
-                       (define text (format "~a: ~a points increase in error, ~a points decrease in error"
-                                    step (first data) (second data)))
-                       `(div ([class "math"])
-                             ,(if (> (first data) 0)
-                                  `(b ,text)
-                                  text)))))]
+           (div ([class "proof"])
+             (details
+               (summary "Proof")
+               ,(if proof*
+                    (render-proof proof* prog repr pcontext ctx)
+                    `(li ([class "event"]) "No proof available- proof too large to flatten."))))))]
 
     [(alt prog `initial-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
@@ -125,3 +150,27 @@
                                                       "ERROR")
                                                   "\\]")))]
     ))
+
+
+(define (render-proof proof prog repr pcontext ctx)
+  `(table
+    ,@(for/list ([step proof])
+        (match-define (list dir rule loc expr sound) step)
+        (define step-prog (program->fpcore (list 'λ '() (resugar-program expr repr))))
+        (define err
+          (let ([prog (list 'λ (program-variables prog) expr)])
+            (format-bits (errors-score (errors prog pcontext ctx)))))
+        `(tr (th ,(if dir
+                      (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
+                            [tag (string-append (format " ↑ ~a" (first sound))
+                                                (format " ↓ ~a" (second sound)))])
+                        `(p ,(format "~a [~a]" rule dir)
+                            (span ([class "info"] [title ,tag]) ,err)))
+                      `(p "[Start]"
+                          (span ([class "info"]) ,err))))
+             (td (div ([class "math"])
+                      "\\[ "
+                      ,(if dir
+                           (core->tex step-prog #:loc (cons 2 loc) #:color "blue")
+                           (core->tex step-prog))
+                      "\\]"))))))

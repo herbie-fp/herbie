@@ -1,35 +1,21 @@
 #lang racket
 
 (require "../common.rkt" "../programs.rkt" "matcher.rkt"
-         "../syntax/rules.rkt" "../syntax/syntax.rkt")
+         "../syntax/rules.rkt" "../syntax/syntax.rkt" "../syntax/sugar.rkt")
 
-(provide simplify load-rule-hacks)
+(provide simplify)
 
 ;; Cancellation's goal is to cancel (additively or multiplicatively) like terms.
 ;; It uses commutativity, identities, inverses, associativity,
 ;; distributativity, and function inverses.
 
-(define fn-inverses '())
-(define fn-evaluations (make-hash))
 (define simplify-cache (make-hash))
 (define simplify-node-cache (make-hash))
 
 (register-reset
  (λ ()
-  (set! fn-inverses '())
-  (set! fn-evaluations (make-hash))
   (set! simplify-cache (make-hash))
   (set! simplify-node-cache (make-hash))))
-
-(define (load-rule-hacks)
-  (set! fn-inverses
-        (remove-duplicates
-         (map
-          (λ (r) (rule-input r))
-          (filter (λ (r) (variable? (rule-output r))) (*rules*)))))
-  (set! fn-evaluations
-        (for/hash ([r (*rules*)] #:when (null? (free-variables (rule-input r))))
-          (values (rule-input r) (rule-output r)))))
 
 (define (simplify expr)
   (hash-ref! simplify-cache expr (λ () (simplify* expr))))
@@ -53,12 +39,57 @@
      (define val (apply eval-application op args*))
      (or val (simplify-node (list* op args*)))]))
 
+(define (simplify-evaluation expr)
+  (match expr
+    ['(sin 0) 0]
+    ['(cos 0) 1]
+    ['(sin (PI)) 0]
+    ['(cos (PI)) -1]
+    ['(exp 1) '(E)]
+    ['(tan 0) 0]
+    ['(sinh 0) 0]
+    ['(log (E)) 1]
+    ['(exp 0) 1]
+    ['(tan (PI)) 0]
+    ['(cosh 0) 1]
+    ['(cos (/ (PI) 6)) '(/ (sqrt 3) 2)]
+    ['(tan (/ (PI) 3)) '(sqrt 3)]
+    ['(tan (/ (PI) 4)) 1]
+    ['(cos (/ (PI) 2)) 0]
+    ['(tan (/ (PI) 6)) '(/ 1 (sqrt 3))]
+    ['(sin (/ (PI) 3)) '(/ (sqrt 3) 2)]
+    ['(sin (/ (PI) 6)) 1/2]
+    ['(sin (/ (PI) 4)) '(/ (sqrt 2) 2)]
+    ['(sin (/ (PI) 2)) 1]
+    ['(cos (/ (PI) 3)) 1/2]
+    ['(cos (/ (PI) 4)) '(/ (sqrt 2) 2)]
+    [_ expr]))
+
+(define (simplify-inverses expr)
+  (match expr
+    [`(expm1 (log1p ,x)) x]
+    [`(log1p (expm1 ,x)) x]
+    [`(tanh (atanh ,x)) x]
+    [`(cosh (acosh ,x)) x]
+    [`(sinh (asinh ,x)) x]
+    [`(acos (cos ,x)) x]
+    [`(asin (sin ,x)) x]
+    [`(atan (tan ,x)) x]
+    [`(tan (atan ,x)) x]
+    [`(cos (acos ,x)) x]
+    [`(sin (asin ,x)) x]
+    [`(pow ,x 1) x]
+    [`(log (exp ,x)) x]
+    [`(exp (log ,x)) x]
+    [`(cbrt (pow ,x 3)) x]
+    [`(pow (cbrt ,x) 3) x]
+    [_ expr]))
+
 (define (simplify-node expr)
   (hash-ref! simplify-node-cache expr (λ () (simplify-node* expr))))
 
 (define (simplify-node* expr)
-  (match expr
-    [(? (curry hash-has-key? fn-evaluations)) (hash-ref fn-evaluations expr)]
+  (match (simplify-evaluation expr)
     [(? number?) expr]
     [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
@@ -68,13 +99,7 @@
     [`(exp (* ,c (log ,x)))
      `(pow ,x ,c)]
     [else
-     (let/ec return
-       (for ([pattern fn-inverses])
-         (match (pattern-match pattern expr)
-           [#f (void)]
-           [`((,var . ,body)) (return body)]
-           [else (error "Function inverse pattern match returned multiple bindings")]))
-       expr)]))
+     (simplify-inverses expr)]))
 
 (define (negate-term term)
   (cons (- (car term)) (cdr term)))
