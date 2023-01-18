@@ -94,9 +94,11 @@
     #:show-title (*demo?*)
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "demo.js")
     `(p "Write a formula below, and Herbie will try to improve it. Enter approximate ranges for inputs.")
-    `(p ([id "use-fpcore-input"]) "You can also "
-       (a "use FPCore")
-       ".")
+    `(p ([id "options"])
+       (a ([id "show-example"]) "Show an example")
+       " | "
+       (a ([id "use-fpcore"]) "Use FPCore")
+       )
     (cond
       [(thread-running? *worker-thread*)
        `(form ([action ,(url improve)] [method "post"] [id "formula"]

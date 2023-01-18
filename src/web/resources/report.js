@@ -260,13 +260,18 @@ const ClientGraph = new Component('#graphs', {
         const all_vars = points_json.vars
         async function render(selected_var_name, selected_functions) {
             const all_fns = ['start', 'end', 'target'].filter(name => points_json.error[name] != false)
+            const fn_description = {
+                start: "Original expression",
+                end: "Herbie's result",
+                target: "Target expression"
+            }
             const options_view = html(`
                 <div id="plot_options">
                 <div id="variables">
                     Bits of error vs. ${all_vars.map(v => `<span class="variable ${selected_var_name == v ? 'selected' : ''}">${v}</span>`).join('')}
                 </div>
                 <div id="functions">
-                    ${all_fns.map(fn => `<div id="function_${fn}" class="function ${selected_functions.includes(fn) ? 'selected' : ''}"></div>`).join('')}
+                    ${all_fns.map(fn => `<div><div id="function_${fn}" class="function ${selected_functions.includes(fn) ? 'selected' : ''}"></div> <span class="functionDescription">${fn_description[fn]}</span></div>`).join('')}
                 </div>
                 </div>
             `)
