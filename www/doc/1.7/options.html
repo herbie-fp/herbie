@@ -9,8 +9,15 @@
 </head>
 <body>
   <header>
-    <a href="../../"><img class="logo" src="../../logo.png" /></a>
     <h1>Command-line Options</h1>
+    <a href="../../"><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
   </header>
 
   <p>The <a href="../../"><code>herbie</code></a> command has
@@ -118,9 +125,8 @@
 
     <dt><code>--no-pareto</code></dt>
     <dd>Disables cost-aware search. Herbie will only return a single
-    program, which optimizes exclusively for accuracy. This mode is
-    still considered experimental. Herbie will also be slightly
-    faster.</dd>
+    program, which optimizes exclusively for accuracy. Herbie will be
+    slightly faster as a result.</dd>
   </dl>
 
   <h2>Web shell options</h2>
@@ -195,17 +201,20 @@
   </p>
 
   <dl>
-    <dt><code>precision:fallback</code></dt>
-    <dd>This option, on by default, tells Herbie to use fallback
-    functions if a native implementation is not found for an operation
-    (and print a warning). If turned off, operations with no native
-    implementation will be disabled entirely. To our knowledge, this
-    option only affects the Bessel functions on Windows.</dd>
+    <dt><code>setup:search</code></dt>
+    <dd>This option, on by default, uses interval subdivision search
+    to help compute ground truth for complicated expressions. If
+    turned off, Herbie will be slightly faster, but may hit the
+    "<a href="faq.html#sample-valid-points">Cannot sample enough valid
+    points</a>" error more often. Instead of turning this option off,
+    you may want to adjust the <kbd>--num-analysis</kbd> flag
+    instead.</dd>
 
     <dt><code>setup:simplify</code></dt>
     <dd>This option, on by default, simplifies the expression before
-    passing it to Herbie. If turned off, Herbie will not simplify
-    input programs before improving them.</dd>
+    starting the Herbie improvement loop. If turned off, Herbie's
+    results will likely be somewhat worse, but its output program may
+    be more similar to the input program.</dd>
 
     <dt><code>generate:rr</code></dt>
     <dd>This option, on by default, uses Herbie's recursive rewriting
@@ -216,10 +225,9 @@
     <dt><code>generate:taylor</code></dt>
     <dd>This option, on by default, uses series expansion to produce
     new candidates during the main improvement loop. If turned off,
-    Herbie will not use series expansion. Turn this option off if you
-    want to avoid series-expansion-based rewrites, such as if you need
-    to preserve the equivalence of the input and output expressions as
-    real-number formulas.</dd>
+    Herbie will not use series expansion. If turned off, Herbie's
+    results will more likely be algebraically equivalent to the input
+    expression, but may be less accurate.</dd>
 
     <dt><code>generate:simplify</code></dt>
     <dd>This option, on by default, simplifies candidates during the
@@ -255,25 +263,6 @@
       particularly for large programs. If turned off, Herbie will only
       try to branch on variables.</dd>
   </dl>
-
-  <h2>Upgrading from Herbie 1.0</h2>
-
-  <p>Herbie 1.0 used
-  a <a href="../1.0/using-herbie.html">different</a> command line
-  syntax, without multiple tools. Translate like so:</p>
-
-  <ul>
-    <li><code>herbie-1.0</code> → <code>herbie-1.4 shell</code></li>
-    <li><code>herbie-1.0 file</code> → <code>herbie-1.4 improve file -</code></li>
-    <li><code>herbie-1.0 files ...</code> → <code>cat files ... | herbie-1.4 improve - -</code><br/>
-      Alternatively, collect the files into a directory and run <code>herbie-1.4 improve dir/ -</code></li>
-  </ul>
-
-  <p>The new syntax somewhat changes Herbie's behavior, such as by
-  using the input expression as the output if Herbie times out. It
-  also makes it easier to write Herbie's output to a file without
-  using command-line redirection.</p>
-
 
 </body>
 </html>
