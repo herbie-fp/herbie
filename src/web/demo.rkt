@@ -226,7 +226,7 @@
         (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
   (define tmp-file (build-path (*demo-output*) "results.tmp"))
   (write-datafile tmp-file info)
-  (rename-file-or-directory tmp-file data-file #:exists-ok #t)
+  (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (run-improve hash formula)
