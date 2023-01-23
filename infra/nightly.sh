@@ -38,4 +38,3 @@ RECURSE=1 LOG=1 \
 
 # upload
 bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
-bash $INFRA_DIR/publish.sh index
