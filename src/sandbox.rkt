@@ -6,7 +6,7 @@
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 
-(provide get-errors get-sample get-test-result *reeval-pts* *timeout*
+(provide get-alternatives get-errors get-sample get-test-result *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result)
@@ -56,30 +56,62 @@
 
 (define (get-errors test pts+exs #:seed [seed #f] #:profile [profile? #f])
   (define output-repr (test-output-repr test))
-  (define context (test-context test))
+  (define tcontext (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
   (when seed (set-seed! seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
-  ; I feel like there's a simpler way to split a list of cons into two lists this...
+  ; I feel like there's a simpler way to split a list of cons into two lists...
   (define pts (for/list ([ptex pts+exs]) (map real->double-flonum (car ptex))))
   (define exs (for/list ([ptex pts+exs]) (real->double-flonum (car (cdr ptex)))))
 
   (define joint-pcontext (mk-pcontext pts exs))
 
   (define processed-pcontext
-    (preprocess-pcontext joint-pcontext (*herbie-preprocess*) context))
+    (preprocess-pcontext joint-pcontext (*herbie-preprocess*) tcontext))
   (define-values (newpoints newexacts) (get-p&es processed-pcontext))
   (displayln newpoints)
 
   (define errs
-    (errors (test-program test) processed-pcontext context))
+    (errors (test-program test) processed-pcontext tcontext))
 
   (when seed (set-seed! seed))
   (define-values (points exacts) (get-p&es joint-pcontext))
   (for/list ([point points] [err errs]) (list point (format-bits (ulps->bits err)))))
+
+(define (get-alternatives test pts+exs #:seed [seed #f] #:profile [profile? #f])
+  (define output-repr (test-output-repr test))
+  (define tcontext (test-context test))
+  (*needed-reprs* (list output-repr (get-representation 'bool)))
+  (generate-prec-rewrites (test-conversions test))
+
+  ;; Set up context without resampling points
+  (define (setup-context-no-resample! specification precondition repr)
+    (define vars (program-variables specification))
+    (*context* (context vars repr (map (const repr) vars)))
+    (when (empty? (*needed-reprs*)) ; if empty, probably debugging
+      (*needed-reprs* (list repr (get-representation 'bool)))))
+
+  (setup-context-no-resample!
+    (or (test-specification test) (test-program test)) (test-precondition test)
+    output-repr)
+
+  (when seed (set-seed! seed))
+  (random) ;; Child process uses deterministic but different seed from evaluator
+
+  (define pts (for/list ([ptex pts+exs]) (map real->double-flonum (car ptex))))
+  (define exs (for/list ([ptex pts+exs]) (real->double-flonum (car (cdr ptex)))))
+
+  (define joint-pcontext (mk-pcontext pts exs))
+  (displayln "so far so good")
+  (define alts
+    (run-improve! (test-program test) joint-pcontext (*num-iterations*)
+                  #:specification (test-specification test)
+                  #:preprocess (test-preprocess test)))
+  (displayln "we made it!")
+  (for/list ([alt alts]) (define out (open-output-string)) (display (alt-program alt) out) (get-output-string out)))
 
 (define (run-herbie test)
   (define seed (get-seed))

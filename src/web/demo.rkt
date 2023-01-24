@@ -40,6 +40,7 @@
    [("up") check-up]
    [("api" "sample") #:method "post" sample-endpoint]
    [("api" "analyze") #:method "post" analyze-endpoint]
+   [("api" "alternatives") #:method "post" alternatives-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
@@ -335,7 +336,6 @@
   (hasheq
     'points result))))
 
-;; (await fetch('/api/analyze', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x eps) :precision binary64 (- (cos (+ x eps)) (cos x)))", sample: })})).json()
 (define analyze-endpoint (post-with-json-response (lambda (post-data)
   (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
   (define pts+exs (hash-ref post-data `sample))
@@ -346,6 +346,17 @@
   (eprintf " complete\n")
   (hasheq
     'points result))))
+
+(define alternatives-endpoint (post-with-json-response (lambda (post-data)
+  (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
+  (define pts+exs (hash-ref post-data `sample))
+  (eprintf "Job started on ~a..." formula)
+
+  (define result (get-alternatives (parse-test formula) pts+exs))
+  (displayln result)
+  (eprintf " complete\n")
+  (hasheq
+    'alternatives result))))
 
 (define (response/error title body)
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()

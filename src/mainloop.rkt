@@ -323,21 +323,30 @@
   (define vars (program-variables specification))
   (timeline-event! 'preprocess)
 
+  (displayln "1")
+
   ;; If the specification is given, it is used for sampling points
   (define sortable (connected-components specification))
+  (displayln "2")
 
   (define new-preprocess
     (for/list ([sortable-variables (in-list sortable)]
                #:when (> (length sortable-variables) 1))
       (cons 'sort sortable-variables)))
+  (displayln "3")
   (timeline-push! 'symmetry (map ~a new-preprocess))
+  (displayln "4")
   (*herbie-preprocess* (append preprocess new-preprocess))
+  (displayln "5")
 
   (define processed-pcontext (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
+  (displayln "6")
 
   (match-define (cons best rest) (mutate! prog iters processed-pcontext))
+  (displayln "7")
 
   (*herbie-preprocess* (remove-unnecessary-preprocessing best pcontext (*herbie-preprocess*)))
+  (displayln "8")
   (cons best rest))
 
 (define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two ctx)
@@ -370,12 +379,18 @@
      result]))
 
 (define (mutate! prog iters pcontext)
+  (displayln iters)
+  (displayln "m1")
   (*pcontext* pcontext)
+  (displayln "m2")
   (initialize-alt-table! prog (*pcontext*) (*context*))
+  (displayln "m3")
 
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+    (displayln iter)
     (run-iter!)
     (print-warnings))
+  (displayln "m4")
 
   (extract!))
 
