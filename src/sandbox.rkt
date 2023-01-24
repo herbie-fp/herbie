@@ -38,69 +38,48 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-(define (get-sample test #:seed [seed #f] #:profile [profile? #f])
-  (define timeline #f)
+(define (get-sample test)
   (define output-repr (test-output-repr test))
   (define context (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
 
-  (parameterize ([*timeline-disabled* true]
-                  [*warnings-disabled* true])
-    (when seed (set-seed! seed))
-    (random) ;; Child process uses deterministic but different seed from evaluator
+  (match-define (cons domain-stats joint-pcontext)
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (setup-context!
+        (or (test-specification test) (test-program test)) (test-precondition test)
+        output-repr)))
+  (define-values (train-pcontext test-pcontext)
+    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
 
-    (match-define (cons domain-stats joint-pcontext)
-      (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-        (setup-context!
-          (or (test-specification test) (test-program test)) (test-precondition test)
-          output-repr)))
-    (define-values (train-pcontext test-pcontext)
-      (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
-
-    (when seed (set-seed! seed))
-    (define-values (points exacts) (get-p&es test-pcontext))
-    (for/list ([point points] [exact exacts]) (list point exact))))
+  (define-values (points exacts) (get-p&es test-pcontext))
+  (for/list ([point points] [exact exacts]) (list point exact)))
 
 (define (get-errors test pts+exs #:seed [seed #f] #:profile [profile? #f])
-  (define timeline #f)
   (define output-repr (test-output-repr test))
   (define context (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
-  ;; Set up context without resampling points
-  ;(define (setup-context-no-resample! specification precondition repr)
-  ;  (define vars (program-variables specification))
-  ;  (*context* (context vars repr (map (const repr) vars)))
-  ;  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
-  ;    (*needed-reprs* (list repr (get-representation 'bool)))))
+  (when seed (set-seed! seed))
+  (random) ;; Child process uses deterministic but different seed from evaluator
 
-  ;(setup-context-no-resample!
-  ;  (or (test-specification test) (test-program test)) (test-precondition test)
-  ;  output-repr)
+  ; I feel like there's a simpler way to split a list of cons into two lists this...
+  (define pts (for/list ([ptex pts+exs]) (map real->double-flonum (car ptex))))
+  (define exs (for/list ([ptex pts+exs]) (real->double-flonum (car (cdr ptex)))))
 
-  (parameterize ([*timeline-disabled* true]
-                  [*warnings-disabled* true])
-    (when seed (set-seed! seed))
-    (random) ;; Child process uses deterministic but different seed from evaluator
+  (define joint-pcontext (mk-pcontext pts exs))
 
-    ; I feel like there's a simpler way to split a list of cons into two lists this...
-    (define pts (for/list ([ptex pts+exs]) (map real->double-flonum (car ptex))))
-    (define exs (for/list ([ptex pts+exs]) (real->double-flonum (car (cdr ptex)))))
+  (define processed-pcontext
+    (preprocess-pcontext joint-pcontext (*herbie-preprocess*) context))
+  (define-values (newpoints newexacts) (get-p&es processed-pcontext))
+  (displayln newpoints)
 
-    (define joint-pcontext (mk-pcontext pts exs))
+  (define errs
+    (errors (test-program test) processed-pcontext context))
 
-    (define processed-pcontext
-      (preprocess-pcontext joint-pcontext (*herbie-preprocess*) context))
-    (define-values (newpoints newexacts) (get-p&es processed-pcontext))
-    (displayln newpoints)
-
-    (define errs
-      (errors (test-program test) processed-pcontext context))
-
-    (when seed (set-seed! seed))
-    (define-values (points exacts) (get-p&es joint-pcontext))
-    (for/list ([point points] [err errs]) (list point (format-bits (ulps->bits err))))))
+  (when seed (set-seed! seed))
+  (define-values (points exacts) (get-p&es joint-pcontext))
+  (for/list ([point points] [err errs]) (list point (format-bits (ulps->bits err)))))
 
 (define (run-herbie test)
   (define seed (get-seed))
@@ -169,7 +148,7 @@
                 start-error end-errors target-error
                 start-cost end-costs all-alts))
 
-(define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
+(define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
 
   (define (compute-result test)
@@ -179,7 +158,10 @@
       (rollback-improve!)
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
-        (define out (run-herbie test))
+        (define out
+          (match command
+            ['improve (run-herbie test)]
+            ['sample (get-sample test)]))
         (print-warnings)
         (add-time out (- (current-inexact-milliseconds) start-time)))))
 

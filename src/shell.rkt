@@ -24,7 +24,7 @@
            (match (system-type 'os) ['windows "Ctrl-Z Enter"] [_ "Ctrl-D"]))
   (with-handlers ([exn:break? (λ (e) (exit 0))])
     (for ([test (in-producer get-input eof-object?)] [idx (in-naturals)])
-      (define output (get-test-result test #:seed seed))
+      (define output (get-test-result 'improve test #:seed seed))
       (match output
         [(? test-success?)
          (pretty-print (unparse-result (get-table-data output "")) (current-output-port) 1)]

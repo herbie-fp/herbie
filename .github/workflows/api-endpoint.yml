@@ -30,8 +30,8 @@ jobs:
       - name: "Start server"
         run: racket src/herbie.rkt web --port 8000 &
       
-      - name: "Pause 4 seconds"
-        run: sleep 4s
+      - name: "Wait for server startup"
+        run: while ! nc -z localhost 8000; do sleep 0.1; done
 
       # - name: "Get node v19"
       #   run: curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E bash -
