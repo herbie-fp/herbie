@@ -105,12 +105,21 @@
   (define exs (for/list ([ptex pts+exs]) (real->double-flonum (car (cdr ptex)))))
 
   (define joint-pcontext (mk-pcontext pts exs))
-  (displayln "so far so good")
+
+  ;; Cap size of point list by arbitrary size so it doesn't take forever
+  (define num-points (length pts))
+  (define split-a 
+    (cond 
+      [(< num-points 256) num-points]
+      [else 256]))
+  (define split-b (- num-points split-a))
+  (define-values (train-pcontext test-pcontext)
+    (split-pcontext joint-pcontext split-a split-b)) 
+
   (define alts
-    (run-improve! (test-program test) joint-pcontext (*num-iterations*)
+    (run-improve! (test-program test) train-pcontext (*num-iterations*)
                   #:specification (test-specification test)
                   #:preprocess (test-preprocess test)))
-  (displayln "we made it!")
   (for/list ([alt alts]) (define out (open-output-string)) (display (alt-program alt) out) (get-output-string out)))
 
 (define (run-herbie test)
