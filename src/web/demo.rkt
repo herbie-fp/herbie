@@ -353,7 +353,6 @@
   (eprintf "Job started on ~a..." formula)
 
   (define result (get-alternatives (parse-test formula) pts+exs))
-  (displayln result)
   (eprintf " complete\n")
   (hasheq
     'alternatives result))))

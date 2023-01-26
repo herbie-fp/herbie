@@ -72,7 +72,6 @@
   (define processed-pcontext
     (preprocess-pcontext joint-pcontext (*herbie-preprocess*) tcontext))
   (define-values (newpoints newexacts) (get-p&es processed-pcontext))
-  (displayln newpoints)
 
   (define errs
     (errors (test-program test) processed-pcontext tcontext))
