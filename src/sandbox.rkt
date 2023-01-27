@@ -136,9 +136,7 @@
             ['improve (run-herbie test)]
             ['sample (get-sample test)]))
         (print-warnings)
-        out)
-        ;(add-time out (- (current-inexact-milliseconds) start-time))
-        ))
+        (if (eq? command 'sample) out (add-time out (- (current-inexact-milliseconds) start-time))))))
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* false])
