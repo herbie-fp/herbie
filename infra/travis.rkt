@@ -39,7 +39,7 @@
       (if (*precision*)
           (override-test-precision the-test (*precision*))
           the-test))
-    (match (get-test-result the-test* #:seed seed)
+    (match (get-test-result 'improve the-test* #:seed seed)
       [(test-success test bits time timeline warnings
                      start-alt end-alts preprocess points exacts start-est-error end-est-error
                      newpoints newexacts start-error end-errors target-error

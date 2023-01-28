@@ -38,10 +38,26 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
+(define (get-sample test)
+  (define output-repr (test-output-repr test))
+  (define context (test-context test))
+  (*needed-reprs* (list output-repr (get-representation 'bool)))
+
+  (match-define (cons domain-stats joint-pcontext)
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (setup-context!
+        (or (test-specification test) (test-program test)) (test-precondition test)
+        output-repr)))
+  (define-values (train-pcontext test-pcontext)
+    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
+
+  (define-values (points exacts) (get-p&es test-pcontext))
+  (for/list ([point points] [exact exacts]) (list point exact)))
+
 (define (run-herbie test)
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
-
+  
   (define output-repr (test-output-repr test))
   (define context (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
@@ -105,7 +121,7 @@
                 start-error end-errors target-error
                 start-cost end-costs all-alts))
 
-(define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
+(define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
 
   (define (compute-result test)
@@ -115,9 +131,12 @@
       (rollback-improve!)
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
-        (define out (run-herbie test))
+        (define out
+          (match command
+            ['improve (run-herbie test)]
+            ['sample (get-sample test)]))
         (print-warnings)
-        (add-time out (- (current-inexact-milliseconds) start-time)))))
+        (if (eq? command 'sample) out (add-time out (- (current-inexact-milliseconds) start-time))))))
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* false])
