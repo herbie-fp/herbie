@@ -5,16 +5,6 @@
 
 (provide add-soundiness)
 
-(define (remove-rewrites proof)
-  (match proof
-    [`(Rewrite=> ,rule ,something)
-     (remove-rewrites something)]
-    [`(Rewrite<= ,rule ,something)
-     (remove-rewrites something)]
-    [(list _ ...)
-     (map remove-rewrites proof)]
-    [else proof]))
-
 (define (canonicalize-rewrite proof)
   (match proof
     [`(Rewrite=> ,rule ,something)
@@ -54,16 +44,20 @@
      (define proof (get-proof input
                               (location-get loc (alt-program prev))
                               (location-get loc prog)))
-     ;; Proofs are actually on subexpressions,
-     ;; we need to construct the proof for the full expression
-     (define proof*
-       (for/list ([step proof])
-         (let ([step* (canonicalize-rewrite step)])
-           (program-body (location-do loc prog (λ _ step*))))))
-     (define errors
-       (let ([vars (program-variables prog)])
-         (get-proof-errors proof* pcontext ctx vars)))
-     (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
+     (cond
+       [proof
+        ;; Proofs are actually on subexpressions,
+        ;; we need to construct the proof for the full expression
+        (define proof*
+          (for/list ([step proof])
+            (let ([step* (canonicalize-rewrite step)])
+              (program-body (location-do loc prog (λ _ step*))))))
+        (define errors
+          (let ([vars (program-variables prog)])
+            (get-proof-errors proof* pcontext ctx vars)))
+        (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
+       [else
+        (alt prog `(simplify ,loc ,input #f #f) `(,prev))])]
     [else
      altn]))
 

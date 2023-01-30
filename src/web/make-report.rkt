@@ -88,8 +88,7 @@
       (script ((src "report.js")))
       (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
       (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
-      (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
-      (script ((type "text/javascript") (src "arrow-chart.js"))))
+      (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"])))
  
      (body
       (nav ([id "links"])
@@ -112,18 +111,23 @@
        ,(render-large "Tests" (~a (length tests)))
        ,(render-large "Bits" (~a (round* (- total-start total-gained))) "/" (~a (round* total-start))))
 
-      (figure (svg ((id "graph") (class "arrow-chart") (width "400"))))
-
-     (ul ((id "test-badges"))
-      ,@(for/list ([(result id) (in-dict sorted-tests)])
-          `(li ((class ,(format "badge ~a" (table-row-status result)))
-                (title ,(format "~a (~a to ~a)"
-                                (table-row-name result)
-                                (format-bits (table-row-start result))
-                                (format-bits (table-row-result result))))
-                (data-id ,(~a id)))
-               ,(badge-label result))))
-     (hr ((style "clear:both;visibility:hidden")))
+      (figure
+       (div ([id "xy"])
+            (h2 "Output vs Input Accuracy")
+            (svg)
+            (figcaption "Each point represents a Herbie run below. Its "
+                        "horizontal position shows initial accuracy, "
+                        "and vertical position shows final accuracy. "
+                        "Points above the line are improved by Herbie."))
+       (div ([id "pareto"])
+            (h2 "Accuracy vs Cost")
+            (svg)
+            (figcaption "A joint cost-accuracy pareto curve for the "
+                        "Herbie runs below. Accuracy is on the vertical "
+                        "axis, and cost is on the vertical axis. Down "
+                        "and to the left is better. The initial programs "
+                        "are shown by the red square.")
+            ))
 
      (table ((id "results") (class ,(string-join (map ~a classes) " ")))
       (thead
@@ -144,8 +148,5 @@
                        (a ((id ,(format "link~a" id))
                            (href ,(format "~a/graph.html" (table-row-link result))))
                           "»"))
-                     "")))))
-          `(section ([id "merged-cost-accuracy"])
-            (h1 "Error")
-            (div ([id "pareto-content"])))))
+                     "")))))))
    out))

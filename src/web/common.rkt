@@ -130,6 +130,12 @@
         (values "" "")))
 
   `(section ([id "program"])
+     (h1 (a (
+          [class "help-button"] 
+          [href "/doc/latest/report.html#programs"] 
+          [target "_blank"] 
+          ;[style "rotate: 270deg"]
+          ) "?"))
      ,(if (equal? (program-body (test-precondition test)) '(TRUE))
           ""
           `(div ([id "precondition"])
@@ -199,7 +205,12 @@
   (->* (test?) (#:bug? boolean?) xexpr?)
 
   `(section ((id "reproduce"))
-    (h1 "Reproduce")
+    (h1 "Reproduce" (a (
+          [class "help-button"] 
+          [href "/doc/latest/report.html#reproduction"] 
+          [target "_blank"] 
+          ;[style "rotate: 270deg"]
+          ) "?"))
     ,(if bug?
          `(p "Please include this information when filing a "
              (a ((href "https://github.com/herbie-fp/herbie/issues")) "bug report") ":")

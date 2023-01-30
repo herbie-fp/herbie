@@ -113,7 +113,8 @@
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
-     (define proof* (compute-proof proof soundiness))
+     (define proof*
+       (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
@@ -123,27 +124,9 @@
            (div ([class "proof"])
              (details
                (summary "Proof")
-               (table
-                ,@(for/list ([step proof*])
-                    (match-define (list dir rule loc expr sound) step)
-                    (define step-prog (program->fpcore (list 'λ '() (resugar-program expr repr))))
-                    (define err
-                      (let ([prog (list 'λ (program-variables prog) expr)])
-                        (format-bits (errors-score (errors prog pcontext ctx)))))
-                   `(tr (th ,(if dir 
-                                (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
-                                      [tag (string-append (format " ↑ ~a" (first sound))
-                                                          (format " ↓ ~a" (second sound)))])
-                                 `(p ,(format "~a [~a]" rule dir)
-                                      (span ([class "info"] [title ,tag]) ,err)))
-                               `(p "[Start]"
-                                   (span ([class "info"]) ,err))))
-                        (td (div ([class "math"])
-                              "\\[ "
-                             ,(if dir
-                                  (core->tex step-prog #:loc (cons 2 loc) #:color "blue")
-                                  (core->tex step-prog))
-                              "\\]")))))))))]
+               ,(if proof*
+                    (render-proof proof* prog repr pcontext ctx)
+                    `(li ([class "event"]) "No proof available- proof too large to flatten."))))))]
 
     [(alt prog `initial-simplify `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
@@ -167,3 +150,27 @@
                                                       "ERROR")
                                                   "\\]")))]
     ))
+
+
+(define (render-proof proof prog repr pcontext ctx)
+  `(table
+    ,@(for/list ([step proof])
+        (match-define (list dir rule loc expr sound) step)
+        (define step-prog (program->fpcore (list 'λ '() (resugar-program expr repr))))
+        (define err
+          (let ([prog (list 'λ (program-variables prog) expr)])
+            (format-bits (errors-score (errors prog pcontext ctx)))))
+        `(tr (th ,(if dir
+                      (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
+                            [tag (string-append (format " ↑ ~a" (first sound))
+                                                (format " ↓ ~a" (second sound)))])
+                        `(p ,(format "~a [~a]" rule dir)
+                            (span ([class "info"] [title ,tag]) ,err)))
+                      `(p "[Start]"
+                          (span ([class "info"]) ,err))))
+             (td (div ([class "math"])
+                      "\\[ "
+                      ,(if dir
+                           (core->tex step-prog #:loc (cons 2 loc) #:color "blue")
+                           (core->tex step-prog))
+                      "\\]"))))))

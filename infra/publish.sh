@@ -6,36 +6,32 @@ RHOSTDIR="/var/www/herbie/reports"
 
 upload () {
     DIR="$1"
-    rsync "$RHOST:$RHOSTDIR/index.cache" index.cache
+
     B=$(git rev-parse --abbrev-ref HEAD)
     C=$(git rev-parse HEAD | sed 's/\(..........\).*/\1/')
     RDIR="$(date +%s):$(hostname):$B:$C"
+
+    nightly-results download index.cache index.cache
     racket -y infra/make-index.rkt --relpath "$RDIR" index.cache "$DIR"
-    rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
+    nightly-results publish --name index.cache index.cache
+    nightly-results publish --name index.html index.html
+    nightly-results publish --name index.css infra/index.css
+    nightly-results publish --name report.js src/web/resources/report.js
+    nightly-results publish --name regression-chart.js infra/regression-chart.js
+
     find "$DIR" -name "*.txt" -exec gzip -f {} \;
     find "$DIR" -name "*.json" -exec gzip -f {} \;
-    rsync --recursive "$DIR/" "$RHOST:$RHOSTDIR/$RDIR/"
-    rsync --recursive \
-          "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/resources/report.js" \
-          "$RHOST:$RHOSTDIR/"
-    ssh "$RHOST" chmod a+rx "$RHOSTDIR/$RDIR" -R
-    ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
-    if command -v nightly-results &>/dev/null; then
-        nightly-results url https://herbie.uwplse.org/reports/"$RDIR"/results.html
-    fi
-    rm index.html
+    nightly-results publish --name "$RDIR" "$DIR"
 }
 
 index () {
-    DIR="$1"
-    rsync "$RHOST:$RHOSTDIR/index.cache" index.cache
+    nightly-results download index.cache index.cache
     racket -y infra/make-index.rkt index.cache
-    rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
-    rsync --recursive \
-          "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/resources/report.js" \
-          "$RHOST:$RHOSTDIR/"
-    ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
-    rm index.html
+    nightly-results publish --name index.cache index.cache
+    nightly-results publish --name index.html index.html
+    nightly-results publish --name index.css infra/index.css
+    nightly-results publish --name report.js src/web/resources/report.js
+    nightly-results publish --name regression-chart.js infra/regression-chart.js
 }
 
 reindex () {
