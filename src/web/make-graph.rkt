@@ -22,7 +22,12 @@
 (define/contract (render-interactive start-prog point)
   (-> alt? (listof number?) xexpr?)
   `(section ([id "try-it"])
-    (h1 "Try it out")
+    (h1 "Try it out" (a (
+          [class "help-button"] 
+          [href "/doc/latest/report.html#try-it"] 
+          [target "_blank"] 
+          ;[style "rotate: 270deg"]
+          ) "?"))
     (div ([id "try-inputs-wrapper"])
      (form ([id "try-inputs"])
       (p ([class "header"]) "Your Program's Arguments")
@@ -92,6 +97,13 @@
          '("Metrics" . "timeline.html")))
 
       (section ([id "large"])
+       (h1 
+        (a (
+          [class "help-button"] 
+          [href "/doc/latest/report.html#summary"] 
+          [target "_blank"] 
+          ;[style "rotate: 270deg"]
+          ) "?"))
        ,(render-large "Average Error"
                       (format-bits (errors-score start-error) #:unit #f)
                       " → "
@@ -110,7 +122,12 @@
 
       ,(render-program preprocess test #:to (alt-program end-alt))
 
-      (section ([id "graphs"]) (h1 "Error") (div ([id "graphs-content"])))
+      (section ([id "graphs"]) (h1 "Error" (a (
+          [class "help-button"] 
+          [href "/doc/latest/report.html#graph"] 
+          [target "_blank"] 
+          ;[style "rotate: 270deg"]
+          ) "?")) (div ([id "graphs-content"])))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive start-alt (car points))
@@ -130,7 +147,12 @@
            "")
 
       (section ([id "history"])
-       (h1 "Derivation")
+       (h1 "Derivation" (a (
+          [class "help-button"] 
+          [href "/doc/latest/report.html#derivation"] 
+          [target "_blank"] 
+          ;[style "rotate: 270deg"]
+          ) "?"))
        (ol ([class "history"])
         ,@(render-history end-alt (mk-pcontext newpoints newexacts)
                           (mk-pcontext points exacts) (test-context test))))

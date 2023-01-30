@@ -97,9 +97,11 @@
     #:show-title (*demo?*)
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "demo.js")
     `(p "Write a formula below, and Herbie will try to improve it. Enter approximate ranges for inputs.")
-    `(p ([id "use-fpcore-input"]) "You can also "
-       (a "use FPCore")
-       ".")
+    `(p ([id "options"])
+       (a ([id "show-example"]) "Show an example")
+       " | "
+       (a ([id "use-fpcore"]) "Use FPCore")
+       )
     (cond
       [(thread-running? *worker-thread*)
        `(form ([action ,(url improve)] [method "post"] [id "formula"]
@@ -227,7 +229,7 @@
         (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
   (define tmp-file (build-path (*demo-output*) "results.tmp"))
   (write-datafile tmp-file info)
-  (rename-file-or-directory tmp-file data-file #:exists-ok #t)
+  (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (run-improve hash formula)

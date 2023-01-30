@@ -1,163 +1,158 @@
 <!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Herbie: Automatically Improving Floating Point Accuracy</title>
-  <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
-  <script type='text/javascript' src='graph.js'></script>
-  <link rel='stylesheet' type='text/css' href='main.css' />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-</head>
-<body>
-  <header>
-    <img class="logo" src="logo.png" />
-    <p>Find and fix floating-point problems.</p>
+<meta charset="utf-8" />
+<title>Herbie: Automatically Improving Floating Point Accuracy</title>
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script type='text/javascript' src='graph.js'></script>
+<link rel='stylesheet' type='text/css' href='main.css' />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<header>
+  <h1>The Herbie Project</h1>
+  <a href="/"><img class="logo" src="logo-car.png" /></a>
+  <nav>
     <ul>
       <li><a href="/demo/">Try</a></li>
       <li><a href="doc/latest/installing.html">Install</a></li>
       <li><a href="doc/latest/tutorial.html">Learn</a></li>
     </ul>
-  </header>
+  </nav>
+</header>
 
-  <figure class="showcase">
-    <div class="before-after">
-      <code class="before">sqrt(x+1) - sqrt(x)</code>
-      →
-      <code class="after">1/(sqrt(x+1) + sqrt(x))</code>
-    </div>
-    <figcaption>
-      Herbie detects inaccurate expressions
-      and finds more accurate replacements.
-      The red expression is inaccurate when <i>x > 1</i>;
-      Herbie's replacement, in blue, is accurate for all <i>x</i>.
-    </figcaption>
-  </figure>
-
-
-  <div class="column-container">
-    <div>
-      <h3>Use</h3>
-      <ul>
-        <li><a href="/demo/">Web demo</a></li>
-        <li><a href="doc/latest/installing.html">Install</a></li>
-        <li><a href="#news">News</a></li>
-        <li><a href="doc.html#blog">Blog</a></li>
-      </ul>
-    </div>
-    <div>
-      <h3>Learn</h3>
-      <ul>
-        <li><a href="doc/latest/tutorial.html">Tutorial</a></li>
-        <li><a href="doc/latest/release-notes.html">Release Notes</a></li>
-        <li><a href="doc.html">Documentation</a></li>
-        <li><a href="papers.html">Papers about Herbie</a></li>
-      </ul>
-    </div>
-    <div>
-      <h3>Contribute</h3>
-      <ul>
-        <li><a href="https://github.com/herbie-fp/herbie/issues">Report a Bug</a></li>
-        <li><a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">Mailing List</a></li>
-        <li><a href="https://github.com/herbie-fp/herbie">Source Code</a></li>
-        <li><a href="https://github.com/herbie-fp/herbie/blob/master/LICENSE.md">License</a></li>
-      </ul>
-    </div>
+<figure class="showcase">
+  <h2>Find and fix floating-point problems:</h2>
+  <div class="before-after">
+    <code class="before">sqrt(x+1) - sqrt(x)</code>
+    →
+    <code class="after">1/(sqrt(x+1) + sqrt(x))</code>
   </div>
+  <figcaption>
+    Herbie detects inaccurate expressions
+    and finds more accurate replacements.
+    The red expression is inaccurate when <i>x > 1</i>;
+    Herbie's replacement, in blue, is accurate for all <i>x</i>.
+  </figcaption>
+</figure>
 
-  <figure class="showcase">
-    <style scoped>
-      line { pointer-events: all; }
-      .good, .bad { stroke-width: 3px; stroke-opacity: 0.6; fill-opacity: 0.6; }
-      .good:hover, .bad:hover { stroke-opacity: 1.0; fill-opacity: 1.0; }
-      .good * { stroke: black; fill: black; }
-      .bad * { stroke: darkred; fill: darkred; }
-      .gridline, .guide { stroke: rgb(40%, 40%, 40%); }
-      text { text-anchor: middle; }
-    </style>
-    <svg id="results" width="100%" viewBox="0 0 525 320"></svg>
-    <script>draw_results(d3.select("#results"))</script>
-    <figcaption>Herbie improving accuracy on the “Hamming” benchmark suite. Longer arrows are better. Each arrow starts at the accuracy of the original expression, and ends at the accuracy of Herbie’s output, in each case on random double-precision inputs.</figcaption>
-  </figure>
+<div class="column-container">
+  <div>
+    <h3>Use</h3>
+    <ul>
+      <li><a href="/demo/">Web demo</a></li>
+      <li><a href="doc/latest/installing.html">Install</a></li>
+      <li><a href="#news">News</a></li>
+      <li><a href="doc.html#blog">Blog</a></li>
+    </ul>
+  </div>
+  <div>
+    <h3>Learn</h3>
+    <ul>
+      <li><a href="doc/latest/tutorial.html">Tutorial</a></li>
+      <li><a href="doc/latest/release-notes.html">Release Notes</a></li>
+      <li><a href="doc.html">Documentation</a></li>
+      <li><a href="papers.html">Papers about Herbie</a></li>
+    </ul>
+  </div>
+  <div>
+    <h3>Contribute</h3>
+    <ul>
+      <li><a href="https://github.com/herbie-fp/herbie/issues">Report a Bug</a></li>
+      <li><a href="https://mailman.cs.washington.edu/mailman/listinfo/herbie">Mailing List</a></li>
+      <li><a href="https://github.com/herbie-fp/herbie">Source Code</a></li>
+      <li><a href="https://github.com/herbie-fp/herbie/blob/master/LICENSE.md">License</a></li>
+    </ul>
+  </div>
+</div>
 
-  <h2>Herbie Project News</h2>
-  <ol id="news">
-    <li><time>24 Jul</time>Due to a major unforseen issue with our release infrastructure, we are re-releasing <a href="doc/1.5/release-notes.html">Herbie 1.5</a>. If you previously tried to install it and failed, please try again!</li>
-    <li><time>9 Jul</time>We're pleased to announce the release of <a href="doc/1.5/release-notes.html">Herbie 1.5</a>, with features like argument sorting and multiple outputs. Do try it out!</li>
-    <li><time>14 Jun</time><a href="https://www.bsaiki.com">Brett</a> and <a href="https://www.oflatt.com">Oliver</a> are giving a talk <a href="http://arith2021.arithsymposium.org">ARITH 2021</a> on adding precision tuning to Herbie. Tune in or <a href="papers.html">read the paper</a> to learn more!</li>
-    <hr class="yearmark" />
-    <li><time>21 Jul</time><a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> and <a href="https://pavpanchekha.com/">Pavel</a> gave a talk about Herbie's last five years: <a href="https://www.youtube.com/watch?v=E2KtVa7j2eY&list=PL6VFuHglY6bKikq0bE5XTKFbKaY67l8aV&index=2&t=0s">trust, measurement, community, and generality</a>.</li>
-    <li><time>20 Jul</time>The chaos of 2020 now brings you a rowboat of stability: <a href="doc/1.4/release-notes.html">Herbie 1.4</a>, with significant speed-ups and ease of use improvements. Download and try it today!</li>
-    <hr class="yearmark" />
-    <li><time>18 Nov</time><a href="http://davidthien.com">David</a> will be talking about FPBench 1.2 and the latest improvements in Herbie at <a href="https://correctness-workshop.github.io/2019/">Correctness 2019</a> in <a href="https://sc19.supercomputing.org">Denver</a>.</li>
-    <li><time>17 Nov</time>Herbie got a shout-out in <a href="https://pavpanchekha.com/">Pavel</a>'s talk at the <a href="http://fpanalysistools.org/sc19/">FP analysis tutorial</a> at <a href="https://sc19.supercomputing.org">SC'19</a>.</li>
-    <li><time>1 May</time><a href="https://pavpanchekha.com/">Pavel</a> will be joining the <a href="https://www.utah.edu/">University of Utah</a> as an assistant professor next year, joining <a href="http://www.cs.utah.edu/~ganesh/">Ganesh</a> and <a href="https://zvonimir.info/">Zvonimir</a> at what is already a nexus of floating-point research.</li>
-    <li><time>13 Mar</time><a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> gave a keynote at <a href="https://posithub.org/conga/2019/">CoNGA’19</a> on multi-precision, multi-format computations and our efforts to support them in Herbie, <a href="http://fpbench.org">FPBench</a>, and <a href="http://titanic.uwplse.org">Titanic</a>.</li>
-    <hr class="yearmark" />
-    <li><time>20 Jun</time><a href="http://alex.uwplse.org/">Alex</a> gave <a href="https://www.youtube.com/watch?v=bFL6PaPrz8Y">a talk</a> on our sister project Herbgrind at <a href="https://conf.researchr.org/home/pldi-2018">PLDI’18</a>. Watch it if you want to know how Herbgrind pulls inaccurate floating-point expressions out of large numeric code bases.</li>
-    <li><time>15 Jun</time>After a year of work, <a href="doc/1.2/release-notes.html">Herbie 1.2</a> has been released. This release focuses on creativity and accuracy, with a new system to infer better branches and more accurate defaults for Herbie's various parameters. Read about all the changes in the <a href="doc/1.2/release-notes.html">release notes</a>.</li>
-    <li><time>9 Apr</time>We teamed up with <a href="https://www.mpi-sws.org/people/hbecker/">Heiko</a> and <a href="https://people.mpi-sws.org/~eva/">Eva</a> on the <a href="https://github.com/malyzajko/daisy">Daisy</a> team to combine our tools and evaluate how best to use them together—it'll be published at <a href="https://fm2018.org">FM’18</a>. If you're using Herbie with other floating point tools, let us know!</li>
-    <li><time>1 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> and <a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> went to see <a href="https://www.mccawhall.com/events/detail/herbie-hancock">Herbie Hancock play at the Seattle Center</a>. Watching Herbie play Chameleon on the keytar is sure to inspire the next generation of floating point accuracy improvement!</li>
-    <li><time>17 Jan</time><a href="https://pavpanchekha.com/">Pavel</a> gave <a href="https://www.youtube.com/watch?v=oYtnXEZC0jk">a talk</a> at <a href="https://www.microsoft.com/en-us/research/">Microsoft Research Redmond</a> on Herbie and <a href="http://herbgrind.ucsd.edu">Herbgrind</a>, plus the <a href="http://fpbench.org">FPBench</a> project. Thank you everyone who came!</li>
-    <li><time>3 Jan</time> <a href="https://pavpanchekha.com">Pavel</a> wrote a <a href="http://pavpanchekha.com/blog/how-herbie.html">retrospective</a> on the early history of Herbie, and some lessons learned.</li>
-    <hr class="yearmark" />
-    <li><time>24 Aug</time><a href="https://pavpanchekha.com/">Pavel</a> gave a talk at <a href="https://www.mpi-sws.org/">MPI-SWS</a> Saarbrücken on Herbie, <a href="http://herbgrind.ucsd.edu">Herbgrind</a>, lessons learned, and what comes next. Thank you <a href="https://people.mpi-sws.org/~eva/">Eva Darulova</a> and her students for the invitation and the warm welcome. The video was recorded and can be watched on <a href="https://www.youtube.com/watch?v=WvDZ4m4fAF0">YouTube</a>.</li>
-    <li><time>3 May</time> After incubating on this website, <a href="http://herbgrind.ucsd.edu">Herbgrind</a> has moved to a <a href="http://herbgrind.ucsd.edu">new website</a> hosted at UCSD, where <a href="http://alex.uwplse.org">Alex</a>, Herbie star and the main Herbgrind developer, is now doing his PhD. We'll continue our close collaboration, including in the FPBench project, and are hoping the new, more-focused websites help users.</li>
-    <li><time>1 May</time>Just one month after the beta, <a href="doc/1.1/release-notes.html">Herbie 1.1</a> has been released. This release adds a <a href="doc/latest/using-web.html">browser</a> interface for Herbie, and includes significant bug fixes, usability tweaks, and improvements. Read about all the changes in the <a href="doc/1.1/release-notes.html">release notes</a>.</li>
-    <li><time>20 Apr</time>Our sister project <a href="http://herbgrind.ucsd.edu">Herbgrind</a> has released version 0.42. This pre-release is a reworked, faster, and more stable Herbgrind, which can find root causes for floating-point errors in the largest and gnarliest of codebases!</li>
-    <li><time>2 Apr</time>After months of work, a beta of <a href="doc/1.1/release-notes.html">Herbie 1.1</a> has been released. This release adds a <a href="doc/latest/using-web.html">browser</a> interface for Herbie, and includes significant bug fixes, usability tweaks, and improvements. Read about all the changes in the <a href="doc/1.1/release-notes.html">release notes</a>.</li>
-    <li><time>3 Feb</time> <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">Zach</a> is giving <a href="http://www.cs.utah.edu/calendar/colloquium-zach-tatlock/">a talk</a> at the University of Utah about Herbie, FPBench, and Herbgrind. Please come to learn about automated tools for floating point!</li>
-    <hr class="yearmark" />
-    <li><time>13 Jun</time>After months of work, the Herbie developers are proud to announce the release of <a href="doc/1.0/release-notes.html">Herbie 1.0</a>. This release transitions to the <a href="doc/latest/input.html">FPCore</a> format from the <a href="http://fpbench.org">FPBench</a> initiative, and includes significant bug fixes, usability tweaks, and improvements. Read about all the changes in the <a href="doc/1.0/release-notes.html">release notes</a>.</li>
-    <li><time>9 May</time>In preparation for the Version 1.0 release, we've renamed the <code>pi</code> and <code>e</code> constants to upper case. This matches <code>libm</code> and should make it a little harder to cause bugs. Herbie will now optimize expressions like <code>(exp 1)</code> to <code>E</code>.</li>
-    <li><time>6 May</time>We're proud to announce that we've been collaborating with <a href="http://perso.univ-perp.fr/mmartel/">Prof. Martel</a> and his students to build a <a href="http://fpbench.org">common benchmark suite and format</a> for floating point tools. Version 1.0 of Herbie will support only the FPBench format.</li>
-    <li><time>4 Apr</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at Google on how Herbie works and what our plans for the future are.</li>
-    <li><time>30 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at MIT on how Herbie works internally.</li>
-    <li><time>6 Mar</time>In preparation for the Version 1.0 release, we've renamed several functions in Herbie to match the <code>libm</code> names. In particular, look out for <code>abs</code>, which is now <code>fabs</code>, and <code>expt</code>, which is now <code>pow</code>.</li>
-    <li><time>26 Jan</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at MathWorks on how Herbie works answered questions on how it could be extended.</li>
-    <li><time>25 Jan</time>The <a href="https://github.com/mcarton/rust-herbie-lint">Herbie Rust Linter</a> plugs into the Rust compiler to add warnings for numerically unstable expressions, and suggests Herbie's more accurate output as a hint.</li>
-    <hr class="yearmark" />
-    <li><time>1 Oct</time>The <a href="https://github.com/mikeizbicki/HerbiePlugin#herbie-ghc-plugin">Herbie GHC Plugin</a> by Mike Izbicki automatically runs Herbie on applicable expressions in a Haskell program. He's also scanned all of <a href="https://www.stackage.org/lts-3.5">Stackage LTS-3.5</a> for numerical inaccuracies with Herbie.</li>
-    <li><time>13 Jun</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="papers.html">Distinguished Paper</a> talk at <a href="http://conf.researchr.org/home/pldi2015">PLDI’15</a> on the scientific advances that underpin Herbie.</li>
-    <li><time>9 Apr</time><a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> is giving a talk at Berkeley on how we plan to improve floating point accuracy with Herbie.</li>
-    <hr class="yearmark" />
-    <li><time>17 Jun</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/oplss-2014-06.pdf">talk</a> at OPLSS on whether floating point accuracy can be improved, and our plans for finding out.</li>
-    <li><time>15 May</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/lightingtalk-2014-05.pdf">lightning talk</a> on a new project to improve the accuracy of floating point expressions.</li>
-    <li><time>31 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.pdf">talk</a> on at Dropbox on a new project to improve the accuracy of floating point expressions. (<a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">video</a>)</li>
-  </ol>
+<figure class="showcase">
+  <style scoped>
+    line { pointer-events: all; }
+    .good, .bad { stroke-width: 3px; stroke-opacity: 0.6; fill-opacity: 0.6; }
+    .good:hover, .bad:hover { stroke-opacity: 1.0; fill-opacity: 1.0; }
+    .good * { stroke: black; fill: black; }
+    .bad * { stroke: darkred; fill: darkred; }
+    .gridline, .guide { stroke: rgb(40%, 40%, 40%); }
+    text { text-anchor: middle; }
+  </style>
+  <svg id="results" width="100%" viewBox="0 0 525 320"></svg>
+  <script>draw_results(d3.select("#results"))</script>
+  <figcaption>Herbie improving accuracy on the “Hamming” benchmark suite. Longer arrows are better. Each arrow starts at the accuracy of the original expression, and ends at the accuracy of Herbie’s output, in each case on random double-precision inputs.</figcaption>
+</figure>
 
-  <script>
-    var news = document.getElementById("news");
-    for (var i = 3; i < news.children.length; i++) {
-        news.children[i].style.display = "none";
-    }
-    var more = document.createElement("li");
-    more.classList.add("more");
-    more.innerHTML = "See older news";
-    more.addEventListener("click", function(e) {
-        for (var i = 0; i < news.children.length; i++) {
-            news.children[i].style.display = "list-item";
-        }
-        more.style.display = "none";
-    });
-    news.appendChild(more);
-  </script>
-  
-  <h2>The Herbie Developers</h2>
+<h2>Herbie Project News</h2>
+<ol id="news">
+  <li><time>24 Jul</time>Due to a major unforseen issue with our release infrastructure, we are re-releasing <a href="doc/1.5/release-notes.html">Herbie 1.5</a>. If you previously tried to install it and failed, please try again!</li>
+  <li><time>9 Jul</time>We're pleased to announce the release of <a href="doc/1.5/release-notes.html">Herbie 1.5</a>, with features like argument sorting and multiple outputs. Do try it out!</li>
+  <li><time>14 Jun</time><a href="https://www.bsaiki.com">Brett</a> and <a href="https://www.oflatt.com">Oliver</a> are giving a talk <a href="http://arith2021.arithsymposium.org">ARITH 2021</a> on adding precision tuning to Herbie. Tune in or <a href="papers.html">read the paper</a> to learn more!</li>
+  <hr class="yearmark" />
+  <li><time>21 Jul</time><a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> and <a href="https://pavpanchekha.com/">Pavel</a> gave a talk about Herbie's last five years: <a href="https://www.youtube.com/watch?v=E2KtVa7j2eY&list=PL6VFuHglY6bKikq0bE5XTKFbKaY67l8aV&index=2&t=0s">trust, measurement, community, and generality</a>.</li>
+  <li><time>20 Jul</time>The chaos of 2020 now brings you a rowboat of stability: <a href="doc/1.4/release-notes.html">Herbie 1.4</a>, with significant speed-ups and ease of use improvements. Download and try it today!</li>
+  <hr class="yearmark" />
+  <li><time>18 Nov</time><a href="http://davidthien.com">David</a> will be talking about FPBench 1.2 and the latest improvements in Herbie at <a href="https://correctness-workshop.github.io/2019/">Correctness 2019</a> in <a href="https://sc19.supercomputing.org">Denver</a>.</li>
+  <li><time>17 Nov</time>Herbie got a shout-out in <a href="https://pavpanchekha.com/">Pavel</a>'s talk at the <a href="http://fpanalysistools.org/sc19/">FP analysis tutorial</a> at <a href="https://sc19.supercomputing.org">SC'19</a>.</li>
+  <li><time>1 May</time><a href="https://pavpanchekha.com/">Pavel</a> will be joining the <a href="https://www.utah.edu/">University of Utah</a> as an assistant professor next year, joining <a href="http://www.cs.utah.edu/~ganesh/">Ganesh</a> and <a href="https://zvonimir.info/">Zvonimir</a> at what is already a nexus of floating-point research.</li>
+  <li><time>13 Mar</time><a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> gave a keynote at <a href="https://posithub.org/conga/2019/">CoNGA’19</a> on multi-precision, multi-format computations and our efforts to support them in Herbie, <a href="http://fpbench.org">FPBench</a>, and <a href="http://titanic.uwplse.org">Titanic</a>.</li>
+  <hr class="yearmark" />
+  <li><time>20 Jun</time><a href="http://alex.uwplse.org/">Alex</a> gave <a href="https://www.youtube.com/watch?v=bFL6PaPrz8Y">a talk</a> on our sister project Herbgrind at <a href="https://conf.researchr.org/home/pldi-2018">PLDI’18</a>. Watch it if you want to know how Herbgrind pulls inaccurate floating-point expressions out of large numeric code bases.</li>
+  <li><time>15 Jun</time>After a year of work, <a href="doc/1.2/release-notes.html">Herbie 1.2</a> has been released. This release focuses on creativity and accuracy, with a new system to infer better branches and more accurate defaults for Herbie's various parameters. Read about all the changes in the <a href="doc/1.2/release-notes.html">release notes</a>.</li>
+  <li><time>9 Apr</time>We teamed up with <a href="https://www.mpi-sws.org/people/hbecker/">Heiko</a> and <a href="https://people.mpi-sws.org/~eva/">Eva</a> on the <a href="https://github.com/malyzajko/daisy">Daisy</a> team to combine our tools and evaluate how best to use them together—it'll be published at <a href="https://fm2018.org">FM’18</a>. If you're using Herbie with other floating point tools, let us know!</li>
+  <li><time>1 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> and <a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> went to see <a href="https://www.mccawhall.com/events/detail/herbie-hancock">Herbie Hancock play at the Seattle Center</a>. Watching Herbie play Chameleon on the keytar is sure to inspire the next generation of floating point accuracy improvement!</li>
+  <li><time>17 Jan</time><a href="https://pavpanchekha.com/">Pavel</a> gave <a href="https://www.youtube.com/watch?v=oYtnXEZC0jk">a talk</a> at <a href="https://www.microsoft.com/en-us/research/">Microsoft Research Redmond</a> on Herbie and <a href="http://herbgrind.ucsd.edu">Herbgrind</a>, plus the <a href="http://fpbench.org">FPBench</a> project. Thank you everyone who came!</li>
+  <li><time>3 Jan</time> <a href="https://pavpanchekha.com">Pavel</a> wrote a <a href="http://pavpanchekha.com/blog/how-herbie.html">retrospective</a> on the early history of Herbie, and some lessons learned.</li>
+  <hr class="yearmark" />
+  <li><time>24 Aug</time><a href="https://pavpanchekha.com/">Pavel</a> gave a talk at <a href="https://www.mpi-sws.org/">MPI-SWS</a> Saarbrücken on Herbie, <a href="http://herbgrind.ucsd.edu">Herbgrind</a>, lessons learned, and what comes next. Thank you <a href="https://people.mpi-sws.org/~eva/">Eva Darulova</a> and her students for the invitation and the warm welcome. The video was recorded and can be watched on <a href="https://www.youtube.com/watch?v=WvDZ4m4fAF0">YouTube</a>.</li>
+  <li><time>3 May</time> After incubating on this website, <a href="http://herbgrind.ucsd.edu">Herbgrind</a> has moved to a <a href="http://herbgrind.ucsd.edu">new website</a> hosted at UCSD, where <a href="http://alex.uwplse.org">Alex</a>, Herbie star and the main Herbgrind developer, is now doing his PhD. We'll continue our close collaboration, including in the FPBench project, and are hoping the new, more-focused websites help users.</li>
+  <li><time>1 May</time>Just one month after the beta, <a href="doc/1.1/release-notes.html">Herbie 1.1</a> has been released. This release adds a <a href="doc/latest/using-web.html">browser</a> interface for Herbie, and includes significant bug fixes, usability tweaks, and improvements. Read about all the changes in the <a href="doc/1.1/release-notes.html">release notes</a>.</li>
+  <li><time>20 Apr</time>Our sister project <a href="http://herbgrind.ucsd.edu">Herbgrind</a> has released version 0.42. This pre-release is a reworked, faster, and more stable Herbgrind, which can find root causes for floating-point errors in the largest and gnarliest of codebases!</li>
+  <li><time>2 Apr</time>After months of work, a beta of <a href="doc/1.1/release-notes.html">Herbie 1.1</a> has been released. This release adds a <a href="doc/latest/using-web.html">browser</a> interface for Herbie, and includes significant bug fixes, usability tweaks, and improvements. Read about all the changes in the <a href="doc/1.1/release-notes.html">release notes</a>.</li>
+  <li><time>3 Feb</time> <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">Zach</a> is giving <a href="http://www.cs.utah.edu/calendar/colloquium-zach-tatlock/">a talk</a> at the University of Utah about Herbie, FPBench, and Herbgrind. Please come to learn about automated tools for floating point!</li>
+  <hr class="yearmark" />
+  <li><time>13 Jun</time>After months of work, the Herbie developers are proud to announce the release of <a href="doc/1.0/release-notes.html">Herbie 1.0</a>. This release transitions to the <a href="doc/latest/input.html">FPCore</a> format from the <a href="http://fpbench.org">FPBench</a> initiative, and includes significant bug fixes, usability tweaks, and improvements. Read about all the changes in the <a href="doc/1.0/release-notes.html">release notes</a>.</li>
+  <li><time>9 May</time>In preparation for the Version 1.0 release, we've renamed the <code>pi</code> and <code>e</code> constants to upper case. This matches <code>libm</code> and should make it a little harder to cause bugs. Herbie will now optimize expressions like <code>(exp 1)</code> to <code>E</code>.</li>
+  <li><time>6 May</time>We're proud to announce that we've been collaborating with <a href="http://perso.univ-perp.fr/mmartel/">Prof. Martel</a> and his students to build a <a href="http://fpbench.org">common benchmark suite and format</a> for floating point tools. Version 1.0 of Herbie will support only the FPBench format.</li>
+  <li><time>4 Apr</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at Google on how Herbie works and what our plans for the future are.</li>
+  <li><time>30 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at MIT on how Herbie works internally.</li>
+  <li><time>6 Mar</time>In preparation for the Version 1.0 release, we've renamed several functions in Herbie to match the <code>libm</code> names. In particular, look out for <code>abs</code>, which is now <code>fabs</code>, and <code>expt</code>, which is now <code>pow</code>.</li>
+  <li><time>26 Jan</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a talk at MathWorks on how Herbie works answered questions on how it could be extended.</li>
+  <li><time>25 Jan</time>The <a href="https://github.com/mcarton/rust-herbie-lint">Herbie Rust Linter</a> plugs into the Rust compiler to add warnings for numerically unstable expressions, and suggests Herbie's more accurate output as a hint.</li>
+  <hr class="yearmark" />
+  <li><time>1 Oct</time>The <a href="https://github.com/mikeizbicki/HerbiePlugin#herbie-ghc-plugin">Herbie GHC Plugin</a> by Mike Izbicki automatically runs Herbie on applicable expressions in a Haskell program. He's also scanned all of <a href="https://www.stackage.org/lts-3.5">Stackage LTS-3.5</a> for numerical inaccuracies with Herbie.</li>
+  <li><time>13 Jun</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="papers.html">Distinguished Paper</a> talk at <a href="http://conf.researchr.org/home/pldi2015">PLDI’15</a> on the scientific advances that underpin Herbie.</li>
+  <li><time>9 Apr</time><a href="https://homes.cs.washington.edu/~ztatlock/">Zach</a> is giving a talk at Berkeley on how we plan to improve floating point accuracy with Herbie.</li>
+  <hr class="yearmark" />
+  <li><time>17 Jun</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/oplss-2014-06.pdf">talk</a> at OPLSS on whether floating point accuracy can be improved, and our plans for finding out.</li>
+  <li><time>15 May</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/lightingtalk-2014-05.pdf">lightning talk</a> on a new project to improve the accuracy of floating point expressions.</li>
+  <li><time>31 Mar</time><a href="https://pavpanchekha.com/">Pavel</a> is giving a <a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.pdf">talk</a> on at Dropbox on a new project to improve the accuracy of floating point expressions. (<a href="https://s3-us-west-2.amazonaws.com/uwplse/Herbie/dropbox-2014-04.mp4">video</a>)</li>
+</ol>
 
-  <p>Herbie is developed at <a href="https://cs.washington.edu">UW</a> <a href="https://uwplse.org">PLSE</a>, with contributions from a supportive community.</p>
+<script>
+  var news = document.getElementById("news");
+  for (var i = 3; i < news.children.length; i++) {
+      news.children[i].style.display = "none";
+  }
+  var more = document.createElement("li");
+  more.classList.add("more");
+  more.innerHTML = "See older news";
+  more.addEventListener("click", function(e) {
+      for (var i = 0; i < news.children.length; i++) {
+          news.children[i].style.display = "list-item";
+      }
+      more.style.display = "none";
+  });
+  news.appendChild(more);
+</script>
 
-  <p>The main contributors are
-    <a href="https://pavpanchekha.com">Pavel Panchekha</a>,
-    <a href="http://alex.uwplse.org/">Alex Sanchez-Stern</a>,
-    <a href="https://homes.cs.washington.edu/~dthien/blog/">David Thien</a>,
-    <a href="https://homes.cs.washington.edu/~ztatlock/">Zachary Tatlock</a>,
-    <a>Jason Qiu</a>,
-    <a href="https://github.com/jackfirth">Jack Firth</a>, and
-    <a href="http://homes.cs.washington.edu/~jrw12/">James R. Wilcox</a>.
-  </p>
+<h2>The Herbie Developers</h2>
 
-  <img src="doc/latest/team.png" />
-  
+<p>Herbie is developed at <a href="https://cs.washington.edu">UW</a> <a href="https://uwplse.org">PLSE</a>, with contributions from a supportive community.</p>
 
-</body>
-</html>
+<p>The main contributors are
+  <a href="https://pavpanchekha.com">Pavel Panchekha</a>,
+  <a href="http://alex.uwplse.org/">Alex Sanchez-Stern</a>,
+  <a href="https://homes.cs.washington.edu/~dthien/blog/">David Thien</a>,
+  <a href="https://homes.cs.washington.edu/~ztatlock/">Zachary Tatlock</a>,
+  <a>Jason Qiu</a>,
+  <a href="https://github.com/jackfirth">Jack Firth</a>, and
+  <a href="http://homes.cs.washington.edu/~jrw12/">James R. Wilcox</a>.
+</p>
+
+<img src="doc/latest/team.png" />

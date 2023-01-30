@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif&family=IBM+Plex+Mono&family=Ruda:wght@600&display=swap');
 
 html { font-family: 'IBM Plex Serif', serif; font-size: 16px; line-height: 1.4; }
-body { max-width: 650px; margin: 8em auto 3em;}
+body { max-width: 650px; margin: .5em auto 3em;}
 
 h1, h2, h3 {
     font-family: 'Ruda', sans-serif; letter-spacing: .06ch; font-weight: 600;
@@ -18,18 +18,21 @@ p, li, dd, blockquote, figcaption, summary {
 dd { margin: .5em 0 1em; }
 
 .showcase { background: #ddd; padding: 1em; margin: 4em 0; clear: both;}
+.showcase > h2 { margin: 0 0 1em; }
 .showcase figcaption {font-size: 15px; line-height: 1.4; margin-top: 1em;}
 .before-after { font-size: 20px; text-align: center; line-height: 1.5; }
 .before-after code { padding: 0 1ex; font-weight: bold; }
 .before-after .before { color: #aa2e00; }
 .before-after .after { color: #0000e0; }
 
-header { margin: 0 0 4em 0; text-align: center; font-size: 18px; }
-header h1 {margin: 0; font-size: 20px; text-align: center; }
-header h1 + p { margin-top: 1em; }
-header p { margin: 0; text-align: center;}
-header img {width: 250px; margin: 0 auto; display: block;}
-header ul { text-align: center; font-weight: bold; }
+header {
+    line-height: 2; border-bottom: 1px solid #ddd; margin-bottom: 2em;
+    display: flex; flex-direction: row; align-items: bottom;
+}
+header h1 { width: calc(50% - 54px/2); margin: 0; font-size: 125%; line-height: 1.6 }
+header img { width: 54px; height: 24px; vertical-align: bottom; padding-bottom: 4px; }
+header nav { width: calc(50% - 54px/2); text-align: right; }
+header ul { margin: 0; padding: 0; font-weight: bold; }
 header li { display: inline-block; margin: 0 .5em; }
 header li::before { content: "•"; margin-right: 1em; }
 header li:first-child::before { content: none; }
