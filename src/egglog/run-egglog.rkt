@@ -12,7 +12,7 @@
 
 (define egg-iters 10)
 (define ground-truth-iters 7)
-(define egg-node-limit 5000)
+(define egg-node-limit 8000)
 (define egg-match-limit 500)
 ;; Number of points from the point context to take
 (define egg-num-sample 10)
@@ -1426,8 +1426,8 @@
 		(build-extract exprs variants)
 
 		;; extraction using ground truth
-		(build-ground-truth-compute ctx pctx exprs eggdata)
-		(build-ground-truth-extract ctx exprs eggdata)
+                		;;(build-ground-truth-compute ctx pctx exprs eggdata)
+                		;;(build-ground-truth-extract ctx exprs eggdata)
 		))
 
 (define (rewrite-if egglog-program)
