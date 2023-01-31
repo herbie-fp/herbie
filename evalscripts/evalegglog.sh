@@ -11,7 +11,7 @@ TIMEOUT=500
 
 
 git checkout main
-cargo build --release --manifest-path=egg-herbie/Cargo.toml
+make install
 racket -y src/herbie.rkt report --threads "$CORES" --timeout "$TIMEOUT" --seed "$SEED" --no-pareto "$BENCHMARKS" vanillareport
 git checkout oflatt-egglog-ctx
 
