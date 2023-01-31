@@ -10,14 +10,14 @@ BENCHMARKS="bench/"
 TIMEOUT=500
 
 
-#git checkout main
-#make install
-#racket -y src/herbie.rkt report --threads "$CORES" --timeout "$TIMEOUT" --seed "$SEED" --no-pareto "$BENCHMARKS" vanillareport
-#git checkout oflatt-egglog-ctx
+git checkout main
+make install
+racket -y src/herbie.rkt report --threads "$CORES" --timeout "$TIMEOUT" --seed "$SEED" --no-pareto "$BENCHMARKS" vanillareport
+git checkout oflatt-egglog-ctx
 
 
-make egglog
-racket -y src/herbie.rkt report --threads "$CORES" --no-pareto --seed "$SEED" --timeout "$TIMEOUT"  "$BENCHMARKS" egglogreport
+#make egglog
+#racket -y src/herbie.rkt report --threads "$CORES" --no-pareto --seed "$SEED" --timeout "$TIMEOUT"  "$BENCHMARKS" egglogreport
 
 
 
