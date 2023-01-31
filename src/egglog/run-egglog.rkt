@@ -58,7 +58,7 @@
 (for ([op num-num-bool-ops])
   (hash-set! op-type op (list 'num 'num 'bool)))
 (define num-num-num-ops
-  `(Add Sub Mul Div Pow Atan2 Hypot Copysign))
+  `(Add Sub Mul Div Pow Atan2 Hypot Copysign Fmod))
 (for ([op num-num-num-ops])
   (hash-set! op-type op (list 'num 'num 'num)))
 (define bool-bool-bool-ops
