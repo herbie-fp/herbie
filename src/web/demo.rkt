@@ -4,6 +4,7 @@
          web-server/dispatchers/dispatch web-server/dispatch/extend
          web-server/http/bindings web-server/configuration/responders
          web-server/managers/none)
+(require json)
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt")
@@ -37,6 +38,7 @@
    [("improve") #:method (or "post" "get" "put") improve]
    [("check-status" (string-arg)) check-status]
    [("up") check-up]
+   [("api" "sample") #:method "post" sample-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
@@ -94,9 +96,11 @@
     #:show-title (*demo?*)
     #:scripts '("//cdnjs.cloudflare.com/ajax/libs/mathjs/1.6.0/math.min.js" "demo.js")
     `(p "Write a formula below, and Herbie will try to improve it. Enter approximate ranges for inputs.")
-    `(p ([id "use-fpcore-input"]) "You can also "
-       (a "use FPCore")
-       ".")
+    `(p ([id "options"])
+       (a ([id "show-example"]) "Show an example")
+       " | "
+       (a ([id "use-fpcore"]) "Use FPCore")
+       )
     (cond
       [(thread-running? *worker-thread*)
        `(form ([action ,(url improve)] [method "post"] [id "formula"]
@@ -194,7 +198,7 @@
            [else
             (eprintf "Job ~a started on ~a..." hash formula)
 
-            (define result (get-test-result (parse-test formula) #:seed seed))
+            (define result (get-test-result 'improve (parse-test formula) #:seed seed))
 
             (hash-set! *completed-jobs* hash result)
 
@@ -224,7 +228,7 @@
         (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
   (define tmp-file (build-path (*demo-output*) "results.tmp"))
   (write-datafile tmp-file info)
-  (rename-file-or-directory tmp-file data-file #:exists-ok #t)
+  (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (run-improve hash formula)
@@ -308,6 +312,30 @@
 
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
+
+(define (post-with-json-response fn) (lambda (req)
+  (define post-body (request-post-data/raw req))
+  (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
+  (response
+    200 #"OK"
+    (current-seconds) APPLICATION/JSON-MIME-TYPE
+    empty
+    (λ (op) (write-json (fn post-data) op)))
+))
+
+; /api/sample endpoint: test in console on demo page:
+;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
+(define sample-endpoint (post-with-json-response (lambda (post-data)
+  (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
+  (define seed (hash-ref post-data `seed))
+  (eprintf "Job started on ~a..." formula)
+
+  (define result (get-test-result 'sample (parse-test formula) #:seed seed))
+
+  (eprintf " complete\n")
+  (hasheq
+    'points result)
+)))
 
 (define (response/error title body)
   (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()

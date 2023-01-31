@@ -5,7 +5,6 @@
 (provide approximate)
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
-  (load-rule-hacks)
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
   (match-define (cons offset coeffs) (taylor var expr*))
 

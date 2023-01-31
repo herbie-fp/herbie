@@ -49,7 +49,7 @@
 (define (timeline-load! value)
   (set! *timeline* value))
 
-(define (timeline-extract repr)
+(define (timeline-extract)
   (for ([end! (set->list *timeline-timers*)]) (end!))
   (define end (hasheq 'time (current-inexact-milliseconds)))
   (reverse

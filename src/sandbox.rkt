@@ -38,75 +38,112 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-(define (get-test-result test #:seed [seed #f] #:profile [profile? #f])
-  (define timeline #f)
+(define (get-sample test)
   (define output-repr (test-output-repr test))
   (define context (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
+
+  (match-define (cons domain-stats joint-pcontext)
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (setup-context!
+        (or (test-specification test) (test-program test)) (test-precondition test)
+        output-repr)))
+  (define-values (train-pcontext test-pcontext)
+    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
+
+  (define-values (points exacts) (get-p&es test-pcontext))
+  (for/list ([point points] [exact exacts]) (list point exact)))
+
+(define (run-herbie test)
+  (define seed (get-seed))
+  (random) ;; Child process uses deterministic but different seed from evaluator
+  
+  (define output-repr (test-output-repr test))
+  (define context (test-context test))
+  (*needed-reprs* (list output-repr (get-representation 'bool)))
+  (generate-prec-rewrites (test-conversions test))
+
+  (match-define (cons domain-stats joint-pcontext)
+                (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+                  (setup-context!
+                   (or (test-specification test) (test-program test)) (test-precondition test)
+                   output-repr)))
+  (timeline-push! 'bogosity domain-stats)
+  (define-values (train-pcontext test-pcontext)
+    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
+
+  (define alts
+    (run-improve! (test-program test) train-pcontext (*num-iterations*)
+                  #:specification (test-specification test)
+                  #:preprocess (test-preprocess test)))
+
+  (when seed (set-seed! seed))
+  (define processed-test-pcontext
+    (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
+
+  (define end-errs
+    (flip-lists
+     (batch-errors (map alt-program alts) processed-test-pcontext context)))
+
+  (timeline-adjust! 'regimes 'name (test-name test))
+  (timeline-adjust! 'regimes 'link ".")
+
+  (define-values (points exacts) (get-p&es train-pcontext))
+  (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
+  (test-success test
+                (bf-precision)
+                #f
+                (timeline-extract)
+                warning-log (make-alt (test-program test)) alts
+                (*herbie-preprocess*) points exacts
+                (errors (test-program test) train-pcontext context)
+                (errors (alt-program (car alts)) train-pcontext context)
+                newpoints newexacts
+                (errors (test-program test) processed-test-pcontext context)
+                end-errs
+                (if (test-output test)
+                    (errors (test-target test) processed-test-pcontext context)
+                    #f)
+                (program-cost (test-program test) output-repr)
+                (map (curryr alt-cost output-repr) alts)
+                (*all-alts*)))
+
+;; Ugly, but struct-copy doesn't do the right thing with inheritance
+(define (add-time result time)
+  (match-define (test-success test bits _time timeline warnings
+                              start-alt end-alts preprocess points exacts
+                              start-est-error end-est-error newpoints newexacts
+                              start-error end-errors target-error
+                              start-cost end-costs all-alts) result)
+  (test-success test bits time timeline warnings
+                start-alt end-alts preprocess points exacts
+                start-est-error end-est-error newpoints newexacts
+                start-error end-errors target-error
+                start-cost end-costs all-alts))
+
+(define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
+  (define timeline #f)
 
   (define (compute-result test)
     (parameterize ([*timeline-disabled* false]
                    [*warnings-disabled* true])
       (define start-time (current-inexact-milliseconds))
+      (rollback-improve!)
       (when seed (set-seed! seed))
-      (random) ;; Child process uses deterministic but different seed from evaluator
-
-      (generate-prec-rewrites (test-conversions test))
       (with-handlers ([exn? (curry on-exception start-time)])
-        (rollback-improve!)
-
-        (match-define (cons domain-stats joint-pcontext)
-          (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-            (setup-context!
-             (or (test-specification test) (test-program test)) (test-precondition test)
-             output-repr)))
-        (timeline-push! 'bogosity domain-stats)
-        (define-values (train-pcontext test-pcontext)
-          (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
-
-        (define alts
-          (run-improve! (test-program test) train-pcontext (*num-iterations*)
-                        #:specification (test-specification test)
-                        #:preprocess (test-preprocess test)))
-
-        (when seed (set-seed! seed))
-        (define processed-test-pcontext
-          (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
-
-        (define end-errs
-          (flip-lists
-           (batch-errors (map alt-program alts) processed-test-pcontext context)))
-
-        (timeline-adjust! 'regimes 'name (test-name test))
-        (timeline-adjust! 'regimes 'link ".")
+        (define out
+          (match command
+            ['improve (run-herbie test)]
+            ['sample (get-sample test)]))
         (print-warnings)
-
-        (define-values (points exacts) (get-p&es train-pcontext))
-        (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
-        (test-success test
-                      (bf-precision)
-                      (- (current-inexact-milliseconds) start-time)
-                      (timeline-extract output-repr)
-                      warning-log (make-alt (test-program test)) alts
-                      (*herbie-preprocess*) points exacts
-                      (errors (test-program test) train-pcontext context)
-                      (errors (alt-program (car alts)) train-pcontext context)
-                      newpoints newexacts
-                      (errors (test-program test) processed-test-pcontext context)
-                      end-errs
-                      (if (test-output test)
-                          (errors (test-target test) processed-test-pcontext context)
-                          #f)
-                      (program-cost (test-program test) output-repr)
-                      (map (curryr alt-cost output-repr) alts)
-                      (*all-alts*)))))
+        (if (eq? command 'sample) out (add-time out (- (current-inexact-milliseconds) start-time))))))
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* false])
       (timeline-event! 'end))
     (print-warnings)
     (test-failure test (bf-precision)
-                  (- (current-inexact-milliseconds) start-time) (timeline-extract output-repr)
+                  (- (current-inexact-milliseconds) start-time) (timeline-extract)
                   warning-log e))
 
   (define (in-engine _)
@@ -118,11 +155,11 @@
          #:render (λ (p order) (write-json (profile->json p) profile?)))
         (compute-result test)))
 
-  ; CS versions <= 8.2: problems with scheduler
-  ; cause places to stay in a suspended state
+  ;; CS versions <= 8.2: problems with scheduler cause places to stay
+  ;; in a suspended state
   (when cs-places-workaround?
     (thread (lambda () (sync (system-idle-evt)))))
-  
+
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)
@@ -130,7 +167,7 @@
         (timeline-load! timeline)
         (timeline-compact! 'outcomes)
         (print-warnings)
-        (test-timeout test (bf-precision) (*timeout*) (timeline-extract output-repr) '()))))
+        (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '()))))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
