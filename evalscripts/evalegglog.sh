@@ -3,17 +3,20 @@
 # exit immediately upon first error
 set -e -x
 
-# build egg-herbie to make sure updated
-cargo build --release --manifest-path=egg-herbie/Cargo.toml
 
 SEED=0
 CORES=16
 BENCHMARKS="bench/"
 TIMEOUT=500
 
+ls
+make egglog
 racket src/herbie.rkt report --threads "$CORES" --no-pareto --seed "$SEED" --timeout "$TIMEOUT"  "$BENCHMARKS" egglogreport
 
-racket src/herbie.rkt report --threads "$CORES" --timeout "$TIMEOUT" --seed "$SEED" --disable generate:egglog --no-pareto "$BENCHMARKS" vanillareport
+git checkout main
+cargo build --release --manifest-path=egg-herbie/Cargo.toml
+racket src/herbie.rkt report --threads "$CORES" --timeout "$TIMEOUT" --seed "$SEED" --no-pareto "$BENCHMARKS" vanillareport
+git checkout oflatt-egglog-ctx
 
 
-bash evalscripts/egglogreport.sh
+bash egglogreport.sh
