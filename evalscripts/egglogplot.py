@@ -23,7 +23,13 @@ egglog_data = json.load(open(results_file_egglog))["tests"]
 
 
 tests_unfiltered = set(map(lambda row: row["name"], vanilla_data))
+other_tests = set(map(lambda row: row["name"], egglog_data))
+difference = other_tests.difference(tests_unfiltered)
 assert (len(tests_unfiltered) == len(vanilla_data))
+print(len(vanilla_data), flush=True)
+print(len(egglog_data), flush=True)
+print(difference)
+
 assert (len(vanilla_data) == len(egglog_data))
 
 vanilla_tests = dict(map(lambda row: (row["name"], row), vanilla_data))
