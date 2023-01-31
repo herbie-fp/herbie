@@ -46,8 +46,7 @@
   (hash-set! op-type op (list 'bool 'bool)))
 (define num-num-ops
   `(Neg Sqrt Cbrt Fabs Ceil Floor Round Log Exp
-	   Sin Cos Tan Asin Acos Atan Sinh Cosh Tanh
-	   Expm1 Log1p))
+        	   Sin Cos Tan Asin Acos Atan Sinh Cosh Tanh Asinh Acosh Atanh Expm1 Log1p))
 (for ([op num-num-ops])
   (hash-set! op-type op (list 'num 'num)))
 (define *-*-ops
@@ -59,7 +58,7 @@
 (for ([op num-num-bool-ops])
   (hash-set! op-type op (list 'num 'num 'bool)))
 (define num-num-num-ops
-  `(Add Sub Mul Div Pow Atan2 Hypot))
+  `(Add Sub Mul Div Pow Atan2 Hypot Copysign))
 (for ([op num-num-num-ops])
   (hash-set! op-type op (list 'num 'num 'num)))
 (define bool-bool-bool-ops
@@ -1419,7 +1418,7 @@
 		header
 		analysis
 		rewrites
-		ground-truth
+		;; ground-truth
 		(build-exprs ctx eggdata exprs)
 		(build-runner)
 		;; normal extraction

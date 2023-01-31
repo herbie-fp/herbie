@@ -1,15 +1,11 @@
 #lang racket
 
 (require "alternative.rkt" "points.rkt" "programs.rkt"
-<<<<<<< HEAD
          "core/simplify.rkt" "syntax/types.rkt" "egglog/egraph-conversion.rkt")
-=======
-         "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/types.rkt")
->>>>>>> main
 
 (provide add-soundiness)
 
-(define (canonicalize-rewrite proof)
+#;(define (canonicalize-rewrite proof)
   (match proof
     [`(Rewrite=> ,rule ,something)
      (list 'Rewrite=> (get-canon-rule-name rule rule) something)]
@@ -19,7 +15,7 @@
      (map canonicalize-rewrite proof)]
     [else proof]))
 
-(define (get-proof-errors proof pcontext ctx program-vars)
+#;(define (get-proof-errors proof pcontext ctx program-vars)
   (define proof-programs
     (for/list ([step (in-list proof)])
       `(λ ,program-vars ,(remove-rewrites step))))
@@ -52,13 +48,13 @@
        [proof
         ;; Proofs are actually on subexpressions,
         ;; we need to construct the proof for the full expression
-        (define proof*
+        #;(define proof*
           (for/list ([step proof])
             (let ([step* (canonicalize-rewrite step)])
               (program-body (location-do loc prog (λ _ step*))))))
-        (define errors
-          (let ([vars (program-variables prog)])
-            (get-proof-errors proof* pcontext ctx vars)))
+        (define proof* empty)
+        (define errors empty)
+
         (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
        [else
         (alt prog `(simplify ,loc ,input #f #f) `(,prev))])]
