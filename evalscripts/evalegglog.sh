@@ -16,4 +16,4 @@ racket src/herbie.rkt report --threads "$CORES" --no-pareto --seed "$SEED" --tim
 racket src/herbie.rkt report --threads "$CORES" --timeout "$TIMEOUT" --seed "$SEED" --disable generate:egglog --no-pareto "$BENCHMARKS" vanillareport
 
 
-bash egglogreport.sh
+bash evalscripts/egglogreport.sh
