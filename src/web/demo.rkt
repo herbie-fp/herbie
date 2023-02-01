@@ -1,13 +1,15 @@
 #lang racket
+
+(require json)
 (require openssl/sha1 (rename-in xml [location? xml-location?]))
 (require web-server/servlet web-server/servlet-env web-server/dispatch
          web-server/dispatchers/dispatch web-server/dispatch/extend
          web-server/http/bindings web-server/configuration/responders
          web-server/managers/none)
-(require json)
+
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
-(require "../datafile.rkt" "pages.rkt" "make-report.rkt")
+(require "../datafile.rkt" "pages.rkt" "make-report.rkt" "core2mathjs.rkt")
 (require (submod "../timeline.rkt" debug))
 
 (provide run-demo)
@@ -41,6 +43,7 @@
    [("api" "sample") #:method "post" sample-endpoint]
    [("api" "analyze") #:method "post" analyze-endpoint]
    [("api" "alternatives") #:method "post" alternatives-endpoint]
+   [("api" "alternatives") #:method "post" ->mathjs-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
@@ -84,7 +87,7 @@
     (body
      (header
       (img ([class "logo"] [src "/logo.png"]))
-      ,@(if title? `((h1 ,title)) `()))
+      ,@(if title? `((h1 ,title)) '()))
      ,@body)))
 
 (define (main req)
@@ -325,40 +328,58 @@
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
-(define sample-endpoint (post-with-json-response (lambda (post-data)
-  (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
-  (define seed (hash-ref post-data `seed))
-  (eprintf "Job started on ~a..." formula)
+(define sample-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define seed (hash-ref post-data 'seed))
+      (eprintf "Job started on ~a..." formula)
 
-  (define result (get-test-result 'sample (parse-test formula) #:seed seed))
+      (define result (get-test-result 'sample (parse-test formula) #:seed seed))
 
-  (eprintf " complete\n")
-  (hasheq
-    'points result))))
+      (eprintf " complete\n")
+      (hasheq 'points result))))
 
-(define analyze-endpoint (post-with-json-response (lambda (post-data)
-  (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
-  (define pts+exs (hash-ref post-data `sample))
-  (eprintf "Job started on ~a..." formula)
+(define analyze-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts+exs (hash-ref post-data 'sample))
+      (eprintf "Job started on ~a..." formula)
 
-  (define result (get-errors (parse-test formula) pts+exs))
+      (define result (get-errors (parse-test formula) pts+exs))
 
-  (eprintf " complete\n")
-  (hasheq
-    'points result))))
+      (eprintf " complete\n")
+      (hasheq 'points result))))
 
-(define alternatives-endpoint (post-with-json-response (lambda (post-data)
-  (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
-  (define pts+exs (hash-ref post-data `sample))
-  (eprintf "Job started on ~a..." formula)
+(define alternatives-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts+exs (hash-ref post-data 'sample))
+      (eprintf "Job started on ~a..." formula)
 
-  (define result (get-alternatives (parse-test formula) pts+exs))
-  (eprintf " complete\n")
-  (hasheq
-    'alternatives result))))
+      (define result (get-alternatives (parse-test formula) pts+exs))
+      (eprintf " complete\n")
+      (hasheq 'alternatives result))))
+
+(define ->mathjs-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (eprintf "Converting to Math.js ~a..." formula)
+
+      (define test (parse-test formula))
+      (define result (core->mathjs (test-input test)))
+      (eprintf " complete\n")
+      (hasheq 'mathjs result))))
 
 (define (response/error title body)
-  (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
+  (response/full 400
+                 #"Bad Request"
+                 (current-seconds)
+                 TEXT/HTML-MIME-TYPE
+                 '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
