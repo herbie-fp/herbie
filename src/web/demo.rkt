@@ -43,7 +43,7 @@
    [("api" "sample") #:method "post" sample-endpoint]
    [("api" "analyze") #:method "post" analyze-endpoint]
    [("api" "alternatives") #:method "post" alternatives-endpoint]
-   [("api" "alternatives") #:method "post" ->mathjs-endpoint]
+   [("api" "mathjs") #:method "post" ->mathjs-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
