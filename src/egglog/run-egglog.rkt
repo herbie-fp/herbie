@@ -379,6 +379,13 @@
 		   ((non-zero c)))
     (rewrite (Div ty (Div ty b c) a) ;; not defined when a or c is zero
 		   (Div ty b (Mul ty a c)))
+
+		;; Pavel's rule that breaks unsound herbie
+		(rewrite (Add ty a b)
+		         (Mul ty a (Add ty (Num ty r-one) (Div ty b a)))
+						 :when
+						 ((non-zero a)))
+
     ;; Counting
     (rewrite (Add ty x x) (Mul ty (Num ty r-two) x))
     ;; Distributivity
