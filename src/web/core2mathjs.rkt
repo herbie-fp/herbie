@@ -77,7 +77,6 @@
       (compile-infix-operator op args ctx)
       (operator->mathjs op args ctx)))
 
-
 (define (visit-if/mathjs vtor cond ift iff #:ctx ctx)
   (format "(~a ? ~a : ~a)"
           (visit/ctx vtor cond ctx)
@@ -127,7 +126,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;; public ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (expr->mathjs prog [name ""])
-  (error 'expr->mathjs "unsupported"))
+  (parameterize ([*gensym-used-names* (mutable-set)] 
+                 [*gensym-collisions* 1] 
+                 [*gensym-fix-name* fix-name])
+    ; make compiler context
+    (define ctx
+      (ctx-update-props
+        (make-compiler-ctx)
+        (append '(:precision binary64 :round nearestEven))))
+    
+    ; translate
+    (define p (open-output-string))
+    (define-values (body* ret)
+      (parameterize ([current-output-port p])
+        (define o (visit/ctx mathjs-visitor prog ctx))
+        (values (get-output-string p) (trim-infix-parens o))))
+
+    (format "~a~a" body* ret)))
 
 (define (core->mathjs prog [name ""])
   (parameterize ([*gensym-used-names* (mutable-set)] 
@@ -158,4 +173,5 @@
       (parameterize ([current-output-port p])
         (define o (visit/ctx mathjs-visitor body ctx))
         (values (get-output-string p) (trim-infix-parens o))))
-    (format "~a~a\n" body* ret)))
+
+    (format "~a~a" body* ret)))

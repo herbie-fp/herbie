@@ -369,8 +369,7 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (eprintf "Converting to Math.js ~a..." formula)
 
-      (define test (parse-test formula))
-      (define result (core->mathjs (test-input test)))
+      (define result (core->mathjs (syntax->datum formula)))
       (eprintf " complete\n")
       (hasheq 'mathjs result))))
 
