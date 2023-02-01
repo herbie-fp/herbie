@@ -12,7 +12,7 @@ TIMEOUT=500
 
 git checkout main
 make install
-racket -y src/herbie.rkt report --threads "$CORES" --timeout "$TIMEOUT" --seed "$SEED" --no-pareto "$BENCHMARKS" vanillareport
+racket -y src/herbie.rkt report --num-enodes 20000 --threads "$CORES" --timeout "$TIMEOUT" --seed "$SEED" --no-pareto "$BENCHMARKS" vanillareport
 git checkout oflatt-egglog-ctx
 
 

@@ -12,7 +12,7 @@
 
 (define egg-iters 10)
 (define ground-truth-iters 7)
-(define egg-node-limit 8000)
+(define egg-node-limit 15000)
 (define egg-match-limit 500)
 ;; Number of points from the point context to take
 (define egg-num-sample 10)
