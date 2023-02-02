@@ -247,12 +247,15 @@ function get_unused_var_warnings(tree) {
         case "FunctionNode":
         case "OperatorNode":
             used = new Set();
-            for (s in extract(node.args)) {
+            extract(node.args).forEach(function(s) {
                 s.forEach(function(n) { used.add(n); });
-            };
+            })
             return used;
         case "SymbolNode":
-            return new Set(node.name);
+            if (!CONSTANTS[node.name])
+                return new Set([node.name]);
+            else
+                return new Set();
         case "ConditionalNode":
             usedCond = node.condition.res;
             usedTrue  = node.trueExpr.res;
@@ -282,7 +285,6 @@ function get_unused_var_warnings(tree) {
             for (var i = node.blocks.length - 2; i >= 0; i--) {
                 if (!used.has(bound[i]))
                     unused.push("UnboundVariable: " + bound[i]);
-                
                 used.delete(bound[i]);
                 used = new Set([...used, ...usedInAssigns[i]]);
             }
@@ -316,10 +318,14 @@ function get_errors() {
 }
 
 function get_warnings() {
-    const input = document.querySelector("[name=formula-math]")
-    rangeWarnings = get_varnames_mathjs(input.value).map(varname => get_input_range_warnings(KNOWN_INPUT_RANGES[varname]).map(s => "RangeWarning: " + varname + ": " + s)).flat();
-    unusedWarnings = get_unused_var_warnings(math.parse(input.value))
-    return rangeWarnings.concat(unusedWarnings);
+    try {
+        const input = document.querySelector("[name=formula-math]")
+        rangeWarnings = get_varnames_mathjs(input.value).map(varname => get_input_range_warnings(KNOWN_INPUT_RANGES[varname]).map(s => "RangeWarning: " + varname + ": " + s)).flat();
+        unusedWarnings = get_unused_var_warnings(math.parse(input.value))
+        return rangeWarnings.concat(unusedWarnings);
+    } catch (e) {
+        return []
+    }
 }
 
 function check_errors() {
