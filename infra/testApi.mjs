@@ -27,3 +27,10 @@ const alternatives = (await (await fetch('http://127.0.0.1:8000/api/alternatives
 ], 0.12711304680349078]] }) })).json())  // HACK tiny sample
 
 assert.equal(Array.isArray(alternatives.alternatives), true)
+
+const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', { 
+	method: 'POST', 
+	body: JSON.stringify({ formula: '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'})
+      })).json()).mathjs
+
+assert.equal(mathjs, "sqrt(x + 1.0) - sqrt(x)")
