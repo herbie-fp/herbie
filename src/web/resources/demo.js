@@ -100,11 +100,22 @@ function bottom_up(tree, cb) {
         tree.trueExpr = bottom_up(tree.trueExpr, cb);
         tree.falseExpr = bottom_up(tree.falseExpr, cb);
     } else if (tree.blocks) {
+        for (var i = 0; i < tree.blocks.length - 1; i++) {
+            stmt = tree.blocks[i].node;
+            if (stmt.type != "AssignmentNode")
+                throw SyntaxError("Only assignment statements are supported! " + stmt);
+            stmt.expr = bottom_up(stmt.expr, cb);
+        }
+
         tree.blocks[tree.blocks.length - 1].node = bottom_up(tree.blocks[tree.blocks.length - 1].node, cb);
     }
 
     tree.res = cb(tree);
     return tree;
+}
+
+function extract(args) {
+    return args.map(function(n) { return n.res });
 }
 
 function dump_fpcore(formula) {
@@ -168,8 +179,6 @@ function flatten_comparisons(node) {
     }
 }
 
-function extract(args) {return args.map(function(n) {return n.res});}
-
 function dump_tree(tree, names) {
     function rec(node, bound) {
         switch(node.type) {
@@ -204,33 +213,87 @@ function dump_tree(tree, names) {
                        " " + node.falseExpr.res + ")";
             return node;
         case "BlockNode":
-            let str = "";
+            str = "";
             for (var i = 0; i < node.blocks.length - 1; i++) {
-                let stmt = node.blocks[i].node;
+                stmt = node.blocks[i].node;
                 if (stmt.type != "AssignmentNode")
                     throw SyntaxError("Only assignment statements are supported! " + stmt);
 
-                // TODO: handle name
-                let name = stmt.name;
-                let val = stmt.expr;
-                rec(val, bound);
-                str += ("(let ((" + name + " " + val.res + ")) ");
+                rec(stmt.expr, bound);
+                str += ("(let ((" + stmt.name + " " + stmt.expr.res + ")) ");
 
-                if (bound.indexOf(name) == -1)
-                    bound.push(name);
+                if (bound.indexOf(stmt.name) == -1)
+                    bound.push(stmt.name);
             }
 
-            let body = node.blocks[node.blocks.length - 1].node
-            rec(body, bound);
-            node.res = str + body.res + ")".repeat(node.blocks.length - 1);
+            rec(node.blocks[node.blocks.length - 1].node, bound);
+            node.res = str + node.blocks[node.blocks.length - 1].node.res + ")".repeat(node.blocks.length - 1);
             return node;
         default:
-            throw SyntaxError("Invalid tree!");
+            throw SyntaxError("Invalid tree! " + node);
         }
     }
 
     rec(tree, []);
     return tree.res;
+}
+
+function get_unused_var_warnings(tree) {
+    let unused = [];
+    bottom_up(tree, function(node) {
+        switch(node.type) {
+        case "ConstantNode":
+            return new Set();
+        case "FunctionNode":
+        case "OperatorNode":
+            used = new Set();
+            for (s in extract(node.args)) {
+                s.forEach(function(n) { used.add(n); });
+            };
+            return used;
+        case "SymbolNode":
+            return new Set(node.name);
+        case "ConditionalNode":
+            usedCond = node.condition.res;
+            usedTrue  = node.trueExpr.res;
+            usedFalse = node.falseExpr.res;
+            return new Set([...usedCond, ...usedTrue, ...usedFalse])
+        case "BlockNode":
+            bound = [];
+            usedInAssigns = [];
+            for (var i = 0; i < node.blocks.length - 1; i++) {
+                stmt = node.blocks[i].node;
+                if (stmt.type != "AssignmentNode")
+                    throw SyntaxError("Only assignment statements are supported! " + stmt);
+
+                bound.push(stmt.name);
+                usedInAssigns.push(stmt.expr.res);
+            }
+
+            // Assume each assignment is of the form:
+            //  <assign> ::= <name> = <val>; <body>.
+            // Then
+            //  (i)  <name> is used if n is not in Used(<body>),
+            //  (ii) Used(<expr>) = Used(<val>) U (Used(<body>) \ { <name> })
+            // Clearly, the assumption is slightly wrong, but this
+            // tells us we just walk backwards checking condition (i)
+            // and updating the used set with (ii).
+            used = node.blocks[node.blocks.length - 1].node.res;
+            for (var i = node.blocks.length - 2; i >= 0; i--) {
+                if (!used.has(bound[i]))
+                    unused.push("UnboundVariable: " + bound[i]);
+                
+                used.delete(bound[i]);
+                used = new Set([...used, ...usedInAssigns[i]]);
+            }
+
+            return used
+        default:
+            throw SyntaxError("Invalid tree!");
+        }
+    });
+
+    return unused;
 }
 
 function get_errors() {
@@ -253,12 +316,10 @@ function get_errors() {
 }
 
 function get_warnings() {
-    try {
-        const input = document.querySelector("[name=formula-math]")
-        return get_varnames_mathjs(input.value).map(varname => get_input_range_warnings(KNOWN_INPUT_RANGES[varname]).map(s => "RangeWarning: " + varname + ": " + s)).flat()
-    } catch (e) {
-        return []
-    }
+    const input = document.querySelector("[name=formula-math]")
+    rangeWarnings = get_varnames_mathjs(input.value).map(varname => get_input_range_warnings(KNOWN_INPUT_RANGES[varname]).map(s => "RangeWarning: " + varname + ": " + s)).flat();
+    unusedWarnings = get_unused_var_warnings(math.parse(input.value))
+    return rangeWarnings.concat(unusedWarnings);
 }
 
 function check_errors() {
