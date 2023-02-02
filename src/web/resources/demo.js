@@ -170,52 +170,65 @@ function flatten_comparisons(node) {
 
 function extract(args) {return args.map(function(n) {return n.res});}
 
-function dump_block(blocks, names) {
-    let str = "";
-    for (var i = 0; i < blocks.length - 1; i++) {
-        let node = blocks[i].node;
-        if (node.type != "AssignmentNode")
-            throw SyntaxError("Only assignment statements are supported! " + node);
-
-        // TODO: handle name
-        let name = node.name;
-        let val = dump_tree(node.expr, names);
-        str += ("(let ((" + name + " " + val + ")) ");
-    }
-
-    let body = dump_tree(blocks[blocks.length - 1].node, names);
-    return str + body + ")".repeat(blocks.length - 1);
-}
-
 function dump_tree(tree, names) {
-    return bottom_up(tree, function(node) {
+    function rec(node, bound) {
         switch(node.type) {
         case "ConstantNode":
-            return "" + node.value;
+            node.res = "" + node.value;
+            return node;
         case "FunctionNode":
+            node.args = node.args.map(function(n) { return rec(n, bound) });
             node.name = SECRETFUNCTIONS[node.name] || node.name;
-            return "(" + node.name + " " + extract(node.args).join(" ") + ")";
+            node.res = "(" + node.name + " " + extract(node.args).join(" ") + ")";
+            return node;
         case "OperatorNode":
+            node.args = node.args.map(function(n) { return rec(n, bound) });
             node.op = SECRETFUNCTIONS[node.op] || node.op;
             if (is_comparison(node.op)) {
-                return flatten_comparisons(node);
+                node.res = flatten_comparisons(node);
             } else {
-                return "(" + node.op + " " + extract(node.args).join(" ") + ")";
+                node.res = "(" + node.op + " " + extract(node.args).join(" ") + ")";
             }
+            return node;
         case "SymbolNode":
-            if (!CONSTANTS[node.name])
+            if (!CONSTANTS[node.name] && bound.indexOf(node.name) == -1)
                 names.push(node.name);
-            return node.name;
+            node.res = node.name;
+            return node;
         case "ConditionalNode":
-            return "(if " + node.condition.res + 
-                " " + node.trueExpr.res + 
-                " " + node.falseExpr.res + ")";
+            node.condition = rec(node.condition, bound);
+            node.trueExpr  = rec(node.trueExpr, bound);
+            node.falseExpr = rec(node.falseExpr, bound);
+            node.res = "(if " + node.condition.res + 
+                       " " + node.trueExpr.res + 
+                       " " + node.falseExpr.res + ")";
+            return node;
         case "BlockNode":
-            return dump_block(node.blocks, names);
+            let str = "";
+            for (var i = 0; i < node.blocks.length - 1; i++) {
+                let stmt = node.blocks[i].node;
+                if (stmt.type != "AssignmentNode")
+                    throw SyntaxError("Only assignment statements are supported! " + stmt);
+
+                // TODO: handle name
+                let name = stmt.name;
+                let val = rec(stmt.expr, bound);
+                str += ("(let ((" + name + " " + val + ")) ");
+
+                if (bound.indexOf(name) == -1)
+                    bound.push(name);
+            }
+
+            let body = rec(node.blocks[node.blocks.length - 1].node, bound);
+            node.res = str + body + ")".repeat(node.blocks.length - 1);
+            return node;
         default:
             throw SyntaxError("Invalid tree!");
         }
-    }).res;
+    }
+
+    rec(tree, []);
+    return tree.res;
 }
 
 function get_errors() {
