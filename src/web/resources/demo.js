@@ -212,15 +212,17 @@ function dump_tree(tree, names) {
 
                 // TODO: handle name
                 let name = stmt.name;
-                let val = rec(stmt.expr, bound);
-                str += ("(let ((" + name + " " + val + ")) ");
+                let val = stmt.expr;
+                rec(val, bound);
+                str += ("(let ((" + name + " " + val.res + ")) ");
 
                 if (bound.indexOf(name) == -1)
                     bound.push(name);
             }
 
-            let body = rec(node.blocks[node.blocks.length - 1].node, bound);
-            node.res = str + body + ")".repeat(node.blocks.length - 1);
+            let body = node.blocks[node.blocks.length - 1].node
+            rec(body, bound);
+            node.res = str + body.res + ")".repeat(node.blocks.length - 1);
             return node;
         default:
             throw SyntaxError("Invalid tree!");
