@@ -16,8 +16,8 @@ racket -y src/herbie.rkt report --num-enodes 15000 --threads "$CORES" --timeout 
 git checkout oflatt-egglog-ctx
 
 
-#make egglog
-#racket -y src/herbie.rkt report --threads "$CORES" --no-pareto --seed "$SEED" --timeout "$TIMEOUT"  "$BENCHMARKS" egglogreport
+make egglog
+racket -y src/herbie.rkt report --threads "$CORES" --no-pareto --seed "$SEED" --timeout "$TIMEOUT"  "$BENCHMARKS" egglogreport
 
 
 
