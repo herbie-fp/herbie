@@ -77,6 +77,8 @@ function tree_errors(tree, expected) /* tree -> list */ {
                 messages.push("Conditional branches have different types " + node.trueExpr.res + " and " + node.falseExpr.res);
             }
             return node.trueExpr.res;
+        case "BlockNode":
+            return node.blocks[node.blocks.length - 1].node.res;
         default:
             messages.push("Unsupported syntax; found unexpected <code>" + node.type + "</code>.")
             return "real";
@@ -97,7 +99,10 @@ function bottom_up(tree, cb) {
         tree.condition = bottom_up(tree.condition, cb);
         tree.trueExpr = bottom_up(tree.trueExpr, cb);
         tree.falseExpr = bottom_up(tree.falseExpr, cb);
+    } else if (tree.blocks) {
+        tree.blocks[tree.blocks.length - 1].node = bottom_up(tree.blocks[tree.blocks.length - 1].node, cb);
     }
+
     tree.res = cb(tree);
     return tree;
 }
@@ -165,6 +170,23 @@ function flatten_comparisons(node) {
 
 function extract(args) {return args.map(function(n) {return n.res});}
 
+function dump_block(blocks, names) {
+    let str = "";
+    for (var i = 0; i < blocks.length - 1; i++) {
+        let node = blocks[i].node;
+        if (node.type != "AssignmentNode")
+            throw SyntaxError("Only assignment statements are supported! " + node);
+
+        // TODO: handle name
+        let name = node.name;
+        let val = dump_tree(node.expr, names);
+        str += ("(let ((" + name + " " + val + ")) ");
+    }
+
+    let body = dump_tree(blocks[blocks.length - 1].node, names);
+    return str + body + ")".repeat(blocks.length - 1);
+}
+
 function dump_tree(tree, names) {
     return bottom_up(tree, function(node) {
         switch(node.type) {
@@ -188,6 +210,8 @@ function dump_tree(tree, names) {
             return "(if " + node.condition.res + 
                 " " + node.trueExpr.res + 
                 " " + node.falseExpr.res + ")";
+        case "BlockNode":
+            return dump_block(node.blocks, names);
         default:
             throw SyntaxError("Invalid tree!");
         }
