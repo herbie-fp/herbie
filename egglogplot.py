@@ -2,6 +2,7 @@ import sys
 import json
 import matplotlib
 import matplotlib.pyplot as plt
+from statistics import median
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -16,6 +17,7 @@ output_dir = sys.argv[5]
 
 output_plot_hist = output_dir + "/errorhist.pdf"
 output_plot_time_hist = output_dir + "/timehistsecs.pdf"
+output_plot_time_egglog_better_hist = output_dir + "/timehistsecs_egglog_better.pdf"
 output_plot_size_hist = output_dir + "/sizehist.pdf"
 
 vanilla_data = json.load(open(results_file_vanilla))["tests"]
@@ -23,7 +25,13 @@ egglog_data = json.load(open(results_file_egglog))["tests"]
 
 
 tests_unfiltered = set(map(lambda row: row["name"], vanilla_data))
+other_tests = set(map(lambda row: row["name"], egglog_data))
+difference = other_tests.difference(tests_unfiltered)
 assert (len(tests_unfiltered) == len(vanilla_data))
+print(len(vanilla_data), flush=True)
+print(len(egglog_data), flush=True)
+print(difference)
+
 assert (len(vanilla_data) == len(egglog_data))
 
 vanilla_tests = dict(map(lambda row: (row["name"], row), vanilla_data))
@@ -45,6 +53,9 @@ def test_size_diff(test):
 
 def test_time_diff_secs(test):
   return egglog_tests[test]["time"]/1000.0 - vanilla_tests[test]["time"]/1000.0
+
+def test_time_X_faster(test):
+  return float(vanilla_tests[test]["time"])/float(egglog_tests[test]["time"])
 
 def plot_error():
   tests_sorted = list(tests)
@@ -108,6 +119,17 @@ def histogram_time():
   plt.hist(errors, bins = bins_filtered, color = "blue", alpha = 0.5)
   plt.savefig(output_plot_time_hist) 
 
+def histogram_time_egglog_better():
+  fig = plt.figure()
+  filtered = list(filter(lambda test: test_error_diff(test) < 0.0, tests))
+  errors = list(map(lambda test: test_time_diff_secs(test), filtered))
+
+  bins = list(range(-HIST_CUTOFF-1, HIST_CUTOFF+1))
+  bins_filtered = list(filter(lambda bin: bin % 2 == 1, bins))
+
+  plt.hist(errors, bins = bins_filtered, color = "blue", alpha = 0.5)
+  plt.savefig(output_plot_time_egglog_better_hist)
+
 
 def cdf_error():
   fig = plt.figure()
@@ -124,6 +146,7 @@ plot_error()
 histogram_error()
 histogram_size()
 histogram_time()
+histogram_time_egglog_better()
 
 #plt.savefig('egglogreport/error.pdf')
 
@@ -155,6 +178,15 @@ def generate_macros():
   save_macro_percent("besttimepercentofvanilla", min(map(lambda test: (egglog_tests[test]["time"] / vanilla_tests[test]["time"]), tests)))
 
   save_macro("numhistcutoff", len(list(filter(lambda test: test_error_diff(test) > HIST_CUTOFF, tests))))
+
+  save_macro("numegglogfaster", len(list(filter(lambda test: test_time_diff_secs(test) < 0, tests))))
+  save_macro("medianegglogXasfast", median(list(map(lambda test: test_time_X_faster(test), tests))))
+  save_macro("numegglog2xasfast", len(list(filter(lambda test: test_time_X_faster(test) > 2.0, tests))))
+
+  save_macro("medianegglogXasfastFilteredEgglogImproved", median(list(map(lambda test: test_time_X_faster(test), list(filter(lambda test: test_error_diff(test) < 0, tests))))))
+  save_macro("numegglog2xasfastFilteredEgglogImproved", len(list(filter(lambda test: test_time_X_faster(test) > 2.0, list(filter(lambda test: test_error_diff(test) < 0, tests))))))
+  save_macro("numegglog1point25XasfastFilteredEgglogImproved", len(list(filter(lambda test: test_time_X_faster(test) > 1.25, list(filter(lambda test: test_error_diff(test) < 0, tests))))))
+
 
   
 generate_macros()
