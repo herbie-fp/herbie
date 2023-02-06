@@ -16,6 +16,7 @@ output_dir = sys.argv[5]
 
 output_plot_hist = output_dir + "/errorhist.pdf"
 output_plot_time_hist = output_dir + "/timehistsecs.pdf"
+output_plot_time_egglog_better_hist = output_dir + "/timehistsecs_egglog_better.pdf"
 output_plot_size_hist = output_dir + "/sizehist.pdf"
 
 vanilla_data = json.load(open(results_file_vanilla))["tests"]
@@ -114,6 +115,17 @@ def histogram_time():
   plt.hist(errors, bins = bins_filtered, color = "blue", alpha = 0.5)
   plt.savefig(output_plot_time_hist) 
 
+def histogram_time_egglog_better():
+  fig = plt.figure()
+  filtered = list(filter(lambda test: test_error_diff(test) < 0.0, tests))
+  errors = list(map(lambda test: test_time_diff_secs(test), filtered))
+
+  bins = list(range(-HIST_CUTOFF-1, HIST_CUTOFF+1))
+  bins_filtered = list(filter(lambda bin: bin % 2 == 1, bins))
+
+  plt.hist(errors, bins = bins_filtered, color = "blue", alpha = 0.5)
+  plt.savefig(output_plot_time_egglog_better_hist)
+
 
 def cdf_error():
   fig = plt.figure()
@@ -130,6 +142,7 @@ plot_error()
 histogram_error()
 histogram_size()
 histogram_time()
+histogram_time_egglog_better()
 
 #plt.savefig('egglogreport/error.pdf')
 
