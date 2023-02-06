@@ -281,7 +281,7 @@ function get_unused_var_warnings(tree) {
             // Assume each assignment is of the form:
             //  <assign> ::= <name> = <val>; <body>.
             // Then
-            //  (i)  <name> is used if <name> is not in Used(<body>),
+            //  (i)  <name> is unused if <name> is not in Used(<body>),
             //  (ii) Used(<expr>) = Used(<val>) U (Used(<body>) \ { <name> })
             // Clearly, the assumption is slightly wrong, but this
             // tells us we just walk backwards checking condition (i)
