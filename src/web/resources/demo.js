@@ -78,6 +78,11 @@ function tree_errors(tree, expected) /* tree -> list */ {
             }
             return node.trueExpr.res;
         case "BlockNode":
+            for (var i = 0; i < tree.blocks.length - 1; i++) {
+                stmt = tree.blocks[i].node;
+                if (stmt.type != "AssignmentNode")
+                    messages.push("Expected an assignment statement before a semicolon: " + stmt);
+            }
             return node.blocks[node.blocks.length - 1].node.res;
         default:
             messages.push("Unsupported syntax; found unexpected <code>" + node.type + "</code>.")
@@ -103,7 +108,7 @@ function bottom_up(tree, cb) {
         for (var i = 0; i < tree.blocks.length - 1; i++) {
             stmt = tree.blocks[i].node;
             if (stmt.type != "AssignmentNode")
-                throw SyntaxError("Only assignment statements are supported! " + stmt);
+                throw SyntaxError("Expected an assignment statement before a semicolon: " + stmt);
             stmt.expr = bottom_up(stmt.expr, cb);
         }
 
@@ -217,7 +222,7 @@ function dump_tree(tree, names) {
             for (var i = 0; i < node.blocks.length - 1; i++) {
                 stmt = node.blocks[i].node;
                 if (stmt.type != "AssignmentNode")
-                    throw SyntaxError("Only assignment statements are supported! " + stmt);
+                    throw SyntaxError("Expected an assignment statement before a semicolon: " + stmt);
 
                 rec(stmt.expr, bound);
                 str += ("(let ((" + stmt.name + " " + stmt.expr.res + ")) ");
@@ -267,7 +272,7 @@ function get_unused_var_warnings(tree) {
             for (var i = 0; i < node.blocks.length - 1; i++) {
                 stmt = node.blocks[i].node;
                 if (stmt.type != "AssignmentNode")
-                    throw SyntaxError("Only assignment statements are supported! " + stmt);
+                    throw SyntaxError("Expected an assignment statement before a semicolon: " + stmt);
 
                 bound.push(stmt.name);
                 usedInAssigns.push(stmt.expr.res);
