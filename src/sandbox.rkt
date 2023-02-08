@@ -2,11 +2,12 @@
 (require profile math/bigfloat racket/engine json)
 (require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
-         "datafile.rkt" "errors.rkt" "float.rkt" "web/common.rkt"
+         "datafile.rkt" "errors.rkt" "float.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
 
-(provide get-alternatives get-errors get-sample get-test-result *reeval-pts* *timeout*
+(provide get-alternatives get-errors get-sample get-test-result
+         *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result)
@@ -116,9 +117,11 @@
                   #:specification (test-specification test)
                   #:preprocess (test-preprocess test)))
 
-  (for/list ([altn alts])
-    (~a (program->fpcore (alt-program altn)))))
+  (when seed (set-seed! seed))
+  (define processed-test-pcontext
+    (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
 
+  (values alts test-pcontext processed-test-pcontext))
 
 (define (run-herbie test)
   (define seed (get-seed))

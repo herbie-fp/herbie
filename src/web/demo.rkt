@@ -8,8 +8,10 @@
          web-server/managers/none)
 
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
-(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
-(require "../datafile.rkt" "pages.rkt" "make-report.rkt" "core2mathjs.rkt")
+(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt"
+         "../sandbox.rkt" "../alternative.rkt")
+(require "../datafile.rkt" "pages.rkt" "make-report.rkt"
+         "common.rkt" "core2mathjs.rkt" "history.rkt")
 (require (submod "../timeline.rkt" debug))
 
 (provide run-demo)
@@ -361,9 +363,21 @@
       (define pts+exs (hash-ref post-data 'sample))
       (eprintf "Job started on ~a..." formula)
 
-      (define result (get-alternatives (parse-test formula) pts+exs))
+      (define test (parse-test formula))
+      (define-values (altns test-pcontext processed-pcontext)
+        (get-alternatives test pts+exs))
+
+      (define fpcores
+        (for/list ([altn altns])
+          (~a (program->fpcore (alt-program altn)))))
+  
+      (define histories
+        (for/list ([altn altns])
+          (~a (render-history altn processed-pcontext test-pcontext (test-context test)))))
+
       (eprintf " complete\n")
-      (hasheq 'alternatives result))))
+      (hasheq 'alternatives fpcores
+              'histories histories))))
 
 (define ->mathjs-endpoint
   (post-with-json-response
