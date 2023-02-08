@@ -63,9 +63,12 @@
   (when seed (set-seed! seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
-  ; I feel like there's a simpler way to split a list of cons into two lists...
-  (define pts (for/list ([ptex pts+exs]) (map real->double-flonum (car ptex))))
-  (define exs (for/list ([ptex pts+exs]) (real->double-flonum (car (cdr ptex)))))
+  (define-values (pts exs)
+    (let ([var-reprs (context-var-reprs tcontext)])
+      (for/lists (pts exs) ([entry (in-list pts+exs)])
+        (match-define (list pt ex) entry)
+        (values (for/list ([i pt] [repr var-reprs]) (real->repr i repr))
+                (real->repr ex output-repr)))))
 
   (define joint-pcontext (mk-pcontext pts exs))
 
@@ -82,26 +85,19 @@
 
 (define (get-alternatives test pts+exs #:seed [seed #f] #:profile [profile? #f])
   (define output-repr (test-output-repr test))
-  (define context (test-context test))
+  (*context* (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
-
-  ;; Set up context without resampling points
-  (define (setup-context-no-resample! specification precondition repr)
-    (define vars (program-variables specification))
-    (*context* (context vars repr (map (const repr) vars)))
-    (when (empty? (*needed-reprs*)) ; if empty, probably debugging
-      (*needed-reprs* (list repr (get-representation 'bool)))))
-
-  (setup-context-no-resample!
-    (or (test-specification test) (test-program test)) (test-precondition test)
-    output-repr)
 
   (when seed (set-seed! seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
-  (define pts (for/list ([ptex pts+exs]) (map real->double-flonum (car ptex))))
-  (define exs (for/list ([ptex pts+exs]) (real->double-flonum (car (cdr ptex)))))
+  (define-values (pts exs)
+    (let ([var-reprs (context-var-reprs (*context*))])
+      (for/lists (pts exs) ([entry (in-list pts+exs)])
+        (match-define (list pt ex) entry)
+        (values (for/list ([i pt] [repr var-reprs]) (real->repr i repr))
+                (real->repr ex output-repr)))))
 
   (define joint-pcontext (mk-pcontext pts exs))
 
