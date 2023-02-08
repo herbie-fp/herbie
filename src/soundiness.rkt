@@ -38,30 +38,34 @@
   proof-diffs)
   
 
-(define (add-soundiness-to pcontext ctx altn)
+(define (add-soundiness-to pcontext ctx cache altn)
   (match altn
     [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
-     (define proof (get-proof input
-                              (location-get loc (alt-program prev))
-                              (location-get loc prog)))
-     (cond
-       [proof
-        ;; Proofs are actually on subexpressions,
-        ;; we need to construct the proof for the full expression
-        (define proof*
-          (for/list ([step proof])
-            (let ([step* (canonicalize-rewrite step)])
-              (program-body (location-do loc prog (λ _ step*))))))
-        (define errors
-          (let ([vars (program-variables prog)])
-            (get-proof-errors proof* pcontext ctx vars)))
-        (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
-       [else
-        (alt prog `(simplify ,loc ,input #f #f) `(,prev))])]
+     (define start (location-get loc (alt-program prev)))
+     (define end (location-get loc prog))
+     (hash-ref! cache
+                (list input start end)
+                (λ ()
+                  (define proof (get-proof input start end))
+                  (cond
+                    [proof
+                     ;; Proofs are actually on subexpressions,
+                     ;; we need to construct the proof for the full expression
+                     (define proof*
+                       (for/list ([step proof])
+                         (let ([step* (canonicalize-rewrite step)])
+                           (program-body (location-do loc prog (λ _ step*))))))
+                     (define errors
+                       (let ([vars (program-variables prog)])
+                         (get-proof-errors proof* pcontext ctx vars)))
+                     (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
+                    [else
+                      (alt prog `(simplify ,loc ,input #f #f) `(,prev))])))]
     [else
      altn]))
 
 
 (define (add-soundiness alts pcontext ctx)
+  (define cache (make-hash))
   (for/list ([altn alts])
-    (alt-map (curry add-soundiness-to pcontext ctx) altn)))
+    (alt-map (curry add-soundiness-to pcontext ctx cache) altn)))

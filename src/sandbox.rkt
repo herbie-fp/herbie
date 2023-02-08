@@ -82,7 +82,7 @@
 
 (define (get-alternatives test pts+exs #:seed [seed #f] #:profile [profile? #f])
   (define output-repr (test-output-repr test))
-  (define tcontext (test-context test))
+  (define context (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
@@ -119,7 +119,10 @@
     (run-improve! (test-program test) train-pcontext (*num-iterations*)
                   #:specification (test-specification test)
                   #:preprocess (test-preprocess test)))
-  (for/list ([alt alts]) (define out (open-output-string)) (display (program->fpcore (alt-program alt)) out) (get-output-string out)))
+
+  (for/list ([altn alts])
+    (~a (program->fpcore (alt-program altn)))))
+
 
 (define (run-herbie test)
   (define seed (get-seed))
