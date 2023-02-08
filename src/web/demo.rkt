@@ -373,7 +373,12 @@
   
       (define histories
         (for/list ([altn altns])
-          (~a (render-history altn processed-pcontext test-pcontext (test-context test)))))
+          (let ([os (open-output-string)])
+            (parameterize ([current-output-port os])
+              (write-xexpr
+                `(ol ([class "history"])
+                  ,@(render-history altn processed-pcontext test-pcontext (test-context test))))
+              (get-output-string os)))))
 
       (eprintf " complete\n")
       (hasheq 'alternatives fpcores
