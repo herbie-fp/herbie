@@ -9,7 +9,7 @@
 
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt"
-         "../sandbox.rkt" "../alternative.rkt")
+         "../syntax/sugar.rkt"  "../sandbox.rkt" "../alternative.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt"
          "common.rkt" "core2mathjs.rkt" "history.rkt")
 (require (submod "../timeline.rkt" debug))
@@ -369,7 +369,8 @@
 
       (define fpcores
         (for/list ([altn altns])
-          (~a (program->fpcore (alt-program altn)))))
+          (define prog (resugar-program (alt-program altn) (test-output-repr test)))
+          (~a (program->fpcore prog))))
   
       (define histories
         (for/list ([altn altns])
