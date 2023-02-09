@@ -366,6 +366,10 @@
       (eprintf " complete\n")
       (hasheq 'points result))))
 
+(define (average . xs)
+  (for/fold ([avg 0]) ([x (in-list xs)] [n (in-naturals 1)])
+    (+ avg (/ (- x avg) n))))
+
 (define local-error-endpoint
   (post-with-json-response
     (lambda (post-data)
@@ -384,11 +388,13 @@
             [(list op args ...)
              (hasheq
               'e (~a op)
+              'avg-error (exact->inexact (apply average (first err)))
               'error (first err)
               'children (map loop args (rest err)))]
             [_
              (hasheq
               'e (~a expr)
+              'avg-error (exact->inexact (apply average err))
               'error err)])))
 
       (eprintf " complete\n")
