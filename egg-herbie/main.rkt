@@ -22,7 +22,14 @@
                  [else "libegg_math"])
                 (bytes->string/utf-8 (system-type 'so-suffix)))))
 
-(define-ffi-definer define-eggmath (ffi-lib libeggmath-path))
+(with-handlers ([(lambda (exn)
+                    (and (exn:fail:filesystem? exn)
+                         (string-contains? (exn-message exn) "but is an incompatible architecture")))
+                 (lambda (exn)
+                   (error (format "Incompatible Rust and Racket architectures:\n~a" (exn-message exn))))])
+    (ffi-lib libeggmath-path))
+(define-ffi-definer define-eggmath
+  (ffi-lib libeggmath-path))
 
 (define _egraph-pointer (_cpointer 'egraph))
 
