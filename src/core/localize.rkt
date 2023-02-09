@@ -45,6 +45,7 @@
 
   errs)
 
+;; Returns a list of expressions sorted by increasing local error
 (define (localize-error prog ctx)
   (define errs (all-local-error prog ctx))
   (sort
@@ -54,6 +55,9 @@
               (sow (cons err expr)))))
     > #:key (compose errors-score car)))
 
+;; Compute the local error of every subexpression of `prog`
+;; and returns the error information as an S-expr in the
+;; same shape as `prog`
 (define (local-error-as-tree prog ctx)
   (define errs (all-local-error prog ctx))
   (define expr (program-body prog))
