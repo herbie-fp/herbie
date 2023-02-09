@@ -63,7 +63,7 @@
          (list #f #f #f expr #f)
          (list dir rule loc expr sound))))
 
-
+;; HTML renderer for derivations
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))
 
