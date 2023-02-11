@@ -9,7 +9,8 @@
 
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt"
-         "../syntax/sugar.rkt"  "../sandbox.rkt" "../alternative.rkt" "../programs.rkt")
+         "../syntax/sugar.rkt" "../alternative.rkt" "../float.rkt"
+         "../programs.rkt" "../sandbox.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt"
          "common.rkt" "core2mathjs.rkt" "history.rkt")
 (require (submod "../timeline.rkt" debug))
@@ -378,24 +379,27 @@
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define prog (resugar-program (test-program test) (test-output-repr test)))
+      (define repr (test-output-repr test))
+      (define prog (resugar-program (test-program test) repr))
       (define local-error (get-local-error test pts+exs))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
+      (define format-ulps (compose format-bits ulps->bits))
       (define tree
         (let loop ([expr (program-body prog)] [err local-error])
           (match expr
             [(list op args ...)
              (hasheq
               'e (~a op)
-              'avg-error (exact->inexact (apply average (first err)))
-              'error (first err)
+              'avg-error (format-ulps (apply average (first err)))
+              'error (map format-ulps (first err))
               'children (map loop args (rest err)))]
             [_
              (hasheq
               'e (~a expr)
-              'avg-error (exact->inexact (apply average err))
-              'error err)])))
+              'avg-error (format-ulps (apply average err))
+              'error (map format-ulps err)
+              'children '())])))
 
       (eprintf " complete\n")
       (hasheq 'tree tree))))
