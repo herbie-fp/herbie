@@ -34,3 +34,7 @@ const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', {
       })).json()).mathjs
 
 assert.equal(mathjs, "sqrt(x + 1.0) - sqrt(x)")
+
+const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()).points
+
+assert.deepEqual(exacts, [[1, 1], -1.4142135623730951])
