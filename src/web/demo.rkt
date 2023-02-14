@@ -47,6 +47,7 @@
    [("api" "analyze") #:method "post" analyze-endpoint]
    [("api" "localerror") #:method "post" local-error-endpoint]
    [("api" "alternatives") #:method "post" alternatives-endpoint]
+   [("api" "exacts") #:method "post" exacts-endpoint]
    [("api" "mathjs") #:method "post" ->mathjs-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
 
@@ -363,6 +364,19 @@
       (eprintf "Job started on ~a..." formula)
 
       (define result (get-errors (parse-test formula) pts+exs))
+
+      (eprintf " complete\n")
+      (hasheq 'points result))))
+
+;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
+(define exacts-endpoint 
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts (hash-ref post-data 'points))
+      (eprintf "Job started on ~a..." formula)
+
+      (define result (get-exacts (parse-test formula) pts))
 
       (eprintf " complete\n")
       (hasheq 'points result))))

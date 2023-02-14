@@ -1,14 +1,14 @@
 #lang racket
-(require profile math/bigfloat racket/engine json)
+(require profile math/bigfloat racket/engine json rival)
 (require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
-         "datafile.rkt" "errors.rkt" "float.rkt"
+         "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "core/localize.rkt")
+         "core/localize.rkt" "ground-truth.rkt")
 
 (provide get-alternatives get-errors get-sample get-test-result
-         *reeval-pts* *timeout*
+         get-exacts *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result get-local-error)
@@ -39,6 +39,17 @@
   (for/lists (pts exs)
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
+
+(define (get-exacts test pts)
+  (define repr (test-output-repr test))
+  (define starting-precision (*starting-prec*))
+  (define <-bf (representation-bf->repr repr))
+  (define fn (make-search-func (test-precondition test) (list (test-program test)) (test-context test)))
+  (for/list ([pt pts])
+    (define-values (status precision out)
+        (ival-eval fn pt #:precision starting-precision))
+    (define exs (map (compose <-bf ival-lo) out))
+    (cons pt exs)))
 
 (define (get-sample test)
   (define output-repr (test-output-repr test))
