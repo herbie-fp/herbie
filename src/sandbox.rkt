@@ -4,13 +4,14 @@
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
          "datafile.rkt" "errors.rkt" "float.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
-         "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
+         "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
+         "core/localize.rkt")
 
 (provide get-alternatives get-errors get-sample get-test-result
          *reeval-pts* *timeout*
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
-         get-table-data unparse-result)
+         get-table-data unparse-result get-local-error)
 
 ;; These cannot move between threads!
 (struct test-result (test bits time timeline warnings))
@@ -68,7 +69,7 @@
     (let ([var-reprs (context-var-reprs tcontext)])
       (for/lists (pts exs) ([entry (in-list pts+exs)])
         (match-define (list pt ex) entry)
-        (values (for/list ([i pt] [repr var-reprs]) (real->repr i repr))
+        (values (map real->repr pt var-reprs)
                 (real->repr ex output-repr)))))
 
   (define joint-pcontext (mk-pcontext pts exs))
@@ -84,6 +85,36 @@
   (define-values (points exacts) (get-p&es joint-pcontext))
   (for/list ([point points] [err errs]) (list point (format-bits (ulps->bits err)))))
 
+(define (get-local-error test pts+exs #:seed [seed #f] #:profile [profile? #f])
+  (define output-repr (test-output-repr test))
+  (*context* (test-context test))
+  (*needed-reprs* (list output-repr (get-representation 'bool)))
+  (generate-prec-rewrites (test-conversions test))
+
+  (when seed (set-seed! seed))
+  (random) ;; Child process uses deterministic but different seed from evaluator
+
+  (define-values (pts exs)
+    (let ([var-reprs (context-var-reprs (*context*))])
+      (for/lists (pts exs) ([entry (in-list pts+exs)])
+        (match-define (list pt ex) entry)
+        (values (map real->repr pt var-reprs)
+                (real->repr ex output-repr)))))
+
+  (define joint-pcontext (mk-pcontext pts exs))
+  (define processed-pcontext
+    (make-preprocess-pcontext (test-program test)
+                              joint-pcontext
+                              (*num-iterations*)
+                              #:specification (test-specification test)
+                              #:preprocess (test-preprocess test)))
+
+  (*pcontext* processed-pcontext)
+  (define local-error (local-error-as-tree (test-program test) (*context*)))
+
+  local-error)
+
+
 (define (get-alternatives test pts+exs #:seed [seed #f] #:profile [profile? #f])
   (define output-repr (test-output-repr test))
   (*context* (test-context test))
@@ -97,7 +128,7 @@
     (let ([var-reprs (context-var-reprs (*context*))])
       (for/lists (pts exs) ([entry (in-list pts+exs)])
         (match-define (list pt ex) entry)
-        (values (for/list ([i pt] [repr var-reprs]) (real->repr i repr))
+        (values (map real->repr pt var-reprs)
                 (real->repr ex output-repr)))))
 
   (define joint-pcontext (mk-pcontext pts exs))

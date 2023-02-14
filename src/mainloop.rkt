@@ -317,9 +317,9 @@
   (run-improve! iters prog specification preprocess original-points repr))
 
 
-(define (run-improve! prog pcontext iters
-                      #:specification [specification #f]
-                      #:preprocess [preprocess '()])
+(define (make-preprocess-pcontext prog pcontext iters
+                                  #:specification [specification #f]
+                                  #:preprocess [preprocess '()])
   (define vars (program-variables specification))
   (timeline-event! 'preprocess)
 
@@ -333,7 +333,16 @@
   (timeline-push! 'symmetry (map ~a new-preprocess))
   (*herbie-preprocess* (append preprocess new-preprocess))
 
-  (define processed-pcontext (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
+  (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
+
+
+(define (run-improve! prog pcontext iters
+                      #:specification [specification #f]
+                      #:preprocess [preprocess '()])
+  (define processed-pcontext
+    (make-preprocess-pcontext prog pcontext iters
+                              #:specification specification
+                              #:preprocess preprocess))
 
   (match-define (cons best rest) (mutate! prog iters processed-pcontext))
 

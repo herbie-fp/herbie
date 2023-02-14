@@ -1,9 +1,9 @@
 #lang racket
 
-(require math/bigfloat)
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
+(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
+         "../syntax/types.rkt" "../syntax/syntax.rkt")
 
-(provide localize-error)
+(provide localize-error local-error-as-tree)
 
 (define (all-subexpressions expr)
   (remove-duplicates
@@ -16,7 +16,7 @@
              [(list op args ...)
               (for-each loop args)])))))
 
-(define (localize-error prog ctx)
+(define (all-local-error prog ctx)
   (define expr (program-body prog))
   (define subexprs (all-subexpressions expr))
   (define subprogs
@@ -43,9 +43,25 @@
                            (apply (operator-info f 'fl) argapprox) repr)]))
       (hash-update! errs expr (curry cons err))))
 
+  errs)
+
+;; Returns a list of expressions sorted by increasing local error
+(define (localize-error prog ctx)
+  (define errs (all-local-error prog ctx))
   (sort
-   (reap [sow]
-         (for ([(expr err) (in-hash errs)])
-           (unless (andmap (curry = 1) err)
-             (sow (cons err expr)))))
-   > #:key (compose errors-score car)))
+    (reap [sow]
+          (for ([(expr err) (in-hash errs)])
+            (unless (andmap (curry = 1) err)
+              (sow (cons err expr)))))
+    > #:key (compose errors-score car)))
+
+;; Compute the local error of every subexpression of `prog`
+;; and returns the error information as an S-expr in the
+;; same shape as `prog`
+(define (local-error-as-tree prog ctx)
+  (define errs (all-local-error prog ctx))
+  (define expr (program-body prog))
+  (let loop ([expr expr])
+    (match expr
+      [(list op args ...) (cons (hash-ref errs expr) (map loop args))]
+      [_ (list (hash-ref errs expr))])))

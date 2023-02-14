@@ -9,7 +9,8 @@
 
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt"
-         "../syntax/sugar.rkt"  "../sandbox.rkt" "../alternative.rkt")
+         "../syntax/sugar.rkt" "../alternative.rkt" "../points.rkt"
+         "../programs.rkt" "../sandbox.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt"
          "common.rkt" "core2mathjs.rkt" "history.rkt")
 (require (submod "../timeline.rkt" debug))
@@ -44,6 +45,7 @@
    [("up") check-up]
    [("api" "sample") #:method "post" sample-endpoint]
    [("api" "analyze") #:method "post" analyze-endpoint]
+   [("api" "localerror") #:method "post" local-error-endpoint]
    [("api" "alternatives") #:method "post" alternatives-endpoint]
    [("api" "mathjs") #:method "post" ->mathjs-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
@@ -249,6 +251,25 @@
       (and (*demo-output*)
            (directory-exists? (build-path (*demo-output*) (format "~a.~a" hash *herbie-commit*))))))
 
+(define (post-with-json-response fn)
+  (lambda (req)
+    (define post-body (request-post-data/raw req))
+    (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
+    (response 200
+              #"OK"
+              (current-seconds)
+              APPLICATION/JSON-MIME-TYPE
+              empty
+              (λ (op) (write-json (fn post-data) op)))))
+
+(define (response/error title body)
+  (response/full 400
+                 #"Bad Request"
+                 (current-seconds)
+                 TEXT/HTML-MIME-TYPE
+                 '()
+                 (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
+
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
     [(list formula-str)
@@ -320,16 +341,6 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (post-with-json-response fn) (lambda (req)
-  (define post-body (request-post-data/raw req))
-  (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
-  (response
-    200 #"OK"
-    (current-seconds) APPLICATION/JSON-MIME-TYPE
-    empty
-    (λ (op) (write-json (fn post-data) op)))
-))
-
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
 (define sample-endpoint
@@ -355,6 +366,38 @@
 
       (eprintf " complete\n")
       (hasheq 'points result))))
+
+(define local-error-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts+exs (hash-ref post-data 'sample))
+      (eprintf "Job started on ~a..." formula)
+
+      (define test (parse-test formula))
+      (define repr (test-output-repr test))
+      (define prog (resugar-program (test-program test) repr))
+      (define local-error (get-local-error test pts+exs))
+      
+      ;; TODO: potentially unsafe if resugaring changes the AST
+      (define tree
+        (let loop ([expr (program-body prog)] [err local-error])
+          (match expr
+            [(list op args ...)
+             ;; err => (List (listof Integer) List ...)
+             (hasheq
+              'e (~a op)
+              'avg-error (format-bits (errors-score (first err)))
+              'children (map loop args (rest err)))]
+            [_
+             ;; err => (List (listof Integer))
+             (hasheq
+              'e (~a expr)
+              'avg-error (format-bits (errors-score (first err)))
+              'children '())])))
+
+      (eprintf " complete\n")
+      (hasheq 'tree tree))))
 
 (define alternatives-endpoint
   (post-with-json-response
@@ -397,14 +440,6 @@
       (define result (core->mathjs (syntax->datum formula)))
       (eprintf " complete\n")
       (hasheq 'mathjs result))))
-
-(define (response/error title body)
-  (response/full 400
-                 #"Bad Request"
-                 (current-seconds)
-                 TEXT/HTML-MIME-TYPE
-                 '()
-                 (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
