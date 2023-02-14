@@ -64,4 +64,4 @@
   (let loop ([expr expr])
     (match expr
       [(list op args ...) (cons (hash-ref errs expr) (map loop args))]
-      [_ (hash-ref errs expr)])))
+      [_ (list (hash-ref errs expr))])))

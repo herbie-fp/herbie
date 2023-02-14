@@ -9,7 +9,7 @@
 
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt"
-         "../syntax/sugar.rkt" "../alternative.rkt" "../float.rkt"
+         "../syntax/sugar.rkt" "../alternative.rkt" "../points.rkt"
          "../programs.rkt" "../sandbox.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt"
          "common.rkt" "core2mathjs.rkt" "history.rkt")
@@ -384,21 +384,20 @@
       (define local-error (get-local-error test pts+exs))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
-      (define format-ulps (compose format-bits ulps->bits))
       (define tree
         (let loop ([expr (program-body prog)] [err local-error])
           (match expr
             [(list op args ...)
+             ;; err => (List (listof Integer) List ...)
              (hasheq
               'e (~a op)
-              'avg-error (format-ulps (apply average (first err)))
-              'error (map format-ulps (first err))
+              'avg-error (format-bits (errors-score (first err)))
               'children (map loop args (rest err)))]
             [_
+             ;; err => (List (listof Integer))
              (hasheq
               'e (~a expr)
-              'avg-error (format-ulps (apply average err))
-              'error (map format-ulps err)
+              'avg-error (format-bits (errors-score (first err)))
               'children '())])))
 
       (eprintf " complete\n")
