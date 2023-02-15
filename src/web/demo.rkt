@@ -48,6 +48,7 @@
    [("api" "localerror") #:method "post" local-error-endpoint]
    [("api" "alternatives") #:method "post" alternatives-endpoint]
    [("api" "exacts") #:method "post" exacts-endpoint]
+   [("api" "calculate") #:method "post" calculate-endpoint]
    [("api" "mathjs") #:method "post" ->mathjs-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
 
@@ -377,6 +378,18 @@
       (eprintf "Job started on ~a..." formula)
 
       (define result (get-exacts (parse-test formula) pts))
+
+      (eprintf " complete\n")
+      (hasheq 'points result))))
+
+(define calculate-endpoint 
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts (hash-ref post-data 'points))
+      (eprintf "Job started on ~a..." formula)
+
+      (define result (get-calculation (parse-test formula) pts))
 
       (eprintf " complete\n")
       (hasheq 'points result))))

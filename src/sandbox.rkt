@@ -8,7 +8,7 @@
          "core/localize.rkt" "ground-truth.rkt")
 
 (provide get-alternatives get-errors get-sample get-test-result
-         get-exacts *reeval-pts* *timeout*
+         get-exacts *reeval-pts* *timeout* get-calculation
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result get-local-error)
@@ -50,6 +50,12 @@
         (ival-eval fn pt #:precision starting-precision))
     (define exs (map (compose <-bf ival-lo) out))
     (cons pt exs)))
+
+(define (get-calculation test pts)
+  (define fn (eval-prog (test-program test) 'fl (test-context test)))
+  (for/list ([pt pts])
+    (define val (apply fn pt))
+    (cons pt (list val))))
 
 (define (get-sample test)
   (define output-repr (test-output-repr test))
