@@ -54,14 +54,6 @@
       [else true]))
   (ops-in-expr (rule-output rule)))
 
-(register-reset
-  #:priority 10 ; Must be higher than priority for pruning operators
-  (λ ()
-    (*rulesets*
-    (for/list ([ruleset (*rulesets*)])
-      (match-define (list rules groups types) ruleset)
-      (list (filter rule-ops-supported? rules) groups types)))))
-
 ;;
 ;;  Rule loading
 ;;
