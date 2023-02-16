@@ -18,40 +18,40 @@
 
 ; The "patch table"
 ; Stores a mapping from expression to improvements (expr -> (listof exprs))
-(define *patch-table* (patchtable (make-hash) '() '() #f #f #f))
+(define *patch-table* (make-parameter (patchtable (make-hash) '() '() #f #f #f)))
 
 ; patch table may be invalidated between runs
 (register-reset
-  (λ () (set! *patch-table* (patchtable (make-hash) '() '() #f #f #f))))
+  (λ () (*patch-table* (patchtable (make-hash) '() '() #f #f #f))))
 
 ; setters / getters
 
 (define (^queued^ [val #f])
-  (when val (set-patchtable-queued! *patch-table* val))
-  (patchtable-queued *patch-table*))
+  (when val (set-patchtable-queued! (*patch-table*) val))
+  (patchtable-queued (*patch-table*)))
 
 (define (^queuedlow^ [val #f])
-  (when val (set-patchtable-queuedlow! *patch-table* val))
-  (patchtable-queuedlow *patch-table*))
+  (when val (set-patchtable-queuedlow! (*patch-table*) val))
+  (patchtable-queuedlow (*patch-table*)))
 
 (define (^rewrites^ [val #f])
-  (when val (set-patchtable-rewrites! *patch-table* val))
-  (patchtable-rewrites *patch-table*))
+  (when val (set-patchtable-rewrites! (*patch-table*) val))
+  (patchtable-rewrites (*patch-table*)))
 
 (define (^series^ [val #f])
-  (when val (set-patchtable-series! *patch-table* val))
-  (patchtable-series *patch-table*))
+  (when val (set-patchtable-series! (*patch-table*) val))
+  (patchtable-series (*patch-table*)))
 
 (define (^final^ [val #f])
-  (when val (set-patchtable-final! *patch-table* val))
-  (patchtable-final *patch-table*))
+  (when val (set-patchtable-final! (*patch-table*) val))
+  (patchtable-final (*patch-table*)))
 
 ; Adds an improvement to the patch table
 ; If `improve` is not provided, a key is added
 ; with no improvements
 (define (add-patch! expr [improve #f])
   (when (*use-improve-cache*)
-    (hash-update! (patchtable-table *patch-table*) expr
+    (hash-update! (patchtable-table (*patch-table*)) expr
                   (if improve (curry cons improve) identity) (list))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -269,7 +269,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (patch-table-has-expr? expr)
-  (hash-has-key? (patchtable-table *patch-table*) expr))
+  (hash-has-key? (patchtable-table (*patch-table*)) expr))
 
 (define (patch-table-add! expr vars down?)
   (when (patch-table-has-expr? expr)
@@ -283,7 +283,7 @@
   (void))
 
 (define (patch-table-get expr)
-  (hash-ref (patchtable-table *patch-table*) expr))
+  (hash-ref (patchtable-table (*patch-table*)) expr))
 
 (define (patch-table-runnable?)
   (or (not (null? (^queued^))) (not (null? (^queuedlow^)))))

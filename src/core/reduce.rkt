@@ -9,16 +9,16 @@
 ;; It uses commutativity, identities, inverses, associativity,
 ;; distributativity, and function inverses.
 
-(define simplify-cache (make-hash))
-(define simplify-node-cache (make-hash))
+(define simplify-cache (make-parameter (make-hash)))
+(define simplify-node-cache (make-parameter (make-hash)))
 
 (register-reset
  (λ ()
-  (set! simplify-cache (make-hash))
-  (set! simplify-node-cache (make-hash))))
+  (simplify-cache (make-hash))
+  (simplify-node-cache (make-hash))))
 
 (define (simplify expr)
-  (hash-ref! simplify-cache expr (λ () (simplify* expr))))
+  (hash-ref! (simplify-cache) expr (λ () (simplify* expr))))
 
 (define (simplify* expr)
   (match expr
@@ -86,7 +86,8 @@
     [_ expr]))
 
 (define (simplify-node expr)
-  (hash-ref! simplify-node-cache expr (λ () (simplify-node* expr))))
+  (hash-ref! (simplify-node-cache) expr
+             (λ () (simplify-node* expr))))
 
 (define (simplify-node* expr)
   (match (simplify-evaluation expr)

@@ -225,7 +225,7 @@
                 (bf-precision)
                 #f
                 (timeline-extract)
-                warning-log (make-alt (test-program test)) alts
+                (warning-log) (make-alt (test-program test)) alts
                 (*herbie-preprocess*) points exacts
                 (errors (test-program test) train-pcontext context)
                 (errors (alt-program (car alts)) train-pcontext context)
@@ -275,10 +275,10 @@
     (print-warnings)
     (test-failure test (bf-precision)
                   (- (current-inexact-milliseconds) start-time) (timeline-extract)
-                  warning-log e))
+                  (warning-log) e))
 
   (define (in-engine _)
-    (set! timeline *timeline*)
+    (set! timeline (*timeline*))
     (if profile?
         (profile-thunk
          (λ () (compute-result test))
