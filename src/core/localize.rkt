@@ -65,7 +65,8 @@
   (define subexprs-fn
     (for/hash ([expr (in-list subexprs)])
       (define subexpr-prog `(λ ,(program-variables prog) ,expr))
-      (values expr (eval-prog-real subexpr-prog ctx))))
+      (define ctx* (struct-copy context ctx [repr (repr-of expr ctx)]))
+      (values expr (eval-prog-real subexpr-prog ctx*))))
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts-hash
