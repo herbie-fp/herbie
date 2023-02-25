@@ -10,9 +10,9 @@
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt"
          "../syntax/sugar.rkt" "../alternative.rkt" "../points.rkt"
-         "../programs.rkt" "../sandbox.rkt")
+         "../programs.rkt" "../sandbox.rkt" "../float.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt"
-         "common.rkt" "core2mathjs.rkt" "history.rkt")
+         "common.rkt" "core2mathjs.rkt" "history.rkt" "plot.rkt")
 (require (submod "../timeline.rkt" debug))
 
 (provide run-demo)
@@ -407,12 +407,24 @@
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
+      (define vars (test-vars test))
+      (define repr (test-output-repr test))
+
       (define-values (altns test-pcontext processed-pcontext)
         (get-alternatives test pts+exs))
+      
+      (define splitpoints
+        (for/list ([alt altns]) 
+          (for/list ([var vars])
+            (define split-var? (equal? var (regime-var alt)))
+            (if split-var?
+                (for/list ([val (regime-splitpoints alt)])
+                  (real->ordinal (repr->real val repr) repr))
+                '()))))
 
       (define fpcores
         (for/list ([altn altns])
-          (define prog (resugar-program (alt-program altn) (test-output-repr test)))
+          (define prog (resugar-program (alt-program altn) repr))
           (~a (program->fpcore prog))))
   
       (define histories
@@ -429,7 +441,8 @@
 
       (eprintf " complete\n")
       (hasheq 'alternatives fpcores
-              'histories histories))))
+              'histories histories
+              'splitpoints splitpoints))))
 
 (define ->mathjs-endpoint
   (post-with-json-response
