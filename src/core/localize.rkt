@@ -1,6 +1,5 @@
 #lang racket
 
-(require math/bigfloat rival)
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
 
