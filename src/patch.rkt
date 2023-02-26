@@ -20,6 +20,10 @@
 ; Stores a mapping from expression to improvements (expr -> (listof exprs))
 (define *patch-table* (make-parameter (patchtable (make-hash) '() '() #f #f #f)))
 
+(register-reset 
+  (λ ()
+    (*patch-table* (patchtable (make-hash) '() '() #f #f #f))))
+
 ; setters / getters
 
 (define (^queued^ [val #f])

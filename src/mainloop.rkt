@@ -20,6 +20,10 @@
 
 (define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f)))
 
+(register-reset 
+  (λ ()
+    (^shell-state^ (shellstate #f #f #f #f #f))))
+
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
   (shellstate-locs (^shell-state^)))
