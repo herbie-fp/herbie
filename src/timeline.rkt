@@ -10,12 +10,12 @@
 ;; This is a box so we can get a reference outside the engine, and so
 ;; access its value even in a timeout.
 ;; Important: Use 'eq?' based hash tables, process may freeze otherwise
-(define *timeline* (make-parameter (box '())))
+(define-resetter *timeline*
+  (λ () (box '()))
+  (λ () (box '())))
+
 (define *timeline-disabled* (make-parameter true))
 (define *timeline-timers* (mutable-set))
-
-(register-reset
-  (λ () (*timeline* (box '()))))
 
 (define (timeline-event! type)
   (unless (*timeline-disabled*)

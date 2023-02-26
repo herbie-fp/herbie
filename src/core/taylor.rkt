@@ -61,15 +61,17 @@
                (map make-monomial vars (map (curryr / outside-expt) expts)))
               outside-expt)))))
 
-(define n-sum-to-cache (make-parameter (make-hash)))
-(define logcache (make-parameter (make-hash '((1 . ((1 -1 1)))))))
-(define series-cache (make-parameter (make-hash)))
+(define-resetter n-sum-to-cache
+  (λ () (make-hash))
+  (λ () (make-hash)))
 
-(register-reset
-  (λ ()
-    (n-sum-to-cache (make-hash))
-    (logcache (make-hash '((1 . ((1 -1 1))))))
-    (series-cache (make-hash))))
+(define-resetter log-cache
+  (λ () (make-hash '((1 . ((1 -1 1))))))
+  (λ () (make-hash '((1 . ((1 -1 1)))))))
+
+(define-resetter series-cache
+  (λ () (make-hash))
+  (λ () (make-hash)))
 
 (define (n-sum-to n k)
   (hash-ref! (n-sum-to-cache) (cons n k)
@@ -478,7 +480,7 @@
 (define logbiggest 1)
 
 (define (logcompute i)
-  (hash-ref! (logcache) i
+  (hash-ref! (log-cache) i
              (λ () (logstep (logcompute (- i 1))))))
 
 (define (taylor-log coeffs)

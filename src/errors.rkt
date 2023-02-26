@@ -79,15 +79,15 @@
     [else
      (old-error-display-handler message err)])))
 
-
 (define *warnings-disabled* (make-parameter false))
-(define warnings (make-parameter (make-hash)))
-(define warning-log (make-parameter '()))
 
-(register-reset 
-  (λ ()
-    (warnings (make-hash))
-    (warning-log '())))
+(define-resetter warnings
+  (λ () (make-hash))
+  (λ () (make-hash)))
+
+(define-resetter warning-log
+  (λ () '())
+  (λ () '()))
 
 (define (warn type message #:url [url #f] #:extra [extra '()] . args)
   (unless (*warnings-disabled*)

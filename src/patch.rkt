@@ -16,13 +16,14 @@
 
 (struct patchtable (table queued queuedlow rewrites series final) #:mutable)
 
+(define (empty-patchtable)
+  (patchtable (make-hash) '() '() #f #f #f))
+
 ; The "patch table"
 ; Stores a mapping from expression to improvements (expr -> (listof exprs))
-(define *patch-table* (make-parameter (patchtable (make-hash) '() '() #f #f #f)))
-
-(register-reset 
-  (λ ()
-    (*patch-table* (patchtable (make-hash) '() '() #f #f #f))))
+(define-resetter *patch-table*
+  (λ () (empty-patchtable))
+  (λ () (empty-patchtable)))
 
 ; setters / getters
 

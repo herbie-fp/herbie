@@ -1,21 +1,19 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt" "matcher.rkt"
-         "../syntax/rules.rkt" "../syntax/syntax.rkt" "../syntax/sugar.rkt")
-
+(require "../common.rkt" "../programs.rkt" "../syntax/syntax.rkt")
 (provide simplify)
 
 ;; Cancellation's goal is to cancel (additively or multiplicatively) like terms.
 ;; It uses commutativity, identities, inverses, associativity,
 ;; distributativity, and function inverses.
 
-(define simplify-cache (make-parameter (make-hash)))
-(define simplify-node-cache (make-parameter (make-hash)))
+(define-resetter simplify-cache
+  (λ () (make-hash))
+  (λ () (make-hash)))
 
-(register-reset
- (λ ()
-  (simplify-cache (make-hash))
-  (simplify-node-cache (make-hash))))
+(define-resetter simplify-node-cache
+  (λ () (make-hash))
+  (λ () (make-hash)))
 
 (define (simplify expr)
   (hash-ref! (simplify-cache) expr (λ () (simplify* expr))))

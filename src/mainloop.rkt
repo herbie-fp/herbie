@@ -18,11 +18,12 @@
 
 (struct shellstate (table next-alt locs lowlocs patched) #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f)))
+(define (empty-shellstate)
+  (shellstate #f #f #f #f #f))
 
-(register-reset 
-  (λ ()
-    (^shell-state^ (shellstate #f #f #f #f #f))))
+(define-resetter ^shell-state^
+  (λ () (empty-shellstate))
+  (λ () (empty-shellstate)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))

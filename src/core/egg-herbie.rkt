@@ -468,10 +468,10 @@
   res)
 
 ;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
-(define *ffi-rules-cache* (make-parameter #f))
-
-(register-reset
-  (λ () (*ffi-rules-cache* #f)))
+(define-resetter *ffi-rules-cache*
+  (λ () #f)
+  (λ () #f)
+  (λ (rules) (when rules (free-ffi-rules rules))))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
