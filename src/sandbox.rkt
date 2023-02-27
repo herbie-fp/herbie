@@ -1,14 +1,14 @@
 #lang racket
-(require profile math/bigfloat racket/engine json)
+(require profile math/bigfloat racket/engine json rival)
 (require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
-         "datafile.rkt" "errors.rkt" "float.rkt"
+         "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "core/localize.rkt")
+         "core/localize.rkt" "ground-truth.rkt")
 
 (provide get-alternatives get-errors get-sample get-test-result
-         *reeval-pts* *timeout*
+         get-exacts *reeval-pts* *timeout* get-calculation
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result get-local-error)
@@ -40,6 +40,52 @@
       ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
+(define (get-exacts test pts)
+  (define repr (test-output-repr test))
+  (define starting-precision (*starting-prec*))
+  (define <-bf (representation-bf->repr repr))
+  (define fn (make-search-func (test-precondition test) (list (test-program test)) (test-context test)))
+  (for/list ([pt pts])
+    (define-values (status precision out)
+        (ival-eval fn pt #:precision starting-precision))
+    (define exs (map (compose <-bf ival-lo) out))
+    (cons pt exs)))
+
+(define (get-calculation test pts)
+  (define fn (eval-prog (test-program test) 'fl (test-context test)))
+  (for/list ([pt pts])
+    (define val (apply fn pt))
+    (cons pt (list val))))
+
+;; Translates points from the API endpoint
+;; into the expected pcontext
+(define (compute-pcontexts pts+exs ctx)
+  (define output-repr (context-repr ctx))
+  (define var-reprs (context-var-reprs ctx))
+
+  (define-values (pts exs)
+    (for/lists (pts exs) ([entry (in-list pts+exs)])
+      (match-define (list pt ex) entry)
+      (values (map real->repr pt var-reprs) (real->repr ex output-repr))))
+
+  (define joint-pcontext (mk-pcontext pts exs))
+  (define-values (train-pcontext test-pcontext)
+    (cond
+      [(= (length pts+exs) (+ (*num-points*) (*reeval-pts*)))
+        ; got the expected amount of points
+        ; will partition into training and testing set
+        (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))]
+      [else
+        ; the training set will just be up to the first 256
+        ; the testing set will just be the entire set
+        (define training-count (min 256 (length pts+exs)))
+        (define-values (train-pcontext _)
+          (split-pcontext joint-pcontext training-count (- (length pts+exs) training-count)))
+        (values train-pcontext joint-pcontext)]))
+
+  (values joint-pcontext train-pcontext test-pcontext))
+
+;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
   (define output-repr (test-output-repr test))
   (define context (test-context test))
@@ -50,41 +96,40 @@
       (setup-context!
         (or (test-specification test) (test-program test)) (test-precondition test)
         output-repr)))
+
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
 
-  (define-values (points exacts) (get-p&es test-pcontext))
-  (for/list ([point points] [exact exacts]) (list point exact)))
+  (for/list ([(pt ex) (in-pcontext test-pcontext)])
+    (list pt ex)))
 
+;; Given a test and a sample of points, computes the error at each point.
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
 (define (get-errors test pts+exs #:seed [seed #f] #:profile [profile? #f])
   (define output-repr (test-output-repr test))
-  (define tcontext (test-context test))
+  (*context* (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
   (when seed (set-seed! seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
-  (define-values (pts exs)
-    (let ([var-reprs (context-var-reprs tcontext)])
-      (for/lists (pts exs) ([entry (in-list pts+exs)])
-        (match-define (list pt ex) entry)
-        (values (map real->repr pt var-reprs)
-                (real->repr ex output-repr)))))
+  (define-values (joint-pcontext train-pcontext test-pcontext)
+    (compute-pcontexts pts+exs (*context*)))
 
-  (define joint-pcontext (mk-pcontext pts exs))
+  (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) (*context*)))
+  (define errs (errors (test-program test) processed-pcontext (*context*)))
 
-  (define processed-pcontext
-    (preprocess-pcontext joint-pcontext (*herbie-preprocess*) tcontext))
-  (define-values (newpoints newexacts) (get-p&es processed-pcontext))
+  (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
+    (list pt (format-bits (ulps->bits err)))))
 
-  (define errs
-    (errors (test-program test) processed-pcontext tcontext))
-
-  (when seed (set-seed! seed))
-  (define-values (points exacts) (get-p&es joint-pcontext))
-  (for/list ([point points] [err errs]) (list point (format-bits (ulps->bits err)))))
-
+;; Given a test and a sample of points, computes the local error at every node in the expression
+;; returning a tree of errors that mirrors the structure of the expression.
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
 (define (get-local-error test pts+exs #:seed [seed #f] #:profile [profile? #f])
   (define output-repr (test-output-repr test))
   (*context* (test-context test))
@@ -94,54 +139,40 @@
   (when seed (set-seed! seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
-  (define-values (pts exs)
-    (let ([var-reprs (context-var-reprs (*context*))])
-      (for/lists (pts exs) ([entry (in-list pts+exs)])
-        (match-define (list pt ex) entry)
-        (values (map real->repr pt var-reprs)
-                (real->repr ex output-repr)))))
+  (define-values (joint-pcontext train-pcontext test-pcontext)
+    (compute-pcontexts pts+exs (*context*)))
 
-  (define joint-pcontext (mk-pcontext pts exs))
   (define processed-pcontext
     (make-preprocess-pcontext (test-program test)
-                              joint-pcontext
+                              test-pcontext
                               (*num-iterations*)
                               #:specification (test-specification test)
                               #:preprocess (test-preprocess test)))
 
   (*pcontext* processed-pcontext)
-  (define local-error (local-error-as-tree (test-program test) (*context*)))
+  (local-error-as-tree (test-program test) (*context*)))
 
-  local-error)
-
-
+;; Given a test and a sample of points, returns a list of improved alternatives
+;; and both the test set of points and processed test set of points.
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
 (define (get-alternatives test pts+exs #:seed [seed #f] #:profile [profile? #f])
+  ;; This is usually run in `compute-result`
+  (rollback-improve!)
+  (when seed (set-seed! seed))
+
+  ;; `run-herbie` starts here
+  ;; (define seed (get-seed))
+  (random) ;; Child process uses deterministic but different seed from evaluator
+
   (define output-repr (test-output-repr test))
   (*context* (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
-  (when seed (set-seed! seed))
-  (random) ;; Child process uses deterministic but different seed from evaluator
-
-  (define-values (pts exs)
-    (let ([var-reprs (context-var-reprs (*context*))])
-      (for/lists (pts exs) ([entry (in-list pts+exs)])
-        (match-define (list pt ex) entry)
-        (values (map real->repr pt var-reprs)
-                (real->repr ex output-repr)))))
-
-  (define joint-pcontext (mk-pcontext pts exs))
-
-  ;; Cap size of point list by arbitrary size so it doesn't take forever
-  (define num-points (length pts))
-  (define split-a 
-    (cond 
-      [(< num-points 256) num-points]
-      [else 256]))
-  (define split-b (- num-points split-a))
-  (define-values (train-pcontext test-pcontext)
-    (split-pcontext joint-pcontext split-a split-b)) 
+  (define-values (joint-pcontext train-pcontext test-pcontext)
+    (compute-pcontexts pts+exs (*context*)))
 
   (define alts
     (run-improve! (test-program test) train-pcontext (*num-iterations*)

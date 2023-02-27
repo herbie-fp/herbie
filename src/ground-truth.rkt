@@ -1,9 +1,9 @@
 #lang racket
 
-(require math/bigfloat rival racket/hash)
-(require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
+(require math/bigfloat rival)
+(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide sample-points batch-prepare-points make-search-func)
+(provide sample-points batch-prepare-points make-search-func eval-prog-real)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
