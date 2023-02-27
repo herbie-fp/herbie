@@ -1,7 +1,6 @@
 #lang racket
 
-(require egg-herbie)
-(require ffi/unsafe ffi/unsafe/define)
+(require egg-herbie ffi/unsafe)
 (require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
          "../common.rkt" "../errors.rkt" "../timeline.rkt")
 
@@ -12,7 +11,6 @@
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
          remove-rewrites)
-
 
 (define (flatten-let term environment)
   (match term
@@ -470,14 +468,17 @@
   res)
 
 ;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
-(define ffi-rules-cache #f)
+(define-resetter *ffi-rules-cache*
+  (λ () #f)
+  (λ () #f)
+  (λ (rules) (when rules (free-ffi-rules rules))))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
 (define (get-canon-rule-name name [failure #f])
   (cond
-    [ffi-rules-cache
-     (match-define (list _ _ canon-names) (cdr ffi-rules-cache))
+    [(*ffi-rules-cache*)
+     (match-define (list _ _ canon-names) (cdr (*ffi-rules-cache*)))
      (hash-ref canon-names name failure)]
     [else
      failure]))
@@ -487,10 +488,10 @@
 ;; checks the cache in case we used them previously
 (define (expand-rules rules)
   (define key (cons rules (*needed-reprs*)))
-  (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) key))
+  (unless (and (*ffi-rules-cache*) (equal? (car (*ffi-rules-cache*)) key))
     ; free any rules in the cache
-    (when ffi-rules-cache
-      (match-define (list _ ffi-rules _) (cdr ffi-rules-cache))
+    (when (*ffi-rules-cache*)
+      (match-define (list _ ffi-rules _) (cdr (*ffi-rules-cache*)))
       (free-ffi-rules ffi-rules))
     ; instantiate rules
     (define-values (egg-rules canon-names)
@@ -503,8 +504,8 @@
                           ([exp-rule (in-list expanded)])
                   (hash-set canon-names* (rule-name exp-rule) orig-name)))))
     ; update the cache
-    (set! ffi-rules-cache (cons key (list egg-rules (make-ffi-rules egg-rules) canon-names))))
-  (cdr ffi-rules-cache))
+    (*ffi-rules-cache* (cons key (list egg-rules (make-ffi-rules egg-rules) canon-names))))
+  (cdr (*ffi-rules-cache*)))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
   ;; expand rules (will also check cache)

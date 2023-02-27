@@ -10,28 +10,29 @@
 ;; This is a box so we can get a reference outside the engine, and so
 ;; access its value even in a timeout.
 ;; Important: Use 'eq?' based hash tables, process may freeze otherwise
-(define *timeline* (box '()))
+(define-resetter *timeline*
+  (λ () (box '()))
+  (λ () (box '())))
+
 (define *timeline-disabled* (make-parameter true))
 (define *timeline-timers* (mutable-set))
-
-(register-reset (λ () (set-box! *timeline* '())))
 
 (define (timeline-event! type)
   (unless (*timeline-disabled*)
     (define b (make-hasheq (list (cons 'type (~a type))
                                  (cons 'time (current-inexact-milliseconds)))))
-    (set-box! *timeline* (cons b (unbox *timeline*)))))
+    (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
 
 (define/contract (timeline-push! key . values)
   (-> symbol? jsexpr? ... void?)
   (unless (*timeline-disabled*)
     (define val (if (= (length values) 1) (car values) values))
-    (hash-update! (car (unbox *timeline*)) key (curry cons val) '())))
+    (hash-update! (car (unbox (*timeline*))) key (curry cons val) '())))
 
 (define/contract (timeline-adjust! type key . values)
   (-> symbol? symbol? jsexpr? ... void?)
   (unless (*timeline-disabled*)
-    (for/first ([cell (unbox *timeline*)] #:when (equal? (hash-ref cell 'type) (~a type)))
+    (for/first ([cell (unbox (*timeline*))] #:when (equal? (hash-ref cell 'type) (~a type)))
       (hash-set! cell key values)
       true)
     (void)))
@@ -47,13 +48,13 @@
   end!)
 
 (define (timeline-load! value)
-  (set! *timeline* value))
+  (*timeline* value))
 
 (define (timeline-extract)
   (for ([end! (set->list *timeline-timers*)]) (end!))
   (define end (hasheq 'time (current-inexact-milliseconds)))
   (reverse
-   (for/list ([evt (unbox *timeline*)] [next (cons end (unbox *timeline*))])
+   (for/list ([evt (unbox (*timeline*))] [next (cons end (unbox (*timeline*)))])
      (define evt* (hash-copy evt))
      (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
      evt*)))
@@ -157,4 +158,4 @@
   (unless (*timeline-disabled*)
     (define fn (hash-ref timeline-types key #f))
     (when fn
-      (hash-update! (car (unbox *timeline*)) key (curryr fn '()) '()))))
+      (hash-update! (car (unbox (*timeline*))) key (curryr fn '()) '()))))
