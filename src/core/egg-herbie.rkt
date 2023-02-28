@@ -471,7 +471,10 @@
 (define-resetter *ffi-rules-cache*
   (λ () #f)
   (λ () #f)
-  (λ (rules) (when rules (free-ffi-rules rules))))
+  (λ (rules)
+    (when rules
+      (match-define (list _ ffi-rules _) (cdr rules))
+      (free-ffi-rules ffi-rules))))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.

@@ -260,6 +260,7 @@
                    [*warnings-disabled* true])
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
+      (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
         (define out
@@ -278,7 +279,6 @@
                   (warning-log) e))
 
   (define (in-engine _)
-    (set! timeline (*timeline*))
     (if profile?
         (profile-thunk
          (λ () (compute-result test))
