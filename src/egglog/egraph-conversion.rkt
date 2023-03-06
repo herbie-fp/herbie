@@ -92,7 +92,7 @@
 (define (egg-parsed->expr ctx parsed rename-dict)
   (match parsed
     [`(Num ,type (rational ,num ,denom))
-     (cons (/ num denom) (context-repr ctx))]
+     (cons (/ (string->number num) (string->number denom)) (context-repr ctx))]
     [`(Var ,type ,var-str)
      (define var (string->symbol var-str))
      (define name (hash-ref rename-dict var))

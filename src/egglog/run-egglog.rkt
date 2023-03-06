@@ -17,6 +17,15 @@
 ;; Number of points from the point context to take
 (define egg-num-sample 10)
 
+(define (add-to-ruleset ruleset commands)
+  	(for/list ([command commands])
+          		(match command
+                          [`(rule ,args ...)
+                           `(rule ,@args :ruleset ,ruleset)]
+													[`(rewrite ,args ...)
+													 `(rewrite ,@args :ruleset ,ruleset)]
+                          [else command])))
+
 
 ;; The egglog rules follow error-preserving semantics
 ;; If a program in the egraph errors, then it's okay to rewrite it to
@@ -136,7 +145,6 @@
 
 (define header
   `((set-option node_limit ,egg-node-limit)
-    (set-option use_backoff 0)
     (set-option match_limit ,egg-match-limit)
     (datatype HerbieType (Type String))
     (datatype Math
@@ -162,7 +170,9 @@
 
 ;; TODO: rewrite analysis to use interval type
 (define analysis
-  `((function hi (Math) Rational :merge (min old new))
+  	(add-to-ruleset 'analysis
+                        `((add-ruleset analysis)
+                          		(function hi (Math) Rational :merge (min old new))
     (function lo (Math) Rational :merge (max old new))
 
     ;; Compute ground truth for a program for a particular input point indexed by the i64
@@ -314,12 +324,11 @@
     (rule ((= t (Log1p ty a))) ((universe t ty)))
     ;; soundness check
     (rule ((= (Num ty n) (Num ty m)) (!= n m))
-		((panic "Unsoundness detected!")))
-    (add-ruleset analysis)
-    (clear-rules)))
+          		((panic "Unsoundness detected!"))))))
 
 (define rewrites
-  `(
+  	(add-to-ruleset 'rewrites
+                        `((add-ruleset rewrites)
     ;; injectivity rules don't seem to do anything
     #;((rule ((= t1 (Add ty a b)) (= t2 (Add ty a c))
 						 (= t1 t2))
@@ -1232,13 +1241,13 @@
     (rewrite (Log1p ty x)
 		   (Log ty (Add ty (Num ty r-one) x)))
     (rewrite (Hypot ty x y)
-		   (Sqrt ty (Add ty (Mul ty x x) (Mul ty y y))))
-    (add-ruleset rewrites)
-    (clear-rules)))
+             		   (Sqrt ty (Add ty (Mul ty x x) (Mul ty y y)))))))
 
 ;; the script adds a (point i) for every point i
 (define ground-truth
-  `((rule ((= term (Num ty r))
+  	(add-to-ruleset 'ground-truth
+                        `((add-ruleset ground-truth)
+                          		(rule ((= term (Num ty r))
 		 (point i))
 		((set (ival term i) (interval r r))))
     (rule ((= term (PI ty))
@@ -1281,10 +1290,7 @@
     (rule ((= interval (ival term i)))
 		((set (true-float term i) (to-f64 interval))))
     (rule ((= binterval (bval term i)))
-		((set (true-bool term i) (to-bool binterval))))
-
-    (add-ruleset ground-truth)
-    (clear-rules)))
+          		((set (true-bool term i) (to-bool binterval)))))))
 
 (define (varname i)
   (string->symbol
@@ -1298,13 +1304,9 @@
 
 (define (build-iter)
   (define analysis-iter
-    `((load-ruleset analysis)
-	 (run 3)
-	 (clear-rules)))
+    `((run analysis 3)))
   (define rules-iter
-    `((load-ruleset rewrites)
-	 (run 1)
-	 (clear-rules)))
+    `((run rewrites 1)))
   (append analysis-iter rules-iter))
 
 (define (build-runner)
@@ -1330,13 +1332,16 @@
 
 
 (define (build-ground-truth-extract ctx exprs eggdata)
-  (append
+  (add-to-ruleset 'compute-accuracy
+                  	(append
    (build-math-ast ctx exprs eggdata)
    `((function mostaccurate (i64 Math) AstMath
 			:merge new)
 	(function mostaccurate-num (i64 Math) f64
 			:merge new :default (f64-INFINITY))
 	(function mostaccurate-bool (i64 Math) bool)
+
+        	(add-ruleset compute-accuracy)
 
 	;; if an eclass contains a num or variable it is
 	;; the most accurate by definition
@@ -1391,12 +1396,9 @@
 				 current-physical)
 			 )))
 
-	(add-ruleset compute-accuracy)
-	(clear-rules)
-	(load-ruleset compute-accuracy)
-	(run 10)
-	(clear-rules)
-	 )))
+        	(run compute-accuracy 10)))))
+
+
 
 (define (build-ground-truth-compute ctx pctx exprs eggdata)
 	(append
@@ -1411,11 +1413,9 @@
 				`(set (ival ,(expr->egglog ctx var eggdata)
 							,i)
 					(interval ,num ,num)))))
-		`((load-ruleset ground-truth)
-		(set-option match_limit 10000000)
+                		`((set-option match_limit 10000000)
 		(set-option node_limit 10000000)
-		(run ,ground-truth-iters)
-		(clear-rules)) ;; run ground truth computation
+                		(run ground-truth ,ground-truth-iters)) ;; run ground truth computation
 
 	;; TODO run ground truth extraction
 	))
@@ -1461,15 +1461,15 @@
 	(subprocess #f #f (current-error-port) egglog-binary))
 
 	(define egglog-program
-	(apply-egglog-macros (build-egglog ctx pctx eggdata exprs variants)))
-
-
+          		(apply ~s #:separator "\n"
+                               			(apply-egglog-macros (build-egglog ctx pctx eggdata exprs variants))))
 	;; save the egglog program
-	(timeline-push! 'egglog (apply ~s #:separator "\n" egglog-program))
+  	(timeline-push! 'egglog egglog-program)
+  	(displayln egglog-program)
+  	(flush-output)
 
 
-	(for ([line egglog-program])
-	(writeln line egglog-in))
+	(displayln egglog-program egglog-in)
 	(close-output-port egglog-in)
 
 	(define results
