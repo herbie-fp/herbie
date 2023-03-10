@@ -11,11 +11,13 @@
   "egg-smol/target/release/egg-smol")
 
 (define egg-iters 10)
-(define ground-truth-iters 7)
-(define egg-node-limit 15000)
-(define egg-match-limit 500)
+(define ground-truth-iters 10)
+(define egg-node-limit 20000)
+(define egg-match-limit 1000)
+(define HIGH-COST 100000000)
 ;; Number of points from the point context to take
-(define egg-num-sample 10)
+(define egg-num-sample 4)
+
 
 (define (add-to-ruleset ruleset commands)
   	(for/list ([command commands])
@@ -42,7 +44,7 @@
 (for ([op bool-ops])
   (hash-set! op-type op (list 'bool)))
 (define num-ops
-  `(PI E INFINITY))
+  `(PI E INFINITY NAN))
 (for ([op num-ops])
   (hash-set! op-type op (list 'num)))
 (define *-ops
@@ -145,7 +147,7 @@
 
 (define header
   `((set-option node_limit ,egg-node-limit)
-    (set-option match_limit ,egg-match-limit)
+		(set-option match_limit ,egg-match-limit)
     (datatype HerbieType (Type String))
     (datatype Math
 		    ; Ground terms
@@ -166,7 +168,11 @@
     (define r-two (rational "2" "1"))
     (define r-three (rational "3" "1"))
     (define r-four (rational "4" "1"))
-    (define r-neg-one (rational "-1" "1"))))
+    (define r-neg-one (rational "-1" "1"))
+		(define r-half (rational "1" "2"))
+		(define r-third (rational "1" "3"))
+		))
+(define egglog-consts (apply set `(ty r-zero r-one r-two r-three r-four r-neg-one r-half r-third)))
 
 ;; TODO: rewrite analysis to use interval type
 (define analysis
@@ -186,6 +192,8 @@
     ;; universe is a hack so we can quantify over it
     (relation universe (Math HerbieType))
     (relation non-zero (Math))
+		;; TODO make non-error analysis better using intervals
+		(relation non-error (Math))
     (relation non-negative (Math))
     (relation positive (Math))
 
@@ -215,9 +223,7 @@
     (rewrite (Floor ty (Num ty a)) (Num ty (floor a)))
     (rewrite (Round ty (Num ty a)) (Num ty (round a)))
     (rewrite (Log ty (Num ty a))
-		   (Num ty res)
-		   :when
-		   ((= res (log a))))
+		   (Num ty (log a)))
     ;; To check if something is zero, we check that zero is not contained in the
     ;; interval.
     (rule ((= l (lo e)) (> l r-zero)) ((non-zero e)))
@@ -446,14 +452,14 @@
 			   (Add ty a (Num ty r-one))
 			   (Sub ty a (Num ty r-one))))
     (rule
-	((= e (Pow ty a b)) (= loa (lo a)) (> loa r-zero)) ;; always defined if a > 0
-	((set (Pow ty a b)
-		 (Mul ty
-			 (Pow ty a (Div ty b (Num ty r-two)))
-			 (Pow ty a (Div ty b (Num ty r-two))))))) ;; so rhs always defined
+			((= e (Pow ty a b)) (= loa (lo a)) (> loa r-zero)) ;; always defined if a > 0
+			((set (Pow ty a b)
+		 		(Mul ty
+			 		(Pow ty a (Div ty b (Num ty r-two)))
+			 		(Pow ty a (Div ty b (Num ty r-two))))))) ;; so rhs always defined
     (rewrite (Mul ty (Pow ty a b) (Pow ty a b))
 		   (Pow ty a (Mul ty (Num ty r-two) b)) ;; could be more defined for fractional b
-		   :when ((non-negative a)))
+		   :when ((non-negative a))) ;; always defined when a non-neg
     (rewrite (Pow ty a (Num ty r-three))
 		   (Mul ty a (Mul ty a a)))
     (rewrite (Pow ty a (Num ty r-four))
@@ -463,24 +469,33 @@
 
     ;; Identity
     (rewrite
-	(Div ty (Num ty r-one) (Div ty (Num ty r-one) x)) ;; not defined when x is zero
-	x
-	:when ((non-zero x)))
+			(Div ty (Num ty r-one) (Div ty (Num ty r-one) x)) ;; not defined when x is zero
+			x
+			:when ((non-zero x)))
     (rewrite (Mul ty x (Div ty (Num ty r-one) x)) ;; not defined when x is zero
 		   (Num ty r-one)
-		   :when ((non-zero x)))
+		   :when ((non-zero x)
+			        (non-error x)
+			 ))
     (rewrite (Mul ty (Div ty (Num ty r-one) x) x) ;; not defined when x is zero
 		   (Num ty r-one)
-		   :when ((non-zero x)))
-    (rewrite (Sub ty x x) (Num ty r-zero))
+		   :when ((non-zero x)
+			 				(non-error x)
+			 ))
+    (rewrite (Sub ty x x) (Num ty r-zero) :when ((non-error x)))
     (rewrite (Div ty x x) ;; not defined for x=0
 		   (Num ty r-one)
-		   :when ((non-zero x)))
+		   :when ((non-zero x)
+			        (non-error x)))
     (rewrite (Div ty (Num ty r-zero) x)
 		   (Num ty r-zero)
-		   :when ((non-zero x))) ;; not defined for x=0
-    (rewrite (Mul ty (Num ty r-zero) x) (Num ty r-zero))
-    (rewrite (Mul ty x (Num ty r-zero)) (Num ty r-zero))
+		   :when ((non-zero x)
+			 				(non-error x)
+			 )) ;; not defined for x=0
+    (rewrite (Mul ty (Num ty r-zero) x) (Num ty r-zero)
+						 :when ((non-error x)))
+    (rewrite (Mul ty x (Num ty r-zero)) (Num ty r-zero)
+						:when ((non-error x)))
     (rewrite (Add ty (Num ty r-zero) x) x)
     (rewrite (Add ty x (Num ty r-zero)) x)
     (rewrite (Sub ty (Num ty r-zero) x) (Neg ty x))
@@ -573,7 +588,7 @@
 		   (Exp ty (Neg ty a)))
     (rewrite (Div ty (Exp ty a) (Exp ty b)) ;; always defined
 		   (Exp ty (Sub ty a b)))
-    (rewrite (Exp ty (Mul ty a b)) (Pow ty (Exp ty a) b))
+    (rewrite (Exp ty (Mul ty a b)) (Pow ty (Exp ty a) b)) ;; e^a is always pos, so always defined
     (rewrite (Exp ty (Div ty a (Num ty r-two))) ;; always defined
 		   (Sqrt ty (Exp ty a))) ;; always defined
     (rewrite (Exp ty (Div ty a (Num ty r-three))) ;; always defined
@@ -594,18 +609,22 @@
     (rewrite (Pow ty a (Num ty r-zero))
 		   (Num ty r-one)
 		   :when
-		   ((non-zero a)))
-    (rewrite (Pow ty (Num ty r-one) a) (Num ty r-one))
+		   ((non-zero a)
+			  (non-error a)
+			 ))
+    (rewrite (Pow ty (Num ty r-one) a)
+		         (Num ty r-one)
+						 :when ((non-error a)))
     (rewrite (Exp ty (Mul ty (Log ty a) b)) ;; not defined for a <= 0
 		   (Pow ty a b)
 		   :when ((positive a)))
     (rewrite (Mul ty (Pow ty a b) a)
 		   (Pow ty a (Add ty b (Num ty r-one)))
 		   :when ((positive a)))
-    (rewrite (Pow ty a (Num ty (rational "1" "2")))
+    (rewrite (Pow ty a (Num ty r-half))
 		   (Sqrt ty a))
     (rewrite (Pow ty a (Num ty r-two)) (Mul ty a a))
-    (rewrite (Pow ty a (Num ty (rational "1" "3")))
+    (rewrite (Pow ty a (Num ty r-third))
 		   (Cbrt ty a))
     (rewrite (Pow ty a (Num ty r-three))
 		   (Mul ty (Mul ty a a) a))
@@ -613,7 +632,9 @@
     (rewrite (Pow ty (Num ty r-zero) a)
 		   (Num ty r-zero)
 		   :when
-		   ((positive a)))
+		   ((positive a)
+			  (non-error a)
+			 ))
     ;; Logarithms
     (rewrite (Log ty (Mul ty a b))
 		   (Add ty (Log ty a) (Log ty b))
@@ -635,7 +656,8 @@
     (rewrite (Add ty
 			   (Mul ty (Cos ty a) (Cos ty a))
 			   (Mul ty (Sin ty a) (Sin ty a))) ;;verified
-		   (Num ty r-one))
+		   (Num ty r-one)
+			 :when ((non-error a)))
     (rewrite
 	(Sub ty
 		(Num ty r-one)
@@ -648,11 +670,11 @@
 	(Mul ty (Cos ty a) (Cos ty a)))
     (rewrite (Add ty
 			   (Mul ty (Cos ty a) (Cos ty a))
-			   (Num ty (rational "-1" "1"))) ;; verified
+			   (Num ty r-neg-one)) ;; verified
 		   (Neg ty (Mul ty (Sin ty a) (Sin ty a))))
     (rewrite (Add ty
 			   (Mul ty (Sin ty a) (Sin ty a))
-			   (Num ty (rational "-1" "1"))) ;; verified
+			   (Num ty r-neg-one)) ;; verified
 		   (Neg ty (Mul ty (Cos ty a) (Cos ty a))))
     (rewrite (Sub ty
 			   (Mul ty (Cos ty a) (Cos ty a))
@@ -817,7 +839,9 @@
     (rewrite (Sub ty
 			   (Mul ty (Cosh ty x) (Cosh ty x))
 			   (Mul ty (Sinh ty x) (Sinh ty x)))
-		   (Num ty r-one))
+		   (Num ty r-one)
+			 :when ((non-error x))
+			 )
     (rewrite (Add ty (Cosh ty x) (Sinh ty x)) (Exp ty x))
     (rewrite (Sub ty (Cosh ty x) (Sinh ty x))
 		   (Exp ty (Neg ty x)))
@@ -833,7 +857,7 @@
 		   ((non-zero (Sub ty a b))))
     ;; demand for the rule
     (rule ((= (Sub ty a b) t1)) ((Add ty a b)))
-    (rewriteif (Sub ty a b)
+    (rewrite (Sub ty a b)
 		   (Div ty
 			   (Sub ty (Mul ty a a) (Mul ty b b))
 			   (Add ty a b)) ;; defined when a+b != 0
@@ -888,7 +912,7 @@
 				   (Sub ty (Mul ty b b) (Mul ty a b))))
 		   :when
 		   ((non-zero a)))
-    (rewriteif (Add ty a b)
+    (rewrite (Add ty a b)
 		   (Div ty
 			   (Add ty
 				   (Pow ty a (Num ty r-three))
@@ -921,7 +945,7 @@
 				   (Add ty (Mul ty b b) (Mul ty a b))))
 		   :when
 		   ((non-zero b)))
-    (rewriteif (Sub ty a b)
+    (rewrite (Sub ty a b)
 		   (Div ty
 			   (Sub ty
 				   (Pow ty a (Num ty r-three))
@@ -1245,11 +1269,12 @@
 
 ;; the script adds a (point i) for every point i
 (define ground-truth
-  	(add-to-ruleset 'ground-truth
-                        `((add-ruleset ground-truth)
-                          		(rule ((= term (Num ty r))
-		 (point i))
-		((set (ival term i) (interval r r))))
+  	(add-to-ruleset
+			'ground-truth
+     `((add-ruleset ground-truth)
+       (rule ((= term (Num ty r))
+		          (point i))
+						 ((set (ival term i) (interval r r))))
     (rule ((= term (PI ty))
 		 (point i))
 		((set (ival term i) (interval-Pi))))
@@ -1259,6 +1284,9 @@
     (rule ((= term (E ty))
 		 (point i))
 		((set (ival term i) (interval-E))))
+		(rule ((= term (NAN ty))
+			(point i))
+		((set (ival term i) (interval-NAN))))
     (rule ((= term (TRUE ty))
 		 (point i))
 		((set (bval term i) (true-interval))))
@@ -1271,7 +1299,10 @@
 						 (= x-interval (,(tval Op 0) x i)))
 						((set (,(tval Op 1) term i)
 							 (,(ival-op Op) x-interval)))))
-    ,@(expand-for-list *-*-*-ops Op
+    ,@(expand-for-list
+				;; TODO re-enable POW
+				(filter (lambda (x) (not (equal? x 'Pow)))
+				*-*-*-ops) Op
 				   `(rule ((= term (,Op ty x y))
 						 (= x-interval (,(tval Op 0) x i))
 						 (= y-interval (,(tval Op 1) y i)))
@@ -1314,12 +1345,27 @@
 	    (for/list ([iter (in-range egg-iters)])
 		  (build-iter))))
 
-(define (build-extract exprs variants)
+(define (build-extract exprs)
   (for/list ([expr exprs] [i (in-naturals)])
-    `(extract :variants ,variants ,(varname i))))
+    `(extract ,(varname i))))
 
 (define (ast-prefix op)
   (string->symbol (string-append "Ast" (symbol->string op))))
+
+(define (remove-ast-prefix expr)
+	(match expr
+		[`(Type ,ty) `(Type ,ty)]
+		[`(AstNum ,ty ,r) `(Num ,ty ,r)]
+		[`(AstVar ,ty ,s) `(Var ,ty ,s)]
+		[`(,with-prefix ,args ...) 
+			(when (not 
+				(equal? (substring (symbol->string with-prefix) 0 3) "Ast"))
+				(error (format "Tried to remove Ast prefix from ~a" with-prefix)))
+			`(,(string->symbol (substring (symbol->string with-prefix) 3))
+				,@(map remove-ast-prefix args))]
+		[else
+			(error (format "Tried to remove Ast prefix from ~a" expr))]))
+
 
 (define (build-math-ast ctx exprs eggdata)
   `((datatype AstMath
@@ -1335,13 +1381,13 @@
   (add-to-ruleset 'compute-accuracy
                   	(append
    (build-math-ast ctx exprs eggdata)
-   `((function mostaccurate (i64 Math) AstMath
+   `((ruleset compute-accuracy)
+		 (function mostaccurate (i64 Math) AstMath
+			:cost ,HIGH-COST :merge new)
+	   (function mostaccurate-num (i64 Math) f64
 			:merge new)
-	(function mostaccurate-num (i64 Math) f64
-			:merge new :default (f64-INFINITY))
-	(function mostaccurate-bool (i64 Math) bool)
-
-        	(add-ruleset compute-accuracy)
+		 (function mostaccurate-bool (i64 Math) bool
+		 	:merge new)
 
 	;; if an eclass contains a num or variable it is
 	;; the most accurate by definition
@@ -1352,9 +1398,29 @@
 				 (set (mostaccurate-num i term) (to-f64 n))))
 	(rule ((= term (Var ty v))
 	       (point i)
-				 (= true-physical (to-f64 (ival term i))))
+				 (= true-physical (true-float term i)))
 				((set (mostaccurate i term) (AstVar ty v))
 				 (set (mostaccurate-num i term) true-physical)))
+	(rule ((= term (Var ty v))
+	       (point i)
+				 (= true-physical (true-bool term i)))
+				((set (mostaccurate i term) (AstVar ty v))
+				 (set (mostaccurate-bool i term) true-physical)))
+
+	;; initialize the most accurate value furthest value possible
+	,@(expand-for-list
+	   all-ops Op
+	   `(rule (
+			 (= term (,Op ty ,@(rep Op 'c)))
+			 (point i)
+			 (= true-physical
+			    ,(if (equal? (return-type Op) 'num)
+					     `(true-float term i)
+							 `(true-bool term i)))
+			 )
+			((set (,(append-type 'mostaccurate Op (arity Op)) i term)
+				 (furthest-from true-physical))
+			 )))
 
 	,@(expand-for-list
 	   all-ops Op
@@ -1369,8 +1435,6 @@
 			 ,@(build-list (arity Op)
 			      (lambda (v)
 						   `(= ,(ivar 'child v) (mostaccurate i ,(ivar 'c v)))))
-			 ;; the best distance found so far
-			 
 			 ;; the ground truth
 			 (= true-physical
 			    ,(if (equal? (return-type Op) 'num)
@@ -1396,64 +1460,160 @@
 				 current-physical)
 			 )))
 
-        	(run compute-accuracy 10)))))
+  (run compute-accuracy ,ground-truth-iters)
+	
+	;; Finally, extract out the best expr for each expr and each point
+	,@(apply append
+			(for/list ([expr exprs]
+				         [ei (in-naturals)])
+				(for/list ([point (in-range egg-num-sample)])
+					`(extract (mostaccurate ,point ,(varname ei))))
+			))
+	))))
 
 
 
 (define (build-ground-truth-compute ctx pctx exprs eggdata)
+	(define points (for/list ([(point exact) (in-pcontext pctx)])
+		point))
+	(define shuffled (shuffle points))
 	(append
-		(for/list ([(point exact) (in-pcontext pctx)]
+		(for/list ([point shuffled]
 		           [i (in-range egg-num-sample)])
 		`(point ,i)) ;; initialize the number of points
 		(apply append
-			(for/list ([(point expected) (in-pcontext pctx)]
+			(for/list ([point shuffled]
 						[i (in-range egg-num-sample)])
 				(for/list ([var (context-vars ctx)]
 						[num point])
 				`(set (ival ,(expr->egglog ctx var eggdata)
 							,i)
 					(interval ,num ,num)))))
-                		`((set-option match_limit 10000000)
-		(set-option node_limit 10000000)
+                		`((set-option node_limit 10000000)
+											(set-option match_limit 10000000)
                 		(run ground-truth ,ground-truth-iters)) ;; run ground truth computation
 
 	;; TODO run ground truth extraction
 	))
 
-(define (build-egglog ctx pctx eggdata exprs variants)
+(define (build-egglog ctx pctx eggdata exprs accuracy-extract)
   (append
 		header
 		analysis
 		rewrites
-		;; ground-truth
+		ground-truth
 		(build-exprs ctx eggdata exprs)
 		(build-runner)
-		;; normal extraction
-		(build-extract exprs variants)
-
-		;; extraction using ground truth
-                		;;(build-ground-truth-compute ctx pctx exprs eggdata)
-                		;;(build-ground-truth-extract ctx exprs eggdata)
+		
+		(if (not accuracy-extract)
+				(build-extract exprs) ;; normal extraction
+    		(append 
+					(build-ground-truth-compute ctx pctx exprs eggdata)
+    			(build-ground-truth-extract ctx exprs eggdata)))
 		))
+
+(define (side-condition->bool condition)
+	(match condition
+		[`(non-zero ,expr)
+			`(NotEq ty ,expr (Num ty r-zero))]
+		[`(non-negative ,expr)
+			`(GreaterEq ty ,expr (Num ty r-zero))]
+		[`(positive ,expr)
+			`(Greater ty ,expr (Num ty r-zero))]
+		[else (error (format "Failed to match side condition ~a" condition))]))
+
+(define (side-conditions->bool conditions)
+	(let loop
+		([acc (side-condition->bool (first conditions))]
+		 [conds (rest conditions)])
+		(cond
+			[(empty? conds) acc]
+			[else 
+				(loop `(And ty ,acc ,(side-condition->bool (first conds))) (rest conds))])))
+
+(define (cant-convert-condition condition)
+	(match condition
+		[`(non-error ,expr)
+			#t]
+		[else #f]))
 
 (define (rewrite-if egglog-program)
 	(apply append
 		(for/list ([line egglog-program])
 			(match line
-			[`(,(or `rewriteif `rewrite) ,lhs ,rhs :when ((non-zero ,expr)))
-			(list
-			`(rewrite ,lhs ,rhs :when ((non-zero ,expr)))
-			`(rewrite ,lhs
-					(If ty (NotEq ty ,expr (Num ty r-zero)) ,rhs ,lhs)))]
+			[`(rewrite ,lhs ,rhs :when (,conditions ...) ,other ...)
+				(if (ormap cant-convert-condition conditions)
+						(list line)
+						(list
+						`(rewrite ,lhs ,rhs :when (,@conditions) ,@other)
+						`(rewrite ,lhs
+								(If ty ,(side-conditions->bool conditions) ,rhs ,lhs) ,@other))
+			)]
+			[`(rewrite ,lhs ,rhs)
+				(list line)]
+			[`(rewrite ,lhs ,rhs :ruleset ,ruleset)
+				(list line)]
+			[`(rewrite ,args ...)
+				(error (format "Failed to match rewrite in rewrite-if ~a" line))]
 			[else
 			(list line)]))))
 
 
+(define (get-vars expr)
+	(cond
+		[(list? expr)
+		(apply set-union (map get-vars (rest expr)))]
+		[(symbol? expr) (set expr)]
+		[else (set)]))
+
+(define (get-non-error-vars conditions)
+	(apply set
+	(apply append
+		(for/list ([condition conditions])
+		(match condition
+			[`(non-error ,v)
+				(list v)]
+			[else empty])))))
+
+(define (sanity-check-rewrites egglog-program)
+	(for ([line egglog-program])
+		(match line
+		[`(rewrite ,lhs ,rhs ,other ...)
+			(define non-error-vars
+				(match other
+					[`(:when ,cond ,otherdata ...)
+						(get-non-error-vars cond)]
+					[else (set)]))
+
+			(define vars (get-vars lhs))
+			(define rhs-vars (get-vars rhs))
+			(define not-contains (set->list 
+				(set-subtract
+				(set-subtract
+					(set-subtract vars rhs-vars)
+					egglog-consts)
+				non-error-vars)))
+			(when (not (empty? not-contains))
+				(error (format "Rewrite rule ~a:\nContains variables that are not in the rhs: ~a" line not-contains)))
+			]
+		[else
+		#t
+		])))
+
+
 (define (apply-egglog-macros egglog-program)
-	(rewrite-if egglog-program))
+	(sanity-check-rewrites egglog-program)
+	(define res (rewrite-if egglog-program))
+	(sanity-check-rewrites res)
+	res)
+
+(define (extracted-mostaccurate? expr)
+	(match expr
+		[`(mostaccurate ,args ...) #f]
+		[else #t]))
 
 ;; 0 variants means just extract the best expression
-(define (run-egglog ctx pctx exprs #:variants [variants 0])
+(define (run-egglog ctx pctx exprs #:accuracy-extract accuracy-extract)
 	(define eggdata
 	(egraph-data (make-hash)
 				(make-hash)))
@@ -1462,24 +1622,38 @@
 
 	(define egglog-program
           		(apply ~s #:separator "\n"
-                               			(apply-egglog-macros (build-egglog ctx pctx eggdata exprs variants))))
+                               			(apply-egglog-macros (build-egglog ctx pctx eggdata exprs accuracy-extract))))
 	;; save the egglog program
-  	(timeline-push! 'egglog egglog-program)
-  	(displayln egglog-program)
-  	(flush-output)
-
+  (timeline-push! 'egglog egglog-program)
 
 	(displayln egglog-program egglog-in)
 	(close-output-port egglog-in)
-
+	
 	(define results
-	(for/list ([expr exprs])
-		(read egglog-output)))
+		(if (not accuracy-extract)
+			(for/list ([expr exprs])
+				(read egglog-output))
+			(for/list ([expr exprs])
+				;; list of exprs for this expr at each point
+				(map remove-ast-prefix
+					(filter extracted-mostaccurate?
+						(for/list ([i (in-range egg-num-sample)])
+							;; just extracted one thing
+							(first (read egglog-output))))))))
+
 	(close-input-port egglog-output)
 
+
+	(for ([result results])
+		(when (equal? result eof)
+			(displayln egglog-program)
+		   (error "Egglog failed to produce a result")))
+
+
 	(define converted
-	(for/list ([variants results])
-		(map (curry egglog->expr ctx eggdata) variants)))
+		(for/list ([variants results])
+			(map (curry egglog->expr ctx eggdata) variants)))
+
+	(subprocess-wait egglog-process)
 
 	converted)
-

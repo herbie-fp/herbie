@@ -77,7 +77,7 @@
   (define reprs (map (λ (e) (repr-of e ctx)) exprs))
 
   (for/list
-      ([variants (run-egglog ctx pctx exprs #:variants 10000)]
+      ([variants (run-egglog ctx pctx exprs #:accuracy-extract #t)]
        [expr exprs]
        [root-loc root-locs]
        [expr-repr reprs])
