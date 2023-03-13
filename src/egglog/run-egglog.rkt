@@ -117,6 +117,18 @@
 	  ['num 'f64]
 		['bool 'bool]))
 
+(define (some op)
+	(append-type 'Some op (arity op)))
+
+(define (none op)
+	(append-symbols
+		'None-
+		(ret-type op)))
+
+(define (append-symbols . args)
+	(string->symbol
+		(apply string-append (map symbol->string args))))
+
 (define (ivar variable n)
 	(string->symbol
 	  (string-append (symbol->string variable)
@@ -126,11 +138,14 @@
   (string->symbol
    (string-append "ival-" (symbol->string op))))
 
+(define (ret-type op)
+	(last (hash-ref op-type op)))
+
 ;; Appends the resulting type to the front of the name
 (define (physical-op op)
   (string->symbol
    (string-append (symbol->string
-	                  (physical-repr (last (hash-ref op-type op))))
+	                  (physical-repr (ret-type op)))
 	                "-" (symbol->string op))))
 
 (define (append-type symbol op n)
@@ -1382,11 +1397,19 @@
                   	(append
    (build-math-ast ctx exprs eggdata)
    `((ruleset compute-accuracy)
+		 (datatype Option-f64
+		 		(Some-num f64)
+				(None-num))
+
+		 (datatype Option-bool
+		 		(Some-bool bool)
+				(None-bool))
+
 		 (function mostaccurate (i64 Math) AstMath
 			:cost ,HIGH-COST :merge new)
-	   (function mostaccurate-num (i64 Math) f64
+	   (function mostaccurate-num (i64 Math) Option-f64
 			:merge new)
-		 (function mostaccurate-bool (i64 Math) bool
+		 (function mostaccurate-bool (i64 Math) Option-bool
 		 	:merge new)
 
 	;; if an eclass contains a num or variable it is
@@ -1395,32 +1418,30 @@
 	       (point i)
 				 (= true-physical (true-float term i)))
 				((set (mostaccurate i term) (AstNum ty n))
-				 (set (mostaccurate-num i term) (to-f64 n))))
+				 (set (mostaccurate-num i term) (Some-num (to-f64 n)))))
 	(rule ((= term (Var ty v))
 	       (point i)
 				 (= true-physical (true-float term i)))
 				((set (mostaccurate i term) (AstVar ty v))
-				 (set (mostaccurate-num i term) true-physical)))
+				 (set (mostaccurate-num i term) (Some-num true-physical))))
 	(rule ((= term (Var ty v))
 	       (point i)
 				 (= true-physical (true-bool term i)))
 				((set (mostaccurate i term) (AstVar ty v))
-				 (set (mostaccurate-bool i term) true-physical)))
+				 (set (mostaccurate-bool i term) (Some-bool true-physical))))
 
-	;; initialize the most accurate value furthest value possible
+	;; initialize the most accurate value to None
+	;; leverages seminaive to hope that it doesn't override
+	;; our new values! !!!!! this is BAD TODO fix me
 	,@(expand-for-list
 	   all-ops Op
 	   `(rule (
 			 (= term (,Op ty ,@(rep Op 'c)))
 			 (point i)
-			 (= true-physical
-			    ,(if (equal? (return-type Op) 'num)
-					     `(true-float term i)
-							 `(true-bool term i)))
 			 )
 			((set (,(append-type 'mostaccurate Op (arity Op)) i term)
-				 (furthest-from true-physical))
-			 )))
+				 (,(none Op))))
+			 ))
 
 	,@(expand-for-list
 	   all-ops Op
@@ -1430,7 +1451,7 @@
 			 ;; floating point values for the children
 			 ,@(build-list (arity Op)
 			      (lambda (v)
-						   `(= ,(ivar 'val v) (,(append-type 'mostaccurate Op v) i c0))))
+						   `(= (,(append-type 'Some Op v) ,(ivar 'val v)) (,(append-type 'mostaccurate Op v) i c0))))
 			 ;; AstMath for the children
 			 ,@(build-list (arity Op)
 			      (lambda (v)
@@ -1445,19 +1466,20 @@
 			    (,(physical-op Op) ,@(rep Op 'val)))
 			 ;; evaluate and compare to ground truth
 			 (= difference
-			    (dist
+			    (rel-error
 					 current-physical
 					 true-physical))
-
+			 (= (,(some Op) current-mostnum)
+			 		(,(append-type 'mostaccurate Op (arity Op)) i term))
 			 (= to-beat
-			    (dist (,(append-type 'mostaccurate Op (arity Op)) i term)
+			    (rel-error current-mostnum
 					      true-physical))
 			 (< difference to-beat)
 			 )
 			((set (mostaccurate i term)
 				 (,(ast-prefix Op) ty ,@(rep Op 'child)))
 			 (set (,(append-type 'mostaccurate Op (arity Op)) i term)
-				 current-physical)
+			 	 (,(some Op) current-physical))
 			 )))
 
   (run compute-accuracy ,ground-truth-iters)
@@ -1626,6 +1648,7 @@
 	;; save the egglog program
   (timeline-push! 'egglog egglog-program)
 
+	(displayln egglog-program)
 	(displayln egglog-program egglog-in)
 	(close-output-port egglog-in)
 	
