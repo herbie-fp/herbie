@@ -4,6 +4,7 @@
 (require "egraph-conversion.rkt" "../timeline.rkt"
 	    "../syntax/types.rkt" "../points.rkt")
 (require (for-syntax syntax/parse))
+(module+ test (require rackunit))
 
 (provide run-egglog)
 
@@ -12,7 +13,7 @@
 
 (define egg-iters 10)
 (define ground-truth-iters 10)
-(define egg-node-limit 20000)
+(define egg-node-limit 50000)
 (define egg-match-limit 1000)
 (define HIGH-COST 100000000)
 ;; Number of points from the point context to take
@@ -38,6 +39,11 @@
 ;; Div, Pow, Log, Log1p, Sqrt, Tan, asin, acos, atan2
 
 (define op-type (make-hash))
+
+;; operators that do not error given their children don't error
+(define safe-ops
+	(list->set `(Add Sub Mul Fma If Less LessEq Greater GreaterEq Eq NotEq
+		And Or)))
 
 (define bool-ops
   `(TRUE FALSE))
@@ -121,9 +127,8 @@
 	(append-type 'Some op (arity op)))
 
 (define (none op)
-	(append-symbols
-		'None-
-		(ret-type op)))
+	(append-type
+		'None op (arity op)))
 
 (define (append-symbols . args)
 	(string->symbol
@@ -346,6 +351,22 @@
     ;; soundness check
     (rule ((= (Num ty n) (Num ty m)) (!= n m))
           		((panic "Unsoundness detected!"))))))
+
+(define if-permute
+	(add-to-ruleset 'if-permute
+		`((add-ruleset if-permute)
+			(rule
+				((= top (Sub ty (If ty cond then else) rhs)))
+				((set 
+					(If ty cond (Sub ty then rhs)
+							top)
+					top)))
+							
+		 	(rule ((= top (Sub ty lhs (If ty cond then else))))
+      ((set 
+        (If ty cond (Sub ty lhs then)
+							top)
+				top))))))
 
 (define rewrites
   	(add-to-ruleset 'rewrites
@@ -1348,17 +1369,12 @@
 	  ,(expr->egglog ctx expr eggdata)
 	  :cost 10000000)))
 
-(define (build-iter)
-  (define analysis-iter
-    `((run analysis 3)))
-  (define rules-iter
-    `((run rewrites 1)))
-  (append analysis-iter rules-iter))
-
 (define (build-runner)
-  (apply append
-	    (for/list ([iter (in-range egg-iters)])
-		  (build-iter))))
+	`((run-schedule
+			(repeat ,egg-iters
+				(repeat 3 (run analysis 1))
+				(repeat 1 (run rewrites 1))
+				(repeat 1 (run if-permute 1))))))
 
 (define (build-extract exprs)
   (for/list ([expr exprs] [i (in-naturals)])
@@ -1392,6 +1408,54 @@
 				)))
 
 
+(define (make-extract-rules need-existing)
+	(expand-for-list
+	   all-ops Op
+	   `(rule (
+			 (= term (,Op ty ,@(rep Op 'c)))
+			 (point i)
+			 ;; floating point values for the children
+			 ,@(build-list (arity Op)
+			      (lambda (v)
+						   `(= (,(append-type 'Some Op v) ,(ivar 'val v)) (,(append-type 'mostaccurate Op v) i ,(ivar 'c v)))))
+			 ;; AstMath for the children
+			 ,@(build-list (arity Op)
+			      (lambda (v)
+						   `(= ,(ivar 'child v) (mostaccurate i ,(ivar 'c v)))))
+			 ;; the ground truth
+			 (= true-physical
+			    ,(if (equal? (return-type Op) 'num)
+					     `(true-float term i)
+							 `(true-bool term i)))
+
+			 (= current-physical
+			    (,(physical-op Op) ,@(rep Op 'val)))
+			 ;; evaluate and compare to ground truth
+			 (= difference
+			    (rel-error
+					 current-physical
+					 true-physical))
+			
+			 ,@(if need-existing
+					`((= (,(some Op) current-mostnum)
+							(,(append-type 'mostaccurate Op (arity Op)) i term))
+							
+					(= to-beat
+							(rel-error current-mostnum
+										true-physical))
+					(< difference to-beat))
+				 `(
+
+						(= (,(none Op))
+							(,(append-type 'mostaccurate Op (arity Op)) i term))
+				)
+			 ))
+			((set (mostaccurate i term)
+				 (,(ast-prefix Op) ty ,@(rep Op 'child)))
+			 (set (,(append-type 'mostaccurate Op (arity Op)) i term)
+			 	 (,(some Op) current-physical))
+			 ))))
+
 (define (build-ground-truth-extract ctx exprs eggdata)
   (add-to-ruleset 'compute-accuracy
                   	(append
@@ -1408,9 +1472,9 @@
 		 (function mostaccurate (i64 Math) AstMath
 			:cost ,HIGH-COST :merge new)
 	   (function mostaccurate-num (i64 Math) Option-f64
-			:merge new)
+			:merge new :default (None-num))
 		 (function mostaccurate-bool (i64 Math) Option-bool
-		 	:merge new)
+		 	:merge new :default (None-bool))
 
 	;; if an eclass contains a num or variable it is
 	;; the most accurate by definition
@@ -1439,48 +1503,11 @@
 			 (= term (,Op ty ,@(rep Op 'c)))
 			 (point i)
 			 )
-			((set (,(append-type 'mostaccurate Op (arity Op)) i term)
-				 (,(none Op))))
-			 ))
-
-	,@(expand-for-list
-	   all-ops Op
-	   `(rule (
-			 (= term (,Op ty ,@(rep Op 'c)))
-			 (point i)
-			 ;; floating point values for the children
-			 ,@(build-list (arity Op)
-			      (lambda (v)
-						   `(= (,(append-type 'Some Op v) ,(ivar 'val v)) (,(append-type 'mostaccurate Op v) i c0))))
-			 ;; AstMath for the children
-			 ,@(build-list (arity Op)
-			      (lambda (v)
-						   `(= ,(ivar 'child v) (mostaccurate i ,(ivar 'c v)))))
-			 ;; the ground truth
-			 (= true-physical
-			    ,(if (equal? (return-type Op) 'num)
-					     `(true-float term i)
-							 `(true-bool term i)))
-
-			 (= current-physical
-			    (,(physical-op Op) ,@(rep Op 'val)))
-			 ;; evaluate and compare to ground truth
-			 (= difference
-			    (rel-error
-					 current-physical
-					 true-physical))
-			 (= (,(some Op) current-mostnum)
-			 		(,(append-type 'mostaccurate Op (arity Op)) i term))
-			 (= to-beat
-			    (rel-error current-mostnum
-					      true-physical))
-			 (< difference to-beat)
-			 )
-			((set (mostaccurate i term)
-				 (,(ast-prefix Op) ty ,@(rep Op 'child)))
-			 (set (,(append-type 'mostaccurate Op (arity Op)) i term)
-			 	 (,(some Op) current-physical))
+			((,(append-type 'mostaccurate Op (arity Op)) i term)
 			 )))
+
+	,@(make-extract-rules #t)
+	,@(make-extract-rules #f)
 
   (run compute-accuracy ,ground-truth-iters)
 	
@@ -1523,6 +1550,7 @@
 		header
 		analysis
 		rewrites
+		if-permute
 		ground-truth
 		(build-exprs ctx eggdata exprs)
 		(build-runner)
@@ -1537,11 +1565,11 @@
 (define (side-condition->bool condition)
 	(match condition
 		[`(non-zero ,expr)
-			`(NotEq ty ,expr (Num ty r-zero))]
+			`(NotEq (Type "bool") ,expr (Num ty r-zero))]
 		[`(non-negative ,expr)
-			`(GreaterEq ty ,expr (Num ty r-zero))]
+			`(GreaterEq (Type "bool") ,expr (Num ty r-zero))]
 		[`(positive ,expr)
-			`(Greater ty ,expr (Num ty r-zero))]
+			`(Greater (Type "bool") ,expr (Num ty r-zero))]
 		[else (error (format "Failed to match side condition ~a" condition))]))
 
 (define (side-conditions->bool conditions)
@@ -1551,12 +1579,28 @@
 		(cond
 			[(empty? conds) acc]
 			[else 
-				(loop `(And ty ,acc ,(side-condition->bool (first conds))) (rest conds))])))
+				(loop `(And (Type "bool") ,acc ,(side-condition->bool (first conds))) (rest conds))])))
+
+(define (safe-op op)
+	(set-member? safe-ops op))
+
+(define (possibly-errors expr)
+	(match expr
+		[`(,any-op ,exprs ...)
+			(or (not (safe-op any-op))
+					(ormap possibly-errors exprs))]
+		[else
+			#f]))
 
 (define (cant-convert-condition condition)
 	(match condition
 		[`(non-error ,expr)
 			#t]
+		;; we can't convert conditions that are not on variables
+		;; because the conditions may also error
+		;; for example, if the condition contains a pow
+		[`(,any-condition ,expression)
+			(possibly-errors expression)]
 		[else #f]))
 
 (define (rewrite-if egglog-program)
@@ -1648,7 +1692,6 @@
 	;; save the egglog program
   (timeline-push! 'egglog egglog-program)
 
-	(displayln egglog-program)
 	(displayln egglog-program egglog-in)
 	(close-output-port egglog-in)
 	
@@ -1672,7 +1715,7 @@
 			(displayln egglog-program)
 		   (error "Egglog failed to produce a result")))
 
-
+	
 	(define converted
 		(for/list ([variants results])
 			(map (curry egglog->expr ctx eggdata) variants)))
@@ -1680,3 +1723,9 @@
 	(subprocess-wait egglog-process)
 
 	converted)
+
+
+(module+ test
+	(check-false (possibly-errors `(Add a b)))
+	(check-true (possibly-errors `(Add a (Pow b c)))))
+

@@ -5,7 +5,7 @@
 (provide egg-expr->expr egg-exprs->exprs
          expr->egg-expr expr->egglog egglog->expr (struct-out egraph-data))
 
-(struct egraph-data (egg->herbie-dict herbie->egg-dict))
+(struct egraph-data (egg->herbie-dict herbie->egg-dict) #:prefab)
 
 (define (extract-operator impl types)
   (cond
@@ -90,6 +90,7 @@
 ;; renames variables back to non upper case
 ;; special names in map
 (define (egg-parsed->expr ctx parsed rename-dict)
+  (println parsed)
   (match parsed
     [`(Num ,type (rational ,num ,denom))
      (cons (/ (string->number num) (string->number denom)) (context-repr ctx))]
@@ -196,3 +197,19 @@
      (error (format "Unrecognized expression ~a" expr))]))
 
 
+(module+ test
+  (require rackunit "../load-plugin.rkt")
+  (load-herbie-builtins)
+  (define repr (get-representation 'binary64))
+  (define ctx (context '(x) repr (list repr)))
+  (define type `(Type "binary64"))
+  (define bool `(Type "bool"))
+  (egglog->expr
+    ctx
+    (egraph-data #hash((h0 . x)) #hash((x . h0))) 
+    `(Fma ,type
+          (Num ,type (rational "-1" "1"))
+          (If ,type
+              (And ,bool (GreaterEq ,bool (Var ,type "h0") (Num ,type (rational "0" "1"))) (GreaterEq ,bool (Var ,type "h0") (Num ,type (rational "0" "1"))))
+              (Fabs ,type (Var ,type "h0"))
+              (Pow ,type (Pow ,type (Var ,type "h0") (Num ,type (rational "1" "2"))) (Num ,type (rational "2" "1")))) (Var ,type "h0"))))
