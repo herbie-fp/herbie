@@ -90,7 +90,6 @@
 ;; renames variables back to non upper case
 ;; special names in map
 (define (egg-parsed->expr ctx parsed rename-dict)
-  (println parsed)
   (match parsed
     [`(Num ,type (rational ,num ,denom))
      (cons (/ (string->number num) (string->number denom)) (context-repr ctx))]

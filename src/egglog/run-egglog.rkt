@@ -1494,9 +1494,8 @@
 				((set (mostaccurate i term) (AstVar ty v))
 				 (set (mostaccurate-bool i term) (Some-bool true-physical))))
 
-	;; initialize the most accurate value to None
-	;; leverages seminaive to hope that it doesn't override
-	;; our new values! !!!!! this is BAD TODO fix me
+	;; initialize the most accurate value to default of None
+	;; very ugly, but the best way in egglog right now?
 	,@(expand-for-list
 	   all-ops Op
 	   `(rule (
