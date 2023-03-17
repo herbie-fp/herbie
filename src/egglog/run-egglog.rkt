@@ -11,9 +11,10 @@
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
-(define egg-iters 10)
+(define egg-iters 100)
 (define ground-truth-iters 10)
-(define egg-node-limit 100000)
+(define compute-accuracy-iters 7)
+(define egg-node-limit 200000)
 (define egg-match-limit 1000)
 (define HIGH-COST 100000000)
 ;; Number of points from the point context to take
@@ -253,70 +254,6 @@
     (rule ((= e (Num ty ve)))
 		((set (lo e) ve) (set (hi e) ve)))
 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; INTERVAL ANALYSIS
-    ;; The interval analyses are similar to the constant-folding analysis,
-    ;; except we have to take the lower/upper bound of the results we get
-    (rule ((= e (Add ty a b)) (= la (lo a)) (= lb (lo b)))
-		((set (lo e) (+ la lb))))
-    (rule ((= e (Add ty a b)) (= ha (hi a)) (= hb (hi b)))
-		((set (hi e) (+ ha hb))))
-    (rule ((= e (Sub ty a b)) (= la (lo a))
-						(= ha (hi a))
-						(= lb (lo b))
-						(= hb (hi b)))
-		((set (lo e)
-			 (min (min (- la lb) (- la hb))
-				 (min (- ha lb) (- ha hb))))
-		 (set (hi e)
-			 (max (max (- la lb) (- la hb))
-				 (max (- ha lb) (- ha hb))))))
-    (rule ((= e (Mul ty a b)) (= la (lo a))
-						(= ha (hi a))
-						(= lb (lo b))
-						(= hb (hi b)))
-		((set (lo e)
-			 (min (min (* la lb) (* la hb))
-				 (min (* ha lb) (* ha hb))))
-		 (set (hi e)
-			 (max (max (* la lb) (* la hb))
-				 (max (* ha lb) (* ha hb))))))
-    (rule ((= e (Div ty a b)) (= la (lo a))
-						(= ha (hi a))
-						(= lb (lo b))
-						(= hb (hi b)))
-		((set (lo e)
-			 (min (min (/ la lb) (/ la hb))
-				 (min (/ ha lb) (/ ha hb))))
-		 (set (hi e)
-			 (max (max (/ la lb) (/ la hb))
-				 (max (/ ha lb) (/ ha hb))))))
-    (rule ((= e (Neg ty a)) (= la (lo a)) (= ha (hi a)))
-		((set (lo e) (neg ha)) (set (hi e) (neg la))))
-    (rule ((= e (Sqrt ty a))) ((set (lo e) r-zero)))
-    (rule ((= e (Exp ty a))) ((set (lo e) r-zero)))
-    (rule ((= e (Exp ty a))) ((non-zero e)))
-    ;; TODO: better evaluation of sqrt
-    (rule ((= e (Sqrt ty a)) (= loa (lo a)))
-		((set (lo e) (sqrt loa))))
-    (rule ((= e (Sqrt ty a)) (= hia (hi a)))
-		((set (hi e) (sqrt hia))))
-    ; TODO: Cbrt
-    (rule ((= e (Fabs ty a)) (= la (lo a)) (= ha (hi a)))
-		((set (lo e) (min (abs la) (abs ha)))
-		 (set (hi e) (max (abs la) (abs ha)))))
-    (rule ((= e (Ceil ty a)) (= la (lo a)))
-		((set (lo e) (ceil la))))
-    (rule ((= e (Ceil ty a)) (= ha (hi a)))
-		((set (hi e) (ceil ha))))
-    (rule ((= e (Floor ty a)) (= la (lo a)))
-		((set (lo e) (floor la))))
-    (rule ((= e (Floor ty a)) (= ha (hi a)))
-		((set (hi e) (floor ha))))
-    (rule ((= e (Round ty a)) (= la (lo a)))
-		((set (lo e) (round la))))
-    (rule ((= e (Round ty a)) (= ha (hi a)))
-		((set (hi e) (round ha))))
     ;; UNIVERSE
     (rule ((= t (Num ty a))) ((universe t ty)))
     (rule ((= t (Var ty a))) ((universe t ty)))
@@ -575,7 +512,7 @@
 		   x
 		   :when ((non-negative x)))
     (rewrite (Sqrt ty (Mul ty x x)) (Fabs ty x))
-    (rewrite (Mul ty (Neg ty x) (Neg ty x)) (Mul ty x x))
+    (rewrite (Mul ty (Neg ty x) (Neg ty y)) (Mul ty x y))
     (rewrite (Mul ty (Fabs ty x) (Fabs ty x)) (Mul ty x x))
     ;; Absolute values
     (rewrite (Fabs ty (Fabs ty x)) (Fabs ty x))
@@ -1537,7 +1474,7 @@
 	,@(make-extract-rules #t)
 	,@(make-extract-rules #f)
 
-  (run compute-accuracy ,ground-truth-iters)
+  (run compute-accuracy ,compute-accuracy-iters)
 	
 	;; Finally, extract out the best expr for each expr and each point
 	,@(apply append
