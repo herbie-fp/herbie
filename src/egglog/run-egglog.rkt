@@ -13,7 +13,7 @@
 
 (define egg-iters 100)
 (define ground-truth-iters 10)
-(define compute-accuracy-iters 7)
+(define compute-accuracy-iters 10)
 (define egg-node-limit 200000)
 (define egg-match-limit 1000)
 (define HIGH-COST 100000000)
@@ -99,6 +99,9 @@
   (append num-num-num-num-ops bool-num-num-num-ops))
 
 (define all-ops (append *-*-*-*-ops *-*-*-ops *-*-ops *-ops))
+(define all-ops-except-if
+	(filter (lambda (x) (not (equal? x 'If)))
+									all-ops))
 
 (define (type op n)
   (list-ref (hash-ref op-type op) n))
@@ -203,6 +206,7 @@
     (function lo (Math) Rational :merge (max old new))
 
     ;; Compute ground truth for a program for a particular input point indexed by the i64
+		;; When the index is -1, computes a general interval arithmetic analysis
     (function ival (Math i64) Interval :merge (intersect old new))
     (function true-float (Math i64) f64 :merge (assert-eq old new))
     (function bval (Math i64) BooleanInterval :merge (ival-Or old new))
@@ -217,9 +221,6 @@
 		(relation non-error (Math))
     (relation non-negative (Math))
     (relation positive (Math))
-
-    ;; Floating point evaluation
-
 
     ;; First, constant folding!
     ;; We don't need an explicit constant folding analysis, we can just union
@@ -285,6 +286,28 @@
     (rule ((= t (Hypot ty a b))) ((universe t ty)))
     (rule ((= t (Expm1 ty a))) ((universe t ty)))
     (rule ((= t (Log1p ty a))) ((universe t ty)))
+
+
+		;; leverage interval analysis
+		(rule ((ival-NonError 
+							(ival term -1)))
+					((non-error term)))
+		(rule ((ival-Positive 
+							(ival term -1)))
+					((positive term)))
+		(rule ((ival-NonNegative
+							(ival term -1)))
+					((non-negative term)))
+		(rule ((ival-NonZero
+							(ival term -1)))
+					((non-zero term)))
+
+		;; constant fold nan by using interval analysis
+		(rule ((ival-GuaranteeError
+							(ival term -1))
+					 (universe term ty))
+					((set (NAN ty) term)))
+
     ;; soundness check
     (rule ((= (Num ty n) (Num ty m)) (!= n m))
           		((panic "Unsoundness detected!"))))))
@@ -308,13 +331,31 @@
 						top)
 			top))))
 
+(define simplify-if
+	(add-to-ruleset 'simplify-if
+	`((add-ruleset simplify-if)
+
+		(rewrite
+			(If ty cond
+				then
+				then)
+			then)
+		(rewrite
+				(If ty cond
+					 (If ty cond then else1)
+					 else2)
+				(If ty cond then else2))
+		(rewrite
+				(If ty cond
+					 then1
+					 (If ty cond then2 else))
+				(If ty cond then1 else)))))
 (define if-permute
 	(add-to-ruleset 'if-permute
 		`((add-ruleset if-permute)
 			,@(apply append
 					(expand-for-list
-						(filter (lambda (x) (not (equal? x 'If)))
-									all-ops)
+						all-ops-except-if
 						Op
 						(for/list ([i (in-range (arity Op))])
 							(if-permute-rule Op i)))))
@@ -378,7 +419,7 @@
 		   ((non-zero c)))
     (rewrite (Div ty a (Div ty b c)) ;; not defined when b or c is zero
 		   (Mul ty (Div ty a b) c)
-		   :when
+		   :precisely-when
 		   ((non-zero c)))
     (rewrite (Div ty (Div ty b c) a) ;; not defined when a or c is zero
 		   (Div ty b (Mul ty a c)))
@@ -453,7 +494,7 @@
     (rewrite
 			(Div ty (Num ty r-one) (Div ty (Num ty r-one) x)) ;; not defined when x is zero
 			x
-			:when ((non-zero x)))
+			:precisely-when ((non-zero x)))
     (rewrite (Mul ty x (Div ty (Num ty r-one) x)) ;; not defined when x is zero
 		   (Num ty r-one)
 		   :when ((non-zero x)
@@ -510,7 +551,7 @@
     ;; Square root
     (rewrite (Mul ty (Sqrt ty x) (Sqrt ty x))
 		   x
-		   :when ((non-negative x)))
+		   :precisely-when ((non-negative x)))
     (rewrite (Sqrt ty (Mul ty x x)) (Fabs ty x))
     (rewrite (Mul ty (Neg ty x) (Neg ty y)) (Mul ty x y))
     (rewrite (Mul ty (Fabs ty x) (Fabs ty x)) (Mul ty x x))
@@ -552,7 +593,7 @@
 		   (Pow ty x (Num ty r-three)))
     ;; Exponentials
     (rewrite (Exp ty (Log ty x))
-		   x :when ((positive x)))
+		   x :precisely-when ((positive x)))
     (rewrite (Log ty (Exp ty x)) x)
     (rewrite (Exp ty (Num ty r-zero)) (Num ty r-one))
     (rewrite (Exp ty (Num ty r-one)) (E ty))
@@ -599,7 +640,7 @@
 						 :when ((non-error a)))
     (rewrite (Exp ty (Mul ty (Log ty a) b)) ;; not defined for a <= 0
 		   (Pow ty a b)
-		   :when ((positive a)))
+		   :precisely-when ((positive a)))
     (rewrite (Mul ty (Pow ty a b) a)
 		   (Pow ty a (Add ty b (Num ty r-one)))
 		   :when ((positive a)))
@@ -974,10 +1015,10 @@
 		   ((non-negative x)))
     (rewrite (Pow ty (Sqrt ty x) y) ;; defined for non-negative x
 		   (Pow ty x (Div ty y (Num ty r-two)))
-		   :when ((non-negative x)))
+		   :precisely-when ((non-negative x)))
     (rewrite (Mul ty (Sqrt ty x) (Sqrt ty y)) ;; x and y non-negative
 		   (Sqrt ty (Mul ty x y))
-		   :when ((non-negative x) (non-negative y)))
+		   :precisely-when ((non-negative x) (non-negative y)))
     (rewrite (Div ty (Sqrt ty x) (Sqrt ty y)) ;; x non-negative, y positive
 		   (Sqrt ty (Div ty x y)) ;; x*y non-negative, y non-zero
 		   :when
@@ -1270,6 +1311,7 @@
 )))
 
 ;; the script adds a (point i) for every point i
+;; it also adds a (point -1) for a general interval analysis
 (define ground-truth
   	(add-to-ruleset
 			'ground-truth
@@ -1279,16 +1321,16 @@
 						 ((set (ival term i) (interval r r))))
     (rule ((= term (PI ty))
 		 (point i))
-		((set (ival term i) (interval-Pi))))
+		((set (ival term i) (ival-Pi))))
     (rule ((= term (INFINITY ty))
 		 (point i))
-		((set (ival term i) (interval-Inf))))
+		((set (ival term i) (ival-Inf))))
     (rule ((= term (E ty))
 		 (point i))
-		((set (ival term i) (interval-E))))
+		((set (ival term i) (ival-E))))
 		(rule ((= term (NAN ty))
 			(point i))
-		((set (ival term i) (interval-NAN))))
+		((set (ival term i) (ival-NAN))))
     (rule ((= term (TRUE ty))
 		 (point i))
 		((set (bval term i) (true-interval))))
@@ -1338,13 +1380,21 @@
 (define (build-runner)
 	`((run-schedule
 			(repeat ,egg-iters
-				(repeat 3 (run analysis 1))
-				(repeat 1 (run rewrites 1))
-				(repeat 1 (run if-permute 1))))))
+				;; runs the interval analysis
+				(run ground-truth 3) 
+				;; runs normal analysis
+				(run analysis 3)
+				;; runs normal rewriting
+				(run rewrites 1)
+				(repeat 3
+					;; simplify if statement stuff
+					(run simplify-if 2)
+					;; permute the order of if statements
+					(run if-permute 1))))))
 
-(define (build-extract exprs)
+(define (build-extract exprs variants)
   (for/list ([expr exprs] [i (in-naturals)])
-    `(extract ,(varname i))))
+    `(extract :variants ,variants ,(varname i))))
 
 (define (ast-prefix op)
   (string->symbol (string-append "Ast" (symbol->string op))))
@@ -1510,19 +1560,28 @@
 	;; TODO run ground truth extraction
 	))
 
+(define (build-interval-analysis ctx eggdata)
+	`((point -1)
+		,@(for/list ([var (context-vars ctx)])
+				`(set (ival ,(expr->egglog ctx var eggdata) -1)
+							(ival-Empty)))))
+
 (define (build-egglog ctx pctx eggdata exprs accuracy-extract)
   (append
 		header
 		analysis
 		rewrites
 		if-permute
+		simplify-if
 		ground-truth
 		(build-exprs ctx eggdata exprs)
+		(build-interval-analysis ctx eggdata)
 		(build-runner)
 		
 		(if (not accuracy-extract)
-				(build-extract exprs) ;; normal extraction
+				(build-extract exprs 0) ;; normal extraction
     		(append 
+					(build-extract exprs 100) ;; extract a bunch of variants
 					(build-ground-truth-compute ctx pctx exprs eggdata)
     			(build-ground-truth-extract ctx exprs eggdata)))
 		))
@@ -1580,6 +1639,15 @@
 						`(rewrite ,lhs
 								(If ty ,(side-conditions->bool conditions) ,rhs ,lhs) ,@other))
 			)]
+			[`(rewrite ,lhs ,rhs :precisely-when (,conditions ...) ,other ...)
+				(define normal `(rewrite ,lhs ,rhs :when (,@conditions) ,@other))
+				(if (ormap cant-convert-condition conditions)
+						(list normal)
+						(list
+							normal
+						`(rewrite ,lhs
+								(If ty ,(side-conditions->bool conditions) ,rhs (NAN ty)) ,@other))
+			)]
 			[`(rewrite ,lhs ,rhs)
 				(list line)]
 			[`(rewrite ,lhs ,rhs :ruleset ,ruleset)
@@ -1606,6 +1674,10 @@
 				(list v)]
 			[else empty])))))
 
+(define allowed-drop-variables
+	(list->set
+		`(else1 then2 then else cond droppable0 droppable1 droppable2 droppable3)))
+
 (define (sanity-check-rewrites egglog-program)
 	(for ([line egglog-program])
 		(match line
@@ -1614,16 +1686,21 @@
 				(match other
 					[`(:when ,cond ,otherdata ...)
 						(get-non-error-vars cond)]
+					[`(:precisely-when ,cond ,otherdata ...)
+						(get-non-error-vars cond)]
 					[else (set)]))
 
 			(define vars (get-vars lhs))
 			(define rhs-vars (get-vars rhs))
-			(define not-contains (set->list 
-				(set-subtract
-				(set-subtract
-					(set-subtract vars rhs-vars)
-					egglog-consts)
-				non-error-vars)))
+			(define not-contains
+				(set->list 
+					(set-subtract
+					(set-subtract
+					(set-subtract
+						(set-subtract vars rhs-vars)
+						egglog-consts)
+				non-error-vars)
+				allowed-drop-variables)))
 			(when (not (empty? not-contains))
 				(error (format "Rewrite rule ~a:\nContains variables that are not in the rhs: ~a" line not-contains)))
 			]
@@ -1660,17 +1737,21 @@
 	(displayln egglog-program egglog-in)
 	(close-output-port egglog-in)
 	
+	(define extracted-results
+		(for/list ([expr exprs])
+				(read egglog-output)))
+
 	(define results
 		(if (not accuracy-extract)
-			(for/list ([expr exprs])
-				(read egglog-output))
-			(for/list ([expr exprs])
+			extracted-results
+			(for/list ([expr exprs] [other-variants extracted-results])
 				;; list of exprs for this expr at each point
-				(map remove-ast-prefix
-					(filter extracted-mostaccurate?
-						(for/list ([i (in-range egg-num-sample)])
-							;; just extracted one thing
-							(first (read egglog-output))))))))
+				(append other-variants
+					(map remove-ast-prefix
+						(filter extracted-mostaccurate?
+							(for/list ([i (in-range egg-num-sample)])
+								;; just extracted one thing
+								(first (read egglog-output)))))))))
 
 	(close-input-port egglog-output)
 

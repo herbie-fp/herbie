@@ -22,8 +22,8 @@
 (struct test-timeout test-result ())
 
 (define *reeval-pts* (make-parameter 8000))
-;; 8 minute timeout by default
-(define *timeout* (make-parameter (* 1000 60 8)))
+;; 12 minute timeout by default
+(define *timeout* (make-parameter (* 1000 60 12)))
 
 ;; true if Racket CS <= 8.2
 (define cs-places-workaround?

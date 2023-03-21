@@ -59,6 +59,7 @@
                (INFINITY . INFINITY)
                (TRUE . TRUE)
                (FALSE . FALSE)
+               (NAN . NAN)
                )))
 (define special-egg-names-reversed
   (make-hash
