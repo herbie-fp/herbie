@@ -19,8 +19,6 @@
 (define HIGH-COST 100000000)
 ;; Number of points from the point context to take
 (define egg-num-sample 4)
-;; Number of variants to extract from the egraph
-(define egglog-extract-variants 0)
 
 
 (define (add-to-ruleset ruleset commands)

@@ -71,13 +71,9 @@
 (define (batch-egg-rewrite exprs
                            ctx
                            pctx)
-  (define reprs (map (λ (e) (repr-of e ctx)) exprs))
-
   (for/list
       ([variants (run-egglog ctx pctx exprs #:accuracy-extract #t)]
-       [expr exprs]
-       [expr-repr reprs])
-    (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
+       [expr exprs])
     (cons expr variants)))
 
 ;;  Recursive rewrite chooser

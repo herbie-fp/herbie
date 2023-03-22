@@ -169,7 +169,6 @@
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
   (timeline-event! 'rewrite)
 
-
   (define altns
     (cond
       [(null? (^queued^))
@@ -178,25 +177,30 @@
        (^queued^)]
       [else
        (append (^queued^) (^queuedlow^))]))
-  ;; get subexprs and locations
+  
   (define exprs (map (compose program-body alt-program) altns))
+  (define reprs (map (λ (e) (repr-of e (*context*))) exprs))
 
   (for ([expr exprs])
     (when (unsound-expr? expr)
       (error (format "Unsound expression: ~a" expr))))
 
-  ;; rewrite high-error locations
+  ;; rewrite using egglog
   (define expr-variants
     (rewrite-expressions exprs (*context*) (*pcontext*)))
 
   (define rewritten
     (apply append
       (for/list ([altn altns]
-                [variants expr-variants])
+                 [repr reprs]
+                 [variants expr-variants])
+        (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
+        (pretty-print variants)
         (for/list ([variant variants])
           (alt `(lambda ,(program-variables (alt-program altn)) ,variant)
-                (alt-event altn) ;; TODO use event for RR instead of this bad hack
-                (alt-prevs altn))))))
+                (list 'change 
+                  (change egg-rule `(2) empty))
+                (list altn))))))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline
