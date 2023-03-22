@@ -14,7 +14,7 @@
 (define egg-iters 100)
 (define ground-truth-iters 10)
 (define compute-accuracy-iters 10)
-(define egg-node-limit 10000)
+(define egg-node-limit 200000)
 (define egg-match-limit 1000)
 (define HIGH-COST 100000000)
 ;; Number of points from the point context to take
