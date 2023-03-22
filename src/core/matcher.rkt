@@ -70,35 +70,22 @@
 
 (define (batch-egg-rewrite exprs
                            ctx
-                           pctx
-                           #:rules rules
-                           #:roots [root-locs (make-list (length exprs) '())]
-                           #:depths [depths (make-list (length exprs) 1)])
+                           pctx)
   (define reprs (map (λ (e) (repr-of e ctx)) exprs))
 
   (for/list
       ([variants (run-egglog ctx pctx exprs #:accuracy-extract #t)]
        [expr exprs]
-       [root-loc root-locs]
        [expr-repr reprs])
     (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
-    (for/list ([variant (remove-duplicates variants)])
-      (list (change egg-rule root-loc (list (cons 'x variant)))))))
+    (cons expr variants)))
 
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
                              ctx
-                             pctx
-                             #:rules rules
-                             #:roots [root-locs (make-list (length exprs) '())]
-                             #:depths [depths (make-list (length exprs) 1)]
-                             #:once? [once? #f])
-  ; choose correct rr driver
-  (cond
-    [(or (null? exprs) (null? rules)) (make-list (length exprs) '())]
-   [else
-    (timeline-push! 'method "batch-egg-rewrite")
-    (timeline-push! 'inputs (map ~a exprs))
-    (define out (batch-egg-rewrite exprs ctx pctx #:rules rules #:roots root-locs #:depths depths))
-    (timeline-push! 'outputs (map ~a out))
-    out]))
+                             pctx)
+  (timeline-push! 'method "batch-egg-rewrite")
+  (timeline-push! 'inputs (map ~a exprs))
+  (define out (batch-egg-rewrite exprs ctx pctx))
+  (timeline-push! 'outputs (map ~a out))
+  out)

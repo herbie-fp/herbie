@@ -169,67 +169,34 @@
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
   (timeline-event! 'rewrite)
 
-  ;; partition the rules
-  (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
 
+  (define altns
+    (cond
+      [(null? (^queued^))
+       (^queuedlow^)]
+      [(null? (^queuedlow^))
+       (^queued^)]
+      [else
+       (append (^queued^) (^queuedlow^))]))
   ;; get subexprs and locations
-  (define exprs (map (compose program-body alt-program) (^queued^)))
+  (define exprs (map (compose program-body alt-program) altns))
 
   (for ([expr exprs])
     (when (unsound-expr? expr)
       (error (format "Unsound expression: ~a" expr))))
 
-  (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
-  (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
-  (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root
-
-  ;; HACK:
-  ;; - check loaded representations
-  ;; - if there is only one real representation, allow expansive rules to be run in egg
-  ;; This is just a workaround and should definitely be fixed
-  (define one-real-repr? (= (count (λ (r) (equal? (representation-type r) 'real)) (*needed-reprs*)) 1))
-
   ;; rewrite high-error locations
-  (define changelists
-    (if one-real-repr?
-        (merge-changelists
-         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules (append expansive-rules normal-rules) #:roots locs)
-         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules reprchange-rules #:roots locs #:once? #t))
-        (merge-changelists
-         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules normal-rules #:roots locs)
-         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules expansive-rules #:roots locs #:once? #t)
-         (rewrite-expressions exprs (*context*) (*pcontext*) #:rules reprchange-rules #:roots locs #:once? #t))))
-
-  ;; rewrite low-error locations (only precision changes allowed)
-  (define changelists-low-locs
-    (rewrite-expressions lowexprs (*context*) (*pcontext*)
-                         #:rules reprchange-rules
-                         #:roots lowlocs
-                         #:once? #t))
-
-  (define comb-changelists (append changelists changelists-low-locs))
-  (define altns (append (^queued^) (^queuedlow^)))
-
-  (define rules-used
-    (append-map (curry map change-rule) (apply append comb-changelists)))
-  (define rule-counts
-    (for ([rgroup (group-by identity rules-used)])
-      (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
+  (define expr-variants
+    (rewrite-expressions exprs (*context*) (*pcontext*)))
 
   (define rewritten
-    (for/fold ([done '()] #:result (reverse done))
-              ([cls comb-changelists] [altn altns]
-                                      #:when true [cl cls])
-      (let loop ([cl cl] [altn altn])
-        (cond
-          [(null? cl)
-           (cons altn done)]
-          [else
-           (define change-app (change-apply (car cl) (alt-program altn)))
-           (define prog* (apply-repr-change change-app (*context*)))
-           (if (program-body prog*)
-               (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
-               done)]))))
+    (apply append
+      (for/list ([altn altns]
+                [variants expr-variants])
+        (for/list ([variant variants])
+          (alt `(lambda ,(program-variables (alt-program altn)) ,variant)
+                (alt-event altn) ;; TODO use event for RR instead of this bad hack
+                (alt-prevs altn))))))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline

@@ -14,11 +14,13 @@
 (define egg-iters 100)
 (define ground-truth-iters 10)
 (define compute-accuracy-iters 10)
-(define egg-node-limit 200000)
+(define egg-node-limit 10000)
 (define egg-match-limit 1000)
 (define HIGH-COST 100000000)
 ;; Number of points from the point context to take
 (define egg-num-sample 4)
+;; Number of variants to extract from the egraph
+(define egglog-extract-variants 0)
 
 
 (define (add-to-ruleset ruleset commands)
@@ -1392,9 +1394,9 @@
 					;; permute the order of if statements
 					(run if-permute 1))))))
 
-(define (build-extract exprs variants)
+(define (build-extract exprs)
   (for/list ([expr exprs] [i (in-naturals)])
-    `(extract :variants ,variants ,(varname i))))
+    `(extract ,(varname i))))
 
 (define (ast-prefix op)
   (string->symbol (string-append "Ast" (symbol->string op))))
@@ -1579,9 +1581,8 @@
 		(build-runner)
 		
 		(if (not accuracy-extract)
-				(build-extract exprs 0) ;; normal extraction
+				(build-extract exprs) ;; normal extraction
     		(append 
-					(build-extract exprs 100) ;; extract a bunch of variants
 					(build-ground-truth-compute ctx pctx exprs eggdata)
     			(build-ground-truth-extract ctx exprs eggdata)))
 		))
@@ -1737,21 +1738,18 @@
 	(displayln egglog-program egglog-in)
 	(close-output-port egglog-in)
 	
-	(define extracted-results
-		(for/list ([expr exprs])
-				(read egglog-output)))
 
 	(define results
 		(if (not accuracy-extract)
-			extracted-results
-			(for/list ([expr exprs] [other-variants extracted-results])
+			(for/list ([expr exprs])
+				(read egglog-output))
+			(for/list ([expr exprs])
 				;; list of exprs for this expr at each point
-				(append other-variants
-					(map remove-ast-prefix
-						(filter extracted-mostaccurate?
-							(for/list ([i (in-range egg-num-sample)])
-								;; just extracted one thing
-								(first (read egglog-output)))))))))
+				(map remove-ast-prefix
+					(filter extracted-mostaccurate?
+						(for/list ([i (in-range egg-num-sample)])
+							;; just extracted one thing
+							(first (read egglog-output))))))))
 
 	(close-input-port egglog-output)
 
