@@ -414,23 +414,25 @@
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
-  (timeline-event! 'simplify)
-  (define progss*
-    (simplify-batch
-      (simplify-input 
-        (map (compose program-body alt-program) joined-alts) empty
-        (*fp-safe-simplify-rules*) #t)))
-  (define cleaned-alts
-    (remove-duplicates
-      (for/list ([altn joined-alts] [progs progss*])
-        (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
-              'final-simplify (list altn)))
-      alt-equal?))
+
+  (define cleaned-alts joined-alts)
+  (when (flag-set? 'generate 'simplify)
+    (timeline-event! 'simplify)
+    (define progss*
+      (simplify-batch
+        (simplify-input 
+          (map (compose program-body alt-program) joined-alts) empty
+          (*fp-safe-simplify-rules*) #t)))
+    (set! cleaned-alts
+      (remove-duplicates
+        (for/list ([altn joined-alts] [progs progss*])
+          (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
+                'final-simplify (list altn)))
+        alt-equal?)))
+        
   (define alts-deduplicated
     (remove-duplicates cleaned-alts alt-equal?))
-  
 
-  
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   ;; find the best, sort the rest by cost
   (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts-deduplicated))
