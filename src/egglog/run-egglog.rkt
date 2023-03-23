@@ -1730,7 +1730,6 @@
 
 ;; 0 variants means just extract the best expression
 (define (run-egglog ctx pctx exprs #:accuracy-extract accuracy-extract)
-	(println exprs)
 	(define eggdata
 	(egraph-data (make-hash)
 				(make-hash)))
@@ -1773,8 +1772,6 @@
 			(map (curry egglog->expr ctx eggdata) variants)))
 
 	(subprocess-wait egglog-process)
-
-	(pretty-print converted)
 
 	converted)
 
