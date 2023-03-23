@@ -2,6 +2,7 @@
 
 (require racket/runtime-path math/base)
 (require "config.rkt")
+(require "../src/syntax/types.rkt")
 (module+ test (require rackunit))
 
 (provide reap
@@ -163,12 +164,20 @@
    [(< (max ms min-unit) 3600000) (format "~amin" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
 
-(define (format-bits r #:sign [sign #f] #:unit [unit? #f])
+(define (format-bits r repr #:sign [sign #f] #:unit [unit? #f])
+  (define val 
+    (if (zero? (representation-total-bits repr))
+      0
+      (* (/ r (representation-total-bits repr)) 100)))
+  (define percent (string-append (~r val #:precision 4) "%"))
+
   (define unit (if unit? "b" ""))
   (cond
    [(not r) ""]
-   [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
-   [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
+  ;  [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
+  ;  [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
+   [(and (> r 0) sign) (format "+~a~a" percent unit)]
+   [else (format "~a~a" percent unit)]))
 
 (define-runtime-path web-resource-path "web/resources/")
 
