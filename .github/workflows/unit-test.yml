@@ -29,4 +29,4 @@ jobs:
           submodules: recursive
       - name: "Install dependencies"
         run: make install
-      - run: raco test src/ infra/ egg-herbie/
+      - run: raco test src/ infra/

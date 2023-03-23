@@ -122,6 +122,7 @@
   (define (test-simplify . args)
     (map last (simplify-batch
                ctx
+               (mk-pcontext empty empty)
                empty
                (simplify-input args empty (*simplify-rules*) true))))
 

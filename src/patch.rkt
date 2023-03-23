@@ -195,7 +195,6 @@
                  [repr reprs]
                  [variants expr-variants])
         (define egg-rule (rule "egg-rr" 'x 'x (list repr) repr))
-        (pretty-print variants)
         (for/list ([variant variants])
           (alt `(lambda ,(program-variables (alt-program altn)) ,variant)
                 (list 'change 
