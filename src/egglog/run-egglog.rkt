@@ -14,12 +14,12 @@
 (define egg-iters 100)
 (define ground-truth-iters 10)
 (define compute-accuracy-iters 10)
-(define egg-node-limit 200000)
+(define egg-node-limit 100000)
 (define egg-match-limit 1000)
-(define egg-if-match-limit 100000)
+(define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
 ;; Number of points from the point context to take
-(define egg-num-sample 4)
+(define egg-num-sample 1)
 
 
 (define (add-to-ruleset ruleset commands)
@@ -1381,9 +1381,10 @@
 	  :cost 10000000)))
 
 (define (build-iter)
-	`((set-option match_limit ,egg-match-limit)
-		;; runs the interval analysis
-		(run ground-truth 3) 
+	`((set-option match_limit 10000000)
+    (run ground-truth ,ground-truth-iters)
+		
+		(set-option match_limit ,egg-match-limit)
 		;; runs normal analysis
 		(run analysis 3)
 		;; runs normal rewriting
@@ -1545,8 +1546,7 @@
 	))))
 
 
-
-(define (build-ground-truth-compute ctx pctx exprs eggdata)
+(define (setup-ground-truth ctx pctx exprs eggdata)
 	(define points (for/list ([(point exact) (in-pcontext pctx)])
 		point))
 	(define shuffled (shuffle points))
@@ -1561,13 +1561,13 @@
 						[num point])
 				`(set (ival ,(expr->egglog ctx var eggdata)
 							,i)
-					(interval ,num ,num)))))
-                		`((set-option node_limit 10000000)
-											(set-option match_limit 10000000)
-                		(run ground-truth ,ground-truth-iters)) ;; run ground truth computation
+					(interval ,num ,num)))))))
 
-	;; TODO run ground truth extraction
-	))
+
+(define (build-ground-truth-compute ctx pctx exprs eggdata)
+	`((set-option node_limit 10000000)
+		(set-option match_limit 10000000)
+    (run ground-truth ,ground-truth-iters)))
 
 (define (build-interval-analysis ctx eggdata)
 	`((point -1)
@@ -1585,6 +1585,7 @@
 		ground-truth
 		(build-exprs ctx eggdata exprs)
 		(build-interval-analysis ctx eggdata)
+		(setup-ground-truth ctx pctx exprs eggdata)
 		(build-runner)
 		
 		(if (not accuracy-extract)
@@ -1716,10 +1717,37 @@
 		#t
 		])))
 
+(define (rewrite-check-local-error egglog-program)
+	(for/list ([line egglog-program])
+		(match line
+			[`(rewrite (,Op ty ,children ...) ,rhs ,other-stuff ...)
+			  `(rule ((= left-hand-side__ (,Op ty ,@children))
+								;; child ground truth
+								,@(for/list ([i (range (arity Op))]
+								             [child children])
+								   `(= ,(ivar 'true i)
+									    ,(if (equal? (type Op i) 'num)
+											    `(true-float ,child 0)
+													`(true-bool ,child 0))))
+								;; my ground truth
+							  (= true-physical
+									,(if (equal? (return-type Op) 'num)
+											`(true-float left-hand-side__ 0)
+											`(true-bool left-hand-side__ 0)))
+								(= current-physical
+									 (,(physical-op Op) ,@(rep Op 'true)))
+								;; non-zero local error
+								(!= true-physical current-physical))
+							((set (,Op ty ,@children) ,rhs)))]
+			[`(rewrite ,stuff ...)
+			  (error (format "Unrecognized rewrite pattern ~a" line))]
+			[else line])))
 
 (define (apply-egglog-macros egglog-program)
 	(sanity-check-rewrites egglog-program)
-	(define res (rewrite-if egglog-program))
+	(define res (rewrite-check-local-error
+								(rewrite-if egglog-program)))
+
 	(sanity-check-rewrites res)
 	res)
 
