@@ -16,6 +16,7 @@
 (define compute-accuracy-iters 10)
 (define egg-node-limit 200000)
 (define egg-match-limit 1000)
+(define egg-if-match-limit 100000)
 (define HIGH-COST 100000000)
 ;; Number of points from the point context to take
 (define egg-num-sample 4)
@@ -350,6 +351,8 @@
 					 then1
 					 (If ty cond then2 else))
 				(If ty cond then1 else)))))
+
+
 (define if-permute
 	(add-to-ruleset 'if-permute
 		`((add-ruleset if-permute)
@@ -358,8 +361,8 @@
 						all-ops-except-if
 						Op
 						(for/list ([i (in-range (arity Op))])
-							(if-permute-rule Op i)))))
-		 	))
+							(if-permute-rule Op i))))
+		)))
 
 (define rewrites
   	(add-to-ruleset 'rewrites
@@ -1377,20 +1380,26 @@
 	  ,(expr->egglog ctx expr eggdata)
 	  :cost 10000000)))
 
+(define (build-iter)
+	`((set-option match_limit ,egg-match-limit)
+		;; runs the interval analysis
+		(run ground-truth 3) 
+		;; runs normal analysis
+		(run analysis 3)
+		;; runs normal rewriting
+		(run rewrites 1)
+		
+		(set-option match_limit ,egg-if-match-limit)
+		;; simplify if statement stuff
+		(run simplify-if 2)
+		;; permute the order of if statements
+		(run if-permute 1)))
+
 (define (build-runner)
-	`((run-schedule
-			(repeat ,egg-iters
-				;; runs the interval analysis
-				(run ground-truth 3) 
-				;; runs normal analysis
-				(run analysis 3)
-				;; runs normal rewriting
-				(run rewrites 1)
-				(repeat 3
-					;; simplify if statement stuff
-					(run simplify-if 2)
-					;; permute the order of if statements
-					(run if-permute 1))))))
+	(apply append
+		(for/list
+				([i (in-range egg-iters)])
+				(build-iter))))
 
 (define (build-extract exprs)
   (for/list ([expr exprs] [i (in-naturals)])
@@ -1721,6 +1730,7 @@
 
 ;; 0 variants means just extract the best expression
 (define (run-egglog ctx pctx exprs #:accuracy-extract accuracy-extract)
+	(println exprs)
 	(define eggdata
 	(egraph-data (make-hash)
 				(make-hash)))
@@ -1763,6 +1773,8 @@
 			(map (curry egglog->expr ctx eggdata) variants)))
 
 	(subprocess-wait egglog-process)
+
+	(pretty-print converted)
 
 	converted)
 
