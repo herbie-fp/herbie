@@ -13,13 +13,15 @@
 
 (define egg-iters 100)
 (define ground-truth-iters 15)
-(define compute-accuracy-iters 15)
-(define egg-node-limit 10000)
+(define compute-accuracy-iters 8)
+(define egg-node-limit 50000)
 (define egg-match-limit 1000)
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
+(define ERROR-THRESHOLD 0.000011)
 ;; Number of points from the point context to take
 (define egg-num-sample 1)
+(define egg-num-egraphs 4)
 
 
 (define (add-to-ruleset ruleset commands)
@@ -1398,7 +1400,7 @@
 (define (build-iter)
 	`((set-option match_limit 10000000)
     (run ground-truth ,ground-truth-iters)
-		#;(run compute-accuracy ,compute-accuracy-iters)
+		(run compute-accuracy ,compute-accuracy-iters)
 		
 		(set-option match_limit ,egg-match-limit)
 		;; runs normal analysis
@@ -1738,20 +1740,21 @@
 									,(if (equal? (return-type Op) 'num)
 											`(true-float left-hand-side__ 0)
 											`(true-bool left-hand-side__ 0)))
-								#;(= (,(some Op) current-mostnum)
+								(= (,(some Op) current-mostnum)
 									 (,(append-type 'mostaccurate Op (arity Op)) 0 left-hand-side__))
-								#;(!= (rel-error current-mostnum true-physical) 0.0)
+								(<= (rel-error current-mostnum true-physical) ,ERROR-THRESHOLD)
 
 								;; child ground truth
-								,@(for/list ([i (range (arity Op))]
+								#;(for/list ([i (range (arity Op))]
 								             [child children])
 								   `(= ,(ivar 'true i)
 									    ,(if (equal? (type Op i) 'num)
 											    `(true-float ,child 0)
 													`(true-bool ,child 0))))
-								(= locally-accurate
+								#;(= locally-accurate
 									 (,(physical-op Op) ,@(rep Op 'true)))
-							  (!= true-physical locally-accurate))
+								#;(<= (rel-error true-physical locally-accurate)
+								   ,ERROR-THRESHOLD))
 							((set (,Op ty ,@children) ,rhs))
 							,@other-options)]
 			[`(rewrite ,stuff ...)
@@ -1774,7 +1777,7 @@
 (define (run-egglog ctx pctx exprs #:accuracy-extract accuracy-extract)
 	(map flatten
 		(transpose 
-			(for/list ([i (range 6)])
+			(for/list ([i (range egg-num-egraphs)])
 				(run-egglog-random-point ctx pctx exprs #:accuracy-extract accuracy-extract)))))
 	
 
