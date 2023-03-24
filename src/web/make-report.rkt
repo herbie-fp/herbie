@@ -11,7 +11,7 @@
     ["error" "ERR"]
     ["crash" "!!!"]
     ["timeout" "TIME"]
-    [_ (format-bits (- (table-row-start result) (table-row-result result)) (test-output-repr (test-result-test result)) #:sign #t)]))
+    [_ (format-bits (- (table-row-start result) (table-row-result result)) (test-output-repr (test-result-test result)) #:sign #t #:unit "%")]))
 
 (define (format-subreports rss)
   (define (round* x) (inexact->exact (round x)))
@@ -139,9 +139,9 @@
        ,@(for/list ([result tests] [id (in-naturals)])
            `(tr ((class ,(~a (table-row-status result))))
                 (td ,(or (table-row-name result) ""))
-                (td ,(format-bits (table-row-start result) (test-output-repr (test-result-test result))))
-                (td ,(format-bits (table-row-result result) (test-output-repr (test-result-test result))))
-                (td ,(format-bits (table-row-target result) (test-output-repr (test-result-test result))))
+                (td ,(format-bits (table-row-start result) (test-output-repr (test-result-test result)) #:unit "%"))
+                (td ,(format-bits (table-row-result result) (test-output-repr (test-result-test result)) #:unit "%"))
+                (td ,(format-bits (table-row-target result) (test-output-repr (test-result-test result)) #:unit "%"))
                 (td ,(format-time (table-row-time result) #:min 1000))
                 ,(if (table-row-link result)
                      `(td

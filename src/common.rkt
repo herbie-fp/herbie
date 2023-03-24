@@ -163,20 +163,21 @@
    [(< (max ms min-unit) 3600000) (format "~amin" (/ (round (/ ms 6000.0)) 10))]
    [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
 
-(define (format-bits r repr #:sign [sign #f] #:unit [unit? #f])
-  (define val 
-    (if (zero? (representation-total-bits repr))
-      0
-      (* (/ r (representation-total-bits repr)) 100)))
-  (define percent (string-append (~r val #:precision 4) "%"))
+(define (format-bits r repr #:sign [sign #f] #:unit [unit #f])
+  (define unit- (if unit unit ""))
 
-  (define unit (if unit? "b" ""))
+  (define val 
+    (cond
+      [(zero? (representation-total-bits repr)) 0]
+      [unit (/ (round (* r 10)) 10)]
+      [else (* (/ r (representation-total-bits repr)) 100)]))
+
+  (define percent (~r val #:precision 2))
+
   (cond
    [(not r) ""]
-  ;  [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
-  ;  [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
-   [(and (> r 0) sign) (format "+~a~a" percent unit)]
-   [else (format "~a~a" percent unit)]))
+   [(and (> r 0) sign) (format "+~a~a" percent unit-)]
+   [else (format "~a~a" percent unit-)]))
 
 (define-runtime-path web-resource-path "web/resources/")
 
