@@ -1,8 +1,7 @@
 #lang racket
 
 (require racket/runtime-path math/base)
-(require "config.rkt")
-(require "../src/syntax/types.rkt")
+(require "config.rkt" "../src/syntax/types.rkt")
 (module+ test (require rackunit))
 
 (provide reap
