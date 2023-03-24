@@ -112,16 +112,17 @@
                [title ,(format "~a (~a)" tag
                                (format-percent (hash-ref domain-info tag 0) total))])))))))
 
-
+(define repr (get-representation 'binary64))
 (define (render-phase-locations locations)
   `((dt "Local error")
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
           (thead (tr (th "New") (th "Error") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
+
               (match-define (list expr err new?) rec)
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-bits err) "b")
+                  (td ,(format-bits err repr #:unit "%") "")
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
@@ -223,15 +224,15 @@
   (define total-remaining (apply + accuracy))
 
   `((dt "Accuracy")
-    (dd (p "Total " ,(format-bits (apply + bits)) "b" " remaining"
+    (dd (p "Total " ,(format-bits (apply + bits) repr #:unit #f) "b" " remaining"
             " (" ,(format-percent (apply + bits) total-remaining) ")"
-        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits))) "b"
+        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits)) repr #:unit #f) "b"
            " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
         ,@(if (> (length rows) 1)
               `((table ([class "times"])
                   ,@(for/list ([rec (in-list rows)] [_ (in-range 5)])
                       (match-define (list left gained link name) rec)
-                      `(tr (td ,(format-bits left) "b")
+                      `(tr (td ,(format-bits left repr #:unit #f) "b")
                            (td ,(format-percent gained (+ left gained)))
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
               '())))))
@@ -263,7 +264,7 @@
 (define (render-phase-error min-error-table)
   (match-define (list min-error) min-error-table)
   `((dt "Error")
-    (dd ,(format-bits min-error) "b")))
+    (dd ,(format-bits min-error repr #:unit "%") "")))
 
 (define (render-phase-rules rules)
   `((dt "Rules")
@@ -290,7 +291,7 @@
                          ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                          ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                          ["fresh" `(td)])
-                      (td ,(format-bits score) "b")
+                      (td ,(format-bits score repr #:unit "%") "")
                       (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
@@ -331,7 +332,7 @@
                (thead (tr (th "Error") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
              (match-define (list expr score splits) rec)
-             `(tr (td ,(format-bits score) "b")
+             `(tr (td ,(format-bits score repr #:unit "%") "")
                   (td ,(~a splits))
                   (td (code ,expr))))))))
 
