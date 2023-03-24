@@ -2,7 +2,7 @@
 
 (require racket/runtime-path)
 (require "egraph-conversion.rkt" "../timeline.rkt"
-	    "../syntax/types.rkt" "../points.rkt")
+	    "../syntax/types.rkt" "../points.rkt" "../common.rkt")
 (require (for-syntax syntax/parse))
 (module+ test (require rackunit))
 
@@ -12,9 +12,9 @@
   "egg-smol/target/release/egg-smol")
 
 (define egg-iters 100)
-(define ground-truth-iters 10)
-(define compute-accuracy-iters 10)
-(define egg-node-limit 100000)
+(define ground-truth-iters 15)
+(define compute-accuracy-iters 15)
+(define egg-node-limit 10000)
 (define egg-match-limit 1000)
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
@@ -170,7 +170,7 @@
 		 body))]))
 
 
-(define header
+(define math-definition
   `((set-option node_limit ,egg-node-limit)
 		(set-option match_limit ,egg-match-limit)
     (datatype HerbieType (Type String))
@@ -197,6 +197,7 @@
 		(define r-half (rational "1" "2"))
 		(define r-third (rational "1" "3"))
 		))
+
 (define egglog-consts (apply set `(ty r-zero r-one r-two r-three r-four r-neg-one r-half r-third)))
 
 ;; TODO: rewrite analysis to use interval type
@@ -222,6 +223,20 @@
 		(relation non-error (Math))
     (relation non-negative (Math))
     (relation positive (Math))
+
+		(datatype Option-f64
+		 		(Some-num f64)
+				(None-num))
+
+		(datatype Option-bool
+			(Some-bool bool)
+			(None-bool))
+		(function mostaccurate (i64 Math) AstMath
+		:cost ,HIGH-COST :merge new)
+		(function mostaccurate-num (i64 Math) Option-f64
+		:merge new :default (None-num))
+		(function mostaccurate-bool (i64 Math) Option-bool
+		:merge new :default (None-bool))
 
     ;; First, constant folding!
     ;; We don't need an explicit constant folding analysis, we can just union
@@ -1383,6 +1398,7 @@
 (define (build-iter)
 	`((set-option match_limit 10000000)
     (run ground-truth ,ground-truth-iters)
+		#;(run compute-accuracy ,compute-accuracy-iters)
 		
 		(set-option match_limit ,egg-match-limit)
 		;; runs normal analysis
@@ -1485,23 +1501,7 @@
 (define (build-ground-truth-extract ctx exprs eggdata)
   (add-to-ruleset 'compute-accuracy
                   	(append
-   (build-math-ast ctx exprs eggdata)
    `((ruleset compute-accuracy)
-		 (datatype Option-f64
-		 		(Some-num f64)
-				(None-num))
-
-		 (datatype Option-bool
-		 		(Some-bool bool)
-				(None-bool))
-
-		 (function mostaccurate (i64 Math) AstMath
-			:cost ,HIGH-COST :merge new)
-	   (function mostaccurate-num (i64 Math) Option-f64
-			:merge new :default (None-num))
-		 (function mostaccurate-bool (i64 Math) Option-bool
-		 	:merge new :default (None-bool))
-
 	;; if an eclass contains a num or variable it is
 	;; the most accurate by definition
 	(rule ((= term (Num ty n))
@@ -1533,8 +1533,10 @@
 
 	,@(make-extract-rules #t)
 	,@(make-extract-rules #f)
+	))))
 
-  (run compute-accuracy ,compute-accuracy-iters)
+(define (extract-most-accurate ctx exprs)
+	`((run compute-accuracy ,compute-accuracy-iters)
 	
 	;; Finally, extract out the best expr for each expr and each point
 	,@(apply append
@@ -1542,8 +1544,7 @@
 				         [ei (in-naturals)])
 				(for/list ([point (in-range egg-num-sample)])
 					`(extract (mostaccurate ,point ,(varname ei))))
-			))
-	))))
+			))))
 
 
 (define (setup-ground-truth ctx pctx exprs eggdata)
@@ -1564,7 +1565,7 @@
 					(interval ,num ,num)))))))
 
 
-(define (build-ground-truth-compute ctx pctx exprs eggdata)
+(define run-ground-truth-compute
 	`((set-option node_limit 10000000)
 		(set-option match_limit 10000000)
     (run ground-truth ,ground-truth-iters)))
@@ -1577,7 +1578,8 @@
 
 (define (build-egglog ctx pctx eggdata exprs accuracy-extract)
   (append
-		header
+		math-definition
+		(build-math-ast ctx exprs eggdata)
 		analysis
 		rewrites
 		if-permute
@@ -1586,14 +1588,14 @@
 		(build-exprs ctx eggdata exprs)
 		(build-interval-analysis ctx eggdata)
 		(setup-ground-truth ctx pctx exprs eggdata)
+		(build-ground-truth-extract ctx exprs eggdata)
 		(build-runner)
 		
 		(if (not accuracy-extract)
 				(build-extract exprs) ;; normal extraction
     		(append 
-					(build-ground-truth-compute ctx pctx exprs eggdata)
-    			(build-ground-truth-extract ctx exprs eggdata)))
-		))
+					run-ground-truth-compute
+					(extract-most-accurate ctx exprs)))))
 
 (define (side-condition->bool condition)
 	(match condition
@@ -1720,8 +1722,26 @@
 (define (rewrite-check-local-error egglog-program)
 	(for/list ([line egglog-program])
 		(match line
-			[`(rewrite (,Op ty ,children ...) ,rhs ,other-stuff ...)
+			[`(rewrite (,Op ty ,children ...) ,rhs ,options ...)
+				(match-define
+					(list conditions other-options)
+					(match options
+						[`(:when ,parenthesized-conditions ,other ...)
+							(list parenthesized-conditions other)]
+						[else
+							(list empty options)]))
+
 			  `(rule ((= left-hand-side__ (,Op ty ,@children))
+								,@conditions
+								;; my ground truth
+							  (= true-physical
+									,(if (equal? (return-type Op) 'num)
+											`(true-float left-hand-side__ 0)
+											`(true-bool left-hand-side__ 0)))
+								#;(= (,(some Op) current-mostnum)
+									 (,(append-type 'mostaccurate Op (arity Op)) 0 left-hand-side__))
+								#;(!= (rel-error current-mostnum true-physical) 0.0)
+
 								;; child ground truth
 								,@(for/list ([i (range (arity Op))]
 								             [child children])
@@ -1729,16 +1749,11 @@
 									    ,(if (equal? (type Op i) 'num)
 											    `(true-float ,child 0)
 													`(true-bool ,child 0))))
-								;; my ground truth
-							  (= true-physical
-									,(if (equal? (return-type Op) 'num)
-											`(true-float left-hand-side__ 0)
-											`(true-bool left-hand-side__ 0)))
-								(= current-physical
+								(= locally-accurate
 									 (,(physical-op Op) ,@(rep Op 'true)))
-								;; non-zero local error
-								(!= true-physical current-physical))
-							((set (,Op ty ,@children) ,rhs)))]
+							  (!= true-physical locally-accurate))
+							((set (,Op ty ,@children) ,rhs))
+							,@other-options)]
 			[`(rewrite ,stuff ...)
 			  (error (format "Unrecognized rewrite pattern ~a" line))]
 			[else line])))
@@ -1756,8 +1771,15 @@
 		[`(mostaccurate ,args ...) #f]
 		[else #t]))
 
-;; 0 variants means just extract the best expression
 (define (run-egglog ctx pctx exprs #:accuracy-extract accuracy-extract)
+	(map flatten
+		(transpose 
+			(for/list ([i (range 6)])
+				(run-egglog-random-point ctx pctx exprs #:accuracy-extract accuracy-extract)))))
+	
+
+;; 0 variants means just extract the best expression
+(define (run-egglog-random-point ctx pctx exprs #:accuracy-extract accuracy-extract)
 	(define eggdata
 	(egraph-data (make-hash)
 				(make-hash)))

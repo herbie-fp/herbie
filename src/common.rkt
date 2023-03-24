@@ -10,6 +10,7 @@
          get-seed set-seed!
          quasisyntax dict sym-append
          format-time format-bits web-resource transpose
+         flatten
          (all-from-out "config.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
@@ -35,6 +36,9 @@
 
 (define (transpose xss)
   (apply map list xss))
+
+(define (flatten xss)
+  (apply append xss))
 
 (define (argmins f lst)
   (let loop ([lst lst] [best-score #f] [best-elts '()])
