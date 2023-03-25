@@ -135,12 +135,8 @@
                (filter-not (curry alt-equal? altn)
                            (taylor-alt altn (*context*))))))
 
-    (define series-expansions*
-      (filter-valid series-expansions))
-
-    ; TODO: accuracy stats for timeline
-    (timeline-push! 'count (length (^queued^)) (length series-expansions*))
-    (^series^ series-expansions*))
+    (timeline-push! 'count (length (^queued^)) (length series-expansions))
+    (^series^ series-expansions))
   (void))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;

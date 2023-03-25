@@ -133,13 +133,6 @@
 	  ['num 'f64]
 		['bool 'bool]))
 
-(define (some op)
-	(append-type 'Some op (arity op)))
-
-(define (none op)
-	(append-type
-		'None op (arity op)))
-
 (define (append-symbols . args)
 	(string->symbol
 		(apply string-append (map symbol->string args))))
@@ -162,6 +155,11 @@
    (string-append (symbol->string
 	                  (physical-repr (ret-type op)))
 	                "-" (symbol->string op))))
+
+(define (compute-physical op children)
+	(if (equal? (ret-type op) 'bool)
+		`(to-i64 (,(physical-op op) ,@children))
+		`(,(physical-op op) ,@children)))
 
 (define (append-type symbol op n)
   (string->symbol
@@ -229,19 +227,13 @@
     (relation non-negative (Math))
     (relation positive (Math))
 
-		(datatype Option-f64
-		 		(Some-num f64)
-				(None-num))
-
-		(datatype Option-bool
-			(Some-bool bool)
-			(None-bool))
 		(function mostaccurate (i64 Math) AstMath
 		:cost ,HIGH-COST :merge new)
-		(function mostaccurate-num (i64 Math) Option-f64
-		:merge new :default (None-num))
-		(function mostaccurate-bool (i64 Math) Option-bool
-		:merge new :default (None-bool))
+		(function mostaccurate-num (i64 Math) f64
+		:merge new :default NaN)
+		;; convert bool to i64, use 2 for unknown
+		(function mostaccurate-bool (i64 Math) i64
+		:merge new :default 2)
 
     ;; First, constant folding!
     ;; We don't need an explicit constant folding analysis, we can just union
@@ -1401,16 +1393,20 @@
 				)))
 
 
-(define (make-extract-rules need-existing)
+(define (make-extract-rules)
 	(expand-for-list
 	   all-ops Op
 	   `(rule (
 			 (= term (,Op ty ,@(rep Op 'c)))
 			 (point i)
-			 ;; floating point values for the children
-			 ,@(build-list (arity Op)
-			      (lambda (v)
-						   `(= (,(append-type 'Some Op v) ,(ivar 'val v)) (,(append-type 'mostaccurate Op v) i ,(ivar 'c v)))))
+			 ;; values for children
+			 ,@(apply append
+			 		 (for/list ([v (in-range (arity Op))])
+					 		(if (equal? (type Op v) 'bool)
+								`((= ,(ivar 'val v)
+											(to-bool (,(append-type 'mostaccurate Op v) i ,(ivar 'c v))))
+									(< (,(append-type 'mostaccurate Op v) i ,(ivar 'c v)) 2))
+								`((= ,(ivar 'val v) (,(append-type 'mostaccurate Op v) i ,(ivar 'c v)))))))
 			 ;; AstMath for the children
 			 ,@(build-list (arity Op)
 			      (lambda (v)
@@ -1419,34 +1415,28 @@
 			 (= true-physical
 			    ,(if (equal? (return-type Op) 'num)
 					     `(true-float term i)
-							 `(true-bool term i)))
+							 `(to-i64 (true-bool term i))))
 
 			 (= current-physical
-			    (,(physical-op Op) ,@(rep Op 'val)))
+			 		,(compute-physical Op (rep Op 'val)))
 			 ;; evaluate and compare to ground truth
 			 (= difference
 			    (rel-error
 					 current-physical
 					 true-physical))
 			
-			 ,@(if need-existing
-					`((= (,(some Op) current-mostnum)
-							(,(append-type 'mostaccurate Op (arity Op)) i term))
-							
-					(= to-beat
-							(rel-error current-mostnum
-										true-physical))
-					(< difference to-beat))
-				 `(
-
-						(= (,(none Op))
-							(,(append-type 'mostaccurate Op (arity Op)) i term))
-				)
-			 ))
+				(= current-mostnum
+						(,(append-type 'mostaccurate Op (arity Op)) i term))
+						
+				(= to-beat
+						(rel-error current-mostnum
+									true-physical))
+				(< difference to-beat)
+			 )
 			((set (mostaccurate i term)
 				 (,(ast-prefix Op) ty ,@(rep Op 'child)))
 			 (set (,(append-type 'mostaccurate Op (arity Op)) i term)
-			 	 (,(some Op) current-physical))
+			 	 current-physical)
 			 ))))
 
 (define (build-ground-truth-extract ctx exprs eggdata)
@@ -1459,17 +1449,17 @@
 	       (point i)
 				 (= true-physical (true-float term i)))
 				((set (mostaccurate i term) (AstNum ty n))
-				 (set (mostaccurate-num i term) (Some-num (to-f64 n)))))
+				 (set (mostaccurate-num i term) (to-f64 n))))
 	(rule ((= term (Var ty v))
 	       (point i)
 				 (= true-physical (true-float term i)))
 				((set (mostaccurate i term) (AstVar ty v))
-				 (set (mostaccurate-num i term) (Some-num true-physical))))
+				 (set (mostaccurate-num i term) true-physical)))
 	(rule ((= term (Var ty v))
 	       (point i)
 				 (= true-physical (true-bool term i)))
 				((set (mostaccurate i term) (AstVar ty v))
-				 (set (mostaccurate-bool i term) (Some-bool true-physical))))
+				 (set (mostaccurate-bool i term) (to-i64 true-physical))))
 
 	;; initialize the most accurate value to default of None
 	;; very ugly, but the best way in egglog right now?
@@ -1482,8 +1472,7 @@
 			((,(append-type 'mostaccurate Op (arity Op)) i term)
 			 )))
 
-	,@(make-extract-rules #t)
-	,@(make-extract-rules #f)
+	,@(make-extract-rules)
 	))))
 
 (define (extract-most-accurate ctx exprs)
@@ -1712,7 +1701,7 @@
 											    `(true-float ,child 0)
 													`(true-bool ,child 0))))
 								(= locally-accurate
-									 (,(physical-op Op) ,@(rep Op 'true)))
+									 ,(compute-physical Op (rep Op 'true)))
 								(<= (rel-error true-physical locally-accurate)
 								   ,ERROR-THRESHOLD))
 							((set (,Op ty ,@children) ,rhs))
