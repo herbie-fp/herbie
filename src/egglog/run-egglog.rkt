@@ -11,17 +11,20 @@
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
-(define egg-iters 100)
-(define ground-truth-iters 15)
-(define compute-accuracy-iters 8)
-(define egg-node-limit 50000)
+(define egg-iters 25)
+(define ground-truth-iters 10)
+(define compute-accuracy-iters 10)
+(define egg-node-limit 100000)
 (define egg-match-limit 1000)
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
-(define ERROR-THRESHOLD 0.000011)
+(define ERROR-THRESHOLD 0.0)
 ;; Number of points from the point context to take
-(define egg-num-sample 1)
-(define egg-num-egraphs 4)
+(define egg-num-sample 4)
+;; Number of egraphs to run (independent samples)
+(define egg-num-egraphs 1)
+;; Number of variants to extract
+(define egg-num-variants 50)
 
 
 (define (add-to-ruleset ruleset commands)
@@ -929,35 +932,6 @@
 				   (Add ty (Mul ty b b) (Mul ty a b)))
 			   (Sub ty a b)))
     ;; flip3-+
-    ;; TODO: refactor this into an OR between all these conditions
-    ;; demand
-    (rule ((= t1 (Add ty a b)))
-		((Add ty
-			 (Mul ty a a)
-			 (Sub ty (Mul ty b b) (Mul ty a b)))))
-    (rewrite (Add ty a b)
-		   (Div ty
-			   (Add ty
-				   (Pow ty a (Num ty r-three))
-				   (Pow ty b (Num ty r-three)))
-			   (Add ty
-				   (Mul ty a a)
-				   (Sub ty (Mul ty b b) (Mul ty a b))))
-		   :when
-		   ((non-zero
-			(Add ty
-				(Mul ty a a)
-				(Sub ty (Mul ty b b) (Mul ty a b))))))
-    (rewrite (Add ty a b)
-		   (Div ty
-			   (Add ty
-				   (Pow ty a (Num ty r-three))
-				   (Pow ty b (Num ty r-three)))
-			   (Add ty
-				   (Mul ty a a)
-				   (Sub ty (Mul ty b b) (Mul ty a b))))
-		   :when
-		   ((non-zero a)))
     (rewrite (Add ty a b)
 		   (Div ty
 			   (Add ty
@@ -981,31 +955,7 @@
 	:when
 	((non-zero
 	  a))) ;; when a or b are non-zero a^2+b^2-ab is positive => a^2+b^2+ab is positive
-    (rewrite (Sub ty a b)
-		   (Div ty
-			   (Sub ty
-				   (Pow ty a (Num ty r-three))
-				   (Pow ty b (Num ty r-three)))
-			   (Add ty
-				   (Mul ty a a)
-				   (Add ty (Mul ty b b) (Mul ty a b))))
-		   :when
-		   ((non-zero b)))
-    (rewrite (Sub ty a b)
-		   (Div ty
-			   (Sub ty
-				   (Pow ty a (Num ty r-three))
-				   (Pow ty b (Num ty r-three)))
-			   (Add ty
-				   (Mul ty a a)
-				   (Add ty (Mul ty b b) (Mul ty a b))))
-		   :when
-		   ((non-zero
-			(Add ty
-				(Mul ty a a)
-				(Add ty (Mul ty b b) (Mul ty a b))))))
 
-    ;; The following rules that involve Pow often have over-specific conditions
     ;;fractions transform
     (rewrite (Sub ty (Div ty a c) (Div ty b c)) ;; not defined when c = 0
 		   (Div ty (Sub ty a b) c))
@@ -1399,8 +1349,7 @@
 
 (define (build-iter)
 	`((set-option match_limit 10000000)
-    (run ground-truth ,ground-truth-iters)
-		(run compute-accuracy ,compute-accuracy-iters)
+    #;(run ground-truth ,ground-truth-iters)
 		
 		(set-option match_limit ,egg-match-limit)
 		;; runs normal analysis
@@ -1420,9 +1369,9 @@
 				([i (in-range egg-iters)])
 				(build-iter))))
 
-(define (build-extract exprs)
+(define (build-extract exprs variants)
   (for/list ([expr exprs] [i (in-naturals)])
-    `(extract ,(varname i))))
+    `(extract :variants ,variants ,(varname i))))
 
 (define (ast-prefix op)
   (string->symbol (string-append "Ast" (symbol->string op))))
@@ -1594,8 +1543,9 @@
 		(build-runner)
 		
 		(if (not accuracy-extract)
-				(build-extract exprs) ;; normal extraction
+				(build-extract exprs 0) ;; normal extraction
     		(append 
+					(build-extract exprs egg-num-variants) ;; get variants
 					run-ground-truth-compute
 					(extract-most-accurate ctx exprs)))))
 
@@ -1732,6 +1682,15 @@
 							(list parenthesized-conditions other)]
 						[else
 							(list empty options)]))
+				(define ruleset
+					(match other-options
+						[`(:ruleset ,ruleset) ruleset]
+						[else (error (format "Failed to parse ruleset for ~a" line))]))
+
+				(if (not (or
+							(equal? ruleset 'if-permute)
+							(equal? ruleset 'rewrites)))
+						line
 
 			  `(rule ((= left-hand-side__ (,Op ty ,@children))
 								,@conditions
@@ -1740,31 +1699,32 @@
 									,(if (equal? (return-type Op) 'num)
 											`(true-float left-hand-side__ 0)
 											`(true-bool left-hand-side__ 0)))
-								(= (,(some Op) current-mostnum)
+								#;(= (,(some Op) current-mostnum)
 									 (,(append-type 'mostaccurate Op (arity Op)) 0 left-hand-side__))
-								(<= (rel-error current-mostnum true-physical) ,ERROR-THRESHOLD)
+								#;(<= (rel-error current-mostnum true-physical) ,ERROR-THRESHOLD)
+								
 
 								;; child ground truth
-								#;(for/list ([i (range (arity Op))]
+								,@(for/list ([i (range (arity Op))]
 								             [child children])
 								   `(= ,(ivar 'true i)
 									    ,(if (equal? (type Op i) 'num)
 											    `(true-float ,child 0)
 													`(true-bool ,child 0))))
-								#;(= locally-accurate
+								(= locally-accurate
 									 (,(physical-op Op) ,@(rep Op 'true)))
-								#;(<= (rel-error true-physical locally-accurate)
+								(<= (rel-error true-physical locally-accurate)
 								   ,ERROR-THRESHOLD))
 							((set (,Op ty ,@children) ,rhs))
-							,@other-options)]
+							,@other-options))]
 			[`(rewrite ,stuff ...)
 			  (error (format "Unrecognized rewrite pattern ~a" line))]
 			[else line])))
 
 (define (apply-egglog-macros egglog-program)
 	(sanity-check-rewrites egglog-program)
-	(define res (rewrite-check-local-error
-								(rewrite-if egglog-program)))
+	(define res 
+								(rewrite-if egglog-program))
 
 	(sanity-check-rewrites res)
 	res)
@@ -1798,18 +1758,20 @@
 	(displayln egglog-program egglog-in)
 	(close-output-port egglog-in)
 	
-
+	(define all-variants
+		(for/list ([expr exprs])
+				(read egglog-output)))
 	(define results
 		(if (not accuracy-extract)
-			(for/list ([expr exprs])
-				(read egglog-output))
-			(for/list ([expr exprs])
+			all-variants
+			(for/list ([expr exprs] [variants all-variants])
 				;; list of exprs for this expr at each point
+				(append variants
 				(map remove-ast-prefix
 					(filter extracted-mostaccurate?
 						(for/list ([i (in-range egg-num-sample)])
 							;; just extracted one thing
-							(first (read egglog-output))))))))
+							(first (read egglog-output)))))))))
 
 	(close-input-port egglog-output)
 
@@ -1822,7 +1784,7 @@
 	
 	(define converted
 		(for/list ([variants results])
-			(map (curry egglog->expr ctx eggdata) variants)))
+			(map (curry egglog->expr ctx eggdata) (remove-duplicates variants))))
 
 	(subprocess-wait egglog-process)
 
