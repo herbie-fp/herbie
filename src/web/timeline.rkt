@@ -111,8 +111,7 @@
                [data-timespan ,(~a (hash-ref domain-info tag 0))]
                [title ,(format "~a (~a)" tag
                                (format-percent (hash-ref domain-info tag 0) total))])))))))
-
-(define repr (get-representation 'binary64))
+                               
 (define (render-phase-locations locations)
   `((dt "Local error")
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
@@ -120,7 +119,7 @@
           (thead (tr (th "New") (th "Error") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
 
-              (match-define (list expr err new?) rec)
+              (match-define (list expr err new? repr) rec)
               `(tr (td ,(if new? "✓" ""))
                   (td ,(format-bits err repr #:unit "%") "")
                   (td (pre ,(~a expr)))))))))
@@ -222,6 +221,7 @@
 
   (define bits (map first rows))
   (define total-remaining (apply + accuracy))
+  (define repr (get-representation 'binary64))
 
   `((dt "Accuracy")
     (dd (p "Total " ,(format-bits (apply + bits) repr #:unit #f) "b" " remaining"
@@ -262,7 +262,7 @@
               (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
 
 (define (render-phase-error min-error-table)
-  (match-define (list min-error) min-error-table)
+  (match-define (list min-error repr) min-error-table)
   `((dt "Error")
     (dd ,(format-bits min-error repr #:unit "%") "")))
 
@@ -285,7 +285,7 @@
          (table ([class "times"])
                 (thead (tr (th "Status") (th "Error") (th "Program")))
                 ,@(for/list ([rec (in-list alts)])
-                    (match-define (list expr status score) rec)
+                    (match-define (list expr status score repr) rec)
                     `(tr
                       ,(match status
                          ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
@@ -331,7 +331,7 @@
     (dd (table ([class "times"])
                (thead (tr (th "Error") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
-             (match-define (list expr score splits) rec)
+             (match-define (list expr score splits repr) rec)
              `(tr (td ,(format-bits score repr #:unit "%") "")
                   (td ,(~a splits))
                   (td (code ,expr))))))))

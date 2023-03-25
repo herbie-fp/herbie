@@ -164,7 +164,7 @@
                 `(div ([class "entry"])
                   (table
                     (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" idx)))
-                    (tr (th "Error") (td ,(format-bits (errors-score errs) repr #:unit #f)))
+                    (tr (th "Error") (td ,(format-bits (errors-score errs) repr #:unit "%")))
                     (tr (th "Cost") (td ,(format-bits cost repr #:unit #f))))
                   (div ([class "math"])
                     "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])

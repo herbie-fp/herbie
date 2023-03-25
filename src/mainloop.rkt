@@ -96,6 +96,7 @@
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define select (if (*pareto-mode*) choose-mult-alts (compose list (curry argmin score-alt))))
   (define alts (select fresh-alts))
+  (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts
                     (~a (program-body (alt-program alt)))
@@ -103,7 +104,8 @@
                      [(set-member? alts alt) "next"]
                      [(set-member? fresh-alts alt) "fresh"]
                      [else "done"])
-                    (score-alt alt)))
+                    (score-alt alt)
+                    repr))
   alts)
 
 (define (choose-best-alt!)
@@ -122,13 +124,14 @@
   (define orig-prog (alt-program (^next-alt^)))
   (define vars (program-variables orig-prog))
   (define loc-errs (localize-error (alt-program (^next-alt^)) (*context*)))
+  (define repr (context-repr (*context*)))
 
   ; high-error locations
   (^locs^
     (for/list ([(err expr) (in-dict loc-errs)]
                [i (in-range (*localize-expressions-limit*))])
       (timeline-push! 'locations (~a expr) (errors-score err)
-                      (not (patch-table-has-expr? expr)))
+                      (not (patch-table-has-expr? expr)) repr)
       (cons vars expr)))
 
   ; low-error locations (Pherbie-only with multi-precision)
@@ -136,7 +139,7 @@
     (if (and (*pareto-mode*) (not (hash-empty? (*conversions*))))
         (for/list ([(err expr) (in-dict (reverse loc-errs))]
                    [i (in-range (*localize-expressions-limit*))])
-          (timeline-push! 'locations (~a expr) (errors-score err) #f)
+          (timeline-push! 'locations (~a expr) (errors-score err) #f repr)
           (cons vars expr)) 
         '()))
 
@@ -226,7 +229,8 @@
                         (if (and (^next-alt^) (set-member? final-done-alts (^next-alt^))) 1 0))))
   (timeline-push! 'kept data)
 
-  (timeline-push! 'min-error (errors-score (atab-min-errors (^table^))))
+  (define repr (context-repr (*context*)))
+  (timeline-push! 'min-error (errors-score (atab-min-errors (^table^))) repr)
   (rollback-iter!)
   (void))
 
@@ -400,7 +404,7 @@
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts (~a (program-body (alt-program alt)))
                     (if (set-member? ndone-alts alt) "fresh" "done")
-                    (score-alt alt)))
+                    (score-alt alt) repr))
   (define joined-alts
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)

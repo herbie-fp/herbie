@@ -169,8 +169,8 @@
   (define val 
     (cond
       [(zero? (representation-total-bits repr)) 0]
-      [unit (/ (round (* r 10)) 10)]
-      [else (* (/ r (representation-total-bits repr)) 100)]))
+      [unit (* (/ r (representation-total-bits repr)) 100)]
+      [else (/ (round (* r 10)) 10)]))
 
   (define percent (~r val #:precision 2))
 

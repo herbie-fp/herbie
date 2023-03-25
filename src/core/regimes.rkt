@@ -97,7 +97,7 @@
   (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
-  (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices))
+  (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) repr)
   out)
 
 (define/contract (pick-errors split-indices pts err-lsts repr)
