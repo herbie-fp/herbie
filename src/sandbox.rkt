@@ -57,6 +57,10 @@
     (define val (apply fn pt))
     (cons pt (list val))))
 
+(define (get-cost test)
+    (program-cost (test-program test) (test-output-repr test)))
+
+
 ;; Translates points from the API endpoint
 ;; into the expected pcontext
 (define (compute-pcontexts pts+exs ctx)

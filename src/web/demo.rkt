@@ -49,6 +49,7 @@
    [("api" "alternatives") #:method "post" alternatives-endpoint]
    [("api" "exacts") #:method "post" exacts-endpoint]
    [("api" "calculate") #:method "post" calculate-endpoint]
+   [("api" "cost") #:method "post" cost-endpoint]
    [("api" "mathjs") #:method "post" ->mathjs-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
 
@@ -480,6 +481,18 @@
       (define result (core->mathjs (syntax->datum formula)))
       (eprintf " complete\n")
       (hasheq 'mathjs result))))
+
+(define cost-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define seed (hash-ref post-data 'seed))
+      (eprintf "Job started on ~a..." formula)
+
+      (define result (get-cost (parse-test formula)))
+
+      (eprintf " complete\n")
+      (hasheq 'cost result))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
