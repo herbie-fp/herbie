@@ -42,6 +42,8 @@
   (define err-lsts* (flip-lists err-lsts))
   (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
   (timeline-push! 'accuracy (errors-score (option-errors best)))
+  (define repr (context-repr ctx))
+  (timeline-push! 'repr (representation-name repr))
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
   best)
 
@@ -97,7 +99,7 @@
   (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
-  (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) repr)
+  (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) (representation-name repr))
   out)
 
 (define/contract (pick-errors split-indices pts err-lsts repr)

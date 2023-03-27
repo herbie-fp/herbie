@@ -105,7 +105,7 @@
                      [(set-member? fresh-alts alt) "fresh"]
                      [else "done"])
                     (score-alt alt)
-                    repr))
+                    (representation-name repr)))
   alts)
 
 (define (choose-best-alt!)
@@ -131,7 +131,7 @@
     (for/list ([(err expr) (in-dict loc-errs)]
                [i (in-range (*localize-expressions-limit*))])
       (timeline-push! 'locations (~a expr) (errors-score err)
-                      (not (patch-table-has-expr? expr)) repr)
+                      (not (patch-table-has-expr? expr)) (representation-name repr))
       (cons vars expr)))
 
   ; low-error locations (Pherbie-only with multi-precision)
@@ -139,7 +139,7 @@
     (if (and (*pareto-mode*) (not (hash-empty? (*conversions*))))
         (for/list ([(err expr) (in-dict (reverse loc-errs))]
                    [i (in-range (*localize-expressions-limit*))])
-          (timeline-push! 'locations (~a expr) (errors-score err) #f repr)
+          (timeline-push! 'locations (~a expr) (errors-score err) #f (representation-name repr))
           (cons vars expr)) 
         '()))
 
@@ -230,7 +230,7 @@
   (timeline-push! 'kept data)
 
   (define repr (context-repr (*context*)))
-  (timeline-push! 'min-error (errors-score (atab-min-errors (^table^))) repr)
+  (timeline-push! 'min-error (errors-score (atab-min-errors (^table^))) (representation-name repr))
   (rollback-iter!)
   (void))
 
@@ -404,7 +404,7 @@
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts (~a (program-body (alt-program alt)))
                     (if (set-member? ndone-alts alt) "fresh" "done")
-                    (score-alt alt) repr))
+                    (score-alt alt) (representation-name repr)))
   (define joined-alts
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
