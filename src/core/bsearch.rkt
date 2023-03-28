@@ -52,15 +52,25 @@
 (define (binary-search-floats pred p1 p2 repr)
   (cond
    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
+    (timeline-push! 'stop "narrow-enough" 1)
     (values p1 p2)]
    [else
     (define p3 (midpoint p1 p2 repr))
-    (define cmp (pred p3))
+    (define cmp
+      ;; Sampling error: don't know who's better
+      (with-handlers ([exn:fail:user:herbie? (const 'fail)])
+        (pred p3)))
+
     (cond
+     [(eq? cmp 'fail)
+      (timeline-push! 'stop "predicate-failed" 1)
+      (values p1 p2)]
      [(negative? cmp) (binary-search-floats pred p3 p2 repr)]
      [(positive? cmp) (binary-search-floats pred p1 p3 repr)]
      ;; cmp = 0 usually means sampling failed, so we give up
-     [else (values p1 p2)])]))
+     [else
+      (timeline-push! 'stop "predicate-same" 1)
+      (values p1 p2)])]))
 
 (define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
@@ -95,26 +105,15 @@
   (define start-fn (make-search-func precondition (list start-prog) ctx*))
 
   (define (find-split prog1 prog2 v1 v2)
-
-    (define best-guess #f)
-    (define current-guess v1)
-    (define sampling-fail? #f)
-
     (define (pred v)
-      (set! best-guess current-guess)
-      (set! current-guess v)
-      (with-handlers ([exn:fail:user:herbie?
-                       (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
-        (define pctx
-          (parameterize ([*num-points* (*binary-search-test-points*)])
-            (prepend-argument start-fn v (*pcontext*) ctx*)))
-        (define acc1 (errors-score (errors prog1 pctx ctx*)))
-        (define acc2 (errors-score (errors prog2 pctx ctx*)))
-        (- acc1 acc2)))
+      (define pctx
+        (parameterize ([*num-points* (*binary-search-test-points*)])
+          (prepend-argument start-fn v (*pcontext*) ctx*)))
+      (define acc1 (errors-score (errors prog1 pctx ctx*)))
+      (define acc2 (errors-score (errors prog2 pctx ctx*)))
+      (- acc1 acc2))
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
-    (if sampling-fail?
-      best-guess
-      (left-point p1 p2)))
+    (left-point p1 p2))
 
   ; a little more rigorous than it sounds:
   ; finds the shortest number `x` near `p1` such that
