@@ -11,7 +11,7 @@
     ["error" "ERR"]
     ["crash" "!!!"]
     ["timeout" "TIME"]
-    [_ (format-error (- (table-row-start result) (table-row-result result)) (test-output-repr (table-row-result result)) #:sign #t #:unit "%")]))
+    [_ (format-error (- (table-row-start result) (table-row-result result)) (get-representation (table-row-precision result)) #:sign #t #:unit "%")]))
 
 (define (format-subreports rss)
   (define (round* x) (inexact->exact (round x)))
@@ -41,6 +41,8 @@
 
 (define (make-report-page out info dir #:merge-data [merge-data #f])
   (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
+
+  ; (define reprs (map (compose get-representation table-row-precision) trs))
 
   (define table-labels
     '("Test" "Start" "Result" "Target" "Time"))
@@ -139,9 +141,9 @@
        ,@(for/list ([result tests] [id (in-naturals)])
            `(tr ((class ,(~a (table-row-status result))))
                 (td ,(or (table-row-name result) ""))
-                (td ,(format-error (table-row-start result) (test-output-repr (table-row-result result)) #:unit "%"))
-                (td ,(format-error (table-row-result result) (test-output-repr (table-row-result result)) #:unit "%"))
-                (td ,(format-error (table-row-target result) (test-output-repr (table-row-result result)) #:unit "%"))
+                (td ,(format-error (table-row-start result) (get-representation (table-row-precision result)) #:unit "%"))
+                (td ,(format-error (table-row-result result) (get-representation (table-row-precision result)) #:unit "%"))
+                (td ,(format-error (table-row-target result) (get-representation (table-row-precision result)) #:unit "%"))
                 (td ,(format-time (table-row-time result) #:min 1000))
                 ,(if (table-row-link result)
                      `(td
