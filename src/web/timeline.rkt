@@ -290,7 +290,7 @@
                          ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                          ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                          ["fresh" `(td)])
-                      (td ,(format-bits score (get-representation (string->symbol repr)) #:unit "%") "")
+                      (td ,(format-error score (get-representation (string->symbol repr)) #:unit "%") "")
                       (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
