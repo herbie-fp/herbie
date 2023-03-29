@@ -166,6 +166,7 @@
 (define (format-bits r repr #:sign [sign #f] #:unit [unit #f])
   (cond 
     [(zero? (representation-total-bits repr)) (error 'failed)]
+    [(not r) ""]
     [else
       (define unit- (if unit unit ""))
       (define percent
@@ -176,30 +177,28 @@
         #:precision 2))
 
       (cond
-      [(not r) ""]
       [(and (> r 0) sign) (format "+~a~a" percent unit-)]
       [else (format "~a~a" percent unit-)])]))
 
 (define (format-error r repr #:sign [sign #f] #:unit [unit #f])
   (cond 
     [(zero? (representation-total-bits repr)) (error 'failed)]
+    [(not r) ""]
     [else
       (define unit- (if unit unit ""))
       (define percent (~r (* (/ r (representation-total-bits repr)) 100) #:precision 2))
 
       (cond
-      [(not r) ""]
       [(and (> r 0) sign) (format "+~a~a" percent unit-)]
       [else (format "~a~a" percent unit-)])]))
 
 (define (format-cost r repr #:sign [sign #f])  
   (cond 
     [(zero? (representation-total-bits repr)) (error 'failed)]
+    [(not r) ""]
     [else
       (define val (~r (/ (round (* r 10)) 10) #:precision 2))
-
       (cond
-      [(not r) ""]
       [(and (> r 0) sign) (format "+~a" val)]
       [else (format "~a" val)])]))
 

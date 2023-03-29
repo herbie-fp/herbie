@@ -141,9 +141,9 @@
        ,@(for/list ([result tests] [id (in-naturals)])
            `(tr ((class ,(~a (table-row-status result))))
                 (td ,(or (table-row-name result) ""))
-                (td ,(format-error (table-row-start result) (get-representation (table-row-precision result)) #:sign #f #:unit "%"))
-                (td ,(format-error (table-row-result result) (get-representation (table-row-precision result)) #:sign #f #:unit "%"))
-                (td ,(format-error (table-row-target result) (get-representation (table-row-precision result)) #:sign #f #:unit "%"))
+                (td ,(format-error (table-row-start result) (get-representation (table-row-precision result)) #:unit "%"))
+                (td ,(format-error (table-row-result result) (get-representation (table-row-precision result)) #:unit "%"))
+                (td ,(format-error (table-row-target result) (get-representation (table-row-precision result)) #:unit "%"))
                 (td ,(format-time (table-row-time result) #:min 1000))
                 ,(if (table-row-link result)
                      `(td
