@@ -165,7 +165,7 @@
 
 (define (format-bits r repr #:sign [sign #f] #:unit [unit #f])
   (define unit- (if unit unit ""))
-
+  (assert (representation-total-bits repr) zero?)
   (define val 
     (cond
       [(zero? (representation-total-bits repr)) 0]
@@ -179,7 +179,12 @@
    [(and (> r 0) sign) (format "+~a~a" percent unit-)]
    [else (format "~a~a" percent unit-)]))
 
-; format-error
+(define (format-error r repr #:sign [sign #f])
+  (assert (representation-total-bits repr) zero?)
+  (define percent (~r (* (/ r (representation-total-bits repr)) 100) #:precision 2))
+  (cond
+   [(and (> r 0) sign) (format "+~a" percent)]
+   [else (format "~a%" percent)]))
 
 (define-runtime-path web-resource-path "web/resources/")
 

@@ -230,7 +230,7 @@
   (timeline-push! 'kept data)
 
   (define repr (context-repr (*context*)))
-  (timeline-push! 'min-error (errors-score (atab-min-errors (^table^))))
+  (timeline-push! 'min-error (errors-score (atab-min-errors (^table^))) (format "~a" (representation-name repr)))
   (rollback-iter!)
   (void))
 

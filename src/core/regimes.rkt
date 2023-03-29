@@ -43,7 +43,7 @@
   (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
   (timeline-push! 'accuracy (errors-score (option-errors best)))
   (define repr (context-repr ctx))
-  (timeline-push! 'repr (symbol->string (representation-name repr)))
+  (timeline-push! 'repr (format "~a" (representation-name repr)))
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
   best)
 

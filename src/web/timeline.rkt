@@ -223,15 +223,15 @@
   (define total-remaining (apply + accuracy))
 
   `((dt "Accuracy")
-    (dd (p "Total " ,(format-bits (apply + bits) (get-representation (string->symbol repr)) #:unit #f) "b" " remaining"
+    (dd (p "Total " ,(format-bits (apply + bits) (get-representation (string->symbol (car repr))) #:unit #f) "b" " remaining"
             " (" ,(format-percent (apply + bits) total-remaining) ")"
-        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits)) (get-representation (string->symbol repr)) #:unit #f) "b"
+        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits)) (get-representation (string->symbol (car repr))) #:unit #f) "b"
            " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
         ,@(if (> (length rows) 1)
               `((table ([class "times"])
                   ,@(for/list ([rec (in-list rows)] [_ (in-range 5)])
                       (match-define (list left gained link name) rec)
-                      `(tr (td ,(format-bits left (get-representation (string->symbol repr)) #:unit #f) "b")
+                      `(tr (td ,(format-bits left (get-representation (string->symbol (car repr))) #:unit #f) "b")
                            (td ,(format-percent gained (+ left gained)))
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
               '())))))
@@ -261,10 +261,10 @@
               (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
 
 (define (render-phase-error min-error-table)
-  (match-define (list min-error) min-error-table)
+  (match-define (list min-error repr) (car min-error-table))
   `((dt "Error")
     ; (dd ,(format-bits min-error (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit "%") "")
-    (dd ,(format-bits min-error (get-representation 'binary64) #:unit "%") "")))
+    (dd ,(format-bits min-error (get-representation (string->symbol repr)) #:unit "%") "")))
 
 (define (render-phase-rules rules)
   `((dt "Rules")
