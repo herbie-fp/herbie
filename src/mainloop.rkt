@@ -105,7 +105,7 @@
                      [(set-member? fresh-alts alt) "fresh"]
                      [else "done"])
                     (score-alt alt)
-                    (format "~a" (representation-name repr))))
+                    (~a (representation-name repr))))
   alts)
 
 (define (choose-best-alt!)
@@ -139,7 +139,7 @@
     (if (and (*pareto-mode*) (not (hash-empty? (*conversions*))))
         (for/list ([(err expr) (in-dict (reverse loc-errs))]
                    [i (in-range (*localize-expressions-limit*))])
-          (timeline-push! 'locations (~a expr) (errors-score err) #f (format "~a" (representation-name repr)))
+          (timeline-push! 'locations (~a expr) (errors-score err) #f (~a (representation-name repr)))
           (cons vars expr)) 
         '()))
 
@@ -404,7 +404,7 @@
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts (~a (program-body (alt-program alt)))
                     (if (set-member? ndone-alts alt) "fresh" "done")
-                    (score-alt alt) (format "~a" (representation-name repr))))
+                    (score-alt alt) (~a (representation-name repr))))
   (define joined-alts
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
