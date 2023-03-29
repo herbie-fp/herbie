@@ -164,42 +164,44 @@
    [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
 
 (define (format-bits r repr #:sign [sign #f] #:unit [unit #f])
-  (assert (representation-total-bits repr) zero?)
+  (cond 
+    [(zero? (representation-total-bits repr)) (error 'failed)]
+    [else
+      (define unit- (if unit unit ""))
+      (define percent
+        (~r 
+        (cond
+          [unit (* (/ r (representation-total-bits repr)) 100)]
+          [else (/ (round (* r 10)) 10)]) 
+        #:precision 2))
 
-  (define unit- (if unit unit ""))
-  (define percent
-    (~r 
-    (cond
-      [unit (* (/ r (representation-total-bits repr)) 100)]
-      [else (/ (round (* r 10)) 10)]) 
-    #:precision 2))
-
-  (cond
-   [(not r) ""]
-   [(and (> r 0) sign) (format "+~a~a" percent unit-)]
-   [else (format "~a~a" percent unit-)]))
+      (cond
+      [(not r) ""]
+      [(and (> r 0) sign) (format "+~a~a" percent unit-)]
+      [else (format "~a~a" percent unit-)])]))
 
 (define (format-error r repr #:sign [sign #f] #:unit [unit #f])
-  (assert (representation-total-bits repr) zero?)
+  (cond 
+    [(zero? (representation-total-bits repr)) (error 'failed)]
+    [else
+      (define unit- (if unit unit ""))
+      (define percent (~r (* (/ r (representation-total-bits repr)) 100) #:precision 2))
 
-  (define unit- (if unit unit ""))
-
-  (define percent (~r (* (/ r (representation-total-bits repr)) 100) #:precision 2))
-
-  (cond
-   [(not r) ""]
-   [(and (> r 0) sign) (format "+~a~a" percent unit-)]
-   [else (format "~a~a" percent unit-)]))
+      (cond
+      [(not r) ""]
+      [(and (> r 0) sign) (format "+~a~a" percent unit-)]
+      [else (format "~a~a" percent unit-)])]))
 
 (define (format-cost r repr #:sign [sign #f])  
-  (assert (representation-total-bits repr) zero?)
+  (cond 
+    [(zero? (representation-total-bits repr)) (error 'failed)]
+    [else
+      (define val (~r (/ (round (* r 10)) 10) #:precision 2))
 
-  (define val (~r (/ (round (* r 10)) 10) #:precision 2))
-
-  (cond
-   [(not r) ""]
-   [(and (> r 0) sign) (format "+~a" val)]
-   [else (format "~a" val)]))
+      (cond
+      [(not r) ""]
+      [(and (> r 0) sign) (format "+~a" val)]
+      [else (format "~a" val)])]))
 
 (define-runtime-path web-resource-path "web/resources/")
 

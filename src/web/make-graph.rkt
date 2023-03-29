@@ -115,7 +115,7 @@
        ,(render-large "Time" (format-time time))
        ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
        ,(if (*pareto-mode*)
-            (render-large "Cost" `(kbd ,(format-cost (car costs))))
+            (render-large "Cost" `(kbd ,(format-cost (car costs) repr)))
             ""))
 
       ,(render-warnings warnings)
