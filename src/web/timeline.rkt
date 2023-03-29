@@ -121,7 +121,7 @@
 
               (match-define (list expr err new? repr) rec)
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-bits err (get-representation (string->symbol repr)) #:unit "%") "")
+                  (td ,(format-error err (get-representation (string->symbol repr)) #:unit "%") "")
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
@@ -225,7 +225,7 @@
   `((dt "Accuracy")
     (dd (p "Total " ,(format-bits (apply + bits) (get-representation (string->symbol (car repr))) #:unit #f) "b" " remaining"
             " (" ,(format-percent (apply + bits) total-remaining) ")"
-        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits)) (get-representation (string->symbol (car repr))) #:unit #f) "b"
+        (p "Threshold costs " ,(format-cost (apply + (filter (curry > 1) bits)) (get-representation (string->symbol (car repr)))) "b"
            " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
         ,@(if (> (length rows) 1)
               `((table ([class "times"])
@@ -263,8 +263,7 @@
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr) (car min-error-table))
   `((dt "Error")
-    ; (dd ,(format-bits min-error (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit "%") "")
-    (dd ,(format-bits min-error (get-representation (string->symbol repr)) #:unit "%") "")))
+    (dd ,(format-error min-error (get-representation (string->symbol repr)) #:unit "%") "")))
 
 (define (render-phase-rules rules)
   `((dt "Rules")
@@ -332,7 +331,7 @@
                (thead (tr (th "Error") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
              (match-define (list expr score splits repr) rec)
-             `(tr (td ,(format-bits score (get-representation (string->symbol repr)) #:unit "%") "")
+             `(tr (td ,(format-error score (get-representation (string->symbol repr)) #:unit "%") "")
                   (td ,(~a splits))
                   (td (code ,expr))))))))
 

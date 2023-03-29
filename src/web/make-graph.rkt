@@ -105,17 +105,17 @@
           ;[style "rotate: 270deg"]
           ) "?"))
        ,(render-large "Average Error"
-                      (format-error (errors-score start-error) repr)
+                      (format-error (errors-score start-error) repr #:unit "%")
                       " → "
-                      (format-error (errors-score end-error) repr)
+                      (format-error (errors-score end-error) repr #:unit "%")
                       #:title
                       (format "Maximum error: ~a → ~a"
-                              (format-error (apply max (map ulps->bits start-error)) repr)
-                              (format-error (apply max (map ulps->bits end-error)) repr)))
+                              (format-error (apply max (map ulps->bits start-error)) repr #:unit "%")
+                              (format-error (apply max (map ulps->bits end-error)) repr #:unit "%")))
        ,(render-large "Time" (format-time time))
        ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
        ,(if (*pareto-mode*)
-            (render-large "Cost" `(kbd ,(format-bits (car costs) #:unit #f)))
+            (render-large "Cost" `(kbd ,(format-cost (car costs))))
             ""))
 
       ,(render-warnings warnings)
@@ -137,9 +137,9 @@
            `(section ([id "comparison"])
              (h1 "Target")
              (table
-              (tr (th "Original") (td ,(format-error (errors-score start-error) repr)))
-              (tr (th "Target") (td ,(format-error (errors-score target-error) repr)))
-              (tr (th "Herbie") (td ,(format-error (errors-score end-error) repr))))
+              (tr (th "Original") (td ,(format-error (errors-score start-error) repr #:unit "%")))
+              (tr (th "Target") (td ,(format-error (errors-score target-error) repr #:unit "%")))
+              (tr (th "Herbie") (td ,(format-error (errors-score end-error) repr #:unit "%"))))
              (div ([class "math"]) "\\[" ,(core->tex
                                             (program->fpcore
                                               (resugar-program (test-target test) repr)))
@@ -164,8 +164,8 @@
                 `(div ([class "entry"])
                   (table
                     (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" idx)))
-                    (tr (th "Error") (td ,(format-error (errors-score errs) repr)))
-                    (tr (th "Cost") (td ,(format-bits cost))))
+                    (tr (th "Error") (td ,(format-error (errors-score errs) repr #:unit "%")))
+                    (tr (th "Cost") (td ,(format-cost cost repr))))
                   (div ([class "math"])
                     "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
                             (alt->tex alt repr))
