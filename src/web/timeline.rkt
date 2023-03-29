@@ -121,7 +121,7 @@
 
               (match-define (list expr err new? repr) rec)
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-bits err (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit "%") "")
+                  (td ,(format-bits err (get-representation (string->symbol repr)) #:unit "%") "")
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
@@ -223,15 +223,15 @@
   (define total-remaining (apply + accuracy))
 
   `((dt "Accuracy")
-    (dd (p "Total " ,(format-bits (apply + bits) (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit #f) "b" " remaining"
+    (dd (p "Total " ,(format-bits (apply + bits) (get-representation (string->symbol repr)) #:unit #f) "b" " remaining"
             " (" ,(format-percent (apply + bits) total-remaining) ")"
-        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits)) (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit #f) "b"
+        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits)) (get-representation (string->symbol repr)) #:unit #f) "b"
            " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
         ,@(if (> (length rows) 1)
               `((table ([class "times"])
                   ,@(for/list ([rec (in-list rows)] [_ (in-range 5)])
                       (match-define (list left gained link name) rec)
-                      `(tr (td ,(format-bits left (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit #f) "b")
+                      `(tr (td ,(format-bits left (get-representation (string->symbol repr)) #:unit #f) "b")
                            (td ,(format-percent gained (+ left gained)))
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
               '())))))
@@ -261,9 +261,10 @@
               (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
 
 (define (render-phase-error min-error-table)
-  (match-define (list min-error repr) min-error-table)
+  (match-define (list min-error) min-error-table)
   `((dt "Error")
-    (dd ,(format-bits min-error (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit "%") "")))
+    ; (dd ,(format-bits min-error (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit "%") "")
+    (dd ,(format-bits min-error (get-representation 'binary64) #:unit "%") "")))
 
 (define (render-phase-rules rules)
   `((dt "Rules")
@@ -290,7 +291,7 @@
                          ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                          ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                          ["fresh" `(td)])
-                      (td ,(format-bits score (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit "%") "")
+                      (td ,(format-bits score (get-representation (string->symbol repr)) #:unit "%") "")
                       (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
@@ -331,7 +332,7 @@
                (thead (tr (th "Error") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
              (match-define (list expr score splits repr) rec)
-             `(tr (td ,(format-bits score (get-representation (read (open-input-string (hash-ref repr 'type)))) #:unit "%") "")
+             `(tr (td ,(format-bits score (get-representation (string->symbol repr)) #:unit "%") "")
                   (td ,(~a splits))
                   (td (code ,expr))))))))
 
