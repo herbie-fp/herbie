@@ -165,7 +165,6 @@
 
 (define (format-bits r repr #:sign [sign #f] #:unit [unit #f])
   (cond 
-    [(zero? (representation-total-bits repr)) (error 'failed)]
     [(not r) ""]
     [else
       (define unit- (if unit unit ""))
@@ -182,7 +181,6 @@
 
 (define (format-error r repr #:sign [sign #f] #:unit [unit #f])
   (cond 
-    [(zero? (representation-total-bits repr)) (error 'failed)]
     [(not r) ""]
     [else
       (define unit- (if unit unit ""))
@@ -194,7 +192,6 @@
 
 (define (format-cost r repr #:sign [sign #f])  
   (cond 
-    [(zero? (representation-total-bits repr)) (error 'failed)]
     [(not r) ""]
     [else
       (define val (~r (/ (round (* r 10)) 10) #:precision 2))
