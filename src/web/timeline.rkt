@@ -223,7 +223,7 @@
   (define total-remaining (apply + accuracy))
 
   `((dt "Accuracy")
-    (dd (p "Total " ,(format-bits (apply + bits) #:unit #f) "b" " remaining"
+    (dd (p "Total " ,(format-bits (apply + bits) #:unit #t) " remaining"
             " (" ,(format-percent (apply + bits) total-remaining) ")"
         (p "Threshold costs " ,(format-cost (apply + (filter (curry > 1) bits)) (get-representation (string->symbol (car repr)))) "b"
            " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
@@ -231,7 +231,7 @@
               `((table ([class "times"])
                   ,@(for/list ([rec (in-list rows)] [_ (in-range 5)])
                       (match-define (list left gained link name) rec)
-                      `(tr (td ,(format-bits left #:unit #f) "b")
+                      `(tr (td ,(format-bits left #:unit #t))
                            (td ,(format-percent gained (+ left gained)))
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
               '())))))
