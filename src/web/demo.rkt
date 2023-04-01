@@ -262,7 +262,7 @@
               #"OK"
               (current-seconds)
               APPLICATION/JSON-MIME-TYPE
-              empty
+              (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
               (λ (op) (write-json (fn post-data) op)))))
 
 (define (response/error title body)
