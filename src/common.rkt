@@ -175,7 +175,7 @@
     [(not r) ""]
     [else
       (define unit- (if unit unit ""))
-      (define percent (~r (* (/ r (representation-total-bits repr)) 100) #:precision 2))
+      (define percent (- 100.00 (string->number (~r (* (/ r (representation-total-bits repr)) 100) #:precision '(= 2)))))
 
       (cond
       [(and (> r 0) sign) (format "+~a~a" percent unit-)]
