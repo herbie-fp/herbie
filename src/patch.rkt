@@ -183,11 +183,13 @@
   (define comb-changelists (append changelists changelists-low-locs))
   (define altns (append (^queued^) (^queuedlow^)))
 
-  (define rules-used
-    (append-map (curry map change-rule) (apply append comb-changelists)))
-  (define rule-counts
-    (for ([rgroup (group-by identity rules-used)])
-      (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
+  ; TODO : Need to look at simplify to change these
+
+  ; (define rules-used
+  ;   (append-map (curry map change-rule) (apply append comb-changelists)))
+  ; (define rule-counts
+  ;   (for ([rgroup (group-by identity rules-used)])
+  ;     (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
   
   (define rewritten
     (for/fold ([done '()] #:result (reverse done))
@@ -198,7 +200,10 @@
           [(null? cl)
            (cons altn done)]
           [else
-           (define change-app (change-apply (car cl) (alt-program altn)))
+          ;  (define change-app (change-apply (car cl) (alt-program altn)))
+          ; TODO : How to insert subexpression into larger expression. 
+          ; Look at location-do
+          (define change-app (car cl))
            (define prog* (apply-repr-change change-app (*context*)))
            (if (program-body prog*)
                (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))

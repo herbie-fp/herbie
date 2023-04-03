@@ -1,7 +1,7 @@
 #lang racket
 
 (require "cost.rkt")
-(provide (struct-out change) (struct-out alt) make-alt alt?
+(provide (struct-out alt) make-alt alt?
          alt-program alt-add-event *start-prog* *all-alts*
          alt-cost alt-equal? alt-map)
 
@@ -10,7 +10,7 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-(struct change (rule location bindings) #:transparent)
+; (struct change (rule location bindings) #:transparent)
 
 (struct alt (program event prevs)
         #:methods gen:custom-write

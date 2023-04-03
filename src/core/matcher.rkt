@@ -4,7 +4,7 @@
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
          "../timeline.rkt")
 
-(provide pattern-match rewrite-expressions change-apply)
+(provide pattern-match rewrite-expressions)
 
 ;;; Our own pattern matcher.
 ;;
@@ -54,9 +54,9 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-(define (change-apply cng prog)
-  (match-define (change rule location bindings) cng)
-  (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
+; (define (change-apply cng prog)
+;   (match-define (change rule location bindings) cng)
+;   (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
 
 ;;
 ;;  Non-recursive rewriter
@@ -75,7 +75,7 @@
           (when result
             (define canon-name (hash-ref canon-names (rule-name rule)))
             (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow (list (change rule root-loc (cdr result)))))))))
+            (sow (list (cdr result)))))))) ; TODO : can i just return (cdr result)
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
@@ -131,7 +131,7 @@
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
                 (define output (egraph-get-variants egg-graph id expr))
                 (for/list ([variant (remove-duplicates output)])
-                  (list (change egg-rule root-loc (list (cons 'x variant)))))))
+                  (list (list (cons 'x variant)))))) ; same cons
             (λ () variants)]))))
     (result-thunk)))
 
