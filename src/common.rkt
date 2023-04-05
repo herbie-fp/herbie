@@ -9,7 +9,7 @@
          argmins argmaxs index-of set-disjoint?
          get-seed set-seed!
          quasisyntax dict sym-append
-         format-time format-bits format-error format-cost web-resource
+         format-time format-bits format-accuracy format-cost web-resource
          (all-from-out "config.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
@@ -170,7 +170,7 @@
    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
    [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
-(define (format-error r repr #:sign [sign #f] #:unit [unit #f])
+(define (format-accuracy r repr #:sign [sign #f] #:unit [unit #f])
   (cond 
     [(not r) ""]
     [else
