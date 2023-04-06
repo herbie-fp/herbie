@@ -131,7 +131,7 @@
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
                 (define output (egraph-get-variants egg-graph id expr))
                 (for/list ([variant (remove-duplicates output)])
-                  (list (list 'x variant root-loc))))) ; TODO same cons
+                  (list (list variant root-loc))))) ; TODO
             (λ () variants)]))))
     (result-thunk)))
 

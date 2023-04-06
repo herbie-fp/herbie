@@ -202,11 +202,11 @@
           [else
           ; TODO : How to insert subexpression into larger expression. 
           ; Look at location-do
-          (match-define (list var subexp loc) (car cl))
+          (match-define (list subexp loc) (car cl))
           (define change-app (location-do loc (alt-program altn) (const subexp)))
           (define prog* (apply-repr-change change-app (*context*)))
           (if (program-body prog*)
-              (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
+              (loop (cdr cl) (alt prog* (list 'change loc) (list altn)))
               done)]))))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
