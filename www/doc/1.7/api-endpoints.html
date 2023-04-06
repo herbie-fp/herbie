@@ -1,59 +1,222 @@
 <!doctype html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <title>Herbie HTTP API Endpoints</title>
-  <link rel='stylesheet' type='text/css' href='../../main.css'>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script type="text/javascript" src="toc.js"></script>
-</head>
-<body>
-  <header>
-    <a href="../../"><img class="logo" src="../../logo.png" /></a>
-    <h1>HTTP API</h1>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <title>Herbie HTTP API Endpoints</title>
+    <link rel='stylesheet' type='text/css' href='../../main.css'>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script type="text/javascript" src="toc.js"></script>
+  </head>
+  <body>
+    <header>
+      <a href="../../"><img class="logo" src="../../logo.png" /></a>
+      <h1>HTTP API</h1>
+    </header>
 
-  <p><a href="../../">Herbie</a> offers an HTTP request API for running sub-commands. This page describes how to use this request API.</p>
+    <p>The <a href="../../">Herbie</a> API allows applications to interface with Herbie using HTTP requests. The API is designed to be context-free; the order in which endpoints are called shouldn't matter.</p>
+    <!-- <p><a href="../../">Herbie</a> offers an HTTP request API for running sub-commands. This page describes how to use this request API.</p> -->
 
-  <h2 id="all-endpoints-info">Format for all endpoints</h2>
+    <h2 id="all-endpoints-info">Format for all endpoints</h2>
 
-  <p>
+    <p>
     All the endpoints listed below respond to POST requests unless otherwise specified. A typical example of sending a POST request to a running Herbie server is:
 
-      <pre class="shell">
+    <pre class="shell">
 curl -X POST -d \
   '{"formula": "(FPCore (x) (- (sqrt (+ x 1))))",\
     "seed": 5})}' \
   -H 'Content-Type: application/json' \
   http://127.0.0.1:8000/api/sample
-      </pre>
-  </p>
+    </pre>
+    </p>
 
-  <h2 id="sample">/api/sample</h2>
+    <h2 id="sample">/api/sample</h2>
 
-  <p>Call sample on an input like:
+    <p>
+    Input:
+    </p>
     <pre>
       {
-        "formula": "(FPCore (x) (- (sqrt (+ x 1))))",
-        "seed": 5
+        formula: &lt;FPCore expression&gt;,
+        seed: &lt;random seed for point generation&gt;
       }
     </pre>
-    Output from that example, in an unordered array of pairs of the point and exact output calculated:
+    <p>
+    Response:
+    </p>
     <pre>
-      {"points":[
-        [[-2.666927774639112e-32],-1.0],
-        [[6.455685974004423e+259],-8.034728355087322e+129],
-        ... &lt;8000 points total&gt;
-        ]}
+      {
+        points: [[point, exact], ... ]
+      }
     </pre>
-  </p>
+    <p>
+    The <code>sample</code> endpoint allows the user to request a sample of points given the FPCore expression and a seed. 
+    </p>
+    <p>
+    Returns a collection of points and the exact evaluation of each point with the given spec.
+    The results are returned through the "points"
+    field and are represented by an array of point-exact pairs with the first value
+    representing the point and the second value representing the exact evaluation;
+    the exact value of point <code>n</code> is <code>points[n][1]</code>.
+    </p>
+    <p>
+    Herbie calculates the "ground truth" by calculating the values with more precise numbers. This can be slow.
+    </p>
 
-  <h2 id="analyze">/api/analyze</h2>
-    <!--TODO-->
-    Forthcoming.
-  <h2 id="alternatives">/api/alternatives</h2>
+    <h2 id="exacts">/api/exacts</h2>
+    <p>
+    Input:
+    </p>
+    <pre>
+      {
+        formula: &lt;FPCore expression&gt;,
+        points: [point ... ]
+      }
+    </pre>
+    <p>
+    Response:
+    </p>
+    <pre>
+      {
+        points: [[point, exact], ... ]
+      }
+    </pre>
+    <p>
+    The <code>exacts</code> endpoint allows the user to request the exact value of a set of points evaluated at a real number specification given as an FPCore expression.
+    </p>
+    <p>
+    Some points may not be calculable given the FPCore expression.
+    </p>
+    <p>
+    Returns a collection of points and the exact evaluation of each point with the given spec.
+    The results are returned through the "points"
+    field and are represented by an array of point-exact pairs with the
+    first value representing the point and the second value representing
+    the exact evaluation; the exact value of point <code>n</code> is
+    <code>points[n][1]</code>.
+    </p>
+    <p>
+    Herbie calculates the "ground truth" by calculating the values with more precise numbers. This can be slow.
+    </p>
+
+    <h2 id="calculate">/api/calculate</h2>
+
+    <p>
+    Input:
+    </p>
+    <pre>
+      {
+        formula: &lt;FPCore expression&gt;,
+        points: [point ... ]
+      }
+    </pre>
+    <p>
+    Response:
+    </p>
+    <pre>
+      {
+        points: [[point, exact], ... ]
+      }
+    </pre>
+    <p>
+    The <code>calculate</code> endpoint allows the user to request the evaluation of a set of points evaluated at a floating-point implementation given as an FPCore expression.
+    </p>
+    <p>
+    Some points may not be calculable given the FPCore expression.
+    </p>
+    <p>
+    Returns a collection of points and the evaluation of each point using the given FPCore as a floating-point implementation.
+    The results are returned through the "points" field and are represented by an
+    array of point-exact pairs with the first value representing the point and the
+    second value representing the evaluated value; the evaluated value of point
+    <code>n</code> is <code>points[n][1]</code>.
+    </p>
+
+
+    <h2 id="analyze">/api/analyze</h2>
+    <p>
+    Input:
+    </p>
+    <pre>
+{
+  formula: &lt;FPCore expression&gt;,
+  points: [[point, exact], ... ]
+}
+    </pre>
+    <p>
+    Response:
+    </p>
+    <pre>
+{
+  points: [[point, error], ... ]
+}
+    </pre>
+    <p>
+    The <code>analyze</code> endpoint allows the user to request error analysis of a set of point-exact pairs and a given floating-point implementation.
+    </p>
+    <p>
+    Given a collection of points, their exact values, and an FPCore expression to
+    analyze on, the <code>analyze</code> endpoint returns the error for each point
+    for that expression.  The error value returned is Herbie's internal error
+    heuristic.
+    </p>
+    <h2 id="alternatives">/api/alternatives</h2>
+    <p>
+    Input:
+    </p>
+
+    <pre>
+{
+  formula: &lt;FPCore expression&gt;,
+  points: [[point, exact], ... ]
+}
+    </pre>
+
+    <p>
+    Response:
+    </p>
+
+    <pre>
+{
+  alternatives: [alt, ... ],
+  histories: [history, ... ],
+  splitpoints: [splitpoint, ... ]
+}
+    </pre>
+
+    <p>
+    The <code>alternatives</code> endpoint allows the user to request rewrites from Herbie given an expression to rewrite and a set of point-exact pairs.
+    </p>
+    <p>
+    Returns a list of alternatives represented by FPCore expressions through the "alternatives" field. 
+    </p>
+    <p>
+    Returns a list of derivations of each alternative through the "histories" field where <code>history[n]</code> corresponds to <code>alternatives[n]</code>.
+    </p>
+    <p>
+    Returns a list of splitpoints for each alternative through the "splitpoints" field where <code>splitpoints[n]</code> corresponds to <code>alternatives[n]</code>. <code>splitpoints[n]</code> will only contain information about the corresponding alternative.s splitpoints if the alternative is a branch-expression.
+    </p>
+    <h2 id="mathjs">/api/mathjs</h2>
+    <p>
+    Input:
+    </p>
+    <pre>
+{
+  formula: &lt;FPCore expression&gt;
+}
+    </pre>
+    <p>
+    Response:
+    </p>
+    <pre>
+{
+  mathjs: &lt;mathjs expression&gt;
+}
+    </pre>
+    <p>
+    The <code>mathjs</code> endpoint allows the user to translate FPCore expressions into mathjs expressions.
+    </p>
+    <h2 id="local-error">/api/local-error</h2>
     <!--TODO--> Forthcoming.
-  <h2 id="local-error">/api/local-error</h2>
-    <!--TODO--> Forthcoming.
-</body>
+  </body>
 </html>
