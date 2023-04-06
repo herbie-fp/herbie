@@ -200,14 +200,14 @@
           [(null? cl)
            (cons altn done)]
           [else
-          ;  (define change-app (change-apply (car cl) (alt-program altn)))
           ; TODO : How to insert subexpression into larger expression. 
           ; Look at location-do
-          (define change-app (car cl))
-           (define prog* (apply-repr-change change-app (*context*)))
-           (if (program-body prog*)
-               (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
-               done)]))))
+          (match-define (list var subexp loc) (car cl))
+          (define change-app (location-do loc (alt-program altn) (const subexp)))
+          (define prog* (apply-repr-change change-app (*context*)))
+          (if (program-body prog*)
+              (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
+              done)]))))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline
