@@ -75,7 +75,7 @@
           (when result
             (define canon-name (hash-ref canon-names (rule-name rule)))
             (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow (list (list (car result) root-loc)))))))) ; TODO : HWHAT TO DO HERE
+            (sow  (list (car result) root-loc))))))) ; TODO : HWHAT TO DO HERE
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
@@ -131,7 +131,7 @@
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
                 (define output (egraph-get-variants egg-graph id expr))
                 (for/list ([variant (remove-duplicates output)])
-                  (list (list variant root-loc))))) ; TODO
+                   (list variant root-loc)))) ; TODO
             (λ () variants)]))))
     (result-thunk)))
 

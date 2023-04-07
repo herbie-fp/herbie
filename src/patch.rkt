@@ -195,19 +195,15 @@
     (for/fold ([done '()] #:result (reverse done))
               ([cls comb-changelists] [altn altns]
               #:when true [cl cls])
-      (let loop ([cl cl] [altn altn])
-        (cond
-          [(null? cl)
-           (cons altn done)]
-          [else
+      (let ([cl cl] [altn altn])
           ; TODO : How to insert subexpression into larger expression. 
           ; Look at location-do
-          (match-define (list subexp loc) (car cl))
+          (match-define (list subexp loc) cl)
           (define change-app (location-do loc (alt-program altn) (const subexp)))
           (define prog* (apply-repr-change change-app (*context*)))
           (if (program-body prog*)
-              (loop (cdr cl) (alt prog* (list 'change loc) (list altn)))
-              done)]))))
+              (alt prog* (list 'change loc) (list altn))
+              done))))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline
