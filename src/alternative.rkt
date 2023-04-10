@@ -10,8 +10,6 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-; (struct change (rule location bindings) #:transparent)
-
 (struct alt (program event prevs)
         #:methods gen:custom-write
         [(define (write-proc alt port mode)

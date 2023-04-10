@@ -143,10 +143,10 @@
     [(alt prog (list 'change loc) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 ctx)
-       (li (p "Applied " (span ([class "rule"]) ,"egg-rr") ; TODO : How to get rule-name
+       (li (p "Applied " (span ([class "rule"]) ,"egg-rr")
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc loc #:color "blue") ; TODO : How to get location
+                                                      (core->tex prog* #:loc loc #:color "blue")
                                                       "ERROR")
                                                   "\\]")))]
     ))

@@ -54,10 +54,6 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-; (define (change-apply cng prog)
-;   (match-define (change rule location bindings) cng)
-;   (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
-
 ;;
 ;;  Non-recursive rewriter
 ;;
@@ -75,7 +71,7 @@
           (when result
             (define canon-name (hash-ref canon-names (rule-name rule)))
             (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow  (list (car result) root-loc))))))) ; TODO : HWHAT TO DO HERE
+            (sow  (list (car result) root-loc)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
