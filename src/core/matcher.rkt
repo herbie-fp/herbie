@@ -4,7 +4,7 @@
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
          "../timeline.rkt")
 
-(provide pattern-match rewrite-expressions)
+(provide pattern-match rewrite-expressions get-rr-proof)
 
 ;;; Our own pattern matcher.
 ;;
@@ -153,3 +153,14 @@
     (define out (batch-egg-rewrite exprs ctx #:rules rules #:roots root-locs #:depths depths))
     (timeline-push! 'outputs (map ~a out))
     out]))
+
+; NOTE : Copy-pasted from simplify
+(define (get-rr-proof rules start end)
+  (with-egraph
+    (λ (egg-graph)
+      (define node-ids (map (curry egraph-add-expr egg-graph) (list start end))) ; TODO : Need to have all exprs from original rr run -> REMOVE (LIST START END)
+      (define iter-data (egraph-run-rules egg-graph #:limit #f (*node-limit*) rules node-ids #t)) ; TODO : limit should have value
+      (define proof (egraph-get-proof egg-graph start end))
+      (when (null? proof)
+        (error (format "Failed to produce proof for ~a to ~a" start end)))
+      proof)))

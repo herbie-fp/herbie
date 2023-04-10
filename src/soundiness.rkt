@@ -1,7 +1,8 @@
 #lang racket
 
 (require "alternative.rkt" "points.rkt" "programs.rkt"
-         "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/types.rkt")
+         "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/types.rkt" 
+         "core/matcher.rkt" "syntax/rules.rkt")
 
 (provide add-soundiness)
 
@@ -40,6 +41,14 @@
 
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
+    ;; This is alt coming from rr
+    [(alt prog `(change ,loc) `(,prev))
+      (define proof (get-rr-proof (*rules*) ; TODO : Don't summon rules like this
+                                  (location-get loc (alt-program prev))
+                                  (location-get loc prog)))
+      (displayln proof)
+      altn]
+    ;; This is alt coming from simplify
     [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
      (define proof (get-proof input
                               (location-get loc (alt-program prev))
