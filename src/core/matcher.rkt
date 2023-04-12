@@ -127,7 +127,7 @@
                 (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
                 (define output (egraph-get-variants egg-graph id expr))
                 (for/list ([variant (remove-duplicates output)])
-                   (list variant root-loc)))) ; TODO
+                   (list variant rules root-loc exprs iter-limit)))) ; TODO
             (λ () variants)]))))
     (result-thunk)))
 
@@ -155,11 +155,11 @@
     out]))
 
 ; NOTE : Copy-pasted from simplify
-(define (get-rr-proof rules start end)
+(define (get-rr-proof rules input-exprs iter-limit start end)
   (with-egraph
     (λ (egg-graph)
-      (define node-ids (map (curry egraph-add-expr egg-graph) (list start end))) ; TODO : Need to have all exprs from original rr run -> REMOVE (LIST START END)
-      (define iter-data (egraph-run-rules egg-graph #:limit #f (*node-limit*) rules node-ids #t)) ; TODO : limit should have value
+      (define node-ids (map (curry egraph-add-expr egg-graph) input-exprs)) ; TODO : Need to have all exprs from original rr run -> REMOVE (LIST START END)
+      (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t)) ; TODO : limit should have value
       (define proof (egraph-get-proof egg-graph start end))
       (when (null? proof)
         (error (format "Failed to produce proof for ~a to ~a" start end)))

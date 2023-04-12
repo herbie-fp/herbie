@@ -180,8 +180,8 @@
            [(list 'taylor name var loc)
             (list 'taylor name var (append loc0 (cdr loc)))]
            ; TODO : Recosnsruct and revise history
-           [(list 'change loc) 
-            (list 'change (append loc0 (cdr loc)))]
+           [(list 'rr rules loc input-exprs iter-limit) 
+            (list 'rr rules (append loc0 (cdr loc)) input-exprs iter-limit)]
            [`(simplify ,loc ,input ,proof ,soundiness)
             (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
         (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))

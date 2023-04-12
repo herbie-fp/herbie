@@ -188,11 +188,11 @@
               ([cls comb-changelists] [altn altns]
               #:when true [cl cls])
       (let ([cl cl] [altn altn])
-          (match-define (list subexp loc) cl)
+          (match-define (list subexp rules loc input-exprs iter-limit) cl)
           (define change-app (location-do loc (alt-program altn) (const subexp)))
           (define prog* (apply-repr-change change-app (*context*)))
           (if (program-body prog*)
-              (cons (alt prog* (list 'change loc) (list altn)) done)
+              (cons (alt prog* (list 'rr rules loc input-exprs iter-limit) (list altn)) done)
               done))))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
