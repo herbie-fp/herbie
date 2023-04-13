@@ -44,8 +44,8 @@
      (alt prog `initial-simplify `(,(alt-map f prev)))]
     [(alt prog `final-simplify `(,prev))
      (alt prog `final-simplify `(,(alt-map f prev)))]
-    [(alt prog (list 'rr rules loc input-exprs iter-limit) `(,prev))
-     (alt prog (list 'rr rules loc input-exprs iter-limit) `(,(alt-map f prev)))])))
+    [(alt prog (list 'rr rules loc input-exprs iter-limit proof soundiness) `(,prev))
+     (alt prog (list 'rr rules loc input-exprs iter-limit proof soundiness) `(,(alt-map f prev)))])))
 
 ;; A useful parameter for many of Herbie's subsystems, though
 ;; ultimately one that should be located somewhere else or perhaps

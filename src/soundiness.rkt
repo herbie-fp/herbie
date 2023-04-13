@@ -42,12 +42,26 @@
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
     ;; This is alt coming from rr
-    [(alt prog `(rr , rules, loc, input-exprs, iter-limit) `(,prev))
+    [(alt prog `(rr , rules, loc, input-exprs, iter-limit #f #f) `(,prev))
       (define proof (get-rr-proof rules ; TODO : Don't summon rules like this
                                   input-exprs iter-limit
                                   (location-get loc (alt-program prev))
                                   (location-get loc prog)))
       (displayln proof)
+      (cond
+       [proof
+        ;; Proofs are actually on subexpressions,
+        ;; we need to construct the proof for the full expression
+        (define proof*
+          (for/list ([step proof])
+            (let ([step* (canonicalize-rewrite step)])
+              (program-body (location-do loc prog (λ _ step*))))))
+        (define errors
+          (let ([vars (program-variables prog)])
+            (get-proof-errors proof* pcontext ctx vars)))
+        (alt prog `(rr, rules, loc , input-exprs ,proof* ,errors) `(,prev))]
+       [else
+        (alt prog `(rr ,rules, loc , input-exprs #f #f) `(,prev))])
       altn]
     ;; This is alt coming from simplify
     [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
