@@ -59,10 +59,9 @@
         (define errors
           (let ([vars (program-variables prog)])
             (get-proof-errors proof* pcontext ctx vars)))
-        (alt prog `(rr, rules, loc , input-exprs ,proof* ,errors) `(,prev))]
+        (alt prog `(rr, rules, loc , input-exprs , iter-limit, proof* ,errors) `(,prev))]
        [else
-        (alt prog `(rr ,rules, loc , input-exprs #f #f) `(,prev))])
-      altn]
+        (alt prog `(rr ,rules, loc , input-exprs, iter-limit #f #f) `(,prev))])]
     ;; This is alt coming from simplify
     [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
      (define proof (get-proof input

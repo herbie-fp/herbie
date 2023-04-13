@@ -140,7 +140,7 @@
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
-    [(alt prog (list 'rr rules loc input-exprs iter-limit proof soundiness) `(,prev))
+    [(alt prog `(rr , rules, loc, input-exprs, iter-limit, proof, soundiness) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
      (define proof*
        (if proof (compute-proof proof soundiness) #f))
