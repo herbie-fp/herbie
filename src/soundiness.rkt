@@ -38,14 +38,20 @@
                           num-decrease (length prev)))))
   proof-diffs)
   
+(define (generate-proof input)
+  (define rules (rr-input-rules input))
+  (define exprs (rr-input-input-exprs input))
+  (string-append "Rewrite=> " 
+                  (rule-name rules) ; TODO : How to get name? For loop over all rules?
+                  exprs))
 
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
     ;; This is alt coming from rr
-    [(alt prog `(rr, loc, input, egg? #f) `(,prev))
+    [(alt prog `(rr, loc, input, symb? #f) `(,prev))
       (define proof 
-            (if (equal? egg? "&")
-              (generate-proof )
+            (if (symb? egg? "&") ; TODO : How to ensure symb? passes in "&" from rewrite-once? What needs to be fixed along pipeline?
+              (generate-proof input)
               (get-rr-proof (rr-input-rules input) ; TODO : Don't summon rules like this
                             (rr-input-input-exprs input) (rr-input-iter-limit input)
                             (location-get loc (alt-program prev))
