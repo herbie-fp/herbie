@@ -42,11 +42,14 @@
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
     ;; This is alt coming from rr
-    [(alt prog `(rr, loc, input, #f #f) `(,prev))
-      (define proof (get-rr-proof (rr-input-rules input) ; TODO : Don't summon rules like this
-                                  (rr-input-input-exprs input) (rr-input-iter-limit input)
-                                  (location-get loc (alt-program prev))
-                                  (location-get loc prog)))
+    [(alt prog `(rr, loc, input, egg? #f) `(,prev))
+      (define proof 
+            (if (equal? egg? "&")
+              (generate-proof )
+              (get-rr-proof (rr-input-rules input) ; TODO : Don't summon rules like this
+                            (rr-input-input-exprs input) (rr-input-iter-limit input)
+                            (location-get loc (alt-program prev))
+                            (location-get loc prog))))
       (cond
        [proof
         ;; Proofs are actually on subexpressions,
@@ -62,7 +65,7 @@
        [else
         (alt prog `(rr ,loc, input #f #f) `(,prev))])]
     ;; This is alt coming from simplify
-    [(alt prog `(simplify ,loc ,input #f #f) `(,prev))
+    [(alt prog `(simplify ,loc ,input, #f #f) `(,prev))
      (define proof (get-proof input
                               (location-get loc (alt-program prev))
                               (location-get loc prog)))

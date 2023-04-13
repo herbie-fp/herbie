@@ -4,7 +4,9 @@
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
          "../timeline.rkt")
 
-(provide pattern-match rewrite-expressions get-rr-proof)
+(provide pattern-match rewrite-expressions get-rr-proof (struct-out rr-input))
+
+(struct rr-input (rules input-exprs iter-limit) #:transparent)
 
 ;;; Our own pattern matcher.
 ;;
@@ -71,7 +73,7 @@
           (when result
             (define canon-name (hash-ref canon-names (rule-name rule)))
             (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow  (list (car result) rules root-loc #f #f)))))))
+            (sow  (list (car result) rules root-loc "&" #f)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
