@@ -1,7 +1,7 @@
 #lang racket
 
 (require "cost.rkt")
-(provide (struct-out alt) make-alt alt?
+(provide (struct-out alt)  (struct-out rr-input) make-alt alt?
          alt-program alt-add-event *start-prog* *all-alts*
          alt-cost alt-equal? alt-map)
 
@@ -14,6 +14,8 @@
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (fprintf port "#<alt ~a>" (alt-program alt)))])
+
+(struct rr-input (rules input-exprs iter-limit) #:transparent)
 
 (define (make-alt prog)
   (alt prog 'start '()))

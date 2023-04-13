@@ -4,9 +4,7 @@
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
          "../timeline.rkt")
 
-(provide pattern-match rewrite-expressions get-rr-proof (struct-out rr-input))
-
-(struct rr-input (rules input-exprs iter-limit) #:transparent)
+(provide pattern-match rewrite-expressions get-rr-proof)
 
 ;;; Our own pattern matcher.
 ;;
