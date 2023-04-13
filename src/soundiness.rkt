@@ -47,7 +47,6 @@
                                   (rr-input-input-exprs input) (rr-input-iter-limit input)
                                   (location-get loc (alt-program prev))
                                   (location-get loc prog)))
-      (displayln proof)
       (cond
        [proof
         ;; Proofs are actually on subexpressions,
