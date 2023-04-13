@@ -192,7 +192,7 @@
           (define change-app (location-do loc (alt-program altn) (const subexp)))
           (define prog* (apply-repr-change change-app (*context*)))
           (if (program-body prog*)
-              (cons (alt prog* (list 'rr rules loc input-exprs iter-limit #f #f) (list altn)) done)
+              (cons (alt prog* (list 'rr loc (rr-input rules input-exprs iter-limit) #f #f) (list altn)) done)
               done))))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
