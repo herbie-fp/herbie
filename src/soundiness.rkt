@@ -39,7 +39,7 @@
   proof-diffs)
   
 (define (get-rewrite-once-proof rule prog)
-  `(Rewrite=> ,rule , (program-body prog))) ;; expr
+  '(`(Rewrite=> ,rule , (program-body prog)))) ;; expr
 
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
