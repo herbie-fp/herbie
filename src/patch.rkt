@@ -188,13 +188,11 @@
               ([cls comb-changelists] [altn altns]
               #:when true [cl cls])
       (let ([cl cl] [altn altn])
-          (match-define (list subexp rules loc input-exprs iter-limit) cl)
+          (match-define (list subexp input loc) cl)
           (define change-app (location-do loc (alt-program altn) (const subexp)))
           (define prog* (apply-repr-change change-app (*context*)))
           (if (program-body prog*)
-              (if (not input-exprs) ;; TODO: CONFIRM IF THIS IS SOUND ENOUGH TO CHECK IF SENT BY R-O OR B-E-R
-                (cons (alt prog* (list 'rr loc rules #f #f) (list altn)) done) ;; R-O returns singular rule struct and singular expr
-                (cons (alt prog* (list 'rr loc (rr-input rules input-exprs iter-limit) #f #f) (list altn)) done)) ;; B-E-R needs rr-input struct
+                (cons (alt prog* (list 'rr loc input #f #f) (list altn)) done)
               done))))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))

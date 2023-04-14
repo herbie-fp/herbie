@@ -38,22 +38,19 @@
                           num-decrease (length prev)))))
   proof-diffs)
   
-(define (generate-rewrite-once-proof rule loc prog prev)
-  (list (program-body (alt-program prev)) ;; Start Expression
-        (list 'Rewrite=> 
-              (rule-name rule) ;; name
-              (program-body prog)))) ;; expr
+(define (get-rewrite-once-proof rule prog)
+  `(Rewrite=> ,rule , (program-body prog))) ;; expr
 
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
     ;; This is alt coming from rr
     [(alt prog `(rr, loc, input #f #f) `(,prev))
-      (cond
-       [(rr-input? input) ;; Check if input is an rr-input struct (B-E-R)
-        (define proof 
-          (get-rr-proof (rr-input-rules input)
+        (define proof
+          (if (rr-input? input)
+                (get-rr-proof (rr-input-rules input)
                         (rr-input-input-exprs input) (rr-input-iter-limit input)
-                        (location-get loc (alt-program prev)) (location-get loc prog)))
+                        (location-get loc (alt-program prev)) (location-get loc prog))
+                        (get-rewrite-once-proof input prog)))
         (cond
           [proof
             (define proof*
@@ -66,17 +63,6 @@
             (alt prog `(rr, loc, input, proof* ,errors) `(,prev))]
           [else
             (alt prog `(rr ,loc, input #f #f) `(,prev))])]
-        
-        [(rule? input) ;; (R-O) case
-          (define proof-ro
-            (generate-rewrite-once-proof input loc prog prev))
-          (define errors-ro
-            (let ([vars (program-variables prog)])
-              (get-proof-errors proof-ro pcontext ctx vars)))
-          (alt prog `(rr, loc, input, proof-ro, errors-ro) `(,prev))]
-
-       [else
-        (alt prog `(rr ,loc, input #f #f) `(,prev))])]
         
       ;; This is alt coming from simplify
     [(alt prog `(simplify ,loc ,input, #f #f) `(,prev))
