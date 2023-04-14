@@ -71,7 +71,7 @@
           (when result
             (define canon-name (hash-ref canon-names (rule-name rule)))
             (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow (list (car result) rule root-loc expr #f)))))))
+            (sow (list (car result) rule root-loc #f #f)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))

@@ -38,22 +38,22 @@
                           num-decrease (length prev)))))
   proof-diffs)
   
-(define (generate-proof rule expr)
+(define (generate-rewrite-once-proof rule loc prog)
   (list "Rewrite=> " 
                   (rule-name rule) ; TODO : How to get name? Is rule a struct
-                  expr))
+                  (location-get loc prog))) ;; expr
 
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
     ;; This is alt coming from rr
-    [(alt prog `(rr, loc, input, expr #f) `(,prev))
+    [(alt prog `(rr, loc, input #f #f) `(,prev))
       (define proof 
             (if (rr-input? input) ; Check if input is an rr-input struct (B-E-R) or rule struct (R-O)
                 (get-rr-proof (rr-input-rules input) ; TODO : Don't summon rules like this
                               (rr-input-input-exprs input) (rr-input-iter-limit input)
                               (location-get loc (alt-program prev))
                               (location-get loc prog))
-                (generate-proof input expr))) ;; (R-O) case
+                (generate-rewrite-once-proof input loc prog))) ;; (R-O) case
       (cond
        [proof
         ;; Proofs are actually on subexpressions,

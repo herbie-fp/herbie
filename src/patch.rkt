@@ -192,8 +192,8 @@
           (define change-app (location-do loc (alt-program altn) (const subexp)))
           (define prog* (apply-repr-change change-app (*context*)))
           (if (program-body prog*)
-              (if (not iter-limit) ;; TODO: TEMPORARY FIX NEED SOMETHING TO CHECK IF SENT BY REWRITE-ONCE OR B-E-R
-                (cons (alt prog* (list 'rr loc rules input-exprs #f) (list altn)) done) ;; R-O returns singular rule struct and singular expr
+              (if (not input-exprs) ;; TODO: CONFIRM IF THIS IS SOUND ENOUGH TO CHECK IF SENT BY R-O OR B-E-R
+                (cons (alt prog* (list 'rr loc rules #f #f) (list altn)) done) ;; R-O returns singular rule struct and singular expr
                 (cons (alt prog* (list 'rr loc (rr-input rules input-exprs iter-limit) #f #f) (list altn)) done)) ;; B-E-R needs rr-input struct
               done))))
 
