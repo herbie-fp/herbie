@@ -1,0 +1,75 @@
+; -*- mode: scheme -*-
+
+(FPCore (x)
+ :name "2sqrt (example 3.1)"
+ :herbie-target
+ (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))
+
+ (- (sqrt (+ x 1)) (sqrt x)))
+
+(FPCore (x eps)
+ :name "2sin (example 3.3)"
+ :herbie-target
+ (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2))))
+
+ (- (sin (+ x eps)) (sin x)))
+
+(FPCore (x)
+ :name "tanhf (example 3.4)"
+ ;:herbie-expected 2
+ :herbie-target
+ (tan (/ x 2))
+
+ (/ (- 1 (cos x)) (sin x)))
+
+(FPCore (N)
+ :name "2atan (example 3.5)"
+ :herbie-target
+ (atan (/ 1 (+ 1 (* N (+ N 1)))))
+
+ (- (atan (+ N 1)) (atan N)))
+
+(FPCore (x)
+ :name "2isqrt (example 3.6)"
+ :herbie-target
+ (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1)))))
+
+ (- (/ 1 (sqrt x)) (/ 1 (sqrt (+ x 1)))))
+
+(FPCore (x)
+ :name "2frac (problem 3.3.1)"
+ (- (/ 1 (+ x 1)) (/ 1 x)))
+
+(FPCore (x eps)
+ :name "2tan (problem 3.3.2)"
+ :herbie-target
+ (/ (sin eps) (* (cos x) (cos (+ x eps))))
+
+ (- (tan (+ x eps)) (tan x)))
+
+(FPCore (x)
+ :name "3frac (problem 3.3.3)"
+ :herbie-target
+ (/ 2 (* x (- (* x x) 1)))
+
+ (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
+
+(FPCore (x)
+ :name "2cbrt (problem 3.3.4)"
+ (- (cbrt (+ x 1)) (cbrt x)))
+
+(FPCore (x eps)
+ :name "2cos (problem 3.3.5)"
+ (- (cos (+ x eps)) (cos x)))
+
+(FPCore (N)
+ :name "2log (problem 3.3.6)"
+ (- (log (+ N 1)) (log N)))
+
+(FPCore (x)
+ :name "exp2 (problem 3.3.7)"
+ ;:herbie-expected 1.5 ; Fails in single-precision due to regimes threshold
+ :herbie-target
+ (* 4 (pow (sinh (/ x 2)) 2))
+
+ (+ (- (exp x) 2) (exp (- x))))
