@@ -486,13 +486,12 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define seed (hash-ref post-data 'seed))
       (eprintf "Job started on ~a..." formula)
 
       (define result (get-cost (parse-test formula)))
 
       (eprintf " complete\n")
-      (hasheq 'cost result))))
+      (hasheq 'value result))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)

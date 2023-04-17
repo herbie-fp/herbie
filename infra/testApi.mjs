@@ -42,3 +42,6 @@ assert.deepEqual(exacts, [[1, 1], -1.4142135623730951])
 const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()).points
 
 assert.deepEqual(exacts, [[1, 1], -1.4142135623730951])
+
+const calculate = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json())
+

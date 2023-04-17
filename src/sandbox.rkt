@@ -8,7 +8,7 @@
          "core/localize.rkt" "ground-truth.rkt")
 
 (provide get-alternatives get-errors get-sample get-test-result
-         get-exacts *reeval-pts* *timeout* get-calculation
+         get-exacts *reeval-pts* *timeout* get-calculation get-cost
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result get-local-error)
