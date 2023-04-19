@@ -18,7 +18,7 @@
 
 (FPCore (x)
  :name "invcot (example 3.9)"
- :pre (and (< -0.026 x) (< x 0.026))
+ :pre (and (< -1 x) (< x 1))
  :herbie-target
  (if (< (fabs x) 0.026)
      (* (/ x 3) (+ 1 (/ (* x x) 15)))
