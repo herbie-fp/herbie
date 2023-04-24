@@ -14,7 +14,7 @@
 (define egg-iters 25)
 (define ground-truth-iters 20)
 (define compute-accuracy-iters 20)
-(define egg-node-limit 100000)
+(define egg-node-limit 10000)
 (define egg-match-limit 1000)
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
