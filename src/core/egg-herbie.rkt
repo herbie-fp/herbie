@@ -14,6 +14,19 @@
          remove-rewrites)
 
 
+(struct egraph-input (exprs rules terms-list num-variants iter-limit node-limit const-folding) #:transparent)
+
+(define (make-egg-descriptor exprs rules terms-list num-variants [iter-limit #f] [node-limit #f] [const-folding #f])
+  (egraph-input exprs rules terms-list num-variants iter-limit node-limit const-folding))
+
+;; TODO : Main entry point return (cons (list (list variant)) (list proof))
+(define (run-egraph egraph-input get-proof?)  
+  ;; TODO : Make simplify match
+
+  ;; TODO : Make rr match
+  )
+
+
 (define (flatten-let term environment)
   (match term
     [`(let (,var ,term) ,body)
