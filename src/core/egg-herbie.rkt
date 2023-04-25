@@ -20,10 +20,11 @@
   (egraph-input exprs rules terms-list num-variants iter-limit node-limit const-folding))
 
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))
-(define (run-egraph egraph-input get-proof?)  
+(define (run-egraph input get-proof?)
   ;; TODO : Make simplify match
 
   ;; TODO : Make rr match
+  #f
   )
 
 
