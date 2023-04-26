@@ -15,25 +15,31 @@
 
 
 (struct egraph-input (exprs rules terms-list num-variants iter-limit node-limit const-folding) #:transparent)
+(struct proof-input (start end) #:transparent)
 
 (define (make-egg-descriptor exprs rules terms-list num-variants [iter-limit #f] [node-limit #f] [const-folding #f])
   (egraph-input exprs rules terms-list num-variants iter-limit node-limit const-folding))
 
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))
-(define (run-egg input get-proof?)
+(define (run-egg input proof-input)
   ;; TODO : Make rr match 
   ;; TODO : Make simplify match
   (with e-graph 
     (λ (egg-graph)
       (define node-ids (map (curry egraph-add-expr egg-graph) input-exprs))
       (define iter-data (egraph-run-rules egg-graph #:limit input-iter-limit input-node-limit input-rules node-ids #t)
+      (define variants
+        (for/list ([id node-ids] [expr input-exprs]) ; TODO: Get Locations and Variants if Possible
+          (define output (egraph-get-variants egg-graph id expr))
+          (for/list ([variant (remove-duplicates output)])
+              (list variant (rr-input input-rules input-exprs input-iter-limit)))))
       (cond
-        [(get-proof?)
-          ((define proof (egraph-get-proof egg-graph start end)) ; TODO: How to get start and end? Same way as soundiness?
+        [(proof-input? proof-input)
+          ((define proof (egraph-get-proof egg-graph proof-input-start proof-input-end))
           (when (null? proof)
             (error (format "Failed to produce proof for ~a to ~a" start end)))
-          proof)]
-        [else iter-data])))))
+          (cons variants proof))]
+        [else variants])))))
 
 
 (define (flatten-let term environment)
