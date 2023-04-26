@@ -29,10 +29,10 @@
       (define iter-data (egraph-run-rules egg-graph #:limit input-iter-limit input-node-limit input-rules node-ids #t)
       (cond
         [(get-proof?)
-          (define proof (egraph-get-proof egg-graph start end)) ; TODO: How to get start and end? Same way as soundiness?
+          ((define proof (egraph-get-proof egg-graph start end)) ; TODO: How to get start and end? Same way as soundiness?
           (when (null? proof)
             (error (format "Failed to produce proof for ~a to ~a" start end)))
-          proof]
+          proof)]
         [else iter-data])))))
 
 
