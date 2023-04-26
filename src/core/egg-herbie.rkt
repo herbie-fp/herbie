@@ -3,7 +3,7 @@
 (require egg-herbie)
 (require ffi/unsafe ffi/unsafe/define)
 (require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../common.rkt" "../errors.rkt" "../timeline.rkt")
+         "../common.rkt" "../errors.rkt" "../timeline.rkt" "../alternative.rkt")
 
 (module+ test (require rackunit))
 
@@ -11,8 +11,8 @@
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
-         remove-rewrites)
-
+         remove-rewrites run-egg (struct-out egraph-input) 
+         (struct-out proof-input))
 
 (struct egraph-input (exprs rules terms-list num-variants iter-limit node-limit const-folding) #:transparent)
 (struct proof-input (start end) #:transparent)
@@ -21,26 +21,48 @@
   (egraph-input exprs rules terms-list num-variants iter-limit node-limit const-folding))
 
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))
-(define (run-egg input proof-input)
-  ;; TODO : Make rr match 
+(define (run-egg  input 
+                  proof-input 
+                  precompute? 
+                  #:roots [root-locs (make-list (length (egraph-input-exprs input)) '())]
+                  #:once? [once? #f])
   ;; TODO : Make simplify match
-  (with e-graph 
+  ;; TODO : Make rr match
+  (with-egraph 
     (λ (egg-graph)
-      (define node-ids (map (curry egraph-add-expr egg-graph) input-exprs))
-      (define iter-data (egraph-run-rules egg-graph #:limit input-iter-limit input-node-limit input-rules node-ids #t)
-      (define variants
-        (for/list ([id node-ids] [expr input-exprs]) ; TODO: Get Locations and Variants if Possible
-          (define output (egraph-get-variants egg-graph id expr))
-          (for/list ([variant (remove-duplicates output)])
-              (list variant (rr-input input-rules input-exprs input-iter-limit)))))
+      (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-input-exprs input)))
+      (define iter-data (egraph-run-rules egg-graph (egraph-input-node-limit input) (egraph-input-rules input) node-ids precompute? #:limit (egraph-input-iter-limit input)))
+
+      ;; TODO : SORT THIS OUT
+      (when (egraph-is-unsound-detected egg-graph) 
+       (warn 'unsound-rules #:url "faq.html#unsound-rules"
+             "Unsound rule application detected in e-graph. Results may not be sound."))
+      
+      (define variants (if (= 1 (egraph-input-num-variants input)) 
+                            (get-simplify-variant egg-graph node-ids iter-data) 
+                            (get-rr-variants egg-graph node-ids input)))
       (cond
         [(proof-input? proof-input)
-          ((define proof (egraph-get-proof egg-graph proof-input-start proof-input-end))
-          (when (null? proof)
-            (error (format "Failed to produce proof for ~a to ~a" start end)))
-          (cons variants proof))]
-        [else variants])))))
+          (begin
+            (define proof (egraph-get-proof egg-graph (proof-input-start proof-input) (proof-input-end proof-input)))
+            (when (null? proof)
+              (error (format "Failed to produce proof for ~a to ~a" (proof-input-start proof-input) (proof-input-end proof-input))))
+            (cons variants proof))]
+        [else variants]))))
 
+(define (get-rr-variants egg-graph node-ids input)
+  (define variants
+        (for/list ([id node-ids] [expr (egraph-input-exprs input)]) ; TODO: Get Locations and Variants if Possible
+          (define output (egraph-get-variants egg-graph id expr))
+          (for/list ([variant (remove-duplicates output)])
+              (list variant (rr-input (egraph-input-rules input) (egraph-input-exprs input) (egraph-input-iter-limit input))))))
+              variants)
+
+(define (get-simplify-variant egg-graph node-ids iter-data)
+  (map (lambda (id)
+          (for/list ([iter (in-range (length iter-data))])
+            (egraph-get-simplest egg-graph id iter)))
+        node-ids))
 
 (define (flatten-let term environment)
   (match term
