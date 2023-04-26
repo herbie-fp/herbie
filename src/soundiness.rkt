@@ -79,9 +79,12 @@
             
       ;; This is alt coming from simplify
     [(alt prog `(simplify ,loc ,input, #f #f) `(,prev))
-      (define proof (get-proof input
-                              (location-get loc (alt-program prev))
-                              (location-get loc prog)))
+      ; (define proof (get-proof input
+      ;                         (location-get loc (alt-program prev))
+      ;                         (location-get loc prog)))
+      (define egg-input (make-egg-descriptor (simplify-input-exprs input) (simplify-input-rules input) 1))
+      (define p-input (proof-input (location-get loc (alt-program prev)) (location-get loc prog)))
+      (define proof (cdr (run-egg egg-input p-input (simplify-input-precompute? input))))
       (cond
        [proof
         ;; Proofs are actually on subexpressions,

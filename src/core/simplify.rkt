@@ -3,7 +3,7 @@
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt" "egg-herbie.rkt")
 
-(provide simplify-expr simplify-batch get-proof
+(provide simplify-expr simplify-batch
          (struct-out simplify-input))
 
 (module+ test
@@ -51,34 +51,38 @@
   (define precompute? (simplify-input-precompute? input))
   (define proofs (simplify-input-proofs input))
   (define rules (simplify-input-rules input))
-  
+  (define e-input (make-egg-descriptor exprs rules 1 #:node-limit (*node-limit*)))
+  (define p-input '())
   (timeline-push! 'method "egg-herbie")
 
-  (with-egraph
-   (lambda (egg-graph)
-     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
-     (define iter-data (egraph-run-rules egg-graph (*node-limit*) rules node-ids (and precompute? true)))
+  (run-egg e-input p-input precompute?)
+
+  ; (with-egraph
+  ;  (lambda (egg-graph)
+  ;    (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+  ;    (define iter-data (egraph-run-rules egg-graph (*node-limit*) rules node-ids (and precompute? true)))
         
-     (when (egraph-is-unsound-detected egg-graph)
-       (warn 'unsound-rules #:url "faq.html#unsound-rules"
-             "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
+  ;    (when (egraph-is-unsound-detected egg-graph)
+  ;      (warn 'unsound-rules #:url "faq.html#unsound-rules"
+  ;            "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
 
-     (egraph-func egg-graph node-ids iter-data))))
+  ;    (egraph-func egg-graph node-ids iter-data)))
+    )
 
-(define (get-proof input start end)
-  (run-simplify-input
-    input
-    (lambda (egg-graph node-ids iter-data)
-      (define proof (egraph-get-proof egg-graph start end))
-      (when (null? proof)
-        (error (format "Failed to produce proof for ~a to ~a" start end)))
-      proof)))
+; (define (get-proof input start end)
+;   (run-simplify-input
+;     input
+;     (lambda (egg-graph node-ids iter-data)
+;       (define proof (egraph-get-proof egg-graph start end))
+;       (when (null? proof)
+;         (error (format "Failed to produce proof for ~a to ~a" start end)))
+;       proof)))
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")
 
   ;; set parameters
-  (define vars '(x a b c))
+  (define vars '(x a b c))  
   (*context* (make-debug-context vars))
   (*needed-reprs* (list (get-representation 'binary64)
                         (get-representation 'binary32)))

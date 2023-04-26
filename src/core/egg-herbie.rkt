@@ -11,14 +11,14 @@
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
-         remove-rewrites run-egg (struct-out egraph-input) 
+         remove-rewrites run-egg make-egg-descriptor
          (struct-out proof-input))
 
-(struct egraph-input (exprs rules terms-list num-variants iter-limit node-limit const-folding) #:transparent)
+(struct egraph-input (exprs rules num-variants terms iter-limit node-limit const-folding) #:transparent)
 (struct proof-input (start end) #:transparent)
 
-(define (make-egg-descriptor exprs rules terms-list num-variants [iter-limit #f] [node-limit #f] [const-folding #f])
-  (egraph-input exprs rules terms-list num-variants iter-limit node-limit const-folding))
+(define (make-egg-descriptor exprs rules num-variants [terms #f] [iter-limit #f] #:node-limit [node-limit (*node-limit*)] [const-folding #f])
+  (egraph-input exprs rules num-variants terms iter-limit node-limit const-folding))
 
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))
 (define (run-egg  input 
@@ -63,6 +63,7 @@
           (for/list ([iter (in-range (length iter-data))])
             (egraph-get-simplest egg-graph id iter)))
         node-ids))
+
 
 (define (flatten-let term environment)
   (match term
