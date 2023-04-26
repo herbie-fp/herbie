@@ -20,12 +20,20 @@
   (egraph-input exprs rules terms-list num-variants iter-limit node-limit const-folding))
 
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))
-(define (run-egraph input get-proof?)
+(define (run-egg input get-proof?)
+  ;; TODO : Make rr match 
   ;; TODO : Make simplify match
-
-  ;; TODO : Make rr match
-  #f
-  )
+  (with e-graph 
+    (λ (egg-graph)
+      (define node-ids (map (curry egraph-add-expr egg-graph) input-exprs))
+      (define iter-data (egraph-run-rules egg-graph #:limit input-iter-limit input-node-limit input-rules node-ids #t)
+      (cond
+        [(get-proof?)
+          (define proof (egraph-get-proof egg-graph start end)) ; TODO: How to get start and end? Same way as soundiness?
+          (when (null? proof)
+            (error (format "Failed to produce proof for ~a to ~a" start end)))
+          proof]
+        [else iter-data])))))
 
 
 (define (flatten-let term environment)
