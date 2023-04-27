@@ -17,7 +17,7 @@
 (struct egraph-input (exprs rules num-variants terms iter-limit node-limit const-folding) #:transparent)
 (struct proof-input (start end) #:transparent)
 
-(define (make-egg-descriptor exprs rules num-variants [terms #f] [iter-limit #f] #:node-limit [node-limit (*node-limit*)] [const-folding #f])
+(define (make-egg-descriptor exprs rules num-variants [terms #f] #:iter-limit [iter-limit #f] #:node-limit [node-limit (*node-limit*)] [const-folding #f])
   (egraph-input exprs rules num-variants terms iter-limit node-limit const-folding))
 
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))

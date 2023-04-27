@@ -50,10 +50,12 @@
     [(alt prog `(rr, loc, input #f #f) `(,prev))
       (cond
         [(rr-input? input) ;; Check if input is an rr-input struct (B-E-R)
-          (define proof 
-            (get-rr-proof (rr-input-rules input)
-                          (rr-input-input-exprs input) (rr-input-iter-limit input)
-                          (location-get loc (alt-program prev)) (location-get loc prog)))
+            ; (get-rr-proof (rr-input-rules input)
+            ;               (rr-input-input-exprs input) (rr-input-iter-limit input)
+            ;               (location-get loc (alt-program prev)) (location-get loc prog)))
+            (define e-input (make-egg-descriptor (rr-input-input-exprs input) (rr-input-rules input) 1000000 #:iter-limit (rr-input-iter-limit input)))
+            (define p-input (proof-input (location-get loc (alt-program prev)) (location-get loc prog)))
+            (define proof (cdr (run-egg e-input p-input #t)))
           (cond
             [proof
               (define proof*
