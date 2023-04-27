@@ -7,7 +7,7 @@
 
 (module+ test (require rackunit))
 
-(provide with-egraph egraph-add-expr egraph-run-rules
+(provide make-egraph with-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
@@ -328,6 +328,10 @@
     (free (FFIRule-right rule))
     (free rule)))
 
+
+; Makes a new egraph that is managed by Racket's GC
+(define (make-egraph)
+  (egraph-data (egraph_create) (make-hash) (make-hash)))
 
 ;; calls the function on a new egraph, and cleans up
 (define (with-egraph egraph-function)
