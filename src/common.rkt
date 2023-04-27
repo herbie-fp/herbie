@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/runtime-path math/base)
-(require "config.rkt")
+(require "config.rkt" "../src/syntax/types.rkt")
 (module+ test (require rackunit))
 
 (provide reap
@@ -9,7 +9,7 @@
          argmins argmaxs index-of set-disjoint?
          get-seed set-seed!
          quasisyntax dict sym-append
-         format-time format-bits web-resource
+         format-time format-bits format-error format-cost web-resource
          (all-from-out "config.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
@@ -169,6 +169,26 @@
    [(not r) ""]
    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
    [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
+
+(define (format-error r repr #:sign [sign #f] #:unit [unit #f])
+  (cond 
+    [(not r) ""]
+    [else
+      (define unit- (if unit unit ""))
+      (define percent (~r (* (/ r (representation-total-bits repr)) 100) #:precision 2))
+
+      (cond
+      [(and (> r 0) sign) (format "+~a~a" percent unit-)]
+      [else (format "~a~a" percent unit-)])]))
+
+(define (format-cost r repr #:sign [sign #f])  
+  (cond 
+    [(not r) ""]
+    [else
+      (define val (~r (/ (round (* r 10)) 10) #:precision 2))
+      (cond
+      [(and (> r 0) sign) (format "+~a" val)]
+      [else (format "~a" val)])]))
 
 (define-runtime-path web-resource-path "web/resources/")
 

@@ -77,6 +77,13 @@ function tree_errors(tree, expected) /* tree -> list */ {
                 messages.push("Conditional branches have different types " + node.trueExpr.res + " and " + node.falseExpr.res);
             }
             return node.trueExpr.res;
+        case "BlockNode":
+            for (var i = 0; i < tree.blocks.length - 1; i++) {
+                stmt = tree.blocks[i].node;
+                if (stmt.type != "AssignmentNode")
+                    messages.push("Expected an assignment statement before a semicolon: " + stmt);
+            }
+            return node.blocks[node.blocks.length - 1].node.res;
         default:
             messages.push("Unsupported syntax; found unexpected <code>" + node.type + "</code>.")
             return "real";
@@ -97,9 +104,23 @@ function bottom_up(tree, cb) {
         tree.condition = bottom_up(tree.condition, cb);
         tree.trueExpr = bottom_up(tree.trueExpr, cb);
         tree.falseExpr = bottom_up(tree.falseExpr, cb);
+    } else if (tree.blocks) {
+        for (var i = 0; i < tree.blocks.length - 1; i++) {
+            stmt = tree.blocks[i].node;
+            if (stmt.type != "AssignmentNode")
+                throw SyntaxError("Expected an assignment statement before a semicolon: " + stmt);
+            stmt.expr = bottom_up(stmt.expr, cb);
+        }
+
+        tree.blocks[tree.blocks.length - 1].node = bottom_up(tree.blocks[tree.blocks.length - 1].node, cb);
     }
+
     tree.res = cb(tree);
     return tree;
+}
+
+function extract(args) {
+    return args.map(function(n) { return n.res });
 }
 
 function dump_fpcore(formula) {
@@ -163,35 +184,123 @@ function flatten_comparisons(node) {
     }
 }
 
-function extract(args) {return args.map(function(n) {return n.res});}
-
 function dump_tree(tree, names) {
-    return bottom_up(tree, function(node) {
+    function rec(node, bound) {
         switch(node.type) {
         case "ConstantNode":
-            return "" + node.value;
+            node.res = "" + node.value;
+            return node;
         case "FunctionNode":
+            node.args = node.args.map(function(n) { return rec(n, bound) });
             node.name = SECRETFUNCTIONS[node.name] || node.name;
-            return "(" + node.name + " " + extract(node.args).join(" ") + ")";
+            node.res = "(" + node.name + " " + extract(node.args).join(" ") + ")";
+            return node;
         case "OperatorNode":
+            node.args = node.args.map(function(n) { return rec(n, bound) });
             node.op = SECRETFUNCTIONS[node.op] || node.op;
             if (is_comparison(node.op)) {
-                return flatten_comparisons(node);
+                node.res = flatten_comparisons(node);
             } else {
-                return "(" + node.op + " " + extract(node.args).join(" ") + ")";
+                node.res = "(" + node.op + " " + extract(node.args).join(" ") + ")";
             }
+            return node;
+        case "SymbolNode":
+            if (!CONSTANTS[node.name] && bound.indexOf(node.name) == -1)
+                names.push(node.name);
+            node.res = node.name;
+            return node;
+        case "ConditionalNode":
+            node.condition = rec(node.condition, bound);
+            node.trueExpr  = rec(node.trueExpr, bound);
+            node.falseExpr = rec(node.falseExpr, bound);
+            node.res = "(if " + node.condition.res + 
+                       " " + node.trueExpr.res + 
+                       " " + node.falseExpr.res + ")";
+            return node;
+        case "BlockNode":
+            str = "";
+            for (var i = 0; i < node.blocks.length - 1; i++) {
+                stmt = node.blocks[i].node;
+                if (stmt.type != "AssignmentNode")
+                    throw SyntaxError("Expected an assignment statement before a semicolon: " + stmt);
+
+                rec(stmt.expr, bound);
+                str += ("(let ((" + stmt.name + " " + stmt.expr.res + ")) ");
+
+                if (bound.indexOf(stmt.name) == -1)
+                    bound.push(stmt.name);
+            }
+
+            rec(node.blocks[node.blocks.length - 1].node, bound);
+            node.res = str + node.blocks[node.blocks.length - 1].node.res + ")".repeat(node.blocks.length - 1);
+            return node;
+        default:
+            throw SyntaxError("Invalid tree! " + node);
+        }
+    }
+
+    rec(tree, []);
+    return tree.res;
+}
+
+function get_unused_var_warnings(tree) {
+    let unused = [];
+    bottom_up(tree, function(node) {
+        switch(node.type) {
+        case "ConstantNode":
+            return new Set();
+        case "FunctionNode":
+        case "OperatorNode":
+            used = new Set();
+            extract(node.args).forEach(function(s) {
+                s.forEach(function(n) { used.add(n); });
+            })
+            return used;
         case "SymbolNode":
             if (!CONSTANTS[node.name])
-                names.push(node.name);
-            return node.name;
+                return new Set([node.name]);
+            else
+                return new Set();
         case "ConditionalNode":
-            return "(if " + node.condition.res + 
-                " " + node.trueExpr.res + 
-                " " + node.falseExpr.res + ")";
+            usedCond = node.condition.res;
+            usedTrue  = node.trueExpr.res;
+            usedFalse = node.falseExpr.res;
+            return new Set([...usedCond, ...usedTrue, ...usedFalse])
+        case "BlockNode":
+            bound = [];
+            usedInAssigns = [];
+            for (var i = 0; i < node.blocks.length - 1; i++) {
+                stmt = node.blocks[i].node;
+                if (stmt.type != "AssignmentNode")
+                    throw SyntaxError("Expected an assignment statement before a semicolon: " + stmt);
+
+                bound.push(stmt.name);
+                usedInAssigns.push(stmt.expr.res);
+            }
+
+            // Assume each assignment is of the form:
+            //  <assign> ::= <name> = <val>; <body>.
+            // Then
+            //  (i)  <name> is unused if <name> is not in Used(<body>),
+            //  (ii) Used(<expr>) = Used(<val>) U (Used(<body>) \ { <name> })
+            // Clearly, the assumption is slightly wrong, but this
+            // tells us we just walk backwards checking condition (i)
+            // and updating the used set with (ii).
+            used = node.blocks[node.blocks.length - 1].node.res;
+            for (var i = node.blocks.length - 2; i >= 0; i--) {
+                if (!used.has(bound[i]))
+                    unused.push("UnboundVariable: " + bound[i]);
+                used.delete(bound[i]);
+                used = new Set([...used, ...usedInAssigns[i]]);
+            }
+
+            return used
         default:
             throw SyntaxError("Invalid tree!");
         }
-    }).res;
+    });
+
+    return unused;
 }
 
 function get_errors() {
@@ -216,7 +325,9 @@ function get_errors() {
 function get_warnings() {
     try {
         const input = document.querySelector("[name=formula-math]")
-        return get_varnames_mathjs(input.value).map(varname => get_input_range_warnings(KNOWN_INPUT_RANGES[varname]).map(s => "RangeWarning: " + varname + ": " + s)).flat()
+        rangeWarnings = get_varnames_mathjs(input.value).map(varname => get_input_range_warnings(KNOWN_INPUT_RANGES[varname]).map(s => "RangeWarning: " + varname + ": " + s)).flat();
+        unusedWarnings = get_unused_var_warnings(math.parse(input.value))
+        return rangeWarnings.concat(unusedWarnings);
     } catch (e) {
         return []
     }
