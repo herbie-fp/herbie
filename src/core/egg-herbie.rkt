@@ -7,7 +7,7 @@
 
 (module+ test (require rackunit))
 
-(provide make-egraph with-egraph egraph-add-expr egraph-run-rules
+(provide make-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
@@ -166,13 +166,12 @@
           (cons '(if (TRUE) x y)
                 "(if real (TRUE ($Type bool)) h1 h0)")))
 
-  (with-egraph
-   (lambda (egg-graph)
-     (for ([(in expected-out) (in-dict test-exprs)])
-       (let* ([out (~a (expr->egg-expr in egg-graph))]
-              [computed-in (egg-expr->expr out egg-graph)])
-         (check-equal? out expected-out)
-         (check-equal? computed-in in)))))
+  (let ([egg-graph (make-egraph)])
+    (for ([(in expected-out) (in-dict test-exprs)])
+      (define out (~a (expr->egg-expr in egg-graph)))
+      (define computed-in (egg-expr->expr out egg-graph))
+      (check-equal? out expected-out)
+      (check-equal? computed-in in)))
 
   (*context* (make-debug-context '(x a b c r)))
   (define extended-expr-list
@@ -184,13 +183,11 @@
      '(* 23/54 r)
      '(+ 3/2 1.4)))
 
-  (with-egraph
-   (lambda (egg-graph)
-     (for ([expr extended-expr-list])
-       (define expr* (desugar-program expr (*context*) #:full #f))
-       (check-equal? 
-        (egg-expr->expr (~a (expr->egg-expr expr* egg-graph)) egg-graph)
-        expr*)))))
+  (let ([egg-graph (make-egraph)])
+    (for ([expr extended-expr-list])
+      (define expr* (desugar-program expr (*context*) #:full #f))
+      (define egg-expr (expr->egg-expr expr* egg-graph))
+      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph) expr*))))
 
 
 ;; Given a list of types, computes the product of all possible
@@ -314,33 +311,21 @@
   (ptr-set! ptr _byte n 0)
   ptr)
 
-(define (make-ffi-rules rules)
-  (for/list ([rule (in-list rules)])
-    (define name (make-raw-string (symbol->string (rule-name rule))))
-    (define left (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
-    (define right (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
-    (make-FFIRule name left right)))
+(define (make-ffi-rule rule)
+  (define name (make-raw-string (~a (rule-name rule))))
+  (define lhs (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
+  (define rhs (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
+  (make-FFIRule name lhs rhs))
 
-(define (free-ffi-rules rules)
-  (for ([rule (in-list rules)])
-    (free (FFIRule-name rule))
-    (free (FFIRule-left rule))
-    (free (FFIRule-right rule))
-    (free rule)))
-
+(define (free-ffi-rule rule)
+  (free (FFIRule-name rule))
+  (free (FFIRule-left rule))
+  (free (FFIRule-right rule))
+  (free rule))
 
 ; Makes a new egraph that is managed by Racket's GC
 (define (make-egraph)
   (egraph-data (egraph_create) (make-hash) (make-hash)))
-
-;; calls the function on a new egraph, and cleans up
-(define (with-egraph egraph-function)
-  (define egraph (egraph-data (egraph_create) (make-hash) (make-hash)))
-  (define res (egraph-function egraph))
-  (egraph_destroy (egraph-data-egraph-pointer egraph))
-  res)
-
-(struct egg-add-exn exn:fail ())
 
 (define (remove-rewrites proof)
   (match proof
@@ -440,6 +425,8 @@
       #f
       expanded))
 
+(struct egg-add-exn exn:fail ())
+
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)
   (define egg-expr (~a (expr->egg-expr expr eg-data)))
@@ -476,6 +463,16 @@
 ;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
 (define ffi-rules-cache #f)
 
+(define (free-ffi-rule-cache)
+  (match-define (list _ ffi-rules _) (cdr ffi-rules-cache))
+  (set! ffi-rules-cache #f)
+  (for-each free-ffi-rule ffi-rules))
+
+(register-reset
+  (λ ()
+    (when ffi-rules-cache
+      (free-ffi-rule-cache))))
+
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
 (define (get-canon-rule-name name [failure #f])
@@ -494,8 +491,7 @@
   (unless (and ffi-rules-cache (equal? (car ffi-rules-cache) key))
     ; free any rules in the cache
     (when ffi-rules-cache
-      (match-define (list _ ffi-rules _) (cdr ffi-rules-cache))
-      (free-ffi-rules ffi-rules))
+      (free-ffi-rule-cache))
     ; instantiate rules
     (define-values (egg-rules canon-names)
       (for/fold ([rules* '()] [canon-names (hash)] #:result (values (reverse rules*) canon-names))
@@ -507,7 +503,8 @@
                           ([exp-rule (in-list expanded)])
                   (hash-set canon-names* (rule-name exp-rule) orig-name)))))
     ; update the cache
-    (set! ffi-rules-cache (cons key (list egg-rules (make-ffi-rules egg-rules) canon-names))))
+    (define ffi-rules (map make-ffi-rule egg-rules))
+    (set! ffi-rules-cache (cons key (list egg-rules ffi-rules canon-names))))
   (cdr ffi-rules-cache))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
