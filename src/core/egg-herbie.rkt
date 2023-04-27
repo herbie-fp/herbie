@@ -24,8 +24,7 @@
 (define (run-egg  input 
                   proof-input 
                   precompute? 
-                  #:roots [root-locs (make-list (length (egraph-input-exprs input)) '())]
-                  #:once? [once? #f])
+                  #:roots [root-locs (make-list (length (egraph-input-exprs input)) '())])
   ;; TODO : Make simplify match
   ;; TODO : Make rr match
   (with-egraph 
@@ -39,7 +38,7 @@
              "Unsound rule application detected in e-graph. Results may not be sound."))
       
       (define variants (if (egraph-input-num-variants input)
-                            (get-rr-variants egg-graph node-ids input root-locs)
+                            (get-rr-variants egg-graph node-ids input)
                             (get-simplify-variant egg-graph node-ids iter-data)))
       (cond
         [(proof-input? proof-input)
@@ -50,12 +49,12 @@
             (cons variants proof))]
         [else variants]))))
 
-(define (get-rr-variants egg-graph node-ids input root-locs)
+(define (get-rr-variants egg-graph node-ids input)
   (define variants
-        (for/list ([id node-ids] [expr (egraph-input-exprs input)] [root-loc root-locs]) ; TODO: Get Locations and Variants if Possible
+        (for/list ([id node-ids] [expr (egraph-input-exprs input)]) ; TODO: Get Locations and Variants if Possible
           (define output (egraph-get-variants egg-graph id expr))
           (for/list ([variant (remove-duplicates output)])
-              (list variant (rr-input (egraph-input-rules input) (egraph-input-exprs input) (egraph-input-iter-limit input)) root-loc))))
+              (list variant (rr-input (egraph-input-rules input) (egraph-input-exprs input) (egraph-input-iter-limit input))))))
               variants)
 
 (define (get-simplify-variant egg-graph node-ids iter-data)

@@ -150,7 +150,14 @@
    [else
     (timeline-push! 'method "batch-egg-rewrite")
     (timeline-push! 'inputs (map ~a exprs))
-    (define out (batch-egg-rewrite exprs ctx #:rules rules #:roots root-locs #:depths depths))
+    ; (define out (batch-egg-rewrite exprs ctx #:rules rules #:roots root-locs #:depths depths))
+    (define e-input (make-egg-descriptor exprs rules #t #:node-limit (*node-limit*)))
+    (define p-input '())
+    (define variantses (run-egg e-input p-input #t))
+    (define out
+      (for/list ([expr exprs] [loc root-locs] [variants variantses])
+        (for/list ([variant (remove-duplicates variants)])
+          (append variant (list loc)))))
     (timeline-push! 'outputs (map ~a out))
     out]))
 
