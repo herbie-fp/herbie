@@ -51,7 +51,7 @@
   (define precompute? (simplify-input-precompute? input))
   (define proofs (simplify-input-proofs input))
   (define rules (simplify-input-rules input))
-  (define e-input (make-egg-descriptor exprs rules 1 #:node-limit (*node-limit*)))
+  (define e-input (make-egg-descriptor exprs rules #f #:node-limit (*node-limit*)))
   (define p-input '())
   (timeline-push! 'method "egg-herbie")
 

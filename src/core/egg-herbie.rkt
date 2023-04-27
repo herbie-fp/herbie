@@ -38,9 +38,9 @@
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
              "Unsound rule application detected in e-graph. Results may not be sound."))
       
-      (define variants (if (= 1 (egraph-input-num-variants input)) 
-                            (get-simplify-variant egg-graph node-ids iter-data) 
-                            (get-rr-variants egg-graph node-ids input)))
+      (define variants (if (egraph-input-num-variants input)
+                            (get-rr-variants egg-graph node-ids input)
+                            (get-simplify-variant egg-graph node-ids iter-data)))
       (cond
         [(proof-input? proof-input)
           (begin

@@ -53,9 +53,9 @@
             ; (get-rr-proof (rr-input-rules input)
             ;               (rr-input-input-exprs input) (rr-input-iter-limit input)
             ;               (location-get loc (alt-program prev)) (location-get loc prog)))
-            (define e-input (make-egg-descriptor (rr-input-input-exprs input) (rr-input-rules input) 1000000 #:iter-limit (rr-input-iter-limit input)))
+            (define e-input (make-egg-descriptor (rr-input-input-exprs input) (rr-input-rules input) #t #:iter-limit (rr-input-iter-limit input)))
             (define p-input (proof-input (location-get loc (alt-program prev)) (location-get loc prog)))
-            (define proof (cdr (run-egg e-input p-input #t)))
+            (match-define (cons variants proof) (run-egg e-input p-input #t))
           (cond
             [proof
               (define proof*
@@ -84,9 +84,9 @@
       ; (define proof (get-proof input
       ;                         (location-get loc (alt-program prev))
       ;                         (location-get loc prog)))
-      (define egg-input (make-egg-descriptor (simplify-input-exprs input) (simplify-input-rules input) 1))
+      (define egg-input (make-egg-descriptor (simplify-input-exprs input) (simplify-input-rules input) #f))
       (define p-input (proof-input (location-get loc (alt-program prev)) (location-get loc prog)))
-      (define proof (cdr (run-egg egg-input p-input (simplify-input-precompute? input))))
+      (match-define (cons variants proof) (run-egg egg-input p-input (simplify-input-precompute? input)))
       (cond
        [proof
         ;; Proofs are actually on subexpressions,
