@@ -13,31 +13,33 @@
          rule->egg-rules expand-rules get-canon-rule-name
          remove-rewrites)
 
-
-(define (flatten-let term environment)
-  (match term
-    [`(let (,var ,term) ,body)
-     (hash-set! environment var (flatten-let term environment))
-     (flatten-let body environment)]
-    [(? symbol?)
-     (hash-ref environment term term)]
-    [(? list?)
-     (map (curryr flatten-let environment) term)]
-    [(? number?)
-     term]
-    [else (error "Unknown term ~a" term)]))
+;; Flattens proofs
+;; NOT FPCore format
+(define (flatten-let expr)
+  (let loop ([expr expr] [env (hash)])
+    (match expr
+      [`(let (,var ,term) ,body)
+       (loop body (hash-set env var (loop term env)))]
+      [(? symbol?)
+       (hash-ref env expr expr)]
+      [(? list?)
+       (map (curryr loop env) expr)]
+      [(? number?)
+       expr]
+      [else
+       (error "Unknown term ~a" expr)])))
 
 ;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
   (define parsed (read (open-input-string expr)))
-  (egg-parsed->expr (flatten-let parsed (make-hash))
+  (egg-parsed->expr (flatten-let parsed)
                     (egraph-data-egg->herbie-dict eg-data)))
 
 ;; Like `egg-expr->expr` but expected the string to
 ;; parse into a list of S-exprs
 (define (egg-exprs->exprs exprs eg-data)
   (for/list ([egg-expr (in-port read (open-input-string exprs))])
-    (egg-parsed->expr (flatten-let egg-expr (make-hash))
+    (egg-parsed->expr (flatten-let egg-expr)
                       (egraph-data-egg->herbie-dict eg-data))))
 
 ;; Converts an S-expr from egg into one Herbie understands
