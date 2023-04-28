@@ -4,10 +4,13 @@
  :name "quadp (p42, positive)"
  ;:herbie-expected #f ; Fails in single precision due to bad samples
  :herbie-target
- (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
-   (let ([r1 (/ (+ (- b) d) (* 2 a))]
-         [r2 (/ (- (- b) d) (* 2 a))])
-     (if (< b 0) r1 (/ c (* a r2)))))
+ (let (if (<= b -7.5e+93)
+    (-((/ c b) (/ b a)))
+      (if (<= b -8.5e-274)
+        (sqrt fma(b b (/ (- (* (* c a) -4.0) b) (* a 2.0))))
+      (if (<= 6.5e+72)
+        (/ (*c -2.0) (+ b (sqrt fma(b b (* c (* a -4.0))))))
+        (/ (* -1 c) b)))))
 
  (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
    (/ (+ (- b) d) (* 2 a))))
