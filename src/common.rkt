@@ -185,7 +185,7 @@
   (cond 
     [(not r) ""]
     [else
-      (define val (~r (/ (round (* r 10)) 10) #:precision '(= 2)))
+      (define val (~r (/ (round (* r 10)) 10) #:precision 2))
       (cond
       [(and (> r 0) sign) (format "+~a" val)]
       [else (format "~a" val)])]))
