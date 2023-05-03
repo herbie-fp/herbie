@@ -101,8 +101,7 @@
     ; so the existing egraph gets cleaned up
     
     (define result-thunk
-      (with-egraph
-        (λ (egg-graph)
+      (let ([egg-graph (make-egraph)])
           (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
           (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t))
           (cond
@@ -129,7 +128,7 @@
                 (define output (egraph-get-variants egg-graph id expr))
                 (for/list ([variant (remove-duplicates output)])
                    (list variant root-loc)))) ; TODO
-            (λ () variants)]))))
+            (λ () variants)])))
     (result-thunk)))
     
 ;;  Recursive rewrite chooser
