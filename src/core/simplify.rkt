@@ -54,16 +54,15 @@
   
   (timeline-push! 'method "egg-herbie")
 
-  (with-egraph
-   (lambda (egg-graph)
-     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
-     (define iter-data (egraph-run-rules egg-graph (*node-limit*) rules node-ids (and precompute? true)))
+  (define egg-graph (make-egraph))
+  (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+  (define iter-data (egraph-run-rules egg-graph (*node-limit*) rules node-ids (and precompute? true)))
         
-     (when (egraph-is-unsound-detected egg-graph)
-       (warn 'unsound-rules #:url "faq.html#unsound-rules"
-             "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
+  (when (egraph-is-unsound-detected egg-graph)
+    (warn 'unsound-rules #:url "faq.html#unsound-rules"
+          "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
 
-     (egraph-func egg-graph node-ids iter-data))))
+  (egraph-func egg-graph node-ids iter-data))
 
 (define (get-proof input start end)
   (run-simplify-input

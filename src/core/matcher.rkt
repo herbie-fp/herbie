@@ -99,6 +99,7 @@
     ; Returns a procedure rather than the variants directly:
     ; if we need to fallback, we exit the `with-egraph` closure first
     ; so the existing egraph gets cleaned up
+    
     (define result-thunk
       (with-egraph
         (λ (egg-graph)
@@ -130,7 +131,7 @@
                    (list variant root-loc)))) ; TODO
             (λ () variants)]))))
     (result-thunk)))
-
+    
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
                              ctx

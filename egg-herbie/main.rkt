@@ -24,19 +24,31 @@
 
 (define-ffi-definer define-eggmath (ffi-lib libeggmath-path))
 
-(define _egraph-pointer (_cpointer 'egraph))
+; GC'able egraph
+; If Racket GC can prove unreachable, `egraph_destroy` will be called
+(define _egraph-pointer
+  (_cpointer 'egraph #f #f
+             (lambda (p)
+               (register-finalizer p egraph_destroy)
+               p)))
 
+; Egraph iteration data
+; Not managed by Racket GC.
+; Must call `destroy_egraphiters` to free.
 (define-cstruct _EGraphIter
   ([numnodes _uint]
    [numeclasses _uint]
-   [time _double]))
+   [time _double])
+  #:malloc-mode 'raw)
 
-(define-cstruct _FFIRule ; The pointers are pointers to strings, but types hidden for allocation
+; Rewrite rule
+; Not managed by Racket GC.
+; Must call `free` on struct and fields
+(define-cstruct _FFIRule
   ([name _pointer]
    [left _pointer]
    [right _pointer])
   #:malloc-mode 'raw)
-
 
 ;;  -> a pointer to an egraph
 (define-eggmath egraph_create (_fun -> _egraph-pointer))
