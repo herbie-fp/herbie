@@ -187,13 +187,12 @@
     (for/fold ([done '()] #:result (reverse done))
               ([cls comb-changelists] [altn altns]
               #:when true [cl cls])
-      (let ([cl cl] [altn altn])
-          (match-define (list subexp input loc) cl)
+        (match-define (list subexp input loc) cl)
           (define change-app (location-do loc (alt-program altn) (const subexp)))
           (define prog* (apply-repr-change change-app (*context*)))
           (if (program-body prog*)
                 (cons (alt prog* (list 'rr loc input #f #f) (list altn)) done)
-              done))))
+              done)))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline
