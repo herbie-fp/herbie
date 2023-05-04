@@ -43,4 +43,4 @@ const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {me
 
 assert.deepEqual(exacts, [[[1, 1], -1.4142135623730951]])
 
-const _const = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json())
+const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json())
