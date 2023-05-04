@@ -44,8 +44,8 @@
               #:unless (equal? k (context-repr ctx))
               #:when (set-member? v (context-repr ctx)))
       (define rewrite (get-rewrite-operator k))
-      (define prog* `(λ ,(program-variables prog) (,rewrite ,(program-body prog))))
-      (alt (apply-repr-change prog* ctx) 'start '()))))
+      (define body* (apply-repr-change-expr (list rewrite (program-body prog)) ctx))
+      (alt `(λ ,(program-variables prog) ,body*) 'start '()))))
 
 ;; Information
 (define (list-alts)
