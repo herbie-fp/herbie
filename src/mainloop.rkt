@@ -179,9 +179,9 @@
           (match event
            [(list 'taylor name var loc)
             (list 'taylor name var (append loc0 (cdr loc)))]
-           [(list 'change cng)
-            (match-define (change rule loc binds) cng)
-            (list 'change (change rule (append loc0 (cdr loc)) binds))]
+           ; TODO : Recosnsruct and revise history
+           [(list 'change loc) 
+            (list 'change (append loc0 (cdr loc)))]
            [`(simplify ,loc ,input ,proof ,soundiness)
             (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
         (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))

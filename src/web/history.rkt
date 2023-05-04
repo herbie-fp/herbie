@@ -140,13 +140,13 @@
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
-    [(alt prog (list 'change cng) `(,prev))
+    [(alt prog (list 'change loc) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 ctx)
-       (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
+       (li (p "Applied " (span ([class "rule"]) ,"egg-rr")
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc (change-location cng) #:color "blue")
+                                                      (core->tex prog* #:loc loc #:color "blue")
                                                       "ERROR")
                                                   "\\]")))]
     ))

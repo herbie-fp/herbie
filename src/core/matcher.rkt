@@ -4,7 +4,7 @@
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
          "../timeline.rkt")
 
-(provide pattern-match rewrite-expressions change-apply)
+(provide pattern-match rewrite-expressions)
 
 ;;; Our own pattern matcher.
 ;;
@@ -54,10 +54,6 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-(define (change-apply cng prog)
-  (match-define (change rule location bindings) cng)
-  (location-do location prog (const (pattern-substitute (rule-output rule) bindings))))
-
 ;;
 ;;  Non-recursive rewriter
 ;;
@@ -75,7 +71,7 @@
           (when result
             (define canon-name (hash-ref canon-names (rule-name rule)))
             (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow (list (change rule root-loc (cdr result)))))))))
+            (sow  (list (car result) root-loc)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
@@ -103,6 +99,7 @@
     ; Returns a procedure rather than the variants directly:
     ; if we need to fallback, we exit the `with-egraph` closure first
     ; so the existing egraph gets cleaned up
+    
     (define egg-graph (make-egraph))
     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
     (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t))
@@ -128,8 +125,8 @@
          (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
          (define output (egraph-get-variants egg-graph id expr))
          (for/list ([variant (remove-duplicates output)])
-           (list (change egg-rule root-loc (list (cons 'x variant))))))])))
-
+           (list variant root-loc)))])))
+    
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
                              ctx

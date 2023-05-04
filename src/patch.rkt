@@ -182,27 +182,17 @@
 
   (define comb-changelists (append changelists changelists-low-locs))
   (define altns (append (^queued^) (^queuedlow^)))
-
-  (define rules-used
-    (append-map (curry map change-rule) (apply append comb-changelists)))
-  (define rule-counts
-    (for ([rgroup (group-by identity rules-used)])
-      (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
   
   (define rewritten
     (for/fold ([done '()] #:result (reverse done))
               ([cls comb-changelists] [altn altns]
               #:when true [cl cls])
-      (let loop ([cl cl] [altn altn])
-        (cond
-          [(null? cl)
-           (cons altn done)]
-          [else
-           (define change-app (change-apply (car cl) (alt-program altn)))
-           (define prog* (apply-repr-change change-app (*context*)))
-           (if (program-body prog*)
-               (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
-               done)]))))
+        (match-define (list subexp loc) cl)
+        (define change-app (location-do loc (alt-program altn) (const subexp)))
+        (define prog* (apply-repr-change change-app (*context*)))
+        (if (program-body prog*)
+            (cons (alt prog* (list 'change loc) (list altn)) done)
+            done)))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline
