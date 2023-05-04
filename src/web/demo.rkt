@@ -244,7 +244,7 @@
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (run-improve hash formula)
-  (hash-set! *jobs* hash *timeline*)
+  (hash-set! *jobs* hash (*timeline*))
   (define sema (make-semaphore))
   (thread-send *worker-thread* (list 'improve hash formula sema))
   sema)
