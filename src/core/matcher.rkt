@@ -58,7 +58,7 @@
 ;;  Non-recursive rewriter
 ;;
 
-(define (rewrite-once expr ctx #:rules rules #:root [root-loc '()])
+(define (rewrite-once expr ctx #:rules rules)
   ;; we want rules over representations
   (match-define (list rules* _ canon-names) (expand-rules rules))
   (define rule-apps (make-hash))
@@ -71,7 +71,7 @@
           (when result
             (define canon-name (hash-ref canon-names (rule-name rule)))
             (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow  (list (car result) root-loc)))))))
+            (sow (car result)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
@@ -90,12 +90,11 @@
 (define (batch-egg-rewrite exprs
                            ctx
                            #:rules rules
-                           #:roots [root-locs (make-list (length exprs) '())]
                            #:depths [depths (make-list (length exprs) 1)])
   (define reprs (map (λ (e) (repr-of e ctx)) exprs))
   ; If unsoundness was detected, try running one epxression at a time.
   ; Can optionally set iter limit (will give up if unsoundness detected).
-  (let loop ([exprs exprs] [root-locs root-locs] [iter-limit #f])
+  (let loop ([exprs exprs] [iter-limit #f])
     ; Returns a procedure rather than the variants directly:
     ; if we need to fallback, we exit the `with-egraph` closure first
     ; so the existing egraph gets cleaned up
@@ -109,29 +108,27 @@
        (match* (exprs iter-limit)
          [((list (? list?) (? list?) (? list?) ...) #f)     ; run expressions individually
           (set! egg-graph #f)                               ; allow old egraph to be GC'd
-          (for/list ([expr exprs] [root-loc root-locs])
+          (for/list ([expr exprs])
             (timeline-push! 'method "egg-rewrite")
-            (car (loop (list expr) (list root-loc) #f)))]
+            (car (loop (list expr) #f)))]
          [((list (? list?)) #f)                             ; run expressions with iter limit
           (set! egg-graph #f)                               ; allow old egraph to be GC'd
           (define limit (- (length iter-data) 2))
           (timeline-push! 'method "egg-rewrite-iter-limit")
-          (loop exprs root-locs limit)]
+          (loop exprs limit)]
          [(_ (? number?))                                   ; give up
           (timeline-push! 'method "egg-rewrite-fail")
           '(())])]
       [else
-       (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
+       (for/list ([id node-ids] [expr exprs] [expr-repr reprs])
          (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
          (define output (egraph-get-variants egg-graph id expr))
-         (for/list ([variant (remove-duplicates output)])
-           (list variant root-loc)))])))
+         (remove-duplicates output))])))
     
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
                              ctx
                              #:rules rules
-                             #:roots [root-locs (make-list (length exprs) '())]
                              #:depths [depths (make-list (length exprs) 1)]
                              #:once? [once? #f])
   ; choose correct rr driver
@@ -139,13 +136,13 @@
    [(or (null? exprs) (null? rules)) (make-list (length exprs) '())]
    [(or once? (not (flag-set? 'generate 'rr)))
     (timeline-push! 'method "rewrite-once")
-    (for/list ([expr exprs] [root-loc root-locs] [n (in-naturals 1)])
+    (for/list ([expr exprs] [n (in-naturals 1)])
       (define timeline-stop! (timeline-start! 'times (~a expr)))
-      (begin0 (rewrite-once expr ctx #:rules rules #:root root-loc)
+      (begin0 (rewrite-once expr ctx #:rules rules)
         (timeline-stop!)))]
    [else
     (timeline-push! 'method "batch-egg-rewrite")
     (timeline-push! 'inputs (map ~a exprs))
-    (define out (batch-egg-rewrite exprs ctx #:rules rules #:roots root-locs #:depths depths))
+    (define out (batch-egg-rewrite exprs ctx #:rules rules #:depths depths))
     (timeline-push! 'outputs (map ~a out))
     out]))
