@@ -5,7 +5,7 @@
          "common.rkt" "syntax/types.rkt" "errors.rkt"
          "syntax/syntax.rkt")
 
-(provide generate-conversions generate-prec-rewrites *conversions* apply-repr-change)
+(provide generate-conversions generate-prec-rewrites *conversions* apply-repr-change-expr)
 
 (define *conversions* (make-parameter (hash)))
 
@@ -203,8 +203,3 @@
         (and cast (list cast expr))])]
      [_ expr])))
 
-(define (apply-repr-change prog ctx)
-  (match prog
-   [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(apply-repr-change-expr body ctx))]
-   [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(apply-repr-change-expr body ctx))]
-   [_ (apply-repr-change-expr prog ctx)]))
