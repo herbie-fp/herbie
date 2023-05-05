@@ -187,11 +187,10 @@
     (for/fold ([done '()] #:result (reverse done))
               ([cls comb-changelists] [altn altns]
               #:when true [cl cls])
-        (match-define (list subexp input loc) cl)
-          (define change-app (location-do loc (alt-program altn) (const subexp)))
-          (define prog* (apply-repr-change change-app (*context*)))
-          (if (program-body prog*)
-                (cons (alt prog* (list 'rr loc input #f #f) (list altn)) done)
+        (match-define (list subexp input) cl)
+          (define body* (apply-repr-change-expr subexp (*context*)))
+          (if body*
+                (cons (alt `(λ ,variables ,body*) (list 'rr '(2) input #f #f) (list altn)) done)
               done)))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))

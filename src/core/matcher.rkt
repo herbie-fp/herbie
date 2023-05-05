@@ -123,7 +123,7 @@
          (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
          (define output (egraph-get-variants egg-graph id expr))
          (for/list ([variant (remove-duplicates output)])
-           (list variant (rr-input rules exprs iter-limit) root-loc)))])))
+           (list variant (rr-input rules exprs iter-limit))))])))
 
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
