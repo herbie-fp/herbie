@@ -71,7 +71,7 @@
           (when result
             (define canon-name (hash-ref canon-names (rule-name rule)))
             (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow (list (car result) rule root-loc)))))))
+            (sow (car result)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
@@ -122,8 +122,7 @@
        (for/list ([id node-ids] [expr exprs] [root-loc root-locs] [expr-repr reprs])
          (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
          (define output (egraph-get-variants egg-graph id expr))
-         (for/list ([variant (remove-duplicates output)])
-           (list variant (rr-input rules exprs iter-limit) root-loc)))])))
+         (remove-duplicates output))])))
 
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs

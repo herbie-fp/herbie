@@ -186,13 +186,12 @@
   (define rewritten
     (for/fold ([done '()] #:result (reverse done))
               ([cls comb-changelists] [altn altns]
-              #:when true [cl cls])
-        (match-define (list subexp input loc) cl)
-          (define change-app (location-do loc (alt-program altn) (const subexp)))
-          (define prog* (apply-repr-change change-app (*context*)))
-          (if (program-body prog*)
-                (cons (alt prog* (list 'rr loc input #f #f) (list altn)) done)
-              done)))
+              #:when true [subexp cls])
+        (define body* (apply-repr-change-expr subexp (*context*)))
+        (if body*
+            ; We need to pass '(2) here so it can get overwritten on patch-fix
+            (cons (alt `(λ ,variables ,body*) (list 'change '(2)) (list altn)) done)
+            done)))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline
