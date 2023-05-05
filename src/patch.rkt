@@ -153,8 +153,6 @@
   ;; get subexprs and locations
   (define exprs (map (compose program-body alt-program) (^queued^)))
   (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
-  (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
-  (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root
 
   ;; HACK:
   ;; - check loaded representations
@@ -166,19 +164,16 @@
   (define changelists
     (if one-real-repr?
         (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules) #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))
+          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules))
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
         (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules normal-rules #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:roots locs #:once? #t)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))))
+          (rewrite-expressions exprs (*context*) #:rules normal-rules)
+          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:once? #t)
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))))
 
   ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
-    (rewrite-expressions lowexprs (*context*)
-                         #:rules reprchange-rules
-                         #:roots lowlocs
-                         #:once? #t))
+    (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
 
   (define comb-changelists (append changelists changelists-low-locs))
   (define altns (append (^queued^) (^queuedlow^)))
@@ -190,6 +185,7 @@
         (match-define (list subexp input) cl)
           (define body* (apply-repr-change-expr subexp (*context*)))
           (if body*
+            ; We need to pass '(2) here so it can get overwritten on patch-fix
             (cons (alt `(λ ,variables ,body*) (list 'rr '(2) input #f #f) (list altn)) done)
             done)))
 
