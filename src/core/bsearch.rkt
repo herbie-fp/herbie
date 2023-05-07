@@ -17,8 +17,10 @@
 (struct sp (cidx bexpr point) #:prefab)
 
 
-(define (infer-better alts err-lsts branch-exprs cerrs cbest-index ctx)
+(define (infer-better alts branch-exprs cerrs cbest-index ctx)
   (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
+  ;; (displayln "start errs")
+  ;; (displayln cerrs)
 
   ;; we want to try the one we picked last time
   ;; and then if there are others in the cerrs that are better, try it.
@@ -26,21 +28,37 @@
   (define best (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx))
   (define best-err (errors-score (option-errors best)))
   (define best-index cbest-index)
+  (define errs (list-set cerrs best-index best-err))
 
-  (define errs cerrs)
+  ;; (displayln "try first")
+  ;; (displayln best-err)
+  ;; (displayln best-index)
+  ;; (displayln errs)
+
 
   ;; should really change this into an argmin or something actually functional 
 
   (for ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
     (cond [(and (< berr best-err) (not (= i cbest-index)))
+      ;; (displayln "best")
+      ;; (displayln best-err)
+      ;; (displayln best-index)
+      ;; (displayln "curr")
+      ;; (displayln berr)
       (define opt (option-on-expr alts err-lsts bexpr ctx))
       (define err (errors-score (option-errors opt)))
+      ;; (displayln errs)
+      ;; (displayln err)
+      ;; (displayln i)
       (set! errs (list-set errs i err))
+      ;; (displayln errs)
       (cond [(< err best-err)
         (set! best opt)
         (set! best-err err)
         (set! best-index i)])
       ]))
+  ;; (displayln "end errs")
+  ;; (displayln errs)
 
   (values best best-index errs))
 
@@ -52,15 +70,20 @@
         (exprs-to-branch-on sorted ctx)
         (program-variables (alt-program (first sorted)))))
   (define err-lsts (batch-errors (map alt-program sorted) (*pcontext*) ctx))
+  ;; (displayln "fine 1")
   (define init-options (for/list ([bexpr branch-exprs]) (option-on-expr sorted err-lsts bexpr ctx)))
+  ;; (displayln "fine 2")
   (define errs (for/list ([option init-options]) (errors-score (option-errors option))))
+  ;; (displayln "fine 3")
   (define best-index (argmin (curry list-ref errs) (range (length errs))))
+  ;; (displayln "fine 4")
   (let loop ([alts sorted])
+    (displayln (length alts))
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
      [else
-      (match-define-values (opt opt-index new-errs) (infer-better alts err-lsts branch-exprs errs best-index ctx))
+      (match-define-values (opt opt-index new-errs) (infer-better alts branch-exprs errs best-index ctx))
       (set! errs new-errs)
       (set! best-index opt-index)
       (define branched-alt (combine-alts opt ctx))
