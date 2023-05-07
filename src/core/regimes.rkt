@@ -4,7 +4,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
-(provide infer-splitpoints (struct-out option) (struct-out si) option-on-expr exprs-to-branch-on)
+(provide infer-splitpoints (struct-out option) (struct-out si) option-on-expr exprs-to-branch-on print-opt-count)
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -21,6 +21,9 @@
 ;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
 ;; pidx = Point index: The index of the point to the left of which we should split.
 (struct si (cidx pidx) #:prefab)
+
+(define opt-on-count 0)
+(define (print-opt-count) (displayln opt-on-count))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
@@ -79,6 +82,7 @@
     expr))
 
 (define (option-on-expr alts err-lsts expr ctx)
+  (set! opt-on-count (add1 opt-on-count))
   (define repr (repr-of expr ctx))
   (define timeline-stop! (timeline-start! 'times (~a expr)))
 

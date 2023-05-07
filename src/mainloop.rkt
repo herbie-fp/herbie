@@ -421,6 +421,7 @@
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
+  (print-opt-count)
   (timeline-event! 'simplify)
   (define progss*
     (simplify-batch
