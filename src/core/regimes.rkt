@@ -4,7 +4,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
-(provide infer-splitpoints (struct-out option) (struct-out si))
+(provide infer-splitpoints (struct-out option) (struct-out si) option-on-expr exprs-to-branch-on)
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -45,6 +45,7 @@
   (define repr (context-repr ctx))
   (timeline-push! 'repr (~a (representation-name repr)))
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
+  (displayln best)
   best)
 
 (define (exprs-to-branch-on alts ctx)

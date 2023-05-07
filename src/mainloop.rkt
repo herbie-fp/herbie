@@ -385,6 +385,7 @@
 
 (define (pareto-regimes sorted ctx)
   (let loop ([alts sorted])
+    (displayln (length alts))
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
@@ -411,8 +412,10 @@
            (equal? (representation-type repr) 'real)
            (not (null? (program-variables (alt-program (car all-alts))))))
       (cond
+       ; [(*pareto-mode*)
+       ; (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
        [(*pareto-mode*)
-        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
+       (regime-better (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
        [else
         (define option (infer-splitpoints all-alts ctx))
         (list (combine-alts option ctx))])]

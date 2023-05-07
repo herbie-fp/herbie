@@ -6,7 +6,7 @@
          "../programs.rkt" "../points.rkt" "regimes.rkt" "../float.rkt"
          "../pretty-print.rkt" "../ground-truth.rkt")
 
-(provide combine-alts (struct-out sp) splitpoints->point-preds)
+(provide combine-alts (struct-out sp) splitpoints->point-preds provide regime-better)
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -15,6 +15,58 @@
 ;; A splitpoint (sp a b pt) means we should use alt a if b < pt
 ;; The last splitpoint uses +nan.0 for pt and represents the "else"
 (struct sp (cidx bexpr point) #:prefab)
+
+
+(define (infer-better alts err-lsts branch-exprs cerrs cbest-index ctx)
+  (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
+
+  ;; we want to try the one we picked last time
+  ;; and then if there are others in the cerrs that are better, try it.
+
+  (define best (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx))
+  (define best-err (errors-score (option-errors best)))
+  (define best-index cbest-index)
+
+  (define errs cerrs)
+
+  ;; should really change this into an argmin or something actually functional 
+
+  (for ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
+    (cond [(and (< berr best-err) (not (= i cbest-index)))
+      (define opt (option-on-expr alts err-lsts bexpr ctx))
+      (define err (errors-score (option-errors opt)))
+      (set! errs (list-set errs i err))
+      (cond [(< err best-err)
+        (set! best opt)
+        (set! best-err err)
+        (set! best-index i)])
+      ]))
+
+  (values best best-index errs))
+
+;; We want to reduce per branch-expression instead
+
+(define (regime-better sorted ctx)
+  (define branch-exprs
+    (if (flag-set? 'reduce 'branch-expressions)
+        (exprs-to-branch-on sorted ctx)
+        (program-variables (alt-program (first sorted)))))
+  (define err-lsts (batch-errors (map alt-program sorted) (*pcontext*) ctx))
+  (define init-options (for/list ([bexpr branch-exprs]) (option-on-expr sorted err-lsts bexpr ctx)))
+  (define errs (for/list ([option init-options]) (errors-score (option-errors option))))
+  (define best-index (argmin (curry list-ref errs) (range (length errs))))
+  (let loop ([alts sorted])
+    (cond
+     [(null? alts) '()]
+     [(= (length alts) 1) (list (car alts))]
+     [else
+      (match-define-values (opt opt-index new-errs) (infer-better alts err-lsts branch-exprs errs best-index ctx))
+      (set! errs new-errs)
+      (set! best-index opt-index)
+      (define branched-alt (combine-alts opt ctx))
+      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
+      (cons branched-alt (loop (take alts high)))])))
+
 
 (define (combine-alts best-option ctx)
   (match-define (option splitindices alts pts expr _) best-option)
