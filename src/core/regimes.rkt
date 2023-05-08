@@ -82,6 +82,7 @@
     expr))
 
 (define (option-on-expr alts err-lsts expr ctx)
+  (displayln "trace option on expr")
   (set! opt-on-count (add1 opt-on-count))
   (define repr (repr-of expr ctx))
   (define timeline-stop! (timeline-start! 'times (~a expr)))
