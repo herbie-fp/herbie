@@ -22,7 +22,30 @@
                  [else "libegg_math"])
                 (bytes->string/utf-8 (system-type 'so-suffix)))))
 
-(define-ffi-definer define-eggmath (ffi-lib libeggmath-path))
+(define (check-for-rosetta)
+  (equal? (with-output-to-string (lambda () (system "sysctl -n sysctl.proc_translated"))) "1\n"))
+
+(define fallback-message
+  "Error: unable to load the 'egg-math' library.")
+
+(define rosetta-message
+  (string-join
+   '("You are trying to run 'Herbie' with the 'x86' version of 'Racket' under emulation,"
+     "via 'Rosetta', Please install the the 'Apple Silicon' version of 'Racket'."
+     "\"https://download.racket-lang.org\"")
+   "\n"))
+
+(define (handle-eggmath-import-failure)
+  (define error-message
+    (if (and (equal? (system-type 'arch) 'x86_64)
+             (equal? (system-type 'os) 'macosx)
+             (check-for-rosetta))
+        rosetta-message
+        fallback-message))
+  (raise-user-error error-message))
+
+(define-ffi-definer define-eggmath
+  (ffi-lib  libeggmath-path #:fail handle-eggmath-import-failure))
 
 ; GC'able egraph
 ; If Racket GC can prove unreachable, `egraph_destroy` will be called
