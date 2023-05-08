@@ -22,12 +22,14 @@
                  [else "libegg_math"])
                 (bytes->string/utf-8 (system-type 'so-suffix)))))
 
+; Checks if Racket is being run in emulation via rosetta
 (define (check-for-rosetta)
   (equal? (with-output-to-string (lambda () (system "sysctl -n sysctl.proc_translated"))) "1\n"))
 
 (define fallback-message
   "Error: unable to load the 'egg-math' library.")
 
+; Note, refering to ARM as Apple Silicon to match Racket download page.
 (define rosetta-message
   (string-join
    '("You are trying to run 'Herbie' with the 'x86' version of 'Racket' under emulation,"
@@ -44,6 +46,7 @@
         fallback-message))
   (raise-user-error error-message))
 
+; Checks for a condition on MacOS if x86 Racket is being used on an ARM mac.
 (define-ffi-definer define-eggmath
   (ffi-lib  libeggmath-path #:fail handle-eggmath-import-failure))
 
