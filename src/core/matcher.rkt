@@ -4,7 +4,7 @@
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
          "../timeline.rkt")
 
-(provide pattern-match rewrite-expressions)
+(provide pattern-match rewrite-expressions get-rr-proof)
 
 ;;; Our own pattern matcher.
 ;;
@@ -71,7 +71,7 @@
           (when result
             (define canon-name (hash-ref canon-names (rule-name rule)))
             (hash-update! rule-apps canon-name (curry + 1) 1)
-            (sow (car result)))))))
+            (sow (list (car result) rule)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
@@ -123,8 +123,8 @@
        (for/list ([id node-ids] [expr exprs] [expr-repr reprs])
          (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
          (define output (egraph-get-variants egg-graph id expr))
-         (remove-duplicates output))])))
-    
+         (for/list ([variant (remove-duplicates output)])
+           (list variant (rr-input rules exprs iter-limit))))])))
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
                              ctx
@@ -146,3 +146,13 @@
     (define out (batch-egg-rewrite exprs ctx #:rules rules #:depths depths))
     (timeline-push! 'outputs (map ~a out))
     out]))
+
+; NOTE : Copy-pasted from simplify
+(define (get-rr-proof rules input-exprs iter-limit start end)
+  (define egg-graph (make-egraph))
+    (define node-ids (map (curry egraph-add-expr egg-graph) input-exprs)) ; TODO : Need to have all exprs from original rr run -> REMOVE (LIST START END)
+    (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t)) ; TODO : limit should have value
+    (define proof (egraph-get-proof egg-graph start end))
+    (when (null? proof)
+      (error (format "Failed to produce proof for ~a to ~a" start end)))
+    proof)
