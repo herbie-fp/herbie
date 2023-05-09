@@ -23,8 +23,12 @@
                 (bytes->string/utf-8 (system-type 'so-suffix)))))
 
 ; Checks if Racket is being run in emulation via rosetta
-(define (check-for-rosetta)
-  (equal? (with-output-to-string (lambda () (system "sysctl -n sysctl.proc_translated"))) "1\n"))
+(define (running-on-rosetta?)
+  (if (and (equal? (system-type 'os) 'macosx)
+           (equal? (system-type 'arch) 'x86_64))
+      (equal? (with-output-to-string (lambda () ; returns true if running in emulation
+                                       (system "sysctl -n sysctl.proc_translated"))) "1\n")
+      #f))
 
 (define fallback-message
   "Error: unable to load the 'egg-math' library.")
@@ -39,9 +43,7 @@
 
 (define (handle-eggmath-import-failure)
   (define error-message
-    (if (and (equal? (system-type 'arch) 'x86_64)
-             (equal? (system-type 'os) 'macosx)
-             (check-for-rosetta))
+    (if (running-on-rosetta?)
         rosetta-message
         fallback-message))
   (raise-user-error error-message))
