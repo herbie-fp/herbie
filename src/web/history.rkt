@@ -140,15 +140,24 @@
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
-    [(alt prog (list 'change loc) `(,prev))
+    [(alt prog `(rr , loc, input, proof, soundiness) `(,prev))
+     (define name (if (rr-input? input) "egg-rr" "rewrite-once"))
      (define prog* (program->fpcore (resugar-program prog repr)))
+     (define proof*
+       (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
-       (li (p "Applied " (span ([class "rule"]) ,"egg-rr")
+       (li (p "Applied " (span ([class "rule"]) , name)
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
                                                       (core->tex prog* #:loc loc #:color "blue")
                                                       "ERROR")
-                                                  "\\]")))]
+                                                  "\\]")
+           (div ([class "proof"])
+             (details
+               (summary "Proof")
+               ,(if proof*
+                    (render-proof proof* prog repr pcontext ctx)
+                    `(li ([class "event"]) "No proof available- proof too large to flatten."))))))]
     ))
 
 

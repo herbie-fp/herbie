@@ -182,11 +182,12 @@
   (define rewritten
     (for/fold ([done '()] #:result (reverse done))
               ([cls comb-changelists] [altn altns]
-               #:when true [subexp cls])
-        (define body* (apply-repr-change-expr subexp (*context*)))
-        (if body*
+              #:when true [cl cls])
+        (match-define (list subexp input) cl)
+          (define body* (apply-repr-change-expr subexp (*context*)))
+          (if body*
             ; We need to pass '(2) here so it can get overwritten on patch-fix
-            (cons (alt `(λ ,variables ,body*) (list 'change '(2)) (list altn)) done)
+            (cons (alt `(λ ,variables ,body*) (list 'rr '(2) input #f #f) (list altn)) done)
             done)))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
