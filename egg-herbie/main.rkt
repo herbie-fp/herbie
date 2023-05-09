@@ -36,9 +36,9 @@
 ; Note, refering to ARM as Apple Silicon to match Racket download page.
 (define rosetta-message
   (string-join
-   '("You are trying to run 'Herbie' with the 'x86' version of 'Racket' under emulation,"
-     "via 'Rosetta', Please install the the 'Apple Silicon' version of 'Racket'."
-     "\"https://download.racket-lang.org\"")
+   '("You are running the 'x86' version of Racket via 'Rosetta' emulation."
+     "To run Herbie, you need to use the 'Apple Silicon' version of Racket."
+     "You can install it here: https://download.racket-lang.org")
    "\n"))
 
 (define (handle-eggmath-import-failure)
