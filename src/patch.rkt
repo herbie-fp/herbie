@@ -153,8 +153,6 @@
   ;; get subexprs and locations
   (define exprs (map (compose program-body alt-program) (^queued^)))
   (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
-  (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
-  (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root
 
   ;; HACK:
   ;; - check loaded representations
@@ -166,32 +164,29 @@
   (define changelists
     (if one-real-repr?
         (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules) #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))
+          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules))
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
         (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules normal-rules #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:roots locs #:once? #t)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))))
+          (rewrite-expressions exprs (*context*) #:rules normal-rules)
+          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:once? #t)
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))))
 
   ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
-    (rewrite-expressions lowexprs (*context*)
-                         #:rules reprchange-rules
-                         #:roots lowlocs
-                         #:once? #t))
+    (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
 
   (define comb-changelists (append changelists changelists-low-locs))
   (define altns (append (^queued^) (^queuedlow^)))
   
+  (define variables (program-variables (alt-program (first altns))))
   (define rewritten
     (for/fold ([done '()] #:result (reverse done))
               ([cls comb-changelists] [altn altns]
-              #:when true [cl cls])
-        (match-define (list subexp loc) cl)
-        (define change-app (location-do loc (alt-program altn) (const subexp)))
-        (define prog* (apply-repr-change change-app (*context*)))
-        (if (program-body prog*)
-            (cons (alt prog* (list 'change loc) (list altn)) done)
+               #:when true [subexp cls])
+        (define body* (apply-repr-change-expr subexp (*context*)))
+        (if body*
+            ; We need to pass '(2) here so it can get overwritten on patch-fix
+            (cons (alt `(λ ,variables ,body*) (list 'change '(2)) (list altn)) done)
             done)))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
