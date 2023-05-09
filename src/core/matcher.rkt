@@ -98,6 +98,7 @@
     ; Returns a procedure rather than the variants directly:
     ; if we need to fallback, we exit the `with-egraph` closure first
     ; so the existing egraph gets cleaned up
+    
     (define egg-graph (make-egraph))
     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
     (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t))
