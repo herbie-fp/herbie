@@ -72,7 +72,7 @@
                            ctx
                            pctx)
   (for/list
-      ([variants (run-egglog ctx pctx exprs)]
+      ([variants (run-egglog ctx pctx exprs 50)]
        [expr exprs])
     (cons expr variants)))
 

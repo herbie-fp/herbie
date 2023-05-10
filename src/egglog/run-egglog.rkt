@@ -19,15 +19,13 @@
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
 ;; Number of egraphs to run (independent samples)
-(define egg-num-egraphs 5)
+(define egg-num-egraphs 1)
 ;; local error threshold for search
 (define ERROR-THRESHOLD 0.0)
-;; Number of variants to extract
-(define egg-num-variants 50)
 
 
 (struct econfig
-	(ctx pctx exprs egg-data local-error? num-sample))
+	(ctx pctx exprs egg-data local-error? num-sample num-variants))
 
 (define (add-to-ruleset ruleset commands)
   	(for/list ([command commands])
@@ -1343,9 +1341,13 @@
 									 (econfig-egg-data config))
 	  :cost 10000000)))
 
-(define (build-iter)
-	`((set-option match_limit 10000000)
-    (run ground-truth ,ground-truth-iters)
+(define (build-iter config)
+	`(
+		,@(if 
+				(econfig-local-error? config)
+				 `((set-option match_limit 10000000)
+    			 (run ground-truth ,ground-truth-iters))
+				empty)
 		
 		(set-option match_limit ,egg-match-limit)
 		;; runs normal analysis
@@ -1359,15 +1361,18 @@
 		;; permute the order of if statements
 		(run if-permute 1)))
 
-(define (build-runner)
+(define (build-runner config)
 	(apply append
 		(for/list
 				([i (in-range egg-iters)])
-				(build-iter))))
+				(build-iter config))))
 
-(define (build-extract config variants)
+;; variants of 0 means extract simplest
+(define (build-extract config)
   (for/list ([expr (econfig-exprs config)] [i (in-naturals)])
-    `(extract :variants ,variants ,(varname i))))
+    `(extract :variants
+		          ,(econfig-num-variants config)
+							,(varname i))))
 
 (define (ast-prefix op)
   (string->symbol (string-append "Ast" (symbol->string op))))
@@ -1536,12 +1541,14 @@
 		(build-interval-analysis config)
 		(setup-ground-truth config)
 		(build-ground-truth-extract config)
-		(build-runner)
-		
-		(append 
-			(build-extract config egg-num-variants) ;; get variants
-			run-ground-truth-compute
-			(extract-most-accurate config))))
+		(build-runner config)
+
+		(build-extract config) ;; get variants
+		(if (equal? (econfig-num-variants config) 0)
+				empty
+				(append
+					run-ground-truth-compute
+			    (extract-most-accurate config)))))
 
 (define (side-condition->bool condition)
 	(match condition
@@ -1732,10 +1739,14 @@
 		[`(mostaccurate ,args ...) #f]
 		[else #t]))
 
-(define (run-egglog ctx pctx exprs)
+(define (run-egglog ctx pctx exprs num-variants)
+	(define num-egraphs
+		(if (equal? num-variants 0)
+		    1
+				egg-num-egraphs))
 	(map flatten
 		(transpose 
-			(for/list ([i (range egg-num-egraphs)])
+			(for/list ([i (range num-egraphs)])
 				(run-egglog-random-point 
 					(econfig ctx pctx exprs
 						(egraph-data (make-hash)
@@ -1743,9 +1754,12 @@
 						(> i 0)
 						(if (> i 0)
 						    1
-								5)))))))
+								5)
+						(if (> i 0)
+						    0
+								num-variants)
+						))))))
 
-;; 0 variants means just extract the best expression
 (define (run-egglog-random-point config)
 	(define-values (egglog-process egglog-output egglog-in err)
 	(subprocess #f #f (current-error-port) egglog-binary))
@@ -1765,14 +1779,16 @@
 		(for/list ([expr (econfig-exprs config)])
 				(read egglog-output)))
 	(define results
-		(for/list ([expr (econfig-exprs config)] [variants all-variants])
-			;; list of exprs for this expr at each point
-			(append variants
-			(map remove-ast-prefix
-				(filter extracted-mostaccurate?
-					(for/list ([i (in-range (econfig-num-sample config))])
-						;; just extracted one thing
-						(first (read egglog-output))))))))
+		(if (equal? (econfig-num-variants config) 0)
+		    all-variants
+				(for/list ([expr (econfig-exprs config)] [variants all-variants])
+					;; list of exprs for this expr at each point
+					(append variants
+					(map remove-ast-prefix
+						(filter extracted-mostaccurate?
+							(for/list ([i (in-range (econfig-num-sample config))])
+								;; egglog extracts one thing per point
+								(first (read egglog-output)))))))))
 
 	(close-input-port egglog-output)
 
