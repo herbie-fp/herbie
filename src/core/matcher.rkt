@@ -72,7 +72,7 @@
                            ctx
                            pctx)
   (for/list
-      ([variants (run-egglog ctx pctx exprs #:accuracy-extract #t)]
+      ([variants (run-egglog ctx pctx exprs)]
        [expr exprs])
     (cons expr variants)))
 

@@ -80,7 +80,7 @@
   (define rules (simplify-input-rules input))
 
   (timeline-push! 'method "egglog")
-  (map first (run-egglog ctx pctx (simplify-input-exprs input) #:accuracy-extract #f)))
+  (map first (run-egglog ctx pctx (simplify-input-exprs input))))
 
 
 (define (stop-reason->string sr)

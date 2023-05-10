@@ -11,21 +11,23 @@
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
-(define egg-iters 25)
+(define egg-iters 10)
 (define ground-truth-iters 20)
 (define compute-accuracy-iters 20)
 (define egg-node-limit 10000)
 (define egg-match-limit 1000)
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
-(define ERROR-THRESHOLD 0.0)
-;; Number of points from the point context to take
-(define egg-num-sample 4)
 ;; Number of egraphs to run (independent samples)
-(define egg-num-egraphs 1)
+(define egg-num-egraphs 5)
+;; local error threshold for search
+(define ERROR-THRESHOLD 0.0)
 ;; Number of variants to extract
 (define egg-num-variants 50)
 
+
+(struct econfig
+	(ctx pctx exprs egg-data local-error? num-sample))
 
 (define (add-to-ruleset ruleset commands)
   	(for/list ([command commands])
@@ -1333,15 +1335,17 @@
   (string->symbol
    (string-append "eggvar" (number->string i))))
 
-(define (build-exprs ctx eggdata exprs)
-  (for/list ([expr exprs] [i (in-naturals)])
+(define (build-exprs config)
+  (for/list ([expr (econfig-exprs config)] [i (in-naturals)])
     `(define ,(varname i)
-	  ,(expr->egglog ctx expr eggdata)
+	  ,(expr->egglog (econfig-ctx config)
+		               expr
+									 (econfig-egg-data config))
 	  :cost 10000000)))
 
 (define (build-iter)
 	`((set-option match_limit 10000000)
-    #;(run ground-truth ,ground-truth-iters)
+    (run ground-truth ,ground-truth-iters)
 		
 		(set-option match_limit ,egg-match-limit)
 		;; runs normal analysis
@@ -1361,8 +1365,8 @@
 				([i (in-range egg-iters)])
 				(build-iter))))
 
-(define (build-extract exprs variants)
-  (for/list ([expr exprs] [i (in-naturals)])
+(define (build-extract config variants)
+  (for/list ([expr (econfig-exprs config)] [i (in-naturals)])
     `(extract :variants ,variants ,(varname i))))
 
 (define (ast-prefix op)
@@ -1383,7 +1387,7 @@
 			(error (format "Tried to remove Ast prefix from ~a" expr))]))
 
 
-(define (build-math-ast ctx exprs eggdata)
+(define (build-math-ast config)
   `((datatype AstMath
 		    (AstNum HerbieType Rational)
 		    (AstVar HerbieType String)
@@ -1439,7 +1443,7 @@
 			 	 current-physical)
 			 ))))
 
-(define (build-ground-truth-extract ctx exprs eggdata)
+(define (build-ground-truth-extract config)
   (add-to-ruleset 'compute-accuracy
                   	(append
    `((ruleset compute-accuracy)
@@ -1475,32 +1479,32 @@
 	,@(make-extract-rules)
 	))))
 
-(define (extract-most-accurate ctx exprs)
+(define (extract-most-accurate config)
 	`((run compute-accuracy ,compute-accuracy-iters)
 	
 	;; Finally, extract out the best expr for each expr and each point
 	,@(apply append
-			(for/list ([expr exprs]
+			(for/list ([expr (econfig-exprs config)]
 				         [ei (in-naturals)])
-				(for/list ([point (in-range egg-num-sample)])
+				(for/list ([point (in-range (econfig-num-sample config))])
 					`(extract (mostaccurate ,point ,(varname ei))))
 			))))
 
 
-(define (setup-ground-truth ctx pctx exprs eggdata)
-	(define points (for/list ([(point exact) (in-pcontext pctx)])
+(define (setup-ground-truth config)
+	(define points (for/list ([(point exact) (in-pcontext (econfig-pctx config))])
 		point))
 	(define shuffled (shuffle points))
 	(append
 		(for/list ([point shuffled]
-		           [i (in-range egg-num-sample)])
+		           [i (in-range (econfig-num-sample config))])
 		`(point ,i)) ;; initialize the number of points
 		(apply append
 			(for/list ([point shuffled]
-						[i (in-range egg-num-sample)])
-				(for/list ([var (context-vars ctx)]
+						[i (in-range (econfig-num-sample config))])
+				(for/list ([var (context-vars (econfig-ctx config))]
 						[num point])
-				`(set (ival ,(expr->egglog ctx var eggdata)
+				`(set (ival ,(expr->egglog (econfig-ctx config) var (econfig-egg-data config))
 							,i)
 					(interval ,num ,num)))))))
 
@@ -1510,33 +1514,34 @@
 		(set-option match_limit 10000000)
     (run ground-truth ,ground-truth-iters)))
 
-(define (build-interval-analysis ctx eggdata)
+(define (build-interval-analysis config)
 	`((point -1)
-		,@(for/list ([var (context-vars ctx)])
-				`(set (ival ,(expr->egglog ctx var eggdata) -1)
+		,@(for/list ([var (context-vars (econfig-ctx config))])
+				`(set (ival
+								,(expr->egglog		
+										(econfig-ctx config) var (econfig-egg-data config))
+								-1)
 							(ival-Empty)))))
 
-(define (build-egglog ctx pctx eggdata exprs accuracy-extract)
+(define (build-egglog config)
   (append
 		math-definition
-		(build-math-ast ctx exprs eggdata)
+		(build-math-ast config)
 		analysis
 		rewrites
 		if-permute
 		simplify-if
 		ground-truth
-		(build-exprs ctx eggdata exprs)
-		(build-interval-analysis ctx eggdata)
-		(setup-ground-truth ctx pctx exprs eggdata)
-		(build-ground-truth-extract ctx exprs eggdata)
+		(build-exprs config)
+		(build-interval-analysis config)
+		(setup-ground-truth config)
+		(build-ground-truth-extract config)
 		(build-runner)
 		
-		(if (not accuracy-extract)
-				(build-extract exprs 0) ;; normal extraction
-    		(append 
-					(build-extract exprs egg-num-variants) ;; get variants
-					run-ground-truth-compute
-					(extract-most-accurate ctx exprs)))))
+		(append 
+			(build-extract config egg-num-variants) ;; get variants
+			run-ground-truth-compute
+			(extract-most-accurate config))))
 
 (define (side-condition->bool condition)
 	(match condition
@@ -1710,10 +1715,14 @@
 			  (error (format "Unrecognized rewrite pattern ~a" line))]
 			[else line])))
 
-(define (apply-egglog-macros egglog-program)
+(define (apply-egglog-macros egglog-program local-error?)
 	(sanity-check-rewrites egglog-program)
+	(define with-ifs
+		(rewrite-if egglog-program))
 	(define res 
-								(rewrite-if egglog-program))
+		(if local-error?
+				(rewrite-check-local-error with-ifs)
+				with-ifs))
 
 	(sanity-check-rewrites res)
 	res)
@@ -1723,24 +1732,29 @@
 		[`(mostaccurate ,args ...) #f]
 		[else #t]))
 
-(define (run-egglog ctx pctx exprs #:accuracy-extract accuracy-extract)
+(define (run-egglog ctx pctx exprs)
 	(map flatten
 		(transpose 
 			(for/list ([i (range egg-num-egraphs)])
-				(run-egglog-random-point ctx pctx exprs #:accuracy-extract accuracy-extract)))))
-	
+				(run-egglog-random-point 
+					(econfig ctx pctx exprs
+						(egraph-data (make-hash)
+												 (make-hash))
+						(> i 0)
+						(if (> i 0)
+						    1
+								5)))))))
 
 ;; 0 variants means just extract the best expression
-(define (run-egglog-random-point ctx pctx exprs #:accuracy-extract accuracy-extract)
-	(define eggdata
-	(egraph-data (make-hash)
-				(make-hash)))
+(define (run-egglog-random-point config)
 	(define-values (egglog-process egglog-output egglog-in err)
 	(subprocess #f #f (current-error-port) egglog-binary))
 
 	(define egglog-program
-          		(apply ~s #:separator "\n"
-                               			(apply-egglog-macros (build-egglog ctx pctx eggdata exprs accuracy-extract))))
+    (apply ~s #:separator "\n"
+      (apply-egglog-macros
+				(build-egglog config)
+				(econfig-local-error? config))))
 	;; save the egglog program
   (timeline-push! 'egglog egglog-program)
 
@@ -1748,19 +1762,17 @@
 	(close-output-port egglog-in)
 	
 	(define all-variants
-		(for/list ([expr exprs])
+		(for/list ([expr (econfig-exprs config)])
 				(read egglog-output)))
 	(define results
-		(if (not accuracy-extract)
-			all-variants
-			(for/list ([expr exprs] [variants all-variants])
-				;; list of exprs for this expr at each point
-				(append variants
-				(map remove-ast-prefix
-					(filter extracted-mostaccurate?
-						(for/list ([i (in-range egg-num-sample)])
-							;; just extracted one thing
-							(first (read egglog-output)))))))))
+		(for/list ([expr (econfig-exprs config)] [variants all-variants])
+			;; list of exprs for this expr at each point
+			(append variants
+			(map remove-ast-prefix
+				(filter extracted-mostaccurate?
+					(for/list ([i (in-range (econfig-num-sample config))])
+						;; just extracted one thing
+						(first (read egglog-output))))))))
 
 	(close-input-port egglog-output)
 
@@ -1773,7 +1785,7 @@
 	
 	(define converted
 		(for/list ([variants results])
-			(map (curry egglog->expr ctx eggdata) (remove-duplicates variants))))
+			(map (curry egglog->expr (econfig-ctx config) (econfig-egg-data config)) (remove-duplicates variants))))
 
 	(subprocess-wait egglog-process)
 
