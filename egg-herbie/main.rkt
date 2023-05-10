@@ -17,24 +17,23 @@
 (define-runtime-path libeggmath-path
   (build-path "target/release"
               (string-append
-                (case (system-type)
+               (case (system-type)
                  [(windows) "egg_math"]
                  [else "libegg_math"])
-                (bytes->string/utf-8 (system-type 'so-suffix)))))
+               (bytes->string/utf-8 (system-type 'so-suffix)))))
 
 ; Checks if Racket is being run in emulation via rosetta
 (define (running-on-rosetta?)
-  (if (and (equal? (system-type 'os) 'macosx)
-           (equal? (system-type 'arch) 'x86_64))
-      (equal? (with-output-to-string (lambda () ; returns true if running in emulation
-                                       (system "sysctl -n sysctl.proc_translated"))) "1\n")
-      #f))
+  (and (equal? (system-type 'os) 'macosx)
+       (equal? (system-type 'arch) 'x86_64)
+       (equal? (with-output-to-string (lambda () ; returns true if running in emulation
+                                        (system "sysctl -n sysctl.proc_translated"))) "1\n")))
 
 ; Note, this message should not be reached.
 (define fallback-message
   (string-join
    `("Error: unable to load the 'egg-math' library"
-     "Please file a bug at \"https://github.com/herbie-fp/herbie/issues\"")
+     "Please file a bug at https://github.com/herbie-fp/herbie/issues")
    "\n"))
 
 ; Note, refering to ARM as Apple Silicon to match Racket download page.
@@ -123,9 +122,9 @@
 
 ;; node number -> s-expr string
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer
-                                         _uint ;; node id
-                                         _uint ;; iteration
-                                         -> _pointer))
+                                          _uint ;; node id
+                                          _uint ;; iteration
+                                          -> _pointer))
 
 (define-eggmath egraph_get_proof (_fun _egraph-pointer
                                        _string/utf-8
