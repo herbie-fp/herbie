@@ -11,7 +11,7 @@
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
-(define egg-iters 10)
+(define egg-iters 25)
 (define ground-truth-iters 20)
 (define compute-accuracy-iters 20)
 (define egg-node-limit 10000)
@@ -1754,7 +1754,7 @@
 						(> i 0)
 						(if (> i 0)
 						    1
-								5)
+								4)
 						(if (> i 0)
 						    0
 								num-variants)
