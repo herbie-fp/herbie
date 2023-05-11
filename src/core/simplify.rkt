@@ -55,6 +55,7 @@
   (define p-input '())
   (timeline-push! 'method "egg-herbie")
 
+
   (run-egg e-input p-input precompute?)
 
   ; (with-egraph

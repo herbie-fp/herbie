@@ -46,8 +46,8 @@
      (alt prog `initial-simplify `(,(alt-map f prev)))]
     [(alt prog `final-simplify `(,prev))
      (alt prog `final-simplify `(,(alt-map f prev)))]
-    [(alt prog `(rr, loc, input, proof, soundiness) `(,prev))
-     (alt prog `(rr, loc, input, proof, soundiness) `(,(alt-map f prev)))])))
+    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev))
+     (alt prog `(rr ,loc ,input ,proof ,soundiness) `(,(alt-map f prev)))])))
 
 ;; A useful parameter for many of Herbie's subsystems, though
 ;; ultimately one that should be located somewhere else or perhaps
