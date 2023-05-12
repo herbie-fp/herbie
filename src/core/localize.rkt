@@ -49,7 +49,7 @@
 
 ;; Returns a list of expressions sorted by increasing local error
 (define (localize-error prog ctx)
-  (define errs (compute-local-errors-fast prog ctx))
+  (define errs (compute-local-errors prog ctx))
   (sort
     (reap [sow]
           (for ([(expr err) (in-hash errs)])
