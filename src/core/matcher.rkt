@@ -148,9 +148,9 @@
     (define p-input '())
     (define variantses (run-egg e-input p-input #t))
     (define out
-      (for/list ([expr exprs] [loc root-locs] [variants variantses])
+      (for/list ([expr exprs] [variants variantses])
         (for/list ([variant (remove-duplicates variants)])
-          (append variant (list loc)))))
+          (append variant))))
     (timeline-push! 'outputs (map ~a out))
     out]))
 

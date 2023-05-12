@@ -27,8 +27,7 @@
                   #:roots [root-locs (make-list (length (egraph-input-exprs input)) '())])
   ;; TODO : Make simplify match
   ;; TODO : Make rr match
-  (with-egraph 
-    (λ (egg-graph)
+  (let ([egg-graph (make-egraph)]) 
       (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-input-exprs input)))
       (define iter-data (egraph-run-rules egg-graph (egraph-input-node-limit input) (egraph-input-rules input) node-ids precompute? #:limit (egraph-input-iter-limit input)))
 
@@ -47,7 +46,7 @@
             (when (null? proof)
               (error (format "Failed to produce proof for ~a to ~a" (proof-input-start proof-input) (proof-input-end proof-input))))
             (cons variants proof))]
-        [else variants]))))
+        [else variants])))
 
 (define (get-rr-variants egg-graph node-ids input)
   (define variants
