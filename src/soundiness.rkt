@@ -53,7 +53,7 @@
             ; (get-rr-proof (rr-input-rules input)
             ;               (rr-input-input-exprs input) (rr-input-iter-limit input)
             ;               (location-get loc (alt-program prev)) (location-get loc prog)))
-            (define e-input (make-egg-descriptor (rr-input-input-exprs input) (rr-input-rules input) #t #:iter-limit (rr-input-iter-limit input)))
+            (define e-input input)
             (define p-input (proof-input (location-get loc (alt-program prev)) (location-get loc prog)))
             (match-define (cons variants proof) (run-egg e-input p-input #t))
           (cond

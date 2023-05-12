@@ -53,7 +53,7 @@
         (for/list ([id node-ids] [expr (egraph-input-exprs input)]) ; TODO: Get Locations and Variants if Possible
           (define output (egraph-get-variants egg-graph id expr))
           (for/list ([variant (remove-duplicates output)])
-              (list variant (rr-input (egraph-input-rules input) (egraph-input-exprs input) (egraph-input-iter-limit input))))))
+              (list variant input))))
               variants)
 
 (define (get-simplify-variant egg-graph node-ids iter-data)
