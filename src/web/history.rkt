@@ -141,7 +141,7 @@
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
     [(alt prog `(rr , loc, input, proof, soundiness) `(,prev))
-     (define name (if (rr-input? input) "egg-rr" "rewrite-once"))
+     (define name (if (rule? input) "rewrite-once" "egg-rr"))
      (define prog* (program->fpcore (resugar-program prog repr)))
      (define proof*
        (if proof (compute-proof proof soundiness) #f))

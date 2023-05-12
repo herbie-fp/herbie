@@ -12,7 +12,7 @@
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
          remove-rewrites run-egg make-egg-descriptor
-         (struct-out proof-input))
+         (struct-out proof-input) (struct-out egraph-input))
 
 (struct egraph-input (exprs rules num-variants terms iter-limit node-limit const-folding) #:transparent)
 (struct proof-input (start end) #:transparent)
