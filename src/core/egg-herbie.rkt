@@ -46,7 +46,7 @@
             (when (null? proof)
               (error (format "Failed to produce proof for ~a to ~a" (proof-input-start proof-input) (proof-input-end proof-input))))
             (cons variants proof))]
-        [else variants])))
+        [else (cons variants #f)])))
 
 (define (get-rr-variants egg-graph node-ids input)
   (define variants

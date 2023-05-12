@@ -30,7 +30,7 @@
 
   (timeline-push! 'inputs (map ~a (simplify-input-exprs input)))
 
-  (define results
+  (match-define (cons results _)
     (run-simplify-input
      input
      (lambda (egg-graph node-ids iter-data)
