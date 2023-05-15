@@ -114,13 +114,3 @@
           (append variant))))
     (timeline-push! 'outputs (map ~a out))
     out]))
-
-; NOTE : Copy-pasted from simplify
-;;; (define (get-rr-proof rules input-exprs iter-limit start end)
-;;;   (define egg-graph (make-egraph))
-;;;     (define node-ids (map (curry egraph-add-expr egg-graph) input-exprs)) ; TODO : Need to have all exprs from original rr run -> REMOVE (LIST START END)
-;;;     (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t)) ; TODO : limit should have value
-;;;     (define proof (egraph-get-proof egg-graph start end))
-;;;     (when (null? proof)
-;;;       (error (format "Failed to produce proof for ~a to ~a" start end)))
-;;;     proof)

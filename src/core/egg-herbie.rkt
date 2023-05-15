@@ -23,10 +23,7 @@
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))
 (define (run-egg  input 
                   proof-input 
-                  precompute? 
-                  #:roots [root-locs (make-list (length (egraph-input-exprs input)) '())])
-  ;; TODO : Make simplify match
-  ;; TODO : Make rr match
+                  precompute?)
   (let ([egg-graph (make-egraph)]) 
       (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-input-exprs input)))
       (define iter-data (egraph-run-rules egg-graph (egraph-input-node-limit input) (egraph-input-rules input) node-ids precompute? #:limit (egraph-input-iter-limit input)))

@@ -41,36 +41,13 @@
   (define e-input input)
   (define p-input '())
   (timeline-push! 'method "egg-herbie")
-
-
-  (run-egg e-input p-input precompute?)
-
-  ; (with-egraph
-  ;  (lambda (egg-graph)
-  ;    (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
-  ;    (define iter-data (egraph-run-rules egg-graph (*node-limit*) rules node-ids `))
-        
-  ;    (when (egraph-is-unsound-detected egg-graph)
-  ;      (warn 'unsound-rules #:url "faq.html#unsound-rules"
-  ;            "Unsound rule application detected in e-graph. Results from simplify may not be sound."))
-
-  ;    (egraph-func egg-graph node-ids iter-data)))
-    )
-
-; (define (get-proof input start end)
-;   (run-simplify-input
-;     input
-;     (lambda (egg-graph node-ids iter-data)
-;       (define proof (egraph-get-proof egg-graph start end))
-;       (when (null? proof)
-;         (error (format "Failed to produce proof for ~a to ~a" start end)))
-;       proof)))
+  (run-egg e-input p-input precompute?))
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")
 
   ;; set parameters
-  (define vars '(x a b c))  
+  (define vars '(x a b c))
   (*context* (make-debug-context vars))
   (*needed-reprs* (list (get-representation 'binary64)
                         (get-representation 'binary32)))
