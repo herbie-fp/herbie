@@ -141,12 +141,11 @@
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
     [(alt prog `(rr , loc, input, proof, soundiness) `(,prev))
-     (define name (if (rule? input) "rewrite-once" "egg-rr"))
      (define prog* (program->fpcore (resugar-program prog repr)))
      (define proof*
        (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
-       (li (p "Applied " (span ([class "rule"]) , name)
+       (li (p "Applied " (span ([class "rule"]) , (if (rule? input) "rewrite-once" "egg-rr"))
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
                                                       (core->tex prog* #:loc loc #:color "blue")

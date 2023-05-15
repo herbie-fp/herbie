@@ -84,7 +84,7 @@
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
-    (map last (simplify-batch (make-egg-descriptor args (*simplify-rules*) #f) #t)))
+    (map last (simplify-batch (make-egg-query args (*simplify-rules*) #f) #t)))
 
   (define test-exprs
     #hash([1 . 1]

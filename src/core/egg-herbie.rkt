@@ -11,13 +11,13 @@
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
-         remove-rewrites run-egg make-egg-descriptor
+         remove-rewrites run-egg make-egg-query
          (struct-out proof-input) (struct-out egraph-input))
 
 (struct egraph-input (exprs rules num-variants terms iter-limit node-limit const-folding) #:transparent)
 (struct proof-input (start end) #:transparent)
 
-(define (make-egg-descriptor exprs rules num-variants [terms #f] #:iter-limit [iter-limit #f] #:node-limit [node-limit (*node-limit*)] [const-folding #f])
+(define (make-egg-query exprs rules num-variants [terms #f] #:iter-limit [iter-limit #f] #:node-limit [node-limit (*node-limit*)] [const-folding #f])
   (egraph-input exprs rules num-variants terms iter-limit node-limit const-folding))
 
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))
@@ -41,20 +41,17 @@
                             (get-simplify-variant egg-graph node-ids iter-data)))
       (cond
         [(proof-input? proof-input)
-          (begin
-            (define proof (egraph-get-proof egg-graph (proof-input-start proof-input) (proof-input-end proof-input)))
-            (when (null? proof)
-              (error (format "Failed to produce proof for ~a to ~a" (proof-input-start proof-input) (proof-input-end proof-input))))
-            (cons variants proof))]
+          (define proof (egraph-get-proof egg-graph (proof-input-start proof-input) (proof-input-end proof-input)))
+          (when (null? proof)
+            (error (format "Failed to produce proof for ~a to ~a" (proof-input-start proof-input) (proof-input-end proof-input))))
+          (cons variants proof)]
         [else (cons variants #f)])))
 
 (define (get-rr-variants egg-graph node-ids input)
-  (define variants
-        (for/list ([id node-ids] [expr (egraph-input-exprs input)]) ; TODO: Get Locations and Variants if Possible
-          (define output (egraph-get-variants egg-graph id expr))
-          (for/list ([variant (remove-duplicates output)])
-              (list variant input))))
-              variants)
+  (for/list ([id node-ids] [expr (egraph-input-exprs input)]) ; TODO: Get Locations and Variants if Possible
+    (define output (egraph-get-variants egg-graph id expr))
+    (for/list ([variant (remove-duplicates output)])
+        (list variant input))))
 
 (define (get-simplify-variant egg-graph node-ids iter-data)
   (map (lambda (id)
