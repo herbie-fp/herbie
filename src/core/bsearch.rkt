@@ -19,31 +19,31 @@
 
 (define (infer-better alts branch-exprs cerrs cbest-index ctx)
   (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
-  ;; (displayln "start errs")
-  ;; (displayln cerrs)
+        (displayln "start errs")
+        (displayln cerrs)
 
-  ;; we want to try the one we picked last time
+        ;; we want to try the one we picked last time
   ;; and then if there are others in the cerrs that are better, try it.
 
   (define best (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx))
   (define best-err (errors-score (option-errors best)))
   (define best-index cbest-index)
-  (define errs (list-set cerrs best-index best-err))
+        (define errs (list-set cerrs best-index best-err))
 
-  ;; (displayln "try first")
-  ;; (displayln best-err)
-  ;; (displayln best-index)
-  ;; (displayln errs)
+        (displayln "try first")
+  (displayln best-err)
+  (displayln best-index)
+  (displayln errs)
 
 
-  ;; should really change this into an argmin or something actually functional 
+        ;; should really change this into an argmin or something actually functional 
 
-  (for ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
+        (for ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
     (cond [(and (< berr best-err) (not (= i cbest-index)))
-      ;; (displayln "best")
-      ;; (displayln best-err)
-      ;; (displayln best-index)
-      ;; (displayln "curr")
+      (displayln "best")
+      (displayln best-err)
+      "displayln best-index)
+    " ;; (displayln "curr")
       ;; (displayln berr)
       (define opt (option-on-expr alts err-lsts bexpr ctx))
       (define err (errors-score (option-errors opt)))
@@ -53,9 +53,9 @@
       (set! errs (list-set errs i err))
       ;; (displayln errs)
       (cond [(< err best-err)
-        (set! best opt)
-        (set! best-err err)
-        (set! best-index i)])
+              (set! best opt)
+              (set! best-err err)
+              (set! best-index i)])
       ]))
   ;; (displayln "end errs")
   ;; (displayln errs)
@@ -83,6 +83,16 @@
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
      [else
+      (define recomputed-branch-exprs
+        (if (flag-set? 'reduce 'branch-expressions)
+            (exprs-to-branch-on alts ctx)
+            (program-variables (alt-program (first sorted)))))
+      
+      (set! errs 
+        (for/list ([err errs] [bexpr branch-exprs])
+                  (cond [(member bexpr recomputed-branch-exprs) err]
+                        [else +inf.0])))
+
       (match-define-values (opt opt-index new-errs) (infer-better alts branch-exprs errs best-index ctx))
       (set! errs new-errs)
       (set! best-index opt-index)
