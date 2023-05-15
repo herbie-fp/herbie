@@ -17,16 +17,15 @@
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
 (define/contract (simplify-batch input precompute?)
-  (->* (egraph-input? boolean?)
+  (->* (egraph-query? boolean?)
          (listof (listof expr?)))
-  (timeline-push! 'inputs (map ~a (egraph-input-exprs input)))
-
+  (timeline-push! 'inputs (map ~a (egraph-query-exprs input)))
+  (timeline-push! 'method "egg-herbie")
   (match-define (cons results _)
-    (timeline-push! 'method "egg-herbie")
-    (run-egg input precompute?))
+    (run-egg input precompute? #f))
 
   (define out
-    (for/list ([result results] [expr (egraph-input-exprs input)])
+    (for/list ([result results] [expr (egraph-query-exprs input)])
       (remove-duplicates (cons expr result))))
   (timeline-push! 'outputs (map ~a (apply append out)))
     
@@ -50,7 +49,7 @@
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
-    (map last (simplify-batch (make-egg-query args (*simplify-rules*) #f) #t)))
+    (map last (simplify-batch (make-egg-query args (*simplify-rules*)) #t)))
 
   (define test-exprs
     #hash([1 . 1]

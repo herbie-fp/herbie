@@ -49,10 +49,10 @@
     ;; This is alt coming from rr
     [(alt prog `(rr, loc, input #f #f) `(,prev))
       (cond
-        [(egraph-input? input) ;; Check if input is an egraph-input struct (B-E-R)
+        [(egraph-query? input) ;; Check if input is an egraph-query struct (B-E-R)
             (define e-input input)
-            (define p-input (proof-input (location-get loc (alt-program prev)) (location-get loc prog)))
-            (match-define (cons variants proof) (run-egg e-input #t #:proof-input p-input))
+            (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
+            (match-define (cons variants proof) (run-egg e-input #t #t #:proof-input p-input))
           (cond
             [proof
               (define proof*
@@ -82,8 +82,8 @@
       ;                         (location-get loc (alt-program prev))
       ;                         (location-get loc prog)))
       (define egg-input input)
-      (define p-input (proof-input (location-get loc (alt-program prev)) (location-get loc prog)))
-      (match-define (cons variants proof) (run-egg egg-input #t #:proof-input p-input))
+      (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
+      (match-define (cons variants proof) (run-egg egg-input #t #f #:proof-input p-input))
       (cond
        [proof
         ;; Proofs are actually on subexpressions,

@@ -218,7 +218,7 @@
         (program-body (alt-program child))))
 
     (define input-struct
-      (make-egg-query to-simplify (*simplify-rules*) #f))
+      (make-egg-query to-simplify (*simplify-rules*)))
     (define simplification-options
       (simplify-batch input-struct #t))
 

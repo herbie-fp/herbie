@@ -12,40 +12,40 @@
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
          remove-rewrites run-egg make-egg-query
-         (struct-out proof-input) (struct-out egraph-input))
+        (struct-out egraph-query))
 
-(struct egraph-input (exprs rules num-variants terms iter-limit node-limit const-folding) #:transparent)
-(struct proof-input (start end) #:transparent)
+(struct egraph-query (exprs rules terms iter-limit node-limit const-folding) #:transparent)
 
-(define (make-egg-query exprs rules num-variants [terms #f] #:iter-limit [iter-limit #f] #:node-limit [node-limit (*node-limit*)] [const-folding #f])
-  (egraph-input exprs rules num-variants terms iter-limit node-limit const-folding))
+(define (make-egg-query exprs rules [terms #f] #:iter-limit [iter-limit #f] #:node-limit [node-limit (*node-limit*)] [const-folding #f])
+  (egraph-query exprs rules terms iter-limit node-limit const-folding))
 
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))
 (define (run-egg  input 
                   precompute?
+                  variant?
                   #:proof-input [proof-input '()])
-  (let ([egg-graph (make-egraph)]) 
-      (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-input-exprs input)))
-      (define iter-data (egraph-run-rules egg-graph (egraph-input-node-limit input) (egraph-input-rules input) node-ids precompute? #:limit (egraph-input-iter-limit input)))
+      (define egg-graph (make-egraph))
+      (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-query-exprs input)))
+      (define iter-data (egraph-run-rules egg-graph (egraph-query-node-limit input) (egraph-query-rules input) node-ids precompute? #:limit (egraph-query-iter-limit input)))
 
       ;; TODO : SORT THIS OUT
       (when (egraph-is-unsound-detected egg-graph) 
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
              "Unsound rule application detected in e-graph. Results may not be sound."))
       
-      (define variants (if (egraph-input-num-variants input)
+      (define variants (if variant?
                             (get-rr-variants egg-graph node-ids input)
                             (get-simplify-variant egg-graph node-ids iter-data)))
-      (cond
-        [(proof-input? proof-input)
-          (define proof (egraph-get-proof egg-graph (proof-input-start proof-input) (proof-input-end proof-input)))
+      (match proof-input
+        [(cons start end)
+          (define proof (egraph-get-proof egg-graph start end))
           (when (null? proof)
-            (error (format "Failed to produce proof for ~a to ~a" (proof-input-start proof-input) (proof-input-end proof-input))))
+            (error (format "Failed to produce proof for ~a to ~a" start end)))
           (cons variants proof)]
-        [else (cons variants #f)])))
+        [else (cons variants #f)]))
 
 (define (get-rr-variants egg-graph node-ids input)
-  (for/list ([id node-ids] [expr (egraph-input-exprs input)]) ; TODO: Get Locations and Variants if Possible
+  (for/list ([id node-ids] [expr (egraph-query-exprs input)]) ; TODO: Get Locations and Variants if Possible
     (define output (egraph-get-variants egg-graph id expr))
     (for/list ([variant (remove-duplicates output)])
         (list variant input))))

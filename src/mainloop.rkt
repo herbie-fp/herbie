@@ -421,7 +421,7 @@
   (timeline-event! 'simplify)
   (define progss*
     (simplify-batch
-      (make-egg-query (map (compose program-body alt-program) joined-alts) (*fp-safe-simplify-rules*) #f) #t))
+      (make-egg-query (map (compose program-body alt-program) joined-alts) (*fp-safe-simplify-rules*)) #t))
   (define cleaned-alts
     (remove-duplicates
       (for/list ([altn joined-alts] [progs progss*])
