@@ -51,10 +51,9 @@
         (list variant input))))
 
 (define (get-simplify-variant egg-graph node-ids iter-data)
-  (map (lambda (id)
-          (for/list ([iter (in-range (length iter-data))])
-            (egraph-get-simplest egg-graph id iter)))
-        node-ids))
+  (for/list ([id node-ids])
+    (for/list ([iter (in-range (length iter-data))])
+      (egraph-get-simplest egg-graph id iter))))
 
 ;; Flattens proofs
 ;; NOT FPCore format
