@@ -22,13 +22,8 @@
   (timeline-push! 'inputs (map ~a (egraph-input-exprs input)))
 
   (match-define (cons results _)
-    (run-simplify-input
-     input precompute?
-     (lambda (egg-graph node-ids iter-data)
-       (map (lambda (id)
-              (for/list ([iter (in-range (length iter-data))])
-                (egraph-get-simplest egg-graph id iter)))
-            node-ids))))
+    (timeline-push! 'method "egg-herbie")
+    (run-egg input precompute?))
 
   (define out
     (for/list ([result results] [expr (egraph-input-exprs input)])
@@ -36,10 +31,6 @@
   (timeline-push! 'outputs (map ~a (apply append out)))
     
   out)
-
-(define (run-simplify-input input precompute? egraph-func)
-  (timeline-push! 'method "egg-herbie")
-  (run-egg input precompute?))
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")
