@@ -5,7 +5,7 @@
          "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
          "ground-truth.rkt" "preprocess.rkt" "symmetry.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
-         "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt")
+         "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
 
 (provide (all-defined-out))
 
@@ -421,9 +421,7 @@
   (timeline-event! 'simplify)
   (define progss*
     (simplify-batch
-      (simplify-input 
-        (map (compose program-body alt-program) joined-alts) empty
-        (*fp-safe-simplify-rules*) #t)))
+      (make-egg-descriptor (map (compose program-body alt-program) joined-alts) (*fp-safe-simplify-rules*) #f) #t))
   (define cleaned-alts
     (remove-duplicates
       (for/list ([altn joined-alts] [progs progss*])

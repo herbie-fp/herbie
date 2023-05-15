@@ -3,36 +3,27 @@
 (require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/rules.rkt" "../alternative.rkt" "egg-herbie.rkt")
 
-(provide simplify-expr simplify-batch
-         (struct-out simplify-input))
+(provide simplify-batch)
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
   (load-herbie-plugins))
 
-;; The input and output of simplify- simplify is re-run when proofs are needed
-(struct simplify-input (exprs proofs rules precompute?))
-
-(define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
-  (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
-  (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
+;;; (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
+;;;   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
+;;;   (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
 
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
-(define/contract (simplify-batch input)
-  (->* ((struct/c simplify-input
-                  (listof expr?)
-                  (listof (cons/c expr? expr?))
-                  (listof rule?)
-                  boolean?))
+(define/contract (simplify-batch input precompute?)
+  (->* (egraph-input? boolean?)
          (listof (listof expr?)))
-
-  (timeline-push! 'inputs (map ~a (simplify-input-exprs input)))
+  (timeline-push! 'inputs (map ~a (egraph-input-exprs input)))
 
   (match-define (cons results _)
     (run-simplify-input
-     input
+     input precompute?
      (lambda (egg-graph node-ids iter-data)
        (map (lambda (id)
               (for/list ([iter (in-range (length iter-data))])
@@ -40,18 +31,14 @@
             node-ids))))
 
   (define out
-    (for/list ([result results] [expr (simplify-input-exprs input)])
+    (for/list ([result results] [expr (egraph-input-exprs input)])
       (remove-duplicates (cons expr result))))
   (timeline-push! 'outputs (map ~a (apply append out)))
     
   out)
 
-(define (run-simplify-input input egraph-func)
-  (define exprs (simplify-input-exprs input))
-  (define precompute? (simplify-input-precompute? input))
-  (define proofs (simplify-input-proofs input))
-  (define rules (simplify-input-rules input))
-  (define e-input (make-egg-descriptor exprs rules #f #:node-limit (*node-limit*)))
+(define (run-simplify-input input precompute? egraph-func)
+  (define e-input input)
   (define p-input '())
   (timeline-push! 'method "egg-herbie")
 
@@ -97,7 +84,7 @@
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
-    (map last (simplify-batch (simplify-input args empty (*simplify-rules*) true))))
+    (map last (simplify-batch (make-egg-descriptor args (*simplify-rules*) #f) #t)))
 
   (define test-exprs
     #hash([1 . 1]

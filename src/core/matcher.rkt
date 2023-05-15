@@ -4,7 +4,7 @@
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
          "../timeline.rkt")
 
-(provide pattern-match rewrite-expressions get-rr-proof)
+(provide pattern-match rewrite-expressions)
 
 ;;; Our own pattern matcher.
 ;;
@@ -87,44 +87,44 @@
 ;;  egg-rewrite-iter-limit - call to egg on an expression with an iter limit (last resort)
 ;;
 
-(define (batch-egg-rewrite exprs
-                           ctx
-                           #:rules rules
-                           #:depths [depths (make-list (length exprs) 1)])
-  (define reprs (map (λ (e) (repr-of e ctx)) exprs))
-  ; If unsoundness was detected, try running one epxression at a time.
-  ; Can optionally set iter limit (will give up if unsoundness detected).
-  (let loop ([exprs exprs] [iter-limit #f])
-    ; Returns a procedure rather than the variants directly:
-    ; if we need to fallback, we exit the `with-egraph` closure first
-    ; so the existing egraph gets cleaned up
+;;; (define (batch-egg-rewrite exprs
+;;;                            ctx
+;;;                            #:rules rules
+;;;                            #:depths [depths (make-list (length exprs) 1)])
+;;;   (define reprs (map (λ (e) (repr-of e ctx)) exprs))
+;;;   ; If unsoundness was detected, try running one epxression at a time.
+;;;   ; Can optionally set iter limit (will give up if unsoundness detected).
+;;;   (let loop ([exprs exprs] [iter-limit #f])
+;;;     ; Returns a procedure rather than the variants directly:
+;;;     ; if we need to fallback, we exit the `with-egraph` closure first
+;;;     ; so the existing egraph gets cleaned up
     
-    (define egg-graph (make-egraph))
-    (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
-    (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t))
-    (cond
-      [(egraph-is-unsound-detected egg-graph)
-       ; unsoundness detected, fallback
-       (match* (exprs iter-limit)
-         [((list (? list?) (? list?) (? list?) ...) #f)     ; run expressions individually
-          (set! egg-graph #f)                               ; allow old egraph to be GC'd
-          (for/list ([expr exprs])
-            (timeline-push! 'method "egg-rewrite")
-            (car (loop (list expr) #f)))]
-         [((list (? list?)) #f)                             ; run expressions with iter limit
-          (set! egg-graph #f)                               ; allow old egraph to be GC'd
-          (define limit (- (length iter-data) 2))
-          (timeline-push! 'method "egg-rewrite-iter-limit")
-          (loop exprs limit)]
-         [(_ (? number?))                                   ; give up
-          (timeline-push! 'method "egg-rewrite-fail")
-          '(())])]
-      [else
-       (for/list ([id node-ids] [expr exprs] [expr-repr reprs])
-         (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
-         (define output (egraph-get-variants egg-graph id expr))
-         (for/list ([variant (remove-duplicates output)])
-           (list variant #f)))])))
+;;;     (define egg-graph (make-egraph))
+;;;     (define node-ids (map (curry egraph-add-expr egg-graph) exprs))
+;;;     (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t))
+;;;     (cond
+;;;       [(egraph-is-unsound-detected egg-graph)
+;;;        ; unsoundness detected, fallback
+;;;        (match* (exprs iter-limit)
+;;;          [((list (? list?) (? list?) (? list?) ...) #f)     ; run expressions individually
+;;;           (set! egg-graph #f)                               ; allow old egraph to be GC'd
+;;;           (for/list ([expr exprs])
+;;;             (timeline-push! 'method "egg-rewrite")
+;;;             (car (loop (list expr) #f)))]
+;;;          [((list (? list?)) #f)                             ; run expressions with iter limit
+;;;           (set! egg-graph #f)                               ; allow old egraph to be GC'd
+;;;           (define limit (- (length iter-data) 2))
+;;;           (timeline-push! 'method "egg-rewrite-iter-limit")
+;;;           (loop exprs limit)]
+;;;          [(_ (? number?))                                   ; give up
+;;;           (timeline-push! 'method "egg-rewrite-fail")
+;;;           '(())])]
+;;;       [else
+;;;        (for/list ([id node-ids] [expr exprs] [expr-repr reprs])
+;;;          (define egg-rule (rule "egg-rr" 'x 'x (list expr-repr) expr-repr))
+;;;          (define output (egraph-get-variants egg-graph id expr))
+;;;          (for/list ([variant (remove-duplicates output)])
+;;;            (list variant #f)))])))
 ;;  Recursive rewrite chooser
 (define (rewrite-expressions exprs
                              ctx
@@ -155,11 +155,11 @@
     out]))
 
 ; NOTE : Copy-pasted from simplify
-(define (get-rr-proof rules input-exprs iter-limit start end)
-  (define egg-graph (make-egraph))
-    (define node-ids (map (curry egraph-add-expr egg-graph) input-exprs)) ; TODO : Need to have all exprs from original rr run -> REMOVE (LIST START END)
-    (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t)) ; TODO : limit should have value
-    (define proof (egraph-get-proof egg-graph start end))
-    (when (null? proof)
-      (error (format "Failed to produce proof for ~a to ~a" start end)))
-    proof)
+;;; (define (get-rr-proof rules input-exprs iter-limit start end)
+;;;   (define egg-graph (make-egraph))
+;;;     (define node-ids (map (curry egraph-add-expr egg-graph) input-exprs)) ; TODO : Need to have all exprs from original rr run -> REMOVE (LIST START END)
+;;;     (define iter-data (egraph-run-rules egg-graph #:limit iter-limit (*node-limit*) rules node-ids #t)) ; TODO : limit should have value
+;;;     (define proof (egraph-get-proof egg-graph start end))
+;;;     (when (null? proof)
+;;;       (error (format "Failed to produce proof for ~a to ~a" start end)))
+;;;     proof)

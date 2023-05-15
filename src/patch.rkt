@@ -2,7 +2,7 @@
 
 (require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
 (require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
-(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt")
+(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "core/egg-herbie.rkt")
 
 (provide
   (contract-out
@@ -218,9 +218,9 @@
         (program-body (alt-program child))))
 
     (define input-struct
-      (simplify-input to-simplify empty (*simplify-rules*) true))
+      (make-egg-descriptor to-simplify (*simplify-rules*) #f))
     (define simplification-options
-      (simplify-batch input-struct))
+      (simplify-batch input-struct #t))
 
     (define simplified
       (remove-duplicates
