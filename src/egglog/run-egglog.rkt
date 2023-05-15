@@ -19,7 +19,7 @@
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
 ;; Number of egraphs to run (independent samples)
-(define egg-num-egraphs 1)
+(define egg-num-egraphs 3)
 ;; local error threshold for search
 (define ERROR-THRESHOLD 0.0)
 
