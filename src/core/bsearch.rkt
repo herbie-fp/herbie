@@ -19,31 +19,37 @@
 
 (define (infer-better alts branch-exprs cerrs cbest-index ctx)
   (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
-        (displayln "start errs")
-        (displayln cerrs)
+        ;; (displayln "start errs")
+        ;; (displayln cerrs)
 
         ;; we want to try the one we picked last time
   ;; and then if there are others in the cerrs that are better, try it.
 
-  (define best (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx))
-  (define best-err (errors-score (option-errors best)))
+  (define best 
+    (cond 
+      [(= +inf.0 (list-ref cerrs cbest-index)) null]
+      [else (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx)]))
+  (define best-err 
+    (cond 
+      [(null? best) +inf.0] 
+      [else (errors-score (option-errors best))]))
   (define best-index cbest-index)
         (define errs (list-set cerrs best-index best-err))
 
-        (displayln "try first")
-  (displayln best-err)
-  (displayln best-index)
-  (displayln errs)
+        ;; (displayln "try first")
+  ;; (displayln best-err)
+  ;; (displayln best-index)
+  ;; (displayln errs)
 
 
         ;; should really change this into an argmin or something actually functional 
 
         (for ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
     (cond [(and (< berr best-err) (not (= i cbest-index)))
-      (displayln "best")
-      (displayln best-err)
-      "displayln best-index)
-    " ;; (displayln "curr")
+      ;; (displayln "best")
+      ;; (displayln best-err)
+      ;; (displayln best-index)
+      ;; (displayln "curr")
       ;; (displayln berr)
       (define opt (option-on-expr alts err-lsts bexpr ctx))
       (define err (errors-score (option-errors opt)))
