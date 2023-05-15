@@ -22,8 +22,8 @@
 
 ;; TODO : Main entry point return (cons (list (list variant)) (list proof))
 (define (run-egg  input 
-                  proof-input 
-                  precompute?)
+                  precompute?
+                  #:proof-input [proof-input '()])
   (let ([egg-graph (make-egraph)]) 
       (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-input-exprs input)))
       (define iter-data (egraph-run-rules egg-graph (egraph-input-node-limit input) (egraph-input-rules input) node-ids precompute? #:limit (egraph-input-iter-limit input)))

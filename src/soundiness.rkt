@@ -52,7 +52,7 @@
         [(egraph-input? input) ;; Check if input is an egraph-input struct (B-E-R)
             (define e-input input)
             (define p-input (proof-input (location-get loc (alt-program prev)) (location-get loc prog)))
-            (match-define (cons variants proof) (run-egg e-input p-input #t))
+            (match-define (cons variants proof) (run-egg e-input #t #:proof-input p-input))
           (cond
             [proof
               (define proof*
@@ -83,7 +83,7 @@
       ;                         (location-get loc prog)))
       (define egg-input input)
       (define p-input (proof-input (location-get loc (alt-program prev)) (location-get loc prog)))
-      (match-define (cons variants proof) (run-egg egg-input p-input #t))
+      (match-define (cons variants proof) (run-egg egg-input #t #:proof-input p-input))
       (cond
        [proof
         ;; Proofs are actually on subexpressions,

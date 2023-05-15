@@ -39,7 +39,7 @@
 
 (define (run-simplify-input input precompute? egraph-func)
   (timeline-push! 'method "egg-herbie")
-  (run-egg input '() precompute?))
+  (run-egg input precompute?))
 
 (module+ test
   (require "../syntax/types.rkt" "../syntax/rules.rkt")
