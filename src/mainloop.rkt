@@ -5,7 +5,7 @@
          "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
          "ground-truth.rkt" "preprocess.rkt" "symmetry.rkt"
          "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
-         "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt")
+         "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
 
 (provide (all-defined-out))
 
@@ -49,8 +49,8 @@
               #:unless (equal? k (context-repr ctx))
               #:when (set-member? v (context-repr ctx)))
       (define rewrite (get-rewrite-operator k))
-      (define prog* `(λ ,(program-variables prog) (,rewrite ,(program-body prog))))
-      (alt (apply-repr-change prog* ctx) 'start '()))))
+      (define body* (apply-repr-change-expr (list rewrite (program-body prog)) ctx))
+      (alt `(λ ,(program-variables prog) ,body*) 'start '()))))
 
 ;; Information
 (define (list-alts)
@@ -184,9 +184,9 @@
           (match event
            [(list 'taylor name var loc)
             (list 'taylor name var (append loc0 (cdr loc)))]
-           [(list 'change cng)
-            (match-define (change rule loc binds) cng)
-            (list 'change (change rule (append loc0 (cdr loc)) binds))]
+           ; TODO : Recosnsruct and revise history
+           [`(rr, loc, input, proof, soundiness)
+            (list 'rr (append loc0 (cdr loc)) input proof soundiness)]
            [`(simplify ,loc ,input ,proof ,soundiness)
             (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
         (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))
@@ -433,9 +433,7 @@
   (timeline-event! 'simplify)
   (define progss*
     (simplify-batch
-      (simplify-input 
-        (map (compose program-body alt-program) joined-alts) empty
-        (*fp-safe-simplify-rules*) #t)))
+      (make-egg-query (map (compose program-body alt-program) joined-alts) (*fp-safe-simplify-rules*)) #t))
   (define cleaned-alts
     (remove-duplicates
       (for/list ([altn joined-alts] [progs progss*])

@@ -113,15 +113,15 @@
                                (format-percent (hash-ref domain-info tag 0) total))])))))))
                                
 (define (render-phase-locations locations)
-  `((dt "Local error")
-    (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
+  `((dt "Local Accuracy")
+    (dd (p "Found " ,(~a (length locations)) " expressions with local accuracy:")
         (table ([class "times"])
-          (thead (tr (th "New") (th "Error") (th "Program")))
+          (thead (tr (th "New") (th "Accuracy") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
 
               (match-define (list expr err new? repr) rec)
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-error err (get-representation (string->symbol repr)) #:unit "%") "")
+                  (td ,(format-accuracy err (get-representation (string->symbol repr)) #:unit "%") "")
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
@@ -262,8 +262,8 @@
 
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr) (car min-error-table))
-  `((dt "Error")
-    (dd ,(format-error min-error (get-representation (string->symbol repr)) #:unit "%") "")))
+  `((dt "Accurracy")
+    (dd ,(format-accuracy min-error (get-representation (string->symbol repr)) #:unit "%") "")))
 
 (define (render-phase-rules rules)
   `((dt "Rules")
@@ -282,7 +282,7 @@
     (dd (details
          (summary "Click to see full alt table")
          (table ([class "times"])
-                (thead (tr (th "Status") (th "Error") (th "Program")))
+                (thead (tr (th "Status") (th "Accuracy") (th "Program")))
                 ,@(for/list ([rec (in-list alts)])
                     (match-define (list expr status score repr) rec)
                     `(tr
@@ -290,7 +290,7 @@
                          ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                          ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                          ["fresh" `(td)])
-                      (td ,(format-error score (get-representation (string->symbol repr)) #:unit "%") "")
+                      (td ,(format-accuracy score (get-representation (string->symbol repr)) #:unit "%") "")
                       (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
@@ -328,10 +328,10 @@
 (define (render-phase-branches branches)
   `((dt "Results")
     (dd (table ([class "times"])
-               (thead (tr (th "Error") (th "Segments") (th "Branch")))
+               (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
              (match-define (list expr score splits repr) rec)
-             `(tr (td ,(format-error score (get-representation (string->symbol repr)) #:unit "%") "")
+             `(tr (td ,(format-accuracy score (get-representation (string->symbol repr)) #:unit "%") "")
                   (td ,(~a splits))
                   (td (code ,expr))))))))
 

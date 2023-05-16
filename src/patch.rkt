@@ -2,7 +2,7 @@
 
 (require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
 (require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
-(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt")
+(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "core/egg-herbie.rkt")
 
 (provide
   (contract-out
@@ -154,8 +154,6 @@
   ;; get subexprs and locations
   (define exprs (map (compose program-body alt-program) (^queued^)))
   (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
-  (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
-  (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root
 
   ;; HACK:
   ;; - check loaded representations
@@ -167,43 +165,31 @@
   (define changelists
     (if one-real-repr?
         (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules) #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))
+          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules))
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
         (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules normal-rules #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:roots locs #:once? #t)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))))
+          (rewrite-expressions exprs (*context*) #:rules normal-rules)
+          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:once? #t)
+          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))))
 
   ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
-    (rewrite-expressions lowexprs (*context*)
-                         #:rules reprchange-rules
-                         #:roots lowlocs
-                         #:once? #t))
+    (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
 
   (define comb-changelists (append changelists changelists-low-locs))
   (define altns (append (^queued^) (^queuedlow^)))
-
-  (define rules-used
-    (append-map (curry map change-rule) (apply append comb-changelists)))
-  (define rule-counts
-    (for ([rgroup (group-by identity rules-used)])
-      (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
   
+  (define variables (program-variables (alt-program (first altns))))
   (define rewritten
     (for/fold ([done '()] #:result (reverse done))
               ([cls comb-changelists] [altn altns]
               #:when true [cl cls])
-      (let loop ([cl cl] [altn altn])
-        (cond
-          [(null? cl)
-           (cons altn done)]
-          [else
-           (define change-app (change-apply (car cl) (alt-program altn)))
-           (define prog* (apply-repr-change change-app (*context*)))
-           (if (program-body prog*)
-               (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
-               done)]))))
+        (match-define (list subexp input) cl)
+          (define body* (apply-repr-change-expr subexp (*context*)))
+          (if body*
+            ; We need to pass '(2) here so it can get overwritten on patch-fix
+            (cons (alt `(λ ,variables ,body*) (list 'rr '(2) input #f #f) (list altn)) done)
+            done)))
 
   (timeline-push! 'count (length (^queued^)) (length rewritten))
   ; TODO: accuracy stats for timeline
@@ -233,9 +219,9 @@
         (program-body (alt-program child))))
 
     (define input-struct
-      (simplify-input to-simplify empty (*simplify-rules*) true))
+      (make-egg-query to-simplify (*simplify-rules*)))
     (define simplification-options
-      (simplify-batch input-struct))
+      (simplify-batch input-struct #t))
 
     (define simplified
       (remove-duplicates
