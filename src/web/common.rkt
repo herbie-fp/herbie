@@ -11,7 +11,7 @@
          "../syntax/types.rkt" "../syntax/sugar.rkt")
 
 (provide render-menu render-warnings render-large render-program
-         fpcore->string program->fpcore render-reproduction js-tex-include)
+         program->fpcore render-reproduction js-tex-include)
 
 (define (program->fpcore prog #:ident [ident #f])
   (match-define (list _ args expr) prog)
