@@ -12,9 +12,18 @@
 ;; Rulesets
 (define *rulesets* (make-parameter '()))
 
-;; Rules
+(define (rule-ops-supported? rule)
+  (define (ops-in-expr expr)
+    (cond
+      [(list? expr)
+       (and (impl-exists? (car expr))
+            (for/and ([subexpr (cdr expr)])
+              (ops-in-expr subexpr)))]
+      [else true]))
+  (ops-in-expr (rule-output rule)))
+
 ;;
-;; Note on rules
+;; Rules
 ;; fp-safe-simplify ⊂ simplify ⊂ all
 ;;
 ;; all                    requires at least one tag of an active group of rules
@@ -26,7 +35,8 @@
   (reap [sow]
     (for ([ruleset (*rulesets*)])
       (match-define (list rules groups types) ruleset)
-      (when (ormap (curry flag-set? 'rules) groups)
+      (when (and (ormap (curry flag-set? 'rules) groups)
+                 (filter rule-ops-supported? rules))
         (for ([rule (in-list rules)]) (sow rule))))))
 
 (define (*simplify-rules*)
@@ -34,7 +44,8 @@
     (for ([ruleset (*rulesets*)])
       (match-define (list rules groups types) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
-                 (set-member? groups 'simplify))
+                 (set-member? groups 'simplify)
+                 (filter rule-ops-supported? rules))
         (for ([rule (in-list rules)]) (sow rule))))))
 
 (define (*fp-safe-simplify-rules*)
@@ -43,7 +54,8 @@
       (match-define (list rules groups types) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
                  (set-member? groups 'simplify)
-                 (set-member? groups 'fp-safe))
+                 (set-member? groups 'fp-safe)
+                 (filter rule-ops-supported? rules))
         (for ([rule (in-list rules)])
           (sow rule))))))
 

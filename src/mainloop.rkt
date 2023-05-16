@@ -419,20 +419,22 @@
      [else
       (list (argmin score-alt all-alts))]))
 
-  (define cleaned-alts joined-alts)
-  (when (flag-set? 'generate 'simplify)
-    (timeline-event! 'simplify)
-    (define progss*
-      (simplify-batch
-        (simplify-input 
-          (map (compose program-body alt-program) joined-alts) empty
-          (*fp-safe-simplify-rules*) #t)))
-    (set! cleaned-alts
-      (remove-duplicates
-        (for/list ([altn joined-alts] [progs progss*])
-          (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
+  (define cleaned-alts
+    (cond
+      [(flag-set? 'generate 'simplify)
+       (timeline-event! 'simplify)
+
+       (define input-progs (map (compose program-body alt-program) joined-alts))
+       (define input (simplify-input input-progs '() (*fp-safe-simplify-rules*) #t))
+       (define progss* (simplify-batch input))
+
+       (remove-duplicates
+         (for/list ([altn joined-alts] [progs progss*])
+           (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
                 'final-simplify (list altn)))
-        alt-equal?)))
+         alt-equal?)]
+      [else
+       joined-alts]))
         
   (define alts-deduplicated
     (remove-duplicates cleaned-alts alt-equal?))
