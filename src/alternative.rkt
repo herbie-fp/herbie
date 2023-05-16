@@ -1,7 +1,7 @@
 #lang racket
 
 (require "cost.rkt")
-(provide (struct-out change) (struct-out alt) make-alt alt?
+(provide (struct-out alt)  (struct-out rr-input) make-alt alt?
          alt-program alt-add-event *start-prog* *all-alts*
          alt-cost alt-equal? alt-map)
 
@@ -10,12 +10,12 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-(struct change (rule location bindings) #:transparent)
-
 (struct alt (program event prevs)
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (fprintf port "#<alt ~a>" (alt-program alt)))])
+
+(struct rr-input (rules input-exprs iter-limit) #:transparent)
 
 (define (make-alt prog)
   (alt prog 'start '()))
@@ -46,8 +46,8 @@
      (alt prog `initial-simplify `(,(alt-map f prev)))]
     [(alt prog `final-simplify `(,prev))
      (alt prog `final-simplify `(,(alt-map f prev)))]
-    [(alt prog (list 'change cng) `(,prev))
-     (alt prog (list 'change cng) `(,(alt-map f prev)))])))
+    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev))
+     (alt prog `(rr ,loc ,input ,proof ,soundiness) `(,(alt-map f prev)))])))
 
 ;; A useful parameter for many of Herbie's subsystems, though
 ;; ultimately one that should be located somewhere else or perhaps
