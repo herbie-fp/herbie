@@ -512,8 +512,8 @@
       (free-ffi-rule-cache))))
 
 (define (free-ffi-rule-cache)
-  (match-define (list _ _ canon-names) (cdr (*ffi-rules-cache*)))
-  (set! ffi-rules-cache #f)
+  (match-define (list _  ffi-rules _) (cdr (*ffi-rules-cache*)))
+  (*ffi-rules-cache* #f)
   (for-each free-ffi-rule ffi-rules))
 
 ;; Tries to look up the canonical name of a rule using the cache.
@@ -548,7 +548,7 @@
     ; update the cache
     (define ffi-rules (map make-ffi-rule egg-rules))
     (*ffi-rules-cache* (cons key (list egg-rules ffi-rules canon-names))))
-  (cdr ffi-rules-cache))
+  (cdr (*ffi-rules-cache*)))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
   ;; expand rules (will also check cache)
