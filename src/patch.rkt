@@ -218,10 +218,8 @@
       (for/list ([child (in-list children)])
         (program-body (alt-program child))))
 
-    (define input-struct
-      (make-egg-query to-simplify (*simplify-rules*)))
-    (define simplification-options
-      (simplify-batch input-struct #t))
+    (define egg-query (make-egg-query to-simplify (*simplify-rules*)))
+    (define simplification-options (simplify-batch egg-query))
 
     (define simplified
       (remove-duplicates
@@ -231,7 +229,7 @@
                   [output outputs])
          (if (equal? input output)
              child
-             (alt `(λ ,variables ,output) `(simplify (2) ,input-struct #f #f) (list child))))
+             (alt `(λ ,variables ,output) `(simplify (2) ,egg-query #f #f) (list child))))
        alt-equal?))
 
     ; dedup for cache

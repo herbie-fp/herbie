@@ -430,13 +430,15 @@
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
+
   (timeline-event! 'simplify)
-  (define progss*
-    (simplify-batch
-      (make-egg-query (map (compose program-body alt-program) joined-alts) (*fp-safe-simplify-rules*)) #t))
+  (define egg-query
+    (make-egg-query (map (compose program-body alt-program) joined-alts)
+                    (*fp-safe-simplify-rules*)))
+  (define simplified (simplify-batch egg-query))
   (define cleaned-alts
     (remove-duplicates
-      (for/list ([altn joined-alts] [progs progss*])
+      (for/list ([altn joined-alts] [progs simplified])
         (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
               'final-simplify (list altn)))
       alt-equal?))

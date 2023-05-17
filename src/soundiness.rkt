@@ -50,7 +50,7 @@
           (hash-ref! cache (cons p-input e-input)
                      (λ ()
                        (match-define (cons variants proof)
-                         (run-egg e-input #t #t #:proof-input p-input))
+                         (run-egg e-input #t #:proof-input p-input))
                        (cond
                          [proof
                           ;; Proofs are actually on subexpressions,
@@ -89,7 +89,7 @@
        (hash-ref! cache (cons p-input e-input)
                   (λ ()
                     (match-define (cons variants proof)
-                      (run-egg e-input #t #f #:proof-input p-input))
+                      (run-egg e-input #f #:proof-input p-input))
                     (cond
                       [proof
                        ;; Proofs are actually on subexpressions,

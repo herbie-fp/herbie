@@ -21,14 +21,14 @@
                         #:const-folding? [const-folding? #t])
   (egraph-query exprs rules iter-limit node-limit const-folding?))
 
-(define (run-egg input precompute? variant? #:proof-input [proof-input '()])
+(define (run-egg input variant? #:proof-input [proof-input '()])
       (define egg-graph (make-egraph))
       (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-query-exprs input)))
       (define iter-data (egraph-run-rules egg-graph
                                           (egraph-query-node-limit input)
                                           (egraph-query-rules input)
                                           node-ids
-                                          precompute?
+                                          (egraph-query-const-folding? input)
                                           #:limit (egraph-query-iter-limit input)))
 
       (when (egraph-is-unsound-detected egg-graph) 
@@ -496,12 +496,12 @@
   
 ;; runs rules on an egraph
 ;; can optionally specify an iter limit
-(define (egraph-run egraph-data node-limit ffi-rules precompute? [iter-limit #f])
+(define (egraph-run egraph-data node-limit ffi-rules const-folding? [iter-limit #f])
   (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
   (define-values (egraphiters res-len)
     (if iter-limit
-        (egraph_run_with_iter_limit egraph-ptr iter-limit node-limit ffi-rules precompute?)
-        (egraph_run egraph-ptr node-limit ffi-rules precompute?)))
+        (egraph_run_with_iter_limit egraph-ptr iter-limit node-limit ffi-rules const-folding?)
+        (egraph_run egraph-ptr node-limit ffi-rules const-folding?)))
   (define res (convert-iteration-data egraphiters res-len))
   (destroy_egraphiters res-len egraphiters)
   res)
@@ -553,12 +553,12 @@
     (*ffi-rules-cache* (cons key (list egg-rules ffi-rules canon-names))))
   (cdr (*ffi-rules-cache*)))
 
-(define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
+(define (egraph-run-rules egg-graph node-limit rules node-ids const-folding? #:limit [iter-limit #f])
   ;; expand rules (will also check cache)
   (match-define (list egg-rules ffi-rules canon-names) (expand-rules rules))
 
   ;; run the rules
-  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
+  (define iteration-data (egraph-run egg-graph node-limit ffi-rules const-folding? iter-limit))
 
   ;; get cost statistics
   (let loop ([iter iteration-data] [counter 0] [time 0])
