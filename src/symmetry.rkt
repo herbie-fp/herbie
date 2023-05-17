@@ -1,5 +1,5 @@
 #lang racket
-(require "common.rkt" "programs.rkt" "core/simplify.rkt" "syntax/rules.rkt")
+(require "common.rkt" "programs.rkt" "core/simplify.rkt" "syntax/rules.rkt" "core/egg-herbie.rkt")
 
 (provide connected-components)
 
@@ -9,7 +9,7 @@
       (match-define (list a b) swap)
       (replace-vars (list (cons a b) (cons b a)) expr)))
   (define out (map last
-                   (simplify-batch (simplify-input (cons expr swapt) empty (*simplify-rules*) true))))
+                   (simplify-batch (make-egg-query (cons expr swapt) (*simplify-rules*)) #t)))
   (match-define (cons orig swapt*) out)
   (for/list ([swap* swapt*] [swap (in-combinations vars 2)]
              #:when (equal? swap* orig))
@@ -29,7 +29,7 @@
             '()
             'real)))
   (define groups (map last
-                      (simplify-batch (simplify-input (range (length vars)) empty rules* false))))
+                      (simplify-batch (make-egg-query (range (length vars)) rules*) #f)))
   (map (lambda (group) (map car group)) (group-by cdr (map cons vars groups))))
 
 
