@@ -13,21 +13,24 @@
          remove-rewrites run-egg make-egg-query
         (struct-out egraph-query))
 
-(struct egraph-query (exprs rules terms iter-limit node-limit const-folding) #:transparent)
+(struct egraph-query (exprs rules iter-limit node-limit const-folding?) #:transparent)
 
-(define (make-egg-query exprs rules [terms #f] #:iter-limit [iter-limit #f] #:node-limit [node-limit (*node-limit*)] [const-folding #f])
-  (egraph-query exprs rules terms iter-limit node-limit const-folding))
+(define (make-egg-query exprs rules
+                        #:iter-limit [iter-limit #f]
+                        #:node-limit [node-limit (*node-limit*)]
+                        #:const-folding? [const-folding? #t])
+  (egraph-query exprs rules iter-limit node-limit const-folding?))
 
-;; TODO : Main entry point return (cons (list (list variant)) (list proof))
-(define (run-egg  input 
-                  precompute?
-                  variant?
-                  #:proof-input [proof-input '()])
+(define (run-egg input precompute? variant? #:proof-input [proof-input '()])
       (define egg-graph (make-egraph))
       (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-query-exprs input)))
-      (define iter-data (egraph-run-rules egg-graph (egraph-query-node-limit input) (egraph-query-rules input) node-ids precompute? #:limit (egraph-query-iter-limit input)))
+      (define iter-data (egraph-run-rules egg-graph
+                                          (egraph-query-node-limit input)
+                                          (egraph-query-rules input)
+                                          node-ids
+                                          precompute?
+                                          #:limit (egraph-query-iter-limit input)))
 
-      ;; TODO : SORT THIS OUT
       (when (egraph-is-unsound-detected egg-graph) 
        (warn 'unsound-rules #:url "faq.html#unsound-rules"
              "Unsound rule application detected in e-graph. Results may not be sound."))

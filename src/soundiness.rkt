@@ -37,12 +37,6 @@
                     (list num-increase
                           num-decrease (length prev)))))
   proof-diffs)
-  
-(define (generate-rewrite-once-proof rule loc prog prev)
-  (list (program-body (alt-program prev)) ;; Start Expression
-        (list 'Rewrite=> 
-              (rule-name rule) ;; name
-              (program-body prog)))) ;; expr
 
 (define (add-soundiness-to pcontext ctx cache altn)
   (match altn
@@ -76,7 +70,9 @@
          (match-define (cons proof errs)
            (hash-ref! cache (cons input prog)
                       (λ ()
-                        (define proof (generate-rewrite-once-proof input loc prog prev))
+                        (define proof
+                          (list (program-body (alt-program prev))
+                                (list 'Rewrite=> (rule-name rule) (program-body prog))))
                         (define errs
                           (let ([vars (program-variables prog)])
                             (get-proof-errors proof pcontext ctx vars)))
@@ -93,7 +89,7 @@
        (hash-ref! cache (cons p-input e-input)
                   (λ ()
                     (match-define (cons variants proof)
-                      (run-egg e-input #t #t #:proof-input p-input))
+                      (run-egg e-input #t #f #:proof-input p-input))
                     (cond
                       [proof
                        ;; Proofs are actually on subexpressions,

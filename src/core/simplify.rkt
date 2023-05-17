@@ -9,10 +9,6 @@
   (require rackunit "../load-plugin.rkt")
   (load-herbie-plugins))
 
-;;; (define/contract (simplify-expr expr #:rules rls #:precompute [precompute? false] #:prove [prove? false])
-;;;   (->* (expr? #:rules (listof rule?)) (#:precompute boolean?) expr?)
-;;;   (last (first (simplify-batch (list expr) #:rules rls #:precompute precompute?))))
-
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
