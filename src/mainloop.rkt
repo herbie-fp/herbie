@@ -434,7 +434,8 @@
   (timeline-event! 'simplify)
   (define egg-query
     (make-egg-query (map (compose program-body alt-program) joined-alts)
-                    (*fp-safe-simplify-rules*)))
+                    (*fp-safe-simplify-rules*)
+                    #:const-folding? #f))
   (define simplified (simplify-batch egg-query))
   (define cleaned-alts
     (remove-duplicates
