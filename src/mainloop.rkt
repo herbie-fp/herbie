@@ -429,8 +429,7 @@
 
        (define input-progs (map (compose program-body alt-program) joined-alts))
        (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*)))
-       (define input (simplify-input egg-query #f))
-       (define progss* (simplify-batch input))
+       (define progss* (simplify-batch egg-query #f))
 
        (remove-duplicates
          (for/list ([altn joined-alts] [progs progss*])

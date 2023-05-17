@@ -146,6 +146,7 @@
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
 
+  (^rewrites^ '())
   (when (flag-set? 'generate 'rr)
     (timeline-event! 'rewrite)
 
