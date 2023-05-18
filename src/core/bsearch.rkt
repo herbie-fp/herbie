@@ -17,57 +17,6 @@
 (struct sp (cidx bexpr point) #:prefab)
 
 
-(define (infer-better alts branch-exprs cerrs cbest-index ctx)
-  (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
-        ;; (displayln "start errs")
-        ;; (displayln cerrs)
-
-        ;; we want to try the one we picked last time
-  ;; and then if there are others in the cerrs that are better, try it.
-
-  (define best 
-    (cond 
-      [(= +inf.0 (list-ref cerrs cbest-index)) null]
-      [else (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx)]))
-  (define best-err 
-    (cond 
-      [(null? best) +inf.0] 
-      [else (errors-score (option-errors best))]))
-  (define best-index cbest-index)
-        (define errs (list-set cerrs best-index best-err))
-
-        ;; (displayln "try first")
-  ;; (displayln best-err)
-  ;; (displayln best-index)
-  ;; (displayln errs)
-
-
-        ;; should really change this into an argmin or something actually functional 
-
-        (for ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
-    (cond [(and (< berr best-err) (not (= i cbest-index)))
-      ;; (displayln "best")
-      ;; (displayln best-err)
-      ;; (displayln best-index)
-      ;; (displayln "curr")
-      ;; (displayln berr)
-      (define opt (option-on-expr alts err-lsts bexpr ctx))
-      (define err (errors-score (option-errors opt)))
-      ;; (displayln errs)
-      ;; (displayln err)
-      ;; (displayln i)
-      (set! errs (list-set errs i err))
-      ;; (displayln errs)
-      (cond [(< err best-err)
-              (set! best opt)
-              (set! best-err err)
-              (set! best-index i)])
-      ]))
-  ;; (displayln "end errs")
-  ;; (displayln errs)
-
-  (values best best-index errs))
-
 ;; We want to reduce per branch-expression instead
 
 (define (regime-better sorted ctx)
@@ -76,11 +25,8 @@
         (exprs-to-branch-on sorted ctx)
         (program-variables (alt-program (first sorted)))))
   (define err-lsts (batch-errors (map alt-program sorted) (*pcontext*) ctx))
-  ;; (displayln "fine 1")
   (define init-options (for/list ([bexpr branch-exprs]) (option-on-expr sorted err-lsts bexpr ctx)))
-  ;; (displayln "fine 2")
   (define errs (for/list ([option init-options]) (errors-score (option-errors option))))
-  ;; (displayln "fine 3")
   (define best-index (argmin (curry list-ref errs) (range (length errs))))
 
   (define ibranched-alt (combine-alts (list-ref init-options best-index) ctx))
@@ -88,7 +34,6 @@
   (define init-alts (take sorted ihigh))
   (cons ibranched-alt 
   (let loop ([alts init-alts])
-    (displayln (length alts))
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]

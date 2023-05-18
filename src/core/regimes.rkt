@@ -4,7 +4,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
-(provide infer-splitpoints (struct-out option) (struct-out si) option-on-expr exprs-to-branch-on print-opt-count)
+(provide infer-better infer-splitpoints (struct-out option) (struct-out si) option-on-expr exprs-to-branch-on )
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -22,11 +22,51 @@
 ;; pidx = Point index: The index of the point to the left of which we should split.
 (struct si (cidx pidx) #:prefab)
 
-(define opt-on-count 0)
-(define (print-opt-count) (displayln opt-on-count))
-
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
+
+(define (infer-better alts branch-exprs cerrs cbest-index ctx)
+  (timeline-event! 'regimes)
+  (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts))
+  (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
+
+  ;; we want to try the one we picked last time
+  ;; and then if there are others in the cerrs that are better, try it.
+  (define best 
+    (cond 
+      [(= +inf.0 (list-ref cerrs cbest-index)) null]
+      [else (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx)]))
+
+  (define best-err 
+    (cond 
+      [(null? best) +inf.0] 
+      [else (errors-score (option-errors best))]))
+
+  (define best-index cbest-index)
+  (define errs (list-set cerrs best-index best-err))
+
+  ;; not sure how to change this into something more idiomatic without losing the optimizations
+
+  (for ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
+    (cond [(and (< berr best-err) (not (= i cbest-index)))
+      (define opt (option-on-expr alts err-lsts bexpr ctx))
+      (define err (errors-score (option-errors opt)))
+      (set! errs (list-set errs i err))
+      (cond [(< err best-err)
+              (set! best opt)
+              (set! best-err err)
+              (set! best-index i)])]))
+  (timeline-push! 'count (length alts) (length (option-split-indices best)))
+  (timeline-push! 'outputs
+                  (for/list ([sidx (option-split-indices best)])
+                    (~a (program-body (alt-program (list-ref alts (si-cidx sidx)))))))
+  (define err-lsts* (flip-lists err-lsts))
+  (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
+  (timeline-push! 'accuracy (errors-score (option-errors best)))
+  (define repr (context-repr ctx))
+  (timeline-push! 'repr (~a (representation-name repr)))
+  (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
+  (values best best-index errs))
 
 (define (infer-splitpoints alts ctx)
   (timeline-event! 'regimes)
@@ -48,7 +88,6 @@
   (define repr (context-repr ctx))
   (timeline-push! 'repr (~a (representation-name repr)))
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
-  (displayln best)
   best)
 
 (define (exprs-to-branch-on alts ctx)
@@ -82,8 +121,6 @@
     expr))
 
 (define (option-on-expr alts err-lsts expr ctx)
-  (displayln "trace option on expr")
-  (set! opt-on-count (add1 opt-on-count))
   (define repr (repr-of expr ctx))
   (define timeline-stop! (timeline-start! 'times (~a expr)))
 
