@@ -64,7 +64,7 @@
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
-  (call-with-output-file (build-path dir "results.html")
+  (call-with-output-file (build-path dir "index.html")
     (curryr make-report-page info dir) #:exists 'replace)
   (define timeline (merge-timeline-jsons (read-json-files info dir "timeline.json")))
   (call-with-output-file (build-path dir "timeline.json") (curry write-json timeline) #:exists 'replace)
@@ -96,6 +96,6 @@
 (define (diff-report old new)
   (define df (diff-datafiles (read-datafile (build-path old "results.json"))
                              (read-datafile (build-path new "results.json"))))
-  (call-with-output-file (build-path new "results.html")
+  (call-with-output-file (build-path new "index.html")
     #:exists 'replace
     (curryr make-report-page df #f)))

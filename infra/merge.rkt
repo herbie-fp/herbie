@@ -47,7 +47,7 @@
   (define dfs (map car rss))
   (define joint-rs (merge-datafiles dfs #:dirs dirs #:name name))
   (write-datafile (build-path outdir "results.json") joint-rs)
-  (call-with-output-file (build-path outdir "results.html")
+  (call-with-output-file (build-path outdir "index.html")
     #:exists 'replace
     (curryr make-report-page joint-rs outdir #:merge-data rss)))
 
