@@ -82,8 +82,12 @@
   (define errs (for/list ([option init-options]) (errors-score (option-errors option))))
   ;; (displayln "fine 3")
   (define best-index (argmin (curry list-ref errs) (range (length errs))))
-  ;; (displayln "fine 4")
-  (let loop ([alts sorted])
+
+  (define ibranched-alt (combine-alts (list-ref init-options best-index) ctx))
+  (define ihigh (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices (list-ref init-options best-index)))))
+  (define init-alts (take sorted ihigh))
+  (cons ibranched-alt 
+  (let loop ([alts init-alts])
     (displayln (length alts))
     (cond
      [(null? alts) '()]
@@ -104,7 +108,7 @@
       (set! best-index opt-index)
       (define branched-alt (combine-alts opt ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons branched-alt (loop (take alts high)))])))
+      (cons branched-alt (loop (take alts high)))]))))
 
 
 (define (combine-alts best-option ctx)
