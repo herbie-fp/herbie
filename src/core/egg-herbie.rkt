@@ -14,47 +14,6 @@
          remove-rewrites run-egg make-egg-query
         (struct-out egraph-query))
 
-(struct egraph-query (exprs rules terms iter-limit node-limit const-folding) #:transparent)
-
-(define (make-egg-query exprs rules [terms #f] #:iter-limit [iter-limit #f] #:node-limit [node-limit (*node-limit*)] [const-folding #f])
-  (egraph-query exprs rules terms iter-limit node-limit const-folding))
-
-;; TODO : Main entry point return (cons (list (list variant)) (list proof))
-(define (run-egg  input 
-                  precompute?
-                  variant?
-                  #:proof-input [proof-input '()])
-      (define egg-graph (make-egraph))
-      (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-query-exprs input)))
-      (define iter-data (egraph-run-rules egg-graph (egraph-query-node-limit input) (egraph-query-rules input) node-ids precompute? #:limit (egraph-query-iter-limit input)))
-
-      ;; TODO : SORT THIS OUT
-      (when (egraph-is-unsound-detected egg-graph) 
-       (warn 'unsound-rules #:url "faq.html#unsound-rules"
-             "Unsound rule application detected in e-graph. Results may not be sound."))
-      
-      (define variants (if variant?
-                            (get-rr-variants egg-graph node-ids input)
-                            (get-simplify-variant egg-graph node-ids iter-data)))
-      (match proof-input
-        [(cons start end)
-          (define proof (egraph-get-proof egg-graph start end))
-          (when (null? proof)
-            (error (format "Failed to produce proof for ~a to ~a" start end)))
-          (cons variants proof)]
-        [else (cons variants #f)]))
-
-(define (get-rr-variants egg-graph node-ids input)
-  (for/list ([id node-ids] [expr (egraph-query-exprs input)]) ; TODO: Get Locations and Variants if Possible
-    (define output (egraph-get-variants egg-graph id expr))
-    (for/list ([variant (remove-duplicates output)])
-        (list variant input))))
-
-(define (get-simplify-variant egg-graph node-ids iter-data)
-  (for/list ([id node-ids])
-    (for/list ([iter (in-range (length iter-data))])
-      (egraph-get-simplest egg-graph id iter))))
-
 ;; Flattens proofs
 ;; NOT FPCore format
 (define (flatten-let expr)
@@ -316,6 +275,60 @@
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
+
+;; Herbie's version of an egg runner
+;; Defines parameters for running rewrite rules with egg
+(struct egraph-query (exprs rules iter-limit node-limit const-folding?) #:transparent)
+
+(define (make-egg-query exprs rules
+                        #:iter-limit [iter-limit #f]
+                        #:node-limit [node-limit (*node-limit*)]
+                        #:const-folding? [const-folding? #f])
+  (egraph-query exprs rules iter-limit node-limit const-folding?))
+
+(define (run-egg input 
+                 precompute?
+                 variant?
+                 #:proof-input [proof-input '()])
+  (define egg-graph (make-egraph))
+  (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-query-exprs input)))
+  (define iter-data (egraph-run-rules egg-graph
+                                      (egraph-query-node-limit input)
+                                      (egraph-query-rules input)
+                                      node-ids
+                                      precompute?
+                                      #:limit (egraph-query-iter-limit input)))
+      
+  (define output-exprs
+    (if variant?
+        (get-rr-variants egg-graph node-ids input)
+        (get-simplify-variant egg-graph node-ids iter-data)))
+
+  (when (egraph-is-unsound-detected egg-graph)
+    (warn 'unsound-rules #:url "faq.html#unsound-rules"
+          "Unsound rule application detected in e-graph. Results may not be sound."))
+
+  (define proof
+    (match proof-input
+      [(cons start end)
+       (define proof (egraph-get-proof egg-graph start end))
+       (when (null? proof)
+          (error (format "Failed to produce proof for ~a to ~a" start end)))
+       proof]
+      [_ #f]))
+
+  (cons output-exprs proof))
+
+(define (get-rr-variants egg-graph node-ids input)
+  (for/list ([id node-ids] [expr (egraph-query-exprs input)]) ; TODO: Get Locations and Variants if Possible
+    (define output (egraph-get-variants egg-graph id expr))
+    (for/list ([variant (remove-duplicates output)])
+        (list variant input))))
+
+(define (get-simplify-variant egg-graph node-ids iter-data)
+  (for/list ([id node-ids])
+    (for/list ([iter (in-range (length iter-data))])
+      (egraph-get-simplest egg-graph id iter))))
 
 (define (egraph-get-simplest egraph-data node-id iteration)
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
