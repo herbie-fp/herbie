@@ -36,18 +36,22 @@
     (cond 
       [(= +inf.0 (list-ref cerrs cbest-index)) null]
       [else (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx)]))
-
   (define best-err 
     (cond 
       [(null? best) +inf.0] 
       [else (errors-score (option-errors best))]))
-
   (define best-index cbest-index)
+
+  ;; invariant:
+  ;; errs[i] is some best option on branch-expr[i] computed on more alts than we have right now.
+  ;;
+  ;; errs[i] will be +inf.0 if we recomputed the branch expressions for the current set of alts
+  ;; and branch-expr[i] no longer exists.
   (define errs (list-set cerrs best-index best-err))
 
   ;; not sure how to change this into something more idiomatic without losing the optimizations
-
   (for ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
+    ;; don't recompute if we know we've computed this branch-expr on more alts and it's still worse
     (cond [(and (< berr best-err) (not (= i cbest-index)))
       (define opt (option-on-expr alts err-lsts bexpr ctx))
       (define err (errors-score (option-errors opt)))
@@ -56,6 +60,7 @@
               (set! best opt)
               (set! best-err err)
               (set! best-index i)])]))
+
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
                   (for/list ([sidx (option-split-indices best)])

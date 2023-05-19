@@ -383,17 +383,41 @@
 
   (extract!))
 
+;; We want to reduce per branch-expression instead
+
 (define (pareto-regimes sorted ctx)
-  (let loop ([alts sorted])
-    (displayln (length alts))
+  (define branch-exprs
+    (if (flag-set? 'reduce 'branch-expressions)
+        (exprs-to-branch-on sorted ctx)
+        (program-variables (alt-program (first sorted)))))
+  (define err-lsts (batch-errors (map alt-program sorted) (*pcontext*) ctx))
+  (define init-options (for/list ([bexpr branch-exprs]) (option-on-expr sorted err-lsts bexpr ctx)))
+  (define init-errs (for/list ([option init-options]) (errors-score (option-errors option))))
+  (define init-index (argmin (curry list-ref init-errs) (range (length init-errs))))
+
+  (define ibranched-alt (combine-alts (list-ref init-options init-index) ctx))
+  (define ihigh (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices (list-ref init-options init-index)))))
+  (define init-alts (take sorted ihigh))
+  (cons ibranched-alt 
+  (let loop ([alts init-alts] [errs init-errs] [best-index init-index])
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
      [else
-      (define opt (infer-splitpoints alts ctx))
+      (define recomputed-branch-exprs
+        (if (flag-set? 'reduce 'branch-expressions)
+            (exprs-to-branch-on alts ctx)
+            (program-variables (alt-program (first sorted)))))
+      
+      (define processed-errs 
+        (for/list ([err errs] [bexpr branch-exprs])
+                  (cond [(member bexpr recomputed-branch-exprs) err]
+                        [else +inf.0])))
+
+      (match-define-values (opt opt-index new-errs) (infer-better alts branch-exprs processed-errs best-index ctx))
       (define branched-alt (combine-alts opt ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons branched-alt (loop (take alts high)))])))
+      (cons branched-alt (loop (take alts high) new-errs opt-index))]))))
 
 (define (extract!)
   (define ctx (*context*))
@@ -412,10 +436,8 @@
            (equal? (representation-type repr) 'real)
            (not (null? (program-variables (alt-program (car all-alts))))))
       (cond
-       ; [(*pareto-mode*)
-       ; (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
        [(*pareto-mode*)
-       (regime-better (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
+       (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
        [else
         (define option (infer-splitpoints all-alts ctx))
         (list (combine-alts option ctx))])]

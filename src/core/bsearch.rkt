@@ -6,7 +6,7 @@
          "../programs.rkt" "../points.rkt" "regimes.rkt" "../float.rkt"
          "../pretty-print.rkt" "../ground-truth.rkt")
 
-(provide combine-alts (struct-out sp) splitpoints->point-preds provide regime-better)
+(provide combine-alts (struct-out sp) splitpoints->point-preds provide )
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -15,44 +15,6 @@
 ;; A splitpoint (sp a b pt) means we should use alt a if b < pt
 ;; The last splitpoint uses +nan.0 for pt and represents the "else"
 (struct sp (cidx bexpr point) #:prefab)
-
-
-;; We want to reduce per branch-expression instead
-
-(define (regime-better sorted ctx)
-  (define branch-exprs
-    (if (flag-set? 'reduce 'branch-expressions)
-        (exprs-to-branch-on sorted ctx)
-        (program-variables (alt-program (first sorted)))))
-  (define err-lsts (batch-errors (map alt-program sorted) (*pcontext*) ctx))
-  (define init-options (for/list ([bexpr branch-exprs]) (option-on-expr sorted err-lsts bexpr ctx)))
-  (define init-errs (for/list ([option init-options]) (errors-score (option-errors option))))
-  (define init-index (argmin (curry list-ref init-errs) (range (length init-errs))))
-
-  (define ibranched-alt (combine-alts (list-ref init-options init-index) ctx))
-  (define ihigh (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices (list-ref init-options init-index)))))
-  (define init-alts (take sorted ihigh))
-  (cons ibranched-alt 
-  (let loop ([alts init-alts] [errs init-errs] [best-index init-index])
-    (cond
-     [(null? alts) '()]
-     [(= (length alts) 1) (list (car alts))]
-     [else
-      (define recomputed-branch-exprs
-        (if (flag-set? 'reduce 'branch-expressions)
-            (exprs-to-branch-on alts ctx)
-            (program-variables (alt-program (first sorted)))))
-      
-      (define processed-errs 
-        (for/list ([err errs] [bexpr branch-exprs])
-                  (cond [(member bexpr recomputed-branch-exprs) err]
-                        [else +inf.0])))
-
-      (match-define-values (opt opt-index new-errs) (infer-better alts branch-exprs processed-errs best-index ctx))
-      (define branched-alt (combine-alts opt ctx))
-      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons branched-alt (loop (take alts high) new-errs opt-index))]))))
-
 
 (define (combine-alts best-option ctx)
   (match-define (option splitindices alts pts expr _) best-option)
