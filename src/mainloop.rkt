@@ -418,10 +418,7 @@
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
-  (timeline-event! 'simplify)
-  (define progss*
-    (simplify-batch
-      (make-egg-query (map (compose program-body alt-program) joined-alts) (*fp-safe-simplify-rules*)) #t))
+
   (define cleaned-alts
     (cond
       [(flag-set? 'generate 'simplify)
