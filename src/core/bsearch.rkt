@@ -26,14 +26,14 @@
         (program-variables (alt-program (first sorted)))))
   (define err-lsts (batch-errors (map alt-program sorted) (*pcontext*) ctx))
   (define init-options (for/list ([bexpr branch-exprs]) (option-on-expr sorted err-lsts bexpr ctx)))
-  (define errs (for/list ([option init-options]) (errors-score (option-errors option))))
-  (define best-index (argmin (curry list-ref errs) (range (length errs))))
+  (define init-errs (for/list ([option init-options]) (errors-score (option-errors option))))
+  (define init-index (argmin (curry list-ref init-errs) (range (length init-errs))))
 
-  (define ibranched-alt (combine-alts (list-ref init-options best-index) ctx))
-  (define ihigh (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices (list-ref init-options best-index)))))
+  (define ibranched-alt (combine-alts (list-ref init-options init-index) ctx))
+  (define ihigh (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices (list-ref init-options init-index)))))
   (define init-alts (take sorted ihigh))
   (cons ibranched-alt 
-  (let loop ([alts init-alts])
+  (let loop ([alts init-alts] [errs init-errs] [best-index init-index])
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
@@ -43,17 +43,15 @@
             (exprs-to-branch-on alts ctx)
             (program-variables (alt-program (first sorted)))))
       
-      (set! errs 
+      (define processed-errs 
         (for/list ([err errs] [bexpr branch-exprs])
                   (cond [(member bexpr recomputed-branch-exprs) err]
                         [else +inf.0])))
 
-      (match-define-values (opt opt-index new-errs) (infer-better alts branch-exprs errs best-index ctx))
-      (set! errs new-errs)
-      (set! best-index opt-index)
+      (match-define-values (opt opt-index new-errs) (infer-better alts branch-exprs processed-errs best-index ctx))
       (define branched-alt (combine-alts opt ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons branched-alt (loop (take alts high)))]))))
+      (cons branched-alt (loop (take alts high) new-errs opt-index))]))))
 
 
 (define (combine-alts best-option ctx)
