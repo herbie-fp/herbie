@@ -128,7 +128,7 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
     })
 }
 
-unsafe fn ptr_to_string(ptr: *const i8) -> String {
+unsafe fn ptr_to_string(ptr: *const c_char) -> String {
     let bytes = CStr::from_ptr(ptr).to_bytes();
     String::from_utf8(bytes.to_vec()).unwrap()
 }
@@ -387,7 +387,7 @@ pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *const i8) -> u32 {
+pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *const c_char) -> u32 {
     ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
