@@ -3,7 +3,7 @@
 (require math/bigfloat rival)
 (require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide sample-points batch-prepare-points make-search-func eval-prog-real)
+(provide sample-points batch-prepare-points make-search-func eval-prog-real eval-prog-list-real)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -53,6 +53,32 @@
         'unsamplable)
        y))))
 
+(define (eval-prog-list-real prog-list ctx)
+  (define repr (context-repr ctx))
+  (define pre `(λ ,(context-vars ctx) (TRUE)))
+  (define fn (make-search-func pre prog-list ctx))
+  ; temp-bf saved for later
+  (define temp-bf (representation-bf->repr repr))
+  (define (f . pt)
+    ; result prec are unused
+    (define-values (result prec exs) (ival-eval fn pt))
+    ; exs : (or/c (listof ival?) +nan.0)
+    (match exs
+      ; is this a list?
+      [(? list?)
+       ; for ex in exs
+       (for/list ([ex exs])
+         (temp-bf (ival-lo ex)) ; TODO what is this?
+         )]
+      [(? nan?)
+       ; for _ in prog-list
+       (for/list ([_ prog-list])
+         ; always return `+nan.0`
+         +nan.0)]))
+  (procedure-rename f '<eval-prog-real>)
+  )
+
+;; Orginal Function - ZE
 (define (eval-prog-real prog ctx)
   (define repr (context-repr ctx))
   (define pre `(λ ,(program-variables prog) (TRUE)))

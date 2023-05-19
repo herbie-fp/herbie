@@ -59,13 +59,16 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors prog ctx)
-  (define expr (program-body prog))
+  ; extracts program body from program
+  (define expr (program-body prog)) 
+  ; extracts the subexpression
   (define subexprs (all-subexpressions expr))
-  (define subexprs-fn
-    (for/hash ([expr (in-list subexprs)])
-      (define subexpr-prog `(λ ,(program-variables prog) ,expr))
-      (define ctx* (struct-copy context ctx [repr (repr-of expr ctx)]))
-      (values expr (eval-prog-real subexpr-prog ctx*))))
+  ; now we are defining a subexpression function
+  (define prog-list 
+    (for/list ([sexpr (in-list subexprs)])
+      `(λ ,(program-variables prog) ,sexpr))
+  )
+  (define subexprs-fn (eval-prog-list-real prog-list ctx))
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts-hash
