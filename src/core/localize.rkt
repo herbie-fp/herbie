@@ -57,24 +57,21 @@
               (sow (cons err expr)))))
     > #:key (compose errors-score car)))
 
-; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors prog ctx)
-  ; extracts program body from program
   (define expr (program-body prog)) 
-  ; extracts the subexpression
   (define subexprs (all-subexpressions expr))
-  ; now we are defining a subexpression function
   (define prog-list 
     (for/list ([sexpr (in-list subexprs)])
-      `(λ ,(program-variables prog) ,sexpr))
+      `(λ ,(context-vars ctx) ,sexpr))
   )
   (define subexprs-fn (eval-prog-list-real prog-list ctx))
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
+    (define exacts (apply subexprs-fn pt))
     (define exacts-hash
-      (for/hash ([expr (in-list subexprs)])
-        (define fn (hash-ref subexprs-fn expr))
-        (values expr (apply fn pt))))
+      (for/hash ([expr (in-list subexprs)] 
+        [ex (in-list exacts)])
+        (values expr ex)))
     (for ([expr (in-list subexprs)])
       (define err
         (match expr
@@ -89,7 +86,6 @@
            (ulp-difference (hash-ref exacts-hash expr)
                            (apply (operator-info f 'fl) argapprox) repr)]))
       (hash-update! errs expr (curry cons err))))
-
   errs)
 
 ;; Compute the local error of every subexpression of `prog`
