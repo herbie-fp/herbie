@@ -67,7 +67,7 @@
          )]
       [(? nan?)
        (for/list ([_ prog-list])
-         +nan.0)]))
+         ((representation-bf->repr repr) +nan.bf))]))
   (procedure-rename f '<eval-prog-real>)
   )
 
