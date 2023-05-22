@@ -285,7 +285,7 @@
                         #:const-folding? [const-folding? #t])
   (egraph-query exprs rules iter-limit node-limit const-folding?))
 
-(define (run-egg input variant? #:proof-input [proof-input '()])
+(define (run-egg input variants? #:proof-input [proof-input '()])
   (define egg-graph (make-egraph))
   (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-query-exprs input)))
   (define iter-data (egraph-run-rules egg-graph
@@ -296,9 +296,12 @@
                                       #:limit (egraph-query-iter-limit input)))
   
   (define variants
-    (if variant?
-        (get-rr-variants egg-graph node-ids input)
-        (get-simplify-variant egg-graph node-ids iter-data)))
+    (if variants?
+        (for/list ([id node-ids] [expr (egraph-query-exprs input)])
+          (egraph-get-variants egg-graph id expr))
+        (for/list ([id node-ids])
+          (for/list ([iter (in-range (length iter-data))])
+            (egraph-get-simplest egg-graph id iter)))))
   
   (when (egraph-is-unsound-detected egg-graph) 
     (warn 'unsound-rules #:url "faq.html#unsound-rules"
@@ -311,17 +314,6 @@
         (error (format "Failed to produce proof for ~a to ~a" start end)))
       (cons variants proof)]
     [else (cons variants #f)]))
-
-(define (get-rr-variants egg-graph node-ids input)
-  (for/list ([id node-ids] [expr (egraph-query-exprs input)]) ; TODO: Get Locations and Variants if Possible
-    (define output (egraph-get-variants egg-graph id expr))
-    (for/list ([variant (remove-duplicates output)])
-        (list variant input))))
-
-(define (get-simplify-variant egg-graph node-ids iter-data)
-  (for/list ([id node-ids])
-    (for/list ([iter (in-range (length iter-data))])
-      (egraph-get-simplest egg-graph id iter))))
 
 (define (egraph-get-simplest egraph-data node-id iteration)
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))

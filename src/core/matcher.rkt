@@ -104,8 +104,13 @@
    [else
     (timeline-push! 'method "batch-egg-rewrite")
     (timeline-push! 'inputs (map ~a exprs))
-    ; (define out (batch-egg-rewrite exprs ctx #:rules rules #:roots root-locs #:depths depths))
     (define e-input (make-egg-query exprs rules #:node-limit (*node-limit*)))
-    (match-define (cons variants _) (run-egg e-input #t))
-    (timeline-push! 'outputs (map ~a variants))
-    variants]))
+    (match-define (cons variantss _) (run-egg e-input #t))
+
+    (define out
+      (for/list ([expr exprs] [variants variantss])
+        (for/list ([variant (remove-duplicates variants)])
+            (list variant e-input))))
+
+    (timeline-push! 'outputs (map ~a (apply append variantss)))
+    out]))

@@ -440,7 +440,7 @@
        (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
        (define simplified (simplify-batch egg-query))
 
-       (for/list ([altn joined-alts] [progs progss*])
+       (for/list ([altn joined-alts] [progs simplified])
          (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
              'final-simplify (list altn)))]
       [else
