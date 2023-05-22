@@ -431,21 +431,24 @@
      [else
       (list (argmin score-alt all-alts))]))
 
-  (timeline-event! 'simplify)
-  (define egg-query
-    (make-egg-query (map (compose program-body alt-program) joined-alts)
-                    (*fp-safe-simplify-rules*)
-                    #:const-folding? #f))
-  (define simplified (simplify-batch egg-query))
   (define cleaned-alts
-    (remove-duplicates
-      (for/list ([altn joined-alts] [progs simplified])
-        (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
-              'final-simplify (list altn)))
-      alt-equal?))
+    (cond
+      [(flag-set? 'generate 'simplify)
+       (timeline-event! 'simplify)
+
+       (define input-progs (map (compose program-body alt-program) joined-alts))
+       (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
+       (define simplified (simplify-batch egg-query))
+
+       (for/list ([altn joined-alts] [progs progss*])
+         (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
+             'final-simplify (list altn)))]
+      [else
+       joined-alts]))
+        
   (define alts-deduplicated
     (remove-duplicates cleaned-alts alt-equal?))
-  
+
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   ;; find the best, sort the rest by cost
   (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts-deduplicated))

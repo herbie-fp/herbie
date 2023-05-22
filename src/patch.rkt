@@ -146,54 +146,57 @@
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
-  (timeline-event! 'rewrite)
 
-  ;; partition the rules
-  (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
+  (^rewrites^ '())
+  (when (flag-set? 'generate 'rr)
+    (timeline-event! 'rewrite)
 
-  ;; get subexprs and locations
-  (define exprs (map (compose program-body alt-program) (^queued^)))
-  (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
+    ;; partition the rules
+    (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
 
-  ;; HACK:
-  ;; - check loaded representations
-  ;; - if there is only one real representation, allow expansive rules to be run in egg
-  ;; This is just a workaround and should definitely be fixed
-  (define one-real-repr? (= (count (λ (r) (equal? (representation-type r) 'real)) (*needed-reprs*)) 1))
+    ;; get subexprs and locations
+    (define exprs (map (compose program-body alt-program) (^queued^)))
+    (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
 
-  ;; rewrite high-error locations
-  (define changelists
-    (if one-real-repr?
-        (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules))
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
-        (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules normal-rules)
-          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:once? #t)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))))
+    ;; HACK:
+    ;; - check loaded representations
+    ;; - if there is only one real representation, allow expansive rules to be run in egg
+    ;; This is just a workaround and should definitely be fixed
+    (define one-real-repr? (= (count (λ (r) (equal? (representation-type r) 'real)) (*needed-reprs*)) 1))
 
-  ;; rewrite low-error locations (only precision changes allowed)
-  (define changelists-low-locs
-    (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
+    ;; rewrite high-error locations
+    (define changelists
+      (if one-real-repr?
+          (merge-changelists
+            (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules))
+            (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
+          (merge-changelists
+            (rewrite-expressions exprs (*context*) #:rules normal-rules)
+            (rewrite-expressions exprs (*context*) #:rules expansive-rules #:once? #t)
+            (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))))
 
-  (define comb-changelists (append changelists changelists-low-locs))
-  (define altns (append (^queued^) (^queuedlow^)))
-  
-  (define variables (program-variables (alt-program (first altns))))
-  (define rewritten
-    (for/fold ([done '()] #:result (reverse done))
-              ([cls comb-changelists] [altn altns]
-              #:when true [cl cls])
-        (match-define (list subexp input) cl)
-          (define body* (apply-repr-change-expr subexp (*context*)))
-          (if body*
-            ; We need to pass '(2) here so it can get overwritten on patch-fix
-            (cons (alt `(λ ,variables ,body*) (list 'rr '(2) input #f #f) (list altn)) done)
-            done)))
+    ;; rewrite low-error locations (only precision changes allowed)
+    (define changelists-low-locs
+      (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
 
-  (timeline-push! 'count (length (^queued^)) (length rewritten))
-  ; TODO: accuracy stats for timeline
-  (^rewrites^ rewritten)
+    (define comb-changelists (append changelists changelists-low-locs))
+    (define altns (append (^queued^) (^queuedlow^)))
+    
+    (define variables (program-variables (alt-program (first altns))))
+    (define rewritten
+      (for/fold ([done '()] #:result (reverse done))
+                ([cls comb-changelists] [altn altns]
+                #:when true [cl cls])
+          (match-define (list subexp input) cl)
+            (define body* (apply-repr-change-expr subexp (*context*)))
+            (if body*
+              ; We need to pass '(2) here so it can get overwritten on patch-fix
+              (cons (alt `(λ ,variables ,body*) (list 'rr '(2) input #f #f) (list altn)) done)
+              done)))
+
+    (timeline-push! 'count (length (^queued^)) (length rewritten))
+    ; TODO: accuracy stats for timeline
+    (^rewrites^ rewritten))
   (void))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
