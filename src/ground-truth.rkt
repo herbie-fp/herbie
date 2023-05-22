@@ -61,15 +61,12 @@
     (define-values (result prec exs) (ival-eval fn pt))
     (match exs
       [(? list?)
-       (define temp-bf (representation-bf->repr repr))
        (for/list ([ex exs])
-         (temp-bf (ival-lo ex))
-         )]
+         ((representation-bf->repr repr) (ival-lo ex)))]
       [(? nan?)
        (for/list ([_ prog-list])
          ((representation-bf->repr repr) +nan.bf))]))
-  (procedure-rename f '<eval-prog-real>)
-  )
+  (procedure-rename f '<eval-prog-real>))
 
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))

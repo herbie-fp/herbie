@@ -62,17 +62,20 @@
   (define subexprs (all-subexpressions expr))
   (define prog-list 
     (for/list ([sexpr (in-list subexprs)])
-      `(λ ,(context-vars ctx) ,sexpr))
-  )
+      `(λ ,(context-vars ctx) ,sexpr)))
   (define subexprs-fn (eval-prog-list-real prog-list ctx))
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
+    (eprintf "~a -> ~a\n" pt ex)
+    (eprintf "~a ~a\n" (flonum? (first pt)) (flonum? ex))
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
       (for/hash ([expr (in-list subexprs)] 
         [ex (in-list exacts)])
         (values expr ex)))
+    (eprintf "got here\n")
     (for ([expr (in-list subexprs)])
+      (eprintf "expr ~a\n" expr)
       (define err
         (match expr
           [(? number?) 1]
@@ -83,6 +86,8 @@
            (define argapprox
              (for/list ([arg (in-list args)] [repr (in-list (operator-info f 'itype))])
                (hash-ref exacts-hash arg)))
+           (eprintf "~a ~a\n" argapprox (flonum? (first argapprox)))
+           (eprintf "~a\n" (apply (operator-info f 'fl) argapprox))
            (ulp-difference (hash-ref exacts-hash expr)
                            (apply (operator-info f 'fl) argapprox) repr)]))
       (hash-update! errs expr (curry cons err))))
