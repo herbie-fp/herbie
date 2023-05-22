@@ -26,7 +26,6 @@
 ;; can insert a timeline break between them.
 
 (define (infer-better alts branch-exprs cerrs cbest-index ctx)
-  (timeline-event! 'regimes)
   (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts))
   (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
 
@@ -126,6 +125,7 @@
     expr))
 
 (define (option-on-expr alts err-lsts expr ctx)
+  (timeline-event! 'regimes)
   (define repr (repr-of expr ctx))
   (define timeline-stop! (timeline-start! 'times (~a expr)))
 
