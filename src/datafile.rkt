@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/date json)
+(require json racket/date)
 (require "common.rkt" "./syntax/types.rkt" "pareto.rkt")
 
 (provide
@@ -39,17 +39,16 @@
                                        (list (list 0 0)))
                     cas))
   (define reprs (map (compose get-representation table-row-precision) trs))
-
-  (define start
-    (for/fold ([x 0] [y 0] #:result (cons x y)) ([s starts])
+  (define-values (start-x start-y)
+    (for/fold ([x 0.0] [y 0]) ([s starts])
       (values (+ x (first s)) (+ y (second s)))))
   (define ptss*
     (for/list ([pts ptss])
       (for/list ([pt pts])
         (cons (first pt) (second pt)))))
   (define ymax (apply + (map representation-total-bits reprs)))
-  (define frontier (map (λ (pt) (cons (first pt) (second pt))) (pareto-combine ptss #:convex? #t)))
-  (values start frontier ymax))
+  (define frontier (map (λ (pt) (cons (/ (first pt) start-x) (second pt))) (pareto-combine ptss #:convex? #t)))
+  (values (cons 1.0 start-y) frontier ymax))
 
 (define (write-datafile file info)
   (define (simplify-test test)
@@ -94,9 +93,9 @@
       (match-define (list (cons costs scores) ...) pareto-points)
       (define x-max (argmax identity (cons (car pareto-start) costs)))
       (list 
-          (list x-max pareto-max)
-          (list (car pareto-start) (cdr pareto-start))
-          (for/list ([acost costs] [aerr scores]) (list acost aerr))))
+        (list x-max pareto-max)
+        (list (car pareto-start) (cdr pareto-start))
+        (for/list ([acost costs] [aerr scores]) (list acost aerr))))
 
   (define data
     (match info
