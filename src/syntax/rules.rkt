@@ -12,38 +12,6 @@
 ;; Rulesets
 (define *rulesets* (make-parameter '()))
 
-;; Rules
-(define *rules* (make-parameter '()))
-(define *simplify-rules* (make-parameter '()))
-(define *fp-safe-simplify-rules* (make-parameter '()))
-
-;; Note on rules
-;; fp-safe-simplify ⊂ simplify ⊂ all
-;;
-;; all                    requires at least one tag of an active group of rules
-;; simplify               same req. as all + 'simplify' tag
-;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag ('fp-safe' does not imply 'simplify')
-;;
-
-(define (update-rules rules groups)
-  (when (ormap (curry flag-set? 'rules) groups)             ; update all
-    (*rules* (append (*rules*) rules))
-    (when (set-member? groups 'simplify)                    ; update simplify
-      (*simplify-rules* (append (*simplify-rules*) rules))
-      (when (set-member? groups 'fp-safe)                   ; update fp-safe
-        (*fp-safe-simplify-rules*
-          (append (*fp-safe-simplify-rules*) rules))))))
-
-;; Rule struct
-
-(struct rule (name input output itypes otype)
-        ;; Input and output are patterns
-        ;; itypes is a mapping, variable name -> representation
-        ;; otype is a representation
-        #:methods gen:custom-write
-        [(define (write-proc rule port mode)
-           (fprintf port "#<rule ~a>" (rule-name rule)))])
-
 (define (rule-ops-supported? rule)
   (define (ops-in-expr expr)
     (cond
@@ -54,13 +22,52 @@
       [else true]))
   (ops-in-expr (rule-output rule)))
 
-(register-reset
- #:priority 10 ; Must be higher than priority for pruning operators
- (λ ()
-   (*rulesets*
-    (for/list ([ruleset (*rulesets*)])
+;;
+;; Rules
+;; fp-safe-simplify ⊂ simplify ⊂ all
+;;
+;; all                    requires at least one tag of an active group of rules
+;; simplify               same req. as all + 'simplify' tag
+;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag ('fp-safe' does not imply 'simplify')
+;;
+
+(define (*rules*)
+  (reap [sow]
+    (for ([ruleset (*rulesets*)])
       (match-define (list rules groups types) ruleset)
-      (list (filter rule-ops-supported? rules) groups types)))))
+      (when (and (ormap (curry flag-set? 'rules) groups)
+                 (filter rule-ops-supported? rules))
+        (for ([rule (in-list rules)]) (sow rule))))))
+
+(define (*simplify-rules*)
+  (reap [sow]
+    (for ([ruleset (*rulesets*)])
+      (match-define (list rules groups types) ruleset)
+      (when (and (ormap (curry flag-set? 'rules) groups)
+                 (set-member? groups 'simplify)
+                 (filter rule-ops-supported? rules))
+        (for ([rule (in-list rules)]) (sow rule))))))
+
+(define (*fp-safe-simplify-rules*)
+  (reap [sow]
+    (for ([ruleset (*rulesets*)])
+      (match-define (list rules groups types) ruleset)
+      (when (and (ormap (curry flag-set? 'rules) groups)
+                 (set-member? groups 'simplify)
+                 (set-member? groups 'fp-safe)
+                 (filter rule-ops-supported? rules))
+        (for ([rule (in-list rules)])
+          (sow rule))))))
+
+;; Rule struct
+
+(struct rule (name input output itypes otype)
+        ;; Input and output are patterns
+        ;; itypes is a mapping, variable name -> representation
+        ;; otype is a representation
+        #:methods gen:custom-write
+        [(define (write-proc rule port mode)
+           (fprintf port "#<rule ~a>" (rule-name rule)))])
 
 ;;
 ;;  Rule loading
@@ -95,8 +102,7 @@
       (match-define (list rname input output) r)
       (rule rname input output var-ctx
             (repr-of-rule input output var-ctx))))
-  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
-  (update-rules rules* groups))
+  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
       
 (define-syntax define-ruleset
   (syntax-rules ()
@@ -112,8 +118,7 @@
       (match-define (list rname input output) ru)
       (rule rname input output var-ctx
             (type-of-rule input output var-ctx))))
-  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*)))
-  (update-rules rules* groups))
+  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
   
 (define-syntax define-ruleset*
   (syntax-rules ()
