@@ -23,7 +23,7 @@
       ,(render-menu
         (list)
         (list
-         '("Report" . "../results.html")
+         '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))
 
       ,(render-warnings warnings)

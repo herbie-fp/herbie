@@ -93,7 +93,7 @@
          '("Derivation" . "#history")
          '("Reproduce" . "#reproduce"))
         (list
-         '("Report" . "../results.html")
+         '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))
 
       (section ([id "large"])
