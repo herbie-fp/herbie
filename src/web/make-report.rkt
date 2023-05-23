@@ -20,7 +20,7 @@
     (table
       (tr (th "Subreport") (th "Time") (th "Passed") (th "Tests") (th "Bits"))
       ,@(for/list ([report reports] [path paths])
-          (let ([index (path->string (build-path path "results.html"))]
+          (let ([index (path->string (build-path path "index.html"))]
                 [time (apply + (map table-row-time (report-info-tests report)))]
                 [passed (for/sum ([row (report-info-tests report)])
                           (if (member (table-row-status row)
