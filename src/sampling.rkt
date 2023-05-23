@@ -34,7 +34,7 @@
   (check-equal? (precondition->hyperrects
                  '(and (and (<=.f64 0 a) (<=.f64 a 1))
                        (and (<=.f64 0 b) (<=.f64 b 1)))
-                 (context '(a b) (list repr repr) repr))
+                 (context '(a b) repr (list repr repr)))
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
 
 ;; Part 2: using subdivision search to find valid intervals
