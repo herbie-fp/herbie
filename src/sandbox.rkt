@@ -104,7 +104,7 @@
                 (if (test-output test)
                     (errors (test-output test) processed-test-pcontext context)
                     #f)
-                (program-cost (test-program test) output-repr)
+                (expr-cost (test-input test) output-repr)
                 (map (curryr alt-cost output-repr) alts)
                 (*all-alts*)))
 
@@ -192,7 +192,7 @@
     (define start-errors  (test-success-start-error result))
     (define end-errorss   (test-success-end-errors result))
     (define target-errors (test-success-target-error result))
-    (define start-prog    (alt-program (test-success-start-alt result)))
+    (define start-expr    (alt-expr (test-success-start-alt result)))
     (define end-progs     (map alt-program (test-success-end-alts result)))
     (define costs         (test-success-end-costs result))
 
@@ -205,7 +205,7 @@
     (define end-exprs (map (λ (p) (program-body (resugar-program p (test-output-repr test)))) end-progs))
 
     (define cost&accuracy
-      (list (list (program-cost start-prog (test-output-repr test)) start-score)
+      (list (list (expr-cost start-expr (test-output-repr test)) start-score)
             (list (car costs) (car end-scores))
             (map list (cdr costs) (cdr end-scores) (cdr end-exprs))))
 

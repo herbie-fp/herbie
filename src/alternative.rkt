@@ -28,7 +28,7 @@
   (alt (alt-program altn) event (list altn)))
 
 (define (alt-cost altn repr)
-  (program-cost (alt-program altn) repr))
+  (expr-cost (alt-expr altn) repr))
 
 (define (alt-map f altn)
   (f
