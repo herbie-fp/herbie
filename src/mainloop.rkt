@@ -39,13 +39,13 @@
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn ctx)
   (define prog (alt-program altn))
-  (filter (λ (altn) (program-body (alt-program altn)))
+  (filter alt-expr
     (for/list ([(k v) (in-hash (*conversions*))]
               #:unless (equal? k (context-repr ctx))
               #:when (set-member? v (context-repr ctx)))
       (define rewrite (get-rewrite-operator k))
       (define body* (apply-repr-change-expr (list rewrite (program-body prog)) ctx))
-      (alt `(λ ,(program-variables prog) ,body*) 'start '()))))
+      (alt `(λ ,(context-vars ctx) ,body*) 'start '()))))
 
 ;; Information
 (define (list-alts)
@@ -58,7 +58,7 @@
              [(set-member? ndone-alts alt) " "]
              [else "."])
        (~r #:min-width 4 n)
-       (program-body (alt-program alt)))))
+       (alt-expr alt))))
   (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
 
 ;; Begin iteration
@@ -78,7 +78,7 @@
 ; Pareto mode alt picking
 (define (choose-mult-alts from)
   (define repr (context-repr (*context*)))
-  (define altns (filter (compose list? program-body alt-program) from))
+  (define altns (filter (compose list? alt-expr) from))
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
@@ -99,7 +99,7 @@
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts
-                    (~a (program-body (alt-program alt)))
+                    (~a (alt-expr alt))
                     (cond
                      [(set-member? alts alt) "next"]
                      [(set-member? fresh-alts alt) "fresh"]
@@ -122,7 +122,7 @@
   (timeline-event! 'localize)
 
   (define orig-prog (alt-program (^next-alt^)))
-  (define vars (program-variables orig-prog))
+  (define vars (context-vars (*context*)))
   (define loc-errs (localize-error (alt-program (^next-alt^)) (*context*)))
   (define repr (context-repr (*context*)))
 
@@ -163,10 +163,9 @@
 (define (reconstruct! alts)
   ;; extracts the base expression of a patch
   (define (get-starting-expr altn)
-    (match altn
-     [(alt prog '(patch) _) (program-body prog)]
-     [(alt _ _ (list)) #f]
-     [(alt _ _ (list prev)) (get-starting-expr prev)]))
+    (match (alt-event altn)
+     ['(patch) (alt-expr altn)]
+     [_ (get-starting-expr (first (alt-prevs altn)))]))
 
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
@@ -184,7 +183,7 @@
             (list 'rr (append loc0 (cdr loc)) input proof soundiness)]
            [`(simplify ,loc ,input ,proof ,soundiness)
             (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
-        (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))
+        (define prog* (location-do loc0 (alt-program orig) (const (program-body prog))))
         (alt prog* event* (list (loop (first prev))))])))
   
   (^patched^
@@ -324,11 +323,11 @@
 (define (run-improve! prog pcontext iters
                       #:specification [specification #f]
                       #:preprocess [preprocess '()])
-  (define vars (program-variables specification))
+  (define vars (context-vars (*context*)))
   (timeline-event! 'preprocess)
 
   ;; If the specification is given, it is used for sampling points
-  (define sortable (connected-components specification))
+  (define sortable (connected-components (program-body specification) (*context*)))
 
   (define new-preprocess
     (for/list ([sortable-variables (in-list sortable)]
@@ -345,7 +344,7 @@
   (cons best rest))
 
 (define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two ctx)
-  (define vars (program-variables (alt-program alt)))
+  (define vars (context-vars ctx))
   (define pcontext1 (preprocess-pcontext pcontext preprocessing-one ctx))
   (define pcontext2 (preprocess-pcontext pcontext preprocessing-two ctx))
   (<= (errors-score (errors (alt-program alt) pcontext1 (*context*)))
@@ -402,14 +401,14 @@
 
   (define ndone-alts (atab-not-done-alts (^table^)))
   (for ([alt (atab-active-alts (^table^))])
-    (timeline-push! 'alts (~a (program-body (alt-program alt)))
+    (timeline-push! 'alts (~a (alt-expr alt))
                     (if (set-member? ndone-alts alt) "fresh" "done")
                     (score-alt alt) (~a (representation-name repr))))
   (define joined-alts
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
            (equal? (representation-type repr) 'real)
-           (not (null? (program-variables (alt-program (car all-alts))))))
+           (not (null? (context-vars ctx))))
       (cond
        [(*pareto-mode*)
         (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
@@ -424,13 +423,13 @@
       [(flag-set? 'generate 'simplify)
        (timeline-event! 'simplify)
 
-       (define input-progs (map (compose program-body alt-program) joined-alts))
+       (define input-progs (map alt-expr joined-alts))
        (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*)))
        (define progss* (simplify-batch egg-query #f))
 
        (remove-duplicates
          (for/list ([altn joined-alts] [progs progss*])
-           (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
+           (alt `(λ ,(context-variables ctx) ,(last progs))
                 'final-simplify (list altn)))
          alt-equal?)]
       [else

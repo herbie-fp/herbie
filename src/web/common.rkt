@@ -136,11 +136,11 @@
           [target "_blank"] 
           ;[style "rotate: 270deg"]
           ) "?"))
-     ,(if (equal? (program-body (test-precondition test)) '(TRUE))
+     ,(if (equal? (test-pre test) '(TRUE))
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(expr->tex (resugar-program (program-body (test-precondition test)) output-repr)) "\\]")))
+                  "\\[" ,(expr->tex (resugar-program (test-pre test) output-repr)) "\\]")))
      ,(if (empty? preprocess)
           ""
           (render-preprocess preprocess))
@@ -188,9 +188,9 @@
          (format "(FPCore ~a" (test-vars test)))
      (format "  :name ~s" (test-name test))
      (format "  :precision ~s" (representation-name (test-output-repr test)))
-     (if (equal? (program-body (test-precondition test)) '(TRUE))
+     (if (equal? (test-pre test) '(TRUE))
          #f
-         (format "  :pre ~a" (resugar-program (program-body (test-precondition test)) output-repr)))
+         (format "  :pre ~a" (resugar-program (test-pre test) output-repr)))
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))

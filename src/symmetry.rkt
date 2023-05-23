@@ -1,5 +1,5 @@
 #lang racket
-(require "common.rkt" "programs.rkt" "core/simplify.rkt" "syntax/rules.rkt" "core/egg-herbie.rkt")
+(require "common.rkt" "programs.rkt" "syntax/types.rkt" "core/simplify.rkt" "syntax/rules.rkt" "core/egg-herbie.rkt")
 
 (provide connected-components)
 
@@ -15,11 +15,10 @@
              #:when (equal? swap* orig))
     swap))
 
-(define (connected-components expr)
-  (define vars (program-variables expr))
-  (define body (program-body expr))
+(define (connected-components expr ctx)
+  (define vars (context-variables ctx))
 
-  (define swaps (get-swaps vars body))
+  (define swaps (get-swaps vars expr))
   (define rules*
     (for/list ([swap swaps])
       (match-define (list a b) swap)

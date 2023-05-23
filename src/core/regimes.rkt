@@ -27,18 +27,18 @@
 
 (define (infer-splitpoints alts ctx)
   (timeline-event! 'regimes)
-  (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts))
+  (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts ctx)
-        (program-variables (alt-program (first alts)))))
+        (context-vars ctx))
   (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
   (define options (for/list ([bexpr branch-exprs]) (option-on-expr alts err-lsts bexpr ctx)))
   (define best (argmin (compose errors-score option-errors) options))
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
                   (for/list ([sidx (option-split-indices best)])
-                    (~a (program-body (alt-program (list-ref alts (si-cidx sidx)))))))
+                    (~a (alt-expr (list-ref alts (si-cidx sidx))))))
   (define err-lsts* (flip-lists err-lsts))
   (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
   (timeline-push! 'accuracy (errors-score (option-errors best)))
@@ -81,7 +81,7 @@
   (define repr (repr-of expr ctx))
   (define timeline-stop! (timeline-start! 'times (~a expr)))
 
-  (define vars (program-variables (alt-program (first alts))))
+  (define vars (context-vars ctx)))
   (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
   (define fn (eval-prog `(λ ,vars ,expr) 'fl ctx))
   (define splitvals (for/list ([pt pts]) (apply fn pt)))

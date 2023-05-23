@@ -173,7 +173,7 @@
   (define test (test-result-test result))
   (define repr (test-output-repr test))
   (table-row (test-name test) (test-identifier test) status
-             (resugar-program (program-body (test-precondition test)) repr)
+             (resugar-program (test-pre test) repr)
              (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
              (representation-name (test-output-repr test))
              (map (curry map representation-name) (test-conversions test))

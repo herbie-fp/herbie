@@ -9,15 +9,15 @@
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
-(define (precondition->hyperrects precondition reprs repr)
+(define (precondition->hyperrects precondition ctx)
   ;; FPBench needs unparameterized operators
   (define range-table 
     (condition->range-table  
-      (resugar-program (program-body precondition) repr #:full #f)))
+      (resugar-program (program-body precondition) (context-repr ctx) #:full #f)))
 
   (apply cartesian-product
-         (for/list ([var-name (program-variables precondition)] [repr reprs])
-           (map (lambda (interval) (fpbench-ival->ival repr interval))
+         (for/list ([var-name (context-vars ctx)] [var-repr (context-var-reprs ctx)])
+           (map (lambda (interval) (fpbench-ival->ival var-repr interval))
                 (range-table-ref range-table var-name)))))
 
 (define (fpbench-ival->ival repr fpbench-interval)
@@ -33,7 +33,8 @@
   (define repr (get-representation 'binary64))
   (check-equal? (precondition->hyperrects
                  '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))
-                                (and (<=.f64 0 b) (<=.f64 b 1)))) (list repr repr) repr)
+                                (and (<=.f64 0 b) (<=.f64 b 1))))
+                 (context '(a b) (list repr repr) repr))
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
 
 ;; Part 2: using subdivision search to find valid intervals

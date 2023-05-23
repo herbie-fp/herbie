@@ -39,10 +39,8 @@
   proof-diffs)
   
 (define (generate-rewrite-once-proof rule loc prog prev)
-  (list (program-body (alt-program prev)) ;; Start Expression
-        (list 'Rewrite=> 
-              (rule-name rule) ;; name
-              (program-body prog)))) ;; expr
+  (list (alt-expr prev) ;; Start Expression
+        (list 'Rewrite=> (rule-name rule) prog)))
 
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
@@ -68,7 +66,7 @@
 
         [(rule? input) ;; (R-O) case
           (define proof-ro
-            (generate-rewrite-once-proof input loc prog prev))
+            (generate-rewrite-once-proof input loc (alt-expr altn) prev))
           (define errors-ro
             (let ([vars (program-variables prog)])
               (get-proof-errors proof-ro pcontext ctx vars)))

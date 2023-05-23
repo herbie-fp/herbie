@@ -26,12 +26,12 @@
 
     (define expr*
       (for/fold
-          ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
+          ([expr (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
           ([splitpoint (cdr (reverse splitpoints))])
         (define repr (repr-of (sp-bexpr splitpoint) ctx))
         (define <=-operator (get-parametric-operator '<= repr repr))
         `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
-             ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
+             ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
              ,expr)))
 
     ;; We don't want unused alts in our history!
@@ -93,7 +93,7 @@
   (define repr (repr-of expr ctx))
 
   (define eval-expr
-    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl ctx))
+    (eval-prog `(λ ,(context-vars ctx) ,expr) 'fl ctx))
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
@@ -101,7 +101,7 @@
   (define start-prog (extract-subexpression (*start-prog*) var expr))
 
   ; Not totally clear if this should actually use the precondition
-  (define precondition `(λ ,(program-variables start-prog) (TRUE)))
+  (define precondition `(λ ,(context-vars ctx*) (TRUE)))
   (define start-fn (make-search-func precondition (list start-prog) ctx*))
 
   (define (find-split prog1 prog2 v1 v2)

@@ -104,7 +104,6 @@
     (define series-expansions
       (apply append
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
-          (define expr (program-body (alt-program altn)))
           (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
 
     ; Probably unnecessary, at least CI passes!
@@ -113,7 +112,7 @@
 
     (define series-expansions*
       (filter-not
-        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
+        (λ (x) (expr-contains? (alt-expr x) is-nan?))
         series-expansions))
 
     ; TODO: accuracy stats for timeline
@@ -154,8 +153,8 @@
     (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
 
     ;; get subexprs and locations
-    (define exprs (map (compose program-body alt-program) (^queued^)))
-    (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
+    (define exprs (map alt-expr (^queued^)))
+    (define lowexprs (map alt-expr (^queuedlow^)))
 
     ;; HACK:
     ;; - check loaded representations
@@ -181,7 +180,7 @@
     (define comb-changelists (append changelists changelists-low-locs))
     (define altns (append (^queued^) (^queuedlow^)))
     
-    (define variables (program-variables (alt-program (first altns))))
+    (define variables (context-vars (*context*)))
     (define rewritten
       (for/fold ([done '()] #:result (reverse done))
                 ([cls comb-changelists] [altn altns]
@@ -202,7 +201,7 @@
 
 (define (get-starting-expr altn)
   (match (alt-event altn)
-   [(list 'patch) (program-body (alt-program altn))]
+   [(list 'patch) (alt-expr altn)]
    [_ (get-starting-expr (first (alt-prevs altn)))]))
 
 (define (simplify!)
@@ -216,9 +215,7 @@
     (define children (^final^))
     (define variables (context-vars (*context*)))
 
-    (define to-simplify
-      (for/list ([child (in-list children)])
-        (program-body (alt-program child))))
+    (define to-simplify (map alt-expr children))
 
     (define input-struct
       (make-egg-query to-simplify (*simplify-rules*)))
@@ -239,7 +236,7 @@
     ; dedup for cache
     (unless (and (null? (^queued^)) (null? (^queuedlow^)))  ; don't run for simplify-only
       (for ([altn (in-list simplified)])
-        (define cachable (map (compose program-body alt-program) (^queued^)))
+        (define cachable (map alt-expr (^queued^)))
         (let ([expr0 (get-starting-expr altn)])
           (when (set-member? cachable expr0)
             (add-patch! (get-starting-expr altn) altn)))))

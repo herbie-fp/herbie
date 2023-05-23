@@ -55,7 +55,7 @@
 
 (define (eval-prog-real prog ctx)
   (define repr (context-repr ctx))
-  (define pre `(λ ,(program-variables prog) (TRUE)))
+  (define pre `(λ ,(context-vars ctx) (TRUE)))
   (define fn (make-search-func pre (list prog) ctx))
   (define (f . pt)
     (define-values (result prec exs) (ival-eval fn pt))

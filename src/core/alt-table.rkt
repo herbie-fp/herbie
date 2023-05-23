@@ -24,7 +24,7 @@
 (struct alt-table (point->alts alt->points alt->done? alt->cost context all) #:prefab)
 
 (define (backup-alt-cost altn)
-  (let loop ([expr (program-body (alt-program altn))])
+  (let loop ([expr (alt-expr altn)])
     (match expr
      [(list 'if cond ift iff) (+ 1 (loop cond) (max (loop ift) (loop iff)))]
      [(list op args ...) (apply + 1 (map loop args))]
@@ -73,7 +73,7 @@
 ;; by sorting shouldn't everything else be deterministic???
 ;;
 (define (order-altns altns)
-  (sort altns expr<? #:key (compose program-body alt-program)))
+  (sort altns expr<? #:key alt-expr))
 
 (define (atab-active-alts atab)
   (order-altns (hash-keys (alt-table-alt->points atab))))

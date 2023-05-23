@@ -167,7 +167,7 @@
         (define step-prog (program->fpcore (list 'λ '() (resugar-program expr repr))))
         (define err
           (let ([prog (list 'λ (program-variables prog) expr)])
-            (format-accuracy (errors-score (errors prog pcontext ctx)) repr )))
+            (format-accuracy (errors-score (errors prog pcontext ctx)) repr)))
         `(tr (th ,(if dir
                       (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
                             [tag (string-append (format " ↑ ~a" (first sound))

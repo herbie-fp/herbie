@@ -21,7 +21,7 @@
   (define subexprs (all-subexpressions expr))
   (define subprogs
     (for/list ([expr (in-list subexprs)])
-      `(λ ,(program-variables prog) ,expr)))
+      `(λ ,(context-vars ctx) ,expr)))
   (define exact-fn (batch-eval-progs subprogs 'bf ctx))
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
