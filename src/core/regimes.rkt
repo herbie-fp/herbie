@@ -51,7 +51,7 @@
   (define alt-critexprs
     (for/list ([alt (in-list alts)])
       (all-critical-subexpressions (alt-expr alt) ctx)))
-  (define start-critexprs (all-critical-subexpressions (*start-prog*) ctx))
+  (define start-critexprs (all-critical-subexpressions (program-body (*start-prog*)) ctx))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter

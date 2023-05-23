@@ -71,11 +71,11 @@
       (timeline-push! 'stop "predicate-same" 1)
       (values p1 p2)])]))
 
-(define (extract-subexpression program var expr)
-  (define body* (replace-expression (program-body program) expr var))
-  (define vars* (set-subtract (program-variables program) (free-variables expr)))
+(define (extract-subexpression expr var pattern ctx)
+  (define body* (replace-expression expr pattern var))
+  (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
   (if (subset? (free-variables body*) (cons var vars*))
-      `(λ (,var ,@vars*) ,body*)
+      body*
       #f))
 
 (define (prepend-argument fn val pcontext ctx)
@@ -96,12 +96,11 @@
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
-  (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
-  (define start-prog (extract-subexpression (*start-prog*) var expr))
+  (define progs (map (compose (curryr extract-subexpression var expr ctx) alt-expr) alts))
+  (define start-prog (extract-subexpression (program-body (*start-prog*)) var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
-  (define precondition `(λ ,(context-vars ctx*) (TRUE)))
-  (define start-fn (make-search-func precondition (list start-prog) ctx*))
+  (define start-fn (make-search-func '(TRUE) (list start-prog) ctx*))
 
   (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
@@ -134,8 +133,8 @@
 
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
-     (define prog1 (program-body (list-ref progs (si-cidx si1))))
-     (define prog2 (program-body (list-ref progs (si-cidx si2))))
+     (define prog1 (list-ref progs (si-cidx si1)))
+     (define prog2 (list-ref progs (si-cidx si2)))
 
      (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
      (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
