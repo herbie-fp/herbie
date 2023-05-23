@@ -30,26 +30,14 @@
                tests))
 
 (define (trs->pareto trs)
-  (match-let*
-      ([(cons start-cost start-accuracy)
-        (foldl (match-lambda*
-                 [(list r (cons x y))
-                  (match-let ([(list c a) ((compose first table-row-cost-accuracy) r)])
-                    (cons (+ x c) (+ y a)))])
-               (cons 0.0 0)
-               trs)]
-       [representations (map (compose get-representation table-row-precision) trs)]
-       [accuracy-max (foldl (lambda (x a) (+ a (representation-total-bits x))) 0 representations)]
-       [pareto-rescale (curry map (match-lambda [(list c a _ ...) (list (/ c start-cost) a)]))]
-       [rescaled
-        (map (compose
-              pareto-rescale
-              (lambda (ca) (cons (second ca) (third ca)))
-              table-row-cost-accuracy)
-             trs)]
-       [frontier
-        (map (lambda (p) (cons (first p) (second p))) (pareto-combine rescaled #:convex? #t))])
-    (values (cons 1.0 start-accuracy) frontier accuracy-max)))
+  (define start-cost (apply + (map (compose first first table-row-cost-accuracy) trs)))
+  (define start-accuracy (apply + (map (compose second first table-row-cost-accuracy) trs)))
+  (define accuracy-max (apply + (map (compose representation-total-bits get-representation table-row-precision) trs)))
+  (define (pareto-rescale pts)
+    (map (match-lambda [(list c a _ ...) (list (/ c start-cost) a)]) pts))
+  (define rescaled (map (compose pareto-rescale (lambda (ca) (cons (second ca) (third ca))) table-row-cost-accuracy) trs)
+  (define frontier (map (lambda (p) (cons (first p) (second p))) (pareto-combine rescaled #:convex? #t)))
+  (values (cons 1.0 start-accuracy) frontier accuracy-max)))
 
 (define (write-datafile file info)
   (define (simplify-test test)
