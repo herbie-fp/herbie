@@ -38,13 +38,12 @@
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn ctx)
-  (define prog (alt-program altn))
   (filter alt-expr
     (for/list ([(k v) (in-hash (*conversions*))]
               #:unless (equal? k (context-repr ctx))
               #:when (set-member? v (context-repr ctx)))
       (define rewrite (get-rewrite-operator k))
-      (define body* (apply-repr-change-expr (list rewrite (program-body prog)) ctx))
+      (define body* (apply-repr-change-expr (list rewrite (alt-expr altn)) ctx))
       (alt `(λ ,(context-vars ctx) ,body*) 'start '()))))
 
 ;; Information
@@ -121,7 +120,6 @@
     (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
 
-  (define orig-prog (alt-program (^next-alt^)))
   (define vars (context-vars (*context*)))
   (define loc-errs (localize-error (alt-program (^next-alt^)) (*context*)))
   (define repr (context-repr (*context*)))

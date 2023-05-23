@@ -48,8 +48,10 @@
   best)
 
 (define (exprs-to-branch-on alts ctx)
-  (define alt-critexprs (map (compose all-critical-subexpressions alt-program) alts))
-  (define start-critexprs (all-critical-subexpressions (*start-prog*)))
+  (define alt-critexprs
+    (for/list ([alt (in-list alts)])
+      (all-critical-subexpressions (alt-expr alt) ctx)))
+  (define start-critexprs (all-critical-subexpressions (*start-prog*) ctx))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
@@ -64,17 +66,15 @@
   (set-disjoint? crit-vars non-crit-vars))
 
 ;; Requires that prog is a λ expression
-(define (all-critical-subexpressions prog)
+(define (all-critical-subexpressions expr ctx)
   (define (subexprs-in-expr expr)
     (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) '())))
-  (define prog-body (program-body prog))
   ;; We append program-variables here in case of (λ (x y) 0) or
   ;; similar, where the variables do not appear in the body but are
   ;; still worth splitting on
-  (for/list ([expr (remove-duplicates (append (program-variables prog)
-                                              (subexprs-in-expr prog-body)))]
+  (for/list ([expr (remove-duplicates (append (context-vars ctx) (subexprs-in-expr expr)))]
              #:when (and (not (null? (free-variables expr)))
-                         (critical-subexpression? prog-body expr)))
+                         (critical-subexpression? expr expr)))
     expr))
 
 (define (option-on-expr alts err-lsts expr ctx)

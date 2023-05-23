@@ -96,13 +96,13 @@
                 (timeline-extract)
                 warning-log (make-alt (test-program test)) alts
                 (*herbie-preprocess*) points exacts
-                (errors (program-body (test-program test)) train-pcontext context)
+                (errors (test-input test) train-pcontext context)
                 (errors (alt-expr (car alts)) train-pcontext context)
                 newpoints newexacts
-                (errors (program-body (test-program test)) processed-test-pcontext context)
+                (errors (test-input test) processed-test-pcontext context)
                 end-errs
                 (if (test-output test)
-                    (errors (program-body (test-target test)) processed-test-pcontext context)
+                    (errors (test-output test) processed-test-pcontext context)
                     #f)
                 (program-cost (test-program test) output-repr)
                 (map (curryr alt-cost output-repr) alts)
