@@ -73,7 +73,7 @@
   (void))
 
 (define (score-alt alt)
-  (errors-score (errors (alt-program alt) (*pcontext*) (*context*))))
+  (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
 
 ; Pareto mode alt picking
 (define (choose-mult-alts from)
@@ -347,8 +347,8 @@
   (define vars (context-vars ctx))
   (define pcontext1 (preprocess-pcontext pcontext preprocessing-one ctx))
   (define pcontext2 (preprocess-pcontext pcontext preprocessing-two ctx))
-  (<= (errors-score (errors (alt-program alt) pcontext1 (*context*)))
-      (errors-score (errors (alt-program alt) pcontext2 (*context*)))))
+  (<= (errors-score (errors (alt-expr alt) pcontext1 (*context*)))
+      (errors-score (errors (alt-expr alt) pcontext2 (*context*)))))
 
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))
@@ -440,7 +440,7 @@
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   ;; find the best, sort the rest by cost
-  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts-deduplicated))
+  (define errss (map (λ (x) (errors (alt-expr x) (*pcontext*) (*context*))) alts-deduplicated))
   (define-values (best end-score rest)
     (for/fold ([best #f] [score #f] [rest #f])
               ([altn (in-list alts-deduplicated)] [errs (in-list errss)])

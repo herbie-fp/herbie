@@ -41,7 +41,7 @@
   (define cost (alt-cost* initial-alt (context-repr ctx)))
   (alt-table (make-immutable-hash
                (for/list ([(pt ex) (in-pcontext pcontext)]
-                          [err (errors (alt-program initial-alt) pcontext ctx)])
+                          [err (errors (alt-expr initial-alt) pcontext ctx)])
                  (cons pt (list (pareto-point cost err (list initial-alt))))))
              (hash initial-alt (for/list ([(pt ex) (in-pcontext pcontext)]) pt))
              (hash initial-alt #f)
@@ -191,7 +191,7 @@
                [alt->cost (hash-remove* alt->cost altns)]))
 
 (define (atab-eval-altns atab altns ctx)
-  (define errss (flip-lists (batch-errors (map alt-program altns) (alt-table-context atab) ctx)))
+  (define errss (flip-lists (batch-errors (map alt-expr altns) (alt-table-context atab) ctx)))
   (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
   (values errss costs))
 

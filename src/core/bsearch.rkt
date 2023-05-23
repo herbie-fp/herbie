@@ -109,8 +109,8 @@
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (prepend-argument start-fn v (*pcontext*) ctx*)))
-      (define acc1 (errors-score (errors prog1 pctx ctx*)))
-      (define acc2 (errors-score (errors prog2 pctx ctx*)))
+      (define acc1 (errors-score (errors (program-body prog1) pctx ctx*)))
+      (define acc2 (errors-score (errors (program-body prog2) pctx ctx*)))
       (- acc1 acc2))
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
     (left-point p1 p2))

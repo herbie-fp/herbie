@@ -83,7 +83,7 @@
 
   (define end-errs
     (flip-lists
-     (batch-errors (map alt-program alts) processed-test-pcontext context)))
+     (batch-errors (map alt-expr alts) processed-test-pcontext context)))
 
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
@@ -96,13 +96,13 @@
                 (timeline-extract)
                 warning-log (make-alt (test-program test)) alts
                 (*herbie-preprocess*) points exacts
-                (errors (test-program test) train-pcontext context)
-                (errors (alt-program (car alts)) train-pcontext context)
+                (errors (program-body (test-program test)) train-pcontext context)
+                (errors (alt-expr (car alts)) train-pcontext context)
                 newpoints newexacts
-                (errors (test-program test) processed-test-pcontext context)
+                (errors (program-body (test-program test)) processed-test-pcontext context)
                 end-errs
                 (if (test-output test)
-                    (errors (test-target test) processed-test-pcontext context)
+                    (errors (program-body (test-target test)) processed-test-pcontext context)
                     #f)
                 (program-cost (test-program test) output-repr)
                 (map (curryr alt-cost output-repr) alts)

@@ -126,11 +126,11 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define (eval-prog prog mode ctx)
-  (define f (batch-eval-progs (list prog) mode ctx))
+(define (eval-prog expr mode ctx)
+  (define f (batch-eval-progs (list expr) mode ctx))
   (λ args (first (apply f args))))
 
-(define (batch-eval-progs progs mode ctx)
+(define (batch-eval-progs exprs mode ctx)
   (define repr (context-repr ctx))
   (define vars (context-vars ctx))
   (define var-reprs (context-var-reprs ctx))
@@ -190,9 +190,7 @@
                   (set! exprc (+ 1 exprc))
                   (set! exprs (cons expr exprs))))))
 
-  (define names
-    (for/list ([prog progs])
-      (munge (program-body prog) repr)))
+  (define names (for/list ([expr exprs]) (munge expr repr)))
   (define lt (+ exprc varc))
 
   (timeline-push! 'compiler (+ varc size) lt)

@@ -19,10 +19,7 @@
 (define (localize-error prog ctx)
   (define expr (program-body prog))
   (define subexprs (all-subexpressions expr))
-  (define subprogs
-    (for/list ([expr (in-list subexprs)])
-      `(λ ,(context-vars ctx) ,expr)))
-  (define exact-fn (batch-eval-progs subprogs 'bf ctx))
+  (define exact-fn (batch-eval-progs subexprs 'bf ctx))
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define bf-values (apply exact-fn pt))

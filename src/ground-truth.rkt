@@ -34,7 +34,7 @@
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func precondition programs ctx)
-  (define fns (batch-eval-progs (cons precondition programs) 'ival ctx))
+  (define fns (batch-eval-progs (cons (program-body precondition) (map program-body programs)) 'ival ctx))
   (λ inputs
     (define repr (context-repr ctx))
     (match-define (list ival-pre ival-bodies ...) (apply fns inputs))
