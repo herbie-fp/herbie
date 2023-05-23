@@ -288,7 +288,7 @@
 
 (define (initialize-alt-table! prog pcontext ctx)
   (define alt (make-alt prog))
-  (*start-prog* prog)
+  (*start-prog* (alt-expr alt))
   (define table (make-alt-table (*pcontext*) alt ctx))
 
   ; Add starting alt in every precision

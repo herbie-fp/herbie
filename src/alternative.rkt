@@ -54,5 +54,5 @@
 ;; ultimately one that should be located somewhere else or perhaps
 ;; exorcised
 
-(define *start-prog* (make-parameter '()))
+(define *start-prog* (make-parameter #f))
 (define *all-alts* (make-parameter '()))

@@ -97,7 +97,7 @@
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
   (define progs (map (compose (curryr extract-subexpression var expr ctx) alt-expr) alts))
-  (define start-prog (extract-subexpression (program-body (*start-prog*)) var expr ctx))
+  (define start-prog (extract-subexpression (*start-prog*) var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
   (define start-fn (make-search-func '(TRUE) (list start-prog) ctx*))
@@ -172,7 +172,7 @@
 
 (module+ test
   (define context (make-debug-context '(x y)))
-  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))])
+  (parameterize ([*start-prog* '(/.f64 x y)])
     (define sps
       (list (sp 0 '(/.f64 y x) -inf.0)
             (sp 2 '(/.f64 y x) 0.0)

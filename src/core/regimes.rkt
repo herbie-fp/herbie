@@ -51,7 +51,7 @@
   (define alt-critexprs
     (for/list ([alt (in-list alts)])
       (all-critical-subexpressions (alt-expr alt) ctx)))
-  (define start-critexprs (all-critical-subexpressions (program-body (*start-prog*)) ctx))
+  (define start-critexprs (all-critical-subexpressions (*start-prog*) ctx))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
@@ -114,7 +114,7 @@
 
 (module+ test
   (define ctx (make-debug-context '(x)))
-  (parameterize ([*start-prog* '(λ (x) 1)]
+  (parameterize ([*start-prog* 1]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
     (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
