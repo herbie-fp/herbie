@@ -19,7 +19,7 @@
       [(alt _ _ (list)) #f]
       [(alt _ _ (list prev _ ...)) (loop prev)])))
 
-(define/contract (render-interactive start-prog point)
+(define/contract (render-interactive vars point)
   (-> alt? (listof number?) xexpr?)
   `(section ([id "try-it"])
     (h1 "Try it out" (a (
@@ -32,7 +32,7 @@
      (form ([id "try-inputs"])
       (p ([class "header"]) "Your Program's Arguments")
        (ol
-        ,@(for/list ([var-name (program-variables (alt-program start-prog))] [i (in-naturals)] [val point])
+        ,@(for/list ([var-name (in-list vars)] [i (in-naturals)] [val point])
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
                  (input ([type "text"] [class "input-submit"]
                          [name ,(string-append "var-name-" (~a i))]
@@ -62,6 +62,7 @@
                  newpoints newexacts start-error end-errors target-error
                  start-cost costs all-alts)
    result)
+  (define vars (test-vars test))
   (define repr (test-output-repr test))
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
@@ -130,7 +131,7 @@
           ) "?")) (div ([id "graphs-content"])))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
-           (render-interactive start-alt (car points))
+           (render-interactive vars (car points))
            "")
 
       ,(if (test-output test)
