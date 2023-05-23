@@ -193,7 +193,7 @@
     (define end-errorss   (test-success-end-errors result))
     (define target-errors (test-success-target-error result))
     (define start-expr    (alt-expr (test-success-start-alt result)))
-    (define end-progs     (map alt-program (test-success-end-alts result)))
+    (define end-exprs     (map alt-expr (test-success-end-alts result)))
     (define costs         (test-success-end-costs result))
 
     (define start-score (errors-score start-errors))
@@ -202,12 +202,12 @@
     (define target-score (and target-errors (errors-score target-errors)))
     (define est-start-score (errors-score (test-success-start-est-error result)))
     (define est-end-score (errors-score (test-success-end-est-error result)))
-    (define end-exprs (map (λ (p) (program-body (resugar-program p (test-output-repr test)))) end-progs))
+    (define end-exprs* (map (λ (p) (resugar-program p (test-output-repr test))) end-expr))
 
     (define cost&accuracy
       (list (list (expr-cost start-expr (test-output-repr test)) start-score)
             (list (car costs) (car end-scores))
-            (map list (cdr costs) (cdr end-scores) (cdr end-exprs))))
+            (map list (cdr costs) (cdr end-scores) (cdr end-exprs*))))
 
     (define fuzz 0.1)
     (define status
@@ -225,7 +225,7 @@
            [else "uni-start"])))
 
     (struct-copy table-row (dummy-table-row result status link)
-                 [output (car end-exprs)]
+                 [output (car end-exprs*)]
                  [start start-score] [result end-score] [target target-score]
                  [start-est est-start-score] [result-est est-end-score]
                  [cost-accuracy cost&accuracy])]
