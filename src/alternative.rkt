@@ -31,7 +31,7 @@
   (expr-cost (alt-expr altn) repr))
 
 (define (alt-map f altn)
-  (f (struct-copy alt altn [prevs (map (curry alt-map f) prevs)])))
+  (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
 
 ;; A useful parameter for many of Herbie's subsystems, though
 ;; ultimately one that should be located somewhere else or perhaps

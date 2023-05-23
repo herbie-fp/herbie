@@ -93,9 +93,8 @@
       (for ([i (in-range 4)])
         (define replace (genexpr))
         (when replace
-          (define expr*
-            `(λ ,(context-vars (*context*)) ,replace))
-          (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))
+          (sow (alt `(λ ,(context-vars (*context*)) ,replace)
+                    `(taylor ,name ,var (2)) (list altn)))))
       (timeline-stop!))))
 
 (define (gen-series!)
