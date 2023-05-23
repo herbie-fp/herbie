@@ -72,6 +72,8 @@
 ; subexpr = 1 repr = posit16
 
 (define (compute-local-errors prog ctx)
+  ; TODO run `racket -y src/herbie.rkt improve --seed 0 test.fpcore -`
+  ; contract violation?
   (define expr (program-body prog))
   (define subexprs (all-subexpressions expr (context-repr ctx)))
   (define prog-list 
