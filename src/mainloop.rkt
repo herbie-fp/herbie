@@ -324,7 +324,7 @@
   (timeline-event! 'preprocess)
 
   ;; If the specification is given, it is used for sampling points
-  (define sortable (connected-components (program-body specification) (*context*)))
+  (define sortable (connected-components specification (*context*)))
 
   (define new-preprocess
     (for/list ([sortable-variables (in-list sortable)]

@@ -76,7 +76,7 @@
 
   (define alts
     (run-improve! (test-program test) train-pcontext (*num-iterations*)
-                  #:specification (test-specification test)
+                  #:specification (test-spec test)
                   #:preprocess (test-preprocess test)))
 
   (when seed (set-seed! seed))
