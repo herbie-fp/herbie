@@ -35,20 +35,41 @@
 (define (trs->pareto trs)
   (define cas (map table-row-cost-accuracy trs))
   (define starts (map (try-list-accessor first (list 0 0)) cas))
+  (pretty-print starts)
   (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
                                        (list (list 0 0)))
                     cas))
+  (pretty-print (map second cas))
+  (pretty-print (map third cas))
   (define reprs (map (compose get-representation table-row-precision) trs))
   (define-values (start-x start-y)
     (for/fold ([x 0.0] [y 0]) ([s starts])
       (values (+ x (first s)) (+ y (second s)))))
-  (define ptss*
-    (for/list ([pts ptss])
-      (for/list ([pt pts])
-        (cons (first pt) (second pt)))))
   (define ymax (apply + (map representation-total-bits reprs)))
   (define frontier (map (λ (pt) (cons (/ (first pt) start-x) (second pt))) (pareto-combine ptss #:convex? #t)))
   (values (cons 1.0 start-y) frontier ymax))
+
+(define (trs->pareto-2 trs)
+  (match-let*
+      ([(cons start-cost start-accuracy)
+        (foldl (match-lambda*
+                 [(list r (cons x y))
+                  (match-let ([(list c a) ((compose first table-row-cost-accuracy) r)])
+                    (cons (+ x c) (+ y a)))])
+               (cons 0.0 0)
+               trs)]
+       [representations (map (compose get-representation table-row-precision) trs)]
+       [accuracy-max (foldl (lambda (x a) (+ a (representation-total-bits x))) 0 representations)]
+       [pareto-rescale (curry map (match-lambda [(list c a _ ...) (list (/ c start-cost) a)]))]
+       [rescaled
+        (map (compose
+              pareto-rescale
+              (lambda (ca) (cons (second ca) (third ca)))
+              table-row-cost-accuracy)
+             trs)]
+       [frontier
+        (map (lambda (p) (cons (first p) (second p))) (pareto-combine rescaled #:convex? #t))])
+    (values (cons 1.0 start-accuracy) frontier accuracy-max)))
 
 (define (write-datafile file info)
   (define (simplify-test test)
@@ -89,7 +110,7 @@
           (cost-accuracy . ,cost-accuracy*)))]))
 
   (define (merged-cost-accuracy tests)
-      (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
+      (define-values (pareto-start pareto-points pareto-max) (trs->pareto-2 tests))
       (match-define (list (cons costs scores) ...) pareto-points)
       (define x-max (argmax identity (cons (car pareto-start) costs)))
       (list 
