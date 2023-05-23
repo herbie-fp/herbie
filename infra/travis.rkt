@@ -58,9 +58,9 @@
 
        (when (not success?)
          (printf "\nInput (~a bits):\n" (errors-score start-error))
-         (pretty-print (alt-program start-alt) (current-output-port) 1)
+         (pretty-print (alt-expr start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))
-         (pretty-print (alt-program (car end-alts)) (current-output-port) 1)
+         (pretty-print (alt-expr (car end-alts)) (current-output-port) 1)
          (when (test-output test)
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
            (pretty-print (test-output test) (current-output-port) 1)))
