@@ -56,8 +56,7 @@
                   (let ([step* (canonicalize-rewrite step)])
                     (program-body (location-do loc prog (λ _ step*))))))
               (define errors
-                (let ([vars (program-variables prog)])
-                  (get-proof-errors proof* pcontext ctx)))
+                (get-proof-errors proof* pcontext ctx))
               (alt prog `(rr, loc, input, proof* ,errors) `(,prev))]
             [else
               (alt prog `(rr ,loc, input #f #f) `(,prev))])]
@@ -66,8 +65,7 @@
           (define proof-ro
             (generate-rewrite-once-proof input loc (alt-expr altn) prev))
           (define errors-ro
-            (let ([vars (program-variables prog)])
-              (get-proof-errors proof-ro pcontext ctx)))
+            (get-proof-errors proof-ro pcontext ctx))
           (alt prog `(rr, loc, input, proof-ro, errors-ro) `(,prev))]
         [else
           (alt prog `(rr ,loc, input #f #f) `(,prev))])]
@@ -89,8 +87,7 @@
             (let ([step* (canonicalize-rewrite step)])
               (program-body (location-do loc prog (λ _ step*))))))
         (define errors
-          (let ([vars (program-variables prog)])
-            (get-proof-errors proof* pcontext ctx)))
+          (get-proof-errors proof* pcontext ctx))
         (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
        [else
         (alt prog `(simplify ,loc ,input #f #f) `(,prev))])]

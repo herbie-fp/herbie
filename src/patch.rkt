@@ -83,8 +83,7 @@
       (desugar-program (genexpr) (*context*) #:full #f))))
 
 (define (taylor-alt altn)
-  (define prog (alt-program altn))
-  (define expr (program-body prog))
+  (define expr (program-expr altn))
   (define repr (repr-of expr (*context*)))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
@@ -94,7 +93,8 @@
       (for ([i (in-range 4)])
         (define replace (genexpr))
         (when replace
-          (define expr* (list (first prog) (second prog) replace))
+          (define expr*
+            `(λ ,(context-vars (*context*)) ,replace))
           (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))
       (timeline-stop!))))
 

@@ -69,9 +69,9 @@
 (define (all-critical-subexpressions expr ctx)
   (define (subexprs-in-expr expr)
     (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) '())))
-  ;; We append program-variables here in case of (λ (x y) 0) or
-  ;; similar, where the variables do not appear in the body but are
-  ;; still worth splitting on
+  ;; We append all variables here in case of (λ (x y) 0) or similar,
+  ;; where the variables do not appear in the body but are still worth
+  ;; splitting on
   (for/list ([expr (remove-duplicates (append (context-vars ctx) (subexprs-in-expr expr)))]
              #:when (and (not (null? (free-variables expr)))
                          (critical-subexpression? expr expr)))

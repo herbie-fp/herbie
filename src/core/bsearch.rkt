@@ -104,13 +104,13 @@
   (define precondition `(λ ,(context-vars ctx*) (TRUE)))
   (define start-fn (make-search-func precondition (list start-prog) ctx*))
 
-  (define (find-split prog1 prog2 v1 v2)
+  (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (prepend-argument start-fn v (*pcontext*) ctx*)))
-      (define acc1 (errors-score (errors (program-body prog1) pctx ctx*)))
-      (define acc2 (errors-score (errors (program-body prog2) pctx ctx*)))
+      (define acc1 (errors-score (errors expr1 pctx ctx*)))
+      (define acc2 (errors-score (errors expr2 pctx ctx*)))
       (- acc1 acc2))
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
     (left-point p1 p2))
@@ -135,8 +135,8 @@
 
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
-     (define prog1 (list-ref progs (si-cidx si1)))
-     (define prog2 (list-ref progs (si-cidx si2)))
+     (define prog1 (program-body (list-ref progs (si-cidx si1))))
+     (define prog2 (program-body (list-ref progs (si-cidx si2))))
 
      (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
      (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
