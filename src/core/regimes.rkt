@@ -31,7 +31,7 @@
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts ctx)
-        (context-vars ctx))
+        (context-vars ctx)))
   (define err-lsts (batch-errors (map alt-expr alts) (*pcontext*) ctx))
   (define options (for/list ([bexpr branch-exprs]) (option-on-expr alts err-lsts bexpr ctx)))
   (define best (argmin (compose errors-score option-errors) options))

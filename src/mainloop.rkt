@@ -181,7 +181,7 @@
             (list 'rr (append loc0 (cdr loc)) input proof soundiness)]
            [`(simplify ,loc ,input ,proof ,soundiness)
             (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
-        (define prog* (location-do loc0 (alt-program orig) (const (program-body prog))))
+        (define prog* (location-do loc0 (alt-program orig) (const (alt-expr altn))))
         (alt prog* event* (list (loop (first prev))))])))
   
   (^patched^

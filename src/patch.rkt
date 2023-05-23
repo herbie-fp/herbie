@@ -83,7 +83,7 @@
       (desugar-program (genexpr) (*context*) #:full #f))))
 
 (define (taylor-alt altn)
-  (define expr (program-expr altn))
+  (define expr (alt-expr altn))
   (define repr (repr-of expr (*context*)))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
