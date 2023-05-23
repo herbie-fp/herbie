@@ -84,8 +84,7 @@
         ;; we need to construct the proof for the full expression
         (define proof*
           (for/list ([step proof])
-            (let ([step* (canonicalize-rewrite step)])
-              (program-body (location-do loc prog (λ _ step*))))))
+            (program-body (location-do loc prog (const (canonicalize-rewrite step))))))
         (define errors
           (get-proof-errors proof* pcontext ctx))
         (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]

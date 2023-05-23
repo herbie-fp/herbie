@@ -277,8 +277,7 @@
       (append full (^patched^))))
   (finalize-iter!))
   
-(define (setup-context! specification precondition repr)
-  (define vars (program-variables specification))
+(define (setup-context! vars specification precondition repr)
   (*context* (context vars repr (map (const repr) vars)))
   (when (empty? (*needed-reprs*)) ; if empty, probably debugging
     (*needed-reprs* (list repr (get-representation 'bool))))

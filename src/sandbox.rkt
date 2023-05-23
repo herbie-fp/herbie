@@ -46,8 +46,9 @@
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (setup-context!
-        (or (test-specification test) (test-program test)) (test-precondition test)
-        output-repr)))
+       (test-vars test)
+       (or (test-specification test) (test-program test)) (test-precondition test)
+       output-repr)))
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
 
@@ -66,6 +67,7 @@
   (match-define (cons domain-stats joint-pcontext)
                 (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
                   (setup-context!
+                   (test-vars test)
                    (or (test-specification test) (test-program test)) (test-precondition test)
                    output-repr)))
   (timeline-push! 'bogosity domain-stats)
