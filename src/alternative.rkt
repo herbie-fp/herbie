@@ -31,24 +31,7 @@
   (expr-cost (alt-expr altn) repr))
 
 (define (alt-map f altn)
-  (f
-   (match altn
-    [(alt prog 'start (list))
-     altn]
-    [(alt prog `(start ,strategy) `(,prev))
-     (alt prog `(start ,strategy) `(,(alt-map f prev)))]
-    [(alt p `(regimes ,splitpoints) prevs)
-     (alt p `(regimes ,splitpoints) (map (curry alt-map f) prevs))]
-    [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
-     (alt prog `(taylor ,pt ,var ,loc) `(,(alt-map f prev)))]
-     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
-      (alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,(alt-map f prev)))]
-    [(alt prog `initial-simplify `(,prev))
-     (alt prog `initial-simplify `(,(alt-map f prev)))]
-    [(alt prog `final-simplify `(,prev))
-     (alt prog `final-simplify `(,(alt-map f prev)))]
-    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev))
-     (alt prog `(rr ,loc ,input ,proof ,soundiness) `(,(alt-map f prev)))])))
+  (f (struct-copy alt altn [prevs (map (curry alt-map f) prevs)])))
 
 ;; A useful parameter for many of Herbie's subsystems, though
 ;; ultimately one that should be located somewhere else or perhaps
