@@ -29,27 +29,7 @@
                note
                tests))
 
-(define (try-list-accessor acc fail)
-  (λ (l) (if (null? l) fail (acc l))))
-
 (define (trs->pareto trs)
-  (define cas (map table-row-cost-accuracy trs))
-  (define starts (map (try-list-accessor first (list 0 0)) cas))
-  (pretty-print starts)
-  (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
-                                       (list (list 0 0)))
-                    cas))
-  (pretty-print (map second cas))
-  (pretty-print (map third cas))
-  (define reprs (map (compose get-representation table-row-precision) trs))
-  (define-values (start-x start-y)
-    (for/fold ([x 0.0] [y 0]) ([s starts])
-      (values (+ x (first s)) (+ y (second s)))))
-  (define ymax (apply + (map representation-total-bits reprs)))
-  (define frontier (map (λ (pt) (cons (/ (first pt) start-x) (second pt))) (pareto-combine ptss #:convex? #t)))
-  (values (cons 1.0 start-y) frontier ymax))
-
-(define (trs->pareto-2 trs)
   (match-let*
       ([(cons start-cost start-accuracy)
         (foldl (match-lambda*
@@ -110,7 +90,7 @@
           (cost-accuracy . ,cost-accuracy*)))]))
 
   (define (merged-cost-accuracy tests)
-      (define-values (pareto-start pareto-points pareto-max) (trs->pareto-2 tests))
+      (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
       (match-define (list (cons costs scores) ...) pareto-points)
       (define x-max (argmax identity (cons (car pareto-start) costs)))
       (list 
