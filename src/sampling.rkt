@@ -98,7 +98,7 @@
    [(and (flag-set? 'setup 'search) (not (empty? reprs))
          (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
     (timeline-push! 'method "search")
-    (define hyperrects-analysis (precondition->hyperrects pre reprs repr))
+    (define hyperrects-analysis (precondition->hyperrects pre ctx))
     (match-define (cons hyperrects sampling-table)
       (find-intervals search-func hyperrects-analysis
                       #:reprs reprs #:fuel (*max-find-range-depth*)))

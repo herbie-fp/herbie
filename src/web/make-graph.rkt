@@ -20,7 +20,7 @@
       [(alt _ _ (list prev _ ...)) (loop prev)])))
 
 (define/contract (render-interactive vars point)
-  (-> alt? (listof number?) xexpr?)
+  (-> (listof symbol?) (listof number?) xexpr?)
   `(section ([id "try-it"])
     (h1 "Try it out" (a (
           [class "help-button"] 

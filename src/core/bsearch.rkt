@@ -91,8 +91,7 @@
 (define (sindices->spoints points expr alts sindices ctx)
   (define repr (repr-of expr ctx))
 
-  (define eval-expr
-    (eval-prog `(λ ,(context-vars ctx) ,expr) 'fl ctx))
+  (define eval-expr (eval-prog expr 'fl ctx))
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
@@ -159,7 +158,7 @@
 
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
-  (define prog (eval-prog `(λ ,(context-vars ctx*) ,bexpr) 'fl ctx*))
+  (define prog (eval-prog bexpr 'fl ctx*))
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)

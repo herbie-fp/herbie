@@ -204,7 +204,7 @@
     (define target-score (and target-errors (errors-score target-errors)))
     (define est-start-score (errors-score (test-success-start-est-error result)))
     (define est-end-score (errors-score (test-success-end-est-error result)))
-    (define end-exprs* (map (λ (p) (resugar-program p (test-output-repr test))) end-expr))
+    (define end-exprs* (map (λ (p) (resugar-program p (test-output-repr test))) end-exprs))
 
     (define cost&accuracy
       (list (list (expr-cost start-expr (test-output-repr test)) start-score)

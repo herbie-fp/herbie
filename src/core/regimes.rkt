@@ -81,9 +81,9 @@
   (define repr (repr-of expr ctx))
   (define timeline-stop! (timeline-start! 'times (~a expr)))
 
-  (define vars (context-vars ctx)))
+  (define vars (context-vars ctx))
   (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
-  (define fn (eval-prog `(λ ,vars ,expr) 'fl ctx))
+  (define fn (eval-prog expr 'fl ctx))
   (define splitvals (for/list ([pt pts]) (apply fn pt)))
   (define big-table ; val and errors for each alt, per point
     (for/list ([(pt ex) (in-pcontext (*pcontext*))] [err-lst err-lsts])

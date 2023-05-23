@@ -148,7 +148,7 @@
      ['ival (λ (x repr) (if (ival? x) x (ival ((representation-repr->bf repr) x))))]))
 
   ;; Expression cache
-  (define exprs '())
+  (define exprcache '())
   (define exprhash
     (make-hash
      (for/list ([var vars] [i (in-naturals)])
@@ -188,13 +188,13 @@
               (λ ()
                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
                   (set! exprc (+ 1 exprc))
-                  (set! exprs (cons expr exprs))))))
+                  (set! exprcache (cons expr exprcache))))))
 
   (define names (for/list ([expr exprs]) (munge expr repr)))
   (define lt (+ exprc varc))
 
   (timeline-push! 'compiler (+ varc size) lt)
-  (define exprvec (list->vector (reverse exprs)))
+  (define exprvec (list->vector (reverse exprcache)))
   (define (f . args)
     (define v (make-vector lt))
     (for ([arg (in-list args)] [n (in-naturals)] [repr (in-list var-reprs)])
@@ -211,7 +211,7 @@
 (module+ test
   (define ctx (make-debug-context '(a b c)))
   (define tests
-    #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
+    #hash([(/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a)
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
            ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
 

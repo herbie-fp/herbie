@@ -163,7 +163,10 @@
   (define (get-starting-expr altn)
     (match (alt-event altn)
      ['(patch) (alt-expr altn)]
-     [_ (get-starting-expr (first (alt-prevs altn)))]))
+     [_
+      (if (null? (alt-prevs altn))
+          #f
+          (get-starting-expr (first (alt-prevs altn))))]))
 
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
@@ -426,7 +429,7 @@
 
        (remove-duplicates
          (for/list ([altn joined-alts] [progs progss*])
-           (alt `(λ ,(context-variables ctx) ,(last progs))
+           (alt `(λ ,(context-vars ctx) ,(last progs))
                 'final-simplify (list altn)))
          alt-equal?)]
       [else

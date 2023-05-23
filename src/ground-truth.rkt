@@ -36,8 +36,9 @@
 (define (make-search-func pre exprs ctx)
   (define fns (batch-eval-progs (cons pre exprs) 'ival ctx))
   (λ inputs
+    (define out (apply fns inputs))
+    (match-define (list ival-pre ival-bodies ...) out)
     (define repr (context-repr ctx))
-    (match-define (list ival-pre ival-bodies ...) (apply fns inputs))
     (for/list ([y ival-bodies])
       (ival-then
        ; The two `invalid` ones have to go first, because later checks

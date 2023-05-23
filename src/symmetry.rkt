@@ -16,7 +16,7 @@
     swap))
 
 (define (connected-components expr ctx)
-  (define vars (context-variables ctx))
+  (define vars (context-vars ctx))
 
   (define swaps (get-swaps vars expr))
   (define rules*
