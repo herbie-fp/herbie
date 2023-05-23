@@ -56,7 +56,7 @@
 ; ENSURE: all contexts have the same list of variables
 (define (eval-prog-list-real prog-list ctx-list)
   ;(define repr (context-repr (first ctx-list)))
-  (define pre `(λ ,(context-vars (first ctx-list)) (TRUE)))
+  (define pre `(λ ,(context-vars (car ctx-list)) (TRUE)))
   (define fn (make-search-func pre prog-list ctx-list))
   (define (f . pt)
     (define-values (result prec exs) (ival-eval fn pt))
