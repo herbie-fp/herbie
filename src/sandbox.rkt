@@ -266,7 +266,7 @@
       (rollback-improve!)
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
-      (with-handlers ([exn? (curry on-exception start-time)])
+      (with-handlers (#;[exn? (curry on-exception start-time)])
         (define out
           (match command
             ['improve (run-herbie test)]

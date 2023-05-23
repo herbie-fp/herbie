@@ -292,7 +292,7 @@
     (*needed-reprs* (list repr (get-representation 'bool))))
 
   (match-define (cons domain pts+exs)
-                (sample-points precondition (list specification) (*context*)))
+                (sample-points precondition (list specification) (list (*context*))))
   (cons domain (apply mk-pcontext pts+exs)))
 
 (define (initialize-alt-table! prog pcontext ctx)

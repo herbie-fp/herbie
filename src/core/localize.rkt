@@ -5,25 +5,31 @@
 
 (provide localize-error local-error-as-tree)
 
-(define (all-subexpressions expr)
+(define (all-subexpressions expr repr)
   (remove-duplicates
    (reap [sow]
-         (let loop ([expr expr])
-           (sow expr)
+         (let loop ([expr expr] [repr repr])
+           (sow (cons expr repr))
            (match expr
              [(? number?) (void)]
              [(? variable?) (void)]
+             [`(if ,c ,t ,f)
+              (loop c (get-representation 'bool))
+              (loop t repr)
+              (loop f repr)]
              [(list op args ...)
-              (for-each loop args)])))))
+              (define atypes (operator-info op 'itype))
+              (for ([arg args] [atype atypes])
+                (loop arg atype))])))))
 
 ; Compute local error or each sampled point at each node in `prog`.
 ; Uses math/bigfloat rather than rival for speed.
 (define (compute-local-errors-fast prog ctx)
   (define expr (program-body prog))
-  (define subexprs (all-subexpressions expr))
+  (define subexprs (all-subexpressions expr (context-repr ctx)))
   (define subprogs
-    (for/list ([expr (in-list subexprs)])
-      `(λ ,(program-variables prog) ,expr)))
+    (for/list ([sexpr (in-list subexprs)])
+      `(λ ,(program-variables prog) ,(first sexpr))))
   (define exact-fn (batch-eval-progs subprogs 'bf ctx))
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
@@ -57,14 +63,25 @@
               (sow (cons err expr)))))
     > #:key (compose errors-score car)))
 
+; expr = (posit16->binary32 1)
+; ctx = () () -> binary32
+
+; subexpr = (posit16->binary32 1)
+; ctx = () () -> binary32
+
+; subexpr = 1 repr = posit16
+
 (define (compute-local-errors prog ctx)
-  (define expr (program-body prog)) 
-  (define subexprs (all-subexpressions expr))
+  (define expr (program-body prog))
+  (define subexprs (all-subexpressions expr (context-repr ctx)))
   (define prog-list 
     (for/list ([sexpr (in-list subexprs)])
-      `(λ ,(context-vars ctx) ,sexpr)))
-  (define subexprs-fn (eval-prog-list-real prog-list ctx))
-  (define errs (make-hash (map (curryr cons '()) subexprs)))
+      `(λ ,(context-vars ctx) ,(first sexpr))))
+  (define ctx-list 
+    (for/list ([sexpr (in-list subexprs)])
+      (struct-copy context ctx [repr (second sexpr)])))
+  (define subexprs-fn (eval-prog-list-real prog-list ctx-list))
+  (define errs (make-hash (map (compose (curryr cons '())  first) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (eprintf "~a -> ~a\n" pt ex)
     (eprintf "~a ~a\n" (flonum? (first pt)) (flonum? ex))
@@ -72,12 +89,12 @@
     (define exacts-hash
       (for/hash ([expr (in-list subexprs)] 
         [ex (in-list exacts)])
-        (values expr ex)))
+        (values (first expr) ex)))
     (eprintf "got here\n")
     (for ([expr (in-list subexprs)])
       (eprintf "expr ~a\n" expr)
       (define err
-        (match expr
+        (match (first expr)
           [(? number?) 1]
           [(? variable?) 1]
           [`(if ,c ,ift ,iff) 1]
@@ -90,7 +107,7 @@
            (eprintf "~a\n" (apply (operator-info f 'fl) argapprox))
            (ulp-difference (hash-ref exacts-hash expr)
                            (apply (operator-info f 'fl) argapprox) repr)]))
-      (hash-update! errs expr (curry cons err))))
+      (hash-update! errs (first expr) (curry cons err))))
   errs)
 
 ;; Compute the local error of every subexpression of `prog`

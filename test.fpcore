@@ -1,0 +1,5 @@
+(FPCore (x)
+ :name "3frac (problem 3.3.3)"
+ :precision binary32
+ :herbie-conversions ((binary32 posit16))
+ (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
