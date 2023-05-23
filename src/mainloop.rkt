@@ -305,7 +305,7 @@
       (^next-alt^ #f)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
-(define (run-improve prog iters
+(define (run-improve vars prog iters
                      #:precondition [precondition #f]
                      #:preprocess [preprocess empty]
                      #:precision [precision 'binary64]
@@ -313,7 +313,7 @@
   (rollback-improve!)
   (define repr (get-representation precision))
 
-  (define original-points (setup-context! (or specification prog) precondition repr))
+  (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
 

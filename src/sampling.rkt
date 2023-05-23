@@ -9,11 +9,11 @@
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
-(define (precondition->hyperrects precondition ctx)
+(define (precondition->hyperrects pre ctx)
   ;; FPBench needs unparameterized operators
   (define range-table 
     (condition->range-table  
-      (resugar-program (program-body precondition) (context-repr ctx) #:full #f)))
+      (resugar-program pre (context-repr ctx) #:full #f)))
 
   (apply cartesian-product
          (for/list ([var-name (context-vars ctx)] [var-repr (context-var-reprs ctx)])
@@ -32,8 +32,8 @@
 
   (define repr (get-representation 'binary64))
   (check-equal? (precondition->hyperrects
-                 '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))
-                                (and (<=.f64 0 b) (<=.f64 b 1))))
+                 '(and (and (<=.f64 0 a) (<=.f64 a 1))
+                       (and (<=.f64 0 b) (<=.f64 b 1)))
                  (context '(a b) (list repr repr) repr))
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
 
@@ -91,14 +91,14 @@
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
-(define (make-sampler ctx precondition programs search-func)
+(define (make-sampler ctx pre search-func)
   (define repr (context-repr ctx))
   (define reprs (context-var-reprs ctx))
   (cond
    [(and (flag-set? 'setup 'search) (not (empty? reprs))
          (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
     (timeline-push! 'method "search")
-    (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
+    (define hyperrects-analysis (precondition->hyperrects pre reprs repr))
     (match-define (cons hyperrects sampling-table)
       (find-intervals search-func hyperrects-analysis
                       #:reprs reprs #:fuel (*max-find-range-depth*)))

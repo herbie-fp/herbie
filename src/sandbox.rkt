@@ -47,7 +47,7 @@
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (setup-context!
        (test-vars test)
-       (or (test-specification test) (test-program test)) (test-precondition test)
+       (or (test-spec test) (test-input test)) (test-pre test)
        output-repr)))
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
@@ -68,7 +68,7 @@
                 (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
                   (setup-context!
                    (test-vars test)
-                   (or (test-specification test) (test-program test)) (test-precondition test)
+                   (or (test-spec test) (test-input test)) (test-pre test)
                    output-repr)))
   (timeline-push! 'bogosity domain-stats)
   (define-values (train-pcontext test-pcontext)
