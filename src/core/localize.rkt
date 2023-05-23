@@ -16,8 +16,7 @@
              [(list op args ...)
               (for-each loop args)])))))
 
-(define (localize-error prog ctx)
-  (define expr (program-body prog))
+(define (localize-error expr ctx)
   (define subexprs (all-subexpressions expr))
   (define exact-fn (batch-eval-progs subexprs 'bf ctx))
   (define errs (make-hash (map (curryr cons '()) subexprs)))

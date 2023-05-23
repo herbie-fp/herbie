@@ -121,7 +121,7 @@
   (timeline-event! 'localize)
 
   (define vars (context-vars (*context*)))
-  (define loc-errs (localize-error (alt-program (^next-alt^)) (*context*)))
+  (define loc-errs (localize-error (alt-expr (^next-alt^)) (*context*)))
   (define repr (context-repr (*context*)))
 
   ; high-error locations
