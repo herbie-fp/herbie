@@ -94,15 +94,13 @@
 
   (define eval-expr
     (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl ctx))
-
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
   (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
   (define start-prog (extract-subexpression (*start-prog*) var expr))
-
   ; Not totally clear if this should actually use the precondition
   (define precondition `(λ ,(program-variables start-prog) (TRUE)))
-  (define start-fn (make-search-func precondition (list start-prog) ctx*))
+  (define start-fn (make-search-func precondition (list start-prog) (cons ctx* `())))
 
   (define (find-split prog1 prog2 v1 v2)
     (define (pred v)

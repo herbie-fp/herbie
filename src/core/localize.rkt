@@ -80,16 +80,18 @@
   (define ctx-list 
     (for/list ([sexpr (in-list subexprs)])
       (struct-copy context ctx [repr (cdr sexpr)])))
+  
   (define subexprs-fn (eval-prog-list-real prog-list ctx-list))
 
   (define temp-errs
     (for/hash ([sexpr (in-list subexprs)])
       (values (car sexpr) '())))
 
+  ; Mutable error hack this is bad
   (define errs (make-hash))
   (for ([(k v) temp-errs]) 
     (hash-set! errs k v))
-    
+
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
@@ -119,7 +121,9 @@
       (hash-update! errs (car expr) (curry cons err))
     )
   )
-  errs)
+  ; return errs
+  errs
+)
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
