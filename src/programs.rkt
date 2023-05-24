@@ -3,7 +3,7 @@
 (require math/bigfloat rival)
 (require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
 
-(provide program-body program-variables
+(provide program-body
          expr? expr-contains? expr<?
          type-of repr-of
          location-do location-get
@@ -22,11 +22,6 @@
   (-> expr? expr?)
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
   body)
-
-(define/contract (program-variables prog)
-  (-> expr? (listof symbol?))
-  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
-  vars)
 
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
