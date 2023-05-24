@@ -122,7 +122,7 @@
 
       ,(render-warnings warnings)
 
-      ,(render-program preprocess test #:to (alt-program end-alt))
+      ,(render-program preprocess test #:to (alt-expr end-alt))
 
       (section ([id "graphs"]) (h1 "Error" (a (
           [class "help-button"] 

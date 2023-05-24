@@ -107,7 +107,7 @@
   (define out-prog
     (and result
          (parameterize ([*expr-cse-able?* at-least-two-ops?])
-           (core-cse (program->fpcore (program-body result) ctx #:ident identifier)))))
+           (core-cse (program->fpcore result ctx #:ident identifier)))))
 
   (define output-prec (representation-name output-repr))
   (define in-prog* (fpcore-add-props in-prog (list ':precision output-prec)))
