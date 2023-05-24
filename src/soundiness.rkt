@@ -35,60 +35,54 @@
                     (list num-increase
                           num-decrease (length prev)))))
   proof-diffs)
-  
-(define (generate-rewrite-once-proof rule loc prog prev)
+
+(define (generate-rewrite-once-proof rule prog prev)
   (list (alt-expr prev) ;; Start Expression
         (list 'Rewrite=> (rule-name rule) prog)))
 
-(define (add-soundiness-to pcontext ctx altn)
-  (match altn
-    ;; This is alt coming from rr
-    [(alt prog `(rr ,loc ,input #f #f) `(,prev))
-     (cond
-      [(egraph-query? input) ;; Check if input is an egraph-query struct (B-E-R)
-       (define e-input input)
-       (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
-       (match-define (cons variants proof) (run-egg e-input #t #t #:proof-input p-input))
-       (cond
-        [proof
-         (define proof*
-           (for/list ([step proof])
-             (let ([step* (canonicalize-rewrite step)])
-               (program-body (location-do loc prog (λ _ step*))))))
-         (define errors
-           (get-proof-errors proof* pcontext ctx))
-         (alt prog `(rr, loc, input, proof* ,errors) `(,prev))]
-        [else
-         (alt prog `(rr ,loc, input #f #f) `(,prev))])]
+(define (canonicalize-proof prog loc proof pcontext ctx)
+  (cond 
+   [proof
+    (define proof*
+      (for/list ([step (in-list proof)])
+        (location-do loc prog (const (canonicalize-rewrite step)))))
+    (define errors (get-proof-errors proof* pcontext ctx))
+    (values proof* errors)]
+   [else
+    (values #f #f)]))
 
-      [(rule? input) ;; (R-O) case
-       (define proof-ro
-         (generate-rewrite-once-proof input loc (alt-expr altn) prev))
-       (define errors-ro
-         (get-proof-errors proof-ro pcontext ctx))
-       (alt prog `(rr, loc, input, proof-ro, errors-ro) `(,prev))]
-      [else
-       (alt prog `(rr ,loc, input #f #f) `(,prev))])]
-    
+(define (add-soundiness-to pcontext ctx altn)
+  (match (alt-event altn)
+    [`(rr (2 ,@loc) ,(? egraph-query? input) #f #f)
+     (match-define (list prev) (alt-prevs altn))
+     (define p-input
+       (cons (location-get loc (alt-expr prev))
+             (location-get loc (alt-expr altn))))
+     (match-define (cons variants proof) (run-egg input #t #t #:proof-input p-input))
+     (define-values (proof* errors)
+       (canonicalize-proof (alt-expr altn) loc proof pcontext ctx))
+     (struct-copy alt altn [event `(rr (2 ,@loc) ,input ,proof* ,errors)])]
+
+    [`(rr (2 ,@loc) ,(? rule? input) #f #f)
+     (match-define (list prev) (alt-prevs altn))
+     (define proof-ro
+       (generate-rewrite-once-proof input (alt-expr altn) prev))
+     (define errors-ro
+       (get-proof-errors proof-ro pcontext ctx))
+     (struct-copy alt altn [event `(rr (2 ,@loc) ,input ,proof-ro ,errors-ro)])]
+
     ;; This is alt coming from simplify
-    [(alt prog `(simplify ,loc ,input, #f #f) `(,prev))
-     (define egg-input input)
-     (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
-     (match-define (cons variants proof) (run-egg egg-input #t #f #:proof-input p-input))
-     (cond
-      [proof
-       ;; Proofs are actually on subexpressions,
-       ;; we need to construct the proof for the full expression
-       (define proof*
-         (for/list ([step proof])
-           (program-body (location-do loc prog (const (canonicalize-rewrite step))))))
-        (define errors
-          (get-proof-errors proof* pcontext ctx))
-        (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
-       [else
-        (alt prog `(simplify ,loc ,input #f #f) `(,prev))])]
-    [else
-     altn]))
+    [`(simplify (2 ,@loc) ,input, #f #f)
+     (match-define (list prev) (alt-prevs altn))
+     (define p-input
+       (cons (location-get loc (alt-expr prev))
+             (location-get loc (alt-expr altn))))
+     (match-define (cons variants proof) (run-egg input #t #f #:proof-input p-input))
+     (define-values (proof* errors)
+       (canonicalize-proof (alt-expr altn) loc proof pcontext ctx))
+     (struct-copy alt altn [event `(simplify (2 ,@loc) ,input ,proof* ,errors)])]
+
+    [else altn]))
 
 
 (define (add-soundiness alts pcontext ctx)
