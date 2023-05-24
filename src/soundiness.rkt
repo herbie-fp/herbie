@@ -74,7 +74,7 @@
                       (λ ()
                         (define proof
                           (list (program-body (alt-program prev))
-                                (list 'Rewrite=> (rule-name rule) (program-body prog))))
+                                (list 'Rewrite=> (rule-name input) (program-body prog))))
                         (define errs
                           (let ([vars (program-variables prog)])
                             (get-proof-errors proof pcontext ctx vars)))
