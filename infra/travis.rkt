@@ -20,7 +20,7 @@
   (struct-copy test the-test
                [output-repr-name (representation-name repr)]
                [var-repr-names
-                (for/list ([(var prec) (in-dict (test-var-reprs the-test))])
+                (for/list ([var (in-list (test-vars the-test))])
                   (cons var (representation-name repr)))]))
 
 (define (run-tests . bench-dirs)
