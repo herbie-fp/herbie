@@ -43,48 +43,45 @@
 (define (add-soundiness-to pcontext ctx altn)
   (match altn
     ;; This is alt coming from rr
-    [(alt prog `(rr, loc, input #f #f) `(,prev))
-      (cond
-        [(egraph-query? input) ;; Check if input is an egraph-query struct (B-E-R)
-            (define e-input input)
-            (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
-            (match-define (cons variants proof) (run-egg e-input #t #t #:proof-input p-input))
-          (cond
-            [proof
-              (define proof*
-                (for/list ([step proof])
-                  (let ([step* (canonicalize-rewrite step)])
-                    (program-body (location-do loc prog (λ _ step*))))))
-              (define errors
-                (get-proof-errors proof* pcontext ctx))
-              (alt prog `(rr, loc, input, proof* ,errors) `(,prev))]
-            [else
-              (alt prog `(rr ,loc, input #f #f) `(,prev))])]
-
-        [(rule? input) ;; (R-O) case
-          (define proof-ro
-            (generate-rewrite-once-proof input loc (alt-expr altn) prev))
-          (define errors-ro
-            (get-proof-errors proof-ro pcontext ctx))
-          (alt prog `(rr, loc, input, proof-ro, errors-ro) `(,prev))]
+    [(alt prog `(rr ,loc ,input #f #f) `(,prev))
+     (cond
+      [(egraph-query? input) ;; Check if input is an egraph-query struct (B-E-R)
+       (define e-input input)
+       (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
+       (match-define (cons variants proof) (run-egg e-input #t #t #:proof-input p-input))
+       (cond
+        [proof
+         (define proof*
+           (for/list ([step proof])
+             (let ([step* (canonicalize-rewrite step)])
+               (program-body (location-do loc prog (λ _ step*))))))
+         (define errors
+           (get-proof-errors proof* pcontext ctx))
+         (alt prog `(rr, loc, input, proof* ,errors) `(,prev))]
         [else
-          (alt prog `(rr ,loc, input #f #f) `(,prev))])]
-            
-      ;; This is alt coming from simplify
+         (alt prog `(rr ,loc, input #f #f) `(,prev))])]
+
+      [(rule? input) ;; (R-O) case
+       (define proof-ro
+         (generate-rewrite-once-proof input loc (alt-expr altn) prev))
+       (define errors-ro
+         (get-proof-errors proof-ro pcontext ctx))
+       (alt prog `(rr, loc, input, proof-ro, errors-ro) `(,prev))]
+      [else
+       (alt prog `(rr ,loc, input #f #f) `(,prev))])]
+    
+    ;; This is alt coming from simplify
     [(alt prog `(simplify ,loc ,input, #f #f) `(,prev))
-      ; (define proof (get-proof input
-      ;                         (location-get loc (alt-program prev))
-      ;                         (location-get loc prog)))
-      (define egg-input input)
-      (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
-      (match-define (cons variants proof) (run-egg egg-input #t #f #:proof-input p-input))
-      (cond
-       [proof
-        ;; Proofs are actually on subexpressions,
-        ;; we need to construct the proof for the full expression
-        (define proof*
-          (for/list ([step proof])
-            (program-body (location-do loc prog (const (canonicalize-rewrite step))))))
+     (define egg-input input)
+     (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
+     (match-define (cons variants proof) (run-egg egg-input #t #f #:proof-input p-input))
+     (cond
+      [proof
+       ;; Proofs are actually on subexpressions,
+       ;; we need to construct the proof for the full expression
+       (define proof*
+         (for/list ([step proof])
+           (program-body (location-do loc prog (const (canonicalize-rewrite step))))))
         (define errors
           (get-proof-errors proof* pcontext ctx))
         (alt prog `(simplify ,loc ,input ,proof* ,errors) `(,prev))]
