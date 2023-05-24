@@ -31,7 +31,7 @@
                            (~a "default?" #:min-width 10))
     (~a "" #:min-width 44 #:pad-string "=")
     (for*/list ([(category flags) (in-hash all-flags)]
-                [flag (in-list flags)])
+                [flag (in-list flags)] #:unless (flag-deprecated? category flag))
       (format "~a | ~a | ~a" (~a category #:min-width 10)
                              (~a flag #:min-width 20)
                              (if (flag-set? category flag) "\u2714" "")))))
@@ -117,7 +117,7 @@
     (
      "Enable a flag (formatted category:name)"
      (format "See https://herbie.uwplse.org/doc/~a/options.html for more" *herbie-version*)
-     (apply string-append "\n"
+     (apply string-append "\n"  ;; 5 spaces is the padding inserted by `command-line`
             (map (curry format "     ~a\n") (default-flags->table)))
     )
     (define tf (string->flag flag))

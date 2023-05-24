@@ -28,10 +28,6 @@
      (eprintf "The precision:fallback option has been removed.\n")
      (eprintf "  The fallback representation is specified with :precision racket.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
-    [('precision 'fallback)
-     (eprintf "The precision:fallback option has been removed.\n")
-     (eprintf "  Please use :precision racket instead.\n")
-     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
     [('generate 'better-rr)
      (eprintf "The generate:better-rr option has been removed.\n")
      (eprintf "  The current recursive rewriter does not support the it.\n")
@@ -51,6 +47,13 @@
 
 (define (flag-set? class flag)
   (set-member? (dict-ref (*flags*) class) flag))
+
+(define (flag-deprecated? category flag)
+  (match* (category flag)
+    [('precision 'double) #t]
+    [('precision 'fallback) #t]
+    [('generate 'better-rr) #t]
+    [(_ _) #f]))
 
 ; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
 (define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
