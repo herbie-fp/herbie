@@ -93,7 +93,7 @@
         "\\end{array} \\]")))
 
 (define (program->tex prog ctx #:loc [loc #f])
-  (define prog* (program->fpcore (program-body prog) ctx))
+  (define prog* (program->fpcore prog ctx))
   (if (supported-by-lang? prog* "tex")
       (core->tex prog* #:loc loc #:color "blue")
       "ERROR"))

@@ -142,7 +142,7 @@
               (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr #:unit "%")))
               (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr #:unit "%")))
               (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr #:unit "%"))))
-             (div ([class "math"]) "\\[" ,(program->tex (test-target test) ctx) "\\]"))
+             (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
            "")
 
       (section ([id "history"])
