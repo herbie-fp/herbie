@@ -13,7 +13,11 @@
  ["improve.rkt" (run-improve)])
 
 (define (string->thread-count th)
-  (match th ["no" #f] ["yes" (max (- (processor-count) 1) 1)] [_ (string->number th)]))
+  (match th
+    ["no" #f]
+    ["yes" (max (- (processor-count) 1) 1)]
+    [(? positive-integer?) (string->number th)]
+    [_ (error 'string->thread-count "Invalid thread count ~a" th)]))
 
 (define (string->flag s)
   (match (string-split s ":")
