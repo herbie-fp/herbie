@@ -72,38 +72,47 @@
 ; subexpr = 1 repr = posit16
 
 (define (compute-local-errors prog ctx)
-  ; TODO run `racket -y src/herbie.rkt improve --seed 0 test.fpcore -`
-  ; contract violation?
   (define expr (program-body prog))
   (define subexprs (all-subexpressions expr (context-repr ctx)))
   (define prog-list 
     (for/list ([sexpr (in-list subexprs)])
-      `(λ ,(context-vars ctx) (car sexpr))))
+      `(λ ,(context-vars ctx) ,(car sexpr))))
   (define ctx-list 
     (for/list ([sexpr (in-list subexprs)])
       (struct-copy context ctx [repr (cdr sexpr)])))
   (define subexprs-fn (eval-prog-list-real prog-list ctx-list))
-  (define errs (make-hash (map (compose (curryr cons '())  first) subexprs)))
+
+  (define errs
+    (for/hash ([sexpr (in-list subexprs)])
+      (values (car sexpr) '())))
+
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
-      (for/hash ([expr (in-list subexprs)] 
+      (for/hash (
+        [expr (in-list subexprs)] 
         [ex (in-list exacts)])
-        (values (first expr) ex)))
+        (values (car expr) ex)))
     (for ([expr (in-list subexprs)])
       (define err
-        (match (first expr)
+        (match (car expr)
           [(? number?) 1]
           [(? variable?) 1]
           [`(if ,c ,ift ,iff) 1]
           [(list f args ...)
-           (define repr (operator-info f 'otype))
-           (define argapprox
-             (for/list ([arg (in-list args)] [repr (in-list (operator-info f 'itype))])
-               (hash-ref exacts-hash arg)))
-           (ulp-difference (hash-ref exacts-hash expr)
-                           (apply (operator-info f 'fl) argapprox) repr)]))
-      (hash-update! errs (first expr) (curry cons err))))
+            (define repr (operator-info f 'otype))
+            (define argapprox
+              (for/list (
+                [arg (in-list args)] 
+                [repr (in-list (operator-info f 'itype))])
+                (hash-ref exacts-hash arg)
+              )
+            )
+            (ulp-difference
+              (hash-ref exacts-hash (car expr))
+              (apply (operator-info f 'fl) argapprox) repr)
+          ]))
+      (hash-update! errs (car expr) (curry cons err))))
   errs)
 
 ;; Compute the local error of every subexpression of `prog`

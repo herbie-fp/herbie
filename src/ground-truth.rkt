@@ -34,11 +34,11 @@
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func precondition programs ctxlist)
-  (define fns (batch-eval-progs (cons precondition programs) 'ival (first ctxlist)))
+  (define fns (batch-eval-progs (cons precondition programs) 'ival (car ctxlist)))
   (λ inputs
     (match-define (list ival-pre ival-bodies ...) (apply fns inputs))
     (for/list ([y ival-bodies])
-      (define repr (context-repr (first ctxlist)))
+      (define repr (context-repr (car ctxlist)))
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
        ; can error if the input is erroneous
@@ -55,7 +55,6 @@
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-prog-list-real prog-list ctx-list)
-  ;(define repr (context-repr (first ctx-list)))
   (define pre `(λ ,(context-vars (car ctx-list)) (TRUE)))
   (define fn (make-search-func pre prog-list ctx-list))
   (define (f . pt)
