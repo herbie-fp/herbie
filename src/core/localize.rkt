@@ -82,10 +82,14 @@
       (struct-copy context ctx [repr (cdr sexpr)])))
   (define subexprs-fn (eval-prog-list-real prog-list ctx-list))
 
-  (define errs
+  (define temp-errs
     (for/hash ([sexpr (in-list subexprs)])
       (values (car sexpr) '())))
 
+  (define errs (make-hash))
+  (for ([(k v) temp-errs]) 
+    (hash-set! errs k v))
+    
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
@@ -112,7 +116,9 @@
               (hash-ref exacts-hash (car expr))
               (apply (operator-info f 'fl) argapprox) repr)
           ]))
-      (hash-update! errs (car expr) (curry cons err))))
+      (hash-update! errs (car expr) (curry cons err))
+    )
+  )
   errs)
 
 ;; Compute the local error of every subexpression of `prog`
