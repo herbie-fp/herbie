@@ -285,7 +285,9 @@
                         #:const-folding? [const-folding? #t])
   (egraph-query exprs rules iter-limit node-limit const-folding?))
 
-(define (run-egg input variants? #:proof-input [proof-input '()])
+(define (run-egg input variants?
+                 #:proof-input [proof-input '()]
+                 #:proof-ignore-when-unsound? [proof-ignore-when-unsound? #f])
   (define egg-graph (make-egraph))
   (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-query-exprs input)))
   (define iter-data (egraph-run-rules egg-graph
@@ -309,10 +311,11 @@
 
   (match proof-input
     [(cons start end)
-      (define proof (egraph-get-proof egg-graph start end))
-      (when (null? proof)
-        (error (format "Failed to produce proof for ~a to ~a" start end)))
-      (cons variants proof)]
+     #:when (not (and (egraph-is-unsound-detected egg-graph) proof-ignore-when-unsound?))
+     (define proof (egraph-get-proof egg-graph start end))
+     (when (null? proof)
+       (error (format "Failed to produce proof for ~a to ~a" start end)))
+     (cons variants proof)]
     [else (cons variants #f)]))
 
 (define (egraph-get-simplest egraph-data node-id iteration)
