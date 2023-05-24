@@ -18,7 +18,12 @@
 
 (struct shellstate (table next-alt locs lowlocs patched) #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f)))
+(define (empty-shellstate)
+  (shellstate #f #f #f #f #f))
+
+(define-resetter ^shell-state^
+  (λ () (empty-shellstate))
+  (λ () (empty-shellstate)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -321,9 +326,9 @@
   (run-improve! iters prog specification preprocess original-points repr))
 
 
-(define (run-improve! prog pcontext iters
-                      #:specification [specification #f]
-                      #:preprocess [preprocess '()])
+(define (make-preprocess-pcontext prog pcontext iters
+                                  #:specification [specification #f]
+                                  #:preprocess [preprocess '()])
   (define vars (program-variables specification))
   (timeline-event! 'preprocess)
 
@@ -337,7 +342,16 @@
   (timeline-push! 'symmetry (map ~a new-preprocess))
   (*herbie-preprocess* (append preprocess new-preprocess))
 
-  (define processed-pcontext (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
+  (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
+
+
+(define (run-improve! prog pcontext iters
+                      #:specification [specification #f]
+                      #:preprocess [preprocess '()])
+  (define processed-pcontext
+    (make-preprocess-pcontext prog pcontext iters
+                              #:specification specification
+                              #:preprocess preprocess))
 
   (match-define (cons best rest) (mutate! prog iters processed-pcontext))
 
@@ -376,11 +390,9 @@
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)
   (initialize-alt-table! prog (*pcontext*) (*context*))
-
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (run-iter!)
     (print-warnings))
-
   (extract!))
 
 (define (pareto-regimes sorted ctx)
@@ -425,14 +437,12 @@
        (timeline-event! 'simplify)
 
        (define input-progs (map (compose program-body alt-program) joined-alts))
-       (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*)))
-       (define progss* (simplify-batch egg-query #f))
+       (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
+       (define simplified (simplify-batch egg-query))
 
-       (remove-duplicates
-         (for/list ([altn joined-alts] [progs progss*])
-           (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
-                'final-simplify (list altn)))
-         alt-equal?)]
+       (for/list ([altn joined-alts] [progs simplified])
+         (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
+             'final-simplify (list altn)))]
       [else
        joined-alts]))
         
@@ -453,9 +463,9 @@
 
   (timeline-event! 'soundness)
 
-  (define best-annotated
-    (first (add-soundiness (list best) (*pcontext*) (*context*))))
+  (match-define (cons best-annotated rest-annotated)
+    (add-soundiness (cons best rest) (*pcontext*) (*context*)))
 
   (timeline-event! 'end)
   
-  (cons best-annotated (sort rest > #:key (curryr alt-cost repr))))
+  (cons best-annotated (sort rest-annotated > #:key (curryr alt-cost repr))))
