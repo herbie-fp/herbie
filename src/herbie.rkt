@@ -61,53 +61,59 @@
    #:once-each
    [("--timeout") s
     (
-     "Timeout for each test (in seconds)"
+     "Timeout for each test (in seconds)."
      (format "[Default: ~a seconds]" (/ (*timeout*) 1000))
     )
     (set! timeout-set? #t)
     (*timeout* (* 1000 (string->number s)))]
    [("--seed") int
     (
-     "The random seed to use in point generation"
+     "The random seed to use in point generation."
      "[Default: random]"
     )
     (define given-seed (read (open-input-string int)))
     (when given-seed (set-seed! given-seed))]
    [("--num-iters") num
     (
-     "The number of iterations to use for the main loop"
+     "The number of iterations to use for the main loop. Herbie may find additional improvements
+     with more iterations. Herbie slows down with more iterations."
      (format "[Default: ~a iterations]" (*num-iterations*))
     )
     (*num-iterations* (string->number num))]
    [("--num-points") num
     (
-     "The number of points to use during sampling"
+     "The number of points to use during sampling. Increasing the number of points may make results
+     more consistent, but may slow down Herbie."
      (format "[Default: ~a points]" (*num-points*))
     )
     (*num-points* (string->number num))]
    [("--num-enodes") num
     (
-     "The number of enodes to use during simplification"
+     "The maximum number of enodes to use during egraph-based rewriting. Herbie may find additional
+     improvements with a higher limit, but run time increases exponentially."
      (format "[Default: ~a enodes]" (*node-limit*))
     )
     (*node-limit* (string->number num))]
    [("--num-analysis") num
     (
-     "The number of input analysis iterations to use"
+     "The number of input analysis iterations used when searching for valid input points
+     during sampling. May fix \"Cannot sample enough valid points\" but will slow."
      (format "[Default: ~a iterations]" (*max-find-range-depth*))
     )
     (*max-find-range-depth* (string->number num))]
    [("--no-pareto")
     (
-     "Disables Pareto-Herbie (Pherbie)"
+     "Disables Pareto-Herbie (Pherbie). Pareto-mode performs accuracy and expression cost
+     optimization and extracts multiple output expressions that are Pareto-optimal. Disabling
+     this feature forces Herbie to extract a single, most-accurate output expression."
      "[Default: Pareto-Herbie enabled]"
     )
     (*pareto-mode* #f)]
    #:multi
    [("-o" "--disable") flag
     (
-     "Disable a flag (formatted category:name)"
-     "See `+o/--enable` for the full list of flags"
+     "Disable a search flag (formatted category:name)."
+     "See `+o/--enable` for the full list of search flags."
     )
     (define tf (string->flag flag))
     (when (not tf)
@@ -115,8 +121,9 @@
     (apply disable-flag! tf)]
    [("+o" "--enable") flag
     (
-     "Enable a flag (formatted category:name)"
-     (format "See https://herbie.uwplse.org/doc/~a/options.html for more" *herbie-version*)
+     "Enable a search flag (formatted category:name)."
+     (format "Description of each search flag: https://herbie.uwplse.org/doc/~a/options.html."
+             *herbie-version*)
      (apply string-append "\n"  ;; 5 spaces is the padding inserted by `command-line`
             (map (curry format "     ~a\n") (default-flags->table)))
     )
