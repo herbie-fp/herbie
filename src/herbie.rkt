@@ -73,8 +73,6 @@
     (*node-limit* (string->number num))]
    [("--num-analysis") num "The number of input analysis iterations to use"
     (*max-find-range-depth* (string->number num))]
-   [("--pareto") "Enables Pareto-Herbie (Pherbie)"
-    (*pareto-mode* #t)]
    [("--no-pareto") "Disables Pareto-Herbie (Pherbie)"
     (*pareto-mode* #f)]
    #:multi
