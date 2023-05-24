@@ -11,13 +11,12 @@
          "../syntax/types.rkt" "../syntax/sugar.rkt")
 
 (provide render-menu render-warnings render-large render-program
-         program->fpcore render-reproduction js-tex-include)
+         program->fpcore program->tex render-reproduction js-tex-include)
 
-(define (program->fpcore prog #:ident [ident #f])
-  (match-define (list _ args expr) prog)
+(define (program->fpcore expr ctx #:ident [ident #f])
   (if ident
-      (list 'FPCore ident args expr)
-      (list 'FPCore args expr)))
+      (list 'FPCore ident (context-vars ctx) expr)
+      (list 'FPCore (context-vars ctx) expr)))
 
 (define (fpcore-add-props core props)
   (match core
@@ -93,15 +92,22 @@
                (format "~a = \\mathsf{sort}(~a)\\\\ " varstring varstring)]))
         "\\end{array} \\]")))
 
+(define (program->tex prog ctx #:loc [loc #f])
+  (define prog* (program->fpcore (program-body prog) ctx))
+  (if (supported-by-lang? prog* "tex")
+      (core->tex prog* #:loc loc #:color "blue")
+      "ERROR"))
+
 (define (render-program #:to [result #f] preprocess test)
   (define identifier (test-identifier test))
+  (define ctx (test-context test))
   (define output-repr (test-output-repr test))
 
-  (define in-prog (program->fpcore (resugar-program (test-program test) output-repr) #:ident identifier))
+  (define in-prog (program->fpcore (test-input test) ctx #:ident identifier))
   (define out-prog
     (and result
          (parameterize ([*expr-cse-able?* at-least-two-ops?])
-           (core-cse (program->fpcore (resugar-program result output-repr) #:ident identifier)))))
+           (core-cse (program->fpcore (program-body result) ctx #:ident identifier)))))
 
   (define output-prec (representation-name output-repr))
   (define in-prog* (fpcore-add-props in-prog (list ':precision output-prec)))
