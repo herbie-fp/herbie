@@ -59,21 +59,49 @@
   (multi-command-line
    #:program "herbie"
    #:once-each
-   [("--timeout") s "Timeout for each test (in seconds)"
+   [("--timeout") s
+    (
+     "Timeout for each test (in seconds)"
+     (format "[Default: ~a seconds]" (/ (*timeout*) 1000))
+    )
     (set! timeout-set? #t)
     (*timeout* (* 1000 (string->number s)))]
-   [("--seed") int "The random seed to use in point generation"
+   [("--seed") int
+    (
+     "The random seed to use in point generation"
+     "[Default: random]"
+    )
     (define given-seed (read (open-input-string int)))
     (when given-seed (set-seed! given-seed))]
-   [("--num-iters") num "The number of iterations to use for the main loop"
+   [("--num-iters") num
+    (
+     "The number of iterations to use for the main loop"
+     (format "[Default: ~a iterations]" (*num-iterations*))
+    )
     (*num-iterations* (string->number num))]
-   [("--num-points") num "The number of points to use during sampling"
+   [("--num-points") num
+    (
+     "The number of points to use during sampling"
+     (format "[Default: ~a points]" (*num-points*))
+    )
     (*num-points* (string->number num))]
-   [("--num-enodes") num "The number of enodes to use during simplification"
+   [("--num-enodes") num
+    (
+     "The number of enodes to use during simplification"
+     (format "[Default: ~a enodes]" (*node-limit*))
+    )
     (*node-limit* (string->number num))]
-   [("--num-analysis") num "The number of input analysis iterations to use"
+   [("--num-analysis") num
+    (
+     "The number of input analysis iterations to use"
+     (format "[Default: ~a iterations]" (*max-find-range-depth*))
+    )
     (*max-find-range-depth* (string->number num))]
-   [("--no-pareto") "Disables Pareto-Herbie (Pherbie)"
+   [("--no-pareto")
+    (
+     "Disables Pareto-Herbie (Pherbie)"
+     "[Default: Pareto-Herbie enabled]"
+    )
     (*pareto-mode* #f)]
    #:multi
    [("-o" "--disable") flag
