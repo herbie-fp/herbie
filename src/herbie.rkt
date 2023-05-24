@@ -24,6 +24,18 @@
       (list category flag))]
     [_ #f]))
 
+(define (default-flags->table)
+  (list*
+    (format "~a | ~a | ~a" (~a "category" #:min-width 10)
+                           (~a "flag" #:min-width 20)
+                           (~a "default?" #:min-width 10))
+    (~a "" #:min-width 44 #:pad-string "=")
+    (for*/list ([(category flags) (in-hash all-flags)]
+                [flag (in-list flags)])
+      (format "~a | ~a | ~a" (~a category #:min-width 10)
+                             (~a flag #:min-width 20)
+                             (if (flag-set? category flag) "\u2714" "")))))
+
 (module+ main
   (define quiet? #f)
   (define demo-output #f)
@@ -66,12 +78,22 @@
    [("--no-pareto") "Disables Pareto-Herbie (Pherbie)"
     (*pareto-mode* #f)]
    #:multi
-   [("-o" "--disable") flag "Disable a flag (formatted category:name)"
+   [("-o" "--disable") flag
+    (
+     "Disable a flag (formatted category:name)"
+     "See `+o/--enable` for the full list of flags"
+    )
     (define tf (string->flag flag))
     (when (not tf)
       (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
     (apply disable-flag! tf)]
-   [("+o" "--enable") flag "Enable a flag (formatted category:name)"
+   [("+o" "--enable") flag
+    (
+     "Enable a flag (formatted category:name)"
+     (format "See https://herbie.uwplse.org/doc/~a/options.html for more" *herbie-version*)
+     (apply string-append "\n"
+            (map (curry format "     ~a\n") (default-flags->table)))
+    )
     (define tf (string->flag flag))
     (when (not tf)
       (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
