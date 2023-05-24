@@ -5,8 +5,7 @@ authors = [ "Oliver Flatt <oflatt@gmail.com>", "Max Willsey <me@mwillsey.com>" ]
 edition = "2018"
 
 [dependencies]
-# egg = "0.9.3"
-egg = { git="https://github.com/egraphs-good/egg", rev="1e43469654a020af9dbffb4f437e8f4aa3082f05" }
+egg = "0.9.4"
 
 log = "0.4"
 indexmap = "1"
