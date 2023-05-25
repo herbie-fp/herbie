@@ -13,15 +13,10 @@
          (struct-out test-failure) (struct-out test-timeout)
          get-table-data unparse-result get-local-error)
 
-;; These cannot move between threads!
-(struct test-result (test bits time timeline warnings))
-(struct test-success test-result
-  (start-alt end-alts preprocess points exacts
-   start-est-error end-est-error newpoints newexacts
-   start-error end-errors target-error
-   start-cost end-costs all-alts))
-(struct test-failure test-result (exn))
-(struct test-timeout test-result ())
+;; Cannot move between threads
+(struct alt-result (alt train-error test-error cost))
+(struct test-result (test time timeline warnings exn status
+                     train-pctx test-pctx start target end))
 
 (define *reeval-pts* (make-parameter 8000))
 (define *timeout* (make-parameter (* 1000 60 5/2)))
@@ -194,7 +189,7 @@
   (random) ;; Child process uses deterministic but different seed from evaluator
   
   (define output-repr (test-output-repr test))
-  (define context (test-context test))
+  (define ctx (test-context test))
   (*needed-reprs* (list output-repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
@@ -207,54 +202,69 @@
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
 
-  (define alts
+  (define end-alts
     (run-improve! (test-program test) train-pcontext (*num-iterations*)
                   #:specification (test-specification test)
                   #:preprocess (test-preprocess test)))
 
   (when seed (set-seed! seed))
-  (define processed-test-pcontext
-    (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
-
-  (define end-errs
-    (flip-lists
-     (batch-errors (map alt-program alts) processed-test-pcontext context)))
+  (define preprocess (*herbie-preprocess*))
+  (define processed-test-pcontext (preprocess-pcontext test-pcontext preprocess ctx))
 
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
+  
+  (define start-alt (make-alt start-prog))
+  (define start-prog (alt-program start-alt))
+  (define start-cost (program-cost start-prog))
+  (define start-train-errs (errors start-prog train-pcontext ctx))
+  (define start-test-errs (errors start-prog processed-test-pcontext ctx))
+  (define start-alt-data (alt-result start-alt start-train-errs start-test-errs start-cost))
 
-  (define-values (points exacts) (get-p&es train-pcontext))
-  (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
-  (test-success test
-                (bf-precision)
-                #f
-                (timeline-extract)
-                (warning-log) (make-alt (test-program test)) alts
-                (*herbie-preprocess*) points exacts
-                (errors (test-program test) train-pcontext context)
-                (errors (alt-program (car alts)) train-pcontext context)
-                newpoints newexacts
-                (errors (test-program test) processed-test-pcontext context)
-                end-errs
-                (if (test-output test)
-                    (errors (test-target test) processed-test-pcontext context)
-                    #f)
-                (program-cost (test-program test) output-repr)
-                (map (curryr alt-cost output-repr) alts)
-                (*all-alts*)))
+  (define target-alt-data
+    (cond
+      [(test-target test)
+       (define target-prog (test-target test))
+       (define target-cost (program-cost target-prog))
+       (define target-train-errs (errors target-prog train-pcontext ctx))
+       (define target-test-errs (errors target-prog processed-test-pcontext ctx))
+       (alt-result (make-alt target-prog) target-train-errs target-test-errs target-cost)]
+      [else
+       #f]))
 
-;; Ugly, but struct-copy doesn't do the right thing with inheritance
+  (define end-progs (map alt-program end-alts))
+  (define end-costs (map program-cost end-progs))
+  (define end-target-errs (flip-lists (batch-errors end-progs train-pcontext ctx)))
+  (define end-test-errs (flip-lists (batch-errors end-progs processed-test-pcontext ctx)))
+  (define end-alt-data (map alt-result end-alts end-target-errs end-test-errs end-costs))
+
+  ; (define-values (points exacts) (get-p&es train-pcontext))
+  ; (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
+
+  (test-result test #f (timeline-extract) (warning-log) #f 'success
+               train-pcontext processed-test-pcontext
+               start-alt-data target-alt-data end-alt-data))
+
+  ; (test-success test
+  ;               (bf-precision)
+  ;               #f
+  ;               (timeline-extract)
+  ;               (warning-log) (make-alt (test-program test)) alts
+  ;               (*herbie-preprocess*) points exacts
+  ;               (errors (test-program test) train-pcontext context)
+  ;               (errors (alt-program (car alts)) train-pcontext context)
+  ;               newpoints newexacts
+  ;               (errors (test-program test) processed-test-pcontext context)
+  ;               end-errs
+  ;               (if (test-output test)
+  ;                   (errors (test-target test) processed-test-pcontext context)
+  ;                   #f)
+  ;               (program-cost (test-program test) output-repr)
+  ;               (map (curryr alt-cost output-repr) alts)
+  ;               (*all-alts*)))
+
 (define (add-time result time)
-  (match-define (test-success test bits _time timeline warnings
-                              start-alt end-alts preprocess points exacts
-                              start-est-error end-est-error newpoints newexacts
-                              start-error end-errors target-error
-                              start-cost end-costs all-alts) result)
-  (test-success test bits time timeline warnings
-                start-alt end-alts preprocess points exacts
-                start-est-error end-est-error newpoints newexacts
-                start-error end-errors target-error
-                start-cost end-costs all-alts))
+  (struct-copy test-result result [time time]))
 
 (define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
@@ -266,21 +276,21 @@
       (rollback-improve!)
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
-      (with-handlers ([exn? (curry on-exception start-time)])
-        (define out
+      (define result
+        (with-handlers ([exn? (curry on-exception start-time)])
           (match command
             ['improve (run-herbie test)]
-            ['sample (get-sample test)]))
-        (print-warnings)
-        (if (eq? command 'sample) out (add-time out (- (current-inexact-milliseconds) start-time))))))
+            ['sample (get-sample test)])))
+      (print-warnings)
+      (define total-time (- (current-inexact-milliseconds) start-time))
+      (if (test-result? result) (add-time out total-time) result)))
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* false])
-      (timeline-event! 'end))
-    (print-warnings)
-    (test-failure test (bf-precision)
-                  (- (current-inexact-milliseconds) start-time) (timeline-extract)
-                  (warning-log) e))
+      (timeline-event! 'end)
+      (print-warnings)
+      (define total-time (- (current-inexact-milliseconds) start-time))
+      (test-result test total-time (timeline-extract) (warning-log) e #f #f #f #f #f)))
 
   (define (in-engine _)
     (if profile?
