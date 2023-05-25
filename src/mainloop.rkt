@@ -176,7 +176,7 @@
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
-      (match-define (alt _ event (list prev)) altn)
+      (match-define (alt _ event prevs) altn)
       (cond
        [(equal? event '(patch)) orig]
        [else
@@ -192,7 +192,7 @@
            [(list 'simplify (list 2 loc ...) input proof soundiness)
             (list 'simplify (append '(2) loc0 loc) input proof soundiness)]))
         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
-        (alt expr* event* (list (loop prev)))])))
+        (alt expr* event* (list (loop (first prevs))))])))
   
   (^patched^
     (for/fold ([patched '()] #:result (reverse patched))

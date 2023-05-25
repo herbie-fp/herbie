@@ -27,7 +27,7 @@
             (list num-increase num-decrease (length prev)))))
   proof-diffs)
 
-(define (canonicalize-proof prog loc variants? e-input p-input)
+(define (canonicalize-proof prog loc pcontext ctx variants? e-input p-input)
   (match-define 
    (cons variants proof)
    (run-egg e-input variants?
@@ -53,7 +53,7 @@
      (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
      (match-define (cons proof errs)
        (hash-ref! cache (cons p-input e-input)
-                  (λ () (canonicalize-proof (alt-expr altn) loc #t e-input p-input))))
+                  (λ () (canonicalize-proof (alt-expr altn) loc pcontext ctx #t e-input p-input))))
      (alt expr `(rr (2 ,@loc) ,e-input ,proof ,errs) `(,prev))]
 
     [(alt expr `(rr (2 ,@loc) ,(? rule? input) #f #f) `(,prev))
@@ -73,7 +73,7 @@
      (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
      (match-define (cons proof errs)
        (hash-ref! cache (cons p-input e-input)
-                  (λ () (canonicalize-proof (alt-expr altn) loc #f e-input p-input))))
+                  (λ () (canonicalize-proof (alt-expr altn) loc pcontext ctx #f e-input p-input))))
      (alt expr `(simplify (2 ,@loc) ,e-input ,proof ,errs) `(,prev))]
 
     [else altn]))
