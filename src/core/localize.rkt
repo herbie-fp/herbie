@@ -86,9 +86,8 @@
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
-(define (local-error-as-tree prog ctx)
-  (define errs (compute-local-errors (program-body prog) ctx))
-  (define expr (program-body prog))
+(define (local-error-as-tree expr ctx)
+  (define errs (compute-local-errors expr ctx))
   (let loop ([expr expr])
     (match expr
       [(list op args ...) (cons (hash-ref errs expr) (map loop args))]
