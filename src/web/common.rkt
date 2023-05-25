@@ -14,9 +14,10 @@
          program->fpcore program->tex render-reproduction js-tex-include)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
+  (define body (resugar-program expr (context-repr ctx) #:full #t))
   (if ident
-      (list 'FPCore ident (context-vars ctx) expr)
-      (list 'FPCore (context-vars ctx) expr)))
+      (list 'FPCore ident (context-vars ctx) body)
+      (list 'FPCore (context-vars ctx) body)))
 
 (define (fpcore-add-props core props)
   (match core

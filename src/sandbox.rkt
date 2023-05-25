@@ -44,7 +44,7 @@
   (define repr (test-output-repr test))
   (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
-  (define fn (make-search-func (test-precondition test) (list (test-program test)) (test-context test)))
+  (define fn (make-search-func (test-pre test) (list (test-input test)) (test-context test)))
   (for/list ([pt pts])
     (define-values (status precision out)
         (ival-eval fn pt #:precision starting-precision))
@@ -52,13 +52,13 @@
     (cons pt exs)))
 
 (define (get-calculation test pts)
-  (define fn (eval-prog (test-program test) 'fl (test-context test)))
+  (define fn (eval-prog (test-input test) 'fl (test-context test)))
   (for/list ([pt pts])
     (define val (apply fn pt))
     (cons pt (list val))))
 
 (define (get-cost test)
-    (program-cost (test-program test) (test-output-repr test)))
+  (expr-cost (test-input test) (test-output-repr test)))
 
 
 ;; Translates points from the API endpoint
@@ -125,7 +125,7 @@
     (compute-pcontexts pts+exs (*context*)))
 
   (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) (*context*)))
-  (define errs (errors (test-program test) processed-pcontext (*context*)))
+  (define errs (errors (test-input test) processed-pcontext (*context*)))
 
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
     (list pt (format-bits (ulps->bits err)))))
@@ -148,14 +148,14 @@
     (compute-pcontexts pts+exs (*context*)))
 
   (define processed-pcontext
-    (make-preprocess-pcontext (test-program test)
+    (make-preprocess-pcontext (test-input test)
                               test-pcontext
                               (*num-iterations*)
-                              #:specification (test-specification test)
+                              #:specification (test-spec test)
                               #:preprocess (test-preprocess test)))
 
   (*pcontext* processed-pcontext)
-  (local-error-as-tree (test-program test) (*context*)))
+  (local-error-as-tree (test-input test) (*context*)))
 
 ;; Given a test and a sample of points, returns a list of improved alternatives
 ;; and both the test set of points and processed test set of points.
@@ -180,8 +180,8 @@
     (compute-pcontexts pts+exs (*context*)))
 
   (define alts
-    (run-improve! (test-program test) train-pcontext (*num-iterations*)
-                  #:specification (test-specification test)
+    (run-improve! (test-input test) train-pcontext (*num-iterations*)
+                  #:specification (test-spec test)
                   #:preprocess (test-preprocess test)))
 
   (when seed (set-seed! seed))
@@ -210,7 +210,7 @@
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
 
   (define alts
-    (run-improve! (test-program test) train-pcontext (*num-iterations*)
+    (run-improve! (test-input test) train-pcontext (*num-iterations*)
                   #:specification (test-spec test)
                   #:preprocess (test-preprocess test)))
 

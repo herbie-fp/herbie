@@ -295,8 +295,8 @@
   (cons domain (apply mk-pcontext pts+exs)))
 
 (define (initialize-alt-table! prog pcontext ctx)
-  (define alt (make-alt prog))
-  (*start-prog* (alt-expr alt))
+  (define alt (make-alt `(λ ,(context-vars ctx) ,prog)))
+  (*start-prog* prog)
   (define table (make-alt-table (*pcontext*) alt ctx))
 
   ; Add starting alt in every precision

@@ -67,7 +67,7 @@
 
 (define (make-interactive-js result out ctx)
   (define repr (context-repr ctx))
-  (define js-text (get-interactive-js result repr))
+  (define js-text (get-interactive-js result ctx))
   (when (string? js-text)
     (display js-text out)))
 
