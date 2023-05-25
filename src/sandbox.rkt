@@ -1,4 +1,5 @@
 #lang racket
+
 (require profile math/bigfloat racket/engine json rival)
 (require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
@@ -7,16 +8,15 @@
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "core/localize.rkt" "ground-truth.rkt")
 
-(provide get-alternatives get-errors get-sample get-test-result
-         get-exacts *reeval-pts* *timeout* get-calculation get-cost
-         (struct-out test-result) (struct-out test-success)
-         (struct-out test-failure) (struct-out test-timeout)
-         get-table-data unparse-result get-local-error)
+(provide get-alternatives get-calculation get-cost get-errors
+         get-exacts get-local-error get-sample get-test-result
+         (struct-out test-result) get-table-data unparse-result
+         *reeval-pts* *timeout*)
 
 ;; Cannot move between threads
 (struct alt-result (alt train-error test-error cost))
-(struct test-result (test time timeline warnings exn status
-                     train-pctx test-pctx start target end))
+(struct test-result (test status time timeline warnings exn
+                     preprocess train-pctx test-pctx start target end))
 
 (define *reeval-pts* (make-parameter 8000))
 (define *timeout* (make-parameter (* 1000 60 5/2)))
@@ -188,16 +188,16 @@
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
   
-  (define output-repr (test-output-repr test))
+  (define repr (test-output-repr test))
   (define ctx (test-context test))
-  (*needed-reprs* (list output-repr (get-representation 'bool)))
+  (*needed-reprs* (list repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
   (match-define (cons domain-stats joint-pcontext)
                 (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-                  (setup-context!
-                   (or (test-specification test) (test-program test)) (test-precondition test)
-                   output-repr)))
+                  (setup-context! (or (test-specification test) (test-program test))
+                                  (test-precondition test)
+                                  repr)))
   (timeline-push! 'bogosity domain-stats)
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
@@ -216,7 +216,7 @@
   
   (define start-alt (make-alt start-prog))
   (define start-prog (alt-program start-alt))
-  (define start-cost (program-cost start-prog))
+  (define start-cost (program-cost start-prog repr))
   (define start-train-errs (errors start-prog train-pcontext ctx))
   (define start-test-errs (errors start-prog processed-test-pcontext ctx))
   (define start-alt-data (alt-result start-alt start-train-errs start-test-errs start-cost))
@@ -225,7 +225,7 @@
     (cond
       [(test-target test)
        (define target-prog (test-target test))
-       (define target-cost (program-cost target-prog))
+       (define target-cost (program-cost target-prog repr))
        (define target-train-errs (errors target-prog train-pcontext ctx))
        (define target-test-errs (errors target-prog processed-test-pcontext ctx))
        (alt-result (make-alt target-prog) target-train-errs target-test-errs target-cost)]
@@ -233,7 +233,7 @@
        #f]))
 
   (define end-progs (map alt-program end-alts))
-  (define end-costs (map program-cost end-progs))
+  (define end-costs (map program-cost end-progs repr))
   (define end-target-errs (flip-lists (batch-errors end-progs train-pcontext ctx)))
   (define end-test-errs (flip-lists (batch-errors end-progs processed-test-pcontext ctx)))
   (define end-alt-data (map alt-result end-alts end-target-errs end-test-errs end-costs))
@@ -241,30 +241,9 @@
   ; (define-values (points exacts) (get-p&es train-pcontext))
   ; (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
 
-  (test-result test #f (timeline-extract) (warning-log) #f 'success
-               train-pcontext processed-test-pcontext
+  (test-result test 'success #f (timeline-extract) (warning-log) #f
+               preprocess train-pcontext processed-test-pcontext
                start-alt-data target-alt-data end-alt-data))
-
-  ; (test-success test
-  ;               (bf-precision)
-  ;               #f
-  ;               (timeline-extract)
-  ;               (warning-log) (make-alt (test-program test)) alts
-  ;               (*herbie-preprocess*) points exacts
-  ;               (errors (test-program test) train-pcontext context)
-  ;               (errors (alt-program (car alts)) train-pcontext context)
-  ;               newpoints newexacts
-  ;               (errors (test-program test) processed-test-pcontext context)
-  ;               end-errs
-  ;               (if (test-output test)
-  ;                   (errors (test-target test) processed-test-pcontext context)
-  ;                   #f)
-  ;               (program-cost (test-program test) output-repr)
-  ;               (map (curryr alt-cost output-repr) alts)
-  ;               (*all-alts*)))
-
-(define (add-time result time)
-  (struct-copy test-result result [time time]))
 
 (define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
@@ -283,14 +262,18 @@
             ['sample (get-sample test)])))
       (print-warnings)
       (define total-time (- (current-inexact-milliseconds) start-time))
-      (if (test-result? result) (add-time out total-time) result)))
+      (if (test-result? result)
+          (struct-copy test-result result [time total-time])
+          result)))
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* false])
       (timeline-event! 'end)
       (print-warnings)
       (define total-time (- (current-inexact-milliseconds) start-time))
-      (test-result test total-time (timeline-extract) (warning-log) e #f #f #f #f #f)))
+      (define timeline (timeline-extract))
+      (define preprocess (test-preprocess test))
+      (test-result test 'failure total-time timeline (warning-log) e preprocess #f #f #f #f #f)))
 
   (define (in-engine _)
     (if profile?
@@ -312,73 +295,83 @@
         (timeline-load! timeline)
         (timeline-compact! 'outcomes)
         (print-warnings)
-        (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '()))))
+        (define timeline (timeline-extract))
+        (define preprocess (test-preprocess test))
+        (test-result test 'timeout (*timeout*) timeline (warning-log) #f preprocess #f #f #f #f #f))))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
   (define repr (test-output-repr test))
+  (define preprocess (test-result-preprocess result))
   (table-row (test-name test) (test-identifier test) status
              (resugar-program (program-body (test-precondition test)) repr)
-             (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
+              preprocess
              (representation-name (test-output-repr test))
              (map (curry map representation-name) (test-conversions test))
              (test-vars test)
              (resugar-program (test-input test) repr) #f
              (resugar-program (test-spec test) repr)
              (and (test-output test) (resugar-program (test-output test) repr))
-             #f #f #f #f #f (test-result-time result)
-             (test-result-bits result) link '()))
+             #f #f #f #f #f (test-result-time result) link '()))
 
 (define (get-table-data result link)
-  (define test (test-result-test result))
-  (cond
-   [(test-success? result)
-    (define name (test-name test))
-    (define start-errors  (test-success-start-error result))
-    (define end-errorss   (test-success-end-errors result))
-    (define target-errors (test-success-target-error result))
-    (define start-prog    (alt-program (test-success-start-alt result)))
-    (define end-progs     (map alt-program (test-success-end-alts result)))
-    (define costs         (test-success-end-costs result))
+  (match (test-result-status result)
+    ['success
+     (define test (test-result-test result))
+     (define name (test-name test))
+     (define repr (test-output-repr test))
 
-    (define start-score (errors-score start-errors))
-    (define end-scores (map errors-score end-errorss))
-    (define end-score (car end-scores))
-    (define target-score (and target-errors (errors-score target-errors)))
-    (define est-start-score (errors-score (test-success-start-est-error result)))
-    (define est-end-score (errors-score (test-success-end-est-error result)))
-    (define end-exprs (map (λ (p) (program-body (resugar-program p (test-output-repr test)))) end-progs))
+     (define start (test-result-start result))
+     (define start-prog (alt-program (alt-result-alt start)))
+     (define start-train-score (errors-score (alt-result-train-error start)))
+     (define start-test-score (errors-score (alt-result-test-error start)))
+     (define start-cost (alt-result-cost repr))
+     
+     (define target (test-result-target result))
+     (define target-score (and target (errors-score (alt-result-test-error target))))
 
-    (define cost&accuracy
-      (list (list (program-cost start-prog (test-output-repr test)) start-score)
-            (list (car costs) (car end-scores))
-            (map list (cdr costs) (cdr end-scores) (cdr end-exprs))))
+     (define end (test-result-end result))
+     (define end-progs (map (compose alt-program alt-result-alt) end))
+     (define end-train-scores (map (compose errors-score alt-result-train-error) end))
+     (define end-test-scores (map (compose errors-score alt-result-test-error) end))
+     (define end-costs (map alt-result-cost end))
+     (define end-exprs (map (λ (p) (program-body (resugar-program p repr))) end-progs))
+ 
+     (define cost&accuracy
+       (list (list start-cost start-test-score)
+             (list (car end-costs) (car end-test-scores))
+             (map list (cdr end-costs) (cdr end-test-scores) (cdr end-exprs))))
+ 
+     (define fuzz 0.1)
+     (define end-est-score (car end-train-scores))
+     (define end-score (car end-test-scores))
+     (define status
+       (if target-score
+           (cond
+            [(< end-score (- target-score fuzz)) "gt-target"]
+            [(< end-score (+ target-score fuzz)) "eq-target"]
+            [(> end-score (+ start-test-score fuzz)) "lt-start"]
+            [(> end-score (- start-test-score fuzz)) "eq-start"]
+            [(> end-score (+ target-score fuzz)) "lt-target"])
+           (cond
+            [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
+            [(< end-score (- start-test-score 1)) "imp-start"]
+            [(< end-score (+ start-test-score fuzz)) "apx-start"]
+            [else "uni-start"])))
 
-    (define fuzz 0.1)
-    (define status
-      (if target-score
-          (cond
-           [(< end-score (- target-score fuzz)) "gt-target"]
-           [(< end-score (+ target-score fuzz)) "eq-target"]
-           [(> end-score (+ start-score fuzz)) "lt-start"]
-           [(> end-score (- start-score fuzz)) "eq-start"]
-           [(> end-score (+ target-score fuzz)) "lt-target"])
-          (cond
-           [(and (< start-score 1) (< end-score (+ start-score 1))) "ex-start"]
-           [(< end-score (- start-score 1)) "imp-start"]
-           [(< end-score (+ start-score fuzz)) "apx-start"]
-           [else "uni-start"])))
-
-    (struct-copy table-row (dummy-table-row result status link)
-                 [output (car end-exprs)]
-                 [start start-score] [result end-score] [target target-score]
-                 [start-est est-start-score] [result-est est-end-score]
-                 [cost-accuracy cost&accuracy])]
-   [(test-failure? result)
-    (define status (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash"))
-    (dummy-table-row result status link)]
-   [(test-timeout? result)
-    (dummy-table-row result "timeout" link)]))
+     (struct-copy table-row (dummy-table-row result status link)
+                  [start-est start-train-score] [start start-test-score]
+                  [target target-score]
+                  [result-est end-est-score] [result end-score]
+                  [output (car end-exprs)] [cost-accuracy cost&accuracy])]
+    ['failure
+     (define exn (test-result-exn result))
+     (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
+     (dummy-table-row result status link)]
+    ['timeout
+     (dummy-table-row result "timeout" link)]
+    [_
+     (error 'get-table-data "Unknown table result type ~a" (test-result-status result))]))
 
 (define (unparse-result row)
   (define top

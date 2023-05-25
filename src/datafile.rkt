@@ -12,7 +12,7 @@
 (struct table-row
   (name identifier status pre preprocess precision conversions vars
         input output spec target-prog start result target
-        start-est result-est time bits link cost-accuracy) #:prefab)
+        start-est result-est time link cost-accuracy) #:prefab)
 
 (struct report-info
   (date commit branch hostname seed flags points iterations note tests) #:prefab #:mutable)
@@ -57,7 +57,7 @@
       [(table-row name identifier status pre preprocess prec conversions vars
                   input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
-                  time bits link cost-accuracy)
+                  time link cost-accuracy)
        (define cost-accuracy*
         (match cost-accuracy
           [(list) (list)]
@@ -85,7 +85,6 @@
           (spec . ,(~s spec))
           (target-prog . ,(~s target-prog))
           (time . ,time)
-          (bits . ,bits)
           (link . ,(~a link))
           (cost-accuracy . ,cost-accuracy*)))]))
 
