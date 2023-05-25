@@ -324,11 +324,14 @@
      (define target-score (and target (errors-score (alt-result-test-errors target))))
 
      (define end (test-result-end result))
-     (define end-progs (map (compose alt-program alt-result-alt) end))
-     (define end-train-scores (map (compose errors-score alt-result-train-errors) end))
-     (define end-test-scores (map (compose errors-score alt-result-test-errors) end))
-     (define end-costs (map (curryr program-cost repr) end-progs))
-     (define end-exprs (map (λ (p) (program-body (resugar-program p repr))) end-progs))
+     (define-values (end-progs end-train-scores end-test-scores end-costs end-exprs)
+       (for/lists (l1 l2 l3 l4 l5) ([result end])
+         (match-define (alt-result alt train-errors test-errors) result)
+         (values (alt-program alt)
+                 (errors-score train-errors)
+                 (errors-score test-errors)
+                 (program-cost (alt-program alt) repr)
+                 (program-body (resugar-program (alt-program alt) repr)))))
  
      (define cost&accuracy
        (list (list start-cost start-test-score)
