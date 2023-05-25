@@ -22,90 +22,61 @@
   (define proof-diffs
     (cons (list 0 0)
           (for/list ([prev proof-errors] [current (rest proof-errors)])
-                    (define num-increase
-                      (for/sum ([a prev] [b current])
-                               (if (> b a)
-                                   1
-                                   0)))
-                    (define num-decrease
-                      (for/sum ([a prev] [b current])
-                               (if (< b a)
-                                   1
-                                   0)))
-                    (list num-increase
-                          num-decrease (length prev)))))
+            (define num-increase (count > current prev))
+            (define num-decrease (count < current prev))
+            (list num-increase num-decrease (length prev)))))
   proof-diffs)
+
+(define (canonicalize-proof prog loc variants? e-input p-input)
+  (match-define 
+   (cons variants proof)
+   (run-egg e-input variants?
+            #:proof-input p-input
+            #:proof-ignore-when-unsound? #t))
+  (cond
+   [proof
+    ;; Proofs are actually on subexpressions,
+    ;; we need to construct the proof for the full expression
+    (define proof*
+      (for/list ([step (in-list proof)])
+        (location-do loc prog (const (canonicalize-rewrite step)))))
+    (define errors
+      (get-proof-errors proof* pcontext ctx))
+    (cons proof* errors)]
+   [else
+    (cons #f #f)]))
 
 (define (add-soundiness-to pcontext ctx cache altn)
   (match altn
-    ;; This is alt coming from rr
-    [(alt prog `(rr, loc, input #f #f) `(,prev))
-     (cond
-       [(egraph-query? input) ;; Check if input is an egraph-query struct (B-E-R)
-        (define e-input input)
-        (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
-        (match-define (cons proof errs)
-          (hash-ref! cache (cons p-input e-input)
-                     (λ ()
-                       (match-define (cons variants proof)
-                         (run-egg e-input #t
-                                  #:proof-input p-input
-                                  #:proof-ignore-when-unsound? #t))
-                       (cond
-                         [proof
-                          ;; Proofs are actually on subexpressions,
-                          ;; we need to construct the proof for the full expression
-                          (define proof*
-                            (for/list ([step proof])
-                              (let ([step* (canonicalize-rewrite step)])
-                                (program-body (location-do loc prog (λ _ step*))))))
-                          (define errors
-                            (get-proof-errors proof* pcontext ctx))
-                          (cons proof* errors)]
-                         [else
-                          (cons #f #f)]))))
-         (alt prog `(rr ,loc ,input ,proof ,errs) `(,prev))]
-        [(rule? input) ;; (R-O) case
-         (match-define (cons proof errs)
-           (hash-ref! cache (cons input prog)
-                      (λ ()
-                        (define proof
-                          (list (program-body (alt-program prev))
-                                (list 'Rewrite=> (rule-name input) (program-body prog))))
-                        (define errs
-                          (get-proof-errors proof pcontext ctx))
-                        (cons proof errs))))
-         (alt prog `(rr ,loc ,input ,proof ,errs) `(,prev))]
-        [else
-         (alt prog `(rr ,loc, input #f #f) `(,prev))])]
-            
-      ;; This is alt coming from simplify
-    [(alt prog `(simplify ,loc ,input, #f #f) `(,prev))
-     (define e-input input)
-     (define p-input (cons (location-get loc (alt-program prev)) (location-get loc prog)))
+
+    [(alt prog `(rr (2 ,@loc) ,(? egraph-query? e-input) #f #f) `(,prev))
+     (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
      (match-define (cons proof errs)
        (hash-ref! cache (cons p-input e-input)
+                  (λ () (canonicalize-proof (alt-expr altn) loc #t e-input p-input))))
+     (alt prog `(rr (2 ,@loc) ,e-input ,proof ,errs) `(,prev))]
+
+    [(alt prog `(rr (2 ,@loc) ,(? rule? input) #f #f) `(,prev))
+     (match-define (cons proof errs)
+       (hash-ref! cache (cons input prog)
                   (λ ()
-                    (match-define (cons variants proof)
-                      (run-egg e-input #f
-                               #:proof-input p-input
-                               #:proof-ignore-when-unsound? #t))
-                    (cond
-                      [proof
-                       ;; Proofs are actually on subexpressions,
-                       ;; we need to construct the proof for the full expression
-                       (define proof*
-                         (for/list ([step proof])
-                           (let ([step* (canonicalize-rewrite step)])
-                             (program-body (location-do loc prog (λ _ step*))))))
-                       (define errors
-                         (get-proof-errors proof* pcontext ctx))
-                       (cons proof* errors)]
-                      [else
-                       (cons #f #f)]))))
-     (alt prog `(simplify ,loc ,input ,proof ,errs) `(,prev))]
-    [else
-     altn]))
+                    (define proof
+                      (list (alt-expr prev)
+                            (list 'Rewrite=> (rule-name input) (alt-expr altn))))
+                    (define errs
+                      (get-proof-errors proof pcontext ctx))
+                    (cons proof errs))))
+     (alt prog `(rr (2 ,@loc) ,input ,proof ,errs) `(,prev))]
+
+    ;; This is alt coming from simplify
+    [(alt prog `(simplify (2 ,@loc) ,(? egraph-query? e-input) #f #f) `(,prev))
+     (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
+     (match-define (cons proof errs)
+       (hash-ref! cache (cons p-input e-input)
+                  (λ () (canonicalize-proof (alt-expr altn) loc #f e-input p-input))))
+     (alt prog `(simplify (2 ,@loc) ,e-input ,proof ,errs) `(,prev))]
+
+    [else altn]))
 
 (define (add-soundiness alts pcontext ctx)
   (define cache (make-hash))
