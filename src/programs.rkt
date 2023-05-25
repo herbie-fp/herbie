@@ -269,15 +269,14 @@
   (-> expr? expr? expr? expr?)
   (match haystack
    [(== needle) needle*]
-   [(list (or 'lambda 'λ) (list vars ...) body)
-    `(λ ,vars ,(replace-expression body needle needle*))]
    [(list op args ...)
     (cons op (map (curryr replace-expression needle needle*) args))]
    [x x]))
 
 (module+ test
-  (check-equal? (replace-expression '(λ (x) (- x (sin x))) 'x 1)
-                '(λ (x) (- 1 (sin 1))))
+  (check-equal?
+   (replace-expression '(- x (sin x)) 'x 1)
+   '(- 1 (sin 1)))
 
   (check-equal?
    (replace-expression
