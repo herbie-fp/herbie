@@ -1,4 +1,5 @@
 #lang racket
+
 (provide (all-defined-out))
 
 ;;; Flags
@@ -131,8 +132,23 @@
 
 (define resetters '())
 
-(define (register-reset fn #:priority [priority 0])
+(define (register-reset! fn #:priority [priority 0])
   (set! resetters (cons (cons priority fn) resetters)))
+
+;; Defines a resetter as a parameter
+;; An initialize and reset function must be provided
+;; A finializer may be optionally specified
+(define-syntax define-resetter
+  (syntax-rules ()
+    [(_ name init-fn reset-fn)
+     (define-resetter name init-fn reset-fn (λ _ (void)))]
+    [(_ name init-fn reset-fn finalize-fn)
+     (begin
+       (define name (make-parameter (init-fn)))
+       (register-reset!
+         (λ ()
+           (finalize-fn (name))
+           (name (reset-fn)))))]))
 
 (define (reset!)
   (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn-rec))))

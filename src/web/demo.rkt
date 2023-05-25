@@ -1,13 +1,18 @@
 #lang racket
+
+(require json)
 (require openssl/sha1 (rename-in xml [location? xml-location?]))
 (require web-server/servlet web-server/servlet-env web-server/dispatch
          web-server/dispatchers/dispatch web-server/dispatch/extend
          web-server/http/bindings web-server/configuration/responders
          web-server/managers/none)
-(require json)
+
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
-(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../sandbox.rkt")
-(require "../datafile.rkt" "pages.rkt" "make-report.rkt")
+(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt"
+         "../syntax/sugar.rkt" "../alternative.rkt" "../points.rkt"
+         "../programs.rkt" "../sandbox.rkt" "../float.rkt")
+(require "../datafile.rkt" "pages.rkt" "make-report.rkt"
+         "common.rkt" "core2mathjs.rkt" "history.rkt" "plot.rkt")
 (require (submod "../timeline.rkt" debug))
 
 (provide run-demo)
@@ -39,6 +44,13 @@
    [("check-status" (string-arg)) check-status]
    [("up") check-up]
    [("api" "sample") #:method "post" sample-endpoint]
+   [("api" "analyze") #:method "post" analyze-endpoint]
+   [("api" "localerror") #:method "post" local-error-endpoint]
+   [("api" "alternatives") #:method "post" alternatives-endpoint]
+   [("api" "exacts") #:method "post" exacts-endpoint]
+   [("api" "calculate") #:method "post" calculate-endpoint]
+   [("api" "cost") #:method "post" cost-endpoint]
+   [("api" "mathjs") #:method "post" ->mathjs-endpoint]
    [((hash-arg) (string-arg)) generate-page]))
 
 (define (generate-page req results page)
@@ -82,7 +94,7 @@
     (body
      (header
       (img ([class "logo"] [src "/logo.png"]))
-      ,@(if title? `((h1 ,title)) `()))
+      ,@(if title? `((h1 ,title)) '()))
      ,@body)))
 
 (define (main req)
@@ -232,7 +244,7 @@
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (run-improve hash formula)
-  (hash-set! *jobs* hash *timeline*)
+  (hash-set! *jobs* hash (*timeline*))
   (define sema (make-semaphore))
   (thread-send *worker-thread* (list 'improve hash formula sema))
   sema)
@@ -241,6 +253,25 @@
   (or (hash-has-key? *completed-jobs* hash)
       (and (*demo-output*)
            (directory-exists? (build-path (*demo-output*) (format "~a.~a" hash *herbie-commit*))))))
+
+(define (post-with-json-response fn)
+  (lambda (req)
+    (define post-body (request-post-data/raw req))
+    (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
+    (response 200
+              #"OK"
+              (current-seconds)
+              APPLICATION/JSON-MIME-TYPE
+              (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+              (λ (op) (write-json (fn post-data) op)))))
+
+(define (response/error title body)
+  (response/full 400
+                 #"Bad Request"
+                 (current-seconds)
+                 TEXT/HTML-MIME-TYPE
+                 '()
+                 (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
@@ -313,33 +344,154 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (post-with-json-response fn) (lambda (req)
-  (define post-body (request-post-data/raw req))
-  (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
-  (response
-    200 #"OK"
-    (current-seconds) APPLICATION/JSON-MIME-TYPE
-    empty
-    (λ (op) (write-json (fn post-data) op)))
-))
-
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
-(define sample-endpoint (post-with-json-response (lambda (post-data)
-  (define formula (read-syntax 'web (open-input-string (hash-ref post-data `formula))))
-  (define seed (hash-ref post-data `seed))
-  (eprintf "Job started on ~a..." formula)
+(define sample-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define seed (hash-ref post-data 'seed))
+      (eprintf "Job started on ~a..." formula)
 
-  (define result (get-test-result 'sample (parse-test formula) #:seed seed))
+      (define result (get-test-result 'sample (parse-test formula) #:seed seed))
 
-  (eprintf " complete\n")
-  (hasheq
-    'points result)
-)))
+      (eprintf " complete\n")
+      (hasheq 'points result))))
 
-(define (response/error title body)
-  (response/full 400 #"Bad Request" (current-seconds) TEXT/HTML-MIME-TYPE '()
-                 (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
+(define analyze-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts+exs (hash-ref post-data 'sample))
+      (eprintf "Job started on ~a..." formula)
+
+      (define result (get-errors (parse-test formula) pts+exs))
+
+      (eprintf " complete\n")
+      (hasheq 'points result))))
+
+;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
+(define exacts-endpoint 
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts (hash-ref post-data 'points))
+      (eprintf "Job started on ~a..." formula)
+
+      (define result (get-exacts (parse-test formula) pts))
+
+      (eprintf " complete\n")
+      (hasheq 'points result))))
+
+(define calculate-endpoint 
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts (hash-ref post-data 'points))
+      (eprintf "Job started on ~a..." formula)
+
+      (define result (get-calculation (parse-test formula) pts))
+
+      (eprintf " complete\n")
+      (hasheq 'points result))))
+
+(define local-error-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts+exs (hash-ref post-data 'sample))
+      (eprintf "Job started on ~a..." formula)
+
+      (define test (parse-test formula))
+      (define repr (test-output-repr test))
+      (define prog (resugar-program (test-program test) repr))
+      (define local-error (get-local-error test pts+exs))
+      
+      ;; TODO: potentially unsafe if resugaring changes the AST
+      (define tree
+        (let loop ([expr (program-body prog)] [err local-error])
+          (match expr
+            [(list op args ...)
+             ;; err => (List (listof Integer) List ...)
+             (hasheq
+              'e (~a op)
+              'avg-error (format-bits (errors-score (first err)))
+              'children (map loop args (rest err)))]
+            [_
+             ;; err => (List (listof Integer))
+             (hasheq
+              'e (~a expr)
+              'avg-error (format-bits (errors-score (first err)))
+              'children '())])))
+
+      (eprintf " complete\n")
+      (hasheq 'tree tree))))
+
+(define alternatives-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define pts+exs (hash-ref post-data 'sample))
+      (eprintf "Job started on ~a..." formula)
+
+      (define test (parse-test formula))
+      (define vars (test-vars test))
+      (define repr (test-output-repr test))
+
+      (define-values (altns test-pcontext processed-pcontext)
+        (get-alternatives test pts+exs))
+      
+      (define splitpoints
+        (for/list ([alt altns]) 
+          (for/list ([var vars])
+            (define split-var? (equal? var (regime-var alt)))
+            (if split-var?
+                (for/list ([val (regime-splitpoints alt)])
+                  (real->ordinal (repr->real val repr) repr))
+                '()))))
+
+      (define fpcores
+        (for/list ([altn altns])
+          (define prog (resugar-program (alt-program altn) repr))
+          (~a (program->fpcore prog))))
+  
+      (define histories
+        (for/list ([altn altns])
+          (let ([os (open-output-string)])
+            (parameterize ([current-output-port os])
+              (write-xexpr
+                `(div ([id "history"])
+                  (ol ,@(render-history altn
+                                        processed-pcontext
+                                        test-pcontext
+                                        (test-context test)))))
+              (get-output-string os)))))
+
+      (eprintf " complete\n")
+      (hasheq 'alternatives fpcores
+              'histories histories
+              'splitpoints splitpoints))))
+
+(define ->mathjs-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (eprintf "Converting to Math.js ~a..." formula)
+
+      (define result (core->mathjs (syntax->datum formula)))
+      (eprintf " complete\n")
+      (hasheq 'mathjs result))))
+
+(define cost-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (eprintf "Job started on ~a..." formula)
+
+      (define result (get-cost (parse-test formula)))
+
+      (eprintf " complete\n")
+      (hasheq 'value result))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)

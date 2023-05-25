@@ -16,42 +16,43 @@
 
 (struct patchtable (table queued queuedlow rewrites series final) #:mutable)
 
+(define (empty-patchtable)
+  (patchtable (make-hash) '() '() #f #f #f))
+
 ; The "patch table"
 ; Stores a mapping from expression to improvements (expr -> (listof exprs))
-(define *patch-table* (patchtable (make-hash) '() '() #f #f #f))
-
-; patch table may be invalidated between runs
-(register-reset
-  (λ () (set! *patch-table* (patchtable (make-hash) '() '() #f #f #f))))
+(define-resetter *patch-table*
+  (λ () (empty-patchtable))
+  (λ () (empty-patchtable)))
 
 ; setters / getters
 
 (define (^queued^ [val #f])
-  (when val (set-patchtable-queued! *patch-table* val))
-  (patchtable-queued *patch-table*))
+  (when val (set-patchtable-queued! (*patch-table*) val))
+  (patchtable-queued (*patch-table*)))
 
 (define (^queuedlow^ [val #f])
-  (when val (set-patchtable-queuedlow! *patch-table* val))
-  (patchtable-queuedlow *patch-table*))
+  (when val (set-patchtable-queuedlow! (*patch-table*) val))
+  (patchtable-queuedlow (*patch-table*)))
 
 (define (^rewrites^ [val #f])
-  (when val (set-patchtable-rewrites! *patch-table* val))
-  (patchtable-rewrites *patch-table*))
+  (when val (set-patchtable-rewrites! (*patch-table*) val))
+  (patchtable-rewrites (*patch-table*)))
 
 (define (^series^ [val #f])
-  (when val (set-patchtable-series! *patch-table* val))
-  (patchtable-series *patch-table*))
+  (when val (set-patchtable-series! (*patch-table*) val))
+  (patchtable-series (*patch-table*)))
 
 (define (^final^ [val #f])
-  (when val (set-patchtable-final! *patch-table* val))
-  (patchtable-final *patch-table*))
+  (when val (set-patchtable-final! (*patch-table*) val))
+  (patchtable-final (*patch-table*)))
 
 ; Adds an improvement to the patch table
 ; If `improve` is not provided, a key is added
 ; with no improvements
 (define (add-patch! expr [improve #f])
   (when (*use-improve-cache*)
-    (hash-update! (patchtable-table *patch-table*) expr
+    (hash-update! (patchtable-table (*patch-table*)) expr
                   (if improve (curry cons improve) identity) (list))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -216,10 +217,8 @@
 
     (define to-simplify (map alt-expr children))
 
-    (define input-struct
-      (make-egg-query to-simplify (*simplify-rules*)))
-    (define simplification-options
-      (simplify-batch input-struct #t))
+    (define egg-query (make-egg-query to-simplify (*simplify-rules*)))
+    (define simplification-options (simplify-batch egg-query))
 
     (define simplified
       (remove-duplicates
@@ -229,7 +228,7 @@
                   [output outputs])
          (if (equal? input output)
              child
-             (alt `(λ ,variables ,output) `(simplify (2) ,input-struct #f #f) (list child))))
+             (alt `(λ ,variables ,output) `(simplify (2) ,egg-query #f #f) (list child))))
        alt-equal?))
 
     ; dedup for cache
@@ -254,7 +253,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (patch-table-has-expr? expr)
-  (hash-has-key? (patchtable-table *patch-table*) expr))
+  (hash-has-key? (patchtable-table (*patch-table*)) expr))
 
 (define (patch-table-add! expr vars down?)
   (when (patch-table-has-expr? expr)
@@ -268,7 +267,7 @@
   (void))
 
 (define (patch-table-get expr)
-  (hash-ref (patchtable-table *patch-table*) expr))
+  (hash-ref (patchtable-table (*patch-table*)) expr))
 
 (define (patch-table-runnable?)
   (or (not (null? (^queued^))) (not (null? (^queuedlow^)))))

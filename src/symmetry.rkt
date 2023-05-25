@@ -8,8 +8,9 @@
     (for/list ([swap (in-combinations vars 2)])
       (match-define (list a b) swap)
       (replace-vars (list (cons a b) (cons b a)) expr)))
-  (define out (map last
-                   (simplify-batch (make-egg-query (cons expr swapt) (*simplify-rules*)) #t)))
+
+  (define egg-query (make-egg-query (cons expr swapt) (*simplify-rules*)))
+  (define out (map last (simplify-batch egg-query)))
   (match-define (cons orig swapt*) out)
   (for/list ([swap* swapt*] [swap (in-combinations vars 2)]
              #:when (equal? swap* orig))
@@ -27,8 +28,9 @@
             (index-of vars b)
             '()
             'real)))
-  (define groups (map last
-                      (simplify-batch (make-egg-query (range (length vars)) rules*) #f)))
+
+  (define egg-query (make-egg-query (range (length vars)) rules* #:const-folding? #f))
+  (define groups (map last (simplify-batch egg-query)))
   (map (lambda (group) (map car group)) (group-by cdr (map cons vars groups))))
 
 

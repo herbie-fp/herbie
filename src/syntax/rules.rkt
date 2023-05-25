@@ -37,7 +37,8 @@
       (match-define (list rules groups types) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
                  (filter rule-ops-supported? rules))
-        (for ([rule (in-list rules)]) (sow rule))))))
+        (for ([rule (in-list rules)])
+          (sow rule))))))
 
 (define (*simplify-rules*)
   (reap [sow]
@@ -46,7 +47,8 @@
       (when (and (ormap (curry flag-set? 'rules) groups)
                  (set-member? groups 'simplify)
                  (filter rule-ops-supported? rules))
-        (for ([rule (in-list rules)]) (sow rule))))))
+        (for ([rule (in-list rules)])
+          (sow rule))))))
 
 (define (*fp-safe-simplify-rules*)
   (reap [sow]
