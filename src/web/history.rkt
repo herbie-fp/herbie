@@ -74,12 +74,12 @@
     (format "Internally ~a" (format-accuracy (errors-score (errors (alt-expr altn) pcontext2 ctx)) repr)))
 
   (match altn
-    [(alt (list _ _ prog) 'start (list))
+    [(alt prog 'start (list))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[" ,(program->tex prog ctx) "\\]")))]
 
-    [(alt (list _ _ prog) `(start ,strategy) `(,prev))
+    [(alt prog `(start ,strategy) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
@@ -101,13 +101,13 @@
                (ol ,@(render-history entry new-pcontext new-pcontext2 ctx))))))
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
-    [(alt (list _ _ prog) `(taylor ,pt ,var ,loc) `(,prev))
+    [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Taylor expanded in " ,(~a var)
               " around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
 
-    [(alt (list _ _ prog) `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
+    [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
      (define proof*
        (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
@@ -121,17 +121,17 @@
                     (render-proof proof* pcontext ctx)
                     `(li ([class "event"]) "No proof available- proof too large to flatten."))))))]
 
-    [(alt (list _ _ prog) `initial-simplify `(,prev))
+    [(alt prog `initial-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
-    [(alt (list _ _ prog) `final-simplify `(,prev))
+    [(alt prog `final-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
-    [(alt (list _ _ prog) `(rr ,loc ,input ,proof ,soundiness) `(,prev))
+    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev))
      (define proof*
        (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)

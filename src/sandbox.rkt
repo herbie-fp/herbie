@@ -231,7 +231,7 @@
                 (bf-precision)
                 #f
                 (timeline-extract)
-                (warning-log) (make-alt `(λ ,(test-vars test) ,(test-input test))) alts
+                (warning-log) (make-alt (test-input test)) alts
                 (*herbie-preprocess*) points exacts
                 (errors (test-input test) train-pcontext context)
                 (errors (alt-expr (car alts)) train-pcontext context)

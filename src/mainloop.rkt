@@ -49,7 +49,7 @@
               #:when (set-member? v (context-repr ctx)))
       (define rewrite (get-rewrite-operator k))
       (define body* (apply-repr-change-expr (list rewrite (alt-expr altn)) ctx))
-      (alt `(λ ,(context-vars ctx) ,body*) 'start '()))))
+      (make-alt body*))))
 
 ;; Information
 (define (list-alts)
@@ -176,7 +176,7 @@
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
-      (match-define (alt prog event prev) altn)
+      (match-define (alt _ event (list prev)) altn)
       (cond
        [(equal? event '(patch)) orig]
        [else
@@ -191,8 +191,8 @@
             (list 'rr (append '(2) loc0 loc) input proof soundiness)]
            [(list 'simplify (list 2 loc ...) input proof soundiness)
             (list 'simplify (append '(2) loc0 loc) input proof soundiness)]))
-        (define prog* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
-        (alt prog* event* (list (loop (first prev))))])))
+        (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
+        (alt expr* event* (list (loop prev)))])))
   
   (^patched^
     (for/fold ([patched '()] #:result (reverse patched))
@@ -241,8 +241,8 @@
   (rollback-iter!)
   (void))
 
-(define (inject-candidate! prog)
-  (define new-alts (list (make-alt prog)))
+(define (inject-candidate! expr)
+  (define new-alts (list (make-alt expr)))
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (void))
@@ -297,7 +297,7 @@
   (cons domain (apply mk-pcontext pts+exs)))
 
 (define (initialize-alt-table! prog pcontext ctx)
-  (define alt (make-alt `(λ ,(context-vars ctx) ,prog)))
+  (define alt (make-alt prog))
   (*start-prog* prog)
   (define table (make-alt-table (*pcontext*) alt ctx))
 
@@ -441,8 +441,7 @@
        (define simplified (simplify-batch egg-query))
 
        (for/list ([altn joined-alts] [progs simplified])
-         (alt `(λ ,(context-vars ctx) ,(last progs))
-             'final-simplify (list altn)))]
+         (alt (last progs) 'final-simplify (list altn)))]
       [else
        joined-alts]))
         

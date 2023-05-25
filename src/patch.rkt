@@ -94,8 +94,7 @@
       (for ([i (in-range 4)])
         (define replace (genexpr))
         (when replace
-          (sow (alt `(λ ,(context-vars (*context*)) ,replace)
-                    `(taylor ,name ,var (2)) (list altn)))))
+          (sow (alt replace `(taylor ,name ,var (2)) (list altn)))))
       (timeline-stop!))))
 
 (define (gen-series!)
@@ -189,7 +188,7 @@
             (define body* (apply-repr-change-expr subexp (*context*)))
             (if body*
               ; We need to pass '(2) here so it can get overwritten on patch-fix
-              (cons (alt `(λ ,variables ,body*) (list 'rr '(2) input #f #f) (list altn)) done)
+              (cons (alt body* (list 'rr '(2) input #f #f) (list altn)) done)
               done)))
 
     (timeline-push! 'count (length (^queued^)) (length rewritten))
@@ -228,7 +227,7 @@
                   [output outputs])
          (if (equal? input output)
              child
-             (alt `(λ ,variables ,output) `(simplify (2) ,egg-query #f #f) (list child))))
+             (alt output `(simplify (2) ,egg-query #f #f) (list child))))
        alt-equal?))
 
     ; dedup for cache
@@ -260,7 +259,7 @@
     (raise-user-error 'patch-table-add!
       "attempting to add previously patched expression: ~a"
       expr))
-  (define altn* (alt `(λ ,vars ,expr) `(patch) '()))
+  (define altn* (alt expr `(patch) '()))
   (if down?
       (^queuedlow^ (cons altn* (^queuedlow^)))
       (^queued^ (cons altn* (^queued^))))
@@ -279,11 +278,11 @@
               ([(vars expr) (in-dict locs)])
       (if (patch-table-has-expr? expr)
           (values qed (cons expr ced))
-          (let ([altn* (alt `(λ ,vars ,expr) `(patch) '())])
+          (let ([altn* (alt expr `(patch) '())])
             (values (cons altn* qed) ced)))))
   (^queuedlow^
     (for/list ([(vars expr) (in-dict lowlocs)])
-      (alt `(λ ,vars ,expr) `(patch) '())))
+      (alt expr `(patch) '())))
   (cond
    [(and (null? (^queued^))       ; only fetch cache
          (null? (^queuedlow^)))

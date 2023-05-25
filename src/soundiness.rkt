@@ -49,16 +49,16 @@
 (define (add-soundiness-to pcontext ctx cache altn)
   (match altn
 
-    [(alt prog `(rr (2 ,@loc) ,(? egraph-query? e-input) #f #f) `(,prev))
+    [(alt expr `(rr (2 ,@loc) ,(? egraph-query? e-input) #f #f) `(,prev))
      (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
      (match-define (cons proof errs)
        (hash-ref! cache (cons p-input e-input)
                   (λ () (canonicalize-proof (alt-expr altn) loc #t e-input p-input))))
-     (alt prog `(rr (2 ,@loc) ,e-input ,proof ,errs) `(,prev))]
+     (alt expr `(rr (2 ,@loc) ,e-input ,proof ,errs) `(,prev))]
 
-    [(alt prog `(rr (2 ,@loc) ,(? rule? input) #f #f) `(,prev))
+    [(alt expr `(rr (2 ,@loc) ,(? rule? input) #f #f) `(,prev))
      (match-define (cons proof errs)
-       (hash-ref! cache (cons input prog)
+       (hash-ref! cache (cons input expr)
                   (λ ()
                     (define proof
                       (list (alt-expr prev)
@@ -66,15 +66,15 @@
                     (define errs
                       (get-proof-errors proof pcontext ctx))
                     (cons proof errs))))
-     (alt prog `(rr (2 ,@loc) ,input ,proof ,errs) `(,prev))]
+     (alt expr `(rr (2 ,@loc) ,input ,proof ,errs) `(,prev))]
 
     ;; This is alt coming from simplify
-    [(alt prog `(simplify (2 ,@loc) ,(? egraph-query? e-input) #f #f) `(,prev))
+    [(alt expr `(simplify (2 ,@loc) ,(? egraph-query? e-input) #f #f) `(,prev))
      (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
      (match-define (cons proof errs)
        (hash-ref! cache (cons p-input e-input)
                   (λ () (canonicalize-proof (alt-expr altn) loc #f e-input p-input))))
-     (alt prog `(simplify (2 ,@loc) ,e-input ,proof ,errs) `(,prev))]
+     (alt expr `(simplify (2 ,@loc) ,e-input ,proof ,errs) `(,prev))]
 
     [else altn]))
 

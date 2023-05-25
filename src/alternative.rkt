@@ -2,7 +2,7 @@
 
 (require "cost.rkt" "programs.rkt")
 (provide (struct-out alt) make-alt alt? alt-expr
-         alt-program alt-add-event *start-prog* *all-alts*
+         alt-add-event *start-prog* *all-alts*
          alt-cost alt-equal? alt-map)
 
 ;; Alts are a lightweight audit trail.
@@ -10,22 +10,19 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-(struct alt (program event prevs)
+(struct alt (expr event prevs)
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
-           (fprintf port "#<alt ~a>" (alt-program alt)))])
+           (fprintf port "#<alt ~a>" (alt-expr alt)))])
 
-(define (make-alt prog)
-  (alt prog 'start '()))
-
-(define (alt-expr alt)
-  (program-body (alt-program alt)))
+(define (make-alt expr)
+  (alt expr 'start '()))
 
 (define (alt-equal? x y)
   (equal? (alt-expr x) (alt-expr y)))
 
 (define (alt-add-event altn event)
-  (alt (alt-program altn) event (list altn)))
+  (alt (alt-expr altn) event (list altn)))
 
 (define (alt-cost altn repr)
   (expr-cost (alt-expr altn) repr))

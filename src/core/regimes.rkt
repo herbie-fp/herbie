@@ -116,7 +116,7 @@
   (define ctx (make-debug-context '(x)))
   (parameterize ([*start-prog* 1]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
-    (define alts (map (λ (body) (make-alt `(λ (x) ,body))) (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
+    (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
     ;; This is a basic sanity test
