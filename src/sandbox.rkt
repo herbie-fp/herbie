@@ -13,9 +13,8 @@
          (struct-out test-result) (struct-out alt-result)
          get-table-data unparse-result *reeval-pts* *timeout*)
 
-(struct alt-result (alt train-error test-error cost))
-(struct test-result (test status time timeline warnings exn
-                     preprocess train-pctx test-pctx start target end))
+(struct alt-result (alt train-errors test-errors))
+(struct test-result (test status time timeline warnings exn preprocess pctxs start target end))
 
 (define *reeval-pts* (make-parameter 8000))
 (define *timeout* (make-parameter (* 1000 60 5/2)))
@@ -208,36 +207,36 @@
   ;; compute error/cost for input expression
   (define start-alt (make-alt (test-program test)))
   (define start-prog (test-program test))
-  (define start-cost (program-cost start-prog repr))
   (define start-train-errs (errors start-prog train-pcontext ctx))
   (define start-test-errs (errors start-prog processed-test-pcontext ctx))
-  (define start-alt-data (alt-result start-alt start-train-errs start-test-errs start-cost))
+  (define start-alt-data (alt-result start-alt start-train-errs start-test-errs))
 
   ;; optionally compute error/cost for input expression
   (define target-alt-data
     (cond
       [(test-output test)
        (define target-prog (test-target test))
-       (define target-cost (program-cost target-prog repr))
        (define target-train-errs (errors target-prog train-pcontext ctx))
        (define target-test-errs (errors target-prog processed-test-pcontext ctx))
-       (alt-result (make-alt target-prog) target-train-errs target-test-errs target-cost)]
+       (alt-result (make-alt target-prog) target-train-errs target-test-errs)]
       [else
        #f]))
 
   ;; compute error/cost for output expression
   (define end-progs (map alt-program end-alts))
-  (define end-costs (map (curryr program-cost repr) end-progs))
   (define end-train-errs (flip-lists (batch-errors end-progs train-pcontext ctx)))
   (define end-test-errs (flip-lists (batch-errors end-progs processed-test-pcontext ctx)))
-  (define end-alts-data (map alt-result end-alts end-train-errs end-test-errs end-costs))
+  (define end-alts-data (map alt-result end-alts end-train-errs end-test-errs))
 
   ;; bundle up the result
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
-  (test-result test 'success #f (timeline-extract) (warning-log) #f
-               preprocess train-pcontext processed-test-pcontext
-               start-alt-data target-alt-data end-alts-data))
+
+  (define warnings (warning-log))
+  (define timeline (timeline-extract))
+  (define pctxs (list train-pcontext processed-test-pcontext))
+  (test-result test 'success #f timeline warnings #f preprocess
+               pctxs start-alt-data target-alt-data end-alts-data))
 
 (define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
@@ -317,18 +316,18 @@
 
      (define start (test-result-start result))
      (define start-prog (alt-program (alt-result-alt start)))
-     (define start-train-score (errors-score (alt-result-train-error start)))
-     (define start-test-score (errors-score (alt-result-test-error start)))
-     (define start-cost (alt-result-cost start))
+     (define start-train-score (errors-score (alt-result-train-errors start)))
+     (define start-test-score (errors-score (alt-result-test-errors start)))
+     (define start-cost (program-cost start-prog repr))
      
      (define target (test-result-target result))
-     (define target-score (and target (errors-score (alt-result-test-error target))))
+     (define target-score (and target (errors-score (alt-result-test-errors target))))
 
      (define end (test-result-end result))
      (define end-progs (map (compose alt-program alt-result-alt) end))
-     (define end-train-scores (map (compose errors-score alt-result-train-error) end))
-     (define end-test-scores (map (compose errors-score alt-result-test-error) end))
-     (define end-costs (map alt-result-cost end))
+     (define end-train-scores (map (compose errors-score alt-result-train-errors) end))
+     (define end-test-scores (map (compose errors-score alt-result-test-errors) end))
+     (define end-costs (map (curryr program-cost repr) end-progs))
      (define end-exprs (map (λ (p) (program-body (resugar-program p repr))) end-progs))
  
      (define cost&accuracy

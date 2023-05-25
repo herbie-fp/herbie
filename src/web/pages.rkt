@@ -63,12 +63,11 @@
   (define start (test-result-start result))
   (define target (test-result-target result))
   (define end (test-result-end result))
-  (define test-pctx (test-result-test-pctx result))
 
-  (define start-errors (alt-result-test-error start))
-  (define target-errors (and target (alt-result-test-error target)))
-  (define end-errors (map alt-result-test-error end))
-  (define-values (newpoints _) (pcontext->lists test-pctx))
+  (define start-errors (alt-result-test-errors start))
+  (define target-errors (and target (alt-result-test-errors target)))
+  (define end-errors (map alt-result-test-errors end))
+  (define-values (newpoints _) (pcontext->lists (second (test-result-pctxs result))))
 
   (define (ulps->bits-tenths x)
     (string->number (real->decimal-string (ulps->bits x) 1)))

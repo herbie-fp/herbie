@@ -5,7 +5,7 @@
                           [core-common-subexpr-elim core-cse]))
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../syntax/types.rkt"
+         "../alternative.rkt" "../syntax/types.rkt" "../cost.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
          "common.rkt" "history.rkt" "../syntax/sugar.rkt")
          
@@ -56,23 +56,23 @@
    [_ #f]))
 
 (define (make-graph result out fpcore? profile?)
-  (match-define (test-result test _ time _ warnings _ preprocess train-pctx test-pctx start target end) result)
+  (match-define (test-result test _ time _ warnings _ preprocess pctxs start target end) result)
   (define repr (test-output-repr test))
-  (define-values (points exacts) (pcontext->lists train-pctx))
-  (define-values (newpoints newexacts) (pcontext->lists test-pctx))
+  (define ctx (test-context test))
 
-  (define costs (map alt-result-cost end))
-  (define end-alts (map alt-result-alt end))
-  (define end-errors (map alt-result-test-error end))
+  (match-define (list train-pctx test-pctx) pctxs)
+  (define-values (points _) (pcontext->lists train-pctx))
 
   (define start-alt (alt-result-alt start))
-  (define start-error (alt-result-test-error start))
+  (define start-error (alt-result-test-errors start))
   (define target-alt (and target (alt-result-alt target)))
-  (define target-error (and target (alt-result-test-error target)))
+  (define target-error (and target (alt-result-test-errors target)))
+  (define end-alts (map alt-result-alt end))
+  (define end-errors (map alt-result-test-errors end))
+
+  (define costs (map (compose (curryr program-cost repr) alt-program) end-alts))
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
-  (define other-alts (cdr end-alts))
-  (define other-errors (cdr end-errors))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -160,16 +160,18 @@
           ;[style "rotate: 270deg"]
           ) "?"))
        (ol ([class "history"])
-        ,@(render-history end-alt (mk-pcontext newpoints newexacts)
-                          (mk-pcontext points exacts) (test-context test))))
+        ,@(render-history end-alt train-pctx test-pctx ctx)))
 
-      ,(if (not (null? other-alts))
+      ,(if (not (null? (cdr end-alts)))
            `(section ([id "alternatives"])
               (h1 "Alternatives")
-              ,@(for/list ([alt other-alts] [cost (cdr costs)] [errs other-errors] [idx (in-naturals 1)])
+              ,@(for/list ([alt (cdr end-alts)]
+                           [errs (cdr end-errors)]
+                           [cost (cdr costs)]
+                           [i (in-naturals 1)])
                 `(div ([class "entry"])
                   (table
-                    (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" idx)))
+                    (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" i)))
                     (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr #:unit "%")))
                     (tr (th "Cost") (td ,(format-cost cost repr))))
                   (div ([class "math"])
@@ -178,7 +180,7 @@
                     "\\]"))))
             "")
                                       
-      ,(if (not (null? other-alts))
+      ,(if (not (null? (cdr end-alts)))
           `(section ([id "cost-accuracy"])
             (h1 "Error")
             (div ([id "pareto-content"] [data-benchmark-name ,(~a (test-name test))])))
