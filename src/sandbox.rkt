@@ -55,33 +55,13 @@
      (define-values (train-pcontext _) (split-pcontext joint-pcontext training-count testing-count))
      (values train-pcontext joint-pcontext)]))
 
-;; Translates points from the API endpoint
-;; into the expected pcontext
-(define (compute-pcontexts pts+exs ctx)
-  (define output-repr (context-repr ctx))
-  (define var-reprs (context-var-reprs ctx))
-
-  (define-values (pts exs)
-    (for/lists (pts exs) ([entry (in-list pts+exs)])
-      (match-define (list pt ex) entry)
-      (values (map real->repr pt var-reprs) (real->repr ex output-repr))))
-
-  (define joint-pcontext (mk-pcontext pts exs))
-  (define-values (train-pcontext test-pcontext)
-    (cond
-      [(= (length pts+exs) (+ (*num-points*) (*reeval-pts*)))
-        ; got the expected amount of points
-        ; will partition into training and testing set
-        (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))]
-      [else
-        ; the training set will just be up to the first 256
-        ; the testing set will just be the entire set
-        (define training-count (min 256 (length pts+exs)))
-        (define-values (train-pcontext _)
-          (split-pcontext joint-pcontext training-count (- (length pts+exs) training-count)))
-        (values train-pcontext joint-pcontext)]))
-
-  (values joint-pcontext train-pcontext test-pcontext))
+;; All backends run this before hand
+;; Sets global variables
+(define (setup-backend! test)
+  (define repr (test-output-repr test))
+  (*context* (test-context test))
+  (*needed-reprs* (list repr (get-representation 'bool)))
+  (generate-prec-rewrites (test-conversions test)))
 
 ;;
 ;;  API endpoint backends
@@ -89,23 +69,21 @@
 
 ;; Given a test, computes the program cost of the input expression
 (define (get-cost test)
+  (setup-backend! test)
   (program-cost (test-program test) (test-output-repr test)))
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
-  (define output-repr (test-output-repr test))
-  (define context (test-context test))
-  (*needed-reprs* (list output-repr (get-representation 'bool)))
-
+  (setup-backend! test)
+  (define repr (test-output-repr test))
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (setup-context! (or (test-specification test) (test-program test))
                       (test-precondition test)
-                      output-repr)))
+                      repr)))
 
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
-
   (for/list ([(pt ex) (in-pcontext test-pcontext)])
     (list pt ex)))
 
@@ -114,18 +92,10 @@
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
 (define (get-errors test pcontext #:seed [seed #f] #:profile [profile? #f])
-  (define repr (test-output-repr test))
-  (*context* (test-context test))
-  (*needed-reprs* (list repr (get-representation 'bool)))
-  (generate-prec-rewrites (test-conversions test))
-
-  (when seed (set-seed! seed))
-  (random) ;; Child process uses deterministic but different seed from evaluator
-
+  (setup-backend! test)
   (unless pcontext
     (error 'get-errors "cannnot run without a pcontext"))
 
-  (define joint-pcontext pcontext)
   (define-values (_ test-pcontext) (partition-pcontext pcontext (*context*)))
   (define errs (errors (test-program test) test-pcontext (*context*)))
 
@@ -137,40 +107,27 @@
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
 (define (get-exacts test pcontext)
-  (define repr (test-output-repr test))
-  (*context* (test-context test))
-  (*needed-reprs* (list repr (get-representation 'bool)))
-  (generate-prec-rewrites (test-conversions test))
-
+  (setup-backend! test)
   (unless pcontext
     (error 'get-exacts "cannnot run without a pcontext"))
 
-  (define joint-pcontext pcontext)
+  (define repr (test-output-repr test))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
   (define fn (make-search-func (test-precondition test) (list (test-program test)) (*context*)))
   (for/list ([pt pts])
     (define-values (result prec exs) (ival-eval fn pt))
-    (define ex
-      (match exs
-        [(list (ival lo hi))
-          ((representation-bf->repr repr) lo)]
-        [(? nan?)
-          (real->repr +nan.0 repr)]))
-    (list pt ex)))
+    (list pt (match exs
+               [(list (ival lo hi)) ((representation-bf->repr repr) lo)]
+               [(? nan?) (real->repr +nan.0 repr)]))))
 
 ;; Given a test and a sample of points, the floating-point result at each point
 (define (get-calculation test pcontext)
-  (define repr (test-output-repr test))
-  (*context* (test-context test))
-  (*needed-reprs* (list repr (get-representation 'bool)))
-  (generate-prec-rewrites (test-conversions test))
-
+  (setup-backend! test)
   (unless pcontext
     (error 'get-calculation "cannnot run without a pcontext"))
 
-  (define joint-pcontext pcontext)
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
@@ -184,20 +141,11 @@
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
 (define (get-local-error test pcontext #:seed [seed #f] #:profile [profile? #f])
-  (define repr (test-output-repr test))
-  (*context* (test-context test))
-  (*needed-reprs* (list repr (get-representation 'bool)))
-  (generate-prec-rewrites (test-conversions test))
-
-  (when seed (set-seed! seed))
-  (random) ;; Child process uses deterministic but different seed from evaluator
-
+  (setup-backend! test)
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
 
-  (define joint-pcontext pcontext)
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
-
   (define processed-pcontext
     (make-preprocess-pcontext (test-program test)
                               test-pcontext
@@ -214,38 +162,27 @@
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
 (define (get-alternatives test pcontext #:seed [seed #f] #:profile [profile? #f])
-  (define repr (test-output-repr test))
-  (*context* (test-context test))
-  (*needed-reprs* (list repr (get-representation 'bool)))
-  (generate-prec-rewrites (test-conversions test))
-
-  (when seed (set-seed! seed))
-  (random) ;; Child process uses deterministic but different seed from evaluator
-
+  (setup-backend! test)
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
-  (define joint-pcontext pcontext)
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
-
-  (define alts
-    (run-improve! (test-program test) train-pcontext (*num-iterations*)
-                  #:specification (test-specification test)
-                  #:preprocess (test-preprocess test)))
+  (define alts (run-improve! (test-program test) train-pcontext (*num-iterations*)
+                             #:specification (test-specification test)
+                             #:preprocess (test-preprocess test)))
 
   (when seed (set-seed! seed))
   (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
   (list alts test-pcontext processed-pcontext))
 
 (define (run-improvement test)
+  (setup-backend! test)
+
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
   
   (define output-repr (test-output-repr test))
   (define context (test-context test))
-  (*needed-reprs* (list output-repr (get-representation 'bool)))
-  (generate-prec-rewrites (test-conversions test))
-
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (setup-context! (or (test-specification test) (test-program test))
@@ -284,9 +221,7 @@
                 newpoints newexacts
                 (errors (test-program test) processed-test-pcontext context)
                 end-errs
-                (if (test-output test)
-                    (errors (test-target test) processed-test-pcontext context)
-                    #f)
+                (and (test-output test) (errors (test-target test) processed-test-pcontext context))
                 (program-cost (test-program test) output-repr)
                 (map (curryr alt-cost output-repr) alts)
                 (*all-alts*)))
@@ -304,6 +239,9 @@
                 start-error end-errors target-error
                 start-cost end-costs all-alts))
 
+;;
+;;  Public interface
+;;
 
 (define (run-herbie command test
                     #:seed [seed #f]
