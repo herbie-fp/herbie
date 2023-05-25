@@ -7,7 +7,7 @@
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "core/localize.rkt" "ground-truth.rkt")
 
-(provide get-test-result get-table-data unparse-result
+(provide get-test-result get-test-result/no-engine get-table-data unparse-result
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          *reeval-pts* *timeout*)
@@ -126,7 +126,7 @@
     (error 'get-errors "cannnot run without a pcontext"))
 
   (define joint-pcontext pcontext)
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (_ test-pcontext) (partition-pcontext pcontext (*context*)))
   (define errs (errors (test-program test) test-pcontext (*context*)))
 
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
@@ -158,7 +158,7 @@
           ((representation-bf->repr repr) lo)]
         [(? nan?)
           (real->repr +nan.0 repr)]))
-    (list pt (list ex))))
+    (list pt ex)))
 
 ;; Given a test and a sample of points, the floating-point result at each point
 (define (get-calculation test pcontext)
@@ -176,7 +176,7 @@
 
   (define fn (eval-prog (test-program test) 'fl (test-context test)))
   (for/list ([pt pts])
-    (list pt (list (apply fn pt)))))
+    (list pt (apply fn pt))))
 
 ;; Given a test and a sample of points, computes the local error at every node in the expression
 ;; returning a tree of errors that mirrors the structure of the expression.
@@ -236,7 +236,6 @@
   (when seed (set-seed! seed))
   (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
   (list alts test-pcontext processed-pcontext))
-
 
 (define (run-herbie test)
   (define seed (get-seed))
@@ -305,6 +304,22 @@
                 start-error end-errors target-error
                 start-cost end-costs all-alts))
 
+(define (get-test-result/no-engine command test #:seed [seed #f] #:pcontext [pcontext #f])
+  (rollback-improve!)
+  (when seed (set-seed! seed))
+  (define result
+    (parameterize ([*timeline-disabled* #t])
+      (match command
+        ['alternatives (get-alternatives test pcontext)]
+        ['evaluate (get-calculation test pcontext)]
+        ['cost (get-cost test)]
+        ['errors (get-errors test pcontext)]
+        ['exacts (get-exacts test pcontext)]
+        ['local-error (get-local-error test pcontext)]
+        ['sample (get-sample test)])))
+  (print-warnings)
+  result)
+
 (define (get-test-result command test
                          #:pcontext [pcontext #f]
                          #:seed [seed #f]
@@ -318,19 +333,19 @@
       (rollback-improve!)
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
-      (with-handlers ([exn? (curry on-exception start-time)])
-        (define out
-          (match command
-            ['alternatives (get-alternatives test pcontext)]
-            ['calculate (get-calculation test pcontext)]
-            ['cost (get-cost test)]
-            ['errors (get-errors test pcontext)]
-            ['exacts (get-exacts test pcontext)]
-            ['improve (run-herbie test)]
-            ['local-error (get-local-error test pcontext)]
-            ['sample (get-sample test)]))
+      (define out
+        (match command
+          ['alternatives (get-alternatives test pcontext)]
+          ['evaluate (get-calculation test pcontext)]
+          ['cost (get-cost test)]
+          ['errors (get-errors test pcontext)]
+          ['exacts (get-exacts test pcontext)]
+          ['improve (with-handlers ([exn? (curry on-exception start-time)])
+                      (run-herbie test))]
+          ['local-error (get-local-error test pcontext)]
+          ['sample (get-sample test)]))
         (print-warnings)
-        (if (eq? command 'sample) out (add-time out (- (current-inexact-milliseconds) start-time))))))
+        (if (eq? command 'sample) out (add-time out (- (current-inexact-milliseconds) start-time)))))
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* false])

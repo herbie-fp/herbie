@@ -17,7 +17,7 @@
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
 
 (define (pcontext-length context)
-  (length (pcontext-points context)))
+  (vector-length (pcontext-points context)))
 
 (define/contract (mk-pcontext points exacts)
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)

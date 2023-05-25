@@ -363,7 +363,7 @@
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define result (get-test-result 'sample test #:seed seed))
+      (define result (get-test-result/no-engine 'sample test #:seed seed))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -377,7 +377,7 @@
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (get-test-result 'errors test #:pcontext pcontext))
+      (define result (get-test-result/no-engine 'errors test #:pcontext pcontext))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -392,7 +392,7 @@
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (get-test-result 'exacts test #:pcontext pcontext pcontext))
+      (define result (get-test-result/no-engine 'exacts test #:pcontext pcontext))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -406,7 +406,7 @@
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (get-test-result 'calculate test pcontext))
+      (define result (get-test-result/no-engine 'evaluate test #:pcontext pcontext))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -422,7 +422,7 @@
       (define repr (test-output-repr test))
       (define prog (resugar-program (test-program test) repr))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define local-error (get-test-result 'local-error test #:pcontext pcontext))
+      (define local-error (get-test-result/no-engine 'local-error test #:pcontext pcontext))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
@@ -455,7 +455,7 @@
       (define vars (test-vars test))
       (define repr (test-output-repr test))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (get-test-result 'alternatives test #:pcontext pcontext))
+      (define result (get-test-result/no-engine 'alternatives test #:pcontext pcontext))
 
       (match-define (list altns test-pcontext processed-pcontext) result)
       
@@ -507,7 +507,7 @@
       (eprintf "Job started on ~a..." formula)
       
       (define test (parse-test formula))
-      (define result (get-test-result 'cost test))
+      (define result (get-test-result/no-engine 'cost test))
 
       (eprintf " complete\n")
       (hasheq 'value result))))
