@@ -93,18 +93,19 @@
       (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"])))
  
      (body
-      (nav ([id "links"])
-       (div ([class "right"])
-        (a ([href "timeline.html"]) "Metrics"))
+      (header
+       (h1 ,(if note (string-titlecase note) "") " Results")
+       (img ([src "logo-car.png"]))
+       (nav
+        (ul
+         ,(if merge-data
+            `(li ([id "subreports"])
+                 (div ([id "with-subreports"])
+                      ,(format-subreports merge-data)))
+            "")
+         (li (a ([href "timeline.html"]) "Metrics"))))
        (div
-        ,(if merge-data
-            `(div ([id "subreports"])
-                (a ([href "#results"]) "Results")
-                (div ([id "with-subreports"])
-                  ,(format-subreports merge-data)))
-            `(div
-              (a ([href "#results"]) "Results")
-              (div ([id "subreports"] [style "display: none"]))))))
+        ))
 
       (div ((id "large"))
        ,(render-large "Time" (format-time total-time))
@@ -124,11 +125,9 @@
        (div ([id "pareto"])
             (h2 "Accuracy vs Cost")
             (svg)
-            (figcaption "A joint cost-accuracy pareto curve for the "
-                        "Herbie runs below. Accuracy is on the vertical "
-                        "axis, and cost is on the vertical axis. Down "
-                        "and to the left is better. The initial programs "
-                        "are shown by the red square.")
+            (figcaption "A joint cost-accuracy curve for the Herbie runs below."
+                        "Up and to the left is better: higher accuracy and lower cost."
+                        "The initial programs are shown by the red square.")
             ))
 
      (table ((id "results") (class ,(string-join (map ~a classes) " ")))

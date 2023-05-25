@@ -1,14 +1,33 @@
 /* Standard Herbie header */
 
-body { width: 800px; margin: 0 auto; font-family: sans; line-height: 1.25; }
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif&family=IBM+Plex+Mono&family=Ruda:wght@400,500&display=swap');
+html { font-family: 'IBM Plex Serif', serif; font-size: 16px; line-height: 1.4; }
+body { max-width: 800px; margin: .5em auto 3em; }
 
 a { color: #2A6496; text-decoration: none; cursor: pointer }
 a:hover {text-decoration: underline; color: #295785}
-figure { margin: 0; }
 
-#large { margin: 2em 0; text-align: center; }
-#large div { margin: 0 1em; display: inline-block; vertical-align: top; }
-#large .number { font-size: 3em; display: block; }
+header {
+    line-height: 2; border-bottom: 1px solid #ddd; margin-bottom: 2em;
+    display: flex; flex-direction: row; align-items: bottom;
+    font-family: 'Ruda', serif;
+}
+header h1 { width: calc(50% - 54px/2); margin: 0; font-size: 125%; line-height: 1.6 }
+header img { width: 54px; height: 24px; vertical-align: bottom; padding-bottom: 4px; }
+header nav { width: calc(50% - 54px/2); text-align: right; }
+header ul { margin: 0; padding: 0; font-weight: bold; }
+header li { display: inline-block; margin: 0 .5em; }
+header li::before { content: "•"; margin-right: 1em; }
+header li:first-child::before { content: none; }
+
+#large {
+    margin: 2em 0; display: flex; gap: 3em; justify-content: center;
+    font-family: 'IBM Plex Serif', serif; color: #888;
+}
+#large .number {
+    font-size: 3em; display: block; font-family: 'Ruda', serif; color: black;
+    margin-top: -.2em;
+}
 @media print { #large { margin-top: 0; }}
 
 /* Plots at the top */
@@ -39,14 +58,11 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 /* Table of results */
 
 #results { border-collapse: collapse; width:100%; }
-#results th { white-space: pre; }
-#results td { text-align: right; padding: .5em; overflow: hidden; font-size: 15pt; }
-#results tbody tr:hover {background-color: #e0f8d8; cursor: pointer;}
+#results th, #results td { border: 1px solid #ddd; padding: .5em; }
 
-#results a {
-    position: absolute; left: 0; right: 0; z-index: 100;
-    padding: .5em; margin-top: -1.25em;
-}
+#results th { white-space: pre; color: #888; font-family: 'IBM Plex Serif', serif; }
+#results td { text-align: right; overflow: hidden; font-size: 15pt; font-family: 'Ruda', serif; font-weight: 500; }
+#results tbody tr:hover { background-color: #f8f8f8; cursor: pointer; }
 
 #results td:nth-child(1) { text-align: left; word-break: break-all; }
 #results td:nth-child(6) {width: 0;}
@@ -77,25 +93,14 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 /* Help button */
 
 .help-button {
- display: inline-block; background: #888;
+ display: inline-block; background: #999;
  font-size: .8em; color: #eee; line-height: 1.3em;
  height: 1.25em; width: 1.25em; border-radius: .625em;
- vertical-align: top; text-align: center;
+ text-align: center; margin-left: .5ex;
+ position: relative; bottom: .125em;
 }
 .help-button:hover { background: #444; cursor: pointer; }
-h1 > .help-button {
-    vertical-align: text-top;
-    font-size: small;
-    margin-left: 5px;
-    background: #ddd;
-    color: #999;
-    rotate: 270deg;
-}
-
-/* Links at the top */
-#links { border-bottom: 1px solid #ddd; line-height: 2; overflow: auto; }
-#links .right { float: right; }
-#links a + a { margin-left: 1em; }
+h1 > .help-button { vertical-align: text-top; rotate: 270deg; }
 
 /* Subreports */
 
@@ -151,7 +156,8 @@ section h1 {
 /* Big block for program input output */
 
 #program {
-    background: #ddd; text-align: center; font-size: 24px;
+    background: #f8f8f8; border: 1px solid #ddd;
+    text-align: center; font-size: 24px;
     position: relative; padding: 1em;
 }
 @media print { #program { padding: 0; background: transparent; margin: 2em 0; } }
@@ -185,12 +191,6 @@ section h1 {
 #graphs figcaption button.Target { border-color: green; background: lightgreen; }
 #graphs figcaption button.Input { border-color: red; background: pink; }
 #graphs figcaption button.inactive { background: white; }
-
-.tabbar { margin: 0; padding: 0; list-style-type: none; list-style-position: inside; text-align: left; }
-.tabbar p { display: inline-block; margin: 0 .5em 0 0}
-.tabbar li { padding: .5ex; display: inline-block; margin: .1em; cursor: pointer; }
-.tabbar li:hover { background: #e4e4e4; }
-.tabbar li.selected { background: #d3d3d3; }
 
 #plot_options { display: grid; grid-template-columns: auto auto; }
 #variables { justify-self: start; }

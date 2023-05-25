@@ -40,15 +40,15 @@
   (define top (if ident (format "FPCore ~a ~a" ident args) (format "FPCore ~a" args)))
   (pretty-format `(,top ,@props* ,expr) #:mode 'display))
 
-(define/contract (render-menu sections links)
-  (-> (listof (or/c (cons/c string? string?) #f)) (listof (cons/c string? string?)) xexpr?)
-  `(nav ([id "links"])
-    (div ([class "right"])
-     ,@(for/list ([(text url) (in-dict (filter identity links))])
-         `(a ([href ,url]) ,text)))
-    (div
-     ,@(for/list ([(text url) (in-dict (filter identity sections))])
-         `(a ([href ,url]) ,text)))))
+(define/contract (render-menu name links)
+  (-> string? (listof (cons/c string? string?)) xexpr?)
+  `(header
+    (h1 ,name)
+    (img ([src "logo-car.png"]))
+    (nav
+     (ul
+      ,@(for/list ([(text url) (in-dict (filter identity links))])
+         `(li (a ([href ,url]) ,text)))))))
 
 (define/contract (render-warnings warnings)
   (-> (listof (list/c symbol? string? (listof any/c) (or/c string? #f) (listof string?))) xexpr?)

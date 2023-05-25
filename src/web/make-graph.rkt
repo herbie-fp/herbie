@@ -84,14 +84,7 @@
       )
      (body
       ,(render-menu
-        (list
-         '("Error" . "#graphs")
-         (and fpcore? (for/and ([p points]) (andmap number? p))
-              '("Try it out!" . "#try-it"))
-         (and (test-output test)
-              '("Target" . "#comparison"))
-         '("Derivation" . "#history")
-         '("Reproduce" . "#reproduce"))
+        (~a (test-name test))
         (list
          '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))

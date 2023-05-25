@@ -19,10 +19,7 @@
        (script ([src ,(if info "report.js" "../report.js")])))
       (body
        ,(render-menu
-         (list
-          (and info '("About" . "#about"))
-          '("Timeline" . "#process-info")
-          '("Profile" . "#profile"))
+         (~a name)
          (if info 
              `(("Report" . "index.html"))
              `(("Details" . "graph.html"))))
