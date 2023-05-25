@@ -72,9 +72,9 @@
   ;; We append all variables here in case of (λ (x y) 0) or similar,
   ;; where the variables do not appear in the body but are still worth
   ;; splitting on
-  (for/list ([expr (remove-duplicates (append (context-vars ctx) (subexprs-in-expr expr)))]
-             #:when (and (not (null? (free-variables expr)))
-                         (critical-subexpression? expr expr)))
+  (for/list ([subexpr (remove-duplicates (append (context-vars ctx) (subexprs-in-expr expr)))]
+             #:when (and (not (null? (free-variables subexpr)))
+                         (critical-subexpression? expr subexpr)))
     expr))
 
 (define (option-on-expr alts err-lsts expr ctx)
