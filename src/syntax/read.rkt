@@ -5,16 +5,12 @@
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
-         test-program test-context
-         test-output-repr test-conversions
+         test-context test-output-repr test-conversions
          load-tests parse-test)
 
 
 (struct test (name identifier vars input output expected spec pre
               preprocess output-repr-name var-repr-names conversion-syntax) #:prefab)
-
-(define (test-program test)
-  `(λ ,(test-vars test) ,(test-input test)))
 
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
