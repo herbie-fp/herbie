@@ -7,7 +7,7 @@
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "core/localize.rkt" "ground-truth.rkt")
 
-(provide get-test-result get-test-result/no-engine get-table-data unparse-result
+(provide run-herbie get-table-data unparse-result
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
          *reeval-pts* *timeout*)
@@ -237,7 +237,7 @@
   (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
   (list alts test-pcontext processed-pcontext))
 
-(define (run-herbie test)
+(define (run-improvement test)
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
   
@@ -304,57 +304,54 @@
                 start-error end-errors target-error
                 start-cost end-costs all-alts))
 
-(define (get-test-result/no-engine command test #:seed [seed #f] #:pcontext [pcontext #f])
-  (rollback-improve!)
-  (when seed (set-seed! seed))
-  (define result
-    (parameterize ([*timeline-disabled* #t])
-      (match command
-        ['alternatives (get-alternatives test pcontext)]
-        ['evaluate (get-calculation test pcontext)]
-        ['cost (get-cost test)]
-        ['errors (get-errors test pcontext)]
-        ['exacts (get-exacts test pcontext)]
-        ['local-error (get-local-error test pcontext)]
-        ['sample (get-sample test)])))
-  (print-warnings)
-  result)
 
-(define (get-test-result command test
-                         #:pcontext [pcontext #f]
-                         #:seed [seed #f]
-                         #:profile [profile? #f])
+(define (run-herbie command test
+                    #:seed [seed #f]
+                    #:pcontext [pcontext #f]
+                    #:engine? [engine? #t]
+                    #:profile? [profile? #f]
+                    #:timeline-disabled? [timeline-disabled? #f])
   (define timeline #f)
 
+  ;; CS versions <= 8.2: problems with scheduler cause places to stay
+  ;; in a suspended state
+  (when cs-places-workaround?
+    (thread (lambda () (sync (system-idle-evt)))))
+
+  (define (on-exception start-time e)
+    (parameterize ([*timeline-disabled* timeline-disabled?])
+      (timeline-event! 'end)
+      (print-warnings)
+      (match command 
+        ['improve (test-failure test (bf-precision)
+                                (- (current-inexact-milliseconds) start-time)
+                                (timeline-extract) (warning-log) e)]
+        [_ (raise e)])))
+
   (define (compute-result test)
-    (parameterize ([*timeline-disabled* false]
+    (parameterize ([*timeline-disabled* timeline-disabled?]
                    [*warnings-disabled* true])
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (define out
-        (match command
-          ['alternatives (get-alternatives test pcontext)]
-          ['evaluate (get-calculation test pcontext)]
-          ['cost (get-cost test)]
-          ['errors (get-errors test pcontext)]
-          ['exacts (get-exacts test pcontext)]
-          ['improve (with-handlers ([exn? (curry on-exception start-time)])
-                      (run-herbie test))]
-          ['local-error (get-local-error test pcontext)]
-          ['sample (get-sample test)]))
-        (print-warnings)
-        (if (eq? command 'sample) out (add-time out (- (current-inexact-milliseconds) start-time)))))
-
-  (define (on-exception start-time e)
-    (parameterize ([*timeline-disabled* false])
-      (timeline-event! 'end))
-    (print-warnings)
-    (test-failure test (bf-precision)
-                  (- (current-inexact-milliseconds) start-time) (timeline-extract)
-                  (warning-log) e))
-
+        (with-handlers ([exn? (curry on-exception start-time)])
+          (match command 
+            ['alternatives (get-alternatives test pcontext)]
+            ['evaluate (get-calculation test pcontext)]
+            ['cost (get-cost test)]
+            ['errors (get-errors test pcontext)]
+            ['exacts (get-exacts test pcontext)]
+            ['improve (run-improvement test)]
+            ['local-error (get-local-error test pcontext)]
+            ['sample (get-sample test)]
+            [_ (error 'compute-result "unknown command ~a" command)])))
+      (print-warnings)
+      (if (test-result? out)
+          (add-time out (- (current-inexact-milliseconds) start-time))
+          out)))
+  
   (define (in-engine _)
     (if profile?
         (profile-thunk
@@ -363,19 +360,21 @@
          #:render (λ (p order) (write-json (profile->json p) profile?)))
         (compute-result test)))
 
-  ;; CS versions <= 8.2: problems with scheduler cause places to stay
-  ;; in a suspended state
-  (when cs-places-workaround?
-    (thread (lambda () (sync (system-idle-evt)))))
-
-  (define eng (engine in-engine))
-  (if (engine-run (*timeout*) eng)
-      (engine-result eng)
-      (parameterize ([*timeline-disabled* false])
-        (timeline-load! timeline)
-        (timeline-compact! 'outcomes)
-        (print-warnings)
-        (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '()))))
+  ;; Branch on whether or not we should run inside an engine
+  (cond
+    [engine?
+     (define eng (engine in-engine))
+     (if (engine-run (*timeout*) eng)
+         (engine-result eng)
+         (parameterize ([*timeline-disabled* timeline-disabled?])
+           (timeline-load! timeline)
+           (timeline-compact! 'outcomes)
+           (print-warnings)
+           (match command 
+             ['improve (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '())]
+             [_ (error 'run-herbie "command ~a timed out" command)])))]
+    [else
+     (in-engine #f)]))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))

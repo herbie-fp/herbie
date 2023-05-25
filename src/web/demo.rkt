@@ -210,7 +210,7 @@
            [else
             (eprintf "Job ~a started on ~a..." hash formula)
 
-            (define result (get-test-result 'improve (parse-test formula) #:seed seed))
+            (define result (run-herbie 'improve (parse-test formula) #:seed seed))
 
             (hash-set! *completed-jobs* hash result)
 
@@ -363,7 +363,8 @@
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define result (get-test-result/no-engine 'sample test #:seed seed))
+      (define result (run-herbie 'sample test #:seed seed #:profile? #f
+                                 #:engine? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -377,7 +378,8 @@
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (get-test-result/no-engine 'errors test #:pcontext pcontext))
+      (define result (run-herbie 'errors test #:pcontext pcontext #:profile? #f
+                                 #:engine? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -392,7 +394,8 @@
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (get-test-result/no-engine 'exacts test #:pcontext pcontext))
+      (define result (run-herbie 'exacts test #:pcontext pcontext #:profile? #f
+                                 #:engine? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -406,7 +409,8 @@
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (get-test-result/no-engine 'evaluate test #:pcontext pcontext))
+      (define result (run-herbie 'evaluate test #:pcontext pcontext #:profile? #f
+                                 #:engine? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -422,7 +426,8 @@
       (define repr (test-output-repr test))
       (define prog (resugar-program (test-program test) repr))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define local-error (get-test-result/no-engine 'local-error test #:pcontext pcontext))
+      (define local-error (run-herbie 'local-error test #:pcontext pcontext #:profile? #f
+                                      #:engine? #f #:timeline-disabled? #t))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
@@ -455,7 +460,8 @@
       (define vars (test-vars test))
       (define repr (test-output-repr test))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (get-test-result/no-engine 'alternatives test #:pcontext pcontext))
+      (define result (run-herbie 'alternatives test #:pcontext pcontext #:profile? #f
+                                 #:engine? #f #:timeline-disabled? #t))
 
       (match-define (list altns test-pcontext processed-pcontext) result)
       
@@ -507,7 +513,7 @@
       (eprintf "Job started on ~a..." formula)
       
       (define test (parse-test formula))
-      (define result (get-test-result/no-engine 'cost test))
+      (define result (run-herbie 'cost test #:profile? #f #:engine? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'value result))))
