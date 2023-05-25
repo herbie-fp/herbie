@@ -75,7 +75,7 @@
   (for/list ([subexpr (remove-duplicates (append (context-vars ctx) (subexprs-in-expr expr)))]
              #:when (and (not (null? (free-variables subexpr)))
                          (critical-subexpression? expr subexpr)))
-    expr))
+    subexpr))
 
 (define (option-on-expr alts err-lsts expr ctx)
   (define repr (repr-of expr ctx))
