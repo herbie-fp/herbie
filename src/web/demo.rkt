@@ -452,8 +452,7 @@
 
       (define fpcores
         (for/list ([altn altns])
-          (define prog (resugar-program (alt-program altn) repr))
-          (~a (program->fpcore prog))))
+          (~a (program->fpcore (alt-expr altn) (test-context test)))))
   
       (define histories
         (for/list ([altn altns])
