@@ -3,8 +3,7 @@
 (require math/bigfloat rival)
 (require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
 
-(provide program-body
-         expr? expr-contains? expr<?
+(provide expr? expr-contains? expr<?
          type-of repr-of
          location-do location-get
          batch-eval-progs eval-prog eval-application
@@ -17,11 +16,6 @@
 (define expr? (or/c list? symbol? boolean? real?))
 
 ;; Programs are just lambda expressions
-
-(define/contract (program-body prog)
-  (-> expr? expr?)
-  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
-  body)
 
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
