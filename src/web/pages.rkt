@@ -65,7 +65,6 @@
   (define end (test-result-end result))
   (define test-pctx (test-result-test-pctx result))
 
-  ; TODO: fill in info
   (define start-errors (alt-result-test-error start))
   (define target-errors (and target (alt-result-test-error target)))
   (define end-errors (map alt-result-test-error end))
@@ -85,24 +84,26 @@
       (for/list ([value point]) 
         (real->ordinal value repr))))
 
-  (define bit-width (representation-total-bits repr))
+  (define vars (test-vars test))
+  (define bits (representation-total-bits repr))
   (define start-error (map ulps->bits-tenths start-errors))
   (define target-error (and target-errors (map ulps->bits-tenths target-errors)))
   (define end-error (map ulps->bits-tenths (car end-errors)))
-  (define vars (test-vars test))
+
   (define ticks 
-    (for/list ([idx (in-range (length vars))]) (let/ec return 
-      (define points-at-idx (for/list ([point points]) (list-ref point idx)))
-      ; We bail out since choose-ticks will crash otherwise
-      (if (= (unique-values newpoints idx) 1) (return #f) #f) 
-      (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
-      (for/list ([val real-ticks]) 
-        (define tick-str (if (or (= val 0) (< 0.01 (abs val) 100))
-           (~r (exact->inexact val) #:precision 4)
-           (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
-        (list 
-          tick-str
-          (real->ordinal val repr))))))
+    (for/list ([idx (in-range (length vars))])
+      ; We want to bail out since choose-ticks will crash otherwise
+      (let/ec return 
+        (define points-at-idx (map (curryr list-ref idx) points))
+        (when (= (unique-values newpoints idx) 1)
+          (return #f))
+        (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
+        (for/list ([val real-ticks]) 
+          (define tick-str
+            (if (or (= val 0) (< 0.01 (abs val) 100))
+                (~r (exact->inexact val) #:precision 4)
+                (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
+          (list tick-str (real->ordinal val repr))))))
 
   (define end-alt (alt-result-alt (car (test-result-end result))))
   (define splitpoints 
@@ -126,8 +127,8 @@
   ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
   ;   splitpoints: array with the ordinal splitpoints
   (define json-obj `#hasheq(
-    (bits . ,bit-width)
-    (vars . ,(for/list ([var vars]) (symbol->string var)))
+    (bits . ,bits)
+    (vars . ,(map symbol->string vars))
     (points . ,json-points) 
     (error . ,`#hasheq(
       (start . ,start-error)

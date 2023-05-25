@@ -11,10 +11,8 @@
 (provide get-alternatives get-calculation get-cost get-errors
          get-exacts get-local-error get-sample get-test-result
          (struct-out test-result) (struct-out alt-result)
-         get-table-data unparse-result
-         *reeval-pts* *timeout*)
+         get-table-data unparse-result *reeval-pts* *timeout*)
 
-;; Cannot move between threads
 (struct alt-result (alt train-error test-error cost))
 (struct test-result (test status time timeline warnings exn
                      preprocess train-pctx test-pctx start target end))
