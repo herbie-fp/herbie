@@ -31,11 +31,6 @@
         (and (= major 8) (< minor 2))
         (and (= major 8) (= minor 2) (zero? (string-length rest))))))
 
-(define (get-p&es context)
-  (for/lists (pts exs)
-      ([(pt ex) (in-pcontext context)])
-    (values pt ex)))
-
 (define (get-exacts test pts)
   (define repr (test-output-repr test))
   (define starting-precision (*starting-prec*))
@@ -211,20 +206,19 @@
   (when seed (set-seed! seed))
   (define preprocess (*herbie-preprocess*))
   (define processed-test-pcontext (preprocess-pcontext test-pcontext preprocess ctx))
-
-  (timeline-adjust! 'regimes 'name (test-name test))
-  (timeline-adjust! 'regimes 'link ".")
   
+  ;; compute error/cost for input expression
   (define start-alt (make-alt (test-program test)))
-  (define start-prog (alt-program start-alt))
+  (define start-prog (test-program test))
   (define start-cost (program-cost start-prog repr))
   (define start-train-errs (errors start-prog train-pcontext ctx))
   (define start-test-errs (errors start-prog processed-test-pcontext ctx))
   (define start-alt-data (alt-result start-alt start-train-errs start-test-errs start-cost))
 
+  ;; optionally compute error/cost for input expression
   (define target-alt-data
     (cond
-      [(test-target test)
+      [(test-output test)
        (define target-prog (test-target test))
        (define target-cost (program-cost target-prog repr))
        (define target-train-errs (errors target-prog train-pcontext ctx))
@@ -233,19 +227,19 @@
       [else
        #f]))
 
+  ;; compute error/cost for output expression
   (define end-progs (map alt-program end-alts))
-  (eprintf "~a\n" end-progs)
-  (define end-costs (map program-cost end-progs repr))
-  (define end-target-errs (flip-lists (batch-errors end-progs train-pcontext ctx)))
+  (define end-costs (map (curryr program-cost repr) end-progs))
+  (define end-train-errs (flip-lists (batch-errors end-progs train-pcontext ctx)))
   (define end-test-errs (flip-lists (batch-errors end-progs processed-test-pcontext ctx)))
-  (define end-alt-data (map alt-result end-alts end-target-errs end-test-errs end-costs))
+  (define end-alts-data (map alt-result end-alts end-train-errs end-test-errs end-costs))
 
-  ; (define-values (points exacts) (get-p&es train-pcontext))
-  ; (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
-
+  ;; bundle up the result
+  (timeline-adjust! 'regimes 'name (test-name test))
+  (timeline-adjust! 'regimes 'link ".")
   (test-result test 'success #f (timeline-extract) (warning-log) #f
                preprocess train-pcontext processed-test-pcontext
-               start-alt-data target-alt-data end-alt-data))
+               start-alt-data target-alt-data end-alts-data))
 
 (define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
@@ -327,7 +321,7 @@
      (define start-prog (alt-program (alt-result-alt start)))
      (define start-train-score (errors-score (alt-result-train-error start)))
      (define start-test-score (errors-score (alt-result-test-error start)))
-     (define start-cost (alt-result-cost repr))
+     (define start-cost (alt-result-cost start))
      
      (define target (test-result-target result))
      (define target-score (and target (errors-score (alt-result-test-error target))))

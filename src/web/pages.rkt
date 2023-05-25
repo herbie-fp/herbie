@@ -1,9 +1,9 @@
 #lang racket
 
-(require (only-in fpbench fpcore? supported-by-lang? core->js js-header) json)
-(require "../alternative.rkt" "../syntax/read.rkt" "../sandbox.rkt" )
-(require "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt"
-        "../syntax/sugar.rkt" "../float.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
+(require json (only-in fpbench fpcore? supported-by-lang? core->js js-header))
+(require "../syntax/read.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
+         "../alternative.rkt" "../float.rkt" "../points.rkt" "../sandbox.rkt"
+         "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt")
 (provide all-pages make-page page-error-handler)
 
 (define (unique-values pts idx)
@@ -63,12 +63,13 @@
   (define start (test-result-start result))
   (define target (test-result-target result))
   (define end (test-result-end result))
+  (define test-pctx (test-result-test-pctx result))
 
   ; TODO: fill in info
   (define start-errors (alt-result-test-error start))
   (define target-errors (and target (alt-result-test-error target)))
   (define end-errors (map alt-result-test-error end))
-  (define newpoints #f)
+  (define-values (newpoints _) (pcontext->lists test-pctx))
 
   (define (ulps->bits-tenths x)
     (string->number (real->decimal-string (ulps->bits x) 1)))

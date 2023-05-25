@@ -2,7 +2,8 @@
 
 (require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext join-pcontext
+(provide *pcontext* in-pcontext mk-pcontext for/pcontext
+         pcontext? split-pcontext join-pcontext pcontext->lists
          errors batch-errors errors-score)
 
 ;; pcontexts are Herbie's standard data structure for storing
@@ -24,6 +25,10 @@
                 (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...)
                   body ...)])
     (mk-pcontext pts* exs*)))
+
+(define (pcontext->lists context)
+  (for/lists (pts exs) ([(pt ex) (in-pcontext context)])
+    (values pt ex)))
 
 (define (split-pcontext context num-a num-b)
   (define num-total (vector-length (pcontext-points context)))

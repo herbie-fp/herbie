@@ -56,13 +56,10 @@
    [_ #f]))
 
 (define (make-graph result out fpcore? profile?)
-  (match-define (test-result test _ time _ warnings _ preprocess pctx _ start target end) result)
-
+  (match-define (test-result test _ time _ warnings _ preprocess train-pctx test-pctx start target end) result)
   (define repr (test-output-repr test))
-  (define points #f) ; TODO: fix
-  (define exacts #f)
-  (define newpoints #f)
-  (define newexacts #f)
+  (define-values (points exacts) (pcontext->lists train-pctx))
+  (define-values (newpoints newexacts) (pcontext->lists test-pctx))
 
   (define costs (map alt-result-cost end))
   (define end-alts (map alt-result-alt end))
