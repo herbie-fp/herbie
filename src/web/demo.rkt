@@ -374,12 +374,13 @@
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (run-herbie 'errors test #:pcontext pcontext #:profile? #f
-                                 #:engine? #f #:timeline-disabled? #t))
+      (define result (run-herbie 'errors test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:engine? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -390,12 +391,13 @@
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (run-herbie 'exacts test #:pcontext pcontext #:profile? #f
-                                 #:engine? #f #:timeline-disabled? #t))
+      (define result (run-herbie 'exacts test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:engine? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -405,12 +407,13 @@
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (run-herbie 'evaluate test #:pcontext pcontext #:profile? #f
-                                 #:engine? #f #:timeline-disabled? #t))
+      (define result (run-herbie 'evaluate test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:engine? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -420,14 +423,15 @@
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define repr (test-output-repr test))
       (define prog (resugar-program (test-program test) repr))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define local-error (run-herbie 'local-error test #:pcontext pcontext #:profile? #f
-                                      #:engine? #f #:timeline-disabled? #t))
+      (define local-error (run-herbie 'local-error test #:seed seed #:pcontext pcontext
+                                      #:profile? #f #:engine? #f #:timeline-disabled? #t))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
@@ -454,14 +458,15 @@
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define vars (test-vars test))
       (define repr (test-output-repr test))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
-      (define result (run-herbie 'alternatives test #:pcontext pcontext #:profile? #f
-                                 #:engine? #f #:timeline-disabled? #t))
+      (define result (run-herbie 'alternatives test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:engine? #f #:timeline-disabled? #t))
 
       (match-define (list altns test-pcontext processed-pcontext) result)
       

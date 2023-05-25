@@ -91,7 +91,7 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-errors test pcontext #:seed [seed #f] #:profile [profile? #f])
+(define (get-errors test pcontext)
   (setup-backend! test)
   (unless pcontext
     (error 'get-errors "cannnot run without a pcontext"))
@@ -140,20 +140,13 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-local-error test pcontext #:seed [seed #f] #:profile [profile? #f])
+(define (get-local-error test pcontext)
   (setup-backend! test)
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
-  (define processed-pcontext
-    (make-preprocess-pcontext (test-program test)
-                              test-pcontext
-                              (*num-iterations*)
-                              #:specification (test-specification test)
-                              #:preprocess (test-preprocess test)))
-
-  (*pcontext* processed-pcontext)
+  (*pcontext* test-pcontext)
   (local-error-as-tree (test-program test) (*context*)))
 
 ;; Given a test and a sample of points, returns a list of improved alternatives
@@ -161,7 +154,7 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-alternatives test pcontext #:seed [seed #f] #:profile [profile? #f])
+(define (get-alternatives test pcontext #:seed seed)
   (setup-backend! test)
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
@@ -175,7 +168,9 @@
   (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
   (list alts test-pcontext processed-pcontext))
 
-(define (run-improvement test)
+;; Improvement backend for generating reports
+;; A more heavyweight version of `get-alternatives`
+(define (get-alternatives/report test)
   (setup-backend! test)
 
   (define seed (get-seed))
@@ -276,12 +271,12 @@
       (define out
         (with-handlers ([exn? (curry on-exception start-time)])
           (match command 
-            ['alternatives (get-alternatives test pcontext)]
+            ['alternatives (get-alternatives test pcontext seed)]
             ['evaluate (get-calculation test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['exacts (get-exacts test pcontext)]
-            ['improve (run-improvement test)]
+            ['improve (get-alternatives/report test)]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)])))
