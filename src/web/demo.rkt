@@ -8,7 +8,7 @@
          web-server/managers/none)
 
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
-(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt"
+(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../syntax/types.rkt"
          "../syntax/sugar.rkt" "../alternative.rkt" "../points.rkt"
          "../programs.rkt" "../sandbox.rkt" "../float.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt"
@@ -344,7 +344,9 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (pts&exs->pcontext pts&exs)
+(define (pts&exs->pcontext pts&exs ctx)
+  (define output-repr (context-repr ctx))
+  (define var-reprs (context-var-reprs ctx))
   (define-values (pts exs)
     (for/lists (pts exs) ([entry (in-list pts&exs)])
       (match-define (list pt ex) entry)
@@ -360,7 +362,8 @@
       (define seed (hash-ref post-data 'seed))
       (eprintf "Job started on ~a..." formula)
 
-      (define result (get-test-result 'sample (parse-test formula) #:seed seed))
+      (define test (parse-test formula))
+      (define result (get-test-result 'sample test #:seed seed))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -373,7 +376,7 @@
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define pcontext (pts&exs->pcontext pts&exs))
+      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
       (define result (get-test-result 'errors test #:pcontext pcontext))
 
       (eprintf " complete\n")
@@ -388,7 +391,7 @@
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define pcontext (pts&exs->pcontext pts&exs))
+      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
       (define result (get-test-result 'exacts test #:pcontext pcontext pcontext))
 
       (eprintf " complete\n")
@@ -398,10 +401,12 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts (hash-ref post-data 'points))
+      (define pts&exs (hash-ref post-data 'sample))
       (eprintf "Job started on ~a..." formula)
 
-      (define result (get-calculation (parse-test formula) pts))
+      (define test (parse-test formula))
+      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
+      (define result (get-test-result 'calculate test pcontext))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -410,13 +415,14 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts+exs (hash-ref post-data 'sample))
+      (define pts&exs (hash-ref post-data 'sample))
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define repr (test-output-repr test))
       (define prog (resugar-program (test-program test) repr))
-      (define local-error (get-local-error test pts+exs))
+      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
+      (define local-error (get-test-result 'local-error test #:pcontext pcontext))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
@@ -442,15 +448,16 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts+exs (hash-ref post-data 'sample))
+      (define pts&exs (hash-ref post-data 'sample))
       (eprintf "Job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define vars (test-vars test))
       (define repr (test-output-repr test))
+      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
+      (define result (get-test-result 'alternatives test #:pcontext pcontext))
 
-      (define-values (altns test-pcontext processed-pcontext)
-        (get-alternatives test pts+exs))
+      (match-define (list altns test-pcontext processed-pcontext) result)
       
       (define splitpoints
         (for/list ([alt altns]) 
@@ -498,8 +505,9 @@
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (eprintf "Job started on ~a..." formula)
-        
-      (define result (get-cost (parse-test formula)))
+      
+      (define test (parse-test formula))
+      (define result (get-test-result 'cost test))
 
       (eprintf " complete\n")
       (hasheq 'value result))))

@@ -123,13 +123,11 @@
   (random) ;; Child process uses deterministic but different seed from evaluator
 
   (unless pcontext
-    (error 'get-errors "cannnot run `get-errors` without a pcontext"))
+    (error 'get-errors "cannnot run without a pcontext"))
 
   (define joint-pcontext pcontext)
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
-
-  (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) (*context*)))
-  (define errs (errors (test-program test) processed-pcontext (*context*)))
+  (define errs (errors (test-program test) test-pcontext (*context*)))
 
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
     (list pt (format-bits (ulps->bits err)))))
@@ -145,47 +143,60 @@
   (generate-prec-rewrites (test-conversions test))
 
   (unless pcontext
-    (error 'get-errors "cannnot run `get-errors` without a pcontext"))
+    (error 'get-exacts "cannnot run without a pcontext"))
 
   (define joint-pcontext pcontext)
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
-  (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) (*context*)))
-  (define-values (pts _) (pcontext->lists processed-pcontext))
+  (define-values (pts _) (pcontext->lists test-pcontext))
 
-  (define starting-precision (*starting-prec*))
-  (define <-bf (representation-bf->repr repr))
-  (define fn (make-search-func (test-precondition test) (list (test-program test)) (test-context test)))
-
-  (define exacts
-    (for/list ([pt pts])
-      (define-values (status precision out)
-        (ival-eval fn pt #:precision starting-precision))
-      (define exs (map (compose <-bf ival-lo) out))
-      (list pt exs)))
+  (define fn (make-search-func (test-precondition test) (list (test-program test)) (*context*)))
+  (for/list ([pt pts])
+    (define-values (result prec exs) (ival-eval fn pt))
+    (define ex
+      (match exs
+        [(list (ival lo hi))
+          ((representation-bf->repr repr) lo)]
+        [(? nan?)
+          (real->repr +nan.0 repr)]))
+    (list pt (list ex))))
 
 ;; Given a test and a sample of points, the floating-point result at each point
-(define (get-calculation test pts)
+(define (get-calculation test pcontext)
+  (define repr (test-output-repr test))
+  (*context* (test-context test))
+  (*needed-reprs* (list repr (get-representation 'bool)))
+  (generate-prec-rewrites (test-conversions test))
+
+  (unless pcontext
+    (error 'get-calculation "cannnot run without a pcontext"))
+
+  (define joint-pcontext pcontext)
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (pts _) (pcontext->lists test-pcontext))
+
   (define fn (eval-prog (test-program test) 'fl (test-context test)))
   (for/list ([pt pts])
-    (define val (apply fn pt))
-    (cons pt (list val))))
+    (list pt (list (apply fn pt)))))
 
 ;; Given a test and a sample of points, computes the local error at every node in the expression
 ;; returning a tree of errors that mirrors the structure of the expression.
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-local-error test pts+exs #:seed [seed #f] #:profile [profile? #f])
-  (define output-repr (test-output-repr test))
+(define (get-local-error test pcontext #:seed [seed #f] #:profile [profile? #f])
+  (define repr (test-output-repr test))
   (*context* (test-context test))
-  (*needed-reprs* (list output-repr (get-representation 'bool)))
+  (*needed-reprs* (list repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
   (when seed (set-seed! seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
-  (define-values (joint-pcontext train-pcontext test-pcontext)
-    (compute-pcontexts pts+exs (*context*)))
+  (unless pcontext
+    (error 'get-local-error "cannnot run without a pcontext"))
+
+  (define joint-pcontext pcontext)
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
 
   (define processed-pcontext
     (make-preprocess-pcontext (test-program test)
@@ -202,22 +213,20 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-alternatives test pts+exs #:seed [seed #f] #:profile [profile? #f])
-  ;; This is usually run in `compute-result`
-  (rollback-improve!)
-  (when seed (set-seed! seed))
-
-  ;; `run-herbie` starts here
-  ;; (define seed (get-seed))
-  (random) ;; Child process uses deterministic but different seed from evaluator
-
-  (define output-repr (test-output-repr test))
+(define (get-alternatives test pcontext #:seed [seed #f] #:profile [profile? #f])
+  (define repr (test-output-repr test))
   (*context* (test-context test))
-  (*needed-reprs* (list output-repr (get-representation 'bool)))
+  (*needed-reprs* (list repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
-  (define-values (joint-pcontext train-pcontext test-pcontext)
-    (compute-pcontexts pts+exs (*context*)))
+  (when seed (set-seed! seed))
+  (random) ;; Child process uses deterministic but different seed from evaluator
+
+  (unless pcontext
+    (error 'get-alternatives "cannnot run without a pcontext"))
+
+  (define joint-pcontext pcontext)
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
 
   (define alts
     (run-improve! (test-program test) train-pcontext (*num-iterations*)
@@ -225,10 +234,9 @@
                   #:preprocess (test-preprocess test)))
 
   (when seed (set-seed! seed))
-  (define processed-test-pcontext
-    (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
+  (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
+  (list alts test-pcontext processed-pcontext))
 
-  (values alts test-pcontext processed-test-pcontext))
 
 (define (run-herbie test)
   (define seed (get-seed))
@@ -313,10 +321,13 @@
       (with-handlers ([exn? (curry on-exception start-time)])
         (define out
           (match command
+            ['alternatives (get-alternatives test pcontext)]
+            ['calculate (get-calculation test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['exacts (get-exacts test pcontext)]
             ['improve (run-herbie test)]
+            ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]))
         (print-warnings)
         (if (eq? command 'sample) out (add-time out (- (current-inexact-milliseconds) start-time))))))
