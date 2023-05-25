@@ -181,13 +181,16 @@
        [(equal? event '(patch)) orig]
        [else
         (define event*
+          ;; The 2 at the start of locs is left over from when we
+          ;; differentiated between "programs" with a λ term and
+          ;; "expressions" without
           (match event
-           [(list 'taylor name var loc)
-            (list 'taylor name var (append '(2) loc0 (cdr loc)))]
-           [(list 'rr loc input proof soundiness)
-            (list 'rr (append '(2) loc0 (cdr loc)) input proof soundiness)]
-           [(list 'simplify loc input proof soundiness)
-            (list 'simplify (append '(2) loc0 (cdr loc)) input proof soundiness)]))
+           [(list 'taylor name var (list 2 loc ...))
+            (list 'taylor name var (append '(2) loc0 loc))]
+           [(list 'rr (list 2 loc ...) input proof soundiness)
+            (list 'rr (append '(2) loc0 loc) input proof soundiness)]
+           [(list 'simplify (list 2 loc ...) input proof soundiness)
+            (list 'simplify (append '(2) loc0 loc) input proof soundiness)]))
         (define prog* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
         (alt prog* event* (list (loop (first prev))))])))
   
