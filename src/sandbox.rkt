@@ -7,11 +7,10 @@
          "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "core/localize.rkt" "ground-truth.rkt")
 
-(provide get-alternatives get-errors get-sample get-test-result
-         get-exacts *reeval-pts* *timeout* get-calculation get-cost
+(provide get-test-result get-table-data unparse-result
          (struct-out test-result) (struct-out test-success)
          (struct-out test-failure) (struct-out test-timeout)
-         get-table-data unparse-result get-local-error)
+         *reeval-pts* *timeout*)
 
 ;; These cannot move between threads!
 (struct test-result (test bits time timeline warnings))
@@ -35,31 +34,26 @@
         (and (= major 8) (< minor 2))
         (and (= major 8) (= minor 2) (zero? (string-length rest))))))
 
-(define (get-p&es context)
-  (for/lists (pts exs)
-      ([(pt ex) (in-pcontext context)])
+(define (pcontext->lists context)
+  (for/lists (pts exs) ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-(define (get-exacts test pts)
-  (define repr (test-output-repr test))
-  (define starting-precision (*starting-prec*))
-  (define <-bf (representation-bf->repr repr))
-  (define fn (make-search-func (test-precondition test) (list (test-program test)) (test-context test)))
-  (for/list ([pt pts])
-    (define-values (status precision out)
-        (ival-eval fn pt #:precision starting-precision))
-    (define exs (map (compose <-bf ival-lo) out))
-    (cons pt exs)))
-
-(define (get-calculation test pts)
-  (define fn (eval-prog (test-program test) 'fl (test-context test)))
-  (for/list ([pt pts])
-    (define val (apply fn pt))
-    (cons pt (list val))))
-
-(define (get-cost test)
-    (program-cost (test-program test) (test-output-repr test)))
-
+;; Partitions a joint pcontext into a training and testing set
+(define (partition-pcontext joint-pcontext ctx)
+  (define num-points (pcontext-length joint-pcontext))
+  (cond
+    [(= num-points (+ (*num-points*) (*reeval-pts*)))
+     ; got the expected amount of points
+     ; will partition into training and testing set
+     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))]
+    [else
+     ; the training set will just be up to the first 256
+     ; the testing set will just be the entire set
+     ; TODO: where is 256 coming from?
+     (define training-count (min 256 num-points))
+     (define testing-count (- num-points training-count))
+     (define-values (train-pcontext _) (split-pcontext joint-pcontext training-count testing-count))
+     (values train-pcontext joint-pcontext)]))
 
 ;; Translates points from the API endpoint
 ;; into the expected pcontext
@@ -89,6 +83,14 @@
 
   (values joint-pcontext train-pcontext test-pcontext))
 
+;;
+;;  API endpoint backends
+;;
+
+;; Given a test, computes the program cost of the input expression
+(define (get-cost test)
+  (program-cost (test-program test) (test-output-repr test)))
+
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
   (define output-repr (test-output-repr test))
@@ -97,9 +99,9 @@
 
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (setup-context!
-        (or (test-specification test) (test-program test)) (test-precondition test)
-        output-repr)))
+      (setup-context! (or (test-specification test) (test-program test))
+                      (test-precondition test)
+                      output-repr)))
 
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
@@ -111,23 +113,62 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-errors test pts+exs #:seed [seed #f] #:profile [profile? #f])
-  (define output-repr (test-output-repr test))
+(define (get-errors test pcontext #:seed [seed #f] #:profile [profile? #f])
+  (define repr (test-output-repr test))
   (*context* (test-context test))
-  (*needed-reprs* (list output-repr (get-representation 'bool)))
+  (*needed-reprs* (list repr (get-representation 'bool)))
   (generate-prec-rewrites (test-conversions test))
 
   (when seed (set-seed! seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
-  (define-values (joint-pcontext train-pcontext test-pcontext)
-    (compute-pcontexts pts+exs (*context*)))
+  (unless pcontext
+    (error 'get-errors "cannnot run `get-errors` without a pcontext"))
+
+  (define joint-pcontext pcontext)
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
 
   (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) (*context*)))
   (define errs (errors (test-program test) processed-pcontext (*context*)))
 
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
     (list pt (format-bits (ulps->bits err)))))
+
+;; Given a test and a sample of points, the ground truth of each point
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
+(define (get-exacts test pcontext)
+  (define repr (test-output-repr test))
+  (*context* (test-context test))
+  (*needed-reprs* (list repr (get-representation 'bool)))
+  (generate-prec-rewrites (test-conversions test))
+
+  (unless pcontext
+    (error 'get-errors "cannnot run `get-errors` without a pcontext"))
+
+  (define joint-pcontext pcontext)
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) (*context*)))
+  (define-values (pts _) (pcontext->lists processed-pcontext))
+
+  (define starting-precision (*starting-prec*))
+  (define <-bf (representation-bf->repr repr))
+  (define fn (make-search-func (test-precondition test) (list (test-program test)) (test-context test)))
+
+  (define exacts
+    (for/list ([pt pts])
+      (define-values (status precision out)
+        (ival-eval fn pt #:precision starting-precision))
+      (define exs (map (compose <-bf ival-lo) out))
+      (list pt exs)))
+
+;; Given a test and a sample of points, the floating-point result at each point
+(define (get-calculation test pts)
+  (define fn (eval-prog (test-program test) 'fl (test-context test)))
+  (for/list ([pt pts])
+    (define val (apply fn pt))
+    (cons pt (list val))))
 
 ;; Given a test and a sample of points, computes the local error at every node in the expression
 ;; returning a tree of errors that mirrors the structure of the expression.
@@ -199,10 +240,10 @@
   (generate-prec-rewrites (test-conversions test))
 
   (match-define (cons domain-stats joint-pcontext)
-                (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-                  (setup-context!
-                   (or (test-specification test) (test-program test)) (test-precondition test)
-                   output-repr)))
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (setup-context! (or (test-specification test) (test-program test))
+                      (test-precondition test)
+                      output-repr)))
   (timeline-push! 'bogosity domain-stats)
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
@@ -223,8 +264,8 @@
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
 
-  (define-values (points exacts) (get-p&es train-pcontext))
-  (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
+  (define-values (points exacts) (pcontext->lists train-pcontext))
+  (define-values (newpoints newexacts) (pcontext->lists processed-test-pcontext))
   (test-success test
                 (bf-precision)
                 #f
@@ -256,7 +297,10 @@
                 start-error end-errors target-error
                 start-cost end-costs all-alts))
 
-(define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
+(define (get-test-result command test
+                         #:pcontext [pcontext #f]
+                         #:seed [seed #f]
+                         #:profile [profile? #f])
   (define timeline #f)
 
   (define (compute-result test)
@@ -269,6 +313,9 @@
       (with-handlers ([exn? (curry on-exception start-time)])
         (define out
           (match command
+            ['cost (get-cost test)]
+            ['errors (get-errors test pcontext)]
+            ['exacts (get-exacts test pcontext)]
             ['improve (run-herbie test)]
             ['sample (get-sample test)]))
         (print-warnings)

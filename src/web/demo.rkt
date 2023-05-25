@@ -344,6 +344,13 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
+(define (pts&exs->pcontext pts&exs)
+  (define-values (pts exs)
+    (for/lists (pts exs) ([entry (in-list pts&exs)])
+      (match-define (list pt ex) entry)
+      (values (map real->repr pt var-reprs) (real->repr ex output-repr))))
+  (mk-pcontext pts exs))
+
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
 (define sample-endpoint
@@ -362,10 +369,12 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts+exs (hash-ref post-data 'sample))
+      (define pts&exs (hash-ref post-data 'sample))
       (eprintf "Job started on ~a..." formula)
 
-      (define result (get-errors (parse-test formula) pts+exs))
+      (define test (parse-test formula))
+      (define pcontext (pts&exs->pcontext pts&exs))
+      (define result (get-test-result 'errors test #:pcontext pcontext))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -375,10 +384,12 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts (hash-ref post-data 'points))
+      (define pts&exs (hash-ref post-data 'sample))
       (eprintf "Job started on ~a..." formula)
 
-      (define result (get-exacts (parse-test formula) pts))
+      (define test (parse-test formula))
+      (define pcontext (pts&exs->pcontext pts&exs))
+      (define result (get-test-result 'exacts test #:pcontext pcontext pcontext))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -487,7 +498,7 @@
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (eprintf "Job started on ~a..." formula)
-
+        
       (define result (get-cost (parse-test formula)))
 
       (eprintf " complete\n")
