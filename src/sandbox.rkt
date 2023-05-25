@@ -10,7 +10,8 @@
 
 (provide get-alternatives get-calculation get-cost get-errors
          get-exacts get-local-error get-sample get-test-result
-         (struct-out test-result) get-table-data unparse-result
+         (struct-out test-result) (struct-out alt-result)
+         get-table-data unparse-result
          *reeval-pts* *timeout*)
 
 ;; Cannot move between threads
@@ -214,7 +215,7 @@
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
   
-  (define start-alt (make-alt start-prog))
+  (define start-alt (make-alt (test-program test)))
   (define start-prog (alt-program start-alt))
   (define start-cost (program-cost start-prog repr))
   (define start-train-errs (errors start-prog train-pcontext ctx))
@@ -233,6 +234,7 @@
        #f]))
 
   (define end-progs (map alt-program end-alts))
+  (eprintf "~a\n" end-progs)
   (define end-costs (map program-cost end-progs repr))
   (define end-target-errs (flip-lists (batch-errors end-progs train-pcontext ctx)))
   (define end-test-errs (flip-lists (batch-errors end-progs processed-test-pcontext ctx)))
@@ -371,7 +373,7 @@
     ['timeout
      (dummy-table-row result "timeout" link)]
     [_
-     (error 'get-table-data "Unknown table result type ~a" (test-result-status result))]))
+     (error 'get-table-data "unknown result type ~a" (test-result-status result))]))
 
 (define (unparse-result row)
   (define top

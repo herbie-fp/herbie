@@ -56,13 +56,22 @@
    [_ #f]))
 
 (define (make-graph result out fpcore? profile?)
-  (match-define
-   (test-success test bits time timeline warnings
-                 start-alt end-alts preprocess points exacts start-est-error end-est-error
-                 newpoints newexacts start-error end-errors target-error
-                 start-cost costs all-alts)
-   result)
+  (match-define (test-result test _ time _ warnings _ preprocess pctx _ start target end) result)
+
   (define repr (test-output-repr test))
+  (define points #f) ; TODO: fix
+  (define exacts #f)
+  (define newpoints #f)
+  (define newexacts #f)
+
+  (define costs (map alt-result-cost end))
+  (define end-alts (map alt-result-alt end))
+  (define end-errors (map alt-result-test-error end))
+
+  (define start-alt (alt-result-alt start))
+  (define start-error (alt-result-test-error start))
+  (define target-alt (and target (alt-result-alt target)))
+  (define target-error (and target (alt-result-test-error target)))
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
   (define other-alts (cdr end-alts))

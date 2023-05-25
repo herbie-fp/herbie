@@ -24,11 +24,15 @@
            (match (system-type 'os) ['windows "Ctrl-Z Enter"] [_ "Ctrl-D"]))
   (with-handlers ([exn:break? (λ (e) (exit 0))])
     (for ([test (in-producer get-input eof-object?)] [idx (in-naturals)])
-      (define output (get-test-result 'improve test #:seed seed))
-      (match output
-        [(? test-success?)
-         (pretty-print (unparse-result (get-table-data output "")) (current-output-port) 1)]
-        [(test-failure test bits time timeline warnings exn)
+      (define result (get-test-result 'improve test #:seed seed))
+      (define time (test-result-time result))
+      (define exn (test-result-exn result))
+      (match (test-result-status result)
+        ['success
+         (pretty-print (unparse-result (get-table-data result "")) (current-output-port) 1)]
+        ['failure
          ((error-display-handler) (exn-message exn) exn)]
-        [(test-timeout test bits time timeline warnings)
-         (printf "Timeout in ~as (see --timeout option)\n" (/ time 1000))]))))
+        ['timeout
+         (printf "Timeout in ~as (see --timeout option)\n" (/ time 1000))]
+        [else
+         (error 'run-shell "unknown result type ~a" (test-result-status result))]))))

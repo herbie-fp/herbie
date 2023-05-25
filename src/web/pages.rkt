@@ -10,23 +10,10 @@
   (length (remove-duplicates (map (curryr list-ref idx) pts))))
 
 (define (all-pages result)
-  (define test (test-result-test result))
-  (define good? (test-success? result))
-  (define others
-    (if good?
-      (let ([other (cdr (test-success-end-alts result))]
-            [vars (test-vars test)])
-        (if (and good? (< (* (length other) (length vars)) 100))
-            (build-list (length other) (λ (x) (format "o~a" x)))
-            '()))
-      '()))
-
-  (define pages
-    `("graph.html"
-      ,(and good? "interactive.js")
-      "timeline.html" "timeline.json"
-      ,(and good? "points.json")))
-  (filter identity pages))
+  (define good? (eq? (test-result-status result) 'success))
+  (define default-pages '("graph.html" "timeline.html" "timeline.json"))
+  (define success-pages '("interactive.js" "points.json"))
+  (if good? (append default-pages success-pages) default-pages))
 
 (define ((page-error-handler result page) e)
   (define test (test-result-test result))
@@ -39,10 +26,11 @@
   (define repr (test-output-repr test))
   (match page
     ["graph.html"
-     (match result
-       [(? test-success?) (make-graph result out (get-interactive-js result repr) profile?)]
-       [(? test-timeout?) (make-traceback result out profile?)]
-       [(? test-failure?) (make-traceback result out profile?)])]
+     (match (test-result-status result)
+       ['success (make-graph result out (get-interactive-js result repr) profile?)]
+       ['timeout (make-graph result out (get-interactive-js result repr) profile?)]
+       ['failure (make-traceback result out profile?)]
+       [_ (error 'make-page "unknown result type ~a" (test-result-status result))])]
     ["interactive.js"
      (make-interactive-js result out repr)]
     ["timeline.html"
@@ -53,8 +41,8 @@
      (make-points-json result out repr)]))
 
 (define (get-interactive-js result repr)
-  (define start-prog (alt-program (test-success-start-alt result)))
-  (define end-prog (alt-program (car (test-success-end-alts result))))
+  (define start-prog (alt-program (alt-result-alt (test-result-start result))))
+  (define end-prog (alt-program (alt-result-alt (car (test-result-end result)))))
   (define start-fpcore (program->fpcore (resugar-program start-prog repr)))
   (define end-fpcore (program->fpcore (resugar-program end-prog repr)))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
@@ -71,27 +59,41 @@
     (display js-text out)))
 
 (define (make-points-json result out repr)
+  (define test (test-result-test result))
+  (define start (test-result-start result))
+  (define target (test-result-target result))
+  (define end (test-result-end result))
+
+  ; TODO: fill in info
+  (define start-errors (alt-result-test-error start))
+  (define target-errors (and target (alt-result-test-error target)))
+  (define end-errors (map alt-result-test-error end))
+  (define newpoints #f)
+
+  (define (ulps->bits-tenths x)
+    (string->number (real->decimal-string (ulps->bits x) 1)))
+
   ; Immediately convert points to reals to handle posits
   (define points 
-    (for/list ([point (test-success-newpoints result)])
+    (for/list ([point newpoints])
       (for/list ([x point])
         (repr->real x repr))))
+
+  (define json-points
+    (for/list ([point points])
+      (for/list ([value point]) 
+        (real->ordinal value repr))))
+
   (define bit-width (representation-total-bits repr))
-  
-  (define json-points (for/list ([point points]) (for/list ([value point]) 
-    (real->ordinal value repr))))
-  (define (ulps->bits-tenths x) (string->number (real->decimal-string (ulps->bits x) 1)))
-  (define start-error (map (lambda (err) (ulps->bits-tenths err)) (test-success-start-error result)))
-  (define end-error (map (lambda (err) (ulps->bits-tenths err)) 
-    ((compose car test-success-end-errors) result)))
-  (define target-error (if (test-success-target-error result) 
-    (map (lambda (err) (ulps->bits-tenths err)) (test-success-target-error result)) #f))
-  (define vars (test-vars (test-result-test result)))
+  (define start-error (map ulps->bits-tenths start-errors))
+  (define target-error (and target-errors (map ulps->bits-tenths target-errors)))
+  (define end-error (map ulps->bits-tenths (car end-errors)))
+  (define vars (test-vars test))
   (define ticks 
     (for/list ([idx (in-range (length vars))]) (let/ec return 
       (define points-at-idx (for/list ([point points]) (list-ref point idx)))
       ; We bail out since choose-ticks will crash otherwise
-      (if (= (unique-values (test-success-newpoints result) idx) 1) (return #f) #f) 
+      (if (= (unique-values newpoints idx) 1) (return #f) #f) 
       (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
       (for/list ([val real-ticks]) 
         (define tick-str (if (or (= val 0) (< 0.01 (abs val) 100))
@@ -100,8 +102,8 @@
         (list 
           tick-str
           (real->ordinal val repr))))))
-  (define end-alt (car (test-success-end-alts result)))
 
+  (define end-alt (alt-result-alt (car (test-result-end result))))
   (define splitpoints 
     (for/list ([var vars]) 
       (define split-var? (equal? var (regime-var end-alt)))
