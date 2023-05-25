@@ -184,10 +184,9 @@
           (match event
            [(list 'taylor name var loc)
             (list 'taylor name var (append '(2) loc0 (cdr loc)))]
-           ; TODO : Recosnsruct and revise history
-           [`(rr, loc, input, proof, soundiness)
+           [(list 'rr loc input proof soundiness)
             (list 'rr (append '(2) loc0 (cdr loc)) input proof soundiness)]
-           [`(simplify ,loc ,input ,proof ,soundiness)
+           [(list 'simplify loc input proof soundiness)
             (list 'simplify (append '(2) loc0 (cdr loc)) input proof soundiness)]))
         (define prog* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
         (alt prog* event* (list (loop (first prev))))])))

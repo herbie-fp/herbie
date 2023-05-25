@@ -131,7 +131,7 @@
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
-    [(alt (list _ _ prog) `(rr , loc, input, proof, soundiness) `(,prev))
+    [(alt (list _ _ prog) `(rr ,loc ,input ,proof ,soundiness) `(,prev))
      (define proof*
        (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
