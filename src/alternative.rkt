@@ -22,7 +22,7 @@
   (program-body (alt-program alt)))
 
 (define (alt-equal? x y)
-  (equal? (alt-program x) (alt-program y)))
+  (equal? (alt-expr x) (alt-expr y)))
 
 (define (alt-add-event altn event)
   (alt (alt-program altn) event (list altn)))

@@ -183,13 +183,13 @@
         (define event*
           (match event
            [(list 'taylor name var loc)
-            (list 'taylor name var (append loc0 (cdr loc)))]
+            (list 'taylor name var (append '(2) loc0 (cdr loc)))]
            ; TODO : Recosnsruct and revise history
            [`(rr, loc, input, proof, soundiness)
-            (list 'rr (append loc0 (cdr loc)) input proof soundiness)]
+            (list 'rr (append '(2) loc0 (cdr loc)) input proof soundiness)]
            [`(simplify ,loc ,input ,proof ,soundiness)
-            (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
-        (define prog* (location-do loc0 (alt-program orig) (const (alt-expr altn))))
+            (list 'simplify (append '(2) loc0 (cdr loc)) input proof soundiness)]))
+        (define prog* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
         (alt prog* event* (list (loop (first prev))))])))
   
   (^patched^
@@ -197,7 +197,7 @@
               ([altn (in-list alts)])
       (define expr0 (get-starting-expr altn))
       (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
-          (let ([locs (get-locations (alt-program (^next-alt^)) expr0)])
+          (let ([locs (get-locations (alt-expr (^next-alt^)) expr0)])
             (append (map (λ (l) (reconstruct-alt altn l (^next-alt^))) locs) patched))
           (cons altn patched))))
       
