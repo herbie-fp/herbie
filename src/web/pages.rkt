@@ -36,27 +36,27 @@
 
 (define (make-page page out result profile?)
   (define test (test-result-test result))
-  (define repr (test-output-repr test))
+  (define ctx (test-context test))
   (match page
     ["graph.html"
      (match result
-       [(? test-success?) (make-graph result out (get-interactive-js result repr) profile?)]
+       [(? test-success?) (make-graph result out (get-interactive-js result ctx) profile?)]
        [(? test-timeout?) (make-traceback result out profile?)]
        [(? test-failure?) (make-traceback result out profile?)])]
     ["interactive.js"
-     (make-interactive-js result out repr)]
+     (make-interactive-js result out ctx)]
     ["timeline.html"
      (make-timeline (test-name test) (test-result-timeline result) out)]
     ["timeline.json"
      (write-json (test-result-timeline result) out)]
     ["points.json"
-     (make-points-json result out repr)]))
+     (make-points-json result out ctx)]))
 
-(define (get-interactive-js result repr)
-  (define start-prog (alt-program (test-success-start-alt result)))
-  (define end-prog (alt-program (car (test-success-end-alts result))))
-  (define start-fpcore (program->fpcore (resugar-program start-prog repr)))
-  (define end-fpcore (program->fpcore (resugar-program end-prog repr)))
+(define (get-interactive-js result ctx)
+  (define start-expr (alt-expr (test-success-start-alt result)))
+  (define end-expr (alt-expr (car (test-success-end-alts result))))
+  (define start-fpcore (program->fpcore start-expr ctx))
+  (define end-fpcore (program->fpcore end-expr ctx))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
        (supported-by-lang? start-fpcore "js")
        (supported-by-lang? end-fpcore "js")
@@ -65,12 +65,14 @@
           (core->js start-fpcore "start")
           (core->js end-fpcore "end"))))
 
-(define (make-interactive-js result out repr)
-  (define js-text (get-interactive-js result repr))
+(define (make-interactive-js result out ctx)
+  (define repr (context-repr ctx))
+  (define js-text (get-interactive-js result ctx))
   (when (string? js-text)
     (display js-text out)))
 
-(define (make-points-json result out repr)
+(define (make-points-json result out ctx)
+  (define repr (context-repr ctx))
   ; Immediately convert points to reals to handle posits
   (define points 
     (for/list ([point (test-success-newpoints result)])

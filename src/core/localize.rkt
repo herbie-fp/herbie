@@ -18,13 +18,9 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 ; Uses math/bigfloat rather than rival for speed.
-(define (compute-local-errors-fast prog ctx)
-  (define expr (program-body prog))
+(define (compute-local-errors-fast expr ctx)
   (define subexprs (all-subexpressions expr))
-  (define subprogs
-    (for/list ([expr (in-list subexprs)])
-      `(λ ,(program-variables prog) ,expr)))
-  (define exact-fn (batch-eval-progs subprogs 'bf ctx))
+  (define exact-fn (batch-eval-progs subexprs 'bf ctx))
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define bf-values (apply exact-fn pt))
@@ -48,8 +44,8 @@
   errs)
 
 ;; Returns a list of expressions sorted by increasing local error
-(define (localize-error prog ctx)
-  (define errs (compute-local-errors-fast prog ctx))
+(define (localize-error expr ctx)
+  (define errs (compute-local-errors-fast expr ctx))
   (sort
     (reap [sow]
           (for ([(expr err) (in-hash errs)])
@@ -58,14 +54,12 @@
     > #:key (compose errors-score car)))
 
 ; Compute local error or each sampled point at each node in `prog`.
-(define (compute-local-errors prog ctx)
-  (define expr (program-body prog))
+(define (compute-local-errors expr ctx)
   (define subexprs (all-subexpressions expr))
   (define subexprs-fn
     (for/hash ([expr (in-list subexprs)])
-      (define subexpr-prog `(λ ,(program-variables prog) ,expr))
       (define ctx* (struct-copy context ctx [repr (repr-of expr ctx)]))
-      (values expr (eval-prog-real subexpr-prog ctx*))))
+      (values expr (eval-prog-real expr ctx*))))
   (define errs (make-hash (map (curryr cons '()) subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts-hash
@@ -92,9 +86,8 @@
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
-(define (local-error-as-tree prog ctx)
-  (define errs (compute-local-errors prog ctx))
-  (define expr (program-body prog))
+(define (local-error-as-tree expr ctx)
+  (define errs (compute-local-errors expr ctx))
   (let loop ([expr expr])
     (match expr
       [(list op args ...) (cons (hash-ref errs expr) (map loop args))]
