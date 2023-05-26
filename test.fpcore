@@ -1,5 +1,0 @@
-(FPCore (x)
- :name "2isqrt (example 3.6)"
- :precision binary32
- :herbie-conversions ((binary32 posit16))
- (- (/ 1 (sqrt x)) (/ 1 (sqrt (+ x 1)))))
