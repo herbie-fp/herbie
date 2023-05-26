@@ -360,7 +360,7 @@
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define seed (hash-ref post-data 'seed))
-      (eprintf "Job started on ~a..." formula)
+      (eprintf "Sampling job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define result (run-herbie 'sample test #:seed seed #:profile? #f
@@ -375,7 +375,7 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Job started on ~a..." formula)
+      (eprintf "Analyze job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
@@ -392,7 +392,7 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Job started on ~a..." formula)
+      (eprintf "Ground truth job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
@@ -408,7 +408,7 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Job started on ~a..." formula)
+      (eprintf "Evaluation job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
@@ -424,7 +424,7 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Job started on ~a..." formula)
+      (eprintf "Local error job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define repr (test-output-repr test))
@@ -459,7 +459,7 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define pts&exs (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Job started on ~a..." formula)
+      (eprintf "Alternatives job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define vars (test-vars test))
@@ -515,7 +515,7 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (eprintf "Job started on ~a..." formula)
+      (eprintf "Computing cost of ~a..." formula)
       
       (define test (parse-test formula))
       (define result (run-herbie 'cost test #:profile? #f #:engine? #f #:timeline-disabled? #t))
