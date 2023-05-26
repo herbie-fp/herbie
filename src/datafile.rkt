@@ -29,16 +29,6 @@
                note
                tests))
 
-(define (trs->pareto trs)
-  (define start-cost (apply + (map (compose first first table-row-cost-accuracy) trs)))
-  (define start-accuracy (apply + (map (compose second first table-row-cost-accuracy) trs)))
-  (define accuracy-max (apply + (map (compose representation-total-bits get-representation table-row-precision) trs)))
-  (define (pareto-rescale pts)
-    (map (match-lambda [(list c a _ ...) (list (/ c start-cost) a)]) pts))
-  (define rescaled (map (compose pareto-rescale (lambda (ca) (cons (second ca) (third ca))) table-row-cost-accuracy) trs)
-  (define frontier (map (lambda (p) (cons (first p) (second p))) (pareto-combine rescaled #:convex? #t)))
-  (values (cons 1.0 start-accuracy) frontier accuracy-max)))
-
 (define (write-datafile file info)
   (define (simplify-test test)
     (match test
@@ -78,13 +68,40 @@
           (cost-accuracy . ,cost-accuracy*)))]))
 
   (define (merged-cost-accuracy tests)
-      (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
-      (match-define (list (cons costs scores) ...) pareto-points)
-      (define x-max (argmax identity (cons (car pareto-start) costs)))
-      (list 
-        (list x-max pareto-max)
-        (list (car pareto-start) (cdr pareto-start))
-        (for/list ([acost costs] [aerr scores]) (list acost aerr))))
+    (define cost-accuracies (map table-row-cost-accuracy tests))
+    (define initial-cost
+      (exact->inexact
+       (apply +
+              (map
+               (match-lambda [(list (list cost _) _ _) cost])
+               cost-accuracies))))
+    (define initial-accuracy
+      (apply +
+             (map
+              (match-lambda [(list (list accuracy _) _ _) accuracy])
+              cost-accuracies)))
+    (define rescaled
+      (for/list ([cost-accuracy (in-list cost-accuracies)])
+        (match-let ([(list _ best-point other-points) cost-accuracy])
+          (for/list ([point (in-list (cons best-point other-points))])
+            (match-let ([(list cost accuracy _ ...) point])
+              (list (/ cost initial-cost) accuracy))))))
+    (define frontier (pareto-combine rescaled #:convex? #t))
+    (define maximum-cost
+      (argmax
+       identity
+       (cons 1.0 (map (match-lambda [(list cost _) cost]) frontier))))
+    (define maximum-accuracy
+      (apply +
+             (map
+              (compose representation-total-bits get-representation table-row-precision)
+              tests)))
+    (list
+     (list maximum-cost maximum-accuracy)
+     (list
+      1.0 ;; (/ initial-cost initial-cost)
+      initial-accuracy)
+     frontier))
 
   (define data
     (match info
