@@ -33,11 +33,11 @@
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
-(define (make-search-func precondition programs ctxlist)
-  (define fns (batch-eval-progs (cons precondition programs) 'ival (car ctxlist)))
+(define (make-search-func precondition programs ctxs)
+  (define fns (batch-eval-progs (cons precondition programs) 'ival (car ctxs)))
   (λ inputs
     (match-define (list ival-pre ival-bodies ...) (apply fns inputs))
-    (for/list ([y ival-bodies] [ctx ctxlist])
+    (for/list ([y ival-bodies] [ctx ctxs])
       (define repr (context-repr ctx))
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
@@ -76,15 +76,15 @@
     ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
-(define (sample-points precondition progs ctxlist)
+(define (sample-points precondition progs ctxs)
   (timeline-event! 'analyze)
-  (define fn (make-search-func precondition progs ctxlist))
+  (define fn (make-search-func precondition progs ctxs))
   (match-define (cons sampler table)
     (parameterize ([ground-truth-require-convergence #f])
       ;; TODO: Should make-sampler allow multiple contexts?
-      (make-sampler (first ctxlist) precondition progs fn)))
+      (make-sampler (first ctxs) precondition progs fn)))
   (timeline-event! 'sample)
   (match-define (cons table2 results)
     ;; TODO: should batch-prepare-points allow multiple contexts?
-    (batch-prepare-points fn (first ctxlist) sampler))
+    (batch-prepare-points fn (first ctxs) sampler))
   (cons (combine-tables table table2) results))

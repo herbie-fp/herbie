@@ -36,12 +36,12 @@
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors prog ctx)
   (define expression (program-body prog))
-  (define sub-expressions (all-subexpressions expression (context-repr ctx)))
+  (define subexprs (all-subexpressions expression (context-repr ctx)))
   (define prog-list
-    (for/list ([subexpr (in-list sub-expressions)])
+    (for/list ([subexpr (in-list subexprs)])
       `(λ ,(context-vars ctx) ,(car subexpr))))
   (define ctx-list
-    (for/list ([subexpr (in-list sub-expressions)])
+    (for/list ([subexpr (in-list subexprs)])
       (struct-copy context ctx [repr (cdr subexpr)])))
 
   (define subexprs-fn (eval-progs-real prog-list ctx-list))
@@ -49,7 +49,7 @@
   ; Mutable error hack, this is bad
   (define temp-errs
     (make-hash
-     (for/list ([subexpr (in-list sub-expressions)])
+     (for/list ([subexpr (in-list subexprs)])
        (cons (car subexpr) '()))))
   (define errs (make-hash))
   (for ([(k v) temp-errs])
@@ -58,8 +58,8 @@
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
-      (make-immutable-hash (map cons sub-expressions exacts)))
-    (for ([expr (in-list sub-expressions)])
+      (make-immutable-hash (map cons subexprs exacts)))
+    (for ([expr (in-list subexprs)])
       (define err
         (match (car expr)
           [(? number?) 1]
@@ -68,10 +68,10 @@
           [(list f args ...)
            (define repr (operator-info f 'otype))
            (define argapprox
-             (for/list ([arg (in-list args)]
-                        [repr (in-list (operator-info f 'itype))])
-               (hash-ref exacts-hash
-                         (cons arg repr))))
+           (for/list ([arg (in-list args)]
+                    [repr (in-list (operator-info f 'itype))])
+            (hash-ref exacts-hash
+                      (cons arg repr))))
            (ulp-difference
             (hash-ref exacts-hash expr)
             (apply (operator-info f 'fl) argapprox) repr)
