@@ -75,7 +75,7 @@ jobs:
       - run: racket src/herbie.rkt report bench/tutorial.fpcore /tmp/out/
       - run: test -d /tmp/out/
         name: "Test that report created a directory"
-      - run: test -f /tmp/out/results.html
-        name: "Test that report created a results.html"
+      - run: test -f /tmp/out/index.html
+        name: "Test that report created a index.html"
       - run: test -f /tmp/out/results.json
         name: "Test that report created a results.json"

@@ -9,7 +9,7 @@
    ;; Constants are zero-ary functions
    [(? constant-operator?) (list expr)]
    ;; unfold let
-   [(list let* (list (list var val) rest ...) body)
+   [(list 'let* (list (list var val) rest ...) body)
     (replace-vars (list (cons var (expand val))) (expand `(let* ,rest ,body)))]
    [(list 'let (list (list vars vals) ...) body)
     (replace-vars (map cons vars (map expand vals)) (expand body))]

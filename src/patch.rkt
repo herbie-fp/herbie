@@ -2,7 +2,7 @@
 
 (require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
 (require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
-(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt")
+(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "core/egg-herbie.rkt")
 
 (provide
   (contract-out
@@ -146,68 +146,57 @@
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
-  (timeline-event! 'rewrite)
 
-  ;; partition the rules
-  (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
+  (^rewrites^ '())
+  (when (flag-set? 'generate 'rr)
+    (timeline-event! 'rewrite)
 
-  ;; get subexprs and locations
-  (define exprs (map (compose program-body alt-program) (^queued^)))
-  (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
-  (define locs (make-list (length (^queued^)) '(2)))          ;; always at the root
-  (define lowlocs (make-list (length (^queuedlow^)) '(2)))    ;; always at the root
+    ;; partition the rules
+    (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
 
-  ;; HACK:
-  ;; - check loaded representations
-  ;; - if there is only one real representation, allow expansive rules to be run in egg
-  ;; This is just a workaround and should definitely be fixed
-  (define one-real-repr? (= (count (λ (r) (equal? (representation-type r) 'real)) (*needed-reprs*)) 1))
+    ;; get subexprs and locations
+    (define exprs (map (compose program-body alt-program) (^queued^)))
+    (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
 
-  ;; rewrite high-error locations
-  (define changelists
-    (if one-real-repr?
-        (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules) #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))
-        (merge-changelists
-          (rewrite-expressions exprs (*context*) #:rules normal-rules #:roots locs)
-          (rewrite-expressions exprs (*context*) #:rules expansive-rules #:roots locs #:once? #t)
-          (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:roots locs #:once? #t))))
+    ;; HACK:
+    ;; - check loaded representations
+    ;; - if there is only one real representation, allow expansive rules to be run in egg
+    ;; This is just a workaround and should definitely be fixed
+    (define one-real-repr? (= (count (λ (r) (equal? (representation-type r) 'real)) (*needed-reprs*)) 1))
 
-  ;; rewrite low-error locations (only precision changes allowed)
-  (define changelists-low-locs
-    (rewrite-expressions lowexprs (*context*)
-                         #:rules reprchange-rules
-                         #:roots lowlocs
-                         #:once? #t))
+    ;; rewrite high-error locations
+    (define changelists
+      (if one-real-repr?
+          (merge-changelists
+            (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules))
+            (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
+          (merge-changelists
+            (rewrite-expressions exprs (*context*) #:rules normal-rules)
+            (rewrite-expressions exprs (*context*) #:rules expansive-rules #:once? #t)
+            (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))))
 
-  (define comb-changelists (append changelists changelists-low-locs))
-  (define altns (append (^queued^) (^queuedlow^)))
+    ;; rewrite low-error locations (only precision changes allowed)
+    (define changelists-low-locs
+      (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
 
-  (define rules-used
-    (append-map (curry map change-rule) (apply append comb-changelists)))
-  (define rule-counts
-    (for ([rgroup (group-by identity rules-used)])
-      (timeline-push! 'rules (~a (rule-name (first rgroup))) (length rgroup))))
-  
-  (define rewritten
-    (for/fold ([done '()] #:result (reverse done))
-              ([cls comb-changelists] [altn altns]
-              #:when true [cl cls])
-      (let loop ([cl cl] [altn altn])
-        (cond
-          [(null? cl)
-           (cons altn done)]
-          [else
-           (define change-app (change-apply (car cl) (alt-program altn)))
-           (define prog* (apply-repr-change change-app (*context*)))
-           (if (program-body prog*)
-               (loop (cdr cl) (alt prog* (list 'change (car cl)) (list altn)))
-               done)]))))
+    (define comb-changelists (append changelists changelists-low-locs))
+    (define altns (append (^queued^) (^queuedlow^)))
+    
+    (define variables (program-variables (alt-program (first altns))))
+    (define rewritten
+      (for/fold ([done '()] #:result (reverse done))
+                ([cls comb-changelists] [altn altns]
+                #:when true [cl cls])
+          (match-define (list subexp input) cl)
+            (define body* (apply-repr-change-expr subexp (*context*)))
+            (if body*
+              ; We need to pass '(2) here so it can get overwritten on patch-fix
+              (cons (alt `(λ ,variables ,body*) (list 'rr '(2) input #f #f) (list altn)) done)
+              done)))
 
-  (timeline-push! 'count (length (^queued^)) (length rewritten))
-  ; TODO: accuracy stats for timeline
-  (^rewrites^ rewritten)
+    (timeline-push! 'count (length (^queued^)) (length rewritten))
+    ; TODO: accuracy stats for timeline
+    (^rewrites^ rewritten))
   (void))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -232,10 +221,8 @@
       (for/list ([child (in-list children)])
         (program-body (alt-program child))))
 
-    (define input-struct
-      (simplify-input to-simplify empty (*simplify-rules*) true))
-    (define simplification-options
-      (simplify-batch input-struct))
+    (define egg-query (make-egg-query to-simplify (*simplify-rules*)))
+    (define simplification-options (simplify-batch egg-query))
 
     (define simplified
       (remove-duplicates
@@ -245,7 +232,7 @@
                   [output outputs])
          (if (equal? input output)
              child
-             (alt `(λ ,variables ,output) `(simplify (2) ,input-struct #f #f) (list child))))
+             (alt `(λ ,variables ,output) `(simplify (2) ,egg-query #f #f) (list child))))
        alt-equal?))
 
     ; dedup for cache

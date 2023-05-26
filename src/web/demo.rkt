@@ -178,9 +178,9 @@
             '("formulas submitted here are not logged.")]
            [(*demo?*)
             `("all formulas submitted here are logged and made public."
-              (a ([href "./results.html"])" See what formulas other users submitted."))]
+              (a ([href "./index.html"])" See what formulas other users submitted."))]
            [else
-            `("all formulas submitted here are " (a ([href "./results.html"]) "logged") ".")])))))
+            `("all formulas submitted here are " (a ([href "./index.html"]) "logged") ".")])))))
 
 (define *completed-jobs* (make-hash))
 (define *jobs* (make-hash))
@@ -223,7 +223,7 @@
                     (λ (out) (make-page page out result #f)))))
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
-                             (build-path (*demo-output*) "results.html")))
+                             (build-path (*demo-output*) "index.html")))
 
             (eprintf " complete\n")
             (hash-remove! *jobs* hash)

@@ -11,7 +11,7 @@
     ["error" "ERR"]
     ["crash" "!!!"]
     ["timeout" "TIME"]
-    [_ (format-error (- (table-row-start result) (table-row-result result)) (get-representation (table-row-precision result)) #:sign #t #:unit "%")]))
+    [_ (format-accuracy (- (table-row-start result) (table-row-result result)) (get-representation (table-row-precision result)) #:sign #t #:unit "%")]))
 
 (define (format-subreports rss)
   (define (round* x) (inexact->exact (round x)))
@@ -20,7 +20,7 @@
     (table
       (tr (th "Subreport") (th "Time") (th "Passed") (th "Tests") (th "Bits"))
       ,@(for/list ([report reports] [path paths])
-          (let ([index (path->string (build-path path "results.html"))]
+          (let ([index (path->string (build-path path "index.html"))]
                 [time (apply + (map table-row-time (report-info-tests report)))]
                 [passed (for/sum ([row (report-info-tests report)])
                           (if (member (table-row-status row)
@@ -141,9 +141,9 @@
        ,@(for/list ([result tests] [id (in-naturals)])
            `(tr ((class ,(~a (table-row-status result))))
                 (td ,(or (table-row-name result) ""))
-                (td ,(format-error (table-row-start result) (get-representation (table-row-precision result)) #:unit "%"))
-                (td ,(format-error (table-row-result result) (get-representation (table-row-precision result)) #:unit "%"))
-                (td ,(format-error (table-row-target result) (get-representation (table-row-precision result)) #:unit "%"))
+                (td ,(format-accuracy (table-row-start result) (get-representation (table-row-precision result)) #:unit "%"))
+                (td ,(format-accuracy (table-row-result result) (get-representation (table-row-precision result)) #:unit "%"))
+                (td ,(format-accuracy (table-row-target result) (get-representation (table-row-precision result)) #:unit "%"))
                 (td ,(format-time (table-row-time result) #:min 1000))
                 ,(if (table-row-link result)
                      `(td

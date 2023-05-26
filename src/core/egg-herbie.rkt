@@ -2,40 +2,44 @@
 
 (require egg-herbie ffi/unsafe)
 (require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../common.rkt" "../errors.rkt" "../timeline.rkt")
+         "../common.rkt" "../errors.rkt" "../timeline.rkt" "../alternative.rkt")
 
 (module+ test (require rackunit))
 
-(provide with-egraph egraph-add-expr egraph-run-rules
+(provide make-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
          egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
-         remove-rewrites)
+         remove-rewrites run-egg make-egg-query
+        (struct-out egraph-query))
 
-(define (flatten-let term environment)
-  (match term
-    [`(let (,var ,term) ,body)
-     (hash-set! environment var (flatten-let term environment))
-     (flatten-let body environment)]
-    [(? symbol?)
-     (hash-ref environment term term)]
-    [(? list?)
-     (map (curryr flatten-let environment) term)]
-    [(? number?)
-     term]
-    [else (error "Unknown term ~a" term)]))
+;; Flattens proofs
+;; NOT FPCore format
+(define (flatten-let expr)
+  (let loop ([expr expr] [env (hash)])
+    (match expr
+      [`(let (,var ,term) ,body)
+       (loop body (hash-set env var (loop term env)))]
+      [(? symbol?)
+       (hash-ref env expr expr)]
+      [(? list?)
+       (map (curryr loop env) expr)]
+      [(? number?)
+       expr]
+      [else
+       (error "Unknown term ~a" expr)])))
 
 ;; Converts a string expression from egg into a Racket S-expr
 (define (egg-expr->expr expr eg-data)
   (define parsed (read (open-input-string expr)))
-  (egg-parsed->expr (flatten-let parsed (make-hash))
+  (egg-parsed->expr (flatten-let parsed)
                     (egraph-data-egg->herbie-dict eg-data)))
 
 ;; Like `egg-expr->expr` but expected the string to
 ;; parse into a list of S-exprs
 (define (egg-exprs->exprs exprs eg-data)
   (for/list ([egg-expr (in-port read (open-input-string exprs))])
-    (egg-parsed->expr (flatten-let egg-expr (make-hash))
+    (egg-parsed->expr (flatten-let egg-expr)
                       (egraph-data-egg->herbie-dict eg-data))))
 
 ;; Converts an S-expr from egg into one Herbie understands
@@ -164,13 +168,12 @@
           (cons '(if (TRUE) x y)
                 "(if real (TRUE ($Type bool)) h1 h0)")))
 
-  (with-egraph
-   (lambda (egg-graph)
-     (for ([(in expected-out) (in-dict test-exprs)])
-       (let* ([out (~a (expr->egg-expr in egg-graph))]
-              [computed-in (egg-expr->expr out egg-graph)])
-         (check-equal? out expected-out)
-         (check-equal? computed-in in)))))
+  (let ([egg-graph (make-egraph)])
+    (for ([(in expected-out) (in-dict test-exprs)])
+      (define out (~a (expr->egg-expr in egg-graph)))
+      (define computed-in (egg-expr->expr out egg-graph))
+      (check-equal? out expected-out)
+      (check-equal? computed-in in)))
 
   (*context* (make-debug-context '(x a b c r)))
   (define extended-expr-list
@@ -182,13 +185,11 @@
      '(* 23/54 r)
      '(+ 3/2 1.4)))
 
-  (with-egraph
-   (lambda (egg-graph)
-     (for ([expr extended-expr-list])
-       (define expr* (desugar-program expr (*context*) #:full #f))
-       (check-equal? 
-        (egg-expr->expr (~a (expr->egg-expr expr* egg-graph)) egg-graph)
-        expr*)))))
+  (let ([egg-graph (make-egraph)])
+    (for ([expr extended-expr-list])
+      (define expr* (desugar-program expr (*context*) #:full #f))
+      (define egg-expr (expr->egg-expr expr* egg-graph))
+      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph) expr*))))
 
 
 ;; Given a list of types, computes the product of all possible
@@ -274,6 +275,49 @@
 ;; the second hash is the reverse of the first
 (struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
 
+;; Herbie's version of an egg runner
+;; Defines parameters for running rewrite rules with egg
+(struct egraph-query (exprs rules iter-limit node-limit const-folding?) #:transparent)
+
+(define (make-egg-query exprs rules
+                        #:iter-limit [iter-limit #f]
+                        #:node-limit [node-limit (*node-limit*)]
+                        #:const-folding? [const-folding? #t])
+  (egraph-query exprs rules iter-limit node-limit const-folding?))
+
+(define (run-egg input variants?
+                 #:proof-input [proof-input '()]
+                 #:proof-ignore-when-unsound? [proof-ignore-when-unsound? #f])
+  (define egg-graph (make-egraph))
+  (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-query-exprs input)))
+  (define iter-data (egraph-run-rules egg-graph
+                                      (egraph-query-node-limit input)
+                                      (egraph-query-rules input)
+                                      node-ids
+                                      (egraph-query-const-folding? input)
+                                      #:limit (egraph-query-iter-limit input)))
+  
+  (define variants
+    (if variants?
+        (for/list ([id node-ids] [expr (egraph-query-exprs input)])
+          (egraph-get-variants egg-graph id expr))
+        (for/list ([id node-ids])
+          (for/list ([iter (in-range (length iter-data))])
+            (egraph-get-simplest egg-graph id iter)))))
+  
+  (when (egraph-is-unsound-detected egg-graph) 
+    (warn 'unsound-rules #:url "faq.html#unsound-rules"
+          "Unsound rule application detected in e-graph. Results may not be sound."))
+
+  (match proof-input
+    [(cons start end)
+     #:when (not (and (egraph-is-unsound-detected egg-graph) proof-ignore-when-unsound?))
+     (define proof (egraph-get-proof egg-graph start end))
+     (when (null? proof)
+       (error (format "Failed to produce proof for ~a to ~a" start end)))
+     (cons variants proof)]
+    [else (cons variants #f)]))
+
 (define (egraph-get-simplest egraph-data node-id iteration)
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
   (define str (cast ptr _pointer _string/utf-8))
@@ -312,29 +356,21 @@
   (ptr-set! ptr _byte n 0)
   ptr)
 
-(define (make-ffi-rules rules)
-  (for/list ([rule (in-list rules)])
-    (define name (make-raw-string (symbol->string (rule-name rule))))
-    (define left (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
-    (define right (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
-    (make-FFIRule name left right)))
+(define (make-ffi-rule rule)
+  (define name (make-raw-string (~a (rule-name rule))))
+  (define lhs (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
+  (define rhs (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
+  (make-FFIRule name lhs rhs))
 
-(define (free-ffi-rules rules)
-  (for ([rule (in-list rules)])
-    (free (FFIRule-name rule))
-    (free (FFIRule-left rule))
-    (free (FFIRule-right rule))
-    (free rule)))
+(define (free-ffi-rule rule)
+  (free (FFIRule-name rule))
+  (free (FFIRule-left rule))
+  (free (FFIRule-right rule))
+  (free rule))
 
-
-;; calls the function on a new egraph, and cleans up
-(define (with-egraph egraph-function)
-  (define egraph (egraph-data (egraph_create) (make-hash) (make-hash)))
-  (define res (egraph-function egraph))
-  (egraph_destroy (egraph-data-egraph-pointer egraph))
-  res)
-
-(struct egg-add-exn exn:fail ())
+; Makes a new egraph that is managed by Racket's GC
+(define (make-egraph)
+  (egraph-data (egraph_create) (make-hash) (make-hash)))
 
 (define (remove-rewrites proof)
   (match proof
@@ -434,6 +470,8 @@
       #f
       expanded))
 
+(struct egg-add-exn exn:fail ())
+
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)
   (define egg-expr (~a (expr->egg-expr expr eg-data)))
@@ -457,12 +495,12 @@
   
 ;; runs rules on an egraph
 ;; can optionally specify an iter limit
-(define (egraph-run egraph-data node-limit ffi-rules precompute? [iter-limit #f])
+(define (egraph-run egraph-data node-limit ffi-rules const-folding? [iter-limit #f])
   (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
   (define-values (egraphiters res-len)
     (if iter-limit
-        (egraph_run_with_iter_limit egraph-ptr iter-limit node-limit ffi-rules precompute?)
-        (egraph_run egraph-ptr node-limit ffi-rules precompute?)))
+        (egraph_run_with_iter_limit egraph-ptr iter-limit node-limit ffi-rules const-folding?)
+        (egraph_run egraph-ptr node-limit ffi-rules const-folding?)))
   (define res (convert-iteration-data egraphiters res-len))
   (destroy_egraphiters res-len egraphiters)
   res)
@@ -473,8 +511,12 @@
   (λ () #f)
   (λ (rules)
     (when rules
-      (match-define (list _ ffi-rules _) (cdr rules))
-      (free-ffi-rules ffi-rules))))
+      (free-ffi-rule-cache))))
+
+(define (free-ffi-rule-cache)
+  (match-define (list _  ffi-rules _) (cdr (*ffi-rules-cache*)))
+  (*ffi-rules-cache* #f)
+  (for-each free-ffi-rule ffi-rules))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
@@ -494,8 +536,7 @@
   (unless (and (*ffi-rules-cache*) (equal? (car (*ffi-rules-cache*)) key))
     ; free any rules in the cache
     (when (*ffi-rules-cache*)
-      (match-define (list _ ffi-rules _) (cdr (*ffi-rules-cache*)))
-      (free-ffi-rules ffi-rules))
+      (free-ffi-rule-cache))
     ; instantiate rules
     (define-values (egg-rules canon-names)
       (for/fold ([rules* '()] [canon-names (hash)] #:result (values (reverse rules*) canon-names))
@@ -507,15 +548,16 @@
                           ([exp-rule (in-list expanded)])
                   (hash-set canon-names* (rule-name exp-rule) orig-name)))))
     ; update the cache
-    (*ffi-rules-cache* (cons key (list egg-rules (make-ffi-rules egg-rules) canon-names))))
+    (define ffi-rules (map make-ffi-rule egg-rules))
+    (*ffi-rules-cache* (cons key (list egg-rules ffi-rules canon-names))))
   (cdr (*ffi-rules-cache*)))
 
-(define (egraph-run-rules egg-graph node-limit rules node-ids precompute? #:limit [iter-limit #f])
+(define (egraph-run-rules egg-graph node-limit rules node-ids const-folding? #:limit [iter-limit #f])
   ;; expand rules (will also check cache)
   (match-define (list egg-rules ffi-rules canon-names) (expand-rules rules))
 
   ;; run the rules
-  (define iteration-data (egraph-run egg-graph node-limit ffi-rules precompute? iter-limit))
+  (define iteration-data (egraph-run egg-graph node-limit ffi-rules const-folding? iter-limit))
 
   ;; get cost statistics
   (let loop ([iter iteration-data] [counter 0] [time 0])

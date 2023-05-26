@@ -69,9 +69,9 @@
 
   (define repr (context-repr ctx))
   (define err
-    (format-error (errors-score (errors (alt-program altn) pcontext ctx)) repr))
+    (format-accuracy (errors-score (errors (alt-program altn) pcontext ctx)) repr #:unit "%"))
   (define err2
-    (format "Internally ~a" (format-error (errors-score (errors (alt-program altn) pcontext2 ctx)) repr)))
+    (format "Internally ~a" (format-accuracy (errors-score (errors (alt-program altn) pcontext2 ctx)) repr)))
 
   (match altn
     [(alt prog 'start (list))
@@ -140,15 +140,23 @@
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
 
-    [(alt prog (list 'change cng) `(,prev))
+    [(alt prog `(rr , loc, input, proof, soundiness) `(,prev))
      (define prog* (program->fpcore (resugar-program prog repr)))
+     (define proof*
+       (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
-       (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
+       (li (p "Applied " (span ([class "rule"]) , (if (rule? input) "rewrite-once" "egg-rr"))
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc (change-location cng) #:color "blue")
+                                                      (core->tex prog* #:loc loc #:color "blue")
                                                       "ERROR")
-                                                  "\\]")))]
+                                                  "\\]")
+           (div ([class "proof"])
+             (details
+               (summary "Proof")
+               ,(if proof*
+                    (render-proof proof* prog repr pcontext ctx)
+                    `(li ([class "event"]) "No proof available- proof too large to flatten."))))))]
     ))
 
 
@@ -159,7 +167,7 @@
         (define step-prog (program->fpcore (list 'λ '() (resugar-program expr repr))))
         (define err
           (let ([prog (list 'λ (program-variables prog) expr)])
-            (format-error (errors-score (errors prog pcontext ctx)) repr )))
+            (format-accuracy (errors-score (errors prog pcontext ctx)) repr )))
         `(tr (th ,(if dir
                       (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
                             [tag (string-append (format " ↑ ~a" (first sound))
