@@ -122,7 +122,8 @@
                [(list (ival lo hi)) ((representation-bf->repr repr) lo)]
                [(? nan?) (real->repr +nan.0 repr)]))))
 
-;; Given a test and a sample of points, the floating-point result at each point
+;; Given a test and a sample of points,
+;; the floating-point result at each point
 (define (get-calculation test pcontext)
   (setup-backend! test)
   (unless pcontext
@@ -154,7 +155,7 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-alternatives test pcontext #:seed seed)
+(define (get-alternatives test pcontext seed)
   (setup-backend! test)
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
