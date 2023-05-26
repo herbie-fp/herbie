@@ -19,25 +19,25 @@
 (define (combine-alts best-option ctx)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
-   [(list (si cidx _)) (list-ref alts cidx)]
-   [_
-    (timeline-event! 'bsearch)
-    (define splitpoints (sindices->spoints pts expr alts splitindices ctx))
+    [(list (si cidx _)) (list-ref alts cidx)]
+    [_
+     (timeline-event! 'bsearch)
+     (define splitpoints (sindices->spoints pts expr alts splitindices ctx))
 
-    (define expr*
-      (for/fold
-          ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
-          ([splitpoint (cdr (reverse splitpoints))])
-        (define repr (repr-of (sp-bexpr splitpoint) ctx))
-        (define <=-operator (get-parametric-operator '<= repr repr))
-        `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
-             ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
-             ,expr)))
+     (define expr*
+       (for/fold
+        ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
+        ([splitpoint (cdr (reverse splitpoints))])
+         (define repr (repr-of (sp-bexpr splitpoint) ctx))
+         (define <=-operator (get-parametric-operator '<= repr repr))
+         `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
+              ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
+              ,expr)))
 
-    ;; We don't want unused alts in our history!
-    (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
-    (alt `(λ ,(program-variables (alt-program (first alts))) ,expr*)
-         (list 'regimes splitpoints*) alts*)]))
+     ;; We don't want unused alts in our history!
+     (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
+     (alt `(λ ,(program-variables (alt-program (first alts))) ,expr*)
+          (list 'regimes splitpoints*) alts*)]))
 
 (define (remove-unused-alts alts splitpoints)
   (for/fold ([alts* '()] [splitpoints* '()]) ([splitpoint splitpoints])
@@ -51,26 +51,26 @@
 ;; Invariant: (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
   (cond
-   [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
-    (timeline-push! 'stop "narrow-enough" 1)
-    (values p1 p2)]
-   [else
-    (define p3 (midpoint p1 p2 repr))
-    (define cmp
-      ;; Sampling error: don't know who's better
-      (with-handlers ([exn:fail:user:herbie? (const 'fail)])
-        (pred p3)))
+    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
+     (timeline-push! 'stop "narrow-enough" 1)
+     (values p1 p2)]
+    [else
+     (define p3 (midpoint p1 p2 repr))
+     (define cmp
+       ;; Sampling error: don't know who's better
+       (with-handlers ([exn:fail:user:herbie? (const 'fail)])
+         (pred p3)))
 
-    (cond
-     [(eq? cmp 'fail)
-      (timeline-push! 'stop "predicate-failed" 1)
-      (values p1 p2)]
-     [(negative? cmp) (binary-search-floats pred p3 p2 repr)]
-     [(positive? cmp) (binary-search-floats pred p1 p3 repr)]
-     ;; cmp = 0 usually means sampling failed, so we give up
-     [else
-      (timeline-push! 'stop "predicate-same" 1)
-      (values p1 p2)])]))
+     (cond
+       [(eq? cmp 'fail)
+        (timeline-push! 'stop "predicate-failed" 1)
+        (values p1 p2)]
+       [(negative? cmp) (binary-search-floats pred p3 p2 repr)]
+       [(positive? cmp) (binary-search-floats pred p1 p3 repr)]
+       ;; cmp = 0 usually means sampling failed, so we give up
+       [else
+        (timeline-push! 'stop "predicate-same" 1)
+        (values p1 p2)])]))
 
 (define (extract-subexpression program var expr)
   (define body* (replace-expression (program-body program) expr var))
@@ -122,9 +122,9 @@
     (let ([left ((representation-repr->bf repr) p1)]
           [right ((representation-repr->bf repr) p2)])
       ((representation-bf->repr repr)
-        (if (bfnegative? left)
-            (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
-            (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
+       (if (bfnegative? left)
+           (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+           (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
 
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
@@ -179,10 +179,10 @@
             (sp 0 '(/.f64 y x) +inf.0)
             (sp 1 '(/.f64 y x) +nan.0)))
     (match-define (list p0? p1? p2?)
-                  (splitpoints->point-preds
-                    sps
-                    (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
-                    context))
+      (splitpoints->point-preds
+       sps
+       (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
+       context))
 
     (check-pred p0? '(0.0 -1.0))
     (check-pred p2? '(-1.0 1.0))
