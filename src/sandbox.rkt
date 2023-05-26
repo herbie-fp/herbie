@@ -70,7 +70,7 @@
 ;; Given a test, computes the program cost of the input expression
 (define (get-cost test)
   (setup-backend! test)
-  (program-cost (test-program test) (test-output-repr test)))
+  (expr-cost (test-input test) (test-output-repr test)))
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
@@ -78,8 +78,9 @@
   (define repr (test-output-repr test))
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (setup-context! (or (test-specification test) (test-program test))
-                      (test-precondition test)
+      (setup-context! (test-vars test)
+                      (or (test-spec test) (test-input test))
+                      (test-pre test)
                       repr)))
 
   (define-values (train-pcontext test-pcontext)
@@ -97,7 +98,7 @@
     (error 'get-errors "cannnot run without a pcontext"))
 
   (define-values (_ test-pcontext) (partition-pcontext pcontext (*context*)))
-  (define errs (errors (test-program test) test-pcontext (*context*)))
+  (define errs (errors (test-input test) test-pcontext (*context*)))
 
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
     (list pt (format-bits (ulps->bits err)))))
@@ -115,7 +116,7 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
-  (define fn (make-search-func (test-precondition test) (list (test-program test)) (*context*)))
+  (define fn (make-search-func (test-pre test) (list (test-input test)) (*context*)))
   (for/list ([pt pts])
     (define-values (result prec exs) (ival-eval fn pt))
     (list pt (match exs
@@ -132,7 +133,7 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
-  (define fn (eval-prog (test-program test) 'fl (test-context test)))
+  (define fn (eval-prog (test-input test) 'fl (test-context test)))
   (for/list ([pt pts])
     (list pt (apply fn pt))))
 
@@ -148,7 +149,7 @@
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (*pcontext* test-pcontext)
-  (local-error-as-tree (test-program test) (*context*)))
+  (local-error-as-tree (test-input test) (*context*)))
 
 ;; Given a test and a sample of points, returns a list of improved alternatives
 ;; and both the test set of points and processed test set of points.
@@ -161,9 +162,10 @@
     (error 'get-alternatives "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
-  (define alts (run-improve! (test-program test) train-pcontext (*num-iterations*)
-                             #:specification (test-specification test)
-                             #:preprocess (test-preprocess test)))
+  (define alts
+    (run-improve! (test-input test) train-pcontext (*num-iterations*)
+                  #:specification (test-spec test)
+                  #:preprocess (test-preprocess test)))
 
   (when seed (set-seed! seed))
   (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
@@ -177,20 +179,21 @@
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
   
-  (define output-repr (test-output-repr test))
+  (define repr (test-output-repr test))
   (define context (test-context test))
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (setup-context! (or (test-specification test) (test-program test))
-                      (test-precondition test)
-                      output-repr)))
+      (setup-context! (test-vars test)
+                      (or (test-spec test) (test-input test))
+                      (test-pre test)
+                      repr)))
   (timeline-push! 'bogosity domain-stats)
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
 
   (define alts
-    (run-improve! (test-program test) train-pcontext (*num-iterations*)
-                  #:specification (test-specification test)
+    (run-improve! (test-input test) train-pcontext (*num-iterations*)
+                  #:specification (test-spec test)
                   #:preprocess (test-preprocess test)))
 
   (when seed (set-seed! seed))
@@ -199,7 +202,7 @@
 
   (define end-errs
     (flip-lists
-     (batch-errors (map alt-program alts) processed-test-pcontext context)))
+     (batch-errors (map alt-expr alts) processed-test-pcontext context)))
 
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
@@ -210,16 +213,16 @@
                 (bf-precision)
                 #f
                 (timeline-extract)
-                (warning-log) (make-alt (test-program test)) alts
+                (warning-log) (make-alt (test-input test)) alts
                 (*herbie-preprocess*) points exacts
-                (errors (test-program test) train-pcontext context)
-                (errors (alt-program (car alts)) train-pcontext context)
+                (errors (test-input test) train-pcontext context)
+                (errors (alt-expr (car alts)) train-pcontext context)
                 newpoints newexacts
-                (errors (test-program test) processed-test-pcontext context)
+                (errors (test-input test) processed-test-pcontext context)
                 end-errs
-                (and (test-output test) (errors (test-target test) processed-test-pcontext context))
-                (program-cost (test-program test) output-repr)
-                (map (curryr alt-cost output-repr) alts)
+                (and (test-output test) (errors (test-output test) processed-test-pcontext context))
+                (expr-cost (test-input test) repr)
+                (map (curryr alt-cost repr) alts)
                 (*all-alts*)))
 
 ;; Ugly, but struct-copy doesn't do the right thing with inheritance
@@ -314,7 +317,7 @@
   (define test (test-result-test result))
   (define repr (test-output-repr test))
   (table-row (test-name test) (test-identifier test) status
-             (resugar-program (program-body (test-precondition test)) repr)
+             (resugar-program (test-pre test) repr)
              (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
              (representation-name (test-output-repr test))
              (map (curry map representation-name) (test-conversions test))
@@ -333,8 +336,8 @@
     (define start-errors  (test-success-start-error result))
     (define end-errorss   (test-success-end-errors result))
     (define target-errors (test-success-target-error result))
-    (define start-prog    (alt-program (test-success-start-alt result)))
-    (define end-progs     (map alt-program (test-success-end-alts result)))
+    (define start-expr    (alt-expr (test-success-start-alt result)))
+    (define end-exprs     (map alt-expr (test-success-end-alts result)))
     (define costs         (test-success-end-costs result))
 
     (define start-score (errors-score start-errors))
@@ -343,12 +346,12 @@
     (define target-score (and target-errors (errors-score target-errors)))
     (define est-start-score (errors-score (test-success-start-est-error result)))
     (define est-end-score (errors-score (test-success-end-est-error result)))
-    (define end-exprs (map (λ (p) (program-body (resugar-program p (test-output-repr test)))) end-progs))
+    (define end-exprs* (map (λ (p) (resugar-program p (test-output-repr test))) end-exprs))
 
     (define cost&accuracy
-      (list (list (program-cost start-prog (test-output-repr test)) start-score)
+      (list (list (expr-cost start-expr (test-output-repr test)) start-score)
             (list (car costs) (car end-scores))
-            (map list (cdr costs) (cdr end-scores) (cdr end-exprs))))
+            (map list (cdr costs) (cdr end-scores) (cdr end-exprs*))))
 
     (define fuzz 0.1)
     (define status
@@ -366,7 +369,7 @@
            [else "uni-start"])))
 
     (struct-copy table-row (dummy-table-row result status link)
-                 [output (car end-exprs)]
+                 [output (car end-exprs*)]
                  [start start-score] [result end-score] [target target-score]
                  [start-est est-start-score] [result-est est-end-score]
                  [cost-accuracy cost&accuracy])]

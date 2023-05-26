@@ -177,10 +177,7 @@
       (expand-parametric prog repr var-reprs full?)))
 
 (define (resugar-program prog repr #:full [full? #t])
-  (match prog
-    [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(expand-parametric-reverse body repr full?))]
-    [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(expand-parametric-reverse body repr full?))]
-    [_ (expand-parametric-reverse prog repr full?)]))
+  (expand-parametric-reverse prog repr full?))
 
 (define (replace-vars dict expr)
   (cond

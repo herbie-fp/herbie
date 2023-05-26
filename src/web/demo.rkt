@@ -344,6 +344,7 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
+;; Converts pcontext from the API format to Herbie's format
 (define (pts&exs->pcontext pts&exs ctx)
   (define output-repr (context-repr ctx))
   (define var-reprs (context-var-reprs ctx))
@@ -428,14 +429,14 @@
 
       (define test (parse-test formula))
       (define repr (test-output-repr test))
-      (define prog (resugar-program (test-program test) repr))
+      (define expr (resugar-program (test-input test) repr))
       (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
       (define local-error (run-herbie 'local-error test #:seed seed #:pcontext pcontext
                                       #:profile? #f #:engine? #f #:timeline-disabled? #t))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
-        (let loop ([expr (program-body prog)] [err local-error])
+        (let loop ([expr expr] [err local-error])
           (match expr
             [(list op args ...)
              ;; err => (List (listof Integer) List ...)
@@ -481,8 +482,7 @@
 
       (define fpcores
         (for/list ([altn altns])
-          (define prog (resugar-program (alt-program altn) repr))
-          (~a (program->fpcore prog))))
+          (~a (program->fpcore (alt-expr altn) (test-context test)))))
   
       (define histories
         (for/list ([altn altns])
