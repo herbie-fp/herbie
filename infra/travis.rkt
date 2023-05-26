@@ -39,17 +39,23 @@
       (if (*precision*)
           (override-test-precision the-test (*precision*))
           the-test))
-    (match (get-test-result 'improve the-test* #:seed seed)
-      [(test-success test bits time timeline warnings
-                     start-alt end-alts preprocess points exacts start-est-error end-est-error
-                     newpoints newexacts start-error end-errors target-error
-                     start-cost costs all-alts)
+    (define result (get-test-result 'improve the-test* #:seed seed))
+    (match-define (test-result test status time _ _ exn _ _ start target end) result)
+    (match status
+      ['success
+       (define start-alt (alt-result-alt start))
+       (define end-alts (map alt-result-alt end))
+       (define start-error (alt-result-test-errors start))
+       (define target-error (and target (alt-result-test-errors target)))
+       (define end-errors (map alt-result-test-errors end))
+
        (define end-error (car end-errors))
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
                (~r (errors-score start-error) #:min-width 2 #:precision 0)
                (~r (errors-score end-error) #:min-width 2 #:precision 0)
                (test-name test))
+
        (define success?
          (test-successful? test
                            (errors-score start-error)
@@ -66,11 +72,10 @@
            (pretty-print (test-output test) (current-output-port) 1)))
 
        success?]
-      [(test-failure test bits time timeline warnings exn)
+      ['failure
        (printf "[  CRASH  ]\t\t~a\n" (test-name test))
-       ((error-display-handler) (exn-message exn) exn)
-       #f]
-      [(test-timeout test bits time timeline warnings)
+       ((error-display-handler) (exn-message exn) exn)]
+      ['timeout
        (printf "[  TIMEOUT]\t\t~a\n" (test-name test))
        #f])))
 
