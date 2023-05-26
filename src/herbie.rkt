@@ -16,8 +16,10 @@
   (match th
     ["no" #f]
     ["yes" (max (- (processor-count) 1) 1)]
-    [(? positive-integer?) (string->number th)]
-    [_ (error 'string->thread-count "Invalid thread count ~a" th)]))
+    [else
+     (match (string->number th)
+       [(? positive-integer? x) x]
+       [else (error 'string->thread-count "invalid thread count ~a" th)])]))
 
 (define (string->flag s)
   (match (string-split s ":")
