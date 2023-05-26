@@ -78,7 +78,7 @@
     (define initial-accuracy
       (apply +
              (map
-              (match-lambda [(list (list accuracy _) _ _) accuracy])
+              (match-lambda [(list (list _ accuracy) _ _) accuracy])
               cost-accuracies)))
     (define rescaled
       (for/list ([cost-accuracy (in-list cost-accuracies)])
