@@ -23,28 +23,28 @@
 
 (define (make-page page out result profile?)
   (define test (test-result-test result))
-  (define repr (test-output-repr test))
+  (define ctx (test-context test))
   (match page
     ["graph.html"
      (match (test-result-status result)
-       ['success (make-graph result out (get-interactive-js result repr) profile?)]
-       ['timeout (make-graph result out (get-interactive-js result repr) profile?)]
+       ['success (make-graph result out (get-interactive-js result ctx) profile?)]
+       ['timeout (make-graph result out (get-interactive-js result ctx) profile?)]
        ['failure (make-traceback result out profile?)]
        [_ (error 'make-page "unknown result type ~a" (test-result-status result))])]
     ["interactive.js"
-     (make-interactive-js result out repr)]
+     (make-interactive-js result out ctx)]
     ["timeline.html"
      (make-timeline (test-name test) (test-result-timeline result) out)]
     ["timeline.json"
      (write-json (test-result-timeline result) out)]
     ["points.json"
-     (make-points-json result out repr)]))
+     (make-points-json result out ctx)]))
 
-(define (get-interactive-js result repr)
-  (define start-prog (alt-program (alt-result-alt (test-result-start result))))
-  (define end-prog (alt-program (alt-result-alt (car (test-result-end result)))))
-  (define start-fpcore (program->fpcore (resugar-program start-prog repr)))
-  (define end-fpcore (program->fpcore (resugar-program end-prog repr)))
+(define (get-interactive-js result ctx)
+  (define start-expr (alt-expr (alt-result-alt (test-result-start result))))
+  (define end-expr (alt-expr (alt-result-alt (car (test-result-end result)))))
+  (define start-fpcore (program->fpcore start-expr ctx))
+  (define end-fpcore (program->fpcore end-expr ctx))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
        (supported-by-lang? start-fpcore "js")
        (supported-by-lang? end-fpcore "js")
@@ -53,21 +53,19 @@
           (core->js start-fpcore "start")
           (core->js end-fpcore "end"))))
 
-(define (make-interactive-js result out repr)
-  (define js-text (get-interactive-js result repr))
+(define (make-interactive-js result out ctx)
+  (define repr (context-repr ctx))
+  (define js-text (get-interactive-js result ctx))
   (when (string? js-text)
     (display js-text out)))
 
 (define (make-points-json result out repr)
-  (define test (test-result-test result))
-  (define start (test-result-start result))
-  (define target (test-result-target result))
-  (define end (test-result-end result))
-
+  (match-define (test-result test _ _ _ _ _ _ pctxs start target end) result)
+  (define repr (test-output-repr test))
   (define start-errors (alt-result-test-errors start))
   (define target-errors (and target (alt-result-test-errors target)))
   (define end-errors (map alt-result-test-errors end))
-  (define-values (newpoints _) (pcontext->lists (second (test-result-pctxs result))))
+  (define-values (newpoints _) (pcontext->lists (second pctxs)))
 
   (define (ulps->bits-tenths x)
     (string->number (real->decimal-string (ulps->bits x) 1)))

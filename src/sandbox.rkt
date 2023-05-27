@@ -32,7 +32,7 @@
   (define repr (test-output-repr test))
   (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
-  (define fn (make-search-func (test-precondition test) (list (test-program test)) (test-context test)))
+  (define fn (make-search-func (test-pre test) (list (test-input test)) (test-context test)))
   (for/list ([pt pts])
     (define-values (status precision out)
         (ival-eval fn pt #:precision starting-precision))
@@ -40,13 +40,13 @@
     (cons pt exs)))
 
 (define (get-calculation test pts)
-  (define fn (eval-prog (test-program test) 'fl (test-context test)))
+  (define fn (eval-prog (test-input test) 'fl (test-context test)))
   (for/list ([pt pts])
     (define val (apply fn pt))
     (cons pt (list val))))
 
 (define (get-cost test)
-    (program-cost (test-program test) (test-output-repr test)))
+  (expr-cost (test-input test) (test-output-repr test)))
 
 
 ;; Translates points from the API endpoint
@@ -86,8 +86,9 @@
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (setup-context!
-        (or (test-specification test) (test-program test)) (test-precondition test)
-        output-repr)))
+       (test-vars test)
+       (or (test-spec test) (test-input test)) (test-pre test)
+       output-repr)))
 
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
@@ -112,7 +113,7 @@
     (compute-pcontexts pts+exs (*context*)))
 
   (define processed-pcontext (preprocess-pcontext test-pcontext (*herbie-preprocess*) (*context*)))
-  (define errs (errors (test-program test) processed-pcontext (*context*)))
+  (define errs (errors (test-input test) processed-pcontext (*context*)))
 
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
     (list pt (format-bits (ulps->bits err)))))
@@ -135,14 +136,14 @@
     (compute-pcontexts pts+exs (*context*)))
 
   (define processed-pcontext
-    (make-preprocess-pcontext (test-program test)
+    (make-preprocess-pcontext (test-input test)
                               test-pcontext
                               (*num-iterations*)
-                              #:specification (test-specification test)
+                              #:specification (test-spec test)
                               #:preprocess (test-preprocess test)))
 
   (*pcontext* processed-pcontext)
-  (local-error-as-tree (test-program test) (*context*)))
+  (local-error-as-tree (test-input test) (*context*)))
 
 ;; Given a test and a sample of points, returns a list of improved alternatives
 ;; and both the test set of points and processed test set of points.
@@ -167,8 +168,8 @@
     (compute-pcontexts pts+exs (*context*)))
 
   (define alts
-    (run-improve! (test-program test) train-pcontext (*num-iterations*)
-                  #:specification (test-specification test)
+    (run-improve! (test-input test) train-pcontext (*num-iterations*)
+                  #:specification (test-spec test)
                   #:preprocess (test-preprocess test)))
 
   (when seed (set-seed! seed))
@@ -187,17 +188,18 @@
   (generate-prec-rewrites (test-conversions test))
 
   (match-define (cons domain-stats joint-pcontext)
-                (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-                  (setup-context! (or (test-specification test) (test-program test))
-                                  (test-precondition test)
-                                  repr)))
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (setup-context! (test-vars test)
+                      (or (test-spec test) (test-input test))
+                      (test-pre test)
+                      repr)))
   (timeline-push! 'bogosity domain-stats)
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
 
   (define end-alts
-    (run-improve! (test-program test) train-pcontext (*num-iterations*)
-                  #:specification (test-specification test)
+    (run-improve! (test-input test) train-pcontext (*num-iterations*)
+                  #:specification (test-spec test)
                   #:preprocess (test-preprocess test)))
 
   (when seed (set-seed! seed))
@@ -205,27 +207,27 @@
   (define processed-test-pcontext (preprocess-pcontext test-pcontext preprocess ctx))
   
   ;; compute error/cost for input expression
-  (define start-alt (make-alt (test-program test)))
-  (define start-prog (test-program test))
-  (define start-train-errs (errors start-prog train-pcontext ctx))
-  (define start-test-errs (errors start-prog processed-test-pcontext ctx))
+  (define start-expr (test-input test))
+  (define start-alt (make-alt start-expr))
+  (define start-train-errs (errors start-expr train-pcontext ctx))
+  (define start-test-errs (errors start-expr processed-test-pcontext ctx))
   (define start-alt-data (alt-result start-alt start-train-errs start-test-errs))
 
   ;; optionally compute error/cost for input expression
   (define target-alt-data
     (cond
       [(test-output test)
-       (define target-prog (test-target test))
-       (define target-train-errs (errors target-prog train-pcontext ctx))
-       (define target-test-errs (errors target-prog processed-test-pcontext ctx))
-       (alt-result (make-alt target-prog) target-train-errs target-test-errs)]
+       (define target-expr (test-output test))
+       (define target-train-errs (errors target-expr train-pcontext ctx))
+       (define target-test-errs (errors target-expr processed-test-pcontext ctx))
+       (alt-result (make-alt target-expr) target-train-errs target-test-errs)]
       [else
        #f]))
 
   ;; compute error/cost for output expression
-  (define end-progs (map alt-program end-alts))
-  (define end-train-errs (flip-lists (batch-errors end-progs train-pcontext ctx)))
-  (define end-test-errs (flip-lists (batch-errors end-progs processed-test-pcontext ctx)))
+  (define end-exprs (map alt-expr end-alts))
+  (define end-train-errs (flip-lists (batch-errors end-exprs train-pcontext ctx)))
+  (define end-test-errs (flip-lists (batch-errors end-exprs processed-test-pcontext ctx)))
   (define end-alts-data (map alt-result end-alts end-train-errs end-test-errs))
 
   ;; bundle up the result
@@ -295,10 +297,9 @@
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
   (define repr (test-output-repr test))
-  (define preprocess (test-result-preprocess result))
   (table-row (test-name test) (test-identifier test) status
-             (resugar-program (program-body (test-precondition test)) repr)
-              preprocess
+             (resugar-program (test-pre test) repr)
+             (test-result-preprocess result)
              (representation-name (test-output-repr test))
              (map (curry map representation-name) (test-conversions test))
              (test-vars test)
@@ -308,30 +309,23 @@
              #f #f #f #f #f (test-result-time result) link '()))
 
 (define (get-table-data result link)
-  (match (test-result-status result)
+  (match-define (test-result test status time _ _ _ _ _ start target end) result)
+  (match status
     ['success
-     (define test (test-result-test result))
-     (define name (test-name test))
      (define repr (test-output-repr test))
 
-     (define start (test-result-start result))
-     (define start-prog (alt-program (alt-result-alt start)))
+     (define start-expr (alt-expr (alt-result-alt start)))
      (define start-train-score (errors-score (alt-result-train-errors start)))
      (define start-test-score (errors-score (alt-result-test-errors start)))
-     (define start-cost (program-cost start-prog repr))
-     
-     (define target (test-result-target result))
+     (define start-cost (expr-cost start-expr repr))  
      (define target-score (and target (errors-score (alt-result-test-errors target))))
 
-     (define end (test-result-end result))
-     (define-values (end-progs end-train-scores end-test-scores end-costs end-exprs)
-       (for/lists (l1 l2 l3 l4 l5) ([result end])
+     (define-values (end-exprs end-train-scores end-test-scores end-costs)
+       (for/lists (l1 l2 l3 l4) ([result end])
          (match-define (alt-result alt train-errors test-errors) result)
-         (values (alt-program alt)
-                 (errors-score train-errors)
-                 (errors-score test-errors)
-                 (program-cost (alt-program alt) repr)
-                 (program-body (resugar-program (alt-program alt) repr)))))
+         (values (alt-expr alt)
+                 (errors-score train-errors) (errors-score test-errors)
+                 (expr-cost (alt-expr alt) repr))))
  
      (define cost&accuracy
        (list (list start-cost start-test-score)
@@ -361,7 +355,6 @@
                   [result-est end-est-score] [result end-score]
                   [output (car end-exprs)] [cost-accuracy cost&accuracy])]
     ['failure
-     (define exn (test-result-exn result))
      (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
      (dummy-table-row result status link)]
     ['timeout

@@ -19,8 +19,8 @@
       [(alt _ _ (list)) #f]
       [(alt _ _ (list prev _ ...)) (loop prev)])))
 
-(define/contract (render-interactive start-prog point)
-  (-> alt? (listof number?) xexpr?)
+(define/contract (render-interactive vars point)
+  (-> (listof symbol?) (listof number?) xexpr?)
   `(section ([id "try-it"])
     (h1 "Try it out" (a (
           [class "help-button"] 
@@ -32,7 +32,7 @@
      (form ([id "try-inputs"])
       (p ([class "header"]) "Your Program's Arguments")
        (ol
-        ,@(for/list ([var-name (program-variables (alt-program start-prog))] [i (in-naturals)] [val point])
+        ,@(for/list ([var-name (in-list vars)] [i (in-naturals)] [val point])
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
                  (input ([type "text"] [class "input-submit"]
                          [name ,(string-append "var-name-" (~a i))]
@@ -47,8 +47,8 @@
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
-(define (alt->tex alt repr)
-  (core->tex (core-cse (program->fpcore (resugar-program (alt-program alt) repr)))))
+(define (alt->tex alt ctx)
+  (core->tex (core-cse (program->fpcore (alt-expr alt) ctx))))
 
 (define (at-least-two-ops? expr)
   (match expr
@@ -57,6 +57,7 @@
 
 (define (make-graph result out fpcore? profile?)
   (match-define (test-result test _ time _ warnings _ preprocess pctxs start target end) result)
+  (define vars (test-vars test))
   (define repr (test-output-repr test))
   (define ctx (test-context test))
 
@@ -69,8 +70,8 @@
   (define target-error (and target (alt-result-test-errors target)))
   (define end-alts (map alt-result-alt end))
   (define end-errors (map alt-result-test-errors end))
-
-  (define costs (map (compose (curryr program-cost repr) alt-program) end-alts))
+  
+  (define costs (map (compose (curryr expr-cost repr) alt-expr) end-alts))
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
 
@@ -126,7 +127,7 @@
 
       ,(render-warnings warnings)
 
-      ,(render-program preprocess test #:to (alt-program end-alt))
+      ,(render-program preprocess test #:to (alt-expr end-alt))
 
       (section ([id "graphs"]) (h1 "Error" (a (
           [class "help-button"] 
@@ -136,7 +137,7 @@
           ) "?")) (div ([id "graphs-content"])))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
-           (render-interactive start-alt (car points))
+           (render-interactive vars (car points))
            "")
 
       ,(if (test-output test)
@@ -146,10 +147,7 @@
               (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr #:unit "%")))
               (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr #:unit "%")))
               (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr #:unit "%"))))
-             (div ([class "math"]) "\\[" ,(core->tex
-                                            (program->fpcore
-                                              (resugar-program (test-target test) repr)))
-                                         "\\]"))
+             (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
            "")
 
       (section ([id "history"])
@@ -176,7 +174,7 @@
                     (tr (th "Cost") (td ,(format-cost cost repr))))
                   (div ([class "math"])
                     "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
-                            (alt->tex alt repr))
+                            (alt->tex alt ctx))
                     "\\]"))))
             "")
                                       
