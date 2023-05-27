@@ -3,7 +3,7 @@
 (require math/bigfloat rival)
 (require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide sample-points batch-prepare-points make-search-func eval-progs-real)
+(provide sample-points batch-prepare-points make-search-func eval-prog-real)
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -33,12 +33,13 @@
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
-(define (make-search-func precondition programs ctxs)
-  (define fns (batch-eval-progs (cons precondition programs) 'ival (car ctxs)))
+(define (make-search-func pre exprs ctx)
+  (define fns (batch-eval-progs (cons pre exprs) 'ival ctx))
   (λ inputs
-    (match-define (list ival-pre ival-bodies ...) (apply fns inputs))
-    (for/list ([y ival-bodies] [ctx ctxs])
-      (define repr (context-repr ctx))
+    (define out (apply fns inputs))
+    (match-define (list ival-pre ival-bodies ...) out)
+    (define repr (context-repr ctx))
+    (for/list ([y ival-bodies])
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
        ; can error if the input is erroneous
@@ -53,19 +54,16 @@
         'unsamplable)
        y))))
 
-; ENSURE: all contexts have the same list of variables
-(define (eval-progs-real progs ctxs)
-  (define pre `(λ ,(context-vars (car ctxs)) (TRUE)))
-  (define fn (make-search-func pre progs ctxs))
+(define (eval-prog-real prog ctx)
+  (define repr (context-repr ctx))
+  (define fn (make-search-func '(TRUE) (list prog) ctx))
   (define (f . pt)
     (define-values (result prec exs) (ival-eval fn pt))
     (match exs
-      [(? list?)
-       (for/list ([ex exs] [ctx* ctxs])
-         ((representation-bf->repr (context-repr ctx*)) (ival-lo ex)))]
+      [(list (ival lo hi))
+       ((representation-bf->repr repr) lo)]
       [(? nan?)
-       (for/list ([_ progs] [ctx* ctxs])
-         ((representation-bf->repr (context-repr ctx*)) +nan.bf))]))
+       +nan.0]))
   (procedure-rename f '<eval-prog-real>))
 
 (define (combine-tables t1 t2)
@@ -73,18 +71,15 @@
   (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
   (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-base))))
   (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)])
-    ([(k v) (in-hash t2)])
+      ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
-(define (sample-points precondition progs ctxs)
+(define (sample-points pre exprs ctx)
   (timeline-event! 'analyze)
-  (define fn (make-search-func precondition progs ctxs))
+  (define fn (make-search-func pre exprs ctx))
   (match-define (cons sampler table)
     (parameterize ([ground-truth-require-convergence #f])
-      ;; TODO: Should make-sampler allow multiple contexts?
-      (make-sampler (first ctxs) precondition progs fn)))
+      (make-sampler ctx pre fn)))
   (timeline-event! 'sample)
-  (match-define (cons table2 results)
-    ;; TODO: should batch-prepare-points allow multiple contexts?
-    (batch-prepare-points fn (first ctxs) sampler))
+  (match-define (cons table2 results) (batch-prepare-points fn ctx sampler))
   (cons (combine-tables table table2) results))

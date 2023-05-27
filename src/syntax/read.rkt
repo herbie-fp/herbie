@@ -5,25 +5,12 @@
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
-         test-program test-target test-specification load-tests parse-test
-         test-precondition test-context
-         test-output-repr test-var-reprs test-conversions)
+         test-context test-output-repr test-conversions
+         load-tests parse-test)
 
 
 (struct test (name identifier vars input output expected spec pre
               preprocess output-repr-name var-repr-names conversion-syntax) #:prefab)
-
-(define (test-program test)
-  `(λ ,(test-vars test) ,(test-input test)))
-
-(define (test-target test)
-  `(λ ,(test-vars test) ,(test-output test)))
-
-(define (test-specification test)
-  `(λ ,(test-vars test) ,(test-spec test)))
-
-(define (test-precondition test)
-  `(λ ,(test-vars test) ,(test-pre test)))
 
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
@@ -35,10 +22,6 @@
     (for/list ([var vars])
       (get-representation (dict-ref (test-var-repr-names test) var))))
   (context (test-vars test) output-repr var-reprs))
-
-(define (test-var-reprs test)
-  (for/list ([(k v) (in-dict (test-var-repr-names test))])
-    (cons k (get-representation v))))
 
 (define (test-conversions test)
   (map (curry map get-representation) (test-conversion-syntax test)))
