@@ -58,6 +58,7 @@
                   input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
                   time link cost-accuracy)
+       (define bits 128)  ; Deprecated JSON field
        (define cost-accuracy*
         (match cost-accuracy
           [(list) (list)]
@@ -85,6 +86,7 @@
           (spec . ,(~s spec))
           (target-prog . ,(~s target-prog))
           (time . ,time)
+          (bits . ,bits)
           (link . ,(~a link))
           (cost-accuracy . ,cost-accuracy*)))]))
 
@@ -167,7 +169,7 @@
                                 (parse-string (hash-ref test 'target-prog "#f"))
                                 (get 'start) (get 'end) (get 'target)
                                 (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
-                                (get 'time) (get 'bits) (get 'link)
+                                (get 'time) (get 'link)
                                 cost-accuracy))))))
 
 (define (unique? a)
