@@ -44,7 +44,10 @@
   (define repr (test-output-repr test))
   (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
-  (define fn (make-search-func (test-pre test) (list (test-input test)) (test-context test)))
+  (define fn (make-search-func 
+              (test-pre test) 
+              (list (test-input test)) 
+              (list (test-context test))))
   (for/list ([pt pts])
     (define-values (status precision out)
         (ival-eval fn pt #:precision starting-precision))
