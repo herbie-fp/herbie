@@ -67,39 +67,54 @@
           (link . ,(~a link))
           (cost-accuracy . ,cost-accuracy*)))]))
 
+  ;; Calculate the maximum cost and accuracy, the initial cost and accuracy, and
+  ;; the combined and rescaled Pareto frontier and return these as a list.
+  ;;
+  ;; Each test's Pareto curve is rescaled to be relative to it's initial cost,
+  ;; then they are combined with `pareto-combine`, and then each Pareto efficient
+  ;; point's cost is divided by the number of tests so that the frontier's cost
+  ;; is relative to the combination of the initial costs.
   (define (merged-cost-accuracy tests)
     (define cost-accuracies (map table-row-cost-accuracy tests))
-    (define initial-cost
-      (exact->inexact
-       (apply +
-              (map
-               (match-lambda [(list (list cost _) _ _) cost])
-               cost-accuracies))))
-    (define initial-accuracy
-      (apply +
-             (map
-              (match-lambda [(list (list _ accuracy) _ _) accuracy])
-              cost-accuracies)))
     (define rescaled
       (for/list ([cost-accuracy (in-list cost-accuracies)])
-        (match-let ([(list _ best-point other-points) cost-accuracy])
-          (for/list ([point (in-list (cons best-point other-points))])
-            (match-let ([(list cost accuracy _ ...) point])
-              (list (/ cost initial-cost) accuracy))))))
-    (define frontier (pareto-combine rescaled #:convex? #t))
+        (match-define
+          (list
+           (and initial-point (list initial-cost _))
+           best-point
+           other-points)
+          cost-accuracy)
+        ;; Has to be floating point so serializing to JSON doesn't complain about
+        ;; rational numbers later
+        (define initial-cost* (exact->inexact initial-cost))
+        (for/list ([point
+                    (in-list (list* initial-point best-point other-points))])
+          (match-define (list cost accuracy _ ...) point)
+          (list (/ cost initial-cost*) accuracy))))
+    (define tests-length (length tests))
+    (define frontier
+      (map
+       (match-lambda [(list cost accuracy)
+                      (list (/ cost tests-length) accuracy)])
+       (pareto-combine rescaled #:convex? #t)))
     (define maximum-cost
       (argmax
        identity
-       (cons 1.0 (map (match-lambda [(list cost _) cost]) frontier))))
+       (map (match-lambda [(list cost _) cost]) frontier)))
     (define maximum-accuracy
       (apply +
              (map
               (compose representation-total-bits get-representation table-row-precision)
               tests)))
+    (define initial-accuracy
+      (apply +
+             (map
+              (match-lambda [(list (list _ initial-accuracy) _ _) initial-accuracy])
+              cost-accuracies)))
     (list
      (list maximum-cost maximum-accuracy)
      (list
-      1.0 ;; (/ initial-cost initial-cost)
+      1.0 ;; All costs relative to this, would be `initial-cost`
       initial-accuracy)
      frontier))
 
