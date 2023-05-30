@@ -22,10 +22,6 @@
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
-    [`(λ ,vars ,body)
-     `(λ ,vars ,(simplify body))]
-    [`(lambda ,vars ,body)
-     `(λ ,vars ,(simplify body))]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
      (list op (simplify body))]
     [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary 

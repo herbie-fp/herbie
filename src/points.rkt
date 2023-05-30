@@ -54,12 +54,12 @@
 (define (errors-score e)
   (apply (if (flag-set? 'reduce 'avg-error) average max) (map ulps->bits e)))
 
-(define (errors prog pcontext ctx)
-  (map first (batch-errors (list prog) pcontext ctx)))
+(define (errors expr pcontext ctx)
+  (map first (batch-errors (list expr) pcontext ctx)))
 
-(define (batch-errors progs pcontext ctx)
-  (define fn (batch-eval-progs progs 'fl ctx))
+(define (batch-errors exprs pcontext ctx)
+  (define fn (batch-eval-progs exprs 'fl ctx))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" progs point) (raise e))])
+    (with-handlers ([exn:fail? (λ (e) (eprintf "Error when evaluating ~a on ~a\n" exprs point) (raise e))])
       (for/list ([out (in-list (apply fn point))])
         (point-error out exact (context-repr ctx))))))

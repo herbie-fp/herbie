@@ -69,16 +69,16 @@
 
   (define repr (context-repr ctx))
   (define err
-    (format-accuracy (errors-score (errors (alt-program altn) pcontext ctx)) (representation-total-bits repr) #:unit "%"))
+    (format-accuracy (errors-score (errors (alt-expr altn) pcontext ctx)) (representation-total-bits repr) #:unit "%"))
   (define err2
-    (format "Internally ~a" (format-accuracy (errors-score (errors (alt-program altn) pcontext2 ctx)) (representation-total-bits repr))))
+    (format "Internally ~a" (format-accuracy (errors-score (errors (alt-expr altn) pcontext2 ctx)) (representation-total-bits repr))))
 
   (match altn
     [(alt prog 'start (list))
-     (define prog* (program->fpcore (resugar-program prog repr)))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[" ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
+           (div ([class "math"]) "\\[" ,(program->tex prog ctx) "\\]")))]
+
     [(alt prog `(start ,strategy) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
@@ -102,72 +102,57 @@
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Taylor expanded in " ,(~a var)
               " around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc loc #:color "blue") 
-                                                      "ERROR")        
-                                                  "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
      (define proof*
        (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc loc #:color "blue") 
-                                                      "ERROR") 
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) 
                 "\\]")
            (div ([class "proof"])
              (details
                (summary "Proof")
                ,(if proof*
-                    (render-proof proof* prog repr pcontext ctx)
+                    (render-proof proof* pcontext ctx)
                     `(li ([class "event"]) "No proof available- proof too large to flatten."))))))]
 
     [(alt prog `initial-simplify `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
-    [(alt prog `(rr , loc, input, proof, soundiness) `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
+    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev))
      (define proof*
        (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Applied " (span ([class "rule"]) , (if (rule? input) "rewrite-once" "egg-rr"))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc loc #:color "blue")
-                                                      "ERROR")
-                                                  "\\]")
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")
            (div ([class "proof"])
              (details
                (summary "Proof")
                ,(if proof*
-                    (render-proof proof* prog repr pcontext ctx)
+                    (render-proof proof* pcontext ctx)
                     `(li ([class "event"]) "No proof available- proof too large to flatten."))))))]
     ))
 
 
-(define (render-proof proof prog repr pcontext ctx)
+(define (render-proof proof pcontext ctx)
   `(table
     ,@(for/list ([step proof])
         (match-define (list dir rule loc expr sound) step)
-        (define step-prog (program->fpcore (list 'λ '() (resugar-program expr repr))))
-        (define err
-          (let ([prog (list 'λ (program-variables prog) expr)])
-            (format-accuracy (errors-score (errors prog pcontext ctx)) (representation-total-bits repr))))
+        (define step-prog (program->fpcore expr ctx))
+        (define err (format-accuracy (errors-score (errors expr pcontext ctx)) (representation-total-bits (context-repr ctx))))
         `(tr (th ,(if dir
                       (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
                             [tag (string-append (format " ↑ ~a" (first sound))
