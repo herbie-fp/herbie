@@ -354,8 +354,7 @@
       (eprintf "Sampling job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define result (run-herbie 'sample test #:seed seed #:profile? #f
-                                 #:engine? #f #:timeline-disabled? #t))
+      (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points (pcontext->json result)))))
@@ -371,7 +370,7 @@
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'errors test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:engine? #f #:timeline-disabled? #t))
+                                 #:profile? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -388,7 +387,7 @@
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'exacts test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:engine? #f #:timeline-disabled? #t))
+                                 #:profile? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -404,7 +403,7 @@
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'evaluate test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:engine? #f #:timeline-disabled? #t))
+                                 #:profile? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'points result))))
@@ -422,7 +421,7 @@
       (define expr (resugar-program (test-input test) repr))
       (define pcontext (json->pcontext sample (test-context test)))
       (define local-error (run-herbie 'local-error test #:seed seed #:pcontext pcontext
-                                      #:profile? #f #:engine? #f #:timeline-disabled? #t))
+                                      #:profile? #f #:timeline-disabled? #t))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
@@ -457,7 +456,7 @@
       (define repr (test-output-repr test))
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'alternatives test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:engine? #f #:timeline-disabled? #t))
+                                 #:profile? #f #:timeline-disabled? #t))
 
       (match-define (list altns test-pcontext processed-pcontext) result)
       
@@ -508,7 +507,7 @@
       (eprintf "Computing cost of ~a..." formula)
       
       (define test (parse-test formula))
-      (define result (run-herbie 'cost test #:profile? #f #:engine? #f #:timeline-disabled? #t))
+      (define result (run-herbie 'cost test #:profile? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
       (hasheq 'value result))))

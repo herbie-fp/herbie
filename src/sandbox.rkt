@@ -227,7 +227,6 @@
 (define (run-herbie command test
                     #:seed [seed #f]
                     #:pcontext [pcontext #f]
-                    #:engine? [engine? #t]
                     #:profile? [profile? #f]
                     #:timeline-disabled? [timeline-disabled? #f])
   (define timeline #f)
@@ -246,6 +245,15 @@
                                 (- (current-inexact-milliseconds) start-time)
                                 (timeline-extract) (warning-log) e)]
         [_ (raise e)])))
+
+  (define (on-timeout)
+    (parameterize ([*timeline-disabled* timeline-disabled?])
+      (timeline-load! timeline)
+      (timeline-compact! 'outcomes)
+      (print-warnings)
+      (match command 
+        ['improve (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '())]
+        [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result test)
     (parameterize ([*timeline-disabled* timeline-disabled?]
@@ -284,20 +292,10 @@
         (compute-result test)))
 
   ;; Branch on whether or not we should run inside an engine
-  (cond
-    [engine?
-     (define eng (engine in-engine))
-     (if (engine-run (*timeout*) eng)
-         (engine-result eng)
-         (parameterize ([*timeline-disabled* timeline-disabled?])
-           (timeline-load! timeline)
-           (timeline-compact! 'outcomes)
-           (print-warnings)
-           (match command 
-             ['improve (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '())]
-             [_ (error 'run-herbie "command ~a timed out" command)])))]
-    [else
-     (in-engine #f)]))
+  (define eng (engine in-engine))
+  (if (engine-run (*timeout*) eng)
+      (engine-result eng)
+      (on-timeout)))
 
 (define (dummy-table-row result status link)
   (define test (test-result-test result))
