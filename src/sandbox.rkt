@@ -47,7 +47,7 @@
   (define fn (make-search-func (test-pre test) (list (test-input test)) (test-context test)))
   (for/list ([pt pts])
     (define-values (status precision out)
-        (ival-eval fn pt #:precision starting-precision))
+        (ival-eval repr fn pt #:precision starting-precision))
     (define exs (map (compose <-bf ival-lo) out))
     (cons pt exs)))
 

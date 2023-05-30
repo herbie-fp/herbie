@@ -123,20 +123,45 @@
     (set! start now))
   log!)
 
-(define (ival-eval fn pt #:precision [precision (*starting-prec*)])
+(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
+  (eprintf "point: ~a\n" pt)
+  (eprintf "precision ~a\n" precision)
   (let loop ([precision precision])
-    (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
+    (define r (apply fn pt))
+    (eprintf "{before ~a}{after ~a} \n" pt r)
+    (define exs (parameterize ([bf-precision precision]) r))
     (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
     (define precision* (exact-floor (* precision 2)))
     (cond
      [err
       (values (or err 'bad) precision +nan.0)]
      [(not err?)
+      (eprintf "not err? EXS:{~a}\n" exs)
+      (define result (is-infinite-interval repr (car r)))
+      (eprintf "Result: ~a\n" result)
+      (eprintf "~a\n" (type-of result))
+      ; (ival-if result (eprintf "TRUE") (eprintf "FALSE"))
       (values 'valid precision exs)]
      [(> precision* (*max-mpfr-prec*))
       (values 'exit precision +nan.0)]
      [else
       (loop precision*)])))
+
+(define (is-infinite-interval repr interval)
+  (define <-bf (representation-bf->repr repr))
+  (define ->bf (representation-repr->bf repr))
+  ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
+  ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
+  (define (positive-inf? x)
+    (parameterize ([bf-rounding-mode 'nearest])
+      (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
+  (define (negative-inf? x)
+    (parameterize ([bf-rounding-mode 'nearest])
+      (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
+  (define ival-positive-infinite (monotonic->ival positive-inf?))
+  (define ival-negative-infinite (comonotonic->ival negative-inf?))
+  (ival-or (ival-positive-infinite interval)
+           (ival-negative-infinite interval)))
 
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
@@ -151,7 +176,7 @@
       (define pt (sampler))
 
       (define-values (status precision out)
-        (ival-eval fn pt #:precision starting-precision))
+        (ival-eval repr fn pt #:precision starting-precision))
       (hash-update! outcomes status (curry + 1) 0)
       (logger status precision pt)
 

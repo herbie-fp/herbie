@@ -5,21 +5,21 @@
 
 (provide sample-points batch-prepare-points make-search-func eval-prog-real)
 
-(define (is-infinite-interval repr interval)
-  (define <-bf (representation-bf->repr repr))
-  (define ->bf (representation-repr->bf repr))
-  ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
-  ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
-  (define (positive-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
-  (define (negative-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
-  (define ival-positive-infinite (monotonic->ival positive-inf?))
-  (define ival-negative-infinite (comonotonic->ival negative-inf?))
-  (ival-or (ival-positive-infinite interval)
-           (ival-negative-infinite interval)))
+; (define (is-infinite-interval repr interval)
+;   (define <-bf (representation-bf->repr repr))
+;   (define ->bf (representation-repr->bf repr))
+;   ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
+;   ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
+;   (define (positive-inf? x)
+;     (parameterize ([bf-rounding-mode 'nearest])
+;       (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
+;   (define (negative-inf? x)
+;     (parameterize ([bf-rounding-mode 'nearest])
+;       (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
+;   (define ival-positive-infinite (monotonic->ival positive-inf?))
+;   (define ival-negative-infinite (comonotonic->ival negative-inf?))
+;   (ival-or (ival-positive-infinite interval)
+;            (ival-negative-infinite interval)))
 
 (define (is-samplable-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -46,7 +46,8 @@
        (ival-assert (ival-not (ival-error? y)) 'invalid)
        (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
        (ival-assert ival-pre 'precondition)
-       (ival-assert (ival-not (is-infinite-interval repr y)) 'infinite)
+       ; we are trying to push `infinite` down.
+      ;  (ival-assert (ival-not (is-infinite-interval repr y)) 'infinite)
        (ival-assert
         (if (ground-truth-require-convergence)
             (is-samplable-interval repr y)
@@ -67,6 +68,8 @@
   (procedure-rename f '<eval-prog-real>))
 
 (define (combine-tables t1 t2)
+  (eprintf "combine-tables(T1): ~a\n" t1) 
+  (eprintf "combine-tables(T2): ~a\n" t2) 
   (define t2-total (apply + (hash-values t2)))
   (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
   (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-base))))
@@ -77,7 +80,7 @@
 (define (sample-points pre exprs ctx)
   (timeline-event! 'analyze)
   (define fn (make-search-func pre exprs ctx))
-  (match-define (cons sampler table)
+   (match-define (cons sampler table)
     (parameterize ([ground-truth-require-convergence #f])
       (make-sampler ctx pre fn)))
   (timeline-event! 'sample)

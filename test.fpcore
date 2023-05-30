@@ -1,0 +1,1 @@
+(FPCore (x) :precision binary64 (- (exp x) 1.0))
