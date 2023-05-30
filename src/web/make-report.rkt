@@ -108,9 +108,9 @@
                       ;; TODO ulps->bits ?
                       (format-accuracy total-start total-bits #:unit "%")
                       " → "
-                      (format-accuracy total-result total-bits #:unit "%")))
+                      (format-accuracy total-result total-bits #:unit "%"))
        ,(render-large "Time" (format-time total-time))
-       ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests))
+       ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests)))
 
       (figure
        (div ([id "xy"])

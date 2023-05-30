@@ -140,9 +140,9 @@
            `(section ([id "comparison"])
              (h1 "Target")
              (table
-              (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr #:unit "%")))
-              (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr #:unit "%")))
-              (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr #:unit "%"))))
+              (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr-bits #:unit "%")))
+              (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")))
+              (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr-bits #:unit "%"))))
              (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
            "")
 
