@@ -103,12 +103,9 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
-  (define fn (make-search-func (test-pre test) (list (test-input test)) (*context*)))
+  (define fn (eval-prog-real (test-input test) (*context*)))
   (for/list ([pt pts])
-    (define-values (result prec exs) (ival-eval fn pt))
-    (list pt (match exs
-               [(list (ival lo hi)) ((representation-bf->repr repr) lo)]
-               [(? nan?) (real->repr +nan.0 repr)]))))
+    (list pt (apply fn pt))))
 
 ;; Given a test and a sample of points,
 ;; the floating-point result at each point
