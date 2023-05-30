@@ -55,45 +55,33 @@
      (define-values (train-pcontext _) (split-pcontext joint-pcontext training-count testing-count))
      (values train-pcontext joint-pcontext)]))
 
-;; All backends run this before hand
-;; Sets global variables
-(define (setup-backend! test)
-  (define repr (test-output-repr test))
-  (*context* (test-context test))
-  (*needed-reprs* (list repr (get-representation 'bool)))
-  (generate-prec-rewrites (test-conversions test)))
-
 ;;
 ;;  API endpoint backends
 ;;
 
 ;; Given a test, computes the program cost of the input expression
 (define (get-cost test)
-  (setup-backend! test)
   (expr-cost (test-input test) (test-output-repr test)))
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
-  (setup-backend! test)
   (define repr (test-output-repr test))
-  (match-define (cons domain-stats joint-pcontext)
+  (match-define (cons _ joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (setup-context! (test-vars test)
                       (or (test-spec test) (test-input test))
                       (test-pre test)
                       repr)))
 
-  (define-values (train-pcontext test-pcontext)
-    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
-  (for/list ([(pt ex) (in-pcontext test-pcontext)])
-    (list pt ex)))
+  (define-values (_ test-pcontext)
+    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
+  test-pcontext)
 
 ;; Given a test and a sample of points, computes the error at each point.
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
 (define (get-errors test pcontext)
-  (setup-backend! test)
   (unless pcontext
     (error 'get-errors "cannnot run without a pcontext"))
 
@@ -108,7 +96,6 @@
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
 (define (get-exacts test pcontext)
-  (setup-backend! test)
   (unless pcontext
     (error 'get-exacts "cannnot run without a pcontext"))
 
@@ -126,7 +113,6 @@
 ;; Given a test and a sample of points,
 ;; the floating-point result at each point
 (define (get-calculation test pcontext)
-  (setup-backend! test)
   (unless pcontext
     (error 'get-calculation "cannnot run without a pcontext"))
 
@@ -143,7 +129,6 @@
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
 (define (get-local-error test pcontext)
-  (setup-backend! test)
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
 
@@ -157,7 +142,6 @@
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
 (define (get-alternatives test pcontext seed)
-  (setup-backend! test)
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
@@ -174,8 +158,6 @@
 ;; Improvement backend for generating reports
 ;; A more heavyweight version of `get-alternatives`
 (define (get-alternatives/report test)
-  (setup-backend! test)
-
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
   
@@ -269,7 +251,11 @@
     (parameterize ([*timeline-disabled* timeline-disabled?]
                    [*warnings-disabled* true])
       (define start-time (current-inexact-milliseconds))
+      (define repr (test-output-repr test))
       (rollback-improve!)
+      (*context* (test-context test))
+      (*needed-reprs* (list repr (get-representation 'bool)))
+      (generate-prec-rewrites (test-conversions test))
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (define out

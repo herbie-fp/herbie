@@ -344,16 +344,6 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-;; Converts pcontext from the API format to Herbie's format
-(define (pts&exs->pcontext pts&exs ctx)
-  (define output-repr (context-repr ctx))
-  (define var-reprs (context-var-reprs ctx))
-  (define-values (pts exs)
-    (for/lists (pts exs) ([entry (in-list pts&exs)])
-      (match-define (list pt ex) entry)
-      (values (map real->repr pt var-reprs) (real->repr ex output-repr))))
-  (mk-pcontext pts exs))
-
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
 (define sample-endpoint
@@ -368,18 +358,18 @@
                                  #:engine? #f #:timeline-disabled? #t))
 
       (eprintf " complete\n")
-      (hasheq 'points result))))
+      (hasheq 'points (pcontext->json result)))))
 
 (define analyze-endpoint
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts&exs (hash-ref post-data 'sample))
+      (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Analyze job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
+      (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'errors test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:engine? #f #:timeline-disabled? #t))
 
@@ -391,12 +381,12 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts&exs (hash-ref post-data 'sample))
+      (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Ground truth job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
+      (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'exacts test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:engine? #f #:timeline-disabled? #t))
 
@@ -407,12 +397,12 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts&exs (hash-ref post-data 'sample))
+      (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Evaluation job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
+      (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'evaluate test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:engine? #f #:timeline-disabled? #t))
 
@@ -423,14 +413,14 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts&exs (hash-ref post-data 'sample))
+      (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Local error job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define repr (test-output-repr test))
       (define expr (resugar-program (test-input test) repr))
-      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
+      (define pcontext (json->pcontext sample (test-context test)))
       (define local-error (run-herbie 'local-error test #:seed seed #:pcontext pcontext
                                       #:profile? #f #:engine? #f #:timeline-disabled? #t))
       
@@ -458,14 +448,14 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts&exs (hash-ref post-data 'sample))
+      (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Alternatives job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define vars (test-vars test))
       (define repr (test-output-repr test))
-      (define pcontext (pts&exs->pcontext pts&exs (test-context test)))
+      (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'alternatives test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:engine? #f #:timeline-disabled? #t))
 
