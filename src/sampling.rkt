@@ -124,22 +124,17 @@
   log!)
 
 (define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
-  (eprintf "point: ~a\n" pt)
-  (eprintf "precision ~a\n" precision)
   (let loop ([precision precision])
-    (define r (apply fn pt))
-    (eprintf "{before ~a}{after ~a} \n" pt r)
-    (define exs (parameterize ([bf-precision precision]) r))
+    (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
     (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
     (define precision* (exact-floor (* precision 2)))
+    (eprintf "Current EXS:{~a}\n" exs)
     (cond
       [err
        (values (or err 'bad) precision +nan.0)]
       [(not err?)
-       (eprintf "not err? EXS:{~a}\n" exs)
-       (define result (is-infinite-interval repr (car r)))
-       (eprintf "Result: ~a\n" result)
-       (if (and (ival-lo result) (ival-hi result))
+       (define result (is-infinite-interval repr (car exs)))
+       (if (and (ival-lo result)) ; #f #t and #t #f impossible states
            (values 'infinite precision exs)
            (values 'valid precision exs))
        ]
