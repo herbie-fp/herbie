@@ -128,12 +128,12 @@
     (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
     (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
     (define precision* (exact-floor (* precision 2)))
-    (eprintf "Current EXS:{~a}\n" exs)
+    ; (eprintf "Current EXS:{~a}\n" exs)
     (cond
       [err
        (values (or err 'bad) precision +nan.0)]
       [(not err?)
-       (define result (is-infinite-interval repr (car exs)))
+       (define result (is-infinite-interval repr (apply ival-or exs)))
        (if (and (ival-lo result)) ; #f #t and #t #f impossible states
            (values 'infinite precision exs)
            (values 'valid precision exs))
