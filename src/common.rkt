@@ -170,16 +170,13 @@
    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
    [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
-(define (format-accuracy r repr #:sign [sign #f] #:unit [unit #f])
-  (cond 
-    [(not r) ""]
-    [else
-      (define unit- (if unit unit ""))
-      (define percent (~r (- 100 (* (/ r (representation-total-bits repr)) 100)) #:precision '(= 1)))
-
-      (cond
-      [(and (> r 0) sign) (format "+~a~a" percent unit-)]
-      [else (format "~a~a" percent unit-)])]))
+(define (format-accuracy numerator denominator #:sign [sign #f] #:unit [unit ""])
+  (if numerator
+      (let ([percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1))])
+        (if (and (> numerator 0) sign)
+            (format "+~a~a" percent unit)
+            (format "~a~a" percent unit)))
+      ""))
 
 (define (format-cost r repr #:sign [sign #f])  
   (cond 
