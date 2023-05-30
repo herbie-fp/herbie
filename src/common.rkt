@@ -171,7 +171,7 @@
    [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
 (define (format-accuracy numerator denominator #:sign [sign #f] #:unit [unit ""])
-  (if numerator
+  (if (and numerator (positive? denominator))
       (let ([percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1))])
         (if (and (> numerator 0) sign)
             (format "+~a~a" percent unit)

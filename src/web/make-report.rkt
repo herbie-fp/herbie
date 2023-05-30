@@ -63,11 +63,7 @@
     (for/sum ([t tests]) (or (table-row-result t) 0)))
   (define total-bits
     (for/sum ([t tests])
-      ((compose
-        representation-total-bits
-        get-representation
-        table-row-precision)
-       t)))
+      (representation-total-bits (get-representation (table-row-precision t)))))
 
   (define (round* x)
     (inexact->exact (round x)))
@@ -138,7 +134,7 @@
                    `(th ,label)))))
       (tbody
        ,@(for/list ([result tests] [id (in-naturals)])
-           (define bits ((compose representation-total-bits get-representation table-row-precision) result))
+           (define bits (representation-total-bits (get-representation (table-row-precision result))))
            `(tr ((class ,(~a (table-row-status result))))
                 (td ,(or (table-row-name result) ""))
                 (td ,(format-accuracy (table-row-start result) bits #:unit "%"))
