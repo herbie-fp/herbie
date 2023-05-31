@@ -43,10 +43,10 @@
 ;; assumes vector strictly increasing
 (define (binary-search vector num)
   (let loop ([left 0] [right (- (vector-length vector) 1)])
-   (cond
-    [(>= left right)
+    (cond
+     [(>= left right)
       (min left (- (vector-length vector) 1))]
-    [else
+     [else
       (define mid (floor (/ (+ left right) 2)))
       (define pivot (vector-ref vector mid))
       (if (<= pivot num) (loop (+ 1 mid) right) (loop left mid))])))
@@ -101,7 +101,7 @@
     (define hyperrects-analysis (precondition->hyperrects pre ctx))
     (match-define (cons hyperrects sampling-table)
       (find-intervals search-func hyperrects-analysis
-                       #:reprs reprs #:fuel (*max-find-range-depth*)))
+                      #:reprs reprs #:fuel (*max-find-range-depth*)))
     (cons (make-hyperrect-sampler hyperrects reprs) sampling-table)]
    [else
     (timeline-push! 'method "random")
@@ -115,9 +115,9 @@
     (define now (current-inexact-milliseconds))
     (when (equal? status 'exit)
       (warn 'ground-truth #:url "faq.html#ground-truth"
-            "could not determine a ground truth for program ~a" name
-            #:extra (for/list ([var vars] [val pt])
-                      (format "~a = ~a" var val))))
+               "could not determine a ground truth for program ~a" name
+               #:extra (for/list ([var vars] [val pt])
+                         (format "~a = ~a" var val))))
     (define dt (- now start))
     (timeline-push! 'outcomes (~a name) precision (~a status) dt 1)
     (set! start now))
@@ -133,7 +133,7 @@
        (values (or err 'bad) precision +nan.0)]
       [(not err?)
        (define result (is-infinite-interval repr (apply ival-or exs)))
-       (if (and (ival-lo result)) ; #f #t and #t #f impossible states
+       (if (ival-lo result) ; #f #t and #t #f impossible states
            (values 'infinite precision exs)
            (values 'valid precision exs))
        ]
