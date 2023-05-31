@@ -14,7 +14,7 @@
 (define egg-iters 25)
 (define ground-truth-iters 20)
 (define compute-accuracy-iters 20)
-(define egg-node-limit 10000)
+(define egg-node-limit 20000)
 (define egg-match-limit 1000)
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
@@ -1347,9 +1347,11 @@
 	`(
 		,@(if 
 				(econfig-local-error? config)
-				 `((set-option match_limit 10000000)
-    			 (run ground-truth ,ground-truth-iters))
+				 `()
 				empty)
+
+		(set-option match_limit 10000000)
+    (run ground-truth ,ground-truth-iters)
 		
 		(set-option match_limit ,egg-match-limit)
 		;; runs normal analysis
@@ -1357,11 +1359,12 @@
 		;; runs normal rewriting
 		(run rewrites 1)
 		
-		(set-option match_limit ,egg-if-match-limit)
+		;;(set-option match_limit ,egg-if-match-limit)
 		;; simplify if statement stuff
-		(run simplify-if 2)
+		;;(run simplify-if 2)
 		;; permute the order of if statements
-		(run if-permute 1)))
+		;;(run if-permute 1)))
+	))
 
 (define (build-runner config)
 	(apply append
@@ -1687,6 +1690,14 @@
 		#t
 		])))
 
+(define (remove-precisely-when egglog-program)
+	(for/list ([line egglog-program])
+		(match line
+			[`(rewrite (,Op ty ,children ...) ,rhs :precisely-when ,conditions ,other ...)
+				`(rewrite (,Op ty ,@children) ,rhs :when ,conditions ,@other)]
+		  [else
+				line])))
+
 (define (rewrite-check-local-error egglog-program)
 	(for/list ([line egglog-program])
 		(match line
@@ -1739,8 +1750,10 @@
 
 (define (apply-egglog-macros egglog-program local-error?)
 	(sanity-check-rewrites egglog-program)
-	(define with-ifs
+	#;(define with-ifs
 		(rewrite-if egglog-program))
+	(define with-ifs 
+		(remove-precisely-when egglog-program))
 	(define res 
 		(if local-error?
 				(rewrite-check-local-error with-ifs)
@@ -1778,10 +1791,11 @@
 		[else
 			(define shuffled (shuffle points))
 			(define rand-point (first shuffled))
-			(define area-size 0.5)
+			
 			(make-hash
 				(for/list ([var (context-vars ctx)]
-									[num rand-point])
+									 [num rand-point])
+					(define area-size (/ (abs num) 4.0))
 					(cons var (list (- num area-size) (+ num area-size)))))]))
 			
 
