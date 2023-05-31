@@ -105,7 +105,7 @@
                       (format-accuracy total-start total-bits #:unit "%")
                       " → "
                       (format-accuracy total-result total-bits #:unit "%"))
-       ,(render-large "Time" (format-time total-time))
+       ,(render-large "Time" (format-time total-time #:max 'minute))
        ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests)))
 
       (figure
@@ -140,7 +140,7 @@
                 (td ,(format-accuracy (table-row-start result) bits #:unit "%"))
                 (td ,(format-accuracy (table-row-result result) bits #:unit "%"))
                 (td ,(format-accuracy (table-row-target result) bits #:unit "%"))
-                (td ,(format-time (table-row-time result) #:min 1000))
+                (td ,(format-time (table-row-time result) #:min 'second))
                 ,(if (table-row-link result)
                      `(td
                        (a ((id ,(format "link~a" id))
