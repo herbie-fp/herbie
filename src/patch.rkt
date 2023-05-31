@@ -154,6 +154,7 @@
     ;; get subexprs and locations
     (define exprs (map alt-expr (^queued^)))
     (define lowexprs (map alt-expr (^queuedlow^)))
+    (define real-exprs (filter (λ (e) (equal? (type-of e (*context*)) 'real)) exprs))
 
     ;; HACK:
     ;; - check loaded representations
@@ -165,10 +166,10 @@
     (define changelists
       (if one-real-repr?
           (merge-changelists
-            (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules))
+            (rewrite-expressions real-exprs (*context*) #:rules (append expansive-rules normal-rules))
             (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
           (merge-changelists
-            (rewrite-expressions exprs (*context*) #:rules normal-rules)
+            (rewrite-expressions real-exprs (*context*) #:rules normal-rules)
             (rewrite-expressions exprs (*context*) #:rules expansive-rules #:once? #t)
             (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))))
 
