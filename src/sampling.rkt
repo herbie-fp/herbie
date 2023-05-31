@@ -11,9 +11,9 @@
 
 (define (precondition->hyperrects pre ctx)
   ;; FPBench needs unparameterized operators
-  (define range-table
-    (condition->range-table
-     (resugar-program pre (context-repr ctx) #:full #f)))
+  (define range-table 
+    (condition->range-table  
+      (resugar-program pre (context-repr ctx) #:full #f)))
 
   (apply cartesian-product
          (for/list ([var-name (context-vars ctx)] [var-repr (context-var-reprs ctx)])
@@ -43,13 +43,13 @@
 ;; assumes vector strictly increasing
 (define (binary-search vector num)
   (let loop ([left 0] [right (- (vector-length vector) 1)])
-    (cond
-      [(>= left right)
-       (min left (- (vector-length vector) 1))]
-      [else
-       (define mid (floor (/ (+ left right) 2)))
-       (define pivot (vector-ref vector mid))
-       (if (<= pivot num) (loop (+ 1 mid) right) (loop left mid))])))
+   (cond
+    [(>= left right)
+      (min left (- (vector-length vector) 1))]
+    [else
+      (define mid (floor (/ (+ left right) 2)))
+      (define pivot (vector-ref vector mid))
+      (if (<= pivot num) (loop (+ 1 mid) right) (loop left mid))])))
 
 (module+ test
   (define rand-list
@@ -95,17 +95,17 @@
   (define repr (context-repr ctx))
   (define reprs (context-var-reprs ctx))
   (cond
-    [(and (flag-set? 'setup 'search) (not (empty? reprs))
-          (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
-     (timeline-push! 'method "search")
-     (define hyperrects-analysis (precondition->hyperrects pre ctx))
-     (match-define (cons hyperrects sampling-table)
-       (find-intervals search-func hyperrects-analysis
+   [(and (flag-set? 'setup 'search) (not (empty? reprs))
+         (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
+    (timeline-push! 'method "search")
+    (define hyperrects-analysis (precondition->hyperrects pre ctx))
+    (match-define (cons hyperrects sampling-table)
+      (find-intervals search-func hyperrects-analysis
                        #:reprs reprs #:fuel (*max-find-range-depth*)))
-     (cons (make-hyperrect-sampler hyperrects reprs) sampling-table)]
-    [else
-     (timeline-push! 'method "random")
-     (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
+    (cons (make-hyperrect-sampler hyperrects reprs) sampling-table)]
+   [else
+    (timeline-push! 'method "random")
+    (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
@@ -128,7 +128,6 @@
     (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
     (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
     (define precision* (exact-floor (* precision 2)))
-    ; (eprintf "Current EXS:{~a}\n" exs)
     (cond
       [err
        (values (or err 'bad) precision +nan.0)]
@@ -177,16 +176,16 @@
       (logger status precision pt)
 
       (cond
-        [(and (list? out) (not (ormap (representation-special-value? repr) pt)))
-         (define exs (map (compose <-bf ival-lo) out))
-         (if (>= (+ 1 sampled) (*num-points*))
-             (values (cons pt points) (cons exs exactss))
-             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
-        [else
-         (when (>= skipped (*max-skipped-points*))
-           (timeline-compact! 'outcomes)
-           (raise-herbie-error "Cannot sample enough valid points."
-                               #:url "faq.html#sample-valid-points"))
-         (loop sampled (+ 1 skipped) points exactss)])))
+       [(and (list? out) (not (ormap (representation-special-value? repr) pt)))
+        (define exs (map (compose <-bf ival-lo) out))
+        (if (>= (+ 1 sampled) (*num-points*))
+            (values (cons pt points) (cons exs exactss))
+            (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
+       [else
+        (when (>= skipped (*max-skipped-points*))
+          (timeline-compact! 'outcomes)
+          (raise-herbie-error "Cannot sample enough valid points."
+                              #:url "faq.html#sample-valid-points"))
+        (loop sampled (+ 1 skipped) points exactss)])))
   (timeline-compact! 'outcomes)
   (cons outcomes (cons points (flip-lists exactss))))
