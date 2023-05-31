@@ -7,12 +7,8 @@
 
 (define (make-traceback result out profile?)
   ;; Called with timeout or failure results
-  (define test (test-result-test result))
-  (define time (test-result-time result))
-  (define timeline (test-result-timeline result))
-  (define warnings (test-result-warnings result))
-  (define status (test-result-status result))
-  (define exn (if (eq? status 'failure) (test-result-exn result) 'timeout))
+  (match-define (job-result test status time timeline warnings backend) result)
+  (define exn (if (eq? status 'failure) backend 'timeout))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr

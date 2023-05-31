@@ -25,14 +25,15 @@
   (with-handlers ([exn:break? (λ (e) (exit 0))])
     (for ([test (in-producer get-input eof-object?)] [idx (in-naturals)])
       (define result (get-test-result 'improve test #:seed seed))
-      (define time (test-result-time result))
-      (define exn (test-result-exn result))
-      (match (test-result-status result)
+      (define status (job-result-status result))
+      (define time (job-result-time result))
+      (match status
         ['success
          (pretty-print (unparse-result (get-table-data result "")) (current-output-port) 1)]
         ['failure
+         (define exn (job-result-backend result))
          ((error-display-handler) (exn-message exn) exn)]
         ['timeout
          (printf "Timeout in ~as (see --timeout option)\n" (/ time 1000))]
         [else
-         (error 'run-shell "unknown result type ~a" (test-result-status result))]))))
+         (error 'run-shell "unknown result type ~a" status)]))))

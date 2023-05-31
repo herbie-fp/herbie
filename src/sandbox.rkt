@@ -10,11 +10,12 @@
 
 (provide get-alternatives get-calculation get-cost get-errors
          get-exacts get-local-error get-sample get-test-result
-         (struct-out test-result) (struct-out alt-result)
+         (struct-out job-result) (struct-out improve-result) (struct-out alt-analysis)
          get-table-data unparse-result *reeval-pts* *timeout*)
 
-(struct alt-result (alt train-errors test-errors))
-(struct test-result (test status time timeline warnings exn preprocess pctxs start target end))
+(struct job-result (test status time timeline warnings backend))
+(struct improve-result (preprocess pctxs start target end))
+(struct alt-analysis (alt train-errors test-errors))
 
 (define *reeval-pts* (make-parameter 8000))
 (define *timeout* (make-parameter (* 1000 60 5/2)))
@@ -47,7 +48,6 @@
 
 (define (get-cost test)
   (expr-cost (test-input test) (test-output-repr test)))
-
 
 ;; Translates points from the API endpoint
 ;; into the expected pcontext
@@ -211,7 +211,7 @@
   (define start-alt (make-alt start-expr))
   (define start-train-errs (errors start-expr train-pcontext ctx))
   (define start-test-errs (errors start-expr processed-test-pcontext ctx))
-  (define start-alt-data (alt-result start-alt start-train-errs start-test-errs))
+  (define start-alt-data (alt-analysis start-alt start-train-errs start-test-errs))
 
   ;; optionally compute error/cost for input expression
   (define target-alt-data
@@ -220,7 +220,7 @@
        (define target-expr (test-output test))
        (define target-train-errs (errors target-expr train-pcontext ctx))
        (define target-test-errs (errors target-expr processed-test-pcontext ctx))
-       (alt-result (make-alt target-expr) target-train-errs target-test-errs)]
+       (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)]
       [else
        #f]))
 
@@ -228,17 +228,14 @@
   (define end-exprs (map alt-expr end-alts))
   (define end-train-errs (flip-lists (batch-errors end-exprs train-pcontext ctx)))
   (define end-test-errs (flip-lists (batch-errors end-exprs processed-test-pcontext ctx)))
-  (define end-alts-data (map alt-result end-alts end-train-errs end-test-errs))
+  (define end-alts-data (map alt-analysis end-alts end-train-errs end-test-errs))
 
   ;; bundle up the result
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
 
-  (define warnings (warning-log))
-  (define timeline (timeline-extract))
   (define pctxs (list train-pcontext processed-test-pcontext))
-  (test-result test 'success #f timeline warnings #f preprocess
-               pctxs start-alt-data target-alt-data end-alts-data))
+  (improve-result preprocess pctxs start-alt-data target-alt-data end-alts-data))
 
 (define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
   (define timeline #f)
@@ -252,23 +249,22 @@
       (when seed (set-seed! seed))
       (define result
         (with-handlers ([exn? (curry on-exception start-time)])
-          (match command
-            ['improve (run-herbie test)]
-            ['sample (get-sample test)])))
+          (begin
+            (define backend-result
+              (match command
+                ['improve (run-herbie test)]
+                ['sample (get-sample test)]))
+            (define time (- (current-inexact-milliseconds) start-time))
+            (job-result test 'success time (timeline-extract) (warning-log) backend-result))))
       (print-warnings)
-      (define total-time (- (current-inexact-milliseconds) start-time))
-      (if (test-result? result)
-          (struct-copy test-result result [time total-time])
-          result)))
+      result))
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* false])
       (timeline-event! 'end)
       (print-warnings)
-      (define total-time (- (current-inexact-milliseconds) start-time))
-      (define timeline (timeline-extract))
-      (define preprocess (test-preprocess test))
-      (test-result test 'failure total-time timeline (warning-log) e preprocess #f #f #f #f #f)))
+      (define time (- (current-inexact-milliseconds) start-time))
+      (job-result test 'failure time (timeline-extract) (warning-log) e)))
 
   (define (in-engine _)
     (if profile?
@@ -290,43 +286,53 @@
         (timeline-load! timeline)
         (timeline-compact! 'outcomes)
         (print-warnings)
-        (define timeline (timeline-extract))
-        (define preprocess (test-preprocess test))
-        (test-result test 'timeout (*timeout*) timeline (warning-log) #f preprocess #f #f #f #f #f))))
+        (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f))))
 
 (define (dummy-table-row result status link)
-  (define test (test-result-test result))
+  (define test (job-result-test result))
   (define repr (test-output-repr test))
+  (define preprocess
+    (if (eq? (job-result-status result) 'success)
+             (improve-result-preprocess (job-result-backend result))
+             (test-preprocess test)))
   (table-row (test-name test) (test-identifier test) status
              (resugar-program (test-pre test) repr)
-             (test-result-preprocess result)
-             (representation-name (test-output-repr test))
+             preprocess
+             (representation-name repr)
              (map (curry map representation-name) (test-conversions test))
              (test-vars test)
              (resugar-program (test-input test) repr) #f
              (resugar-program (test-spec test) repr)
              (and (test-output test) (resugar-program (test-output test) repr))
-             #f #f #f #f #f (test-result-time result) link '()))
+             #f #f #f #f #f (job-result-time result) link '()))
 
 (define (get-table-data result link)
-  (match-define (test-result test status time _ _ _ _ _ start target end) result)
+  (match-define (job-result test status time _ _ backend) result)
   (match status
     ['success
+     (match-define (improve-result _ _ start target end) backend)
      (define repr (test-output-repr test))
+    
+     ; starting expr analysis
+     (match-define (alt-analysis start-alt start-train-errs start-test-errs) start)
+     (define start-expr (alt-expr start-alt))
+     (define start-train-score (errors-score start-train-errs))
+     (define start-test-score (errors-score start-test-errs))
+     (define start-cost (expr-cost start-expr repr))
 
-     (define start-expr (alt-expr (alt-result-alt start)))
-     (define start-train-score (errors-score (alt-result-train-errors start)))
-     (define start-test-score (errors-score (alt-result-test-errors start)))
-     (define start-cost (expr-cost start-expr repr))  
-     (define target-score (and target (errors-score (alt-result-test-errors target))))
-
+     ; target analysis for comparison
+     (define target-score (and target (errors-score (alt-analysis-test-errors target))))
+     
+     ; analysis of output expressions
      (define-values (end-exprs end-train-scores end-test-scores end-costs)
        (for/lists (l1 l2 l3 l4) ([result end])
-         (match-define (alt-result alt train-errors test-errors) result)
+         (match-define (alt-analysis alt train-errors test-errors) result)
          (values (alt-expr alt)
-                 (errors-score train-errors) (errors-score test-errors)
+                 (errors-score train-errors)
+                 (errors-score test-errors)
                  (expr-cost (alt-expr alt) repr))))
- 
+
+     ; terribly formatted pareto-optimal frontier
      (define cost&accuracy
        (list (list start-cost start-test-score)
              (list (car end-costs) (car end-test-scores))
@@ -355,12 +361,13 @@
                   [result-est end-est-score] [result end-score]
                   [output (car end-exprs)] [cost-accuracy cost&accuracy])]
     ['failure
+     (define exn backend)
      (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
      (dummy-table-row result status link)]
     ['timeout
      (dummy-table-row result "timeout" link)]
     [_
-     (error 'get-table-data "unknown result type ~a" (test-result-status result))]))
+     (error 'get-table-data "unknown result type ~a"status)]))
 
 (define (unparse-result row)
   (define top

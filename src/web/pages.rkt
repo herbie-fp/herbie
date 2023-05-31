@@ -10,39 +10,41 @@
   (length (remove-duplicates (map (curryr list-ref idx) pts))))
 
 (define (all-pages result)
-  (define good? (eq? (test-result-status result) 'success))
+  (define good? (eq? (job-result-status result) 'success))
   (define default-pages '("graph.html" "timeline.html" "timeline.json"))
   (define success-pages '("interactive.js" "points.json"))
   (if good? (append default-pages success-pages) default-pages))
 
 (define ((page-error-handler result page) e)
-  (define test (test-result-test result))
+  (define test (job-result-test result))
   ((error-display-handler)
    (format "Error generating `~a` for \"~a\":\n~a\n" page (test-name test) (exn-message e))
    e))
 
 (define (make-page page out result profile?)
-  (define test (test-result-test result))
+  (define test (job-result-test result))
+  (define status (job-result-status result))
   (define ctx (test-context test))
   (match page
     ["graph.html"
-     (match (test-result-status result)
+     (match status
        ['success (make-graph result out (get-interactive-js result ctx) profile?)]
        ['timeout (make-graph result out (get-interactive-js result ctx) profile?)]
        ['failure (make-traceback result out profile?)]
-       [_ (error 'make-page "unknown result type ~a" (test-result-status result))])]
+       [_ (error 'make-page "unknown result type ~a" status)])]
     ["interactive.js"
      (make-interactive-js result out ctx)]
     ["timeline.html"
-     (make-timeline (test-name test) (test-result-timeline result) out)]
+     (make-timeline (test-name test) (job-result-timeline result) out)]
     ["timeline.json"
-     (write-json (test-result-timeline result) out)]
+     (write-json (job-result-timeline result) out)]
     ["points.json"
      (make-points-json result out ctx)]))
 
 (define (get-interactive-js result ctx)
-  (define start-expr (alt-expr (alt-result-alt (test-result-start result))))
-  (define end-expr (alt-expr (alt-result-alt (car (test-result-end result)))))
+  (match-define (job-result _ _ _ _ _ (improve-result _ _ start _ end)) result)
+  (define start-expr (alt-expr (alt-analysis-alt start)))
+  (define end-expr (alt-expr (alt-analysis-alt (car end))))
   (define start-fpcore (program->fpcore start-expr ctx))
   (define end-fpcore (program->fpcore end-expr ctx))
   (and (fpcore? start-fpcore) (fpcore? end-fpcore)
@@ -60,11 +62,11 @@
     (display js-text out)))
 
 (define (make-points-json result out repr)
-  (match-define (test-result test _ _ _ _ _ _ pctxs start target end) result)
+  (match-define (job-result test _ _ _ _ (improve-result _ pctxs start target end)) result)
   (define repr (test-output-repr test))
-  (define start-errors (alt-result-test-errors start))
-  (define target-errors (and target (alt-result-test-errors target)))
-  (define end-errors (map alt-result-test-errors end))
+  (define start-errors (alt-analysis-test-errors start))
+  (define target-errors (and target (alt-analysis-test-errors target)))
+  (define end-errors (map alt-analysis-test-errors end))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
 
   (define (ulps->bits-tenths x)
@@ -102,7 +104,7 @@
                 (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
           (list tick-str (real->ordinal val repr))))))
 
-  (define end-alt (alt-result-alt (car (test-result-end result))))
+  (define end-alt (alt-analysis-alt (car end)))
   (define splitpoints 
     (for/list ([var vars]) 
       (define split-var? (equal? var (regime-var end-alt)))

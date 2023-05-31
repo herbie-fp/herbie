@@ -56,22 +56,24 @@
    [_ #f]))
 
 (define (make-graph result out fpcore? profile?)
-  (match-define (test-result test _ time _ warnings _ preprocess pctxs start target end) result)
+  (match-define (job-result test _ time _ warnings backend) result)
   (define vars (test-vars test))
   (define repr (test-output-repr test))
   (define ctx (test-context test))
+  
+  (match-define (improve-result preprocess pctxs start target end) backend)
+
+  (match-define (alt-analysis start-alt _ start-error) start)
+  (define target-alt (and target (alt-analysis-alt target)))
+  (define target-error (and target (alt-analysis-test-errors target)))
+  (define-values (end-alts end-errors end-costs)
+    (for/lists (l1 l2 l3) ([analysis end])
+      (match-define (alt-analysis alt _ test-errs) analysis)
+      (values alt test-errs (expr-cost (alt-expr alt) repr))))
 
   (match-define (list train-pctx test-pctx) pctxs)
   (define-values (points _) (pcontext->lists train-pctx))
 
-  (define start-alt (alt-result-alt start))
-  (define start-error (alt-result-test-errors start))
-  (define target-alt (and target (alt-result-alt target)))
-  (define target-error (and target (alt-result-test-errors target)))
-  (define end-alts (map alt-result-alt end))
-  (define end-errors (map alt-result-test-errors end))
-  
-  (define costs (map (compose (curryr expr-cost repr) alt-expr) end-alts))
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
 
@@ -122,7 +124,7 @@
        ,(render-large "Time" (format-time time))
        ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
        ,(if (*pareto-mode*)
-            (render-large "Cost" `(kbd ,(format-cost (car costs) repr)))
+            (render-large "Cost" `(kbd ,(format-cost (car end-costs) repr)))
             ""))
 
       ,(render-warnings warnings)
@@ -165,7 +167,7 @@
               (h1 "Alternatives")
               ,@(for/list ([alt (cdr end-alts)]
                            [errs (cdr end-errors)]
-                           [cost (cdr costs)]
+                           [cost (cdr end-costs)]
                            [i (in-naturals 1)])
                 `(div ([class "entry"])
                   (table
