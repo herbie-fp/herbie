@@ -83,13 +83,6 @@
   (map first (run-egglog ctx pctx (simplify-input-exprs input) 0)))
 
 
-(define (stop-reason->string sr)
-  (match sr
-    ['saturated  "saturated"]
-    ['iter-limit "iter limit"]
-    ['node-limit "node limit"]
-    ['unsound    "unsound"]))
-
 (define (get-proof input start end)
   empty
   #;(run-simplify-input

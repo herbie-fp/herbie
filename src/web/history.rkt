@@ -69,9 +69,9 @@
 
   (define repr (context-repr ctx))
   (define err
-    (format-error (errors-score (errors (alt-program altn) pcontext ctx)) repr))
+    (format-accuracy (errors-score (errors (alt-program altn) pcontext ctx)) repr #:unit "%"))
   (define err2
-    (format "Internally ~a" (format-error (errors-score (errors (alt-program altn) pcontext2 ctx)) repr)))
+    (format "Internally ~a" (format-accuracy (errors-score (errors (alt-program altn) pcontext2 ctx)) repr)))
 
   (match altn
     [(alt prog 'start (list))
@@ -159,7 +159,7 @@
         (define step-prog (program->fpcore (list 'λ '() (resugar-program expr repr))))
         (define err
           (let ([prog (list 'λ (program-variables prog) expr)])
-            (format-error (errors-score (errors prog pcontext ctx)) repr )))
+            (format-accuracy (errors-score (errors prog pcontext ctx)) repr )))
         `(tr (th ,(if dir
                       (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
                             [tag (string-append (format " ↑ ~a" (first sound))
