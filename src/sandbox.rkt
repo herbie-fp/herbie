@@ -276,7 +276,7 @@
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)])))
       (print-warnings)
-      (if (test-result? out)
+      (if (test-success? out)
           (add-time out (- (current-inexact-milliseconds) start-time))
           out)))
   
