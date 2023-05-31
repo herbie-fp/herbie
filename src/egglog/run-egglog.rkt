@@ -19,7 +19,7 @@
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
 ;; Number of egraphs to run (independent samples)
-(define egg-num-egraphs 1)
+(define egg-num-egraphs 2)
 ;; local error threshold for search
 (define ERROR-THRESHOLD 0.0)
 
@@ -1811,13 +1811,9 @@
 					(econfig ctx pctx exprs
 						(egraph-data (make-hash)
 												 (make-hash))
-						(> i 0)
-						(if (> i 0)
-						    1
-								4)
-						(if (> i 0)
-						    0
-								num-variants)
+						#f
+						1
+						num-variants
 						(random-area ctx pctx)
 						))))))
 

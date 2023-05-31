@@ -18,9 +18,8 @@
              #:when (equal? swap* orig))
     swap))
 
-(define (connected-components expr)
+(define (connected-components expr ctx)
   (define vars (program-variables expr))
-  (define ctx (context vars (get-representation 'binary64) (map (λ (v) (get-representation 'binary64)) vars)))
   (define body (program-body expr))
 
   (define swaps (get-swaps ctx vars body))

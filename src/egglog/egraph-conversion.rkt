@@ -3,7 +3,7 @@
 (require "../syntax/syntax.rkt" "../syntax/types.rkt"
          "../programs.rkt" "../errors.rkt")
 (provide egg-expr->expr egg-exprs->exprs
-         expr->egg-expr expr->egglog egglog->expr (struct-out egraph-data))
+         expr->egglog egglog->expr (struct-out egraph-data))
 
 (struct egraph-data (egg->herbie-dict herbie->egg-dict) #:prefab)
 
@@ -136,16 +136,12 @@
     [else
      (error (format "Unrecognized egg expression ~a" parsed))]))
 
-;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
-(define (expr->egg-expr ctx expr egg-data)
-  (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
-  (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
-  (format "~s" (car (expr->egg-expr-helper ctx expr egg->herbie-dict herbie->egg-dict))))
-
 (define (expr->egglog ctx expr egg-data)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
-  (car (expr->egg-expr-helper ctx expr egg->herbie-dict herbie->egg-dict)))
+  (define res (car (expr->egg-expr-helper ctx expr egg->herbie-dict herbie->egg-dict)))
+  res
+  )
 
 ;; Needs the vartypes so we can look up var types
 (define (expr->egg-expr-helper ctx expr egg->herbie-dict herbie->egg-dict)
