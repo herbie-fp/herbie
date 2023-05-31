@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/runtime-path)
+(require racket/runtime-path math/base)
 (require "egraph-conversion.rkt" "../timeline.rkt"
 	    "../syntax/types.rkt" "../points.rkt" "../common.rkt")
 (require (for-syntax syntax/parse))
@@ -19,13 +19,15 @@
 (define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
 ;; Number of egraphs to run (independent samples)
-(define egg-num-egraphs 3)
+(define egg-num-egraphs 1)
 ;; local error threshold for search
 (define ERROR-THRESHOLD 0.0)
 
 
+;; var-intervals is a hash from variable names to
+;; an interval: (list start end)
 (struct econfig
-	(ctx pctx exprs egg-data local-error? num-sample num-variants))
+	(ctx pctx exprs egg-data local-error? num-sample num-variants var-intervals))
 
 (define (add-to-ruleset ruleset commands)
   	(for/list ([command commands])
@@ -1496,8 +1498,17 @@
 			))))
 
 
+(define (in-interval? point config)
+	(for/and ([var (context-vars (econfig-ctx config))]
+	          [num point])
+					 (define interval (hash-ref (econfig-var-intervals config) var))
+					 (and (<= (first interval) num)
+					      (<= num (second interval)))))
+
 (define (setup-ground-truth config)
-	(define points (for/list ([(point exact) (in-pcontext (econfig-pctx config))])
+	(define points
+		(for/list ([(point exact) (in-pcontext (econfig-pctx config))]
+							 #:when (in-interval? point config)) 
 		point))
 	(define shuffled (shuffle points))
 	(append
@@ -1511,7 +1522,7 @@
 						[num point])
 				`(set (ival ,(expr->egglog (econfig-ctx config) var (econfig-egg-data config))
 							,i)
-					(interval ,num ,num)))))))
+					(interval ,(egglog-float num) ,(egglog-float num))))))))
 
 
 (define run-ground-truth-compute
@@ -1526,7 +1537,11 @@
 								,(expr->egglog		
 										(econfig-ctx config) var (econfig-egg-data config))
 								-1)
-							(ival-Empty)))))
+							(interval
+								,(egglog-float
+									(first (hash-ref (econfig-var-intervals config) var)))
+							  ,(egglog-float
+									(second (hash-ref (econfig-var-intervals config) var))))))))
 
 (define (build-egglog config)
   (append
@@ -1739,6 +1754,37 @@
 		[`(mostaccurate ,args ...) #f]
 		[else #t]))
 
+(define (egglog-float num)
+	(define inexact (exact->inexact num))
+	(cond
+		[(equal? inexact +inf.0)
+			'inf]
+		[(equal? inexact -inf.0)
+			'-inf]
+		[else
+			inexact]))
+
+
+(define (random-area ctx pctx)
+	(define points
+		(for/list ([(point exact) (in-pcontext pctx)]) 
+		point))
+
+	(cond
+		[(empty? points)
+	    (make-hash
+				(for/list ([var (context-vars ctx)])
+					(cons var (list -inf.0 +inf.0))))]
+		[else
+			(define shuffled (shuffle points))
+			(define rand-point (first shuffled))
+			(define area-size 0.5)
+			(make-hash
+				(for/list ([var (context-vars ctx)]
+									[num rand-point])
+					(cons var (list (- num area-size) (+ num area-size)))))]))
+			
+
 (define (run-egglog ctx pctx exprs num-variants)
 	(define num-egraphs
 		(if (equal? num-variants 0)
@@ -1758,11 +1804,12 @@
 						(if (> i 0)
 						    0
 								num-variants)
+						(random-area ctx pctx)
 						))))))
 
 (define (run-egglog-random-point config)
 	(define-values (egglog-process egglog-output egglog-in err)
-	(subprocess #f #f (current-error-port) egglog-binary))
+	(subprocess #f #f #f egglog-binary))
 
 	(define egglog-program
     (apply ~s #:separator "\n"
@@ -1774,7 +1821,7 @@
 
 	(displayln egglog-program egglog-in)
 	(close-output-port egglog-in)
-	
+
 	(define all-variants
 		(for/list ([expr (econfig-exprs config)])
 				(read egglog-output)))
@@ -1792,11 +1839,17 @@
 
 	(close-input-port egglog-output)
 
+	;; todo how to read all the error with a timeout?
+	(define err-results (read-string 1000 err))
+	(close-input-port err)
+	(when (not (equal? err-results eof))
+		(error (format "Egglog error: ~a" err-results)))
+
 
 	(for ([result results])
 		(when (equal? result eof)
 			(displayln egglog-program)
-		   (error "Egglog failed to produce a result")))
+		  (error "Egglog failed to produce a result")))
 
 	
 	(define converted
