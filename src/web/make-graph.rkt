@@ -162,7 +162,7 @@
        (ol ([class "history"])
         ,@(render-history end-alt train-pctx test-pctx ctx)))
 
-      ,(if (not (null? (cdr end-alts)))
+      ,(if (> (length end-alts) 1)
            `(section ([id "alternatives"])
               (h1 "Alternatives")
               ,@(for/list ([alt (cdr end-alts)]
@@ -180,7 +180,7 @@
                     "\\]"))))
             "")
                                       
-      ,(if (not (null? (cdr end-alts)))
+      ,(if (> (length end-alts) 1)
           `(section ([id "cost-accuracy"])
             (h1 "Error")
             (div ([id "pareto-content"] [data-benchmark-name ,(~a (test-name test))])))

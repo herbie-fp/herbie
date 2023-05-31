@@ -13,7 +13,7 @@
   (define good? (eq? (job-result-status result) 'success))
   (define default-pages '("graph.html" "timeline.html" "timeline.json"))
   (define success-pages '("interactive.js" "points.json"))
-  (if good? (append default-pages success-pages) default-pages))
+  (append default-pages (if good? success-pages empty)))
 
 (define ((page-error-handler result page) e)
   (define test (job-result-test result))
@@ -29,7 +29,7 @@
     ["graph.html"
      (match status
        ['success (make-graph result out (get-interactive-js result ctx) profile?)]
-       ['timeout (make-graph result out (get-interactive-js result ctx) profile?)]
+       ['timeout (make-traceback result out profile?)]
        ['failure (make-traceback result out profile?)]
        [_ (error 'make-page "unknown result type ~a" status)])]
     ["interactive.js"
