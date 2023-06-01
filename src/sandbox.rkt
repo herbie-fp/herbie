@@ -254,7 +254,7 @@
 
   (define (compute-result test)
     (parameterize ([*timeline-disabled* timeline-disabled?]
-                   [*warnings-disabled* true])
+                   [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
       (define repr (test-output-repr test))
       (rollback-improve!)
@@ -264,7 +264,7 @@
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (define out
-        (with-handlers ([exn? (curry on-exception start-time)])
+        (with-handlers (#;[exn? (curry on-exception start-time)])
           (match command 
             ['alternatives (get-alternatives test pcontext seed)]
             ['evaluate (get-calculation test pcontext)]
