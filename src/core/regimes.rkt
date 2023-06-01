@@ -31,34 +31,35 @@
 
   ;; we want to try the one we picked last time
   ;; and then if there are others in the cerrs that are better, try it.
-  (define best 
+  (define init 
     (cond 
       [(= +inf.0 (list-ref cerrs cbest-index)) null]
       [else (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx)]))
-  (define best-err 
+  (define init-err 
     (cond 
-      [(null? best) +inf.0] 
-      [else (errors-score (option-errors best))]))
-  (define best-index cbest-index)
+      [(null? init) +inf.0] 
+      [else (errors-score (option-errors init))]))
+  (define init-index cbest-index)
 
   ;; invariant:
   ;; errs[i] is some best option on branch-expr[i] computed on more alts than we have right now.
   ;;
   ;; errs[i] will be +inf.0 if we recomputed the branch expressions for the current set of alts
   ;; and branch-expr[i] no longer exists.
-  (define errs (list-set cerrs best-index best-err))
-
-  ;; not sure how to change this into something more idiomatic without losing the optimizations
-  (for ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
+  (match-define-values (best best-err best-index errs) 
+      (for/fold ([best init] [best-err init-err] [best-index init-index] [errs (list-set cerrs init-index init-err)] 
+            #:result (values best best-err best-index errs)) 
+            ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
     ;; don't recompute if we know we've computed this branch-expr on more alts and it's still worse
-    (cond [(and (< berr best-err) (not (= i cbest-index)))
-      (define opt (option-on-expr alts err-lsts bexpr ctx))
-      (define err (errors-score (option-errors opt)))
-      (set! errs (list-set errs i err))
-      (cond [(< err best-err)
-              (set! best opt)
-              (set! best-err err)
-              (set! best-index i)])]))
+    (cond 
+      [(and (< berr best-err) (not (= i cbest-index)))
+        (define opt (option-on-expr alts err-lsts bexpr ctx))
+        (define err (errors-score (option-errors opt)))
+        (define new-errs (list-set errs i err))
+        (cond [(< err best-err)
+                (values opt err i new-errs)]
+              [else (values init init-err init-index new-errs)])]
+      [else (values init init-err init-index errs)])))
 
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
