@@ -92,8 +92,9 @@
   (define repr (test-output-repr test))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
-
-  (define fn (eval-progs-real (test-input test) (*context*)))
+  (define fn (eval-progs-real 
+              (list (test-input test)) 
+              (list (*context*))))
   (for/list ([pt pts])
     (list pt (apply fn pt))))
 
