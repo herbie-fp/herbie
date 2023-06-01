@@ -21,10 +21,10 @@
       (cond
        [profile?
         (call-with-output-file
-            (build-path rdir "profile.json") #:exists 'replace
-            (λ (pp) (get-test-result 'improve test #:seed seed #:profile pp)))]
+          (build-path rdir "profile.json") #:exists 'replace
+          (λ (pp) (run-herbie 'improve test #:seed seed #:profile? pp)))]
        [else
-        (get-test-result test 'improve #:seed seed #:profile #f)]))
+        (run-herbie test 'improve #:seed seed)]))
 
     (set-seed! seed)
     (define error? #f)
@@ -37,7 +37,7 @@
     (define out (get-table-data result dirname))
     (if error? (struct-copy table-row out [status "crash"]) out)]
    [else
-    (define result (get-test-result 'improve test #:seed seed))
+    (define result (run-herbie 'improve test #:seed seed))
     (get-table-data result "")]))
 
 (define-syntax (place/context* stx)
