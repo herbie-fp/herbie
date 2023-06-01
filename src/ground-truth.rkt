@@ -5,22 +5,6 @@
 
 (provide sample-points batch-prepare-points make-search-func eval-prog-real)
 
-(define (is-infinite-interval repr interval)
-  (define <-bf (representation-bf->repr repr))
-  (define ->bf (representation-repr->bf repr))
-  ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
-  ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
-  (define (positive-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
-  (define (negative-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
-  (define ival-positive-infinite (monotonic->ival positive-inf?))
-  (define ival-negative-infinite (comonotonic->ival negative-inf?))
-  (ival-or (ival-positive-infinite interval)
-           (ival-negative-infinite interval)))
-
 (define (is-samplable-interval repr interval)
   (define <-bf (representation-bf->repr repr))
   (define (close-enough? lo hi)
@@ -46,7 +30,7 @@
        (ival-assert (ival-not (ival-error? y)) 'invalid)
        (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
        (ival-assert ival-pre 'precondition)
-       (ival-assert (ival-not (is-infinite-interval repr y)) 'infinite)
+       ; 'infinte case handle in `ival-eval`
        (ival-assert
         (if (ground-truth-require-convergence)
             (is-samplable-interval repr y)
@@ -58,7 +42,7 @@
   (define repr (context-repr ctx))
   (define fn (make-search-func '(TRUE) (list prog) ctx))
   (define (f . pt)
-    (define-values (result prec exs) (ival-eval fn pt))
+    (define-values (result prec exs) (ival-eval repr fn pt))
     (match exs
       [(list (ival lo hi))
        ((representation-bf->repr repr) lo)]
