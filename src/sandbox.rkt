@@ -220,10 +220,9 @@
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (timeline-event! 'end)
       (print-warnings)
+      (define time (- (current-inexact-milliseconds) start-time))
       (match command 
-        ['improve
-         (define time (- (current-inexact-milliseconds) start-time))
-         (job-result test 'failure time (timeline-extract) (warning-log) e)]
+        ['improve (job-result test 'failure time (timeline-extract) (warning-log) e)]
         [_ (raise e)])))
 
   (define (on-timeout)
