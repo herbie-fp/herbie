@@ -35,15 +35,16 @@ const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', {
 
 assert.equal(mathjs, "sqrt(x + 1.0) - sqrt(x)")
 
-const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()).points
+const eval_sample = [[[1], -1.4142135623730951]]
+const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", sample: eval_sample})})).json()).points
 
-assert.deepEqual(exacts, [[[1, 1], -1.4142135623730951]])
+assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
 
-const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()).points
+const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", sample: eval_sample})})).json()).points
 
-assert.deepEqual(exacts, [[[1, 1], -1.4142135623730951]])
+assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
 
-const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json())
+const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", sample: eval_sample})})).json()).value
 
 const sample3 = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))', seed: 5 }) })).json())
 

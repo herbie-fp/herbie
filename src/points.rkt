@@ -2,8 +2,10 @@
 
 (require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext? split-pcontext join-pcontext
-         errors batch-errors errors-score)
+(provide *pcontext* in-pcontext mk-pcontext for/pcontext
+         pcontext? split-pcontext join-pcontext pcontext-length
+         errors batch-errors errors-score
+         json->pcontext pcontext->json)
 
 ;; pcontexts are Herbie's standard data structure for storing
 ;; ground-truth information. They contain 1) a set of sampled input
@@ -14,6 +16,9 @@
 
 (define (in-pcontext context)
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
+
+(define (pcontext-length context)
+  (vector-length (pcontext-points context)))
 
 (define/contract (mk-pcontext points exacts)
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
@@ -71,3 +76,20 @@
     (with-handlers ([exn:fail? (batch-errors-handler exprs point)])
       (for/list ([out (in-list (apply fn point))])
         (point-error out exact (context-repr ctx))))))
+
+;; Herbie <=> JSON conversion for pcontext
+;; A JSON pcontext is just a list of lists
+;; ((pt1 ex1) (pt2 ex2) ...)
+
+(define (json->pcontext json ctx)
+  (define output-repr (context-repr ctx))
+  (define var-reprs (context-var-reprs ctx))
+  (define-values (pts exs)
+    (for/lists (pts exs) ([entry (in-list json)])
+      (match-define (list pt ex) entry)
+      (values (map real->repr pt var-reprs) (real->repr ex output-repr))))
+  (mk-pcontext pts exs))
+
+(define (pcontext->json pcontext)
+  (for/list ([(pt ex) (in-pcontext pcontext)])
+    (list pt ex)))

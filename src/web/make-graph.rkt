@@ -65,6 +65,7 @@
   (define vars (test-vars test))
   (define ctx (test-context test))
   (define repr (test-output-repr test))
+  (define repr-bits (representation-total-bits repr))
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
   (define other-alts (cdr end-alts))
@@ -107,13 +108,13 @@
           ;[style "rotate: 270deg"]
           ) "?"))
        ,(render-large "Average Accuracy"
-                      (format-accuracy (errors-score start-error) repr #:unit "%")
+                      (format-accuracy (errors-score start-error) repr-bits #:unit "%")
                       " → "
-                      (format-accuracy (errors-score end-error) repr #:unit "%")
+                      (format-accuracy (errors-score end-error) repr-bits #:unit "%")
                       #:title
                       (format "Minimum Accuracy: ~a → ~a"
-                              (format-accuracy (apply max (map ulps->bits start-error)) repr #:unit "%")
-                              (format-accuracy (apply max (map ulps->bits end-error)) repr #:unit "%")))
+                              (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
+                              (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
        ,(render-large "Time" (format-time time))
        ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
        ,(if (*pareto-mode*)
@@ -139,9 +140,9 @@
            `(section ([id "comparison"])
              (h1 "Target")
              (table
-              (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr #:unit "%")))
-              (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr #:unit "%")))
-              (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr #:unit "%"))))
+              (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr-bits #:unit "%")))
+              (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")))
+              (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr-bits #:unit "%"))))
              (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
            "")
 
@@ -163,7 +164,7 @@
                 `(div ([class "entry"])
                   (table
                     (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" idx)))
-                    (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr #:unit "%")))
+                    (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr-bits #:unit "%")))
                     (tr (th "Cost") (td ,(format-cost cost repr))))
                   (div ([class "math"])
                     "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
