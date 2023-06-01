@@ -109,4 +109,4 @@ Herbie on basic but representative examples with:
 This takes approximately 10 minutes.
 
 Historic and nightly test results are collected on
-[uwplse.org](https://herbie.uwplse.org/reports/).
+[nightly](http://nightly.cs.washington.edu/reports/herbie/).
