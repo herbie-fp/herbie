@@ -156,12 +156,42 @@
 
 ;; String formatting operations
 
-(define (format-time ms #:min [min-unit 0])
+(define (format-time ms #:min [min-unit 'millisecond] #:max [max-unit 'hour])
+  (define min-unit*
+    (match min-unit
+      ['millisecond 0]
+      ['second 1000]
+      ['minute 60000]
+      ['hour 3600000]))
   (cond
-   [(< (max ms min-unit) 1000) (format "~ams" (round ms))]
-   [(< (max ms min-unit) 60000) (format "~as" (/ (round (/ ms 100.0)) 10))]
-   [(< (max ms min-unit) 3600000) (format "~amin" (/ (round (/ ms 6000.0)) 10))]
-   [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
+    [(or
+      (eq? max-unit 'millisecond)
+      (< (max ms min-unit*) 1000))
+     (format "~ams" (round ms))]
+    [(or
+      (eq? max-unit 'second)
+      (< (max ms min-unit*) 60000))
+     (format "~as" (/ (round (/ ms 100.0)) 10))]
+    [(or
+      (eq? max-unit 'minute)
+      (< (max ms min-unit*) 3600000))
+     (format "~amin" (/ (round (/ ms 6000.0)) 10))]
+    [else
+     (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
+
+(module+ test
+  (check-equal? (format-time 60000) "1.0min")
+  (check-equal? (format-time 3600000) "1.0hr")
+  (check-equal? (format-time 60000 #:min 'second) "1.0min")
+  (check-equal? (format-time 60000 #:max 'millisecond) "60000ms")
+  (check-equal? (format-time 500 #:min 'second #:max 'minute) "0.5s")
+  (check-equal? (format-time 2000 #:min 'second #:max 'minute) "2.0s")
+  (check-equal? (format-time 60000 #:min 'second #:max 'minute) "1.0min")
+  (check-equal? (format-time 3600000 #:min 'second #:max 'minute) "60.0min")
+  (check-equal? (format-time 7200000 #:min 'second #:max 'minute) "120.0min")
+  (check-equal? (format-time 0 #:min 'hour) "0hr")
+  (check-equal? (format-time 1800000 #:min 'hour) "0.5hr")
+  (check-equal? (format-time 7200000 #:max 'millisecond) "7200000ms"))
 
 (define (format-bits r #:sign [sign #f] #:unit [unit? #f])
   (define unit (if unit? "b" ""))
@@ -170,16 +200,13 @@
    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
    [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
-(define (format-accuracy r repr #:sign [sign #f] #:unit [unit #f])
-  (cond 
-    [(not r) ""]
-    [else
-      (define unit- (if unit unit ""))
-      (define percent (~r (- 100 (* (/ r (representation-total-bits repr)) 100)) #:precision '(= 1)))
-
-      (cond
-      [(and (> r 0) sign) (format "+~a~a" percent unit-)]
-      [else (format "~a~a" percent unit-)])]))
+(define (format-accuracy numerator denominator #:sign [sign #f] #:unit [unit ""])
+  (if (and numerator (positive? denominator))
+      (let ([percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1))])
+        (if (and (> numerator 0) sign)
+            (format "+~a~a" percent unit)
+            (format "~a~a" percent unit)))
+      ""))
 
 (define (format-cost r repr #:sign [sign #f])  
   (cond 
