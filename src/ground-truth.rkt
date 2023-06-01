@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
+(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt")
 
 (provide cheacked-points batch-prepare-points make-search-func eval-prog-real)
 
@@ -53,9 +53,10 @@
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
   (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
-  (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-base))))
+  ; (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-base))))
   (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)])
       ([(k v) (in-hash t2)])
+      (eprintf "HERE\n")
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
 (define (cheacked-points pre exprs ctx)
@@ -71,6 +72,14 @@
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points fn ctx sampler))
   (define new-table (combine-tables table table2))
-  (eprintf "Table: ~a\n" (list? new-table))
-  (eprintf "Results: ~a\n" (list? results))
+  ; (eprintf "HERE\n")
+  (define ->bf (representation-repr->bf (context-repr ctx)))
+  (define total-pts (length new-table))
+  (for* ([ex results])
+    (define inf-pts (count (compose (disjoin boolean? bfrational?) ->bf) ex))
+    (timeline-push! 'infinite inf-pts total-pts)
+    ; Warn on > 20% infinite points
+    (when (> inf-pts (* total-pts 0.20)) 
+      (warn 'inf-points #:url "faq.html#inf-points"
+            "Infinite outputs for ~a% of points. You may want to add a precondition.")))
   (cons new-table results))
