@@ -3,9 +3,9 @@
 (require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext for/pcontext
-         pcontext? split-pcontext join-pcontext pcontext-length
-         errors batch-errors errors-score
-         json->pcontext pcontext->json)
+         pcontext? pcontext->lists json->pcontext pcontext->json
+         split-pcontext join-pcontext pcontext-length
+         errors batch-errors errors-score)
 
 ;; pcontexts are Herbie's standard data structure for storing
 ;; ground-truth information. They contain 1) a set of sampled input
@@ -29,6 +29,10 @@
                 (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...)
                   body ...)])
     (mk-pcontext pts* exs*)))
+
+(define (pcontext->lists context)
+  (for/lists (pts exs) ([(pt ex) (in-pcontext context)])
+    (values pt ex)))
 
 (define (split-pcontext context num-a num-b)
   (define num-total (vector-length (pcontext-points context)))

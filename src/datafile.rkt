@@ -12,7 +12,7 @@
 (struct table-row
   (name identifier status pre preprocess precision conversions vars
         input output spec target-prog start result target
-        start-est result-est time bits link cost-accuracy) #:prefab)
+        start-est result-est time link cost-accuracy) #:prefab)
 
 (struct report-info
   (date commit branch hostname seed flags points iterations note tests) #:prefab #:mutable)
@@ -35,7 +35,8 @@
       [(table-row name identifier status pre preprocess prec conversions vars
                   input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
-                  time bits link cost-accuracy)
+                  time link cost-accuracy)
+       (define bits 128)  ; Deprecated JSON field
        (define cost-accuracy*
         (match cost-accuracy
           [(list) (list)]
@@ -190,7 +191,7 @@
                                 (parse-string (hash-ref test 'target-prog "#f"))
                                 (get 'start) (get 'end) (get 'target)
                                 (hash-ref test 'start-est 0) (hash-ref test 'end-est 0)
-                                (get 'time) (get 'bits) (get 'link)
+                                (get 'time) (get 'link)
                                 cost-accuracy))))))
 
 (define (unique? a)
