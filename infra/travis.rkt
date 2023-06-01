@@ -39,17 +39,15 @@
       (if (*precision*)
           (override-test-precision the-test (*precision*))
           the-test))
-    (define result (run-herbie 'improve the-test* #:seed seed)
-    (match-define (test-result test status time _ _ exn _ _ start target end) result)
+    (define result (run-herbie 'improve the-test* #:seed seed))
+    (match-define (job-result test status time timeline warnings backend) result)
     (match status
       ['success
-       (define start-alt (alt-result-alt start))
-       (define end-alts (map alt-result-alt end))
-       (define start-error (alt-result-test-errors start))
-       (define target-error (and target (alt-result-test-errors target)))
-       (define end-errors (map alt-result-test-errors end))
+       (match-define (improve-result preprocess pctxs start target end) backend)
+       (match-define (alt-analysis start-alt _ start-error) start)
+       (match-define (alt-analysis end-alt _ end-error) (first end))
+       (define target-error (and target (alt-analysis-test-errors target)))
 
-       (define end-error (car end-errors))
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
                (~r (errors-score start-error) #:min-width 2 #:precision 0)
@@ -66,13 +64,14 @@
          (printf "\nInput (~a bits):\n" (errors-score start-error))
          (pretty-print (alt-expr start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))
-         (pretty-print (alt-expr (car end-alts)) (current-output-port) 1)
+         (pretty-print (alt-expr end-alt) (current-output-port) 1)
          (when (test-output test)
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
            (pretty-print (test-output test) (current-output-port) 1)))
 
        success?]
       ['failure
+       (define exn backend)
        (printf "[  CRASH  ]\t\t~a\n" (test-name test))
        ((error-display-handler) (exn-message exn) exn)]
       ['timeout

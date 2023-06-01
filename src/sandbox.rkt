@@ -28,10 +28,6 @@
         (and (= major 8) (< minor 2))
         (and (= major 8) (= minor 2) (zero? (string-length rest))))))
 
-(define (pcontext->lists context)
-  (for/lists (pts exs) ([(pt ex) (in-pcontext context)])
-    (values pt ex)))
-
 ;; Partitions a joint pcontext into a training and testing set
 (define (partition-pcontext joint-pcontext ctx)
   (define num-points (pcontext-length joint-pcontext))
@@ -264,7 +260,7 @@
             [_ (error 'compute-result "unknown command ~a" command)]))
         (print-warnings)
         (define time (- (current-inexact-milliseconds) start-time))
-        (struct-copy job-result result [time time]))))
+        (job-result test 'success time (timeline-extract) (warning-log) result))))
   
   (define (in-engine _)
     (if profile?
