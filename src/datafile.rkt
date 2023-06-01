@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/date json)
+(require json racket/date)
 (require "common.rkt" "./syntax/types.rkt" "pareto.rkt")
 
 (provide
@@ -28,28 +28,6 @@
                (*num-iterations*)
                note
                tests))
-
-(define (try-list-accessor acc fail)
-  (λ (l) (if (null? l) fail (acc l))))
-
-(define (trs->pareto trs)
-  (define cas (map table-row-cost-accuracy trs))
-  (define starts (map (try-list-accessor first (list 0 0)) cas))
-  (define ptss (map (try-list-accessor (λ (ca) (cons (second ca) (third ca)))
-                                       (list (list 0 0)))
-                    cas))
-  (define reprs (map (compose get-representation table-row-precision) trs))
-
-  (define start
-    (for/fold ([x 0] [y 0] #:result (cons x y)) ([s starts])
-      (values (+ x (first s)) (+ y (second s)))))
-  (define ptss*
-    (for/list ([pts ptss])
-      (for/list ([pt pts])
-        (cons (first pt) (second pt)))))
-  (define ymax (apply + (map representation-total-bits reprs)))
-  (define frontier (map (λ (pt) (cons (first pt) (second pt))) (pareto-combine ptss #:convex? #t)))
-  (values start frontier ymax))
 
 (define (write-datafile file info)
   (define (simplify-test test)
@@ -90,14 +68,58 @@
           (link . ,(~a link))
           (cost-accuracy . ,cost-accuracy*)))]))
 
+  ;; Calculate the maximum cost and accuracy, the initial cost and accuracy, and
+  ;; the combined and rescaled Pareto frontier and return these as a list.
+  ;;
+  ;; Each test's Pareto curve is rescaled to be relative to it's initial cost,
+  ;; then they are combined with `pareto-combine`, and then each Pareto efficient
+  ;; point's cost is divided by the number of tests so that the frontier's cost
+  ;; is relative to the combination of the initial costs.
   (define (merged-cost-accuracy tests)
-      (define-values (pareto-start pareto-points pareto-max) (trs->pareto tests))
-      (match-define (list (cons costs scores) ...) pareto-points)
-      (define x-max (argmax identity (cons (car pareto-start) costs)))
-      (list 
-          (list x-max pareto-max)
-          (list (car pareto-start) (cdr pareto-start))
-          (for/list ([acost costs] [aerr scores]) (list acost aerr))))
+    (define cost-accuracies (map table-row-cost-accuracy tests))
+    (define rescaled
+      (for/list ([cost-accuracy (in-list cost-accuracies)]
+                 #:unless (null? cost-accuracy))
+        (match-define
+          (list
+           (and initial-point (list initial-cost _))
+           best-point
+           other-points)
+          cost-accuracy)
+        ;; Has to be floating point so serializing to JSON doesn't complain
+        ;; about rational numbers later
+        (define initial-cost* (exact->inexact initial-cost))
+        (for/list ([point
+                    (in-list (list* initial-point best-point other-points))])
+          (match-define (list cost accuracy _ ...) point)
+          (list (/ cost initial-cost*) accuracy))))
+    (define tests-length (length tests))
+    (define frontier
+      (map
+       (match-lambda [(list cost accuracy)
+                      (list (/ cost tests-length) accuracy)])
+       (pareto-combine rescaled #:convex? #t)))
+    (define maximum-cost
+      (argmax
+       identity
+       (cons
+        0.0 ;; To prevent `argmax` from signaling an error in case `tests` is empty
+        (map (match-lambda [(list cost _) cost]) frontier))))
+    (define maximum-accuracy
+      (for/sum ([test (in-list tests)])
+        (representation-total-bits (get-representation (table-row-precision test)))))
+    (define initial-accuracy
+      (for/sum ([cost-accuracy (in-list cost-accuracies)]
+                #:unless (null? cost-accuracy))
+        (match cost-accuracy
+          [(list (list _ initial-accuracy) _ _) initial-accuracy])))
+    (list
+     (list maximum-cost maximum-accuracy)
+     (list
+      ;; All costs relative to this, would be `initial-cost`
+      (if (zero? tests-length) 0.0 1.0)
+      initial-accuracy)
+     frontier))
 
   (define data
     (match info

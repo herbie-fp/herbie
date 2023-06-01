@@ -39,7 +39,7 @@
       (if (*precision*)
           (override-test-precision the-test (*precision*))
           the-test))
-    (define result (get-test-result 'improve the-test* #:seed seed))
+    (define result (run-herbie 'improve the-test* #:seed seed)
     (match-define (test-result test status time _ _ exn _ _ start target end) result)
     (match status
       ['success
