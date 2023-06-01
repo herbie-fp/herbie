@@ -79,11 +79,8 @@ for more.
 
 ## Helping Out
 
-Herbie development is organized on our
-[mailing list](https://mailman.cs.washington.edu/mailman/listinfo/herbie),
-where we discuss work in progress and announce major improvements.
-[Email us](mailto:herbie@cs.washington.edu) to get involved!
-
+Herbie is developed as a joint project of the Universities of
+[Washington](https://uwplse.org) and [Utah](https://cpu.cs.utah.edu).
 We use [Github](https://github.com/herbie-fp/herbie) and
 [Trello](https://trello.com/b/lh7b33Dr/herbie) to organize development
 goals.
