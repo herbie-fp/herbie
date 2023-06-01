@@ -263,12 +263,12 @@
 
   (define (compute-result test)
     (parameterize ([*timeline-disabled* false]
-                   [*warnings-disabled* true])
+                   [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
-      (with-handlers ([exn? (curry on-exception start-time)])
+      (with-handlers (#;[exn? (curry on-exception start-time)])
         (define out
           (match command
             ['improve (run-herbie test)]
