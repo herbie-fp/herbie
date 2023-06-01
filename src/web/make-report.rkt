@@ -126,7 +126,7 @@
             (svg)
             (figcaption "A joint cost-accuracy pareto curve for the "
                         "Herbie runs below. Accuracy is on the vertical "
-                        "axis, and cost is on the vertical axis. Down "
+                        "axis, and cost is on the horizontal axis. Down "
                         "and to the left is better. The initial programs "
                         "are shown by the red square.")
             ))
