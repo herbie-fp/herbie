@@ -38,24 +38,6 @@
   (for/lists (pts exs) ([(pt ex) (in-pcontext context)])
     (values pt ex)))
 
-
-(define (get-exacts test pts)
-  (define repr (test-output-repr test))
-  (define starting-precision (*starting-prec*))
-  (define <-bf (representation-bf->repr repr))
-  (define fn (make-search-func (test-pre test) (list (test-input test)) (test-context test)))
-  (for/list ([pt pts])
-    (define-values (status precision out)
-        (ival-eval repr fn pt #:precision starting-precision))
-    (define exs (map (compose <-bf ival-lo) out))
-    (cons pt exs)))
-
-(define (get-calculation test pts)
-  (define fn (eval-prog (test-input test) 'fl (test-context test)))
-  (for/list ([pt pts])
-    (define val (apply fn pt))
-    (cons pt (list val))))
-
 ;; Partitions a joint pcontext into a training and testing set
 (define (partition-pcontext joint-pcontext ctx)
   (define num-points (pcontext-length joint-pcontext))

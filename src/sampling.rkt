@@ -130,13 +130,12 @@
     (define precision* (exact-floor (* precision 2)))
     (cond
       [err
-       (values (or err 'bad) precision +nan.0)]
+       (values err precision +nan.0)]
       [(not err?)
-       (define result (is-infinite-interval repr (apply ival-or exs)))
-       (if (ival-lo result) ; #f #t and #t #f impossible states
-           (values 'infinite precision exs)
-           (values 'valid precision exs))
-       ]
+       (define infinite? 
+        (ival-lo (is-infinite-interval repr (apply ival-or exs))))
+       (values (if infinite? 'infinite 'valid) precision exs) 
+      ]
       [(> precision* (*max-mpfr-prec*))
        (values 'exit precision +nan.0)]
       [else

@@ -3,7 +3,7 @@
 (require math/bigfloat rival)
 (require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide cheacked-points batch-prepare-points make-search-func eval-prog-real)
+(provide sample-points batch-prepare-points make-search-func eval-prog-real)
 
 (define (is-samplable-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -57,14 +57,6 @@
   (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)])
       ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
-
-(define (cheacked-points pre exprs ctx)
-  (define points (sample-points pre exprs ctx))
-  (for ([p points])
-      (eprintf "idk ~a\n" p)
-  )
-  points
-)
 
 (define (sample-points pre exprs ctx)
   (timeline-event! 'analyze)
