@@ -68,13 +68,13 @@
           (link . ,(~a link))
           (cost-accuracy . ,cost-accuracy*)))]))
 
-  ;; Calculate the maximum cost and accuracy, the initial cost and accuracy, and
-  ;; the combined and rescaled Pareto frontier and return these as a list.
+  ;; Calculate the maximum cost and accuracy, initial cost and accuracy, and
+  ;; the rescaled and combined Pareto frontier for the given `tests` and return
+  ;; these as a list.
   ;;
-  ;; Each test's Pareto curve is rescaled to be relative to it's initial cost,
-  ;; then they are combined with `pareto-combine`, and then each Pareto efficient
-  ;; point's cost is divided by the number of tests so that the frontier's cost
-  ;; is relative to the combination of the initial costs.
+  ;; Each test's Pareto curve is rescaled so cost is relative to the initial input. They are combined with `pareto-combine`, and then each point's x-value in the combined curve is divided by the number of tests so that the overall cost is relative to the combination of the initial programs.
+  ;;
+  ;; TODO: speedup at initial accuracy
   (define (merged-cost-accuracy tests)
     (define cost-accuracies (map table-row-cost-accuracy tests))
     (define rescaled
@@ -108,6 +108,7 @@
     (define maximum-accuracy
       (for/sum ([test (in-list tests)])
         (representation-total-bits (get-representation (table-row-precision test)))))
+    (define initial-cost (if (zero? tests-length) 0.0 1.0))
     (define initial-accuracy
       (for/sum ([cost-accuracy (in-list cost-accuracies)]
                 #:unless (null? cost-accuracy))
@@ -115,10 +116,7 @@
           [(list (list _ initial-accuracy) _ _) initial-accuracy])))
     (list
      (list maximum-cost maximum-accuracy)
-     (list
-      ;; All costs relative to this, would be `initial-cost`
-      (if (zero? tests-length) 0.0 1.0)
-      initial-accuracy)
+     (list initial-cost initial-accuracy)
      frontier))
 
   (define data

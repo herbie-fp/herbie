@@ -337,23 +337,32 @@ const MergedCostAccuracy = new Component('#pareto', {
         this.elt.replaceChild(this.plot(json["cost-accuracy"], json.tests.length), stub)
     },
 
-    plot: function(json, n) {
-        const sortLine = [...json[2]];
-        sortLine.sort((a, b) => {return a[0]-b[0]});
-        const ymax = 64 * n;
+    plot: function(speedAccuracy, testsLength) {
+	const accuracyMax = speedAccuracy[0][1];
+	const initial = speedAccuracy[1];
+	const frontier = speedAccuracy[2];
         const out = Plot.plot({
             marks: [
-                Plot.line(sortLine, {x: d => d[0], y: d => 1 - d[1] / ymax,
-                                     stroke: "#00a", strokeWidth: 2}),
-                Plot.dot(json[1], {x: json[1][0], y: 1 - json[1][1] / ymax,
-                                   stroke: "#d00", symbol: "square", strokeWidth: 2})
+		Plot.line(frontier, {
+		    x: p => 1 / p[0],
+		    y: p => 1 - (p[1] / accuracyMax),
+                    stroke: "#00a",
+		    strokeWidth: 2,
+		}),
+		Plot.dot([initial], {
+		    x: p => 1 / p[0],
+		    y: p => 1 - (p[1] / accuracyMax),
+                    stroke: "#d00",
+		    symbol: "square",
+		    strokeWidth: 2
+		})
             ],
             width: '400',
             height: '400',                
-            x: { line: true, },
+            x: { line: true, nice: true, tickFormat: x => `${x}x` },
             y: { line: true, nice: true, domain: [0, 1], tickFormat: "%", },
-            marginBottom: 0,
-            marginRight: 0,
+	    marginBottom: 0,
+	    marginRight: 0
         })
         out.setAttribute('viewBox', '0 0 420 420')
         return out;
