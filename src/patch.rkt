@@ -134,11 +134,7 @@
   (values reprchange expansive* normal))
 
 (define (merge-changelists . lsts)
-  (unless (apply = (map length lsts))
-    (error 'merge-changelists "lists are not the same size ~a" (map length lsts)))
-  (define len (length (first lsts)))
-  (for/list ([i (in-range len)])
-    (apply append (for/list ([lst lsts]) (list-ref lst i)))))
+  (map (curry apply append) (flip-lists lsts)))
 
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
