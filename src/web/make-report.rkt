@@ -61,9 +61,12 @@
     (for/sum ([t tests]) (or (table-row-start t) 0)))
   (define total-result
     (for/sum ([t tests]) (or (table-row-result t) 0)))
-  (define total-bits
-    (for/sum ([t tests])
-      (representation-total-bits (get-representation (table-row-precision t)))))
+  (match-define
+    (list
+     (list _ maximum-accuracy)
+     (list _ initial-accuracy)
+     frontier)
+    (merged-cost-accuracy tests))
 
   (define (round* x)
     (inexact->exact (round x)))
@@ -100,11 +103,20 @@
 
       (div ((id "large"))
        ,(render-large "Average Accuracy"
-                      (format-accuracy total-start total-bits #:unit "%")
+                      (format-accuracy total-start maximum-accuracy #:unit "%")
                       " → "
-                      (format-accuracy total-result total-bits #:unit "%"))
+                      (format-accuracy total-result maximum-accuracy #:unit "%"))
        ,(render-large "Time" (format-time total-time #:max 'minute))
-       ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests)))
+       ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests))
+       ,(render-large "Speedup at Initial Accuracy"
+                      (match-let ([(list cost _)
+                                   (argmin
+                                    (match-lambda [(list _ accuracy)
+                                                   (-
+                                                    (- 1 (/ accuracy maximum-accuracy))
+                                                    (- 1 (/ initial-accuracy maximum-accuracy)))])
+                                    frontier)])
+                        (format "~ax" (~r (/ 1 cost) #:precision 1)))))
 
       (figure
        (div ([id "xy"])
