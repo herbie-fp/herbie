@@ -167,11 +167,11 @@
       (if one-real-repr?
           (merge-changelists
             (rewrite-expressions real-exprs (*context*) #:rules (append expansive-rules normal-rules))
-            (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
+            (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t))
           (merge-changelists
             (rewrite-expressions real-exprs (*context*) #:rules normal-rules)
-            (rewrite-expressions exprs (*context*) #:rules expansive-rules #:once? #t)
-            (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))))
+            (rewrite-expressions real-exprs (*context*) #:rules expansive-rules #:once? #t)
+            (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t))))
 
     ;; rewrite low-error locations (only precision changes allowed)
     (define changelists-low-locs
