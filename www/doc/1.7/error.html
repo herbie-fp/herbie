@@ -23,6 +23,19 @@
   error, how does Herbie measure it, and how does it address it?
 </p>
 
+<h2>The summary</h2>
+
+When Herbie reports a "percentage accuracy" number like 92.3%, it's
+usually best to think of that as the percentage of floating-point
+inputs where the expression is reasonably accurate.
+
+What exactly that means can vary: the impact of this error on your
+application will depend a lot on <em>which</em> 7.7% of points have
+error, and what kind of error that is. If you have more information
+about which types of points are important, the best way to communicate
+that to Herbie is by using ranges or preconditions to restrict the
+inputs Herbie is considering.
+
 <h2>Why rounding matters</h2>
 
 <p>In mathematics, we work with real numbers, but on a computer, we
@@ -84,21 +97,25 @@ something like 58 or 60 bits of error, in which case even the sign and
 exponent bits (which in double-precision floating-point occupy the top
 12 bits of the number) are incorrect.</p>
 
-<h2>Average error</h2>
+<h2>Percentage accuracy</h2>
+
+<p>Because different number representations have different numbers of
+bits, Herbie shows the percentage of bits that are accurate instead of
+the bits of error. With double-precision floats, for example, 75%
+accurate means 16 bits of error.</p>
 
 <p>Bits of error measures the error of a computation for some specific
 input. But usually you're interested in the error of a computation
-across many possible inputs. Herbie measures this error by taking the
-average error across many randomly-sampled valid inputs.</p>
+across many possible inputs. Herbie therefore averages the accuracy
+percentage across many randomly-sampled valid inputs.</p>
 
-<p>Typically, most inputs points either have very little error, or a
-whole lot. So when computing average error, Herbie's averaging a lot
-of points with zero or one bits of error, with a lot of points with 40
-or 50 or 60 bits of error. In that sense, you can think of average
-error as measuring mostly what <em>fraction</em> of inputs points are
-accurate. If Herbie says your computation averages 16 bits of error,
-out of a possible 64, what it's really saying is that about a quarter
-of inputs produce usable outputs.</p>
+<p>Typically, inputs points are either very accurate or not accurate
+at all. So when computing average error, Herbie's averaging a lot of
+points with near-100% accuracy and a lot of points with near-0%
+accuracy. In that sense, you can think of average error as measuring
+mostly what percentage <em>of inputs</em> are accurate. If Herbie says
+your computation is 75% accurate what it's really saying is that about
+a quarter of inputs produce usable outputs.</p>
 
 <p>Interpreting average error also requires understanding which inputs
 are valid and how they are sampled.</p>
@@ -114,32 +131,25 @@ requirement.</p>
   <li>An output can fail to exist for an input if that input does
     something like divide by zero or take the square root of a
     negative number. Then that input is invalid.</li>
-  <li>An output can fail to round to a finite number if it is very
-    big. For example, the computation <code>(pow 2 1e6)</code>
-    computes two to the power of one million, and the output is too
-    big to be represented by any finite floating-point number. Then
-    this input is invalid.</li>
-  <li>An output can fail to be computed in some rare situations. For
-    example, the computation <code>(/ (exp 1e9) (exp 1e9))</code>,
-    which divides two identical but gargantuan numbers, does have an
-    exact real-number answer (one) but causes errors within Herbie
-    because the intermediate steps are too large. Then this input is
-    invalid.</li>
-  <li>Finally, an output can fail to satisfy the user's precondition.
+  <li>An output can fail to satisfy the user's precondition.
     Preconditions can be basically anything, but most often they
     specify a range of inputs. For example, if the precondition
     is <code>(&lt; 1 x 2)</code>, then the input <code>x = 3</code> is
     invalid.</li>
+  <li>Finally, and most rarely, an output can fail to be computed in
+    some rare situations. For example, the computation <code>(/ (exp
+    1e9) (exp 1e9))</code>, which divides two identical but gargantuan
+    numbers, does have an exact real-number answer (one) but that
+    exact answer can't be computed by Herbie because the intermediate
+    steps are too large. This input is also invalid.</li>
 </ol>
 
-<p>Herbie's average error metric only averages over valid points. This
-means that by changing your precondition, you can change the average
-error measured by Herbie, because changing the precondition changes
-which points are valid. This is useful if you know there's a rare
-error that but Herbie thinks error is low: you can change your
-precondition to focus on the points with error. By invalidating some
-of the low-error points, you increase Herbie's estimate of average
-error and let it focus on addressing the problem.</p>
+<p>Herbie's percentage accuracy metric only averages over valid
+points. This means that when you change your precondition, you change
+which points are valid, and that can change the percentage accuracy
+reported by Herbie. This is useful: if you know there's a rare error,
+but Herbie thinks error is low, you can change your precondition to
+focus on the points of interest.</p>
 
 <h2>Sampling inputs</h2>
 
@@ -149,8 +159,8 @@ distribution, because floating-point values themselves are not
 uniformly distributed.</p>
 
 <p>For example, there are as many floating-point values between 1 and
-2 as there are between one and one half, because floating-point value
-uses an exponential encoding. But that means that if you're looking at
+2 as there are between one and one half, because floating-point values
+use an exponential encoding. But that means that if you're looking at
 a computation where the input comes from the interval <kbd>[0.5,
 2]</kbd>, Herbie will weight the first third of that range twice as
 high as the other two thirds.</p>
