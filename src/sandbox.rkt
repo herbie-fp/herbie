@@ -96,7 +96,7 @@
               (list (test-input test)) 
               (list (*context*))))
   (for/list ([pt pts])
-    (list pt (apply fn pt))))
+    (list pt (car (apply fn pt)))))
 
 ;; Given a test and a sample of points,
 ;; the floating-point result at each point
