@@ -6,7 +6,7 @@
          "../programs.rkt" "../points.rkt" "regimes.rkt" "../float.rkt"
          "../pretty-print.rkt" "../ground-truth.rkt")
 
-(provide combine-alts (struct-out sp) splitpoints->point-preds provide )
+(provide combine-alts (struct-out sp) splitpoints->point-preds)
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
