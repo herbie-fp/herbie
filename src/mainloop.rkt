@@ -395,8 +395,6 @@
     (print-warnings))
   (extract!))
 
-;; We want to reduce per branch-expression instead
-
 (define (pareto-regimes sorted ctx)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
@@ -426,7 +424,7 @@
                   (cond [(member bexpr recomputed-branch-exprs) err]
                         [else +inf.0])))
 
-      (match-define-values (opt opt-index new-errs) (infer-better alts branch-exprs processed-errs best-index ctx))
+      (match-define-values (opt opt-index new-errs) (infer-splitpoints alts branch-exprs processed-errs best-index ctx))
       (define branched-alt (combine-alts opt ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons branched-alt (loop (take alts high) new-errs opt-index))]))))
@@ -449,7 +447,7 @@
            (not (null? (context-vars ctx))))
       (cond
        [(*pareto-mode*)
-       (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
+        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
        [else
         (define option (infer-splitpoints all-alts ctx))
         (list (combine-alts option ctx))])]

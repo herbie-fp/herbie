@@ -4,7 +4,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
-(provide infer-better infer-splitpoints (struct-out option) (struct-out si) option-on-expr exprs-to-branch-on )
+(provide infer-splitpoints (struct-out option) (struct-out si) option-on-expr exprs-to-branch-on )
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -25,7 +25,7 @@
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-better alts branch-exprs cerrs cbest-index ctx)
+(define (infer-splitpoints alts branch-exprs cerrs cbest-index ctx)
   (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts))
   (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
 
@@ -72,28 +72,6 @@
   (timeline-push! 'repr (~a (representation-name repr)))
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
   (values best best-index errs))
-
-(define (infer-splitpoints alts ctx)
-  (timeline-event! 'regimes)
-  (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
-  (define branch-exprs
-    (if (flag-set? 'reduce 'branch-expressions)
-        (exprs-to-branch-on alts ctx)
-        (context-vars ctx)))
-  (define err-lsts (batch-errors (map alt-expr alts) (*pcontext*) ctx))
-  (define options (for/list ([bexpr branch-exprs]) (option-on-expr alts err-lsts bexpr ctx)))
-  (define best (argmin (compose errors-score option-errors) options))
-  (timeline-push! 'count (length alts) (length (option-split-indices best)))
-  (timeline-push! 'outputs
-                  (for/list ([sidx (option-split-indices best)])
-                    (~a (alt-expr (list-ref alts (si-cidx sidx))))))
-  (define err-lsts* (flip-lists err-lsts))
-  (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
-  (timeline-push! 'accuracy (errors-score (option-errors best)))
-  (define repr (context-repr ctx))
-  (timeline-push! 'repr (~a (representation-name repr)))
-  (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
-  best)
 
 (define (exprs-to-branch-on alts ctx)
   (define alt-critexprs
