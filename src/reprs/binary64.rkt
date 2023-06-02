@@ -21,7 +21,7 @@
   (shift 63 ordinal->flonum)
   (unshift 63 flonum->ordinal)
   64
-  (λ (x) (and (number? x) (or (nan? x) (infinite? x)))))
+  (conjoin number? nan?))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
