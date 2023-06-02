@@ -1,25 +1,9 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
+(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt")
 
-(provide sample-points batch-prepare-points make-search-func eval-prog-real)
-
-; (define (is-infinite-interval repr interval)
-;   (define <-bf (representation-bf->repr repr))
-;   (define ->bf (representation-repr->bf repr))
-;   ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
-;   ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
-;   (define (positive-inf? x)
-;     (parameterize ([bf-rounding-mode 'nearest])
-;       (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
-;   (define (negative-inf? x)
-;     (parameterize ([bf-rounding-mode 'nearest])
-;       (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
-;   (define ival-positive-infinite (monotonic->ival positive-inf?))
-;   (define ival-negative-infinite (comonotonic->ival negative-inf?))
-;   (ival-or (ival-positive-infinite interval)
-;            (ival-negative-infinite interval)))
+(provide cheacked-points batch-prepare-points make-search-func eval-prog-real)
 
 (define (is-samplable-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -46,8 +30,7 @@
        (ival-assert (ival-not (ival-error? y)) 'invalid)
        (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
        (ival-assert ival-pre 'precondition)
-       ; we are trying to push `infinite` down.
-      ;  (ival-assert (ival-not (is-infinite-interval repr y)) 'infinite)
+       ; 'infinte case handle in `ival-eval`
        (ival-assert
         (if (ground-truth-require-convergence)
             (is-samplable-interval repr y)
@@ -56,7 +39,6 @@
        y))))
 
 (define (eval-prog-real prog ctx)
-  ; (eprintf "eval-prog-real")
   (define repr (context-repr ctx))
   (define fn (make-search-func '(TRUE) (list prog) ctx))
   (define (f . pt)
@@ -69,21 +51,35 @@
   (procedure-rename f '<eval-prog-real>))
 
 (define (combine-tables t1 t2)
-  ; (eprintf "combine-tables(T1): ~a\n" t1) 
-  ; (eprintf "combine-tables(T2): ~a\n" t2) 
   (define t2-total (apply + (hash-values t2)))
   (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
-  (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-base))))
+  ; (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-base))))
   (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)])
       ([(k v) (in-hash t2)])
+      (eprintf "HERE\n")
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
+
+(define (cheacked-points pre exprs ctx)
+  (define points (sample-points pre exprs ctx))
+  points)
 
 (define (sample-points pre exprs ctx)
   (timeline-event! 'analyze)
   (define fn (make-search-func pre exprs ctx))
-   (match-define (cons sampler table)
+  (match-define (cons sampler table)
     (parameterize ([ground-truth-require-convergence #f])
       (make-sampler ctx pre fn)))
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points fn ctx sampler))
-  (cons (combine-tables table table2) results))
+  (define new-table (combine-tables table table2))
+  ; (eprintf "HERE\n")
+  (define ->bf (representation-repr->bf (context-repr ctx)))
+  (define total-pts (length new-table))
+  (for* ([ex results])
+    (define inf-pts (count (compose (disjoin boolean? bfrational?) ->bf) ex))
+    (timeline-push! 'infinite inf-pts total-pts)
+    ; Warn on > 20% infinite points
+    (when (> inf-pts (* total-pts 0.20)) 
+      (warn 'inf-points #:url "faq.html#inf-points"
+            "Infinite outputs for ~a% of points. You may want to add a precondition.")))
+  (cons new-table results))

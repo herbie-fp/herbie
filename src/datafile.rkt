@@ -77,15 +77,16 @@
   (define (merged-cost-accuracy tests)
     (define cost-accuracies (map table-row-cost-accuracy tests))
     (define rescaled
-      (for/list ([cost-accuracy (in-list cost-accuracies)])
+      (for/list ([cost-accuracy (in-list cost-accuracies)]
+                 #:unless (null? cost-accuracy))
         (match-define
           (list
            (and initial-point (list initial-cost _))
            best-point
            other-points)
           cost-accuracy)
-        ;; Has to be floating point so serializing to JSON doesn't complain about
-        ;; rational numbers later
+        ;; Has to be floating point so serializing to JSON doesn't complain
+        ;; about rational numbers later
         (define initial-cost* (exact->inexact initial-cost))
         (for/list ([point
                     (in-list (list* initial-point best-point other-points))])
@@ -100,21 +101,22 @@
     (define maximum-cost
       (argmax
        identity
-       (map (match-lambda [(list cost _) cost]) frontier)))
+       (cons
+        0.0 ;; To prevent `argmax` from signaling an error in case `tests` is empty
+        (map (match-lambda [(list cost _) cost]) frontier))))
     (define maximum-accuracy
-      (apply +
-             (map
-              (compose representation-total-bits get-representation table-row-precision)
-              tests)))
+      (for/sum ([test (in-list tests)])
+        (representation-total-bits (get-representation (table-row-precision test)))))
     (define initial-accuracy
-      (apply +
-             (map
-              (match-lambda [(list (list _ initial-accuracy) _ _) initial-accuracy])
-              cost-accuracies)))
+      (for/sum ([cost-accuracy (in-list cost-accuracies)]
+                #:unless (null? cost-accuracy))
+        (match cost-accuracy
+          [(list (list _ initial-accuracy) _ _) initial-accuracy])))
     (list
      (list maximum-cost maximum-accuracy)
      (list
-      1.0 ;; All costs relative to this, would be `initial-cost`
+      ;; All costs relative to this, would be `initial-cost`
+      (if (zero? tests-length) 0.0 1.0)
       initial-accuracy)
      frontier))
 
