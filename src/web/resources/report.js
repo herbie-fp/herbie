@@ -345,7 +345,7 @@ const MergedCostAccuracy = new Component('#pareto', {
             marks: [
                 Plot.line(sortLine, {x: d => d[0], y: d => 1 - d[1] / ymax,
                                      stroke: "#00a", strokeWidth: 2}),
-                Plot.dot(json[1], {x: json[1][0], y: json[1][1] / ymax,
+                Plot.dot(json[1], {x: json[1][0], y: 1 - json[1][1] / ymax,
                                    stroke: "#d00", symbol: "square", strokeWidth: 2})
             ],
             width: '400',

@@ -18,7 +18,12 @@
 
 (struct shellstate (table next-alt locs lowlocs patched) #:mutable)
 
-(define ^shell-state^ (make-parameter (shellstate #f #f #f #f #f)))
+(define (empty-shellstate)
+  (shellstate #f #f #f #f #f))
+
+(define-resetter ^shell-state^
+  (λ () (empty-shellstate))
+  (λ () (empty-shellstate)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -38,14 +43,13 @@
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn ctx)
-  (define prog (alt-program altn))
-  (filter (λ (altn) (program-body (alt-program altn)))
+  (filter alt-expr
     (for/list ([(k v) (in-hash (*conversions*))]
               #:unless (equal? k (context-repr ctx))
               #:when (set-member? v (context-repr ctx)))
       (define rewrite (get-rewrite-operator k))
-      (define body* (apply-repr-change-expr (list rewrite (program-body prog)) ctx))
-      (alt `(λ ,(program-variables prog) ,body*) 'start '()))))
+      (define body* (apply-repr-change-expr (list rewrite (alt-expr altn)) ctx))
+      (make-alt body*))))
 
 ;; Information
 (define (list-alts)
@@ -58,7 +62,7 @@
              [(set-member? ndone-alts alt) " "]
              [else "."])
        (~r #:min-width 4 n)
-       (program-body (alt-program alt)))))
+       (alt-expr alt))))
   (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
 
 ;; Begin iteration
@@ -73,12 +77,12 @@
   (void))
 
 (define (score-alt alt)
-  (errors-score (errors (alt-program alt) (*pcontext*) (*context*))))
+  (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
 
 ; Pareto mode alt picking
 (define (choose-mult-alts from)
   (define repr (context-repr (*context*)))
-  (define altns (filter (compose list? program-body alt-program) from))
+  (define altns (filter (compose list? alt-expr) from))
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
@@ -99,7 +103,7 @@
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts
-                    (~a (program-body (alt-program alt)))
+                    (~a (alt-expr alt))
                     (cond
                      [(set-member? alts alt) "next"]
                      [(set-member? fresh-alts alt) "fresh"]
@@ -121,9 +125,8 @@
     (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
 
-  (define orig-prog (alt-program (^next-alt^)))
-  (define vars (program-variables orig-prog))
-  (define loc-errs (localize-error (alt-program (^next-alt^)) (*context*)))
+  (define vars (context-vars (*context*)))
+  (define loc-errs (localize-error (alt-expr (^next-alt^)) (*context*)))
   (define repr (context-repr (*context*)))
 
   ; high-error locations
@@ -163,36 +166,40 @@
 (define (reconstruct! alts)
   ;; extracts the base expression of a patch
   (define (get-starting-expr altn)
-    (match altn
-     [(alt prog '(patch) _) (program-body prog)]
-     [(alt _ _ (list)) #f]
-     [(alt _ _ (list prev)) (get-starting-expr prev)]))
+    (match (alt-event altn)
+     ['(patch) (alt-expr altn)]
+     [_
+      (if (null? (alt-prevs altn))
+          #f
+          (get-starting-expr (first (alt-prevs altn))))]))
 
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
-      (match-define (alt prog event prev) altn)
+      (match-define (alt _ event prevs) altn)
       (cond
        [(equal? event '(patch)) orig]
        [else
         (define event*
+          ;; The 2 at the start of locs is left over from when we
+          ;; differentiated between "programs" with a λ term and
+          ;; "expressions" without
           (match event
-           [(list 'taylor name var loc)
-            (list 'taylor name var (append loc0 (cdr loc)))]
-           ; TODO : Recosnsruct and revise history
-           [`(rr, loc, input, proof, soundiness)
-            (list 'rr (append loc0 (cdr loc)) input proof soundiness)]
-           [`(simplify ,loc ,input ,proof ,soundiness)
-            (list 'simplify (append loc0 (cdr loc)) input proof soundiness)]))
-        (define prog* (location-do loc0 (alt-program orig) (λ (_) (program-body prog))))
-        (alt prog* event* (list (loop (first prev))))])))
+           [(list 'taylor name var (list 2 loc ...))
+            (list 'taylor name var (append '(2) loc0 loc))]
+           [(list 'rr (list 2 loc ...) input proof soundiness)
+            (list 'rr (append '(2) loc0 loc) input proof soundiness)]
+           [(list 'simplify (list 2 loc ...) input proof soundiness)
+            (list 'simplify (append '(2) loc0 loc) input proof soundiness)]))
+        (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
+        (alt expr* event* (list (loop (first prevs))))])))
   
   (^patched^
     (for/fold ([patched '()] #:result (reverse patched))
               ([altn (in-list alts)])
       (define expr0 (get-starting-expr altn))
       (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
-          (let ([locs (get-locations (alt-program (^next-alt^)) expr0)])
+          (let ([locs (get-locations (alt-expr (^next-alt^)) expr0)])
             (append (map (λ (l) (reconstruct-alt altn l (^next-alt^))) locs) patched))
           (cons altn patched))))
       
@@ -234,8 +241,8 @@
   (rollback-iter!)
   (void))
 
-(define (inject-candidate! prog)
-  (define new-alts (list (make-alt prog)))
+(define (inject-candidate! expr)
+  (define new-alts (list (make-alt expr)))
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (void))
@@ -280,8 +287,7 @@
       (append full (^patched^))))
   (finalize-iter!))
   
-(define (setup-context! specification precondition repr)
-  (define vars (program-variables specification))
+(define (setup-context! vars specification precondition repr)
   (*context* (context vars repr (map (const repr) vars)))
   (when (empty? (*needed-reprs*)) ; if empty, probably debugging
     (*needed-reprs* (list repr (get-representation 'bool))))
@@ -309,7 +315,7 @@
       (^next-alt^ #f)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
-(define (run-improve prog iters
+(define (run-improve vars prog iters
                      #:precondition [precondition #f]
                      #:preprocess [preprocess empty]
                      #:precision [precision 'binary64]
@@ -317,18 +323,17 @@
   (rollback-improve!)
   (define repr (get-representation precision))
 
-  (define original-points (setup-context! (or specification prog) precondition repr))
+  (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
 
-(define (run-improve! prog pcontext iters
-                      #:specification [specification #f]
-                      #:preprocess [preprocess '()])
-  (define vars (program-variables specification))
+(define (make-preprocess-pcontext prog pcontext iters
+                                  #:specification [specification #f]
+                                  #:preprocess [preprocess '()])
   (timeline-event! 'preprocess)
 
   ;; If the specification is given, it is used for sampling points
-  (define sortable (connected-components specification))
+  (define sortable (connected-components specification (*context*)))
 
   (define new-preprocess
     (for/list ([sortable-variables (in-list sortable)]
@@ -337,7 +342,16 @@
   (timeline-push! 'symmetry (map ~a new-preprocess))
   (*herbie-preprocess* (append preprocess new-preprocess))
 
-  (define processed-pcontext (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
+  (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
+
+
+(define (run-improve! prog pcontext iters
+                      #:specification [specification #f]
+                      #:preprocess [preprocess '()])
+  (define processed-pcontext
+    (make-preprocess-pcontext prog pcontext iters
+                              #:specification specification
+                              #:preprocess preprocess))
 
   (match-define (cons best rest) (mutate! prog iters processed-pcontext))
 
@@ -345,11 +359,11 @@
   (cons best rest))
 
 (define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two ctx)
-  (define vars (program-variables (alt-program alt)))
+  (define vars (context-vars ctx))
   (define pcontext1 (preprocess-pcontext pcontext preprocessing-one ctx))
   (define pcontext2 (preprocess-pcontext pcontext preprocessing-two ctx))
-  (<= (errors-score (errors (alt-program alt) pcontext1 (*context*)))
-      (errors-score (errors (alt-program alt) pcontext2 (*context*)))))
+  (<= (errors-score (errors (alt-expr alt) pcontext1 (*context*)))
+      (errors-score (errors (alt-expr alt) pcontext2 (*context*)))))
 
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))
@@ -376,11 +390,9 @@
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)
   (initialize-alt-table! prog (*pcontext*) (*context*))
-
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (run-iter!)
     (print-warnings))
-
   (extract!))
 
 ;; We want to reduce per branch-expression instead
@@ -427,14 +439,14 @@
 
   (define ndone-alts (atab-not-done-alts (^table^)))
   (for ([alt (atab-active-alts (^table^))])
-    (timeline-push! 'alts (~a (program-body (alt-program alt)))
+    (timeline-push! 'alts (~a (alt-expr alt))
                     (if (set-member? ndone-alts alt) "fresh" "done")
                     (score-alt alt) (~a (representation-name repr))))
   (define joined-alts
     (cond
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
            (equal? (representation-type repr) 'real)
-           (not (null? (program-variables (alt-program (car all-alts))))))
+           (not (null? (context-vars ctx))))
       (cond
        [(*pareto-mode*)
        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
@@ -443,24 +455,27 @@
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
-  (timeline-event! 'simplify)
-  (define progss*
-    (simplify-batch
-      (make-egg-query (map (compose program-body alt-program) joined-alts) (*fp-safe-simplify-rules*)) #t))
+
   (define cleaned-alts
-    (remove-duplicates
-      (for/list ([altn joined-alts] [progs progss*])
-        (alt `(λ ,(program-variables (alt-program altn)) ,(last progs))
-              'final-simplify (list altn)))
-      alt-equal?))
+    (cond
+      [(flag-set? 'generate 'simplify)
+       (timeline-event! 'simplify)
+
+       (define input-progs (map alt-expr joined-alts))
+       (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
+       (define simplified (simplify-batch egg-query))
+
+       (for/list ([altn joined-alts] [progs simplified])
+         (alt (last progs) 'final-simplify (list altn)))]
+      [else
+       joined-alts]))
+        
   (define alts-deduplicated
     (remove-duplicates cleaned-alts alt-equal?))
-  
 
-  
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   ;; find the best, sort the rest by cost
-  (define errss (map (λ (x) (errors (alt-program x) (*pcontext*) (*context*))) alts-deduplicated))
+  (define errss (map (λ (x) (errors (alt-expr x) (*pcontext*) (*context*))) alts-deduplicated))
   (define-values (best end-score rest)
     (for/fold ([best #f] [score #f] [rest #f])
               ([altn (in-list alts-deduplicated)] [errs (in-list errss)])
@@ -472,9 +487,9 @@
 
   (timeline-event! 'soundness)
 
-  (define best-annotated
-    (first (add-soundiness (list best) (*pcontext*) (*context*))))
+  (match-define (cons best-annotated rest-annotated)
+    (add-soundiness (cons best rest) (*pcontext*) (*context*)))
 
   (timeline-event! 'end)
   
-  (cons best-annotated (sort rest > #:key (curryr alt-cost repr))))
+  (cons best-annotated (sort rest-annotated > #:key (curryr alt-cost repr))))

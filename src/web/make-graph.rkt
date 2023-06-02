@@ -5,7 +5,7 @@
                           [core-common-subexpr-elim core-cse]))
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../syntax/types.rkt"
+         "../alternative.rkt" "../syntax/types.rkt" "../cost.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
          "common.rkt" "history.rkt" "../syntax/sugar.rkt")
          
@@ -19,8 +19,8 @@
       [(alt _ _ (list)) #f]
       [(alt _ _ (list prev _ ...)) (loop prev)])))
 
-(define/contract (render-interactive start-prog point)
-  (-> alt? (listof number?) xexpr?)
+(define/contract (render-interactive vars point)
+  (-> (listof symbol?) (listof number?) xexpr?)
   `(section ([id "try-it"])
     (h1 "Try it out" (a (
           [class "help-button"] 
@@ -32,7 +32,7 @@
      (form ([id "try-inputs"])
       (p ([class "header"]) "Your Program's Arguments")
        (ol
-        ,@(for/list ([var-name (program-variables (alt-program start-prog))] [i (in-naturals)] [val point])
+        ,@(for/list ([var-name (in-list vars)] [i (in-naturals)] [val point])
             `(li (label ([for ,(string-append "var-name-" (~a i))]) ,(~a var-name))
                  (input ([type "text"] [class "input-submit"]
                          [name ,(string-append "var-name-" (~a i))]
@@ -47,8 +47,8 @@
                (td (output ([id "try-herbie-output"]))))))
         (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
 
-(define (alt->tex alt repr)
-  (core->tex (core-cse (program->fpcore (resugar-program (alt-program alt) repr)))))
+(define (alt->tex alt ctx)
+  (core->tex (core-cse (program->fpcore (alt-expr alt) ctx))))
 
 (define (at-least-two-ops? expr)
   (match expr
@@ -56,17 +56,27 @@
    [_ #f]))
 
 (define (make-graph result out fpcore? profile?)
-  (match-define
-   (test-success test bits time timeline warnings
-                 start-alt end-alts preprocess points exacts start-est-error end-est-error
-                 newpoints newexacts start-error end-errors target-error
-                 start-cost costs all-alts)
-   result)
+  (match-define (job-result test _ time _ warnings backend) result)
+  (define vars (test-vars test))
   (define repr (test-output-repr test))
+  (define repr-bits (representation-total-bits repr))
+  (define ctx (test-context test))
+  
+  (match-define (improve-result preprocess pctxs start target end) backend)
+
+  (match-define (alt-analysis start-alt _ start-error) start)
+  (define target-alt (and target (alt-analysis-alt target)))
+  (define target-error (and target (alt-analysis-test-errors target)))
+  (define-values (end-alts end-errors end-costs)
+    (for/lists (l1 l2 l3) ([analysis end])
+      (match-define (alt-analysis alt _ test-errs) analysis)
+      (values alt test-errs (expr-cost (alt-expr alt) repr))))
+
+  (match-define (list train-pctx test-pctx) pctxs)
+  (define-values (points _) (pcontext->lists train-pctx))
+
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
-  (define other-alts (cdr end-alts))
-  (define other-errors (cdr end-errors))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -93,7 +103,7 @@
          '("Derivation" . "#history")
          '("Reproduce" . "#reproduce"))
         (list
-         '("Report" . "../results.html")
+         '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))
 
       (section ([id "large"])
@@ -105,22 +115,22 @@
           ;[style "rotate: 270deg"]
           ) "?"))
        ,(render-large "Average Accuracy"
-                      (format-accuracy (errors-score start-error) repr #:unit "%")
+                      (format-accuracy (errors-score start-error) repr-bits #:unit "%")
                       " → "
-                      (format-accuracy (errors-score end-error) repr #:unit "%")
+                      (format-accuracy (errors-score end-error) repr-bits #:unit "%")
                       #:title
                       (format "Minimum Accuracy: ~a → ~a"
-                              (format-accuracy (apply max (map ulps->bits start-error)) repr #:unit "%")
-                              (format-accuracy (apply max (map ulps->bits end-error)) repr #:unit "%")))
+                              (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
+                              (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
        ,(render-large "Time" (format-time time))
        ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
        ,(if (*pareto-mode*)
-            (render-large "Cost" `(kbd ,(format-cost (car costs) repr)))
+            (render-large "Cost" `(kbd ,(format-cost (car end-costs) repr)))
             ""))
 
       ,(render-warnings warnings)
 
-      ,(render-program preprocess test #:to (alt-program end-alt))
+      ,(render-program preprocess test #:to (alt-expr end-alt))
 
       (section ([id "graphs"]) (h1 "Error" (a (
           [class "help-button"] 
@@ -130,20 +140,17 @@
           ) "?")) (div ([id "graphs-content"])))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
-           (render-interactive start-alt (car points))
+           (render-interactive vars (car points))
            "")
 
       ,(if (test-output test)
            `(section ([id "comparison"])
              (h1 "Target")
              (table
-              (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr #:unit "%")))
-              (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr #:unit "%")))
-              (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr #:unit "%"))))
-             (div ([class "math"]) "\\[" ,(core->tex
-                                            (program->fpcore
-                                              (resugar-program (test-target test) repr)))
-                                         "\\]"))
+              (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr-bits #:unit "%")))
+              (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")))
+              (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr-bits #:unit "%"))))
+             (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
            "")
 
       (section ([id "history"])
@@ -154,25 +161,27 @@
           ;[style "rotate: 270deg"]
           ) "?"))
        (ol ([class "history"])
-        ,@(render-history end-alt (mk-pcontext newpoints newexacts)
-                          (mk-pcontext points exacts) (test-context test))))
+        ,@(render-history end-alt train-pctx test-pctx ctx)))
 
-      ,(if (not (null? other-alts))
+      ,(if (> (length end-alts) 1)
            `(section ([id "alternatives"])
               (h1 "Alternatives")
-              ,@(for/list ([alt other-alts] [cost (cdr costs)] [errs other-errors] [idx (in-naturals 1)])
+              ,@(for/list ([alt (cdr end-alts)]
+                           [errs (cdr end-errors)]
+                           [cost (cdr end-costs)]
+                           [i (in-naturals 1)])
                 `(div ([class "entry"])
                   (table
-                    (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" idx)))
-                    (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr #:unit "%")))
+                    (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" i)))
+                    (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr-bits #:unit "%")))
                     (tr (th "Cost") (td ,(format-cost cost repr))))
                   (div ([class "math"])
                     "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
-                            (alt->tex alt repr))
+                            (alt->tex alt ctx))
                     "\\]"))))
             "")
                                       
-      ,(if (not (null? other-alts))
+      ,(if (> (length end-alts) 1)
           `(section ([id "cost-accuracy"])
             (h1 "Error")
             (div ([id "pareto-content"] [data-benchmark-name ,(~a (test-name test))])))

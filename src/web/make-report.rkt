@@ -11,7 +11,7 @@
     ["error" "ERR"]
     ["crash" "!!!"]
     ["timeout" "TIME"]
-    [_ (format-accuracy (- (table-row-start result) (table-row-result result)) (get-representation (table-row-precision result)) #:sign #t #:unit "%")]))
+    [_ (format-accuracy (- (table-row-start result) (table-row-result result)) (representation-total-bits (get-representation (table-row-precision result))) #:sign #t #:unit "%")]))
 
 (define (format-subreports rss)
   (define (round* x) (inexact->exact (round x)))
@@ -20,7 +20,7 @@
     (table
       (tr (th "Subreport") (th "Time") (th "Passed") (th "Tests") (th "Bits"))
       ,@(for/list ([report reports] [path paths])
-          (let ([index (path->string (build-path path "results.html"))]
+          (let ([index (path->string (build-path path "index.html"))]
                 [time (apply + (map table-row-time (report-info-tests report)))]
                 [passed (for/sum ([row (report-info-tests report)])
                           (if (member (table-row-status row)
@@ -52,29 +52,21 @@
           ("Target" . "Color key:\nDark green: better than target\nGreen: matched target\nOrange: improved but did not match target\nYellow: no accuracy change\n")))
 
   (define total-time (apply + (map table-row-time tests)))
-  (define total-passed
-    (for/sum ([row tests])
-      (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
-  (define total-available
-    (for/sum ([row tests])
-      (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
+  (define total-tests (length tests))
+  (define total-timeouts
+    (count (compose (curry equal? "timeout") table-row-status) tests))
   (define total-crashes
-    (for/sum ([row tests])
-      (if (equal? (table-row-status row) "crash") 1 0)))
-
-  (define total-gained
-    (for/sum ([row tests])
-      (or (table-row-result row) 0)))
+    (count (compose (curry equal? "crash") table-row-status) tests))
   (define total-start
-    (for/sum ([row tests])
-      (or (table-row-start row) 0)))
+    (for/sum ([t tests]) (or (table-row-start t) 0)))
+  (define total-result
+    (for/sum ([t tests]) (or (table-row-result t) 0)))
+  (define total-bits
+    (for/sum ([t tests])
+      (representation-total-bits (get-representation (table-row-precision t)))))
 
   (define (round* x)
     (inexact->exact (round x)))
-
-  (define sorted-tests
-    (sort (map cons tests (range (length tests))) >
-          #:key (λ (x) (or (table-row-start (car x)) 0))))
 
   (define classes
     (if (ormap table-row-target tests) '() '(no-target)))
@@ -107,11 +99,14 @@
               (div ([id "subreports"] [style "display: none"]))))))
 
       (div ((id "large"))
-       ,(render-large "Time" (format-time total-time))
-       ,(render-large "Passed" (~a total-passed) "/" (~a total-available))
-       ,(if (> total-crashes 0) (render-large "Crashes" (~a total-crashes)) "")
-       ,(render-large "Tests" (~a (length tests)))
-       ,(render-large "Bits" (~a (round* (- total-start total-gained))) "/" (~a (round* total-start))))
+       ;; TODO minutes
+       ,(render-large "Average Accuracy"
+                      ;; TODO ulps->bits ?
+                      (format-accuracy total-start total-bits #:unit "%")
+                      " → "
+                      (format-accuracy total-result total-bits #:unit "%"))
+       ,(render-large "Time" (format-time total-time #:max 'minute))
+       ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests)))
 
       (figure
        (div ([id "xy"])
@@ -126,7 +121,7 @@
             (svg)
             (figcaption "A joint cost-accuracy pareto curve for the "
                         "Herbie runs below. Accuracy is on the vertical "
-                        "axis, and cost is on the vertical axis. Down "
+                        "axis, and cost is on the horizontal axis. Down "
                         "and to the left is better. The initial programs "
                         "are shown by the red square.")
             ))
@@ -139,12 +134,13 @@
                    `(th ,label)))))
       (tbody
        ,@(for/list ([result tests] [id (in-naturals)])
+           (define bits (representation-total-bits (get-representation (table-row-precision result))))
            `(tr ((class ,(~a (table-row-status result))))
                 (td ,(or (table-row-name result) ""))
-                (td ,(format-accuracy (table-row-start result) (get-representation (table-row-precision result)) #:unit "%"))
-                (td ,(format-accuracy (table-row-result result) (get-representation (table-row-precision result)) #:unit "%"))
-                (td ,(format-accuracy (table-row-target result) (get-representation (table-row-precision result)) #:unit "%"))
-                (td ,(format-time (table-row-time result) #:min 1000))
+                (td ,(format-accuracy (table-row-start result) bits #:unit "%"))
+                (td ,(format-accuracy (table-row-result result) bits #:unit "%"))
+                (td ,(format-accuracy (table-row-target result) bits #:unit "%"))
+                (td ,(format-time (table-row-time result) #:min 'second))
                 ,(if (table-row-link result)
                      `(td
                        (a ((id ,(format "link~a" id))

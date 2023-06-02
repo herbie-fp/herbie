@@ -4,6 +4,7 @@
 .DS_Store
 
 # Standard directories
+reports
 previous
 graphs
 www/demo

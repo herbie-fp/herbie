@@ -9,15 +9,15 @@
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
-(define (precondition->hyperrects precondition reprs repr)
+(define (precondition->hyperrects pre ctx)
   ;; FPBench needs unparameterized operators
   (define range-table 
     (condition->range-table  
-      (resugar-program (program-body precondition) repr #:full #f)))
+      (resugar-program pre (context-repr ctx) #:full #f)))
 
   (apply cartesian-product
-         (for/list ([var-name (program-variables precondition)] [repr reprs])
-           (map (lambda (interval) (fpbench-ival->ival repr interval))
+         (for/list ([var-name (context-vars ctx)] [var-repr (context-var-reprs ctx)])
+           (map (lambda (interval) (fpbench-ival->ival var-repr interval))
                 (range-table-ref range-table var-name)))))
 
 (define (fpbench-ival->ival repr fpbench-interval)
@@ -32,8 +32,9 @@
 
   (define repr (get-representation 'binary64))
   (check-equal? (precondition->hyperrects
-                 '(λ (a b) (and (and (<=.f64 0 a) (<=.f64 a 1))
-                                (and (<=.f64 0 b) (<=.f64 b 1)))) (list repr repr) repr)
+                 '(and (and (<=.f64 0 a) (<=.f64 a 1))
+                       (and (<=.f64 0 b) (<=.f64 b 1)))
+                 (context '(a b) repr (list repr repr)))
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
 
 ;; Part 2: using subdivision search to find valid intervals
@@ -90,14 +91,14 @@
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
-(define (make-sampler ctx precondition programs search-func)
+(define (make-sampler ctx pre search-func)
   (define repr (context-repr ctx))
   (define reprs (context-var-reprs ctx))
   (cond
    [(and (flag-set? 'setup 'search) (not (empty? reprs))
          (andmap (compose (curry equal? 'real) representation-type) (cons repr reprs)))
     (timeline-push! 'method "search")
-    (define hyperrects-analysis (precondition->hyperrects precondition reprs repr))
+    (define hyperrects-analysis (precondition->hyperrects pre ctx))
     (match-define (cons hyperrects sampling-table)
       (find-intervals search-func hyperrects-analysis
                       #:reprs reprs #:fuel (*max-find-range-depth*)))
@@ -122,20 +123,39 @@
     (set! start now))
   log!)
 
-(define (ival-eval fn pt #:precision [precision (*starting-prec*)])
+(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
   (let loop ([precision precision])
     (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
     (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
     (define precision* (exact-floor (* precision 2)))
     (cond
      [err
-      (values (or err 'bad) precision +nan.0)]
+      (values err precision +nan.0)]
      [(not err?)
-      (values 'valid precision exs)]
+      (define infinite?
+      (ival-lo (is-infinite-interval repr (apply ival-or exs))))
+      (values (if infinite? 'infinite 'valid) precision exs)
+     ]
      [(> precision* (*max-mpfr-prec*))
       (values 'exit precision +nan.0)]
      [else
       (loop precision*)])))
+
+(define (is-infinite-interval repr interval)
+  (define <-bf (representation-bf->repr repr))
+  (define ->bf (representation-repr->bf repr))
+  ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
+  ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
+  (define (positive-inf? x)
+    (parameterize ([bf-rounding-mode 'nearest])
+      (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
+  (define (negative-inf? x)
+    (parameterize ([bf-rounding-mode 'nearest])
+      (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
+  (define ival-positive-infinite (monotonic->ival positive-inf?))
+  (define ival-negative-infinite (comonotonic->ival negative-inf?))
+  (ival-or (ival-positive-infinite interval)
+           (ival-negative-infinite interval)))
 
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
@@ -150,7 +170,7 @@
       (define pt (sampler))
 
       (define-values (status precision out)
-        (ival-eval fn pt #:precision starting-precision))
+        (ival-eval repr fn pt #:precision starting-precision))
       (hash-update! outcomes status (curry + 1) 0)
       (logger status precision pt)
 

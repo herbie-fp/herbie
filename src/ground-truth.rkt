@@ -1,25 +1,9 @@
 #lang racket
 
-(require math/bigfloat rival racket/hash)
-(require "errors.rkt" "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
+(require math/bigfloat rival)
+(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
 
-(provide sample-points batch-prepare-points make-search-func)
-
-(define (is-infinite-interval repr interval)
-  (define <-bf (representation-bf->repr repr))
-  (define ->bf (representation-repr->bf repr))
-  ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
-  ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
-  (define (positive-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
-  (define (negative-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
-  (define ival-positive-infinite (monotonic->ival positive-inf?))
-  (define ival-negative-infinite (comonotonic->ival negative-inf?))
-  (ival-or (ival-positive-infinite interval)
-           (ival-negative-infinite interval)))
+(provide sample-points batch-prepare-points make-search-func eval-prog-real)
 
 (define (is-samplable-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -33,11 +17,12 @@
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
-(define (make-search-func precondition programs ctx)
-  (define fns (batch-eval-progs (cons precondition programs) 'ival ctx))
+(define (make-search-func pre exprs ctx)
+  (define fns (batch-eval-progs (cons pre exprs) 'ival ctx))
   (λ inputs
+    (define out (apply fns inputs))
+    (match-define (list ival-pre ival-bodies ...) out)
     (define repr (context-repr ctx))
-    (match-define (list ival-pre ival-bodies ...) (apply fns inputs))
     (for/list ([y ival-bodies])
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
@@ -45,7 +30,7 @@
        (ival-assert (ival-not (ival-error? y)) 'invalid)
        (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
        (ival-assert ival-pre 'precondition)
-       (ival-assert (ival-not (is-infinite-interval repr y)) 'infinite)
+       ; 'infinte case handle in `ival-eval`
        (ival-assert
         (if (ground-truth-require-convergence)
             (is-samplable-interval repr y)
@@ -55,10 +40,9 @@
 
 (define (eval-prog-real prog ctx)
   (define repr (context-repr ctx))
-  (define pre `(λ ,(program-variables prog) (TRUE)))
-  (define fn (make-search-func pre (list prog) ctx))
+  (define fn (make-search-func '(TRUE) (list prog) ctx))
   (define (f . pt)
-    (define-values (result prec exs) (ival-eval fn pt))
+    (define-values (result prec exs) (ival-eval repr fn pt))
     (match exs
       [(list (ival lo hi))
        ((representation-bf->repr repr) lo)]
@@ -74,12 +58,12 @@
       ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
-(define (sample-points precondition progs ctx)
+(define (sample-points pre exprs ctx)
   (timeline-event! 'analyze)
-  (define fn (make-search-func precondition progs ctx))
+  (define fn (make-search-func pre exprs ctx))
   (match-define (cons sampler table)
     (parameterize ([ground-truth-require-convergence #f])
-      (make-sampler ctx precondition progs fn)))
+      (make-sampler ctx pre fn)))
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points fn ctx sampler))
   (cons (combine-tables table table2) results))

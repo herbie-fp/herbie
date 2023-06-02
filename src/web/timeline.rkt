@@ -24,7 +24,7 @@
           '("Timeline" . "#process-info")
           '("Profile" . "#profile"))
          (if info 
-             `(("Report" . "results.html"))
+             `(("Report" . "index.html"))
              `(("Details" . "graph.html"))))
        ,(if info (render-about info) "")
        ,(render-timeline timeline)
@@ -121,7 +121,7 @@
 
               (match-define (list expr err new? repr) rec)
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-accuracy err (get-representation (string->symbol repr)) #:unit "%") "")
+                  (td ,(format-accuracy err (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
@@ -263,7 +263,7 @@
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr) (car min-error-table))
   `((dt "Accurracy")
-    (dd ,(format-accuracy min-error (get-representation (string->symbol repr)) #:unit "%") "")))
+    (dd ,(format-accuracy min-error (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")))
 
 (define (render-phase-rules rules)
   `((dt "Rules")
@@ -290,7 +290,7 @@
                          ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                          ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                          ["fresh" `(td)])
-                      (td ,(format-accuracy score (get-representation (string->symbol repr)) #:unit "%") "")
+                      (td ,(format-accuracy score (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
                       (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
@@ -331,7 +331,7 @@
                (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
              (match-define (list expr score splits repr) rec)
-             `(tr (td ,(format-accuracy score (get-representation (string->symbol repr)) #:unit "%") "")
+             `(tr (td ,(format-accuracy score (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
                   (td ,(~a splits))
                   (td (code ,expr))))))))
 
