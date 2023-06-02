@@ -355,9 +355,10 @@
 
       (define test (parse-test formula))
       (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
+      (define pctx (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points (pcontext->json result)))))
+      (hasheq 'points (pcontext->json pctx)))))
 
 (define analyze-endpoint
   (post-with-json-response
@@ -371,9 +372,10 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'errors test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:timeline-disabled? #t))
+      (define errs (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points result))))
+      (hasheq 'points errs))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint 
@@ -388,9 +390,10 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'exacts test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:timeline-disabled? #t))
+      (define exacts (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points result))))
+      (hasheq 'points exacts))))
 
 (define calculate-endpoint 
   (post-with-json-response
@@ -404,9 +407,10 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'evaluate test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:timeline-disabled? #t))
+      (define approx (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points result))))
+      (hasheq 'points approx))))
 
 (define local-error-endpoint
   (post-with-json-response
@@ -417,11 +421,11 @@
       (eprintf "Local error job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define repr (test-output-repr test))
-      (define expr (resugar-program (test-input test) repr))
+      (define expr (resugar-program (test-input test) (test-output-repr test)))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define local-error (run-herbie 'local-error test #:seed seed #:pcontext pcontext
-                                      #:profile? #f #:timeline-disabled? #t))
+      (define result (run-herbie 'local-error test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:timeline-disabled? #t))
+      (define local-error (job-result-backend result))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
@@ -457,8 +461,7 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'alternatives test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:timeline-disabled? #t))
-
-      (match-define (list altns test-pcontext processed-pcontext) result)
+      (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
       
       (define splitpoints
         (for/list ([alt altns]) 
@@ -508,9 +511,10 @@
       
       (define test (parse-test formula))
       (define result (run-herbie 'cost test #:profile? #f #:timeline-disabled? #t))
+      (define cost (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'value result))))
+      (hasheq 'cost cost))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
