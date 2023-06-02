@@ -58,8 +58,8 @@
         (define new-errs (list-set errs i err))
         (cond [(< err best-err)
                 (values opt err i new-errs)]
-              [else (values init init-err init-index new-errs)])]
-      [else (values init init-err init-index errs)])))
+              [else (values best best-err best-index new-errs)])]
+      [else (values best best-err best-index errs)])))
 
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
