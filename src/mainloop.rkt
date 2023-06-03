@@ -399,8 +399,8 @@
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on sorted ctx)
-        (program-variables (alt-program (first sorted)))))
-  (define err-lsts (batch-errors (map alt-program sorted) (*pcontext*) ctx))
+        (context-vars ctx)))
+  (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
   (define init-options (for/list ([bexpr branch-exprs]) (option-on-expr sorted err-lsts bexpr ctx)))
   (define init-errs (for/list ([option init-options]) (errors-score (option-errors option))))
   (define init-index (argmin (curry list-ref init-errs) (range (length init-errs))))
@@ -417,7 +417,7 @@
       (define recomputed-branch-exprs
         (if (flag-set? 'reduce 'branch-expressions)
             (exprs-to-branch-on alts ctx)
-            (program-variables (alt-program (first sorted)))))
+            (context-vars ctx)))
       
       (define processed-errs 
         (for/list ([err errs] [bexpr branch-exprs])

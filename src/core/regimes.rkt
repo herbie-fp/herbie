@@ -26,8 +26,8 @@
 ;; can insert a timeline break between them.
 
 (define (infer-splitpoints alts branch-exprs cerrs cbest-index ctx)
-  (timeline-push! 'inputs (map (compose ~a program-body alt-program) alts))
-  (define err-lsts (batch-errors (map alt-program alts) (*pcontext*) ctx))
+  (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
+  (define err-lsts (batch-errors (map alt-expr alts) (*pcontext*) ctx))
 
   ;; we want to try the one we picked last time
   ;; and then if there are others in the cerrs that are better, try it.
@@ -64,7 +64,7 @@
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
                   (for/list ([sidx (option-split-indices best)])
-                    (~a (program-body (alt-program (list-ref alts (si-cidx sidx)))))))
+                    (~a (alt-expr (list-ref alts (si-cidx sidx))))))
   (define err-lsts* (flip-lists err-lsts))
   (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
   (timeline-push! 'accuracy (errors-score (option-errors best)))
