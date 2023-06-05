@@ -338,31 +338,31 @@ const MergedCostAccuracy = new Component('#pareto', {
     },
 
     plot: function(speedAccuracy, testsLength) {
-	const accuracyMax = speedAccuracy[0][1];
-	const initial = speedAccuracy[1];
-	const frontier = speedAccuracy[2];
+        const accuracyMax = speedAccuracy[0][1];
+        const initial = speedAccuracy[1];
+        const frontier = speedAccuracy[2];
         const out = Plot.plot({
             marks: [
-		Plot.line(frontier, {
-		    x: p => 1 / p[0],
-		    y: p => 1 - (p[1] / accuracyMax),
+                Plot.line(frontier, {
+                    x: p => 1 / p[0],
+                    y: p => 1 - (p[1] / accuracyMax),
                     stroke: "#00a",
-		    strokeWidth: 2,
-		}),
-		Plot.dot([initial], {
-		    x: p => 1 / p[0],
-		    y: p => 1 - (p[1] / accuracyMax),
+                    strokeWidth: 2,
+                }),
+                Plot.dot([initial], {
+                    x: p => 1 / p[0],
+                    y: p => 1 - (p[1] / accuracyMax),
                     stroke: "#d00",
-		    symbol: "square",
-		    strokeWidth: 2
-		})
+                    symbol: "square",
+                    strokeWidth: 2
+                })
             ],
             width: '400',
-            height: '400',                
-            x: { line: true, nice: true, tickFormat: x => `${x}x` },
+            height: '400',
+            x: { line: true, nice: true, tickFormat: c => c + "×" },
             y: { line: true, nice: true, domain: [0, 1], tickFormat: "%", },
-	    marginBottom: 0,
-	    marginRight: 0
+            marginBottom: 0,
+            marginRight: 0,
         })
         out.setAttribute('viewBox', '0 0 420 420')
         return out;

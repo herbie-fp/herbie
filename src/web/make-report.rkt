@@ -67,6 +67,12 @@
      (list _ initial-accuracy)
      frontier)
     (merged-cost-accuracy tests))
+  (define speedup-at-initial-accuracy
+    (match
+        (findf
+         (match-lambda [(list _ accuracy) (> accuracy initial-accuracy)])
+         frontier)
+    [(list cost _) (/ 1 cost)]))
 
   (define (round* x)
     (inexact->exact (round x)))
@@ -108,15 +114,7 @@
                       (format-accuracy total-result maximum-accuracy #:unit "%"))
        ,(render-large "Time" (format-time total-time #:max 'minute))
        ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests))
-       ,(render-large "Speedup at Initial Accuracy"
-                      (match-let ([(list cost _)
-                                   (argmin
-                                    (match-lambda [(list _ accuracy)
-                                                   (-
-                                                    (- 1 (/ accuracy maximum-accuracy))
-                                                    (- 1 (/ initial-accuracy maximum-accuracy)))])
-                                    frontier)])
-                        (format "~ax" (~r (/ 1 cost) #:precision 1)))))
+       ,(render-large "Speedup at Initial Accuracy" (format "~a×" (~r speedup-at-initial-accuracy #:precision 1))))
 
       (figure
        (div ([id "xy"])
