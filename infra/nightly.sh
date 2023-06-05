@@ -32,6 +32,7 @@ RECURSE=1 LOG=1 \
   bash "$INFRA_DIR"/run.sh \
     "$BENCH_DIR" "$OUT_DIR" \
     --profile \
+    --disable generate:proofs \
     --seed "$SEED" \
     --threads "$CORES" \
     $FLAGS
