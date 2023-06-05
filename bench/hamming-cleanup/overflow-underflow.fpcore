@@ -3,6 +3,12 @@
 (FPCore (x)
  :name "expq2 (section 3.11)"
  :herbie-target
- (/ 1 (- 1 (exp (- x))))
+ (if (<= x 0.0042)
+    (/ (exp x) expm1(* x log(e)))
+    (if (<= x 3.6e-8)
+        (+ 0.5 (/ (/ 1.0 x) log(e)))
+        (/ (exp x) (- (exp x) 1))))
 
  (/ (exp x) (- (exp x) 1)))
+
+; (/ 1 (- 1 (exp (- x)))) previous target possible alt 

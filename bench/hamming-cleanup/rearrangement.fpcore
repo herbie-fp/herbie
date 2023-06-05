@@ -10,9 +10,14 @@
 (FPCore (x eps)
  :name "2sin (example 3.3)"
  :herbie-target
- (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2))))
+ (* (* sin(* eps 0.5) 2.0)
+    (+ (fma(- sin(* eps 0.5), sin(x), (* sin(* eps 0.5) sin(x))))
+        (fma(cos(* eps 0.5), cos(x), (* sin(* eps 0.5) (- sin(x)))))))
 
  (- (sin (+ x eps)) (sin x)))
+
+; (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2)))) previous target possible alt
+
 
 (FPCore (x)
  :name "tanhf (example 3.4)"
