@@ -337,7 +337,7 @@ const MergedCostAccuracy = new Component('#pareto', {
         this.elt.replaceChild(this.plot(json["cost-accuracy"], json.tests.length), stub)
     },
 
-    plot: function(speedAccuracy, testsLength) {
+    plot: function(speedAccuracy) {
         const accuracyMax = speedAccuracy[0][1];
         const initial = speedAccuracy[1];
         const frontier = speedAccuracy[2];
