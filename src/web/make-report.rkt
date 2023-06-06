@@ -62,10 +62,10 @@
   (define total-result
     (for/sum ([t tests]) (or (table-row-result t) 0)))
   (define maximum-accuracy
-    (for/sum ([test (in-list tests)])
+    (for/sum ([t (in-list tests)])
       (representation-total-bits
        (get-representation
-        (table-row-precision test)))))
+        (table-row-precision t)))))
   (match-define (list (list _ initial-accuracy) frontier) merged-cost-accuracy)
   (define speedup-at-initial-accuracy
     ;; The cost of the point that minimizes distance from the initial-accuracy
