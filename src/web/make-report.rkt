@@ -61,17 +61,11 @@
     (for/sum ([t tests]) (or (table-row-start t) 0)))
   (define total-result
     (for/sum ([t tests]) (or (table-row-result t) 0)))
-  (match-define
-    (list
-     (list _ maximum-accuracy)
-     (list _ initial-accuracy)
-     frontier)
-    (merged-cost-accuracy tests))
+  (match-define (list _ (list _ initial-accuracy) frontier) merged-cost-accuracy)
   (define speedup-at-initial-accuracy
-    (/ 1 (first 
-          (findf
-           (lambda (point) (> (second point) initial-accuracy))
-           frontier))))
+    (first (findf
+            (lambda (point) (> (second point) initial-accuracy))
+            frontier))))
 
   (define (round* x)
     (inexact->exact (round x)))
