@@ -8,7 +8,7 @@ figure { margin: 0; }
 
 #large { margin: 2em 0; text-align: center; }
 #large div { margin: 0 1em; display: inline-block; vertical-align: top; }
-#large .number { font-size: 3em; display: block; }
+#large .number { font-size: 2em; display: block; }
 @media print { #large { margin-top: 0; }}
 
 /* Plots at the top */
