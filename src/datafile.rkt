@@ -67,7 +67,7 @@
      (match-lambda
        [(list cost accuracy)
         (list
-         ;; TODO: I think this is always the same as (/ tests-length cost)
+         ;; Equivalent to (/ 1 (/ cost tests-length))
          (/ 1 (/ cost tests-length))
          (- 1 (/ accuracy maximum-accuracy)))])
      (pareto-combine rescaled #:convex? #t)))
