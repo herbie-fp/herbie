@@ -68,10 +68,12 @@
         (table-row-precision t)))))
   (match-define (list (list _ initial-accuracy) frontier) merged-cost-accuracy)
   (define speedup-at-initial-accuracy
-    ;; The cost of the point that minimizes distance from the initial-accuracy
-    (first (argmin
-            (lambda (point) (abs (- initial-accuracy (second point))))
-            frontier)))
+    ;; The `frontier`'s accuracies are descending, so here we're searching from
+    ;; the end backwards to get the cost of the first point with an accuracy
+    ;; higher than that of the initial point's
+    (for/first ([point (reverse frontier)]
+                #:when (> (second point) initial-accuracy))
+      (first point)))
 
   (define (round* x)
     (inexact->exact (round x)))
