@@ -6,7 +6,7 @@
 (provide
  (struct-out table-row) (struct-out report-info)
  make-report-info read-datafile write-datafile
- merge-datafiles diff-datafiles merged-cost-accuracy)
+ merge-datafiles diff-datafiles)
 
 
 (struct table-row
