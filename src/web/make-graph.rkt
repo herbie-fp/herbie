@@ -128,8 +128,18 @@
             (render-large "Cost" `(kbd ,(format-cost (car end-costs) repr)))
             ""))
 
+      (h3 "Bogoisity")
+    ;   ((dt "Bogosity")
+    ; (dd (div ((class "bogosity"))
+    ;     ,@(for/list ([tag tags])
+    ;         `(div
+    ;           ([class ,(format "bogosity-~a" tag)]
+    ;            [data-id ,(format "bogosity-~a" tag)]
+    ;            [data-type ,(~a tag)]
+    ;            [data-timespan ,(~a (hash-ref domain-info tag 0))]
+    ;            [title ,(format "~a (~a)" tag
+    ;                            (format-percent (hash-ref domain-info tag 0) total))]))))))
       ,(render-warnings warnings)
-
       ,(render-program preprocess test #:to (alt-expr end-alt))
 
       (section ([id "graphs"]) (h1 "Error" (a (
