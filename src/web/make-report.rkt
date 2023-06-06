@@ -68,11 +68,10 @@
      frontier)
     (merged-cost-accuracy tests))
   (define speedup-at-initial-accuracy
-    (match
-        (findf
-         (match-lambda [(list _ accuracy) (> accuracy initial-accuracy)])
-         frontier)
-    [(list cost _) (/ 1 cost)]))
+    (/ 1 (first 
+          (findf
+           (lambda (point) (> (second point) initial-accuracy))
+           frontier))))
 
   (define (round* x)
     (inexact->exact (round x)))
