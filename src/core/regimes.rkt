@@ -25,7 +25,7 @@
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts branch-exprs cerrs cbest-index ctx)
+(define (infer-splitpoints alts branch-exprs cerrs try-first ctx)
   (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
   (define err-lsts (batch-errors (map alt-expr alts) (*pcontext*) ctx))
 
@@ -33,33 +33,33 @@
   ;; and then if there are others in the cerrs that are better, try it.
   (define init 
     (cond 
-      [(= +inf.0 (list-ref cerrs cbest-index)) null]
-      [else (option-on-expr alts err-lsts (list-ref branch-exprs cbest-index) ctx)]))
+      [(= +inf.0 (hash-ref cerrs try-first)) null]
+      [else (option-on-expr alts err-lsts try-first ctx)]))
   (define init-err 
     (cond 
       [(null? init) +inf.0] 
       [else (errors-score (option-errors init))]))
-  (define init-index cbest-index)
 
   ;; invariant:
   ;; errs[i] is some best option on branch-expr[i] computed on more alts than we have right now.
   ;;
   ;; errs[i] will be +inf.0 if we recomputed the branch expressions for the current set of alts
   ;; and branch-expr[i] no longer exists.
-  (match-define-values (best best-err best-index errs) 
-      (for/fold ([best init] [best-err init-err] [best-index init-index] [errs (list-set cerrs init-index init-err)] 
-            #:result (values best best-err best-index errs)) 
-            ([bexpr branch-exprs] [berr cerrs] [i (range (length branch-exprs))])
+  (match-define-values (best best-err best-branch errs) 
+      (for/fold ([best init] [best-err init-err] [best-branch try-first] [errs (hash-set cerrs try-first init-err)] 
+            #:result (values best best-err best-branch errs)) 
+            ([bexpr branch-exprs])
     ;; don't recompute if we know we've computed this branch-expr on more alts and it's still worse
     (cond 
-      [(and (< berr best-err) (not (= i cbest-index)))
+      [(and (< (hash-ref cerrs bexpr) best-err) (not (equal? bexpr try-first)))
         (define opt (option-on-expr alts err-lsts bexpr ctx))
         (define err (errors-score (option-errors opt)))
-        (define new-errs (list-set errs i err))
+        (define new-errs (hash-set errs bexpr err))
         (cond [(< err best-err)
-                (values opt err i new-errs)]
-              [else (values best best-err best-index new-errs)])]
-      [else (values best best-err best-index errs)])))
+                (values opt err bexpr new-errs)]
+              [else (values best best-err best-branch new-errs)])]
+      [else 
+        (values best best-err best-branch errs)])))
 
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
@@ -71,7 +71,7 @@
   (define repr (context-repr ctx))
   (timeline-push! 'repr (~a (representation-name repr)))
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
-  (values best best-index errs))
+  (values best best-branch errs))
 
 (define (exprs-to-branch-on alts ctx)
   (define alt-critexprs

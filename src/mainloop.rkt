@@ -401,15 +401,8 @@
         (exprs-to-branch-on sorted ctx)
         (context-vars ctx)))
   (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
-  (define init-options (for/list ([bexpr branch-exprs]) (option-on-expr sorted err-lsts bexpr ctx)))
-  (define init-errs (for/list ([option init-options]) (errors-score (option-errors option))))
-  (define init-index (argmin (curry list-ref init-errs) (range (length init-errs))))
-
-  (define ibranched-alt (combine-alts (list-ref init-options init-index) ctx))
-  (define ihigh (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices (list-ref init-options init-index)))))
-  (define init-alts (take sorted ihigh))
-  (cons ibranched-alt 
-  (let loop ([alts init-alts] [errs init-errs] [best-index init-index])
+  (define init-errs (for/hash ([bexpr branch-exprs]) (values bexpr -1)))
+  (let loop ([alts sorted] [errs init-errs] [try-first (first branch-exprs)])
     (cond
      [(null? alts) '()]
      [(= (length alts) 1) (list (car alts))]
@@ -420,14 +413,14 @@
             (context-vars ctx)))
       
       (define processed-errs 
-        (for/list ([err errs] [bexpr branch-exprs])
-                  (cond [(member bexpr recomputed-branch-exprs) err]
-                        [else +inf.0])))
+        (for/hash ([bexpr branch-exprs])
+                  (cond [(member bexpr recomputed-branch-exprs) (values bexpr (hash-ref errs bexpr))]
+                        [else (values bexpr +inf.0)])))
 
-      (match-define-values (opt opt-index new-errs) (infer-splitpoints alts branch-exprs processed-errs best-index ctx))
+      (match-define-values (opt next-try new-errs) (infer-splitpoints alts branch-exprs processed-errs try-first ctx))
       (define branched-alt (combine-alts opt ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons branched-alt (loop (take alts high) new-errs opt-index))]))))
+      (cons branched-alt (loop (take alts high) new-errs next-try))])))
 
 (define (extract!)
   (define ctx (*context*))
