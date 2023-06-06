@@ -42,7 +42,7 @@
             ([bexpr branch-exprs])
     ;; don't recompute if we know we've computed this branch-expr on more alts and it's still worse
     (cond 
-      [(and (< (hash-ref cerrs bexpr) best-err) (not (equal? bexpr try-first)))
+      [(< (hash-ref cerrs bexpr) best-err)
         (define opt (option-on-expr alts err-lsts bexpr ctx))
         (define err (+ (errors-score (option-errors opt)) (length (option-split-indices opt))))
         (define new-errs (hash-set errs bexpr err))
