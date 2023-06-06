@@ -66,9 +66,9 @@
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points fn ctx sampler))
   (representation-repr->bf (context-repr ctx))
-  (define combined-table (combine-tables table table2))
-  (when (> (hash-ref combined-table 'infinite 0.0) 0.2)
-    (define total (apply + (hash-values table2)))
-    (warn 'inf-points #:url "faq.html#inf-points"
-      "~a of points produce a very large (infinite) output. You may want to add a precondition." (format-accuracy (- total (hash-ref table2 'infinite)) total #:unit "%")))
-  (cons combined-table results))
+  (define total (apply + (hash-values table2)))
+  (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
+   (warn 'inf-points #:url "faq.html#inf-points"
+    "~a of points produce a very large (infinite) output. You may want to add a precondition." 
+    (format-accuracy (- total (hash-ref table2 'infinite)) total #:unit "%")))
+  (cons (combine-tables table table2) results))
