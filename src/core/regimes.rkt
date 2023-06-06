@@ -32,7 +32,7 @@
   ;; we want to try the branch expression that was best in the previous iteration first
   ;; and then if there are other branch-exprs that are more accurate on a larger set of alts, try it.
   (define init (option-on-expr alts err-lsts try-first ctx)) 
-  (define init-err (errors-score (option-errors init)))
+  (define init-err (+ (errors-score (option-errors init)) (length (option-split-indices init))))
 
   ;; invariant:
   ;; errs[bexpr] is some best option on branch expression bexpr computed on more alts than we have right now.
@@ -44,7 +44,7 @@
     (cond 
       [(and (< (hash-ref cerrs bexpr) best-err) (not (equal? bexpr try-first)))
         (define opt (option-on-expr alts err-lsts bexpr ctx))
-        (define err (errors-score (option-errors opt)))
+        (define err (+ (errors-score (option-errors opt)) (length (option-split-indices opt))))
         (define new-errs (hash-set errs bexpr err))
         (if (< err best-err)
             (values opt err bexpr new-errs)
