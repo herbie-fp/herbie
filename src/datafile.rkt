@@ -30,9 +30,8 @@
                tests
                (merged-cost-accuracy tests)))
 
-;; Calculate the maximum cost and accuracy, initial cost and accuracy, and
-;; the rescaled and combined Pareto frontier for the given `tests` and return
-;; these as a list.
+;; Calculate the initial cost and accuracy and the rescaled and combined Pareto
+;; frontier for the given `tests` and return these as a list.
 (define (merged-cost-accuracy tests)
   (define tests-length (length tests))
   (define cost-accuracies (map table-row-cost-accuracy tests))
@@ -42,13 +41,12 @@
        (get-representation
         (table-row-precision test)))))
   (define initial-accuracy
-    (exact->inexact
-     (/
-      (for/sum ([cost-accuracy (in-list cost-accuracies)]
-                #:unless (null? cost-accuracy))
-        (match cost-accuracy
-          [(list (list _ initial-accuracy) _ _) initial-accuracy]))
-      maximum-accuracy)))
+    (let ([initial-accuracies-sum
+           (for/sum ([cost-accuracy (in-list cost-accuracies)]
+                     #:unless (null? cost-accuracy))
+             (match cost-accuracy
+               [(list (list _ initial-accuracy) _ _) initial-accuracy]))])
+      (exact->inexact (- 1 (/ initial-accuracies-sum maximum-accuracy)))))
   (define rescaled
     (for/list ([cost-accuracy (in-list cost-accuracies)]
                #:unless (null? cost-accuracy))
@@ -79,10 +77,7 @@
      (cons
       0.0 ;; To prevent `argmax` from signaling an error in case `tests` is empty
       (map (match-lambda [(list cost _) cost]) frontier))))
-  (list
-   (list maximum-cost 1.0)
-   (list 1.0 initial-accuracy)
-   frontier))
+  (list (list 1.0 initial-accuracy) frontier))
 
 (define (write-datafile file info)
   (define (simplify-test test)
@@ -125,7 +120,7 @@
 
   (define data
     (match info
-      [(report-info date commit branch hostname seed flags points iterations note tests)
+      [(report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy)
        (make-hash
         `((date . ,(date->seconds date))
           (commit . ,commit)
@@ -137,7 +132,7 @@
           (iterations . ,iterations)
           (note . ,note)
           (tests . ,(map simplify-test tests))
-          (merged-cost-accuracy . ,(merged-cost-accuracy tests))))]))
+          (merged-cost-accuracy . ,merged-cost-accuracy)))]))
 
   (call-with-atomic-output-file file (λ (p name) (write-json data p))))
 

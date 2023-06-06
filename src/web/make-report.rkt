@@ -61,11 +61,17 @@
     (for/sum ([t tests]) (or (table-row-start t) 0)))
   (define total-result
     (for/sum ([t tests]) (or (table-row-result t) 0)))
-  (match-define (list _ (list _ initial-accuracy) frontier) merged-cost-accuracy)
+  (define maximum-accuracy
+    (for/sum ([test (in-list tests)])
+      (representation-total-bits
+       (get-representation
+        (table-row-precision test)))))
+  (match-define (list (list _ initial-accuracy) frontier) merged-cost-accuracy)
   (define speedup-at-initial-accuracy
-    (first (findf
-            (lambda (point) (> (second point) initial-accuracy))
-            frontier))))
+    ;; The cost of the point that minimizes distance from the initial-accuracy
+    (first (argmin
+            (lambda (point) (abs (- initial-accuracy (second point))))
+            frontier)))
 
   (define (round* x)
     (inexact->exact (round x)))

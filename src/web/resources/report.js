@@ -334,28 +334,22 @@ const MergedCostAccuracy = new Component('#pareto', {
         });
         let stub = this.elt.querySelector("svg");
         let json = await response.json();
-        this.elt.replaceChild(this.plot(json["cost-accuracy"], json.tests.length), stub)
+        const [initial, frontier] = json["merged-cost-accuracy"];
+        this.elt.replaceChild(this.plot(initial, frontier), stub)
     },
 
-    plot: function(speedAccuracy) {
-        const accuracyMax = speedAccuracy[0][1];
-        const initial = speedAccuracy[1];
-        const frontier = speedAccuracy[2];
+    plot: function(initial, frontier) {
         const out = Plot.plot({
             marks: [
+                Plot.dot([initial], {
+                    stroke: "#d00",
+                    symbol: "square",
+                    strokeWidth: 2,
+                }),
                 Plot.line(frontier, {
-                    x: p => 1 / p[0],
-                    y: p => 1 - (p[1] / accuracyMax),
                     stroke: "#00a",
                     strokeWidth: 2,
                 }),
-                Plot.dot([initial], {
-                    x: p => 1 / p[0],
-                    y: p => 1 - (p[1] / accuracyMax),
-                    stroke: "#d00",
-                    symbol: "square",
-                    strokeWidth: 2
-                })
             ],
             width: '400',
             height: '400',
