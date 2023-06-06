@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt")
+(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt" "common.rkt")
 
 (provide sample-points batch-prepare-points make-search-func eval-progs-real)
 
@@ -57,7 +57,6 @@
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
   (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
-  (define t2* (hash-map t2 (λ (k v) (* (/ v t2-total) t1-base))))
   (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)])
       ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
@@ -72,4 +71,9 @@
   (timeline-event! 'sample)
   ;; TODO: should batch-prepare-points allow multiple contexts?
   (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler))
+  (define total (apply + (hash-values table2)))
+  (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
+   (warn 'inf-points #:url "faq.html#inf-points"
+    "~a of points produce a very large (infinite) output. You may want to add a precondition." 
+    (format-accuracy (- total (hash-ref table2 'infinite)) total #:unit "%")))
   (cons (combine-tables table table2) results))

@@ -237,7 +237,7 @@
 
   (define (compute-result test)
     (parameterize ([*timeline-disabled* timeline-disabled?]
-                   [*warnings-disabled* true])
+                   [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
       (define repr (test-output-repr test))
       (rollback-improve!)
