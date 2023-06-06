@@ -133,7 +133,7 @@
       (values err precision +nan.0)]
      [(not err?)
      (define infinite?
-      (ival-lo (is-infinite-interval repr (apply ival-or exs))))
+     (ival-lo (is-infinite-interval repr (apply ival-or exs))))
      (values (if infinite? 'infinite 'valid) precision exs)
      ]
      [(> precision* (*max-mpfr-prec*))

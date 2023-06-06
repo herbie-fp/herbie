@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt")
+(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt" "common.rkt")
 
 (provide sample-points batch-prepare-points make-search-func eval-prog-real)
 
@@ -69,5 +69,5 @@
   (define combined-table (combine-tables table table2))
   (when (> (hash-ref combined-table 'infinite 0.0) 0.2)
     (warn 'inf-points #:url "faq.html#inf-points"
-      "Getting infinite outputs for ~a of points. You may want to add a precondition." (hash-ref combined-table 'infinite)))
+      "~a of points produce a very large (infinite) output. You may want to add a precondition." (format-accuracy (hash-ref combined-table 'infinite) 1 #:unit "%")))
   (cons combined-table results))
