@@ -99,7 +99,9 @@
   (define start-prog (extract-subexpression (*start-prog*) var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
-  (define start-fn (and start-prog (make-search-func '(TRUE) (list start-prog) ctx*)))
+  (define start-fn 
+    (and start-prog 
+      (make-search-func '(TRUE) (list start-prog)  (cons ctx* `()))))
 
   (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
