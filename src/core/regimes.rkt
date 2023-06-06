@@ -29,19 +29,13 @@
   (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
   (define err-lsts (batch-errors (map alt-expr alts) (*pcontext*) ctx))
 
-  ;; we want to try the one we picked last time
-  ;; and then if there are others in the cerrs that are better, try it.
-  (define-values (init init-err) 
-    (cond 
-      [(= +inf.0 (hash-ref cerrs try-first)) (values null +inf.0)]
-      [else (define opt (option-on-expr alts err-lsts try-first ctx)) 
-            (values opt (errors-score (option-errors opt)))]))
+  ;; we want to try the branch expression that was best in the previous iteration first
+  ;; and then if there are other branch-exprs that are more accurate on a larger set of alts, try it.
+  (define init (option-on-expr alts err-lsts try-first ctx)) 
+  (define init-err (errors-score (option-errors init)))
 
   ;; invariant:
-  ;; errs[i] is some best option on branch-expr[i] computed on more alts than we have right now.
-  ;;
-  ;; errs[i] will be +inf.0 if we recomputed the branch expressions for the current set of alts
-  ;; and branch-expr[i] no longer exists.
+  ;; errs[bexpr] is some best option on branch expression bexpr computed on more alts than we have right now.
   (match-define-values (best best-err best-branch errs) 
       (for/fold ([best init] [best-err init-err] [best-branch try-first] [errs (hash-set cerrs try-first init-err)] 
             #:result (values best best-err best-branch errs)) 
