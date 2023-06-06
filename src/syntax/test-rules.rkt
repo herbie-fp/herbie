@@ -20,7 +20,8 @@
     [acos-cos-s_binary64    . (and (<=.f64 0 x) (<=.f64 x 3.1416))]
     [acos-cos-s_binary32    . (and (<=.f32 0 x) (<=.f64 x 3.1416))]
     [atan-tan-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
-    [atan-tan-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]))
+    [atan-tan-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
+    [sqrt-pow1              . (>= x 0)]))
 
 (define (check-rule-correct test-rule)
   (match-define (rule name p1 p2 itypes repr) test-rule)
@@ -30,7 +31,7 @@
   (define pre (dict-ref *conditions* name '(TRUE)))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
-      (cdr (sample-points pre (list p1 p2) ctx))))
+      (cdr (sample-points pre (list p1 p2) (list ctx ctx)))))
 
   (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
       (with-check-info (['point (map cons fv pt)] ['input v1] ['output v2])
