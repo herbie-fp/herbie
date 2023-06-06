@@ -40,7 +40,7 @@
                  (td ,(~a (round* (- start gained))) "/" ,(~a (round* start)))))))))
 
 (define (make-report-page out info dir #:merge-data [merge-data #f])
-  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy) info)
 
   ; (define reprs (map (compose get-representation table-row-precision) trs))
 
