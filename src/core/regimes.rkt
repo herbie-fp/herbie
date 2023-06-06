@@ -31,14 +31,11 @@
 
   ;; we want to try the one we picked last time
   ;; and then if there are others in the cerrs that are better, try it.
-  (define init 
+  (define-values (init init-err) 
     (cond 
-      [(= +inf.0 (hash-ref cerrs try-first)) null]
-      [else (option-on-expr alts err-lsts try-first ctx)]))
-  (define init-err 
-    (cond 
-      [(null? init) +inf.0] 
-      [else (errors-score (option-errors init))]))
+      [(= +inf.0 (hash-ref cerrs try-first)) (values null +inf.0)]
+      [else (define opt (option-on-expr alts err-lsts try-first ctx)) 
+            (values opt (errors-score (option-errors opt)))]))
 
   ;; invariant:
   ;; errs[i] is some best option on branch-expr[i] computed on more alts than we have right now.
