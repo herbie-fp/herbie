@@ -206,8 +206,8 @@
     (set! dirs (map (const #f) dfs)))
   (define tests
     (for/list ([df (in-list dfs)] [dir (in-list dirs)]
-                                  #:when true
-                                  [test (in-list (report-info-tests df))])
+               #:when true
+               [test (in-list (report-info-tests df))])
       (struct-copy table-row test
                    [link (if dir
                              (format "~a/~a" dir (table-row-link test))
