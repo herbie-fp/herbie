@@ -36,7 +36,7 @@
 
   ;; invariant:
   ;; errs[bexpr] is some best option on branch expression bexpr computed on more alts than we have right now.
-  (match-define-values (best best-err best-branch errs) 
+  (define-values (best best-err best-branch errs) 
       (for/fold ([best init] [best-err init-err] [best-branch try-first] [errs (hash-set cerrs try-first init-err)] 
             #:result (values best best-err best-branch errs)) 
             ([bexpr branch-exprs])
@@ -46,9 +46,9 @@
         (define opt (option-on-expr alts err-lsts bexpr ctx))
         (define err (errors-score (option-errors opt)))
         (define new-errs (hash-set errs bexpr err))
-        (cond [(< err best-err)
-                (values opt err bexpr new-errs)]
-              [else (values best best-err best-branch new-errs)])]
+        (if (< err best-err)
+            (values opt err bexpr new-errs)
+            (values best best-err best-branch new-errs))]
       [else 
         (values best best-err best-branch errs)])))
 

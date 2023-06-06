@@ -412,12 +412,18 @@
             (exprs-to-branch-on alts ctx)
             (context-vars ctx)))
       
-      (define processed-errs 
-        (for/hash ([bexpr branch-exprs])
-                  (cond [(member bexpr recomputed-branch-exprs) (values bexpr (hash-ref errs bexpr))]
-                        [else (values bexpr +inf.0)])))
+      (define recomp-errs 
+        (for/hash ([bexpr recomputed-branch-exprs]) (values bexpr (hash-ref errs bexpr))))
 
-      (match-define-values (opt next-try new-errs) (infer-splitpoints alts branch-exprs processed-errs try-first ctx))
+      ;; if after recomputing branch-expressions, the previously chosen branch-expression no longer exists, use a
+      ;; different one.
+      (define recomp-try 
+        (if (member try-first recomputed-branch-exprs) 
+            try-first 
+            (argmin (curry hash-ref recomp-errs) recomputed-branch-exprs)))
+
+      (define-values (opt next-try new-errs) 
+        (infer-splitpoints alts recomputed-branch-exprs recomp-errs recomp-try ctx))
       (define branched-alt (combine-alts opt ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons branched-alt (loop (take alts high) new-errs next-try))])))
