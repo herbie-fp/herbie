@@ -1,6 +1,6 @@
 #lang racket
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "timeline.rkt" "errors.rkt" "pretty-print.rkt")
+(require "syntax/types.rkt" "timeline.rkt" "errors.rkt" "pretty-print.rkt" "float.rkt")
 
 (provide find-intervals hyperrect-weight)
 
@@ -36,6 +36,7 @@
 
 (define (search-step ival-fn space ctx split-var)
   (match-define (search-space true false other) space)
+  (define reprs (context-var-reprs ctx))
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
       (define res (apply ival-fn rect))
@@ -43,8 +44,15 @@
       (when (eq? err 'unsamplable)
         (warn 'ground-truth #:url "faq.html#ground-truth"
               "could not determine a ground truth"
-              #:extra (for/list ([var (context-vars ctx)] [ival rect])
-                        (format "~a = ~a" var (bigfloat-interval-shortest (ival-lo ival) (ival-hi ival))))))
+              #:extra
+              (for/list ([var (context-vars ctx)] [repr reprs] [ival rect])
+                (define val
+                  (value->string
+                   ((representation-bf->repr repr)
+                    (bigfloat-pick-point (ival-lo ival) (ival-hi ival)))
+                   repr))
+                (eprintf "~a\n~a\n->~a\n" (ival-lo ival) (ival-hi ival) val)
+                (format "~a = ~a" var val))))
       (cond
        [err
         (values true* (cons (cons err rect) false*) other*)]
@@ -52,7 +60,7 @@
         (values (cons rect true*) false* other*)]
        [else
         (define range (list-ref rect split-var))
-        (define repr (list-ref (context-var-reprs ctx) split-var))
+        (define repr (list-ref reprs split-var))
         (match (midpoint repr (ival-lo range) (ival-hi range))
           [(cons midleft midright)
            (define rect-lo (list-set rect split-var (ival (ival-lo range) midleft)))
