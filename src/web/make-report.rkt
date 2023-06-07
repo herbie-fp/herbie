@@ -115,7 +115,10 @@
                       (format-accuracy total-result maximum-accuracy #:unit "%"))
        ,(render-large "Time" (format-time total-time #:max 'minute))
        ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests))
-       ,(render-large "Speedup at Initial Accuracy" (format "~a×" (~r speedup-at-initial-accuracy #:precision 1))))
+       ,(render-large "Speedup at Initial Accuracy"
+                      (if speedup-at-initial-accuracy
+                          (format "~a×" (~r speedup-at-initial-accuracy #:precision 1))
+                          "N/A")))
 
       (figure
        (div ([id "xy"])
