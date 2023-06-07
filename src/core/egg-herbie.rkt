@@ -312,6 +312,9 @@
   (match proof-input
     [(cons start end)
      #:when (not (and (egraph-is-unsound-detected egg-graph) proof-ignore-when-unsound?))
+     (when (not (egraph-is-equal egg-graph start end))
+        (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
+
      (define proof (egraph-get-proof egg-graph start end))
      (when (null? proof)
        (error (format "Failed to produce proof for ~a to ~a" start end)))
@@ -449,6 +452,11 @@
   (if (member #f res)
       (list #f)
       res))
+
+(define (egraph-is-equal egraph-data expr goal)
+  (define egg-expr (~a (expr->egg-expr expr egraph-data)))
+  (define egg-goal (~a (expr->egg-expr goal egraph-data)))
+  (egraph_is_equal (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal)

@@ -293,7 +293,9 @@
     (*needed-reprs* (list repr (get-representation 'bool))))
 
   (match-define (cons domain pts+exs)
-                (sample-points precondition (list specification) (*context*)))
+                  (sample-points precondition 
+                    (list specification) 
+                    (list (*context*))))
   (cons domain (apply mk-pcontext pts+exs)))
 
 (define (initialize-alt-table! prog pcontext ctx)
@@ -449,10 +451,13 @@
          [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
          [else (values best score (cons altn rest))]))))
 
-  (timeline-event! 'soundness)
-
   (match-define (cons best-annotated rest-annotated)
-    (add-soundiness (cons best rest) (*pcontext*) (*context*)))
+    (cond
+     [(flag-set? 'generate 'proofs)
+      (timeline-event! 'soundness)
+      (add-soundiness (cons best rest) (*pcontext*) (*context*))]
+     [else
+      (cons best rest)]))
 
   (timeline-event! 'end)
   

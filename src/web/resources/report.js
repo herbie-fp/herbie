@@ -334,23 +334,26 @@ const MergedCostAccuracy = new Component('#pareto', {
         });
         let stub = this.elt.querySelector("svg");
         let json = await response.json();
-        this.elt.replaceChild(this.plot(json["cost-accuracy"], json.tests.length), stub)
+        const [initial, frontier] = json["merged-cost-accuracy"];
+        this.elt.replaceChild(this.plot(initial, frontier), stub)
     },
 
-    plot: function(json, n) {
-        const sortLine = [...json[2]];
-        sortLine.sort((a, b) => {return a[0]-b[0]});
-        const ymax = 64 * n;
+    plot: function(initial, frontier) {
         const out = Plot.plot({
             marks: [
-                Plot.line(sortLine, {x: d => d[0], y: d => 1 - d[1] / ymax,
-                                     stroke: "#00a", strokeWidth: 2}),
-                Plot.dot(json[1], {x: json[1][0], y: 1 - json[1][1] / ymax,
-                                   stroke: "#d00", symbol: "square", strokeWidth: 2})
+                Plot.dot([initial], {
+                    stroke: "#d00",
+                    symbol: "square",
+                    strokeWidth: 2,
+                }),
+                Plot.line(frontier, {
+                    stroke: "#00a",
+                    strokeWidth: 2,
+                }),
             ],
             width: '400',
-            height: '400',                
-            x: { line: true, },
+            height: '400',
+            x: { line: true, nice: true, tickFormat: c => c + "×" },
             y: { line: true, nice: true, domain: [0, 1], tickFormat: "%", },
             marginBottom: 0,
             marginRight: 0,
