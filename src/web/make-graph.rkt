@@ -7,8 +7,8 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../syntax/types.rkt" "../cost.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
-         "common.rkt" "history.rkt" "../syntax/sugar.rkt")
-         
+         "common.rkt" "history.rkt" "../syntax/sugar.rkt" "timeline.rkt")
+
 (provide make-graph)
 
 (define/contract (regime-info altn)
@@ -56,12 +56,12 @@
    [_ #f]))
 
 (define (make-graph result out fpcore? profile?)
-  (match-define (job-result test _ time _ warnings backend) result)
+  (match-define (job-result test _ time data-list warnings backend) result)
+  (define bogosity (hash-ref (second data-list) 'bogosity))
   (define vars (test-vars test))
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
-  
   (match-define (improve-result preprocess pctxs start target end) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
@@ -129,16 +129,8 @@
             ""))
 
       (h3 "Bogoisity")
-    ;   ((dt "Bogosity")
-    ; (dd (div ((class "bogosity"))
-    ;     ,@(for/list ([tag tags])
-    ;         `(div
-    ;           ([class ,(format "bogosity-~a" tag)]
-    ;            [data-id ,(format "bogosity-~a" tag)]
-    ;            [data-type ,(~a tag)]
-    ;            [data-timespan ,(~a (hash-ref domain-info tag 0))]
-    ;            [title ,(format "~a (~a)" tag
-    ;                            (format-percent (hash-ref domain-info tag 0) total))]))))))
+      ; TODO fix qouting
+      ,(render-phase-bogosity bogosity)
       ,(render-warnings warnings)
       ,(render-program preprocess test #:to (alt-expr end-alt))
 
