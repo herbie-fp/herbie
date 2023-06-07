@@ -220,7 +220,6 @@
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (timeline-event! 'end)
-      (print-warnings)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command 
         ['improve (job-result test 'failure time (timeline-extract) (warning-log) e)]
@@ -230,7 +229,6 @@
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (timeline-load! timeline)
       (timeline-compact! 'outcomes)
-      (print-warnings)
       (match command 
         ['improve (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
@@ -258,7 +256,6 @@
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
-        (print-warnings)
         (define time (- (current-inexact-milliseconds) start-time))
         (job-result test 'success time (timeline-extract) (warning-log) result))))
   
