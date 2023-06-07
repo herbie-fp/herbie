@@ -4,7 +4,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
-(provide infer-splitpoints (struct-out option) (struct-out si) exprs-to-branch-on)
+(provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si) exprs-to-branch-on)
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -22,10 +22,42 @@
 ;; pidx = Point index: The index of the point to the left of which we should split.
 (struct si (cidx pidx) #:prefab)
 
+(define (pareto-regimes sorted ctx)
+  (define branch-exprs
+    (if (flag-set? 'reduce 'branch-expressions)
+        (exprs-to-branch-on sorted ctx)
+        (context-vars ctx)))
+  (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
+  (define init-errs (for/hash ([bexpr branch-exprs]) (values bexpr -1)))
+  (let loop ([alts sorted] [errs init-errs] [try-first (first branch-exprs)])
+    (cond
+     [(or (null? alts) (= (length alts) 1)) '()]
+     [else
+      (define recomputed-branch-exprs
+        (if (flag-set? 'reduce 'branch-expressions)
+            (exprs-to-branch-on alts ctx)
+            (context-vars ctx)))
+      
+      (define recomp-errs 
+        (for/hash ([bexpr recomputed-branch-exprs]) (values bexpr (hash-ref errs bexpr))))
+
+      ;; if after recomputing branch-expressions, the previously chosen branch-expression no longer exists, use a
+      ;; different one.
+      (define recomp-try 
+        (if (member try-first recomputed-branch-exprs) 
+            try-first 
+            (argmin (curry hash-ref recomp-errs) recomputed-branch-exprs)))
+
+      (define-values (opt next-try new-errs) 
+        (infer-splitpoints alts recomputed-branch-exprs recomp-errs recomp-try ctx))
+      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
+      (cons opt (loop (take alts high) new-errs next-try))])))
+
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
 (define (infer-splitpoints alts branch-exprs cerrs try-first ctx)
+  (timeline-event! 'regimes)
   (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
   (define err-lsts (batch-errors (map alt-expr alts) (*pcontext*) ctx))
 
@@ -97,7 +129,6 @@
     subexpr))
 
 (define (option-on-expr alts err-lsts expr ctx)
-  (timeline-event! 'regimes)
   (define repr (repr-of expr ctx))
   (define timeline-stop! (timeline-start! 'times (~a expr)))
 
