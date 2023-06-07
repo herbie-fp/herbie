@@ -4,7 +4,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
-(provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si) exprs-to-branch-on)
+(provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si))
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
