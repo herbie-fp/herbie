@@ -1,6 +1,6 @@
 #lang racket
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "timeline.rkt")
+(require "syntax/types.rkt" "timeline.rkt" "errors.rkt" "pretty-print.rkt")
 
 (provide find-intervals hyperrect-weight)
 
@@ -34,12 +34,17 @@
   (and (bf>= lower lo) (bf<= higher hi) ; False if lo and hi were already close together
        (cons lower higher)))
 
-(define (search-step ival-fn space reprs split-var)
+(define (search-step ival-fn space ctx split-var)
   (match-define (search-space true false other) space)
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
       (define res (apply ival-fn rect))
       (match-define (ival err err?) (apply ival-or (map ival-error? res)))
+      (when (eq? err 'unsamplable)
+        (warn 'ground-truth #:url "faq.html#ground-truth"
+              "could not determine a ground truth"
+              #:extra (for/list ([var (context-vars ctx)] [ival rect])
+                        (format "~a = ~a" var (bigfloat-interval-shortest (ival-lo ival) (ival-hi ival))))))
       (cond
        [err
         (values true* (cons (cons err rect) false*) other*)]
@@ -47,7 +52,7 @@
         (values (cons rect true*) false* other*)]
        [else
         (define range (list-ref rect split-var))
-        (define repr (list-ref reprs split-var))
+        (define repr (list-ref (context-var-reprs ctx) split-var))
         (match (midpoint repr (ival-lo range) (ival-hi range))
           [(cons midleft midright)
            (define rect-lo (list-set rect split-var (ival (ival-lo range) midleft)))
@@ -57,7 +62,8 @@
            (values true* false* (cons rect other*))])])))
   (search-space true* false* other*))
 
-(define (make-sampling-table reprs true false other)
+(define (make-sampling-table ctx true false other)
+  (define reprs (context-var-reprs ctx))
   (define denom (total-weight reprs))
   (define true-weight (apply + (map (curryr hyperrect-weight reprs) true)))
   (define other-weight (apply + (map (curryr hyperrect-weight reprs) other)))
@@ -71,17 +77,17 @@
   (hash-update! out 'precondition (curry + (- 1 total)) 0)
   (make-immutable-hash (hash->list out)))
 
-(define (find-intervals ival-fn rects #:reprs reprs #:fuel [depth 128])
+(define (find-intervals ival-fn rects #:ctx ctx #:fuel [depth 128])
   (if (or (null? rects) (null? (first rects)))
       (map (curryr cons 'other) rects)
       (let loop ([space (apply make-search-space rects)] [n 0])
         (match-define (search-space true false other) space)
-        (timeline-push! 'sampling n (make-sampling-table reprs true false other))
+        (timeline-push! 'sampling n (make-sampling-table ctx true false other))
 
         (define n* (remainder n (length (first rects))))
         (if (or (>= n depth) (empty? (search-space-other space)))
             (cons
              (append (search-space-true space) (search-space-other space))
-             (make-sampling-table reprs true false other))
-            (loop (search-step ival-fn space reprs n*) (+ n 1))))))
+             (make-sampling-table ctx true false other))
+            (loop (search-step ival-fn space ctx n*) (+ n 1))))))
 
