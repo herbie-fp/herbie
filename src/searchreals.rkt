@@ -51,7 +51,6 @@
                    ((representation-bf->repr repr)
                     (bigfloat-pick-point (ival-lo ival) (ival-hi ival)))
                    repr))
-                (eprintf "~a\n~a\n->~a\n" (ival-lo ival) (ival-hi ival) val)
                 (format "~a = ~a" var val))))
       (cond
        [err

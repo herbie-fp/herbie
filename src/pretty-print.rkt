@@ -136,9 +136,13 @@
 ;;  - if `p1` is positive, `p1 * 2`
 (define/contract (bigfloat-pick-point left right)
   (->i ([x bigfloat?] [y bigfloat?]) #:pre (x y) (or (bf<= x y) (bfnan? y)) [result bigfloat?])
-  (if (bfnegative? left)
-      (bigfloat-interval-shortest (bfmax (bf* right 2.bf) left) right)
-      (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
+  (cond
+   [(and (bfnegative? left) (bfnegative? right))
+    (bigfloat-pick-point (bf- right) (bf- left))]
+   [(and (bfpositive? left) (bfpositive? right))
+    (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))]
+   [else
+    (bigfloat-interval-shortest left right)]))
 
 (module+ test
   (require math/base)
