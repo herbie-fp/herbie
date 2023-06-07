@@ -128,9 +128,6 @@
             (render-large "Cost" `(kbd ,(format-cost (car end-costs) repr)))
             ""))
 
-      (h3 "Bogoisity")
-      ; TODO fix qouting
-      ,(render-phase-bogosity bogosity)
       ,(render-warnings warnings)
       ,(render-program preprocess test #:to (alt-expr end-alt))
 
@@ -140,6 +137,8 @@
           [target "_blank"] 
           ;[style "rotate: 270deg"]
           ) "?")) (div ([id "graphs-content"])))
+      
+      ,@(render-phase-bogosity bogosity)
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive vars (car points))
