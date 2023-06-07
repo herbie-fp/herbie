@@ -70,28 +70,77 @@
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
   
-(define languages
-  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)))
-    ("C" "c" ,(λ (c i) (core->c c i)))
-    ("Fortran" "f03" ,(λ (c i) (core->fortran c i)))
-    ("Java" "java" ,(λ (c i) (core->java c i)))
-    ("Python" "py" ,(λ (c i) (core->python c i)))
-    ("Julia" "jl" ,(λ (c i) (core->julia c i)))
-    ("MATLAB" "mat" ,(λ (c i) (core->matlab c i)))
-    ("Wolfram" "wl" ,(λ (c i) (core->wls c i)))
-    ("TeX" "tex" ,(λ (c i) (core->tex c)))
-    ))
+(define (preprocess-sort-core output sort-preprocesses)
+  (string-append
+   ";; Sort these variables beforehand, for example in Racket, do\n\n"
+   (apply
+    string-append
+    (for/list ([variables sort-preprocesses])
+      (format "~a\n" `(match-define (list ,@variables) (sort ,variables <)))))
+   output))
 
-(define (render-preprocess preprocess-structs)
-  `(div ([id "preprocess"])
-    (div ([class "program math"])
-        "\\[ \\begin{array}{c}"
-        ,@(for/list ([preprocess preprocess-structs])
-            (match preprocess
-              [`(sort ,vars ...)
-               (define varstring (format "[~a]" (string-join (map ~a vars) ", ")))
-               (format "~a = \\mathsf{sort}(~a)\\\\ " varstring varstring)]))
-        "\\end{array} \\]")))
+(define (preprocess-sort-c output sort-preprocesses)
+  (string-append
+   (apply
+    string-append
+    (for/list ([variables sort-preprocesses])
+      (format "// Reassign `~a` by sorting them\n" (string-join (map ~a variables) ", "))))
+   output))
+
+(define (preprocess-sort-fortran output sort-preprocesses)
+  (string-append
+   (apply
+    string-append
+    (for/list ([variables sort-preprocesses])
+      (format "// Reassign `~a` by sorting them\n" (string-join (map ~a variables) ", "))))
+   output))
+
+(define (preprocess-sort-python output sort-preprocesses)
+  (string-append
+   (apply
+    string-append
+    (for/list ([variables sort-preprocesses])
+      (define list (format "[~a]" (string-join (map ~a variables) ", ")))
+      (format "~a = sort(~a)\n" list list)))
+   output))
+
+(define (preprocess-sort-julia output sort-preprocesses)
+  (string-append
+   (apply
+    string-append
+    (for/list ([variables sort-preprocesses])
+      (define list-without-brackets (string-join (map ~a variables) ", "))
+      (define list-with-brackets (format "[~a]" list-without-brackets))
+      (format "~a = sort(~a)\n" list-without-brackets list-with-brackets)))
+   output))
+
+(define (preprocess-sort-tex output sort-preprocesses)
+  (string-append
+   "\\[\\begin{array}{l}\n"
+   (string-join
+    (for/list ([variables sort-preprocesses])
+      (define list (format "[~a]" (string-join (map ~a variables) ", ")))
+      (format "~a = \\mathsf{sort}(~a)" list list))
+    "\\\\")
+   "\\\\"
+   output
+   "\\end{array}\\]"))
+
+(define (preprocess-sort-default output sort-preprocesses)
+  (string-append
+   "Sort these variables man\n"
+   output))
+
+(define languages
+  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)) ,preprocess-sort-core)
+    ("C" "c" ,core->c ,preprocess-sort-c)
+    ("Fortran" "f03" ,core->fortran ,preprocess-sort-fortran)
+    ("Java" "java" ,core->java ,preprocess-sort-default)
+    ("Python" "py" ,core->python ,preprocess-sort-python)
+    ("Julia" "jl" ,core->julia ,preprocess-sort-julia)
+    ("MATLAB" "mat" ,core->matlab ,preprocess-sort-default)
+    ("Wolfram" "wl" ,core->wls ,preprocess-sort-default)
+    ("TeX" "tex" ,(λ (c i) (core->tex c)) ,preprocess-sort-tex)))
 
 (define (program->tex prog ctx #:loc [loc #f])
   (define prog* (program->fpcore prog ctx))
@@ -99,7 +148,7 @@
       (core->tex prog* #:loc loc #:color "blue")
       "ERROR"))
 
-(define (render-program #:to [result #f] preprocess test)
+(define (render-program #:to [result #f] preprocesses test)
   (define identifier (test-identifier test))
   (define ctx (test-context test))
   (define output-repr (test-output-repr test))
@@ -117,7 +166,7 @@
   (define versions
     (reap [sow]
       (for ([(lang record) (in-dict languages)])
-        (match-define (list ext converter) record)
+        (match-define (list ext converter preprocess-sort) record)
         (when (and (fpcore? in-prog*)
                    (or (not out-prog*) (fpcore? out-prog*))
                    (or (equal? ext "fpcore")                           
@@ -125,10 +174,19 @@
                             (or (not out-prog*)
                                 (supported-by-lang? out-prog* ext)))))
           (define name (if identifier (symbol->string identifier) "code"))
-          (sow
-            (cons lang
-              (cons (converter in-prog* name)
-                    (and out-prog* (converter out-prog* name)))))))))
+          (define in (converter in-prog* name))
+          (define out (and out-prog* (converter out-prog* name)))
+          (define sort-preprocesses
+            (filter-map
+             (match-lambda
+               [(list 'sort variables ...) variables]
+               [_ #f])
+             preprocesses))
+          (define out-with-sort-preprocessing
+            (if (empty? sort-preprocesses)
+                out
+                (preprocess-sort out sort-preprocesses)))
+          (sow (cons lang (cons in out-with-sort-preprocessing)))))))
 
   (define-values (math-in math-out)
     (if (dict-has-key? versions "TeX")
@@ -148,10 +206,6 @@
           `(div ([id "precondition"])
              (div ([class "program math"])
                   "\\[" ,(expr->tex (resugar-program (test-pre test) output-repr)) "\\]")))
-     ,(if (empty? preprocess)
-          ""
-          (render-preprocess preprocess))
-           
      (select ([id "language"])
        (option "Math")
        ,@(for/list ([lang (in-dict-keys versions)])
