@@ -404,8 +404,7 @@
   (define init-errs (for/hash ([bexpr branch-exprs]) (values bexpr -1)))
   (let loop ([alts sorted] [errs init-errs] [try-first (first branch-exprs)])
     (cond
-     [(null? alts) '()]
-     [(= (length alts) 1) (list (car alts))]
+     [(or (null? alts) (= (length alts) 1)) '()]
      [else
       (define recomputed-branch-exprs
         (if (flag-set? 'reduce 'branch-expressions)
@@ -424,9 +423,8 @@
 
       (define-values (opt next-try new-errs) 
         (infer-splitpoints alts recomputed-branch-exprs recomp-errs recomp-try ctx))
-      (define branched-alt (combine-alts opt ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons branched-alt (loop (take alts high) new-errs next-try))])))
+      (cons opt (loop (take alts high) new-errs next-try))])))
 
 (define (extract!)
   (define ctx (*context*))
@@ -446,7 +444,7 @@
            (not (null? (context-vars ctx))))
       (cond
        [(*pareto-mode*)
-        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
+        (map (curryr combine-alts ctx) (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))]
        [else
         (define option (infer-splitpoints all-alts ctx))
         (list (combine-alts option ctx))])]
