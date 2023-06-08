@@ -10,7 +10,7 @@
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
          "../syntax/types.rkt" "../syntax/sugar.rkt")
 
-(provide render-menu render-warnings render-large render-program
+(provide render-menu render-warnings render-large render-comparison render-program
          program->fpcore program->tex render-reproduction js-tex-include)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
@@ -40,15 +40,17 @@
   (define top (if ident (format "FPCore ~a ~a" ident args) (format "FPCore ~a" args)))
   (pretty-format `(,top ,@props* ,expr) #:mode 'display))
 
-(define/contract (render-menu sections links)
-  (-> (listof (or/c (cons/c string? string?) #f)) (listof (cons/c string? string?)) xexpr?)
-  `(nav ([id "links"])
-    (div ([class "right"])
-     ,@(for/list ([(text url) (in-dict (filter identity links))])
-         `(a ([href ,url]) ,text)))
-    (div
-     ,@(for/list ([(text url) (in-dict (filter identity sections))])
-         `(a ([href ,url]) ,text)))))
+(define/contract (render-menu #:path [path "."] name links)
+  (->* (string? (listof (cons/c string? string?)))
+       (#:path string?)
+       xexpr?)
+  `(header
+    (h1 ,name)
+    (img ([src ,(string-append path "/" "logo-car.png")]))
+    (nav
+     (ul
+      ,@(for/list ([(text url) (in-dict (filter identity links))])
+         `(li (a ([href ,url]) ,text)))))))
 
 (define/contract (render-warnings warnings)
   (-> (listof (list/c symbol? string? (listof any/c) (or/c string? #f) (listof string?))) xexpr?)
@@ -65,11 +67,14 @@
                               ,@(for/list ([line extra])
                                   `(li ,line)))))))))
 
+(define (render-comparison #:title [title #f] name a b )
+  (render-large #:title title name a `(span ([class "unit"]) " → ") b))
+
 (define (render-large #:title [title #f] name . values)
   `(div ,name ": " (span ([class "number"]
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
-  
+
 (define (preprocess-sort-core output sort-preprocesses)
   (string-append
    ";; Ensure these are sorted, for example in Racket, do\n"
