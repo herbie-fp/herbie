@@ -145,6 +145,17 @@
    "\n"
    output))
 
+(define (preprocess-sort-matlab output sort-preprocesses)
+  (string-append
+   (apply
+    string-append
+    (for/list ([variables sort-preprocesses])
+      (define list-without-brackets (string-join (map ~a variables) ", "))
+      (define list-with-brackets (format "[~a]" list-without-brackets))
+      (format "~a = num2cell(sort(~a)){:}\n" list-without-brackets list-with-brackets)))
+   "\n"
+   output))
+
 (define (preprocess-sort-tex output sort-preprocesses)
   (string-append
    "\\begin{array}{l}\n"
@@ -177,7 +188,7 @@
     ("Java" "java" ,core->java ,preprocess-sort-java)
     ("Python" "py" ,core->python ,preprocess-sort-python)
     ("Julia" "jl" ,core->julia ,preprocess-sort-julia)
-    ("MATLAB" "mat" ,core->matlab ,preprocess-sort-default)
+    ("MATLAB" "mat" ,core->matlab ,preprocess-sort-matlab)
     ("Wolfram" "wl" ,core->wls ,preprocess-sort-default)
     ("TeX" "tex" ,(λ (c i) (core->tex c)) ,preprocess-sort-tex)))
 
