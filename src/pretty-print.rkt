@@ -138,7 +138,7 @@
   (->i ([x bigfloat?] [y bigfloat?]) #:pre (x y) (or (bf<= x y) (bfnan? y)) [result bigfloat?])
   (cond
    [(and (bfnegative? left) (bfnegative? right))
-    (bigfloat-pick-point (bf- right) (bf- left))]
+    (bf- (bigfloat-pick-point (bf- right) (bf- left)))]
    [(and (bfpositive? left) (bfpositive? right))
     (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))]
    [else
