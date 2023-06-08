@@ -121,7 +121,10 @@
        ,(render-large "Bad Runs" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests)
                       #:title "Crashes and timeouts are considered bad runs.")
        ,(render-large "Speedup" 
-                      (~r speedup-at-initial-accuracy #:precision 1) "×"
+                      (if speedup-at-initial-accuracy
+                          (~r speedup-at-initial-accuracy #:precision 1)
+                          "N/A")
+                      "×"
                       #:title "Aggregate speedup of fastest alternative that improves accuracy."))
 
       (div ([id "figure-row"])
