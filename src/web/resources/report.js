@@ -150,7 +150,7 @@ const ClientGraph = new Component('#graphs', {
             const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = points_json
             const ticks = ticks_by_varidx[index]
             if (!ticks) {
-                return html(`<div>The function could not be plotted on the given range for this input.</div>`)
+                return Element("div", "The function could not be plotted on the given range for this input.")
             }
             const tick_strings = ticks.map(t => t[0])
             const tick_ordinals = ticks.map(t => t[1])
@@ -239,11 +239,6 @@ const ClientGraph = new Component('#graphs', {
             out.setAttribute('viewBox', '0 0 800 430')
             return out
         }
-        function html(string) {
-            const t = document.createElement('template');
-            t.innerHTML = string;
-            return t.content;
-        }
         const all_vars = points_json.vars
         async function render(selected_var_name, selected_functions) {
             const all_fns = ['start', 'end', 'target'].filter(name => points_json.error[name] != false)
@@ -252,16 +247,24 @@ const ClientGraph = new Component('#graphs', {
                 end: "Herbie's result",
                 target: "Target expression"
             }
-            const options_view = html(`
-                <div id="plot_options">
-                <div id="variables">
-                    Bits of error vs. ${all_vars.map(v => `<span class="variable ${selected_var_name == v ? 'selected' : ''}">${v}</span>`).join('')}
-                </div>
-                <div id="functions">
-                    ${all_fns.map(fn => `<div><div id="function_${fn}" class="function ${selected_functions.includes(fn) ? 'selected' : ''}"></div> <span class="functionDescription">${fn_description[fn]}</span></div>`).join('')}
-                </div>
-                </div>
-            `)
+            const options_view = Element("div", {id: "plot_options"}, [
+                Element("div", {id: "variables"}, [
+                    "Bits of error vs. ",
+                    all_vars.map(v =>
+                        Element("span", {
+                            className: "variable " + (selected_var_name == v ? "selected" : "")
+                        }, v)),
+                ]),
+                Element("div", {id: "functions"}, [
+                    all_fns.map(fn => Element("div", [
+                        Element("div", {
+                            id: "function_"+fn,
+                            className: "function " + (selected_functions.includes(fn) ? "selected" : ""),
+                        }, []),
+                        Element("span", { className: "functionDescription"}, fn_description[fn]),
+                    ])),
+                ]),
+            ]);
             const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
             options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
                 render(e.textContent, selected_functions)
@@ -438,16 +441,8 @@ const CostAccuracy = new Component('#cost-accuracy', {
             out.setAttribute('viewBox', '0 0 800 430')
             return out
         }
-        function html(string) {
-            const t = document.createElement('template');
-            t.innerHTML = string;
-            return t.content;
-        }
         async function render() {
-            const options_view = html(`
-                <div id="plot_options">
-                </div>
-            `)
+            const options_view = Element("div", {id: "plot_options"}, "");
             const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
 
             content.replaceChildren(await plot(), options_view)
