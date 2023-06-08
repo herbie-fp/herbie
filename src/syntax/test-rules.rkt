@@ -25,6 +25,8 @@
     [sqrt-pow1_binary32     . (>=.f32 x 0)]
     [pow-unpow_binary64     . (>=.f64 a 0)]
     [pow-unpow_binary32     . (>=.f32 a 0)]
+    [pow-pow_binary64       . (>=.f64 a 0)]
+    [pow-pow_binary32       . (>=.f64 a 0)]
 ))
 
 (define (check-rule-correct test-rule)
