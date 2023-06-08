@@ -142,17 +142,23 @@
          "The line is an average while dots represent individual samples."))
 
       ,(if (> (length end-alts) 1)
-           `(div ([id "figure-row"])
-             (div)
-             (figure ([id "cost-accuracy"] [data-benchmark-name ,(~a (test-name test))])
-               (h2 "Accuracy vs Speed")
-               (svg)
-               (figcaption
-                "A speed-accuracy pareto curve. Accuracy is on the vertical axis, "
-                "while speedup is on the horizontal axis. Up and to the right is "
-                "better. Each circle represents an alternative program; the red "
-                "square represents the initial program. The line is only there to "
-                "aid redability.")))
+           `(div ([class "figure-row"] [id "cost-accuracy"]
+                  [data-benchmark-name ,(~a (test-name test))])
+             (figure
+              (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
+              (table
+               (thead (tr (th "Alternative") 
+                          (th ([class "numeric"]) "Accuracy")
+                          (th ([class "numeric"]) "Speedup")))
+               (tbody)))
+             (figure
+              (h2 "Accuracy vs Speed")
+              (svg)
+              (figcaption
+               "The accuracy (vertical axis) and speed (horizontal axis) of each "
+               "of Herbie's proposed alternatives. Up and to the right is better. "
+               "Each dot represents an alternative program; the red square represents "
+               "the initial program.")))
            "")
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))

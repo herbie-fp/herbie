@@ -127,7 +127,7 @@
                       "×"
                       #:title "Aggregate speedup of fastest alternative that improves accuracy."))
 
-      (div ([id "figure-row"])
+      (div ([class "figure-row"])
        (figure ([id "xy"])
         (h2 "Output vs Input Accuracy")
         (svg)
