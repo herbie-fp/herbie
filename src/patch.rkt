@@ -84,8 +84,7 @@
       (desugar-program (genexpr) (*context*) #:full #f))))
 
 (define (taylor-alt altn)
-  (define prog (alt-program altn))
-  (define expr (program-body prog))
+  (define expr (alt-expr altn))
   (define repr (repr-of expr (*context*)))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
@@ -95,8 +94,7 @@
       (for ([i (in-range 4)])
         (define replace (genexpr))
         (when replace
-          (define expr* (list (first prog) (second prog) replace))
-          (sow (alt expr* `(taylor ,name ,var (2)) (list altn)))))
+          (sow (alt replace `(taylor ,name ,var (2)) (list altn)))))
       (timeline-stop!))))
 
 (define (gen-series!)
@@ -105,7 +103,6 @@
     (define series-expansions
       (apply append
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
-          (define expr (program-body (alt-program altn)))
           (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
 
     ; Probably unnecessary, at least CI passes!
@@ -114,7 +111,7 @@
 
     (define series-expansions*
       (filter-not
-        (λ (x) (expr-contains? (program-body (alt-program x)) is-nan?))
+        (λ (x) (expr-contains? (alt-expr x) is-nan?))
         series-expansions))
 
     ; TODO: accuracy stats for timeline
@@ -137,11 +134,7 @@
   (values reprchange expansive* normal))
 
 (define (merge-changelists . lsts)
-  (unless (apply = (map length lsts))
-    (error 'merge-changelists "lists are not the same size ~a" (map length lsts)))
-  (define len (length (first lsts)))
-  (for/list ([i (in-range len)])
-    (apply append (for/list ([lst lsts]) (list-ref lst i)))))
+  (map (curry apply append) (flip-lists lsts)))
 
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
@@ -155,8 +148,9 @@
     (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
 
     ;; get subexprs and locations
-    (define exprs (map (compose program-body alt-program) (^queued^)))
-    (define lowexprs (map (compose program-body alt-program) (^queuedlow^)))
+    (define exprs (map alt-expr (^queued^)))
+    (define lowexprs (map alt-expr (^queuedlow^)))
+    (define real-exprs (filter (λ (e) (equal? (type-of e (*context*)) 'real)) exprs))
 
     ;; HACK:
     ;; - check loaded representations
@@ -168,12 +162,12 @@
     (define changelists
       (if one-real-repr?
           (merge-changelists
-            (rewrite-expressions exprs (*context*) #:rules (append expansive-rules normal-rules))
-            (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
+            (rewrite-expressions real-exprs (*context*) #:rules (append expansive-rules normal-rules))
+            (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t))
           (merge-changelists
-            (rewrite-expressions exprs (*context*) #:rules normal-rules)
-            (rewrite-expressions exprs (*context*) #:rules expansive-rules #:once? #t)
-            (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))))
+            (rewrite-expressions real-exprs (*context*) #:rules normal-rules)
+            (rewrite-expressions real-exprs (*context*) #:rules expansive-rules #:once? #t)
+            (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t))))
 
     ;; rewrite low-error locations (only precision changes allowed)
     (define changelists-low-locs
@@ -182,7 +176,7 @@
     (define comb-changelists (append changelists changelists-low-locs))
     (define altns (append (^queued^) (^queuedlow^)))
     
-    (define variables (program-variables (alt-program (first altns))))
+    (define variables (context-vars (*context*)))
     (define rewritten
       (for/fold ([done '()] #:result (reverse done))
                 ([cls comb-changelists] [altn altns]
@@ -191,7 +185,7 @@
             (define body* (apply-repr-change-expr subexp (*context*)))
             (if body*
               ; We need to pass '(2) here so it can get overwritten on patch-fix
-              (cons (alt `(λ ,variables ,body*) (list 'rr '(2) input #f #f) (list altn)) done)
+              (cons (alt body* (list 'rr '(2) input #f #f) (list altn)) done)
               done)))
 
     (timeline-push! 'count (length (^queued^)) (length rewritten))
@@ -203,7 +197,7 @@
 
 (define (get-starting-expr altn)
   (match (alt-event altn)
-   [(list 'patch) (program-body (alt-program altn))]
+   [(list 'patch) (alt-expr altn)]
    [_ (get-starting-expr (first (alt-prevs altn)))]))
 
 (define (simplify!)
@@ -217,9 +211,7 @@
     (define children (^final^))
     (define variables (context-vars (*context*)))
 
-    (define to-simplify
-      (for/list ([child (in-list children)])
-        (program-body (alt-program child))))
+    (define to-simplify (map alt-expr children))
 
     (define egg-query (make-egg-query to-simplify (*simplify-rules*)))
     (define simplification-options (simplify-batch egg-query))
@@ -232,13 +224,13 @@
                   [output outputs])
          (if (equal? input output)
              child
-             (alt `(λ ,variables ,output) `(simplify (2) ,egg-query #f #f) (list child))))
+             (alt output `(simplify (2) ,egg-query #f #f) (list child))))
        alt-equal?))
 
     ; dedup for cache
     (unless (and (null? (^queued^)) (null? (^queuedlow^)))  ; don't run for simplify-only
       (for ([altn (in-list simplified)])
-        (define cachable (map (compose program-body alt-program) (^queued^)))
+        (define cachable (map alt-expr (^queued^)))
         (let ([expr0 (get-starting-expr altn)])
           (when (set-member? cachable expr0)
             (add-patch! (get-starting-expr altn) altn)))))
@@ -264,7 +256,7 @@
     (raise-user-error 'patch-table-add!
       "attempting to add previously patched expression: ~a"
       expr))
-  (define altn* (alt `(λ ,vars ,expr) `(patch) '()))
+  (define altn* (alt expr `(patch) '()))
   (if down?
       (^queuedlow^ (cons altn* (^queuedlow^)))
       (^queued^ (cons altn* (^queued^))))
@@ -283,11 +275,11 @@
               ([(vars expr) (in-dict locs)])
       (if (patch-table-has-expr? expr)
           (values qed (cons expr ced))
-          (let ([altn* (alt `(λ ,vars ,expr) `(patch) '())])
+          (let ([altn* (alt expr `(patch) '())])
             (values (cons altn* qed) ced)))))
   (^queuedlow^
     (for/list ([(vars expr) (in-dict lowlocs)])
-      (alt `(λ ,vars ,expr) `(patch) '())))
+      (alt expr `(patch) '())))
   (cond
    [(and (null? (^queued^))       ; only fetch cache
          (null? (^queuedlow^)))

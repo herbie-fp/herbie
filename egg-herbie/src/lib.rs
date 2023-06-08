@@ -325,6 +325,43 @@ pub unsafe extern "C" fn egraph_get_proof(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_is_equal(
+    ptr: *mut Context,
+    expr: *const c_char,
+    goal: *const c_char,
+) -> bool {
+    ffirun(|| {
+        let ctx = &mut *ptr;
+
+        assert_eq!(ctx.iteration, 0);
+
+        let expr_rec = match cstring_to_recexpr(expr) {
+            None => {
+                return false;
+            }
+            Some(rec_expr) => rec_expr,
+        };
+
+        let goal_rec = match cstring_to_recexpr(goal) {
+            None => {
+                return false;
+            }
+            Some(rec_expr) => rec_expr,
+        };
+
+        let mut runner = ctx
+            .runner
+            .take()
+            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+
+        let res = runner.egraph.add_expr(&expr_rec) == runner.egraph.add_expr(&goal_rec);
+
+        ctx.runner = Some(runner);
+        res
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_get_variants(
     ptr: *mut Context,
     node_id: u32,

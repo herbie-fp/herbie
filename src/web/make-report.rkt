@@ -11,7 +11,7 @@
     ["error" "ERR"]
     ["crash" "!!!"]
     ["timeout" "TIME"]
-    [_ (format-accuracy (- (table-row-start result) (table-row-result result)) (get-representation (table-row-precision result)) #:sign #t #:unit "%")]))
+    [_ (format-accuracy (- (table-row-start result) (table-row-result result)) (representation-total-bits (get-representation (table-row-precision result))) #:sign #t #:unit "%")]))
 
 (define (format-subreports rss)
   (define (round* x) (inexact->exact (round x)))
@@ -40,7 +40,7 @@
                  (td ,(~a (round* (- start gained))) "/" ,(~a (round* start)))))))))
 
 (define (make-report-page out info dir #:merge-data [merge-data #f])
-  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy) info)
 
   ; (define reprs (map (compose get-representation table-row-precision) trs))
 
@@ -52,29 +52,31 @@
           ("Target" . "Color key:\nDark green: better than target\nGreen: matched target\nOrange: improved but did not match target\nYellow: no accuracy change\n")))
 
   (define total-time (apply + (map table-row-time tests)))
-  (define total-passed
-    (for/sum ([row tests])
-      (if (member (table-row-status row) '("gt-target" "eq-target" "imp-start")) 1 0)))
-  (define total-available
-    (for/sum ([row tests])
-      (if (not (equal? (table-row-status row) "ex-start")) 1 0)))
+  (define total-tests (length tests))
+  (define total-timeouts
+    (count (compose (curry equal? "timeout") table-row-status) tests))
   (define total-crashes
-    (for/sum ([row tests])
-      (if (equal? (table-row-status row) "crash") 1 0)))
-
-  (define total-gained
-    (for/sum ([row tests])
-      (or (table-row-result row) 0)))
+    (count (compose (curry equal? "crash") table-row-status) tests))
   (define total-start
-    (for/sum ([row tests])
-      (or (table-row-start row) 0)))
+    (for/sum ([t tests]) (or (table-row-start t) 0)))
+  (define total-result
+    (for/sum ([t tests]) (or (table-row-result t) 0)))
+  (define maximum-accuracy
+    (for/sum ([t (in-list tests)])
+      (representation-total-bits
+       (get-representation
+        (table-row-precision t)))))
+  (match-define (list (list _ initial-accuracy) frontier) merged-cost-accuracy)
+  (define speedup-at-initial-accuracy
+    ;; The `frontier`'s accuracies are descending, so here we're searching from
+    ;; the end backwards to get the cost of the first point with an accuracy
+    ;; higher than that of the initial point's
+    (for/first ([point (reverse frontier)]
+                #:when (> (second point) initial-accuracy))
+      (first point)))
 
   (define (round* x)
     (inexact->exact (round x)))
-
-  (define sorted-tests
-    (sort (map cons tests (range (length tests))) >
-          #:key (λ (x) (or (table-row-start (car x)) 0))))
 
   (define classes
     (if (ormap table-row-target tests) '() '(no-target)))
@@ -108,11 +110,13 @@
         ))
 
       (div ((id "large"))
-       ,(render-large "Time" (format-time total-time))
-       ,(render-large "Passed" (~a total-passed) "/" (~a total-available))
-       ,(if (> total-crashes 0) (render-large "Crashes" (~a total-crashes)) "")
-       ,(render-large "Tests" (~a (length tests)))
-       ,(render-large "Bits" (~a (round* (- total-start total-gained))) "/" (~a (round* total-start))))
+       ,(render-large "Average Accuracy"
+                      (format-accuracy total-start maximum-accuracy #:unit "%")
+                      " → "
+                      (format-accuracy total-result maximum-accuracy #:unit "%"))
+       ,(render-large "Time" (format-time total-time #:max 'minute))
+       ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests))
+       ,(render-large "Speedup at Initial Accuracy" (format "~a×" (~r speedup-at-initial-accuracy #:precision 1))))
 
       (figure
        (div ([id "xy"])
@@ -123,11 +127,13 @@
                         "and vertical position shows final accuracy. "
                         "Points above the line are improved by Herbie."))
        (div ([id "pareto"])
-            (h2 "Accuracy vs Cost")
+            (h2 "Accuracy vs Speed")
             (svg)
-            (figcaption "A joint cost-accuracy curve for the Herbie runs below."
-                        "Up and to the left is better: higher accuracy and lower cost."
-                        "The initial programs are shown by the red square.")
+            (figcaption "A joint speed-accuracy pareto curve for the "
+                        "Herbie runs below. Accuracy is on the vertical "
+                        "axis, and speed is on the horizontal axis. Up "
+                        "and to the right is better. The initial programs "
+                        "are shown by the red square.")
             ))
 
      (table ((id "results") (class ,(string-join (map ~a classes) " ")))
@@ -138,12 +144,13 @@
                    `(th ,label)))))
       (tbody
        ,@(for/list ([result tests] [id (in-naturals)])
+           (define bits (representation-total-bits (get-representation (table-row-precision result))))
            `(tr ((class ,(~a (table-row-status result))))
                 (td ,(or (table-row-name result) ""))
-                (td ,(format-accuracy (table-row-start result) (get-representation (table-row-precision result)) #:unit "%"))
-                (td ,(format-accuracy (table-row-result result) (get-representation (table-row-precision result)) #:unit "%"))
-                (td ,(format-accuracy (table-row-target result) (get-representation (table-row-precision result)) #:unit "%"))
-                (td ,(format-time (table-row-time result) #:min 1000))
+                (td ,(format-accuracy (table-row-start result) bits #:unit "%"))
+                (td ,(format-accuracy (table-row-result result) bits #:unit "%"))
+                (td ,(format-accuracy (table-row-target result) bits #:unit "%"))
+                (td ,(format-time (table-row-time result) #:min 'second))
                 ,(if (table-row-link result)
                      `(td
                        (a ((id ,(format "link~a" id))

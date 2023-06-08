@@ -11,13 +11,13 @@
          "../syntax/types.rkt" "../syntax/sugar.rkt")
 
 (provide render-menu render-warnings render-large render-program
-         program->fpcore render-reproduction js-tex-include)
+         program->fpcore program->tex render-reproduction js-tex-include)
 
-(define (program->fpcore prog #:ident [ident #f])
-  (match-define (list _ args expr) prog)
+(define (program->fpcore expr ctx #:ident [ident #f])
+  (define body (resugar-program expr (context-repr ctx) #:full #t))
   (if ident
-      (list 'FPCore ident args expr)
-      (list 'FPCore args expr)))
+      (list 'FPCore ident (context-vars ctx) body)
+      (list 'FPCore (context-vars ctx) body)))
 
 (define (fpcore-add-props core props)
   (match core
@@ -93,15 +93,22 @@
                (format "~a = \\mathsf{sort}(~a)\\\\ " varstring varstring)]))
         "\\end{array} \\]")))
 
+(define (program->tex prog ctx #:loc [loc #f])
+  (define prog* (program->fpcore prog ctx))
+  (if (supported-by-lang? prog* "tex")
+      (core->tex prog* #:loc loc #:color "blue")
+      "ERROR"))
+
 (define (render-program #:to [result #f] preprocess test)
   (define identifier (test-identifier test))
+  (define ctx (test-context test))
   (define output-repr (test-output-repr test))
 
-  (define in-prog (program->fpcore (resugar-program (test-program test) output-repr) #:ident identifier))
+  (define in-prog (program->fpcore (test-input test) ctx #:ident identifier))
   (define out-prog
     (and result
          (parameterize ([*expr-cse-able?* at-least-two-ops?])
-           (core-cse (program->fpcore (resugar-program result output-repr) #:ident identifier)))))
+           (core-cse (program->fpcore result ctx #:ident identifier)))))
 
   (define output-prec (representation-name output-repr))
   (define in-prog* (fpcore-add-props in-prog (list ':precision output-prec)))
@@ -136,11 +143,11 @@
           [target "_blank"] 
           ;[style "rotate: 270deg"]
           ) "?"))
-     ,(if (equal? (program-body (test-precondition test)) '(TRUE))
+     ,(if (equal? (test-pre test) '(TRUE))
           ""
           `(div ([id "precondition"])
              (div ([class "program math"])
-                  "\\[" ,(expr->tex (resugar-program (program-body (test-precondition test)) output-repr)) "\\]")))
+                  "\\[" ,(expr->tex (resugar-program (test-pre test) output-repr)) "\\]")))
      ,(if (empty? preprocess)
           ""
           (render-preprocess preprocess))
@@ -188,9 +195,9 @@
          (format "(FPCore ~a" (test-vars test)))
      (format "  :name ~s" (test-name test))
      (format "  :precision ~s" (representation-name (test-output-repr test)))
-     (if (equal? (program-body (test-precondition test)) '(TRUE))
+     (if (equal? (test-pre test) '(TRUE))
          #f
-         (format "  :pre ~a" (resugar-program (program-body (test-precondition test)) output-repr)))
+         (format "  :pre ~a" (resugar-program (test-pre test) output-repr)))
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))

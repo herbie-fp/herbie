@@ -25,7 +25,7 @@ header li:first-child::before { content: none; }
     font-family: 'IBM Plex Serif', serif; color: #888;
 }
 #large .number {
-    font-size: 3em; display: block; font-family: 'Ruda', serif; color: black;
+    font-size: 2em; display: block; font-family: 'Ruda', serif; color: black;
     margin-top: -.2em;
 }
 @media print { #large { margin-top: 0; }}

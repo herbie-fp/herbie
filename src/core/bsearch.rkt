@@ -26,18 +26,17 @@
 
     (define expr*
       (for/fold
-          ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
+          ([expr (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
           ([splitpoint (cdr (reverse splitpoints))])
         (define repr (repr-of (sp-bexpr splitpoint) ctx))
         (define <=-operator (get-parametric-operator '<= repr repr))
         `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
-             ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
+             ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
              ,expr)))
 
     ;; We don't want unused alts in our history!
     (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
-    (alt `(λ ,(program-variables (alt-program (first alts))) ,expr*)
-         (list 'regimes splitpoints*) alts*)]))
+    (alt expr* (list 'regimes splitpoints*) alts*)]))
 
 (define (remove-unused-alts alts splitpoints)
   (for/fold ([alts* '()] [splitpoints* '()]) ([splitpoint splitpoints])
@@ -72,11 +71,11 @@
       (timeline-push! 'stop "predicate-same" 1)
       (values p1 p2)])]))
 
-(define (extract-subexpression program var expr)
-  (define body* (replace-expression (program-body program) expr var))
-  (define vars* (set-subtract (program-variables program) (free-variables expr)))
+(define (extract-subexpression expr var pattern ctx)
+  (define body* (replace-expression expr pattern var))
+  (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
   (if (subset? (free-variables body*) (cons var vars*))
-      `(λ (,var ,@vars*) ,body*)
+      body*
       #f))
 
 (define (prepend-argument fn val pcontext ctx)
@@ -92,25 +91,25 @@
 (define (sindices->spoints points expr alts sindices ctx)
   (define repr (repr-of expr ctx))
 
-  (define eval-expr
-    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl ctx))
+  (define eval-expr (eval-prog expr 'fl ctx))
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
-  (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
-  (define start-prog (extract-subexpression (*start-prog*) var expr))
+  (define progs (map (compose (curryr extract-subexpression var expr ctx) alt-expr) alts))
+  (define start-prog (extract-subexpression (*start-prog*) var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
-  (define precondition `(λ ,(program-variables start-prog) (TRUE)))
-  (define start-fn (make-search-func precondition (list start-prog) ctx*))
+  (define start-fn 
+    (and start-prog 
+      (make-search-func '(TRUE) (list start-prog)  (cons ctx* `()))))
 
-  (define (find-split prog1 prog2 v1 v2)
+  (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (prepend-argument start-fn v (*pcontext*) ctx*)))
-      (define acc1 (errors-score (errors prog1 pctx ctx*)))
-      (define acc2 (errors-score (errors prog2 pctx ctx*)))
+      (define acc1 (errors-score (errors expr1 pctx ctx*)))
+      (define acc2 (errors-score (errors expr2 pctx ctx*)))
       (- acc1 acc2))
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
     (left-point p1 p2))
@@ -161,7 +160,7 @@
 
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
-  (define prog (eval-prog `(λ ,(context-vars ctx*) ,bexpr) 'fl ctx*))
+  (define prog (eval-prog bexpr 'fl ctx*))
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
@@ -174,7 +173,7 @@
 
 (module+ test
   (define context (make-debug-context '(x y)))
-  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))])
+  (parameterize ([*start-prog* '(/.f64 x y)])
     (define sps
       (list (sp 0 '(/.f64 y x) -inf.0)
             (sp 2 '(/.f64 y x) 0.0)
