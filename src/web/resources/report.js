@@ -237,7 +237,7 @@ const ClientGraph = new Component('#graphs', {
         }
         this.$variables.replaceChildren.apply(
             this.$variables,
-            [" vs. "].concat(this.all_vars.map(v =>
+            [" vs "].concat(this.all_vars.map(v =>
                 Element("span", {
                     className: "variable " + (selected_var_name == v ? "selected" : ""),
                     onclick: () => this.render(v, selected_functions),
@@ -336,8 +336,8 @@ const MergedCostAccuracy = new Component('#pareto', {
 })
 
 const CostAccuracy = new Component('#cost-accuracy', {
-    setup: async () => {
-        const content = document.querySelector('#pareto-content');
+    setup: async function() {
+        const $svg = this.elt.querySelector("svg");
         
         const results_json = await (async () => {
             const get_results_store = {}
@@ -368,8 +368,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
 
             // find right test by iterating through results_json
             for (let test of tests) {
-                console.log(test);
-                if (test.name == content.dataset.benchmarkName) {
+                if (test.name == this.elt.dataset.benchmarkName) {
                     benchmark = test;
                     break;
                 }
@@ -424,15 +423,10 @@ const CostAccuracy = new Component('#cost-accuracy', {
             out.setAttribute('viewBox', '0 0 800 430')
             return out
         }
-        async function render() {
-            const options_view = Element("figcaption", "");
-            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-
-            content.replaceChildren(await plot(), options_view)
-        }
-        render()
+        $svg.replaceWith(await plot());
     }
-})
+});
+
 var RenderMath = new Component(".math", {
     depends: function() {
         if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";

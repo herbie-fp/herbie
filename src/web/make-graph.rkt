@@ -141,6 +141,20 @@
          "These can be toggled with buttons below the plot. "
          "The line is an average while dots represent individual samples."))
 
+      ,(if (> (length end-alts) 1)
+           `(div ([id "figure-row"])
+             (div)
+             (figure ([id "cost-accuracy"] [data-benchmark-name ,(~a (test-name test))])
+               (h2 "Accuracy vs Speed")
+               (svg)
+               (figcaption
+                "A speed-accuracy pareto curve. Accuracy is on the vertical axis, "
+                "while speedup is on the horizontal axis. Up and to the right is "
+                "better. Each circle represents an alternative program; the red "
+                "square represents the initial program. The line is only there to "
+                "aid redability.")))
+           "")
+
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive vars (car points))
            "")
@@ -181,12 +195,6 @@
                     "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
                             (alt->tex alt ctx))
                     "\\]"))))
-            "")
-                                      
-      ,(if (> (length end-alts) 1)
-          `(section ([id "cost-accuracy"])
-            (h1 "Error")
-            (div ([id "pareto-content"] [data-benchmark-name ,(~a (test-name test))])))
             "")
 
       ,(render-reproduction test)))
