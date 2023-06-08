@@ -178,19 +178,6 @@ const ClientGraph = new Component('#graphs', {
                         y: error[name]
                 })).sort(key_fn(d => d.x))
                     .map(({ x, y }, i) => ({ x, y, i }))
-                // const sliding_window = (A, size) => [...new Array(Math.max(A.length - size, 0))].map((_, i) => {
-                //     const half = Math.floor(size / 2)
-                //     i = i + half
-                //     const slice = A.slice(i - half, i - half + size).sort(key_fn(o => o.y))
-                //     const x = A[i].x
-                //     const top = slice[Math.floor(slice.length * .95)].y
-                //     const top_q = slice[Math.floor(slice.length * .75)].y
-                //     const bottom = slice[Math.floor(slice.length * .05)].y
-                //     const bottom_q = slice[Math.floor(slice.length * .25)].y
-                //     const middle = slice[Math.floor(slice.length * .5)].y
-                //     const average = slice.reduce((acc, e) => e.y + acc, 0) / slice.length
-                //     return { x, top, middle, bottom, average, top_q, bottom_q }
-                // })
                 const sliding_window = (A, size) => {
                     const half = Math.floor(size / 2)
                     const running_sum = A.reduce((acc, v) => (acc.length > 0 ? acc.push(v.y + acc[acc.length - 1]) : acc.push(v.y), acc), [])
@@ -235,7 +222,7 @@ const ClientGraph = new Component('#graphs', {
                 height: '400',                
                     x: {
                         tickFormat: d => tick_strings[tick_ordinals.indexOf(d)],
-                        ticks: tick_ordinals, label: `value of ${varName}`,
+                        ticks: tick_ordinals, label: varName,
                         labelAnchor: 'center', /*labelOffset: [200, 20], tickRotate: 70, */
                         domain,
                         grid: true
@@ -290,7 +277,6 @@ const ClientGraph = new Component('#graphs', {
 
 const ResultPlot = new Component('#xy', {
     setup: async function() {
-        console.log(this);
         let response = await fetch("results.json", {
             headers: {"content-type": "text/plain"},
             method: "GET",
