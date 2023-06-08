@@ -365,20 +365,20 @@ const CostAccuracy = new Component('#cost-accuracy', {
 
         const out = Plot.plot({
             marks: [
-                Plot.dot([initial_pt], {
-                    x: d => initial_pt[0]/d[0],
-                    y: d => 1 - d[1]/bits,
-                    stroke: "#d00", symbol: "square", strokeWidth: 2 }),
-                Plot.dot(rest_pts, {
-                    x: d => initial_pt[0]/d[0],
-                    y: d => 1 - d[1]/bits,
-                    fill: "#00a", r: 3,
-                }),
                 Plot.line(rest_pts, {
                     x: d => initial_pt[0]/d[0],
                     y: d => 1 - d[1]/bits,
                     stroke: "#00a", strokeWidth: 1, strokeOpacity: .2,
                 }),
+                Plot.dot(rest_pts, {
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
+                    fill: "#00a", r: 3,
+                }),
+                Plot.dot([initial_pt], {
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
+                    stroke: "#d00", symbol: "square", strokeWidth: 2 }),
             ],
             marginBottom: 0,
             marginRight: 0,
