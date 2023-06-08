@@ -131,7 +131,7 @@ const ClientGraph = new Component('#graphs', {
         });
         this.points_json = await points.json();
         this.all_vars = this.points_json.vars;
-
+        this.$content = this.elt.querySelector("#graphs-content");
         await this.render(this.all_vars[0], ['start', 'end']);
     },
     
@@ -153,7 +153,6 @@ const ClientGraph = new Component('#graphs', {
             return acc
         }, [])
     },
-
 
     plot: async function(varName, function_names) {
         const functions = ALL_LINES.filter(o => function_names.includes(o.name))
@@ -183,7 +182,7 @@ const ClientGraph = new Component('#graphs', {
             const index = this.all_vars.indexOf(varName)
             const data = grouped_data.map(({ input, error }) => ({
                 x: input[index],
-                y: error[name]
+                y: error[name] / bits
             })).sort(key_fn(d => d.x))
                   .map(({ x, y }, i) => ({ x, y, i }))
             const compress = (L, out_len, chunk_compressor = points => points[0]) => L.reduce((acc, pt, i) => i % Math.floor(L.length / out_len) == 0 ? (acc.push(chunk_compressor(L.slice(i, i + Math.floor(L.length / out_len)))), acc) : acc, [])
@@ -217,8 +216,10 @@ const ClientGraph = new Component('#graphs', {
             },
             y: { line: true, domain: [0, 1], tickFormat: "%",},
             marks: marks,
+            marginBottom: 0,
+            marginRight: 0,
         });
-        out.setAttribute('viewBox', '0 0 800 430')
+        out.setAttribute('viewBox', '0 0 820 420')
         return out
     },
 
@@ -229,32 +230,35 @@ const ClientGraph = new Component('#graphs', {
             end: "Herbie's result",
             target: "Target expression"
         }
-        const options_view = Element("div", {id: "plot_options"}, [
-            Element("div", {id: "variables"}, [
-                "Bits of error vs. ",
-                this.all_vars.map(v =>
-                    Element("span", {
-                        className: "variable " + (selected_var_name == v ? "selected" : "")
-                    }, v)),
-            ]),
+        const header = Element("h2", {id: "variables"}, [
+            "Bits of error vs. ",
+            this.all_vars.map(v =>
+                Element("span", {
+                    className: "variable " + (selected_var_name == v ? "selected" : ""),
+                    onclick: () => this.render(v, selected_functions),
+                }, v)
+            ),
+        ]);
+        const options_view = Element("figcaption", [
             Element("div", {id: "functions"}, [
                 all_fns.map(fn => Element("div", [
                     Element("div", {
                         id: "function_"+fn,
                         className: "function " + (selected_functions.includes(fn) ? "selected" : ""),
                     }, []),
-                    Element("span", { className: "functionDescription"}, fn_description[fn]),
+                    Element("span", { className: "functionDescription" }, fn_description[fn]),
                 ])),
             ]),
         ]);
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-        options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
-            this.render(e.textContent, selected_functions)
-        })
         options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
             this.render(selected_var_name, toggle(e.id.split('_').slice(1).join('_'), selected_functions))
         })
-        document.querySelector('#graphs-content').replaceChildren(await this.plot(selected_var_name, selected_functions), options_view)
+        this.$content.replaceChildren(Element("figure", [
+            header,
+            await this.plot(selected_var_name, selected_functions),
+            options_view
+        ]));
     }
 })
 
@@ -422,7 +426,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
             return out
         }
         async function render() {
-            const options_view = Element("div", {id: "plot_options"}, "");
+            const options_view = Element("figcaption", "");
             const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
 
             content.replaceChildren(await plot(), options_view)

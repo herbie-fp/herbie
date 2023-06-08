@@ -33,8 +33,8 @@ header li:first-child::before { content: none; }
 
 /* Plots at the top */
 
-figure { display: flex; flex-direction: row; gap: 1em; margin: 2em 0; }
-figure div { flex: 1; border: 1px solid #ddd; padding: 1ex; }
+#figure-row { display: flex; flex-direction: row; gap: 1em; margin: 2em 0; }
+figure { flex: 1; border: 1px solid #ddd; padding: 1ex; margin: 0; }
 figure h2 { font-size: 1em; font-family: 'IBM Plex Serif', serif; margin: 0; }
 figure .domain, figure .tick { color: #888; }
 figure text { font-family: 'IBM Plex Serif', serif; }
@@ -180,39 +180,18 @@ section h1 {
 
 /* Error graphs */
 
-#graphs figure { margin: 0 auto; position: relative; padding-top: 300px; width: 800px; }
-#graphs figcaption { text-align: left; }
-#graphs figure img { position: absolute; top: 0; left: 0; }
-#graphs figcaption button {
-    float: right; margin: 0 .25em; cursor: pointer;
-    border: 3px solid black; background: gray; color: transparent;
-    height: 1.5em; width: 1.5em; border-radius: .75em;
-    overflow: hidden;
-}
-#graphs figcaption button.Result { border-color: blue; background: lightblue; }
-#graphs figcaption button.Target { border-color: green; background: lightgreen; }
-#graphs figcaption button.Input { border-color: red; background: pink; }
-#graphs figcaption button.inactive { background: white; }
-
-#plot_options { display: grid; grid-template-columns: auto auto; }
-#variables { justify-self: start; }
-#functions { justify-self: end; }
-
 #variables .selected { background-color: lightgray; }
 #variables .variable { margin-right: 3px; padding-left: 2px; padding-right: 2px; padding-bottom: 2px; }
 
-#functions { margin-right: 40px; }
+#functions { display: flex; flex-direction: row; gap: 1em; justify-content: center; }
 #functions .function {
-    width: 20px;
-    height: 20px;
-    /* border: 1px solid #000; */
+    width: 1.25em;
+    height: 1.25em;
     border-radius: 50%;
-    /* box-shadow: inset 0px 0px 0px 1px black; */
     box-sizing: border-box; /* Include padding and border in element's width and height */
     display: inline-block;
-    margin-left: 5px;
-    margin-top: 3px;
-    vertical-align: text-bottom;
+    margin-right: 1ex;
+    vertical-align: middle;
 }
 
 #functions #function_start { border: 3px solid red; }

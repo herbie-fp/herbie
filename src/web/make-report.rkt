@@ -121,22 +121,22 @@
                       (~r speedup-at-initial-accuracy #:precision 1) "×"
                       #:title "Aggregate speedup of fastest alternative that improves accuracy."))
 
-      (figure
-       (div ([id "xy"])
-            (h2 "Output vs Input Accuracy")
-            (svg)
-            (figcaption "Each point represents a Herbie run below. Its "
-                        "horizontal position shows initial accuracy, "
-                        "and vertical position shows final accuracy. "
-                        "Points above the line are improved by Herbie."))
-       (div ([id "pareto"])
-            (h2 "Accuracy vs Speed")
-            (svg)
-            (figcaption "A joint speed-accuracy pareto curve. Accuracy is "
-                        "on the vertical axis, speed is on the horizontal "
-                        "axis. Up and to the right is better. The initial "
-                        "program is shown by the red square.")
-            ))
+      (div ([id "figure-row"])
+       (figure ([id "xy"])
+        (h2 "Output vs Input Accuracy")
+        (svg)
+        (figcaption "Each point represents a Herbie run below. Its "
+                    "horizontal position shows initial accuracy, "
+                    "and vertical position shows final accuracy. "
+                    "Points above the line are improved by Herbie."))
+
+       (figure ([id "pareto"])
+        (h2 "Accuracy vs Speed")
+        (svg)
+        (figcaption "A joint speed-accuracy pareto curve. Accuracy is "
+                    "on the vertical axis, speed is on the horizontal "
+                    "axis. Up and to the right is better. The initial "
+                    "program is shown by the red square.")))
 
      (table ((id "results") (class ,(string-join (map ~a classes) " ")))
       (thead
