@@ -93,7 +93,7 @@
       (script ([src "../report.js"] [type "module"]))
       )
      (body
-      ,(render-menu
+      ,(render-menu #:path ".."
         (~a (test-name test))
         (list
          '("Report" . "../index.html")
@@ -107,14 +107,14 @@
           [target "_blank"] 
           ;[style "rotate: 270deg"]
           ) "?"))
-       ,(render-large "Average Accuracy"
-                      (format-accuracy (errors-score start-error) repr-bits #:unit "%")
-                      " → "
-                      (format-accuracy (errors-score end-error) repr-bits #:unit "%")
-                      #:title
-                      (format "Minimum Accuracy: ~a → ~a"
-                              (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
-                              (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
+       ,(render-comparison
+         "Percentage Accurate"
+         (format-accuracy (errors-score start-error) repr-bits #:unit "%")
+         (format-accuracy (errors-score end-error) repr-bits #:unit "%")
+         #:title
+         (format "Minimum Accuracy: ~a → ~a"
+                 (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
+                 (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
        ,(render-large "Time" (format-time time))
        ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
        ,(if (*pareto-mode*)

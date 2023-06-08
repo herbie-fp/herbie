@@ -28,6 +28,7 @@ header li:first-child::before { content: none; }
     font-size: 2em; display: block; font-family: 'Ruda', serif; color: black;
     margin-top: -.2em;
 }
+#large .unit { font-family: 'IBM Plex Seirf', serif; color: #aaa; }
 @media print { #large { margin-top: 0; }}
 
 /* Plots at the top */

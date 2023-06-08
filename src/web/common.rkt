@@ -10,7 +10,7 @@
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
          "../syntax/types.rkt" "../syntax/sugar.rkt")
 
-(provide render-menu render-warnings render-large render-program
+(provide render-menu render-warnings render-large render-comparison render-program
          program->fpcore program->tex render-reproduction js-tex-include)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
@@ -40,11 +40,13 @@
   (define top (if ident (format "FPCore ~a ~a" ident args) (format "FPCore ~a" args)))
   (pretty-format `(,top ,@props* ,expr) #:mode 'display))
 
-(define/contract (render-menu name links)
-  (-> string? (listof (cons/c string? string?)) xexpr?)
+(define/contract (render-menu #:path [path "."] name links)
+  (->* (string? (listof (cons/c string? string?)))
+       (#:path string?)
+       xexpr?)
   `(header
     (h1 ,name)
-    (img ([src "logo-car.png"]))
+    (img ([src ,(string-append path "/" "logo-car.png")]))
     (nav
      (ul
       ,@(for/list ([(text url) (in-dict (filter identity links))])
@@ -69,7 +71,10 @@
   `(div ,name ": " (span ([class "number"]
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
-  
+
+(define (render-comparison #:title [title #f] name a b )
+  (render-large #:title title name a `(span ([class "unit"]) " → ") b))
+
 (define languages
   `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)))
     ("C" "c" ,(λ (c i) (core->c c i)))
