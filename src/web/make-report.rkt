@@ -95,48 +95,50 @@
       (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"])))
  
      (body
-      (nav ([id "links"])
-       (div ([class "right"])
-        (a ([href "timeline.html"]) "Metrics"))
+      (header
+       (h1 ,(if note (string-titlecase note) "") " Results")
+       (img ([src "logo-car.png"]))
+       (nav
+        (ul
+         ,(if merge-data
+            `(li ([id "subreports"])
+                 (div ([id "with-subreports"])
+                      ,(format-subreports merge-data)))
+            "")
+         (li (a ([href "timeline.html"]) "Metrics"))))
        (div
-        ,(if merge-data
-            `(div ([id "subreports"])
-                (a ([href "#results"]) "Results")
-                (div ([id "with-subreports"])
-                  ,(format-subreports merge-data)))
-            `(div
-              (a ([href "#results"]) "Results")
-              (div ([id "subreports"] [style "display: none"]))))))
+        ))
 
       (div ((id "large"))
-       ,(render-large "Average Accuracy"
-                      (format-accuracy total-start maximum-accuracy #:unit "%")
-                      " → "
-                      (format-accuracy total-result maximum-accuracy #:unit "%"))
+       ,(render-comparison
+         "Average Percentage Accurate"
+         (format-accuracy total-start maximum-accuracy #:unit "%")
+         (format-accuracy total-result maximum-accuracy #:unit "%"))
        ,(render-large "Time" (format-time total-time #:max 'minute))
-       ,(render-large "Crashes and Timeouts" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests))
-       ,(render-large "Speedup at Initial Accuracy"
+       ,(render-large "Bad Runs" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests)
+                      #:title "Crashes and timeouts are considered bad runs.")
+       ,(render-large "Speedup" 
                       (if speedup-at-initial-accuracy
                           (format "~a×" (~r speedup-at-initial-accuracy #:precision 1))
-                          "N/A")))
+                          "N/A")
+                      #:title "Aggregate speedup of fastest alternative that improves accuracy."))
 
-      (figure
-       (div ([id "xy"])
-            (h2 "Output vs Input Accuracy")
-            (svg)
-            (figcaption "Each point represents a Herbie run below. Its "
-                        "horizontal position shows initial accuracy, "
-                        "and vertical position shows final accuracy. "
-                        "Points above the line are improved by Herbie."))
-       (div ([id "pareto"])
-            (h2 "Accuracy vs Speed")
-            (svg)
-            (figcaption "A joint speed-accuracy pareto curve for the "
-                        "Herbie runs below. Accuracy is on the vertical "
-                        "axis, and speed is on the horizontal axis. Up "
-                        "and to the right is better. The initial programs "
-                        "are shown by the red square.")
-            ))
+      (div ([id "figure-row"])
+       (figure ([id "xy"])
+        (h2 "Output vs Input Accuracy")
+        (svg)
+        (figcaption "Each point represents a Herbie run below. Its "
+                    "horizontal position shows initial accuracy, "
+                    "and vertical position shows final accuracy. "
+                    "Points above the line are improved by Herbie."))
+
+       (figure ([id "pareto"])
+        (h2 "Accuracy vs Speed")
+        (svg)
+        (figcaption "A joint speed-accuracy pareto curve. Accuracy is "
+                    "on the vertical axis, speed is on the horizontal "
+                    "axis. Up and to the right is better. The initial "
+                    "program is shown by the red square.")))
 
      (table ((id "results") (class ,(string-join (map ~a classes) " ")))
       (thead
