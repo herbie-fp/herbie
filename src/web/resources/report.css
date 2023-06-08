@@ -1,6 +1,6 @@
 /* Standard Herbie header */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif&family=IBM+Plex+Mono&family=Ruda:wght@400,500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans&family=Ruda:wght@400;500&display=swap');
 html { font-family: 'IBM Plex Serif', serif; font-size: 16px; line-height: 1.4; }
 body { max-width: 800px; margin: .5em auto 3em; }
 
@@ -100,8 +100,9 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
  text-align: center; margin-left: .5ex;
  position: relative; bottom: .125em;
 }
-.help-button:hover { background: #444; cursor: pointer; }
-h1 > .help-button { vertical-align: text-top; rotate: 270deg; }
+.help-button:hover { background: #444; color: #eee; text-decoration: none; cursor: pointer; }
+h1 > .help-button { rotate: 270deg; }
+figure h2 .help-button { float: right; font-size: 120%; font-weight: normal; }
 
 /* Subreports */
 
@@ -180,26 +181,26 @@ section h1 {
 
 /* Error graphs */
 
+#variables .variable { padding: 0 .75ex 2px; }
 #variables .selected { background-color: lightgray; }
-#variables .variable { margin-right: 3px; padding-left: 2px; padding-right: 2px; padding-bottom: 2px; }
 
-#functions { display: flex; flex-direction: row; gap: 1em; justify-content: center; }
+#functions { display: flex; flex-direction: row; gap: 1em; margin-top: 1ex; }
+#functions:before { content: "Show: "; }
 #functions .function {
-    width: 1.25em;
-    height: 1.25em;
+    width: 1em;
+    height: 1em;
     border-radius: 50%;
     box-sizing: border-box; /* Include padding and border in element's width and height */
     display: inline-block;
     margin-right: 1ex;
-    vertical-align: middle;
 }
 
-#functions #function_start { border: 3px solid red; }
-#functions #function_start.selected { background: pink; }
-#functions #function_end { border: 3px solid blue; }
-#functions #function_end.selected { background: lightblue; }
-#functions #function_target { border: 3px solid green; }
-#functions #function_target.selected { background: lightgreen; }
+#functions #function_start { border: 3px solid #d00; }
+#functions #function_start.selected { background: #d002; }
+#functions #function_end { border: 3px solid #00a; }
+#functions #function_end.selected { background: #00a2; }
+#functions #function_target { border: 3px solid #050; }
+#functions #function_target.selected { background: #0502; }
 
 /* Try it out section */
 

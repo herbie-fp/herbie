@@ -124,13 +124,22 @@
       ,(render-warnings warnings)
 
       ,(render-program preprocess test #:to (alt-expr end-alt))
-
-      (section ([id "graphs"]) (h1 "Error" (a (
-          [class "help-button"] 
-          [href "/doc/latest/report.html#graph"] 
-          [target "_blank"] 
-          ;[style "rotate: 270deg"]
-          ) "?")) (div ([id "graphs-content"])))
+      
+      (figure ([id "graphs"])
+        (h2 "Local Percentage Accuracy"
+            (span ([id "variables"]))
+            (a ([class "help-button"] 
+                [href "/doc/latest/report.html#graph"] 
+                [target "_blank"]) "?"))
+        (svg)
+        (div ([id "functions"]))
+        (figcaption
+         "The average percentage accuracy by input value. Horizontal axis shows "
+         "value of an input variable; the variable is choosen in the title. "
+         "Vertical axis is accuracy; higher is better. Red represent the original "
+         "program, while blue represents Herbie's suggestion. "
+         "These can be toggled with buttons below the plot. "
+         "The line is an average while dots represent individual samples."))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive vars (car points))

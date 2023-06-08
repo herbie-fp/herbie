@@ -117,8 +117,8 @@ var TryIt = new Component("#try-it", {
 });
 
 const ALL_LINES = [
-    { name: 'start', line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000035'} },
-    { name: 'end', line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff35'} },
+    { name: 'start', line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
+    { name: 'end', line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
     { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0035'}}
 ]
 
@@ -131,7 +131,8 @@ const ClientGraph = new Component('#graphs', {
         });
         this.points_json = await points.json();
         this.all_vars = this.points_json.vars;
-        this.$content = this.elt.querySelector("#graphs-content");
+        this.$variables = this.elt.querySelector("#variables");
+        this.$functions = this.elt.querySelector("#functions");
         await this.render(this.all_vars[0], ['start', 'end']);
     },
     
@@ -166,23 +167,28 @@ const ClientGraph = new Component('#graphs', {
         const tick_strings = ticks.map(t => t[0])
         const tick_ordinals = ticks.map(t => t[1])
         const tick_0_index = tick_strings.indexOf("0")
-        const splitpoints = splitpoints_by_varidx[index]
         const grouped_data = points.map((p, i) => ({
             input: p,
             error: Object.fromEntries(function_names.map(name => ([name, error[name][i]])))
         }))
         const domain = [Math.min(...tick_ordinals), Math.max(...tick_ordinals)]
 
-        let marks = [
-            ...splitpoints.map(p => Plot.ruleX([p], { stroke: "lightgray", strokeWidth: 4 })),
-            ...(tick_0_index > -1 ? [Plot.ruleX([tick_ordinals[tick_0_index]])] : []),
-        ]
-        for (let { name, fn, line, dot, area } of functions) {
+        let splitpoints = splitpoints_by_varidx[index].map(p => {
+            return Plot.ruleX([p], { stroke: "#888" });
+        });
+        if (tick_strings.includes("0")) {
+            splitpoints.push(Plot.ruleX([
+                tick_ordinals[tick_strings.indexOf("0")]
+            ], { stroke: "#888" }));
+        }
+
+        let marks = []
+        for (let { name, fn, line, dot } of functions) {
             const key_fn = fn => (a, b) => fn(a) - fn(b)
             const index = this.all_vars.indexOf(varName)
             const data = grouped_data.map(({ input, error }) => ({
                 x: input[index],
-                y: error[name] / bits
+                y: 1 - error[name] / bits
             })).sort(key_fn(d => d.x))
                   .map(({ x, y }, i) => ({ x, y, i }))
             const compress = (L, out_len, chunk_compressor = points => points[0]) => L.reduce((acc, pt, i) => i % Math.floor(L.length / out_len) == 0 ? (acc.push(chunk_compressor(L.slice(i, i + Math.floor(L.length / out_len)))), acc) : acc, [])
@@ -207,15 +213,14 @@ const ClientGraph = new Component('#graphs', {
         const out = Plot.plot({
             width: '800',
             height: '400',                
+            marks: splitpoints.concat(marks),
             x: {
                 tickFormat: d => tick_strings[tick_ordinals.indexOf(d)],
                 ticks: tick_ordinals, label: varName,
-                labelAnchor: 'center', /*labelOffset: [200, 20], tickRotate: 70, */
+                line: true, grid: true,
                 domain,
-                grid: true
             },
             y: { line: true, domain: [0, 1], tickFormat: "%",},
-            marks: marks,
             marginBottom: 0,
             marginRight: 0,
         });
@@ -230,35 +235,29 @@ const ClientGraph = new Component('#graphs', {
             end: "Herbie's result",
             target: "Target expression"
         }
-        const header = Element("h2", {id: "variables"}, [
-            "Bits of error vs. ",
-            this.all_vars.map(v =>
+        this.$variables.replaceChildren.apply(
+            this.$variables,
+            [" vs. "].concat(this.all_vars.map(v =>
                 Element("span", {
                     className: "variable " + (selected_var_name == v ? "selected" : ""),
                     onclick: () => this.render(v, selected_functions),
                 }, v)
-            ),
-        ]);
-        const options_view = Element("figcaption", [
-            Element("div", {id: "functions"}, [
-                all_fns.map(fn => Element("div", [
-                    Element("div", {
-                        id: "function_"+fn,
-                        className: "function " + (selected_functions.includes(fn) ? "selected" : ""),
-                    }, []),
-                    Element("span", { className: "functionDescription" }, fn_description[fn]),
-                ])),
-            ]),
-        ]);
+            )),
+        );
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-        options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
-            this.render(selected_var_name, toggle(e.id.split('_').slice(1).join('_'), selected_functions))
-        })
-        this.$content.replaceChildren(Element("figure", [
-            header,
-            await this.plot(selected_var_name, selected_functions),
-            options_view
-        ]));
+        this.$functions.replaceChildren.apply(
+            this.$functions,
+            all_fns.map(fn => Element("div", [
+                Element("div", {
+                    id: "function_"+fn,
+                    className: "function " + (selected_functions.includes(fn) ? "selected" : ""),
+                    onclick: (e) => this.render(selected_var_name, toggle(fn, selected_functions))
+                }, []),
+                Element("span", { className: "functionDescription" }, fn_description[fn]),
+            ])),
+        );
+        let $svg = this.elt.querySelector("svg");
+        this.elt.replaceChild(await this.plot(selected_var_name, selected_functions), $svg);
     }
 })
 
