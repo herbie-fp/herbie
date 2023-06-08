@@ -116,6 +116,12 @@ var TryIt = new Component("#try-it", {
     },
 });
 
+const ALL_LINES = [
+    { name: 'start', line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000035'} },
+    { name: 'end', line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff35'} },
+    { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0035'}}
+]
+
 const ClientGraph = new Component('#graphs', {
     setup: async function() {
         const points = await fetch("points.json", {
@@ -128,13 +134,29 @@ const ClientGraph = new Component('#graphs', {
 
         await this.render(this.all_vars[0], ['start', 'end']);
     },
+    
+    sliding_window: function(A, size) {
+        const half = Math.floor(size / 2)
+        const running_sum = A.reduce((acc, v) => (acc.length > 0 ? acc.push(v.y + acc[acc.length - 1]) : acc.push(v.y), acc), [])
+        return running_sum.reduce((acc, v, i) => {
+            const length = 
+                  (i - half) < 0 ? half + i
+                  : (i + half) >= running_sum.length ? (running_sum.length - (i - half))
+                  : size
+            const top =
+                  (i + half) >= running_sum.length ? running_sum[running_sum.length - 1]
+                  : running_sum[i + half]
+            const bottom =
+                  (i - half) < 0 ? 0
+                  : running_sum[i - half]
+            acc.push({average: (top - bottom) / length, x: A[i].x, length})
+            return acc
+        }, [])
+    },
+
 
     plot: async function(varName, function_names) {
-        const functions = [
-            { name: 'start', line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000035'} },
-            { name: 'end', line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff35'} },
-            { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0035'}}
-        ].filter(o => function_names.includes(o.name))
+        const functions = ALL_LINES.filter(o => function_names.includes(o.name))
         const index = this.all_vars.indexOf(varName)
         // NOTE ticks and splitpoints include all vars, so we must index
         const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = this.points_json
@@ -152,12 +174,10 @@ const ClientGraph = new Component('#graphs', {
         }))
         const domain = [Math.min(...tick_ordinals), Math.max(...tick_ordinals)]
 
-        let extra_axes_and_ticks = [
+        let marks = [
             ...splitpoints.map(p => Plot.ruleX([p], { stroke: "lightgray", strokeWidth: 4 })),
             ...(tick_0_index > -1 ? [Plot.ruleX([tick_ordinals[tick_0_index]])] : []),
         ]
-
-        let marks = [];
         for (let { name, fn, line, dot, area } of functions) {
             const key_fn = fn => (a, b) => fn(a) - fn(b)
             const index = this.all_vars.indexOf(varName)
@@ -166,30 +186,10 @@ const ClientGraph = new Component('#graphs', {
                 y: error[name]
             })).sort(key_fn(d => d.x))
                   .map(({ x, y }, i) => ({ x, y, i }))
-            const sliding_window = (A, size) => {
-                const half = Math.floor(size / 2)
-                const running_sum = A.reduce((acc, v) => (acc.length > 0 ? acc.push(v.y + acc[acc.length - 1]) : acc.push(v.y), acc), [])
-                const xs = 
-                      console.log('running', running_sum)
-                return running_sum.reduce((acc, v, i) => {
-                    const length = 
-                          (i - half) < 0 ? half + i
-                          : (i + half) >= running_sum.length ? (running_sum.length - (i - half))
-                          : size
-                    const top =
-                          (i + half) >= running_sum.length ? running_sum[running_sum.length - 1]
-                          : running_sum[i + half]
-                    const bottom =
-                          (i - half) < 0 ? 0
-                          : running_sum[i - half]
-                    acc.push({average: (top - bottom) / length, x: A[i].x, length})
-                    return acc
-                }, [])
-            }
             const compress = (L, out_len, chunk_compressor = points => points[0]) => L.reduce((acc, pt, i) => i % Math.floor(L.length / out_len) == 0 ? (acc.push(chunk_compressor(L.slice(i, i + Math.floor(L.length / out_len)))), acc) : acc, [])
             const bin_size = 128
             const sliding_window_data = compress(
-                sliding_window(data, bin_size), 800, points => ({
+                this.sliding_window(data, bin_size), 800, points => ({
                     average: points.reduce((acc, e) => e.average + acc, 0) / points.length,
                     x: points.reduce((acc, e) => e.x + acc, 0) / points.length
                 }))
@@ -215,13 +215,8 @@ const ClientGraph = new Component('#graphs', {
                 domain,
                 grid: true
             },
-            y: {
-                label: "Bits of error", domain: [0, bits],
-                ticks: new Array(bits / 4 + 1).fill(0).map((_, i) => i * 4),
-                tickFormat: d => d % 8 != 0 ? '' : d
-            },
-            marks: await Promise.all([...extra_axes_and_ticks,
-                                      ...marks])
+            y: { line: true, domain: [0, 1], tickFormat: "%",},
+            marks: marks,
         });
         out.setAttribute('viewBox', '0 0 800 430')
         return out
@@ -254,10 +249,10 @@ const ClientGraph = new Component('#graphs', {
         ]);
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
         options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
-            render(e.textContent, selected_functions)
+            this.render(e.textContent, selected_functions)
         })
         options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
-            render(selected_var_name, toggle(e.id.split('_').slice(1).join('_'), selected_functions))
+            this.render(selected_var_name, toggle(e.id.split('_').slice(1).join('_'), selected_functions))
         })
         document.querySelector('#graphs-content').replaceChildren(await this.plot(selected_var_name, selected_functions), options_view)
     }
