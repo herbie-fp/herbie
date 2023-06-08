@@ -137,9 +137,16 @@
           [target "_blank"] 
           ;[style "rotate: 270deg"]
           ) "?")) (div ([id "graphs-content"])))
-      
-      ,@(render-phase-bogosity bogosity)
 
+      (section ([id "bogosity"])  
+       (h1 "Bogosity" (a (
+         [class "help-button"]
+         [href "/doc/latest/report.html#bogosity"]
+         [target "_blank"]
+         ) "?"))
+       ,@(render-phase-bogosity bogosity)
+      )
+      
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive vars (car points))
            "")
