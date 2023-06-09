@@ -66,14 +66,17 @@
       (representation-total-bits
        (get-representation
         (table-row-precision t)))))
-  (match-define (list (list _ initial-accuracy) frontier) merged-cost-accuracy)
   (define speedup-at-initial-accuracy
     ;; The `frontier`'s accuracies are descending, so here we're searching from
     ;; the end backwards to get the cost of the first point with an accuracy
     ;; higher than that of the initial point's
-    (for/first ([point (reverse frontier)]
-                #:when (> (second point) initial-accuracy))
-      (first point)))
+    (cond
+     [(null? merged-cost-accuracy) #f]
+     [else
+      (match-define (list (list _ initial-accuracy) frontier) merged-cost-accuracy)
+      (for/first ([point (reverse frontier)]
+                  #:when (> (second point) initial-accuracy))
+        (first point))]))
 
   (define (round* x)
     (inexact->exact (round x)))
@@ -118,10 +121,13 @@
        ,(render-large "Bad Runs" (~a (+ total-crashes total-timeouts)) "/" (~a total-tests)
                       #:title "Crashes and timeouts are considered bad runs.")
        ,(render-large "Speedup" 
-                      (~r speedup-at-initial-accuracy #:precision 1) "×"
+                      (if speedup-at-initial-accuracy
+                          (~r speedup-at-initial-accuracy #:precision 1)
+                          "N/A")
+                      "×"
                       #:title "Aggregate speedup of fastest alternative that improves accuracy."))
 
-      (div ([id "figure-row"])
+      (div ([class "figure-row"])
        (figure ([id "xy"])
         (h2 "Output vs Input Accuracy")
         (svg)
