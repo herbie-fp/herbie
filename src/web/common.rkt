@@ -85,7 +85,7 @@
    "\n"
    output))
 
-(define (preprocess-sort-c-like output sort-preprocesses #:assert-has-parentheses [assert-has-parentheses #f])
+(define (preprocess-sort-c-like output sort-preprocesses #:assert-has-parentheses [assert-has-parentheses #t])
   ;; Stolen from https://github.com/codereport/racket-algorithms/blob/master/main.rkt#L88-L96
   (define (sliding lst size [step 1])
     (define (tail-call lst)
@@ -101,7 +101,6 @@
     string-append
     "// Ensure these are sorted\n" 
     (for/list ([variables sort-preprocesses])
-      ;; TODO: Is the ordering right here?
       (define comparisons
         (map
          (match-lambda [(list a b) (format "~a < ~a" a b)])
@@ -116,14 +115,6 @@
 
 (define (preprocess-sort-c output sort-preprocesses)
   (preprocess-sort-c-like output sort-preprocesses #:assert-has-parentheses #t))
-
-;; (define (preprocess-sort-fortran output sort-preprocesses)
-;;   (string-append
-;;    (apply
-;;     string-append
-;;     (for/list ([variables sort-preprocesses])
-;;       (format "// Reassign `~a` by sorting them\n" (string-join (map ~a variables) ", "))))
-;;    output))A
 
 (define (preprocess-sort-java output sort-preprocesses)
   (preprocess-sort-c-like output sort-preprocesses #:assert-has-parentheses #f))
@@ -168,10 +159,11 @@
     (for/list ([variables sort-preprocesses])
       (define lst (format "[~a]" (string-join (map ~a variables) ", ")))
       (format "~a = \\mathsf{sort}(~a)" lst lst))
-    " \\\\\n")
+    "\\\\\n")
    "\\\\\n"
-   "\\end{array}\n"
-   output))
+   "\\\\\n"
+   ;; This is a hack
+   (string-trim output "\\begin{array}{l}\n" #:right? #f)))
 
 (define (preprocess-sort-default output sort-preprocesses)
   (string-append
