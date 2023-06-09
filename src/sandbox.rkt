@@ -13,7 +13,7 @@
          (struct-out alt-analysis))
 
 (struct job-result (test status time timeline warnings backend))
-(struct improve-result (preprocess pctxs start target end))
+(struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors))
 
 (define *reeval-pts* (make-parameter 8000))
@@ -199,7 +199,7 @@
   (timeline-adjust! 'regimes 'link ".")
 
   (define pctxs (list train-pcontext processed-test-pcontext))
-  (improve-result preprocess pctxs start-alt-data target-alt-data end-alts-data))
+  (improve-result preprocess pctxs start-alt-data target-alt-data end-alts-data domain-stats))
 
 ;;
 ;;  Public interface
@@ -298,7 +298,7 @@
   (match-define (job-result test status time _ _ backend) result)
   (match status
     ['success
-     (match-define (improve-result _ _ start target end) backend)
+     (match-define (improve-result _ _ start target end _) backend)
      (define repr (test-output-repr test))
     
      ; starting expr analysis
