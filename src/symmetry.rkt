@@ -33,5 +33,7 @@
   (define groups (map last (simplify-batch egg-query)))
   (map (lambda (group) (map car group)) (group-by cdr (map cons vars groups))))
 
-
+(define (get-abs var expr)
+  ;; Make an egg query for (cons original-expression abs-expression)
+  'todo)
 

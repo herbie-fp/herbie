@@ -335,14 +335,15 @@
   (timeline-event! 'preprocess)
 
   ;; If the specification is given, it is used for sampling points
-  (define sortable (connected-components specification (*context*)))
-
-  (define new-preprocess
-    (for/list ([sortable-variables (in-list sortable)]
+  (define sortable
+    (for/list ([sortable-variables (connected-components specification (*context*))]
                #:when (> (length sortable-variables) 1))
       (cons 'sort sortable-variables)))
-  (timeline-push! 'symmetry (map ~a new-preprocess))
-  (*herbie-preprocess* (append preprocess new-preprocess))
+  (define absable 'todo)
+
+  ;; (timeline-push! 'symmetry (map ~a new-preprocess))
+  (timeline-push! 'symmetry (map ~a sortable))
+  (*herbie-preprocess* (append preprocess sortable absable))
 
   (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
 

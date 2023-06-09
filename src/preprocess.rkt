@@ -26,18 +26,28 @@
   (define sorted (sort (map list indicies values) (lambda (a b) (< (first a) (first b)))))
   (list-set-multiple point sorted))
 
-(define (sort-group variables point preprocess repr)
-  (match-define (list 'sort vars ...) preprocess)
-  (apply-to-group variables point vars (lambda (group) (sort group (curryr </total repr)))))
-
 (define (apply-preprocess sampled-point preprocess-structs ctx)
   (cond
     [(empty? preprocess-structs)
      sampled-point]
     ;; Add more preprocess cases here- for now, only symmetry-group exists
     [else
-     (define pt* (sort-group (context-vars ctx) sampled-point (first preprocess-structs) (context-repr ctx)))
+     ;; (define pt* (sort-group (context-vars ctx) sampled-point (first preprocess-structs) (context-repr ctx)))
+     (define variables (context-vars ctx))
+     (define repr (context-repr ctx))
+     (define pt*
+       (match (first preprocess-structs)
+         [(list 'sort vars ...)
+          (apply-to-group variables sampled-point vars (lambda (group) (sort group (curryr </total repr))))]
+         [(list 'abs var)
+          (apply-to-group variables sampled-point (list var) (lambda (a) (eprintf "abs of this ~s" a) (abs a)))]))
      (apply-preprocess pt* (rest preprocess-structs) ctx)]))
+     ;; (define pt*
+     ;; (match (first preprocess-structs)
+     ;;   [(list 'sort vars) ...]
+     ;; (sort-group (context-vars ctx) sampled-point (first preprocess-structs) (context-repr ctx)))
+     ;;   (list 'abs var) ..]
+     ;; (apply-preprocess pt* (rest preprocess-structs) ctx)]))
 
 (define (preprocess-pcontext pcontext preprocess-structs ctx)
   (for/pcontext ([(pt ex) pcontext])
