@@ -56,13 +56,12 @@
    [_ #f]))
 
 (define (make-graph result out fpcore? profile?)
-  (match-define (job-result test _ time data-list warnings backend) result)
-  (define bogosity (hash-ref (second data-list) 'bogosity))
+  (match-define (job-result test _ time _ warnings backend) result)
   (define vars (test-vars test))
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
-  (match-define (improve-result preprocess pctxs start target end) backend)
+  (match-define (improve-result preprocess pctxs start target end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define target-alt (and target (alt-analysis-alt target)))
@@ -144,7 +143,7 @@
          [href "/doc/latest/report.html#bogosity"]
          [target "_blank"]
          ) "?"))
-       ,@(render-phase-bogosity bogosity)
+       ,@(render-phase-bogosity (list bogosity))
       )
       
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
