@@ -19,10 +19,7 @@
        (script ([src ,(if info "report.js" "../report.js")])))
       (body
        ,(render-menu
-         (list
-          (and info '("About" . "#about"))
-          '("Timeline" . "#process-info")
-          '("Profile" . "#profile"))
+         (~a name)
          (if info 
              `(("Report" . "index.html"))
              `(("Details" . "graph.html"))))
@@ -360,7 +357,7 @@
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (render-about info)
-  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy) info)
 
   `(table ((id "about"))
      (tr (th "Date:") (td ,(date->string date)))
