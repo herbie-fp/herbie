@@ -31,7 +31,7 @@
   (define init-errs (for/hash ([bexpr branch-exprs]) (values bexpr -1)))
   (let loop ([alts sorted] [errs init-errs])
     (cond
-     [(or (null? alts) (= (length alts) 1)) '()]
+     [(null? alts) '()]
      [else
       (define recomputed-branch-exprs
         (if (flag-set? 'reduce 'branch-expressions)
