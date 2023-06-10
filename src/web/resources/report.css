@@ -181,9 +181,6 @@ section h1 {
 
 /* Error graphs */
 
-#variables .variable { padding: 0 .75ex 2px; }
-#variables .selected { background-color: lightgray; }
-
 #functions { display: flex; flex-direction: row; gap: 1em; margin-top: 1ex; }
 #functions:before { content: "Show: "; }
 #functions .function {
