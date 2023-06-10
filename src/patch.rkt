@@ -94,7 +94,7 @@
       (for ([i (in-range 4)])
         (define replace (genexpr))
         (when replace
-          (sow (alt replace `(taylor ,name ,var ()) (list altn)))))
+          (sow (alt replace `(taylor () ,name ,var) (list altn)))))
       (timeline-stop!))))
 
 (define (gen-series!)

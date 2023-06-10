@@ -185,8 +185,8 @@
           ;; differentiated between "programs" with a λ term and
           ;; "expressions" without
           (match event
-           [(list 'taylor name var '())
-            (list 'taylor name var loc0)]
+           [(list 'taylor '() name var)
+            (list 'taylor loc0 name var)]
            [(list 'rr '() input proof soundiness)
             (list 'rr loc0 input proof soundiness)]
            [(list 'simplify '() input proof soundiness)

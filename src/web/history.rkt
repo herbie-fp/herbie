@@ -93,7 +93,7 @@
                (ol ,@(render-history entry new-pcontext new-pcontext2 ctx))))))
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
-    [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
+    [(alt prog `(taylor ,loc ,pt ,var) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Taylor expanded in " ,(~a var)
               " around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
