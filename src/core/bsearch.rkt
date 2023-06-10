@@ -115,10 +115,12 @@
     (left-point p1 p2))
 
   (define (left-point p1 p2)
-    ((representation-bf->repr repr)
-     (bigfloat-pick-point
-      ((representation-repr->bf repr) p1)
-      ((representation-repr->bf repr) p2))))
+    (let ([left ((representation-repr->bf repr) p1)]
+          [right ((representation-repr->bf repr) p2)])
+      ((representation-bf->repr repr)
+       (if (bfnegative? left)
+            (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+            (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
 
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)

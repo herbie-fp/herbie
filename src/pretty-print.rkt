@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat)
-(provide bigfloat-pick-point)
+(provide bigfloat-interval-shortest bigfloat-pick-point)
 
 (define (bigfloat->normal-string x)
   (cond
