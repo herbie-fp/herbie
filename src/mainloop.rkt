@@ -279,17 +279,17 @@
   (when (^next-alts^)
     (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
-  (^patched^
-    (for/fold ([full '()]) ([picked (choose-alts)] [i (in-naturals 1)])
+
+  (^next-alts^ (choose-alts))
+  (^table^
+    (for/fold ([table (^table^)]) ([picked (choose-alts)] [i (in-naturals 1)])
       (define (picking-func x)
         (for/first ([v x] #:when (alt-equal? v picked)) v))
       (define-values (_ table*)
-        (atab-pick-alt (^table^) #:picking-func picking-func #:only-fresh #t))
-      (^next-alts^ (list picked))
-      (^table^ table*)
-      (localize!)
-      (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
-      (append full (^patched^))))
+        (atab-pick-alt table #:picking-func picking-func #:only-fresh #t))
+      table*))
+  (localize!)
+  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!))
   
 (define (setup-context! vars specification precondition repr)
