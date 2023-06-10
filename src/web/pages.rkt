@@ -42,7 +42,8 @@
      (make-points-json result out ctx)]))
 
 (define (get-interactive-js result ctx)
-  (match-define (job-result _ _ _ _ _ (improve-result _ _ start _ end)) result)
+  (match-define (job-result _ _ _ _ _ 
+                 (improve-result _ _ start _ end _)) result)
   (define start-expr (alt-expr (alt-analysis-alt start)))
   (define end-expr (alt-expr (alt-analysis-alt (car end))))
   (define start-fpcore (program->fpcore start-expr ctx))
@@ -62,7 +63,8 @@
     (display js-text out)))
 
 (define (make-points-json result out repr)
-  (match-define (job-result test _ _ _ _ (improve-result _ pctxs start target end)) result)
+  (match-define (job-result test _ _ _ _ 
+                 (improve-result _ pctxs start target end _) ) result)
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
   (define target-errors (and target (alt-analysis-test-errors target)))

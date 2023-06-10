@@ -208,7 +208,7 @@
            [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
             (semaphore-post sema)]
            [else
-            (eprintf "Job ~a started on ~a..." hash formula)
+            (eprintf "Job ~a started:\n  improve ~a...\n" hash (syntax->datum formula))
 
             (define result (run-herbie 'improve (parse-test formula) #:seed seed))
 
@@ -225,7 +225,7 @@
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "index.html")))
 
-            (eprintf " complete\n")
+            (eprintf "Job ~a complete\n" hash)
             (hash-remove! *jobs* hash)
             (semaphore-post sema)])])
        (loop seed)))))

@@ -7,8 +7,8 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../syntax/types.rkt" "../cost.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
-         "common.rkt" "history.rkt" "../syntax/sugar.rkt")
-         
+         "common.rkt" "history.rkt" "../syntax/sugar.rkt" "timeline.rkt")
+
 (provide make-graph)
 
 (define/contract (regime-info altn)
@@ -61,8 +61,7 @@
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
-  
-  (match-define (improve-result preprocess pctxs start target end) backend)
+  (match-define (improve-result preprocess pctxs start target end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define target-alt (and target (alt-analysis-alt target)))
@@ -122,7 +121,6 @@
             ""))
 
       ,(render-warnings warnings)
-
       ,(render-program preprocess test #:to (alt-expr end-alt))
       
       (figure ([id "graphs"])
@@ -140,6 +138,33 @@
          "program, while blue represents Herbie's suggestion. "
          "These can be toggled with buttons below the plot. "
          "The line is an average while dots represent individual samples."))
+
+      ,(if (> (length end-alts) 1)
+           `(div ([class "figure-row"] [id "cost-accuracy"]
+                  [data-benchmark-name ,(~a (test-name test))])
+             (figure
+              (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
+              (table
+               (thead (tr (th "Alternative") 
+                          (th ([class "numeric"]) "Accuracy")
+                          (th ([class "numeric"]) "Speedup")))
+               (tbody)))
+             (figure
+              (h2 "Accuracy vs Speed")
+              (svg)
+              (figcaption
+               "The accuracy (vertical axis) and speed (horizontal axis) of each "
+               "of Herbie's proposed alternatives. Up and to the right is better. "
+               "Each dot represents an alternative program; the red square represents "
+               "the initial program.")))
+           "")
+
+      (section ([id "bogosity"])  
+       (h1 "Bogosity"
+           (a ([class "help-button"]
+               [href "/doc/latest/report.html#bogosity"]
+               [target "_blank"]) "?"))
+       ,@(render-phase-bogosity (list bogosity)))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive vars (car points))
@@ -181,12 +206,6 @@
                     "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
                             (alt->tex alt ctx))
                     "\\]"))))
-            "")
-                                      
-      ,(if (> (length end-alts) 1)
-          `(section ([id "cost-accuracy"])
-            (h1 "Error")
-            (div ([id "pareto-content"] [data-benchmark-name ,(~a (test-name test))])))
             "")
 
       ,(render-reproduction test)))
