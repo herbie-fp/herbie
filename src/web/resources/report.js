@@ -465,6 +465,15 @@ var Bogosity = new Component(".bogosity", {
     }
 });
 
+var ClickableRows = new Component("#results", {
+    setup: function() {
+        let $rows = this.elt.querySelectorAll("tbody tr");
+        for (let $row of $rows) {
+            $row.addEventListener("click", () => $row.querySelector("a").click());
+        }
+    }
+})
+
 var Implementations = new Component("#program", {
     setup: function() {
         this.dropdown = this.elt.querySelector("select");
