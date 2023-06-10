@@ -397,17 +397,6 @@
     (print-warnings))
   (extract!))
 
-(define (pareto-regimes sorted ctx)
-  (let loop ([alts sorted])
-    (cond
-     [(null? alts) '()]
-     [(= (length alts) 1) (list (car alts))]
-     [else
-      (define opt (infer-splitpoints alts ctx))
-      (define branched-alt (combine-alts opt ctx))
-      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons branched-alt (loop (take alts high)))])))
-
 (define (extract!)
   (define ctx (*context*))
   (define repr (context-repr ctx))
@@ -426,7 +415,7 @@
            (not (null? (context-vars ctx))))
       (cond
        [(*pareto-mode*)
-        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
+        (map (curryr combine-alts ctx) (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))]
        [else
         (define option (infer-splitpoints all-alts ctx))
         (list (combine-alts option ctx))])]
