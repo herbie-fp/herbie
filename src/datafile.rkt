@@ -86,7 +86,7 @@
                   input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
                   time link cost-accuracy)
-       (define bits 128)  ; Deprecated JSON field
+       (define bits (representation-total-bits (get-representation prec)))
        (define cost-accuracy*
         (match cost-accuracy
           [(list) (list)]
@@ -101,6 +101,7 @@
           (pre . ,(~s pre))
           (preprocess . ,(~s preprocess))
           (prec . ,(~s prec))
+          (bits . ,(representation-total-bits (get-representation prec)))
           (conversions . ,(map (curry map ~s) conversions))
           (status . ,status)
           (start . ,start-bits)
@@ -114,7 +115,6 @@
           (spec . ,(~s spec))
           (target-prog . ,(~s target-prog))
           (time . ,time)
-          (bits . ,bits)
           (link . ,(~a link))
           (cost-accuracy . ,cost-accuracy*)))]))
 
