@@ -366,9 +366,22 @@ const CostAccuracy = new Component('#cost-accuracy', {
         rest_pts.push(best_pt);
         rest_pts.sort((a, b) => a[0]-b[0]);
 
+        // The line differs from rest_pts in two ways:
+        // - We filter to the actual pareto frontier, in case points moved
+        // - We make a broken line to show the real Pareto frontier
+        let line = []
+        let last = null;
+        for (let pt of rest_pts) {
+            if (!last || pt[1] < last[1]) {
+                if (last) line.push([pt[0], last[1]]);
+                line.push([pt[0], pt[1]]);
+                last = pt;
+            }
+        }
+
         const out = Plot.plot({
             marks: [
-                Plot.line(rest_pts, {
+                Plot.line(line, {
                     x: d => initial_pt[0]/d[0],
                     y: d => 1 - d[1]/bits,
                     stroke: "#00a", strokeWidth: 1, strokeOpacity: .2,

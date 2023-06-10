@@ -155,9 +155,9 @@
             (svg)
             (figcaption
              "The accuracy (vertical axis) and speed (horizontal axis) of each "
-             "of Herbie's proposed alternatives. Up and to the right is better. "
-             "Each dot represents an alternative program; the red square represents "
-             "the initial program.")))
+             "alternatives. Up and to the right is better. The red square shows "
+             "the initial program, and each blue circle shows an alternative."
+             "The line shows the best available speed-accuracy tradeoffs.")))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive vars (car points))
