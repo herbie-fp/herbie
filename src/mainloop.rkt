@@ -393,8 +393,7 @@
   (*pcontext* pcontext)
   (initialize-alt-table! prog (*pcontext*) (*context*))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-    (run-iter!)
-    (print-warnings))
+    (run-iter!))
   (extract!))
 
 (define (extract!)

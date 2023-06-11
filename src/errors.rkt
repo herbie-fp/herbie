@@ -8,8 +8,7 @@
          (struct-out exn:fail:user:herbie:syntax)
          (struct-out exn:fail:user:herbie:sampling)
          (struct-out exn:fail:user:herbie:missing)
-         warn warning-log *warnings-disabled*
-         print-warnings)
+         warn warning-log *warnings-disabled*)
 
 (struct exn:fail:user:herbie exn:fail:user (url)
         #:extra-constructor-name make-exn:fail:user:herbie)
@@ -82,28 +81,19 @@
 (define *warnings-disabled* (make-parameter false))
 
 (define-resetter warnings
-  (λ () (make-hash))
-  (λ () (make-hash)))
+  (λ () (mutable-set))
+  (λ () (mutable-set)))
 
 (define-resetter warning-log
   (λ () '())
   (λ () '()))
 
 (define (warn type message #:url [url #f] #:extra [extra '()] . args)
-  (unless (*warnings-disabled*)
+  (unless (or (*warnings-disabled*) (set-member? (warnings) type))
+    (eprintf "Warning: ~a\n" (apply format message args))
+    (for ([line extra]) (eprintf "  ~a\n" line))
     (define url* (and url (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* url)))
-    (define entry (list message args url* extra))
-    (hash-update! (warnings) type (curry cons entry) (list))
-    (warning-log (cons (list type message args url* extra) (warning-log)))))
-
-(define (print-warnings)
-  (unless (*warnings-disabled*)
-    (for ([(type log) (in-hash (warnings))])
-      (define url
-        (for/fold ([url #f]) ([entry (in-list (reverse log))])
-          (match-define (list message args url* extra) entry)
-          (eprintf "Warning: ~a\n" (apply format message args))
-          (for ([line extra]) (eprintf "  ~a\n" line))
-          (if url* url* url)))
-      (eprintf "See <~a> for more.\n" url))
-    (warnings (make-hash))))
+    (when url* (eprintf "See <~a> for more.\n" url*))
+    (define entry (list type message args url* extra))
+    (set-add! (warnings) type)
+    (warning-log (cons entry (warning-log)))))

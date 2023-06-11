@@ -87,7 +87,7 @@
     Herbie raises this warning when some inputs require more than
     10,000 bits to compute an exact ground truth. For example, to
     compute <code>(/ (exp x) (exp x))</code> for very
-    large <code>x</code>, absurdly large exponents would be required.
+    large <code>x</code>, absurdly large numbers would be required.
     Herbie discards such inputs and raises this warning. If you see
     this warning, you should add a restrictive precondition, such
     as <code>:pre (&lt; -100 x 100)</code>, to prevent large inputs.
