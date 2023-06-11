@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat)
-(provide bigfloat-interval-shortest)
+(provide bigfloat-interval-shortest bigfloat-pick-point)
 
 (define (bigfloat->normal-string x)
   (cond
@@ -128,6 +128,21 @@
       (bf (format "~a.0e~a" (digit-interval-shortest (+ x-pre 1) y-pre) y-e))]
      [else
       (bf (format "~a.~ae~a" y-pre (string-interval-shortest x-post y-post) y-e))])]))
+
+;; a little more rigorous than it sounds:
+;; finds the shortest number `x` near `p1` such that
+;; `x1` is in `[p1, p2]` and is no larger than
+;;  - if `p1` is negative, `p1 / 2`
+;;  - if `p1` is positive, `p1 * 2`
+(define/contract (bigfloat-pick-point left right)
+  (->i ([x bigfloat?] [y bigfloat?]) #:pre (x y) (or (bf<= x y) (bfnan? y)) [result bigfloat?])
+  (cond
+   [(and (bfnegative? left) (bfnegative? right))
+    (bf- (bigfloat-pick-point (bf- right) (bf- left)))]
+   [(and (bfpositive? left) (bfpositive? right))
+    (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))]
+   [else
+    (bigfloat-interval-shortest left right)]))
 
 (module+ test
   (require math/base)

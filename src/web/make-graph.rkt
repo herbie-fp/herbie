@@ -7,8 +7,8 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../syntax/types.rkt" "../cost.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
-         "common.rkt" "history.rkt" "../syntax/sugar.rkt")
-         
+         "common.rkt" "history.rkt" "../syntax/sugar.rkt" "timeline.rkt")
+
 (provide make-graph)
 
 (define/contract (regime-info altn)
@@ -61,8 +61,7 @@
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
-  
-  (match-define (improve-result preprocess pctxs start target end) backend)
+  (match-define (improve-result preprocess pctxs start target end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define target-alt (and target (alt-analysis-alt target)))
@@ -122,7 +121,6 @@
             ""))
 
       ,(render-warnings warnings)
-
       ,(render-program preprocess test #:to (alt-expr end-alt))
       
       (figure ([id "graphs"])
@@ -158,6 +156,13 @@
              "alternatives. Up and to the right is better. The red square shows "
              "the initial program, and each blue circle shows an alternative."
              "The line shows the best available speed-accuracy tradeoffs.")))
+
+      (section ([id "bogosity"])  
+       (h1 "Bogosity"
+           (a ([class "help-button"]
+               [href "/doc/latest/report.html#bogosity"]
+               [target "_blank"]) "?"))
+       ,@(render-phase-bogosity (list bogosity)))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive vars (car points))
