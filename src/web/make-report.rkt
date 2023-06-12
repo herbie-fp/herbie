@@ -100,7 +100,7 @@
      (body
       (header
        (h1 ,(if note (string-titlecase note) "") " Results")
-       (img ([src "./demo/logo-car.png"]))
+       (img ([src "logo-car.png"]))
        (nav
         (ul
          ,(if merge-data
