@@ -408,7 +408,9 @@ const CostAccuracy = new Component('#cost-accuracy', {
                 let accuracy = 100*(1 - d[1]/bits);
                 let speedup = initial_pt[0]/d[0];
                 return Element("tr", [
-                    Element("th", "Alternative " + (i + 1)),
+                    Element("th",
+                        Element("a", { href: "#alternative" + (i + 1)},
+                                "Alternative " + (i + 1))),
                     Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
                             accuracy.toFixed(1) + "%"),
                     Element("td", { className: speedup >= 1 ? "better" : "" },
