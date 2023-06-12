@@ -41,11 +41,17 @@
  :name "expq3 (problem 3.4.2)"
  :pre (and (< -1 eps) (< eps 1))
  :herbie-target
- (/ (+ a b) (* a b))
 
- (/
-  (* eps (- (exp (* (+ a b) eps)) 1))
-  (* (- (exp (* a eps)) 1) (- (exp (* b eps)) 1))))
+  ; 0, not including 0, till inf
+  (+ (/ 1 b) (/ 1 / a))
+
+  ; long case
+  (/
+    (* eps (- (exp (* (+ a b) eps)) 1))
+    (* (- (exp (* a eps)) 1) (- (exp (* b eps)) 1)))
+
+ (/ (+ a b) (* a b)))
+ 
 
 (FPCore (eps)
  :name "logq (problem 3.4.3)"
