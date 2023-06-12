@@ -43,11 +43,9 @@
  ;:herbie-target
  :alt
    (+ (/ 1 b) (/ 1 / a))  ; (0, inf)
-   (/
-     (* eps (- (exp (* (+ a b) eps)) 1))
-     (* (- (exp (* a eps)) 1) (- (exp (* b eps)) 1))) ; long case
+   (/ (+ a b) (* a b))
 
- (/ (+ a b) (* a b)))
+ (/ (* eps (- (exp (* (+ a b) eps)) 1.0)) (* (- (exp (* a eps)) 1.0) (- (exp (* b eps)) 1.0))))
  
 
 (FPCore (eps)
