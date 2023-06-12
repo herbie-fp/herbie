@@ -139,7 +139,7 @@
          "These can be toggled with buttons below the plot. "
          "The line is an average while dots represent individual samples."))
 
-      ,(if (> (length end-alts) 1)
+      ,(if (>= (length end-alts) 1)
            `(div ([class "figure-row"] [id "cost-accuracy"]
                   [data-benchmark-name ,(~a (test-name test))])
              (figure
@@ -190,12 +190,12 @@
        (ol ([class "history"])
         ,@(render-history end-alt train-pctx test-pctx ctx)))
 
-      ,(if (> (length end-alts) 1)
+      ,(if (>= (length end-alts) 1)
            `(section ([id "alternatives"])
               (h1 "Alternatives")
-              ,@(for/list ([alt (cdr end-alts)]
-                           [errs (cdr end-errors)]
-                           [cost (cdr end-costs)]
+              ,@(for/list ([alt  end-alts]
+                           [errs end-errors]
+                           [cost end-costs]
                            [i (in-naturals 1)])
                 `(div ([class "entry"])
                   (table
