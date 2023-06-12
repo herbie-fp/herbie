@@ -21,7 +21,7 @@
       (script ([src "../report.js"])))
      (body
       ,(render-menu
-        (list)
+        (~a (test-name test))
         (list
          '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))

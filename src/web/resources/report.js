@@ -116,181 +116,153 @@ var TryIt = new Component("#try-it", {
     },
 });
 
+const ALL_LINES = [
+    { name: 'start', line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
+    { name: 'end', line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
+    { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0035'}}
+]
+
 const ClientGraph = new Component('#graphs', {
-    setup: async () => {
-        const points_json = await (async () => {
-            const get_points_store = {}
-            
-            const get_points_memo = async () => {
-                if (get_points_store.value) { return get_points_store.value }
-                const ps = await get_json('points.json')
-                get_points_store.value = ps
-                return get_points_store.value
-            }
-            const get_json = url => fetch(url, {
-                // body: `_body_`,
+    setup: async function() {
+        const points = await fetch("points.json", {
                 headers: {"content-type": "text/plain"},
                 method: "GET",
                 mode: 'cors'
-                }).then(async response => {
-                //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
-                return await response.json()
-            })
-            return get_points_memo()
-        })()
-        
-        const plot = async (varName, function_names) => {
-            const functions = [
-                { name: 'start', line: { stroke: '#aa3333ff' }, area: { fill: "#c001"}, dot: { stroke: '#ff000035'} },
-                { name: 'end', line: { stroke: '#0000ffff' }, area: { fill: "#00c1"}, dot: { stroke: '#0000ff35'} },
-                { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0035'}}
-            ].filter(o => function_names.includes(o.name))
-            const index = all_vars.indexOf(varName)
-            // NOTE ticks and splitpoints include all vars, so we must index
-            const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = points_json
-            const ticks = ticks_by_varidx[index]
-            if (!ticks) {
-                return html(`<div>The function could not be plotted on the given range for this input.</div>`)
-            }
-            const tick_strings = ticks.map(t => t[0])
-            const tick_ordinals = ticks.map(t => t[1])
-            const tick_0_index = tick_strings.indexOf("0")
-            const splitpoints = splitpoints_by_varidx[index]
-            const grouped_data = points.map((p, i) => ({
-                input: p,
-                error: Object.fromEntries(function_names.map(name => ([name, error[name][i]])))
-            }))
-            const domain = [Math.min(...tick_ordinals), Math.max(...tick_ordinals)]
+        });
+        this.points_json = await points.json();
+        this.all_vars = this.points_json.vars;
+        this.$variables = this.elt.querySelector("#variables");
+        this.$functions = this.elt.querySelector("#functions");
+        await this.render(this.all_vars[0], ['start', 'end']);
+    },
+    
+    sliding_window: function(A, size) {
+        const half = Math.floor(size / 2)
+        const running_sum = A.reduce((acc, v) => (acc.length > 0 ? acc.push(v.y + acc[acc.length - 1]) : acc.push(v.y), acc), [])
+        return running_sum.reduce((acc, v, i) => {
+            const length = 
+                  (i - half) < 0 ? half + i
+                  : (i + half) >= running_sum.length ? (running_sum.length - (i - half))
+                  : size
+            const top =
+                  (i + half) >= running_sum.length ? running_sum[running_sum.length - 1]
+                  : running_sum[i + half]
+            const bottom =
+                  (i - half) < 0 ? 0
+                  : running_sum[i - half]
+            acc.push({average: (top - bottom) / length, x: A[i].x, length})
+            return acc
+        }, [])
+    },
 
-            async function extra_axes_and_ticks() {
-                return [
-                    ...splitpoints.map(p => Plot.ruleX([p], { stroke: "lightgray", strokeWidth: 4 })),
-                    ...(tick_0_index > -1 ? [Plot.ruleX([tick_ordinals[tick_0_index]])] : []),
-                ]
-            }
+    plot: async function(varName, function_names) {
+        const functions = ALL_LINES.filter(o => function_names.includes(o.name))
+        const index = this.all_vars.indexOf(varName)
+        // NOTE ticks and splitpoints include all vars, so we must index
+        const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = this.points_json
+        const ticks = ticks_by_varidx[index]
+        if (!ticks) {
+            return Element("div", "The function could not be plotted on the given range for this input.")
+        }
+        const tick_strings = ticks.map(t => t[0])
+        const tick_ordinals = ticks.map(t => t[1])
+        const tick_0_index = tick_strings.indexOf("0")
+        const grouped_data = points.map((p, i) => ({
+            input: p,
+            error: Object.fromEntries(function_names.map(name => ([name, error[name][i]])))
+        }))
+        const domain = [Math.min(...tick_ordinals), Math.max(...tick_ordinals)]
 
+        let splitpoints = splitpoints_by_varidx[index].map(p => {
+            return Plot.ruleX([p], { stroke: "#888" });
+        });
+        if (tick_strings.includes("0")) {
+            splitpoints.push(Plot.ruleX([
+                tick_ordinals[tick_strings.indexOf("0")]
+            ], { stroke: "#888" }));
+        }
 
-            async function line_and_dot_graphs({ name, fn, line, dot, area }) {
-                const key_fn = fn => (a, b) => fn(a) - fn(b)
-                const index = all_vars.indexOf(varName)
-                const data = grouped_data.map(({ input, error }) => ({
-                        x: input[index],
-                        y: error[name]
-                })).sort(key_fn(d => d.x))
-                    .map(({ x, y }, i) => ({ x, y, i }))
-                // const sliding_window = (A, size) => [...new Array(Math.max(A.length - size, 0))].map((_, i) => {
-                //     const half = Math.floor(size / 2)
-                //     i = i + half
-                //     const slice = A.slice(i - half, i - half + size).sort(key_fn(o => o.y))
-                //     const x = A[i].x
-                //     const top = slice[Math.floor(slice.length * .95)].y
-                //     const top_q = slice[Math.floor(slice.length * .75)].y
-                //     const bottom = slice[Math.floor(slice.length * .05)].y
-                //     const bottom_q = slice[Math.floor(slice.length * .25)].y
-                //     const middle = slice[Math.floor(slice.length * .5)].y
-                //     const average = slice.reduce((acc, e) => e.y + acc, 0) / slice.length
-                //     return { x, top, middle, bottom, average, top_q, bottom_q }
-                // })
-                const sliding_window = (A, size) => {
-                    const half = Math.floor(size / 2)
-                    const running_sum = A.reduce((acc, v) => (acc.length > 0 ? acc.push(v.y + acc[acc.length - 1]) : acc.push(v.y), acc), [])
-                    const xs = 
-                    console.log('running', running_sum)
-                    return running_sum.reduce((acc, v, i) => {
-                    const length = 
-                        (i - half) < 0 ? half + i
-                        : (i + half) >= running_sum.length ? (running_sum.length - (i - half))
-                        : size
-                    const top =
-                        (i + half) >= running_sum.length ? running_sum[running_sum.length - 1]
-                        : running_sum[i + half]
-                    const bottom =
-                        (i - half) < 0 ? 0
-                        : running_sum[i - half]
-                    acc.push({average: (top - bottom) / length, x: A[i].x, length})
-                    return acc
-                    }, [])
-                }
-                const compress = (L, out_len, chunk_compressor = points => points[0]) => L.reduce((acc, pt, i) => i % Math.floor(L.length / out_len) == 0 ? (acc.push(chunk_compressor(L.slice(i, i + Math.floor(L.length / out_len)))), acc) : acc, [])
-                const bin_size = 128
-                const sliding_window_data = compress(
-                    sliding_window(data, bin_size), 800, points => ({
-                        average: points.reduce((acc, e) => e.average + acc, 0) / points.length,
-                        x: points.reduce((acc, e) => e.x + acc, 0) / points.length
-                    }))
-                return [
-                    Plot.line(sliding_window_data, {
-                        x: "x",
-                        y: "average",
-                        strokeWidth: 2, ...line,
-                    }),
-                    Plot.dot(compress(data, 800), {x: "x", y: "y", r: 1.3,
-                        title: d => `x: ${d.x} \n i: ${d.i} \n bits of error: ${d.y}`,
-                        ...dot
-                    }),
-                ]
-            }
-            const out = Plot.plot({
-                width: '800',
-                height: '400',                
-                    x: {
-                        tickFormat: d => tick_strings[tick_ordinals.indexOf(d)],
-                        ticks: tick_ordinals, label: `value of ${varName}`,
-                        labelAnchor: 'center', /*labelOffset: [200, 20], tickRotate: 70, */
-                        domain,
-                        grid: true
-                    },
-                    y: {
-                        label: "Bits of error", domain: [0, bits],
-                        ticks: new Array(bits / 4 + 1).fill(0).map((_, i) => i * 4),
-                        tickFormat: d => d % 8 != 0 ? '' : d
-                    },
-                    marks: await Promise.all([...await extra_axes_and_ticks(),
-                        ...functions.map(async config =>
-                                        await line_and_dot_graphs(config)).flat()])
-            })
-            out.setAttribute('viewBox', '0 0 800 430')
-            return out
+        let marks = []
+        for (let { name, fn, line, dot } of functions) {
+            const key_fn = fn => (a, b) => fn(a) - fn(b)
+            const index = this.all_vars.indexOf(varName)
+            const data = grouped_data.map(({ input, error }) => ({
+                x: input[index],
+                y: 1 - error[name] / bits
+            })).sort(key_fn(d => d.x))
+                  .map(({ x, y }, i) => ({ x, y, i }))
+            const compress = (L, out_len, chunk_compressor = points => points[0]) => L.reduce((acc, pt, i) => i % Math.floor(L.length / out_len) == 0 ? (acc.push(chunk_compressor(L.slice(i, i + Math.floor(L.length / out_len)))), acc) : acc, [])
+            const bin_size = 128
+            const sliding_window_data = compress(
+                this.sliding_window(data, bin_size), 800, points => ({
+                    average: points.reduce((acc, e) => e.average + acc, 0) / points.length,
+                    x: points.reduce((acc, e) => e.x + acc, 0) / points.length
+                }))
+            marks = marks.concat([
+                Plot.line(sliding_window_data, {
+                    x: "x",
+                    y: "average",
+                    strokeWidth: 2, ...line,
+                }),
+                Plot.dot(compress(data, 800), {x: "x", y: "y", r: 1.3,
+                                               title: d => `x: ${d.x} \n i: ${d.i} \n bits of error: ${d.y}`,
+                                               ...dot
+                                              }),
+            ]);
         }
-        function html(string) {
-            const t = document.createElement('template');
-            t.innerHTML = string;
-            return t.content;
+        const out = Plot.plot({
+            width: '800',
+            height: '400',                
+            marks: splitpoints.concat(marks),
+            x: {
+                tickFormat: d => tick_strings[tick_ordinals.indexOf(d)],
+                ticks: tick_ordinals, label: varName,
+                line: true, grid: true,
+                domain,
+            },
+            y: { line: true, domain: [0, 1], tickFormat: "%",},
+            marginBottom: 0,
+            marginRight: 0,
+        });
+        out.setAttribute('viewBox', '0 0 820 420')
+        return out
+    },
+
+    render: async function(selected_var_name, selected_functions) {
+        const all_fns = ['start', 'end', 'target'].filter(name => this.points_json.error[name] != false)
+        const fn_description = {
+            start: "Initial program",
+            end: "Most accurate alternative",
+            target: "Target program"
         }
-        const all_vars = points_json.vars
-        async function render(selected_var_name, selected_functions) {
-            const all_fns = ['start', 'end', 'target'].filter(name => points_json.error[name] != false)
-            const fn_description = {
-                start: "Original expression",
-                end: "Herbie's result",
-                target: "Target expression"
-            }
-            const options_view = html(`
-                <div id="plot_options">
-                <div id="variables">
-                    Bits of error vs. ${all_vars.map(v => `<span class="variable ${selected_var_name == v ? 'selected' : ''}">${v}</span>`).join('')}
-                </div>
-                <div id="functions">
-                    ${all_fns.map(fn => `<div><div id="function_${fn}" class="function ${selected_functions.includes(fn) ? 'selected' : ''}"></div> <span class="functionDescription">${fn_description[fn]}</span></div>`).join('')}
-                </div>
-                </div>
-            `)
-            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-            options_view.querySelectorAll('.variable').forEach(e => e.onclick = () => {
-                render(e.textContent, selected_functions)
-            })
-            options_view.querySelectorAll('.function').forEach(e => e.onclick = () => {
-                render(selected_var_name, toggle(e.id.split('_').slice(1).join('_'), selected_functions))
-            })
-            document.querySelector('#graphs-content').replaceChildren(await plot(selected_var_name, selected_functions), options_view)
-        }
-        render(all_vars[0], ['start', 'end'])
+        this.$variables.replaceChildren.apply(
+            this.$variables,
+            [" vs "].concat(this.all_vars.map(v =>
+                Element("span", {
+                    className: "variable " + (selected_var_name == v ? "selected" : ""),
+                    onclick: () => this.render(v, selected_functions),
+                }, v)
+            )),
+        );
+        const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+        this.$functions.replaceChildren.apply(
+            this.$functions,
+            all_fns.map(fn => Element("div", [
+                Element("div", {
+                    id: "function_"+fn,
+                    className: "function " + (selected_functions.includes(fn) ? "selected" : ""),
+                    onclick: (e) => this.render(selected_var_name, toggle(fn, selected_functions))
+                }, []),
+                Element("span", { className: "functionDescription" }, fn_description[fn]),
+            ])),
+        );
+        let $svg = this.elt.querySelector("svg");
+        this.elt.replaceChild(await this.plot(selected_var_name, selected_functions), $svg);
     }
 })
 
 const ResultPlot = new Component('#xy', {
     setup: async function() {
-        console.log(this);
         let response = await fetch("results.json", {
             headers: {"content-type": "text/plain"},
             method: "GET",
@@ -364,111 +336,88 @@ const MergedCostAccuracy = new Component('#pareto', {
 })
 
 const CostAccuracy = new Component('#cost-accuracy', {
-    setup: async () => {
-        const content = document.querySelector('#pareto-content');
+    setup: async function() {
+        const $svg = this.elt.querySelector("svg");
+        const $tbody = this.elt.querySelector("tbody");
+
+        let response = await fetch("../results.json", {
+            headers: {"content-type": "text/plain"},
+            method: "GET",
+            mode: "cors",
+        });
+        let results_json = await response.json();
         
-        const results_json = await (async () => {
-            const get_results_store = {}
-            
-            const get_results_memo = async () => {
-                if (get_results_store.value) { return get_results_store.value }
-                const ps = await get_json('../results.json');
-                get_results_store.value = ps;
-                return get_results_store.value;
+        // find right test by iterating through results_json
+        for (let test of results_json.tests) {
+            if (test.name == this.elt.dataset.benchmarkName) {
+                $svg.replaceWith(await this.plot(test));
+                $tbody.replaceWith(await this.tbody(test));
+                break;
             }
-            const get_json = url => fetch(url, {
-                // body: `_body_`,
-                headers: {"content-type": "text/plain"},
-                method: "GET",
-                mode: 'cors'
-                }).then(async response => {
-                //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
-                return await response.json()
-            })
-            return get_results_memo()
-        })()
-
-        const plot = async () => {
-            // NOTE ticks and splitpoints include all vars, so we must index
-            const tests = results_json.tests;
-            
-            let benchmark;
-
-            // find right test by iterating through results_json
-            for (let test of tests) {
-                console.log(test);
-                if (test.name == content.dataset.benchmarkName) {
-                    benchmark = test;
-                    break;
-                }
-            }
-
-            console.log(benchmark);
-
-            const costAccuracy = benchmark["cost-accuracy"];
-            
-            // find maximum x and y values
-            let xmax = costAccuracy[0][0];
-            let ymax = costAccuracy[0][1];
-
-            if (costAccuracy[1][0] > xmax) xmax = costAccuracy[1][0];
-            if (costAccuracy[1][1] > ymax) ymax = costAccuracy[1][1];
-            
-            for (let point of costAccuracy[2]) {
-                if (point[0] > xmax) xmax = point[0];
-                if (point[1] > ymax) ymax = point[1];
-            }
-
-            // ceiling ymax to nearest multiple of 16
-            const range = Math.ceil(ymax/16) * 16;
-
-            // composite array for both best and other points so the line graph
-            // contains the best point as well.
-            const allpoints = [costAccuracy[1], ...costAccuracy[2]];
-            allpoints.sort((a, b) => {return a[0]-b[0]});
-            console.log(allpoints);
-
-            const out = Plot.plot({
-                marks: [
-                    Plot.dot(costAccuracy[0], {x: costAccuracy[0][0], y: costAccuracy[0][1], fill: "black"}),
-                    Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "red", stroke: "blue", title: d => `x: ${costAccuracy[1][0]} y: ${costAccuracy[1][1]} best`}),
-                    Plot.dot(costAccuracy[2], {x: d => d[0], y: d => d[1], fill: "red", stroke: "black", title: d => `x: ${d[0]} y: ${d[1]} exp: ${d[2]}`}),
-                    Plot.line(allpoints, {x: d => d[0], y: d => d[1], stroke: "red"})
-                ],
-                grid: true,
-                width: '800',
-                height: '400',                
-                    x: {
-                        label: `Cost`,
-                        domain: [0, 2 * xmax]
-                    },
-                    y: {
-                        label: "Bits of error",
-                        domain: [0, range],
-                        ticks: new Array(range / 4 + 1).fill(0).map((_, i) => i * 4),
-                        tickFormat: d => d % 8 != 0 ? '' : d
-                    },
-            })
-            out.setAttribute('viewBox', '0 0 800 430')
-            return out
         }
-        function html(string) {
-            const t = document.createElement('template');
-            t.innerHTML = string;
-            return t.content;
-        }
-        async function render() {
-            const options_view = html(`
-                <div id="plot_options">
-                </div>
-            `)
-            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+    },
 
-            content.replaceChildren(await plot(), options_view)
-        }
-        render()
+    plot: async function(benchmark) {
+        const [initial_pt, best_pt, rest_pts] = benchmark["cost-accuracy"];
+        const bits = benchmark["bits"];
+        rest_pts.push(best_pt);
+        rest_pts.sort((a, b) => a[0]-b[0]);
+
+        const out = Plot.plot({
+            marks: [
+                Plot.line(rest_pts, {
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
+                    stroke: "#00a", strokeWidth: 1, strokeOpacity: .2,
+                }),
+                Plot.dot(rest_pts, {
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
+                    fill: "#00a", r: 3,
+                }),
+                Plot.dot([initial_pt], {
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
+                    stroke: "#d00", symbol: "square", strokeWidth: 2 }),
+            ],
+            marginBottom: 0,
+            marginRight: 0,
+            width: '400',
+            height: '200',
+            x: { line: true, nice: true, tickFormat: c => c + "×" },
+            y: { nice: true, line: true, domain: [0, 1], tickFormat: "%" },
+        })
+        out.setAttribute('viewBox', '0 0 420 220')
+        return out
+    },
+
+    tbody: async function(benchmark) {
+        const [initial_pt, best_pt, rest_pts] = benchmark["cost-accuracy"];
+        const bits = benchmark["bits"];
+        const initial_accuracy = 100*(1 - initial_pt[1]/bits);
+        rest_pts.push(best_pt);
+        rest_pts.sort((a, b) => b[0]-a[0]);
+
+        return Element("tbody", [
+            Element("tr", [
+                Element("th", "Initial program"),
+                Element("td", initial_accuracy.toFixed(1) + "%"),
+                Element("td", "1×")
+            ]),
+            rest_pts.map((d, i) => {
+                let accuracy = 100*(1 - d[1]/bits);
+                let speedup = initial_pt[0]/d[0];
+                return Element("tr", [
+                    Element("th", "Alternative " + (i + 1)),
+                    Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
+                            accuracy.toFixed(1) + "%"),
+                    Element("td", { className: speedup >= 1 ? "better" : "" },
+                            speedup.toFixed(1) + "×")
+            ])}),
+        ]);
     }
-})
+});
+
 var RenderMath = new Component(".math", {
     depends: function() {
         if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";

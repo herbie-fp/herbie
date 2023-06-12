@@ -1,7 +1,7 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt")
-(provide make-timeline)
+(provide make-timeline render-phase-bogosity)
 
 (define timeline-phase? (hash/c symbol? any/c))
 (define timeline? (listof timeline-phase?))
@@ -19,10 +19,7 @@
        (script ([src ,(if info "report.js" "../report.js")])))
       (body
        ,(render-menu
-         (list
-          (and info '("About" . "#about"))
-          '("Timeline" . "#process-info")
-          '("Profile" . "#profile"))
+         (~a name)
          (if info 
              `(("Report" . "index.html"))
              `(("Details" . "graph.html"))))

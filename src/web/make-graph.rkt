@@ -7,8 +7,8 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../syntax/types.rkt" "../cost.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
-         "common.rkt" "history.rkt" "../syntax/sugar.rkt")
-         
+         "common.rkt" "history.rkt" "../syntax/sugar.rkt" "timeline.rkt")
+
 (provide make-graph)
 
 (define/contract (regime-info altn)
@@ -61,8 +61,7 @@
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
-  
-  (match-define (improve-result preprocess pctxs start target end) backend)
+  (match-define (improve-result preprocess pctxs start target end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define target-alt (and target (alt-analysis-alt target)))
@@ -93,15 +92,8 @@
       (script ([src "../report.js"] [type "module"]))
       )
      (body
-      ,(render-menu
-        (list
-         '("Error" . "#graphs")
-         (and fpcore? (for/and ([p points]) (andmap number? p))
-              '("Try it out!" . "#try-it"))
-         (and (test-output test)
-              '("Target" . "#comparison"))
-         '("Derivation" . "#history")
-         '("Reproduce" . "#reproduce"))
+      ,(render-menu #:path ".."
+        (~a (test-name test))
         (list
          '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))
@@ -114,14 +106,14 @@
           [target "_blank"] 
           ;[style "rotate: 270deg"]
           ) "?"))
-       ,(render-large "Average Accuracy"
-                      (format-accuracy (errors-score start-error) repr-bits #:unit "%")
-                      " → "
-                      (format-accuracy (errors-score end-error) repr-bits #:unit "%")
-                      #:title
-                      (format "Minimum Accuracy: ~a → ~a"
-                              (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
-                              (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
+       ,(render-comparison
+         "Percentage Accurate"
+         (format-accuracy (errors-score start-error) repr-bits #:unit "%")
+         (format-accuracy (errors-score end-error) repr-bits #:unit "%")
+         #:title
+         (format "Minimum Accuracy: ~a → ~a"
+                 (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
+                 (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
        ,(render-large "Time" (format-time time))
        ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
        ,(if (*pareto-mode*)
@@ -129,15 +121,50 @@
             ""))
 
       ,(render-warnings warnings)
-
       ,(render-program preprocess test #:to (alt-expr end-alt))
+      
+      (figure ([id "graphs"])
+        (h2 "Local Percentage Accuracy"
+            (span ([id "variables"]))
+            (a ([class "help-button"] 
+                [href "/doc/latest/report.html#graph"] 
+                [target "_blank"]) "?"))
+        (svg)
+        (div ([id "functions"]))
+        (figcaption
+         "The average percentage accuracy by input value. Horizontal axis shows "
+         "value of an input variable; the variable is choosen in the title. "
+         "Vertical axis is accuracy; higher is better. Red represent the original "
+         "program, while blue represents Herbie's suggestion. "
+         "These can be toggled with buttons below the plot. "
+         "The line is an average while dots represent individual samples."))
 
-      (section ([id "graphs"]) (h1 "Error" (a (
-          [class "help-button"] 
-          [href "/doc/latest/report.html#graph"] 
-          [target "_blank"] 
-          ;[style "rotate: 270deg"]
-          ) "?")) (div ([id "graphs-content"])))
+      ,(if (> (length end-alts) 1)
+           `(div ([class "figure-row"] [id "cost-accuracy"]
+                  [data-benchmark-name ,(~a (test-name test))])
+             (figure
+              (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
+              (table
+               (thead (tr (th "Alternative") 
+                          (th ([class "numeric"]) "Accuracy")
+                          (th ([class "numeric"]) "Speedup")))
+               (tbody)))
+             (figure
+              (h2 "Accuracy vs Speed")
+              (svg)
+              (figcaption
+               "The accuracy (vertical axis) and speed (horizontal axis) of each "
+               "of Herbie's proposed alternatives. Up and to the right is better. "
+               "Each dot represents an alternative program; the red square represents "
+               "the initial program.")))
+           "")
+
+      (section ([id "bogosity"])  
+       (h1 "Bogosity"
+           (a ([class "help-button"]
+               [href "/doc/latest/report.html#bogosity"]
+               [target "_blank"]) "?"))
+       ,@(render-phase-bogosity (list bogosity)))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive vars (car points))
@@ -179,12 +206,6 @@
                     "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
                             (alt->tex alt ctx))
                     "\\]"))))
-            "")
-                                      
-      ,(if (> (length end-alts) 1)
-          `(section ([id "cost-accuracy"])
-            (h1 "Error")
-            (div ([id "pareto-content"] [data-benchmark-name ,(~a (test-name test))])))
             "")
 
       ,(render-reproduction test)))

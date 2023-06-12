@@ -114,16 +114,11 @@
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
     (left-point p1 p2))
 
-  ; a little more rigorous than it sounds:
-  ; finds the shortest number `x` near `p1` such that
-  ; `x1` is in `[p1, p2]` and is no larger than
-  ;  - if `p1` is negative, `p1 / 2`
-  ;  - if `p1` is positive, `p1 * 2`
   (define (left-point p1 p2)
     (let ([left ((representation-repr->bf repr) p1)]
           [right ((representation-repr->bf repr) p2)])
       ((representation-bf->repr repr)
-        (if (bfnegative? left)
+       (if (bfnegative? left)
             (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
             (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
 
