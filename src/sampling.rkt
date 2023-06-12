@@ -101,7 +101,7 @@
     (define hyperrects-analysis (precondition->hyperrects pre ctx))
     (match-define (cons hyperrects sampling-table)
       (find-intervals search-func hyperrects-analysis
-                      #:reprs reprs #:fuel (*max-find-range-depth*)))
+                      #:ctx ctx #:fuel (*max-find-range-depth*)))
     (cons (make-hyperrect-sampler hyperrects reprs) sampling-table)]
    [else
     (timeline-push! 'method "random")
@@ -115,7 +115,7 @@
     (define now (current-inexact-milliseconds))
     (when (equal? status 'exit)
       (warn 'ground-truth #:url "faq.html#ground-truth"
-               "could not determine a ground truth for program ~a" name
+               "could not determine a ground truth"
                #:extra (for/list ([var vars] [val pt])
                          (format "~a = ~a" var val))))
     (define dt (- now start))
