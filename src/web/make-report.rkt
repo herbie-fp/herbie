@@ -49,7 +49,7 @@
 
   (define help-text
     #hash(("Result" . "Color key:\nGreen: improved accuracy\nLight green: no initial error\nOrange: no accuracy change\nRed: accuracy worsened\nGray: timeout\nDark Gray: error")
-        ("Target" . "Color key:\nDark green: better than target\nGreen: matched target\nOrange: improved but did not match target\nYellow: no accuracy change\n")))
+          ("Target" . "Color key:\nDark green: better than target\nGreen: matched target\nOrange: improved but did not match target\nYellow: no accuracy change\n")))
 
   (define total-time (apply + (map table-row-time tests)))
   (define total-tests (length tests))
