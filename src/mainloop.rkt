@@ -340,7 +340,8 @@
                #:when (> (length sortable-variables) 1))
       (cons 'sort sortable-variables)))
   (define absable
-    (for/list ([absable-variables ()
+    (for/list ([absable-variable (get-fabs specification (*context*))])
+      (cons 'fabs absable-variable)))
 
   ;; (timeline-push! 'symmetry (map ~a new-preprocess))
   (timeline-push! 'symmetry (map ~a sortable))

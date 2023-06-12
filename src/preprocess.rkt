@@ -39,7 +39,7 @@
          [(list 'sort vars ...)
           (apply-to-group variables sampled-point vars (lambda (group) (sort group (curryr </total repr))))]
          [(list 'abs var)
-          (apply-to-group variables sampled-point (list var) (lambda (a) (eprintf "abs of this ~s" a) (abs a)))]))
+          (apply-to-group variables sampled-point (list var) abs)]))
      (apply-preprocess pt* (rest preprocess-structs) ctx)]))
      ;; (define pt*
      ;; (match (first preprocess-structs)

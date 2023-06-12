@@ -1,7 +1,7 @@
 #lang racket
 (require "common.rkt" "programs.rkt" "syntax/types.rkt" "core/simplify.rkt" "syntax/rules.rkt" "core/egg-herbie.rkt")
 
-(provide connected-components)
+(provide connected-components get-fabs)
 
 (define (get-swaps vars expr)
   (define swapt
@@ -33,6 +33,19 @@
   (define groups (map last (simplify-batch egg-query)))
   (map (lambda (group) (map car group)) (group-by cdr (map cons vars groups))))
 
-(define (get-abs expr ctx)
+;; TODO: name for get-fabs with-fabs with-fabs* s v out
+(define (get-fabs expr ctx)
   (define vars (context-vars ctx))
-  (define 
+  (define with-fabs
+    (for/list ([var (in-list vars)])
+      (replace-vars (list var `(fabs ,var)) expr)))
+  (define egg-query (make-egg-query (cons expr with-fabs) (*simplify-rules*)))
+  (define out (map last (simplify-batch egg-query)))
+  (match-define (cons original with-fabs*) out)
+  (for/list ([s with-fabs*]
+             [v (in-list vars)]
+             #:when (equal? s original))
+    s))
+                   
+                            
+
