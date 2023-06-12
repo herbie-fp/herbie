@@ -33,23 +33,19 @@
     (cond
      [(null? alts) '()]
      [else
-      (define recomputed-branch-exprs
-        (if (flag-set? 'reduce 'branch-expressions)
-            (exprs-to-branch-on alts ctx)
-            (context-vars ctx)))
-      
-      (define recomp-errs 
-        (for/hash ([bexpr recomputed-branch-exprs]) (values bexpr (hash-ref errs bexpr))))
-
       (define-values (opt new-errs) 
-        (infer-splitpoints alts recomputed-branch-exprs recomp-errs ctx))
+        (infer-splitpoints alts errs ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons opt (loop (take alts high) new-errs))])))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts branch-exprs cerrs ctx)
+(define (infer-splitpoints alts cerrs ctx)
+  (define branch-exprs
+    (if (flag-set? 'reduce 'branch-expressions)
+        (exprs-to-branch-on alts ctx)
+        (context-vars ctx)))
   (timeline-event! 'regimes)
   (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
   (define err-lsts (batch-errors (map alt-expr alts) (*pcontext*) ctx))
