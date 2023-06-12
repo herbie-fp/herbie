@@ -9,21 +9,19 @@
 
 (FPCore (x eps)
  :name "2sin (example 3.3)"
- :herbie-target
+ ;:herbie-target
+ :alt
+   ; for -inf to inf x and 0 to inf eps
+   (* (* sin(* eps 0.5) 2.0)
+      (+ (fma(- sin(* eps 0.5), sin(x), (* sin(* eps 0.5) sin(x))))
+         (fma(cos(* eps 0.5), cos(x), (* sin(* eps 0.5) (- sin(x)))))))
 
- ; for -inf to inf x and 0 to inf eps
- (* (* sin(* eps 0.5) 2.0)
-    (+ (fma(- sin(* eps 0.5), sin(x), (* sin(* eps 0.5) sin(x))))
-        (fma(cos(* eps 0.5), cos(x), (* sin(* eps 0.5) (- sin(x)))))))
+   ; for -inf to inf x and -1 to 1 eps
+   (- (* (sin y) (cos x)) (* (sin y) ((sin x) (tan (* y 0.5)))))
 
- ; for -inf to inf x and -1 to 1 eps
- (- (* (sin y) (cos x)) (* (sin y) ((sin x) (tan (* y 0.5)))))
+   (* eps (cos x))  ; for -2pi to 2pi x and -1 to 1 eps
 
- ; for -2pi to 2pi x and -1 to 1 eps
- (* eps (cos x))
-
- ; general case
- (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2))))
+   (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2))))  ; general case
 
  (- (sin (+ x eps)) (sin x)))
 

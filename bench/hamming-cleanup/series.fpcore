@@ -40,15 +40,12 @@
 (FPCore (a b eps)
  :name "expq3 (problem 3.4.2)"
  :pre (and (< -1 eps) (< eps 1))
- :herbie-target
-
-  ; 0, not including 0, till inf
-  (+ (/ 1 b) (/ 1 / a))
-
-  ; long case
-  (/
-    (* eps (- (exp (* (+ a b) eps)) 1))
-    (* (- (exp (* a eps)) 1) (- (exp (* b eps)) 1)))
+ ;:herbie-target
+ :alt
+   (+ (/ 1 b) (/ 1 / a))  ; (0, inf)
+   (/
+     (* eps (- (exp (* (+ a b) eps)) 1))
+     (* (- (exp (* a eps)) 1) (- (exp (* b eps)) 1))) ; long case
 
  (/ (+ a b) (* a b)))
  

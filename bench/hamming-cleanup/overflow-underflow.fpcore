@@ -2,15 +2,10 @@
 
 (FPCore (x)
  :name "expq2 (section 3.11)"
- :herbie-target
-
- ; most accurate
- (/ (exp x) (expm1 x))
-
- ; low-cost alt for positive values
- (+ 0.5 (+ (* x (/ 1 12)) (/ 1 x)))
-
- ; previous target alt
- (/ 1 (- 1 (exp (- x))))
+ ;:herbie-target
+ :alt
+   (/ (exp x) (expm1 x))  ; most accurate
+   (+ 0.5 (+ (* x (/ 1 12)) (/ 1 x)))  ; low-cost alt for positive values
+   (/ 1 (- 1 (exp (- x))))  ; previous target alt
 
  (/ (exp x) (- (exp x) 1)))
