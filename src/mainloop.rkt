@@ -339,7 +339,8 @@
     (for/list ([sortable-variables (connected-components specification (*context*))]
                #:when (> (length sortable-variables) 1))
       (cons 'sort sortable-variables)))
-  (define absable 'todo)
+  (define absable
+    (for/list ([absable-variables ()
 
   ;; (timeline-push! 'symmetry (map ~a new-preprocess))
   (timeline-push! 'symmetry (map ~a sortable))

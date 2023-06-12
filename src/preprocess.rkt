@@ -30,7 +30,6 @@
   (cond
     [(empty? preprocess-structs)
      sampled-point]
-    ;; Add more preprocess cases here- for now, only symmetry-group exists
     [else
      ;; (define pt* (sort-group (context-vars ctx) sampled-point (first preprocess-structs) (context-repr ctx)))
      (define variables (context-vars ctx))
