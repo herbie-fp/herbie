@@ -124,7 +124,7 @@
       ,(render-program preprocess test #:to (alt-expr end-alt))
       
       (figure ([id "graphs"])
-        (h2 "Local Percentage Accuracy"
+        (h2 "Local Percentage Accuracy vs "
             (span ([id "variables"]))
             (a ([class "help-button"] 
                 [href "/doc/latest/report.html#graph"] 
@@ -139,25 +139,23 @@
          "These can be toggled with buttons below the plot. "
          "The line is an average while dots represent individual samples."))
 
-      ,(if (> (length end-alts) 1)
-           `(div ([class "figure-row"] [id "cost-accuracy"]
-                  [data-benchmark-name ,(~a (test-name test))])
-             (figure
-              (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
-              (table
-               (thead (tr (th "Alternative") 
-                          (th ([class "numeric"]) "Accuracy")
-                          (th ([class "numeric"]) "Speedup")))
-               (tbody)))
-             (figure
-              (h2 "Accuracy vs Speed")
-              (svg)
-              (figcaption
-               "The accuracy (vertical axis) and speed (horizontal axis) of each "
-               "of Herbie's proposed alternatives. Up and to the right is better. "
-               "Each dot represents an alternative program; the red square represents "
-               "the initial program.")))
-           "")
+      (div ([class "figure-row"] [id "cost-accuracy"]
+            [data-benchmark-name ,(~a (test-name test))])
+           (figure
+            (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
+            (table
+             (thead (tr (th "Alternative") 
+                        (th ([class "numeric"]) "Accuracy")
+                        (th ([class "numeric"]) "Speedup")))
+             (tbody)))
+           (figure
+            (h2 "Accuracy vs Speed")
+            (svg)
+            (figcaption
+             "The accuracy (vertical axis) and speed (horizontal axis) of each "
+             "alternatives. Up and to the right is better. The red square shows "
+             "the initial program, and each blue circle shows an alternative."
+             "The line shows the best available speed-accuracy tradeoffs.")))
 
       (section ([id "bogosity"])  
        (h1 "Bogosity"

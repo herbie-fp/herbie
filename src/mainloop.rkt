@@ -185,12 +185,12 @@
           ;; differentiated between "programs" with a λ term and
           ;; "expressions" without
           (match event
-           [(list 'taylor name var (list 2 loc ...))
-            (list 'taylor name var (append '(2) loc0 loc))]
-           [(list 'rr (list 2 loc ...) input proof soundiness)
-            (list 'rr (append '(2) loc0 loc) input proof soundiness)]
-           [(list 'simplify (list 2 loc ...) input proof soundiness)
-            (list 'simplify (append '(2) loc0 loc) input proof soundiness)]))
+           [(list 'taylor '() name var)
+            (list 'taylor loc0 name var)]
+           [(list 'rr '() input proof soundiness)
+            (list 'rr loc0 input proof soundiness)]
+           [(list 'simplify '() input proof soundiness)
+            (list 'simplify loc0 input proof soundiness)]))
         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
         (alt expr* event* (list (loop (first prevs))))])))
   

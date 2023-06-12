@@ -34,7 +34,7 @@ header li:first-child::before { content: none; }
 /* Plots at the top */
 
 .figure-row { display: flex; flex-direction: row; gap: 1em; margin: 1em 0; }
-figure { flex: 1; border: 1px solid #ddd; padding: 1ex; margin: 0; }
+figure { flex: 1; border: 1px solid #ddd; padding: 1ex; margin: 0; align-self: start; }
 figure h2 { font-size: 1em; font-family: 'IBM Plex Serif', serif; margin: 0; }
 figure .domain, figure .tick { color: #888; }
 figure text { font-family: 'IBM Plex Serif', serif; }
@@ -180,9 +180,6 @@ section h1 {
 #preprocess:before { content: "Preprocess"; float: left; color: #444; }
 
 /* Error graphs */
-
-#variables .variable { padding: 0 .75ex 2px; }
-#variables .selected { background-color: lightgray; }
 
 #functions { display: flex; flex-direction: row; gap: 1em; margin-top: 1ex; }
 #functions:before { content: "Show: "; }
