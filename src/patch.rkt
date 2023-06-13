@@ -249,7 +249,7 @@
 (define (patch-table-has-expr? expr)
   (hash-has-key? (patchtable-table (*patch-table*)) expr))
 
-(define (patch-table-add! expr vars down?)
+(define (patch-table-add! expr down?)
   (when (patch-table-has-expr? expr)
     (raise-user-error 'patch-table-add!
       "attempting to add previously patched expression: ~a"
@@ -270,13 +270,13 @@
   (define cached
     (for/fold ([qed '()] [ced '()]
               #:result (begin0 (reverse ced) (^queued^ (reverse qed))))
-              ([(vars expr) (in-dict locs)])
+              ([expr (in-list locs)])
       (if (patch-table-has-expr? expr)
           (values qed (cons expr ced))
           (let ([altn* (alt expr `(patch) '())])
             (values (cons altn* qed) ced)))))
   (^queuedlow^
-    (for/list ([(vars expr) (in-dict lowlocs)])
+    (for/list ([expr (in-list lowlocs)])
       (alt expr `(patch) '())))
   (cond
    [(and (null? (^queued^))       ; only fetch cache
