@@ -31,7 +31,6 @@
     [(empty? preprocess-structs)
      sampled-point]
     [else
-     ;; (define pt* (sort-group (context-vars ctx) sampled-point (first preprocess-structs) (context-repr ctx)))
      (define variables (context-vars ctx))
      (define repr (context-repr ctx))
      (define pt*
@@ -39,14 +38,10 @@
          [(list 'sort vars ...)
           (apply-to-group variables sampled-point vars (lambda (group) (sort group (curryr </total repr))))]
          [(list 'abs var)
-          (apply-to-group variables sampled-point (list var) abs)]))
+          ;; TODO: Big question, is there more than one variable ever? Is any of this even right?
+          ;; I suppose we could map abs on a list of one variable but that feels sketchy
+          (apply-to-group variables sampled-point (list var) (match-lambda [(list x) (list (abs x))]))]))
      (apply-preprocess pt* (rest preprocess-structs) ctx)]))
-     ;; (define pt*
-     ;; (match (first preprocess-structs)
-     ;;   [(list 'sort vars) ...]
-     ;; (sort-group (context-vars ctx) sampled-point (first preprocess-structs) (context-repr ctx)))
-     ;;   (list 'abs var) ..]
-     ;; (apply-preprocess pt* (rest preprocess-structs) ctx)]))
 
 (define (preprocess-pcontext pcontext preprocess-structs ctx)
   (for/pcontext ([(pt ex) pcontext])

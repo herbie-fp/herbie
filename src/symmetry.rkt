@@ -38,14 +38,11 @@
   (define vars (context-vars ctx))
   (define with-fabs
     (for/list ([var (in-list vars)])
-      (replace-vars (list var `(fabs ,var)) expr)))
+      (replace-vars (list (cons var `(fabs.f64 ,var))) expr)))
   (define egg-query (make-egg-query (cons expr with-fabs) (*simplify-rules*)))
   (define out (map last (simplify-batch egg-query)))
   (match-define (cons original with-fabs*) out)
-  (for/list ([s with-fabs*]
+  (for/list ([e with-fabs*]
              [v (in-list vars)]
-             #:when (equal? s original))
-    s))
-                   
-                            
-
+             #:when (equal? e original))
+    v))

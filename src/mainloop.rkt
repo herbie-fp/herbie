@@ -328,27 +328,26 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-
 (define (make-preprocess-pcontext prog pcontext iters
                                   #:specification [specification #f]
                                   #:preprocess [preprocess '()])
   (timeline-event! 'preprocess)
 
   ;; If the specification is given, it is used for sampling points
-  (define sortable
+  (define preprocess-sort
     (for/list ([sortable-variables (connected-components specification (*context*))]
                #:when (> (length sortable-variables) 1))
       (cons 'sort sortable-variables)))
-  (define absable
+  (define preprocess-abs
     (for/list ([absable-variable (get-fabs specification (*context*))])
-      (cons 'fabs absable-variable)))
+      (list 'abs absable-variable)))
 
-  ;; (timeline-push! 'symmetry (map ~a new-preprocess))
-  (timeline-push! 'symmetry (map ~a sortable))
-  (*herbie-preprocess* (append preprocess sortable absable))
+  (timeline-push! 'symmetry (map ~a preprocess-sort))
+  ;; TODO: Understand how the timeline works, fix it to work with new stuff
+  ;; (timeline-push! 'symmetry (map ~a preprocess-abs))
+  (*herbie-preprocess* (append preprocess preprocess-sort preprocess-abs))
 
   (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
-
 
 (define (run-improve! prog pcontext iters
                       #:specification [specification #f]

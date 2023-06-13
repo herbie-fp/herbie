@@ -95,7 +95,8 @@
             (match preprocess
               [`(sort ,vars ...)
                (define varstring (format "[~a]" (string-join (map ~a vars) ", ")))
-               (format "~a = \\mathsf{sort}(~a)\\\\ " varstring varstring)]))
+               (format "~a = \\mathsf{sort}(~a)\\\\ " varstring varstring)]
+              [`(abs ,x) (format "Absolute value of ~a" x)]))
         "\\end{array} \\]")))
 
 (define (program->tex prog ctx #:loc [loc #f])
