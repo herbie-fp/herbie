@@ -3,7 +3,7 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
 
-(provide localize-error local-error-as-tree)
+(provide batch-localize-error local-error-as-tree)
 
 (define (all-subexpressions expr repr)
   (remove-duplicates
@@ -23,23 +23,26 @@
                  (loop arg atype))])))))
 
 ;; Returns a list of expressions sorted by increasing local error
-(define (localize-error expr ctx)
-  (define errs (compute-local-errors expr ctx))
-  (sort
-    (reap [sow]
-          (for ([(expr err) (in-hash errs)])
-            (unless (andmap (curry = 1) err)
-              (sow (cons err expr)))))
-    > #:key (compose errors-score car)))
+(define (batch-localize-error exprs ctx)
+  (define errss (compute-local-errors exprs ctx))
+  (for/list ([expr (in-list exprs)] [errs (in-list errss)])
+    (sort
+     (reap [sow]
+       (for ([(expr err) (in-hash errs)])
+         (unless (andmap (curry = 1) err)
+           (sow (cons err expr)))))
+     > #:key (compose errors-score car))))
 
 ; Compute local error or each sampled point at each node in `prog`.
-(define (compute-local-errors expr ctx)
-  (define subexprs (all-subexpressions expr (context-repr ctx)))
+(define (compute-local-errors exprs ctx)
+  (define subexprss
+    (for/list ([expr (in-list exprs)])
+      (all-subexpressions expr (context-repr ctx))))
   (define prog-list
-    (for/list ([subexpr (in-list subexprs)])
+    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
       (car subexpr)))
   (define ctx-list
-    (for/list ([subexpr (in-list subexprs)])
+    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
       (struct-copy context ctx [repr (cdr subexpr)])))
 
   (define subexprs-fn (eval-progs-real prog-list ctx-list))
@@ -47,16 +50,16 @@
   ; Mutable error hack, this is bad
   (define temp-errs
     (make-hash
-    (for/list ([subexpr (in-list subexprs)])
-      (cons (car subexpr) '()))))
+     (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+       (cons (car subexpr) '()))))
   (define errs (make-hash))
   (for ([(k v) temp-errs])
     (hash-set! errs k v))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
-      (make-immutable-hash (map cons subexprs exacts)))
-    (for ([expr (in-list subexprs)])
+      (make-immutable-hash (map cons (apply append subexprss) exacts)))
+    (for* ([subexprs (in-list subexprss)] [expr (in-list subexprs)])
       (define err
         (match (car expr)
           [(? number?) 1]
@@ -74,13 +77,16 @@
             (apply (operator-info f 'fl) argapprox) repr)
           ]))
       (hash-update! errs (car expr) (curry cons err))))
-   errs)
+
+  (for/list ([expr (in-list exprs)] [subexprs (in-list subexprss)])
+    (for/hash ([subexpr (in-list subexprs)])
+      (values (car subexpr) (hash-ref errs (car subexpr))))))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree expr ctx)
-  (define errs (compute-local-errors expr ctx))
+  (define errs (first (compute-local-errors (list expr) ctx)))
   (let loop ([expr expr])
     (match expr
       [(list op args ...) (cons (hash-ref errs expr) (map loop args))]
