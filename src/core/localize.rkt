@@ -70,9 +70,8 @@
                         [repr (in-list (operator-info f 'itype))])
                (hash-ref exacts-hash
                          (cons arg repr))))
-           (ulp-difference
-            (hash-ref exacts-hash expr)
-            (apply (operator-info f 'fl) argapprox) repr)]))
+           (define approx (apply (operator-info f 'fl) argapprox))
+           (ulp-difference (hash-ref exacts-hash expr) approx repr)]))
       (hash-update! errs (car expr) (curry cons err))))
 
   (for/list ([expr (in-list exprs)] [subexprs (in-list subexprss)])

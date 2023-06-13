@@ -199,15 +199,15 @@
         (alt expr* event* (list (loop (first prevs))))])))
   
   (^patched^
-    (for/fold ([patched '()] #:result (reverse patched))
-              ([altn (in-list alts)])
-      (define expr0 (get-starting-expr altn))
-      (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
-          (for/fold ([patched patched]) ([alt0 (in-list (^next-alts^))])
-            (let ([locs (get-locations (alt-expr alt0) expr0)])
-              (append (map (λ (l) (reconstruct-alt altn l alt0)) locs) patched)))
-          (cons altn patched))))
-      
+   (reap [sow]
+     (for ([altn (in-list alts)])
+       (define expr0 (get-starting-expr altn))
+       (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
+           (for* ([alt0 (in-list (^next-alts^))]
+                 [loc (in-list (get-locations (alt-expr alt0) expr0))])
+             (sow (reconstruct-alt altn loc alt0)))
+           (sow altn)))))
+
   (void))
 
 ;; Finish iteration

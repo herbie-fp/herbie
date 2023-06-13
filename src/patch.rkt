@@ -141,14 +141,14 @@
   (^rewrites^ '())
   (when (flag-set? 'generate 'rr)
     (timeline-event! 'rewrite)
+    (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) (^queued^)))
 
     ;; partition the rules
     (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
 
     ;; get subexprs and locations
-    (define exprs (map alt-expr (^queued^)))
+    (define real-exprs (map alt-expr real-alts))
     (define lowexprs (map alt-expr (^queuedlow^)))
-    (define real-exprs (filter (λ (e) (equal? (type-of e (*context*)) 'real)) exprs))
 
     ;; HACK:
     ;; - check loaded representations
@@ -172,7 +172,7 @@
       (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
 
     (define comb-changelists (append changelists changelists-low-locs))
-    (define altns (append (^queued^) (^queuedlow^)))
+    (define altns (append real-alts (^queuedlow^)))
     
     (define rewritten
       (for/fold ([done '()] #:result (reverse done))
