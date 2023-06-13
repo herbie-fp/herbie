@@ -94,7 +94,7 @@
       (for ([i (in-range 4)])
         (define replace (genexpr))
         (when replace
-          (sow (alt replace `(taylor ,name ,var (2)) (list altn)))))
+          (sow (alt replace `(taylor () ,name ,var) (list altn)))))
       (timeline-stop!))))
 
 (define (gen-series!)
@@ -176,7 +176,6 @@
     (define comb-changelists (append changelists changelists-low-locs))
     (define altns (append (^queued^) (^queuedlow^)))
     
-    (define variables (context-vars (*context*)))
     (define rewritten
       (for/fold ([done '()] #:result (reverse done))
                 ([cls comb-changelists] [altn altns]
@@ -184,8 +183,8 @@
           (match-define (list subexp input) cl)
             (define body* (apply-repr-change-expr subexp (*context*)))
             (if body*
-              ; We need to pass '(2) here so it can get overwritten on patch-fix
-              (cons (alt body* (list 'rr '(2) input #f #f) (list altn)) done)
+              ; We need to pass '() here so it can get overwritten on patch-fix
+              (cons (alt body* (list 'rr '() input #f #f) (list altn)) done)
               done)))
 
     (timeline-push! 'count (length (^queued^)) (length rewritten))
@@ -209,7 +208,6 @@
   (when (flag-set? 'generate 'simplify)
     (timeline-event! 'simplify)
     (define children (^final^))
-    (define variables (context-vars (*context*)))
 
     (define to-simplify (map alt-expr children))
 
@@ -224,7 +222,7 @@
                   [output outputs])
          (if (equal? input output)
              child
-             (alt output `(simplify (2) ,egg-query #f #f) (list child))))
+             (alt output `(simplify () ,egg-query #f #f) (list child))))
        alt-equal?))
 
     ; dedup for cache

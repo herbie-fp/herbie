@@ -55,14 +55,6 @@
         [_ (void)]))
     (k 'Goal #f #f step)))
 
-;; Extracts render information from the proof
-(define (compute-proof proof soundiness)
-  (for/list ([step (in-list proof)] [sound soundiness])
-     (define-values (dir rule loc expr) (splice-proof-step step))
-     (if (eq? dir 'Goal)
-         (list #f #f #f expr #f)
-         (list dir rule loc expr sound))))
-
 ;; HTML renderer for derivations
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))
@@ -101,20 +93,18 @@
                (ol ,@(render-history entry new-pcontext new-pcontext2 ctx))))))
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
-    [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
+    [(alt prog `(taylor ,loc ,pt ,var) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Taylor expanded in " ,(~a var)
               " around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
-     (define proof*
-       (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) 
                 "\\]")
-           ,(if proof* (render-proof proof* pcontext ctx) "")))]
+           ,(if proof (render-proof proof soundiness pcontext ctx) "")))]
 
     [(alt prog `initial-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
@@ -127,36 +117,37 @@
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
     [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev))
-     (define proof*
-       (if proof (compute-proof proof soundiness) #f))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Applied " (span ([class "rule"]) , (if (rule? input) "rewrite-once" "egg-rr"))
               (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")
-           ,(if proof* (render-proof proof* pcontext ctx) "")))]
+           ,(if proof (render-proof proof soundiness pcontext ctx) "")))]
     ))
 
-
-(define (render-proof proof pcontext ctx)
+(define (render-proof proof soundiness pcontext ctx)
   `(div ([class "proof"])
     (details
      (summary "Step-by-step derivation")
      (table
-      ,@(for/list ([step proof])
-          (match-define (list dir rule loc expr sound) step)
+      ,@(for/list ([step proof] [sound soundiness])
+          (define-values (dir rule loc expr) (splice-proof-step step))
           (define step-prog (program->fpcore expr ctx))
-          (define err (format-accuracy (errors-score (errors expr pcontext ctx)) (representation-total-bits (context-repr ctx))))
-          `(tr (th ,(if dir
+          (define err
+            (format-accuracy (errors-score (errors expr pcontext ctx))
+                             (representation-total-bits (context-repr ctx))
+                             #:unit "%"))
+          `(tr (th ,(if (equal? dir 'Goal)
+                        `(p "[Start]"
+                            (span ([class "info"]) ,err))
                         (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
                               [tag (string-append (format " ↑ ~a" (first sound))
                                                   (format " ↓ ~a" (second sound)))])
                           `(p ,(format "~a [~a]" rule dir)
                               (span ([class "info"] [title ,tag]) ,err)))
-                        `(p "[Start]"
-                            (span ([class "info"]) ,err))))
+                        ))
                (td (div ([class "math"])
                         "\\[ "
-                        ,(if dir
-                             (core->tex step-prog #:loc (cons 2 loc) #:color "blue")
-                             (core->tex step-prog))
+                        ,(if (equal? dir 'Goal)
+                             (core->tex step-prog)
+                             (core->tex step-prog #:loc (cons 2 loc) #:color "blue"))
                         "\\]"))))))))
