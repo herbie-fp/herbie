@@ -19,7 +19,7 @@
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func pre exprs ctxs)
   ; (eprintf "pre ~a, expers ~a, ctxs ~a\n" pre exprs ctxs)
-  (define fns (batch-eval-progs (cons pre exprs) 'ival (car ctxs)))
+  (define fns (compile-progs (cons pre exprs) 'ival (car ctxs)))
   (λ inputs
     (define out (apply fns inputs))
     (match-define (list ival-pre ival-bodies ...) out)

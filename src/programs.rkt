@@ -6,7 +6,7 @@
 (provide expr? expr-contains? expr<?
          type-of repr-of
          location-do location-get
-         batch-eval-progs eval-prog eval-application
+         compile-progs compile-prog eval-application
          free-variables replace-expression replace-vars)
 
 (module+ test
@@ -115,11 +115,10 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define (eval-prog expr mode ctx)
-  (define f (batch-eval-progs (list expr) mode ctx))
-  (λ args (first (apply f args))))
+(define (compile-prog expr mode ctx)
+  (compose first (compile-progs (list expr) mode ctx)))
 
-(define (batch-eval-progs exprs mode ctx)
+(define (compile-progs exprs mode ctx)
   (define repr (context-repr ctx))
   (define vars (context-vars ctx))
   (define var-reprs (context-var-reprs ctx))
@@ -210,8 +209,8 @@
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
-      (define iv (apply (eval-prog e 'ival ctx) p))
-      (define val (apply (eval-prog e 'bf ctx) p))
+      (define iv (apply (compile-prog e 'ival ctx) p))
+      (define val (apply (compile-prog e 'bf ctx) p))
       (check-in-interval? iv val))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
