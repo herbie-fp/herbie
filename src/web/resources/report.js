@@ -412,6 +412,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
         const bits = benchmark["bits"];
         const initial_accuracy = 100*(1 - initial_pt[1]/bits);
         rest_pts.sort((a, b) => b[0]-a[0]);
+
         return Element("tbody", [
             Element("tr", [
                 Element("th", "Initial program"),
