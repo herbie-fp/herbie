@@ -411,7 +411,6 @@ const CostAccuracy = new Component('#cost-accuracy', {
         const [initial_pt, best_pt, rest_pts] = benchmark["cost-accuracy"];
         const bits = benchmark["bits"];
         const initial_accuracy = 100*(1 - initial_pt[1]/bits);
-        rest_pts.push(best_pt);
         rest_pts.sort((a, b) => b[0]-a[0]);
 
         return Element("tbody", [
@@ -424,7 +423,13 @@ const CostAccuracy = new Component('#cost-accuracy', {
                 let accuracy = 100*(1 - d[1]/bits);
                 let speedup = initial_pt[0]/d[0];
                 return Element("tr", [
-                    Element("th", "Alternative " + (i + 1)),
+                    Element("th",
+                        rest_pts.length > 1 ?
+                            Element("a", { href: "#alternative" + (i + 1)},
+                                "Alternative " + (i + 1)) 
+                            // else
+                            : "Alternative " + (i + 1)
+                    ),
                     Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
                             accuracy.toFixed(1) + "%"),
                     Element("td", { className: speedup >= 1 ? "better" : "" },

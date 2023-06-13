@@ -191,13 +191,15 @@
       ,(if (> (length end-alts) 1)
            `(section ([id "alternatives"])
               (h1 "Alternatives")
-              ,@(for/list ([alt (cdr end-alts)]
-                           [errs (cdr end-errors)]
-                           [cost (cdr end-costs)]
+              ,@(for/list ([alt  end-alts]
+                           [errs end-errors]
+                           [cost end-costs]
                            [i (in-naturals 1)])
                 `(div ([class "entry"])
                   (table
-                    (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" i)))
+                    (tr (th ([style "font-weight:bold"]
+                             [id ,(format "alternative~a" i)])
+                             ,(format "Alternative ~a" i)))
                     (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr-bits #:unit "%")))
                     (tr (th "Cost") (td ,(format-cost cost repr))))
                   (div ([class "math"])
