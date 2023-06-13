@@ -24,7 +24,8 @@
 
 ;; Returns a list of expressions sorted by increasing local error
 (define (batch-localize-error exprs ctx)
-  (define errss (compute-local-errors exprs ctx))
+  (define errss
+    (if (null? exprs) empty (compute-local-errors exprs ctx)))
   (for/list ([expr (in-list exprs)] [errs (in-list errss)])
     (sort
      (reap [sow]
@@ -48,13 +49,10 @@
   (define subexprs-fn (eval-progs-real prog-list ctx-list))
 
   ; Mutable error hack, this is bad
-  (define temp-errs
+  (define errs
     (make-hash
      (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
        (cons (car subexpr) '()))))
-  (define errs (make-hash))
-  (for ([(k v) temp-errs])
-    (hash-set! errs k v))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
@@ -66,16 +64,15 @@
           [(? variable?) 1]
           [`(if ,c ,ift ,iff) 1]
           [(list f args ...)
-          (define repr (operator-info f 'otype))
-          (define argapprox
-          (for/list ([arg (in-list args)]
-                     [repr (in-list (operator-info f 'itype))])
-            (hash-ref exacts-hash
-                      (cons arg repr))))
-          (ulp-difference
+           (define repr (operator-info f 'otype))
+           (define argapprox
+             (for/list ([arg (in-list args)]
+                        [repr (in-list (operator-info f 'itype))])
+               (hash-ref exacts-hash
+                         (cons arg repr))))
+           (ulp-difference
             (hash-ref exacts-hash expr)
-            (apply (operator-info f 'fl) argapprox) repr)
-          ]))
+            (apply (operator-info f 'fl) argapprox) repr)]))
       (hash-update! errs (car expr) (curry cons err))))
 
   (for/list ([expr (in-list exprs)] [subexprs (in-list subexprss)])
