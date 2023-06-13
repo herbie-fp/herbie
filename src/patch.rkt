@@ -8,9 +8,7 @@
   (contract-out
    [patch-table-has-expr? (-> expr? boolean?)]
    [patch-table-run-simplify (-> (listof alt?) (listof alt?))]
-   [patch-table-run (-> (listof (cons/c (listof symbol?) expr?))
-                        (listof (cons/c (listof symbol?) expr?))
-                        (listof alt?))]))
+   [patch-table-run (-> (listof expr?) (listof expr?) (listof alt?))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
