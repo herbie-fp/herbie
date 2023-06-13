@@ -707,8 +707,20 @@ function histogram(id, data, options) {
 
 const Filters = new Component("#filters", {
     setup: function() {
-        const test = Element("a", "I am a button")
-        this.elt.appendChild(test);
+        var filterByImpStart = Element("a", "imp-start")
+        filterByImpStart.addEventListener("click", function() { 
+            const results = document.querySelector("#results tbody")
+            for ( var i = 0; i < results.children.length; i++ ) {
+                if (!results.children[i].classList.contains("imp-start")) {
+                    results.children[i].remove()
+                }
+            }
+        })
+        var filters = Element("div",[
+            Element("div", "Filters"),
+            filterByImpStart
+        ])
+        this.elt.appendChild(filters);
     }
 });
 
