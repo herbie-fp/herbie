@@ -35,6 +35,27 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
+async function diffSubmit() {
+    console.log("diff submitted")
+    const input = document.querySelector("#filters form input")
+    const values = input.value.split("/")
+    values.pop() // not always needed
+    values.push("results.json")
+    const jsonResultsURl = values.join("/")
+    try {
+        const jsonResults = await fetch(jsonResultsURl);
+        console.log(jsonResults)
+    } catch (error) {
+        console.error(error)
+    }
+    const results = document.querySelector("#results tbody")
+    for (var i = 0; i < results.children.length; i++) {
+        if (!results.children[i].classList.contains("imp-start")) {
+            results.children[i].remove()
+        }
+    }
+}
+
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
 function on(mark, listeners = {}) {
