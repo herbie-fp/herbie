@@ -144,6 +144,8 @@
                     "axis. Up and to the right is better. The initial "
                     "program is shown by the red square.")))
 
+     (div ([id "filters"]))
+
      (table ((id "results") (class ,(string-join (map ~a classes) " ")))
       (thead
        (tr ,@(for/list ([label table-labels])

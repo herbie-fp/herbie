@@ -705,6 +705,13 @@ function histogram(id, data, options) {
     }
 }
 
+const Filters = new Component("#filters", {
+    setup: function() {
+        const test = Element("a", "I am a button")
+        this.elt.appendChild(test);
+    }
+});
+
 function run_components() {
     for (var i = 0; i < window.COMPONENTS.length; i++) {
         var component = window.COMPONENTS[i];
