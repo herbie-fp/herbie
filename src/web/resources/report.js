@@ -57,6 +57,39 @@ async function diffSubmit() {
     }
 }
 
+const Filters = new Component("#filters", {
+    setup: function () {
+        const filterByExStart = Element("a", "Remove ex-start")
+        const filterByBadCases = Element("a", "View only bad cases")
+
+        const filters = Element("div", [
+            Element("div", "Filters"),
+            Element("div", [
+                filterByExStart,
+                filterByBadCases])])
+
+        filterByExStart.addEventListener("click", function () {
+            const siblings = document.querySelector("#results tbody")
+            const removeList = document.querySelectorAll("#results tbody tr.ex-start")
+            removeList.forEach(child => siblings.removeChild(child))
+        })
+
+        filterByBadCases.addEventListener("click", function () {
+            // This does not work yet.
+            const results = document.querySelector("#results tbody")
+            for (var i = 0; i < results.children.length; i++) {
+                if (!(results.children[i].classList.contains("crash") ||
+                    results.children[i].classList.contains("timeout") ||
+                    results.children[i].classList.contains("uni-start"))
+                ) {
+                    results.children[i].remove()
+                }
+            }
+        })
+        this.elt.appendChild(filters);
+    }
+});
+
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
 function on(mark, listeners = {}) {
@@ -726,25 +759,6 @@ function histogram(id, data, options) {
         ctx.stroke();
     }
 }
-
-const Filters = new Component("#filters", {
-    setup: function() {
-        var filterByImpStart = Element("a", "imp-start")
-        filterByImpStart.addEventListener("click", function() { 
-            const results = document.querySelector("#results tbody")
-            for ( var i = 0; i < results.children.length; i++ ) {
-                if (!results.children[i].classList.contains("imp-start")) {
-                    results.children[i].remove()
-                }
-            }
-        })
-        var filters = Element("div",[
-            Element("div", "Filters"),
-            filterByImpStart
-        ])
-        this.elt.appendChild(filters);
-    }
-});
 
 function run_components() {
     for (var i = 0; i < window.COMPONENTS.length; i++) {
