@@ -35,56 +35,44 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
-async function diffSubmit() {
-    console.log("diff submitted")
-    const input = document.querySelector("#filters form input")
-    const values = input.value.split("/")
-    values.pop() // not always needed
-    values.push("results.json")
-    const jsonResultsURl = values.join("/")
-    try {
-        const jsonResults = await fetch(jsonResultsURl)
-        const json = await jsonResults.json()
-        console.log(json)
-    } catch (error) {
-        console.error(error)
-    }
-    const results = document.querySelector("#results tbody")
-    for (var i = 0; i < results.children.length; i++) {
-        if (!results.children[i].classList.contains("imp-start")) {
-            results.children[i].remove()
-        }
-    }
-}
-
 const Filters = new Component("#filters", {
     setup: function () {
-        const filterByExStart = Element("a", "Remove ex-start")
-        const filterByBadCases = Element("a", "View only bad cases")
+        const filterByExStart = Element("a", "Remove \"ex-start\" ")
+        const filterByBadCases = Element("a", "View only \"bad\" cases ")
+        const reset = Element("a", "Rest Filters")
 
         const filters = Element("div", [
             Element("div", "Filters"),
             Element("div", [
                 filterByExStart,
-                filterByBadCases])])
+                filterByBadCases,
+                reset])])
+
+        reset.addEventListener("click", function() {
+            location.reload()
+        })
 
         filterByExStart.addEventListener("click", function () {
-            const siblings = document.querySelector("#results tbody")
-            const removeList = document.querySelectorAll("#results tbody tr.ex-start")
-            removeList.forEach(child => siblings.removeChild(child))
+            const parent = document.querySelector("#results tbody")
+            const siblingsList = document.querySelectorAll("#results tbody tr")
+            siblingsList.forEach((child, n, p) => {
+                if (child.classList.contains("ex-start")) {
+                    parent.removeChild(child)
+                }
+            })
         })
 
         filterByBadCases.addEventListener("click", function () {
-            // This does not work yet.
-            const results = document.querySelector("#results tbody")
-            for (var i = 0; i < results.children.length; i++) {
-                if (!(results.children[i].classList.contains("crash") ||
-                    results.children[i].classList.contains("timeout") ||
-                    results.children[i].classList.contains("uni-start"))
-                ) {
-                    results.children[i].remove()
+            const parent = document.querySelector("#results tbody")
+            const siblingsList = document.querySelectorAll("#results tbody tr")
+            siblingsList.forEach((child, n, p) => {
+                if (!child.classList.contains("crash") && 
+                    !child.classList.contains("uni-start") &&
+                    !child.classList.contains("error") &&
+                    !child.classList.contains("timeout")) {
+                    parent.removeChild(child)
                 }
-            }
+            })
         })
         this.elt.appendChild(filters);
     }
