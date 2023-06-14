@@ -343,8 +343,7 @@
       (list 'abs absable-variable)))
 
   (timeline-push! 'symmetry (map ~a preprocess-sort))
-  ;; TODO: Understand how the timeline works, fix it to work with new stuff
-  ;; (timeline-push! 'symmetry (map ~a preprocess-abs))
+  (timeline-push! 'symmetry (map ~a preprocess-abs))
   (*herbie-preprocess* (append preprocess preprocess-sort preprocess-abs))
 
   (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
