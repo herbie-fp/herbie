@@ -8,9 +8,7 @@
   (contract-out
    [patch-table-has-expr? (-> expr? boolean?)]
    [patch-table-run-simplify (-> (listof alt?) (listof alt?))]
-   [patch-table-run (-> (listof (cons/c (listof symbol?) expr?))
-                        (listof (cons/c (listof symbol?) expr?))
-                        (listof alt?))]))
+   [patch-table-run (-> (listof expr?) (listof expr?) (listof alt?))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -143,14 +141,14 @@
   (^rewrites^ '())
   (when (flag-set? 'generate 'rr)
     (timeline-event! 'rewrite)
+    (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) (^queued^)))
 
     ;; partition the rules
     (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
 
     ;; get subexprs and locations
-    (define exprs (map alt-expr (^queued^)))
+    (define real-exprs (map alt-expr real-alts))
     (define lowexprs (map alt-expr (^queuedlow^)))
-    (define real-exprs (filter (λ (e) (equal? (type-of e (*context*)) 'real)) exprs))
 
     ;; HACK:
     ;; - check loaded representations
@@ -174,7 +172,7 @@
       (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
 
     (define comb-changelists (append changelists changelists-low-locs))
-    (define altns (append (^queued^) (^queuedlow^)))
+    (define altns (append real-alts (^queuedlow^)))
     
     (define rewritten
       (for/fold ([done '()] #:result (reverse done))
@@ -249,7 +247,7 @@
 (define (patch-table-has-expr? expr)
   (hash-has-key? (patchtable-table (*patch-table*)) expr))
 
-(define (patch-table-add! expr vars down?)
+(define (patch-table-add! expr down?)
   (when (patch-table-has-expr? expr)
     (raise-user-error 'patch-table-add!
       "attempting to add previously patched expression: ~a"
@@ -270,13 +268,13 @@
   (define cached
     (for/fold ([qed '()] [ced '()]
               #:result (begin0 (reverse ced) (^queued^ (reverse qed))))
-              ([(vars expr) (in-dict locs)])
+              ([expr (in-list locs)])
       (if (patch-table-has-expr? expr)
           (values qed (cons expr ced))
           (let ([altn* (alt expr `(patch) '())])
             (values (cons altn* qed) ced)))))
   (^queuedlow^
-    (for/list ([(vars expr) (in-dict lowlocs)])
+    (for/list ([expr (in-list lowlocs)])
       (alt expr `(patch) '())))
   (cond
    [(and (null? (^queued^))       ; only fetch cache

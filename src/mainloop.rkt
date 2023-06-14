@@ -125,10 +125,8 @@
     (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
 
-  (define vars (context-vars (*context*)))
   (define loc-errss
-    (for/list ([alt (^next-alts^)])
-      (localize-error (alt-expr alt) (*context*))))
+    (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define repr (context-repr (*context*)))
 
   ; high-error locations
@@ -139,7 +137,7 @@
                [i (in-range (*localize-expressions-limit*))])
       (timeline-push! 'locations (~a expr) (errors-score err)
                       (not (patch-table-has-expr? expr)) (format "~a" (representation-name repr)))
-      (cons vars expr)))
+      expr))
 
   ; low-error locations (Pherbie-only with multi-precision)
   (^lowlocs^
@@ -149,7 +147,7 @@
                    [(err expr) (in-dict (reverse loc-errs))]
                    [i (in-range (*localize-expressions-limit*))])
           (timeline-push! 'locations (~a expr) (errors-score err) #f (~a (representation-name repr)))
-          (cons vars expr)) 
+          expr) 
         '()))
 
   (void))
@@ -201,15 +199,15 @@
         (alt expr* event* (list (loop (first prevs))))])))
   
   (^patched^
-    (for/fold ([patched '()] #:result (reverse patched))
-              ([altn (in-list alts)])
-      (define expr0 (get-starting-expr altn))
-      (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
-          (for/fold ([patched patched]) ([alt0 (in-list (^next-alts^))])
-            (let ([locs (get-locations (alt-expr alt0) expr0)])
-              (append (map (λ (l) (reconstruct-alt altn l alt0)) locs) patched)))
-          (cons altn patched))))
-      
+   (reap [sow]
+     (for ([altn (in-list alts)])
+       (define expr0 (get-starting-expr altn))
+       (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
+           (for* ([alt0 (in-list (^next-alts^))]
+                 [loc (in-list (get-locations (alt-expr alt0) expr0))])
+             (sow (reconstruct-alt altn loc alt0)))
+           (sow altn)))))
+
   (void))
 
 ;; Finish iteration
