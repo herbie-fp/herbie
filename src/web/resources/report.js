@@ -43,8 +43,9 @@ async function diffSubmit() {
     values.push("results.json")
     const jsonResultsURl = values.join("/")
     try {
-        const jsonResults = await fetch(jsonResultsURl);
-        console.log(jsonResults)
+        const jsonResults = await fetch(jsonResultsURl)
+        const json = await jsonResults.json()
+        console.log(json)
     } catch (error) {
         console.error(error)
     }
