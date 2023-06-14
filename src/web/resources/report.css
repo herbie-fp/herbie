@@ -33,8 +33,8 @@ header li:first-child::before { content: none; }
 
 /* Plots at the top */
 
-#figure-row { display: flex; flex-direction: row; gap: 1em; margin: 2em 0; }
-figure { flex: 1; border: 1px solid #ddd; padding: 1ex; margin: 0; }
+.figure-row { display: flex; flex-direction: row; gap: 1em; margin: 1em 0; }
+figure { flex: 1; border: 1px solid #ddd; padding: 1ex; margin: 0; align-self: start; }
 figure h2 { font-size: 1em; font-family: 'IBM Plex Serif', serif; margin: 0; }
 figure .domain, figure .tick { color: #888; }
 figure text { font-family: 'IBM Plex Serif', serif; }
@@ -181,9 +181,6 @@ section h1 {
 
 /* Error graphs */
 
-#variables .variable { padding: 0 .75ex 2px; }
-#variables .selected { background-color: lightgray; }
-
 #functions { display: flex; flex-direction: row; gap: 1em; margin-top: 1ex; }
 #functions:before { content: "Show: "; }
 #functions .function {
@@ -201,6 +198,14 @@ section h1 {
 #functions #function_end.selected { background: #00a2; }
 #functions #function_target { border: 3px solid #050; }
 #functions #function_target.selected { background: #0502; }
+
+#cost-accuracy p { font-size: 1em; font-family: 'IBM Plex Serif', serif; margin: 0; }
+#cost-accuracy table { width: 374px; padding: 1ex 0; }
+#cost-accuracy thead th { color: #888; border-bottom: 1px solid #888; }
+#cost-accuracy thead th.numeric { text-align: right; }
+#cost-accuracy tbody th { font-weight: normal; }
+#cost-accuracy tbody td { font-family: 'Ruda', serif; text-align: right; font-weight: 400; }
+#cost-accuracy tbody td.better { font-weight: 800; color: #050; }
 
 /* Try it out section */
 

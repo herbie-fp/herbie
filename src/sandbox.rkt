@@ -13,7 +13,7 @@
          (struct-out alt-analysis))
 
 (struct job-result (test status time timeline warnings backend))
-(struct improve-result (preprocess pctxs start target end))
+(struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors))
 
 (define *reeval-pts* (make-parameter 8000))
@@ -107,7 +107,7 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
-  (define fn (eval-prog (test-input test) 'fl (test-context test)))
+  (define fn (compile-prog (test-input test) 'fl (test-context test)))
   (for/list ([pt pts])
     (list pt (apply fn pt))))
 
@@ -199,7 +199,7 @@
   (timeline-adjust! 'regimes 'link ".")
 
   (define pctxs (list train-pcontext processed-test-pcontext))
-  (improve-result preprocess pctxs start-alt-data target-alt-data end-alts-data))
+  (improve-result preprocess pctxs start-alt-data target-alt-data end-alts-data domain-stats))
 
 ;;
 ;;  Public interface
@@ -220,7 +220,6 @@
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (timeline-event! 'end)
-      (print-warnings)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command 
         ['improve (job-result test 'failure time (timeline-extract) (warning-log) e)]
@@ -230,7 +229,6 @@
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (timeline-load! timeline)
       (timeline-compact! 'outcomes)
-      (print-warnings)
       (match command 
         ['improve (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
@@ -258,7 +256,6 @@
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
-        (print-warnings)
         (define time (- (current-inexact-milliseconds) start-time))
         (job-result test 'success time (timeline-extract) (warning-log) result))))
   
@@ -298,7 +295,7 @@
   (match-define (job-result test status time _ _ backend) result)
   (match status
     ['success
-     (match-define (improve-result _ _ start target end) backend)
+     (match-define (improve-result _ _ start target end _) backend)
      (define repr (test-output-repr test))
     
      ; starting expr analysis

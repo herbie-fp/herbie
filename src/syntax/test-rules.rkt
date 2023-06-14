@@ -21,7 +21,13 @@
     [acos-cos-s_binary32    . (and (<=.f32 0 x) (<=.f64 x 3.1416))]
     [atan-tan-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
     [atan-tan-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
-    [sqrt-pow1              . (>= x 0)]))
+    [sqrt-pow1_binary64     . (>=.f64 x 0)]
+    [sqrt-pow1_binary32     . (>=.f32 x 0)]
+    [pow-unpow_binary64     . (>=.f64 a 0)]
+    [pow-unpow_binary32     . (>=.f32 a 0)]
+    [pow-pow_binary64       . (>=.f64 a 0)]
+    [pow-pow_binary32       . (>=.f32 a 0)]
+))
 
 (define (check-rule-correct test-rule)
   (match-define (rule name p1 p2 itypes repr) test-rule)
@@ -34,8 +40,10 @@
       (cdr (sample-points pre (list p1 p2) (list ctx ctx)))))
 
   (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
-      (with-check-info (['point (map cons fv pt)] ['input v1] ['output v2])
-       (check-eq? (ulp-difference v1 v2 repr) 1))))
+    (with-check-info* (map make-check-info fv pt)
+      (λ ()
+        (with-check-info (['lhs v1] ['rhs v2])
+          (check-eq? (ulp-difference v1 v2 repr) 1))))))
 
 (define (check-rule-fp-safe test-rule)
   (match-define (rule name p1 p2 itypes repr) test-rule)
@@ -45,8 +53,8 @@
     (for/list ([v (in-list fv)])
       (random-generate (dict-ref itypes v))))
   (define points (build-list (num-test-points) make-point))
-  (define prog1 (eval-prog p1 'fl ctx))
-  (define prog2 (eval-prog p2 'fl ctx))
+  (define prog1 (compile-prog p1 'fl ctx))
+  (define prog2 (compile-prog p2 'fl ctx))
   (define ex1 (map (curry apply prog1) points))
   (define ex2 (map (curry apply prog2) points))
   (for ([pt points])

@@ -229,21 +229,24 @@ const ClientGraph = new Component('#graphs', {
     },
 
     render: async function(selected_var_name, selected_functions) {
-        const all_fns = ['start', 'end', 'target'].filter(name => this.points_json.error[name] != false)
-        const fn_description = {
-            start: "Original expression",
-            end: "Herbie's result",
-            target: "Target expression"
-        }
         this.$variables.replaceChildren.apply(
             this.$variables,
-            [" vs. "].concat(this.all_vars.map(v =>
-                Element("span", {
-                    className: "variable " + (selected_var_name == v ? "selected" : ""),
-                    onclick: () => this.render(v, selected_functions),
+            [Element("select", {
+                oninput: (e) => this.render(e.target.value, selected_functions),
+            }, this.all_vars.map(v =>
+                Element("option", {
+                    value: v,
+                    selected: selected_var_name == v,
                 }, v)
-            )),
+            ))]
         );
+
+        const all_fns = ['start', 'end', 'target'].filter(name => this.points_json.error[name] != false)
+        const fn_description = {
+            start: "Initial program",
+            end: "Most accurate alternative",
+            target: "Target program"
+        }
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
         this.$functions.replaceChildren.apply(
             this.$functions,
@@ -336,103 +339,106 @@ const MergedCostAccuracy = new Component('#pareto', {
 })
 
 const CostAccuracy = new Component('#cost-accuracy', {
-    setup: async () => {
-        const content = document.querySelector('#pareto-content');
+    setup: async function() {
+        const $svg = this.elt.querySelector("svg");
+        const $tbody = this.elt.querySelector("tbody");
+
+        let response = await fetch("../results.json", {
+            headers: {"content-type": "text/plain"},
+            method: "GET",
+            mode: "cors",
+        });
+        let results_json = await response.json();
         
-        const results_json = await (async () => {
-            const get_results_store = {}
-            
-            const get_results_memo = async () => {
-                if (get_results_store.value) { return get_results_store.value }
-                const ps = await get_json('../results.json');
-                get_results_store.value = ps;
-                return get_results_store.value;
+        // find right test by iterating through results_json
+        for (let test of results_json.tests) {
+            if (test.name == this.elt.dataset.benchmarkName) {
+                $svg.replaceWith(await this.plot(test));
+                $tbody.replaceWith(await this.tbody(test));
+                break;
             }
-            const get_json = url => fetch(url, {
-                // body: `_body_`,
-                headers: {"content-type": "text/plain"},
-                method: "GET",
-                mode: 'cors'
-                }).then(async response => {
-                //await new Promise(r => setTimeout(() => r(), 200) )  // model network delay
-                return await response.json()
-            })
-            return get_results_memo()
-        })()
-
-        const plot = async () => {
-            // NOTE ticks and splitpoints include all vars, so we must index
-            const tests = results_json.tests;
-            
-            let benchmark;
-
-            // find right test by iterating through results_json
-            for (let test of tests) {
-                console.log(test);
-                if (test.name == content.dataset.benchmarkName) {
-                    benchmark = test;
-                    break;
-                }
-            }
-
-            console.log(benchmark);
-
-            const costAccuracy = benchmark["cost-accuracy"];
-            
-            // find maximum x and y values
-            let xmax = costAccuracy[0][0];
-            let ymax = costAccuracy[0][1];
-
-            if (costAccuracy[1][0] > xmax) xmax = costAccuracy[1][0];
-            if (costAccuracy[1][1] > ymax) ymax = costAccuracy[1][1];
-            
-            for (let point of costAccuracy[2]) {
-                if (point[0] > xmax) xmax = point[0];
-                if (point[1] > ymax) ymax = point[1];
-            }
-
-            // ceiling ymax to nearest multiple of 16
-            const range = Math.ceil(ymax/16) * 16;
-
-            // composite array for both best and other points so the line graph
-            // contains the best point as well.
-            const allpoints = [costAccuracy[1], ...costAccuracy[2]];
-            allpoints.sort((a, b) => {return a[0]-b[0]});
-            console.log(allpoints);
-
-            const out = Plot.plot({
-                marks: [
-                    Plot.dot(costAccuracy[0], {x: costAccuracy[0][0], y: costAccuracy[0][1], fill: "black"}),
-                    Plot.dot(costAccuracy[1], {x: costAccuracy[1][0], y: costAccuracy[1][1], fill: "red", stroke: "blue", title: d => `x: ${costAccuracy[1][0]} y: ${costAccuracy[1][1]} best`}),
-                    Plot.dot(costAccuracy[2], {x: d => d[0], y: d => d[1], fill: "red", stroke: "black", title: d => `x: ${d[0]} y: ${d[1]} exp: ${d[2]}`}),
-                    Plot.line(allpoints, {x: d => d[0], y: d => d[1], stroke: "red"})
-                ],
-                grid: true,
-                width: '800',
-                height: '400',                
-                    x: {
-                        label: `Cost`,
-                        domain: [0, 2 * xmax]
-                    },
-                    y: {
-                        label: "Bits of error",
-                        domain: [0, range],
-                        ticks: new Array(range / 4 + 1).fill(0).map((_, i) => i * 4),
-                        tickFormat: d => d % 8 != 0 ? '' : d
-                    },
-            })
-            out.setAttribute('viewBox', '0 0 800 430')
-            return out
         }
-        async function render() {
-            const options_view = Element("figcaption", "");
-            const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+    },
 
-            content.replaceChildren(await plot(), options_view)
+    plot: async function(benchmark) {
+        const [initial_pt, best_pt, rest_pts] = benchmark["cost-accuracy"];
+        const bits = benchmark["bits"];
+        rest_pts.push(best_pt);
+        rest_pts.sort((a, b) => a[0]-b[0]);
+
+        // The line differs from rest_pts in two ways:
+        // - We filter to the actual pareto frontier, in case points moved
+        // - We make a broken line to show the real Pareto frontier
+        let line = []
+        let last = null;
+        for (let pt of rest_pts) {
+            if (!last || pt[1] < last[1]) {
+                if (last) line.push([pt[0], last[1]]);
+                line.push([pt[0], pt[1]]);
+                last = pt;
+            }
         }
-        render()
+
+        const out = Plot.plot({
+            marks: [
+                Plot.line(line, {
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
+                    stroke: "#00a", strokeWidth: 1, strokeOpacity: .2,
+                }),
+                Plot.dot(rest_pts, {
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
+                    fill: "#00a", r: 3,
+                }),
+                Plot.dot([initial_pt], {
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
+                    stroke: "#d00", symbol: "square", strokeWidth: 2 }),
+            ],
+            marginBottom: 0,
+            marginRight: 0,
+            width: '400',
+            height: '200',
+            x: { line: true, nice: true, tickFormat: c => c + "×" },
+            y: { nice: true, line: true, domain: [0, 1], tickFormat: "%" },
+        })
+        out.setAttribute('viewBox', '0 0 420 220')
+        return out
+    },
+
+    tbody: async function(benchmark) {
+        const [initial_pt, best_pt, rest_pts] = benchmark["cost-accuracy"];
+        const bits = benchmark["bits"];
+        const initial_accuracy = 100*(1 - initial_pt[1]/bits);
+        rest_pts.sort((a, b) => b[0]-a[0]);
+
+        return Element("tbody", [
+            Element("tr", [
+                Element("th", "Initial program"),
+                Element("td", initial_accuracy.toFixed(1) + "%"),
+                Element("td", "1×")
+            ]),
+            rest_pts.map((d, i) => {
+                let accuracy = 100*(1 - d[1]/bits);
+                let speedup = initial_pt[0]/d[0];
+                return Element("tr", [
+                    Element("th",
+                        rest_pts.length > 1 ?
+                            Element("a", { href: "#alternative" + (i + 1)},
+                                "Alternative " + (i + 1)) 
+                            // else
+                            : "Alternative " + (i + 1)
+                    ),
+                    Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
+                            accuracy.toFixed(1) + "%"),
+                    Element("td", { className: speedup >= 1 ? "better" : "" },
+                            speedup.toFixed(1) + "×")
+            ])}),
+        ]);
     }
-})
+});
+
 var RenderMath = new Component(".math", {
     depends: function() {
         if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";
@@ -463,6 +469,15 @@ var Bogosity = new Component(".bogosity", {
         }
     }
 });
+
+var ClickableRows = new Component("#results", {
+    setup: function() {
+        let $rows = this.elt.querySelectorAll("tbody tr");
+        for (let $row of $rows) {
+            $row.addEventListener("click", () => $row.querySelector("a").click());
+        }
+    }
+})
 
 var Implementations = new Component("#program", {
     setup: function() {

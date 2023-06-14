@@ -192,7 +192,7 @@
 (define (program->tex prog ctx #:loc [loc #f])
   (define prog* (program->fpcore prog ctx))
   (if (supported-by-lang? prog* "tex")
-      (core->tex prog* #:loc loc #:color "blue")
+      (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
 (define (render-program #:to [result #f] preprocesses test)

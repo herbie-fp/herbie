@@ -7,8 +7,8 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../syntax/types.rkt" "../cost.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
-         "common.rkt" "history.rkt" "../syntax/sugar.rkt")
-         
+         "common.rkt" "history.rkt" "../syntax/sugar.rkt" "timeline.rkt")
+
 (provide make-graph)
 
 (define/contract (regime-info altn)
@@ -61,8 +61,7 @@
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
-  
-  (match-define (improve-result preprocess pctxs start target end) backend)
+  (match-define (improve-result preprocess pctxs start target end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define target-alt (and target (alt-analysis-alt target)))
@@ -122,11 +121,10 @@
             ""))
 
       ,(render-warnings warnings)
-
       ,(render-program preprocess test #:to (alt-expr end-alt))
       
       (figure ([id "graphs"])
-        (h2 "Local Percentage Accuracy"
+        (h2 "Local Percentage Accuracy vs "
             (span ([id "variables"]))
             (a ([class "help-button"] 
                 [href "/doc/latest/report.html#graph"] 
@@ -140,6 +138,31 @@
          "program, while blue represents Herbie's suggestion. "
          "These can be toggled with buttons below the plot. "
          "The line is an average while dots represent individual samples."))
+
+      (div ([class "figure-row"] [id "cost-accuracy"]
+            [data-benchmark-name ,(~a (test-name test))])
+           (figure
+            (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
+            (table
+             (thead (tr (th "Alternative") 
+                        (th ([class "numeric"]) "Accuracy")
+                        (th ([class "numeric"]) "Speedup")))
+             (tbody)))
+           (figure
+            (h2 "Accuracy vs Speed")
+            (svg)
+            (figcaption
+             "The accuracy (vertical axis) and speed (horizontal axis) of each "
+             "alternatives. Up and to the right is better. The red square shows "
+             "the initial program, and each blue circle shows an alternative."
+             "The line shows the best available speed-accuracy tradeoffs.")))
+
+      (section ([id "bogosity"])  
+       (h1 "Bogosity"
+           (a ([class "help-button"]
+               [href "/doc/latest/report.html#bogosity"]
+               [target "_blank"]) "?"))
+       ,@(render-phase-bogosity (list bogosity)))
 
       ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
            (render-interactive vars (car points))
@@ -168,25 +191,21 @@
       ,(if (> (length end-alts) 1)
            `(section ([id "alternatives"])
               (h1 "Alternatives")
-              ,@(for/list ([alt (cdr end-alts)]
-                           [errs (cdr end-errors)]
-                           [cost (cdr end-costs)]
+              ,@(for/list ([alt  end-alts]
+                           [errs end-errors]
+                           [cost end-costs]
                            [i (in-naturals 1)])
                 `(div ([class "entry"])
                   (table
-                    (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" i)))
+                    (tr (th ([style "font-weight:bold"]
+                             [id ,(format "alternative~a" i)])
+                             ,(format "Alternative ~a" i)))
                     (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr-bits #:unit "%")))
                     (tr (th "Cost") (td ,(format-cost cost repr))))
                   (div ([class "math"])
                     "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
                             (alt->tex alt ctx))
                     "\\]"))))
-            "")
-                                      
-      ,(if (> (length end-alts) 1)
-          `(section ([id "cost-accuracy"])
-            (h1 "Error")
-            (div ([id "pareto-content"] [data-benchmark-name ,(~a (test-name test))])))
             "")
 
       ,(render-reproduction test)))

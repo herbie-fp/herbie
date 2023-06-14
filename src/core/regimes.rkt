@@ -4,7 +4,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
-(provide infer-splitpoints (struct-out option) (struct-out si))
+(provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si))
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -22,19 +22,50 @@
 ;; pidx = Point index: The index of the point to the left of which we should split.
 (struct si (cidx pidx) #:prefab)
 
+(define (pareto-regimes sorted ctx)
+  (define branch-exprs
+    (if (flag-set? 'reduce 'branch-expressions)
+        (exprs-to-branch-on sorted ctx)
+        (context-vars ctx)))
+  (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
+  (define init-errs (for/hash ([bexpr branch-exprs]) (values bexpr -1)))
+  (let loop ([alts sorted] [errs init-errs])
+    (cond
+     [(null? alts) '()]
+     [else
+      (define-values (opt new-errs) 
+        (infer-splitpoints alts errs ctx))
+      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
+      (cons opt (loop (take alts high) new-errs))])))
+
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts ctx)
-  (timeline-event! 'regimes)
-  (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
+(define (infer-splitpoints alts cerrs ctx)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts ctx)
         (context-vars ctx)))
+  (timeline-event! 'regimes)
+  (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
   (define err-lsts (batch-errors (map alt-expr alts) (*pcontext*) ctx))
-  (define options (for/list ([bexpr branch-exprs]) (option-on-expr alts err-lsts bexpr ctx)))
-  (define best (argmin (compose errors-score option-errors) options))
+  (define sorted-bexprs (sort branch-exprs (lambda (x y) (< (hash-ref cerrs x) (hash-ref cerrs y)))))
+
+  ;; invariant:
+  ;; errs[bexpr] is some best option on branch expression bexpr computed on more alts than we have right now.
+  (define-values (best best-err errs) 
+      (for/fold ([best '()] [best-err +inf.0] [errs cerrs] 
+            #:result (values best best-err errs)) 
+            ([bexpr sorted-bexprs]
+    ;; stop if we've computed this (and following) branch-expr on more alts and it's still worse
+             #:break (> (hash-ref cerrs bexpr) best-err))
+        (define opt (option-on-expr alts err-lsts bexpr ctx))
+        (define err (+ (errors-score (option-errors opt)) (length (option-split-indices opt)))) ;; one-bit penalty per split
+        (define new-errs (hash-set errs bexpr err))
+        (if (< err best-err)
+            (values opt err new-errs)
+            (values best best-err new-errs))))
+
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
                   (for/list ([sidx (option-split-indices best)])
@@ -45,7 +76,7 @@
   (define repr (context-repr ctx))
   (timeline-push! 'repr (~a (representation-name repr)))
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
-  best)
+  (values best errs))
 
 (define (exprs-to-branch-on alts ctx)
   (define alt-critexprs
@@ -83,7 +114,7 @@
 
   (define vars (context-vars ctx))
   (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
-  (define fn (eval-prog expr 'fl ctx))
+  (define fn (compile-prog expr 'fl ctx))
   (define splitvals (for/list ([pt pts]) (apply fn pt)))
   (define big-table ; val and errors for each alt, per point
     (for/list ([(pt ex) (in-pcontext (*pcontext*))] [err-lst err-lsts])

@@ -16,7 +16,7 @@
 ;; extending, make sure this never gets too complicated to fit in your
 ;; head at once, because then global state is going to mess you up.
 
-(struct shellstate (table next-alt locs lowlocs patched) #:mutable)
+(struct shellstate (table next-alts locs lowlocs patched) #:mutable)
 
 (define (empty-shellstate)
   (shellstate #f #f #f #f #f))
@@ -34,9 +34,9 @@
 (define (^table^ [newval 'none])
   (when (not (equal? newval 'none))  (set-shellstate-table! (^shell-state^) newval))
   (shellstate-table (^shell-state^)))
-(define (^next-alt^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-next-alt! (^shell-state^) newval))
-  (shellstate-next-alt (^shell-state^)))
+(define (^next-alts^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-next-alts! (^shell-state^) newval))
+  (shellstate-next-alts (^shell-state^)))
 (define (^patched^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-patched! (^shell-state^) newval))
   (shellstate-patched (^shell-state^)))
@@ -58,7 +58,7 @@
     (for ([alt (atab-active-alts (^table^))]
 	  [n (in-naturals)])
       (printf "~a ~a ~a\n"
-       (cond [(equal? alt (^next-alt^)) ">"]
+       (cond [(set-member? (^next-alts^) alt) ">"]
              [(set-member? ndone-alts alt) " "]
              [else "."])
        (~r #:min-width 4 n)
@@ -72,7 +72,7 @@
                       n (length (atab-active-alts (^table^)))))
   (define-values (picked table*)
     (atab-pick-alt (^table^) #:picking-func (curryr list-ref n) #:only-fresh #f))
-  (^next-alt^ picked)
+  (^next-alts^ (list picked))
   (^table^ table*)
   (void))
 
@@ -115,35 +115,39 @@
 (define (choose-best-alt!)
   (define-values (picked table*)
     (atab-pick-alt (^table^) #:picking-func (curry argmin score-alt) #:only-fresh #t))
-  (^next-alt^ picked)
+  (^next-alts^ (list picked))
   (^table^ table*)
   (void))
 
 ;; Invoke the subsystems individually
 (define (localize!)
-  (unless (^next-alt^)
+  (unless (^next-alts^)
     (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
 
-  (define vars (context-vars (*context*)))
-  (define loc-errs (localize-error (alt-expr (^next-alt^)) (*context*)))
+  (define loc-errss
+    (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define repr (context-repr (*context*)))
 
   ; high-error locations
   (^locs^
-    (for/list ([(err expr) (in-dict loc-errs)]
+    (for/list ([loc-errs (in-list loc-errss)]
+               #:when true
+               [(err expr) (in-dict loc-errs)]
                [i (in-range (*localize-expressions-limit*))])
       (timeline-push! 'locations (~a expr) (errors-score err)
                       (not (patch-table-has-expr? expr)) (format "~a" (representation-name repr)))
-      (cons vars expr)))
+      expr))
 
   ; low-error locations (Pherbie-only with multi-precision)
   (^lowlocs^
     (if (and (*pareto-mode*) (not (hash-empty? (*conversions*))))
-        (for/list ([(err expr) (in-dict (reverse loc-errs))]
+        (for/list ([loc-errs (in-list loc-errss)]
+                   #:when true
+                   [(err expr) (in-dict (reverse loc-errs))]
                    [i (in-range (*localize-expressions-limit*))])
           (timeline-push! 'locations (~a expr) (errors-score err) #f (~a (representation-name repr)))
-          (cons vars expr)) 
+          expr) 
         '()))
 
   (void))
@@ -185,24 +189,25 @@
           ;; differentiated between "programs" with a λ term and
           ;; "expressions" without
           (match event
-           [(list 'taylor name var (list 2 loc ...))
-            (list 'taylor name var (append '(2) loc0 loc))]
-           [(list 'rr (list 2 loc ...) input proof soundiness)
-            (list 'rr (append '(2) loc0 loc) input proof soundiness)]
-           [(list 'simplify (list 2 loc ...) input proof soundiness)
-            (list 'simplify (append '(2) loc0 loc) input proof soundiness)]))
+           [(list 'taylor '() name var)
+            (list 'taylor loc0 name var)]
+           [(list 'rr '() input proof soundiness)
+            (list 'rr loc0 input proof soundiness)]
+           [(list 'simplify '() input proof soundiness)
+            (list 'simplify loc0 input proof soundiness)]))
         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
         (alt expr* event* (list (loop (first prevs))))])))
   
   (^patched^
-    (for/fold ([patched '()] #:result (reverse patched))
-              ([altn (in-list alts)])
-      (define expr0 (get-starting-expr altn))
-      (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
-          (let ([locs (get-locations (alt-expr (^next-alt^)) expr0)])
-            (append (map (λ (l) (reconstruct-alt altn l (^next-alt^))) locs) patched))
-          (cons altn patched))))
-      
+   (reap [sow]
+     (for ([altn (in-list alts)])
+       (define expr0 (get-starting-expr altn))
+       (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
+           (for* ([alt0 (in-list (^next-alts^))]
+                 [loc (in-list (get-locations (alt-expr alt0) expr0))])
+             (sow (reconstruct-alt altn loc alt0)))
+           (sow altn)))))
+
   (void))
 
 ;; Finish iteration
@@ -229,11 +234,11 @@
                      (length (set-intersect new-alts final-fresh-alts)))
           'fresh (list (length orig-fresh-alts)
                        (length (set-intersect orig-fresh-alts final-fresh-alts)))
-          'done (list (- (length orig-done-alts) (if (^next-alt^) 1 0))
+          'done (list (- (length orig-done-alts) (length (or (^next-alts^) empty)))
                       (- (length (set-intersect orig-done-alts final-done-alts))
-                         (if (set-member? final-done-alts (^next-alt^)) 1 0)))
-          'picked (list (if (^next-alt^) 1 0)
-                        (if (and (^next-alt^) (set-member? final-done-alts (^next-alt^))) 1 0))))
+                         (length (set-intersect final-done-alts (or (^next-alts^) empty)))))
+          'picked (list (length (or (^next-alts^) empty))
+                        (length (set-intersect final-done-alts (or (^next-alts^) empty))))))
   (timeline-push! 'kept data)
 
   (define repr (context-repr (*context*)))
@@ -248,10 +253,8 @@
   (void))
 
 (define (finish-iter!)
-  (when (not (^next-alt^))
-    (choose-best-alt!))
-  (when (not (^locs^))
-    (localize!))
+  (unless (^next-alts^) (choose-best-alt!))
+  (unless (^locs^) (localize!))
   (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!)
   (void))
@@ -259,7 +262,7 @@
 (define (rollback-iter!)
   (^locs^ #f)
   (^lowlocs^ #f)
-  (^next-alt^ #f)
+  (^next-alts^ #f)
   (^patched^ #f)
   (void))
 
@@ -271,20 +274,20 @@
 
 ;; Run a complete iteration
 (define (run-iter!)
-  (when (^next-alt^)
+  (when (^next-alts^)
     (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
-  (^patched^
-    (for/fold ([full '()]) ([picked (choose-alts)] [i (in-naturals 1)])
+
+  (^next-alts^ (choose-alts))
+  (^table^
+    (for/fold ([table (^table^)]) ([picked (choose-alts)] [i (in-naturals 1)])
       (define (picking-func x)
         (for/first ([v x] #:when (alt-equal? v picked)) v))
       (define-values (_ table*)
-        (atab-pick-alt (^table^) #:picking-func picking-func #:only-fresh #t))
-      (^next-alt^ picked)
-      (^table^ table*)
-      (localize!)
-      (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
-      (append full (^patched^))))
+        (atab-pick-alt table #:picking-func picking-func #:only-fresh #t))
+      table*))
+  (localize!)
+  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!))
   
 (define (setup-context! vars specification precondition repr)
@@ -314,7 +317,7 @@
   (when (flag-set? 'setup 'simplify)
       (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
       (finalize-iter!)
-      (^next-alt^ #f)))
+      (^next-alts^ #f)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve vars prog iters
@@ -393,20 +396,8 @@
   (*pcontext* pcontext)
   (initialize-alt-table! prog (*pcontext*) (*context*))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-    (run-iter!)
-    (print-warnings))
+    (run-iter!))
   (extract!))
-
-(define (pareto-regimes sorted ctx)
-  (let loop ([alts sorted])
-    (cond
-     [(null? alts) '()]
-     [(= (length alts) 1) (list (car alts))]
-     [else
-      (define opt (infer-splitpoints alts ctx))
-      (define branched-alt (combine-alts opt ctx))
-      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons branched-alt (loop (take alts high)))])))
 
 (define (extract!)
   (define ctx (*context*))
@@ -426,7 +417,7 @@
            (not (null? (context-vars ctx))))
       (cond
        [(*pareto-mode*)
-        (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx)]
+        (map (curryr combine-alts ctx) (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))]
        [else
         (define option (infer-splitpoints all-alts ctx))
         (list (combine-alts option ctx))])]
