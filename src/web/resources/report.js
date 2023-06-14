@@ -409,26 +409,41 @@ const CostAccuracy = new Component('#cost-accuracy', {
 
     tbody: async function(benchmark) {
         const [initial_pt, best_pt, rest_pts] = benchmark["cost-accuracy"];
+        // filter out extra best_pt, best_pt doesn't have expression field
+        const alts = rest_pts.filter(alt => alt.length > 2)
+        // sort to match make-graph.rkt
+        alts.sort((a, b) => b[0]-a[0]);
         const bits = benchmark["bits"];
         const initial_accuracy = 100*(1 - initial_pt[1]/bits);
-        rest_pts.sort((a, b) => b[0]-a[0]);
-
+        let accuracy = 100*(1 - best_pt[1]/bits);
+        let speedup = initial_pt[0]/best_pt[0];
         return Element("tbody", [
             Element("tr", [
                 Element("th", "Initial program"),
                 Element("td", initial_accuracy.toFixed(1) + "%"),
-                Element("td", "1×")
+                Element("td", "1.0×") // decimal to match other Speedup
             ]),
-            rest_pts.map((d, i) => {
-                let accuracy = 100*(1 - d[1]/bits);
-                let speedup = initial_pt[0]/d[0];
+            // Best alt goes first
+            Element("tr", [
+                Element("th",
+                    alts.length > 1 ?
+                        Element("a", { href: "#alternative" + (1)},
+                            "Alternative " + (1)) 
+                        : "Alternative " + (1)
+                ),
+                Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
+                accuracy.toFixed(1) + "%"),
+                Element("td", { className: speedup >= 1 ? "better" : "" },
+                speedup.toFixed(1) + "×")
+            ]),
+            // Remaining alternatives
+            alts.map((d, i) => {
+                accuracy = 100*(1 - d[1]/bits);
+                speedup = initial_pt[0]/d[0];
                 return Element("tr", [
                     Element("th",
-                        rest_pts.length > 1 ?
-                            Element("a", { href: "#alternative" + (i + 1)},
-                                "Alternative " + (i + 1)) 
-                            // else
-                            : "Alternative " + (i + 1)
+                        Element("a", { href: "#alternative" + (i + 2)},
+                            "Alternative " + (i + 2))
                     ),
                     Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
                             accuracy.toFixed(1) + "%"),
