@@ -75,119 +75,79 @@
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
 
-(define (preprocess-sort-core output sort-preprocesses)
-  (string-append
-   ";; Ensure these are sorted, for example in Racket, do\n"
-   (apply
-    string-append
-    (for/list ([variables sort-preprocesses])
-      (format "~a\n" `(match-define (list ,@variables) (sort ,variables <)))))
-   "\n"
-   output))
+(define (preprocess->core preprocess)
+  (match preprocess
+    [(list 'sort variables ...)
+     (format "~a" `(match-define (list ,@variables) (sort ,variables <)))]))
 
-(define (preprocess-sort-c-like output sort-preprocesses #:assert-has-parentheses [assert-has-parentheses #t])
-  ;; Stolen from https://github.com/codereport/racket-algorithms/blob/master/main.rkt#L88-L96
-  (define (sliding lst size [step 1])
-    (define (tail-call lst)
-      (if (>= size (length lst))
-          (list lst)
-          (cons (take lst size)
-                (tail-call (drop lst step)))))
-    (if (>= step (length lst))
-        (error "step has to be smaller then length of the list")
-        (tail-call lst)))
-  (string-append
-   (apply
-    string-append
-    "// Ensure these are sorted\n" 
-    (for/list ([variables sort-preprocesses])
-      (define comparisons
-        (map
-         (match-lambda [(list a b) (format "~a < ~a" a b)])
-         (sliding variables 2)))
-      (format
-       (if assert-has-parentheses
-           "assert(~a);\n"
-           "assert ~a;\n")
-       (string-join comparisons " && "))))
-   "\n"
-   output))
+(define (preprocess->c-like preprocess #:assert-has-parentheses [assert-has-parentheses #t])
+  (match preprocess
+    [(list 'sort variables ...)
+     (format
+      (if assert-has-parentheses
+          "assert(~a);"
+          "assert ~a;")
+      (string-join
+       (for/list ([a (in-list variables)]
+                  [b (in-list (cdr variables))])
+         (format "~a < ~a" a b))
+       " && "))]))
 
-(define (preprocess-sort-c output sort-preprocesses)
-  (preprocess-sort-c-like output sort-preprocesses #:assert-has-parentheses #t))
+(define (preprocess->c preprocess)
+  (preprocess->c-like preprocess #:assert-has-parentheses #t))
 
-(define (preprocess-sort-java output sort-preprocesses)
-  (preprocess-sort-c-like output sort-preprocesses #:assert-has-parentheses #f))
-  
+(define (preprocess->java preprocess)
+  (preprocess->c-like preprocess #:assert-has-parentheses #f))
 
-(define (preprocess-sort-python output sort-preprocesses)
-  (string-append
-   (apply
-    string-append
-    (for/list ([variables sort-preprocesses])
-      (define lst (format "[~a]" (string-join (map ~a variables) ", ")))
-      (format "~a = sort(~a)\n" lst lst)))
-   "\n"
-   output))
+(define (preprocess->python preprocess)
+  (match preprocess
+    [(list 'sort variables ...)
+     (define lst (format "[~a]" (string-join (map ~a variables) ", ")))
+     (format "~a = sort(~a)" lst lst)]))
 
-(define (preprocess-sort-julia output sort-preprocesses)
-  (string-append
-   (apply
-    string-append
-    (for/list ([variables sort-preprocesses])
+(define (preprocess->julia preprocess)
+  (match preprocess
+    [(list 'sort variables ...)
       (define list-without-brackets (string-join (map ~a variables) ", "))
       (define list-with-brackets (format "[~a]" list-without-brackets))
-      (format "~a = sort(~a)\n" list-without-brackets list-with-brackets)))
-   "\n"
-   output))
+      (format "~a = sort(~a)" list-without-brackets list-with-brackets)]))
 
-(define (preprocess-sort-matlab output sort-preprocesses)
-  (string-append
-   (apply
-    string-append
-    (for/list ([variables sort-preprocesses])
-      (define list-without-brackets (string-join (map ~a variables) ", "))
-      (define list-with-brackets (format "[~a]" list-without-brackets))
-      (format "~a = num2cell(sort(~a)){:}\n" list-without-brackets list-with-brackets)))
-   "\n"
-   output))
+(define (preprocess->matlab preprocess)
+  (match preprocess
+    [(list 'sort variables ...)
+     (define list-without-brackets (string-join (map ~a variables) ", "))
+     (define list-with-brackets (format "[~a]" list-without-brackets))
+     (format "~a = num2cell(sort(~a)){:}"
+             list-without-brackets
+             list-with-brackets)]))
 
-(define (preprocess-sort-tex output sort-preprocesses)
-  (string-append
-   "\\begin{array}{l}\n"
-   (string-join
-    (for/list ([variables sort-preprocesses])
-      (define lst (format "[~a]" (string-join (map ~a variables) ", ")))
-      (format "~a = \\mathsf{sort}(~a)" lst lst))
-    "\\\\\n")
-   "\\\\\n"
-   "\\\\\n"
-   ;; This is a hack
-   (string-trim output "\\begin{array}{l}\n" #:right? #f)))
+(define (preprocess->tex preprocess)
+  (match preprocess
+    [(list 'sort variables ...)
+     (define lst (format "[~a]" (string-join (map ~a variables) ", ")))
+     (format "~a = \\mathsf{sort}(~a)" lst lst)]))
 
-(define (preprocess-sort-default output sort-preprocesses)
-  (string-append
-   (apply
-    string-append
-    (for/list ([variables sort-preprocesses])
-      (format
-       "NOTE: ~a should be sorted in increasing order before calling this function.\n"
-       (match variables
-         [(list a b) (format "~a and ~a" a b)]
-         [_ (string-join (map ~a variables) ", " #:before-last ", and ")]))))
-   "\n"
-   output))
+(define (preprocess->default preprocess)
+  (define sort-string
+    "NOTE: ~a should be sorted in increasing order before calling this function.")
+  (match preprocess
+    [(list 'sort a b)
+     (format sort-string (format "~a and ~a" a b))]
+    [(list 'sort variables ...)
+     (format
+      sort-string
+      (string-join (map ~a variables) ", " #:before-last ", and "))]))
 
 (define languages
-  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)) ,preprocess-sort-core)
-    ("C" "c" ,core->c ,preprocess-sort-c)
-    ("Fortran" "f03" ,core->fortran ,preprocess-sort-default)
-    ("Java" "java" ,core->java ,preprocess-sort-java)
-    ("Python" "py" ,core->python ,preprocess-sort-python)
-    ("Julia" "jl" ,core->julia ,preprocess-sort-julia)
-    ("MATLAB" "mat" ,core->matlab ,preprocess-sort-matlab)
-    ("Wolfram" "wl" ,core->wls ,preprocess-sort-default)
-    ("TeX" "tex" ,(λ (c i) (core->tex c)) ,preprocess-sort-tex)))
+  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)) ,preprocess->core)
+    ("C" "c" ,core->c ,preprocess->c)
+    ("Fortran" "f03" ,core->fortran ,preprocess->default)
+    ("Java" "java" ,core->java ,preprocess->java)
+    ("Python" "py" ,core->python ,preprocess->python)
+    ("Julia" "jl" ,core->julia ,preprocess->julia)
+    ("MATLAB" "mat" ,core->matlab ,preprocess->matlab)
+    ("Wolfram" "wl" ,core->wls ,preprocess->default)
+    ("TeX" "tex" ,(λ (c i) (core->tex c)) ,preprocess->tex)))
 
 (define (program->tex prog ctx #:loc [loc #f])
   (define prog* (program->fpcore prog ctx))
@@ -213,7 +173,7 @@
   (define versions
     (reap [sow]
       (for ([(lang record) (in-dict languages)])
-        (match-define (list ext converter preprocess-sort) record)
+        (match-define (list ext converter preprocess) record)
         (when (and (fpcore? in-prog*)
                    (or (not out-prog*) (fpcore? out-prog*))
                    (or (equal? ext "fpcore")                           
@@ -223,16 +183,10 @@
           (define name (if identifier (symbol->string identifier) "code"))
           (define in (converter in-prog* name))
           (define out (and out-prog* (converter out-prog* name)))
-          (define sort-preprocesses
-            (filter-map
-             (match-lambda
-               [(list 'sort variables ...) variables]
-               [_ #f])
-             preprocesses))
           (define out-with-sort-preprocessing
-            (if (empty? sort-preprocesses)
-                out
-                (preprocess-sort out sort-preprocesses)))
+            (string-append
+             (string-join (map preprocess preprocesses) "\n" #:after-last "\n")
+             out))
           (sow (cons lang (cons in out-with-sort-preprocessing)))))))
 
   (define-values (math-in math-out)
