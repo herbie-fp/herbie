@@ -124,7 +124,7 @@
       ,(render-program preprocess test #:to (alt-expr end-alt))
       
       (figure ([id "graphs"])
-        (h2 "Local Percentage Accuracy"
+        (h2 "Local Percentage Accuracy vs "
             (span ([id "variables"]))
             (a ([class "help-button"] 
                 [href "/doc/latest/report.html#graph"] 
@@ -139,25 +139,23 @@
          "These can be toggled with buttons below the plot. "
          "The line is an average while dots represent individual samples."))
 
-      ,(if (> (length end-alts) 1)
-           `(div ([class "figure-row"] [id "cost-accuracy"]
-                  [data-benchmark-name ,(~a (test-name test))])
-             (figure
-              (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
-              (table
-               (thead (tr (th "Alternative") 
-                          (th ([class "numeric"]) "Accuracy")
-                          (th ([class "numeric"]) "Speedup")))
-               (tbody)))
-             (figure
-              (h2 "Accuracy vs Speed")
-              (svg)
-              (figcaption
-               "The accuracy (vertical axis) and speed (horizontal axis) of each "
-               "of Herbie's proposed alternatives. Up and to the right is better. "
-               "Each dot represents an alternative program; the red square represents "
-               "the initial program.")))
-           "")
+      (div ([class "figure-row"] [id "cost-accuracy"]
+            [data-benchmark-name ,(~a (test-name test))])
+           (figure
+            (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
+            (table
+             (thead (tr (th "Alternative") 
+                        (th ([class "numeric"]) "Accuracy")
+                        (th ([class "numeric"]) "Speedup")))
+             (tbody)))
+           (figure
+            (h2 "Accuracy vs Speed")
+            (svg)
+            (figcaption
+             "The accuracy (vertical axis) and speed (horizontal axis) of each "
+             "alternatives. Up and to the right is better. The red square shows "
+             "the initial program, and each blue circle shows an alternative."
+             "The line shows the best available speed-accuracy tradeoffs.")))
 
       (section ([id "bogosity"])  
        (h1 "Bogosity"
@@ -193,13 +191,15 @@
       ,(if (> (length end-alts) 1)
            `(section ([id "alternatives"])
               (h1 "Alternatives")
-              ,@(for/list ([alt (cdr end-alts)]
-                           [errs (cdr end-errors)]
-                           [cost (cdr end-costs)]
+              ,@(for/list ([alt  end-alts]
+                           [errs end-errors]
+                           [cost end-costs]
                            [i (in-naturals 1)])
                 `(div ([class "entry"])
                   (table
-                    (tr (th ([style "font-weight:bold"]) ,(format "Alternative ~a" i)))
+                    (tr (th ([style "font-weight:bold"]
+                             [id ,(format "alternative~a" i)])
+                             ,(format "Alternative ~a" i)))
                     (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr-bits #:unit "%")))
                     (tr (th "Cost") (td ,(format-cost cost repr))))
                   (div ([class "math"])

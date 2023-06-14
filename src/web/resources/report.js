@@ -229,21 +229,24 @@ const ClientGraph = new Component('#graphs', {
     },
 
     render: async function(selected_var_name, selected_functions) {
+        this.$variables.replaceChildren.apply(
+            this.$variables,
+            [Element("select", {
+                oninput: (e) => this.render(e.target.value, selected_functions),
+            }, this.all_vars.map(v =>
+                Element("option", {
+                    value: v,
+                    selected: selected_var_name == v,
+                }, v)
+            ))]
+        );
+
         const all_fns = ['start', 'end', 'target'].filter(name => this.points_json.error[name] != false)
         const fn_description = {
             start: "Initial program",
             end: "Most accurate alternative",
             target: "Target program"
         }
-        this.$variables.replaceChildren.apply(
-            this.$variables,
-            [" vs "].concat(this.all_vars.map(v =>
-                Element("span", {
-                    className: "variable " + (selected_var_name == v ? "selected" : ""),
-                    onclick: () => this.render(v, selected_functions),
-                }, v)
-            )),
-        );
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
         this.$functions.replaceChildren.apply(
             this.$functions,
@@ -363,9 +366,22 @@ const CostAccuracy = new Component('#cost-accuracy', {
         rest_pts.push(best_pt);
         rest_pts.sort((a, b) => a[0]-b[0]);
 
+        // The line differs from rest_pts in two ways:
+        // - We filter to the actual pareto frontier, in case points moved
+        // - We make a broken line to show the real Pareto frontier
+        let line = []
+        let last = null;
+        for (let pt of rest_pts) {
+            if (!last || pt[1] < last[1]) {
+                if (last) line.push([pt[0], last[1]]);
+                line.push([pt[0], pt[1]]);
+                last = pt;
+            }
+        }
+
         const out = Plot.plot({
             marks: [
-                Plot.line(rest_pts, {
+                Plot.line(line, {
                     x: d => initial_pt[0]/d[0],
                     y: d => 1 - d[1]/bits,
                     stroke: "#00a", strokeWidth: 1, strokeOpacity: .2,
@@ -395,7 +411,6 @@ const CostAccuracy = new Component('#cost-accuracy', {
         const [initial_pt, best_pt, rest_pts] = benchmark["cost-accuracy"];
         const bits = benchmark["bits"];
         const initial_accuracy = 100*(1 - initial_pt[1]/bits);
-        rest_pts.push(best_pt);
         rest_pts.sort((a, b) => b[0]-a[0]);
 
         return Element("tbody", [
@@ -408,7 +423,13 @@ const CostAccuracy = new Component('#cost-accuracy', {
                 let accuracy = 100*(1 - d[1]/bits);
                 let speedup = initial_pt[0]/d[0];
                 return Element("tr", [
-                    Element("th", "Alternative " + (i + 1)),
+                    Element("th",
+                        rest_pts.length > 1 ?
+                            Element("a", { href: "#alternative" + (i + 1)},
+                                "Alternative " + (i + 1)) 
+                            // else
+                            : "Alternative " + (i + 1)
+                    ),
                     Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
                             accuracy.toFixed(1) + "%"),
                     Element("td", { className: speedup >= 1 ? "better" : "" },
@@ -448,6 +469,15 @@ var Bogosity = new Component(".bogosity", {
         }
     }
 });
+
+var ClickableRows = new Component("#results", {
+    setup: function() {
+        let $rows = this.elt.querySelectorAll("tbody tr");
+        for (let $row of $rows) {
+            $row.addEventListener("click", () => $row.querySelector("a").click());
+        }
+    }
+})
 
 var Implementations = new Component("#program", {
     setup: function() {
