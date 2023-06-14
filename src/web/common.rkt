@@ -75,11 +75,6 @@
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
 
-(define (preprocess->core preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (format "~a" `(match-define (list ,@variables) (sort ,variables <)))]))
-
 (define (preprocess->c-like preprocess #:assert-has-parentheses [assert-has-parentheses #t])
   (match preprocess
     [(list 'sort variables ...)
@@ -125,7 +120,7 @@
   (match preprocess
     [(list 'sort variables ...)
      (define lst (format "[~a]" (string-join (map ~a variables) ", ")))
-     (format "~a = \\mathsf{sort}(~a)" lst lst)]))
+     (format "~a = \\mathsf{sort}(~a)\\\\" lst lst)]))
 
 (define (preprocess->default preprocess)
   (define sort-string
@@ -139,7 +134,7 @@
       (string-join (map ~a variables) ", " #:before-last ", and "))]))
 
 (define languages
-  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)) ,preprocess->core)
+  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)) ,preprocess->default)
     ("C" "c" ,core->c ,preprocess->c)
     ("Fortran" "f03" ,core->fortran ,preprocess->default)
     ("Java" "java" ,core->java ,preprocess->java)
@@ -183,10 +178,19 @@
           (define name (if identifier (symbol->string identifier) "code"))
           (define in (converter in-prog* name))
           (define out (and out-prog* (converter out-prog* name)))
+          (define preprocess-lines
+            (string-join (map preprocess preprocesses) "\n" #:after-last "\n"))
           (define out-with-sort-preprocessing
-            (string-append
-             (string-join (map preprocess preprocesses) "\n" #:after-last "\n")
-             out))
+            (if (equal? lang "TeX")
+                (string-append
+                 "\\begin{array}{c}\n"
+                 preprocess-lines
+                 "\\\\\n"
+                 ;; This is a hack
+                 (string-trim out "\\begin{array}{l}\n" #:right? #f))
+                (string-append
+                 preprocess-lines
+                 out)))
           (sow (cons lang (cons in out-with-sort-preprocessing)))))))
 
   (define-values (math-in math-out)
