@@ -58,12 +58,21 @@
   (match-define (improve-result preprocess pctxs start target end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
+  (define start-cost (alt-cost start-alt repr))
   (define target-alt (and target (alt-analysis-alt target)))
   (define target-error (and target (alt-analysis-test-errors target)))
+  (define target-cost (and target (alt-cost target-alt repr)))
   (define-values (end-alts end-errors end-costs)
     (for/lists (l1 l2 l3) ([analysis end])
       (match-define (alt-analysis alt _ test-errs) analysis)
-      (values alt test-errs (expr-cost (alt-expr alt) repr))))
+      (values alt test-errs (alt-cost alt repr))))
+
+  (define speedup
+    (let ([better
+           (for/list ([alt end-alts] [err end-errors] [cost end-costs]
+                      #:when (>= (errors-score err) (errors-score start-error)))
+             (/ start-cost cost))])
+      (and (not (null? better)) (apply max better))))
 
   (match-define (list train-pctx test-pctx) pctxs)
   (define-values (points _) (pcontext->lists train-pctx))
@@ -104,7 +113,9 @@
        ,(render-large "Time" (format-time time))
        ,(render-large "Alternatives" (~a (length end-alts)))
        ,(if (*pareto-mode*)
-            (render-large "Speedup" "TODO×")
+            (render-large "Speedup"
+                          (if speedup (~r speedup #:precision '(= 1)) "N/A") "×"
+                          #:title "Relative speed of fastest alternative that improves accuracy.")
             ""))
 
       ,(render-warnings warnings)
@@ -140,7 +151,8 @@
 
 
       (section ([id "cost-accuracy"] [class "section"]
-                [data-benchmark-name ,(~a (test-name test))])
+                [data-benchmark-name ,(~a (test-name test))]
+                ,@(if target-cost `([data-target-cost ,(~a target-cost)]) '()))
         (h2 "Accuracy vs Speed"
             (a ([class "help-button float"] 
                 [href "/doc/latest/report.html#cost-accuracy"] 
@@ -160,19 +172,14 @@
            "the initial program, and each blue circle shows an alternative."
            "The line shows the best available speed-accuracy tradeoffs."))
 
-      ,(if (test-output test)
-           `(section ([id "comparison"])
-             (h1 "Target")
-             (table
-              (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr-bits #:unit "%")))
-              (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")))
-              (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr-bits #:unit "%"))))
-             (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
-           "")
-
-      ,@(for/list ([alt end-alts] [i (in-naturals 1)])
+      ,@(for/list ([i (in-naturals 1)] [alt end-alts] [errs end-errors] [cost end-costs])
           `(section ([id ,(format "alternative~a" i)])
-            (h2 "Alternative " ,(~a i) ,(render-help "report.html#alternative"))
+            (h2 "Alternative " ,(~a i)
+                ": "
+                (span ([class "subhead"])
+                  (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%")) " accurate, "
+                  (data ,(~r (/ (alt-cost start-alt repr) cost) #:precision '(= 1)) "×") " speedup")
+                ,(render-help "report.html#alternative"))
             (div ([class "math"])
                  "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
                           (alt->tex alt ctx))
@@ -181,6 +188,17 @@
              (summary "Derivation")
              (ol ([class "history"])
                  ,@(render-history alt train-pctx test-pctx ctx)))))
+
+      ,(if (test-output test)
+           `(section ([id "target"])
+             (h2 "Developer target"
+                 ": "
+                 (span ([class "subhead"])
+                   (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")) " accurate, "
+                   (data ,(~r (/ (alt-cost start-alt repr) target-cost) #:precision '(= 1)) "×") " speedup")
+                 ,(render-help "report.html#target"))
+             (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
+           "")
 
       ,(render-reproduction test)))
     out))
