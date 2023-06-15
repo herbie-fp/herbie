@@ -21,13 +21,7 @@
 
 (define/contract (render-interactive vars point)
   (-> (listof symbol?) (listof number?) xexpr?)
-  `(section ([id "try-it"])
-    (h1 "Try it out" (a (
-          [class "help-button"] 
-          [href "/doc/latest/report.html#try-it"] 
-          [target "_blank"] 
-          ;[style "rotate: 270deg"]
-          ) "?"))
+  `(div ([id "try-it"] [style "display: flow-root"])
     (div ([id "try-inputs-wrapper"])
      (form ([id "try-inputs"])
       (p ([class "header"]) "Your Program's Arguments")
@@ -121,7 +115,15 @@
             ""))
 
       ,(render-warnings warnings)
-      ,(render-program preprocess test #:to (alt-expr end-alt))
+
+      (figure ([id "specification"] [class "collapsible"])
+        (h2 "Specification")
+        (div ([class "math"]) "\\[" ,(alt->tex start-alt ctx) "\\]")
+        ,(render-bogosity bogosity)
+
+        ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
+             (render-interactive vars (car points))
+             ""))
       
       (figure ([id "graphs"])
         (h2 "Local Percentage Accuracy vs "
@@ -139,34 +141,25 @@
          "These can be toggled with buttons below the plot. "
          "The line is an average while dots represent individual samples."))
 
-      (div ([class "figure-row"] [id "cost-accuracy"]
-            [data-benchmark-name ,(~a (test-name test))])
-           (figure
+      (figure ([id "cost-accuracy"] [data-benchmark-name ,(~a (test-name test))])
+        (h2 "Accuracy vs Speed"
+            (a ([class "help-button"] 
+                [href "/doc/latest/report.html#cost-accuracy"] 
+                [target "_blank"]) "?"))
+        (div ([class "figure-row"])
+          (svg)
+          (div
             (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
             (table
              (thead (tr (th "Alternative") 
                         (th ([class "numeric"]) "Accuracy")
                         (th ([class "numeric"]) "Speedup")))
-             (tbody)))
-           (figure
-            (h2 "Accuracy vs Speed")
-            (svg)
-            (figcaption
-             "The accuracy (vertical axis) and speed (horizontal axis) of each "
-             "alternatives. Up and to the right is better. The red square shows "
-             "the initial program, and each blue circle shows an alternative."
-             "The line shows the best available speed-accuracy tradeoffs.")))
-
-      (section ([id "bogosity"])  
-       (h1 "Bogosity"
-           (a ([class "help-button"]
-               [href "/doc/latest/report.html#bogosity"]
-               [target "_blank"]) "?"))
-       ,@(render-phase-bogosity (list bogosity)))
-
-      ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
-           (render-interactive vars (car points))
-           "")
+             (tbody))))
+          (figcaption
+           "The accuracy (vertical axis) and speed (horizontal axis) of each "
+           "alternatives. Up and to the right is better. The red square shows "
+           "the initial program, and each blue circle shows an alternative."
+           "The line shows the best available speed-accuracy tradeoffs."))
 
       ,(if (test-output test)
            `(section ([id "comparison"])
@@ -178,35 +171,17 @@
              (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
            "")
 
-      (section ([id "history"])
-       (h1 "Derivation" (a (
-          [class "help-button"] 
-          [href "/doc/latest/report.html#derivation"] 
-          [target "_blank"] 
-          ;[style "rotate: 270deg"]
-          ) "?"))
-       (ol ([class "history"])
-        ,@(render-history end-alt train-pctx test-pctx ctx)))
-
-      ,(if (> (length end-alts) 1)
-           `(section ([id "alternatives"])
-              (h1 "Alternatives")
-              ,@(for/list ([alt  end-alts]
-                           [errs end-errors]
-                           [cost end-costs]
-                           [i (in-naturals 1)])
-                `(div ([class "entry"])
-                  (table
-                    (tr (th ([style "font-weight:bold"]
-                             [id ,(format "alternative~a" i)])
-                             ,(format "Alternative ~a" i)))
-                    (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr-bits #:unit "%")))
-                    (tr (th "Cost") (td ,(format-cost cost repr))))
-                  (div ([class "math"])
-                    "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
-                            (alt->tex alt ctx))
-                    "\\]"))))
-            "")
+      ,@(for/list ([alt end-alts] [i (in-naturals 1)])
+          `(figure ([id ,(format "alternative~a" i)])
+            (h2 "Alternative " ,(~a i))
+            (div ([class "math"])
+                 "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
+                          (alt->tex alt ctx))
+                 "\\]")
+            (details
+             (summary "Derivation")
+             (ol ([class "history"])
+                 ,@(render-history alt train-pctx test-pctx ctx)))))
 
       ,(render-reproduction test)))
     out))

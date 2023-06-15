@@ -11,6 +11,8 @@
          "../syntax/types.rkt" "../syntax/sugar.rkt")
 
 (provide render-menu render-warnings render-large render-comparison render-program
+         render-bogosity
+         format-percent
          program->fpcore program->tex render-reproduction js-tex-include)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
@@ -213,24 +215,44 @@
      (format "  ~a)" (resugar-program (test-input test) output-repr))))
    "\n"))
 
+(define (format-percent num den)
+  (string-append
+   (if (zero? den)
+       (cond [(positive? num) "+∞"] [(zero? num) "0"] [(negative? num) "-∞"])
+       (~r (* (/ num den) 100) #:precision 1))
+   "%"))
+
+(define (render-bogosity domain-info)
+  (define total (round (apply + (hash-values domain-info))))
+  (define tags '(valid unknown infinite unsamplable invalid precondition))
+  `(div ([class "bogosity"])
+     ,@(for/list ([tag tags])
+         (define pct (format-percent (hash-ref domain-info tag 0) total))
+         `(div
+           ([class ,(format "bogosity-~a" tag)]
+            [data-id ,(format "bogosity-~a" tag)]
+            [data-type ,(~a tag)]
+            [data-timespan ,(~a (hash-ref domain-info tag 0))]
+            [title ,(format "~a (~a)" tag pct)])))))
+
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
 
-  `(section ((id "reproduce"))
-    (h1 "Reproduce" (a (
+  `(figure ([id "reproduce"])
+    (h2 "Reproduce" (a (
           [class "help-button"] 
           [href "/doc/latest/report.html#reproduction"] 
           [target "_blank"] 
-          ;[style "rotate: 270deg"]
           ) "?"))
-    ,(if bug?
-         `(p "Please include this information when filing a "
-             (a ((href "https://github.com/herbie-fp/herbie/issues")) "bug report") ":")
-         "")
     (pre ((class "shell"))
          (code
           ,(render-command-line) "\n"
-          ,(render-fpcore test) "\n"))))
+          ,(render-fpcore test) "\n"))
+    ,(if bug?
+         `(p "Please file a "
+             (a ((href "https://github.com/herbie-fp/herbie/issues")) "bug report")
+             " with this information.")
+         "")))
 
 (define js-tex-include
   '((link ([rel "stylesheet"] [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
