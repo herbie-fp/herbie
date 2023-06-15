@@ -67,13 +67,13 @@
                               ,@(for/list ([line extra])
                                   `(li ,line)))))))))
 
-(define (render-comparison #:title [title #f] name a b )
-  (render-large #:title title name a `(span ([class "unit"]) " → ") b))
-
 (define (render-large #:title [title #f] name . values)
   `(div ,name ": " (span ([class "number"]
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
+
+(define (render-comparison #:title [title #f] name a b )
+  (render-large #:title title name a `(span ([class "unit"]) " → ") b))
 
 (define (format-less-than-condition variables)
   (string-join
