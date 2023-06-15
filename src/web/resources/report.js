@@ -46,7 +46,11 @@ function tableRowVisitor(siblingsList, condition) {
 }
 
 function CheckBox(checked) {
-    return Element("input", { type: "checkbox", checked: `${checked}` }, "")
+    if (checked) {
+        return Element("input", { type: "checkbox", checked }, "")
+    } else {
+        return Element("input", { type: "checkbox" }, "")
+    }
 }
 
 function LabeledCheckBox(startingState, labelString, onClickHandler) {
@@ -80,6 +84,7 @@ const Filters = new Component("#filters", {
             function () {
                 const siblingsList = document.querySelectorAll("#results tbody tr")
                 tableRowVisitor(siblingsList, (child) => {
+                    if (checkBox.chec)
                     return !(!child.classList.contains("crash") &&
                         !child.classList.contains("uni-start") &&
                         !child.classList.contains("error") &&
