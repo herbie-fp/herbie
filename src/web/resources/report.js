@@ -35,24 +35,14 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
-function tableRowVisitor(siblingsList, condition, invert) {
-    if (invert) {
-        siblingsList.forEach((child, n, p) => {
-            if (condition(child)) {
-                child.style.display = "none"
-            } else {
-                child.style.display = "table-row"
-            }
-        })
-    } else {
-        siblingsList.forEach((child, n, p) => {
-            if (condition(child)) {
-                child.style.display = "table-row"
-            } else {
-                child.style.display = "none"
-            }
-        })
-    }
+function tableRowVisitor(siblingsList, condition) {
+    siblingsList.forEach((child, n, p) => {
+        if (condition(child)) {
+            child.style.display = "table-row"
+        } else {
+            child.style.display = "none"
+        }
+    })
 }
 
 const Filters = new Component("#filters", {
@@ -68,28 +58,26 @@ const Filters = new Component("#filters", {
                 filterByBadCases,
                 reset])])
 
-        reset.addEventListener("click", function() {
+        reset.addEventListener("click", function () {
             const siblingsList = document.querySelectorAll("#results tbody tr")
-            tableRowVisitor(siblingsList, true,false)
+            tableRowVisitor(siblingsList, true)
         })
 
         filterByExStart.addEventListener("click", function () {
             const siblingsList = document.querySelectorAll("#results tbody tr")
-            function checkChild(child) {
+            tableRowVisitor(siblingsList, (child) => {
                 return child.classList.contains("ex-start")
-            }
-            tableRowVisitor(siblingsList, checkChild,false)
+            })
         })
 
         filterByBadCases.addEventListener("click", function () {
             const siblingsList = document.querySelectorAll("#results tbody tr")
-            function checkChild(child) {
-                return !child.classList.contains("crash") &&
-                !child.classList.contains("uni-start") &&
-                !child.classList.contains("error") &&
-                !child.classList.contains("timeout")
-            }
-            tableRowVisitor(siblingsList, checkChild,true)
+            tableRowVisitor(siblingsList, (child) => {
+                return !(!child.classList.contains("crash") &&
+                    !child.classList.contains("uni-start") &&
+                    !child.classList.contains("error") &&
+                    !child.classList.contains("timeout"))
+            })
         })
         this.elt.appendChild(filters);
     }
