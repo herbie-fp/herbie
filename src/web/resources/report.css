@@ -178,21 +178,6 @@ section { display: flow-root; }
 
 #functions { display: flex; flex-direction: row; gap: 1em; margin-top: 1ex; }
 #functions:before { content: "Show: "; }
-#functions .function {
-    width: 1em;
-    height: 1em;
-    border-radius: 50%;
-    box-sizing: border-box; /* Include padding and border in element's width and height */
-    display: inline-block;
-    margin-right: 1ex;
-}
-
-#functions #function_start { border: 3px solid #d00; }
-#functions #function_start.selected { background: #d002; }
-#functions #function_end { border: 3px solid #00a; }
-#functions #function_end.selected { background: #00a2; }
-#functions #function_target { border: 3px solid #050; }
-#functions #function_target.selected { background: #0502; }
 
 #cost-accuracy p { font-size: 1em; font-family: 'IBM Plex Serif', serif; margin: 0; }
 #cost-accuracy table { width: 374px; padding: 1ex 0; }

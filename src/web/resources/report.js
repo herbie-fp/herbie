@@ -117,9 +117,12 @@ var TryIt = new Component("#try-it", {
 });
 
 const ALL_LINES = [
-    { name: 'start', line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
-    { name: 'end', line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
-    { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0035'}}
+    { name: 'start', description: "Initial program",
+      line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
+    { name: 'end', description: "Most accurate alternative",
+      line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
+    { name: 'target', description: "Developer target",
+      line: { stroke: 'green' }, dot: { stroke: '#00ff0035'}}
 ]
 
 const ClientGraph = new Component('#graphs', {
@@ -134,6 +137,37 @@ const ClientGraph = new Component('#graphs', {
         this.$variables = this.elt.querySelector("#variables");
         this.$functions = this.elt.querySelector("#functions");
         await this.render(this.all_vars[0], ['start', 'end']);
+    },
+
+    render_variables: function($elt, selected_var_name, selected_functions) {
+        $elt.replaceChildren(
+            Element("select", {
+                oninput: (e) => this.render(e.target.value, selected_functions),
+            }, this.all_vars.map(v =>
+                Element("option", {
+                    value: v,
+                    selected: selected_var_name == v,
+                }, v)
+            )));
+    },
+
+    render_functions: function($elt, selected_var_name, selected_functions) {
+        const all_lines = ALL_LINES.filter(o => this.points_json.error[o.name] != false)
+        const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+        $elt.replaceChildren.apply(
+            $elt,
+            all_lines.map(fn => 
+                Element("label", [
+                    Element("input", {
+                        type: "checkbox",
+                        style: "accent-color: " + fn.line.stroke,
+                        checked: selected_functions.includes(fn.name),
+                        onclick: (e) => this.render(selected_var_name, toggle(fn.name, selected_functions))
+                    }, []),
+                    Element("span", { className: "functionDescription" }, [
+                        " ", fn.description]),
+                ])),
+        );
     },
     
     sliding_window: function(A, size) {
@@ -229,36 +263,8 @@ const ClientGraph = new Component('#graphs', {
     },
 
     render: async function(selected_var_name, selected_functions) {
-        this.$variables.replaceChildren.apply(
-            this.$variables,
-            [Element("select", {
-                oninput: (e) => this.render(e.target.value, selected_functions),
-            }, this.all_vars.map(v =>
-                Element("option", {
-                    value: v,
-                    selected: selected_var_name == v,
-                }, v)
-            ))]
-        );
-
-        const all_fns = ['start', 'end', 'target'].filter(name => this.points_json.error[name] != false)
-        const fn_description = {
-            start: "Initial program",
-            end: "Most accurate alternative",
-            target: "Target program"
-        }
-        const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-        this.$functions.replaceChildren.apply(
-            this.$functions,
-            all_fns.map(fn => Element("div", [
-                Element("div", {
-                    id: "function_"+fn,
-                    className: "function " + (selected_functions.includes(fn) ? "selected" : ""),
-                    onclick: (e) => this.render(selected_var_name, toggle(fn, selected_functions))
-                }, []),
-                Element("span", { className: "functionDescription" }, fn_description[fn]),
-            ])),
-        );
+        this.render_variables(this.$variables, selected_var_name, selected_functions);
+        this.render_functions(this.$functions, selected_var_name, selected_functions);
         let $svg = this.elt.querySelector("svg");
         this.elt.replaceChild(await this.plot(selected_var_name, selected_functions), $svg);
     }

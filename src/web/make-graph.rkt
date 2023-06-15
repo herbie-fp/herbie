@@ -102,9 +102,9 @@
                  (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
                  (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
        ,(render-large "Time" (format-time time))
-       ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
+       ,(render-large "Alternatives" (~a (length end-alts)))
        ,(if (*pareto-mode*)
-            (render-large "Cost" `(kbd ,(format-cost (car end-costs) repr)))
+            (render-large "Speedup" "TODO×")
             ""))
 
       ,(render-warnings warnings)
@@ -172,7 +172,7 @@
 
       ,@(for/list ([alt end-alts] [i (in-naturals 1)])
           `(section ([id ,(format "alternative~a" i)])
-            (h2 "Alternative " ,(~a i))
+            (h2 "Alternative " ,(~a i) ,(render-help "report.html#alternative"))
             (div ([class "math"])
                  "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
                           (alt->tex alt ctx))

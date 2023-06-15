@@ -11,7 +11,7 @@
          "../syntax/types.rkt" "../syntax/sugar.rkt")
 
 (provide render-menu render-warnings render-large render-comparison render-program
-         render-bogosity
+         render-bogosity render-help
          format-percent
          program->fpcore program->tex render-reproduction js-tex-include)
 
@@ -254,6 +254,11 @@
               (a ((href "https://github.com/herbie-fp/herbie/issues")) "bug report")
               " with this information.")
           ""))))
+
+(define (render-help url #:float [float? #t])
+  `(a ([class ,(if float? "help-button float" "help-button")] 
+       [href ,(format "/doc/latest/~a" url)] 
+       [target "_blank"]) "?"))
 
 (define js-tex-include
   '((link ([rel "stylesheet"] [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
