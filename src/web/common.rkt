@@ -75,62 +75,56 @@
                           ,@(if title `([title ,title]) '()))
                          ,@values)))
 
-(define (preprocess->c-like preprocess #:assert-has-parentheses [assert-has-parentheses #t])
-  (match preprocess
-    [(list 'sort variables ...)
-     (format
-      (if assert-has-parentheses
-          "assert(~a);"
-          "assert ~a;")
-      (string-join
-       (for/list ([a (in-list variables)]
-                  [b (in-list (cdr variables))])
-         (format "~a < ~a" a b))
-       " && "))]))
+(define (format-less-than-condition variables)
+  (string-join
+   (for/list ([a (in-list variables)]
+              [b (in-list (cdr variables))])
+     (format "~a < ~a" a b))
+   " && "))
 
 (define (preprocess->c preprocess)
-  (preprocess->c-like preprocess #:assert-has-parentheses #t))
+  (match preprocess
+    [(list 'sort variables ...)
+     (format "assert(~a);" (format-less-than-condition variables))]))
 
 (define (preprocess->java preprocess)
-  (preprocess->c-like preprocess #:assert-has-parentheses #f))
+  (match preprocess
+    [(list 'sort variables ...)
+     (format "assert ~a;" (format-less-than-condition variables))]))
 
 (define (preprocess->python preprocess)
   (match preprocess
     [(list 'sort variables ...)
-     (define lst (format "[~a]" (string-join (map ~a variables) ", ")))
-     (format "~a = sort(~a)" lst lst)]))
+     (define comma-joined (string-join (map ~a variables) ", "))
+     (format "[~a] = sort([~a])" comma-joined comma-joined)]))
 
 (define (preprocess->julia preprocess)
   (match preprocess
     [(list 'sort variables ...)
-      (define list-without-brackets (string-join (map ~a variables) ", "))
-      (define list-with-brackets (format "[~a]" list-without-brackets))
-      (format "~a = sort(~a)" list-without-brackets list-with-brackets)]))
+      (define comma-joined (string-join (map ~a variables) ", "))
+      (format "~a = sort([~a])" comma-joined comma-joined)]))
 
 (define (preprocess->matlab preprocess)
   (match preprocess
     [(list 'sort variables ...)
-     (define list-without-brackets (string-join (map ~a variables) ", "))
-     (define list-with-brackets (format "[~a]" list-without-brackets))
-     (format "~a = num2cell(sort(~a)){:}"
-             list-without-brackets
-             list-with-brackets)]))
+     (define comma-joined (string-join (map ~a variables) ", "))
+     (format "~a = num2cell(sort([~a])){:}" comma-joined comma-joined)]))
 
 (define (preprocess->tex preprocess)
   (match preprocess
     [(list 'sort variables ...)
-     (define lst (format "[~a]" (string-join (map ~a variables) ", ")))
-     (format "~a = \\mathsf{sort}(~a)\\\\" lst lst)]))
+     (define comma-joined (string-join (map ~a variables) ", "))
+     (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]))
 
 (define (preprocess->default preprocess)
-  (define sort-string
+  (define note
     "NOTE: ~a should be sorted in increasing order before calling this function.")
   (match preprocess
     [(list 'sort a b)
-     (format sort-string (format "~a and ~a" a b))]
+     (format note (format "~a and ~a" a b))]
     [(list 'sort variables ...)
      (format
-      sort-string
+      note
       (string-join (map ~a variables) ", " #:before-last ", and "))]))
 
 (define languages
@@ -180,18 +174,16 @@
           (define out (and out-prog* (converter out-prog* name)))
           (define preprocess-lines
             (string-join (map preprocess preprocesses) "\n" #:after-last "\n"))
-          (define out-with-sort-preprocessing
-            (if (equal? lang "TeX")
-                (string-append
-                 "\\begin{array}{c}\n"
-                 preprocess-lines
-                 "\\\\\n"
-                 ;; This is a hack
-                 (string-trim out "\\begin{array}{l}\n" #:right? #f))
-                (string-append
-                 preprocess-lines
-                 out)))
-          (sow (cons lang (cons in out-with-sort-preprocessing)))))))
+          (define (add-preprocessing-tex preprocess-lines output)
+            (string-append
+             "\\begin{array}{l}\n"
+             preprocess-lines
+             "\\\\\n"
+             out
+             "\\end{array}\n"))
+          (define add-preprocessing
+            (if (equal? lang "TeX") add-preprocessing-tex string-append))
+          (sow (cons lang (cons in (add-preprocessing preprocess-lines out))))))))
 
   (define-values (math-in math-out)
     (if (dict-has-key? versions "TeX")
