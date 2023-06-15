@@ -45,29 +45,23 @@ function tableRowVisitor(siblingsList, condition) {
     })
 }
 
+function CheckBox(checked) {
+    return Element("input", { type: "checkbox", checked: `${checked}` }, "")
+}
+
+function LabeledCheckBox(startingState, labelString, onClickHandler) {
+    var checkBox =
+        Element("label", [CheckBox(startingState), new Text(labelString)])
+    checkBox.addEventListener("click", onClickHandler)
+    return checkBox
+}
+
 const Filters = new Component("#filters", {
     setup: function () {
-        const checkBox = Element("input", { type: "checkbox" }, "remove")
-        const filterByExStart = Element("label", [checkBox])
-        const filterByBadCases = Element("a", "View only \"bad\" cases ")
-        const reset = Element("a", "Rest Filters")
-
-        const filters = Element("div", [
-            Element("div", "Filters"),
-            Element("div", [
-                filterByExStart,
-                filterByBadCases,
-                reset])])
-
-        reset.addEventListener("click", function () {
-            const siblingsList = document.querySelectorAll("#results tbody tr")
-            tableRowVisitor(siblingsList, () => { return true })
-        })
-
-        filterByExStart.addEventListener("click", function () {
+        const filterByExStart = LabeledCheckBox(true, "ex-start", function () {
             const siblingsList = document.querySelectorAll("#results tbody tr")
             const checkBox = document.querySelector("#filters label input")
-            if (checkBox.checked == true) {
+            if (checkBox.checked == false) {
                 tableRowVisitor(siblingsList, (child) => {
                     return !child.classList.contains("ex-start")
                 })
@@ -82,15 +76,23 @@ const Filters = new Component("#filters", {
             }
         })
 
-        filterByBadCases.addEventListener("click", function () {
-            const siblingsList = document.querySelectorAll("#results tbody tr")
-            tableRowVisitor(siblingsList, (child) => {
-                return !(!child.classList.contains("crash") &&
-                    !child.classList.contains("uni-start") &&
-                    !child.classList.contains("error") &&
-                    !child.classList.contains("timeout"))
+        const filterByBadCases = LabeledCheckBox(false, "Other Label",
+            function () {
+                const siblingsList = document.querySelectorAll("#results tbody tr")
+                tableRowVisitor(siblingsList, (child) => {
+                    return !(!child.classList.contains("crash") &&
+                        !child.classList.contains("uni-start") &&
+                        !child.classList.contains("error") &&
+                        !child.classList.contains("timeout"))
+                })
             })
-        })
+
+        const filters = Element("div", [
+            Element("div", "Filters"),
+            Element("div", [
+                filterByExStart,
+                filterByBadCases])])
+
         this.elt.appendChild(filters);
     }
 });
