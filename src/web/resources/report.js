@@ -47,7 +47,8 @@ function tableRowVisitor(siblingsList, condition) {
 
 const Filters = new Component("#filters", {
     setup: function () {
-        const filterByExStart = Element("a", "Remove \"ex-start\" ")
+        const checkBox = Element("input", { type: "checkbox" }, "remove")
+        const filterByExStart = Element("label", [checkBox])
         const filterByBadCases = Element("a", "View only \"bad\" cases ")
         const reset = Element("a", "Rest Filters")
 
@@ -60,14 +61,25 @@ const Filters = new Component("#filters", {
 
         reset.addEventListener("click", function () {
             const siblingsList = document.querySelectorAll("#results tbody tr")
-            tableRowVisitor(siblingsList, () => {return true})
+            tableRowVisitor(siblingsList, () => { return true })
         })
 
         filterByExStart.addEventListener("click", function () {
             const siblingsList = document.querySelectorAll("#results tbody tr")
-            tableRowVisitor(siblingsList, (child) => {
-                return !child.classList.contains("ex-start")
-            })
+            const checkBox = document.querySelector("#filters label input")
+            if (checkBox.checked == true) {
+                tableRowVisitor(siblingsList, (child) => {
+                    return !child.classList.contains("ex-start")
+                })
+            } else {
+                tableRowVisitor(siblingsList, (child) => {
+                    if (child.classList.contains("ex-start") && child.style.display == "none") {
+                        return true
+                    } else {
+                        return !(child.style.display == "none")
+                    }
+                })
+            }
         })
 
         filterByBadCases.addEventListener("click", function () {
