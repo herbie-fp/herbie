@@ -238,21 +238,22 @@
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
 
-  `(figure ([id "reproduce"])
-    (h2 "Reproduce" (a (
-          [class "help-button"] 
+  `(section ([id "reproduce"])
+    (details ,(if bug? '([open "open"]) "")
+     (summary
+      (h2 "Reproduce")
+      (a ([class "help-button float"] 
           [href "/doc/latest/report.html#reproduction"] 
-          [target "_blank"] 
-          ) "?"))
-    (pre ((class "shell"))
-         (code
-          ,(render-command-line) "\n"
-          ,(render-fpcore test) "\n"))
-    ,(if bug?
-         `(p "Please file a "
-             (a ((href "https://github.com/herbie-fp/herbie/issues")) "bug report")
-             " with this information.")
-         "")))
+          [target "_blank"]) "?"))
+     (pre ((class "shell"))
+          (code
+           ,(render-command-line) "\n"
+           ,(render-fpcore test) "\n"))
+     ,(if bug?
+          `(p "Please file a "
+              (a ((href "https://github.com/herbie-fp/herbie/issues")) "bug report")
+              " with this information.")
+          ""))))
 
 (define js-tex-include
   '((link ([rel "stylesheet"] [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]

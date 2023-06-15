@@ -141,7 +141,7 @@
               `(li ,(let ([dir (match dir ['Rewrite<= "right to left"] ['Rewrite=> "left to right"])]
                           [tag (string-append (format " ↑ ~a" (first sound))
                                               (format " ↓ ~a" (second sound)))])
-                      `(p ,(format "~a (~a)" rule dir)
+                      `(p (code ([title ,dir]) ,(~a rule))
                           (span ([class "error"] [title ,tag]) ,err)))
                    (div ([class "math"])
                         "\\[\\leadsto "

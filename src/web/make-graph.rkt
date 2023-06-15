@@ -92,14 +92,7 @@
          '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))
 
-      (section ([id "large"])
-       (h1 
-        (a (
-          [class "help-button"] 
-          [href "/doc/latest/report.html#summary"] 
-          [target "_blank"] 
-          ;[style "rotate: 270deg"]
-          ) "?"))
+      (div ([id "large"])
        ,(render-comparison
          "Percentage Accurate"
          (format-accuracy (errors-score start-error) repr-bits #:unit "%")
@@ -116,19 +109,23 @@
 
       ,(render-warnings warnings)
 
-      (figure ([id "specification"] [class "collapsible"])
-        (h2 "Specification")
-        (div ([class "math"]) "\\[" ,(alt->tex start-alt ctx) "\\]")
-        ,(render-bogosity bogosity)
+      (section
+        (details ([id "specification"] [class "section"])
+          (summary (h2 "Specification")
+                   (a ([class "help-button float"] 
+                       [href "/doc/latest/report.html#spec"] 
+                       [target "_blank"]) "?"))
+          (div ([class "math"]) "\\[" ,(alt->tex start-alt ctx) "\\]")
+          ,(render-bogosity bogosity)
 
-        ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
-             (render-interactive vars (car points))
-             ""))
+          ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
+               (render-interactive vars (car points))
+               "")))
       
       (figure ([id "graphs"])
         (h2 "Local Percentage Accuracy vs "
             (span ([id "variables"]))
-            (a ([class "help-button"] 
+            (a ([class "help-button float"] 
                 [href "/doc/latest/report.html#graph"] 
                 [target "_blank"]) "?"))
         (svg)
@@ -141,9 +138,11 @@
          "These can be toggled with buttons below the plot. "
          "The line is an average while dots represent individual samples."))
 
-      (figure ([id "cost-accuracy"] [data-benchmark-name ,(~a (test-name test))])
+
+      (section ([id "cost-accuracy"] [class "section"]
+                [data-benchmark-name ,(~a (test-name test))])
         (h2 "Accuracy vs Speed"
-            (a ([class "help-button"] 
+            (a ([class "help-button float"] 
                 [href "/doc/latest/report.html#cost-accuracy"] 
                 [target "_blank"]) "?"))
         (div ([class "figure-row"])
@@ -172,7 +171,7 @@
            "")
 
       ,@(for/list ([alt end-alts] [i (in-naturals 1)])
-          `(figure ([id ,(format "alternative~a" i)])
+          `(section ([id ,(format "alternative~a" i)])
             (h2 "Alternative " ,(~a i))
             (div ([class "math"])
                  "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])

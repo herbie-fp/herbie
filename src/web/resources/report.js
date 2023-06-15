@@ -212,7 +212,7 @@ const ClientGraph = new Component('#graphs', {
         }
         const out = Plot.plot({
             width: '800',
-            height: '400',                
+            height: '300',
             marks: splitpoints.concat(marks),
             x: {
                 tickFormat: d => tick_strings[tick_ordinals.indexOf(d)],
@@ -224,7 +224,7 @@ const ClientGraph = new Component('#graphs', {
             marginBottom: 0,
             marginRight: 0,
         });
-        out.setAttribute('viewBox', '0 0 820 420')
+        out.setAttribute('viewBox', '0 0 820 320')
         return out
     },
 
