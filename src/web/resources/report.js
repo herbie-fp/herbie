@@ -49,28 +49,29 @@ const Filters = new Component("#filters", {
                 reset])])
 
         reset.addEventListener("click", function() {
-            location.reload()
+            const siblingsList = document.querySelectorAll("#results tbody tr")
+            siblingsList.forEach((child, n, p) => {
+                child.style.display = "table-row"
+            })
         })
 
         filterByExStart.addEventListener("click", function () {
-            const parent = document.querySelector("#results tbody")
             const siblingsList = document.querySelectorAll("#results tbody tr")
             siblingsList.forEach((child, n, p) => {
                 if (child.classList.contains("ex-start")) {
-                    parent.removeChild(child)
+                    child.style.display = "none"
                 }
             })
         })
 
         filterByBadCases.addEventListener("click", function () {
-            const parent = document.querySelector("#results tbody")
             const siblingsList = document.querySelectorAll("#results tbody tr")
             siblingsList.forEach((child, n, p) => {
                 if (!child.classList.contains("crash") && 
                     !child.classList.contains("uni-start") &&
                     !child.classList.contains("error") &&
                     !child.classList.contains("timeout")) {
-                    parent.removeChild(child)
+                    child.style.display = "none"
                 }
             })
         })
