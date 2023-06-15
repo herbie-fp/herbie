@@ -45,52 +45,52 @@ function tableRowVisitor(siblingsList, condition) {
     })
 }
 
-function CheckBox(checked) {
-    if (checked) {
-        return Element("input", { type: "checkbox", checked }, "")
-    } else {
-        return Element("input", { type: "checkbox" }, "")
-    }
-}
-
-function LabeledCheckBox(startingState, labelString, onClickHandler) {
-    var checkBox =
-        Element("label", [CheckBox(startingState), new Text(labelString)])
-    checkBox.addEventListener("click", onClickHandler)
-    return checkBox
-}
-
 const Filters = new Component("#filters", {
-    setup: function () {
-        const filterByExStart = LabeledCheckBox(true, "ex-start", function () {
-            const siblingsList = document.querySelectorAll("#results tbody tr")
-            const checkBox = document.querySelector("#filters label input")
-            if (checkBox.checked == false) {
-                tableRowVisitor(siblingsList, (child) => {
-                    return !child.classList.contains("ex-start")
-                })
-            } else {
-                tableRowVisitor(siblingsList, (child) => {
-                    if (child.classList.contains("ex-start") && child.style.display == "none") {
-                        return true
-                    } else {
-                        return !(child.style.display == "none")
-                    }
-                })
+    checkBox: function (checked) {
+        if (checked) {
+            return Element("input", { type: "checkbox", checked }, "")
+        } else {
+            return Element("input", { type: "checkbox" }, "")
+        }
+    },
+    labeledCheckBox: function (startingState, labelString, onClickHandler) {
+        var checkBox =
+            Element("label", [this.checkBox(startingState), new Text(labelString)])
+        checkBox.addEventListener("click", onClickHandler)
+        return checkBox
+    },
+    exStart: function () {
+        const siblingsList = document.querySelectorAll("#results tbody tr")
+        const checkBox = document.querySelector("#filters label input")
+        if (checkBox.checked == false) {
+            tableRowVisitor(siblingsList, (child) => {
+                return !child.classList.contains("ex-start")
+            })
+        } else {
+            tableRowVisitor(siblingsList, (child) => {
+                if (child.classList.contains("ex-start") && child.style.display == "none") {
+                    return true
+                } else {
+                    return !(child.style.display == "none")
+                }
+            })
+        }
+    },
+    bad: function () {
+        const siblingsList = document.querySelectorAll("#results tbody tr")
+        const checkBox = document.querySelector("#filters label input")
+        tableRowVisitor(siblingsList, (child) => {
+            if (checkBox.checked) {
+                return !(!child.classList.contains("crash") &&
+                    !child.classList.contains("uni-start") &&
+                    !child.classList.contains("error") &&
+                    !child.classList.contains("timeout"))
             }
         })
-
-        const filterByBadCases = LabeledCheckBox(false, "Other Label",
-            function () {
-                const siblingsList = document.querySelectorAll("#results tbody tr")
-                tableRowVisitor(siblingsList, (child) => {
-                    if (checkBox.chec)
-                    return !(!child.classList.contains("crash") &&
-                        !child.classList.contains("uni-start") &&
-                        !child.classList.contains("error") &&
-                        !child.classList.contains("timeout"))
-                })
-            })
+    },
+    setup: function () {
+        const filterByExStart = this.labeledCheckBox(true, "ex-start", this.exStart)
+        const filterByBadCases = this.labeledCheckBox(false, "Other Label", this.bad)
 
         const filters = Element("div", [
             Element("div", "Filters"),
@@ -100,7 +100,7 @@ const Filters = new Component("#filters", {
 
         this.elt.appendChild(filters);
     }
-});
+})
 
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
