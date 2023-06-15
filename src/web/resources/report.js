@@ -44,40 +44,40 @@ const Filters = new Component("#filters", {
             Element("div", "Filters"),
             Element("div", [
                 filterByExStart,
-                filterByBadCases])])
+                // filterByBadCases
+            ])])
 
         this.elt.appendChild(filters);
     },
     exStart: function () {
-        const siblingsList = document.querySelectorAll("#results tbody tr")
-        const checkBox = document.querySelector("#filters label input")
-        this.toggle(siblingsList, checkBox.checked, (child) => {
+        this.toggle((child) => {
             return child.classList.contains("ex-start")
         })
     },
-    toggle: function (siblingsList, condition, f) {
-        if (condition) {
-            this.tableRowVisitor(siblingsList, (child) => {
+    toggle: function (f) {
+        const siblingsList = document.querySelectorAll("#results tbody tr")
+        const checkBox = document.querySelector("#filters label input")
+        if (checkBox.checked) {
+            siblingsList.forEach((child, n, p) => {
                 if (f(child) && child.style.display == "none") {
-                    return true
+                    child.style.display = "table-row"
                 } else {
-                    return !(child.style.display == "none")
+                    if (child.style.display == "none") {
+                        child.style.display = "none"
+                    } else {
+                        child.style.display = "table-row"
+                    }
                 }
             })
         } else {
-            this.tableRowVisitor(siblingsList, (child) => {
-                return !f(child)
+            siblingsList.forEach((child, n, p) => {
+                if (!f(child)) {
+                    child.style.display = "table-row"
+                } else {
+                    child.style.display = "none"
+                }
             })
         }
-    },
-    tableRowVisitor: function (siblingsList, condition) {
-        siblingsList.forEach((child, n, p) => {
-            if (condition(child)) {
-                child.style.display = "table-row"
-            } else {
-                child.style.display = "none"
-            }
-        })
     },
     checkBox: function (checked) {
         if (checked) {
