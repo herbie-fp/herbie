@@ -35,17 +35,50 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
-function tableRowVisitor(siblingsList, condition) {
-    siblingsList.forEach((child, n, p) => {
-        if (condition(child)) {
-            child.style.display = "table-row"
-        } else {
-            child.style.display = "none"
-        }
-    })
-}
-
 const Filters = new Component("#filters", {
+    setup: function () {
+        const filterByExStart = this.labeledCheckBox(true, "Show ex-start", this.exStart)
+        const filterByBadCases = this.labeledCheckBox(false, "Only bad results", this.bad)
+
+        const filters = Element("div", [
+            Element("div", "Filters"),
+            Element("div", [
+                filterByExStart,
+                filterByBadCases])])
+
+        this.elt.appendChild(filters);
+    },
+    exStart: function () {
+        const siblingsList = document.querySelectorAll("#results tbody tr")
+        const checkBox = document.querySelector("#filters label input")
+        this.toggle(siblingsList, checkBox.checked, (child) => {
+            return child.classList.contains("ex-start")
+        })
+    },
+    toggle: function (siblingsList, condition, f) {
+        if (condition) {
+            this.tableRowVisitor(siblingsList, (child) => {
+                if (f(child) && child.style.display == "none") {
+                    return true
+                } else {
+                    return !(child.style.display == "none")
+                }
+            })
+        } else {
+            this.tableRowVisitor(siblingsList, (child) => {
+                return !f(child)
+            })
+        }
+    },
+    tableRowVisitor: function (siblingsList, condition) {
+        siblingsList.forEach((child, n, p) => {
+            if (condition(child)) {
+                child.style.display = "table-row"
+            } else {
+                child.style.display = "none"
+            }
+        })
+    },
     checkBox: function (checked) {
         if (checked) {
             return Element("input", { type: "checkbox", checked }, "")
@@ -58,47 +91,6 @@ const Filters = new Component("#filters", {
             Element("label", [this.checkBox(startingState), new Text(labelString)])
         checkBox.addEventListener("click", onClickHandler)
         return checkBox
-    },
-    exStart: function () {
-        const siblingsList = document.querySelectorAll("#results tbody tr")
-        const checkBox = document.querySelector("#filters label input")
-        if (checkBox.checked == false) {
-            tableRowVisitor(siblingsList, (child) => {
-                return !child.classList.contains("ex-start")
-            })
-        } else {
-            tableRowVisitor(siblingsList, (child) => {
-                if (child.classList.contains("ex-start") && child.style.display == "none") {
-                    return true
-                } else {
-                    return !(child.style.display == "none")
-                }
-            })
-        }
-    },
-    bad: function () {
-        const siblingsList = document.querySelectorAll("#results tbody tr")
-        const checkBox = document.querySelector("#filters label input")
-        tableRowVisitor(siblingsList, (child) => {
-            if (checkBox.checked) {
-                return !(!child.classList.contains("crash") &&
-                    !child.classList.contains("uni-start") &&
-                    !child.classList.contains("error") &&
-                    !child.classList.contains("timeout"))
-            }
-        })
-    },
-    setup: function () {
-        const filterByExStart = this.labeledCheckBox(true, "ex-start", this.exStart)
-        const filterByBadCases = this.labeledCheckBox(false, "Other Label", this.bad)
-
-        const filters = Element("div", [
-            Element("div", "Filters"),
-            Element("div", [
-                filterByExStart,
-                filterByBadCases])])
-
-        this.elt.appendChild(filters);
     }
 })
 
