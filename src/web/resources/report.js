@@ -60,13 +60,13 @@ const Filters = new Component("#filters", {
 
         reset.addEventListener("click", function () {
             const siblingsList = document.querySelectorAll("#results tbody tr")
-            tableRowVisitor(siblingsList, true)
+            tableRowVisitor(siblingsList, () => {return true})
         })
 
         filterByExStart.addEventListener("click", function () {
             const siblingsList = document.querySelectorAll("#results tbody tr")
             tableRowVisitor(siblingsList, (child) => {
-                return child.classList.contains("ex-start")
+                return !child.classList.contains("ex-start")
             })
         })
 
