@@ -57,27 +57,17 @@ const Filters = new Component("#filters", {
     toggle: function (f) {
         const siblingsList = document.querySelectorAll("#results tbody tr")
         const checkBox = document.querySelector("#filters label input")
-        if (checkBox.checked) {
-            siblingsList.forEach((child, n, p) => {
-                if (f(child) && child.style.display == "none") {
-                    child.style.display = "table-row"
-                } else {
-                    if (child.style.display == "none") {
-                        child.style.display = "none"
-                    } else {
-                        child.style.display = "table-row"
-                    }
-                }
-            })
-        } else {
-            siblingsList.forEach((child, n, p) => {
-                if (!f(child)) {
-                    child.style.display = "table-row"
-                } else {
-                    child.style.display = "none"
-                }
-            })
-        }
+        siblingsList.forEach((child, n, p) => {
+            if (checkBox.checked && f(child) && child.style.display == "none") {
+                child.style.display = "table-row"
+            } else if (checkBox.checked && !(f(child) && child.style.display == "none")) {
+                return // do nothing 
+            } else if (f(child)) {
+                child.style.display = "none"
+            } else {
+                child.style.display = "table-row"
+            }
+        })
     },
     checkBox: function (checked) {
         if (checked) {
