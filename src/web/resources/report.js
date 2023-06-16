@@ -55,17 +55,14 @@ const Filters = new Component("#filters", {
         })
     },
     toggle: function (f) {
+        // NOTE only works with one check box
         const siblingsList = document.querySelectorAll("#results tbody tr")
         const checkBox = document.querySelector("#filters label input")
         siblingsList.forEach((child, n, p) => {
-            if (checkBox.checked && f(child) && child.style.display == "none") {
+            if (f(child) && checkBox.checked) {
                 child.style.display = "table-row"
-            } else if (checkBox.checked && !(f(child) && child.style.display == "none")) {
-                return // do nothing 
-            } else if (f(child)) {
+            } else if (f(child) && !checkBox.checked) {
                 child.style.display = "none"
-            } else {
-                child.style.display = "table-row"
             }
         })
     },
