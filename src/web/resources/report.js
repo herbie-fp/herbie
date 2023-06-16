@@ -40,6 +40,7 @@ const Filters = new Component("#filters", {
         const byExStart = this.labeledCheckBox(true, "ex-start", "ex-start", this.exStart)
         const byEqStart = this.labeledCheckBox(true, "eq-start", "eq-start", this.eqStart)
         const byEqTarget = this.labeledCheckBox(true, "eq-target", "eq-target", this.eqTarget)
+        const byLtTarget = this.labeledCheckBox(true, "lt-target", "lt-start", this.ltStart)
         const byLtStart = this.labeledCheckBox(true, "lt-start", "lt-start", this.ltStart)
         const byApxStart = this.labeledCheckBox(true, "apx-start", "apx-start", this.apxStart)
         const byImpStart = this.labeledCheckBox(true, "imp-start", "imp-start", this.impStart)
@@ -54,6 +55,7 @@ const Filters = new Component("#filters", {
                 byExStart,
                 byEqStart,
                 byEqTarget,
+                byLtTarget,
                 byLtStart,
                 byApxStart,
                 byImpStart,
@@ -77,6 +79,11 @@ const Filters = new Component("#filters", {
     eqTarget: function () {
         this.toggle("#eq-target", (child) => {
             return child.classList.contains("eq-target")
+        })
+    },
+    eqTarget: function () {
+        this.toggle("#lt-target", (child) => {
+            return child.classList.contains("lt-target")
         })
     },
     ltStart: function () {
