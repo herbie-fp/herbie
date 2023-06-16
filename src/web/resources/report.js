@@ -37,27 +37,31 @@ function Element(tagname, props, children) {
 
 const Filters = new Component("#filters", {
     setup: function () {
-        const filterByExStart = this.labeledCheckBox(true, "Show ex-start", this.exStart)
-        const filterByBadCases = this.labeledCheckBox(false, "Only bad results", this.bad)
+        const filterByExStart = this.labeledCheckBox(true, "ex-start", "Show ex-start", this.exStart)
+        const filterByBadCases = this.labeledCheckBox(true, "timeout", "Show timeout", this.timeout)
 
         const filters = Element("div", [
             Element("div", "Filters"),
             Element("div", [
                 filterByExStart,
-                // filterByBadCases
+                filterByBadCases
             ])])
 
         this.elt.appendChild(filters);
     },
     exStart: function () {
-        this.toggle((child) => {
+        this.toggle("#ex-start", (child) => {
             return child.classList.contains("ex-start")
         })
     },
-    toggle: function (f) {
-        // NOTE only works with one check box
+    timeout: function () {
+        this.toggle("#timeout", (child) => {
+            return child.classList.contains("timeout")
+        })
+    },
+    toggle: function (checkBoxSelectorString, f) {
         const siblingsList = document.querySelectorAll("#results tbody tr")
-        const checkBox = document.querySelector("#filters label input")
+        const checkBox = document.querySelector(checkBoxSelectorString)
         siblingsList.forEach((child, n, p) => {
             if (f(child) && checkBox.checked) {
                 child.style.display = "table-row"
@@ -66,18 +70,18 @@ const Filters = new Component("#filters", {
             }
         })
     },
-    checkBox: function (checked) {
-        if (checked) {
-            return Element("input", { type: "checkbox", checked }, "")
-        } else {
-            return Element("input", { type: "checkbox" }, "")
-        }
-    },
-    labeledCheckBox: function (startingState, labelString, onClickHandler) {
+    labeledCheckBox: function (startingState, idString, labelString, onClickHandler) {
         var checkBox =
-            Element("label", [this.checkBox(startingState), new Text(labelString)])
+            Element("label", [this.checkBox(startingState, idString), new Text(labelString)])
         checkBox.addEventListener("click", onClickHandler)
         return checkBox
+    },
+    checkBox: function (checked, idString) {
+        if (checked) {
+            return Element("input", { type: "checkbox", id: idString, checked }, "")
+        } else {
+            return Element("input", { type: "checkbox", id: idString }, "")
+        }
     }
 })
 
