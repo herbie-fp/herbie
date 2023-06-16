@@ -37,16 +37,31 @@ function Element(tagname, props, children) {
 
 const Filters = new Component("#filters", {
     setup: function () {
-        const filterByExStart = this.labeledCheckBox(true, "ex-start", "Show ex-start", this.exStart)
-        const filterByBadCases = this.labeledCheckBox(true, "timeout", "Show timeout", this.timeout)
+        const byExStart = this.labeledCheckBox(true, "ex-start", "ex-start", this.exStart)
+        const byEqStart = this.labeledCheckBox(true, "eq-start", "eq-start", this.eqStart)
+        const byEqTarget = this.labeledCheckBox(true, "eq-target", "eq-target", this.eqTarget)
+        const byLtStart = this.labeledCheckBox(true, "lt-start", "lt-start", this.ltStart)
+        const byApxStart = this.labeledCheckBox(true, "apx-start", "apx-start", this.apxStart)
+        const byImpStart = this.labeledCheckBox(true, "imp-start", "imp-start", this.impStart)
+        const byTimeout = this.labeledCheckBox(true, "timeout", "timeout", this.timeout)
+        const byGtTarget = this.labeledCheckBox(true, "gt-target", "gt-target", this.gtTarget)
+        const byCrash = this.labeledCheckBox(true, "crash", "crash", this.crash)
+        const byError = this.labeledCheckBox(true, "error", "error", this.error)
 
-        const filters = Element("div", [
-            Element("div", "Filters"),
+        const filters = Element("div", 
             Element("div", [
-                filterByExStart,
-                filterByBadCases
-            ])])
-
+                "Filters:",
+                byExStart,
+                byEqStart,
+                byEqTarget,
+                byLtStart,
+                byApxStart,
+                byImpStart,
+                byTimeout,
+                byGtTarget,
+                byCrash,
+                byError
+            ]))
         this.elt.appendChild(filters);
     },
     exStart: function () {
@@ -54,10 +69,50 @@ const Filters = new Component("#filters", {
             return child.classList.contains("ex-start")
         })
     },
+    eqStart: function () {
+        this.toggle("#eq-start", (child) => {
+            return child.classList.contains("eq-start")
+        })
+    },
+    eqTarget: function () {
+        this.toggle("#eq-target", (child) => {
+            return child.classList.contains("eq-target")
+        })
+    },
+    ltStart: function () {
+        this.toggle("#lt-start", (child) => {
+            return child.classList.contains("lt-start")
+        })
+    },
+    apxStart: function () {
+        this.toggle("#apx-start", (child) => {
+            return child.classList.contains("apx-start")
+        })
+    },
+    impStart: function () {
+        this.toggle("#imp-start", (child) => {
+            return child.classList.contains("imp-start")
+        })
+    },
     timeout: function () {
         this.toggle("#timeout", (child) => {
             return child.classList.contains("timeout")
         })
+    },
+    crash: function () {
+        this.toggle("#crash", (child) => {
+            return child.classList.contains("crash")
+        })
+    },
+    error: function () {
+        this.toggle("#error", (child) => {
+            return child.classList.contains("error")
+        })
+    },
+    gtTarget: function () {
+        this.toggle("#gt-target", (child) => {
+            return child.classList.contains("gt-target")
+        })   
     },
     toggle: function (checkBoxSelectorString, f) {
         const siblingsList = document.querySelectorAll("#results tbody tr")
