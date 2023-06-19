@@ -71,7 +71,7 @@
   (define speedup
     (let ([better
            (for/list ([alt end-alts] [err end-errors] [cost end-costs]
-                      #:when (>= (errors-score err) (errors-score start-error)))
+                      #:when (<= (errors-score err) (errors-score start-error)))
              (/ start-cost cost))])
       (and (not (null? better)) (apply max better))))
 
