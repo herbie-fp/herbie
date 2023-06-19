@@ -55,6 +55,7 @@
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
+  (define identifier (test-identifier test))
   (match-define (improve-result preprocess pctxs start target end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
@@ -120,18 +121,18 @@
 
       ,(render-warnings warnings)
 
-      (section
-        (details ([id "specification"] [class "section"])
-          (summary (h2 "Specification")
-                   (a ([class "help-button float"] 
-                       [href "/doc/latest/report.html#spec"] 
-                       [target "_blank"]) "?"))
-          (div ([class "math"]) "\\[" ,(alt->tex start-alt ctx) "\\]")
-          ,(render-bogosity bogosity)
-
-          ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
-               (render-interactive vars (car points))
-               "")))
+      ,(let-values ([(dropdown body) (render-program '() (test-spec test) ctx #:pre (test-pre test) #:ident identifier)])
+         `(section
+           (details ([id "specification"] [class "programs"])
+                    (summary (h2 "Specification")
+                             ,dropdown
+                             (a ([class "help-button float"] 
+                                 [href "/doc/latest/report.html#spec"] 
+                                 [target "_blank"]) "?"))
+                    ,body
+                    (p "Sampling outcomes in " (kbd ,(~a (representation-name repr))) " precision:")
+                    ,(render-bogosity bogosity))))
+      
       
       (figure ([id "graphs"])
         (h2 "Local Percentage Accuracy vs "
@@ -172,32 +173,45 @@
            "the initial program, and each blue circle shows an alternative."
            "The line shows the best available speed-accuracy tradeoffs."))
 
+      ,(let-values ([(dropdown body) (render-program '() (alt-expr start-alt) ctx #:ident identifier)])
+         `(section ([id "initial"] [class "programs"])
+                   (h2 "Initial Program"
+                       ": "
+                       (span ([class "subhead"])
+                             (data ,(format-accuracy (errors-score start-error) repr-bits #:unit "%")) " accurate, "
+                             (data "1.0×") " speedup")
+                       ,dropdown
+                       ,(render-help "report.html#initial"))
+                   ,body))
+
       ,@(for/list ([i (in-naturals 1)] [alt end-alts] [errs end-errors] [cost end-costs])
-          `(section ([id ,(format "alternative~a" i)])
+          (define-values (dropdown body)
+            (render-program preprocess (alt-expr alt) ctx #:ident identifier))
+          `(section ([id ,(format "alternative~a" i)] [class "programs"])
             (h2 "Alternative " ,(~a i)
                 ": "
                 (span ([class "subhead"])
                   (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%")) " accurate, "
                   (data ,(~r (/ (alt-cost start-alt repr) cost) #:precision '(= 1)) "×") " speedup")
+                ,dropdown
                 ,(render-help "report.html#alternative"))
-            (div ([class "math"])
-                 "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
-                          (alt->tex alt ctx))
-                 "\\]")
+            ,body
             (details
              (summary "Derivation")
              (ol ([class "history"])
                  ,@(render-history alt train-pctx test-pctx ctx)))))
 
       ,(if (test-output test)
-           `(section ([id "target"])
-             (h2 "Developer target"
-                 ": "
-                 (span ([class "subhead"])
-                   (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")) " accurate, "
-                   (data ,(~r (/ (alt-cost start-alt repr) target-cost) #:precision '(= 1)) "×") " speedup")
-                 ,(render-help "report.html#target"))
-             (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
+           (let-values ([(dropdown body) (render-program '() (test-output test) ctx #:ident identifier)])
+             `(section ([id "target"] [class "programs"])
+                       (h2 "Developer target"
+                           ": "
+                           (span ([class "subhead"])
+                                 (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")) " accurate, "
+                                 (data ,(~r (/ (alt-cost start-alt repr) target-cost) #:precision '(= 1)) "×") " speedup")
+                           ,dropdown
+                           ,(render-help "report.html#target"))
+                       ,body))
            "")
 
       ,(render-reproduction test)))

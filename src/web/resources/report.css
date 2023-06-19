@@ -155,18 +155,9 @@ section { display: flow-root; }
 
 /* Big block for program input output */
 
-#program {
-    background: #f8f8f8; border: 1px solid #ddd;
-    text-align: center; font-size: 24px;
-    position: relative; padding: 1em;
-}
-@media print { #program { padding: 0; background: transparent; margin: 2em 0; } }
-#program .program { display: inline-block; text-align: left; }
-#program .arrow { color: transparent; font-size: 0; }
-#program .arrow:after { content: "↓"; color: black; font-size: 24px; }
-#program.horizontal .arrow { display: inline-block; }
-#program.horizontal .arrow:after { margin: 0 1em; content: "→"; font-size: 40px; }
-#language { position: absolute; right: 1em; }
+.programs { position: relative; }
+.programs select { position: absolute; right: 3em; }
+.program { display: inline-block; text-align: left; }
 #precondition { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
 #precondition:before { content: "Precondition"; float: left; color: #444; }
 /* Allow line breaks in display equations (see https://katex.org/docs/issues.html) */

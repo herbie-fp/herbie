@@ -360,10 +360,9 @@ const CostAccuracy = new Component('#cost-accuracy', {
         // find right test by iterating through results_json
         for (let test of results_json.tests) {
             if (test.name == this.elt.dataset.benchmarkName) {
-                const [initial_pt, best_pt, rest_pts] = test["cost-accuracy"];
-                rest_pts.push(best_pt);
-                rest_pts.sort((a, b) => b[0]-a[0]);
-                const target_pt = test["target"] && [this.elt.dataset.targetCost, test["target"]]
+                let [initial_pt, best_pt, rest_pts] = test["cost-accuracy"];
+                let target_pt = test["target"] && [this.elt.dataset.targetCost, test["target"]]
+                rest_pts = [best_pt].concat(rest_pts)
                 $svg.replaceWith(await this.plot(test, initial_pt, target_pt, rest_pts));
                 $tbody.replaceWith(await this.tbody(test, initial_pt, target_pt, rest_pts));
                 break;
@@ -409,7 +408,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     y: d => 1 - d[1]/bits,
                     stroke: "#080", symbol: "circle", strokeWidth: 2
                 }),
-            ],
+            ].filter(x=>x),
             marginBottom: 0,
             marginRight: 0,
             width: '400',
@@ -496,7 +495,7 @@ var ClickableRows = new Component("#results", {
     }
 })
 
-var Implementations = new Component("#program", {
+var Implementations = new Component(".programs", {
     setup: function() {
         this.dropdown = this.elt.querySelector("select");
         this.programs = this.elt.querySelectorAll(".implementation");
@@ -509,19 +508,8 @@ var Implementations = new Component("#program", {
             var $prog = this.programs[i];
             if ($prog.dataset["language"] == lang) {
                 $prog.style.display = "block";
-                this.arrow($prog);
             } else {
                 $prog.style.display =  "none";
-            }
-        }
-    },
-    arrow: function($prog) {
-        var progs = $prog.querySelectorAll(".program");
-        $prog.classList.add("horizontal");
-        for (var i = 0; i < progs.length; i++) {
-            var progBot = progs[i].offsetTop + progs[i].offsetHeight;
-            if (progs[i].offsetTop >= progBot) {
-                return $prog.classList.remove("horizontal");
             }
         }
     },

@@ -106,77 +106,54 @@
       (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-(define (render-program #:to [result #f] preprocess test)
-  (define identifier (test-identifier test))
-  (define ctx (test-context test))
-  (define output-repr (test-output-repr test))
-
-  (define in-prog (program->fpcore (test-input test) ctx #:ident identifier))
+(define (render-program preprocess expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
+  (define output-repr (context-repr ctx))
   (define out-prog
-    (and result
-         (parameterize ([*expr-cse-able?* at-least-two-ops?])
-           (core-cse (program->fpcore result ctx #:ident identifier)))))
+    (parameterize ([*expr-cse-able?* at-least-two-ops?])
+      (core-cse (program->fpcore expr ctx #:ident identifier))))
 
   (define output-prec (representation-name output-repr))
-  (define in-prog* (fpcore-add-props in-prog (list ':precision output-prec)))
-  (define out-prog* (and out-prog (fpcore-add-props out-prog (list ':precision output-prec))))
+  (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
 
   (define versions
     (reap [sow]
       (for ([(lang record) (in-dict languages)])
         (match-define (list ext converter) record)
-        (when (and (fpcore? in-prog*)
-                   (or (not out-prog*) (fpcore? out-prog*))
-                   (or (equal? ext "fpcore")                           
-                       (and (supported-by-lang? in-prog* ext) ; must be valid in a given language  
-                            (or (not out-prog*)
-                                (supported-by-lang? out-prog* ext)))))
+        (when (and (fpcore? out-prog*)
+                   (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
           (define name (if identifier (symbol->string identifier) "code"))
           (sow
-            (cons lang
-              (cons (converter in-prog* name)
-                    (and out-prog* (converter out-prog* name)))))))))
+            (cons lang (converter out-prog* name)))))))
 
-  (define-values (math-in math-out)
+  (define math-out
     (if (dict-has-key? versions "TeX")
         (let ([val (dict-ref versions "TeX")])
-          (values (car val) (cdr val)))
-        (values "" "")))
+          val)
+        ""))
 
-  `(section ([id "program"])
-     (h1 (a (
-          [class "help-button"] 
-          [href "/doc/latest/report.html#programs"] 
-          [target "_blank"] 
-          ;[style "rotate: 270deg"]
-          ) "?"))
-     ,(if (equal? (test-pre test) '(TRUE))
-          ""
-          `(div ([id "precondition"])
-             (div ([class "program math"])
-                  "\\[" ,(expr->tex (resugar-program (test-pre test) output-repr)) "\\]")))
-     ,(if (empty? preprocess)
-          ""
-          (render-preprocess preprocess))
-           
-     (select ([id "language"])
-       (option "Math")
-       ,@(for/list ([lang (in-dict-keys versions)])
-           `(option ,lang)))
-     (div ([class "implementation"] [data-language "Math"])
-       (div ([class "program math"]) "\\[" ,math-in "\\]")
-       ,@(if result
-             `((div ([class "arrow"]) "↓")
-               (div ([class "program math"]) "\\[" ,math-out "\\]"))
-             `()))
-     ,@(for/list ([(lang outs) (in-dict versions)])
-         (match-define (cons out-input out-output) outs)
-         `(div ([class "implementation"] [data-language ,lang])
-            (pre ([class "program"]) ,out-input) 
-            ,@(if out-output   
-                  `((div ([class "arrow"]) "↓")
-                    (pre ([class "program"]) ,out-output))  
-                  `())))))
+  (define dropdown
+    `(select
+      (option "Math")
+      ,@(for/list ([lang (in-dict-keys versions)])
+          `(option ,lang))))
+
+  (define body
+    `(div
+      ,(if (equal? precondition '(TRUE))
+           ""
+           `(div ([id "precondition"])
+                 (div ([class "program math"])
+                      "\\[" ,(expr->tex (resugar-program precondition output-repr)) "\\]")))
+      ,(if (empty? preprocess)
+           ""
+           (render-preprocess preprocess))
+      (div ([class "implementation"] [data-language "Math"])
+           (div ([class "program math"]) "\\[" ,math-out "\\]"))
+      ,@(for/list ([(lang out) (in-dict versions)])
+          `(div ([class "implementation"] [data-language ,lang])
+                (pre ([class "program"]) ,out)))))
+  
+  (values dropdown body))
 
 (define/contract (render-command-line)
   (-> string?)
