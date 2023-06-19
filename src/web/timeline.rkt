@@ -1,7 +1,7 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt")
-(provide make-timeline render-phase-bogosity)
+(provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
 (define timeline? (listof timeline-phase?))

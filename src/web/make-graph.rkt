@@ -21,13 +21,7 @@
 
 (define/contract (render-interactive vars point)
   (-> (listof symbol?) (listof number?) xexpr?)
-  `(section ([id "try-it"])
-    (h1 "Try it out" (a (
-          [class "help-button"] 
-          [href "/doc/latest/report.html#try-it"] 
-          [target "_blank"] 
-          ;[style "rotate: 270deg"]
-          ) "?"))
+  `(div ([id "try-it"] [style "display: flow-root"])
     (div ([id "try-inputs-wrapper"])
      (form ([id "try-inputs"])
       (p ([class "header"]) "Your Program's Arguments")
@@ -61,15 +55,25 @@
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
+  (define identifier (test-identifier test))
   (match-define (improve-result preprocess pctxs start target end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
+  (define start-cost (alt-cost start-alt repr))
   (define target-alt (and target (alt-analysis-alt target)))
   (define target-error (and target (alt-analysis-test-errors target)))
+  (define target-cost (and target (alt-cost target-alt repr)))
   (define-values (end-alts end-errors end-costs)
     (for/lists (l1 l2 l3) ([analysis end])
       (match-define (alt-analysis alt _ test-errs) analysis)
-      (values alt test-errs (expr-cost (alt-expr alt) repr))))
+      (values alt test-errs (alt-cost alt repr))))
+
+  (define speedup
+    (let ([better
+           (for/list ([alt end-alts] [err end-errors] [cost end-costs]
+                      #:when (<= (errors-score err) (errors-score start-error)))
+             (/ start-cost cost))])
+      (and (not (null? better)) (apply max better))))
 
   (match-define (list train-pctx test-pctx) pctxs)
   (define-values (points _) (pcontext->lists train-pctx))
@@ -98,14 +102,7 @@
          '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))
 
-      (section ([id "large"])
-       (h1 
-        (a (
-          [class "help-button"] 
-          [href "/doc/latest/report.html#summary"] 
-          [target "_blank"] 
-          ;[style "rotate: 270deg"]
-          ) "?"))
+      (div ([id "large"])
        ,(render-comparison
          "Percentage Accurate"
          (format-accuracy (errors-score start-error) repr-bits #:unit "%")
@@ -115,18 +112,32 @@
                  (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
                  (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
        ,(render-large "Time" (format-time time))
-       ,(render-large "Precision" `(kbd ,(~a (representation-name repr))))
+       ,(render-large "Alternatives" (~a (length end-alts)))
        ,(if (*pareto-mode*)
-            (render-large "Cost" `(kbd ,(format-cost (car end-costs) repr)))
+            (render-large "Speedup"
+                          (if speedup (~r speedup #:precision '(= 1)) "N/A") "×"
+                          #:title "Relative speed of fastest alternative that improves accuracy.")
             ""))
 
       ,(render-warnings warnings)
-      ,(render-program preprocess test #:to (alt-expr end-alt))
+
+      ,(let-values ([(dropdown body) (render-program '() (test-spec test) ctx #:pre (test-pre test) #:ident identifier)])
+         `(section
+           (details ([id "specification"] [class "programs"])
+                    (summary (h2 "Specification")
+                             ,dropdown
+                             (a ([class "help-button float"] 
+                                 [href "/doc/latest/report.html#spec"] 
+                                 [target "_blank"]) "?"))
+                    ,body
+                    (p "Sampling outcomes in " (kbd ,(~a (representation-name repr))) " precision:")
+                    ,(render-bogosity bogosity))))
+      
       
       (figure ([id "graphs"])
         (h2 "Local Percentage Accuracy vs "
             (span ([id "variables"]))
-            (a ([class "help-button"] 
+            (a ([class "help-button float"] 
                 [href "/doc/latest/report.html#graph"] 
                 [target "_blank"]) "?"))
         (svg)
@@ -139,74 +150,69 @@
          "These can be toggled with buttons below the plot. "
          "The line is an average while dots represent individual samples."))
 
-      (div ([class "figure-row"] [id "cost-accuracy"]
-            [data-benchmark-name ,(~a (test-name test))])
-           (figure
+
+      (section ([id "cost-accuracy"] [class "section"]
+                [data-benchmark-name ,(~a (test-name test))]
+                ,@(if target-cost `([data-target-cost ,(~a target-cost)]) '()))
+        (h2 "Accuracy vs Speed"
+            (a ([class "help-button float"] 
+                [href "/doc/latest/report.html#cost-accuracy"] 
+                [target "_blank"]) "?"))
+        (div ([class "figure-row"])
+          (svg)
+          (div
             (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
             (table
              (thead (tr (th "Alternative") 
                         (th ([class "numeric"]) "Accuracy")
                         (th ([class "numeric"]) "Speedup")))
-             (tbody)))
-           (figure
-            (h2 "Accuracy vs Speed")
-            (svg)
-            (figcaption
-             "The accuracy (vertical axis) and speed (horizontal axis) of each "
-             "alternatives. Up and to the right is better. The red square shows "
-             "the initial program, and each blue circle shows an alternative."
-             "The line shows the best available speed-accuracy tradeoffs.")))
+             (tbody))))
+          (figcaption
+           "The accuracy (vertical axis) and speed (horizontal axis) of each "
+           "alternatives. Up and to the right is better. The red square shows "
+           "the initial program, and each blue circle shows an alternative."
+           "The line shows the best available speed-accuracy tradeoffs."))
 
-      (section ([id "bogosity"])  
-       (h1 "Bogosity"
-           (a ([class "help-button"]
-               [href "/doc/latest/report.html#bogosity"]
-               [target "_blank"]) "?"))
-       ,@(render-phase-bogosity (list bogosity)))
+      ,(let-values ([(dropdown body) (render-program '() (alt-expr start-alt) ctx #:ident identifier)])
+         `(section ([id "initial"] [class "programs"])
+                   (h2 "Initial Program"
+                       ": "
+                       (span ([class "subhead"])
+                             (data ,(format-accuracy (errors-score start-error) repr-bits #:unit "%")) " accurate, "
+                             (data "1.0×") " speedup")
+                       ,dropdown
+                       ,(render-help "report.html#initial"))
+                   ,body))
 
-      ,(if (and fpcore? (for/and ([p points]) (andmap number? p)))
-           (render-interactive vars (car points))
-           "")
+      ,@(for/list ([i (in-naturals 1)] [alt end-alts] [errs end-errors] [cost end-costs])
+          (define-values (dropdown body)
+            (render-program preprocess (alt-expr alt) ctx #:ident identifier))
+          `(section ([id ,(format "alternative~a" i)] [class "programs"])
+            (h2 "Alternative " ,(~a i)
+                ": "
+                (span ([class "subhead"])
+                  (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%")) " accurate, "
+                  (data ,(~r (/ (alt-cost start-alt repr) cost) #:precision '(= 1)) "×") " speedup")
+                ,dropdown
+                ,(render-help "report.html#alternative"))
+            ,body
+            (details
+             (summary "Derivation")
+             (ol ([class "history"])
+                 ,@(render-history alt train-pctx test-pctx ctx)))))
 
       ,(if (test-output test)
-           `(section ([id "comparison"])
-             (h1 "Target")
-             (table
-              (tr (th "Original") (td ,(format-accuracy (errors-score start-error) repr-bits #:unit "%")))
-              (tr (th "Target") (td ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")))
-              (tr (th "Herbie") (td ,(format-accuracy (errors-score end-error) repr-bits #:unit "%"))))
-             (div ([class "math"]) "\\[" ,(program->tex (test-output test) ctx) "\\]"))
+           (let-values ([(dropdown body) (render-program '() (test-output test) ctx #:ident identifier)])
+             `(section ([id "target"] [class "programs"])
+                       (h2 "Developer target"
+                           ": "
+                           (span ([class "subhead"])
+                                 (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")) " accurate, "
+                                 (data ,(~r (/ (alt-cost start-alt repr) target-cost) #:precision '(= 1)) "×") " speedup")
+                           ,dropdown
+                           ,(render-help "report.html#target"))
+                       ,body))
            "")
-
-      (section ([id "history"])
-       (h1 "Derivation" (a (
-          [class "help-button"] 
-          [href "/doc/latest/report.html#derivation"] 
-          [target "_blank"] 
-          ;[style "rotate: 270deg"]
-          ) "?"))
-       (ol ([class "history"])
-        ,@(render-history end-alt train-pctx test-pctx ctx)))
-
-      ,(if (> (length end-alts) 1)
-           `(section ([id "alternatives"])
-              (h1 "Alternatives")
-              ,@(for/list ([alt  end-alts]
-                           [errs end-errors]
-                           [cost end-costs]
-                           [i (in-naturals 1)])
-                `(div ([class "entry"])
-                  (table
-                    (tr (th ([style "font-weight:bold"]
-                             [id ,(format "alternative~a" i)])
-                             ,(format "Alternative ~a" i)))
-                    (tr (th "Accuracy") (td ,(format-accuracy (errors-score errs) repr-bits #:unit "%")))
-                    (tr (th "Cost") (td ,(format-cost cost repr))))
-                  (div ([class "math"])
-                    "\\[" ,(parameterize ([*expr-cse-able?* at-least-two-ops?])
-                            (alt->tex alt ctx))
-                    "\\]"))))
-            "")
 
       ,(render-reproduction test)))
     out))
