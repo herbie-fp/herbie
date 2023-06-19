@@ -164,6 +164,7 @@ section { display: flow-root; }
 .katex-display > .katex { white-space: normal }
 .katex-display .base { margin: 0.25em 0 }
 .katex-display { margin: 0.5em 0; }
+.katex-display .arraycolsep { width: 0 !important; }
 #preprocess { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
 #preprocess:before { content: "Preprocess"; float: left; color: #444; }
 
