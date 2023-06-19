@@ -428,7 +428,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
             Element("tr", [
                 Element("th", "Initial program"),
                 Element("td", initial_accuracy.toFixed(1) + "%"),
-                Element("td", "1×")
+                Element("td", "1.0×")
             ]),
             rest_pts.map((d, i) => {
                 let accuracy = 100*(1 - d[1]/bits);
