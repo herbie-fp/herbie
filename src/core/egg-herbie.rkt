@@ -8,7 +8,7 @@
 
 (provide make-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
-         egraph-get-proof egraph-is-unsound-detected
+         egraph-get-proof egraph-is-equal egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
          remove-rewrites run-egg make-egg-query
         (struct-out egraph-query))

@@ -336,18 +336,96 @@
                                   #:preprocess [preprocess '()])
   (timeline-event! 'preprocess)
 
-  ;; If the specification is given, it is used for sampling points
-  (define preprocess-sort
-    (for/list ([sortable-variables (connected-components specification (*context*))]
-               #:when (> (length sortable-variables) 1))
-      (cons 'sort sortable-variables)))
-  (define preprocess-abs
-    (for/list ([absable-variable (get-fabs specification (*context*))])
-      (list 'abs absable-variable)))
+  ;; 1. Test identities
 
-  (timeline-push! 'symmetry (map ~a preprocess-sort))
+  (define variables (context-vars (*context*)))
+  ;; TODO: What is specification, and why would it ever be `#f`?
+  (define expression specification)
+  (define egraph (make-egraph))
+  ;; TODO: There are probably mathematical terms for describing what kinds of identities these are, what are they?
+  (define swaps
+    (for/list ([pair (in-combinations variables 2)])
+      (match-define (list a b) pair)
+      (replace-vars (list (cons a b) (cons b a)) expression)))
+  (define abs
+    (for/list ([variable (in-list variables)])
+      ;; TODO: Replace with premade abs operation from preprocessing.rkt?
+      ;; Actually probably just the first part, the one that gets the impl for the repr
+      ;; TODO: Do we need to do negate instead?
+      (replace-vars (list (cons variable `(fabs.f64 ,variable))) expression)))
+
+  (define query
+    (make-egg-query (cons expression (append swaps abs)) (*simplify-rules*)))
+  (define node-ids
+    (for/list ([expression (in-list (egraph-query-exprs query))])
+      (egraph-add-expr egraph expression)))
+  (egraph-run-rules
+   egraph
+   (egraph-query-node-limit query)
+   (egraph-query-rules query)
+   node-ids
+   (egraph-query-const-folding? query)
+   #:limit (egraph-query-iter-limit query))
+
+  ;; TODO: Check for unsoundness, abort all preprocessing if so
+
+  ;; 2. Compress (connected components)
+  ;; Consider a graph (separate from the e-graph) where each node is a variable, and there exists an edge between two variables whenever swapping them is equivalent to the original expression.
+
+  ;; TODO: The complexity on this thing is awful, filter-map, member, member
+  (define adjacency-list
+    (for/hash ([variable (in-list variables)])
+      (values
+       variable
+       (filter-map
+        (lambda (variable*)
+          (let ([expression*
+                 (replace-vars
+                  (list (cons variable variable*) (cons variable* variable))
+                  expression)])
+            (and
+             (not (equal? variable variable*))
+             ;; TODO: This is inefficient, we could just keep track of the e-node ids and this would be union-find
+             (egraph-is-equal egraph expression expression*)
+             variable*)))
+        variables))))
+  ;; TODO: Is this good style, or should you still use lambda when you capture local variables?
+  (define (neighbors variable) (hash-ref adjacency-list variable))
+  (define (depth-first-search start)
+    (reverse
+     (let search ([variable start]
+                  [visited '()])
+       ;; TODO: Use hash-set instead
+       (if (member variable visited)
+           visited
+           (foldl search (cons variable visited) (neighbors variable))))))
+  (define connected-components
+    (for/fold ([components '()]
+               [visited '()]
+               ;; TODO: How to avoid this reverse
+               #:result (reverse components))
+              ([variable (in-list variables)])
+      (if (member variable visited)
+          (values components visited)
+          (let ([component (depth-first-search variable)])
+            (values
+             (cons component components)
+             (append visited component))))))
+
+  ;; 3. Output instructions
+
+  (define preprocess-abs
+    (for/list ([variable (in-list variables)]
+               [expression* abs]
+               #:when (egraph-is-equal egraph expression expression*))
+      (list 'abs variable)))
+  (define preprocess-sort
+    (for/list ([component connected-components]
+               #:when (> (length component) 1))
+      (cons 'sort component)))
   (timeline-push! 'symmetry (map ~a preprocess-abs))
-  (*herbie-preprocess* (append preprocess preprocess-sort preprocess-abs))
+  (timeline-push! 'symmetry (map ~a preprocess-sort))
+  (*herbie-preprocess* (append preprocess preprocess-abs preprocess-sort))
 
   (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
 
