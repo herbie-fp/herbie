@@ -371,6 +371,7 @@
 
   ;; 2. Compress (connected components)
   ;; Consider a graph (separate from the e-graph) where each node is a variable, and there exists an edge between two variables whenever swapping them is equivalent to the original expression.
+  ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 
   ;; TODO: The complexity on this thing is awful, filter-map, member, member
   (define adjacency-list
@@ -427,7 +428,45 @@
   (timeline-push! 'symmetry (map ~a preprocess-sort))
   (*herbie-preprocess* (append preprocess preprocess-abs preprocess-sort))
 
-  (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
+  (define (preprocess->operator preprocess)
+    (match preprocess
+      [('sort component ...)
+       ;; TODO: Going a little overboard on the name
+       ;; Relies on sublist being a sorted sublist of list
+       (define overlay
+         (let loop ([list variables]
+                    ;; Compilers has a good name for what this is I think
+                    [sublist component])
+           (cond
+             [(empty? list)
+              empty]
+             [(and (not (empty? sublist)) (equal? (first list) (first sublist)))
+              (cons #t (loop (rest list) (rest sublist)))]
+             [else
+              (cons #f (loop (rest list) sublist))])))
+       (lambda (points)
+         (define sorted
+           (sort
+            (filter-map (lambda (point take?) (and take? point)) overlay points)
+            (curryr </total repr)))
+         (for/fold ([result empty]
+                    [points* sorted)
+                    #:result result)
+                   ([take? overlay]
+                    [point points])
+           (if take?
+               (values (cons (first points*) result) (rest points*))
+               (values (cons point result) points*))))]
+      [('abs variable)
+       (define index (index-of variables variable))
+       ;; TODO: Make abs an actually correct operation
+       (lambda (points) (list-update points index abs))]))
+  (define reduce-range
+    ;; TODO: Okay prolly a bit too cute
+    (foldl (compose compose preprocess->operator) (*herbie-preprocess*)))
+  (pcontext
+   (map reduce-range (pcontext-points pcontext))
+   (pcontext-exacts pcontext)))
 
 (define (run-improve! prog pcontext iters
                       #:specification [specification #f]
