@@ -41,12 +41,10 @@
       (cons 'sort component)))
   (append abs-instructions sort-instructions))
 
-(define (preprocess-pcontext context pcontext* preprocessing)
+(define (preprocess-pcontext context pcontext preprocessing)
   (define preprocess
     (apply compose (map (curry instruction->operator context) preprocessing)))
-  (pcontext
-   (vector-map preprocess (pcontext-points pcontext*))
-   (pcontext-exacts pcontext*)))
+  (pcontext-map preprocess pcontext))
 
 ;; TODO: tests
 (define (instruction->operator context instruction)
@@ -98,6 +96,7 @@
 
 (define (list-suffix? l r) (list-prefix? (reverse l) (reverse r)))
 
+;; TODO: Is this right? Test it
 (define (subsequence? v l)
   (cond
     [(empty? v) #t]
