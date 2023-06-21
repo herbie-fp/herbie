@@ -7,6 +7,7 @@
 (provide find-preprocessing preprocess-pcontext)
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
+;; TODO: tests
 (define (find-preprocessing expression context rules)
   ;; Here `*` means a test identity that *may* be equal to `expression`, and
   ;; `~` means the simplest form of an expression.
@@ -47,12 +48,12 @@
    (vector-map preprocess (pcontext-points pcontext*))
    (pcontext-exacts pcontext*)))
 
+;; TODO: tests
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
   (define representation (context-repr context))
   ;; TODO: Does `</total` need individual reprs?
   (define sort* (curryr sort (curryr </total representation)))
-  (define (list-suffix? l r) (list-prefix? (reverse l) (reverse r)))
   (match instruction
     [(list 'sort component ...) #:when (equal? component variables)
      sort*]
@@ -94,6 +95,8 @@
      (define index (index-of variables variable))
      ;; TODO: Make abs an actually correct operation
      (lambda (points) (list-update points index abs))]))
+
+(define (list-suffix? l r) (list-prefix? (reverse l) (reverse r)))
 
 (define (subsequence? v l)
   (cond
