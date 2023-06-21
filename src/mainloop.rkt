@@ -332,24 +332,20 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-(define (run-improve! expression context train-pcontext test-pcontext iterations
-                      #:specification [specification expression]
-                      #:preprocessing [preprocessing empty])
-  (define preprocessing-identities
-    (find-preprocessing specification context (*simplify-rules*)))
-  (timeline-push! 'symmetry (map ~a preprocessing-identities))
-  ;; TODO: Should user provided and generated preprocessing stay separate?
-  (define preprocessing* (append preprocessing preprocessing-identities))
+(define (run-improve! expression context rules train-pcontext test-pcontext
+                      iterations #:specification [specification expression])
+  (define preprocessing (find-preprocessing specification context rules))
+  (timeline-push! 'symmetry (map ~a preprocessing))
   (define train-pcontext* (preprocess-pcontext
-                           context train-pcontext preprocessing*))
+                           context train-pcontext preprocessing))
   (match-define (and alternatives (cons best rest))
     ;; If the specification is given, it is used for sampling points
     (mutate! specification iterations train-pcontext*))
-  (define preprocessing** (remove-unnecessary-preprocessing
-                           best context train-pcontext preprocessing*))
+  (define preprocessing* (remove-unnecessary-preprocessing
+                           best context train-pcontext preprocessing))
   (define test-pcontext* (preprocess-pcontext
-                          context test-pcontext preprocessing**))
-  (values alternatives preprocessing** test-pcontext*))
+                          context test-pcontext preprocessing*))
+  (values alternatives preprocessing* test-pcontext*))
 
 (define (preprocessing-<=? alt pcontext preprocessing1 preprocessing2 context)
   (define pcontext1 (preprocess-pcontext context pcontext preprocessing1))

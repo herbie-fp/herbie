@@ -136,10 +136,12 @@
     (error 'get-alternatives "cannnot run without a pcontext"))
   (define context (test-context test))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext context))
+  ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (alternatives preprocessing test-pcontext*)
-    (run-improve! (test-input test) context train-pcontext test-pcontext (*num-iterations*)
-                  #:specification (test-spec test)
-                  #:preprocessing (test-preprocess test)))
+    (run-improve!
+     (test-input test) context (*simplify-rules*)
+     train-pcontext test-pcontext (*num-iterations*)
+     #:specification (test-spec test))
   (when seed (set-seed! seed))
   (list alternatives test-pcontext test-pcontext*))
 
@@ -161,10 +163,11 @@
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
 
+  ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (end-alts preprocessing test-pcontext*)
-    (run-improve! (test-input test) ctx train-pcontext test-pcontext (*num-iterations*)
-                  #:specification (test-spec test)
-                  #:preprocessing (test-preprocess test)))
+    (run-improve! (test-input test) ctx (*simplify-rules*)
+                  train-pcontext test-pcontext (*num-iterations*)
+                  #:specification (test-spec test)))
   (when seed (set-seed! seed))
   
   ;; compute error/cost for input expression
