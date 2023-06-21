@@ -321,21 +321,21 @@
 
 ;; TODO: Is this right? There are no callers to test with
 ;; This is only here for interactive use, normal runs use run-improve!
-(define (run-improve variables program iterations
+(define (run-improve variables expression iterations
                      #:precondition [precondition #f]
                      #:preprocessing [preprocessing empty]
                      #:precision [precision 'binary64]
-                     #:specification [specification program])
+                     #:specification [specification expression])
   (rollback-improve!)
   (define representation (get-representation precision))
   (define pcontext (setup-context! variables specification
                                    precondition representation))
-  (run-improve! program pcontext iterations
+  (run-improve! expression pcontext iterations
                 #:preprocessing preprocessing
                 #:specification specification))
 
-(define (run-improve! program context train-pcontext test-pcontext iterations
-                      #:specification [specification program]
+(define (run-improve! expression context train-pcontext test-pcontext iterations
+                      #:specification [specification expression]
                       #:preprocessing [preprocessing empty])
   (define preprocessing-identities
     (find-preprocessing specification context (*simplify-rules*)))
