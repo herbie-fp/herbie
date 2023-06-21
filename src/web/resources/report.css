@@ -37,6 +37,8 @@ summary h1, summary h2 { display: inline-block; }
 
 .figure-row { display: flex; flex-direction: row; gap: 1em; align-items: start; }
 figure, section { flex: 1; border: 1px solid #ddd; padding: 1ex; margin: 1em 0; align-self: start; }
+section.error { border: 2px solid #a40000; background: #ef2929; color: white; }
+section.error a { color: #ffdb4c; }
 h2 { font-size: 1em; font-family: 'IBM Plex Serif', serif; margin: 0; }
 data { font-family: 'Ruda'; }
 h2 .subhead { font-weight: normal; }
