@@ -319,20 +319,18 @@
       (finalize-iter!)
       (^next-alts^ #f)))
 
-;; TODO: Is this right? There are no callers to test with
-;; This is only here for interactive use, normal runs use run-improve!
-(define (run-improve variables expression iterations
+;; TODO: What to do about this
+;; This is only here for interactive use; normal runs use run-improve!
+(define (run-improve vars prog iters
                      #:precondition [precondition #f]
-                     #:preprocessing [preprocessing empty]
+                     #:preprocess [preprocess empty]
                      #:precision [precision 'binary64]
-                     #:specification [specification expression])
+                     #:specification [specification #f])
   (rollback-improve!)
-  (define representation (get-representation precision))
-  (define pcontext (setup-context! variables specification
-                                   precondition representation))
-  (run-improve! expression pcontext iterations
-                #:preprocessing preprocessing
-                #:specification specification))
+  (define repr (get-representation precision))
+
+  (define original-points (setup-context! vars (or specification prog) precondition repr))
+  (run-improve! iters prog specification preprocess original-points repr))
 
 (define (run-improve! expression context train-pcontext test-pcontext iterations
                       #:specification [specification expression]
