@@ -25,18 +25,23 @@
   <h1>The Herbie report</h1>
 
   <p>When used <a href="using-web.html">in the browser</a>, Herbie
-    generates HTML reports full of information about the accuracy of
-    your input and its output expressions.</p>
+    generates HTML reports full of information about the accuracy and relative 
+    speed of your input and its output expressions.</p>
+
+  <h2 id="links">Additional links</h2>
+
+  <p>The top of the report page has a right-hand menu bar with additional
+    links. “Report” returns you to Herbie's main page.
+    “Metrics” give you detailed internal information about Herbie.</p>
+
+  <p>We expect the report to grow more informative with future
+    versions. Please <a href="mailto:herbie@cs.washington.edu">get in
+      touch</a> if there is more information you'd like to see.</p>
 
   <h2 id="summary">Summary numbers</h2>
 
-  <p>First, a brief summary of the results. For most uses, the
-    "Percentage Accurate" and "Speedup" metric, which describes the change in accuracy and speed up from
-    the starting expression to what Herbie thinks might be the best alterative,
-    is the most important statistics in this section. The other numbers list
-    time Herbie took to improve the program and number of other alternatives
-    found.
-  </p>
+  <p>First, a brief summary of the results. Herbie can produces multiple 
+    alternatives to the given program.</p>
 
   <figure>
     <img width="100%" src="report-large.png" />
@@ -44,56 +49,61 @@
   </figure>
 
   <ul>
-    <li><b>Percentage Accurate</b>: The change in accuracy from
-      the starting expression to what Herbie thinks might be the best alterative.</li>
-    <li><b>Time</b>: The time it took herbie to improve the expression.</li>
-    <li><b>Alternatives</b>: Number of alterative solutions found.</li>
+    <li><b>Percentage Accurate</b>: The change in accuracy from the initial 
+      program to what Herbie thinks might be the most accurate alternative.
+    </li>
+    <li><b>Time</b>: The time it took Herbie to improve the given program.</li>
+    <li><b>Alternatives</b>: Number of alternative solutions found.</li>
     <li><b>Speedup</b>: Relative speed of fastest alternative that improves accuracy.</li>
   </ul>
 
   <h2 id="spec">Specification</h2>
 
-  <p>Second, a summary of the specification that you gave to herbie. In the top
-    right you can change the notation of the expression from Math to other
-    syntax like FPCore or Python.</p>
-  <p>
-    <a href="input.html#preconditions">Preconditions</a> and other
-    <a href="http://fpbench.org/spec/fpcore-2.0.html#syntax" target="_blank">FPCore syntax</a> may be added to give
-    Herbie more
-    information about the expression you provided. Please see the
-    <a href="input.html#sec1">input page</a> for more information.
-  </p>
+  <p>Second, a summary of the specification that you gave to Herbie.
+    Typically, the specification is also the initial program, but in some cases, like if the <a href="http://fpbench.org/spec/fpcore-2.0.html#syntax" target="_blank">FPCore</a> property <kbd>:spec</kbd> is used, they can differ.
+    <a href="input.html#preconditions">Preconditions</a> may also be added to give Herbie more information about the expression you provided. Please see the
+    <a href="input.html#sec1">input page</a> for more information.</p>
 
+  <p>In the top right you can change the notation of the expression from Math 
+    to other syntax like FPCore or Python.</p>
+
+  <p>The colored outcome bar summarizes the sampled floating-point inputs that
+    produce valid, unknown, or invalid outputs. Green outcomes are valid, broken down into finite, infinite, and zero outcomes. Unknown outputs are red. Blue outcomes are invalid (fail precondition or domain errors) and are ignored by Herbie.</p>
+
+  <!-- Colors copied from src/web/resources/report.css -->
   <figure>
     <img width="100%" src="specification.png" />
-    <figcaption>The bar shows the percentage of floating-point inputs that
-      produce valid, unknown, or invalid outputs. Green outcomes are valid,
-      broken down into finite, infinite, and zero outcomes. Unknown outputs are
-      red. Blue outcomes are invalid (fail precondition or domain errors) and
-      are ignored by Herbie.</figcaption>
+    <figcaption>Summary of the specification and outcomes bar
+      <ul>
+        <li><b style="color : #4e9a06;">valid</b>: Successfully sampled</li>
+        <li><b style="color : #8ae234;">infinite</b>: Sampled point was very large and considered infinite for floating-point</li>
+        <li><b style="color : #a40000;">unsamplable</b>: Interval analysis didn't converge</li>
+        <li><b style="color : #204a87;">invalid</b>: Point was proven to be invalid (like sqrt(-1))</li>
+        <li><b style="color : #729fcf;">precondition</b>: The point fell under the provided precondition</li>
+        <li><b style="color : #000000;">unknown</b>: </li>
+      </ul>
+    </figcaption>
   </figure>
 
   <h2 id="graph">Local Percentage Accuracy graph</h2>
 
   <p>
-    Third, under <em>Local Percentage Accuracy vs x</em>, a graph of floating-point accuracy comparing input vs Herbie's
-    <em>Most accurate alternative</em>. This is helpful for understanding the
-    sorts of inputs Herbie is improving accuracy on. Sometimes, Herbie improved
-    accuracy on some inputs at the cost of accuracy on other inputs
-    that you care more about. You can add
-    a <a href="input.html#preconditions">precondition</a> to restrict
-    Herbie to certain inputs in those cases.
-  </p>
+    Third, under <em>Local Percentage Accuracy</em>, a graph of floating-point
+    accuracy of the initial program and Herbie's most accurate alternative.
+    This is helpful for understanding the sorts of inputs Herbie is improving 
+    accuracy on. Sometimes, Herbie improved accuracy on some inputs at the cost 
+    of accuracy on other inputs that you care more about. You can add a 
+    <a href="input.html#preconditions">precondition</a> to restrict Herbie to 
+    certain inputs in those cases.</p>
 
   <p>
     These graphs show the accuracy of the input program with a red line,
-    and the accuracy of the <em>Most accurate Alternative</em> program with a
+    and the accuracy of the <em>most accurate alternative</em> program with a
     blue line. Both can be toggled. If the expression has multiple variables,
     the variable picker on the top left selects which variable is placed on the
     horizontal axis. If Herbie decided to insert an <code>if</code>
     statement into the program, the locations of those <code>if</code>
-    statements will be marked with vertical bars.
-  </p>
+    statements will be marked with vertical bars.</p>
 
   <figure>
     <img width="100%" src="report-accuracy.png" />
@@ -103,94 +113,94 @@
   </figure>
 
   <h2 id="cost-accuracy">Accuracy vs Speed</h2>
-
-  <p>
-    Fourth, a Pareto curve where up and to the right is best. The input program
-    is marked with a red box and alternatives with blue dots. Along the right
-    side you have a list of alternatives with there accuracy and speedup listed relative to the input. Stats considered
-    to be an improvement from the
-    original are highlighted in green.
-  </p>
+  <p>Fourth, A Pareto graph and a table giving information about the 
+    alternatives Herbie found.</p> 
 
   <figure>
     <!-- TODO get better image once feature is not broken -->
-    <img width="100%" src="cost-accuracy.png" />
+    <img width="100%" src="report-cost-accuracy.png" />
     <figcaption>
-      A Pareto graph of the alterative points herbie found. On the right a list
-      of alternatives with there Accuracy and Speedup compared to the Initial
-      Program.
+      On the left alternatives are shown with blue points and the red box 
+      representing the initial input. Up and to the right is considered best. 
+      On the right a table detailing numbers of those same blue points.
     </figcaption>
   </figure>
 
-  <h2 id="initial">Initial Program</h2>
+  <h2 id="initial">Initial program</h2>
 
   <p>Fifth, The initial program given as the baseline for herbie to improve on.
-    Showing the initial Accuracy and marking the speed as 1.0x.
-  </p>
+    By definition, its speedup is 1.0×, and it has no derivation since it was 
+    provided by the user.</p>
+
   <figure>
-    <img width="100%" src="initial-program.png" />
+    <img width="100%" src="report-initial-program.png" />
     <figcaption>
-      Displays the initial Program and accuracy for the range of inputs.
+      Displays the initial program and accuracy for the sampled inputs.
     </figcaption>
   </figure>
 
   <h2 id="alternative">Alternatives</h2>
-  <figure>
 
-    <img width="100%" src="alternative.png" />
+  <p>
+    Sixth, A list of alternatives that Herbie found with information about 
+    there expression, accuracy and speed up numbers are based on sampled points 
+    relative to the original program. Derivation includes steps to understand 
+    how herbie came to this alternative.</p>
+
+  <figure>
+    <img width="100%" src="report-alternative.png" />
     <figcaption>
-      A display of a given alterative found by Herbie. Along the top accuracy
-      of sampled points and speed up relative to the original program are given.
-      Along with a link to the <a href="#derivation">Derivation</a> of the alterative program.
+      A given alternative found by Herbie. Along the top, accuracy and speed up 
+      from the sampled points relative to the original program are given.
+      Each alternative also has a <a href="#derivation">derivation</a>. The 
+      derivation is hidden by default, but clicking on the word "derivation" 
+      shows it
     </figcaption>
   </figure>
 
-
   <h3 id="derivation">Derivation</h2>
 
-    <p>Herbie's derivation of its output program. These can be
-      helpful in understanding how Herbie works. Each substantive step
-      in the derivation also lists the accuracy of that step's
-      output. Sometimes you can use that to pick a less-complex and
-      not-substantially-less-accurate program.</p>
+  <p>Herbie's derivation of its output program. These can be
+    helpful in understanding how Herbie works. Each substantive step
+    in the derivation also lists the accuracy of that step's
+    output. Sometimes you can use that to pick a less-complex and
+    not-substantially-less-accurate program. The derivation will also call
+    out any time the input is split into cases.</p>
 
-    <p>Under <em>Step-by-step derivation</em> Herbie sometimes names arithmetic
-      laws used, or they might claim derivation steps are done by
-      simplification, series expansion, or other Herbie strategies. The
-      derivation will also call out any time the input is split into cases.
-      When one part of the program is colored blue, that is the part modified
-      in that derivation step.
-    </p>
+  <figure>
+    <img width="100%" src="report-alternative-derivation.png" />
+    <figcaption>A short derivation from a Herbie report. Note the
+      accuracy, in gray, measured after each derivation step. The
+      <em>Step-by-step derivation</em> labels can be clicked on to show
+      more detailed derivations. When one part of the program is colored blue, that is the part modified in that derivation step.
+    </figcaption>
+  </figure>
 
-    <figure>
-      <img width="100%" src="alternative-derivation.png" />
-      <figcaption>A short derivation from a Herbie report. Note the
-        error, in gray, measured after each derivation step.</figcaption>
-    </figure>
+  <h3>Step-by-step derivation</h3>
 
-    <h2 id="reproduction">Reproduction</h2>
+  <p>The <em>Step-by-step derivations</em> name the arithmetic laws used, or 
+    may say <kbd>metadata-compute</kbd> if Herbie used direct computation in a
+    particular step.</p>
 
-    <p>Sixth, a command to reproduce this Herbie result. If you find a
-      Herbie bug, include this code snippet when
-      <a href="https://github.com/uwplse/herbie/issues">filing an
-        issue</a>.
-    </p>
+  <figure>
+    <img width="100%" src="report-step-by-step.png" />
+    <figcaption>A short derivation from a Herbie report. Note the
+      accuracy on the left, in gray, measured after each derivation step. Again 
+      parts of the program colored blue, show that is the part was modified in 
+      that derivation step.</figcaption>
+  </figure>
 
-    <figure>
-      <img width="100%" src="report-reproduce.png" />
-      <figcaption>Reproduction information for a Herbie run. You can use
-        this when submitting bug reports.</figcaption>
-    </figure>
+  <h2 id="reproduction">Reproduction</h2>
 
-    <h2 id="links">Additional links</h2>
+  <p>Sixth, a command to reproduce this Herbie result. If you find a
+    Herbie bug, include this code snippet when
+    <a href="https://github.com/uwplse/herbie/issues">filing an issue</a>.</p>
 
-    <p>The top of the page has a right-hand menu bar with additional
-      links. “Report” returns you to Herbie's main page.
-      “Metrics” give you detailed internal information about Herbie.</p>
-
-    <p>We expect the report to grow more informative with future
-      versions. Please <a href="mailto:herbie@cs.washington.edu">get in
-        touch</a> if there is more information you'd like to see.</p>
+  <figure>
+    <img width="100%" src="report-reproduce.png" />
+    <figcaption>Reproduction information for a Herbie run. You can use
+      this when submitting bug reports.</figcaption>
+  </figure>
 
 </body>
 
