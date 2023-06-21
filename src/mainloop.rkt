@@ -3,9 +3,9 @@
 (require "common.rkt" "errors.rkt" "alternative.rkt" "timeline.rkt"
          "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt"
          "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
-         "ground-truth.rkt" "preprocess.rkt" "symmetry.rkt"
-         "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
-         "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
+         "ground-truth.rkt" "preprocess.rkt" "core/alt-table.rkt"
+         "core/localize.rkt" "core/simplify.rkt" "core/regimes.rkt"
+         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
 
 (provide (all-defined-out))
 
@@ -319,193 +319,64 @@
       (finalize-iter!)
       (^next-alts^ #f)))
 
-;; This is only here for interactive use; normal runs use run-improve!
-(define (run-improve vars prog iters
+;; TODO: Is this right? There are no callers to test with
+;; This is only here for interactive use, normal runs use run-improve!
+(define (run-improve variables program iterations
                      #:precondition [precondition #f]
-                     #:preprocess [preprocess empty]
+                     #:preprocessing [preprocessing empty]
                      #:precision [precision 'binary64]
-                     #:specification [specification #f])
+                     #:specification [specification program])
   (rollback-improve!)
-  (define repr (get-representation precision))
+  (define representation (get-representation precision))
+  (define pcontext (setup-context! variables specification
+                                   precondition representation))
+  (run-improve! program pcontext iterations
+                #:preprocessing preprocessing
+                #:specification specification))
 
-  (define original-points (setup-context! vars (or specification prog) precondition repr))
-  (run-improve! iters prog specification preprocess original-points repr))
+(define (run-improve! program context train-pcontext test-pcontext iterations
+                      #:specification [specification program]
+                      #:preprocessing [preprocessing empty])
+  (define preprocessing-identities
+    (find-preprocessing specification context (*simplify-rules*)))
+  (timeline-push! 'symmetry (map ~a preprocessing-identities))
+  ;; TODO: Should user provided and generated preprocessing stay separate?
+  (define preprocessing* (append preprocessing preprocessing-identities))
+  (define train-pcontext* (preprocess-pcontext
+                           context train-pcontext preprocessing*))
+  (match-define (and alternatives (cons best rest))
+    ;; If the specification is given, it is used for sampling points
+    (mutate! specification iterations train-pcontext*))
+  (define preprocessing** (remove-unnecessary-preprocessing
+                           best context train-pcontext preprocessing*))
+  (define test-pcontext* (preprocess-pcontext
+                          context test-pcontext preprocessing**))
+  (values alternatives preprocessing** test-pcontext*))
 
-(define (make-preprocess-pcontext prog pcontext iters
-                                  #:specification [specification #f]
-                                  #:preprocess [preprocess '()])
-  (timeline-event! 'preprocess)
-
-  ;; 1. Test identities
-
-  (define variables (context-vars (*context*)))
-  ;; TODO: What is specification, and why would it ever be `#f`?
-  (define expression specification)
-  (define egraph (make-egraph))
-  ;; TODO: There are probably mathematical terms for describing what kinds of identities these are, what are they?
-  (define swaps
-    (for/list ([pair (in-combinations variables 2)])
-      (match-define (list a b) pair)
-      (replace-vars (list (cons a b) (cons b a)) expression)))
-  (define abs
-    (for/list ([variable (in-list variables)])
-      ;; TODO: Replace with premade abs operation from preprocessing.rkt?
-      ;; Actually probably just the first part, the one that gets the impl for the repr
-      ;; TODO: Do we need to do negate instead?
-      (replace-vars (list (cons variable `(fabs.f64 ,variable))) expression)))
-
-  (define query
-    (make-egg-query (cons expression (append swaps abs)) (*simplify-rules*)))
-  (define node-ids
-    (for/list ([expression (in-list (egraph-query-exprs query))])
-      (egraph-add-expr egraph expression)))
-  (egraph-run-rules
-   egraph
-   (egraph-query-node-limit query)
-   (egraph-query-rules query)
-   node-ids
-   (egraph-query-const-folding? query)
-   #:limit (egraph-query-iter-limit query))
-
-  ;; TODO: Check for unsoundness, abort all preprocessing if so
-
-  ;; 2. Compress (connected components)
-  ;; Consider a graph (separate from the e-graph) where each node is a variable, and there exists an edge between two variables whenever swapping them is equivalent to the original expression.
-  ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-
-  ;; TODO: The complexity on this thing is awful, filter-map, member, member
-  (define adjacency-list
-    (for/hash ([variable (in-list variables)])
-      (values
-       variable
-       (filter-map
-        (lambda (variable*)
-          (let ([expression*
-                 (replace-vars
-                  (list (cons variable variable*) (cons variable* variable))
-                  expression)])
-            (and
-             (not (equal? variable variable*))
-             ;; TODO: This is inefficient, we could just keep track of the e-node ids and this would be union-find
-             (egraph-is-equal egraph expression expression*)
-             variable*)))
-        variables))))
-  ;; TODO: Is this good style, or should you still use lambda when you capture local variables?
-  (define (neighbors variable) (hash-ref adjacency-list variable))
-  (define (depth-first-search start)
-    (reverse
-     (let search ([variable start]
-                  [visited '()])
-       ;; TODO: Use hash-set instead
-       (if (member variable visited)
-           visited
-           (foldl search (cons variable visited) (neighbors variable))))))
-  (define connected-components
-    (for/fold ([components '()]
-               [visited '()]
-               ;; TODO: How to avoid this reverse
-               #:result (reverse components))
-              ([variable (in-list variables)])
-      (if (member variable visited)
-          (values components visited)
-          (let ([component (depth-first-search variable)])
-            (values
-             (cons component components)
-             (append visited component))))))
-
-  ;; 3. Output instructions
-
-  (define preprocess-abs
-    (for/list ([variable (in-list variables)]
-               [expression* abs]
-               #:when (egraph-is-equal egraph expression expression*))
-      (list 'abs variable)))
-  (define preprocess-sort
-    (for/list ([component connected-components]
-               #:when (> (length component) 1))
-      (cons 'sort component)))
-  (timeline-push! 'symmetry (map ~a preprocess-abs))
-  (timeline-push! 'symmetry (map ~a preprocess-sort))
-  (*herbie-preprocess* (append preprocess preprocess-abs preprocess-sort))
-
-  (define (preprocess->operator preprocess)
-    (match preprocess
-      [('sort component ...)
-       ;; TODO: Going a little overboard on the name
-       ;; Relies on sublist being a sorted sublist of list
-       (define overlay
-         (let loop ([list variables]
-                    ;; Compilers has a good name for what this is I think
-                    [sublist component])
-           (cond
-             [(empty? list)
-              empty]
-             [(and (not (empty? sublist)) (equal? (first list) (first sublist)))
-              (cons #t (loop (rest list) (rest sublist)))]
-             [else
-              (cons #f (loop (rest list) sublist))])))
-       (lambda (points)
-         (define sorted
-           (sort
-            (filter-map (lambda (point take?) (and take? point)) overlay points)
-            (curryr </total repr)))
-         (for/fold ([result empty]
-                    [points* sorted)
-                    #:result result)
-                   ([take? overlay]
-                    [point points])
-           (if take?
-               (values (cons (first points*) result) (rest points*))
-               (values (cons point result) points*))))]
-      [('abs variable)
-       (define index (index-of variables variable))
-       ;; TODO: Make abs an actually correct operation
-       (lambda (points) (list-update points index abs))]))
-  (define reduce-range
-    ;; TODO: Okay prolly a bit too cute
-    (foldl (compose compose preprocess->operator) (*herbie-preprocess*)))
-  (pcontext
-   (map reduce-range (pcontext-points pcontext))
-   (pcontext-exacts pcontext)))
-
-(define (run-improve! prog pcontext iters
-                      #:specification [specification #f]
-                      #:preprocess [preprocess '()])
-  (define processed-pcontext
-    (make-preprocess-pcontext prog pcontext iters
-                              #:specification specification
-                              #:preprocess preprocess))
-
-  (match-define (cons best rest) (mutate! prog iters processed-pcontext))
-
-  (*herbie-preprocess* (remove-unnecessary-preprocessing best pcontext (*herbie-preprocess*)))
-  (cons best rest))
-
-(define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two ctx)
-  (define vars (context-vars ctx))
-  (define pcontext1 (preprocess-pcontext pcontext preprocessing-one ctx))
-  (define pcontext2 (preprocess-pcontext pcontext preprocessing-two ctx))
-  (<= (errors-score (errors (alt-expr alt) pcontext1 (*context*)))
-      (errors-score (errors (alt-expr alt) pcontext2 (*context*)))))
+(define (preprocessing-<=? alt pcontext preprocessing1 preprocessing2 context)
+  (define pcontext1 (preprocess-pcontext context pcontext preprocessing1))
+  (define pcontext2 (preprocess-pcontext context pcontext preprocessing2))
+  (<= (errors-score (errors (alt-expr alt) pcontext1 context))
+      (errors-score (errors (alt-expr alt) pcontext2 context))))
 
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))
   (append front (rest back)))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unnecessary-preprocessing alt pcontext preprocessing #:removed [removed empty])
+(define (remove-unnecessary-preprocessing alt context pcontext preprocessing #:removed [removed empty])
   (define-values (result newly-removed)
     (let loop ([preprocessing preprocessing] [i 0] [removed removed])
       (cond
         [(>= i (length preprocessing))
          (values preprocessing removed)]
-        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing (*context*))
+        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing context)
          (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
         [else
          (loop preprocessing (+ i 1) removed)])))
   (cond
     [(< (length result) (length preprocessing))
-     (remove-unnecessary-preprocessing alt pcontext result #:removed newly-removed)]
+     (remove-unnecessary-preprocessing alt context pcontext result #:removed newly-removed)]
     [else
      (timeline-push! 'remove-preprocessing (map ~a newly-removed))
      result]))

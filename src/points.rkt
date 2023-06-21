@@ -2,7 +2,7 @@
 
 (require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext for/pcontext
+(provide (struct-out pcontext) *pcontext* in-pcontext mk-pcontext for/pcontext
          pcontext? pcontext->lists json->pcontext pcontext->json
          split-pcontext join-pcontext pcontext-length
          errors batch-errors errors-score)

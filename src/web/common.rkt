@@ -161,7 +161,7 @@
       (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-(define (render-program #:to [result #f] preprocesses test)
+(define (render-program #:to [result #f] preprocessing test)
   (define identifier (test-identifier test))
   (define ctx (test-context test))
   (define output-repr (test-output-repr test))
@@ -179,7 +179,7 @@
   (define versions
     (reap [sow]
       (for ([(lang record) (in-dict languages)])
-        (match-define (list ext converter preprocess) record)
+        (match-define (list ext converter preprocess->lang) record)
         (when (and (fpcore? in-prog*)
                    (or (not out-prog*) (fpcore? out-prog*))
                    (or (equal? ext "fpcore")                           
@@ -190,7 +190,7 @@
           (define in (converter in-prog* name))
           (define out (and out-prog* (converter out-prog* name)))
           (define preprocess-lines
-            (string-join (map preprocess preprocesses) "\n" #:after-last "\n"))
+            (string-join (map preprocess->lang preprocessing) "\n" #:after-last "\n"))
           (define (add-preprocessing-tex preprocess-lines output)
             (string-append
              "\\begin{array}{l}\n"
@@ -198,9 +198,12 @@
              "\\\\\n"
              out
              "\\end{array}\n"))
-          (define add-preprocessing
-            (if (equal? lang "TeX") add-preprocessing-tex string-append))
-          (sow (cons lang (cons in (add-preprocessing preprocess-lines out))))))))
+          (define out-with-preprocessing
+            (and out
+                 ((if (equal? lang "TeX") add-preprocessing-tex string-append)
+                  preprocess-lines
+                  out)))
+          (sow (cons lang (cons in out-with-preprocessing)))))))
 
   (define-values (math-in math-out)
     (if (dict-has-key? versions "TeX")
