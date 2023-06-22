@@ -2,7 +2,7 @@
 
 ;; TODO: The exact same replace-vars exists in both syntax.rkt and program.rkt
 (require "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/rules.rkt"
-         "syntax/types.rkt" "programs.rkt" "points.rkt" "float.rkt")
+         "syntax/types.rkt" "common.rkt" "programs.rkt" "points.rkt" "float.rkt")
 
 (provide find-preprocessing preprocess-pcontext)
 
@@ -21,7 +21,7 @@
     (for/list ([variable (in-list variables)])
       ;; TODO: Use negate for vars repr here
       (replace-vars (list (cons variable `(fabs.f64 ,variable))) expression)))
-  ;; TODO: Check for unsoundness, abort all preprocessing if so. Would need
+  ;; TODO: If egraph detects unsoundness, abort preprocessing. Would need
   ;; explicit access to egraph constructed by run-egg though
   (define query (make-egg-query (cons expression (append swaps* evens*)) rules))
   (match-define (cons expression~ rest~) (map last (simplify-batch query)))
@@ -34,9 +34,8 @@
                  (lambda (pair swap~) (and (equal? expression~ swap~) pair))
                  pairs
                  swaps~))
-  ;; TODO: `connected-components` vs `connected-components*`?
   (define sort-instructions
-    (for/list ([component (connected-components* variables swaps)]
+    (for/list ([component (connected-components variables swaps)]
                #:when (> (length component) 1))
       (cons 'sort component)))
   (append abs-instructions sort-instructions))
@@ -46,7 +45,6 @@
     (apply compose (map (curry instruction->operator context) preprocessing)))
   (pcontext-map preprocess pcontext))
 
-;; TODO: tests
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
   (define representation (context-repr context))
@@ -67,70 +65,25 @@
          (append prefix (sort* suffix))))]
     [(list 'sort component ...)
      (unless (subsequence? component variables)
-       (error 'instruction->operator "component should always be a subsequence of variables"))
-     ;; This gets a bit tricky: given a description of a subsequence of points
-     ;; (`component`), we have to extract the subsequence, sort it, and glue it
-     ;; back together with the other points.
-     (define should-take
-       (for/fold ([result empty] [subsequence component]
-                  #:result result)
-                 ([variable variables])
-         (if (equal? variable (first subsequence))
-             (values (cons #t result) (rest subsequence))
-             (values (cons #f result) subsequence))))
+       (error 'instruction->operator
+              "component should always be a subsequence of variables"))
+     (define indices (indexes-where variables (curryr member component)))
      (lambda (points)
-       (let ([sorted (sort*
-                      (filter-map
-                       (lambda (point take?) (and take? point))
-                       points should-take))])
-         (for/fold ([result empty] [sorted sorted]
-                    #:result result)
-                   ([point points] [take? should-take])
-           (if take?
-               (values (cons (first sorted) result) (rest sorted))
-               (values (cons point result) sorted)))))]
+       (let ([subsequence (list-ref* points indices)]
+             [sorted (sort* subsequence)])
+         (list-set* points indices sorted)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
      ;; TODO: Make abs an actually correct operation
      (lambda (points) (list-update points index abs))]))
 
-(define (list-suffix? l r) (list-prefix? (reverse l) (reverse r)))
-
-;; TODO: Is this right? Test it
-(define (subsequence? v l)
-  (cond
-    [(empty? v) #t]
-    [(empty? l) #f]
-    [else (subsequence? (rest v) (member (first v) l) (rest v))]))
-
 (define (connected-components variables swaps)
-  (define rules
-    (for/list ([swap swaps])
-      (match-define (list a b) swap)
-      (rule (string->symbol (format "swap-~a-~a" a b))
-            (index-of variables a)
-            (index-of variables b)
-            '()
-            'real)))
-  (define query (make-egg-query (range (length variables)) rules #:const-folding? #f))
-  (define components (map last (simplify-batch query)))
-  (map (lambda (component) (map car component)) (group-by cdr (map cons variables components))))
-
-(define (connected-components* variables swaps)
-  (define union-find (list->vector (range (length variables))))
-  (define (find! u x)
-    (define p (vector-ref u x))
-    (if (= p x)
-        x
-        (let ([g (vector-ref u p)])
-          (vector-set! u x g)
-          (find! u g))))
-  (define (union! u x y) (vector-set! u y x))
+  (define components (disjoint-set (length variables)))
   (for ([swap (in-list swaps)])
     (match-define (list a b) swap)
-    (union! union-find
-            (find! union-find (index-of variables a))
-            (find! union-find (index-of variables b))))
+    (disjoint-set-union! components
+                         (disjoint-set-find! components (index-of variables a))
+                         (disjoint-set-find! components (index-of variables b))))
   (group-by
-   (compose (curry find! union-find) (curry index-of variables))
+   (compose (curry disjoint-set-find! components) (curry index-of variables))
    variables))
