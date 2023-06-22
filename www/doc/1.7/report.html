@@ -31,8 +31,8 @@
   <h2 id="links">Additional links</h2>
 
   <p>The top of the report page has a right-hand menu bar with additional
-    links. “Report” returns you to Herbie's main page.
-    “Metrics” give you detailed internal information about Herbie.</p>
+    links. “Metrics” give you detailed internal information about Herbie. when 
+    logging is enabled a “Report” link returns you to Herbie's main page.</p>
 
   <p>We expect the report to grow more informative with future
     versions. Please <a href="mailto:herbie@cs.washington.edu">get in
@@ -73,16 +73,7 @@
   <!-- Colors copied from src/web/resources/report.css -->
   <figure>
     <img width="100%" src="specification.png" />
-    <figcaption>Summary of the specification and outcomes bar
-      <ul>
-        <li><b style="color : #4e9a06;">valid</b>: Successfully sampled</li>
-        <li><b style="color : #8ae234;">infinite</b>: Sampled point was very large and considered infinite for floating-point</li>
-        <li><b style="color : #a40000;">unsamplable</b>: Interval analysis didn't converge</li>
-        <li><b style="color : #204a87;">invalid</b>: Point was proven to be invalid (like sqrt(-1))</li>
-        <li><b style="color : #729fcf;">precondition</b>: The point fell under the provided precondition</li>
-        <li><b style="color : #000000;">unknown</b>: </li>
-      </ul>
-    </figcaption>
+    <figcaption>Summary of the specification and outcomes bar</figcaption>
   </figure>
 
   <h2 id="graph">Local Percentage Accuracy graph</h2>
