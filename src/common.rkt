@@ -155,9 +155,20 @@
   (check-equal? (list-set* n '(0) '(x)) '(x b c d e f g))
   (check-equal? (list-set* n '(1 2 5) '(x y z)) '(a x y d e z g)))
 
-;; union-find
+;; Union-find
 
-;; (define 
+(define (disjoint-set s)
+  (list->vector (range s)))
+
+(define (disjoint-set-find! d x)
+  (define p (vector-ref d x))
+  (if (= p x)
+      x
+      (let ([g (vector-ref d p)])
+        (vector-set! d x g)
+        (find! d g))))
+
+(define (disjoint-set-union! d x y) (vector-set! d y x))
 
 ;; Miscellaneous helper
 
