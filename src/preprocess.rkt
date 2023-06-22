@@ -1,7 +1,7 @@
 #lang racket
 
 (require "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/rules.rkt"
-         "syntax/syntax.rkt" "common.rkt" "programs.rkt"
+         "syntax/syntax.rkt" "syntax/types.rkt" "common.rkt" "programs.rkt"
          "points.rkt" "float.rkt")
 
 (provide find-preprocessing preprocess-pcontext)
@@ -81,8 +81,8 @@
               "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
      (lambda (points)
-       (let ([subsequence (list-ref* points indices)]
-             [sorted (sort* subsequence)])
+       (let* ([subsequence (list-ref* points indices)]
+              [sorted (sort* subsequence)])
          (list-set* points indices sorted)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
