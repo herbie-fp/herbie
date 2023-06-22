@@ -142,7 +142,6 @@
       (string-join (map ~a variables) ", " #:before-last ", and "))]
     [(list 'abs x)
      (format
-      ;; TODO: Is this a good description?
       "NOTE: ~a should be positive before calling this function"
       x)]))
 

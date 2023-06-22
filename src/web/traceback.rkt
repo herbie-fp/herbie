@@ -39,8 +39,7 @@
             (p "Use the " (code "--timeout") " flag to change the timeout."))]
          [_ ""])
 
-      ;; TODO: This breaks right now
-      ;; ,(render-program empty test)
+      ,(render-program empty test)
 
       ,(match exn
         [(? exn:fail:user:herbie?) ""]
