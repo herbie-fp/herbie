@@ -1,7 +1,7 @@
 #lang racket
 
 (require "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/rules.rkt"
-         "syntax/syntax.rkt" "syntax/types.rkt" "common.rkt" "programs.rkt"
+         "syntax/syntax.rkt" "common.rkt" "programs.rkt"
          "points.rkt" "float.rkt")
 
 (provide find-preprocessing preprocess-pcontext)

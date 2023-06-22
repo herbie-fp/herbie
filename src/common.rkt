@@ -166,7 +166,7 @@
       x
       (let ([g (vector-ref d p)])
         (vector-set! d x g)
-        (find! d g))))
+        (disjoint-set-find! d g))))
 
 (define (disjoint-set-union! d x y) (vector-set! d y x))
 
