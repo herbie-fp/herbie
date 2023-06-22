@@ -1,6 +1,5 @@
 #lang racket
 
-;; TODO: The exact same replace-vars exists in both syntax.rkt and program.rkt
 (require "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/rules.rkt"
          "syntax/types.rkt" "common.rkt" "programs.rkt" "points.rkt" "float.rkt")
 

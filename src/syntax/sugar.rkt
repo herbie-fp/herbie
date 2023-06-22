@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../errors.rkt" "types.rkt" "syntax.rkt")
+(require "../errors.rkt" "../programs.rkt" "types.rkt" "syntax.rkt")
 (provide desugar-program resugar-program)
 
 ;; preprocessing
@@ -178,10 +178,3 @@
 
 (define (resugar-program prog repr #:full [full? #t])
   (expand-parametric-reverse prog repr full?))
-
-(define (replace-vars dict expr)
-  (cond
-    [(dict-has-key? dict expr) (dict-ref dict expr)]
-    [(list? expr)
-     (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
-    [#t expr]))
