@@ -98,9 +98,9 @@
      (body
       ,(render-menu #:path ".."
         (~a (test-name test))
-        (list
-         '("Report" . "../index.html")
-         '("Metrics" . "timeline.html")))
+        (if #f
+          (list '("Metrics" . "timeline.html")) 
+          (list '("Report" . "../index.html") '("Metrics" . "timeline.html"))))
 
       (div ([id "large"])
        ,(render-comparison
