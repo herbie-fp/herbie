@@ -49,7 +49,7 @@
    [(list op args ...) (ormap list? args)]
    [_ #f]))
 
-(define (make-graph result out fpcore? profile?)
+(define (make-graph result out output? fpcore? profile?)
   (match-define (job-result test _ time _ warnings backend) result)
   (define vars (test-vars test))
   (define repr (test-output-repr test))
@@ -93,14 +93,13 @@
       (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       (script ([src "interactive.js"]))
-      (script ([src "../report.js"] [type "module"]))
-      )
+      (script ([src "../report.js"] [type "module"])))
      (body
       ,(render-menu #:path ".."
         (~a (test-name test))
-        (if #f
-          (list '("Metrics" . "timeline.html")) 
-          (list '("Report" . "../index.html") '("Metrics" . "timeline.html"))))
+        (if output?
+          (list '("Report" . "../index.html") '("Metrics" . "timeline.html"))
+          (list '("Metrics" . "timeline.html"))))
 
       (div ([id "large"])
        ,(render-comparison
