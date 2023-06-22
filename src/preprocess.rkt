@@ -1,6 +1,6 @@
 #lang racket
 
-(require "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/rules.rkt"
+(require "core/egg-herbie.rkt" "core/simplify.rkt"
          "syntax/syntax.rkt" "syntax/types.rkt" "common.rkt" "programs.rkt"
          "points.rkt" "float.rkt")
 
