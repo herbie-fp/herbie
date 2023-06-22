@@ -141,7 +141,7 @@
     (run-improve!
      (test-input test) context (*simplify-rules*)
      train-pcontext test-pcontext (*num-iterations*)
-     #:specification (test-spec test))
+     #:specification (test-spec test)))
   (when seed (set-seed! seed))
   (list alternatives test-pcontext test-pcontext*))
 
