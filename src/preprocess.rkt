@@ -61,7 +61,6 @@
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
   (define representation (context-repr context))
-  ;; TODO: Does `</total` need individual reprs?
   (define sort* (curryr sort (curryr </total representation)))
   (match instruction
     [(list 'sort component ...) #:when (equal? component variables)
