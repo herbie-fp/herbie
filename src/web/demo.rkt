@@ -201,6 +201,11 @@
           (*reeval-pts* reeval)
           (*demo?* demo?)]
          [(list 'improve hash formula sema)
+          (eprintf "~a\n" (*demo-output*))
+          (when (not (*demo-output*))
+            (*demo-output* "./web-cache")
+            (eprintf "~a\n" (*demo-output*))
+              (make-directory (build-path (*demo-output*))))
           (define path (format "~a.~a" hash *herbie-commit*))
           (cond
            [(hash-has-key? *completed-jobs* hash)
