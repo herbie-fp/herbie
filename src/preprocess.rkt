@@ -27,7 +27,7 @@
   ;; explicit access to egraph constructed by run-egg though
   (define query (make-egg-query (cons expression (append evens* swaps*)) rules))
   (match-define (cons expression~ rest~) (map last (simplify-batch query)))
-  (define-values (evens~ swaps~) (split-at rest~ (length swaps*)))
+  (define-values (evens~ swaps~) (split-at rest~ (length evens*)))
   (define swaps (filter-map
                  (lambda (pair swap~) (and (equal? expression~ swap~) pair))
                  pairs
