@@ -318,20 +318,21 @@
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
                (λ (out) (display (apply string-append
-                                        (for/list ([entry (reverse (unbox timeline))])
-                                          (format "Doing ~a\n" (hash-ref entry 'type))))
+                                         (for/list ([entry (reverse (unbox timeline))])
+                                           (format "Doing ~a\n" (hash-ref entry 'type))))
                                  out)))]
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*))))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-                    '())]))
+                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*))))
+                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                     '())]))
 
 (define (check-up req)
   (response/full (if (thread-running? *worker-thread*) 200 500)
                  (if (thread-running? *worker-thread*) #"Up" #"Down")
                  (current-seconds) #"text/plain"
-                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*))))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
 
 (define (improve req)
