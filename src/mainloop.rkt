@@ -419,7 +419,7 @@
        [(*pareto-mode*)
         (map (curryr combine-alts ctx) (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))]
        [else
-        (define option (infer-splitpoints all-alts ctx))
+        (define-values (option _) (infer-splitpoints all-alts ctx))
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
