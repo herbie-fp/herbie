@@ -94,6 +94,6 @@
       (values (map real->repr pt var-reprs) (real->repr ex output-repr))))
   (mk-pcontext pts exs))
 
-(define (pcontext->json pcontext)
+(define (pcontext->json pcontext repr)
   (for/list ([(pt ex) (in-pcontext pcontext)])
-    (list pt ex)))
+    (list (map (curryr value->json repr) pt) (value->json ex repr))))

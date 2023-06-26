@@ -358,7 +358,7 @@
       (define pctx (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points (pcontext->json pctx)))))
+      (hasheq 'points (pcontext->json pctx (context-repr (test-context test)))))))
 
 (define analyze-endpoint
   (post-with-json-response
