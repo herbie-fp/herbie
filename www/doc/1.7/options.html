@@ -26,18 +26,17 @@
 
   <h2>Herbie commands</h2>
 
-  <p>Herbie can be run both interactively and in batch mode, and can
-  generate output intended either for
-  the <a href="using-cli.html">command line</a>
-  or <a href="using-web.html">the web</a>. We call these different
-  ways of running Herbie different tools. Herbie provides four
-  tools:</p>
+  <p>There are a few different methods for interacting with Herbie, which we call
+  tools. For example, Herbie can be run both interactively or in batch mode, and
+  can generate output intended for the <a href="using-cli.html">command line</a>
+  or for <a href="using-web.html">the web</a>. Herbie provides four of these
+  tools as subcommands:<p>
 
   <dl>
     <dt><code>herbie web</code></dt>
     <dd>Use Herbie <a href="using-web.html">through your browser</a>.
     The <code>herbie web</code> command runs Herbie on your local
-    machine and opens your browser to its main page.</dd>
+    machine and opens its main page in your browser.</dd>
 
     <dt><code>herbie shell</code></dt>
     <dd>Use Herbie <a href="using-cli.html">via a command-line shell</a>.
@@ -54,17 +53,17 @@
     directory <var>input</var>. The results are written
     to <var>output</var>, a directory of
     HTML <a href="report.html">reports</a>. These pages can be viewed
-    in any browser (though with a <a href="faq.html">quirk</a> for
-    Chrome).</dd>
+    in any browser (though with a <a href="faq.html#chrome-missing-report">quirk</a>
+    for Chrome).</dd>
   </dl>
 
-  <p>We recommend using <code>web</code> and <code>report</code>,
+  <p>We recommend using <code>report</code> and <code>web</code>,
   which produce <a href="report.html">reports</a> with lots of
-  information about floating-point accuracy, including graphs it of
-  error versus input values. This can help you understand whether
-  Herbie's improvements matter for your use case.</p>
+  information about floating-point accuracy, including graphs of input values
+  versus error and plots comparing cost and accuracy. This can help you
+  understand whether Herbie's improvements matter for your use case.</p>
 
-  <p>Use <code>herbie <var>tool</var> --help</code> to available
+  <p>Use <code>herbie <var>tool</var> --help</code> to view available
   command-line options for a tool. This command also shows unsupported
   options not listed on this page.</p>
 
