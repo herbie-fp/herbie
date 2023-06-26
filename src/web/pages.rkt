@@ -21,14 +21,14 @@
    (format "Error generating `~a` for \"~a\":\n~a\n" page (test-name test) (exn-message e))
    e))
 
-(define (make-page page out result profile?)
+(define (make-page page out result output? profile?)
   (define test (job-result-test result))
   (define status (job-result-status result))
   (define ctx (test-context test))
   (match page
     ["graph.html"
      (match status
-       ['success (make-graph result out (get-interactive-js result ctx) profile?)]
+       ['success (make-graph result out output? (get-interactive-js result ctx) profile?)]
        ['timeout (make-traceback result out profile?)]
        ['failure (make-traceback result out profile?)]
        [_ (error 'make-page "unknown result type ~a" status)])]

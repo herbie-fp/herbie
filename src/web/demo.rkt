@@ -61,7 +61,7 @@
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page)])
-                  (make-page page out result #f))))]
+                  (make-page page out result (*demo-output*) #f))))]
    [else
     (next-dispatcher)]))
 
@@ -220,7 +220,7 @@
               (for ([page (all-pages result)])
                 (with-handlers ([exn:fail? (page-error-handler result page)])
                   (call-with-output-file (build-path (*demo-output*) path page)
-                    (λ (out) (make-page page out result #f)))))
+                    (λ (out) (make-page page out result (*demo-output*) #f)))))
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "index.html")))
