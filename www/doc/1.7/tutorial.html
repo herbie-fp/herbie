@@ -197,7 +197,7 @@ else {
   <h2>Using Herbie's results</h2>
 
   <p>Herbie will churn for a few seconds and produce a results page,
-  here are a few highlights for the following input:</p>
+  here are a few highlights for the following input if you would like to follow along:</p>
 
   <p><pre>herbie shell --seed 710631362
 (FPCore (xre xim)
@@ -208,34 +208,38 @@ else {
   (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* xre xre) (* xim xim))) xre)))))</pre></p>
 
   <figure>
+    <figcaption>Here a summary of Herbie's findings. Showing that it has found 4 different alternatives one of which more then doubles the overall accuracy and another that doubles the performance of this program.</figcaption>
     <img width="100%" src="problematic-highlight.png" />
-    <figcaption>Highlight of Herbie's results for the problematic program.</figcaption>
   </figure>
 
   <figure>
+    <figcaption>Below we have a graph of <code>xim</code> displaying the accuracy differences between the most accurate alternative and the initial program.</figcaption>
     <img width="100%" src="problematic-xim.png" />
-    <figcaption>A graph of xim for a range of inputs showing the difference between the most accurate alternative.</figcaption>
   </figure>
 
   <figure>
+    <figcaption>Changing the selected variable from <code>xim</code> to <code>xre</code> shows a similar graph. overall Herbie has found an alternative that has increased accuracy for all points. You may also notice a subtle black line at the center of the graph which respects that a branch has been used to split the program into two halves which we will look at later.</figcaption>
     <img width="100%" src="problematic-xre.png" />
-    <figcaption>A graph of xre for a range of inputs showing the difference between the most accurate alternative.</figcaption>
   </figure>
 
   <figure>
+    <figcaption>Here we have a summary of all the alternatives that Herbie has found. As we can see we have a few options being shown which is new for Herbie 2.0. So pending on your needs you can balance the trade offs between accuracy and speed for your needs.</figcaption>
     <img width="100%" src="problematic-pareto-table.png" />
-    <figcaption>A visual summary of the alternatives Herbie found.</figcaption>
   </figure>
 
-  <p>Herbie's algorithm is randomized, so you likely won't see the
-  exact same thing. For example, the branch expression <code>xre ≤
-  -4.780438341784697e-111</code> will probably have some other really
-  small number. And perhaps Herbie will choose slightly different
-  expressions. But the result should be recognizably similar. In this
-  case, Herbie reports that the initial expression had 38.7 bits of
-  error, and that the output has 29.4.</p>
+  <p>Herbie's algorithm is randomized, so you likely won't see the exact same 
+  thing unless you use the same seed variable shown above in the shell command. 
+  For example, the branch expression <code>xre ≤ 0</code> will probably have 
+  some other really small number. And perhaps Herbie will choose slightly 
+  different expressions. But the result should be recognizably similar. In this
+  case, Herbie reports that this expression is 84.6% accurate for sampled input versus the original 41.2%.</p>
+  <figure>
+    <img width="100%" src="problematic-improved-accuracy.png" />
+    <figcaption>Herbie's most accurate alternative for the provided program.
+    </figcaption>
+  </figure>
 
-  <p>It's a little harder to describe what Herbie found wrong with the
+  <p> It's a little harder to describe what Herbie found wrong with the
   original expression, and why its new version is better—it is due to
   a floating-point phenomenon called “cancellation”. But you can get
   some insight from the error plot just below the program block.
@@ -243,8 +247,7 @@ else {
   will see something like this:</p>
 
   <figure>
-    <img width="100%" src="report-plot2.png" />
-    <figcaption>Herbie's error plot for the complex square root expression.</figcaption>
+    <img width="100%" src="problematic-xim.png" />
   </figure>
 
   <p>There's a lot going on here. Along the horizontal axis, you have
@@ -264,24 +267,23 @@ else {
   Herbie's version is better, though not great.</p>
 
   <p>Of course, your exact output will differ a bit from the
-  screenshots and descriptions here, because Herbie is randomized.</p>
+  screenshots and descriptions here, because Herbie is randomized to help avoid 
+  over fitting the data.</p>
 
-  <p>Now that you have the more accurate version of this expression,
-    all you need to do is insert it back into the program:</p>
+  <p>Now taking a look at the 5th alternative. Lets say we cared more about speed for this section of code:</p>
+
+  <figure>
+    <img width="100%" src="problematic-improved-speed.png" />
+    <figcaption>This example is twice as fast as the original and still a roughly 10% improvement to the overall accuracy compared to the original.</figcaption>
+  </figure>
 
   <pre>var r = Math.sqrt(x.re * x.re + x.im * x.im);
 // Herbie version of 0.5 * Math.sqrt(2.0 * (r + x.re))
 var re;
-if (x.re &lt;= -4.780438341784697e-111) {
-    re = Math.abs(x.im) * Math.sqrt(0.5) / Math.sqrt(r - x.re);
-} else if (x.re &lt;= 1.857088496624289e-105) {
-    re = 0.5 * Math.sqrt(2.0 * (x.re + x.im));
-} else if (x.re &lt;= 117.16871373388169) {
-    re = 0.5 * Math.sqrt(2.0 * (r + x.re));
-} else if (x.re &lt;= 5.213930590364927e+88) {
-    re = 0.5 * Math.sqrt(2.0 * (x.re + x.im));
+if (x.re &lt;= -4.7e-42) {
+    re = 0.5 * Math.sqrt(x.im * 2);
 } else {
-    re = 0.5 * Math.sqrt(2.0 * (x.re + x.re));
+    re = 0.5 * (2 * Math.sqrt(x.re));
 }
 if (x.im &gt;= 0) {
   return new Complex(
