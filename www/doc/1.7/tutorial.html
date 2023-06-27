@@ -91,14 +91,14 @@
   </p>
 
   <p>When you're writing a new numerical program, it's best to keep
-  Herbie open in a browser tab so you can run it easily. That way, you
+  Herbie opens in a browser tab so you can run it easily. That way, you
   can run Herbie on any complex floating-point expression you're
   coding up and so always use an accurate version of that expression.
   Herbie has <a href="options.html">options</a> to log all the
-  expressions you enter, so that you can refer to them later.</p>
+  expressions you enter so that you can refer to them later.</p>
 
   <p>However, let's suppose you're instead tracking down a
-  floating-point bug in existing code. Then you'll need start by
+  floating-point bug in existing code. Then you'll need to start by
   identifying the problematic floating-point expression.</p>
 
   <p>To demonstrate the workflow, let's walk through
@@ -115,7 +115,7 @@
   <p>
     In most programs, there's a small core that does the mathematical
     computations, while the rest of the program sets up parameters,
-    handles control flow, visualizes or print results, and so on. The
+    handles control flow, visualizes or prints results, and so on. The
     mathematical core is what Herbie will be interested in.
   </p>
 
@@ -167,11 +167,11 @@ else {
   <p>
     This code also branches between non-negative <code>x.im</code> and
     negative <code>x.im</code>. It's usually better to send each
-    branch to Herbie separately. So in total this code turns into four
-    Herbie inputs: two output fields, for each of two branches.
+    branch to Herbie separately. So in total, this code turns into four
+    Herbie inputs: two output fields, for each of the two branches.
   </p>
 
-  <p>Let's focus on first field of the output for the case of
+  <p>Let's focus on the first field of the output for the case of
   non-negative <code>x.im</code>.</p>
 
   <p>The variable <code>r</code> is an intermediate variable in this
@@ -254,7 +254,7 @@ else {
   the various values of <code>xim</code>. Note that the graph is
   log-scale, and includes only non-negative values thanks to our
   precondition. The value 1 is in the middle; to the left are values
-  with small exponents close to zero, and to the right you have values
+  with small exponents close to zero, and to the right, you have values
   with large exponents approaching infinity.</p>
 
   <p>The vertical axis measures bits of error, from 0 to 64. Lower is
@@ -263,18 +263,18 @@ else {
   plot that as <code>xim</code> gets smaller (toward the left, closer
   to zero), Herbie's improvement becomes more and more significant.
   You can also see that for very large values of <code>xim</code>, the
-  original program had maximal error (in fact, it overflows) but the
+  original program had a maximal error (in fact, it overflows) but the
   Herbie's version is better, though not great.</p>
 
   <p>Of course, your exact output will differ a bit from the
   screenshots and descriptions here, because Herbie is randomized to help avoid 
-  over fitting the data.</p>
+  overfitting the data.</p>
 
-  <p>Now taking a look at the 5th alternative. Lets say we cared more about speed for this section of code:</p>
+  <p>Now take a look at the 5th alternative. Let's say we cared more about speed for this section of code:</p>
 
   <figure>
     <img width="100%" src="problematic-improved-speed.png" />
-    <figcaption>This example is twice as fast as the original and still a roughly 10% improvement to the overall accuracy compared to the original.</figcaption>
+    <figcaption>This example is twice as fast as the original and still a roughly 22.3% improvement to the overall accuracy compared to the original.</figcaption>
   </figure>
 
   <pre>var r = Math.sqrt(x.re * x.re + x.im * x.im);
