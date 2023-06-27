@@ -134,7 +134,9 @@
           (tests . ,(map simplify-test tests))
           (merged-cost-accuracy . ,merged-cost-accuracy)))]))
 
-  (call-with-atomic-output-file file (λ (p name) (write-json data p))))
+  (if (port? file)
+      (write-json data file)
+      (call-with-atomic-output-file file (λ (p name) (write-json data p)))))
 
 (define (flags->list flags)
   (for*/list ([rec (hash->list flags)] [fl (cdr rec)])

@@ -51,7 +51,8 @@
    [("api" "calculate") #:method "post" calculate-endpoint]
    [("api" "cost") #:method "post" cost-endpoint]
    [("api" "mathjs") #:method "post" ->mathjs-endpoint]
-   [((hash-arg) (string-arg)) generate-page]))
+   [((hash-arg) (string-arg)) generate-page]
+   [("results.json") generate-report]))
 
 (define (generate-page req results page)
   (match-define result results)
@@ -64,6 +65,15 @@
                   (make-page page out result (*demo-output*) #f))))]
    [else
     (next-dispatcher)]))
+
+(define (generate-report req)
+  (define data
+    (for/list ([(k v) (in-hash *completed-jobs*)])
+      (get-table-data v (format "~a.~a" hash *herbie-commit*))))
+  (define info (make-report-info data #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
+  (response 200 #"OK" (current-seconds) #"text"
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+            (λ (out) (write-datafile out info))))
 
 (define url (compose add-prefix url*))
 
