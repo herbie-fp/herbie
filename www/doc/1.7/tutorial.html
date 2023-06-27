@@ -47,43 +47,30 @@
     <img width="100%" src="web-input.png" alt="The program input field in the Herbie web UI."/>
   </figure>
 
-  <p>Type <kbd>(1 + x) - x</kbd> into this box. You should see two 
-  boxes appear for entering the lower and upper bound on the range
-  of values for x. Select the lowest and highest options, like this:
+  <p>To follow along with this tutorial use the "Show an example" button. This 
+  will use the expression <kbd>sqrt(x + 1) - sqrt(x)</kbd> with the input range 
+  set to <kbd>0</kbd> and <kbd>1.79e308</kbd> for the lower and upper bound on 
+  the range of values for x as shown below.
   <figure>
     <img width="100%" src="range-input.png" alt="The input range field in the Herbie web UI."/>
   </figure>
   Finally, hit the "Improve with Herbie" button. You should see the 
   entry box gray out, then some text will appear on the
   screen describing what Herbie is doing. After a few seconds, you'll
-  be redirected to a page with Herbie's results. The most important
-  part of that page is the large gray box in the middle:
+  be redirected to a page with Herbie's results.
   </p>
 
-  <figure>
-    <img width="100%" src="report-prog.png" alt="Input and output program from a Herbie report." />
-  </figure>
-
   <p>
-    It shows the input, <code>(1 + x) - x</code>, and Herbie's more
-    accurate way to evaluate that expression: <code>1</code>. Herbie
-    did a good job, which you can see from the statistics at the top
-    of the page:
+   At the top of this results page you see a few highlights of the alternatives 
+   herbie found. The biggest accuracy improvement found in the results, time it 
+   took herbie, the number of alternatives herbie found and the biggest speed 
+   improvement found.
   </p>
 
   <figure>
     <img width="100%" src="report-large.png" alt="Statistics and error measures for this Herbie run." />
   </figure>
-
-  <p>
-    The initial program had 29.0 bits of error (on average), while
-    Herbie's better version had 0 bits of error. That's because
-    <code>(1 + x) - x</code> should always be exactly equal
-    to <code>1</code>, but in floating-point arithmetic,
-    when <code>x</code> is really big, <code>1 + x</code> rounds down
-    to <code>x</code> and the expression returns <code>0</code>.
-  </p>
-
+  
   <p>
     There is <a href="report.html"> more information</a> on this
     results web page, which you can use explain more about the
@@ -92,7 +79,7 @@
 
   <h2>Programming with Herbie</h2>
 
-  <p>Now that you've run Herbie and know how to read its results,
+  <p>Now that you've run Herbie and know how to read some of its results,
   let's apply Herbie to a realistic program.</p>
 
   <p>
@@ -209,12 +196,35 @@ else {
   
   <h2>Using Herbie's results</h2>
 
-  <p>Herbie will churn for a few seconds and produce an output,
-  perhaps something like this:</p>
+  <p>Herbie will churn for a few seconds and produce a results page,
+  here are a few highlights for the following input:</p>
+
+  <p><pre>herbie shell --seed 710631362
+(FPCore (xre xim)
+  :name "0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre))"
+  :precision binary64
+  :pre (and (and (<= -1.79e+308 xre) (<= xre 1.79e+308)) 
+  (and (<= 0.0 xim) (<= xim 1.79e+308)))
+  (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* xre xre) (* xim xim))) xre)))))</pre></p>
 
   <figure>
-    <img width="100%" src="report-prog2.png" />
-    <figcaption>Herbie's version of the complex square root expression.</figcaption>
+    <img width="100%" src="problematic-highlight.png" />
+    <figcaption>Highlight of Herbie's results for the problematic program.</figcaption>
+  </figure>
+
+  <figure>
+    <img width="100%" src="problematic-xim.png" />
+    <figcaption>A graph of xim for a range of inputs showing the difference between the most accurate alternative.</figcaption>
+  </figure>
+
+  <figure>
+    <img width="100%" src="problematic-xre.png" />
+    <figcaption>A graph of xre for a range of inputs showing the difference between the most accurate alternative.</figcaption>
+  </figure>
+
+  <figure>
+    <img width="100%" src="problematic-pareto-table.png" />
+    <figcaption>A visual summary of the alternatives herbie found.</figcaption>
   </figure>
 
   <p>Herbie's algorithm is randomized, so you likely won't see the
