@@ -197,10 +197,11 @@ else {
   <h2>Using Herbie's results</h2>
 
   <p>Herbie will churn for a few seconds and produce a results page,
-  here are a few highlights for the following input if you would like to follow along:</p>
+  here are a few highlights for the following input if you would like to <a href="using-cli.html">follow along</a>:</p>
 
-  <p><pre>herbie shell --seed 710631362
-(FPCore (xre xim)
+  <p><pre>herbie shell --seed 710631362</pre>
+  <p>After you see the <code>herbie></code> prompt paste in the following string.</p>
+<pre>(FPCore (xre xim)
   :name "0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre))"
   :precision binary64
   :pre (and (and (<= -1.79e+308 xre) (<= xre 1.79e+308)) 
