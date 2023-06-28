@@ -37,33 +37,49 @@ function Element(tagname, props, children) {
 
 const Filters = new Component("#filters", {
     setup: function () {
-        const byExStart = this.labeledCheckBox(true, "ex-start", "ex-start", this.exStart)
-        const byEqStart = this.labeledCheckBox(true, "eq-start", "eq-start", this.eqStart)
-        const byEqTarget = this.labeledCheckBox(true, "eq-target", "eq-target", this.eqTarget)
-        const byLtTarget = this.labeledCheckBox(true, "lt-target", "lt-start", this.ltStart)
-        const byLtStart = this.labeledCheckBox(true, "lt-start", "lt-start", this.ltStart)
-        const byApxStart = this.labeledCheckBox(true, "apx-start", "apx-start", this.apxStart)
-        const byImpStart = this.labeledCheckBox(true, "imp-start", "imp-start", this.impStart)
-        const byTimeout = this.labeledCheckBox(true, "timeout", "timeout", this.timeout)
-        const byGtTarget = this.labeledCheckBox(true, "gt-target", "gt-target", this.gtTarget)
+        const byExStart = this.labeledCheckBox(
+            true, "ex-start", "ex-start", this.exStart)
+        const byEqStart = this.labeledCheckBox(
+            true, "eq-start", "eq-start", this.eqStart)
+        const byEqTarget = this.labeledCheckBox(
+            true, "eq-target", "eq-target", this.eqTarget)
+        const byLtTarget = this.labeledCheckBox(
+            true, "lt-target", "lt-target", this.ltTarget)
+        const byLtStart = this.labeledCheckBox(
+            true, "lt-start", "lt-start", this.ltStart)
+        const byApxStart = this.labeledCheckBox(
+            true, "apx-start", "apx-start", this.apxStart)
+        const byImpStart = this.labeledCheckBox(
+            true, "imp-start", "imp-start", this.impStart)
+        const byUniStart = this.labeledCheckBox(
+            true, "uni-start", "uni-start", this.uniStart)
+        const byTimeout = this.labeledCheckBox(
+            true, "timeout", "timeout", this.timeout)
+        const byGtTarget = this.labeledCheckBox(
+            true, "gt-target", "gt-target", this.gtTarget)
         const byCrash = this.labeledCheckBox(true, "crash", "crash", this.crash)
         const byError = this.labeledCheckBox(true, "error", "error", this.error)
-
-        const filters = Element("div", 
+        
+        const improved = Element("div",
+            ["Improved:",
+            byImpStart,
+            byExStart,
+            byEqStart,
+            byEqTarget,
+            byGtTarget,])
+        const badRuns = Element("div",
+            ["Bad Runs:",
+            byUniStart,
+            byLtTarget,
+            byLtStart,
+            byApxStart,
+            byTimeout,
+            byCrash,
+            byError])
+        const filters = Element("div",
             Element("div", [
-                "Filters:",
-                byExStart,
-                byEqStart,
-                byEqTarget,
-                byLtTarget,
-                byLtStart,
-                byApxStart,
-                byImpStart,
-                byTimeout,
-                byGtTarget,
-                byCrash,
-                byError
-            ]))
+                improved,
+                badRuns]))
         this.elt.appendChild(filters);
     },
     exStart: function () {
@@ -81,7 +97,7 @@ const Filters = new Component("#filters", {
             return child.classList.contains("eq-target")
         })
     },
-    eqTarget: function () {
+    ltTarget: function () {
         this.toggle("#lt-target", (child) => {
             return child.classList.contains("lt-target")
         })
@@ -89,6 +105,11 @@ const Filters = new Component("#filters", {
     ltStart: function () {
         this.toggle("#lt-start", (child) => {
             return child.classList.contains("lt-start")
+        })
+    },
+    uniStart: function () {
+        this.toggle("#uni-start", (child) => {
+            return child.classList.contains("uni-start")
         })
     },
     apxStart: function () {
