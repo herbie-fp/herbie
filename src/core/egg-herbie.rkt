@@ -305,10 +305,6 @@
           (for/list ([iter (in-range (length iter-data))])
             (egraph-get-simplest egg-graph id iter)))))
   
-  (when (egraph-is-unsound-detected egg-graph) 
-    (warn 'unsound-rules #:url "faq.html#unsound-rules"
-          "Unsound rule application detected in e-graph. Results may not be sound."))
-
   (match proof-input
     [(cons start end)
      #:when (not (and (egraph-is-unsound-detected egg-graph) proof-ignore-when-unsound?))

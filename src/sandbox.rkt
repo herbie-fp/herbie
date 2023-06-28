@@ -107,7 +107,7 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
-  (define fn (eval-prog (test-input test) 'fl (test-context test)))
+  (define fn (compile-prog (test-input test) 'fl (test-context test)))
   (for/list ([pt pts])
     (list pt (apply fn pt))))
 

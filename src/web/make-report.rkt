@@ -122,7 +122,7 @@
                       #:title "Crashes and timeouts are considered bad runs.")
        ,(render-large "Speedup" 
                       (if speedup-at-initial-accuracy
-                          (~r speedup-at-initial-accuracy #:precision 1)
+                          (~r speedup-at-initial-accuracy #:precision '(= 1))
                           "N/A")
                       "×"
                       #:title "Aggregate speedup of fastest alternative that improves accuracy."))
