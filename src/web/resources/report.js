@@ -60,67 +60,13 @@ const Filters = new Component("#filters", {
         const byCrash = this.labeledCheckBox(true, "crash", "crash", this.crash)
         const byError = this.labeledCheckBox(true, "error", "error", this.error)
 
-        const viewImproved =
-            function () {
-                // list of results to toggle
-                const listOfImproved = [
-                    "imp-start", "ex-start", "eq-start", "eq-target", "gt-target"]
+        const viewImproved = this.buildGroupToggle("improved",
+            ["imp-start", "ex-start", "eq-start", "eq-target",
+             "gt-target"])
 
-                // setup checkbox object
-                const checkBox = Element("label",
-                    [Element("input",
-                        { type: "checkbox", id: "improved", checked: true },
-                        ""),
-                    new Text("improved")])
-
-                checkBox.addEventListener("click", () => {
-                    listOfImproved.forEach((str) => {
-                        const improvedBox = document.querySelector(`#improved`)
-                        const checkBox = document.querySelector(`#${str}`)
-                        checkBox.checked = improvedBox.checked
-                        const siblingsList = document.querySelectorAll(`#results tbody tr`)
-                        siblingsList.forEach((child, n, p) => {
-                            if (child.classList.contains(`${str}`) && checkBox.checked) {
-                                child.style.display = `table-row`
-                            } else if (child.classList.contains(`${str}`) && !checkBox.checked) {
-                                child.style.display = "none"
-                            }
-                        })
-                    })
-                })
-                return checkBox
-            }()
-        const viewRegressed =
-            function () {
-                let tag = "regressed"
-                // list of results to toggle
-                const listOfRegressed= [
-                    "uni-start","lt-target","lt-start","apx-start","timeout","crash","error"]
-
-                // setup checkbox object
-                const checkBox = Element("label",
-                    [Element("input",
-                        { type: "checkbox", id: tag, checked: true },
-                        ""),
-                    new Text(tag)])
-
-                checkBox.addEventListener("click", () => {
-                    listOfRegressed.forEach((str) => {
-                        const improvedBox = document.querySelector(`#${tag}`)
-                        const checkBox = document.querySelector(`#${str}`)
-                        checkBox.checked = improvedBox.checked
-                        const siblingsList = document.querySelectorAll(`#results tbody tr`)
-                        siblingsList.forEach((child, n, p) => {
-                            if (child.classList.contains(`${str}`) && checkBox.checked) {
-                                child.style.display = `table-row`
-                            } else if (child.classList.contains(`${str}`) && !checkBox.checked) {
-                                child.style.display = "none"
-                            }
-                        })
-                    })
-                })
-                return checkBox
-            }()
+        const viewRegressed = this.buildGroupToggle("regressed",
+            ["uni-start", "lt-target", "lt-start", "apx-start", 
+            "timeout", "crash", "error"])
 
         const improved = Element("div",
             [viewImproved,
@@ -204,6 +150,31 @@ const Filters = new Component("#filters", {
         this.toggle("#error", (child) => {
             return child.classList.contains("error")
         })
+    },
+    buildGroupToggle: function (tag, listOfTags) {
+        // setup checkbox object
+        const checkBox = Element("label",
+            [Element("input",
+                { type: "checkbox", id: tag, checked: true },
+                ""),
+            new Text(tag)])
+
+        checkBox.addEventListener("click", () => {
+            listOfTags.forEach((str) => {
+                const improvedBox = document.querySelector(`#${tag}`)
+                const checkBox = document.querySelector(`#${str}`)
+                checkBox.checked = improvedBox.checked
+                const siblingsList = document.querySelectorAll(`#results tbody tr`)
+                siblingsList.forEach((child, n, p) => {
+                    if (child.classList.contains(`${str}`) && checkBox.checked) {
+                        child.style.display = `table-row`
+                    } else if (child.classList.contains(`${str}`) && !checkBox.checked) {
+                        child.style.display = "none"
+                    }
+                })
+            })
+        })
+        return checkBox
     },
     toggle: function (checkBoxSelectorString, f) {
         const siblingsList = document.querySelectorAll("#results tbody tr")
