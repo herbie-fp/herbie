@@ -59,28 +59,68 @@ const Filters = new Component("#filters", {
             true, "gt-target", "gt-target", this.gtTarget)
         const byCrash = this.labeledCheckBox(true, "crash", "crash", this.crash)
         const byError = this.labeledCheckBox(true, "error", "error", this.error)
-        
+
+        const viewImproved =
+            function () {
+                // list of results to toggle
+                const listOfImproved = [
+                    "imp-start", "ex-start", "eq-start", "eq-target", "gt-target"]
+
+                // setup checkbox object
+                const checkBox = Element("label",
+                    [Element("input",
+                        { type: "checkbox", id: "improved", checked: true },
+                        ""),
+                    new Text("improved")])
+
+                checkBox.addEventListener("click", () => {
+                    listOfImproved.forEach((str) => {
+                        const improvedBox = document.querySelector(`#improved`)
+                        const checkBox = document.querySelector(`#${str}`)
+                        checkBox.checked = improvedBox.checked
+                        const siblingsList = document.querySelectorAll(`#results tbody tr`)
+                        siblingsList.forEach((child, n, p) => {
+                            if (child.classList.contains(`${str}`) && checkBox.checked) {
+                                child.style.display = `table-row`
+                            } else if (child.classList.contains(`${str}`) && !checkBox.checked) {
+                                child.style.display = "none"
+                            }
+                        })
+                    })
+                })
+                return checkBox
+            }()
+
+        const viewWorse = this.labeledCheckBox(
+            true, "worse", "worse", console.log("worse"))
+
         const improved = Element("div",
-            ["Improved:",
-            byImpStart,
-            byExStart,
-            byEqStart,
-            byEqTarget,
-            byGtTarget,])
+            [viewImproved,
+                byImpStart,
+                byExStart,
+                byEqStart,
+                byEqTarget,
+                byGtTarget,])
         const badRuns = Element("div",
-            ["Bad Runs:",
-            byUniStart,
-            byLtTarget,
-            byLtStart,
-            byApxStart,
-            byTimeout,
-            byCrash,
-            byError])
+            [viewWorse,
+                byUniStart,
+                byLtTarget,
+                byLtStart,
+                byApxStart,
+                byTimeout,
+                byCrash,
+                byError])
         const filters = Element("div",
             Element("div", [
                 improved,
                 badRuns]))
         this.elt.appendChild(filters);
+    },
+
+    impStart: function () {
+        this.toggle("#imp-start", (child) => {
+            return child.classList.contains("imp-start")
+        })
     },
     exStart: function () {
         this.toggle("#ex-start", (child) => {
@@ -117,14 +157,14 @@ const Filters = new Component("#filters", {
             return child.classList.contains("apx-start")
         })
     },
-    impStart: function () {
-        this.toggle("#imp-start", (child) => {
-            return child.classList.contains("imp-start")
-        })
-    },
     timeout: function () {
         this.toggle("#timeout", (child) => {
             return child.classList.contains("timeout")
+        })
+    },
+    gtTarget: function () {
+        this.toggle("#gt-target", (child) => {
+            return child.classList.contains("gt-target")
         })
     },
     crash: function () {
@@ -136,11 +176,6 @@ const Filters = new Component("#filters", {
         this.toggle("#error", (child) => {
             return child.classList.contains("error")
         })
-    },
-    gtTarget: function () {
-        this.toggle("#gt-target", (child) => {
-            return child.classList.contains("gt-target")
-        })   
     },
     toggle: function (checkBoxSelectorString, f) {
         const siblingsList = document.querySelectorAll("#results tbody tr")
