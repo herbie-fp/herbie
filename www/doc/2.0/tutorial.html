@@ -22,13 +22,14 @@
   <p>
     <a href="../../">Herbie</a> rewrites floating point expressions to
       make them more accurate. Floating point arithmetic is
-      inaccurate; even 0.1 + 0.2 ≠ 0.3 for a computer. Herbie helps
-      find and fix these mysterious inaccuracies.
+      <a href="error.html">inaccurate</a>; even 0.1 + 0.2 ≠ 0.3 in
+      floating-point. Herbie helps find and fix these mysterious
+      inaccuracies.
   </p>
 
   <p>
     To get started, <a href="installing.html">download and install</a>
-    Herbie. You're then ready to begin using Herbie.
+    Herbie. You're then ready to begin using it.
   </p>
 
   <h2>Giving Herbie expressions</h2>
@@ -38,7 +39,7 @@
   <pre class="shell">herbie web</pre>
 
   <p>
-    After a brief wait, this will open your web browser and show you
+    After a brief wait, your web browser should open and show you
     Herbie's main window. The most important part of the page is this
     bit:
   </p>
@@ -47,59 +48,61 @@
     <img width="100%" src="web-input.png" alt="The program input field in the Herbie web UI."/>
   </figure>
 
-  <p>To follow along with this tutorial use the "Show an example" button. This 
-  will use the expression <kbd>sqrt(x + 1) - sqrt(x)</kbd> with the input range 
-  set to <kbd>0</kbd> and <kbd>1.79e308</kbd> for the lower and upper bound on 
-  the range of values for x as shown below.
+  <p>
+    Let's start by just looking at an example of Herbie running.
+    Click "Show an example". This will pre-fill the expression
+    <kbd>sqrt(x + 1) - sqrt(x)</kbd>
+    with <code>x</code> ranging from to <kbd>0</kbd> and <kbd>1.79e308</kbd>.
+  </p>
+
   <figure>
     <img width="100%" src="range-input.png" alt="The input range field in the Herbie web UI."/>
   </figure>
-  Finally, hit the "Improve with Herbie" button. You should see the 
-  entry box gray out, then some text will appear on the
-  screen describing what Herbie is doing. After a few seconds, you'll
-  be redirected to a page with Herbie's results.
+
+  <p>
+    Now that you have an expression and a range for each variable,
+    click the "Improve with Herbie" button. You should see the entry
+    box gray out, and shortly thereafter some text should appear
+    describing what Herbie is doing. After a few seconds, you'll be
+    redirected to a page with Herbie's results.
   </p>
 
   <p>
-   At the top of this results page you see a few highlights of the alternatives 
-   herbie found. The biggest accuracy improvement found in the results, time it 
-   took herbie, the number of alternatives herbie found and the biggest speed 
-   improvement found.
+    The very top of this results page gives some quick statistics
+    about the alternative ways Herbie found for evaluating this
+    expression:
   </p>
 
   <figure>
     <img width="100%" src="report-large.png" alt="Statistics and error measures for this Herbie run." />
   </figure>
-  
+
   <p>
-    There is <a href="report.html"> more information</a> on this
-    results web page, which you can use explain more about the
-    expression's errors and how Herbie derived its result.
+    Here, you can see that Herbie's most accurate alternative has an
+    accuracy of 99.7%, much better than the initial program's 53.2%,
+    and that in total Herbie found 5 alternative. One of those
+    alternatives is both more accurate than the original expression
+    and also 1.9&times; faster. The <a href="report.html">rest of the
+    result page</a> shows each of these alternatives, including
+    details like how they were derived. These details are all
+    <a href="report.html">documented</a>, but for the sake of the
+    tutorial let's move on to a more realistic example.
   </p>
 
   <h2>Programming with Herbie</h2>
 
-  <p>Now that you've run Herbie and know how to read some of its results,
-  let's apply Herbie to a realistic program.</p>
-
   <p>
-    Herbie's input expressions can come from source code, mathematical
-    models, or even a debugging tool
-    like <a href="http://herbgrind.ucsd.edu">Herbgrind</a>. But most
-    often, they come from your mind, while you're writing new
-    mathematical code.
+    You can use Herbie on expressions from source code, mathematical
+    models, or debugging tools. But most users use Herbie as they
+    write code, passing any complex floating-point tool to Herbie as
+    they go. Herbie has <a href="options.html">options</a> to log all
+    the expressions you enter so that you can refer to them later.
   </p>
 
-  <p>When you're writing a new numerical program, it's best to keep
-  Herbie opens in a browser tab so you can run it easily. That way, you
-  can run Herbie on any complex floating-point expression you're
-  coding up and so always use an accurate version of that expression.
-  Herbie has <a href="options.html">options</a> to log all the
-  expressions you enter so that you can refer to them later.</p>
-
-  <p>However, let's suppose you're instead tracking down a
-  floating-point bug in existing code. Then you'll need to start by
-  identifying the problematic floating-point expression.</p>
+  <p>But to keep the tutorial focused, let's suppose you're instead
+    tracking down a floating-point bug in existing code. Then you'll
+    need to start by identifying the problematic floating-point
+    expression.</p>
 
   <p>To demonstrate the workflow, let's walk through
     <a href="https://github.com/josdejong/mathjs/pull/208">bug 208</a>
@@ -194,97 +197,98 @@ else {
   values of <code>xim</code> when improving the accuracy of this
   expression.</p>
   
-  <h2>Using Herbie's results</h2>
+  <h2>Herbie's results</h2>
 
-  <p>Herbie will churn for a few seconds and produce a results page,
-  here are a few highlights for the following input if you would like to <a href="using-cli.html">follow along</a>:</p>
-
-  <p><pre>herbie shell --seed 710631362</pre>
-  <p>After you see the <code>herbie></code> prompt paste in the following string.</p>
-<pre>(FPCore (xre xim)
-  :name "0.5 * sqrt(2.0 * (sqrt(xre * xre + xim * xim) + xre))"
-  :precision binary64
-  :pre (and (and (<= -1.79e+308 xre) (<= xre 1.79e+308)) 
-  (and (<= 0.0 xim) (<= xim 1.79e+308)))
-  (* 0.5 (sqrt (* 2.0 (+ (sqrt (+ (* xre xre) (* xim xim))) xre)))))</pre></p>
+  <p>Herbie will churn for a few seconds and produce a results page.
+    In this case, Herbie found 4 alternatives, and we're interested in
+    the most accurate one, which should have an
+    <a href="error.html">accuracy of 84.6%:</a></p>
 
   <figure>
-    <figcaption>Here a summary of Herbie's findings. Showing that it has found 4 different alternatives one of which more then doubles the overall accuracy and another that doubles the performance of this program.</figcaption>
     <img width="100%" src="problematic-highlight.png" />
   </figure>
 
+  <p>Below these summary statistics, we can see a graph of accuracy
+  versus input value. By default, it shows accuracy
+  versus <code>xim</code>; higher is better:</p>
+
   <figure>
-    <figcaption>Below we have a graph of <code>xim</code> displaying the accuracy differences between the most accurate alternative and the initial program.</figcaption>
     <img width="100%" src="problematic-xim.png" />
   </figure>
 
+  <p>The drop in accuracy once <code>xim</code> is bigger than
+  about <code>1e150</code> really stands out, but you can also see
+  that Herbie's alternative more accurate for smaller <code>xim</code>
+  values, too. You can also change the graph to plot accuracy
+  versus <code>xre</code> instead:</p>
+
   <figure>
-    <figcaption>Changing the selected variable from <code>xim</code> to <code>xre</code> shows a similar graph. overall Herbie has found an alternative that has increased accuracy for all points. You may also notice a subtle black line at the center of the graph which respects that a branch has been used to split the program into two halves which we will look at later.</figcaption>
     <img width="100%" src="problematic-xre.png" />
   </figure>
 
+  <p>This plot makes it clear that Herbie's alternative is almost
+  perfectly accurate for positive <code>xre</code>, but still has some
+  error for negative <code>xre</code>.
+
+  <p>Herbie also found other alternatives, which are less accurate but
+  might be faster. You can see a summary in this table:</p>
+
   <figure>
-    <figcaption>Here we have a summary of all the alternatives that Herbie has found. As we can see we have a few options being shown which is new for Herbie 2.0. So pending on your needs you can balance the trade offs between accuracy and speed for your needs.</figcaption>
+    <figcaption></figcaption>
     <img width="100%" src="problematic-pareto-table.png" />
   </figure>
 
-  <p>Herbie's algorithm is randomized, so you likely won't see the exact same 
-  thing unless you use the same seed variable shown above in the shell command. 
-  For example, the branch expression <code>xre ≤ 0</code> will probably have 
-  some other really small number. And perhaps Herbie will choose slightly 
-  different expressions. But the result should be recognizably similar. In this
-  case, Herbie reports that this expression is 84.6% accurate for sampled input versus the original 41.2%.</p>
+  <p>Herbie's algorithm is randomized, so you likely won't see the
+  exact same thing; you might see more or fewer alternatives, and they
+  might be more or less accurate and fast. That said, the most
+  accurate alternative should be pretty similar.</p>
+
+  <p>That alternative itself is shown lower down on the page:</p>
+
   <figure>
     <img width="100%" src="problematic-improved-accuracy.png" />
-    <figcaption>Herbie's most accurate alternative for the provided program.
-    </figcaption>
   </figure>
 
-  <p> It's a little harder to describe what Herbie found wrong with the
-  original expression, and why its new version is better—it is due to
-  a floating-point phenomenon called “cancellation”. But you can get
-  some insight from the error plot just below the program block.
-  Select the <code>xim</code> variable just below the plot, and you
-  will see something like this:</p>
+  <p>A couple features of this alternative stand out immediately.
+  First of all, Herbie inserted an <code>if</code> statement.
+  This <code>if</code> statement handles a phenomenon known as
+  cancellation, and is part of why Herbie's alternative is more
+  accurate. Herbie also replaced the square root operation with
+  the <code>hypot</code> function, which computes distances more
+  accurately than a direct square root operation.</p>
 
-  <figure>
-    <img width="100%" src="problematic-xim.png" />
-  </figure>
-
-  <p>There's a lot going on here. Along the horizontal axis, you have
-  the various values of <code>xim</code>. Note that the graph is
-  log-scale, and includes only non-negative values thanks to our
-  precondition. The value 1 is in the middle; to the left are values
-  with small exponents close to zero, and to the right, you have values
-  with large exponents approaching infinity.</p>
-
-  <p>The vertical axis measures bits of error, from 0 to 64. Lower is
-  better. There are two lines drawn: a red one for the original
-  expression and a blue one for Herbie's version. You can see from the
-  plot that as <code>xim</code> gets smaller (toward the left, closer
-  to zero), Herbie's improvement becomes more and more significant.
-  You can also see that for very large values of <code>xim</code>, the
-  original program had a maximal error (in fact, it overflows) but the
-  Herbie's version is better, though not great.</p>
-
-  <p>Of course, your exact output will differ a bit from the
-  screenshots and descriptions here, because Herbie is randomized to help avoid 
-  overfitting the data.</p>
-
-  <p>Now take a look at the 5th alternative. Let's say we cared more about speed for this section of code:</p>
+  <p>If you want to see more about how Herbie derived this result, you
+  could click on the word "Derivation" to see a detailed, step-by-step
+  explanation of how Herbie did it. For now, though, let's move on to
+  look at another alternative.</p>
+  
+  <p>The fifth alternative suggested by Herbie is much less accurate,
+  but it is about twice as fast as the original program:</p>
 
   <figure>
     <img width="100%" src="problematic-improved-speed.png" />
-    <figcaption>This example is twice as fast as the original and still a roughly 22.3% improvement to the overall accuracy compared to the original.</figcaption>
   </figure>
+  
+  <p>This alternative is kind of strange: it has two branches, and
+  each one only uses one of the two variables <code>xre</code>
+  and <code>xim</code>. That explains why it's fast, but it's still
+  more accurate than the initial program because it avoids
+  cancellation and overflow issues that plagued the original.</p>
+  
+  <h2>Using Herbie's alternatives</h2>
+  
+  <p>In this case, we were interested in the most accurate possible
+  implementation, so let's try to use Herbie's most accurate
+  alternative.</p>
 
-  <pre>var r = Math.sqrt(x.re * x.re + x.im * x.im);
-// Herbie version of 0.5 * Math.sqrt(2.0 * (r + x.re))
+  <pre>
+// Herbie version of 0.5 * sqrt(2.0 * (sqrt(xre*xre + xim*xim) + xre))
+var r = Math.hypot(x.re, x.im);
 var re;
-if (x.re &lt;= -4.7e-42) {
-    re = 0.5 * Math.sqrt(x.im * 2);
+if (xre + r <= 0) {
+    re = 0.5 * Math.sqrt(2 * (x.im / (x.re / x.im) * -0.5));
 } else {
-    re = 0.5 * (2 * Math.sqrt(x.re));
+    re = 0.5 * Math.sqrt(2 * (x.re + r));
 }
 if (x.im &gt;= 0) {
   return new Complex(
@@ -299,24 +303,26 @@ else {
   );
 }</pre>
 
-  <p>Note that I've left the original code in place in a comment. As
-  Herbie gets better, you can re-run it on this original expression to
-  see if it comes up with improvements in accuracy.</p>
+  <p>Note that I&apos;ve left the Herbie query in a comment. As Herbie
+  gets better, you can re-run it on this original expression to see if
+  it comes up with improvements in accuracy.</p>
 
-  <p>By the way, for some languages, like C, you can use the drop-down
-  in the top-right corner of the gray program block to translate
-  Herbie's output to that language.</p>
+  <p>By the way, for some languages, including JavaScript, you can use
+  the drop-down in the top-right corner of the alternative block to
+  translate Herbie&apos;s output to that language. However, you will
+  still probably need to refactor and modify the results to fit your
+  code structure, just like here.</p>
 
   <h2>Next steps</h2>
 
-  <p>With this change, we've made this part of the complex square root
-  function much more accurate, and we could repeat the same steps for
-  the other branches and other fields in this program. You now have a
-  pretty good understanding of Herbie and how to use it.
+  <p>With this change, we&apos;ve made this part of the complex square
+  root function much more accurate, and we could repeat the same steps
+  for the other branches and other fields in this program. You now
+  have a pretty good understanding of Herbie and how to use it.
   Please <a href="mailto:herbie@cs.washington.edu">let us know</a> if
   Herbie has helped you, and check out
   the <a href="../../doc.html">documentation</a> to learn more about
-  Herbie's various options and outputs.</p>
+  Herbie&apos;s various options and outputs.</p>
 
 </body>
 </html>
