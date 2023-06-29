@@ -23,7 +23,8 @@
   </header>
 
   <p>
-    <a href="../../">Herbie</a> supports Linux, macOS, and Windows. It
+    <a href="../../">Herbie</a> supports Linux, macOS, and Windows 
+    (though, on Windows, you will need to <a href="https://stackoverflow.com/questions/32127524/how-to-install-and-use-make-in-windows">install Make</a>). It
     can be installed from a package or from source. To start, install
     <a href="https://racket-lang.org">Racket</a>, which Herbie is
     written in. Install <a href="https://www.rust-lang.org/">Rust</a>
@@ -35,9 +36,15 @@
 
   <p>
     Install Racket either using
-    the <a href="http://download.racket-lang.org/racket-v8.5.html">official
-    installer</a> or distro-provided packages. Versions as old as 8.0
+    the <a href="http://download.racket-lang.org/racket-v8.9.html">official
+      installer</a> or distro-provided packages. Versions as old as 8.0
     are supported, but more recent versions are faster.
+  </p>
+
+  <p>
+    Please note: we recommend the official Racket installer over installing Racket via Snap.
+    If you must install Racket from Snap, make sure Herbie and all packages are
+    located in your home directory or another allow-listed directory.
   </p>
 
   <p>
@@ -45,17 +52,18 @@
   </p>
 
   <pre class="shell">racket
-Welcome to Racket v8.5 [cs].
+Welcome to Racket v8.9 [cs].
 > (exit)</pre>
 
-<h2>Installing Herbie from source</h2>
+  <h2>Installing Herbie from source</h2>
 
   <p>
     Install Rust, using <a href="https://rustup.rs/">rustup</a> or via some other means.
     Versions as old as 1.60.0 are supported.
-    This installation method supports Windows, macOS, and Linux for various architectures.
+    This installation method supports Windows (note that you will need some way to run make), 
+    macOS, and Linux for various architectures.
   </p>
-    
+
   <p>
     Once Racket and Rust are installed, download the Herbie source
     <a href="https://github.com/uwplse/herbie">from GitHub</a> with:
@@ -75,43 +83,44 @@ Welcome to Racket v8.5 [cs].
   <p>
     This command installs Herbie and its dependencies, compiles it for
     faster startup, and places the <code>herbie</code> executable in
-    your Racket user path (example paths for Racket 8.5):
+    your Racket user path (example paths for Racket 8.9):
   </p>
 
   <ul>
-    <li>On Windows, <code>AppData\Roaming\Racket\8.5\bin</code> in your user folder.</li>
-    <li>On macOS, <code>Library/Racket/8.5/bin</code> in your home folder.</li>
-    <li>On Linux, <code>.local/share/racket/8.5/bin</code> in your home directory.</li>
+    <li>On Windows, <code>AppData\Roaming\Racket\8.9\bin</code> in your user folder.</li>
+    <li>On macOS, <code>Library/Racket/8.9/bin</code> in your home folder.</li>
+    <li>On Linux, <code>.local/share/racket/8.9/bin</code> in your home directory.</li>
   </ul>
 
   <p>
-    You can run <code>herbie</code> from that directory, or add it to
-    your executable path. Once Herbie is installed and working
+    Please note that the path of the binary will be different on Linux if you 
+    have opted to use Snap. You can run <code>herbie</code> from that directory,
+    or add it to your executable path. Once Herbie is installed and working
     correctly, check out the <a href="tutorial.html">tutorial</a>.
   </p>
 
   <h2>Installing Herbie from a package</h2>
 
   <p>
-    This installation method supports Windows, macOS, and Linux for x86-64.
-    This method of installation will fail for Apple M1 systems and other ARM architectures.
-    Once Racket is installed, install Herbie from a package with:
+    This installation method supports Windows ((note that you will need some way to run make),
+    macOS, and Linux for x86-64. This method of installation will fail for Apple M1 systems 
+    and other ARM architectures. Once Racket is installed, install Herbie from a package with:
   </p>
 
-  <pre class="shell">raco pkg install --auto herbie</pre>  
+  <pre class="shell">raco pkg install --auto herbie</pre>
 
   <!-- This is a copy of the text above -->
 
   <p>
     This command installs Herbie and its dependencies, compiles it for
     faster startup, and places the <code>herbie</code> executable in
-    your Racket user path (example paths for Racket 8.1):
+    your Racket user path (example paths for Racket 8.9):
   </p>
 
   <ul>
-    <li>On Windows, <code>AppData\Roaming\Racket\8.5\bin</code> in your user folder.</li>
-    <li>On macOS, <code>Library/Racket/8.5/bin</code> in your home folder.</li>
-    <li>On Linux, <code>.local/share/racket/8.5/bin</code> in your home directory.</li>
+    <li>On Windows, <code>AppData\Roaming\Racket\8.9\bin</code> in your user folder.</li>
+    <li>On macOS, <code>Library/Racket/8.9/bin</code> in your home folder.</li>
+    <li>On Linux, <code>.local/share/racket/8.9/bin</code> in your home directory.</li>
   </ul>
 
   <p>
