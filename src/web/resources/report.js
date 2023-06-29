@@ -37,168 +37,63 @@ function Element(tagname, props, children) {
 
 const Filters = new Component("#filters", {
     setup: function () {
-        const byExStart = this.labeledCheckBox(
-            true, "ex-start", "ex-start", this.exStart)
-        const byEqStart = this.labeledCheckBox(
-            true, "eq-start", "eq-start", this.eqStart)
-        const byEqTarget = this.labeledCheckBox(
-            true, "eq-target", "eq-target", this.eqTarget)
-        const byLtTarget = this.labeledCheckBox(
-            true, "lt-target", "lt-target", this.ltTarget)
-        const byLtStart = this.labeledCheckBox(
-            true, "lt-start", "lt-start", this.ltStart)
-        const byApxStart = this.labeledCheckBox(
-            true, "apx-start", "apx-start", this.apxStart)
-        const byImpStart = this.labeledCheckBox(
-            true, "imp-start", "imp-start", this.impStart)
-        const byUniStart = this.labeledCheckBox(
-            true, "uni-start", "uni-start", this.uniStart)
-        const byTimeout = this.labeledCheckBox(
-            true, "timeout", "timeout", this.timeout)
-        const byGtTarget = this.labeledCheckBox(
-            true, "gt-target", "gt-target", this.gtTarget)
-        const byCrash = this.labeledCheckBox(true, "crash", "crash", this.crash)
-        const byError = this.labeledCheckBox(true, "error", "error", this.error)
-
         const viewImproved = this.buildGroupToggle("improved",
             ["imp-start", "ex-start", "eq-start", "eq-target",
-             "gt-target"])
+                "gt-target"])
 
         const viewRegressed = this.buildGroupToggle("regressed",
-            ["uni-start", "lt-target", "lt-start", "apx-start", 
-            "timeout", "crash", "error"])
+            ["uni-start", "lt-target", "lt-start", "apx-start",
+                "timeout", "crash", "error"])
 
-        const improved = Element("div",
-            [viewImproved,
-                byImpStart,
-                byExStart,
-                byEqStart,
-                byEqTarget,
-                byGtTarget,])
-        const badRuns = Element("div",
-            [viewRegressed,
-                byUniStart,
-                byLtTarget,
-                byLtStart,
-                byApxStart,
-                byTimeout,
-                byCrash,
-                byError])
-        const filters = Element("div",
-            Element("div", [
-                improved,
-                badRuns]))
+        const filters = Element("div", [
+            viewImproved,
+            viewRegressed])
+        this.elt.appendChild(filters);
         this.elt.appendChild(filters);
     },
-
-    impStart: function () {
-        this.toggle("#imp-start", (child) => {
-            return child.classList.contains("imp-start")
-        })
-    },
-    exStart: function () {
-        this.toggle("#ex-start", (child) => {
-            return child.classList.contains("ex-start")
-        })
-    },
-    eqStart: function () {
-        this.toggle("#eq-start", (child) => {
-            return child.classList.contains("eq-start")
-        })
-    },
-    eqTarget: function () {
-        this.toggle("#eq-target", (child) => {
-            return child.classList.contains("eq-target")
-        })
-    },
-    ltTarget: function () {
-        this.toggle("#lt-target", (child) => {
-            return child.classList.contains("lt-target")
-        })
-    },
-    ltStart: function () {
-        this.toggle("#lt-start", (child) => {
-            return child.classList.contains("lt-start")
-        })
-    },
-    uniStart: function () {
-        this.toggle("#uni-start", (child) => {
-            return child.classList.contains("uni-start")
-        })
-    },
-    apxStart: function () {
-        this.toggle("#apx-start", (child) => {
-            return child.classList.contains("apx-start")
-        })
-    },
-    timeout: function () {
-        this.toggle("#timeout", (child) => {
-            return child.classList.contains("timeout")
-        })
-    },
-    gtTarget: function () {
-        this.toggle("#gt-target", (child) => {
-            return child.classList.contains("gt-target")
-        })
-    },
-    crash: function () {
-        this.toggle("#crash", (child) => {
-            return child.classList.contains("crash")
-        })
-    },
-    error: function () {
-        this.toggle("#error", (child) => {
-            return child.classList.contains("error")
-        })
-    },
-    buildGroupToggle: function (tag, listOfTags) {
-        // setup checkbox object
-        const checkBox = Element("label",
-            [Element("input",
-                { type: "checkbox", id: tag, checked: true },
-                ""),
-            new Text(tag)])
-
-        checkBox.addEventListener("click", () => {
-            listOfTags.forEach((str) => {
-                const improvedBox = document.querySelector(`#${tag}`)
-                const checkBox = document.querySelector(`#${str}`)
-                checkBox.checked = improvedBox.checked
-                const siblingsList = document.querySelectorAll(`#results tbody tr`)
-                siblingsList.forEach((child, n, p) => {
-                    if (child.classList.contains(`${str}`) && checkBox.checked) {
+    buildGroupToggle: function (leaderTag, listOfTags) {
+        // helper function to loop over the table and toggle state of nodes 
+        // with `#stringID`
+        function updateDomNodesWithID(stringID, state) {
+            const siblingsList = document.querySelectorAll(`#results tbody tr`)
+            siblingsList.forEach((child, n, p) => {
+                if (child.classList.contains(stringID)) {
+                    if (state) {
                         child.style.display = `table-row`
-                    } else if (child.classList.contains(`${str}`) && !checkBox.checked) {
+                    } else {
                         child.style.display = "none"
                     }
-                })
+                }
+            })
+        }
+        // setup leader check box
+        const leaderCheckBox = Element("label",
+            [Element("input",
+                { type: "checkbox", id: leaderTag, checked: true },
+                ""),
+            new Text(leaderTag)])
+        leaderCheckBox.addEventListener("click", () => {
+            const improvedBox = document.querySelector(`#${leaderTag}`)
+            listOfTags.forEach((str) => {
+                const currentCheckBox = document.querySelector(`#${str}`)
+                currentCheckBox.checked = improvedBox.checked
+                updateDomNodesWithID(`${str}`, currentCheckBox.checked)
             })
         })
-        return checkBox
-    },
-    toggle: function (checkBoxSelectorString, f) {
-        const siblingsList = document.querySelectorAll("#results tbody tr")
-        const checkBox = document.querySelector(checkBoxSelectorString)
-        siblingsList.forEach((child, n, p) => {
-            if (f(child) && checkBox.checked) {
-                child.style.display = "table-row"
-            } else if (f(child) && !checkBox.checked) {
-                child.style.display = "none"
-            }
+        var checkBoxes = []
+        checkBoxes.push(leaderCheckBox)
+
+        // build child check boxes
+        listOfTags.forEach((child) => {
+            const childBox = Element("label", [Element("input", { type: "checkbox", id: child, checked: true }, ""), new Text(child)])
+            // on click handler
+            childBox.addEventListener("click", () => {
+                const thisChild = document.querySelector(`#${child}`)
+                updateDomNodesWithID(child, thisChild.checked)
+            })
+            checkBoxes.push(childBox)
         })
-    },
-    labeledCheckBox: function (startingState, idString, labelString, onClickHandler) {
-        var checkBox =
-            Element("label", [this.checkBox(startingState, idString), new Text(labelString)])
-        checkBox.addEventListener("click", onClickHandler)
-        return checkBox
-    },
-    checkBox: function (checked, idString) {
-        if (checked) {
-            return Element("input", { type: "checkbox", id: idString, checked }, "")
-        } else {
-            return Element("input", { type: "checkbox", id: idString }, "")
-        }
+        return Element("div", checkBoxes)
     }
 })
 
