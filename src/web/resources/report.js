@@ -90,9 +90,37 @@ const Filters = new Component("#filters", {
                 })
                 return checkBox
             }()
+        const viewRegressed =
+            function () {
+                let tag = "regressed"
+                // list of results to toggle
+                const listOfRegressed= [
+                    "uni-start","lt-target","lt-start","apx-start","timeout","crash","error"]
 
-        const viewWorse = this.labeledCheckBox(
-            true, "worse", "worse", console.log("worse"))
+                // setup checkbox object
+                const checkBox = Element("label",
+                    [Element("input",
+                        { type: "checkbox", id: tag, checked: true },
+                        ""),
+                    new Text(tag)])
+
+                checkBox.addEventListener("click", () => {
+                    listOfRegressed.forEach((str) => {
+                        const improvedBox = document.querySelector(`#${tag}`)
+                        const checkBox = document.querySelector(`#${str}`)
+                        checkBox.checked = improvedBox.checked
+                        const siblingsList = document.querySelectorAll(`#results tbody tr`)
+                        siblingsList.forEach((child, n, p) => {
+                            if (child.classList.contains(`${str}`) && checkBox.checked) {
+                                child.style.display = `table-row`
+                            } else if (child.classList.contains(`${str}`) && !checkBox.checked) {
+                                child.style.display = "none"
+                            }
+                        })
+                    })
+                })
+                return checkBox
+            }()
 
         const improved = Element("div",
             [viewImproved,
@@ -102,7 +130,7 @@ const Filters = new Component("#filters", {
                 byEqTarget,
                 byGtTarget,])
         const badRuns = Element("div",
-            [viewWorse,
+            [viewRegressed,
                 byUniStart,
                 byLtTarget,
                 byLtStart,
