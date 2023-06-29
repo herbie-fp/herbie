@@ -26,10 +26,21 @@
     input program, and has extensive options for precisely describing
     its context.
   </p>
-  
-  <h2 id="sec1">General format</h2>
 
-  <p><a href="http://fpbench.org">FPCore</a> format looks like this:</p>
+  <h2>Math format</h2>
+
+  <p>The Herbie web shell takes input in a subset of
+  the <a href="https://mathjs.org/docs/expressions/syntax.html">math.js
+  syntax</a>. The web shell automatically checks for syntax errors,
+  and provides a graphical user interface for specifying the input
+  domain. The web shell converts the mathematical expression and input
+  ranges into FPCore before sending it to Herbie.</p>
+  
+  <h2 id="sec1">FPCore format</h2>
+
+  <p>Herbie's command-line and batch-mode tools
+  use <a href="http://fpbench.org">FPCore</a> format to describe
+  mathematical expressions. FPCore looks like this:</p>
 
   <pre>(FPCore (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
   <pre>(FPCore <var>name</var> (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
@@ -38,7 +49,6 @@
     Each <var>input</var> is a variable name, like <code>x</code>,
     used in the <var>expression</var>. Properties are used to specify
     additional information about the <var>expression</var>'s context.
-    As of version 1.5, Herbie supports named functions.
     If <var>name</var> is specified, the function can be referenced in
     subsequent FPCore declarations in the file.
   </p>
@@ -90,13 +100,9 @@
 
   <p>Herbie links against your computer's <code>libm</code> to
   evaluate these functions. So, each function has the same behavior in
-  Herbie as in your code.</p>
-
-  <p>On Windows, the Bessel functions are not available in the
-  system <code>libm</code>, so Herbie will use a fallback
-  implementation and print a warning. Turn off the
-  the <kbd>precision:fallback</kbd> <a href="options.html">option</a>
-  to disable those functions instead.</p>
+  Herbie as in your code. You can instead use
+  the <a href="#precisions"><code>racket</code> precision</a> if you
+  instead want reproducible behavior.</p>
 
   <h2 id="conditionals">Conditionals</h2>
   
@@ -117,7 +123,7 @@
     <dd>The two boolean values</dd>
   </dl>
 
-  <p>The comparison functions implement chained comparisons with more than two arguments.</p>
+  <p>The comparison functions support chained comparisons with more than two arguments.</p>
 
   <h2 id="intermediates">Intermediate variables</h2>
   
@@ -125,6 +131,7 @@
     using <code>let</code> and <code>let*</code>:</p>
 
   <pre>(let ([<var>variable</var> <var>value</var>] <var>...</var>) <var>body</var>)</pre>
+  <pre>(let* ([<var>variable</var> <var>value</var>] <var>...</var>) <var>body</var>)</pre>
 
   <p>In both <code>let</code> and <code>let*</code>,
   each <var>variable</var> is bound to its <var>value</var> and can be
@@ -145,10 +152,31 @@
       values can refer to earlier variables.</dd>
   </dl>
 
-  <p>Note that Herbie treats intermediate values only as a notational
-  convenience, and inlines their values before improving the formula's
-  accuracy. Using intermediate variables will not help Herbie improve
-  a formula's accuracy or speed up its run-time.</p>
+  <p>Unless you have a lot of Lisp experience, you'll probably
+  find <code>let*</code> more intuitive.</p>
+
+  <p>Internally, Herbie treats intermediate values only as a
+  notational convenience, and inlines their values before improving
+  the formula's accuracy. Using intermediate variables will therefore
+  not produce a more accurate result or help Herbie run faster.</p>
+
+  <h2 id="specs">Specifications</h2>
+
+  <p>In some cases, your input program is an approximation of some
+  more complex mathematical expression. The <code>:spec</code> (for
+  “specification”) lets you specify the more complex ideal case.
+  Herbie will then try to modify the input program to make it more
+  accurately evaluate the specification.</p>
+
+  <p>For example, suppose you want to evaluate <code>sin(1/x)</code>
+  via a series expansion. Write:</p>
+
+  <pre>(FPCore (x)
+  :spec (sin (/ 1 x))
+  (+ (/ 1 x) (/ 1 (* 6 (pow x 3)))))</pre>
+
+  <p>Herbie will only use the <code>:spec</code> expression to
+  evaluate error, not to search for accurate expressions.</p>
 
   <h2 id="preconditions">Preconditions</h2>
 
@@ -186,41 +214,19 @@
   a <a href="plugins.html">plugin system</a> to load additional
   precisions.</p>
 
-  <h2 id="conversions">Conversions</h2>
-
-  <p>Herbie supports conversions between different precisions.
-  All conversions are assumed to be bi-directional. You can
-  specify conversions with the <code>:herbie-conversions</code>
-  property.</p>
+  <p>Herbie won't produce mixed-precision code unless you allow it to
+  do so, using the <code>:herbie-conversions</code> property:</p>
 
   <dl class="function-list">
     <dt><code>:herbie-conversions<br/>([<var>prec1</var> <var>prec2</var>] ...)</code></dt>
-    <dd>If an expression is computed with precision <code>prec1</code>,
-    Herbie is allowed to rewrite all (or some) of the expression so it
-    is computed with precision <code>prec2</code> and vice versa.</dd>
+    <dd>Expressions in precision <code>prec1</code>, can be rewriten
+    to use precision <code>prec2</code>, and vice versa.</dd>
   </dl>
 
-  <p>For example, to let Herbie introduce single-precision
-  code when <code>:precision</code> is set to <code>binary64</code> or vice versa,
-  specify <code>:herbie-conversions ((binary64 binary32))</code></p>
-
-  <h2 id="specs">Specifications</h2>
-
-  <p>In some cases, your input program is an approximation of some
-  more complex mathematical expression. The <code>:spec</code> (for
-  “specification”) lets you specify the more complex ideal case.
-  Herbie will then try to modify the input program to make it more
-  accurately evaluate the specification.</p>
-
-  <p>For example, suppose you want to evaluate <code>sin(1/x)</code>
-  via a series expansion. Write:</p>
-
-  <pre>(FPCore (x)
-  :spec (sin (/ 1 x))
-  (+ (/ 1 x) (/ 1 (* 6 (pow x 3)))))</pre>
-
-  <p>Herbie will only use the <code>:spec</code> expression to
-  evaluate error, not to search for accurate expressions.</p>
+  <p>All conversions are assumed to be bidirectional. For example, if
+  you specify <code>:herbie-conversions ([binary64 binary32])</code>,
+  Herbie will be able to add conversions between single- and
+  double-precision floating-point.</p>
 
   <h2 id="properties">Miscellaneous Properties</h2>
 
@@ -245,7 +251,7 @@
 
   <p>Herbie's benchmark suite also uses properties such
   as <code>:herbie-target</code> for continuous integration, but these
-  are not supported and their use is discouraged.</p>
+  are not officially supported and their use is discouraged.</p>
   
 </body>
 </html>
