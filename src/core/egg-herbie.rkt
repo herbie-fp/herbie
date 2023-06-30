@@ -462,17 +462,22 @@
   (define res (cast pointer _pointer _string/utf-8))
   (destroy_string pointer)
   (define env (make-hash))
-  (define converted
-    (for/list ([line (in-list (string-split res "\n"))])
-      (egg-expr->expr line egraph-data)))
-  (define expanded
-    (expand-proof
-     converted
-     (box (*proof-max-length*))))
-
-  (if (member #f expanded)
-      #f
-      expanded))
+  (cond
+   ;; TODO: sometimes the proof is *super* long and it takes us too long just string-split
+   ;; Ideally we would skip the string-splitting
+   [(< (string-length res) 10000)
+    (define converted
+      (for/list ([line (in-list (string-split res "\n"))])
+        (egg-expr->expr line egraph-data)))
+    (define expanded
+      (expand-proof
+       converted
+       (box (*proof-max-length*))))
+    (if (member #f expanded)
+        #f
+        expanded)]
+   [else
+    #f]))
 
 (struct egg-add-exn exn:fail ())
 
