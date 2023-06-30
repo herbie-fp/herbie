@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "herbie")
-(define version "1.6")
+(define version "2.0")
 
 ;; Packaging information
 
