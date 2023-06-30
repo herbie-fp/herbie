@@ -8,7 +8,7 @@
  ulp-difference ulps->bits
  midpoint random-generate
  </total <=/total
- value->string value->json
+ value->string value->json json->value
  real->repr repr->real)
 
 (define (ulp-difference x y repr)
@@ -61,6 +61,20 @@
        [(or +nan.0 +nan.f) (hash 'type "real" 'value "NaN")])]
     [_ (hash 'type (~a (representation-name repr))
              'ordinal (~a ((representation-repr->ordinal repr) x)))]))
+
+(define (json->value x repr)
+  (match x
+    [(? real?) x]
+    [(? hash?) 
+      (match (hash-ref x 'type) 
+        ["real"
+          (match (hash-ref x 'value)
+            ["-inf" -inf.0]
+            ["+inf" +inf.0]
+            ["NaN" +nan.0]
+            [_ +nan.0])]
+        [_ ((representation-ordinal->repr repr)
+              (string->number (hash-ref x 'ordinal)))])]))
 
 (define (value->string n repr)
   ;; Prints a number with relatively few digits

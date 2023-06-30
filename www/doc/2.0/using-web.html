@@ -51,14 +51,11 @@ Stop this program at any time to terminate the Web Server.</pre>
     <img width="100%" src="web-main.png" alt="A screenshot of the Herbie web shell main page."/>
   </figure>
 
-  <p>The easiest way to get started is to use the "Show an example" button which will fill in a default expression and range of values to get an idea of what herbie is expecting as input.</p>
-
-  <p>You may also add your own expressions in standard mathematical syntax 
-    (parsed by <a href="http://mathjs.org">Math.js</a>). After typing in an 
+  <p>You can type an input expressions in
+    <a href="input.html">standard mathematical syntax</a>. After typing in an 
     expression, you will be asked to specify the range of values for each input 
     variable that Herbie should consider when trying to improve the expression. 
-    Hit the "Improve with Herbie" button to have Herbie attempt to improve the 
-    expression.
+    Hit the "Improve with Herbie" button once you're done to run Herbie.
   </p>
   
   <p>
@@ -76,7 +73,7 @@ Stop this program at any time to terminate the Web Server.</pre>
   <h2 id="batch">Batch report generation</h2>
 
   <p>A <a href="report.html">report</a> can also be generated directly
-  from a file of <a href="input.html">input expressions</a>:</p>
+  from a file of input expressions in <a href="input.html">FPCore format</a>:</p>
   
   <pre class="shell">herbie report bench/tutorial.fpcore output/ 
 Starting Herbie on 3 problems (seed: 770126425)...
@@ -89,20 +86,21 @@ more.
   3/3   [   0.353s]   30→ 0     Cancel like terms</pre>
 
   <p>
-    This command asks Herbie to generate a report from the input
-    expressions in <code>bench/tutorial.fpcore</code> and to save the report in
-    the directory <code>output/</code>. It's best if that directory
-    doesn't exist before running this command.
+    This command asks generates a report from the input expressions
+    in <code>bench/tutorial.fpcore</code> and saves the report in the
+    directory <code>output/</code>. It's best if that directory
+    doesn't exist before running this command, because otherwise
+    Herbie may overwrite files in that directory.
   </p>
 
   <p>
-    Occasionally you may also see Herbie emit warnings as shown above. You can 
-    learn more about the different type of warnings herbie can produces on the 
-    <a href="faq.html">FAQ</a>.
+    Occasionally you may also see Herbie emit warnings as shown above.
+    All of Herbie's warnings are listed, with explanations, in
+    the <a href="faq.html">FAQ</a>.
   </p>
 
   <p>
-    Once generated, open <code>output/results.html</code> in your
+    Once generated, open <code>output/index.html</code> in your
     favorite browser (but see <a href="faq.html">the FAQ</a> if you're
     using Chrome). That page summarizes Herbie's results for all
     expression in your input file, and you can click on individual

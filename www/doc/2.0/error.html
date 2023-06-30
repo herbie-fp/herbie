@@ -20,21 +20,21 @@
 <p>
   <a href="../../">Herbie</a> helps you identify and correct floating
   point error in your numeric programs. But what is floating point
-  error, how does Herbie measure it, and how does it address it?
+  error, and how does Herbie measure it?
 </p>
 
 <h2>The summary</h2>
 
-When Herbie reports a "percentage accuracy" number like 92.3%, it's
+<p>When Herbie reports a "percentage accuracy" number like 92.3%, it's
 usually best to think of that as the percentage of floating-point
-inputs where the expression is reasonably accurate.
+inputs where the expression is reasonably accurate.</p>
 
-What exactly that means can vary: the impact of this error on your
-application will depend a lot on <em>which</em> 7.7% of points have
-error, and what kind of error that is. If you have more information
-about which types of points are important, the best way to communicate
-that to Herbie is by using ranges or preconditions to restrict the
-inputs Herbie is considering.
+<p>The impact of this error on your application will depend a lot
+on <em>which</em> 7.7% of inputs are inaccurate, and what kind of
+error that is. You can find this out using
+the <a href="report.html">accuracy graph in Herbie reports</a>. You
+can also use preconditions to restrict the inputs Herbie is
+considering.</p>
 
 <h2>Why rounding matters</h2>
 
@@ -46,11 +46,10 @@ time you do an operation, the true result typically has to
 be <em>rounded</em> to a representable one.</p>
 
 <p>Take an extreme example: the code <code>1e100 + 1</code>, which
-increments a huge number, in IEEE 754 double-precision floating-point
-(which Herbie calls <code>binary64</code>). There's an exact
-real-number answer to this (a one followed by 99 zeros and then
-another 1), but the closest <em>floating-point</em> value is the same
-as for <code>1e100</code>.</p>
+increments a huge number in IEEE 754 double-precision floating-point.
+There's an exact real-number answer, a one followed by 99 zeros and
+then another 1, but the closest <em>floating-point</em> value is the
+same as <code>1e100</code>.</p>
 
 <p>Errors like this can cause problems. In the example above, the
 answers differ by one part per googol, which is pretty small. But the
@@ -110,38 +109,39 @@ across many possible inputs. Herbie therefore averages the accuracy
 percentage across many randomly-sampled valid inputs.</p>
 
 <p>Typically, inputs points are either very accurate or not accurate
-at all. So when computing average error, Herbie's averaging a lot of
-points with near-100% accuracy and a lot of points with near-0%
-accuracy. In that sense, you can think of average error as measuring
-mostly what percentage <em>of inputs</em> are accurate. If Herbie says
-your computation is 75% accurate what it's really saying is that about
-a quarter of inputs produce usable outputs.</p>
-
-<p>Interpreting average error also requires understanding which inputs
-are valid and how they are sampled.</p>
+at all. So when computing percentage accuracy, Herbie's averaging a
+lot of points with near-100% accuracy and a lot of points with near-0%
+accuracy. In that sense, you can think of percentage accuracy as
+measuring mostly what percentage <em>of inputs</em> are accurate. If
+Herbie says your computation is 75% accurate what it's really saying
+is that about a quarter of inputs produce usable outputs.</p>
 
 <h2>Valid inputs</h2>
 
-<p>Herbie considers an input valid if its true, real-number output 1)
-exists; 2) rounds to a finite number; 3) can be computed; and 4)
-satisfies the user's precondition. Let's dive into each
-requirement.</p>
+<p>Since percentage accuracy averages over many points, it depends on
+what points it is averaging over, and how is samples among them.
+Herbie samples among <em>valid</em> inputs, uniformly distributed.</p>
+
+<p>Herbie considers an input valid if it is a floating-point value in
+the appropriate precision and its true, real-number output 1) exists;
+2) satisfies the user's precondition; and 3) can be computed. Let's
+dive into each requirement.</p>
 
 <ol>
   <li>An output can fail to exist for an input if that input does
     something like divide by zero or take the square root of a
     negative number. Then that input is invalid.</li>
-  <li>An output can fail to satisfy the user's precondition.
+  <li>An input can fail to satisfy the user's precondition.
     Preconditions can be basically anything, but most often they
     specify a range of inputs. For example, if the precondition
     is <code>(&lt; 1 x 2)</code>, then the input <code>x = 3</code> is
     invalid.</li>
-  <li>Finally, and most rarely, an output can fail to be computed in
-    some rare situations. For example, the computation <code>(/ (exp
+  <li>Finally, and most rarely, Herbie can fail to compute the output
+    for a particular input. For example, the computation <code>(/ (exp
     1e9) (exp 1e9))</code>, which divides two identical but gargantuan
-    numbers, does have an exact real-number answer (one) but that
-    exact answer can't be computed by Herbie because the intermediate
-    steps are too large. This input is also invalid.</li>
+    numbers, does have an exact real-number answer (one), but Herbie
+    can't compute that exact answer because the intermediate steps are
+    too large. This input is also invalid.</li>
 </ol>
 
 <p>Herbie's percentage accuracy metric only averages over valid
