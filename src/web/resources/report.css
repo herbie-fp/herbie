@@ -62,6 +62,28 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 #flag-list.changed-flags #changed-flags { display: block; }
 #flag-list.changed-flags #all-flags { display: none; }
 
+/* Result table filters */
+#filters div div {color:#4a4a4a; float:left; padding: .4em .2em;}
+#filters label {font-family: 'IBM Plex Serif', serif;font-size: 14px;line-height: 1.4;padding: .1em .2em; margin: .1em .3em;border-radius: .5em;border-color: #b3b3b3;border-style: solid;box-shadow: .1em .1em #6d6464;display: inline-block;}
+#filters label:hover {border-color:#6d6464;box-shadow:-.1em  -.1em #454545;}
+#filters label:active {color: #000000;background-color: #000000;}
+/* #filters label input{display: none;} */
+#filters label:nth-child(1) {background-color: #00a;color:#f7f7f7;}
+
+#imp-start {background-color: #87fc70;color: #4a4a4a;}
+#apx-start {background-color: #ff9500;color: #4a4a4a;}
+#uni-start {background-color:#ff5e3a; color: #4a4a4a;}
+#ex-start  {background-color: #e0f8d8;color: #4a4a4a;}
+#eq-start {background-color: #87fc70;color: #4a4a4a;}
+#lt-start {background-color: #ffdb4c;color: #4a4a4a;}
+#gt-target {background-color: #87fc70;color: #4a4a4a;}
+#eq-target {background-color: #87fc70;color: #4a4a4a;}
+#lt-target {background-color: #ff9500;color: #4a4a4a;}
+
+#crash {background-color:#ff9d87; color:#ed2b00; border: 2px solid #ff5e3a; margin: -2px; }
+#error {background-color: #4a4a4a;color:#f7f7f7;}
+#timeout {background-color: #8e8e93;color:#f7f7f7;}
+
 /* Table of results */
 
 #results { border-collapse: collapse; width:100%; }
@@ -80,7 +102,7 @@ tr.uni-start  td:nth-child(3) {background-color:#ff5e3a;color:#f7f7f7;}
 tr.ex-start   td:nth-child(3) {background-color:#e0f8d8;}
 
 tr.gt-target  td:nth-child(3) {background-color:#87fc70;}
-tr.gt-target  td:nth-child(4) {background-color:#0bd318;}
+tr.gt-target  td:nth-child(4) {background-color:#87fc70;}
 tr.eq-target  td:nth-child(3) {background-color:#87fc70;}
 tr.eq-target  td:nth-child(4) {background-color:#87fc70;}
 tr.lt-target  td:nth-child(3) {background-color:#87fc70;}

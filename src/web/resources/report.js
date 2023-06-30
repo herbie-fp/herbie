@@ -67,13 +67,13 @@ const Filters = new Component("#filters", {
             })
         }
         // setup leader check box
-        const leaderCheckBox = Element("label",
+        const leaderCheckBox = Element("label", {id: leaderTag},
             [Element("input",
-                { type: "checkbox", id: leaderTag, checked: true },
+                { type: "checkbox", checked: true },
                 ""),
             new Text(leaderTag)])
         leaderCheckBox.addEventListener("click", () => {
-            const improvedBox = document.querySelector(`#${leaderTag}`)
+            const improvedBox = document.querySelector(`#${leaderTag} input`)
             listOfTags.forEach((str) => {
                 const currentCheckBox = document.querySelector(`#${str}`)
                 currentCheckBox.checked = improvedBox.checked
@@ -85,10 +85,10 @@ const Filters = new Component("#filters", {
 
         // build child check boxes
         listOfTags.forEach((child) => {
-            const childBox = Element("label", [Element("input", { type: "checkbox", id: child, checked: true }, ""), new Text(child)])
+            const childBox = Element("label", {id: child}, [Element("input", { type: "checkbox", checked: true }, ""), new Text(child)])
             // on click handler
             childBox.addEventListener("click", () => {
-                const thisChild = document.querySelector(`#${child}`)
+                const thisChild = document.querySelector(`#${child} input`)
                 updateDomNodesWithID(child, thisChild.checked)
             })
             checkBoxes.push(childBox)
