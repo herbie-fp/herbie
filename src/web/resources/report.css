@@ -228,10 +228,8 @@ section { display: flow-root; }
 
 /* Process / debug info */
 
-#process-info { background: #ddd; }
+#process-info { background: #ddd; padding: 0; }
 #process-info p.header { font-size: 110%; padding: 1em 1em .5em; margin: 0; }
-#process-info p.header .attachment { float: right; margin: 0 0 0 1em; }
-#process-info > p { margin: 1em .75em 0; }
 
 .timeline {
     height: 2em; border: 1px solid #888; border-width: 1px 0px; margin-bottom: 1em;
