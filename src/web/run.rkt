@@ -74,7 +74,7 @@
 
   (call-with-output-file (build-path dir "timeline.html")
     #:exists 'replace
-    (λ (out) (make-timeline "Herbie run" timeline out #:info info)))
+    (λ (out) (make-timeline "Herbie run" timeline out #:info info #:path ".")))
 
   ; Delete old files
   (let* ([expected-dirs (map string->path (filter identity (map table-row-link (report-info-tests info))))]

@@ -35,7 +35,7 @@
     ["interactive.js"
      (make-interactive-js result out ctx)]
     ["timeline.html"
-     (make-timeline (test-name test) (job-result-timeline result) out)]
+     (make-timeline (test-name test) (job-result-timeline result) out #:path "..")]
     ["timeline.json"
      (write-json (job-result-timeline result) out)]
     ["points.json"
