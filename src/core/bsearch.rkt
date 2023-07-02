@@ -91,7 +91,7 @@
 (define (sindices->spoints points expr alts sindices ctx)
   (define repr (repr-of expr ctx))
 
-  (define eval-expr (eval-prog expr 'fl ctx))
+  (define eval-expr (compile-prog expr 'fl ctx))
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
@@ -99,7 +99,9 @@
   (define start-prog (extract-subexpression (*start-prog*) var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
-  (define start-fn (and start-prog (make-search-func '(TRUE) (list start-prog) ctx*)))
+  (define start-fn 
+    (and start-prog 
+      (make-search-func '(TRUE) (list start-prog)  (cons ctx* `()))))
 
   (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
@@ -112,16 +114,11 @@
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
     (left-point p1 p2))
 
-  ; a little more rigorous than it sounds:
-  ; finds the shortest number `x` near `p1` such that
-  ; `x1` is in `[p1, p2]` and is no larger than
-  ;  - if `p1` is negative, `p1 / 2`
-  ;  - if `p1` is positive, `p1 * 2`
   (define (left-point p1 p2)
     (let ([left ((representation-repr->bf repr) p1)]
           [right ((representation-repr->bf repr) p2)])
       ((representation-bf->repr repr)
-        (if (bfnegative? left)
+       (if (bfnegative? left)
             (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
             (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
 
@@ -158,7 +155,7 @@
 
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
-  (define prog (eval-prog bexpr 'fl ctx*))
+  (define prog (compile-prog bexpr 'fl ctx*))
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)

@@ -7,8 +7,8 @@
 
 (define (make-traceback result out profile?)
   ;; Called with timeout or failure results
-  (match-define (test-result test bits time timeline warnings) result)
-  (define exn (if (test-failure? result) (test-failure-exn result) 'timeout))
+  (match-define (job-result test status time timeline warnings backend) result)
+  (define exn (if (eq? status 'failure) backend 'timeout))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -21,7 +21,7 @@
       (script ([src "../report.js"])))
      (body
       ,(render-menu
-        (list)
+        (~a (test-name test))
         (list
          '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))

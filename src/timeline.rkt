@@ -12,7 +12,9 @@
 ;; Important: Use 'eq?' based hash tables, process may freeze otherwise
 (define-resetter *timeline*
   (λ () (box '()))
-  (λ () (box '())))
+  (λ ()
+    (set-box! (*timeline*) '())
+    (*timeline*)))
 
 (define *timeline-disabled* (make-parameter true))
 (define *timeline-timers* (mutable-set))

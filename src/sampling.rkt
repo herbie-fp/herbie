@@ -101,7 +101,7 @@
     (define hyperrects-analysis (precondition->hyperrects pre ctx))
     (match-define (cons hyperrects sampling-table)
       (find-intervals search-func hyperrects-analysis
-                      #:reprs reprs #:fuel (*max-find-range-depth*)))
+                      #:ctx ctx #:fuel (*max-find-range-depth*)))
     (cons (make-hyperrect-sampler hyperrects reprs) sampling-table)]
    [else
     (timeline-push! 'method "random")
@@ -115,7 +115,7 @@
     (define now (current-inexact-milliseconds))
     (when (equal? status 'exit)
       (warn 'ground-truth #:url "faq.html#ground-truth"
-               "could not determine a ground truth for program ~a" name
+               "could not determine a ground truth"
                #:extra (for/list ([var vars] [val pt])
                          (format "~a = ~a" var val))))
     (define dt (- now start))
@@ -123,20 +123,39 @@
     (set! start now))
   log!)
 
-(define (ival-eval fn pt #:precision [precision (*starting-prec*)])
+(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
   (let loop ([precision precision])
     (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
     (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
     (define precision* (exact-floor (* precision 2)))
     (cond
      [err
-      (values (or err 'bad) precision +nan.0)]
+      (values err precision +nan.0)]
      [(not err?)
-      (values 'valid precision exs)]
+      (define infinite?
+      (ival-lo (is-infinite-interval repr (apply ival-or exs))))
+      (values (if infinite? 'infinite 'valid) precision exs)
+     ]
      [(> precision* (*max-mpfr-prec*))
       (values 'exit precision +nan.0)]
      [else
       (loop precision*)])))
+
+(define (is-infinite-interval repr interval)
+  (define <-bf (representation-bf->repr repr))
+  (define ->bf (representation-repr->bf repr))
+  ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
+  ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
+  (define (positive-inf? x)
+    (parameterize ([bf-rounding-mode 'nearest])
+      (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
+  (define (negative-inf? x)
+    (parameterize ([bf-rounding-mode 'nearest])
+      (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
+  (define ival-positive-infinite (monotonic->ival positive-inf?))
+  (define ival-negative-infinite (comonotonic->ival negative-inf?))
+  (ival-or (ival-positive-infinite interval)
+           (ival-negative-infinite interval)))
 
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
@@ -151,7 +170,7 @@
       (define pt (sampler))
 
       (define-values (status precision out)
-        (ival-eval fn pt #:precision starting-precision))
+        (ival-eval repr fn pt #:precision starting-precision))
       (hash-update! outcomes status (curry + 1) 0)
       (logger status precision pt)
 

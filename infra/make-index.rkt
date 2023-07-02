@@ -53,7 +53,7 @@
 (define/contract (compute-row folder)
   (-> path? cache-row?)
   (define info (read-datafile (build-path folder "results.json")))
-  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy) info)
 
   (define-values (total-start total-end)
     (for/fold ([start 0] [end 0]) ([row (or tests '())])

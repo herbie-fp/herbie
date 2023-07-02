@@ -10,7 +10,7 @@
          egraph_get_simplest egraph_get_variants
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
-         egraph_get_proof destroy_string
+         egraph_get_proof destroy_string egraph_is_equal
          (struct-out EGraphIter)
          (struct-out FFIRule))
 
@@ -130,6 +130,11 @@
                                        _string/utf-8
                                        _string/utf-8
                                        -> _pointer))
+
+(define-eggmath egraph_is_equal (_fun _egraph-pointer
+                                      _string/utf-8
+                                      _string/utf-8
+                                      -> _bool))
 
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants (_fun _egraph-pointer

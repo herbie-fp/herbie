@@ -9,7 +9,7 @@
          web-server/managers/none)
 
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
-(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt"
+(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../syntax/types.rkt"
          "../syntax/sugar.rkt" "../alternative.rkt" "../points.rkt"
          "../programs.rkt" "../sandbox.rkt" "../float.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt"
@@ -209,9 +209,9 @@
            [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
             (semaphore-post sema)]
            [else
-            (eprintf "Job ~a started on ~a..." hash formula)
+            (eprintf "Job ~a started:\n  improve ~a...\n" hash (syntax->datum formula))
 
-            (define result (get-test-result 'improve (parse-test formula) #:seed seed))
+            (define result (run-herbie 'improve (parse-test formula) #:seed seed))
 
             (hash-set! *completed-jobs* hash result)
 
@@ -226,7 +226,7 @@
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "index.html")))
 
-            (eprintf " complete\n")
+            (eprintf "Job ~a complete\n" hash)
             (hash-remove! *jobs* hash)
             (semaphore-post sema)])])
        (loop seed)))))
@@ -360,61 +360,81 @@
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define seed (hash-ref post-data 'seed))
-      (eprintf "Job started on ~a..." formula)
+      (eprintf "Sampling job started on ~a..." formula)
 
-      (define result (get-test-result 'sample (parse-test formula) #:seed seed))
+      (define test (parse-test formula))
+      (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
+      (define pctx (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points result))))
+      (hasheq 'points (pcontext->json pctx)))))
 
 (define analyze-endpoint
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts+exs (hash-ref post-data 'sample))
-      (eprintf "Job started on ~a..." formula)
+      (define sample (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
+      (eprintf "Analyze job started on ~a..." formula)
 
-      (define result (get-errors (parse-test formula) pts+exs))
+      (define test (parse-test formula))
+      (define pcontext (json->pcontext sample (test-context test)))
+      (define result (run-herbie 'errors test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:timeline-disabled? #t))
+      (define errs (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points result))))
+      (hasheq 'points errs))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint 
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts (hash-ref post-data 'points))
-      (eprintf "Job started on ~a..." formula)
+      (define sample (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
+      (eprintf "Ground truth job started on ~a..." formula)
 
-      (define result (get-exacts (parse-test formula) pts))
+      (define test (parse-test formula))
+      (define pcontext (json->pcontext sample (test-context test)))
+      (define result (run-herbie 'exacts test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:timeline-disabled? #t))
+      (define exacts (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points result))))
+      (hasheq 'points exacts))))
 
 (define calculate-endpoint 
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts (hash-ref post-data 'points))
-      (eprintf "Job started on ~a..." formula)
+      (define sample (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
+      (eprintf "Evaluation job started on ~a..." formula)
 
-      (define result (get-calculation (parse-test formula) pts))
+      (define test (parse-test formula))
+      (define pcontext (json->pcontext sample (test-context test)))
+      (define result (run-herbie 'evaluate test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:timeline-disabled? #t))
+      (define approx (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points result))))
+      (hasheq 'points approx))))
 
 (define local-error-endpoint
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts+exs (hash-ref post-data 'sample))
-      (eprintf "Job started on ~a..." formula)
+      (define sample (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
+      (eprintf "Local error job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define repr (test-output-repr test))
-      (define expr (resugar-program (test-input test) repr))
-      (define local-error (get-local-error test pts+exs))
+      (define expr (resugar-program (test-input test) (test-output-repr test)))
+      (define pcontext (json->pcontext sample (test-context test)))
+      (define result (run-herbie 'local-error test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:timeline-disabled? #t))
+      (define local-error (job-result-backend result))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
@@ -440,15 +460,17 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define pts+exs (hash-ref post-data 'sample))
-      (eprintf "Job started on ~a..." formula)
+      (define sample (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
+      (eprintf "Alternatives job started on ~a..." formula)
 
       (define test (parse-test formula))
       (define vars (test-vars test))
       (define repr (test-output-repr test))
-
-      (define-values (altns test-pcontext processed-pcontext)
-        (get-alternatives test pts+exs))
+      (define pcontext (json->pcontext sample (test-context test)))
+      (define result (run-herbie 'alternatives test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:timeline-disabled? #t))
+      (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
       
       (define splitpoints
         (for/list ([alt altns]) 
@@ -494,12 +516,14 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (eprintf "Job started on ~a..." formula)
-
-      (define result (get-cost (parse-test formula)))
+      (eprintf "Computing cost of ~a..." formula)
+      
+      (define test (parse-test formula))
+      (define result (run-herbie 'cost test #:profile? #f #:timeline-disabled? #t))
+      (define cost (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'value result))))
+      (hasheq 'cost cost))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)

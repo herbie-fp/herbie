@@ -177,8 +177,7 @@
             (sow (cons stx (apply format fmt args*))))
           (check-fpcore* stx error!)))
   (unless (null? errs)
-    (raise-herbie-syntax-error "Invalid program" #:locations errs))
-  (print-warnings))
+    (raise-herbie-syntax-error "Invalid program" #:locations errs)))
 
 ;; testing FPCore format
 (module+ test

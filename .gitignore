@@ -13,9 +13,11 @@ demo.log
 # Related repositories
 papers
 plugins
+plugin
 rival
 regraph
 egg-herbie/pkg
+odyssey
 
 # Racket
 *.zo
