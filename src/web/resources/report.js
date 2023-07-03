@@ -57,90 +57,86 @@ const Filters = new Component("#filters", {
             [Element("input",
                 { type: "checkbox", checked: true },
                 ""),
-            new Text(rename(leaderTag))])
-        attachLeaderToChildren(leaderTag,listOfTags)
+            new Text(this.rename(leaderTag))])
+        leaderCheckBox.addEventListener("click", this.attachLeaderToChildren(leaderTag,listOfTags))
         var checkBoxes = []
         checkBoxes.push(leaderCheckBox)
-        checkBoxes.push(buildChildren(listOfTags))
+        checkBoxes.push(this.buildChildren(listOfTags))
         return Element("div", checkBoxes)
-
-        function attachLeaderToChildren(leaderTag,listOfTags) {
-            return leaderCheckBox.addEventListener("click", () => {
-                const improvedBox = document.querySelector(`#${leaderTag} input`)
-                listOfTags.forEach((str) => {
-                    const currentCheckBox = document.querySelector(`#${str} input`)
-                    currentCheckBox.checked = improvedBox.checked
-                    updateDomNodesWithID(`${str}`, currentCheckBox.checked)
-                })
+    },
+    attachLeaderToChildren: function (leaderTag,listOfTags) {
+        return () => {
+            const improvedBox = document.querySelector(`#${leaderTag} input`)
+            listOfTags.forEach((str) => {
+                const currentCheckBox = document.querySelector(`#${str} input`)
+                currentCheckBox.checked = improvedBox.checked
+                this.updateDomNodesWithID(`${str}`, currentCheckBox.checked)
             })
         }
-
-        function buildChildren(listOfTags) {
-            var childElements = []
-            // build child check boxes
-            listOfTags.forEach((child) => {
-                const count = document.querySelectorAll(`tr.${child}`)
-                const childBox = Element("label", {id: child}, 
-                    [Element("input", { type: "checkbox", checked: true }, ""), new Text(`${rename(child)} (${count.length})`)])
-                // on click handler
-                childBox.addEventListener("click", () => {
-                    const thisChild = document.querySelector(`#${child} input`)
-                    updateDomNodesWithID(child, thisChild.checked)
-                })
-                childElements.push(childBox)
+    },
+    buildChildren: function (listOfTags) {
+        var childElements = []
+        // build child check boxes
+        listOfTags.forEach((child) => {
+            const count = document.querySelectorAll(`tr.${child}`)
+            const childBox = Element("label", {id: child}, 
+                [Element("input", { type: "checkbox", checked: true }, ""), new Text(`${this.rename(child)} (${count.length})`)])
+            // on click handler
+            childBox.addEventListener("click", () => {
+                const thisChild = document.querySelector(`#${child} input`)
+                this.updateDomNodesWithID(child, thisChild.checked)
             })
-            return childElements
-        }
-
-        // helper function to loop over the table and toggle state of nodes 
-        // with `#stringID`
-        function updateDomNodesWithID(stringID, state) {
-            const siblingsList = document.querySelectorAll(`#results tbody tr`)
-            siblingsList.forEach((child, n, p) => {
-                if (child.classList.contains(stringID)) {
-                    if (state) {
-                        child.style.display = `table-row`
-                    } else {
-                        child.style.display = "none"
-                    }
+            childElements.push(childBox)
+        })
+        return childElements
+    },
+    // helper function to loop over the table and toggle state of nodes 
+    // with `#stringID`
+    updateDomNodesWithID: function (stringID, state) {
+        const siblingsList = document.querySelectorAll(`#results tbody tr`)
+        siblingsList.forEach((child, n, p) => {
+            if (child.classList.contains(stringID)) {
+                if (state) {
+                    child.style.display = `table-row`
+                } else {
+                    child.style.display = "none"
                 }
-            })
-        }
-
-        function rename(child) {
-            if (child == "imp-start") {
-                return "Improved start"
-            } else if (child == "apx-start") {
-                return "Approximate start"
-            } else if (child == "uni-start") {
-                return "Uni start"
-            } else if (child == "ex-start") {
-                return "Exact start"
-            } else if (child == "eq-start") {
-                return "Equal start"
-            } else if (child == "lt-start") {
-                return "Less than start"
-            } else if (child == "gt-start") {
-                return "Greater than start"
-            } else if (child == "gt-target") {
-                return "Greater than target"
-            } else if (child == "eq-target") {
-                return "Equal than target"
-            } else if (child == "lt-target") {
-                return "Less than target"
-            } else if (child == "error") {
-                return "Error"
-            } else if (child == "timeout") {
-                return "Timeout"
-            } else if (child == "crash") {
-                return "Crash"
-            } else if (child == "improved") {
-                return "Improved"
-            } else if (child == "regressed") {
-                return "Regressed"
-            }  else {
-                return child
             }
+        })
+    },
+    rename: function(child) {
+        if (child == "imp-start") {
+            return "Improved start"
+        } else if (child == "apx-start") {
+            return "Approximate start"
+        } else if (child == "uni-start") {
+            return "Uni start"
+        } else if (child == "ex-start") {
+            return "Exact start"
+        } else if (child == "eq-start") {
+            return "Equal start"
+        } else if (child == "lt-start") {
+            return "Less than start"
+        } else if (child == "gt-start") {
+            return "Greater than start"
+        } else if (child == "gt-target") {
+            return "Greater than target"
+        } else if (child == "eq-target") {
+            return "Equal than target"
+        } else if (child == "lt-target") {
+            return "Less than target"
+        } else if (child == "error") {
+            return "Error"
+        } else if (child == "timeout") {
+            return "Timeout"
+        } else if (child == "crash") {
+            return "Crash"
+        } else if (child == "improved") {
+            return "Improved"
+        } else if (child == "regressed") {
+            return "Regressed"
+        }  else {
+            return child
         }
     }
 })
