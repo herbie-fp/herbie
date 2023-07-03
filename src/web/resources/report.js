@@ -52,6 +52,46 @@ const Filters = new Component("#filters", {
         this.elt.appendChild(filters);
     },
     buildGroupToggle: function (leaderTag, listOfTags) {
+        // setup leader check box
+        const leaderCheckBox = Element("label", {id: leaderTag},
+            [Element("input",
+                { type: "checkbox", checked: true },
+                ""),
+            new Text(rename(leaderTag))])
+        attachLeaderToChildren(leaderTag,listOfTags)
+        var checkBoxes = []
+        checkBoxes.push(leaderCheckBox)
+        checkBoxes.push(buildChildren(listOfTags))
+        return Element("div", checkBoxes)
+
+        function attachLeaderToChildren(leaderTag,listOfTags) {
+            return leaderCheckBox.addEventListener("click", () => {
+                const improvedBox = document.querySelector(`#${leaderTag} input`)
+                listOfTags.forEach((str) => {
+                    const currentCheckBox = document.querySelector(`#${str} input`)
+                    currentCheckBox.checked = improvedBox.checked
+                    updateDomNodesWithID(`${str}`, currentCheckBox.checked)
+                })
+            })
+        }
+
+        function buildChildren(listOfTags) {
+            var childElements = []
+            // build child check boxes
+            listOfTags.forEach((child) => {
+                const count = document.querySelectorAll(`tr.${child}`)
+                const childBox = Element("label", {id: child}, 
+                    [Element("input", { type: "checkbox", checked: true }, ""), new Text(`${rename(child)} (${count.length})`)])
+                // on click handler
+                childBox.addEventListener("click", () => {
+                    const thisChild = document.querySelector(`#${child} input`)
+                    updateDomNodesWithID(child, thisChild.checked)
+                })
+                childElements.push(childBox)
+            })
+            return childElements
+        }
+
         // helper function to loop over the table and toggle state of nodes 
         // with `#stringID`
         function updateDomNodesWithID(stringID, state) {
@@ -66,23 +106,8 @@ const Filters = new Component("#filters", {
                 }
             })
         }
-        // setup leader check box
-        const leaderCheckBox = Element("label", {id: leaderTag},
-            [Element("input",
-                { type: "checkbox", checked: true },
-                ""),
-            new Text(upgradeName(leaderTag))])
-        leaderCheckBox.addEventListener("click", () => {
-            const improvedBox = document.querySelector(`#${leaderTag} input`)
-            listOfTags.forEach((str) => {
-                const currentCheckBox = document.querySelector(`#${str} input`)
-                currentCheckBox.checked = improvedBox.checked
-                updateDomNodesWithID(`${str}`, currentCheckBox.checked)
-            })
-        })
-        var checkBoxes = []
-        checkBoxes.push(leaderCheckBox)
-        function upgradeName(child) {
+
+        function rename(child) {
             if (child == "imp-start") {
                 return "Improved start"
             } else if (child == "apx-start") {
@@ -117,20 +142,6 @@ const Filters = new Component("#filters", {
                 return child
             }
         }
-        // build child check boxes
-        listOfTags.forEach((child) => {
-            const count = document.querySelectorAll(`tr.${child}`)
-            const childBox = Element("label", {id: child}, 
-                [Element("input", { type: "checkbox", checked: true }, ""),
-                new Text(` ${count.length}: `), new Text(`${upgradeName(child)}`)])
-            // on click handler
-            childBox.addEventListener("click", () => {
-                const thisChild = document.querySelector(`#${child} input`)
-                updateDomNodesWithID(child, thisChild.checked)
-            })
-            checkBoxes.push(childBox)
-        })
-        return Element("div", checkBoxes)
     }
 })
 
@@ -387,7 +398,7 @@ const ResultPlot = new Component('#xy', {
                 Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
                 on(Plot.dot(tests, {
                     x: d => 1 - d.start/64, y: d => 1 - d.end/64,
-                    fill: d => this.color(d.status), strokeWidth: 2,
+                    fill: "#00a", strokeWidth: 2,
                 }), {
                     click: (e, d) => { window.location = d.link + "/graph.html"; },
                 }),
@@ -402,37 +413,6 @@ const ResultPlot = new Component('#xy', {
         })
         out.setAttribute('viewBox', '0 0 420 420')
         return out;
-    },
-    color: function(status) {
-        if (status == "imp-start") {
-            return "#87fc70"
-        } else if (status == "apx-start") {
-            return "#ff9500"
-        } else if (status == "uni-start") {
-            return "#ff5e3a"
-        } else if (status == "ex-start") {
-            return "#e0f8d8"
-        } else if (status == "eq-start") {
-            return "#87fc70"
-        } else if (status == "lt-start") {
-            return "#ffdb4c"
-        } else if (status == "gt-start") {
-            return "#87fc70"
-        } else if (status == "gt-target") {
-            return "#87fc70"
-        } else if (status == "eq-target") {
-            return "#87fc70"
-        } else if (status == "lt-target") {
-            return "#ff9500"
-        } else if (status == "error") {
-            return "#4a4a4a"
-        } else if (status == "timeout") {
-            return "#8e8e93"
-        } else if (status == "ff9d87") {
-            return "#ff9d87"
-        } else {
-            return "#00a" // default blue
-        }
     }
 })
 
