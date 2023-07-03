@@ -76,7 +76,9 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 #crash {accent-color:#ff9d87;}
 #error {accent-color: #4a4a4a;}
 #timeout {accent-color: #8e8e93;}
-
+#filters label {background-color: #e0e0e0; margin: .1em; border-radius: .2em; padding: 0;}
+#filters label:hover {background-color: #aaaaaa;}
+#filters label input {margin: 0;}
 /* Table of results */
 
 #results { border-collapse: collapse; width:100%; }

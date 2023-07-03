@@ -71,7 +71,7 @@ const Filters = new Component("#filters", {
             [Element("input",
                 { type: "checkbox", checked: true },
                 ""),
-            new Text(leaderTag)])
+            new Text(upgradeName(leaderTag))])
         leaderCheckBox.addEventListener("click", () => {
             const improvedBox = document.querySelector(`#${leaderTag} input`)
             listOfTags.forEach((str) => {
@@ -82,10 +82,45 @@ const Filters = new Component("#filters", {
         })
         var checkBoxes = []
         checkBoxes.push(leaderCheckBox)
-
+        function upgradeName(child) {
+            if (child == "imp-star") {
+                return "Improved start"
+            } else if (child == "apx-star") {
+                return "Approximate start"
+            } else if (child == "uni-start") {
+                return "Uni start"
+            } else if (child == "ex-start") {
+                return "Exact start"
+            } else if (child == "eq-start") {
+                return "Equal start"
+            } else if (child == "lt-start") {
+                return "Less than start"
+            } else if (child == "gt-start") {
+                return "Greater than Start"
+            } else if (child == "eq-target") {
+                return "Equal than target"
+            } else if (child == "lt-target") {
+                return "Less than target"
+            } else if (child == "error") {
+                return "Error"
+            } else if (child == "timeout") {
+                return "Timeout"
+            } else if (child == "crash") {
+                return "Crash"
+            } else if (child == "improved") {
+                return "Improved"
+            } else if (child == "regressed") {
+                return "Regressed"
+            }  else {
+                return child
+            }
+        }
         // build child check boxes
         listOfTags.forEach((child) => {
-            const childBox = Element("label", {id: child}, [Element("input", { type: "checkbox", checked: true }, ""), new Text(child)])
+            const count = document.querySelectorAll(`tr.${child}`)
+            const childBox = Element("label", {id: child}, 
+                [Element("input", { type: "checkbox", checked: true }, ""),
+                new Text(` ${count.length}: `), new Text(`${upgradeName(child)}`)])
             // on click handler
             childBox.addEventListener("click", () => {
                 const thisChild = document.querySelector(`#${child} input`)
