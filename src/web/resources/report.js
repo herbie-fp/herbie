@@ -75,7 +75,7 @@ const Filters = new Component("#filters", {
         leaderCheckBox.addEventListener("click", () => {
             const improvedBox = document.querySelector(`#${leaderTag} input`)
             listOfTags.forEach((str) => {
-                const currentCheckBox = document.querySelector(`#${str}`)
+                const currentCheckBox = document.querySelector(`#${str} input`)
                 currentCheckBox.checked = improvedBox.checked
                 updateDomNodesWithID(`${str}`, currentCheckBox.checked)
             })
