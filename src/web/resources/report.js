@@ -37,32 +37,34 @@ function Element(tagname, props, children) {
 
 const Filters = new Component("#filters", {
     setup: function () {
-        const viewImproved = this.buildGroupToggle("improved",
-            ["imp-start", "ex-start", "eq-start", "eq-target",
-                "gt-target"])
-
-        const viewRegressed = this.buildGroupToggle("regressed",
-            ["uni-start", "lt-target", "lt-start", "apx-start",
-                "timeout", "crash", "error"])
-
-        const filters = Element("div", [
-            viewImproved,
-            viewRegressed])
-        this.elt.appendChild(filters);
-        this.elt.appendChild(filters);
-    },
-    buildGroupToggle: function (leaderTag, listOfTags) {
-        // setup leader check box
-        const leaderCheckBox = Element("label", {id: leaderTag},
+        const regressedTags = ["uni-start", "lt-target", "lt-start", 
+        "apx-start", "timeout", "crash", "error"]
+        const regressedLabel = Element("label", {id: "regressed"},
             [Element("input",
                 { type: "checkbox", checked: true },
                 ""),
-            new Text(this.rename(leaderTag))])
-        leaderCheckBox.addEventListener("click", this.attachLeaderToChildren(leaderTag,listOfTags))
-        var checkBoxes = []
-        checkBoxes.push(leaderCheckBox)
-        checkBoxes.push(this.buildChildren(listOfTags))
-        return Element("div", checkBoxes)
+            new Text(this.rename("regressed"))])
+            regressedLabel.addEventListener("click", this.attachLeaderToChildren("improved",regressedTags))
+        var regressedElements = []
+        regressedElements.push(regressedLabel)
+        regressedElements.push(this.buildChildren(regressedTags))
+
+        const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
+        "gt-target"]
+        const improvedLabel = Element("label", {id: "improved"},
+            [Element("input",
+                { type: "checkbox", checked: true },
+                ""),
+            new Text(this.rename("improved"))])
+            improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved",improvedTags))
+        var improveElements = []
+        improveElements.push(improvedLabel)
+        improveElements.push(this.buildChildren(improvedTags))
+
+        const filters = Element("div", [
+            Element("div", improveElements),
+            Element("div", regressedElements)])
+        this.elt.appendChild(filters);
     },
     attachLeaderToChildren: function (leaderTag,listOfTags) {
         return () => {
