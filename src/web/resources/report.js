@@ -83,9 +83,9 @@ const Filters = new Component("#filters", {
         var checkBoxes = []
         checkBoxes.push(leaderCheckBox)
         function upgradeName(child) {
-            if (child == "imp-star") {
+            if (child == "imp-start") {
                 return "Improved start"
-            } else if (child == "apx-star") {
+            } else if (child == "apx-start") {
                 return "Approximate start"
             } else if (child == "uni-start") {
                 return "Uni start"
@@ -96,7 +96,9 @@ const Filters = new Component("#filters", {
             } else if (child == "lt-start") {
                 return "Less than start"
             } else if (child == "gt-start") {
-                return "Greater than Start"
+                return "Greater than start"
+            } else if (child == "gt-target") {
+                return "Greater than target"
             } else if (child == "eq-target") {
                 return "Equal than target"
             } else if (child == "lt-target") {
@@ -379,14 +381,13 @@ const ResultPlot = new Component('#xy', {
         let data = (await response.json()).tests;
         this.elt.replaceChild(this.plot(data), stub)
     },
-
     plot: function(tests) {
         const out = Plot.plot({
             marks: [
                 Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
                 on(Plot.dot(tests, {
                     x: d => 1 - d.start/64, y: d => 1 - d.end/64,
-                    fill: "#00a", strokeWidth: 2,
+                    fill: d => this.color(d.status), strokeWidth: 2,
                 }), {
                     click: (e, d) => { window.location = d.link + "/graph.html"; },
                 }),
@@ -401,6 +402,37 @@ const ResultPlot = new Component('#xy', {
         })
         out.setAttribute('viewBox', '0 0 420 420')
         return out;
+    },
+    color: function(status) {
+        if (status == "imp-start") {
+            return "#87fc70"
+        } else if (status == "apx-start") {
+            return "#ff9500"
+        } else if (status == "uni-start") {
+            return "#ff5e3a"
+        } else if (status == "ex-start") {
+            return "#e0f8d8"
+        } else if (status == "eq-start") {
+            return "#87fc70"
+        } else if (status == "lt-start") {
+            return "#ffdb4c"
+        } else if (status == "gt-start") {
+            return "#87fc70"
+        } else if (status == "gt-target") {
+            return "#87fc70"
+        } else if (status == "eq-target") {
+            return "#87fc70"
+        } else if (status == "lt-target") {
+            return "#ff9500"
+        } else if (status == "error") {
+            return "#4a4a4a"
+        } else if (status == "timeout") {
+            return "#8e8e93"
+        } else if (status == "ff9d87") {
+            return "#ff9d87"
+        } else {
+            return "#00a" // default blue
+        }
     }
 })
 
