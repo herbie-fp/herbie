@@ -251,7 +251,6 @@
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (void))
-
 (define (finish-iter!)
   (unless (^next-alts^) (choose-best-alt!))
   (unless (^locs^) (localize!))
@@ -319,29 +318,15 @@
       (finalize-iter!)
       (^next-alts^ #f)))
 
-;; TODO: What to do about this
-;; This is only here for interactive use; normal runs use run-improve!
-(define (run-improve vars prog iters
-                     #:precondition [precondition #f]
-                     #:preprocess [preprocess empty]
-                     #:precision [precision 'binary64]
-                     #:specification [specification #f])
-  (rollback-improve!)
-  (define repr (get-representation precision))
-
-  (define original-points (setup-context! vars (or specification prog) precondition repr))
-  (run-improve! iters prog specification preprocess original-points repr))
-
 (define (run-improve! expression context rules train-pcontext test-pcontext
-                      iterations #:specification [specification expression])
-  ;; TODO: Missing timeline thing
-  (define preprocessing (find-preprocessing specification context rules))
+                      iterations)
+  (timeline-event! 'preprocess)
+  (define preprocessing (find-preprocessing expression context rules))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define train-pcontext* (preprocess-pcontext
                            context train-pcontext preprocessing))
-  (match-define (and alternatives (cons best rest))
-    ;; If the specification is given, it is used for sampling points
-    (mutate! specification iterations train-pcontext*))
+  (match-define (and alternatives (cons best _))
+    (mutate! expression iterations train-pcontext*))
   (define preprocessing* (remove-unnecessary-preprocessing
                            best context train-pcontext preprocessing))
   (define test-pcontext* (preprocess-pcontext
