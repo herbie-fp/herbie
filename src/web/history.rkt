@@ -63,7 +63,7 @@
   (define err
     (format-accuracy (errors-score (errors (alt-expr altn) pcontext ctx)) (representation-total-bits repr) #:unit "%"))
   (define err2
-    (format "Internally ~a" (format-accuracy (errors-score (errors (alt-expr altn) pcontext2 ctx)) (representation-total-bits repr))))
+    (format "~a on training set" (format-accuracy (errors-score (errors (alt-expr altn) pcontext2 ctx)) (representation-total-bits repr) #:unit "%")))
 
   (match altn
     [(alt prog 'start (list))
