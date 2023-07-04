@@ -37,34 +37,45 @@ function Element(tagname, props, children) {
 
 const Filters = new Component("#filters", {
     setup: function () {
+        // Warning fragile starting state
         const regressedTags = ["uni-start", "lt-target", "lt-start", 
         "apx-start", "timeout", "crash", "error"]
-        const regressedLabel = Element("label", {id: "regressed"},
-            [Element("input",
-                { type: "checkbox", checked: true },
-                ""),
-            new Text(this.rename("regressed"))])
-            regressedLabel.addEventListener("click", this.attachLeaderToChildren("improved",regressedTags))
-        var regressedElements = []
-        regressedElements.push(regressedLabel)
-        regressedElements.push(this.buildChildren(regressedTags))
-
         const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
         "gt-target"]
-        const improvedLabel = Element("label", {id: "improved"},
-            [Element("input",
-                { type: "checkbox", checked: true },
-                ""),
-            new Text(this.rename("improved"))])
-            improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved",improvedTags))
-        var improveElements = []
-        improveElements.push(improvedLabel)
-        improveElements.push(this.buildChildren(improvedTags))
+        const advancedTags = []
+        advancedTags.push(regressedTags)
+        advancedTags.push(improvedTags)
+
+        // build labels
+        const regressedLabel = this.buildCheckboxLabel("regressed","Regressed",true)
+        const improvedLabel = this.buildCheckboxLabel("improved","Improved",true)
+        const advancedLabel = Element("a",{id: "advanced"}, "advanced filters")
+
+        // add listeners
+        regressedLabel.addEventListener("click", this.attachLeaderToChildren("regressed",regressedTags))
+        improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved",improvedTags))
+        advancedLabel.addEventListener("click", hideShowAdvancedFilters)
 
         const filters = Element("div", [
-            Element("div", improveElements),
-            Element("div", regressedElements)])
+            Element("div", [improvedLabel, regressedLabel,advancedLabel]),
+            Element("div", {id: "advanced-filters", style: `display: none;`} ,[this.buildChildren(improvedTags),this.buildChildren(regressedTags)])])
         this.elt.appendChild(filters);
+
+        function hideShowAdvancedFilters() {
+            const improvedBox = document.querySelector(`#advanced-filters`)
+            if (improvedBox.style.display == "none") {
+                improvedBox.style.display = "block"
+            } else {
+                improvedBox.style.display = "none"
+            }
+        }
+    },
+    buildCheckboxLabel: function(idTag, text, boolState) {
+        return Element("label", {id:idTag},
+            [Element("input",
+                { type: "checkbox", checked: boolState },
+                ""),
+            new Text(text)])
     },
     attachLeaderToChildren: function (leaderTag,listOfTags) {
         return () => {
@@ -133,11 +144,7 @@ const Filters = new Component("#filters", {
             return "Timeout"
         } else if (child == "crash") {
             return "Crash"
-        } else if (child == "improved") {
-            return "Improved"
-        } else if (child == "regressed") {
-            return "Regressed"
-        }  else {
+        } else {
             return child
         }
     }

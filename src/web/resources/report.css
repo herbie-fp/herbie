@@ -76,7 +76,8 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 #crash {accent-color:#ff9d87;}
 #error {accent-color: #4a4a4a;}
 #timeout {accent-color: #8e8e93;}
-#filters label {margin: 0; cursor: pointer;}
+#filters label {margin: 0; cursor: pointer; display: inline-block;}
+#advanced {color: #000000; float: right;}
 /* Table of results */
 
 #results { border-collapse: collapse; width:100%; }
