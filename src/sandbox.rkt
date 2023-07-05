@@ -137,10 +137,12 @@
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext context))
   ;; TODO: Ignoring all user-provided preprocessing right now
-  (define-values (alternatives preprocessing test-pcontext*)
+  (define-values (alternatives preprocessing)
     (run-improve!
-     (or (test-spec test) (test-input test)) (*context*) (*simplify-rules*)
-     train-pcontext test-pcontext (*num-iterations*)))
+     (or (test-spec test) (test-input test)) (*context*) train-pcontext
+     (*simplify-rules*) (*num-iterations*)))
+  (define test-pcontext*
+    (preprocess-pcontext (*context*) test-pcontext preprocessing))
   (when seed (set-seed! seed))
   (list alternatives test-pcontext test-pcontext*))
 
@@ -162,10 +164,12 @@
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
   ;; TODO: Ignoring all user-provided preprocessing right now
-  (define-values (end-alts preprocessing test-pcontext*)
+  (define-values (end-alts preprocessing)
     (run-improve!
-     (or (test-spec test) (test-input test)) ctx (*simplify-rules*)
-     train-pcontext test-pcontext (*num-iterations*)))
+     (or (test-spec test) (test-input test)) ctx train-pcontext (*simplify-rules*)
+     (*num-iterations*)))
+  (define test-pcontext*
+    (preprocess-pcontext ctx test-pcontext preprocessing))
   (when seed (set-seed! seed))
   
   ;; compute error/cost for input expression

@@ -5,7 +5,7 @@
 (module+ test (require rackunit))
 
 (provide reap
-         flip-lists find-duplicates partial-sums
+         flip-lists drop-at find-duplicates partial-sums
          argmins argmaxs set-disjoint?
          list-suffix? subsequence? list-ref* list-set*
          disjoint-set disjoint-set-find! disjoint-set-union!
@@ -60,6 +60,10 @@
 (module+ test
   (check-equal? (argmaxs string-length '("a" "bb" "f" "ccc" "dd" "eee" "g"))
                 '("ccc" "eee")))
+
+(define (drop-at ls index)
+  (define-values (front back) (split-at ls index))
+  (append front (rest back)))
 
 (define (flip-lists list-list)
   "Flip a list of rows into a list of columns"

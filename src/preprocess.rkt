@@ -1,10 +1,10 @@
 #lang racket
 
 (require "core/egg-herbie.rkt" "core/simplify.rkt"
-         "syntax/syntax.rkt" "syntax/types.rkt" "common.rkt" "programs.rkt"
-         "points.rkt" "float.rkt")
+         "syntax/syntax.rkt" "syntax/types.rkt" "alternative.rkt" "common.rkt"
+         "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
 
-(provide find-preprocessing preprocess-pcontext)
+(provide find-preprocessing preprocess-pcontext preprocessing-<=? remove-unnecessary-preprocessing)
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing expression context rules)
@@ -96,3 +96,27 @@
                    (list-ref (context-var-reprs context) index))
                   'fl))
      (curryr list-update index abs)]))
+
+(define (preprocessing-<=? alt pcontext preprocessing1 preprocessing2 context)
+  (define pcontext1 (preprocess-pcontext context pcontext preprocessing1))
+  (define pcontext2 (preprocess-pcontext context pcontext preprocessing2))
+  (<= (errors-score (errors (alt-expr alt) pcontext1 context))
+      (errors-score (errors (alt-expr alt) pcontext2 context))))
+
+; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
+(define (remove-unnecessary-preprocessing alt context pcontext preprocessing #:removed [removed empty])
+  (define-values (result newly-removed)
+    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
+      (cond
+        [(>= i (length preprocessing))
+         (values preprocessing removed)]
+        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing context)
+         (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
+        [else
+         (loop preprocessing (+ i 1) removed)])))
+  (cond
+    [(< (length result) (length preprocessing))
+     (remove-unnecessary-preprocessing alt context pcontext result #:removed newly-removed)]
+    [else
+     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
+     result]))

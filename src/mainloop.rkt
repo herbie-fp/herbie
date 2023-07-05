@@ -318,48 +318,16 @@
       (finalize-iter!)
       (^next-alts^ #f)))
 
-(define (run-improve! expression context rules train-pcontext test-pcontext
-                      iterations)
+(define (run-improve! expression context pcontext rules iterations)
   (timeline-event! 'preprocess)
   (define preprocessing (find-preprocessing expression context rules))
   (timeline-push! 'symmetry (map ~a preprocessing))
-  (define train-pcontext* (preprocess-pcontext
-                           context train-pcontext preprocessing))
+  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (match-define (and alternatives (cons best _))
-    (mutate! expression iterations train-pcontext*))
-  (define preprocessing* (remove-unnecessary-preprocessing
-                           best context train-pcontext preprocessing))
-  (define test-pcontext* (preprocess-pcontext
-                          context test-pcontext preprocessing*))
-  (values alternatives preprocessing* test-pcontext*))
-
-(define (preprocessing-<=? alt pcontext preprocessing1 preprocessing2 context)
-  (define pcontext1 (preprocess-pcontext context pcontext preprocessing1))
-  (define pcontext2 (preprocess-pcontext context pcontext preprocessing2))
-  (<= (errors-score (errors (alt-expr alt) pcontext1 context))
-      (errors-score (errors (alt-expr alt) pcontext2 context))))
-
-(define (drop-at ls index)
-  (define-values (front back) (split-at ls index))
-  (append front (rest back)))
-
-; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unnecessary-preprocessing alt context pcontext preprocessing #:removed [removed empty])
-  (define-values (result newly-removed)
-    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
-      (cond
-        [(>= i (length preprocessing))
-         (values preprocessing removed)]
-        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing context)
-         (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
-        [else
-         (loop preprocessing (+ i 1) removed)])))
-  (cond
-    [(< (length result) (length preprocessing))
-     (remove-unnecessary-preprocessing alt context pcontext result #:removed newly-removed)]
-    [else
-     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
-     result]))
+    (mutate! expression iterations pcontext*))
+  (define preprocessing*
+    (remove-unnecessary-preprocessing best context pcontext preprocessing))
+  (values alternatives preprocessing*))
 
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)
