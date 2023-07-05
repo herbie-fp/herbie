@@ -74,6 +74,7 @@ const Filters = new Component("#filters", {
                 const currentCheckBox = document.querySelector(`#${str} input`)
                 currentCheckBox.checked = improvedBox.checked
                 this.updateDomNodesWithID(`${str}`, currentCheckBox.checked)
+                this.reDrawGraph()
             })
         }
     },
@@ -88,10 +89,23 @@ const Filters = new Component("#filters", {
             childBox.addEventListener("click", () => {
                 const thisChild = document.querySelector(`#${child} input`)
                 this.updateDomNodesWithID(child, thisChild.checked)
+                this.reDrawGraph()
             })
             childElements.push(childBox)
         })
         return childElements
+    },
+    reDrawGraph: function () {
+        var elts = document.querySelectorAll(ResultPlot.selector);
+        for (var j = 0; j < elts.length; j++) {
+            var instance = new ComponentInstance(elts[j], ResultPlot);
+            console.log("Redrawing", ResultPlot.selector, "component at", elts[j]);
+            try {
+                instance.setup();
+            } catch (e) {
+                console.error(e);
+            }
+        }
     },
     // helper function to loop over the table and toggle state of nodes 
     // with `#stringID`
@@ -388,10 +402,23 @@ const ResultPlot = new Component('#xy', {
         this.elt.replaceChild(this.plot(data), stub)
     },
     plot: function(tests) {
+        var viewable = []
+        const selected = document.querySelector("#filters > details").childNodes
+        selected.forEach((child) => {
+            if (child.childNodes[0].checked) {
+                viewable.push(child.id)
+            }
+        })
+        var filteredTests = []
+        tests.forEach((test) => {
+            if (viewable.includes(test.status)) {
+                filteredTests.push(test)
+            }
+        })
         const out = Plot.plot({
             marks: [
                 Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
-                on(Plot.dot(tests, {
+                on(Plot.dot(filteredTests, {
                     x: d => 1 - d.start/64, y: d => 1 - d.end/64,
                     fill: "#00a", strokeWidth: 2,
                 }), {
