@@ -326,7 +326,7 @@
   (match-define (and alternatives (cons best _))
     (mutate! expression iterations pcontext*))
   (define preprocessing*
-    (remove-unnecessary-preprocessing best context pcontext preprocessing))
+    (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
   (values alternatives preprocessing*))
 
 (define (mutate! prog iters pcontext)
