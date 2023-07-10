@@ -67,7 +67,7 @@ const Filters = new Component("#filters", {
         this.elt.appendChild(Element("details", [Element("summary", "Advanced"), advancedDiv]))
     },
     buildCheckboxLabel: function(idTag, text, boolState) {
-        return Element("label", {id:idTag}, [
+        return Element("label", { id: idTag }, [
             Element("input", { type: "checkbox", checked: boolState }, ""),
             new Text(text)])
     },
@@ -83,10 +83,8 @@ const Filters = new Component("#filters", {
     },
     createChild: function (childName) {
         const count = document.querySelectorAll(`tr.${childName}`)
-        const childBox = Element("label", {id: childName}, [
-            Element("input", { type: "checkbox", checked: true }, ""),
-            new Text(`${this.rename(childName)} (${count.length})`)])
-        // on click handler
+        const childBox = this.buildCheckboxLabel(childName, `${this.rename(childName)} (${count.length})`, true)
+
         childBox.addEventListener("click", () => {
             const thisChild = document.querySelector(`#${childName} input`)
             this.updateDomNodesWithID(childName, thisChild.checked)
@@ -100,9 +98,9 @@ const Filters = new Component("#filters", {
         siblingsList.forEach((child, n, p) => {
             if (child.classList.contains(stringID)) {
                 if (state) {
-                    child.style.display = `table-row`
+                    child.classList.remove("hidden-row")
                 } else {
-                    child.style.display = "none"
+                    child.classList.add("hidden-row")
                 }
             }
         })
