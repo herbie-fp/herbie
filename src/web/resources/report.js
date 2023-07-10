@@ -35,6 +35,21 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
+var renames = {};
+renames["imp-start"] = "Improved start"
+renames["apx-start"] = "Approximate start"
+renames["uni-start"] = "Regressed from start"
+renames["ex-start"]  = "Exact start"
+renames["eq-start"]  = "Equal start"
+renames["lt-start"]  = "Less than start"
+renames["gt-start"]  = "Greater than start"
+renames["gt-target"] = "Greater than target"
+renames["eq-target"] = "Equal than target"
+renames["lt-target"] = "Less than target"
+renames["error"]     = "Error"
+renames["timeout"]   = "Timeout"
+renames["crash"]     = "Crash"
+
 const Filters = new Component("#filters", {
     setup: function () {
         // Warning fragile starting state
@@ -83,7 +98,7 @@ const Filters = new Component("#filters", {
     },
     createChild: function (childName) {
         const count = document.querySelectorAll(`tr.${childName}`)
-        const childBox = this.buildCheckboxLabel(childName, `${this.rename(childName)} (${count.length})`, true)
+        const childBox = this.buildCheckboxLabel(childName, `${renames[childName]} (${count.length})`, true)
 
         childBox.addEventListener("click", () => {
             const thisChild = document.querySelector(`#${childName} input`)
@@ -104,23 +119,6 @@ const Filters = new Component("#filters", {
                 }
             }
         })
-    },
-    rename: function(child) {
-        var rename = {};
-        rename["imp-start"] = "Improved start"
-        rename["apx-start"] = "Approximate start"
-        rename["uni-start"] = "Regressed from start"
-        rename["ex-start"]  = "Exact start"
-        rename["eq-start"]  = "Equal start"
-        rename["lt-start"]  = "Less than start"
-        rename["gt-start"]  = "Greater than start"
-        rename["gt-target"] = "Greater than target"
-        rename["eq-target"] = "Equal than target"
-        rename["lt-target"] = "Less than target"
-        rename["error"]     = "Error"
-        rename["timeout"]   = "Timeout"
-        rename["crash"]     = "Crash"
-        return rename[child]
     }
 })
 
