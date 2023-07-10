@@ -67,16 +67,6 @@
   (match instruction
     [(list 'sort component ...) #:when (equal? component variables)
      sort*]
-    [(list 'sort component ...) #:when (list-prefix? component variables)
-     (define position (length component))
-     (lambda (points)
-       (let-values ([(prefix suffix) (split-at points position)])
-         (append (sort* prefix) suffix)))]
-    [(list 'sort component ...) #:when (list-suffix? component variables)
-     (define position (- (length variables) (length component)))
-     (lambda (points)
-       (let-values ([(prefix suffix) (split-at points position)])
-         (append prefix (sort* suffix))))]
     [(list 'sort component ...)
      (unless (subsequence? component variables)
        (error 'instruction->operator
