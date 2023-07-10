@@ -101,9 +101,10 @@ const Filters = new Component("#filters", {
         const count = document.querySelectorAll(`tr.${childName}`)
         const childBox = this.buildCheckboxLabel(childName, `${renames[childName]} (${count.length})`, true)
 
-        childBox.addEventListener("click", (e) => {
-            const thisChild = e.target.querySelector("input")
+        childBox.addEventListener("click", () => {
+            const thisChild = document.querySelector(`#${childName} input`)
             this.updateDomNodesWithID(childName, thisChild.checked)
+            this.reDrawGraph()
         })
         return childBox
     },
