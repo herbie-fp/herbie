@@ -77,14 +77,14 @@ const Filters = new Component("#filters", {
         })
         const advancedDiv = [improvedChildren, regressedChildren]
 
-        this.elt.appendChild(Element("div", [new Text("Filters"), ]))
+        this.elt.appendChild(Element("div", ["Filters"]))
         this.elt.appendChild(Element("div", [improvedLabel, regressedLabel]))
         this.elt.appendChild(Element("details", [Element("summary", "Advanced"), advancedDiv]))
     },
     buildCheckboxLabel: function(idTag, text, boolState) {
         return Element("label", { id: idTag }, [
             Element("input", { type: "checkbox", checked: boolState }, ""),
-            new Text(text)])
+            text])
     },
     attachLeaderToChildren: function (leaderTag,listOfTags) {
         return () => {
