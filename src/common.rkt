@@ -6,8 +6,7 @@
 
 (provide reap
          flip-lists drop-at find-duplicates partial-sums
-         argmins argmaxs set-disjoint?
-         list-suffix? subsequence? list-ref* list-set*
+         argmins argmaxs set-disjoint? subsequence? list-ref* list-set*
          disjoint-set disjoint-set-find! disjoint-set-union!
          get-seed set-seed!
          quasisyntax dict sym-append
@@ -100,15 +99,6 @@
   (check-true (set-disjoint? '(a b c) '(e f g)))
   (check-true (set-disjoint? '() '()))
   (check-false (set-disjoint? '(a b c) '(a))))
-
-(define (list-suffix? l r)
-  (list-prefix? (reverse l) (reverse r)))
-
-(module+ test
-  (check-true (list-suffix? empty empty))
-  (check-true (list-suffix? '(1 2) '(0 1 2)))
-  (check-false (list-suffix? '(1 2 3) '(0 1 2)))
-  (check-false (list-suffix? '(1 2 3) '())))
 
 (define (subsequence? v l)
   (or
