@@ -47,24 +47,22 @@ const Filters = new Component("#filters", {
         advancedTags.push(improvedTags)
 
         // build labels
-        const regressedLabel = this.buildCheckboxLabel("regressed","Regressed",true)
-        const improvedLabel = this.buildCheckboxLabel("improved","Improved",true)
+        const regressedLabel = this.buildCheckboxLabel("regressed", "Regressed", true)
+        const improvedLabel = this.buildCheckboxLabel("improved", "Improved", true)
 
         // add listeners
-        regressedLabel.addEventListener("click", this.attachLeaderToChildren("regressed",regressedTags))
-        improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved",improvedTags))
+        regressedLabel.addEventListener("click", this.attachLeaderToChildren("regressed", regressedTags))
+        improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved", improvedTags))
 
-        const advancedDiv = [this.buildChildren(improvedTags),this.buildChildren(regressedTags)]
+        const advancedDiv = [this.buildChildren(improvedTags), this.buildChildren(regressedTags)]
 
-        this.elt.appendChild(Element("div", [new Text("Filters"),]))
+        this.elt.appendChild(Element("div", [new Text("Filters"), ]))
         this.elt.appendChild(Element("div", [improvedLabel, regressedLabel]))
-        this.elt.appendChild(Element("details",[Element("summary","Advanced"),advancedDiv]))
+        this.elt.appendChild(Element("details", [Element("summary", "Advanced"), advancedDiv]))
     },
     buildCheckboxLabel: function(idTag, text, boolState) {
-        return Element("label", {id:idTag},
-            [Element("input",
-                { type: "checkbox", checked: boolState },
-                ""),
+        return Element("label", {id:idTag}, [
+            Element("input", { type: "checkbox", checked: boolState }, ""),
             new Text(text)])
     },
     attachLeaderToChildren: function (leaderTag,listOfTags) {
@@ -80,10 +78,11 @@ const Filters = new Component("#filters", {
     buildChildren: function (listOfTags) {
         var childElements = []
         // build child check boxes
-        listOfTags.forEach((child) => {
+        listOfTags.map((child) => {
             const count = document.querySelectorAll(`tr.${child}`)
             const childBox = Element("label", {id: child}, 
-                [Element("input", { type: "checkbox", checked: true }, ""), new Text(`${this.rename(child)} (${count.length})`)])
+                [Element("input", { type: "checkbox", checked: true }, ""),
+                 new Text(`${this.rename(child)} (${count.length})`)])
             // on click handler
             childBox.addEventListener("click", () => {
                 const thisChild = document.querySelector(`#${child} input`)
@@ -108,35 +107,21 @@ const Filters = new Component("#filters", {
         })
     },
     rename: function(child) {
-        if (child == "imp-start") {
-            return "Improved start"
-        } else if (child == "apx-start") {
-            return "Approximate start"
-        } else if (child == "uni-start") {
-            return "Uni start"
-        } else if (child == "ex-start") {
-            return "Exact start"
-        } else if (child == "eq-start") {
-            return "Equal start"
-        } else if (child == "lt-start") {
-            return "Less than start"
-        } else if (child == "gt-start") {
-            return "Greater than start"
-        } else if (child == "gt-target") {
-            return "Greater than target"
-        } else if (child == "eq-target") {
-            return "Equal than target"
-        } else if (child == "lt-target") {
-            return "Less than target"
-        } else if (child == "error") {
-            return "Error"
-        } else if (child == "timeout") {
-            return "Timeout"
-        } else if (child == "crash") {
-            return "Crash"
-        } else {
-            return child
-        }
+        var rename = {};
+        rename["imp-start"] = "Improved start"
+        rename["apx-start"] = "Approximate start"
+        rename["uni-start"] = "Regressed from start"
+        rename["ex-start"]  = "Exact start"
+        rename["eq-start"]  = "Equal start"
+        rename["lt-start"]  = "Less than start"
+        rename["gt-start"]  = "Greater than start"
+        rename["gt-target"] = "Greater than target"
+        rename["eq-target"] = "Equal than target"
+        rename["lt-target"] = "Less than target"
+        rename["error"]     = "Error"
+        rename["timeout"]   = "Timeout"
+        rename["crash"]     = "Crash"
+        return rename[child]
     }
 })
 
