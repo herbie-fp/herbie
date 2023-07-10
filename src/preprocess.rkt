@@ -23,8 +23,6 @@
     (for/list ([pair (in-list pairs)])
       (match-define (list a b) pair)
       (replace-vars (list (cons a b) (cons b a)) expression)))
-  ;; TODO: If egraph detects unsoundness, abort preprocessing. Would need
-  ;; explicit access to egraph constructed by run-egg though
   (define query (make-egg-query (cons expression (append evens* swaps*)) rules))
   (match-define (cons expression~ rest~) (map last (simplify-batch query)))
   (define-values (evens~ swaps~) (split-at rest~ (length evens*)))
