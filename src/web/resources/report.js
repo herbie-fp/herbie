@@ -54,7 +54,13 @@ const Filters = new Component("#filters", {
         regressedLabel.addEventListener("click", this.attachLeaderToChildren("regressed", regressedTags))
         improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved", improvedTags))
 
-        const advancedDiv = [this.buildChildren(improvedTags), this.buildChildren(regressedTags)]
+        const improvedChildren = improvedTags.map((child) => {
+            return this.createChild(child)
+        })
+        const regressedChildren = regressedTags.map((child) => {
+            return this.createChild(child)
+        })
+        const advancedDiv = [improvedChildren, regressedChildren]
 
         this.elt.appendChild(Element("div", [new Text("Filters"), ]))
         this.elt.appendChild(Element("div", [improvedLabel, regressedLabel]))
@@ -75,22 +81,17 @@ const Filters = new Component("#filters", {
             })
         }
     },
-    buildChildren: function (listOfTags) {
-        var childElements = []
-        // build child check boxes
-        listOfTags.map((child) => {
-            const count = document.querySelectorAll(`tr.${child}`)
-            const childBox = Element("label", {id: child}, 
-                [Element("input", { type: "checkbox", checked: true }, ""),
-                 new Text(`${this.rename(child)} (${count.length})`)])
-            // on click handler
-            childBox.addEventListener("click", () => {
-                const thisChild = document.querySelector(`#${child} input`)
-                this.updateDomNodesWithID(child, thisChild.checked)
-            })
-            childElements.push(childBox)
+    createChild: function (childName) {
+        const count = document.querySelectorAll(`tr.${childName}`)
+        const childBox = Element("label", {id: childName}, [
+            Element("input", { type: "checkbox", checked: true }, ""),
+            new Text(`${this.rename(childName)} (${count.length})`)])
+        // on click handler
+        childBox.addEventListener("click", () => {
+            const thisChild = document.querySelector(`#${childName} input`)
+            this.updateDomNodesWithID(childName, thisChild.checked)
         })
-        return childElements
+        return childBox
     },
     // helper function to loop over the table and toggle state of nodes 
     // with `#stringID`
