@@ -131,8 +131,6 @@
      (format "~a = |~a|\\\\" x x)]))
 
 (define (preprocess->default preprocess)
-  (define sort-note
-    "NOTE: ~a should be sorted in increasing order before calling this function.")
   (match preprocess
     [(list 'sort a b)
      (format sort-note (format "~a and ~a" a b))]
@@ -144,6 +142,9 @@
      (format
       "NOTE: ~a should be positive before calling this function"
       x)]))
+
+(define sort-note
+  "NOTE: ~a should be sorted in increasing order before calling this function.")
 
 (define languages
   `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)) ,preprocess->default)
