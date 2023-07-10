@@ -35,6 +35,21 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
+var renames = {};
+renames["imp-start"] = "Improved start"
+renames["apx-start"] = "Approximate start"
+renames["uni-start"] = "Regressed from start"
+renames["ex-start"]  = "Exact start"
+renames["eq-start"]  = "Equal start"
+renames["lt-start"]  = "Less than start"
+renames["gt-start"]  = "Greater than start"
+renames["gt-target"] = "Greater than target"
+renames["eq-target"] = "Equal than target"
+renames["lt-target"] = "Less than target"
+renames["error"]     = "Error"
+renames["timeout"]   = "Timeout"
+renames["crash"]     = "Crash"
+
 const Filters = new Component("#filters", {
     setup: function () {
         // Warning fragile starting state
@@ -47,25 +62,29 @@ const Filters = new Component("#filters", {
         advancedTags.push(improvedTags)
 
         // build labels
-        const regressedLabel = this.buildCheckboxLabel("regressed","Regressed",true)
-        const improvedLabel = this.buildCheckboxLabel("improved","Improved",true)
+        const regressedLabel = this.buildCheckboxLabel("regressed", "Regressed", true)
+        const improvedLabel = this.buildCheckboxLabel("improved", "Improved", true)
 
         // add listeners
-        regressedLabel.addEventListener("click", this.attachLeaderToChildren("regressed",regressedTags))
-        improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved",improvedTags))
+        regressedLabel.addEventListener("click", this.attachLeaderToChildren("regressed", regressedTags))
+        improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved", improvedTags))
 
-        const advancedDiv = [this.buildChildren(improvedTags),this.buildChildren(regressedTags)]
+        const improvedChildren = improvedTags.map((child) => {
+            return this.createChild(child)
+        })
+        const regressedChildren = regressedTags.map((child) => {
+            return this.createChild(child)
+        })
+        const advancedDiv = [improvedChildren, regressedChildren]
 
-        this.elt.appendChild(Element("div", [new Text("Filters"),]))
+        this.elt.appendChild(Element("div", ["Filters"]))
         this.elt.appendChild(Element("div", [improvedLabel, regressedLabel]))
-        this.elt.appendChild(Element("details",[Element("summary","Advanced"),advancedDiv]))
+        this.elt.appendChild(Element("details", [Element("summary", "Advanced"), advancedDiv]))
     },
     buildCheckboxLabel: function(idTag, text, boolState) {
-        return Element("label", {id:idTag},
-            [Element("input",
-                { type: "checkbox", checked: boolState },
-                ""),
-            new Text(text)])
+        return Element("label", { id: idTag }, [
+            Element("input", { type: "checkbox", checked: boolState }, ""),
+            text])
     },
     attachLeaderToChildren: function (leaderTag,listOfTags) {
         return () => {
@@ -74,37 +93,33 @@ const Filters = new Component("#filters", {
                 const currentCheckBox = document.querySelector(`#${str} input`)
                 currentCheckBox.checked = improvedBox.checked
                 this.updateDomNodesWithID(`${str}`, currentCheckBox.checked)
-                this.reDrawGraph()
             })
+            this.reDrawGraph()
         }
     },
-    buildChildren: function (listOfTags) {
-        var childElements = []
-        // build child check boxes
-        listOfTags.forEach((child) => {
-            const count = document.querySelectorAll(`tr.${child}`)
-            const childBox = Element("label", {id: child}, 
-                [Element("input", { type: "checkbox", checked: true }, ""), new Text(`${this.rename(child)} (${count.length})`)])
-            // on click handler
-            childBox.addEventListener("click", () => {
-                const thisChild = document.querySelector(`#${child} input`)
-                this.updateDomNodesWithID(child, thisChild.checked)
-                this.reDrawGraph()
-            })
-            childElements.push(childBox)
+    createChild: function (childName) {
+        const count = document.querySelectorAll(`tr.${childName}`)
+        const childBox = this.buildCheckboxLabel(childName, `${renames[childName]} (${count.length})`, true)
+
+        childBox.addEventListener("click", (e) => {
+            const thisChild = e.target.querySelector("input")
+            this.updateDomNodesWithID(childName, thisChild.checked)
         })
-        return childElements
+        return childBox
     },
-    reDrawGraph: function () {
-        var elts = document.querySelectorAll(ResultPlot.selector);
-        for (var j = 0; j < elts.length; j++) {
-            var instance = new ComponentInstance(elts[j], ResultPlot);
-            console.log("Redrawing", ResultPlot.selector, "component at", elts[j]);
-            try {
-                instance.setup();
-            } catch (e) {
-                console.error(e);
-            }
+    reDrawGraph: async function () {
+        const resultPlot = document.querySelector(ResultPlot.selector)
+        try {
+            let response = await fetch("results.json", {
+                headers: {"content-type": "text/plain"},
+                method: "GET",
+                mode: "cors",
+            });
+            let data = (await response.json()).tests;
+            const svg = resultPlot.querySelector("svg")
+            resultPlot.replaceChild(ResultPlot.fns.plot(data), svg)
+        } catch (e) {
+            console.error(e);
         }
     },
     // helper function to loop over the table and toggle state of nodes 
@@ -114,43 +129,12 @@ const Filters = new Component("#filters", {
         siblingsList.forEach((child, n, p) => {
             if (child.classList.contains(stringID)) {
                 if (state) {
-                    child.style.display = `table-row`
+                    child.classList.remove("hidden-row")
                 } else {
-                    child.style.display = "none"
+                    child.classList.add("hidden-row")
                 }
             }
         })
-    },
-    rename: function(child) {
-        if (child == "imp-start") {
-            return "Improved start"
-        } else if (child == "apx-start") {
-            return "Approximate start"
-        } else if (child == "uni-start") {
-            return "Uni start"
-        } else if (child == "ex-start") {
-            return "Exact start"
-        } else if (child == "eq-start") {
-            return "Equal start"
-        } else if (child == "lt-start") {
-            return "Less than start"
-        } else if (child == "gt-start") {
-            return "Greater than start"
-        } else if (child == "gt-target") {
-            return "Greater than target"
-        } else if (child == "eq-target") {
-            return "Equal than target"
-        } else if (child == "lt-target") {
-            return "Less than target"
-        } else if (child == "error") {
-            return "Error"
-        } else if (child == "timeout") {
-            return "Timeout"
-        } else if (child == "crash") {
-            return "Crash"
-        } else {
-            return child
-        }
     }
 })
 
@@ -399,7 +383,8 @@ const ResultPlot = new Component('#xy', {
         });
         let stub = this.elt.querySelector("svg");
         let data = (await response.json()).tests;
-        this.elt.replaceChild(this.plot(data), stub)
+        const c = this.plot(data)
+        this.elt.replaceChild(c, stub)
     },
     plot: function(tests) {
         var viewable = []

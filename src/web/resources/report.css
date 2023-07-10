@@ -63,6 +63,7 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 #flag-list.changed-flags #all-flags { display: none; }
 
 /* Result table filters */
+tr.hidden-row {display: none;}
 #filters {border: 1px solid #ddd; padding: 1ex; margin: 0 0 1em 0;}
 #filters > div:nth-child(1) { color: #888;}
 #imp-start {accent-color: #87fc70;color: #4a4a4a;}
