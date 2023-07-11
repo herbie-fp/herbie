@@ -105,6 +105,7 @@ const Filters = new Component("#filters", {
             const thisChild = e.target.querySelector("input")
             if (thisChild == null) { return }
             this.updateDomNodesWithID(childName, !thisChild.checked)
+            this.reDrawGraph()
         })
         return childBox
     },
