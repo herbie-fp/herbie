@@ -102,7 +102,8 @@ const Filters = new Component("#filters", {
 
         childBox.addEventListener("click", (e) => {
             const thisChild = e.target.querySelector("input")
-            this.updateDomNodesWithID(childName, thisChild.checked)
+            if (thisChild == null) { return }
+            this.updateDomNodesWithID(childName, !thisChild.checked)
         })
         return childBox
     },
