@@ -160,7 +160,9 @@
   (define p (vector-ref d x))
   (if (= p x)
       x
-      (vector-set! d x (disjoint-set-find! d p))))
+      (let ([r (disjoint-set-find! d p)])
+        (vector-set! d x r)
+        r)))
 
 (define (disjoint-set-union! d x y) (vector-set! d y x))
 
