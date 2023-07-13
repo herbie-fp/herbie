@@ -50,16 +50,21 @@ renames["error"]     = "Error"
 renames["timeout"]   = "Timeout"
 renames["crash"]     = "Crash"
 
-const Filters = new Component("#filters", {
-    setup: function () {
+var Results = new Component("#results", {
+    setup: function() {
+        // clickable rows
+        let $rows = this.elt.querySelectorAll("tbody tr");
+        for (let $row of $rows) {
+            $row.addEventListener("click", () => $row.querySelector("a").click());
+        }
+        this.setupFilters()
+    },
+    setupFilters: function() {
         // Warning fragile starting state
         const regressedTags = ["uni-start", "lt-target", "lt-start", 
         "apx-start", "timeout", "crash", "error"]
         const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
         "gt-target"]
-        const advancedTags = []
-        advancedTags.push(regressedTags)
-        advancedTags.push(improvedTags)
 
         // build labels
         const regressedLabel = this.buildCheckboxLabel("regressed", "Regressed", true)
@@ -76,10 +81,11 @@ const Filters = new Component("#filters", {
             return this.createChild(child)
         })
         const advancedDiv = [improvedChildren, regressedChildren]
-
-        this.elt.appendChild(Element("div", ["Filters"]))
-        this.elt.appendChild(Element("div", [improvedLabel, regressedLabel]))
-        this.elt.appendChild(Element("details", [Element("summary", "Advanced"), advancedDiv]))
+        this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
+            Element("div", { classList: "section-title" }, "Filters"),
+            Element("div", [improvedLabel, regressedLabel,
+                Element("details", [
+                    Element("summary", "Advanced"), advancedDiv])])]), this.elt)
     },
     buildCheckboxLabel: function(idTag, text, boolState) {
         return Element("label", { id: idTag }, [
@@ -572,15 +578,6 @@ var Bogosity = new Component(".bogosity", {
         }
     }
 });
-
-var ClickableRows = new Component("#results", {
-    setup: function() {
-        let $rows = this.elt.querySelectorAll("tbody tr");
-        for (let $row of $rows) {
-            $row.addEventListener("click", () => $row.querySelector("a").click());
-        }
-    }
-})
 
 var Implementations = new Component(".programs", {
     setup: function() {

@@ -65,7 +65,7 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 /* Result table filters */
 tr.hidden-row {display: none;}
 #filters {border: 1px solid #ddd; padding: 1ex; margin: 0 0 1em 0;}
-#filters > div:nth-child(1) { color: #888;}
+.section-title { color: #888; font-size: 16px; line-height: 1.4;}
 #imp-start {accent-color: #87fc70;color: #4a4a4a;}
 #apx-start {accent-color: #ff9500;color: #4a4a4a;}
 #uni-start {accent-color:#ff5e3a; color: #4a4a4a;}
@@ -80,7 +80,7 @@ tr.hidden-row {display: none;}
 #timeout {accent-color: #8e8e93;}
 #filters label {margin: 0; cursor: pointer; display: inline-block; padding: .4ex;}
 #filters input {cursor: pointer;}
-#filters div label { accent-color: #0000aa;}
+#filters div>label { accent-color: #0000aa;}
 #filters summary {cursor: pointer;}
 
 /* Table of results */
