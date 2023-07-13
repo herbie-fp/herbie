@@ -81,41 +81,6 @@ var TogglableFlags = new Component("#flag-list", {
     }
 });
 
-var TryIt = new Component("#try-it", {
-    depends: function() {
-        if (typeof window.start === "undefined") throw "start() function not defined";
-        if (typeof window.end === "undefined") throw "end() function not defined";
-    },
-    setup: function() {
-        this.origOut = this.elt.querySelector("#try-original-output");
-        this.herbieOut = this.elt.querySelector("#try-herbie-output");
-        this.result = this.elt.querySelector("#try-result");
-        this.inputs = this.elt.querySelectorAll("#try-inputs input");
-        this.submit();
-        for (var i = 0; i < this.inputs.length; i++) {
-            this.inputs[i].addEventListener("input", this.submit);
-        }
-    },
-    submit: function() {
-        var values = [];
-        for (var i = 0; i < this.inputs.length; i++) {
-            var val = parseFloat(this.inputs[i].value);
-            if (isNaN(val)) {
-                if (this.inputs[i].value.length != 0) {
-                    // Don't update error message if there is no input
-                    this.result.className = 'error'
-                }
-                return;
-            } else {
-                this.result.className = 'no-error'
-                values.push(val);
-            }
-        }
-        this.origOut.innerHTML = start.apply(null, values);
-        this.herbieOut.innerHTML = end.apply(null, values);
-    },
-});
-
 const ALL_LINES = [
     { name: 'start', description: "Initial program",
       line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
