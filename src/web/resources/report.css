@@ -79,7 +79,7 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 }
 
 /* Result table filters */
-tr.hidden-row {display: none;}
+tr.hidden {display: none;}
 #filters {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
 .section-title { color: var(--accent-title); font-size: 16px; line-height: 1.4;}
 label.imp-start {accent-color: var(--result-green);}

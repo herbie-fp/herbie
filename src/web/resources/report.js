@@ -35,20 +35,21 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
-var renames = {};
-renames["imp-start"] = "Improved start"
-renames["apx-start"] = "Approximate start"
-renames["uni-start"] = "Regressed from start"
-renames["ex-start"]  = "Exact start"
-renames["eq-start"]  = "Equal start"
-renames["lt-start"]  = "Less than start"
-renames["gt-start"]  = "Greater than start"
-renames["gt-target"] = "Greater than target"
-renames["eq-target"] = "Equal than target"
-renames["lt-target"] = "Less than target"
-renames["error"]     = "Error"
-renames["timeout"]   = "Timeout"
-renames["crash"]     = "Crash"
+const renames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-start": "Greater than start",
+    "gt-target": "Greater than target",
+    "eq-target": "Equal than target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
+}
 
 const Results = new Component("#results", {
     setup: function () {
@@ -75,38 +76,42 @@ const Results = new Component("#results", {
         improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved", improvedTags))
 
         const improvedChildren = improvedTags.map((child) => {
-            return this.createChild(child)
+            const count = this.getRowsForClass(child).length
+            return this.createChild(child, count)
         })
         const regressedChildren = regressedTags.map((child) => {
-            return this.createChild(child)
+            const count = this.getRowsForClass(child).length
+            return this.createChild(child, count)
         })
-        const advancedDiv = [improvedChildren, regressedChildren]
+
         this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
             Element("div", { classList: "section-title" }, "Filters"),
             Element("div", { id: "filter-group" }, [
                 improvedLabel, regressedLabel]),
             Element("details", [
-                Element("summary", "Advanced"), advancedDiv])]), this.elt)
+                Element("summary", "Advanced"), [
+                    improvedChildren, regressedChildren]])]), this.elt)
+    },
+    getRowsForClass: function(childTag) {
+        return this.elt.querySelectorAll(`tr.${childTag}`)
     },
     buildCheckboxLabel: function (idTag, text, boolState) {
         return Element("label", { classList: idTag }, [
-            Element("input", { type: "checkbox", checked: boolState }, ""),
+            Element("input", { type: "checkbox", checked: boolState }, []),
             text])
     },
     attachLeaderToChildren: function (leaderTag, listOfTags) {
         return () => {
-            const improvedBox = document.querySelector(`#filter-group .${leaderTag} input`)
-            listOfTags.forEach((str) => {
-                const currentCheckBox = document.querySelector(`.${str} input`)
+            const improvedBox = this.elt.parentNode.querySelector(`#filter-group .${leaderTag} input`)
+            listOfTags.forEach((tag) => {
+                const currentCheckBox = this.elt.parentNode.querySelector(`.${tag} input`)
                 currentCheckBox.checked = improvedBox.checked
-                this.updateDomNodesWithID(`${str}`, currentCheckBox.checked)
+                this.updateDomNodesWithID(tag, currentCheckBox.checked)
             })
         }
     },
-    createChild: function (childName) {
-        const count = document.querySelectorAll(`tr.${childName}`)
-        const childBox = this.buildCheckboxLabel(childName, `${renames[childName]} (${count.length})`, true)
-
+    createChild: function (childName, count) {
+        const childBox = this.buildCheckboxLabel(childName, `${renames[childName]} (${count})`, true)
         childBox.addEventListener("click", (e) => {
             const thisChild = e.target.querySelector("input")
             if (thisChild == null) { return }
@@ -114,17 +119,13 @@ const Results = new Component("#results", {
         })
         return childBox
     },
-    // helper function to loop over the table and toggle state of nodes 
-    // with `#stringID`
-    updateDomNodesWithID: function (stringID, state) {
-        const siblingsList = document.querySelectorAll(`#results tbody tr`)
+    updateDomNodesWithID: function (childID, state) {
+        const siblingsList = this.getRowsForClass(childID)
         siblingsList.forEach((child, n, p) => {
-            if (child.classList.contains(stringID)) {
-                if (state) {
-                    child.classList.remove("hidden-row")
-                } else {
-                    child.classList.add("hidden-row")
-                }
+            if (state) {
+                child.classList.remove("hidden")
+            } else {
+                child.classList.add("hidden")
             }
         })
     }
