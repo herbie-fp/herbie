@@ -50,21 +50,21 @@ renames["error"]     = "Error"
 renames["timeout"]   = "Timeout"
 renames["crash"]     = "Crash"
 
-var Results = new Component("#results", {
-    setup: function() {
+const Results = new Component("#results", {
+    setup: function () {
         // clickable rows
         let $rows = this.elt.querySelectorAll("tbody tr");
         for (let $row of $rows) {
             $row.addEventListener("click", () => $row.querySelector("a").click());
         }
+
         this.setupFilters()
     },
-    setupFilters: function() {
-        // Warning fragile starting state
-        const regressedTags = ["uni-start", "lt-target", "lt-start", 
-        "apx-start", "timeout", "crash", "error"]
+    setupFilters: function () {
+        const regressedTags = ["uni-start", "lt-target", "lt-start",
+            "apx-start", "timeout", "crash", "error"]
         const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
-        "gt-target"]
+            "gt-target"]
 
         // build labels
         const regressedLabel = this.buildCheckboxLabel("regressed", "Regressed", true)
@@ -83,20 +83,21 @@ var Results = new Component("#results", {
         const advancedDiv = [improvedChildren, regressedChildren]
         this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
             Element("div", { classList: "section-title" }, "Filters"),
-            Element("div", [improvedLabel, regressedLabel,
-                Element("details", [
-                    Element("summary", "Advanced"), advancedDiv])])]), this.elt)
+            Element("div", { id: "filter-group" }, [
+                improvedLabel, regressedLabel]),
+            Element("details", [
+                Element("summary", "Advanced"), advancedDiv])]), this.elt)
     },
-    buildCheckboxLabel: function(idTag, text, boolState) {
-        return Element("label", { id: idTag }, [
+    buildCheckboxLabel: function (idTag, text, boolState) {
+        return Element("label", { classList: idTag }, [
             Element("input", { type: "checkbox", checked: boolState }, ""),
             text])
     },
-    attachLeaderToChildren: function (leaderTag,listOfTags) {
+    attachLeaderToChildren: function (leaderTag, listOfTags) {
         return () => {
-            const improvedBox = document.querySelector(`#${leaderTag} input`)
+            const improvedBox = document.querySelector(`#filter-group .${leaderTag} input`)
             listOfTags.forEach((str) => {
-                const currentCheckBox = document.querySelector(`#${str} input`)
+                const currentCheckBox = document.querySelector(`.${str} input`)
                 currentCheckBox.checked = improvedBox.checked
                 this.updateDomNodesWithID(`${str}`, currentCheckBox.checked)
             })
