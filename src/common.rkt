@@ -6,7 +6,7 @@
 
 (provide reap
          flip-lists drop-at find-duplicates partial-sums
-         argmins argmaxs set-disjoint? subsequence? disjoint-set
+         argmins argmaxs set-disjoint? subsequence? list-set* disjoint-set
          disjoint-set-find! disjoint-set-union! get-seed set-seed!
          quasisyntax dict sym-append
          format-time format-bits format-accuracy format-cost web-resource
