@@ -94,7 +94,7 @@ const Results = new Component("#results", {
             const parentState = parentLabel.querySelector("input").checked
             childNodes.forEach((child) => {
                 const children = this.getRowsForClass(child.classList[0])
-                child.checked = parentState
+                child.querySelector("input").checked = parentState
                 this.updateChildren(children,parentState)
             })
         })
