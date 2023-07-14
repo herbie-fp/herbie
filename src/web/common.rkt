@@ -139,12 +139,12 @@
       sort-note
       (string-join (map ~a variables) ", " #:before-last ", and "))]
     [(list 'abs x)
-     (format
-      "NOTE: ~a should be positive before calling this function"
-      x)]))
+     (format abs-note x)]))
 
 (define sort-note
   "NOTE: ~a should be sorted in increasing order before calling this function.")
+
+(define abs-note "NOTE: ~a should be positive before calling this function")
 
 (define languages
   `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)) ,preprocess->default)
