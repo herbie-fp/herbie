@@ -65,8 +65,6 @@
   (define variables (context-vars context))
   (define sort* (curryr sort (curryr </total (context-repr context))))
   (match instruction
-    [(list 'sort component ...) #:when (equal? component variables)
-     sort*]
     [(list 'sort component ...)
      (unless (subsequence? component variables)
        (error 'instruction->operator
