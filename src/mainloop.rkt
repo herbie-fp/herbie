@@ -337,6 +337,7 @@
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (match-define (and alternatives (cons best _))
     (mutate! expression iterations pcontext*))
+  (timeline-event! 'preprocess)
   (define preprocessing*
     (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
   (values alternatives preprocessing*))
