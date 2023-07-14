@@ -67,14 +67,6 @@ const Results = new Component("#results", {
         const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
             "gt-target"]
 
-        // build labels
-        const regressedLabel = this.buildCheckboxLabel("regressed", "Regressed", true)
-        const improvedLabel = this.buildCheckboxLabel("improved", "Improved", true)
-
-        // add listeners
-        regressedLabel.addEventListener("click", this.attachLeaderToChildren("regressed", regressedTags))
-        improvedLabel.addEventListener("click", this.attachLeaderToChildren("improved", improvedTags))
-
         const improvedChildren = improvedTags.map((child) => {
             const count = this.getRowsForClass(child).length
             return this.createChild(child, count)
@@ -84,50 +76,56 @@ const Results = new Component("#results", {
             return this.createChild(child, count)
         })
 
+        // add listeners
+        const improvedLeader = this.attachLeaderToChildren("improved","Improved", improvedChildren)
+        const regressedLeader = this.attachLeaderToChildren("regressed","Regressed", regressedChildren)
+
         this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
             Element("div", { classList: "section-title" }, "Filters"),
             Element("div", { id: "filter-group" }, [
-                improvedLabel, regressedLabel]),
+                improvedLeader, regressedLeader]),
             Element("details", [
                 Element("summary", "Advanced"), [
                     improvedChildren, regressedChildren]])]), this.elt)
     },
-    getRowsForClass: function(childTag) {
-        return this.elt.querySelectorAll(`tr.${childTag}`)
+    attachLeaderToChildren: function (leaderTag,leaderName, childNodes) {
+        const parentLabel = this.buildCheckboxLabel(leaderTag, leaderName, true)
+        parentLabel.addEventListener("click", () => {
+            const parentState = parentLabel.querySelector("input").checked
+            childNodes.forEach((child) => {
+                const children = this.getRowsForClass(child.classList[0])
+                child.checked = parentState
+                this.updateChildren(children,parentState)
+            })
+        })
+        return parentLabel
+    },
+    createChild: function (childName, count) {
+        const childNode = this.buildCheckboxLabel(childName, `${renames[childName]} (${count})`, true)
+        childNode.addEventListener("click", (e) => {
+            const thisChild = e.target.querySelector("input")
+            if (thisChild == null) { return }
+            const childr = this.getRowsForClass(childName)
+            this.updateChildren(childr, !thisChild.checked)
+        })
+        return childNode
     },
     buildCheckboxLabel: function (idTag, text, boolState) {
         return Element("label", { classList: idTag }, [
             Element("input", { type: "checkbox", checked: boolState }, []),
             text])
     },
-    attachLeaderToChildren: function (leaderTag, listOfTags) {
-        return () => {
-            const improvedBox = this.elt.parentNode.querySelector(`#filter-group .${leaderTag} input`)
-            listOfTags.forEach((tag) => {
-                const currentCheckBox = this.elt.parentNode.querySelector(`.${tag} input`)
-                currentCheckBox.checked = improvedBox.checked
-                this.updateDomNodesWithID(tag, currentCheckBox.checked)
-            })
-        }
-    },
-    createChild: function (childName, count) {
-        const childBox = this.buildCheckboxLabel(childName, `${renames[childName]} (${count})`, true)
-        childBox.addEventListener("click", (e) => {
-            const thisChild = e.target.querySelector("input")
-            if (thisChild == null) { return }
-            this.updateDomNodesWithID(childName, !thisChild.checked)
-        })
-        return childBox
-    },
-    updateDomNodesWithID: function (childID, state) {
-        const siblingsList = this.getRowsForClass(childID)
-        siblingsList.forEach((child, n, p) => {
+    updateChildren: function (children, state) {
+        children.forEach((child)  => {
             if (state) {
                 child.classList.remove("hidden")
             } else {
                 child.classList.add("hidden")
             }
         })
+    },
+    getRowsForClass: function(childTag) {
+        return this.elt.querySelectorAll(`tr.${childTag}`)
     }
 })
 
