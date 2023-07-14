@@ -73,9 +73,9 @@
               "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
      (lambda (points)
-       (let* ([subsequence (list-ref* points indices)]
+       (let* ([subsequence (map (curry list-ref points) indices)]
               [sorted (sort* subsequence)])
-         (list-set* points indices sorted)))]
+         (map (curry list-set points) indices sorted)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
      (define abs (operator-info
