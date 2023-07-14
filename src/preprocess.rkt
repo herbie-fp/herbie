@@ -73,7 +73,7 @@
      (lambda (points)
        (let* ([subsequence (map (curry list-ref points) indices)]
               [sorted (sort* subsequence)])
-         (map (curry list-set points) indices sorted)))]
+         (list-set* points indices sorted)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
      (define abs (operator-info
