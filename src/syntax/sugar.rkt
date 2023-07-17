@@ -179,6 +179,8 @@
 (define (resugar-program prog repr #:full [full? #t])
   (expand-parametric-reverse prog repr full?))
 
+;; This is a duplicate of the one in programs.rkt, but there's a cycle when you
+;; try to make sugar.rkt depend on programs.rkt and I couldn't untangle it.
 (define (replace-vars dict expr)
   (cond
     [(dict-has-key? dict expr) (dict-ref dict expr)]
