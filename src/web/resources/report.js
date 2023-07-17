@@ -95,7 +95,7 @@ const Results = new Component("#results", {
         parentLabel.addEventListener("click", () => {
             const parentState = parentLabel.querySelector("input").checked
             childNodes.forEach((child) => {
-                const children = this.getRowsForClass(child.classList[0])
+                const children = this.getRowsForClass(child.dataset.label)
                 child.querySelector("input").checked = parentState
                 this.updateChildren(children, parentState)
                 this.reDrawGraph()
@@ -105,6 +105,7 @@ const Results = new Component("#results", {
     },
     createChild: function (childName, count) {
         const childNode = this.buildCheckboxLabel(childName, `${renames[childName]} (${count})`, true)
+        childNode.dataset.label = childName
         childNode.addEventListener("click", (e) => {
             const thisChild = e.target.querySelector("input")
             if (thisChild == null) { return }
