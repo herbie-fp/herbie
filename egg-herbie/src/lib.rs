@@ -46,9 +46,9 @@ pub unsafe extern "C" fn egraph_destroy(ptr: *mut Context) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_egraphiters(size: u32, ptr: *mut EGraphIter) {
-    let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
-    std::mem::drop(array)
+pub unsafe extern "C" fn destroy_egraphiters(_size: u32, ptr: *mut EGraphIter) {
+    // let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
+    libc::free(ptr as *mut libc::c_void);
 }
 
 #[no_mangle]
