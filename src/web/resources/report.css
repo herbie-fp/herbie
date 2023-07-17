@@ -62,26 +62,40 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 #flag-list.changed-flags #changed-flags { display: block; }
 #flag-list.changed-flags #all-flags { display: none; }
 
+/* Result color pallette */
+:root {
+    --accent-text: #4a4a4a;
+    --accent-title: #888;
+    --accent-board: #ddd;
+    --result-green: #87fc70;
+    --result-light-green: #e0f8d8;
+    --result-light-orange: #ff9500;
+    --result-orange: #ff9500;
+    --result-red-orange: #ff5e3a;
+    --result-yellow: #ffdb4c;
+    --result-timeout: #8e8e93;
+    --result-error: #4a4a4a;
+    --accent-blue: #0000aa;
+}
+
 /* Result table filters */
-tr.hidden-row {display: none;}
-#filters {border: 1px solid #ddd; padding: 1ex; margin: 0 0 1em 0;}
-#filters > div:nth-child(1) { color: #888;}
-#imp-start {accent-color: #87fc70;color: #4a4a4a;}
-#apx-start {accent-color: #ff9500;color: #4a4a4a;}
-#uni-start {accent-color:#ff5e3a; color: #4a4a4a;}
-#ex-start  {accent-color: #e0f8d8;color: #4a4a4a;}
-#eq-start {accent-color: #87fc70;color: #4a4a4a;}
-#lt-start {accent-color: #ffdb4c;color: #4a4a4a;}
-#gt-target {accent-color: #87fc70;color: #4a4a4a;}
-#eq-target {accent-color: #87fc70;color: #4a4a4a;}
-#lt-target {accent-color: #ff9500;color: #4a4a4a;}
-#crash {accent-color:#ff9d87;}
-#error {accent-color: #4a4a4a;}
-#timeout {accent-color: #8e8e93;}
-#filters label {margin: 0; cursor: pointer; display: inline-block; padding: .4ex;}
-#filters input {cursor: pointer;}
-#filters div label { accent-color: #0000aa;}
-#filters summary {cursor: pointer;}
+tr.hidden {display: none;}
+#filters {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
+.section-title { color: var(--accent-title); font-size: 16px; line-height: 1.4;}
+label.imp-start {accent-color: var(--result-green);}
+label.apx-start {accent-color: var(--result-orange);}
+label.uni-start {accent-color: var(--result-red-orange);}
+label.ex-start {accent-color: var(--result-light-green);}
+label.eq-start {accent-color: var(--result-green);}
+label.lt-start {accent-color: var(--result-yellow);}
+label.gt-target {accent-color: var(--result-green);}
+label.eq-target {accent-color: var(--result-green);}
+label.lt-target {accent-color: var(--result-orange);}
+label.crash {accent-color: var(--result-light-orange);}
+label.error {accent-color: var(--result-error);}
+label.timeout {accent-color: var(--result-timeout);}
+#filters label {margin: 0; display: inline-block; padding: .4ex; color: var(--accent-text);}
+#filter-group { accent-color: var(--accent-blue);}
 
 /* Table of results */
 
@@ -101,7 +115,7 @@ tr.uni-start  td:nth-child(3) {background-color:#ff5e3a;color:#f7f7f7;}
 tr.ex-start   td:nth-child(3) {background-color:#e0f8d8;}
 
 tr.gt-target  td:nth-child(3) {background-color:#87fc70;}
-tr.gt-target  td:nth-child(4) {background-color:#87fc70;}
+tr.gt-target  td:nth-child(4) {background-color:#0bd318;}
 tr.eq-target  td:nth-child(3) {background-color:#87fc70;}
 tr.eq-target  td:nth-child(4) {background-color:#87fc70;}
 tr.lt-target  td:nth-child(3) {background-color:#87fc70;}
