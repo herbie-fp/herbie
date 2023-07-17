@@ -77,8 +77,8 @@ const Results = new Component("#results", {
         })
 
         // add listeners
-        const improvedLeader = this.attachLeaderToChildren("improved","Improved", improvedChildren)
-        const regressedLeader = this.attachLeaderToChildren("regressed","Regressed", regressedChildren)
+        const improvedLeader = this.attachLeaderToChildren("improved", "Improved", improvedChildren)
+        const regressedLeader = this.attachLeaderToChildren("regressed", "Regressed", regressedChildren)
 
         this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
             Element("div", { classList: "section-title" }, "Filters"),
@@ -88,14 +88,14 @@ const Results = new Component("#results", {
                 Element("summary", "Advanced"), [
                     improvedChildren, regressedChildren]])]), this.elt)
     },
-    attachLeaderToChildren: function (leaderTag,leaderName, childNodes) {
+    attachLeaderToChildren: function (leaderTag, leaderName, childNodes) {
         const parentLabel = this.buildCheckboxLabel(leaderTag, leaderName, true)
         parentLabel.addEventListener("click", () => {
             const parentState = parentLabel.querySelector("input").checked
             childNodes.forEach((child) => {
                 const children = this.getRowsForClass(child.classList[0])
                 child.querySelector("input").checked = parentState
-                this.updateChildren(children,parentState)
+                this.updateChildren(children, parentState)
             })
         })
         return parentLabel
@@ -116,7 +116,7 @@ const Results = new Component("#results", {
             text])
     },
     updateChildren: function (children, state) {
-        children.forEach((child)  => {
+        children.forEach((child) => {
             if (state) {
                 child.classList.remove("hidden")
             } else {
@@ -124,7 +124,7 @@ const Results = new Component("#results", {
             }
         })
     },
-    getRowsForClass: function(childTag) {
+    getRowsForClass: function (childTag) {
         return this.elt.querySelectorAll(`tr.${childTag}`)
     }
 })
