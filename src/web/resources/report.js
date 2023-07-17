@@ -35,6 +35,101 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
+const renames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-start": "Greater than start",
+    "gt-target": "Greater than target",
+    "eq-target": "Equal than target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
+}
+
+const Results = new Component("#results", {
+    setup: function () {
+        // clickable rows
+        let $rows = this.elt.querySelectorAll("tbody tr");
+        for (let $row of $rows) {
+            $row.addEventListener("click", () => $row.querySelector("a").click());
+        }
+
+        this.setupFilters()
+    },
+    setupFilters: function () {
+        const regressedTags = ["uni-start", "lt-target", "lt-start",
+            "apx-start", "timeout", "crash", "error"]
+        const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
+            "gt-target"]
+
+        const improvedChildren = improvedTags.map((child) => {
+            const count = this.getRowsForClass(child).length
+            return this.createChild(child, count)
+        })
+        const regressedChildren = regressedTags.map((child) => {
+            const count = this.getRowsForClass(child).length
+            return this.createChild(child, count)
+        })
+
+        // add listeners
+        const improvedLeader = this.attachLeaderToChildren("improved", "Improved", improvedChildren)
+        const regressedLeader = this.attachLeaderToChildren("regressed", "Regressed", regressedChildren)
+
+        this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
+            Element("div", { classList: "section-title" }, "Filters"),
+            Element("div", { id: "filter-group" }, [
+                improvedLeader, regressedLeader]),
+            Element("details", [
+                Element("summary", "Advanced"), [
+                    improvedChildren, regressedChildren]])]), this.elt)
+    },
+    attachLeaderToChildren: function (leaderTag, leaderName, childNodes) {
+        const parentLabel = this.buildCheckboxLabel(leaderTag, leaderName, true)
+        parentLabel.addEventListener("click", () => {
+            const parentState = parentLabel.querySelector("input").checked
+            childNodes.forEach((child) => {
+                const children = this.getRowsForClass(child.dataset.label)
+                child.querySelector("input").checked = parentState
+                this.updateChildren(children, parentState)
+            })
+        })
+        return parentLabel
+    },
+    createChild: function (childName, count) {
+        const childNode = this.buildCheckboxLabel(childName, `${renames[childName]} (${count})`, true)
+        childNode.dataset.label = childName
+        childNode.addEventListener("click", (e) => {
+            const thisChild = e.target.querySelector("input")
+            if (thisChild == null) { return }
+            const childr = this.getRowsForClass(childName)
+            this.updateChildren(childr, !thisChild.checked)
+        })
+        return childNode
+    },
+    buildCheckboxLabel: function (idTag, text, boolState) {
+        return Element("label", { classList: idTag }, [
+            Element("input", { type: "checkbox", checked: boolState }, []),
+            text])
+    },
+    updateChildren: function (children, state) {
+        children.forEach((child) => {
+            if (state) {
+                child.classList.remove("hidden")
+            } else {
+                child.classList.add("hidden")
+            }
+        })
+    },
+    getRowsForClass: function (childTag) {
+        return this.elt.querySelectorAll(`tr.${childTag}`)
+    }
+})
+
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
 function on(mark, listeners = {}) {
@@ -247,7 +342,6 @@ const ResultPlot = new Component('#xy', {
         let data = (await response.json()).tests;
         this.elt.replaceChild(this.plot(data), stub)
     },
-
     plot: function(tests) {
         const out = Plot.plot({
             marks: [
@@ -450,15 +544,6 @@ var Bogosity = new Component(".bogosity", {
         }
     }
 });
-
-var ClickableRows = new Component("#results", {
-    setup: function() {
-        let $rows = this.elt.querySelectorAll("tbody tr");
-        for (let $row of $rows) {
-            $row.addEventListener("click", () => $row.querySelector("a").click());
-        }
-    }
-})
 
 var Implementations = new Component(".programs", {
     setup: function() {
