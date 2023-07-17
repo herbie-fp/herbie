@@ -140,8 +140,8 @@
   (define-values (alternatives preprocessing)
     (run-improve!
      ;; If the specification is given, it is used for sampling points
-     (or (test-spec test) (test-input test)) (*context*) train-pcontext
-     (*simplify-rules*) (*num-iterations*)))
+     (test-input test) (*context*) train-pcontext (*simplify-rules*)
+     (*num-iterations*) #:specification (test-spec test)))
   (define test-pcontext*
     (preprocess-pcontext (*context*) test-pcontext preprocessing))
   (when seed (set-seed! seed))
@@ -168,8 +168,8 @@
   (define-values (end-alts preprocessing)
     (run-improve!
      ;; If the specification is given, it is used for sampling points
-     (or (test-spec test) (test-input test)) ctx train-pcontext (*simplify-rules*)
-     (*num-iterations*)))
+     (test-input test) ctx train-pcontext (*simplify-rules*) (*num-iterations*)
+     #:specification (test-spec test)))
   (define test-pcontext*
     (preprocess-pcontext ctx test-pcontext preprocessing))
   (when seed (set-seed! seed))

@@ -330,9 +330,9 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-(define (run-improve! expression context pcontext rules iterations)
+(define (run-improve! expression context pcontext rules iterations #:specification [specification #f])
   (timeline-event! 'preprocess)
-  (define preprocessing (find-preprocessing expression context rules))
+  (define preprocessing (find-preprocessing (or specification expression) context rules))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (match-define (and alternatives (cons best _))
