@@ -133,11 +133,9 @@ const Results = new Component("#results", {
             const tests = await this.startingTestData()
             const svg = resultPlot.querySelector("svg")
             var viewable = []
-            const selected = document.querySelector("#filters > details").childNodes
+            const selected = document.querySelectorAll("#filters > details label > input:checked")
             selected.forEach((child) => {
-                if (child.childNodes[0].checked) {
-                    viewable.push(child.classList[0])
-                }
+                viewable.push(child.parentNode.classList[0])
             })
             var filteredTests = []
             tests.forEach((test) => {
