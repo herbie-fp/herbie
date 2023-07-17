@@ -11,19 +11,6 @@ use std::os::raw::c_char;
 use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
-unsafe fn cstring_to_recexpr(c_string: *const c_char) -> Option<RecExpr> {
-    match CStr::from_ptr(c_string).to_str() {
-        Ok(expr_string) => match expr_string.parse() {
-            Ok(expr) => Some(expr),
-            Err(err) => {
-                eprintln!("{}", err);
-                None
-            }
-        },
-        Err(_error) => None,
-    }
-}
-
 pub struct Context {
     iteration: usize,
     runner: Option<Runner>,
@@ -48,6 +35,7 @@ pub unsafe extern "C" fn egraph_destroy(ptr: *mut Context) {
 #[no_mangle]
 pub unsafe extern "C" fn destroy_egraphiters(_size: u32, ptr: *mut EGraphIter) {
     // let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
+    // TODO: Maybe glue vector back together and call drop on it?
     libc::free(ptr as *mut libc::c_void);
 }
 
@@ -112,16 +100,19 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
 
         assert_eq!(ctx.iteration, 0);
 
-        let result = match cstring_to_recexpr(expr) {
-            None => 0 as u32,
-            Some(rec_expr) => {
-                runner = runner.with_expr(&rec_expr);
-                let id = *runner.roots.last().unwrap();
-                let id = usize::from(id) as u32;
-                assert!(id < u32::MAX);
-                id + 1 as u32
-            }
-        };
+	let result = unsafe {
+	    // TODO
+	    match CStr::from_ptr(expr).to_str().unwrap().parse() {
+		Err(_) => 0 as u32,
+		Ok(rec_expr) => {
+                    runner = runner.with_expr(&rec_expr);
+                    let id = *runner.roots.last().unwrap();
+                    let id = usize::from(id) as u32;
+                    assert!(id < u32::MAX);
+                    id + 1 as u32
+		}
+	    }
+	};
 
         ctx.runner = Some(runner);
         result
@@ -296,18 +287,14 @@ pub unsafe extern "C" fn egraph_get_proof(
 
         assert_eq!(ctx.iteration, 0);
 
-        let expr_rec = match cstring_to_recexpr(expr) {
-            None => {
-                return make_empty_string();
-            }
-            Some(rec_expr) => rec_expr,
+        let expr_rec = match CStr::from_ptr(expr).to_str().map(str::parse) {
+	    Ok(Ok(expr)) => expr,
+	    // TODO
+	    _ => return make_empty_string()
         };
-
-        let goal_rec = match cstring_to_recexpr(goal) {
-            None => {
-                return make_empty_string();
-            }
-            Some(rec_expr) => rec_expr,
+        let goal_rec = match CStr::from_ptr(goal).to_str().map(str::parse) {
+	    Ok(Ok(goal)) => goal,
+	    _ => return make_empty_string()
         };
 
         let mut runner = ctx
@@ -335,18 +322,14 @@ pub unsafe extern "C" fn egraph_is_equal(
 
         assert_eq!(ctx.iteration, 0);
 
-        let expr_rec = match cstring_to_recexpr(expr) {
-            None => {
-                return false;
-            }
-            Some(rec_expr) => rec_expr,
+        let expr_rec = match CStr::from_ptr(expr).to_str().map(str::parse) {
+            Ok(Ok(rec_expr)) => rec_expr,
+            _ => return false
         };
 
-        let goal_rec = match cstring_to_recexpr(goal) {
-            None => {
-                return false;
-            }
-            Some(rec_expr) => rec_expr,
+        let goal_rec = match CStr::from_ptr(goal).to_str().map(str::parse) {
+            Ok(Ok(rec_expr)) => rec_expr,
+	    _ => return false
         };
 
         let mut runner = ctx
@@ -376,8 +359,7 @@ pub unsafe extern "C" fn egraph_get_variants(
 
         // root (id, expr)
         let id = Id::from(node_id as usize);
-        let orig_recexpr =
-            cstring_to_recexpr(orig_expr).unwrap_or_else(|| panic!("could not parse expr"));
+        let orig_recexpr: RecExpr = CStr::from_ptr(orig_expr).to_str().unwrap().parse().unwrap();
         let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
 
         // extractor
