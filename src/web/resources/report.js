@@ -117,15 +117,13 @@ const Results = new Component("#results", {
     startingTestData: async function () {
         if (resultsTestData == null) {
             let response = await fetch("results.json", {
-                headers: {"content-type": "text/plain"},
+                headers: { "content-type": "text/plain" },
                 method: "GET",
                 mode: "cors",
             })
             resultsTestData = (await response.json()).tests
-            console.log("new")
             return resultsTestData
         } else {
-            console.log("old")
             return resultsTestData
         }
     },
