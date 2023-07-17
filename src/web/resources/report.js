@@ -51,6 +51,8 @@ const renames = {
     "crash": "Crash",
 }
 
+var resultsTestData = null
+
 const Results = new Component("#results", {
     setup: function () {
         // clickable rows
@@ -112,17 +114,40 @@ const Results = new Component("#results", {
         })
         return childNode
     },
-    reDrawGraph: async function () {
-        const resultPlot = document.querySelector(ResultPlot.selector)
-        try {
+    startingTestData: async function () {
+        if (resultsTestData == null) {
             let response = await fetch("results.json", {
                 headers: {"content-type": "text/plain"},
                 method: "GET",
                 mode: "cors",
             })
-            let data = (await response.json()).tests
+            resultsTestData = (await response.json()).tests
+            console.log("new")
+            return resultsTestData
+        } else {
+            console.log("old")
+            return resultsTestData
+        }
+    },
+    reDrawGraph: async function () {
+        const resultPlot = document.querySelector(ResultPlot.selector)
+        try {
+            const tests = await this.startingTestData()
             const svg = resultPlot.querySelector("svg")
-            resultPlot.replaceChild(ResultPlot.fns.plot(data), svg)
+            var viewable = []
+            const selected = document.querySelector("#filters > details").childNodes
+            selected.forEach((child) => {
+                if (child.childNodes[0].checked) {
+                    viewable.push(child.classList[0])
+                }
+            })
+            var filteredTests = []
+            tests.forEach((test) => {
+                if (viewable.includes(test.status)) {
+                    filteredTests.push(test)
+                }
+            })
+            resultPlot.replaceChild(ResultPlot.fns.plot(filteredTests), svg)
         } catch (e) {
             console.error(e)
         }
@@ -356,26 +381,15 @@ const ResultPlot = new Component('#xy', {
         });
         let stub = this.elt.querySelector("svg");
         let data = (await response.json()).tests;
+        // save data for later
+        resultsTestData = data
         this.elt.replaceChild(this.plot(data), stub)
     },
     plot: function(tests) {
-        var viewable = []
-        const selected = document.querySelector("#filters > details").childNodes
-        selected.forEach((child) => {
-            if (child.childNodes[0].checked) {
-                viewable.push(child.classList[0])
-            }
-        })
-        var filteredTests = []
-        tests.forEach((test) => {
-            if (viewable.includes(test.status)) {
-                filteredTests.push(test)
-            }
-        })
         const out = Plot.plot({
             marks: [
                 Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
-                on(Plot.dot(filteredTests, {
+                on(Plot.dot(tests, {
                     x: d => 1 - d.start/64, y: d => 1 - d.end/64,
                     fill: "#00a", strokeWidth: 2,
                 }), {
