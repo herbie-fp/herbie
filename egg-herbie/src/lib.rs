@@ -223,13 +223,6 @@ pub unsafe extern "C" fn egraph_get_simplest(
         best_str.as_ptr()
 }
 
-unsafe fn make_empty_string() -> *const c_char {
-    let best_str = CString::new("".to_string()).unwrap();
-    let best_str_pointer = best_str.as_ptr();
-    std::mem::forget(best_str);
-    best_str_pointer
-}
-
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_proof(
     ptr: *mut Context,
@@ -241,16 +234,8 @@ pub unsafe extern "C" fn egraph_get_proof(
 
         assert_eq!(context.iteration, 0);
 
-        let expr_rec = match CStr::from_ptr(expr).to_str().map(str::parse) {
-	    Ok(Ok(expr)) => expr,
-	    // TODO
-	    _ => return make_empty_string()
-        };
-        let goal_rec = match CStr::from_ptr(goal).to_str().map(str::parse) {
-	    Ok(Ok(goal)) => goal,
-	    _ => return make_empty_string()
-        };
-
+        let expr_rec = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
+        let goal_rec = CStr::from_ptr(goal).to_str().unwrap().parse().unwrap();
         let proof = context.runner.explain_equivalence(&expr_rec, &goal_rec);
         let string = ManuallyDrop::new(CString::new(proof.get_string_with_let().replace('\n', "")).unwrap());
 
@@ -268,15 +253,8 @@ pub unsafe extern "C" fn egraph_is_equal(
 
         assert_eq!(context.iteration, 0);
 
-        let expr_rec = match CStr::from_ptr(expr).to_str().map(str::parse) {
-            Ok(Ok(rec_expr)) => rec_expr,
-            _ => return false
-        };
-
-        let goal_rec = match CStr::from_ptr(goal).to_str().map(str::parse) {
-            Ok(Ok(rec_expr)) => rec_expr,
-	    _ => return false
-        };
+        let expr_rec = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
+        let goal_rec = CStr::from_ptr(goal).to_str().unwrap().parse().unwrap();
         let egraph = &mut context.runner.egraph;
 
         egraph.add_expr(&expr_rec) == egraph.add_expr(&goal_rec)
