@@ -484,12 +484,7 @@
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)
   (define egg-expr (~a (expr->egg-expr expr eg-data)))
-  (define result (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
-  (when (= result 0)
-    (raise (egg-add-exn
-            "Failed to add expr to egraph"
-            (current-continuation-marks))))
-  (- result 1))
+  (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
 
 (struct iteration-data (num-nodes num-eclasses time))
 

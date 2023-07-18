@@ -1,7 +1,7 @@
 pub mod math;
 pub mod rules;
 
-use egg::{Extractor, Id, Iteration, Language, StopReason, Symbol};
+use egg::{Extractor, Id, Language, StopReason, Symbol};
 use indexmap::IndexMap;
 use math::*;
 
@@ -68,23 +68,13 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
 
         assert_eq!(context.iteration, 0);
 
-	let result = unsafe {
-	    // TODO
-	    match CStr::from_ptr(expr).to_str().unwrap().parse() {
-		Err(_) => 0 as u32,
-		Ok(rec_expr) => {
-                    context.runner = context.runner.with_expr(&rec_expr);
-                    let id = *context.runner.roots.last().unwrap();
-                    let id = usize::from(id) as u32;
-                    assert!(id < u32::MAX);
-                    id + 1 as u32
-		}
-	    }
-	};
+        let rec_expr = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
+        context.runner = context.runner.with_expr(&rec_expr);
+        let id = usize::from(*context.runner.roots.last().unwrap()).try_into().unwrap();
 
         mem::forget(context);
 
-        result
+        id
 }
 
 unsafe fn ptr_to_string(ptr: *const c_char) -> String {
