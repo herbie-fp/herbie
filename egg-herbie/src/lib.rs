@@ -7,13 +7,14 @@ use math::*;
 
 use std::cmp::min;
 use std::ffi::{CStr, CString};
+use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
 use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
 pub struct Context {
     iteration: usize,
-    runner: Option<Runner>,
+    runner: Runner,
     rules: Vec<Rewrite>,
 }
 
@@ -22,14 +23,14 @@ pub struct Context {
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
         iteration: 0,
-        runner: Some(Runner::new(Default::default()).with_explanations_enabled()),
+        runner: Runner::new(Default::default()).with_explanations_enabled(),
         rules: vec![],
     }))
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_destroy(ptr: *mut Context) {
-    std::mem::drop(Box::from_raw(ptr))
+    drop(Box::from_raw(ptr))
 }
 
 #[no_mangle]
@@ -41,7 +42,7 @@ pub unsafe extern "C" fn destroy_egraphiters(_size: u32, ptr: *mut EGraphIter) {
 
 #[no_mangle]
 pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
-    std::mem::drop(CString::from_raw(ptr));
+    drop(CString::from_raw(ptr))
 }
 
 #[repr(C)]
@@ -68,6 +69,7 @@ fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
 }
 
 fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
+    // TODO: ManuallyDrop
     let mut result: Vec<EGraphIter> = runner.iterations.iter().map(convert_iter).collect();
     let ptr = result.as_mut_ptr();
     std::mem::forget(result);
@@ -77,21 +79,18 @@ fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char) -> u32 {
         let _ = env_logger::try_init();
-        let ctx = &mut *ptr;
-        let mut runner = ctx
-            .runner
-            .take()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let mut context = Box::from_raw(ptr);
 
-        assert_eq!(ctx.iteration, 0);
+        assert_eq!(context.iteration, 0);
 
 	let result = unsafe {
 	    // TODO
 	    match CStr::from_ptr(expr).to_str().unwrap().parse() {
 		Err(_) => 0 as u32,
 		Ok(rec_expr) => {
-                    runner = runner.with_expr(&rec_expr);
-                    let id = *runner.roots.last().unwrap();
+                    context.runner = context.runner.with_expr(&rec_expr);
+                    let id = *context.runner.roots.last().unwrap();
                     let id = usize::from(id) as u32;
                     assert!(id < u32::MAX);
                     id + 1 as u32
@@ -99,7 +98,8 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
 	    }
 	};
 
-        ctx.runner = Some(runner);
+        mem::forget(context);
+
         result
 }
 
@@ -128,13 +128,10 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
     is_constant_folding_enabled: bool,
     rules_array_length: u32,
 ) -> *const EGraphIter {
-        let ctx = &mut *ptr;
-        let mut runner = ctx
-            .runner
-            .take()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let mut context = Box::from_raw(ptr);
 
-        if runner.stop_reason.is_none() {
+        if context.runner.stop_reason.is_none() {
             let length: usize = rules_array_length as usize;
             let ffi_rules: &[*mut FFIRule] = slice::from_raw_parts(rules_array_ptr, length);
             let mut ffi_tuples: Vec<(&str, &str, &str)> = vec![];
@@ -149,10 +146,11 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
             }
 
             let rules: Vec<Rewrite> = rules::mk_rules(&ffi_tuples);
-            ctx.rules = rules;
+            context.rules = rules;
 
-            runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
-            runner = runner
+            context.runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
+            context.runner = context
+                .runner
                 .with_node_limit(node_limit as usize)
                 .with_iter_limit(iter_limit as usize) // should never hit
                 .with_time_limit(Duration::from_secs(u64::MAX))
@@ -163,12 +161,13 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
                         Ok(())
                     }
                 })
-                .run(&ctx.rules);
+                .run(&context.rules);
         }
-        std::ptr::write(output_size, runner.iterations.len() as u32);
-        let res = runner_egraphiters(&runner);
-        ctx.runner = Some(runner);
-        res
+        std::ptr::write(output_size, context.runner.iterations.len() as u32);
+        let result = runner_egraphiters(&context.runner);
+        mem::forget(context);
+
+        result
 }
 
 #[no_mangle]
@@ -193,13 +192,10 @@ pub unsafe extern "C" fn egraph_run(
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
-        let ctx = &*ptr;
-        let runner = ctx
-            .runner
-            .as_ref()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let context = ManuallyDrop::new(Box::from_raw(ptr));
 
-        match runner.stop_reason {
+        match context.runner.stop_reason {
             Some(StopReason::Saturated) => 0,
             Some(StopReason::IterationLimit(_)) => 1,
             Some(StopReason::NodeLimit(_)) => 2,
@@ -233,17 +229,15 @@ pub unsafe extern "C" fn egraph_get_simplest(
     node_id: u32,
     iter: u32,
 ) -> *const c_char {
-        let ctx = &*ptr;
-        let runner = ctx
-            .runner
-            .as_ref()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let context = ManuallyDrop::new(Box::from_raw(ptr));
 
-        let ext = find_extracted(runner, node_id, iter);
+        let ext = find_extracted(&context.runner, node_id, iter);
 
         let best_str = CString::new(ext.best.to_string()).unwrap();
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
+
         best_str_pointer
 }
 
@@ -260,9 +254,10 @@ pub unsafe extern "C" fn egraph_get_proof(
     expr: *const c_char,
     goal: *const c_char,
 ) -> *const c_char {
-        let ctx = &mut *ptr;
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let mut context = ManuallyDrop::new(Box::from_raw(ptr));
 
-        assert_eq!(ctx.iteration, 0);
+        assert_eq!(context.iteration, 0);
 
         let expr_rec = match CStr::from_ptr(expr).to_str().map(str::parse) {
 	    Ok(Ok(expr)) => expr,
@@ -274,13 +269,7 @@ pub unsafe extern "C" fn egraph_get_proof(
 	    _ => return make_empty_string()
         };
 
-        let mut runner = ctx
-            .runner
-            .take()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
-
-        let proof = runner.explain_equivalence(&expr_rec, &goal_rec);
-        ctx.runner = Some(runner);
+        let proof = context.runner.explain_equivalence(&expr_rec, &goal_rec);
         let string = CString::new(proof.get_string_with_let().replace('\n', "")).unwrap();
         let string_pointer = string.as_ptr();
         std::mem::forget(string);
@@ -293,9 +282,10 @@ pub unsafe extern "C" fn egraph_is_equal(
     expr: *const c_char,
     goal: *const c_char,
 ) -> bool {
-        let ctx = &mut *ptr;
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let mut context = ManuallyDrop::new(Box::from_raw(ptr));
 
-        assert_eq!(ctx.iteration, 0);
+        assert_eq!(context.iteration, 0);
 
         let expr_rec = match CStr::from_ptr(expr).to_str().map(str::parse) {
             Ok(Ok(rec_expr)) => rec_expr,
@@ -306,16 +296,9 @@ pub unsafe extern "C" fn egraph_is_equal(
             Ok(Ok(rec_expr)) => rec_expr,
 	    _ => return false
         };
+        let egraph = &mut context.runner.egraph;
 
-        let mut runner = ctx
-            .runner
-            .take()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
-
-        let res = runner.egraph.add_expr(&expr_rec) == runner.egraph.add_expr(&goal_rec);
-
-        ctx.runner = Some(runner);
-        res
+        egraph.add_expr(&expr_rec) == egraph.add_expr(&goal_rec)
 }
 
 #[no_mangle]
@@ -324,11 +307,8 @@ pub unsafe extern "C" fn egraph_get_variants(
     node_id: u32,
     orig_expr: *const c_char,
 ) -> *const c_char {
-        let ctx = &*ptr;
-        let runner = ctx
-            .runner
-            .as_ref()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let context = ManuallyDrop::new(Box::from_raw(ptr));
 
         // root (id, expr)
         let id = Id::from(node_id as usize);
@@ -336,12 +316,12 @@ pub unsafe extern "C" fn egraph_get_variants(
         let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
 
         // extractor
-        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let extractor = Extractor::new(&context.runner.egraph, AltCost::new(&context.runner.egraph));
         let mut cache: IndexMap<Id, RecExpr> = Default::default();
 
         // extract variants
         let mut exprs = vec![];
-        for n in &runner.egraph[id].nodes {
+        for n in &context.runner.egraph[id].nodes {
             // assuming same ops in an eclass cannot
             // have different precisions
             if !n.matches(head_node) {
@@ -367,23 +347,20 @@ pub unsafe extern "C" fn egraph_get_variants(
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
-        let ctx = &*ptr;
-        let runner = ctx
-            .runner
-            .as_ref()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
-        runner.egraph.analysis.unsound.load(Ordering::SeqCst)
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let context = ManuallyDrop::new(Box::from_raw(ptr));
+
+        context.runner.egraph.analysis.unsound.load(Ordering::SeqCst)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *const c_char) -> u32 {
-        let ctx = &*ptr;
-        let runner = ctx
-            .runner
-            .as_ref()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let context = ManuallyDrop::new(Box::from_raw(ptr));
         let sym = Symbol::from(ptr_to_string(name));
-        runner
+
+        context
+	    .runner
             .iterations
             .iter()
             .map(|iter| *iter.applied.get(&sym).unwrap_or(&0) as u32)
@@ -392,25 +369,22 @@ pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *cons
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: u32) -> u32 {
-        let ctx = &*ptr;
-        let runner = ctx
-            .runner
-            .as_ref()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let context = ManuallyDrop::new(Box::from_raw(ptr));
+        let ext = find_extracted(&context.runner, node_id, iter);
 
-        let ext = find_extracted(runner, node_id, iter);
         ext.cost as u32
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_size(ptr: *mut Context) -> u32 {
-        let ctx = &*ptr;
-        let runner = ctx
-            .runner
-            .as_ref()
-            .unwrap_or_else(|| panic!("Runner has been invalidated"));
-        match runner.iterations.last() {
-            None => 0,
-            Some(iter) => iter.egraph_nodes as u32,
-        }
+        // Safety: `ptr` was box allocated by `egraph_create`
+        let context = ManuallyDrop::new(Box::from_raw(ptr));
+
+        context
+	    .runner
+	    .iterations
+	    .last()
+	    .map(|iteration| iteration.egraph_nodes as u32)
+	    .unwrap_or_default()
 }
