@@ -212,11 +212,11 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
     let id = runner.egraph.find(Id::from(id as usize));
 
     // go back one more iter, egg can duplicate the final iter in the case of an error
-    let sound_iter = if runner.egraph.analysis.unsound.load(Ordering::SeqCst) {
-        min(runner.iterations.len().saturating_sub(3), iter as usize)
-    } else {
-        min(runner.iterations.len().saturating_sub(1), iter as usize)
-    };
+    let is_unsound = runner.egraph.analysis.unsound.load(Ordering::SeqCst);
+    let sound_iter = min(
+	runner.iterations.len().saturating_sub(if is_unsound { 3 } else { 1 }),
+	iter as usize
+    );
 
     runner.iterations[sound_iter]
         .data
