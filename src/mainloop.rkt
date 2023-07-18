@@ -3,9 +3,9 @@
 (require "common.rkt" "errors.rkt" "alternative.rkt" "timeline.rkt"
          "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt"
          "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
-         "ground-truth.rkt" "preprocess.rkt" "symmetry.rkt"
-         "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
-         "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
+         "ground-truth.rkt" "preprocess.rkt" "core/alt-table.rkt"
+         "core/localize.rkt" "core/simplify.rkt" "core/regimes.rkt"
+         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
 
 (provide (all-defined-out))
 
@@ -251,7 +251,6 @@
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (void))
-
 (define (finish-iter!)
   (unless (^next-alts^) (choose-best-alt!))
   (unless (^locs^) (localize!))
@@ -331,66 +330,17 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-
-(define (make-preprocess-pcontext prog pcontext iters
-                                  #:specification [specification #f]
-                                  #:preprocess [preprocess '()])
+(define (run-improve! expression context pcontext rules iterations #:specification [specification #f])
   (timeline-event! 'preprocess)
-
-  ;; If the specification is given, it is used for sampling points
-  (define sortable (connected-components specification (*context*)))
-
-  (define new-preprocess
-    (for/list ([sortable-variables (in-list sortable)]
-               #:when (> (length sortable-variables) 1))
-      (cons 'sort sortable-variables)))
-  (timeline-push! 'symmetry (map ~a new-preprocess))
-  (*herbie-preprocess* (append preprocess new-preprocess))
-
-  (preprocess-pcontext pcontext (*herbie-preprocess*) (*context*)))
-
-
-(define (run-improve! prog pcontext iters
-                      #:specification [specification #f]
-                      #:preprocess [preprocess '()])
-  (define processed-pcontext
-    (make-preprocess-pcontext prog pcontext iters
-                              #:specification specification
-                              #:preprocess preprocess))
-
-  (match-define (cons best rest) (mutate! prog iters processed-pcontext))
-
-  (*herbie-preprocess* (remove-unnecessary-preprocessing best pcontext (*herbie-preprocess*)))
-  (cons best rest))
-
-(define (preprocessing-<=? alt pcontext preprocessing-one preprocessing-two ctx)
-  (define vars (context-vars ctx))
-  (define pcontext1 (preprocess-pcontext pcontext preprocessing-one ctx))
-  (define pcontext2 (preprocess-pcontext pcontext preprocessing-two ctx))
-  (<= (errors-score (errors (alt-expr alt) pcontext1 (*context*)))
-      (errors-score (errors (alt-expr alt) pcontext2 (*context*)))))
-
-(define (drop-at ls index)
-  (define-values (front back) (split-at ls index))
-  (append front (rest back)))
-
-; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unnecessary-preprocessing alt pcontext preprocessing #:removed [removed empty])
-  (define-values (result newly-removed)
-    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
-      (cond
-        [(>= i (length preprocessing))
-         (values preprocessing removed)]
-        [(preprocessing-<=? alt pcontext (drop-at preprocessing i) preprocessing (*context*))
-         (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
-        [else
-         (loop preprocessing (+ i 1) removed)])))
-  (cond
-    [(< (length result) (length preprocessing))
-     (remove-unnecessary-preprocessing alt pcontext result #:removed newly-removed)]
-    [else
-     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
-     result]))
+  (define preprocessing (find-preprocessing (or specification expression) context rules))
+  (timeline-push! 'symmetry (map ~a preprocessing))
+  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
+  (match-define (and alternatives (cons best _))
+    (mutate! expression iterations pcontext*))
+  (timeline-event! 'preprocess)
+  (define preprocessing*
+    (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
+  (values alternatives preprocessing*))
 
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)
