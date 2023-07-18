@@ -2,7 +2,7 @@
 name = "egg-herbie"
 version = "0.3.0"
 authors = [ "Oliver Flatt <oflatt@gmail.com>", "Max Willsey <me@mwillsey.com>" ]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 egg = "0.9.5"
