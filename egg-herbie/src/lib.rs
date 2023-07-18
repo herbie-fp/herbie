@@ -59,20 +59,6 @@ pub struct FFIRule {
     right: *const c_char,
 }
 
-fn ffirun<F, T>(f: F) -> T
-where
-    F: FnOnce() -> T,
-{
-    let f = std::panic::AssertUnwindSafe(f);
-    match std::panic::catch_unwind(f) {
-        Ok(t) => t,
-        Err(_) => {
-            eprintln!("Caught a panic, aborting!");
-            std::process::abort()
-        }
-    }
-}
-
 fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
     EGraphIter {
         numnodes: iter.egraph_nodes as u32,
@@ -90,7 +76,6 @@ fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char) -> u32 {
-    ffirun(|| {
         let _ = env_logger::try_init();
         let ctx = &mut *ptr;
         let mut runner = ctx
@@ -116,7 +101,6 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
 
         ctx.runner = Some(runner);
         result
-    })
 }
 
 unsafe fn ptr_to_string(ptr: *const c_char) -> String {
@@ -144,7 +128,6 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
     is_constant_folding_enabled: bool,
     rules_array_length: u32,
 ) -> *const EGraphIter {
-    ffirun(|| {
         let ctx = &mut *ptr;
         let mut runner = ctx
             .runner
@@ -186,7 +169,6 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
         let res = runner_egraphiters(&runner);
         ctx.runner = Some(runner);
         res
-    })
 }
 
 #[no_mangle]
@@ -211,7 +193,6 @@ pub unsafe extern "C" fn egraph_run(
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
-    ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
             .runner
@@ -225,7 +206,6 @@ pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
             Some(StopReason::Other(_)) => 3,
             _ => 4,
         }
-    })
 }
 
 fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
@@ -253,7 +233,6 @@ pub unsafe extern "C" fn egraph_get_simplest(
     node_id: u32,
     iter: u32,
 ) -> *const c_char {
-    ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
             .runner
@@ -266,7 +245,6 @@ pub unsafe extern "C" fn egraph_get_simplest(
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
         best_str_pointer
-    })
 }
 
 unsafe fn make_empty_string() -> *const c_char {
@@ -282,7 +260,6 @@ pub unsafe extern "C" fn egraph_get_proof(
     expr: *const c_char,
     goal: *const c_char,
 ) -> *const c_char {
-    ffirun(|| {
         let ctx = &mut *ptr;
 
         assert_eq!(ctx.iteration, 0);
@@ -308,7 +285,6 @@ pub unsafe extern "C" fn egraph_get_proof(
         let string_pointer = string.as_ptr();
         std::mem::forget(string);
         string_pointer
-    })
 }
 
 #[no_mangle]
@@ -317,7 +293,6 @@ pub unsafe extern "C" fn egraph_is_equal(
     expr: *const c_char,
     goal: *const c_char,
 ) -> bool {
-    ffirun(|| {
         let ctx = &mut *ptr;
 
         assert_eq!(ctx.iteration, 0);
@@ -341,7 +316,6 @@ pub unsafe extern "C" fn egraph_is_equal(
 
         ctx.runner = Some(runner);
         res
-    })
 }
 
 #[no_mangle]
@@ -350,7 +324,6 @@ pub unsafe extern "C" fn egraph_get_variants(
     node_id: u32,
     orig_expr: *const c_char,
 ) -> *const c_char {
-    ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
             .runner
@@ -390,24 +363,20 @@ pub unsafe extern "C" fn egraph_get_variants(
         let best_str_pointer = best_str.as_ptr();
         std::mem::forget(best_str);
         best_str_pointer
-    })
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
-    ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
             .runner
             .as_ref()
             .unwrap_or_else(|| panic!("Runner has been invalidated"));
         runner.egraph.analysis.unsound.load(Ordering::SeqCst)
-    })
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *const c_char) -> u32 {
-    ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
             .runner
@@ -419,12 +388,10 @@ pub unsafe extern "C" fn egraph_get_times_applied(ptr: *mut Context, name: *cons
             .iter()
             .map(|iter| *iter.applied.get(&sym).unwrap_or(&0) as u32)
             .sum()
-    })
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: u32) -> u32 {
-    ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
             .runner
@@ -433,12 +400,10 @@ pub unsafe extern "C" fn egraph_get_cost(ptr: *mut Context, node_id: u32, iter: 
 
         let ext = find_extracted(runner, node_id, iter);
         ext.cost as u32
-    })
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_size(ptr: *mut Context) -> u32 {
-    ffirun(|| {
         let ctx = &*ptr;
         let runner = ctx
             .runner
@@ -448,5 +413,4 @@ pub unsafe extern "C" fn egraph_get_size(ptr: *mut Context) -> u32 {
             None => 0,
             Some(iter) => iter.egraph_nodes as u32,
         }
-    })
 }
