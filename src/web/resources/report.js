@@ -1,4 +1,5 @@
 window.COMPONENTS = []
+window.INSTANCES = []
 
 function Component(selector, fns) {
     this.selector = selector;
@@ -13,6 +14,14 @@ function ComponentInstance(elt, component) {
         }
     }
     this.elt = elt;
+    this.id = window.INSTANCES.length;
+    window.INSTANCES.push(this);
+    elt.dataset.instance = this.id;
+}
+
+ComponentInstance.get = function(component) {
+    let elt = document.querySelector(component.selector);
+    return window.INSTANCES[elt.dataset.instance];
 }
 
 function Element(tagname, props, children) {
@@ -44,7 +53,7 @@ const renames = {
     "lt-start": "Less than start",
     "gt-start": "Greater than start",
     "gt-target": "Greater than target",
-    "eq-target": "Equal than target",
+    "eq-target": "Equal target",
     "lt-target": "Less than target",
     "error": "Error",
     "timeout": "Timeout",
@@ -117,34 +126,27 @@ const Results = new Component("#results", {
     },
     startingTestData: async function () {
         if (resultsTestData == null) {
-            let response = await fetch("results.json", {
-                headers: { "content-type": "text/plain" },
-                method: "GET",
-                mode: "cors",
-            })
-            resultsTestData = (await response.json()).tests
+            ResultPlot.fns.setup()
             return resultsTestData
         } else {
             return resultsTestData
         }
     },
     reDrawGraph: async function () {
-        const resultPlot = document.querySelector(ResultPlot.selector)
         try {
-            const tests = await this.startingTestData()
-            const svg = resultPlot.querySelector("svg")
-            var viewable = []
             const selected = document.querySelectorAll("#filters > details label > input:checked")
+            var viewable = []
             selected.forEach((child) => {
-                viewable.push(child.parentNode.classList[0])
+                viewable.push(child.parentNode.dataset.label)
             })
             var filteredTests = []
+            const tests = await this.startingTestData()
             tests.forEach((test) => {
                 if (viewable.includes(test.status)) {
                     filteredTests.push(test)
                 }
             })
-            resultPlot.replaceChild(ResultPlot.fns.plot(filteredTests), svg)
+            ComponentInstance.get(ResultPlot).updateWith(filteredTests)
         } catch (e) {
             console.error(e)
         }
@@ -376,11 +378,14 @@ const ResultPlot = new Component('#xy', {
             method: "GET",
             mode: "cors",
         });
-        let stub = this.elt.querySelector("svg");
         let data = (await response.json()).tests;
         // save data for later
         resultsTestData = data
-        this.elt.replaceChild(this.plot(data), stub)
+        this.updateWith(data)
+    },
+    updateWith: function(tests) {
+        let stub = this.elt.querySelector("svg")
+        this.elt.replaceChild(this.plot(tests), stub)
     },
     plot: function(tests) {
         const out = Plot.plot({
