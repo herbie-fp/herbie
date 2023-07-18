@@ -217,14 +217,10 @@ pub unsafe extern "C" fn egraph_get_simplest(
 ) -> *const c_char {
         // Safety: `ptr` was box allocated by `egraph_create`
         let context = ManuallyDrop::new(Box::from_raw(ptr));
-
         let ext = find_extracted(&context.runner, node_id, iter);
+        let best_str = ManuallyDrop::new(CString::new(ext.best.to_string()).unwrap());
 
-        let best_str = CString::new(ext.best.to_string()).unwrap();
-        let best_str_pointer = best_str.as_ptr();
-        std::mem::forget(best_str);
-
-        best_str_pointer
+        best_str.as_ptr()
 }
 
 unsafe fn make_empty_string() -> *const c_char {
@@ -256,10 +252,9 @@ pub unsafe extern "C" fn egraph_get_proof(
         };
 
         let proof = context.runner.explain_equivalence(&expr_rec, &goal_rec);
-        let string = CString::new(proof.get_string_with_let().replace('\n', "")).unwrap();
-        let string_pointer = string.as_ptr();
-        std::mem::forget(string);
-        string_pointer
+        let string = ManuallyDrop::new(CString::new(proof.get_string_with_let().replace('\n', "")).unwrap());
+
+        string.as_ptr()
 }
 
 #[no_mangle]
@@ -325,10 +320,9 @@ pub unsafe extern "C" fn egraph_get_variants(
 
         // format
         let expr_strs: Vec<String> = exprs.iter().map(|r| r.to_string()).collect();
-        let best_str = CString::new(expr_strs.join(" ")).unwrap();
-        let best_str_pointer = best_str.as_ptr();
-        std::mem::forget(best_str);
-        best_str_pointer
+        let best_str = ManuallyDrop::new(CString::new(expr_strs.join(" ")).unwrap());
+
+        best_str.as_ptr()
 }
 
 #[no_mangle]
