@@ -60,22 +60,6 @@ pub struct FFIRule {
     right: *const c_char,
 }
 
-fn convert_iter(iter: &Iteration<IterData>) -> EGraphIter {
-    EGraphIter {
-        numnodes: iter.egraph_nodes as u32,
-        numclasses: iter.egraph_classes as u32,
-        time: iter.total_time,
-    }
-}
-
-fn runner_egraphiters(runner: &Runner) -> *mut EGraphIter {
-    // TODO: ManuallyDrop
-    let mut result: Vec<EGraphIter> = runner.iterations.iter().map(convert_iter).collect();
-    let ptr = result.as_mut_ptr();
-    std::mem::forget(result);
-    ptr
-}
-
 #[no_mangle]
 pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char) -> u32 {
         let _ = env_logger::try_init();
@@ -163,11 +147,23 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
                 })
                 .run(&context.rules);
         }
+
         std::ptr::write(output_size, context.runner.iterations.len() as u32);
-        let result = runner_egraphiters(&context.runner);
+        let iterations = context
+            .runner
+            .iterations
+            .iter()
+            .map(|iteration| EGraphIter {
+                numnodes: iteration.egraph_nodes as u32,
+                numclasses: iteration.egraph_classes as u32,
+                time: iteration.total_time,
+            })
+            .collect::<Vec<_>>();
+        let iterations = ManuallyDrop::new(iterations);
+
         mem::forget(context);
 
-        result
+        iterations.as_ptr()
 }
 
 #[no_mangle]
