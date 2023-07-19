@@ -34,10 +34,9 @@ pub unsafe extern "C" fn egraph_destroy(ptr: *mut Context) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_egraphiters(_size: u32, ptr: *mut EGraphIter) {
-    // let array: &[EGraphIter] = slice::from_raw_parts(ptr, size as usize);
-    // TODO: Maybe glue vector back together and call drop on it?
-    libc::free(ptr as *mut libc::c_void);
+pub unsafe extern "C" fn destroy_egraphiters(data: *mut EGraphIter, length: u32, capacity: u32) {
+    // TODO: Switch ffi to use `usize` directly to avoid the risk of these being incorrect
+    drop(Vec::from_raw_parts(data, length as usize, capacity as usize))
 }
 
 #[no_mangle]
@@ -95,12 +94,13 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_run_with_iter_limit(
     ptr: *mut Context,
-    output_size: *mut u32,
+    rules_array_ptr: *const *mut FFIRule,
+    rules_array_length: u32,
+    iterations_length: *mut u32,
+    iterations_capacity: *mut u32,
     iter_limit: u32,
     node_limit: u32,
-    rules_array_ptr: *const *mut FFIRule,
-    is_constant_folding_enabled: bool,
-    rules_array_length: u32,
+    is_constant_folding_enabled: bool
 ) -> *const EGraphIter {
         // Safety: `ptr` was box allocated by `egraph_create`
         let mut context = Box::from_raw(ptr);
@@ -138,7 +138,6 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
                 .run(&context.rules);
         }
 
-        std::ptr::write(output_size, context.runner.iterations.len() as u32);
         let iterations = context
             .runner
             .iterations
@@ -151,6 +150,8 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
             .collect::<Vec<_>>();
         let iterations = ManuallyDrop::new(iterations);
 
+        std::ptr::write(iterations_length, iterations.len() as u32);
+        std::ptr::write(iterations_capacity, iterations.capacity() as u32);
         mem::forget(context);
 
         iterations.as_ptr()
@@ -159,20 +160,22 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
 #[no_mangle]
 pub unsafe extern "C" fn egraph_run(
     ptr: *mut Context,
-    output_size: *mut u32,
-    node_limit: u32,
     rules_array_ptr: *const *mut FFIRule,
-    is_constant_folding_enabled: bool,
     rules_array_length: u32,
+    iterations_length: *mut u32,
+    iterations_capacity: *mut u32,
+    node_limit: u32,
+    is_constant_folding_enabled: bool,
 ) -> *const EGraphIter {
     egraph_run_with_iter_limit(
-        ptr,
-        output_size,
-        u32::MAX,
-        node_limit,
-        rules_array_ptr,
-        is_constant_folding_enabled,
-        rules_array_length,
+	ptr,
+	rules_array_ptr,
+	rules_array_length,
+	iterations_length,
+	iterations_capacity,
+	u32::MAX,
+	node_limit,
+	is_constant_folding_enabled
     )
 }
 

@@ -501,13 +501,13 @@
 ;; can optionally specify an iter limit
 (define (egraph-run egraph-data node-limit ffi-rules const-folding? [iter-limit #f])
   (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
-  (define-values (egraphiters res-len)
+  (define-values (iterations length capacity)
     (if iter-limit
-        (egraph_run_with_iter_limit egraph-ptr iter-limit node-limit ffi-rules const-folding?)
-        (egraph_run egraph-ptr node-limit ffi-rules const-folding?)))
-  (define res (convert-iteration-data egraphiters res-len))
-  (destroy_egraphiters res-len egraphiters)
-  res)
+        (egraph_run_with_iter_limit egraph-ptr ffi-rules iter-limit node-limit const-folding?)
+        (egraph_run egraph-ptr ffi-rules node-limit const-folding?)))
+  (define iteration-data (convert-iteration-data iterations length))
+  (destroy_egraphiters iterations length capacity)
+  iteration-data)
 
 ;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
 (define-resetter *ffi-rules-cache*
