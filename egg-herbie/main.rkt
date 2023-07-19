@@ -92,30 +92,32 @@
 ;; egraph pointer, s-expr string -> node number
 (define-eggmath egraph_add_expr (_fun _egraph-pointer _string/utf-8 -> _uint))
 
-(define-eggmath destroy_egraphiters (_fun _uint _EGraphIter-pointer -> _void))
+(define-eggmath destroy_egraphiters (_fun _EGraphIter-pointer _uint _uint -> _void))
 
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _bool))
 
 (define-eggmath egraph_run_with_iter_limit
   (_fun _egraph-pointer                           ;; egraph
-        (len : (_ptr o _uint))                    ;; pointer to size of resulting array
+        (ffi-rules : (_list i _FFIRule-pointer))  ;; ffi rules
+        (_uint = (length ffi-rules))              ;; number of rules
+        (iterations-length : (_ptr o _uint))      ;; pointer to length of resulting vector
+        (iterations-capacity : (_ptr o _uint))    ;; pointer to capacity of resulting vector
         _uint                                     ;; iter limit
         _uint                                     ;; node limit
-        (ffi-rules : (_list i _FFIRule-pointer))  ;; ffi rules
         _bool                                     ;; constant folding enabled?
-        (_uint = (length ffi-rules))              ;; number of rules
-        -> (iters : _EGraphIter-pointer)
-        -> (values iters len)))
+        -> (iterations : _EGraphIter-pointer)
+        -> (values iterations iterations-length iterations-capacity)))
 
 (define-eggmath egraph_run
   (_fun _egraph-pointer                           ;; egraph
-        (len : (_ptr o _uint))                    ;; pointer to size of resulting array
-        _uint                                     ;; node limit
         (ffi-rules : (_list i _FFIRule-pointer))  ;; ffi rules
-        _bool                                     ;; constant folding enabled?
         (_uint = (length ffi-rules))              ;; number of rules
-        -> (iters : _EGraphIter-pointer)
-        -> (values iters len)))
+        (iterations-length : (_ptr o _uint))      ;; pointer to size of resulting array
+        (iterations-capacity : (_ptr o _uint))    ;; pointer to size of resulting array
+        _uint                                     ;; node limit
+        _bool                                     ;; constant folding enabled?
+        -> (iterations : _EGraphIter-pointer)
+        -> (values iterations iterations-length iterations-capacity)))
 
 ;; gets the stop reason as an integer
 (define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))
