@@ -100,12 +100,13 @@ const ReportPage = new Component("body", {
             ]),
             this.tableBody(jsonData)
         ])
-
+        
         this.elt.parentNode.replaceChild(Element("body", {}, [
             header,
             stats,
             figureRow,
-            resultsTable
+            this.buildFilters(),
+            resultsTable,
         ]), this.elt)
     },
     plotXY: function (tests) {
@@ -172,51 +173,8 @@ const ReportPage = new Component("body", {
         ])
         tr.addEventListener("click", () => tr.querySelector("a").click())
         return tr
-    }
-})
-
-// TODO not sure if this is needed any more
-var Subreport = new Component("#subreports", {
-    setup: function () {
-        this.elt.classList.add("no-subreports")
-        this.button = Element("a", { id: "subreports-toggle" }, "See subreports")
-        this.button.addEventListener("click", this.toggle)
-        this.elt.insertBefore(this.button, this.elt.children[0])
     },
-    toggle: function () {
-        this.elt.classList.toggle("no-subreports")
-        var changed_only = this.elt.classList.contains("no-subreports")
-        this.button.innerText = changed_only ? "See subreports" : "Hide subreports"
-    }
-})
-
-const renames = {
-    "imp-start": "Improved start",
-    "apx-start": "Approximate start",
-    "uni-start": "Regressed from start",
-    "ex-start": "Exact start",
-    "eq-start": "Equal start",
-    "lt-start": "Less than start",
-    "gt-start": "Greater than start",
-    "gt-target": "Greater than target",
-    "eq-target": "Equal than target",
-    "lt-target": "Less than target",
-    "error": "Error",
-    "timeout": "Timeout",
-    "crash": "Crash",
-}
-
-const Results = new Component("#results", {
-    setup: function () {
-        // clickable rows
-        let $rows = this.elt.querySelectorAll("tbody tr");
-        for (let $row of $rows) {
-            $row.addEventListener("click", () => $row.querySelector("a").click());
-        }
-
-        this.setupFilters()
-    },
-    setupFilters: function () {
+    buildFilters: function () {
         const regressedTags = ["uni-start", "lt-target", "lt-start",
             "apx-start", "timeout", "crash", "error"]
         const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
@@ -235,13 +193,13 @@ const Results = new Component("#results", {
         const improvedLeader = this.attachLeaderToChildren("improved", "Improved", improvedChildren)
         const regressedLeader = this.attachLeaderToChildren("regressed", "Regressed", regressedChildren)
 
-        this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
+        return Element("div", { id: "filters" }, [
             Element("div", { classList: "section-title" }, "Filters"),
             Element("div", { id: "filter-group" }, [
                 improvedLeader, regressedLeader]),
             Element("details", [
                 Element("summary", "Advanced"), [
-                    improvedChildren, regressedChildren]])]), this.elt)
+                    improvedChildren, regressedChildren]])])
     },
     attachLeaderToChildren: function (leaderTag, leaderName, childNodes) {
         const parentLabel = this.buildCheckboxLabel(leaderTag, leaderName, true)
@@ -284,6 +242,37 @@ const Results = new Component("#results", {
         return this.elt.querySelectorAll(`tr.${childTag}`)
     }
 })
+
+// TODO not sure if this is needed any more
+var Subreport = new Component("#subreports", {
+    setup: function () {
+        this.elt.classList.add("no-subreports")
+        this.button = Element("a", { id: "subreports-toggle" }, "See subreports")
+        this.button.addEventListener("click", this.toggle)
+        this.elt.insertBefore(this.button, this.elt.children[0])
+    },
+    toggle: function () {
+        this.elt.classList.toggle("no-subreports")
+        var changed_only = this.elt.classList.contains("no-subreports")
+        this.button.innerText = changed_only ? "See subreports" : "Hide subreports"
+    }
+})
+
+const renames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-start": "Greater than start",
+    "gt-target": "Greater than target",
+    "eq-target": "Equal than target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
+}
 
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
