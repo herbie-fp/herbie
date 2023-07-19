@@ -130,24 +130,6 @@ const Results = new Component("#results", {
     }
 })
 
-// Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
-// However, simplified because we don't need hit box data
-function on(mark, listeners = {}) {
-  const render = mark.render;
-  mark.render = function (facet, { x, y }, channels) {
-    const data = this.data;
-    const g = render.apply(this, arguments);
-    const r = d3.select(g).selectChildren();
-    for (const [type, callback] of Object.entries(listeners)) {
-      r.on(type, function(event, i) {
-          return callback(event, data[i]);
-      });
-    }
-    return g;
-  };
-  return mark;
-}
-
 var Subreport = new Component("#subreports", {
     setup: function() {
         this.elt.classList.add("no-subreports");
@@ -331,78 +313,6 @@ const ClientGraph = new Component('#graphs', {
     }
 })
 
-const ResultPlot = new Component('#xy', {
-    setup: async function() {
-        let response = await fetch("results.json", {
-            headers: {"content-type": "text/plain"},
-            method: "GET",
-            mode: "cors",
-        });
-        let stub = this.elt.querySelector("svg");
-        let data = (await response.json()).tests;
-        this.elt.replaceChild(this.plot(data), stub)
-    },
-    plot: function(tests) {
-        const out = Plot.plot({
-            marks: [
-                Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
-                on(Plot.dot(tests, {
-                    x: d => 1 - d.start/64, y: d => 1 - d.end/64,
-                    fill: "#00a", strokeWidth: 2,
-                }), {
-                    click: (e, d) => { window.location = d.link + "/graph.html"; },
-                }),
-            ],
-            className: "clickable",
-            marginBottom: 0,
-            marginRight: 0,
-            width: '400',
-            height: '400',
-            x: { nice: true, line: true, tickFormat: "%", },
-            y: { nice: true, line: true, tickFormat: "%", },
-        })
-        out.setAttribute('viewBox', '0 0 420 420')
-        return out;
-    }
-})
-
-const MergedCostAccuracy = new Component('#pareto', {
-    setup: async function() {
-        let response = await fetch('results.json', {
-            headers: {"content-type": "text/plain"},
-            method: "GET",
-            mode: 'cors'
-        });
-        let stub = this.elt.querySelector("svg");
-        let json = await response.json();
-        const [initial, frontier] = json["merged-cost-accuracy"];
-        this.elt.replaceChild(this.plot(initial, frontier), stub)
-    },
-
-    plot: function(initial, frontier) {
-        const out = Plot.plot({
-            marks: [
-                Plot.dot([initial], {
-                    stroke: "#d00",
-                    symbol: "square",
-                    strokeWidth: 2,
-                }),
-                Plot.line(frontier, {
-                    stroke: "#00a",
-                    strokeWidth: 2,
-                }),
-            ],
-            width: '400',
-            height: '400',
-            x: { line: true, nice: true, tickFormat: c => c + "×" },
-            y: { line: true, nice: true, domain: [0, 1], tickFormat: "%", },
-            marginBottom: 0,
-            marginRight: 0,
-        })
-        out.setAttribute('viewBox', '0 0 420 420')
-        return out;
-    }
-})
 
 const CostAccuracy = new Component('#cost-accuracy', {
     setup: async function() {
@@ -760,28 +670,28 @@ function histogram(id, data, options) {
     }
 }
 
-function run_components() {
-    for (var i = 0; i < window.COMPONENTS.length; i++) {
-        var component = window.COMPONENTS[i];
-        var elts = document.querySelectorAll(component.selector);
+// function run_components() {
+//     for (var i = 0; i < window.COMPONENTS.length; i++) {
+//         var component = window.COMPONENTS[i];
+//         var elts = document.querySelectorAll(component.selector);
 
-        try {
-            if (elts.length > 0 && component.fns.depends) component.fns.depends();
-        } catch (e) {
-            console.error(e);
-            continue;
-        }
+//         try {
+//             if (elts.length > 0 && component.fns.depends) component.fns.depends();
+//         } catch (e) {
+//             console.error(e);
+//             continue;
+//         }
 
-        for (var j = 0; j < elts.length; j++) {
-            var instance = new ComponentInstance(elts[j], component);
-            console.log("Initiating", component.selector, "component at", elts[j]);
-            try {
-                instance.setup();
-            } catch (e) {
-                console.error(e);
-            }
-        }
-    }
-}
+//         for (var j = 0; j < elts.length; j++) {
+//             var instance = new ComponentInstance(elts[j], component);
+//             console.log("Initiating", component.selector, "component at", elts[j]);
+//             try {
+//                 instance.setup();
+//             } catch (e) {
+//                 console.error(e);
+//             }
+//         }
+//     }
+// }
 
-window.addEventListener("load", run_components);
+// window.addEventListener("load", run_components);

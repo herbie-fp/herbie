@@ -62,6 +62,7 @@
   (define info (make-report-info (filter values results) #:note note #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)
+  (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
   (copy-file (web-resource "logo-car.png") (build-path dir "logo-car.png") #t)
