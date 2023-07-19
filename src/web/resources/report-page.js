@@ -1,8 +1,8 @@
-window.COMPONENTS = []
+window.COMPONENTS = [] // TODO move to module with components at bottom of page
 
 var resultsJsonData = null
 
-const ReportPage = new Component("body", {
+const ReportPageBody = new Component("body", {
     setup: async function () {
         let data = await this.getResultsJson()
         this.update(data)
@@ -31,6 +31,7 @@ const ReportPage = new Component("body", {
             navigation,
         ])
 
+        // TODO calculate from json instead of hard coded
         const stats = Element("div", { id: "large" }, [
             Element("div", {}, [
                 "Average Percentage Accurate: ",
@@ -52,12 +53,27 @@ const ReportPage = new Component("body", {
                 Element("span", { classList: "number", title: "Aggregate speedup of fastest alternative that improves accuracy." }, ["8.9x"])
             ]),
         ])
-        // TODO get these from Json?
+
+        // TODO get these text sections from Json/server side?
         const tempXY_A = "Output vs Input Accuracy"
         const tempXY_B = "Each point represents a Herbie run below. Its horizontal position shows initial accuracy, and vertical position shows final accuracy. Points above the line are improved by Herbie."
 
         const tempPareto_A = "Accuracy vs Speed"
         const tempPareto_B = "A joint speed-accuracy pareto curve. Accuracy is on the vertical axis, speed is on the horizontal axis. Up and to the right is better. The initial program is shown by the red square."
+
+        const resultHelpText = `Color key:
+        Green: improved accuracy
+        Light green: no initial error
+        Orange: no accuracy change
+        Red: accuracy worsened
+        Gray: timeout
+        Dark Gray: error`
+        const targetHelpText = `Color key:
+        Dark green: better than target
+        Green: matched target
+        Orange: improved but did not match target
+        Yellow: no accuracy change
+        `
 
         const figureRow = Element("div", { classList: "figure-row" }, [
             Element("figure", { id: "xy" }, [
@@ -72,20 +88,6 @@ const ReportPage = new Component("body", {
             ])
         ])
 
-        const resultHelpText = `Color key:
-        Green: improved accuracy
-        Light green: no initial error
-        Orange: no accuracy change
-        Red: accuracy worsened
-        Gray: timeout
-        Dark Gray: error`
-
-        const targetHelpText = `Color key:
-        Dark green: better than target
-        Green: matched target
-        Orange: improved but did not match target
-        Yellow: no accuracy change
-        `
         const resultsTable = Element("table", { id: "results" }, [
             Element("thead", {}, [
                 Element("tr", {}, [
@@ -100,7 +102,7 @@ const ReportPage = new Component("body", {
             ]),
             this.tableBody(jsonData)
         ])
-        
+
         this.elt.parentNode.replaceChild(Element("body", {}, [
             header,
             stats,
@@ -169,11 +171,19 @@ const ReportPage = new Component("body", {
             Element("td", {}, ["%"]),
             Element("td", {}, ["%"]),
             Element("td", {}, [`${test.time}`]),
-            Element("td", {}, [Element("a", { id: `test${i}`, href: `${test.link}/graph.html` }, ["»"])]),
+            Element("td", {}, [
+                Element("a", {
+                    id: `test${i}`,
+                    href: `${test.link}/graph.html`
+                }, ["»"])]),
         ])
         tr.addEventListener("click", () => tr.querySelector("a").click())
         return tr
     },
+    // TODO hide and show isn't working because it isn't updating the physical 
+    // dom but the node's class list is getting updated
+    // thinking of instead of modifying the dom we just redraw the entire page
+    // Maybe a filtered array and that call this.update
     buildFilters: function () {
         const regressedTags = ["uni-start", "lt-target", "lt-start",
             "apx-start", "timeout", "crash", "error"]
@@ -267,7 +277,7 @@ const renames = {
     "lt-start": "Less than start",
     "gt-start": "Greater than start",
     "gt-target": "Greater than target",
-    "eq-target": "Equal than target",
+    "eq-target": "Equal target",
     "lt-target": "Less than target",
     "error": "Error",
     "timeout": "Timeout",
@@ -277,78 +287,82 @@ const renames = {
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
 function on(mark, listeners = {}) {
-    const render = mark.render;
+    const render = mark.render
     mark.render = function (facet, { x, y }, channels) {
-        const data = this.data;
-        const g = render.apply(this, arguments);
-        const r = d3.select(g).selectChildren();
+        const data = this.data
+        const g = render.apply(this, arguments)
+        const r = d3.select(g).selectChildren()
         for (const [type, callback] of Object.entries(listeners)) {
             r.on(type, function (event, i) {
-                return callback(event, data[i]);
-            });
+                return callback(event, data[i])
+            })
         }
-        return g;
-    };
-    return mark;
+        return g
+    }
+    return mark
 }
 
+// TODO these functions can be pulled out into a js module and shared
+// They are here because the histogram on the timeline breaks if you change 
+// results.js to a module
+
 function Component(selector, fns) {
-    this.selector = selector;
-    this.fns = fns;
-    window.COMPONENTS.push(this);
+    this.selector = selector
+    this.fns = fns
+    window.COMPONENTS.push(this)
 }
 
 function ComponentInstance(elt, component) {
     for (var i in component.fns) {
         if (component.fns.hasOwnProperty(i)) {
-            this[i] = component.fns[i].bind(this);
+            this[i] = component.fns[i].bind(this)
         }
     }
-    this.elt = elt;
+    this.elt = elt
 }
 
 function Element(tagname, props, children) {
     if (children === undefined) { children = props; props = {}; }
 
-    var $elt = document.createElement(tagname);
-    for (var i in props) if (props.hasOwnProperty(i)) $elt[i] = props[i];
+    var $elt = document.createElement(tagname)
+    for (var i in props) if (props.hasOwnProperty(i)) $elt[i] = props[i]
 
     function addAll(c) {
-        if (!c) return;
-        else if (Array.isArray(c)) c.map(addAll);
+        if (!c) return
+        else if (Array.isArray(c)) c.map(addAll)
         else if (typeof c == "string") $elt.appendChild(document.createTextNode(c))
-        else if (c instanceof Node) $elt.appendChild(c);
+        else if (c instanceof Node) $elt.appendChild(c)
         else {
-            console.error("Not an element: ", c);
+            console.error("Not an element: ", c)
             throw "Invalid element!"
         }
     }
-    addAll(children);
-    return $elt;
+    addAll(children)
+    return $elt
 }
 
 function run_components() {
     for (var i = 0; i < window.COMPONENTS.length; i++) {
-        var component = window.COMPONENTS[i];
-        var elts = document.querySelectorAll(component.selector);
+        var component = window.COMPONENTS[i]
+        var elts = document.querySelectorAll(component.selector)
 
         try {
-            if (elts.length > 0 && component.fns.depends) component.fns.depends();
+            if (elts.length > 0 && component.fns.depends) component.fns.depends()
         } catch (e) {
-            console.error(e);
-            continue;
+            console.error(e)
+            continue
         }
 
         for (var j = 0; j < elts.length; j++) {
-            var instance = new ComponentInstance(elts[j], component);
-            console.log("Initiating", component.selector, "component at", elts[j]);
+            var instance = new ComponentInstance(elts[j], component)
+            console.log("Initiating", component.selector, "component at", elts[j])
             try {
-                instance.setup();
+                instance.setup()
             } catch (e) {
-                console.error(e);
+                console.error(e)
             }
         }
     }
 }
 
-window.addEventListener("load", run_components);
+window.addEventListener("load", run_components)
