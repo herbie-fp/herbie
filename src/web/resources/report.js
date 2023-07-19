@@ -81,7 +81,7 @@ const Results = new Component("#results", {
         const regressedLeader = this.attachLeaderToChildren("regressed", "Regressed", regressedChildren)
 
         this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
-            Element("Header", { classList: "section-title" }, "Filters"),
+            Element("header", { classList: "section-title" }, "Filters"),
             Element("div", { id: "filter-group" }, [
                 improvedLeader, regressedLeader]),
             Element("details", [
