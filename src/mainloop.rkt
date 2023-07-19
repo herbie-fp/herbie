@@ -300,24 +300,6 @@
                     (list (*context*))))
   (cons domain (apply mk-pcontext pts+exs)))
 
-(define (initialize-alt-table! prog pcontext ctx)
-  (define alt (make-alt prog))
-  (*start-prog* prog)
-  (define table (make-alt-table (*pcontext*) alt ctx))
-
-  ; Add starting alt in every precision
-  (^table^
-   (if (*pareto-mode*)
-       (let ([new-alts (starting-alts alt ctx)])
-         (define-values (errss costs) (atab-eval-altns table new-alts ctx))
-         (atab-add-altns table new-alts errss costs))
-       table))
-
-  (when (flag-set? 'setup 'simplify)
-      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
-      (finalize-iter!)
-      (^next-alts^ #f)))
-
 ;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve vars prog iters
                      #:precondition [precondition #f]
@@ -337,7 +319,21 @@
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
 
   (*pcontext* pcontext*)
-  (initialize-alt-table! expression (*pcontext*) (*context*))
+  (*start-prog* expression)
+  (define alternative (make-alt expression))
+  (define table (make-alt-table (*pcontext*) alternative (*context*)))
+  (^table^
+   (if (*pareto-mode*)
+         (let ([new-alts (starting-alts alternative (*context*))])
+           (define-values (errss costs) (atab-eval-altns table new-alts (*context*)))
+           (atab-add-altns table new-alts errss costs))
+         table))
+
+  (when (flag-set? 'setup 'simplify)
+      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
+      (finalize-iter!)
+      (^next-alts^ #f))
+
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))
   (match-define (and alternatives (cons best _)) (extract!))
