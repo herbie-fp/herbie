@@ -41,15 +41,14 @@
   (when (not (equal? newval 'none)) (set-shellstate-patched! (^shell-state^) newval))
   (shellstate-patched (^shell-state^)))
 
-;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
-(define (starting-alts altn ctx)
-  (filter alt-expr
-    (for/list ([(k v) (in-hash (*conversions*))]
-              #:unless (equal? k (context-repr ctx))
-              #:when (set-member? v (context-repr ctx)))
-      (define rewrite (get-rewrite-operator k))
-      (define body* (apply-repr-change-expr (list rewrite (alt-expr altn)) ctx))
-      (make-alt body*))))
+;; Iteration 0 expressions (original in every repr, constant alts, etc.)
+(define (starting-expressions expression context)
+  (for/list ([(k v) (in-hash (*conversions*))]
+             #:unless (equal? k (context-repr context))
+             #:when (set-member? v (context-repr context)))
+    (apply-repr-change-expr
+     (list (get-rewrite-operator k) expression)
+     context)))
 
 ;; Information
 (define (list-alts)
@@ -312,9 +311,41 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-(define (run-improve! expression context pcontext rules iterations #:specification [specification #f])
+(define (run-improve! expression context pcontext rules iterations
+                      #:specification [specification #f])
+  (define expressions
+    (let ([expressions* 
+           (if (*pareto-mode*)
+               (starting-alts alternative context)
+               (list expression))])
+      (if (flag-set? 'setup 'simplify)
+          (remove-duplicates
+           (flatten
+            (simplify-batch (make-egg-query expressions* rules))))
+          expressions*)
+                             
+
+
+
+         (define-values (errss costs) (atab-eval-altns table new-alts
+                                                         (*context*)))
+           (atab-add-altns table new-alts errss costs))
+        
+  (when (flag-set? 'setup 'simplify)
+    (define outputss (simplify-batch (make-egg-query expressions rules))
+    (define alternatives
+      (for/list ([alternative (in-list initial-alternatives)]
+                 [input (in-list inputs)]
+                 [outputs (in-list outputss)]
+                 #:when true
+                 [output (in-list outputs)])
+        (if (equal? input output)
+            alternative
+            (alt output `(simplify () ,query #f #f) (list alternative)))))
+
   (timeline-event! 'preprocess)
-  (define preprocessing (find-preprocessing (or specification expression) context rules))
+  (define preprocessing (find-preprocessing
+                         (or specification expression) context rules))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
 
@@ -325,7 +356,8 @@
   (^table^
    (if (*pareto-mode*)
          (let ([new-alts (starting-alts alternative (*context*))])
-           (define-values (errss costs) (atab-eval-altns table new-alts (*context*)))
+           (define-values (errss costs) (atab-eval-altns table new-alts
+                                                         (*context*)))
            (atab-add-altns table new-alts errss costs))
          table))
 
