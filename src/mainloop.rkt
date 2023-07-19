@@ -335,19 +335,18 @@
   (define preprocessing (find-preprocessing (or specification expression) context rules))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (match-define (and alternatives (cons best _))
-    (mutate! expression iterations pcontext*))
+
+  (*pcontext* pcontext*)
+  (initialize-alt-table! expression (*pcontext*) (*context*))
+  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
+    (run-iter!))
+  (match-define (and alternatives (cons best _)) (extract!))
+
   (timeline-event! 'preprocess)
   (define preprocessing*
     (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
-  (values alternatives preprocessing*))
 
-(define (mutate! prog iters pcontext)
-  (*pcontext* pcontext)
-  (initialize-alt-table! prog (*pcontext*) (*context*))
-  (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
-    (run-iter!))
-  (extract!))
+  (values alternatives preprocessing*))
 
 (define (extract!)
   (define ctx (*context*))
