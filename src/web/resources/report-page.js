@@ -37,7 +37,7 @@ const ReportPage = new Component("body", {
                 Element("span", { classList: "number" }, [
                     "42.2%",
                     Element("span", { classList: "unit" }, [" → ",]),
-                    "42.2%",]),
+                    "97.2%",]),
             ]),
             Element("div", {}, [
                 "Time:",
@@ -72,10 +72,40 @@ const ReportPage = new Component("body", {
             ])
         ])
 
+        const resultHelpText = `Color key:
+        Green: improved accuracy
+        Light green: no initial error
+        Orange: no accuracy change
+        Red: accuracy worsened
+        Gray: timeout
+        Dark Gray: error`
+
+        const targetHelpText = `Color key:
+        Dark green: better than target
+        Green: matched target
+        Orange: improved but did not match target
+        Yellow: no accuracy change
+        `
+        const resultsTable = Element("table", { id: "results" }, [
+            Element("thead", {}, [
+                Element("tr", {}, [
+                    Element("th", {}, ["Test"]),
+                    Element("th", {}, ["Start"]),
+                    Element("th", {}, ["Result",
+                        Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
+                    Element("th", {}, ["Target",
+                        Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
+                    Element("th", {}, ["Time"]),
+                ])
+            ]),
+            this.tableBody(jsonData)
+        ])
+
         this.elt.parentNode.replaceChild(Element("body", {}, [
             header,
             stats,
-            figureRow
+            figureRow,
+            resultsTable
         ]), this.elt)
     },
     plotXY: function (tests) {
@@ -123,6 +153,135 @@ const ReportPage = new Component("body", {
         })
         out.setAttribute('viewBox', '0 0 420 420')
         return out;
+    },
+    tableBody: function (jsonData) {
+        var rows = []
+        for (let test of jsonData.tests) {
+            rows.push(this.tableRow(test, rows.length))
+        }
+        return Element("tbody", {}, rows)
+    },
+    tableRow: function (test, i) {
+        const tr = Element("tr", { classList: test.status }, [
+            Element("td", {}, [test.name]),
+            Element("td", {}, ["%"]),
+            Element("td", {}, ["%"]),
+            Element("td", {}, ["%"]),
+            Element("td", {}, [`${test.time}`]),
+            Element("td", {}, [Element("a", { id: `test${i}`, href: `${test.link}/graph.html` }, ["»"])]),
+        ])
+        tr.addEventListener("click", () => tr.querySelector("a").click())
+        return tr
+    }
+})
+
+// TODO not sure if this is needed any more
+var Subreport = new Component("#subreports", {
+    setup: function () {
+        this.elt.classList.add("no-subreports")
+        this.button = Element("a", { id: "subreports-toggle" }, "See subreports")
+        this.button.addEventListener("click", this.toggle)
+        this.elt.insertBefore(this.button, this.elt.children[0])
+    },
+    toggle: function () {
+        this.elt.classList.toggle("no-subreports")
+        var changed_only = this.elt.classList.contains("no-subreports")
+        this.button.innerText = changed_only ? "See subreports" : "Hide subreports"
+    }
+})
+
+const renames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-start": "Greater than start",
+    "gt-target": "Greater than target",
+    "eq-target": "Equal than target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
+}
+
+const Results = new Component("#results", {
+    setup: function () {
+        // clickable rows
+        let $rows = this.elt.querySelectorAll("tbody tr");
+        for (let $row of $rows) {
+            $row.addEventListener("click", () => $row.querySelector("a").click());
+        }
+
+        this.setupFilters()
+    },
+    setupFilters: function () {
+        const regressedTags = ["uni-start", "lt-target", "lt-start",
+            "apx-start", "timeout", "crash", "error"]
+        const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
+            "gt-target"]
+
+        const improvedChildren = improvedTags.map((child) => {
+            const count = this.getRowsForClass(child).length
+            return this.createChild(child, count)
+        })
+        const regressedChildren = regressedTags.map((child) => {
+            const count = this.getRowsForClass(child).length
+            return this.createChild(child, count)
+        })
+
+        // add listeners
+        const improvedLeader = this.attachLeaderToChildren("improved", "Improved", improvedChildren)
+        const regressedLeader = this.attachLeaderToChildren("regressed", "Regressed", regressedChildren)
+
+        this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
+            Element("div", { classList: "section-title" }, "Filters"),
+            Element("div", { id: "filter-group" }, [
+                improvedLeader, regressedLeader]),
+            Element("details", [
+                Element("summary", "Advanced"), [
+                    improvedChildren, regressedChildren]])]), this.elt)
+    },
+    attachLeaderToChildren: function (leaderTag, leaderName, childNodes) {
+        const parentLabel = this.buildCheckboxLabel(leaderTag, leaderName, true)
+        parentLabel.addEventListener("click", () => {
+            const parentState = parentLabel.querySelector("input").checked
+            childNodes.forEach((child) => {
+                const children = this.getRowsForClass(child.dataset.label)
+                child.querySelector("input").checked = parentState
+                this.updateChildren(children, parentState)
+            })
+        })
+        return parentLabel
+    },
+    createChild: function (childName, count) {
+        const childNode = this.buildCheckboxLabel(childName, `${renames[childName]} (${count})`, true)
+        childNode.dataset.label = childName
+        childNode.addEventListener("click", (e) => {
+            const thisChild = e.target.querySelector("input")
+            if (thisChild == null) { return }
+            const childr = this.getRowsForClass(childName)
+            this.updateChildren(childr, !thisChild.checked)
+        })
+        return childNode
+    },
+    buildCheckboxLabel: function (idTag, text, boolState) {
+        return Element("label", { classList: idTag }, [
+            Element("input", { type: "checkbox", checked: boolState }, []),
+            text])
+    },
+    updateChildren: function (children, state) {
+        children.forEach((child) => {
+            if (state) {
+                child.classList.remove("hidden")
+            } else {
+                child.classList.add("hidden")
+            }
+        })
+    },
+    getRowsForClass: function (childTag) {
+        return this.elt.querySelectorAll(`tr.${childTag}`)
     }
 })
 
