@@ -313,36 +313,6 @@
 
 (define (run-improve! expression context pcontext rules iterations
                       #:specification [specification #f])
-  (define expressions
-    (let ([expressions* 
-           (if (*pareto-mode*)
-               (starting-alts alternative context)
-               (list expression))])
-      (if (flag-set? 'setup 'simplify)
-          (remove-duplicates
-           (flatten
-            (simplify-batch (make-egg-query expressions* rules))))
-          expressions*)
-                             
-
-
-
-         (define-values (errss costs) (atab-eval-altns table new-alts
-                                                         (*context*)))
-           (atab-add-altns table new-alts errss costs))
-        
-  (when (flag-set? 'setup 'simplify)
-    (define outputss (simplify-batch (make-egg-query expressions rules))
-    (define alternatives
-      (for/list ([alternative (in-list initial-alternatives)]
-                 [input (in-list inputs)]
-                 [outputs (in-list outputss)]
-                 #:when true
-                 [output (in-list outputs)])
-        (if (equal? input output)
-            alternative
-            (alt output `(simplify () ,query #f #f) (list alternative)))))
-
   (timeline-event! 'preprocess)
   (define preprocessing (find-preprocessing
                          (or specification expression) context rules))
@@ -351,28 +321,35 @@
 
   (*pcontext* pcontext*)
   (*start-prog* expression)
-  (define alternative (make-alt expression))
-  (define table (make-alt-table (*pcontext*) alternative (*context*)))
-  (^table^
-   (if (*pareto-mode*)
-         (let ([new-alts (starting-alts alternative (*context*))])
-           (define-values (errss costs) (atab-eval-altns table new-alts
-                                                         (*context*)))
-           (atab-add-altns table new-alts errss costs))
-         table))
 
-  (when (flag-set? 'setup 'simplify)
-      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
-      (finalize-iter!)
-      (^next-alts^ #f))
+  (define expressions
+    ;; Need some pattern like threading cause there's a general pattern here
+    (let ([expressions*
+           (if (*pareto-mode*)
+               (starting-expressions expression context)
+               (list expression))])
+      (if (flag-set? 'setup 'simplify)
+          (remove-duplicates
+           (flatten
+            (simplify-batch (make-egg-query expressions* rules))))
+          expressions*)))
+  ; TODO: Maybe have make-alt-table start with zero expressions
+  (^table^
+    ; TODO: begin?
+    (let ([table (make-alt-table pcontext* (make-alt expression) context)])
+      (define alternatives
+        (map (curryr alt (list 'simplify 'todo-egg-query #f #f null))
+             expressions))
+      (define-values (errss costs) (atab-eval-altns table alternatives context))
+      (atab-add-altns table alternatives errss costs)))
 
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))
-  (match-define (and alternatives (cons best _)) (extract!))
+  (match-define (and alternatives (cons (alt best _ _) _)) (extract!))
 
   (timeline-event! 'preprocess)
   (define preprocessing*
-    (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
+    (remove-unnecessary-preprocessing best context pcontext preprocessing))
 
   (values alternatives preprocessing*))
 
