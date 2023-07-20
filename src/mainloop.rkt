@@ -4,8 +4,9 @@
          "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt"
          "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
          "ground-truth.rkt" "preprocess.rkt" "core/alt-table.rkt"
-         "core/localize.rkt" "core/simplify.rkt" "core/regimes.rkt"
-         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
+         "core/egg-herbie.rkt" "core/localize.rkt" "core/simplify.rkt"
+         "core/regimes.rkt" "core/bsearch.rkt" "soundiness.rkt"
+         "core/egg-herbie.rkt")
 
 (provide (all-defined-out))
 
@@ -311,37 +312,83 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-(define (run-improve! expression context pcontext rules iterations
+(define (run-improve! initial context pcontext rules iterations
                       #:specification [specification #f])
+  ;; TODO: The developer target for quotient of products gets *more accurate*
+  ;; with this change, what did I do to screw that up? It's gotta be that I've
+  ;; screwed up something with the pcontext but I can't see where
   (timeline-event! 'preprocess)
-  (define preprocessing (find-preprocessing
-                         (or specification expression) context rules))
+  (define egraph (make-egraph))
+  (define specification* (egraph-add-expr egraph (or specification initial)))
+  (define initial* (if (flag-set? 'setup 'simplify) (egraph-add-expr egraph initial) #f))
+  (define evens*
+    (for/list ([variable (in-list (context-vars context))]
+               [representation (in-list (context-var-reprs context))])
+      (define negate (get-parametric-operator 'neg representation))
+      (define negated (replace-vars
+                       (list (cons variable (list negate variable)))
+                       (or specification initial)))
+      (define eclass (egraph-add-expr egraph negated))
+      (cons eclass variable)))
+  (define swaps*
+    (for/list ([pair (in-combinations (context-vars context) 2)])
+      (match-define (list a b) pair)
+      (define swapped (replace-vars
+                       (list (cons a b) (cons b a))
+                       (or specification initial)))
+      (define eclass (egraph-add-expr egraph swapped))
+      (cons eclass pair)))
+  (match-define (list _ ffi-rules _) (expand-rules rules))
+
+  ;; TODO: const-folding?, iter-limit
+  (define iteration-data (egraph-run egraph (*node-limit*) ffi-rules #t #f))
+
+  (define abs-instructions
+    (for/list ([even* (in-list evens*)]
+               #:when (= (egraph-find egraph specification*)
+                         (egraph-find egraph (car even*))))
+      (list 'abs (cdr even*))))
+  (define swaps
+    (for/list ([swap* (in-list swaps*)]
+               #:when (= (egraph-find egraph specification*)
+                         (egraph-find egraph (car swap*))))
+      (cdr swap*)))
+  (define components (connected-components (context-vars context) swaps))
+  (define sort-instructions
+    (for/list ([component (in-list components)]
+               #:when (> (length component) 1))
+      (cons 'sort component)))
+  (define preprocessing (append abs-instructions sort-instructions))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
 
   (*pcontext* pcontext*)
-  (*start-prog* expression)
+  (*start-prog* initial)
 
-  (define expressions
-    ;; Need some pattern like threading cause there's a general pattern here
-    (let ([expressions*
-           (if (*pareto-mode*)
-               (starting-expressions expression context)
-               (list expression))])
-      (if (flag-set? 'setup 'simplify)
-          (remove-duplicates
-           (flatten
-            (simplify-batch (make-egg-query expressions* rules))))
-          expressions*)))
-  ; TODO: Maybe have make-alt-table start with zero expressions
+  #;(define (simplify-initial egraph initial-altnerative initial-id iterations)
+    (remove-duplicates
+     (for/list ([iteration (in-range (length iterations))])
+       (alt
+        (egraph-get-simplest egraph initial* iteration)
+        ;; TODO: egg-query?
+        (list 'simplify null 'todo-egg-query #f #f)
+        (list alternative)))))
+  ;; TODO: starting-expressions Brett precisions stuff
   (^table^
-    ; TODO: begin?
-    (let ([table (make-alt-table pcontext* (make-alt expression) context)])
-      (define alternatives
-        (map (curryr alt (list 'simplify 'todo-egg-query #f #f null))
-             expressions))
-      (define-values (errss costs) (atab-eval-altns table alternatives context))
-      (atab-add-altns table alternatives errss costs)))
+   (let* ([alternative (make-alt initial)]
+          [table (make-alt-table pcontext* alternative context)])
+     (if (flag-set? 'setup 'simplify)
+         (let ([simplified 
+                (remove-duplicates
+                 (for/list ([iteration (in-range (length iteration-data))])
+                   (alt
+                    (egraph-get-simplest egraph initial* iteration)
+                    ;; TODO: What to put where egg-query was
+                    (list 'simplify null 'todo-egg-query #f #f)
+                    (list alternative))))])
+           (define-values (errss costs) (atab-eval-altns table simplified context))
+           (atab-add-altns table simplified errss costs))
+         table)))
 
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))

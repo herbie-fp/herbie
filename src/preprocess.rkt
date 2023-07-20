@@ -4,9 +4,22 @@
          "syntax/syntax.rkt" "syntax/types.rkt" "alternative.rkt" "common.rkt"
          "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
 
-(provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
-
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
+
+(provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing connected-components)
+
+(define (sort-tests expression context)
+  (for/list ([pair (in-combinations (context-vars context) 2)])
+    (match-define (list a b) pair)
+    (replace-vars (list (cons a b) (cons b a)) expression)))
+
+(define (abs-tests expression context)
+  (for/list ([variable (in-list (context-vars context))]
+             [representation (in-list (context-var-reprs context))])
+    ;; TODO: Handle case where neg isn't supported for this representation
+    (define negate (get-parametric-operator 'neg representation))
+    (replace-vars (list (cons variable (list negate variable))) expression)))
+
 (define (find-preprocessing expression context rules)
   ;; Here `*` means a test identity that *may* be equal to `expression`, and
   ;; `~` means the simplest form of an expression.

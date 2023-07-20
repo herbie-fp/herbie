@@ -7,6 +7,7 @@ use math::*;
 
 use std::cmp::min;
 use std::ffi::{CStr, CString};
+use std::mem::ManuallyDrop;
 use std::os::raw::c_char;
 use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
@@ -276,6 +277,23 @@ pub unsafe extern "C" fn egraph_get_simplest(
         std::mem::forget(best_str);
         best_str_pointer
     })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_find(
+    ptr: *mut Context,
+    eclass_id: u32
+) -> u32 {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let canonical = context
+	.runner
+	// TODO: Remove
+	.as_ref()
+	.unwrap()
+	.egraph
+	.find(usize::try_from(eclass_id).unwrap().into());
+
+    usize::from(canonical).try_into().unwrap()
 }
 
 unsafe fn make_empty_string() -> *const c_char {
