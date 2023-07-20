@@ -1,6 +1,7 @@
 window.COMPONENTS = [] // TODO move to module with components at bottom of page
 
 var resultsJsonData = null
+var filteredClasses = ["imp-start", "gt-target", "eq-target", "lt-target"]
 
 const ReportPageBody = new Component("body", {
     setup: async function () {
@@ -20,7 +21,20 @@ const ReportPageBody = new Component("body", {
             return resultsJsonData
         }
     },
+    filterData: function (jsonData) {
+        var copy = jsonData
+        var filteredTests = []
+        copy.tests.forEach((test) => {
+            if (!filteredClasses.includes(test.status)) {
+                filteredTests.push(test)
+            }
+        })
+        copy.tests = filteredTests
+        return copy
+    },
     update: function (jsonData) {
+        const filteredData = this.filterData(jsonData)
+
         const navigation = Element("nav", {}, [
             Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
         ])
@@ -78,12 +92,12 @@ const ReportPageBody = new Component("body", {
         const figureRow = Element("div", { classList: "figure-row" }, [
             Element("figure", { id: "xy" }, [
                 Element("h2", {}, [tempXY_A]),
-                this.plotXY(jsonData.tests),
+                this.plotXY(filteredData.tests),
                 Element("figcaption", {}, [tempXY_B])
             ]),
             Element("figure", { id: "pareto" }, [
                 Element("h2", {}, [tempPareto_A]),
-                this.plotPareto(jsonData),
+                this.plotPareto(filteredData),
                 Element("figcaption", {}, [tempPareto_B])
             ])
         ])
@@ -100,14 +114,14 @@ const ReportPageBody = new Component("body", {
                     Element("th", {}, ["Time"]),
                 ])
             ]),
-            this.tableBody(jsonData)
+            this.tableBody(filteredData)
         ])
 
         this.elt.parentNode.replaceChild(Element("body", {}, [
             header,
             stats,
             figureRow,
-            this.buildFilters(),
+            this.buildFilters(filteredData),
             resultsTable,
         ]), this.elt)
     },
@@ -184,7 +198,7 @@ const ReportPageBody = new Component("body", {
     // dom but the node's class list is getting updated
     // thinking of instead of modifying the dom we just redraw the entire page
     // Maybe a filtered array and that call this.update
-    buildFilters: function () {
+    buildFilters: function (jsonData) {
         const regressedTags = ["uni-start", "lt-target", "lt-start",
             "apx-start", "timeout", "crash", "error"]
         const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
