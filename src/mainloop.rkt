@@ -319,60 +319,24 @@
   ;; screwed up something with the pcontext but I can't see where
   (timeline-event! 'preprocess)
   (define egraph (make-egraph))
-  (define specification* (egraph-add-expr egraph (or specification initial)))
-  (define initial* (if (flag-set? 'setup 'simplify) (egraph-add-expr egraph initial) #f))
-  (define evens*
-    (for/list ([variable (in-list (context-vars context))]
-               [representation (in-list (context-var-reprs context))])
-      (define negate (get-parametric-operator 'neg representation))
-      (define negated (replace-vars
-                       (list (cons variable (list negate variable)))
-                       (or specification initial)))
-      (define eclass (egraph-add-expr egraph negated))
-      (cons eclass variable)))
-  (define swaps*
-    (for/list ([pair (in-combinations (context-vars context) 2)])
-      (match-define (list a b) pair)
-      (define swapped (replace-vars
-                       (list (cons a b) (cons b a))
-                       (or specification initial)))
-      (define eclass (egraph-add-expr egraph swapped))
-      (cons eclass pair)))
-  (match-define (list _ ffi-rules _) (expand-rules rules))
+  (define specification* (or specification initial))
+  (define specification-id (egraph-add-expr egraph specification*))
+  (define initial-id (if (flag-set? 'setup 'simplify)
+                         (egraph-add-expr egraph initial)
+                         #f))
+  (define test-groups (add-preprocessing-tests egraph specification* context))
 
+  (match-define (list _ ffi-rules _) (expand-rules rules))
   ;; TODO: const-folding?, iter-limit
   (define iteration-data (egraph-run egraph (*node-limit*) ffi-rules #t #f))
 
-  (define abs-instructions
-    (for/list ([even* (in-list evens*)]
-               #:when (= (egraph-find egraph specification*)
-                         (egraph-find egraph (car even*))))
-      (list 'abs (cdr even*))))
-  (define swaps
-    (for/list ([swap* (in-list swaps*)]
-               #:when (= (egraph-find egraph specification*)
-                         (egraph-find egraph (car swap*))))
-      (cdr swap*)))
-  (define components (connected-components (context-vars context) swaps))
-  (define sort-instructions
-    (for/list ([component (in-list components)]
-               #:when (> (length component) 1))
-      (cons 'sort component)))
-  (define preprocessing (append abs-instructions sort-instructions))
+  (define preprocessing (find-preprocessing egraph test-groups specification-id context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
 
   (*pcontext* pcontext*)
   (*start-prog* initial)
 
-  #;(define (simplify-initial egraph initial-altnerative initial-id iterations)
-    (remove-duplicates
-     (for/list ([iteration (in-range (length iterations))])
-       (alt
-        (egraph-get-simplest egraph initial* iteration)
-        ;; TODO: egg-query?
-        (list 'simplify null 'todo-egg-query #f #f)
-        (list alternative)))))
   ;; TODO: starting-expressions Brett precisions stuff
   (^table^
    (let* ([alternative (make-alt initial)]
@@ -382,7 +346,7 @@
                 (remove-duplicates
                  (for/list ([iteration (in-range (length iteration-data))])
                    (alt
-                    (egraph-get-simplest egraph initial* iteration)
+                    (egraph-get-simplest egraph initial-id iteration)
                     ;; TODO: What to put where egg-query was
                     (list 'simplify null 'todo-egg-query #f #f)
                     (list alternative))))])

@@ -4,115 +4,135 @@
          "syntax/syntax.rkt" "syntax/types.rkt" "alternative.rkt" "common.rkt"
          "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
 
+(provide (struct-out preprocessing-instruction) add-preprocessing-tests
+         find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
+
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 
-(provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing connected-components)
+;; TODO: Remove
+;; tests : Expression -> Context -> List (Expression, A)
+;; instructions : List A -> Context -> Instruction
+;; operator : Instruction -> (Point -> Point)
+(struct preprocessing-step (tests instructions operator) #:transparent)
 
-(define (sort-tests expression context)
-  (for/list ([pair (in-combinations (context-vars context) 2)])
-    (match-define (list a b) pair)
-    (replace-vars (list (cons a b) (cons b a)) expression)))
+(struct preprocessing-instruction (type data) #:transparent)
 
-(define (abs-tests expression context)
-  (for/list ([variable (in-list (context-vars context))]
-             [representation (in-list (context-var-reprs context))])
-    ;; TODO: Handle case where neg isn't supported for this representation
-    (define negate (get-parametric-operator 'neg representation))
-    (replace-vars (list (cons variable (list negate variable))) expression)))
+(define (add-preprocessing-tests egraph expression context)
+  (for/list ([step (in-dict-values preprocessing-steps)])
+    (match-define (preprocessing-step tests _ _) step)
+    (for/list ([test (in-list (tests expression context))])
+      (match-define (cons expression* item) test)
+      (cons (egraph-add-expr egraph expression*) item))))
 
-(define (find-preprocessing expression context rules)
-  ;; Here `*` means a test identity that *may* be equal to `expression`, and
-  ;; `~` means the simplest form of an expression.
-  (define variables (context-vars context))
-  (define variable-representations (context-var-reprs context))
-  (define evens*
-    (for/list ([variable (in-list variables)]
-               [representation (in-list variable-representations)])
-      ;; TODO: Handle case where neg isn't supported for this representation
-      (define negate (get-parametric-operator 'neg representation))
-      (replace-vars (list (cons variable (list negate variable))) expression)))
-  (define pairs (combinations variables 2))
-  (define swaps*
-    (for/list ([pair (in-list pairs)])
-      (match-define (list a b) pair)
-      (replace-vars (list (cons a b) (cons b a)) expression)))
-  (define query (make-egg-query (cons expression (append evens* swaps*)) rules))
-  (match-define (cons expression~ rest~) (map last (simplify-batch query)))
-  (define-values (evens~ swaps~) (split-at rest~ (length evens*)))
-  (define swaps (filter-map
-                 (lambda (pair swap~) (and (equal? expression~ swap~) pair))
-                 pairs
-                 swaps~))
-  (define components (connected-components variables swaps))
-  (define abs-instructions
-    (for/list ([variable (in-list variables)] [even~ (in-list evens~)]
-               #:when (equal? expression~ even~))
-      (list 'abs variable)))
-  (define sort-instructions
-    (for/list ([component (in-list components)]
-               #:when (> (length component) 1))
-      (cons 'sort component)))
-  ;; Absolute value should happen before sorting
-  (append abs-instructions sort-instructions))
+(define (find-preprocessing egraph test-groups specification-id context)
+  (define (equivalent? id)
+    (= (egraph-find egraph specification-id)
+       (egraph-find egraph id)))
+  (apply
+   append
+   (for/list ([(type step) (in-dict preprocessing-steps)]
+              [tests (in-list test-groups)])
+     (match-define (preprocessing-step _ instructions _) step)
+     (map
+      (curry preprocessing-instruction type)
+      (instructions
+       (filter-map
+        (match-lambda [(cons id item) (and (equivalent? id) item)])
+        tests)
+       context)))))
 
-(define (connected-components variables swaps)
+(define (preprocess-pcontext context pcontext instructions)
+  (define (instruction->operator context instruction)
+    (match-define (preprocessing-instruction type data) instruction)
+    (match-define (preprocessing-step _ _ operator)
+      (dict-ref preprocessing-steps type))
+    (operator data context))
+  (define preprocess
+    (apply
+     compose
+     (map
+      (curry instruction->operator context)
+      ;; Function composition applies the rightmost function first
+      (reverse instructions))))
+  (pcontext-map preprocess pcontext))
+
+; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
+(define (remove-unnecessary-preprocessing expression context pcontext
+                                          instructions #:removed [removed empty])
+  (define-values (result newly-removed)
+    (let loop ([instructions instructions] [i 0] [removed removed])
+      (cond
+        [(>= i (length instructions))
+         (values instructions removed)]
+        [(preprocessing-<=? expression context pcontext (drop-at instructions i) instructions)
+         (loop (drop-at instructions i) i (cons (list-ref instructions i) removed))]
+        [else
+         (loop instructions (+ i 1) removed)])))
+  (cond
+    [(< (length result) (length instructions))
+     (remove-unnecessary-preprocessing expression context pcontext result #:removed newly-removed)]
+    [else
+     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
+     result]))
+
+(define preprocessing-steps
+  `((sort
+     .
+     ,(preprocessing-step
+       (lambda (expression context)
+         (for/list ([pair (in-combinations (context-vars context) 2)])
+           (match-define (list a b) pair)
+           (cons
+            (replace-vars (list (cons a b) (cons b a)) expression)
+            pair)))
+       (lambda (pairs context)
+         (filter
+          (lambda (component) (> (length component) 1))
+          (connected-components (context-vars context) pairs)))
+       (lambda (component context)
+         (define sort* (curryr sort (curryr </total (context-repr context))))
+         (define variables (context-vars context))
+         (unless (subsequence? component variables)
+           (error 'instruction->operator
+                  "component should always be a subsequence of variables"))
+         (define indices (indexes-where variables (curryr member component)))
+         (lambda (points)
+           (let* ([subsequence (map (curry list-ref points) indices)]
+                  [sorted (sort* subsequence)])
+             (list-set* points indices sorted))))))
+    (abs
+     .
+     ,(preprocessing-step
+       (lambda (expression context)
+         (for/list ([variable (in-list (context-vars context))]
+                    [representation (in-list (context-var-reprs context))])
+           ;; TODO: Handle case where neg isn't supported for this representation
+           (define negate (get-parametric-operator 'neg representation))
+           (cons
+            (replace-vars
+             (list (cons variable (list negate variable)))
+             expression)
+            variable)))
+       (lambda (variables _) variables)
+       (lambda (variable context)
+         (define index (index-of (context-vars context) variable))
+         (define abs (operator-info
+                      (get-parametric-operator
+                       'fabs
+                       (list-ref (context-var-reprs context) index))
+                      'fl))
+         (curryr list-update index abs))))))
+
+(define (connected-components variables pairs)
   (define components (disjoint-set (length variables)))
-  (for ([swap (in-list swaps)])
-    (match-define (list a b) swap)
+  (for ([pair (in-list pairs)])
+    (match-define (list a b) pair)
     (disjoint-set-union! components
                          (disjoint-set-find! components (index-of variables a))
                          (disjoint-set-find! components (index-of variables b))))
   (group-by
    (compose (curry disjoint-set-find! components) (curry index-of variables))
    variables))
-
-(define (preprocess-pcontext context pcontext preprocessing)
-  (define preprocess
-    (apply compose (map
-                    (curry instruction->operator context)
-                    ;; Function composition applies the rightmost function first
-                    (reverse preprocessing))))
-  (pcontext-map preprocess pcontext))
-
-(define (instruction->operator context instruction)
-  (define variables (context-vars context))
-  (define sort* (curryr sort (curryr </total (context-repr context))))
-  (match instruction
-    [(list 'sort component ...)
-     (unless (subsequence? component variables)
-       (error 'instruction->operator
-              "component should always be a subsequence of variables"))
-     (define indices (indexes-where variables (curryr member component)))
-     (lambda (points)
-       (let* ([subsequence (map (curry list-ref points) indices)]
-              [sorted (sort* subsequence)])
-         (list-set* points indices sorted)))]
-    [(list 'abs variable)
-     (define index (index-of variables variable))
-     (define abs (operator-info
-                  (get-parametric-operator
-                   'fabs
-                   (list-ref (context-var-reprs context) index))
-                  'fl))
-     (curryr list-update index abs)]))
-
-; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unnecessary-preprocessing expression context pcontext preprocessing #:removed [removed empty])
-  (define-values (result newly-removed)
-    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
-      (cond
-        [(>= i (length preprocessing))
-         (values preprocessing removed)]
-        [(preprocessing-<=? expression context pcontext (drop-at preprocessing i) preprocessing)
-         (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
-        [else
-         (loop preprocessing (+ i 1) removed)])))
-  (cond
-    [(< (length result) (length preprocessing))
-     (remove-unnecessary-preprocessing expression context pcontext result #:removed newly-removed)]
-    [else
-     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
-     result]))
 
 (define (preprocessing-<=? expression context pcontext preprocessing1 preprocessing2)
   (define pcontext1 (preprocess-pcontext context pcontext preprocessing1))
