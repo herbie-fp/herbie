@@ -286,12 +286,12 @@ pub unsafe extern "C" fn egraph_find(
 ) -> u32 {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
     let canonical = context
-	.runner
-	// TODO: Remove
-	.as_ref()
-	.unwrap()
-	.egraph
-	.find(usize::try_from(eclass_id).unwrap().into());
+        .runner
+        // TODO: Remove
+        .as_ref()
+        .unwrap()
+        .egraph
+        .find(usize::try_from(eclass_id).unwrap().into());
 
     usize::from(canonical).try_into().unwrap()
 }
