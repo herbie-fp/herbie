@@ -4,8 +4,8 @@
          "syntax/syntax.rkt" "syntax/types.rkt" "alternative.rkt" "common.rkt"
          "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
 
-(provide (struct-out preprocessing-instruction) add-preprocessing-tests
-         find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
+(provide add-preprocessing-tests find-preprocessing preprocess-pcontext
+         remove-unnecessary-preprocessing)
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 
@@ -14,8 +14,6 @@
 ;; instructions : List A -> Context -> Instruction
 ;; operator : Instruction -> (Point -> Point)
 (struct preprocessing-step (tests instructions operator) #:transparent)
-
-(struct preprocessing-instruction (type data) #:transparent)
 
 (define (add-preprocessing-tests egraph expression context)
   (for/list ([step (in-dict-values preprocessing-steps)])
@@ -34,7 +32,7 @@
               [tests (in-list test-groups)])
      (match-define (preprocessing-step _ instructions _) step)
      (map
-      (curry preprocessing-instruction type)
+      (curry list type)
       (instructions
        (filter-map
         (match-lambda [(cons id item) (and (equivalent? id) item)])
@@ -43,16 +41,16 @@
 
 (define (preprocess-pcontext context pcontext instructions)
   (define (instruction->operator context instruction)
-    (match-define (preprocessing-instruction type data) instruction)
+    (match-define (list type item) instruction)
     (match-define (preprocessing-step _ _ operator)
       (dict-ref preprocessing-steps type))
-    (operator data context))
+    (operator item context))
   (define preprocess
     (apply
      compose
      (map
       (curry instruction->operator context)
-      ;; Function composition applies the rightmost function first
+      ; Function composition applies the rightmost function first
       (reverse instructions))))
   (pcontext-map preprocess pcontext))
 
@@ -81,10 +79,6 @@
   (<= (errors-score (errors expression pcontext1 context))
       (errors-score (errors expression pcontext2 context))))
 
-(define preprocessing-steps
-  `((sort ,preprocessing-sort)
-    (abs ,preprocessing-abs)))
-
 (define preprocessing-sort
   (preprocessing-step
    (lambda (expression context)
@@ -101,7 +95,7 @@
      (define sort* (curryr sort (curryr </total (context-repr context))))
      (define variables (context-vars context))
      (unless (subsequence? component variables)
-       (error 'instruction->operator
+       (error 'sort-instruction->operator
               "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
      (lambda (points)
@@ -125,7 +119,7 @@
    (lambda (expression context)
      (for/list ([variable (in-list (context-vars context))]
                 [representation (in-list (context-var-reprs context))])
-       ;; TODO: Handle case where neg isn't supported for this representation
+       ; TODO: Handle case where neg isn't supported for this representation
        (define negate (get-parametric-operator 'neg representation))
        (cons
         (replace-vars
@@ -141,3 +135,7 @@
                    (list-ref (context-var-reprs context) index))
                   'fl))
      (curryr list-update index abs))))
+
+(define preprocessing-steps
+  `((sort . ,preprocessing-sort)
+    (abs . ,preprocessing-abs)))
