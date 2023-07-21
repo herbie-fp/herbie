@@ -302,21 +302,21 @@
 
 (define (initialize-alt-table! egraph initial initial-id pcontext context
                                iterations-length)
+  (define alternative (make-alt initial))
+  (define table (make-alt-table pcontext alternative context))
   (^table^
-   (let* ([alternative (make-alt initial)]
-          [table (make-alt-table pcontext alternative context)])
-     (if (flag-set? 'setup 'simplify)
-         (let ([simplified 
-                (remove-duplicates
-                 (for/list ([iteration (in-range iterations-length)])
-                   (alt
-                    (egraph-get-simplest egraph initial-id iteration)
-                    ;; TODO: What to put where egg-query was
-                    (list 'simplify null 'todo-egg-query #f #f)
-                    (list alternative))))])
-           (define-values (errss costs) (atab-eval-altns table simplified context))
-           (atab-add-altns table simplified errss costs))
-         table))))
+   (if (flag-set? 'setup 'simplify)
+       (let ([simplified 
+              (remove-duplicates
+               (for/list ([iteration (in-range iterations-length)])
+                 (alt
+                  (egraph-get-simplest egraph initial-id iteration)
+                  ;; TODO: What to put where egg-query was
+                  (list 'simplify null 'todo-egg-query #f #f)
+                  (list alternative))))])
+         (define-values (errss costs) (atab-eval-altns table simplified context))
+         (atab-add-altns table simplified errss costs))
+       table)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve vars prog iters
