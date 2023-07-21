@@ -354,7 +354,6 @@
 
   (*pcontext* pcontext*)
   (*start-prog* initial)
-
   ;; TODO: starting-expressions Brett precisions stuff
   (initialize-alt-table! egraph initial initial-id pcontext* context
                          (length iteration-data))

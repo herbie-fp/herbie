@@ -75,53 +75,39 @@
      (timeline-push! 'remove-preprocessing (map ~a newly-removed))
      result]))
 
+(define (preprocessing-<=? expression context pcontext preprocessing1 preprocessing2)
+  (define pcontext1 (preprocess-pcontext context pcontext preprocessing1))
+  (define pcontext2 (preprocess-pcontext context pcontext preprocessing2))
+  (<= (errors-score (errors expression pcontext1 context))
+      (errors-score (errors expression pcontext2 context))))
+
 (define preprocessing-steps
-  `((sort
-     .
-     ,(preprocessing-step
-       (lambda (expression context)
-         (for/list ([pair (in-combinations (context-vars context) 2)])
-           (match-define (list a b) pair)
-           (cons
-            (replace-vars (list (cons a b) (cons b a)) expression)
-            pair)))
-       (lambda (pairs context)
-         (filter
-          (lambda (component) (> (length component) 1))
-          (connected-components (context-vars context) pairs)))
-       (lambda (component context)
-         (define sort* (curryr sort (curryr </total (context-repr context))))
-         (define variables (context-vars context))
-         (unless (subsequence? component variables)
-           (error 'instruction->operator
-                  "component should always be a subsequence of variables"))
-         (define indices (indexes-where variables (curryr member component)))
-         (lambda (points)
-           (let* ([subsequence (map (curry list-ref points) indices)]
-                  [sorted (sort* subsequence)])
-             (list-set* points indices sorted))))))
-    (abs
-     .
-     ,(preprocessing-step
-       (lambda (expression context)
-         (for/list ([variable (in-list (context-vars context))]
-                    [representation (in-list (context-var-reprs context))])
-           ;; TODO: Handle case where neg isn't supported for this representation
-           (define negate (get-parametric-operator 'neg representation))
-           (cons
-            (replace-vars
-             (list (cons variable (list negate variable)))
-             expression)
-            variable)))
-       (lambda (variables _) variables)
-       (lambda (variable context)
-         (define index (index-of (context-vars context) variable))
-         (define abs (operator-info
-                      (get-parametric-operator
-                       'fabs
-                       (list-ref (context-var-reprs context) index))
-                      'fl))
-         (curryr list-update index abs))))))
+  `((sort ,preprocessing-sort)
+    (abs ,preprocessing-abs)))
+
+(define preprocessing-sort
+  (preprocessing-step
+   (lambda (expression context)
+     (for/list ([pair (in-combinations (context-vars context) 2)])
+       (match-define (list a b) pair)
+       (cons
+        (replace-vars (list (cons a b) (cons b a)) expression)
+        pair)))
+   (lambda (pairs context)
+     (filter
+      (lambda (component) (> (length component) 1))
+      (connected-components (context-vars context) pairs)))
+   (lambda (component context)
+     (define sort* (curryr sort (curryr </total (context-repr context))))
+     (define variables (context-vars context))
+     (unless (subsequence? component variables)
+       (error 'instruction->operator
+              "component should always be a subsequence of variables"))
+     (define indices (indexes-where variables (curryr member component)))
+     (lambda (points)
+       (let* ([subsequence (map (curry list-ref points) indices)]
+              [sorted (sort* subsequence)])
+         (list-set* points indices sorted))))))
 
 (define (connected-components variables pairs)
   (define components (disjoint-set (length variables)))
@@ -134,8 +120,24 @@
    (compose (curry disjoint-set-find! components) (curry index-of variables))
    variables))
 
-(define (preprocessing-<=? expression context pcontext preprocessing1 preprocessing2)
-  (define pcontext1 (preprocess-pcontext context pcontext preprocessing1))
-  (define pcontext2 (preprocess-pcontext context pcontext preprocessing2))
-  (<= (errors-score (errors expression pcontext1 context))
-      (errors-score (errors expression pcontext2 context))))
+(define preprocessing-abs
+  (preprocessing-step
+   (lambda (expression context)
+     (for/list ([variable (in-list (context-vars context))]
+                [representation (in-list (context-var-reprs context))])
+       ;; TODO: Handle case where neg isn't supported for this representation
+       (define negate (get-parametric-operator 'neg representation))
+       (cons
+        (replace-vars
+         (list (cons variable (list negate variable)))
+         expression)
+        variable)))
+   (lambda (variables _) variables)
+   (lambda (variable context)
+     (define index (index-of (context-vars context) variable))
+     (define abs (operator-info
+                  (get-parametric-operator
+                   'fabs
+                   (list-ref (context-var-reprs context) index))
+                  'fl))
+     (curryr list-update index abs))))
