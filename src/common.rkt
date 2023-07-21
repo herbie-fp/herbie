@@ -5,9 +5,9 @@
 (module+ test (require rackunit))
 
 (provide reap
-         flip-lists find-duplicates partial-sums
-         argmins argmaxs index-of set-disjoint?
-         get-seed set-seed!
+         flip-lists drop-at find-duplicates partial-sums
+         argmins argmaxs set-disjoint? subsequence? list-set* disjoint-set
+         disjoint-set-find! disjoint-set-union! get-seed set-seed!
          quasisyntax dict sym-append
          format-time format-bits format-accuracy format-cost web-resource
          (all-from-out "config.rkt"))
@@ -59,6 +59,10 @@
   (check-equal? (argmaxs string-length '("a" "bb" "f" "ccc" "dd" "eee" "g"))
                 '("ccc" "eee")))
 
+(define (drop-at ls index)
+  (define-values (front back) (split-at ls index))
+  (append front (rest back)))
+
 (define (flip-lists list-list)
   "Flip a list of rows into a list of columns"
   (apply map list list-list))
@@ -87,15 +91,6 @@
     (set-add! found x))
   (reverse duplicates))
 
-(define (index-of lst elt)
-  (for/first ([e lst] [i (in-naturals)]
-             #:when (equal? e elt))
-             i))
-
-(module+ test
-  (check-equal? (index-of '(a b c d e) 'd) 3)
-  (check-equal? (index-of '(a b c d e) 'foo) #f))
-
 (define (set-disjoint? s1 s2)
   (set-empty? (set-intersect s2 s1)))
 
@@ -103,6 +98,55 @@
   (check-true (set-disjoint? '(a b c) '(e f g)))
   (check-true (set-disjoint? '() '()))
   (check-false (set-disjoint? '(a b c) '(a))))
+
+(define (subsequence? v l)
+  (or
+   (empty? v)
+   (let ([v* (member (first v) l)])
+     (and v* (subsequence? (rest v) v*)))))
+
+(module+ test
+  (define l (range 10))
+  (check-true (subsequence? empty empty))
+  (check-true (subsequence? empty l))
+  (check-true (subsequence? '(1) l))
+  (check-true (subsequence? '(1 2) l))
+  (check-true (subsequence? '(1 3 5 7 9) l))
+  (check-true (subsequence? '(1 2 5 8) l))
+  (check-false (subsequence? '(x y) l))
+  (check-false (subsequence? '(1 2 10) l)))
+
+(define (list-set* l p v)
+  (let loop ([l l] [p p] [v v] [i 0])
+    (cond
+      [(empty? l)
+       empty]
+      [(and (not (empty? p)) (equal? (first p) i))
+       (cons (first v) (loop (rest l) (rest p) (rest v) (add1 i)))]
+      [else
+       (cons (first l) (loop (rest l) p v (add1 i)))])))
+
+(module+ test
+  (define n '(a b c d e f g))
+  (check-equal? (list-set* empty empty empty) empty)
+  (check-equal? (list-set* n empty empty) n)
+  (check-equal? (list-set* n '(0) '(x)) '(x b c d e f g))
+  (check-equal? (list-set* n '(1 2 5) '(x y z)) '(a x y d e z g)))
+
+;; Union-find
+
+(define (disjoint-set s)
+  (list->vector (range s)))
+
+(define (disjoint-set-find! d x)
+  (define p (vector-ref d x))
+  (if (= p x)
+      x
+      (let ([r (disjoint-set-find! d p)])
+        (vector-set! d x r)
+        r)))
+
+(define (disjoint-set-union! d x y) (vector-set! d y x))
 
 ;; Miscellaneous helper
 

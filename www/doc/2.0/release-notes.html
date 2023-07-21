@@ -45,65 +45,75 @@
   <h2>Speed-accuracy trade-offs</h2>
 
   <figure class="showcase">
-    ???
+    <img src="report-cost-accuracy.png"
+         alt="The Accuracy vs Speed section of a Herbie report, which has an accuracy vs speedup Pareto plot on the left and a tabular view of the accuracy and speed of each of Herbie's alternatives on the right.">
     <figcaption>
-      ???
+      Herbie's new Accuracy vs Speed view, showing how multiple
+      alternatives found by Herbie compare on these different axes.
     </figcaption>
   </figure>
 
   <p>
-  Two years releases ago, Herbie 1.5 added a new <kbd>--pareto</kbd>
-  mode, which let Herbie suggest some alternatives that were accurate
-  but slow, and others that were faster but less accurate. In this
-  release, we've made this mode the default. In order to do that, we
-  had to make it faster, clearer, and more reliable. We think making
-  speed-accuracy trade-offs are a key part of using Herbie in a
-  practical context, and we're excited to make that easier for users.
+  Two years ago, <a href="../1.5/release-notes.html">Herbie 1.5</a>
+  added the <kbd>--pareto</kbd> mode, wherein suggested multiple
+  alternatives that trade off speed and accuracy. We've made this mode
+  faster, clearer, and more reliable, and as a result, we've made this
+  mode the default. Speed-accuracy trade-offs are central to numerics,
+  and we're excited for Herbie to help users with these trade-offs.
   </p>
 
   <h2>New Metrics and Redesign</h2>
   
   <figure class="showcase">
-    ???
+    <img src="report-large.png" alt="The metrics shown at the top of each Herbie report: percentage accurate, time, alternatives, and speedup.">
     <figcaption>
-      ???
+      The metrics now being showcased on a Herbie results page:
+      percentage accuracy replaces the old "bits of error" metric,
+      while "speedup" now highlights the speed of the fastest
+      alternative found by Herbie that is also more accurate than the
+      initial program.
     </figcaption>
   </figure>
 
   <p>
-  We've cleaned up the report page significantly. The visual redesign
-  is the most notable---we've' refreshed and standardized the new
-  fonts, colors, and spacing. But more importantly, we've switched
-  to <a href="error.html">a new way</a> of measuring accuracy and
-  speed, which we think will be more intuitive for users and avoid
-  some misconceptions we see users run into.
+  We've cleaned up the report page significantly. Besides a visual
+  redesign&mdash;we've refreshed and standardized the new fonts,
+  colors, and spacing&mdash;we've switched to <a href="error.html">a
+  new way</a> of measuring accuracy and speed, which we think will be
+  more intuitive for users and avoid some misconceptions we see users
+  run into.
   </p>
 
   <h2>Derivations</h2>
 
   <figure class="showcase">
-    ???
+    <img src="report-alternative-derivation.png" alt="The derivation section shown for each alternative produced by Herbie, which show step by step how the initial program was transformed into the alternative.">
     <figcaption>
-      ???
+      New "Step-by-step derivation" buttons show how a transformation
+      was done by Herbie, with each step annotated with its mathematical
+      axiom from Herbie's database.
     </figcaption>
   </figure>
 
   <p>
     Herbie can now explain step by step how it transformed your
-    original input into the final program. This helps you understand
-    how Herbie works, and potentially help us identify bugs or
-    misbehaviors.
+    original input into the final program. This can help you
+    understand how Herbie works, and potentially help us identify bugs
+    or misbehaviors. More importantly, when Herbie comes up with
+    something truly surprising, you can now have more confidence that
+    the answer is correct.
   </p>
 
   <h2>Foundations for a Herbie Workbench</h2>
   
   <p>
-    We&apos;ve started building a prototype numerics workbench,
-    codenamed "Odyssey". As part of that, this release contains the
-    beginnings of a <a href="api-endpoints.html">REST API</a> for
-    interacting with Herbie. Long-term, the goal is an interactive,
-    task-oriented interface for improving the accuracy of
-    floating-point expressions, leveraging Herbie but also potentially
+    We&apos;ve started building
+    a <a href="https://github.com/herbie-fp/herbie-vscode">prototype
+    numerics workbench</a>, codenamed "Odyssey". This release thus
+    contains the beginnings of a <a href="api-endpoints.html">REST
+    API</a> for interacting with Herbie. Our long-term goal is an
+    interactive, task-oriented interface for working with
+    floating-point accuracy, leveraging Herbie but also potentially
     other tools. A prototype is currently available in the VS Code
     store as the <kbd>herbie-vscode</kbd> plugin.
   </p>
@@ -113,19 +123,18 @@
     <li>Inputs whose real-valued result rounds to floating-point
       infinity are now considered valid. This changes Herbie&apos;s
       accuracy estimates, sometimes significantly, but we found that
-      typically this yields better results
+      typically this yields better final programs.
     <li>Most sections of the Herbie reports page now have "help" links
       directly to the relevant section of the documentation.
-    <li>Many, many algorithms within Herbie have been sped up.
-      Notably, pruning, regimes, and binary search have all seen
-      significant speedups.
+    <li>Many, many algorithms within Herbie, especially pruning,
+      regimes, and binary search, have seen significant speed ups.
     <li>Graphs are now drawn using JavaScript, on the client side,
-      making them higher resolution, especially on high-DPI displays.
+      making them look sharper, especially on high-DPI displays.
     <li>Herbie&apos;s localization pass was written to be more
       accurate on tricky cases, which improves Herbie&apos;s results.
-    <li>Herbie&apos; supports for the <code>tgamma</code>
+    <li>Herbie&apos;s support for the <code>tgamma</code>
       and <code>lgamma</code> functions was rewritten to be more
-      accurate (though it is quite slow).
+      accurate (though it remains quite slow).
   </ul>
 
   <h2>Try it out!</h2>

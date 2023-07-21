@@ -46,7 +46,9 @@
                      #:unless (null? cost-accuracy))
              (match cost-accuracy
                [(list (list _ initial-accuracy) _ _) initial-accuracy]))])
-      (exact->inexact (- 1 (/ initial-accuracies-sum maximum-accuracy)))))
+      (if (> maximum-accuracy 0)
+          (exact->inexact (- 1 (/ initial-accuracies-sum maximum-accuracy)))
+          1.0)))
   (define rescaled
     (for/list ([cost-accuracy (in-list cost-accuracies)]
                #:unless (null? cost-accuracy))
@@ -134,7 +136,9 @@
           (tests . ,(map simplify-test tests))
           (merged-cost-accuracy . ,merged-cost-accuracy)))]))
 
-  (call-with-atomic-output-file file (λ (p name) (write-json data p))))
+  (if (port? file)
+      (write-json data file)
+      (call-with-atomic-output-file file (λ (p name) (write-json data p)))))
 
 (define (flags->list flags)
   (for*/list ([rec (hash->list flags)] [fl (cdr rec)])
