@@ -2,7 +2,7 @@
 
 (require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext for/pcontext
+(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext-map
          pcontext? pcontext->lists json->pcontext pcontext->json
          split-pcontext join-pcontext pcontext-length
          errors batch-errors errors-score)
@@ -29,6 +29,11 @@
                 (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...)
                   body ...)])
     (mk-pcontext pts* exs*)))
+
+(define (pcontext-map procedure context)
+  (pcontext
+   (vector-map procedure (pcontext-points context))
+   (pcontext-exacts context)))
 
 (define (pcontext->lists context)
   (for/lists (pts exs) ([(pt ex) (in-pcontext context)])
@@ -91,9 +96,9 @@
   (define-values (pts exs)
     (for/lists (pts exs) ([entry (in-list json)])
       (match-define (list pt ex) entry)
-      (values (map real->repr pt var-reprs) (real->repr ex output-repr))))
+      (values (map real->repr pt var-reprs) (real->repr (json->value ex output-repr) output-repr))))
   (mk-pcontext pts exs))
 
-(define (pcontext->json pcontext)
+(define (pcontext->json pcontext repr)
   (for/list ([(pt ex) (in-pcontext pcontext)])
-    (list pt ex)))
+    (list (map (curryr value->json repr) pt) (value->json ex repr))))

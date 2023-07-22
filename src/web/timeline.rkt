@@ -8,7 +8,7 @@
 
 ;; This first part handles timelines for a single Herbie run
 
-(define (make-timeline name timeline out #:info [info #f])
+(define (make-timeline name timeline out #:info [info #f] #:path [path "."])
   (fprintf out "<!doctype html>\n")
   (write-xexpr
     `(html
@@ -20,6 +20,7 @@
       (body
        ,(render-menu
          (~a name)
+         #:path path
          (if info 
              `(("Report" . "index.html"))
              `(("Details" . "graph.html"))))
@@ -32,7 +33,6 @@
   (-> timeline? xexpr?)
   (define time (apply + (map (curryr dict-ref 'time) timeline)))
   `(section ([id "process-info"])
-     (h1 "Details")
      (p ((class "header"))
         "Time bar (total: " (span ((class "number")) ,(format-time time)) ")")
      (div ((class "timeline"))

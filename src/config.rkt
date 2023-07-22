@@ -91,6 +91,7 @@
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
 (define *proof-max-length* (make-parameter 200))
+(define *proof-max-string-length* (make-parameter 10000))
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
@@ -121,7 +122,7 @@
           (if (equal? out "") default out))
       default))
 
-(define *herbie-version* "1.6")
+(define *herbie-version* "2.0")
 
 (define *hostname* (run-command "hostname"))
 
