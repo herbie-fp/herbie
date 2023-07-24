@@ -89,6 +89,7 @@ label.ex-start {accent-color: var(--result-light-green);}
 label.eq-start {accent-color: var(--result-green);}
 label.lt-start {accent-color: var(--result-yellow);}
 label.gt-target {accent-color: var(--result-green);}
+label.gt-start {accent-color: var(--result-green);}
 label.eq-target {accent-color: var(--result-green);}
 label.lt-target {accent-color: var(--result-orange);}
 label.crash {accent-color: var(--result-light-orange);}

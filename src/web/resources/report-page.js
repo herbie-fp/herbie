@@ -96,18 +96,34 @@ function update(jsonData) {
 
 var filterState = {
     "imp-start": true,
-    "apx-start": true,
-    "uni-start": true,
     "ex-start": true,
     "eq-start": true,
-    "lt-start": true,
-    "gt-start": true,
-    "gt-target": true,
     "eq-target": true,
+    "gt-target": true,
+    "gt-start": true,
+    "uni-start": true,
     "lt-target": true,
-    "error": true,
+    "lt-start": true,
+    "apx-start": true,
     "timeout": true,
     "crash": true,
+    "error": true,
+}
+
+const renames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-target": "Greater than target",
+    "gt-start": "Greater than start",
+    "eq-target": "Equal target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
 }
 
 function buildFilters(jsonTestData) {
@@ -244,21 +260,6 @@ async function getResultsJson() {
     }
 }
 
-const renames = {
-    "imp-start": "Improved start",
-    "apx-start": "Approximate start",
-    "uni-start": "Regressed from start",
-    "ex-start": "Exact start",
-    "eq-start": "Equal start",
-    "lt-start": "Less than start",
-    "gt-start": "Greater than start",
-    "gt-target": "Greater than target",
-    "eq-target": "Equal target",
-    "lt-target": "Less than target",
-    "error": "Error",
-    "timeout": "Timeout",
-    "crash": "Crash",
-}
 
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
