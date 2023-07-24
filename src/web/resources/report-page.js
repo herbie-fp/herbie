@@ -87,7 +87,7 @@ function update(jsonData) {
         header,
         stats,
         figureRow,
-        buildFilters(),
+        buildFilters(jsonData.tests),
         resultsTable,
     ])
     htmlNode.replaceChild(newBody, bodyNode)
@@ -110,15 +110,27 @@ var filterState = {
     "crash": true,
 }
 
-function buildFilters() {
-    const improvedTags = ["imp-start"]
-    const name = renames[improvedTags[0]]
-    const button = buildCheckboxLabel(improvedTags[0], name, filterState[improvedTags[0]])
-    button.addEventListener("click", () => {
-        filterState[improvedTags[0]] = button.querySelector("input").checked
-        update(resultsJsonData)
-    })
-    return Element("div", { id: "filters" }, [button])
+function buildFilters(jsonTestData) {
+    var testTypeCounts = {}
+    for (let i in jsonTestData) {
+        if (testTypeCounts[jsonTestData[i].status] == null) {
+            testTypeCounts[jsonTestData[i].status] = 1
+        } else {
+            testTypeCounts[jsonTestData[i].status] += 1
+        }
+    }
+    var filterButtons = []
+    for (let f in filterState) {
+        const name = `${renames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
+        const button = buildCheckboxLabel(f, name, filterState[f])
+        button.addEventListener("click", () => {
+            filterState[f] = button.querySelector("input").checked
+            update(resultsJsonData)
+        })
+        filterButtons.push(button)
+    }
+
+    return Element("div", { id: "filters" }, [filterButtons])
 }
 
 function buildCheckboxLabel(idTag, text, boolState) {
@@ -140,7 +152,7 @@ function updateChildren(children, state) {
 function plotXY(testsData) {
     var filteredTests = []
     testsData.forEach((test) => {
-        if (!filteredClasses.includes(test.status)) {
+        if (filterState[test.status]) {
             filteredTests.push(test)
         }
     })
