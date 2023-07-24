@@ -94,6 +94,8 @@ function update(jsonData) {
     bodyNode = newBody
 }
 
+// View State
+var detailsState = true
 var filterState = {
     "imp-start": true,
     "ex-start": true,
@@ -146,7 +148,28 @@ function buildFilters(jsonTestData) {
         filterButtons.push(button)
     }
 
-    return Element("div", { id: "filters" }, [filterButtons])
+    function showDetails() {
+        if (detailsState) {
+            return { open: "=\"\"" }
+        } else {
+            return {}
+        }
+    }
+
+    const details = Element("details", showDetails(), [
+        Element("summary", "Advanced"), [
+            filterButtons]])
+    details.addEventListener("click", (e) => {
+        if (e.target.nodeName == "SUMMARY") {
+            detailsState = !detailsState
+        }
+    })
+
+    return Element("div", { id: "filters" }, [
+        Element("div", { classList: "section-title" }, "Filters"),
+        Element("div", { id: "filter-group" }, [
+            "BUTTON HERE"]),
+        details])
 }
 
 function buildCheckboxLabel(idTag, text, boolState) {
