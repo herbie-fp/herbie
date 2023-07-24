@@ -84,13 +84,43 @@ function update(jsonData) {
         tableBody(jsonData)
     ])
 
-    htmlNode.replaceChild(Element("body", {}, [
+    const newBody = Element("body", {}, [
         header,
         stats,
         figureRow,
-        filters,
+        buildFilters(),
         resultsTable,
-    ]), bodyNode)
+    ])
+    htmlNode.replaceChild(newBody, bodyNode)
+    bodyNode = newBody
+}
+
+function buildFilters() {
+    console.log("hello")
+    const improvedTags = ["imp-start"]
+    const name = renames[improvedTags[0]]
+    const button = buildCheckboxLabel(improvedTags[0], "hello", true)
+    button.addEventListener("click", () => {
+        console.log("clicked")
+        update(resultsJsonData)
+    })
+    return Element("div", { id: "filters" }, [button])
+}
+
+function buildCheckboxLabel(idTag, text, boolState) {
+    return Element("label", { classList: idTag }, [
+        Element("input", { type: "checkbox", checked: boolState }, []),
+        text])
+}
+
+function updateChildren(children, state) {
+    children.forEach((child) => {
+        if (state) {
+            child.classList.remove("hidden")
+        } else {
+            child.classList.add("hidden")
+        }
+    })
 }
 
 function plotXY(testsData) {
@@ -174,134 +204,6 @@ function tableRow(test, i) {
     return tr
 }
 
-function buildFilters(jsonData) {
-    const improvedTags = ["imp-start"
-    // , "ex-start", "eq-start", "eq-target", "gt-target"
-    ]
-    const regressedTags = ["uni-start", "lt-target", "lt-start",
-        "apx-start", "timeout", "crash", "error"]
-    
-
-    var tagCounts = {}
-    jsonData.tests.forEach((test) => {
-        if (tagCounts[test.status] != null) {
-            tagCounts[test.status] = tagCounts[test.status] + 1
-        } else {
-            tagCounts[test.status] = 1
-        }
-    })
-
-    const improvedChildren = improvedTags.map((child) => {
-        var count = 0
-        if (tagCounts[child] != null) {
-            count = tagCounts[child]
-        }
-        return createChild(child, count)
-    })
-    const regressedChildren = regressedTags.map((child) => {
-        var count = 0
-        if (tagCounts[child] != null) {
-            count = tagCounts[child]
-        }
-        return createChild(child, count)
-    })
-
-    // add listeners
-    const improvedLeader = attachLeaderToChildren("improved", "Improved", improvedChildren)
-    const regressedLeader = attachLeaderToChildren("regressed", "Regressed", regressedChildren)
-
-    improvedChildren[0].addEventListener("click", () => {
-        if (improvedChildren[0].querySelector("input").checked) {
-            console.log("before:")
-            console.log(filteredClasses)
-            filteredClasses = filteredClasses.filter((c) => {
-                return c != improvedChildren[0]
-            })
-            console.log("after:")
-            console.log(filteredClasses)
-        } else {
-            filteredClasses.push(improvedChildren[0])
-        }
-        update(resultsJsonData)
-    })
-
-    // return Element("div", { id: "filters" }, [
-    //     Element("div", { classList: "section-title" }, "Filters"),
-    //     Element("div", { id: "filter-group" }, [
-    //         improvedLeader, regressedLeader]),
-    //     Element("details", [
-    //         Element("summary", "Advanced"), [
-    //             improvedChildren, regressedChildren]])])
-    return Element("div", {id: "filters"}, [improvedChildren])
-}
-
-
-function attachLeaderToChildren(leaderTag, leaderName, childNodes) {
-    const parentLabel = buildCheckboxLabel(leaderTag, leaderName, true)
-    parentLabel.addEventListener("click", () => {
-        const parentState = parentLabel.querySelector("input").checked
-        childNodes.forEach((child) => {
-            child.querySelector("input").checked = parentState
-            if (parentState) {
-                console.log("before:")
-                console.log(filteredClasses)
-                filteredClasses = filteredClasses.filter((c) => {
-                    return c != child.dataset.label
-                })
-                console.log("after:")
-                console.log(filteredClasses)
-            } else {
-                filteredClasses.push(child.dataset.label)
-            }
-            update(resultsJsonData)
-        })
-    })
-    return parentLabel
-}
-
-
-function createChild(childName, count) {
-    const childNode = buildCheckboxLabel(childName, `${renames[childName]} (${count})`, true)
-    childNode.dataset.label = childName
-    childNode.addEventListener("click", (e) => {
-        const thisChild = e.target.querySelector("input")
-        if (thisChild == null) { return }
-        if (thisChild.checked) {
-            console.log("before:")
-            console.log(filteredClasses)
-            filteredClasses = filteredClasses.filter((c) => {
-                return c != childNode.dataset.label
-            })
-            console.log("after:")
-            console.log(filteredClasses)
-        } else {
-            filteredClasses.push(child.dataset.label)
-        }
-        update(resultsJsonData)
-    })
-    return childNode
-}
-
-function buildCheckboxLabel(idTag, text, boolState) {
-    return Element("label", { classList: idTag }, [
-        Element("input", { type: "checkbox", checked: boolState }, []),
-        text])
-}
-
-function updateChildren(children, state) {
-    children.forEach((child) => {
-        if (state) {
-            child.classList.remove("hidden")
-        } else {
-            child.classList.add("hidden")
-        }
-    })
-}
-
-function getRowsForClass(childTag) {
-    return this.elt.querySelectorAll(`tr.${childTag}`)
-}
-
 async function getResultsJson() {
     if (resultsJsonData == null) {
         let response = await fetch("results.json", {
@@ -372,13 +274,12 @@ function Element(tagname, props, children) {
 
 
 const htmlNode = document.querySelector("html")
-const bodyNode = htmlNode.querySelector("body")
+var bodyNode = htmlNode.querySelector("body")
 
 var resultsJsonData = null
 var filteredClasses = []
 // var filteredClasses = ["imp-start"]
 
 resultsJsonData = await getResultsJson()
-const filters = buildFilters(resultsJsonData)
 
 update(resultsJsonData)
