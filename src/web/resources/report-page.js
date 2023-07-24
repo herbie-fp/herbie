@@ -1,5 +1,4 @@
 function update(jsonData) {
-    console.log(jsonData)
     const filteredData = jsonData
 
     const navigation = Element("nav", {}, [
@@ -95,13 +94,28 @@ function update(jsonData) {
     bodyNode = newBody
 }
 
+var filterState = {
+    "imp-start": true,
+    "apx-start": true,
+    "uni-start": true,
+    "ex-start": true,
+    "eq-start": true,
+    "lt-start": true,
+    "gt-start": true,
+    "gt-target": true,
+    "eq-target": true,
+    "lt-target": true,
+    "error": true,
+    "timeout": true,
+    "crash": true,
+}
+
 function buildFilters() {
-    console.log("hello")
     const improvedTags = ["imp-start"]
     const name = renames[improvedTags[0]]
-    const button = buildCheckboxLabel(improvedTags[0], "hello", true)
+    const button = buildCheckboxLabel(improvedTags[0], name, filterState[improvedTags[0]])
     button.addEventListener("click", () => {
-        console.log("clicked")
+        filterState[improvedTags[0]] = button.querySelector("input").checked
         update(resultsJsonData)
     })
     return Element("div", { id: "filters" }, [button])
@@ -180,7 +194,7 @@ function plotPareto(jsonData) {
 function tableBody(jsonData) {
     var rows = []
     for (let test of jsonData.tests) {
-        if (!filteredClasses.includes(test.status)) {
+        if (filterState[test.status]) {
             rows.push(tableRow(test, rows.length))
         }
     }
