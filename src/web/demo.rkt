@@ -1,6 +1,7 @@
 #lang racket
 
 (require json)
+(require racket/exn)
 (require openssl/sha1 (rename-in xml [location? xml-location?]))
 (require web-server/servlet web-server/servlet-env web-server/dispatch
          web-server/dispatchers/dispatch web-server/dispatch/extend
@@ -268,12 +269,20 @@
   (lambda (req)
     (define post-body (request-post-data/raw req))
     (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
-    (response 200
-              #"OK"
-              (current-seconds)
-              APPLICATION/JSON-MIME-TYPE
-              (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-              (λ (op) (write-json (fn post-data) op)))))
+    (define resp (with-handlers ([exn:fail? (λ (e) (hash 'error (exn->string e)))]) (fn post-data)))
+    (if (hash-has-key? resp 'error)
+        (response 500
+                  #"Bad Request"
+                  (current-seconds)
+                  APPLICATION/JSON-MIME-TYPE
+                  (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+                  (λ (op) (write-json resp op)))
+        (response 200
+                  #"OK"
+                  (current-seconds)
+                  APPLICATION/JSON-MIME-TYPE
+                  (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+                  (λ (op) (write-json resp op))))))
 
 (define (response/error title body)
   (response/full 400
