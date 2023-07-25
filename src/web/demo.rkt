@@ -350,7 +350,8 @@
   (response/full (if (thread-running? *worker-thread*) 200 500)
                  (if (thread-running? *worker-thread*) #"Up" #"Down")
                  (current-seconds) #"text/plain"
-                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*))))
+                       (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
 
 (define (improve req)
