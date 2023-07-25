@@ -95,7 +95,11 @@ function update(jsonData) {
 }
 
 // View State
-var detailsState = true
+var detailsState = false
+var groupState = {
+    "improved": true,
+    "regressed": true
+}
 var filterState = {
     "imp-start": true,
     "ex-start": true,
@@ -137,6 +141,7 @@ function buildFilters(jsonTestData) {
             testTypeCounts[jsonTestData[i].status] += 1
         }
     }
+    
     var filterButtons = []
     for (let f in filterState) {
         const name = `${renames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
@@ -165,10 +170,33 @@ function buildFilters(jsonTestData) {
         }
     })
 
+    function setupGroup(name, childStateNames, parent) {
+        parent.addEventListener("click", (e) => {
+            if (e.target.nodeName == "INPUT") {
+                groupState[name] = !groupState[name]
+                for (let i in childStateNames) {
+                    filterState[childStateNames[i]] = e.target.checked
+                }
+                update(resultsJsonData)
+            }
+        })
+    }
+
+    const regressedTags = ["uni-start", "lt-target", "lt-start",
+        "apx-start", "timeout", "crash", "error"]
+    const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
+        "gt-target", "gt-start"]
+
+    const improvedButton = buildCheckboxLabel("improved", "Improved", groupState["improved"])
+    const regressedButton = buildCheckboxLabel("regressed", "Regressed", groupState["regressed"])
+
+    setupGroup("improved", improvedTags, improvedButton)
+    setupGroup("regressed", regressedTags, regressedButton)
+
     return Element("div", { id: "filters" }, [
         Element("div", { classList: "section-title" }, "Filters"),
         Element("div", { id: "filter-group" }, [
-            "BUTTON HERE"]),
+            improvedButton, regressedButton]),
         details])
 }
 
