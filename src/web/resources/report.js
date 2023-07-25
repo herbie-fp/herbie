@@ -126,7 +126,12 @@ const Results = new Component("#results", {
     },
     startingTestData: async function () {
         if (resultsTestData == null) {
-            ResultPlot.fns.setup()
+            let response = await fetch("results.json", {
+                headers: {"content-type": "text/plain"},
+                method: "GET",
+                mode: "cors",
+            });
+            resultsTestData = (await response.json()).tests;
             return resultsTestData
         } else {
             return resultsTestData
@@ -379,8 +384,6 @@ const ResultPlot = new Component('#xy', {
             mode: "cors",
         });
         let data = (await response.json()).tests;
-        // save data for later
-        resultsTestData = data
         this.updateWith(data)
     },
     updateWith: function(tests) {
