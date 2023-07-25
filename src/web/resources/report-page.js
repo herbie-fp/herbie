@@ -1,3 +1,25 @@
+// Helpers
+function formatAccuracy(num, dom) {
+    return `${(-((100 * (num / dom)) - 100)).toFixed(1)}%`
+}
+
+function formatTime(ms) {
+    if (ms > 60_000) {
+        return (ms / 60_000).toFixed(1) + "min"
+    } else {
+        return (ms / 1000).toFixed(1) + "s"
+    }
+}
+
+function displayCrashTimeoutRatio(errors, total) {
+    return `${errors}/${total}`
+}
+
+function calculateSpeedup(initialAccuracy, mergedCostAccuracy) {
+    return "TBD"
+}
+// end Helpers
+
 function update(jsonData) {
     const filteredData = jsonData
 
@@ -11,34 +33,44 @@ function update(jsonData) {
         navigation,
     ])
 
-    const total_start = 0
-    const total_result = 0
-    const maximum_accuracy = 0
+    var total_start = 0
+    var total_result = 0
+    var maximum_accuracy = 0
+    var total_time = 0
+    var total_crash_timeout = 0
+    jsonData.tests.forEach((test) => {
+        total_start += test.start
+        total_result += test.end
+        maximum_accuracy += test.bits
+        total_time += test.time
+        if (test.status == "timeout" || test.status == "crash") {
+            total_crash_timeout += 1
+        }
+    })
 
-    // TODO calculate from json instead of hard coded
     const stats = Element("div", { id: "large" }, [
         Element("div", {}, [
             "Average Percentage Accurate: ",
             Element("span", { classList: "number" }, [
-                "42.2%",
+                formatAccuracy(total_start, maximum_accuracy),
                 Element("span", { classList: "unit" }, [" → ",]),
-                "97.2%",]),
+                formatAccuracy(total_result, maximum_accuracy),]),
         ]),
         Element("div", {}, [
             "Time:",
-            Element("span", { classList: "number" }, ["7.5min"])
+            Element("span", { classList: "number" }, [formatTime(total_time)])
         ]),
         Element("div", {}, [
             "Bad Runs:",
-            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, ["0/28"])
+            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [displayCrashTimeoutRatio(total_crash_timeout, jsonData.tests.length)])
         ]),
         Element("div", {}, [
             "Speedup:",
-            Element("span", { classList: "number", title: "Aggregate speedup of fastest alternative that improves accuracy." }, ["8.9x"])
+            Element("span", { classList: "number", title: "Aggregate speedup of fastest alternative that improves accuracy." }, [calculateSpeedup(jsonData["initial-accuracy"], jsonData["merged-cost-accuracy"])])
         ]),
     ])
 
-    // TODO get these text sections from Json/server side?
+    // TODO  Ask about getting these text sections from Json/server side?
     const tempXY_A = "Output vs Input Accuracy"
     const tempXY_B = "Each point represents a Herbie run below. Its horizontal position shows initial accuracy, and vertical position shows final accuracy. Points above the line are improved by Herbie."
 
@@ -281,13 +313,22 @@ function tableBody(jsonData) {
     return Element("tbody", {}, rows)
 }
 
+function fixTarget(targetPer) {
+    // HACK be smarter
+    if (targetPer == "100.0%") {
+        return ""
+    } else {
+        return targetPer
+    }
+}
+
 function tableRow(test, i) {
     const tr = Element("tr", { classList: test.status }, [
         Element("td", {}, [test.name]),
-        Element("td", {}, ["%"]),
-        Element("td", {}, ["%"]),
-        Element("td", {}, ["%"]),
-        Element("td", {}, [`${test.time}`]),
+        Element("td", {}, [formatAccuracy(test.start, test.bits)]),
+        Element("td", {}, [formatAccuracy(test.end, test.bits)]),
+        Element("td", {}, [fixTarget(formatAccuracy(test.target, test.bits))]),
+        Element("td", {}, [formatTime(test.time)]),
         Element("td", {}, [
             Element("a", {
                 id: `test${i}`,
@@ -311,7 +352,6 @@ async function getResultsJson() {
         return resultsJsonData
     }
 }
-
 
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
@@ -355,10 +395,6 @@ function Element(tagname, props, children) {
 const htmlNode = document.querySelector("html")
 var bodyNode = htmlNode.querySelector("body")
 
-var resultsJsonData = null
-var filteredClasses = []
-// var filteredClasses = ["imp-start"]
-
-resultsJsonData = await getResultsJson()
+var resultsJsonData = await getResultsJson()
 
 update(resultsJsonData)
