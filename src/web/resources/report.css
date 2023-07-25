@@ -95,7 +95,7 @@ label.crash {accent-color: var(--result-light-orange);}
 label.error {accent-color: var(--result-error);}
 label.timeout {accent-color: var(--result-timeout);}
 #filters label {margin: 0; display: inline-block; padding: .4ex; color: var(--accent-text);}
-#filter-group { accent-color: var(--accent-blue);}
+#filters details summary { accent-color: var(--accent-blue);}
 
 /* Table of results */
 

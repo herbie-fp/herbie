@@ -44,7 +44,7 @@ const renames = {
     "lt-start": "Less than start",
     "gt-start": "Greater than start",
     "gt-target": "Greater than target",
-    "eq-target": "Equal target",
+    "eq-target": "Equal to target",
     "lt-target": "Less than target",
     "error": "Error",
     "timeout": "Timeout",
@@ -81,11 +81,10 @@ const Results = new Component("#results", {
         const regressedLeader = this.attachLeaderToChildren("regressed", "Regressed", regressedChildren)
 
         this.elt.parentNode.insertBefore(Element("div", { id: "filters" }, [
-            Element("header", { classList: "section-title" }, "Filters"),
-            Element("div", { id: "filter-group" }, [
-                improvedLeader, regressedLeader]),
             Element("details", [
-                Element("summary", "Advanced"), [
+                Element("summary", [
+                    Element("h2", { classList: "section-title" }, "Filters"),
+                    improvedLeader, regressedLeader]), [
                     improvedChildren, regressedChildren]])]), this.elt)
     },
     attachLeaderToChildren: function (leaderTag, leaderName, childNodes) {
