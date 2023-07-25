@@ -11,6 +11,10 @@ function update(jsonData) {
         navigation,
     ])
 
+    const total_start = 0
+    const total_result = 0
+    const maximum_accuracy = 0
+
     // TODO calculate from json instead of hard coded
     const stats = Element("div", { id: "large" }, [
         Element("div", {}, [
@@ -125,7 +129,7 @@ const renames = {
     "lt-start": "Less than start",
     "gt-target": "Greater than target",
     "gt-start": "Greater than start",
-    "eq-target": "Equal target",
+    "eq-target": "Equal to target",
     "lt-target": "Less than target",
     "error": "Error",
     "timeout": "Timeout",
@@ -141,7 +145,7 @@ function buildFilters(jsonTestData) {
             testTypeCounts[jsonTestData[i].status] += 1
         }
     }
-    
+
     var filterButtons = []
     for (let f in filterState) {
         const name = `${renames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
@@ -160,15 +164,6 @@ function buildFilters(jsonTestData) {
             return {}
         }
     }
-
-    const details = Element("details", showDetails(), [
-        Element("summary", "Advanced"), [
-            filterButtons]])
-    details.addEventListener("click", (e) => {
-        if (e.target.nodeName == "SUMMARY") {
-            detailsState = !detailsState
-        }
-    })
 
     function setupGroup(name, childStateNames, parent) {
         parent.addEventListener("click", (e) => {
@@ -193,11 +188,17 @@ function buildFilters(jsonTestData) {
     setupGroup("improved", improvedTags, improvedButton)
     setupGroup("regressed", regressedTags, regressedButton)
 
-    return Element("div", { id: "filters" }, [
-        Element("div", { classList: "section-title" }, "Filters"),
-        Element("div", { id: "filter-group" }, [
-            improvedButton, regressedButton]),
-        details])
+    const details = Element("details", showDetails(), [
+        Element("summary", {}, [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton]), [
+            filterButtons]])
+    details.addEventListener("click", (e) => {
+        if (e.target.nodeName == "H2") {
+            detailsState = !detailsState
+        }
+    })
+
+    return Element("div", { id: "filters" }, [details])
 }
 
 function buildCheckboxLabel(idTag, text, boolState) {
