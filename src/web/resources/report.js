@@ -82,7 +82,7 @@ const Results = new Component("#results", {
 
         this.elt.parentNode.insertBefore(Element("details",{ id: "filters" }, [
             Element("summary", [
-                Element("h2", { classList: "section-title" }, "Filters"),
+                Element("h2", {}, "Filters"),
                 improvedLeader, regressedLeader]), [
                 improvedChildren, regressedChildren]]), this.elt)
     },
