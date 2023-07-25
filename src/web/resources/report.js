@@ -80,7 +80,7 @@ const Results = new Component("#results", {
         const improvedLeader = this.attachLeaderToChildren("improved", "Improved", improvedChildren)
         const regressedLeader = this.attachLeaderToChildren("regressed", "Regressed", regressedChildren)
 
-        this.elt.parentNode.insertBefore(Element("details", { id: "filters" }, [
+        this.elt.parentNode.insertBefore(Element("details",{ id: "filters" }, [
             Element("summary", [
                 Element("h2", { classList: "section-title" }, "Filters"),
                 improvedLeader, regressedLeader]), [
@@ -131,29 +131,29 @@ const Results = new Component("#results", {
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
 function on(mark, listeners = {}) {
-    const render = mark.render;
-    mark.render = function (facet, { x, y }, channels) {
-        const data = this.data;
-        const g = render.apply(this, arguments);
-        const r = d3.select(g).selectChildren();
-        for (const [type, callback] of Object.entries(listeners)) {
-            r.on(type, function (event, i) {
-                return callback(event, data[i]);
-            });
-        }
-        return g;
-    };
-    return mark;
+  const render = mark.render;
+  mark.render = function (facet, { x, y }, channels) {
+    const data = this.data;
+    const g = render.apply(this, arguments);
+    const r = d3.select(g).selectChildren();
+    for (const [type, callback] of Object.entries(listeners)) {
+      r.on(type, function(event, i) {
+          return callback(event, data[i]);
+      });
+    }
+    return g;
+  };
+  return mark;
 }
 
 var Subreport = new Component("#subreports", {
-    setup: function () {
+    setup: function() {
         this.elt.classList.add("no-subreports");
-        this.button = Element("a", { id: "subreports-toggle" }, "See subreports");
+        this.button = Element("a", {id: "subreports-toggle"}, "See subreports");
         this.button.addEventListener("click", this.toggle);
         this.elt.insertBefore(this.button, this.elt.children[0]);
     },
-    toggle: function () {
+    toggle: function() {
         this.elt.classList.toggle("no-subreports");
         var changed_only = this.elt.classList.contains("no-subreports");
         this.button.innerText = changed_only ? "See subreports" : "Hide subreports";
@@ -161,13 +161,13 @@ var Subreport = new Component("#subreports", {
 });
 
 var TogglableFlags = new Component("#flag-list", {
-    setup: function () {
+    setup: function() {
         this.elt.classList.add("changed-flags");
-        this.button = Element("a", { id: "flag-list-toggle" }, "see all");
+        this.button = Element("a", {id: "flag-list-toggle"}, "see all");
         this.button.addEventListener("click", this.toggle);
         this.elt.insertBefore(this.button, this.elt.children[0]);
     },
-    toggle: function () {
+    toggle: function() {
         this.elt.classList.toggle("changed-flags");
         var changed_only = this.elt.classList.contains("changed-flags");
         this.button.innerText = changed_only ? "see all" : "see diff";
@@ -175,26 +175,20 @@ var TogglableFlags = new Component("#flag-list", {
 });
 
 const ALL_LINES = [
-    {
-        name: 'start', description: "Initial program",
-        line: { stroke: '#d00' }, dot: { stroke: '#d002' }
-    },
-    {
-        name: 'end', description: "Most accurate alternative",
-        line: { stroke: '#00a' }, dot: { stroke: '#00a2' }
-    },
-    {
-        name: 'target', description: "Developer target",
-        line: { stroke: '#080' }, dot: { stroke: '#0802' }
-    }
+    { name: 'start', description: "Initial program",
+      line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
+    { name: 'end', description: "Most accurate alternative",
+      line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
+    { name: 'target', description: "Developer target",
+      line: { stroke: '#080' }, dot: { stroke: '#0802'}}
 ]
 
 const ClientGraph = new Component('#graphs', {
-    setup: async function () {
+    setup: async function() {
         const points = await fetch("points.json", {
-            headers: { "content-type": "text/plain" },
-            method: "GET",
-            mode: 'cors'
+                headers: {"content-type": "text/plain"},
+                method: "GET",
+                mode: 'cors'
         });
         this.points_json = await points.json();
         this.all_vars = this.points_json.vars;
@@ -203,7 +197,7 @@ const ClientGraph = new Component('#graphs', {
         await this.render(this.all_vars[0], ['start', 'end']);
     },
 
-    render_variables: function ($elt, selected_var_name, selected_functions) {
+    render_variables: function($elt, selected_var_name, selected_functions) {
         $elt.replaceChildren(
             Element("select", {
                 oninput: (e) => this.render(e.target.value, selected_functions),
@@ -215,12 +209,12 @@ const ClientGraph = new Component('#graphs', {
             )));
     },
 
-    render_functions: function ($elt, selected_var_name, selected_functions) {
+    render_functions: function($elt, selected_var_name, selected_functions) {
         const all_lines = ALL_LINES.filter(o => this.points_json.error[o.name] != false)
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
         $elt.replaceChildren.apply(
             $elt,
-            all_lines.map(fn =>
+            all_lines.map(fn => 
                 Element("label", [
                     Element("input", {
                         type: "checkbox",
@@ -233,27 +227,27 @@ const ClientGraph = new Component('#graphs', {
                 ])),
         );
     },
-
-    sliding_window: function (A, size) {
+    
+    sliding_window: function(A, size) {
         const half = Math.floor(size / 2)
         const running_sum = A.reduce((acc, v) => (acc.length > 0 ? acc.push(v.y + acc[acc.length - 1]) : acc.push(v.y), acc), [])
         return running_sum.reduce((acc, v, i) => {
-            const length =
-                (i - half) < 0 ? half + i
-                    : (i + half) >= running_sum.length ? (running_sum.length - (i - half))
-                        : size
+            const length = 
+                  (i - half) < 0 ? half + i
+                  : (i + half) >= running_sum.length ? (running_sum.length - (i - half))
+                  : size
             const top =
-                (i + half) >= running_sum.length ? running_sum[running_sum.length - 1]
-                    : running_sum[i + half]
+                  (i + half) >= running_sum.length ? running_sum[running_sum.length - 1]
+                  : running_sum[i + half]
             const bottom =
-                (i - half) < 0 ? 0
-                    : running_sum[i - half]
-            acc.push({ average: (top - bottom) / length, x: A[i].x, length })
+                  (i - half) < 0 ? 0
+                  : running_sum[i - half]
+            acc.push({average: (top - bottom) / length, x: A[i].x, length})
             return acc
         }, [])
     },
 
-    plot: async function (varName, function_names) {
+    plot: async function(varName, function_names) {
         const functions = ALL_LINES.filter(o => function_names.includes(o.name))
         const index = this.all_vars.indexOf(varName)
         // NOTE ticks and splitpoints include all vars, so we must index
@@ -288,7 +282,7 @@ const ClientGraph = new Component('#graphs', {
                 x: input[index],
                 y: 1 - error[name] / bits
             })).sort(key_fn(d => d.x))
-                .map(({ x, y }, i) => ({ x, y, i }))
+                  .map(({ x, y }, i) => ({ x, y, i }))
             const compress = (L, out_len, chunk_compressor = points => points[0]) => L.reduce((acc, pt, i) => i % Math.floor(L.length / out_len) == 0 ? (acc.push(chunk_compressor(L.slice(i, i + Math.floor(L.length / out_len)))), acc) : acc, [])
             const bin_size = 128
             const sliding_window_data = compress(
@@ -319,7 +313,7 @@ const ClientGraph = new Component('#graphs', {
                 line: true, grid: true,
                 domain,
             },
-            y: { line: true, domain: [0, 1], tickFormat: "%", },
+            y: { line: true, domain: [0, 1], tickFormat: "%",},
             marginBottom: 0,
             marginRight: 0,
         });
@@ -327,7 +321,7 @@ const ClientGraph = new Component('#graphs', {
         return out
     },
 
-    render: async function (selected_var_name, selected_functions) {
+    render: async function(selected_var_name, selected_functions) {
         this.render_variables(this.$variables, selected_var_name, selected_functions);
         this.render_functions(this.$functions, selected_var_name, selected_functions);
         let $svg = this.elt.querySelector("svg");
@@ -336,9 +330,9 @@ const ClientGraph = new Component('#graphs', {
 })
 
 const ResultPlot = new Component('#xy', {
-    setup: async function () {
+    setup: async function() {
         let response = await fetch("results.json", {
-            headers: { "content-type": "text/plain" },
+            headers: {"content-type": "text/plain"},
             method: "GET",
             mode: "cors",
         });
@@ -346,12 +340,12 @@ const ResultPlot = new Component('#xy', {
         let data = (await response.json()).tests;
         this.elt.replaceChild(this.plot(data), stub)
     },
-    plot: function (tests) {
+    plot: function(tests) {
         const out = Plot.plot({
             marks: [
-                Plot.line([[0, 0], [1, 1]], { stroke: '#ddd' }),
+                Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
                 on(Plot.dot(tests, {
-                    x: d => 1 - d.start / 64, y: d => 1 - d.end / 64,
+                    x: d => 1 - d.start/64, y: d => 1 - d.end/64,
                     fill: "#00a", strokeWidth: 2,
                 }), {
                     click: (e, d) => { window.location = d.link + "/graph.html"; },
@@ -371,9 +365,9 @@ const ResultPlot = new Component('#xy', {
 })
 
 const MergedCostAccuracy = new Component('#pareto', {
-    setup: async function () {
+    setup: async function() {
         let response = await fetch('results.json', {
-            headers: { "content-type": "text/plain" },
+            headers: {"content-type": "text/plain"},
             method: "GET",
             mode: 'cors'
         });
@@ -383,7 +377,7 @@ const MergedCostAccuracy = new Component('#pareto', {
         this.elt.replaceChild(this.plot(initial, frontier), stub)
     },
 
-    plot: function (initial, frontier) {
+    plot: function(initial, frontier) {
         const out = Plot.plot({
             marks: [
                 Plot.dot([initial], {
@@ -409,17 +403,17 @@ const MergedCostAccuracy = new Component('#pareto', {
 })
 
 const CostAccuracy = new Component('#cost-accuracy', {
-    setup: async function () {
+    setup: async function() {
         const $svg = this.elt.querySelector("svg");
         const $tbody = this.elt.querySelector("tbody");
 
         let response = await fetch("../results.json", {
-            headers: { "content-type": "text/plain" },
+            headers: {"content-type": "text/plain"},
             method: "GET",
             mode: "cors",
         });
         let results_json = await response.json();
-
+        
         // find right test by iterating through results_json
         for (let test of results_json.tests) {
             if (test.name == this.elt.dataset.benchmarkName) {
@@ -433,7 +427,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
         }
     },
 
-    plot: async function (benchmark, initial_pt, target_pt, rest_pts) {
+    plot: async function(benchmark, initial_pt, target_pt, rest_pts) {
         const bits = benchmark["bits"];
 
         // The line differs from rest_pts in two ways:
@@ -452,26 +446,26 @@ const CostAccuracy = new Component('#cost-accuracy', {
         const out = Plot.plot({
             marks: [
                 Plot.line(line, {
-                    x: d => initial_pt[0] / d[0],
-                    y: d => 1 - d[1] / bits,
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
                     stroke: "#00a", strokeWidth: 1, strokeOpacity: .2,
                 }),
                 Plot.dot(rest_pts, {
-                    x: d => initial_pt[0] / d[0],
-                    y: d => 1 - d[1] / bits,
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
                     fill: "#00a", r: 3,
                 }),
                 Plot.dot([initial_pt], {
-                    x: d => initial_pt[0] / d[0],
-                    y: d => 1 - d[1] / bits,
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
                     stroke: "#d00", symbol: "square", strokeWidth: 2
                 }),
                 target_pt && Plot.dot([target_pt], {
-                    x: d => initial_pt[0] / d[0],
-                    y: d => 1 - d[1] / bits,
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
                     stroke: "#080", symbol: "circle", strokeWidth: 2
                 }),
-            ].filter(x => x),
+            ].filter(x=>x),
             marginBottom: 0,
             marginRight: 0,
             width: '400',
@@ -483,9 +477,9 @@ const CostAccuracy = new Component('#cost-accuracy', {
         return out
     },
 
-    tbody: async function (benchmark, initial_pt, target_pt, rest_pts) {
+    tbody: async function(benchmark, initial_pt, target_pt, rest_pts) {
         const bits = benchmark["bits"];
-        const initial_accuracy = 100 * (1 - initial_pt[1] / bits);
+        const initial_accuracy = 100*(1 - initial_pt[1]/bits);
 
         return Element("tbody", [
             Element("tr", [
@@ -494,25 +488,24 @@ const CostAccuracy = new Component('#cost-accuracy', {
                 Element("td", "1.0×")
             ]),
             rest_pts.map((d, i) => {
-                let accuracy = 100 * (1 - d[1] / bits);
-                let speedup = initial_pt[0] / d[0];
+                let accuracy = 100*(1 - d[1]/bits);
+                let speedup = initial_pt[0]/d[0];
                 return Element("tr", [
                     Element("th",
                         rest_pts.length > 1 ?
-                            Element("a", { href: "#alternative" + (i + 1) },
-                                "Alternative " + (i + 1))
+                            Element("a", { href: "#alternative" + (i + 1)},
+                                "Alternative " + (i + 1)) 
                             // else
                             : "Alternative " + (i + 1)
                     ),
                     Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
-                        accuracy.toFixed(1) + "%"),
+                            accuracy.toFixed(1) + "%"),
                     Element("td", { className: speedup >= 1 ? "better" : "" },
-                        speedup.toFixed(1) + "×")
-                ])
-            }),
+                            speedup.toFixed(1) + "×")
+            ])}),
             target_pt && Element("tr", [
                 Element("th", "Developer target"),
-                Element("td", 100 * (1 - target_pt[1] / bits).toFixed(1) + "%"),
+                Element("td", 100 * (1 - target_pt[1]/bits).toFixed(1) + "%"),
                 Element("td", (initial_pt[0] / target_pt[0]).toFixed(1) + "×"),
             ]),
         ]);
@@ -520,28 +513,28 @@ const CostAccuracy = new Component('#cost-accuracy', {
 });
 
 var RenderMath = new Component(".math", {
-    depends: function () {
+    depends: function() {
         if (typeof window.renderMathInElement === "undefined") throw "KaTeX unavailable";
     },
-    setup: function () {
+    setup: function() {
         renderMathInElement(this.elt);
     },
 });
 
 var Timeline = new Component(".timeline", {
-    setup: function () {
+    setup: function() {
         var ts = this.elt.querySelectorAll(".timeline-phase");
         for (var i = 0; i < ts.length; i++) {
             var timespan = +ts[i].getAttribute("data-timespan");
             var type = ts[i].getAttribute("data-type");
             ts[i].style.flexGrow = timespan;
-            ts[i].title = type + " (" + Math.round(timespan / 100) / 10 + "s)";
+            ts[i].title = type + " (" + Math.round(timespan/100)/10 + "s)";
         }
     }
 });
 
 var Bogosity = new Component(".bogosity", {
-    setup: function () {
+    setup: function() {
         var ts = this.elt.children;
         for (var i = 0; i < ts.length; i++) {
             var timespan = +ts[i].getAttribute("data-timespan");
@@ -551,27 +544,27 @@ var Bogosity = new Component(".bogosity", {
 });
 
 var Implementations = new Component(".programs", {
-    setup: function () {
+    setup: function() {
         this.dropdown = this.elt.querySelector("select");
         this.programs = this.elt.querySelectorAll(".implementation");
         this.elt.addEventListener("change", this.change);
         this.change();
     },
-    change: function () {
+    change: function() {
         var lang = this.dropdown.options[this.dropdown.selectedIndex].text;
         for (var i = 0; i < this.programs.length; i++) {
             var $prog = this.programs[i];
             if ($prog.dataset["language"] == lang) {
                 $prog.style.display = "block";
             } else {
-                $prog.style.display = "none";
+                $prog.style.display =  "none";
             }
         }
     },
 });
 
 function pct(val, base) {
-    return Math.floor(val / base * 10000) / 100 + "%";
+    return Math.floor(val/base * 10000) / 100 + "%";
 }
 
 function time(s) {
@@ -597,14 +590,14 @@ function path(p) {
 }
 
 var Profile = new Component("#profile", {
-    setup: function () {
+    setup: function() {
         var text = this.elt.querySelector(".load-text");
         fetch("profile.json")
             .then(response => response.json())
-            .catch(function (error) { text.textContent = "Error loading profile data" })
+            .catch(function(error) { text.textContent = "Error loading profile data" })
             .then(data => this.render(data))
     },
-    render: function (json) {
+    render: function(json) {
         this.json = json;
         this.search = Element("input", {
             placeholder: "Search for a function...",
@@ -623,20 +616,19 @@ var Profile = new Component("#profile", {
         this.elt.appendChild(this.mkNode(json.nodes[json.nodes[0].callees[0].callee]));
         this.elt.classList.add("loaded");
     },
-    mkNode: function (node) {
+    mkNode: function(node) {
         var that = this;
         var nelt = Element("div", { className: "node" }, [
             Element("a", { className: "name delete" }, node.id || "???"),
             Element("span", { className: "path" }, path(node.src)),
             Element("span", {
                 className: "pct",
-                title: "Self-time: " + pct(node.self, that.json.cpu_time)
-            }, [
-                time(node.total),
-            ]),
+                title: "Self-time: " + pct(node.self, that.json.cpu_time) }, [
+                    time(node.total),
+                ]),
         ]);
         var elt = Element("div", { className: "profile-row" }, [
-            node.callers.sort((e1, e2) => e1.caller_time - e2.caller_time).map(function (edge) {
+            node.callers.sort((e1, e2) => e1.caller_time - e2.caller_time).map(function(edge) {
                 var other = that.json.nodes[edge.caller];
                 elt = Element("div", { className: "edge" }, [
                     Element("a", { className: "name" }, other.id || "???"),
@@ -647,7 +639,7 @@ var Profile = new Component("#profile", {
                 return elt;
             }),
             nelt,
-            node.callees.sort((e1, e2) => e2.callee_time - e1.callee_time).map(function (edge) {
+            node.callees.sort((e1, e2) => e2.callee_time - e1.callee_time).map(function(edge) {
                 var other = that.json.nodes[edge.callee];
                 elt = Element("div", { className: "edge" }, [
                     Element("a", { className: "name" }, other.id || "???"),
@@ -658,19 +650,19 @@ var Profile = new Component("#profile", {
                 return elt;
             }),
         ]);
-        nelt.children[0].addEventListener("click", function () { elt.remove(); });
+        nelt.children[0].addEventListener("click", function() { elt.remove(); });
         return elt;
     },
-    addElt: function (other) {
+    addElt: function(other) {
         var that = this;
-        return function () {
+        return function() {
             var newelt = that.mkNode(other)
             that.elt.appendChild(newelt);
             newelt.scrollTo();
             return newelt;
         }
     },
-    doSearch: function (e) {
+    doSearch: function(e) {
         e.preventDefault();
         var term = this.search.value;
         var elt = this.addElt(this.json.nodes.find(n => n.id == term))();
@@ -710,29 +702,29 @@ function histogram(id, data, options) {
     canvas.setAttribute("width", margin + width + margin + "px");
     canvas.setAttribute("height", labels + margin + height + ticks + margin + labels + "px");
     var ctx = canvas.getContext("2d");
-
+      
     ctx.beginPath();
     ctx.strokeStyle = "black";
     ctx.moveTo(margin, labels + margin + height);
     ctx.lineTo(margin + width, labels + margin + height);
     ctx.stroke();
-
+    
     var xma = options?.max ?? Math.max.apply(null, data);
-
+      
     var buckets = Array(bucketnum);
     var sum = 0;
     buckets.fill(0);
     for (var i = 0; i < data.length; i++) {
         var j = Math.floor(data[i] / xma * buckets.length);
         var x = proportional ? data[i] : 1;
-        buckets[Math.min(j, buckets.length - 1)] += x;
+        buckets[Math.min(j, buckets.length-1)] += x;
         sum += x;
     }
     var yma = Math.max.apply(null, buckets);
-
+    
     ctx.fillStyle = "rgba(0, 0, 0, .2)";
     for (var i = 0; i < buckets.length; i++) {
-        ctx.fillRect(margin + i / buckets.length * width, labels + margin + height, width / buckets.length, -height * buckets[i] / yma);
+        ctx.fillRect(margin + i/buckets.length*width, labels + margin + height, width/buckets.length, -height*buckets[i]/yma);
     }
 
     ctx.fillStyle = "black";
@@ -740,9 +732,9 @@ function histogram(id, data, options) {
     ctx.textAlign = "center";
     for (var i = 0; i < buckets.length; i++) {
         if (buckets[i] == 0) continue;
-        ctx.fillText(Math.round(buckets[i] / sum * 100) + "%", margin + (i + .5) / buckets.length * width, labels + height * (1 - buckets[i] / yma));
+        ctx.fillText(Math.round(buckets[i] / sum * 100) + "%", margin + (i + .5)/buckets.length * width, labels + height*(1 - buckets[i]/yma));
     }
-
+    
     ctx.textBaseline = "top";
     var base = Math.round(Math.log10(xma)) - 1
     var step = Math.pow(10, base);
