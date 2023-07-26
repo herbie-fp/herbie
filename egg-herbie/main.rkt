@@ -92,7 +92,7 @@
 ;; egraph pointer, s-expr string -> node number
 (define-eggmath egraph_add_expr (_fun _egraph-pointer _string/utf-8 -> _uint))
 
-(define-eggmath destroy_egraphiters (_fun _EGraphIter-pointer _uint _uint -> _void))
+(define-eggmath destroy_egraphiters (_fun _pointer -> _void))
 
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _bool))
 
@@ -100,24 +100,24 @@
   (_fun _egraph-pointer                           ;; egraph
         (ffi-rules : (_list i _FFIRule-pointer))  ;; ffi rules
         (_uint = (length ffi-rules))              ;; number of rules
-        (iterations-length : (_ptr o _uint))      ;; pointer to length of resulting vector
-        (iterations-capacity : (_ptr o _uint))    ;; pointer to capacity of resulting vector
+        (iterations-length : (_ptr o _uint))      ;; pointer to length of resulting array
+        (iterations-ptr : (_ptr o _pointer))      ;; pointer to array allocation, caller frees
         _uint                                     ;; iter limit
         _uint                                     ;; node limit
         _bool                                     ;; constant folding enabled?
         -> (iterations : _EGraphIter-pointer)
-        -> (values iterations iterations-length iterations-capacity)))
+        -> (values iterations iterations-length iterations-ptr)))
 
 (define-eggmath egraph_run
   (_fun _egraph-pointer                           ;; egraph
         (ffi-rules : (_list i _FFIRule-pointer))  ;; ffi rules
         (_uint = (length ffi-rules))              ;; number of rules
         (iterations-length : (_ptr o _uint))      ;; pointer to size of resulting array
-        (iterations-capacity : (_ptr o _uint))    ;; pointer to size of resulting array
+        (iterations-ptr : (_ptr o _pointer))      ;; pointer to array allocation, caller frees
         _uint                                     ;; node limit
         _bool                                     ;; constant folding enabled?
         -> (iterations : _EGraphIter-pointer)
-        -> (values iterations iterations-length iterations-capacity)))
+        -> (values iterations iterations-length iterations-ptr)))
 
 ;; gets the stop reason as an integer
 (define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))

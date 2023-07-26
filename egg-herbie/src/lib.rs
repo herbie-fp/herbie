@@ -5,6 +5,7 @@ pub mod rules;
 
 use egg::{Extractor, Id, Language, StopReason, Symbol};
 use indexmap::IndexMap;
+use libc::c_void;
 use math::*;
 
 use std::cmp::min;
@@ -36,9 +37,10 @@ pub unsafe extern "C" fn egraph_destroy(ptr: *mut Context) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_egraphiters(data: *mut EGraphIter, length: u32, capacity: u32) {
+pub unsafe extern "C" fn destroy_egraphiters(ptr: *mut c_void) {
     // TODO: Switch ffi to use `usize` directly to avoid the risk of these being incorrect
-    drop(Vec::from_raw_parts(data, length as usize, capacity as usize))
+    drop(Box::from_raw(ptr as *mut Vec<EGraphIter>));
+    // drop(Vec::from_raw_parts(data, length as usize, capacity as usize))
 }
 
 #[no_mangle]
@@ -99,7 +101,7 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
     rules_array_ptr: *const *mut FFIRule,
     rules_array_length: u32,
     iterations_length: *mut u32,
-    iterations_capacity: *mut u32,
+    iterations_ptr: *mut *mut c_void,
     iter_limit: u32,
     node_limit: u32,
     is_constant_folding_enabled: bool
@@ -150,13 +152,13 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
                 time: iteration.total_time,
             })
             .collect::<Vec<_>>();
-        let iterations = ManuallyDrop::new(iterations);
+        let iterations_data = iterations.as_ptr();
 
         std::ptr::write(iterations_length, iterations.len() as u32);
-        std::ptr::write(iterations_capacity, iterations.capacity() as u32);
+        std::ptr::write(iterations_ptr, Box::into_raw(Box::new(iterations)) as *mut c_void);
         mem::forget(context);
 
-        iterations.as_ptr()
+        iterations_data
 }
 
 #[no_mangle]
@@ -165,7 +167,7 @@ pub unsafe extern "C" fn egraph_run(
     rules_array_ptr: *const *mut FFIRule,
     rules_array_length: u32,
     iterations_length: *mut u32,
-    iterations_capacity: *mut u32,
+    iterations_ptr: *mut *mut c_void,
     node_limit: u32,
     is_constant_folding_enabled: bool,
 ) -> *const EGraphIter {
@@ -174,7 +176,7 @@ pub unsafe extern "C" fn egraph_run(
 	rules_array_ptr,
 	rules_array_length,
 	iterations_length,
-	iterations_capacity,
+	iterations_ptr,
 	u32::MAX,
 	node_limit,
 	is_constant_folding_enabled
