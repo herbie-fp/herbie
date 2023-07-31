@@ -497,10 +497,18 @@
                                         test-pcontext
                                         (test-context test)))))
               (get-output-string os)))))
+      (define derivations 
+        (for/list ([altn altns])
+                  (render-json altn
+                                        processed-pcontext
+                                        test-pcontext
+                                        (test-context test))))
 
+      (displayln derivations)
       (eprintf " complete\n")
       (hasheq 'alternatives fpcores
               'histories histories
+              'derivations derivations
               'splitpoints splitpoints))))
 
 (define ->mathjs-endpoint

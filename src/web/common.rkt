@@ -13,6 +13,7 @@
 (provide render-menu render-warnings render-large render-comparison render-program
          render-bogosity render-help
          format-percent
+         fpcore->string
          program->fpcore program->tex render-reproduction js-tex-include)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
