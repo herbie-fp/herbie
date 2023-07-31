@@ -4,8 +4,7 @@
          "syntax/syntax.rkt" "syntax/types.rkt" "alternative.rkt" "common.rkt"
          "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
 
-(provide add-preprocessing-tests find-preprocessing preprocess-pcontext
-         remove-unnecessary-preprocessing)
+(provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 
@@ -15,29 +14,42 @@
 ;; operator : Instruction -> (Point -> Point)
 (struct preprocessing-step (tests instructions operator) #:transparent)
 
-(define (add-preprocessing-tests egraph expression context)
-  (for/list ([step (in-dict-values preprocessing-steps)])
-    (match-define (preprocessing-step tests _ _) step)
-    (for/list ([test (in-list (tests expression context))])
-      (match-define (cons expression* item) test)
-      (cons (egraph-add-expr egraph expression*) item))))
-
-(define (find-preprocessing egraph test-groups specification-id context)
+(define (find-preprocessing initial specification context rules node-limit initial-simplify?)
+  (define egraph (make-egraph))
+  (define specification-id (egraph-add-expr egraph specification))
+  (define initial-id (and initial-simplify? (egraph-add-expr egraph initial)))
+  (define test-groups
+    (for/list ([step (in-dict-values preprocessing-steps)])
+      (match-define (preprocessing-step tests _ _) step)
+      (for/list ([test (in-list (tests specification context))])
+        (match-define (cons specification* item) test)
+        (cons (egraph-add-expr egraph specification*) item))))
   (define (equivalent? id)
     (= (egraph-find egraph specification-id)
        (egraph-find egraph id)))
-  (apply
-   append
-   (for/list ([(type step) (in-dict preprocessing-steps)]
-              [tests (in-list test-groups)])
-     (match-define (preprocessing-step _ instructions _) step)
-     (map
-      (curry list type)
-      (instructions
-       (filter-map
-        (match-lambda [(cons id item) (and (equivalent? id) item)])
-        tests)
-       context)))))
+  (match-define (list _ ffi-rules _) (expand-rules rules))
+  ;; TODO: const-folding?, iter-limit
+  (define iteration-data (egraph-run egraph node-limit ffi-rules #t #f))
+  (define instructions
+    (apply
+     append
+     (for/list ([(type step) (in-dict preprocessing-steps)]
+                [tests (in-list test-groups)])
+       (match-define (preprocessing-step _ instructions _) step)
+       (map
+        (curry list type)
+        (instructions
+         (filter-map
+          (match-lambda [(cons id item) (and (equivalent? id) item)])
+          tests)
+         context)))))
+  (define simplified
+    (if initial-simplify?
+        (remove-duplicates
+         (for/list ([iteration (in-range (length iteration-data))])
+           (egraph-get-simplest egraph initial-id iteration)))
+        null))
+  (values simplified instructions))
 
 (define (preprocess-pcontext context pcontext instructions)
   (define (instruction->operator context instruction)

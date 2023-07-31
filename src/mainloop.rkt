@@ -300,23 +300,17 @@
                     (list (*context*))))
   (cons domain (apply mk-pcontext pts+exs)))
 
-(define (initialize-alt-table! egraph initial initial-id pcontext context
-                               iterations-length)
+(define (initialize-alt-table! initial simplified pcontext context)
   (define alternative (make-alt initial))
   (define table (make-alt-table pcontext alternative context))
-  (^table^
-   (if (flag-set? 'setup 'simplify)
-       (let ([simplified 
-              (remove-duplicates
-               (for/list ([iteration (in-range iterations-length)])
-                 (alt
-                  (egraph-get-simplest egraph initial-id iteration)
-                  ;; TODO: What to put where egg-query was
-                  (list 'simplify null 'todo-egg-query #f #f)
-                  (list alternative))))])
-         (define-values (errss costs) (atab-eval-altns table simplified context))
-         (atab-add-altns table simplified errss costs))
-       table)))
+  (define simplified*
+    (for/list ([expression (in-list simplified)])
+      (alt
+       expression
+       (list 'simplify null 'todo-egg-query #f #f)
+       (list alternative))))
+  (define-values (errss costs) (atab-eval-altns table simplified* context))
+  (^table^ (atab-add-altns table simplified* errss costs)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve vars prog iters
@@ -330,43 +324,32 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-(define (run-improve! initial context pcontext rules iterations
-                      #:specification [specification #f])
+(define (run-improve! initial specification context pcontext
+                      rules iterations node-limit)
   ;; TODO: The developer target for quotient of products gets *more accurate*
   ;; with this change, what did I do to screw that up? It's gotta be that I've
   ;; screwed up something with the pcontext but I can't see where
   (timeline-event! 'preprocess)
-  (define egraph (make-egraph))
-  (define specification* (or specification initial))
-  (define specification-id (egraph-add-expr egraph specification*))
-  (define initial-id (if (flag-set? 'setup 'simplify)
-                         (egraph-add-expr egraph initial)
-                         #f))
-  (define test-groups (add-preprocessing-tests egraph specification* context))
-
-  (match-define (list _ ffi-rules _) (expand-rules rules))
-  ;; TODO: const-folding?, iter-limit
-  (define iteration-data (egraph-run egraph (*node-limit*) ffi-rules #t #f))
-
-  (define preprocessing (find-preprocessing egraph test-groups specification-id context))
+  (define-values (simplified preprocessing)
+    (find-preprocessing initial specification context
+                        rules node-limit (flag-set? 'setup 'simplify)))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-
-  (*pcontext* pcontext*)
-  (*start-prog* initial)
-  ;; TODO: starting-expressions Brett precisions stuff
-  (initialize-alt-table! egraph initial initial-id pcontext* context
-                         (length iteration-data))
-
-  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
-    (run-iter!))
-  (match-define (and alternatives (cons (alt best _ _) _)) (extract!))
-
+  (match-define (and alternatives (cons (alt best _ _) _))
+    (mutate! initial simplified iterations pcontext*))
   (timeline-event! 'preprocess)
   (define preprocessing*
     (remove-unnecessary-preprocessing best context pcontext preprocessing))
 
   (values alternatives preprocessing*))
+
+(define (mutate! initial simplified iterations pcontext)
+  (*pcontext* pcontext)
+  (*start-prog* initial)
+  (initialize-alt-table! initial simplified (*pcontext*) (*context*))
+  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
+    (run-iter!))
+  (extract!))
 
 (define (extract!)
   (define ctx (*context*))
