@@ -487,12 +487,7 @@
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)
   (define egg-expr (~a (expr->egg-expr expr eg-data)))
-  (define result (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
-  (when (= result 0)
-    (raise (egg-add-exn
-            "Failed to add expr to egraph"
-            (current-continuation-marks))))
-  (- result 1))
+  (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
 
 (struct iteration-data (num-nodes num-eclasses time))
 
@@ -509,13 +504,13 @@
 ;; can optionally specify an iter limit
 (define (egraph-run egraph-data node-limit ffi-rules const-folding? [iter-limit #f])
   (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
-  (define-values (egraphiters res-len)
+  (define-values (iterations length ptr)
     (if iter-limit
-        (egraph_run_with_iter_limit egraph-ptr iter-limit node-limit ffi-rules const-folding?)
-        (egraph_run egraph-ptr node-limit ffi-rules const-folding?)))
-  (define res (convert-iteration-data egraphiters res-len))
-  (destroy_egraphiters res-len egraphiters)
-  res)
+        (egraph_run_with_iter_limit egraph-ptr ffi-rules iter-limit node-limit const-folding?)
+        (egraph_run egraph-ptr ffi-rules node-limit const-folding?)))
+  (define iteration-data (convert-iteration-data iterations length))
+  (destroy_egraphiters ptr)
+  iteration-data)
 
 ;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
 (define-resetter *ffi-rules-cache*

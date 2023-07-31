@@ -340,7 +340,6 @@
   (timeline-event! 'preprocess)
   (define preprocessing*
     (remove-unnecessary-preprocessing best context pcontext preprocessing))
-
   (values alternatives preprocessing*))
 
 (define (mutate! initial simplified iterations pcontext)

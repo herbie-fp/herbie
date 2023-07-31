@@ -180,7 +180,7 @@
                              (data ,(format-accuracy (errors-score start-error) repr-bits #:unit "%")) " accurate, "
                              (data "1.0×") " speedup")
                        ,dropdown
-                       ,(render-help "report.html#initial"))
+                       ,(render-help "report.html#alternatives"))
                    ,body))
 
       ,@(for/list ([i (in-naturals 1)] [alt end-alts] [errs end-errors] [cost end-costs])
@@ -193,7 +193,7 @@
                   (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%")) " accurate, "
                   (data ,(~r (/ (alt-cost start-alt repr) cost) #:precision '(= 1)) "×") " speedup")
                 ,dropdown
-                ,(render-help "report.html#alternative"))
+                ,(render-help "report.html#alternatives"))
             ,body
             (details
              (summary "Derivation")
