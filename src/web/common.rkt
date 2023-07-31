@@ -86,59 +86,59 @@
 
 (define (preprocess->c preprocess)
   (match preprocess
-    [(list 'sort variables)
+    [(cons 'sort variables)
      (format "assert(~a);" (format-less-than-condition variables))]
-    [(list 'abs x)
+    [(cons 'abs x)
      (format "~a = abs(~a);" x x)]))
 
 (define (preprocess->java preprocess)
   (match preprocess
-    [(list 'sort variables)
+    [(cons 'sort variables)
      (format "assert ~a;" (format-less-than-condition variables))]
-    [(list 'abs x)
+    [(cons 'abs x)
      (format "~a = Math.abs(~a);" x x)]))
 
 (define (preprocess->python preprocess)
   (match preprocess
-    [(list 'sort variables)
+    [(cons 'sort variables)
      (define comma-joined (string-join (map ~a variables) ", "))
      (format "[~a] = sort([~a])" comma-joined comma-joined)]
-    [(list 'abs x)
+    [(cons 'abs x)
      (format "~a = abs(~a)" x x)]))
 
 (define (preprocess->julia preprocess)
   (match preprocess
-    [(list 'sort variables)
+    [(cons 'sort variables)
       (define comma-joined (string-join (map ~a variables) ", "))
       (format "~a = sort([~a])" comma-joined comma-joined)]
-    [(list 'abs x)
+    [(cons 'abs x)
      (format "~a = abs(~a)" x x)]))
 
 (define (preprocess->matlab preprocess)
   (match preprocess
-    [(list 'sort variables)
+    [(cons 'sort variables)
      (define comma-joined (string-join (map ~a variables) ", "))
      (format "~a = num2cell(sort([~a])){:}" comma-joined comma-joined)]
-    [(list 'abs x)
+    [(cons 'abs x)
      (format "~a = abs(~a)" x x)]))
 
 (define (preprocess->tex preprocess)
   (match preprocess
-    [(list 'sort variables)
+    [(cons 'sort variables)
      (define comma-joined (string-join (map ~a variables) ", "))
      (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]
-    [(list 'abs x)
+    [(cons 'abs x)
      (format "~a = |~a|\\\\" x x)]))
 
 (define (preprocess->default preprocess)
   (match preprocess
-    [(list 'sort (list a b))
+    [(cons 'sort (list a b))
      (format sort-note (format "~a and ~a" a b))]
-    [(list 'sort variables)
+    [(cons 'sort variables)
      (format
       sort-note
       (string-join (map ~a variables) ", " #:before-last ", and "))]
-    [(list 'abs x)
+    [(cons 'abs x)
      (format abs-note x)]))
 
 (define sort-note

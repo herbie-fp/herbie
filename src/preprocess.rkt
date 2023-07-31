@@ -37,7 +37,7 @@
                 [tests (in-list test-groups)])
        (match-define (preprocessing-step _ instructions _) step)
        (map
-        (curry list type)
+        (curry cons type)
         (instructions
          (filter-map
           (match-lambda [(cons id item) (and (equivalent? id) item)])
@@ -53,7 +53,7 @@
 
 (define (preprocess-pcontext context pcontext instructions)
   (define (instruction->operator context instruction)
-    (match-define (list type item) instruction)
+    (match-define (cons type item) instruction)
     (match-define (preprocessing-step _ _ operator)
       (dict-ref preprocessing-steps type))
     (operator item context))
