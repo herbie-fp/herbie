@@ -201,7 +201,7 @@ function buildFilters(jsonTestData) {
     var filterButtons = []
     for (let f in filterState) {
         const name = `${renames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
-        const button = buildCheckboxLabel(f, name, filterState[f])
+        const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
         button.addEventListener("click", () => {
             filterState[f] = button.querySelector("input").checked
             update(resultsJsonData)
@@ -244,8 +244,8 @@ function buildFilters(jsonTestData) {
     return details
 }
 
-function buildCheckboxLabel(idTag, text, boolState) {
-    return Element("label", { classList: idTag }, [
+function buildCheckboxLabel(classes, text, boolState) {
+    return Element("label", { classList: classes }, [
         Element("input", { type: "checkbox", checked: boolState }, []),
         text])
 }
