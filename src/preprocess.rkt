@@ -7,40 +7,53 @@
 (provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing expression context rules)
-  ;; Here `*` means a test identity that *may* be equal to `expression`, and
+(define (find-preprocessing initial specification context rules
+                            node-limit simplify?)
+  ;; Here `*` means a test identity that *may* be equal to `specification`, and
   ;; `~` means the simplest form of an expression.
-  (define variables (context-vars context))
-  (define variable-representations (context-var-reprs context))
   (define evens*
-    (for/list ([variable (in-list variables)]
-               [representation (in-list variable-representations)])
+    (for/list ([variable (in-list (context-vars context))]
+               [representation (in-list (context-var-reprs context))])
       ;; TODO: Handle case where neg isn't supported for this representation
       (define negate (get-parametric-operator 'neg representation))
-      (replace-vars (list (cons variable (list negate variable))) expression)))
-  (define pairs (combinations variables 2))
+      (replace-vars (list (cons variable (list negate variable))) specification)))
+  (define pairs (combinations (context-vars context) 2))
   (define swaps*
     (for/list ([pair (in-list pairs)])
       (match-define (list a b) pair)
-      (replace-vars (list (cons a b) (cons b a)) expression)))
-  (define query (make-egg-query (cons expression (append evens* swaps*)) rules))
-  (match-define (cons expression~ rest~) (map last (simplify-batch query)))
-  (define-values (evens~ swaps~) (split-at rest~ (length evens*)))
+      (replace-vars (list (cons a b) (cons b a)) specification)))
+  (define query
+    (let ([expressions* (cons specification (append evens* swaps*))])
+      (make-egg-query
+       (if simplify?
+           (cons initial expressions*)
+           expressions*)
+       rules)))
+  (define results (simplify-batch query))
+  (define simplified
+    (if simplify?
+        (remove-duplicates (first results))
+        (list initial)))
+  (match-define
+    (cons specification~ (app (curryr split-at (length evens*)) evens~ swaps~))
+    (map last (if simplify? (rest results) results)))
   (define swaps (filter-map
-                 (lambda (pair swap~) (and (equal? expression~ swap~) pair))
+                 (lambda (pair swap~) (and (equal? specification~ swap~) pair))
                  pairs
                  swaps~))
-  (define components (connected-components variables swaps))
+  (define components (connected-components (context-vars context) swaps))
   (define abs-instructions
-    (for/list ([variable (in-list variables)] [even~ (in-list evens~)]
-               #:when (equal? expression~ even~))
+    (for/list ([variable (in-list (context-vars context))]
+               [even~ (in-list evens~)]
+               #:when (equal? specification~ even~))
       (list 'abs variable)))
   (define sort-instructions
     (for/list ([component (in-list components)]
                #:when (> (length component) 1))
       (cons 'sort component)))
   ;; Absolute value should happen before sorting
-  (append abs-instructions sort-instructions))
+  (define instructions (append abs-instructions sort-instructions))
+  (values simplified instructions))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))

@@ -300,23 +300,19 @@
                     (list (*context*))))
   (cons domain (apply mk-pcontext pts+exs)))
 
-(define (initialize-alt-table! prog pcontext ctx)
-  (define alt (make-alt prog))
-  (*start-prog* prog)
-  (define table (make-alt-table (*pcontext*) alt ctx))
-
-  ; Add starting alt in every precision
-  (^table^
-   (if (*pareto-mode*)
-       (let ([new-alts (starting-alts alt ctx)])
-         (define-values (errss costs) (atab-eval-altns table new-alts ctx))
-         (atab-add-altns table new-alts errss costs))
-       table))
-
-  (when (flag-set? 'setup 'simplify)
-      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
-      (finalize-iter!)
-      (^next-alts^ #f)))
+(define (initialize-alt-table! simplified context pcontext)
+  (define initial (make-alt (first simplified)))
+  (define table (make-alt-table pcontext initial context))
+  ;; TODO: Need to include starting-alts stuff here
+  (define alternatives
+    (for/list ([expression (in-list (rest simplified))])
+      (alt
+       expression
+       ;; TODO: What do we put here?
+       (list 'simplify null 'todo-egg-query #f #f)
+       (list initial))))
+  (define-values (errss costs) (atab-eval-altns table alternatives context))
+  (^table^ (atab-add-altns table alternatives errss costs)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve vars prog iters
@@ -330,22 +326,27 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-(define (run-improve! expression context pcontext rules iterations #:specification [specification #f])
+(define (run-improve! initial specification context pcontext
+                      rules iterations node-limit)
   (timeline-event! 'preprocess)
-  (define preprocessing (find-preprocessing (or specification expression) context rules))
+  (define-values (simplified preprocessing)
+    (find-preprocessing
+     initial specification context
+     rules node-limit (flag-set? 'setup 'simplify)))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (match-define (and alternatives (cons best _))
-    (mutate! expression iterations pcontext*))
+    (mutate! simplified context pcontext* iterations))
   (timeline-event! 'preprocess)
   (define preprocessing*
     (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
   (values alternatives preprocessing*))
 
-(define (mutate! prog iters pcontext)
+(define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
-  (initialize-alt-table! prog (*pcontext*) (*context*))
-  (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+  (*start-prog* (first simplified))
+  (initialize-alt-table! simplified context pcontext)
+  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))
   (extract!))
 
