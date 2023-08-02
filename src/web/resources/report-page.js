@@ -36,13 +36,18 @@ function displayCrashTimeoutRatio(errors, total) {
     return `${errors}/${total}`
 }
 
-function calculateSpeedup(initialAccuracy, mergedCostAccuracy) {
-    return "TBD"
+function calculateSpeedup(mergedCostAccuracy) {
+    const initial_accuracy = mergedCostAccuracy[0][1]
+    const list = mergedCostAccuracy[1].reverse()
+    for (const point of list) {
+        if (point[1] > initial_accuracy) {
+            return point[0].toFixed(1) + "×"
+        }
+    }
 }
 // end Helpers
 
 function update(jsonData) {
-    const filteredData = jsonData
 
     const navigation = Element("nav", {}, [
         Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
@@ -87,7 +92,10 @@ function update(jsonData) {
         ]),
         Element("div", {}, [
             "Speedup:",
-            Element("span", { classList: "number", title: "Aggregate speedup of fastest alternative that improves accuracy." }, [calculateSpeedup(jsonData["initial-accuracy"], jsonData["merged-cost-accuracy"])])
+            Element("span", {
+                classList: "number",
+                title: "Aggregate speedup of fastest alternative that improves accuracy."
+            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
         ]),
     ])
 
