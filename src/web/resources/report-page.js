@@ -315,15 +315,22 @@ function tableBody(jsonData) {
 }
 
 function tableRow(test, i) {
+    var startAccuracy = formatAccuracy(test.start, test.bits)
+    var resultAccuracy = formatAccuracy(test.end, test.bits)
     var targetAccuracy = formatAccuracy(test.target, test.bits)
-    if (test.status != "eq-target") {
+    if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
+        targetAccuracy = ""
+    }
+    if (test.status == "timeout" || test.status == "error") {
+        startAccuracy = ""
+        resultAccuracy = ""
         targetAccuracy = ""
     }
 
     const tr = Element("tr", { classList: test.status }, [
         Element("td", {}, [test.name]),
-        Element("td", {}, [formatAccuracy(test.start, test.bits)]),
-        Element("td", {}, [formatAccuracy(test.end, test.bits)]),
+        Element("td", {}, [startAccuracy]),
+        Element("td", {}, [resultAccuracy]),
         Element("td", {}, [targetAccuracy]),
         Element("td", {}, [formatTime(test.time)]),
         Element("td", {}, [
