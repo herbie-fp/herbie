@@ -9,44 +9,47 @@
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing initial specification context rules
                             node-limit simplify?)
-  ;; Here `*` means a test identity that *may* be equal to `specification`, and
-  ;; `~` means the simplest form of an expression.
-  (define evens*
+  (define egraph (make-egraph))
+  (define specification-id (egraph-add-expr egraph specification))
+  (define initial-id (and simplify? (egraph-add-expr egraph initial)))
+  (define even-ids
     (for/list ([variable (in-list (context-vars context))]
                [representation (in-list (context-var-reprs context))])
       ;; TODO: Handle case where neg isn't supported for this representation
       (define negate (get-parametric-operator 'neg representation))
-      (replace-vars (list (cons variable (list negate variable))) specification)))
+      (egraph-add-expr
+       egraph
+       (replace-vars (list (cons variable (list negate variable))) specification))))
   (define pairs (combinations (context-vars context) 2))
-  (define swaps*
+  (define swap-ids
     (for/list ([pair (in-list pairs)])
       (match-define (list a b) pair)
-      (replace-vars (list (cons a b) (cons b a)) specification)))
-  (define query
-    (let ([expressions* (cons specification (append evens* swaps*))])
-      (make-egg-query
-       (if simplify?
-           (cons initial expressions*)
-           expressions*)
-       rules)))
-  (define results (simplify-batch query))
+      (egraph-add-expr
+       egraph
+       (replace-vars (list (cons a b) (cons b a)) specification))))
+  (match-define (list _ ffi-rules _) (expand-rules rules))
+  (define iteration-data (egraph-run egraph node-limit ffi-rules #t))
   (define simplified
     (if simplify?
-        (remove-duplicates (first results))
+        (remove-duplicates
+         (for/list ([iteration (in-range (length iteration-data))])
+           (egraph-get-simplest egraph initial-id iteration)))
         (list initial)))
-  (match-define
-    (cons specification~ (app (curryr split-at (length evens*)) evens~ swaps~))
-    (map last (if simplify? (rest results) results)))
-  (define swaps (filter-map
-                 (lambda (pair swap~) (and (equal? specification~ swap~) pair))
-                 pairs
-                 swaps~))
-  (define components (connected-components (context-vars context) swaps))
+  (define (equivalent? id)
+    (= (egraph-find egraph specification-id)
+       (egraph-find egraph id)))
   (define abs-instructions
     (for/list ([variable (in-list (context-vars context))]
-               [even~ (in-list evens~)]
-               #:when (equal? specification~ even~))
+               [even-id (in-list even-ids)]
+               #:when (equivalent? even-id))
       (list 'abs variable)))
+  (define components
+    (connected-components
+     (context-vars context)
+     (filter-map
+      (lambda (id pair) (and (equivalent? id) pair))
+      swap-ids
+      pairs)))
   (define sort-instructions
     (for/list ([component (in-list components)]
                #:when (> (length component) 1))

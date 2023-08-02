@@ -239,6 +239,17 @@ pub unsafe extern "C" fn egraph_get_simplest(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_find(ptr: *mut Context, eclass_id: u32) -> u32 {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let canonical = context
+        .runner
+        .egraph
+        .find(usize::try_from(eclass_id).unwrap().into());
+
+    usize::from(canonical).try_into().unwrap()
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_get_proof(
     ptr: *mut Context,
     expr: *const c_char,
