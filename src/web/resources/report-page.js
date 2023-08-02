@@ -237,7 +237,7 @@ function buildFilters(jsonTestData) {
             Element("h2", {}, "Filters"), improvedButton, regressedButton]), [
             filterButtons]])
     details.addEventListener("click", (e) => {
-        if (e.target.nodeName == "H2") {
+        if (e.target.nodeName == "SUMMARY") {
             detailsState = !detailsState
         }
     })
