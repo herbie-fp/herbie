@@ -561,3 +561,29 @@ function histogram(id, data, options) {
         ctx.stroke();
     }
 }
+
+function run_components() {
+    for (var i = 0; i < window.COMPONENTS.length; i++) {
+        var component = window.COMPONENTS[i];
+        var elts = document.querySelectorAll(component.selector);
+
+        try {
+            if (elts.length > 0 && component.fns.depends) component.fns.depends();
+        } catch (e) {
+            console.error(e);
+            continue;
+        }
+
+        for (var j = 0; j < elts.length; j++) {
+            var instance = new ComponentInstance(elts[j], component);
+            console.log("Initiating", component.selector, "component at", elts[j]);
+            try {
+                instance.setup();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }
+}
+
+window.addEventListener("load", run_components);
