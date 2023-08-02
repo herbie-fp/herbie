@@ -1,6 +1,27 @@
+// Constants
+const tempXY_A = "Output vs Input Accuracy"
+const tempXY_B = "Each point represents a Herbie run below. Its horizontal position shows initial accuracy, and vertical position shows final accuracy. Points above the line are improved by Herbie."
+
+const tempPareto_A = "Accuracy vs Speed"
+const tempPareto_B = "A joint speed-accuracy pareto curve. Accuracy is on the vertical axis, speed is on the horizontal axis. Up and to the right is better. The initial program is shown by the red square."
+
+const resultHelpText = `Color key:
+    Green: improved accuracy
+    Light green: no initial error
+    Orange: no accuracy change
+    Red: accuracy worsened
+    Gray: timeout
+    Dark Gray: error`
+const targetHelpText = `Color key:
+    Dark green: better than target
+    Green: matched target
+    Orange: improved but did not match target
+    Yellow: no accuracy change
+    `
+
 // Helpers
 function formatAccuracy(num, dom) {
-    return `${(-((100 * (num / dom)) - 100)).toFixed(1)}%`
+    return `${((100 - (100 * (num / dom)))).toFixed(1)}%`
 }
 
 function formatTime(ms) {
@@ -69,27 +90,6 @@ function update(jsonData) {
             Element("span", { classList: "number", title: "Aggregate speedup of fastest alternative that improves accuracy." }, [calculateSpeedup(jsonData["initial-accuracy"], jsonData["merged-cost-accuracy"])])
         ]),
     ])
-
-    // TODO  Ask about getting these text sections from Json/server side?
-    const tempXY_A = "Output vs Input Accuracy"
-    const tempXY_B = "Each point represents a Herbie run below. Its horizontal position shows initial accuracy, and vertical position shows final accuracy. Points above the line are improved by Herbie."
-
-    const tempPareto_A = "Accuracy vs Speed"
-    const tempPareto_B = "A joint speed-accuracy pareto curve. Accuracy is on the vertical axis, speed is on the horizontal axis. Up and to the right is better. The initial program is shown by the red square."
-
-    const resultHelpText = `Color key:
-    Green: improved accuracy
-    Light green: no initial error
-    Orange: no accuracy change
-    Red: accuracy worsened
-    Gray: timeout
-    Dark Gray: error`
-    const targetHelpText = `Color key:
-    Dark green: better than target
-    Green: matched target
-    Orange: improved but did not match target
-    Yellow: no accuracy change
-    `
 
     const figureRow = Element("div", { classList: "figure-row" }, [
         Element("figure", { id: "xy" }, [
@@ -170,12 +170,10 @@ const renames = {
 
 function buildFilters(jsonTestData) {
     var testTypeCounts = {}
-    for (let i in jsonTestData) {
-        if (testTypeCounts[jsonTestData[i].status] == null) {
-            testTypeCounts[jsonTestData[i].status] = 1
-        } else {
-            testTypeCounts[jsonTestData[i].status] += 1
-        }
+    for (let test of jsonTestData) {
+        testTypeCounts[test.status] == null ?
+            testTypeCounts[test.status] = 1 :
+            testTypeCounts[test.status] += 1
     }
 
     var filterButtons = []
@@ -189,18 +187,10 @@ function buildFilters(jsonTestData) {
         filterButtons.push(button)
     }
 
-    function showDetails() {
-        if (detailsState) {
-            return { open: "=\"\"" }
-        } else {
-            return {}
-        }
-    }
-
     function setupGroup(name, childStateNames, parent) {
         parent.addEventListener("click", (e) => {
             if (e.target.nodeName == "INPUT") {
-                groupState[name] = !groupState[name]
+                groupState[name] = e.target.checked
                 for (let i in childStateNames) {
                     filterState[childStateNames[i]] = e.target.checked
                 }
@@ -220,7 +210,7 @@ function buildFilters(jsonTestData) {
     setupGroup("improved", improvedTags, improvedButton)
     setupGroup("regressed", regressedTags, regressedButton)
 
-    const details = Element("details", showDetails(), [
+    const details = Element("details", { id: "filters", open: detailsState }, [
         Element("summary", {}, [
             Element("h2", {}, "Filters"), improvedButton, regressedButton]), [
             filterButtons]])
@@ -229,24 +219,13 @@ function buildFilters(jsonTestData) {
             detailsState = !detailsState
         }
     })
-
-    return Element("div", { id: "filters" }, [details])
+    return details
 }
 
 function buildCheckboxLabel(idTag, text, boolState) {
     return Element("label", { classList: idTag }, [
         Element("input", { type: "checkbox", checked: boolState }, []),
         text])
-}
-
-function updateChildren(children, state) {
-    children.forEach((child) => {
-        if (state) {
-            child.classList.remove("hidden")
-        } else {
-            child.classList.add("hidden")
-        }
-    })
 }
 
 function plotXY(testsData) {
@@ -313,21 +292,17 @@ function tableBody(jsonData) {
     return Element("tbody", {}, rows)
 }
 
-function fixTarget(targetPer) {
-    // HACK be smarter
-    if (targetPer == "100.0%") {
-        return ""
-    } else {
-        return targetPer
-    }
-}
-
 function tableRow(test, i) {
+    var targetAccuracy = formatAccuracy(test.target, test.bits)
+    if (test.status != "eq-target") {
+        targetAccuracy = ""
+    }
+
     const tr = Element("tr", { classList: test.status }, [
         Element("td", {}, [test.name]),
         Element("td", {}, [formatAccuracy(test.start, test.bits)]),
         Element("td", {}, [formatAccuracy(test.end, test.bits)]),
-        Element("td", {}, [fixTarget(formatAccuracy(test.target, test.bits))]),
+        Element("td", {}, [targetAccuracy]),
         Element("td", {}, [formatTime(test.time)]),
         Element("td", {}, [
             Element("a", {
