@@ -300,19 +300,13 @@
                     (list (*context*))))
   (cons domain (apply mk-pcontext pts+exs)))
 
-(define (initialize-alt-table! simplified context pcontext)
-  (define initial (make-alt (first simplified)))
+(define (initialize-alt-table! alternatives context pcontext)
+  (match-define (cons initial simplified) alternatives)
+  (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
   ;; TODO: Need to include starting-alts stuff here
-  (define alternatives
-    (for/list ([expression (in-list (rest simplified))])
-      (alt
-       expression
-       ;; TODO: What do we put here?
-       (list 'simplify null 'todo-egg-query #f #f)
-       (list initial))))
-  (define-values (errss costs) (atab-eval-altns table alternatives context))
-  (^table^ (atab-add-altns table alternatives errss costs)))
+  (define-values (errss costs) (atab-eval-altns table simplified context))
+  (^table^ (atab-add-altns table simplified errss costs)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve vars prog iters
@@ -326,25 +320,21 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-(define (run-improve! initial specification context pcontext
-                      rules iterations node-limit)
+(define (run-improve! initial specification context pcontext)
   (timeline-event! 'preprocess)
   (define-values (simplified preprocessing)
-    (find-preprocessing
-     initial specification context
-     rules node-limit (flag-set? 'setup 'simplify)))
+    (find-preprocessing initial specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (match-define (and alternatives (cons best _))
-    (mutate! simplified context pcontext* iterations))
+  (match-define (and alternatives (cons (alt best _ _) _))
+    (mutate! simplified context pcontext* (*num-iterations*)))
   (timeline-event! 'preprocess)
   (define preprocessing*
-    (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
+    (remove-unnecessary-preprocessing best context pcontext preprocessing))
   (values alternatives preprocessing*))
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
-  (*start-prog* (first simplified))
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))

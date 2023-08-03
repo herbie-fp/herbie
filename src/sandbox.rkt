@@ -138,9 +138,7 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext context))
   ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (alternatives preprocessing)
-    (run-improve!
-     (test-input test) (test-spec test) (*context*) train-pcontext
-     (*simplify-rules*) (*num-iterations*) (*node-limit*)))
+    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
   (define test-pcontext*
     (preprocess-pcontext (*context*) test-pcontext preprocessing))
   (when seed (set-seed! seed))
@@ -165,9 +163,7 @@
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
   ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (end-alts preprocessing)
-    (run-improve!
-     (test-input test) (test-spec test) (*context*) train-pcontext
-     (*simplify-rules*) (*num-iterations*) (*node-limit*)))
+    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
   (define test-pcontext*
     (preprocess-pcontext ctx test-pcontext preprocessing))
   (when seed (set-seed! seed))
