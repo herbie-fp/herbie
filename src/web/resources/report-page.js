@@ -145,6 +145,7 @@ function update(jsonData) {
         header,
         stats,
         figureRow,
+        compareReports(jsonData),
         buildFilters(jsonData.tests),
         resultsTable,
     ])
@@ -188,6 +189,10 @@ const renames = {
     "error": "Error",
     "timeout": "Timeout",
     "crash": "Crash",
+}
+
+function compareReports(jsonData) {
+    return Element("div", { classList: "compare" }, [Element("h2", {}, ["Compare"]), Element("input", {}, [])])
 }
 
 function buildFilters(jsonTestData) {

@@ -98,6 +98,10 @@ label.timeout {accent-color: var(--result-timeout);}
 #filters summary {accent-color: var(--accent-blue);}
 #filters .sub-filter {column-width: 11.5rem;}
 
+/* Compare Reports */
+.compare {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
+.compare h2 {color: var(--accent-title); font-size: 16px; line-height: 1.4;}
+
 /* Table of results */
 
 #results { border-collapse: collapse; width:100%; }
