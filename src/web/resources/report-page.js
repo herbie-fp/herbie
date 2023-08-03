@@ -50,9 +50,6 @@ function calculateSpeedup(mergedCostAccuracy) {
 // end Helpers
 
 function update(jsonData, otherJson) {
-    if (otherJson != undefined) {
-        console.log(otherJson)
-    }
 
     const navigation = Element("nav", {}, [
         Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
@@ -146,16 +143,30 @@ function update(jsonData, otherJson) {
         tableBody(jsonData)
     ])
 
-    const newBody = Element("body", {}, [
-        header,
-        stats,
-        figureRow,
-        compareReports(jsonData),
-        buildFilters(jsonData.tests),
-        resultsTable,
-    ])
-    htmlNode.replaceChild(newBody, bodyNode)
-    bodyNode = newBody
+    if (otherJson != undefined) {
+        console.log(otherJson)
+        const newBody = Element("body", {}, [
+            header,
+            stats,
+            figureRow,
+            compareReports(jsonData),
+            buildFilters(jsonData.tests),
+            resultsTable,
+        ])
+        htmlNode.replaceChild(newBody, bodyNode)
+        bodyNode = newBody
+    } else {
+        const newBody = Element("body", {}, [
+            header,
+            stats,
+            figureRow,
+            compareReports(jsonData),
+            buildFilters(jsonData.tests),
+            resultsTable,
+        ])
+        htmlNode.replaceChild(newBody, bodyNode)
+        bodyNode = newBody
+    }
 }
 
 // View State
