@@ -49,7 +49,10 @@ function calculateSpeedup(mergedCostAccuracy) {
 }
 // end Helpers
 
-function update(jsonData) {
+function update(jsonData, otherJson) {
+    if (otherJson != undefined) {
+        console.log(otherJson)
+    }
 
     const navigation = Element("nav", {}, [
         Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
@@ -161,6 +164,11 @@ var groupState = {
     "improved": true,
     "regressed": true
 }
+var compareState = {
+    url: "",
+    other: false,
+    start: true,
+}
 var filterState = {
     "imp-start": true,
     "ex-start": true,
@@ -198,49 +206,51 @@ function compareReports(jsonData) {
     const compareID = "compare-compare"
     const defaultID = "compare-default"
     const inputID = "compare-input"
-    const other = Element("input", { type: "radio", checked: false, name: formName, id: compareID }, [])
-    const starting = Element("input", { type: "radio", checked: true, name: formName, id: defaultID }, [])
-    const input = Element("input", { id: inputID }, [])
+    const other = Element("input", {
+        id: compareID, type: "radio", checked: compareState["other"],
+        name: formName
+    }, [])
+    const starting = Element("input", {
+        id: defaultID, type: "radio", checked: compareState["start"],
+        name: formName
+    }, [])
+    const input = Element("input", {
+        id: inputID, value: compareState["url"]
+    }, [])
     const form = Element("form", { classList: "compare" }, [
         Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare"])
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
         if (e != undefined) {
-            // const json = 
-            await getOtherJson(e.target.childNodes[1].value)
-            // compare(jsonData, json)
+            await fetchAndUpdate(jsonData,
+                e.target.childNodes[1].value,
+                e.target.childNodes[2].checked,
+                e.target.childNodes[4].checked)
         }
     })
     form.addEventListener("click", async (e) => {
-        console.log(e)
         if (e.target.nodeName == "INPUT") {
-            if (e.target.parentNode.childNodes[2].checked) {
-                console.log("a")
-            } else if (e.target.parentNode.childNodes[4].checked) {
-                console.log("b")
-            }
-            // const json = 
-            await getOtherJson(e.target.parentNode.childNodes[1].value)
-            // compare(jsonData, json)
+            await fetchAndUpdate(jsonData,
+                e.target.parentNode.childNodes[1].value,
+                e.target.parentNode.childNodes[2].checked,
+                e.target.parentNode.childNodes[4].checked)
         }
     })
-
     return form
 }
 
-async function getOtherJson(maybeURL) {
-    // TODO maybeURL verifying if needed
-    let response = await fetch(maybeURL, {
+async function fetchAndUpdate(jsonData, url, start, other) {
+    // TODO url verifying if needed
+    compareState["url"] = url
+    compareState["other"] = other
+    compareState["start"] = start
+    let response = await fetch(url, {
         headers: { "content-type": "text/plain" },
         method: "GET",
         mode: "cors",
     })
-    console.log(response)
-    return await response.json()
-}
-
-function compare(currentJsonData, newJsonData) {
-
+    const json = await response.json()
+    update(jsonData, json)
 }
 
 function buildFilters(jsonTestData) {
