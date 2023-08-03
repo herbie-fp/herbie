@@ -1,3 +1,6 @@
+// other-report.json
+// https://nightly.cs.washington.edu/reports/herbie/1690882076:nightly:main:f4cd8b9a45/results.json
+
 // Constants
 const tempXY_A = "Output vs Input Accuracy"
 const tempXY_B = "Each point represents a Herbie run below. Its horizontal position shows initial accuracy, and vertical position shows final accuracy. Points above the line are improved by Herbie."
@@ -110,7 +113,7 @@ function update(jsonData, otherJson) {
             generateStatesFrom(jsonData),
             generateStatesFrom(otherJson),
             figureRow,
-            compareReports(jsonData),
+            compareReports(jsonData, otherJson),
             buildFilters(jsonData.tests),
             resultsTable,
         ])
@@ -215,8 +218,23 @@ const renames = {
     "timeout": "Timeout",
     "crash": "Crash",
 }
+function compareInfo(jsonData, otherJsonData) {
+    if (otherJsonData != undefined) {
+        return Element("details", {}, [
+            Element("summary", {}, ["Compare Info"]),
+            Element("div", {}, [
+                `Comparing:`,
+                `${jsonData.date}: ${jsonData.branch} @ ${jsonData.commit}`]),
+            Element("div", {}, [
+                `Against:`,
+                `${otherJsonData.date}: ${otherJsonData.branch} @ ${otherJsonData.commit}`])
+        ])
+    } else {
+        return Element()
+    }
+}
 
-function compareReports(jsonData) {
+function compareReports(jsonData, otherJsonData) {
     const formName = "compare-form"
     const compareID = "compare-compare"
     const defaultID = "compare-default"
@@ -233,22 +251,26 @@ function compareReports(jsonData) {
         id: inputID, value: compareState["url"]
     }, [])
     const form = Element("form", { classList: "compare" }, [
-        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare"])
+        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare", compareInfo(jsonData, otherJsonData)])
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
         if (e != undefined) {
-            await fetchAndUpdate(jsonData,
-                e.target.childNodes[1].value,
-                e.target.childNodes[2].checked,
-                e.target.childNodes[4].checked)
+            if (compareState["start"] != e.target.parentNode.childNodes[2].checked) {
+                await fetchAndUpdate(jsonData,
+                    e.target.childNodes[1].value,
+                    e.target.childNodes[2].checked,
+                    e.target.childNodes[4].checked)
+            }
         }
     })
     form.addEventListener("click", async (e) => {
         if (e.target.nodeName == "INPUT") {
-            await fetchAndUpdate(jsonData,
-                e.target.parentNode.childNodes[1].value,
-                e.target.parentNode.childNodes[2].checked,
-                e.target.parentNode.childNodes[4].checked)
+            if (compareState["start"] != e.target.parentNode.childNodes[2].checked) {
+                await fetchAndUpdate(jsonData,
+                    e.target.parentNode.childNodes[1].value,
+                    e.target.parentNode.childNodes[2].checked,
+                    e.target.parentNode.childNodes[4].checked)
+            }
         }
     })
     return form
@@ -257,15 +279,19 @@ function compareReports(jsonData) {
 async function fetchAndUpdate(jsonData, url, start, other) {
     // TODO url verifying if needed
     compareState["url"] = url
-    compareState["other"] = other
     compareState["start"] = start
-    let response = await fetch(url, {
-        headers: { "content-type": "text/plain" },
-        method: "GET",
-        mode: "cors",
-    })
-    const json = await response.json()
-    update(jsonData, json)
+    compareState["other"] = other
+    if (start) {
+        update(jsonData)
+    } else {
+        let response = await fetch(url, {
+            headers: { "content-type": "text/plain" },
+            method: "GET",
+            mode: "cors",
+        })
+        const json = await response.json()
+        update(jsonData, json)
+    }
 }
 
 function buildFilters(jsonTestData) {
