@@ -64,7 +64,7 @@ function update(jsonData) {
     }
 
     function hasNote(note) {
-        return note ? toTitleCase(note) + " " : "" + "Results"
+        return (note ? toTitleCase(note) + " " : "") + "Results"
     }
 
     const header = Element("header", {}, [
