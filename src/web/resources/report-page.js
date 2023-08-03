@@ -103,7 +103,7 @@ function update(jsonData, otherJson) {
                 Element("th", {}, ["Time"]),
             ])
         ]),
-        tableBody(jsonData)
+        tableBody(jsonData, otherJson)
     ])
 
     if (otherJson != undefined) {
@@ -176,6 +176,10 @@ function generateStatesFrom(jsonData) {
     return stats
 }
 
+var toolsState = {
+    output: false
+}
+
 // View State
 var detailsState = false
 var groupState = {
@@ -218,6 +222,23 @@ const renames = {
     "timeout": "Timeout",
     "crash": "Crash",
 }
+
+function compareTools(jsonData, otherJsonData) {
+    const iA = buildCheckboxLabel("", "Output", toolsState["output"])
+    iA.addEventListener("click", () => {
+        toolsState["output"] = !toolsState["output"]
+        if (otherJsonData != undefined) {
+            update(jsonData, otherJsonData)
+        } else {
+            update(jsonData)
+        }
+    })
+    return Element("details", {}, [
+        Element("summary", {}, ["Tools"]),
+        iA
+    ])
+}
+
 function compareInfo(jsonData, otherJsonData) {
     if (otherJsonData != undefined) {
         return Element("details", {}, [
@@ -251,7 +272,7 @@ function compareReports(jsonData, otherJsonData) {
         id: inputID, value: compareState["url"]
     }, [])
     const form = Element("form", { classList: "compare" }, [
-        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare", compareInfo(jsonData, otherJsonData)])
+        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare", compareInfo(jsonData, otherJsonData), compareTools(jsonData, otherJsonData)])
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
         if (e != undefined) {
@@ -263,17 +284,19 @@ function compareReports(jsonData, otherJsonData) {
             }
         }
     })
-    form.addEventListener("click", async (e) => {
-        if (e.target.nodeName == "INPUT") {
-            if (compareState["start"] != e.target.parentNode.childNodes[2].checked) {
-                await fetchAndUpdate(jsonData,
-                    e.target.parentNode.childNodes[1].value,
-                    e.target.parentNode.childNodes[2].checked,
-                    e.target.parentNode.childNodes[4].checked)
-            }
-        }
-    })
+    input.addEventListener("click", idk)
     return form
+}
+
+async function idk(e) {
+    if (e.target.nodeName == "INPUT") {
+        if (compareState["start"] != e.target.parentNode.childNodes[2].checked) {
+            await fetchAndUpdate(jsonData,
+                e.target.parentNode.childNodes[1].value,
+                e.target.parentNode.childNodes[2].checked,
+                e.target.parentNode.childNodes[4].checked)
+        }
+    }
 }
 
 async function fetchAndUpdate(jsonData, url, start, other) {
@@ -408,14 +431,36 @@ function plotPareto(jsonData) {
     return out;
 }
 
-function tableBody(jsonData) {
-    var rows = []
-    for (let test of jsonData.tests) {
-        if (filterState[test.status]) {
-            rows.push(tableRow(test, rows.length))
+function tableBody(jsonData, otherJsonData) {
+    if (otherJsonData == undefined) {
+        var rows = []
+        for (let test of jsonData.tests) {
+            if (filterState[test.status]) {
+                rows.push(tableRow(test, rows.length))
+            }
+        }
+        return Element("tbody", {}, rows)
+    } else {
+        if (otherJsonData.tests.length == jsonData.tests.length) {
+            console.log(jsonData.tests.length)
+            var rows = []
+            for (let i in jsonData.tests) {
+                if (jsonData.tests[i].status == otherJsonData.tests[i].status) {
+                    if (filterState[jsonData.tests[i].status]) {
+                        if (toolsState["output"]) {
+                            if (jsonData.tests[i]["output"] != otherJsonData.tests[i]["output"]) {
+                                rows.push(tableRow(jsonData.tests[i], rows.length))
+                            }
+                        }
+                    }
+                }
+            }
+            // DEBUG displays number of diff rows as tbody id
+            return Element("tbody", { id: `rows-${rows.length}` }, rows)
+        } else {
+            return Element("div", {}, "Error: JSON is too different")
         }
     }
-    return Element("tbody", {}, rows)
 }
 
 function tableRow(test, i) {
