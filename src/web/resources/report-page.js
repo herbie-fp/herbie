@@ -75,6 +75,62 @@ function update(jsonData, otherJson) {
         navigation,
     ])
 
+    const figureRow = Element("div", { classList: "figure-row" }, [
+        Element("figure", { id: "xy" }, [
+            Element("h2", {}, [tempXY_A]),
+            plotXY(jsonData.tests),
+            Element("figcaption", {}, [tempXY_B])
+        ]),
+        Element("figure", { id: "pareto" }, [
+            Element("h2", {}, [tempPareto_A]),
+            plotPareto(jsonData),
+            Element("figcaption", {}, [tempPareto_B])
+        ])
+    ])
+
+    const resultsTable = Element("table", { id: "results" }, [
+        Element("thead", {}, [
+            Element("tr", {}, [
+                Element("th", {}, ["Test"]),
+                Element("th", {}, ["Start"]),
+                Element("th", {}, ["Result",
+                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
+                Element("th", {}, ["Target",
+                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
+                Element("th", {}, ["Time"]),
+            ])
+        ]),
+        tableBody(jsonData)
+    ])
+
+    if (otherJson != undefined) {
+        console.log(otherJson)
+        const newBody = Element("body", {}, [
+            header,
+            generateStatesFrom(jsonData),
+            generateStatesFrom(otherJson),
+            figureRow,
+            compareReports(jsonData),
+            buildFilters(jsonData.tests),
+            resultsTable,
+        ])
+        htmlNode.replaceChild(newBody, bodyNode)
+        bodyNode = newBody
+    } else {
+        const newBody = Element("body", {}, [
+            header,
+            generateStatesFrom(jsonData),
+            figureRow,
+            compareReports(jsonData),
+            buildFilters(jsonData.tests),
+            resultsTable,
+        ])
+        htmlNode.replaceChild(newBody, bodyNode)
+        bodyNode = newBody
+    }
+}
+
+function generateStatesFrom(jsonData) {
     var total_start = 0
     var total_result = 0
     var maximum_accuracy = 0
@@ -114,59 +170,7 @@ function update(jsonData, otherJson) {
             }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
         ]),
     ])
-
-    const figureRow = Element("div", { classList: "figure-row" }, [
-        Element("figure", { id: "xy" }, [
-            Element("h2", {}, [tempXY_A]),
-            plotXY(jsonData.tests),
-            Element("figcaption", {}, [tempXY_B])
-        ]),
-        Element("figure", { id: "pareto" }, [
-            Element("h2", {}, [tempPareto_A]),
-            plotPareto(jsonData),
-            Element("figcaption", {}, [tempPareto_B])
-        ])
-    ])
-
-    const resultsTable = Element("table", { id: "results" }, [
-        Element("thead", {}, [
-            Element("tr", {}, [
-                Element("th", {}, ["Test"]),
-                Element("th", {}, ["Start"]),
-                Element("th", {}, ["Result",
-                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
-                Element("th", {}, ["Target",
-                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
-                Element("th", {}, ["Time"]),
-            ])
-        ]),
-        tableBody(jsonData)
-    ])
-
-    if (otherJson != undefined) {
-        console.log(otherJson)
-        const newBody = Element("body", {}, [
-            header,
-            stats,
-            figureRow,
-            compareReports(jsonData),
-            buildFilters(jsonData.tests),
-            resultsTable,
-        ])
-        htmlNode.replaceChild(newBody, bodyNode)
-        bodyNode = newBody
-    } else {
-        const newBody = Element("body", {}, [
-            header,
-            stats,
-            figureRow,
-            compareReports(jsonData),
-            buildFilters(jsonData.tests),
-            resultsTable,
-        ])
-        htmlNode.replaceChild(newBody, bodyNode)
-        bodyNode = newBody
-    }
+    return stats
 }
 
 // View State
