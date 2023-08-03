@@ -6,9 +6,9 @@
 
 (module+ test (require rackunit))
 
-(provide make-egraph egraph-add-expr egraph-run-rules egraph-run
+(provide make-egraph egraph-add-expr egraph-run-rules
          egraph-get-simplest egraph-get-variants
-         egraph-get-proof egraph-find egraph-is-unsound-detected
+         egraph-get-proof egraph-is-unsound-detected
          rule->egg-rules expand-rules get-canon-rule-name
          remove-rewrites run-egg make-egg-query
         (struct-out egraph-query))
@@ -322,9 +322,6 @@
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
   (egg-expr->expr str egraph-data))
-
-(define (egraph-find egraph-data eclass-id)
-  (egraph_find (egraph-data-egraph-pointer egraph-data) eclass-id))
 
 (define (egraph-get-variants egraph-data node-id orig-expr)
   (define expr-str (~a (expr->egg-expr orig-expr egraph-data)))

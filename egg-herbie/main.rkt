@@ -7,7 +7,7 @@
 (provide egraph_create egraph_destroy egraph_add_expr
          egraph_run egraph_run_with_iter_limit
          egraph_get_stop_reason
-         egraph_get_simplest egraph_find egraph_get_variants
+         egraph_get_simplest egraph_get_variants
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
          egraph_get_proof destroy_string egraph_is_equal
@@ -127,10 +127,6 @@
                                           _uint ;; node id
                                           _uint ;; iteration
                                           -> _pointer))
-
-(define-eggmath egraph_find (_fun _egraph-pointer
-                                  _uint ;; eclass id
-                                  -> _uint)) ;; canonical eclass id
 
 (define-eggmath egraph_get_proof (_fun _egraph-pointer
                                        _string/utf-8
