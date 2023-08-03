@@ -39,6 +39,8 @@ function displayCrashTimeoutRatio(errors, total) {
 function calculateSpeedup(mergedCostAccuracy) {
     const initial_accuracy = mergedCostAccuracy[0][1]
     const list = mergedCostAccuracy[1].reverse()
+    // BUG seems to be inconsistent in which number this displays. 
+    // Currently bouncing between 0.3 and 2.1
     for (const point of list) {
         if (point[1] > initial_accuracy) {
             return point[0].toFixed(1) + "×"
@@ -192,7 +194,53 @@ const renames = {
 }
 
 function compareReports(jsonData) {
-    return Element("div", { classList: "compare" }, [Element("h2", {}, ["Compare"]), Element("input", {}, [])])
+    const formName = "compare-form"
+    const compareID = "compare-compare"
+    const defaultID = "compare-default"
+    const inputID = "compare-input"
+    const other = Element("input", { type: "radio", checked: false, name: formName, id: compareID }, [])
+    const starting = Element("input", { type: "radio", checked: true, name: formName, id: defaultID }, [])
+    const input = Element("input", { id: inputID }, [])
+    const form = Element("form", { classList: "compare" }, [
+        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare"])
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault()
+        if (e != undefined) {
+            // const json = 
+            await getOtherJson(e.target.childNodes[1].value)
+            // compare(jsonData, json)
+        }
+    })
+    form.addEventListener("click", async (e) => {
+        console.log(e)
+        if (e.target.nodeName == "INPUT") {
+            if (e.target.parentNode.childNodes[2].checked) {
+                console.log("a")
+            } else if (e.target.parentNode.childNodes[4].checked) {
+                console.log("b")
+            }
+            // const json = 
+            await getOtherJson(e.target.parentNode.childNodes[1].value)
+            // compare(jsonData, json)
+        }
+    })
+
+    return form
+}
+
+async function getOtherJson(maybeURL) {
+    // TODO maybeURL verifying if needed
+    let response = await fetch(maybeURL, {
+        headers: { "content-type": "text/plain" },
+        method: "GET",
+        mode: "cors",
+    })
+    console.log(response)
+    return await response.json()
+}
+
+function compare(currentJsonData, newJsonData) {
+
 }
 
 function buildFilters(jsonTestData) {
