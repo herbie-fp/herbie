@@ -29,7 +29,11 @@
      (*simplify-rules*)))
   (match-define
     (cons
-     ;; The first element of the list returned by `simplify-batch` will be a list containing progressively simpler versions of `initial` at each iteration of the e-graph, the first of which will always be the unsimplified `initial` from iteration 0, which we want to exclude here to avoid adding it twice to the alt-table.
+     ;; The first element of the list returned by `simplify-batch` will be a list
+     ;; containing progressively simpler versions of `initial` at each iteration
+     ;; of the e-graph, the first of which will always be the unsimplified
+     ;; `initial` from iteration 0, which we want to exclude here to avoid adding
+     ;; it twice to the alt-table.
      (app rest initials)
      (app (curry map last)
           (cons
@@ -39,7 +43,8 @@
   (define alternative (make-alt initial))
   (define simplified
     (cons
-     ;; We excluded element of `initials` above so that we can add it here manually, but without a self-referential history.
+     ;; We excluded the first element of `initials` above so that we can add it
+     ;; here manually, but without a self-referential history.
      alternative
      (for/list ([expression (in-list initials)])
        (alt
