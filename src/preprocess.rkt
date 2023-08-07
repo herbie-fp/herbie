@@ -9,12 +9,18 @@
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing initial specification context)
+  ;; f(x) = f(-x)
   (define even-identities
     (for/list ([variable (in-list (context-vars context))]
                [representation (in-list (context-var-reprs context))])
       ;; TODO: Handle case where neg isn't supported for this representation
       (define negate (get-parametric-operator 'neg representation))
       (replace-vars (list (cons variable (list negate variable))) specification)))
+  ;; f(x) = -f(-x)
+  (define odd-identities
+    (let ([negate (get-parametric-operator 'neg (context-repr contet))])
+      (map negate even-identities)))
+  ;; f(a, b) = f(b, a)
   (define pairs (combinations (context-vars context) 2))
   (define swap-identities
     (for/list ([pair (in-list pairs)])
@@ -25,8 +31,12 @@
      (list*
       initial
       specification
-      (append even-identities swap-identities))
+      (append even-identities odd-identities swap-identities))
      (*simplify-rules*)))
+  (define (split-others others)
+    (define-values (evens others*) (split-at others (length even-identities)))
+    (define-values (odds swaps) (split-at others* (length odd-identities)))
+    (values evens odds swaps))
   (match-define
     (cons
      ;; The first element of the list returned by `simplify-batch` will be a list
@@ -38,7 +48,7 @@
      (app (curry map last)
           (cons
            specification*
-           (app (curryr split-at (length even-identities)) evens* swaps*))))
+           (app split-others evens odds swaps))))
     (simplify-batch query))
   (define alternative (make-alt initial))
   (define simplified
@@ -55,14 +65,19 @@
     (connected-components
      (context-vars context)
      (filter-map
-      (lambda (pair swap*) (and (equal? specification* swap*) pair))
+      (lambda (pair swap) (and (equal? specification* swap) pair))
       pairs
-      swaps*)))
+      swaps)))
   (define abs-instructions
     (for/list ([variable (in-list (context-vars context))]
-               [even* (in-list evens*)]
-               #:when (equal? specification* even*))
+               [even (in-list evens)]
+               #:when (equal? specification* even))
       (list 'abs variable)))
+  (define negabs-instructions
+    (for/list ([variable (in-list (context-vars context))]
+               [odd (in-list odds)]
+               #:when (equal? specification* odd))
+      (list 'negabs variable)))
   (define sort-instructions
     (for/list ([component (in-list components)]
                #:when (> (length component) 1))
@@ -72,7 +87,8 @@
        simplified
        (list initial))
    ;; Absolute value should happen before sorting
-   (append abs-instructions sort-instructions)))
+   ;; TODO: Does this order work?
+   (append abs-instructions negabs-instructions sort-instructions)))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))
@@ -91,9 +107,31 @@
                     (curry instruction->operator context)
                     ;; Function composition applies the rightmost function first
                     (reverse preprocessing))))
-  (pcontext-map preprocess pcontext))
+  (for/pcontext ([(x y) pcontext]) (preprocess x y)))
 
 (define (instruction->operator context instruction)
+  ;; Herbie is synthesizing a function f : A -> A that we want to range-reduce.
+  ;; Let B be a subset of A. To perform range-reduction, take a reduction
+  ;; function s : (A - B) -> B, a reconstruction function
+  ;; t : { f(x) : x in B } -> { f(x) : x in A }, and let f'(x) =
+  ;;
+  ;; if x in B:
+  ;;   f(x)
+  ;; else:
+  ;;   x' = s(x)
+  ;;   y' = f(x')
+  ;;   t(y')
+  ;;
+  ;; We don't have access to f here, but assuming t is invertible (t^-1), we can
+  ;; do this instead:
+  ;;
+  ;; t(f(s(x))) = y
+  ;; f(s(x)) = t^-1(y)
+  ;;
+  ;; if x in B:
+  ;;   (x, y)
+  ;; else:
+  ;;   (s(x), t^-1(y))
   (define variables (context-vars context))
   (define sort* (curryr sort (curryr </total (context-repr context))))
   (match instruction
@@ -102,10 +140,10 @@
        (error 'instruction->operator
               "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
-     (lambda (points)
-       (let* ([subsequence (map (curry list-ref points) indices)]
+     (lambda (x y)
+       (let* ([subsequence (map (curry list-ref x) indices)]
               [sorted (sort* subsequence)])
-         (list-set* points indices sorted)))]
+         (values (list-set* x indices sorted) y)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
      (define abs (operator-info
@@ -113,7 +151,21 @@
                    'fabs
                    (list-ref (context-var-reprs context) index))
                   'fl))
-     (curryr list-update index abs)]))
+     (lambda (x y) (values (list-update x index abs) y))]
+    [(list 'negabs variable)
+     (define index (index-of variables variable))
+     (define negate (operator-info
+                     (get-parametric-operator
+                      'neg
+                      (list-ref (context-var-reprs context) index))
+                     'fl))
+     (lambda (x y)
+       ;; Real number negation is involutive, i.e. it is its own inverse, -(-x) = x.
+       (if (< (list-ref x index) 0)
+           (values
+            (list-update x index negate)
+            (list-update y index negate))
+           (values x y)))]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
 (define (remove-unnecessary-preprocessing expression context pcontext preprocessing #:removed [removed empty])
