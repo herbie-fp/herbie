@@ -18,8 +18,8 @@
       (replace-vars (list (cons variable (list negate variable))) specification)))
   ;; f(x) = -f(-x)
   (define odd-identities
-    (let ([negate (get-parametric-operator 'neg (context-repr contet))])
-      (map negate even-identities)))
+    (let ([negate (get-parametric-operator 'neg (context-repr context))])
+      (map (lambda (expression) `(negate ,expression)) even-identities)))
   ;; f(a, b) = f(b, a)
   (define pairs (combinations (context-vars context) 2))
   (define swap-identities
@@ -110,6 +110,7 @@
   (for/pcontext ([(x y) pcontext]) (preprocess x y)))
 
 (define (instruction->operator context instruction)
+  ;; TODO: Perhaps remove this
   ;; Herbie is synthesizing a function f : A -> A that we want to range-reduce.
   ;; Let B be a subset of A. To perform range-reduction, take a reduction
   ;; function s : (A - B) -> B, a reconstruction function
