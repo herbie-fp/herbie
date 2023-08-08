@@ -291,7 +291,7 @@ function compareReports(jsonData, otherJsonData) {
 async function idk(e) {
     if (e.target.nodeName == "INPUT") {
         if (compareState["start"] != e.target.parentNode.childNodes[2].checked) {
-            await fetchAndUpdate(jsonData,
+            await fetchAndUpdate(resultsJsonData,
                 e.target.parentNode.childNodes[1].value,
                 e.target.parentNode.childNodes[2].checked,
                 e.target.parentNode.childNodes[4].checked)
@@ -313,7 +313,15 @@ async function fetchAndUpdate(jsonData, url, start, other) {
             mode: "cors",
         })
         const json = await response.json()
+        setDiffAgainstFields(json)
         update(jsonData, json)
+    }
+}
+
+function setDiffAgainstFields(otherJson) {
+    for (let test of otherJson.tests) {
+        diffAgainstFields[`${test.name}`] = test
+        console.log(test)
     }
 }
 
@@ -442,7 +450,6 @@ function tableBody(jsonData, otherJsonData) {
         return Element("tbody", {}, rows)
     } else {
         if (otherJsonData.tests.length == jsonData.tests.length) {
-            console.log(jsonData.tests.length)
             var rows = []
             for (let i in jsonData.tests) {
                 if (jsonData.tests[i].status == otherJsonData.tests[i].status) {
@@ -548,6 +555,7 @@ function Element(tagname, props, children) {
 const htmlNode = document.querySelector("html")
 var bodyNode = htmlNode.querySelector("body")
 
+var diffAgainstFields = {}
 var resultsJsonData = await getResultsJson()
 
 update(resultsJsonData)
