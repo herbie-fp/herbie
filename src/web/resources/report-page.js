@@ -256,22 +256,38 @@ function plotPareto(jsonData) {
 }
 
 function tableBody(jsonData) {
-    var rows = []
+    var diffRows = [] // rows that represent a diff
+    var rows = [] // rows without a diff
     for (let test of jsonData.tests) {
         if (filterState[test.status]) {
-            rows.push(tableRow(test, rows.length))
+            if (diffAgainstFields[test.name]) {
+                diffRows.push(tableRowDiff(test, rows.length))
+            } else {
+                rows.push(tableRow(test, rows.length))
+            }
         }
     }
-    return Element("tbody", {}, rows)
+    if (diffRows.length > 0) {
+        // handles if the diff against json is mismatched with the current json
+        const spacer = Element("tr", { style: "background-color:pink;" }, [
+            Element("td", {}, ["Start tests without Diff"]),
+            Element("td", {}, []),
+            Element("td", {}, []),
+            Element("td", {}, []),
+            Element("td", {}, []),
+            Element("td", {}, []),
+        ])
+        var newRows = diffRows.concat([spacer])
+        if (rows.length > 0) {
+            newRows = newRows.concat(rows)
+        }
+        return Element("tbody", {}, newRows)
+    } else {
+        return Element("tbody", {}, rows)
+    }
 }
 
-function tableRow(test, i) {
-    if (diffAgainstFields[test.name]) {
-        if (diffAgainstFields[test.name].status == test.status) {
-            console.log(`Hidden: ${test.name}, ${test.status}`)
-            return
-        }
-    }
+function tableRowDiff(test, i) {
     var startAccuracy = formatAccuracy(test.start, test.bits)
     var resultAccuracy = formatAccuracy(test.end, test.bits)
     var targetAccuracy = formatAccuracy(test.target, test.bits)
@@ -284,6 +300,52 @@ function tableRow(test, i) {
         targetAccuracy = ""
     }
 
+    function timeTD(test) {
+        var timeDiff = test.time - diffAgainstFields[test.name].time
+        var color = "diff-time-red"
+        var text
+        if (timeDiff < 0) {
+            color = "diff-time-green"
+            text = `${formatTime(Math.abs(timeDiff))}` + " faster"
+        } else {
+            text = `${formatTime(timeDiff)}` + " slower"
+        }
+        return Element("td", { classList: color }, [text])
+    }
+
+    var classList = [test.status]
+    if (test.status != diffAgainstFields[test.name].status) {
+        classList.push("diff-status")
+    }
+
+    const tr = Element("tr", { classList: classList.join(" ") }, [
+        Element("td", {}, [test.name]),
+        Element("td", {}, [startAccuracy]),
+        Element("td", {}, [resultAccuracy]),
+        Element("td", {}, [targetAccuracy]),
+        timeTD(test),
+        Element("td", {}, [
+            Element("a", {
+                id: `test${i}`,
+                href: `${test.link}/graph.html`
+            }, ["»"])]),
+    ])
+    tr.addEventListener("click", () => tr.querySelector("a").click())
+    return tr
+}
+
+function tableRow(test, i) {
+    var startAccuracy = formatAccuracy(test.start, test.bits)
+    var resultAccuracy = formatAccuracy(test.end, test.bits)
+    var targetAccuracy = formatAccuracy(test.target, test.bits)
+    if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
+        targetAccuracy = ""
+    }
+    if (test.status == "timeout" || test.status == "error") {
+        startAccuracy = ""
+        resultAccuracy = ""
+        targetAccuracy = ""
+    }
     const tr = Element("tr", { classList: test.status }, [
         Element("td", {}, [test.name]),
         Element("td", {}, [startAccuracy]),

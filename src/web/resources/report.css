@@ -97,6 +97,9 @@ label.timeout {accent-color: var(--result-timeout);}
 #filters .sub-filter {column-width: 11.5rem;}
 
 /* Compare Reports */
+.diff-time-red {color: red;}
+.diff-time-green {color: green;}
+.diff-status {color: #0000aa;}
 .report-details {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
 .report-details h2 {color: var(--accent-title); font-size: 16px; line-height: 1.4;}
 .report-details form { display: inline;}
