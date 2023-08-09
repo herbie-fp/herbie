@@ -79,8 +79,6 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 }
 
 /* Result table filters */
-#filters {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
-#filters h2 { color: var(--accent-title); font-size: 16px; line-height: 1.4;}
 label.imp-start {accent-color: var(--result-green);}
 label.apx-start {accent-color: var(--result-orange);}
 label.uni-start {accent-color: var(--result-red-orange);}
@@ -99,8 +97,9 @@ label.timeout {accent-color: var(--result-timeout);}
 #filters .sub-filter {column-width: 11.5rem;}
 
 /* Compare Reports */
-.compare {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
-.compare h2 {color: var(--accent-title); font-size: 16px; line-height: 1.4;}
+.report-details {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
+.report-details h2 {color: var(--accent-title); font-size: 16px; line-height: 1.4;}
+.report-details form { display: inline;}
 
 /* Table of results */
 

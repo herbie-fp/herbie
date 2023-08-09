@@ -48,32 +48,18 @@ function calculateSpeedup(mergedCostAccuracy) {
     }
 }
 
-function compareTools(jsonData) {
-    // TODO this is not very good
-    const iA = buildCheckboxLabel("", "Output", toolsState["output"])
-    iA.addEventListener("click", () => {
-        toolsState["output"] = !toolsState["output"]
-        update(jsonData)
-    })
-    return Element("details", {}, [
-        Element("summary", {}, ["Compare"]),
-        iA
-    ])
-}
-
-function compareInfo(jsonData) {
+function compareInfo() {
     if (otherJsonData != null) {
-        return Element("details", {}, [
-            Element("summary", {}, ["Compare Info"]),
+        return [
             Element("div", {}, [
-                `Comparing:`,
-                `${jsonData.date}: ${jsonData.branch} @ ${jsonData.commit}`]),
+                `Comparing: `,
+                `${resultsJsonData.branch}, ${resultsJsonData.date}: @${resultsJsonData.commit}`]),
             Element("div", {}, [
-                `Against:`,
-                `${otherJsonData.date}: ${otherJsonData.branch} @ ${otherJsonData.commit}`])
-        ])
+                `Against: `,
+                `${otherJsonData.branch}, ${otherJsonData.date}: @${otherJsonData.commit}`])
+        ]
     } else {
-        return Element()
+        return
     }
 }
 
@@ -93,8 +79,13 @@ function compareReports(jsonData) {
     const input = Element("input", {
         id: inputID, value: compareState["url"]
     }, [])
-    const form = Element("form", { classList: "compare" }, [
-        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare", compareInfo(jsonData), compareTools(jsonData)])
+    const diffOutput = buildCheckboxLabel("", "Output", toolsState["output"])
+    diffOutput.addEventListener("click", () => {
+        toolsState["output"] = !toolsState["output"]
+        update(jsonData)
+    })
+    const form = Element("form", {}, [
+        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare"])
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
         if (e != undefined) {
@@ -108,7 +99,13 @@ function compareReports(jsonData) {
     })
 
     input.addEventListener("click", inputHandler)
-    return form
+
+    const details = Element("details", { classList: "report-details" }, [
+        Element("summary", {}, [form]),
+        compareInfo(jsonData),
+        diffOutput
+    ])
+    return details
 }
 
 async function inputHandler(e) {
@@ -186,7 +183,7 @@ function buildFilters(jsonTestData) {
     setupGroup("improved", improvedTags, improvedButton)
     setupGroup("regressed", regressedTags, regressedButton)
 
-    const details = Element("details", { id: "filters", open: detailsState }, [
+    const details = Element("details", { id: "filters", open: detailsState, classList: "report-details" }, [
         Element("summary", {}, [
             Element("h2", {}, "Filters"), improvedButton, regressedButton]), [
             filterButtons]])
