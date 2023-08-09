@@ -49,8 +49,105 @@ function calculateSpeedup(mergedCostAccuracy) {
 
 function update(jsonData) {
 
+    function round(value) {
+        // console.log(value)
+        if (Math.abs(value) >= 10 ** 6) {
+            return "?"
+        } else if (Math.abs(value) >= 10) {
+            // TODO Finish function round* 
+            return value.toFixed(0)
+        } else {
+            return value.toFixed(2)
+        }
+    }
+
+    function buildTable(subReports) {
+        var trArray = [Element("tr", {}, [
+            Element("th", {}, ["Subreport"]),
+            Element("th", {}, ["Time"]),
+            Element("th", {}, ["Passed"]),
+            Element("th", {}, ["Tests"]),
+            Element("th", {}, ["Bits"])
+        ])]
+        const passedStatus = ["gt-target", "eq-target", "imp-start"]
+        for (let report in subReports) {
+            let tests = subReports[report]
+            var totalTime = 0
+            var passed = 0
+            var available = 0
+            var gained = 0
+            var start = 0
+            for (let t of tests) {
+                totalTime += t.time
+                if (passedStatus.includes(t.status)) {
+                    passed += 1
+                } else if ("ex-start" == t.status) {
+                    available += 1
+                }
+                const fE = Number.parseFloat(t.end)
+                const fS = Number.parseFloat(t.start)
+                if (!Number.isNaN(fE) && !Number.isNaN(fS)) {
+                    gained += fE
+                    start += fS
+                }
+            }
+            trArray.push(Element("tr", {}, [
+                Element("td", {}, [Element("a", { href: `${report}/index.html` }, [report])]),
+                Element("td", {}, [`${formatTime(totalTime)}`]),
+                Element("td", {}, [`${passed}/${available}`]),
+                Element("td", {}, [`${tests.length}`]),
+                Element("td", {}, [`${round(start - gained)}/${round(start)}`])
+            ]))
+        }
+        return Element("table", {}, [
+            Element("tbody", {}, [
+                trArray
+            ])
+        ])
+    }
+
+    function metrics(jsonData) {
+        var subReports = {}
+        for (let test of jsonData.tests) {
+            const linkComponents = test.link.split("/")
+            if (linkComponents.length > 1) {
+                if (subReports[linkComponents[0]] == undefined) {
+                    subReports[linkComponents[0]] = []
+                }
+                subReports[linkComponents[0]].push(test)
+            }
+        }
+        if (subReports.length < 1) {
+            return [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])]
+        } else {
+            const link = Element("a", { id: "subreports-toggle" }, ["See subreports"])
+            link.addEventListener("click", (e) => {
+                if (e.target.text == "See subreports") {
+                    e.target.text = "Hide subreports"
+                } else {
+                    e.target.text = "See subreports"
+                }
+                if (e.target.parentNode.classList.contains("no-subreports")) {
+                    e.target.parentNode.classList.remove("no-subreports")
+                } else {
+                    e.target.parentNode.classList.add("no-subreports")
+                }
+            })
+            return [
+                Element("li", { id: "subreports", classList: "no-subreports" }, [
+                    link,
+                    Element("div", { id: "with-subreports" }, [
+                        Element("div", { id: "subreport-table" }, [
+                            buildTable(subReports)
+                        ])
+                    ])]),
+                Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])
+            ]
+        }
+    }
+
     const navigation = Element("nav", {}, [
-        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
+        Element("ul", {}, metrics(jsonData))
     ])
 
     //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
