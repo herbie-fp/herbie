@@ -20,8 +20,13 @@ const targetHelpText = `Color key:
     `
 
 // Helper Functions
-function formatAccuracy(num, dom) {
-    return `${((100 - (100 * (num / dom)))).toFixed(1)}%`
+
+function calculatePercent(decimal) {
+    return ((100 - (100 * (decimal)))).toFixed(1)
+}
+
+function formatAccuracy(decimal) {
+    return `${calculatePercent(decimal)}%`
 }
 
 function formatTime(ms) {
@@ -288,18 +293,6 @@ function tableBody(jsonData) {
 }
 
 function tableRowDiff(test, i) {
-    var startAccuracy = formatAccuracy(test.start, test.bits)
-    var resultAccuracy = formatAccuracy(test.end, test.bits)
-    var targetAccuracy = formatAccuracy(test.target, test.bits)
-    if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
-        targetAccuracy = ""
-    }
-    if (test.status == "timeout" || test.status == "error") {
-        startAccuracy = ""
-        resultAccuracy = ""
-        targetAccuracy = ""
-    }
-
     function timeTD(test) {
         var timeDiff = test.time - diffAgainstFields[test.name].time
         var color = "diff-time-red"
@@ -313,16 +306,65 @@ function tableRowDiff(test, i) {
         return Element("td", { classList: color }, [text])
     }
 
+    function buildTDfor(o, t) {
+        const op = calculatePercent(o)
+        const tp = calculatePercent(t)
+        if (op - tp == 0) {
+            return Element("td", {}, [formatAccuracy(t)])
+        } else {
+            var color = "diff-time-red"
+            var diff = op - tp
+            if (diff < 0) {
+                diff = Math.abs(diff)
+                color = "diff-time-green"
+            }
+            return Element("td", { classList: color }, [`${(diff).toFixed(1)}%`])
+        }
+    }
+
+    function startAccuracyTD(test) {
+        const t = test.start / test.bits
+        const o = diffAgainstFields[test.name].start / diffAgainstFields[test.name].bits
+        return buildTDfor(o, t)
+    }
+
+    function resultAccuracyTD(test) {
+        const t = test.end / test.bits
+        const o = diffAgainstFields[test.name].end / diffAgainstFields[test.name].bits
+        return buildTDfor(o, t)
+    }
+    function targetAccuracyTD(test) {
+        const t = test.target / test.bits
+        const o = diffAgainstFields[test.name].target / diffAgainstFields[test.name].bits
+        return buildTDfor(o, t)
+    }
+
+    var testName = test.name
     var classList = [test.status]
+    var startAccuracy = startAccuracyTD(test)
+    var resultAccuracy = resultAccuracyTD(test)
+    var targetAccuracy = targetAccuracyTD(test)
+
     if (test.status != diffAgainstFields[test.name].status) {
         classList.push("diff-status")
+        testName = testName + " (" + test.status + " != " + diffAgainstFields[test.name].status + ")"
+    }
+
+    if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
+        targetAccuracy = Element("td", {}, [])
+    }
+
+    if (test.status == "timeout" || test.status == "error") {
+        startAccuracy = Element("td", {}, [])
+        resultAccuracy = Element("td", {}, [])
+        targetAccuracy = Element("td", {}, [])
     }
 
     const tr = Element("tr", { classList: classList.join(" ") }, [
-        Element("td", {}, [test.name]),
-        Element("td", {}, [startAccuracy]),
-        Element("td", {}, [resultAccuracy]),
-        Element("td", {}, [targetAccuracy]),
+        Element("td", {}, [testName]),
+        startAccuracy,
+        resultAccuracy,
+        targetAccuracy,
         timeTD(test),
         Element("td", {}, [
             Element("a", {
@@ -335,9 +377,9 @@ function tableRowDiff(test, i) {
 }
 
 function tableRow(test, i) {
-    var startAccuracy = formatAccuracy(test.start, test.bits)
-    var resultAccuracy = formatAccuracy(test.end, test.bits)
-    var targetAccuracy = formatAccuracy(test.target, test.bits)
+    var startAccuracy = formatAccuracy(test.start / test.bits)
+    var resultAccuracy = formatAccuracy(test.end / test.bits)
+    var targetAccuracy = formatAccuracy(test.target / test.bits)
     if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
         targetAccuracy = ""
     }
@@ -382,9 +424,9 @@ function generateStatesFrom(jsonData) {
         Element("div", {}, [
             "Average Percentage Accurate: ",
             Element("span", { classList: "number" }, [
-                formatAccuracy(total_start, maximum_accuracy),
+                formatAccuracy(total_start / maximum_accuracy),
                 Element("span", { classList: "unit" }, [" → ",]),
-                formatAccuracy(total_result, maximum_accuracy),]),
+                formatAccuracy(total_result / maximum_accuracy),]),
         ]),
         Element("div", {}, [
             "Time:",
