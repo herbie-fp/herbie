@@ -1,6 +1,3 @@
-// other-report.json
-// https://nightly.cs.washington.edu/reports/herbie/1690882076:nightly:main:f4cd8b9a45/results.json
-
 // Constants
 const tempXY_A = "Output vs Input Accuracy"
 const tempXY_B = "Each point represents a Herbie run below. Its horizontal position shows initial accuracy, and vertical position shows final accuracy. Points above the line are improved by Herbie."
@@ -22,7 +19,7 @@ const targetHelpText = `Color key:
     Yellow: no accuracy change
     `
 
-// Helpers
+// Helper Functions
 function formatAccuracy(num, dom) {
     return `${((100 - (100 * (num / dom)))).toFixed(1)}%`
 }
@@ -50,197 +47,22 @@ function calculateSpeedup(mergedCostAccuracy) {
         }
     }
 }
-// end Helpers
 
-function update(jsonData, otherJson) {
-
-    const navigation = Element("nav", {}, [
-        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
-    ])
-
-    //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
-    function toTitleCase(str) {
-        return str.replace(
-            /\w\S*/g,
-            function (txt) {
-                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-            }
-        )
-    }
-
-    function hasNote(note) {
-        return (note ? toTitleCase(note) + " " : "") + "Results"
-    }
-
-    const header = Element("header", {}, [
-        Element("h1", {}, hasNote(jsonData.note)),
-        Element("img", { src: "logo-car.png" }, []),
-        navigation,
-    ])
-
-    const figureRow = Element("div", { classList: "figure-row" }, [
-        Element("figure", { id: "xy" }, [
-            Element("h2", {}, [tempXY_A]),
-            plotXY(jsonData.tests),
-            Element("figcaption", {}, [tempXY_B])
-        ]),
-        Element("figure", { id: "pareto" }, [
-            Element("h2", {}, [tempPareto_A]),
-            plotPareto(jsonData),
-            Element("figcaption", {}, [tempPareto_B])
-        ])
-    ])
-
-    const resultsTable = Element("table", { id: "results" }, [
-        Element("thead", {}, [
-            Element("tr", {}, [
-                Element("th", {}, ["Test"]),
-                Element("th", {}, ["Start"]),
-                Element("th", {}, ["Result",
-                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
-                Element("th", {}, ["Target",
-                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
-                Element("th", {}, ["Time"]),
-            ])
-        ]),
-        tableBody(jsonData, otherJson)
-    ])
-
-    if (otherJson != undefined) {
-        console.log(otherJson)
-        const newBody = Element("body", {}, [
-            header,
-            generateStatesFrom(jsonData),
-            generateStatesFrom(otherJson),
-            figureRow,
-            compareReports(jsonData, otherJson),
-            buildFilters(jsonData.tests),
-            resultsTable,
-        ])
-        htmlNode.replaceChild(newBody, bodyNode)
-        bodyNode = newBody
-    } else {
-        const newBody = Element("body", {}, [
-            header,
-            generateStatesFrom(jsonData),
-            figureRow,
-            compareReports(jsonData),
-            buildFilters(jsonData.tests),
-            resultsTable,
-        ])
-        htmlNode.replaceChild(newBody, bodyNode)
-        bodyNode = newBody
-    }
-}
-
-function generateStatesFrom(jsonData) {
-    var total_start = 0
-    var total_result = 0
-    var maximum_accuracy = 0
-    var total_time = 0
-    var total_crash_timeout = 0
-    jsonData.tests.forEach((test) => {
-        total_start += test.start
-        total_result += test.end
-        maximum_accuracy += test.bits
-        total_time += test.time
-        if (test.status == "timeout" || test.status == "crash") {
-            total_crash_timeout += 1
-        }
-    })
-
-    const stats = Element("div", { id: "large" }, [
-        Element("div", {}, [
-            "Average Percentage Accurate: ",
-            Element("span", { classList: "number" }, [
-                formatAccuracy(total_start, maximum_accuracy),
-                Element("span", { classList: "unit" }, [" → ",]),
-                formatAccuracy(total_result, maximum_accuracy),]),
-        ]),
-        Element("div", {}, [
-            "Time:",
-            Element("span", { classList: "number" }, [formatTime(total_time)])
-        ]),
-        Element("div", {}, [
-            "Bad Runs:",
-            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [displayCrashTimeoutRatio(total_crash_timeout, jsonData.tests.length)])
-        ]),
-        Element("div", {}, [
-            "Speedup:",
-            Element("span", {
-                classList: "number",
-                title: "Aggregate speedup of fastest alternative that improves accuracy."
-            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
-        ]),
-    ])
-    return stats
-}
-
-var toolsState = {
-    output: false
-}
-
-// View State
-var detailsState = false
-var groupState = {
-    "improved": true,
-    "regressed": true
-}
-var compareState = {
-    url: "",
-    other: false,
-    start: true,
-}
-var filterState = {
-    "imp-start": true,
-    "ex-start": true,
-    "eq-start": true,
-    "eq-target": true,
-    "gt-target": true,
-    "gt-start": true,
-    "uni-start": true,
-    "lt-target": true,
-    "lt-start": true,
-    "apx-start": true,
-    "timeout": true,
-    "crash": true,
-    "error": true,
-}
-
-const renames = {
-    "imp-start": "Improved start",
-    "apx-start": "Approximate start",
-    "uni-start": "Regressed from start",
-    "ex-start": "Exact start",
-    "eq-start": "Equal start",
-    "lt-start": "Less than start",
-    "gt-target": "Greater than target",
-    "gt-start": "Greater than start",
-    "eq-target": "Equal to target",
-    "lt-target": "Less than target",
-    "error": "Error",
-    "timeout": "Timeout",
-    "crash": "Crash",
-}
-
-function compareTools(jsonData, otherJsonData) {
+function compareTools(jsonData) {
+    // TODO this is not very good
     const iA = buildCheckboxLabel("", "Output", toolsState["output"])
     iA.addEventListener("click", () => {
         toolsState["output"] = !toolsState["output"]
-        if (otherJsonData != undefined) {
-            update(jsonData, otherJsonData)
-        } else {
-            update(jsonData)
-        }
+        update(jsonData)
     })
     return Element("details", {}, [
-        Element("summary", {}, ["Tools"]),
+        Element("summary", {}, ["Compare"]),
         iA
     ])
 }
 
-function compareInfo(jsonData, otherJsonData) {
-    if (otherJsonData != undefined) {
+function compareInfo(jsonData) {
+    if (otherJsonData != null) {
         return Element("details", {}, [
             Element("summary", {}, ["Compare Info"]),
             Element("div", {}, [
@@ -255,7 +77,7 @@ function compareInfo(jsonData, otherJsonData) {
     }
 }
 
-function compareReports(jsonData, otherJsonData) {
+function compareReports(jsonData) {
     const formName = "compare-form"
     const compareID = "compare-compare"
     const defaultID = "compare-default"
@@ -272,7 +94,7 @@ function compareReports(jsonData, otherJsonData) {
         id: inputID, value: compareState["url"]
     }, [])
     const form = Element("form", { classList: "compare" }, [
-        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare", compareInfo(jsonData, otherJsonData), compareTools(jsonData, otherJsonData)])
+        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare", compareInfo(jsonData), compareTools(jsonData)])
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
         if (e != undefined) {
@@ -284,11 +106,12 @@ function compareReports(jsonData, otherJsonData) {
             }
         }
     })
-    input.addEventListener("click", idk)
+
+    input.addEventListener("click", inputHandler)
     return form
 }
 
-async function idk(e) {
+async function inputHandler(e) {
     if (e.target.nodeName == "INPUT") {
         if (compareState["start"] != e.target.parentNode.childNodes[2].checked) {
             await fetchAndUpdate(resultsJsonData,
@@ -313,15 +136,11 @@ async function fetchAndUpdate(jsonData, url, start, other) {
             mode: "cors",
         })
         const json = await response.json()
-        setDiffAgainstFields(json)
-        update(jsonData, json)
-    }
-}
-
-function setDiffAgainstFields(otherJson) {
-    for (let test of otherJson.tests) {
-        diffAgainstFields[`${test.name}`] = test
-        console.log(test)
+        for (let test of json.tests) {
+            diffAgainstFields[`${test.name}`] = test
+        }
+        otherJsonData = json
+        update(jsonData)
     }
 }
 
@@ -439,38 +258,23 @@ function plotPareto(jsonData) {
     return out;
 }
 
-function tableBody(jsonData, otherJsonData) {
-    if (otherJsonData == undefined) {
-        var rows = []
-        for (let test of jsonData.tests) {
-            if (filterState[test.status]) {
-                rows.push(tableRow(test, rows.length))
-            }
-        }
-        return Element("tbody", {}, rows)
-    } else {
-        if (otherJsonData.tests.length == jsonData.tests.length) {
-            var rows = []
-            for (let i in jsonData.tests) {
-                if (jsonData.tests[i].status == otherJsonData.tests[i].status) {
-                    if (filterState[jsonData.tests[i].status]) {
-                        if (toolsState["output"]) {
-                            if (jsonData.tests[i]["output"] != otherJsonData.tests[i]["output"]) {
-                                rows.push(tableRow(jsonData.tests[i], rows.length))
-                            }
-                        }
-                    }
-                }
-            }
-            // DEBUG displays number of diff rows as tbody id
-            return Element("tbody", { id: `rows-${rows.length}` }, rows)
-        } else {
-            return Element("div", {}, "Error: JSON is too different")
+function tableBody(jsonData) {
+    var rows = []
+    for (let test of jsonData.tests) {
+        if (filterState[test.status]) {
+            rows.push(tableRow(test, rows.length))
         }
     }
+    return Element("tbody", {}, rows)
 }
 
 function tableRow(test, i) {
+    if (diffAgainstFields[test.name]) {
+        if (diffAgainstFields[test.name].status == test.status) {
+            console.log(`Hidden: ${test.name}, ${test.status}`)
+            return
+        }
+    }
     var startAccuracy = formatAccuracy(test.start, test.bits)
     var resultAccuracy = formatAccuracy(test.end, test.bits)
     var targetAccuracy = formatAccuracy(test.target, test.bits)
@@ -498,6 +302,167 @@ function tableRow(test, i) {
     tr.addEventListener("click", () => tr.querySelector("a").click())
     return tr
 }
+
+function generateStatesFrom(jsonData) {
+    var total_start = 0
+    var total_result = 0
+    var maximum_accuracy = 0
+    var total_time = 0
+    var total_crash_timeout = 0
+    jsonData.tests.forEach((test) => {
+        total_start += test.start
+        total_result += test.end
+        maximum_accuracy += test.bits
+        total_time += test.time
+        if (test.status == "timeout" || test.status == "crash") {
+            total_crash_timeout += 1
+        }
+    })
+
+    const stats = Element("div", { id: "large" }, [
+        Element("div", {}, [
+            "Average Percentage Accurate: ",
+            Element("span", { classList: "number" }, [
+                formatAccuracy(total_start, maximum_accuracy),
+                Element("span", { classList: "unit" }, [" → ",]),
+                formatAccuracy(total_result, maximum_accuracy),]),
+        ]),
+        Element("div", {}, [
+            "Time:",
+            Element("span", { classList: "number" }, [formatTime(total_time)])
+        ]),
+        Element("div", {}, [
+            "Bad Runs:",
+            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [displayCrashTimeoutRatio(total_crash_timeout, jsonData.tests.length)])
+        ]),
+        Element("div", {}, [
+            "Speedup:",
+            Element("span", {
+                classList: "number",
+                title: "Aggregate speedup of fastest alternative that improves accuracy."
+            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
+        ]),
+    ])
+    return stats
+}
+
+// end Helpers
+
+var toolsState = {
+    output: false
+}
+
+// View State
+var detailsState = false
+
+var groupState = {
+    "improved": true,
+    "regressed": true
+}
+
+var compareState = {
+    url: "",
+    other: false,
+    start: true,
+}
+
+var filterState = {
+    "imp-start": true,
+    "ex-start": true,
+    "eq-start": true,
+    "eq-target": true,
+    "gt-target": true,
+    "gt-start": true,
+    "uni-start": true,
+    "lt-target": true,
+    "lt-start": true,
+    "apx-start": true,
+    "timeout": true,
+    "crash": true,
+    "error": true,
+}
+
+const renames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-target": "Greater than target",
+    "gt-start": "Greater than start",
+    "eq-target": "Equal to target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
+}
+
+function update(jsonData) {
+
+    const navigation = Element("nav", {}, [
+        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
+    ])
+
+    //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
+    function toTitleCase(str) {
+        return str.replace(
+            /\w\S*/g,
+            function (txt) {
+                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+            }
+        )
+    }
+
+    function hasNote(note) {
+        return (note ? toTitleCase(note) + " " : "") + "Results"
+    }
+
+    const header = Element("header", {}, [
+        Element("h1", {}, hasNote(jsonData.note)),
+        Element("img", { src: "logo-car.png" }, []),
+        navigation,
+    ])
+
+    const figureRow = Element("div", { classList: "figure-row" }, [
+        Element("figure", { id: "xy" }, [
+            Element("h2", {}, [tempXY_A]),
+            plotXY(jsonData.tests),
+            Element("figcaption", {}, [tempXY_B])
+        ]),
+        Element("figure", { id: "pareto" }, [
+            Element("h2", {}, [tempPareto_A]),
+            plotPareto(jsonData),
+            Element("figcaption", {}, [tempPareto_B])
+        ])
+    ])
+
+    const resultsTable = Element("table", { id: "results" }, [
+        Element("thead", {}, [
+            Element("tr", {}, [
+                Element("th", {}, ["Test"]),
+                Element("th", {}, ["Start"]),
+                Element("th", {}, ["Result",
+                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
+                Element("th", {}, ["Target",
+                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
+                Element("th", {}, ["Time"]),
+            ])
+        ]),
+        tableBody(jsonData)
+    ])
+    const newBody = Element("body", {}, [
+        header,
+        generateStatesFrom(jsonData),
+        figureRow,
+        compareReports(jsonData),
+        buildFilters(jsonData.tests),
+        resultsTable,
+    ])
+    htmlNode.replaceChild(newBody, bodyNode)
+    bodyNode = newBody
+}
+
 
 async function getResultsJson() {
     if (resultsJsonData == null) {
@@ -556,6 +521,7 @@ const htmlNode = document.querySelector("html")
 var bodyNode = htmlNode.querySelector("body")
 
 var diffAgainstFields = {}
+var otherJsonData = null
 var resultsJsonData = await getResultsJson()
 
 update(resultsJsonData)
