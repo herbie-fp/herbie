@@ -514,7 +514,6 @@
                                         test-pcontext
                                         (test-context test))))
 
-      (displayln derivations)
       (eprintf " complete\n")
       (hasheq 'alternatives fpcores
               'histories histories
