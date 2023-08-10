@@ -73,75 +73,66 @@ function compareReports(jsonData) {
     const compareID = "compare-compare"
     const defaultID = "compare-default"
     const inputID = "compare-input"
-    const other = Element("input", {
-        id: compareID, type: "radio", checked: compareState["other"],
-        name: formName
-    }, [])
-    const starting = Element("input", {
-        id: defaultID, type: "radio", checked: compareState["start"],
+    const compare = Element("input", {
+        id: compareID, type: "radio", checked: compareState["compare"],
         name: formName
     }, [])
     const input = Element("input", {
         id: inputID, value: compareState["url"]
     }, [])
-    const diffOutput = buildCheckboxLabel("", "Output", toolsState["output"])
-    diffOutput.addEventListener("click", () => {
-        toolsState["output"] = !toolsState["output"]
-        update(jsonData)
-    })
+    const starting = Element("input", {
+        id: defaultID, type: "radio", checked: compareState["start"],
+        name: formName
+    }, [])
     const form = Element("form", {}, [
-        Element("h2", {}, ["Compare"]), input, starting, "Default", other, "Compare"])
+        Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare"])
+    compare.addEventListener("click", async (e) => {
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+    starting.addEventListener("click", async (e) => {
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
-        if (e != undefined) {
-            if (compareState["start"] != e.target.parentNode.childNodes[2].checked) {
-                await fetchAndUpdate(jsonData,
-                    e.target.childNodes[1].value,
-                    e.target.childNodes[2].checked,
-                    e.target.childNodes[4].checked)
-            }
-        }
+        await updateFromForm(jsonData, e.target.parentNode.childNodes[0])
     })
 
-    input.addEventListener("click", inputHandler)
-
-    const details = Element("details", { classList: "report-details" }, [
-        Element("summary", {}, [form]),
+    const compareDiv = Element("div", { classList: "report-details" }, [
+        form,
         compareInfo(jsonData),
-        diffOutput
     ])
-    return details
+    return compareDiv
 }
 
-async function inputHandler(e) {
-    if (e.target.nodeName == "INPUT") {
-        if (compareState["start"] != e.target.parentNode.childNodes[2].checked) {
-            await fetchAndUpdate(resultsJsonData,
-                e.target.parentNode.childNodes[1].value,
-                e.target.parentNode.childNodes[2].checked,
-                e.target.parentNode.childNodes[4].checked)
-        }
-    }
+async function updateFromForm(jsonData, formNode) {
+    await fetchAndUpdate(jsonData,
+        formNode.childNodes[1].value,
+        formNode.childNodes[2].checked,
+        formNode.childNodes[4].checked)
 }
 
-async function fetchAndUpdate(jsonData, url, start, other) {
+async function fetchAndUpdate(jsonData, url, start, compare) {
     // TODO url verifying if needed
     compareState["url"] = url
     compareState["start"] = start
-    compareState["other"] = other
-    if (start) {
+    compareState["compare"] = compare
+    if (start || url == "") {
+        diffAgainstFields = {}
+        otherJsonData = null
         update(jsonData)
     } else {
-        let response = await fetch(url, {
-            headers: { "content-type": "text/plain" },
-            method: "GET",
-            mode: "cors",
-        })
-        const json = await response.json()
-        for (let test of json.tests) {
-            diffAgainstFields[`${test.name}`] = test
+        if (otherJsonData == null) {
+            let response = await fetch(url, {
+                headers: { "content-type": "text/plain" },
+                method: "GET",
+                mode: "cors",
+            })
+            const json = await response.json()
+            for (let test of json.tests) {
+                diffAgainstFields[`${test.name}`] = test
+            }
+            otherJsonData = json
         }
-        otherJsonData = json
         update(jsonData)
     }
 }
@@ -265,10 +256,10 @@ function tableBody(jsonData) {
     var rows = [] // rows without a diff
     for (let test of jsonData.tests) {
         if (filterState[test.status]) {
-            if (diffAgainstFields[test.name]) {
-                diffRows.push(tableRowDiff(test, rows.length))
+            if (diffAgainstFields[test.name] && compareState["compare"]) {
+                diffRows.push(tableRowDiff(test))
             } else {
-                rows.push(tableRow(test, rows.length))
+                rows.push(tableRow(test))
             }
         }
     }
@@ -292,7 +283,7 @@ function tableBody(jsonData) {
     }
 }
 
-function tableRowDiff(test, i) {
+function tableRowDiff(test) {
     function timeTD(test) {
         var timeDiff = test.time - diffAgainstFields[test.name].time
         var color = "diff-time-red"
@@ -333,6 +324,7 @@ function tableRowDiff(test, i) {
         const o = diffAgainstFields[test.name].end / diffAgainstFields[test.name].bits
         return buildTDfor(o, t)
     }
+
     function targetAccuracyTD(test) {
         const t = test.target / test.bits
         const o = diffAgainstFields[test.name].target / diffAgainstFields[test.name].bits
@@ -350,7 +342,9 @@ function tableRowDiff(test, i) {
         testName = testName + " (" + test.status + " != " + diffAgainstFields[test.name].status + ")"
     }
 
-    if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
+    if (test.status == "imp-start" ||
+        test.status == "ex-start" ||
+        test.status == "apx-start") {
         targetAccuracy = Element("td", {}, [])
     }
 
@@ -368,7 +362,6 @@ function tableRowDiff(test, i) {
         timeTD(test),
         Element("td", {}, [
             Element("a", {
-                id: `test${i}`,
                 href: `${test.link}/graph.html`
             }, ["»"])]),
     ])
@@ -376,7 +369,7 @@ function tableRowDiff(test, i) {
     return tr
 }
 
-function tableRow(test, i) {
+function tableRow(test) {
     var startAccuracy = formatAccuracy(test.start / test.bits)
     var resultAccuracy = formatAccuracy(test.end / test.bits)
     var targetAccuracy = formatAccuracy(test.target / test.bits)
@@ -396,7 +389,6 @@ function tableRow(test, i) {
         Element("td", {}, [formatTime(test.time)]),
         Element("td", {}, [
             Element("a", {
-                id: `test${i}`,
                 href: `${test.link}/graph.html`
             }, ["»"])]),
     ])
@@ -449,22 +441,18 @@ function generateStatesFrom(jsonData) {
 
 // end Helpers
 
-var toolsState = {
-    output: false
-}
-
 // View State
 var detailsState = false
+
+var compareState = {
+    url: "",
+    compare: false,
+    start: true,
+}
 
 var groupState = {
     "improved": true,
     "regressed": true
-}
-
-var compareState = {
-    url: "",
-    other: false,
-    start: true,
 }
 
 var filterState = {
