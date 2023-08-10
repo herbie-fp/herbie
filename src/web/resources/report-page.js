@@ -53,22 +53,28 @@ function calculateSpeedup(mergedCostAccuracy) {
     }
 }
 
-function compareInfo() {
+function compareInfo(diffCount) {
     if (otherJsonData != null) {
         return [
-            Element("div", {}, [
-                `Comparing: `,
-                `${resultsJsonData.branch}: @${resultsJsonData.commit}, ${resultsJsonData.date}`]),
-            Element("div", {}, [
-                `Against: `,
-                `${otherJsonData.branch}: @${otherJsonData.commit}, ${otherJsonData.date}`])
+            Element("details", {}, [
+                Element("summary", {}, [
+                    Element("h2", {}, ["More Info"]),
+                    `Comparing ${diffCount}/${resultsJsonData.tests.length} tests`
+                ]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Current report:"]),
+                    `${resultsJsonData.branch}: @${resultsJsonData.commit}, ${resultsJsonData.date}`]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Compared to:"]),
+                    `${otherJsonData.branch}: @${otherJsonData.commit}, ${otherJsonData.date}`]),
+            ])
         ]
     } else {
         return
     }
 }
 
-function compareReports(jsonData) {
+function compareForm(jsonData) {
     const formName = "compare-form"
     const compareID = "compare-compare"
     const defaultID = "compare-default"
@@ -86,6 +92,7 @@ function compareReports(jsonData) {
     }, [])
     const form = Element("form", {}, [
         Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare"])
+
     compare.addEventListener("click", async (e) => {
         await updateFromForm(jsonData, e.target.parentNode)
     })
@@ -96,12 +103,7 @@ function compareReports(jsonData) {
         e.preventDefault()
         await updateFromForm(jsonData, e.target.parentNode.childNodes[0])
     })
-
-    const compareDiv = Element("div", { classList: "report-details" }, [
-        form,
-        compareInfo(jsonData),
-    ])
-    return compareDiv
+    return form
 }
 
 async function updateFromForm(jsonData, formNode) {
@@ -282,9 +284,9 @@ function tableBody(jsonData) {
         if (rows.length > 0) {
             newRows = newRows.concat([spacer]).concat(rows)
         }
-        return Element("tbody", {}, newRows)
+        return { tbody: Element("tbody", {}, newRows), diffCount: diffRows.length }
     } else {
-        return Element("tbody", {}, rows)
+        return { tbody: Element("tbody", {}, rows), diffCount: 0 }
     }
 }
 
@@ -405,7 +407,7 @@ function tableRow(test) {
     return tr
 }
 
-function generateStatesFrom(jsonData) {
+function generateStatsFrom(jsonData) {
     var total_start = 0
     var total_result = 0
     var maximum_accuracy = 0
@@ -535,6 +537,8 @@ function update(jsonData) {
         ])
     ])
 
+    const tableData = tableBody(jsonData)
+
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
@@ -547,13 +551,19 @@ function update(jsonData) {
                 Element("th", {}, ["Time"]),
             ])
         ]),
-        tableBody(jsonData)
+        tableData["tbody"]
     ])
+
+    const compareDiv = Element("div", { classList: "report-details" }, [
+        compareForm(jsonData),
+        compareInfo(tableData["diffCount"]),
+    ])
+
     const newBody = Element("body", {}, [
         header,
-        generateStatesFrom(jsonData),
+        generateStatsFrom(jsonData),
         figureRow,
-        compareReports(jsonData),
+        compareDiv,
         buildFilters(jsonData.tests),
         resultsTable,
     ])

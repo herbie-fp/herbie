@@ -101,8 +101,12 @@ label.timeout {accent-color: var(--result-timeout);}
 .diff-time-green {color: green;}
 .diff-status {color: #0000aa;}
 .report-details {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
-.report-details h2 {color: var(--accent-title); font-size: 16px; line-height: 1.4;}
+.report-details h2 {font-size: 16px;}
+.report-details h3 {font-size: 14px;}
+.report-details h2, h3 {color: var(--accent-title); line-height: 1.4;}
 .report-details form { display: inline;}
+.report-details > details summary h2 {padding-right: 1em;}
+.report-details > details > div > h3 {margin: 0; display: inline; padding-right: 1em; color: var(--accent-title);}
 
 /* Table of results */
 
