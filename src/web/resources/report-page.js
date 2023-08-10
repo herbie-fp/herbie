@@ -58,10 +58,10 @@ function compareInfo() {
         return [
             Element("div", {}, [
                 `Comparing: `,
-                `${resultsJsonData.branch}, ${resultsJsonData.date}: @${resultsJsonData.commit}`]),
+                `${resultsJsonData.branch}: @${resultsJsonData.commit}, ${resultsJsonData.date}`]),
             Element("div", {}, [
                 `Against: `,
-                `${otherJsonData.branch}, ${otherJsonData.date}: @${otherJsonData.commit}`])
+                `${otherJsonData.branch}: @${otherJsonData.commit}, ${otherJsonData.date}`])
         ]
     } else {
         return
@@ -112,6 +112,11 @@ async function updateFromForm(jsonData, formNode) {
 }
 
 async function fetchAndUpdate(jsonData, url, start, compare) {
+    let lastChar = url.slice(url.length - 1, url.length)
+    // Could also split string on / and check if the last component = "results.json"
+    if (lastChar == "/") {
+        url = url + "results.json"
+    }
     // TODO url verifying if needed
     compareState["url"] = url
     compareState["start"] = start
@@ -273,9 +278,9 @@ function tableBody(jsonData) {
             Element("td", {}, []),
             Element("td", {}, []),
         ])
-        var newRows = diffRows.concat([spacer])
+        var newRows = diffRows
         if (rows.length > 0) {
-            newRows = newRows.concat(rows)
+            newRows = newRows.concat([spacer]).concat(rows)
         }
         return Element("tbody", {}, newRows)
     } else {
@@ -288,11 +293,15 @@ function tableRowDiff(test) {
         var timeDiff = test.time - diffAgainstFields[test.name].time
         var color = "diff-time-red"
         var text
-        if (timeDiff < 0) {
+        // If the time diff is less the 1s don't format
+        if (Math.abs(timeDiff) < 1000) {
+            color = ""
+            text = formatTime(test.time)
+        } else if (timeDiff < 0) {
             color = "diff-time-green"
-            text = `${formatTime(Math.abs(timeDiff))}` + " faster"
+            text = "+ " + `${formatTime(Math.abs(timeDiff))}`
         } else {
-            text = `${formatTime(timeDiff)}` + " slower"
+            text = "-" + `${formatTime(timeDiff)}`
         }
         return Element("td", { classList: color }, [text])
     }
