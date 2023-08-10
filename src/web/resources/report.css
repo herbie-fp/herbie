@@ -79,9 +79,8 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 }
 
 /* Result table filters */
-tr.hidden {display: none;}
 #filters {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
-.section-title { color: var(--accent-title); font-size: 16px; line-height: 1.4;}
+#filters h2 { color: var(--accent-title); font-size: 16px; line-height: 1.4;}
 label.imp-start {accent-color: var(--result-green);}
 label.apx-start {accent-color: var(--result-orange);}
 label.uni-start {accent-color: var(--result-red-orange);}
@@ -89,13 +88,15 @@ label.ex-start {accent-color: var(--result-light-green);}
 label.eq-start {accent-color: var(--result-green);}
 label.lt-start {accent-color: var(--result-yellow);}
 label.gt-target {accent-color: var(--result-green);}
+label.gt-start {accent-color: var(--result-green);}
 label.eq-target {accent-color: var(--result-green);}
 label.lt-target {accent-color: var(--result-orange);}
 label.crash {accent-color: var(--result-light-orange);}
 label.error {accent-color: var(--result-error);}
 label.timeout {accent-color: var(--result-timeout);}
 #filters label {margin: 0; display: inline-block; padding: .4ex; color: var(--accent-text);}
-#filter-group { accent-color: var(--accent-blue);}
+#filters summary {accent-color: var(--accent-blue);}
+#filters .sub-filter {column-width: 11.5rem;}
 
 /* Table of results */
 
