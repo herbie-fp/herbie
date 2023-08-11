@@ -581,8 +581,6 @@ async function fetchAndUpdate(jsonData, url, start, compare) {
     }
 }
 
-// end Helpers
-
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
 function on(mark, listeners = {}) {
