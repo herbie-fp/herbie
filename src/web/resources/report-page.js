@@ -49,41 +49,8 @@ function calculateSpeedup(mergedCostAccuracy) {
 
 function update(jsonData) {
 
-    function metrics(jsonData) {
-        var subReports = {}
-        for (let test of jsonData.tests) {
-            const linkComponents = test.link.split("/")
-            if (linkComponents.length > 1) {
-                if (subReports[linkComponents[0]] == undefined) {
-                    subReports[linkComponents[0]] = []
-                }
-                subReports[linkComponents[0]].push(test)
-            }
-        }
-        if (subReports.length < 1) {
-            return [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])]
-        } else {
-            const link = Element("a", { id: "subreports-toggle" }, ["See subreports"])
-            link.addEventListener("click", (e) => {
-                if (e.target.text == "See subreports") {
-                    e.target.text = "Hide subreports"
-                } else {
-                    e.target.text = "See subreports"
-                }
-                if (e.target.parentNode.classList.contains("no-subreports")) {
-                    e.target.parentNode.classList.remove("no-subreports")
-                } else {
-                    e.target.parentNode.classList.add("no-subreports")
-                }
-            })
-            return [
-                Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])
-            ]
-        }
-    }
-
     const navigation = Element("nav", {}, [
-        Element("ul", {}, metrics(jsonData))
+        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
     ])
 
     //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
