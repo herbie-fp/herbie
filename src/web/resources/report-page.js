@@ -52,7 +52,26 @@ function calculateSpeedup(mergedCostAccuracy) {
     }
 }
 
-function generateStatsFrom(jsonData) {
+function update(jsonData) {
+
+    const navigation = Element("nav", {}, [
+        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
+    ])
+
+    //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
+    function toTitleCase(str) {
+        return str.replace(
+            /\w\S*/g,
+            function (txt) {
+                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+            }
+        )
+    }
+
+    function hasNote(note) {
+        return (note ? toTitleCase(note) + " " : "") + "Results"
+    }
+
     var total_start = 0
     var total_result = 0
     var maximum_accuracy = 0
@@ -92,28 +111,6 @@ function generateStatsFrom(jsonData) {
             }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
         ]),
     ])
-    return stats
-}
-
-function update(jsonData) {
-
-    const navigation = Element("nav", {}, [
-        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
-    ])
-
-    //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
-    function toTitleCase(str) {
-        return str.replace(
-            /\w\S*/g,
-            function (txt) {
-                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-            }
-        )
-    }
-
-    function hasNote(note) {
-        return (note ? toTitleCase(note) + " " : "") + "Results"
-    }
 
     const header = Element("header", {}, [
         Element("h1", {}, hasNote(jsonData.note)),
@@ -158,7 +155,7 @@ function update(jsonData) {
 
     const newBody = Element("body", {}, [
         header,
-        generateStatsFrom(jsonData),
+        stats,
         figureRow,
         compareDiv,
         buildFilters(jsonData.tests),
