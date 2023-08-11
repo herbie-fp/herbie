@@ -52,6 +52,49 @@ function calculateSpeedup(mergedCostAccuracy) {
     }
 }
 
+function generateStatsFrom(jsonData) {
+    var total_start = 0
+    var total_result = 0
+    var maximum_accuracy = 0
+    var total_time = 0
+    var total_crash_timeout = 0
+    jsonData.tests.forEach((test) => {
+        total_start += test.start
+        total_result += test.end
+        maximum_accuracy += test.bits
+        total_time += test.time
+        if (test.status == "timeout" || test.status == "crash") {
+            total_crash_timeout += 1
+        }
+    })
+
+    const stats = Element("div", { id: "large" }, [
+        Element("div", {}, [
+            "Average Percentage Accurate: ",
+            Element("span", { classList: "number" }, [
+                formatAccuracy(total_start / maximum_accuracy),
+                Element("span", { classList: "unit" }, [" → ",]),
+                formatAccuracy(total_result / maximum_accuracy),]),
+        ]),
+        Element("div", {}, [
+            "Time:",
+            Element("span", { classList: "number" }, [formatTime(total_time)])
+        ]),
+        Element("div", {}, [
+            "Bad Runs:",
+            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [displayCrashTimeoutRatio(total_crash_timeout, jsonData.tests.length)])
+        ]),
+        Element("div", {}, [
+            "Speedup:",
+            Element("span", {
+                classList: "number",
+                title: "Aggregate speedup of fastest alternative that improves accuracy."
+            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
+        ]),
+    ])
+    return stats
+}
+
 function update(jsonData) {
 
     const navigation = Element("nav", {}, [
@@ -125,7 +168,6 @@ function update(jsonData) {
     bodyNode = newBody
 }
 
-// View State
 var detailsState = false
 
 var compareState = {
@@ -537,49 +579,6 @@ async function fetchAndUpdate(jsonData, url, start, compare) {
         }
         update(jsonData)
     }
-}
-
-function generateStatsFrom(jsonData) {
-    var total_start = 0
-    var total_result = 0
-    var maximum_accuracy = 0
-    var total_time = 0
-    var total_crash_timeout = 0
-    jsonData.tests.forEach((test) => {
-        total_start += test.start
-        total_result += test.end
-        maximum_accuracy += test.bits
-        total_time += test.time
-        if (test.status == "timeout" || test.status == "crash") {
-            total_crash_timeout += 1
-        }
-    })
-
-    const stats = Element("div", { id: "large" }, [
-        Element("div", {}, [
-            "Average Percentage Accurate: ",
-            Element("span", { classList: "number" }, [
-                formatAccuracy(total_start / maximum_accuracy),
-                Element("span", { classList: "unit" }, [" → ",]),
-                formatAccuracy(total_result / maximum_accuracy),]),
-        ]),
-        Element("div", {}, [
-            "Time:",
-            Element("span", { classList: "number" }, [formatTime(total_time)])
-        ]),
-        Element("div", {}, [
-            "Bad Runs:",
-            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [displayCrashTimeoutRatio(total_crash_timeout, jsonData.tests.length)])
-        ]),
-        Element("div", {}, [
-            "Speedup:",
-            Element("span", {
-                classList: "number",
-                title: "Aggregate speedup of fastest alternative that improves accuracy."
-            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
-        ]),
-    ])
-    return stats
 }
 
 // end Helpers
