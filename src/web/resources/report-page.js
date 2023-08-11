@@ -49,63 +49,6 @@ function calculateSpeedup(mergedCostAccuracy) {
 
 function update(jsonData) {
 
-    function round(value) {
-        // console.log(value)
-        if (Math.abs(value) >= 10 ** 6) {
-            return "?"
-        } else if (Math.abs(value) >= 10) {
-            // TODO Finish function round* 
-            return value.toFixed(0)
-        } else {
-            return value.toFixed(2)
-        }
-    }
-
-    function buildTable(subReports) {
-        var trArray = [Element("tr", {}, [
-            Element("th", {}, ["Subreport"]),
-            Element("th", {}, ["Time"]),
-            Element("th", {}, ["Passed"]),
-            Element("th", {}, ["Tests"]),
-            Element("th", {}, ["Bits"])
-        ])]
-        const passedStatus = ["gt-target", "eq-target", "imp-start"]
-        for (let report in subReports) {
-            let tests = subReports[report]
-            var totalTime = 0
-            var passed = 0
-            var available = 0
-            var gained = 0
-            var start = 0
-            for (let t of tests) {
-                totalTime += t.time
-                if (passedStatus.includes(t.status)) {
-                    passed += 1
-                } else if ("ex-start" == t.status) {
-                    available += 1
-                }
-                const fE = Number.parseFloat(t.end)
-                const fS = Number.parseFloat(t.start)
-                if (!Number.isNaN(fE) && !Number.isNaN(fS)) {
-                    gained += fE
-                    start += fS
-                }
-            }
-            trArray.push(Element("tr", {}, [
-                Element("td", {}, [Element("a", { href: `${report}/index.html` }, [report])]),
-                Element("td", {}, [`${formatTime(totalTime)}`]),
-                Element("td", {}, [`${passed}/${available}`]),
-                Element("td", {}, [`${tests.length}`]),
-                Element("td", {}, [`${round(start - gained)}/${round(start)}`])
-            ]))
-        }
-        return Element("table", {}, [
-            Element("tbody", {}, [
-                trArray
-            ])
-        ])
-    }
-
     function metrics(jsonData) {
         var subReports = {}
         for (let test of jsonData.tests) {
@@ -134,13 +77,6 @@ function update(jsonData) {
                 }
             })
             return [
-                Element("li", { id: "subreports", classList: "no-subreports" }, [
-                    link,
-                    Element("div", { id: "with-subreports" }, [
-                        Element("div", { id: "subreport-table" }, [
-                            buildTable(subReports)
-                        ])
-                    ])]),
                 Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])
             ]
         }
@@ -250,11 +186,14 @@ function update(jsonData) {
 }
 
 // View State
-var detailsState = false
+var filterDetailsState = false
 var groupState = {
     "improved": true,
     "regressed": true
 }
+var benchMarkState = "All"
+var benchMarks = ["All", "Mathematics", "Hamming", "Nightly", "Libraries", "Numerics", "Physics", "Demo", "Haskell", "Pbrt", "Regression", "Tutorial"]
+
 var filterState = {
     "imp-start": true,
     "ex-start": true,
@@ -329,13 +268,28 @@ function buildFilters(jsonTestData) {
     setupGroup("improved", improvedTags, improvedButton)
     setupGroup("regressed", regressedTags, regressedButton)
 
-    const details = Element("details", { id: "filters", open: detailsState }, [
+    const dropDown = Element("select", { id: "dropdown" }, [
+        benchMarks.map((benchMark) => {
+            if (benchMarkState == benchMark) {
+                return Element("option", { selected: true }, [benchMark])
+            } else {
+                return Element("option", {}, [benchMark])
+            }
+        })
+    ])
+
+    dropDown.addEventListener("click", (e) => {
+        benchMarkState = e.target.label
+        update(resultsJsonData)
+    })
+
+    const details = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton]), [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown]), [
             filterButtons]])
     details.addEventListener("click", (e) => {
         if (e.target.nodeName == "SUMMARY") {
-            detailsState = !detailsState
+            filterDetailsState = !filterDetailsState
         }
     })
     return details
@@ -350,7 +304,7 @@ function buildCheckboxLabel(classes, text, boolState) {
 function plotXY(testsData) {
     var filteredTests = []
     testsData.forEach((test) => {
-        if (filterState[test.status]) {
+        if (filterTest(test)) {
             filteredTests.push(test)
         }
     })
@@ -401,10 +355,23 @@ function plotPareto(jsonData) {
     return out;
 }
 
+function filterTest(test) {
+    const linkComponents = test.link.split("/")
+    if (linkComponents.length > 1 && benchMarkState.toLowerCase() != "all") {
+        if (benchMarkState.toLowerCase() == linkComponents[0] && filterState[test.status]) {
+            return true
+        }
+    } else {
+        if (filterState[test.status]) {
+            return true
+        }
+    }
+}
+
 function tableBody(jsonData) {
     var rows = []
     for (let test of jsonData.tests) {
-        if (filterState[test.status]) {
+        if (filterTest(test)) {
             rows.push(tableRow(test, rows.length))
         }
     }
