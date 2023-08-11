@@ -53,96 +53,125 @@ function calculateSpeedup(mergedCostAccuracy) {
     }
 }
 
-function compareInfo(diffCount) {
-    if (otherJsonData != null) {
-        return [
-            Element("details", {}, [
-                Element("summary", {}, [
-                    Element("h2", {}, ["More Info"]),
-                    `Comparing ${diffCount}/${resultsJsonData.tests.length} tests`
-                ]),
-                Element("div", {}, [
-                    Element("h3", {}, ["Current report:"]),
-                    `${resultsJsonData.branch}: @${resultsJsonData.commit}, ${resultsJsonData.date}`]),
-                Element("div", {}, [
-                    Element("h3", {}, ["Compared to:"]),
-                    `${otherJsonData.branch}: @${otherJsonData.commit}, ${otherJsonData.date}`]),
-            ])
-        ]
-    } else {
-        return
-    }
-}
+function update(jsonData) {
 
-function compareForm(jsonData) {
-    const formName = "compare-form"
-    const compareID = "compare-compare"
-    const defaultID = "compare-default"
-    const inputID = "compare-input"
-    const compare = Element("input", {
-        id: compareID, type: "radio", checked: compareState["compare"],
-        name: formName
-    }, [])
-    const input = Element("input", {
-        id: inputID, value: compareState["url"]
-    }, [])
-    const starting = Element("input", {
-        id: defaultID, type: "radio", checked: compareState["start"],
-        name: formName
-    }, [])
-    const form = Element("form", {}, [
-        Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare"])
+    const navigation = Element("nav", {}, [
+        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
+    ])
 
-    compare.addEventListener("click", async (e) => {
-        await updateFromForm(jsonData, e.target.parentNode)
-    })
-    starting.addEventListener("click", async (e) => {
-        await updateFromForm(jsonData, e.target.parentNode)
-    })
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault()
-        await updateFromForm(jsonData, e.target.parentNode.childNodes[0])
-    })
-    return form
-}
-
-async function updateFromForm(jsonData, formNode) {
-    await fetchAndUpdate(jsonData,
-        formNode.childNodes[1].value,
-        formNode.childNodes[2].checked,
-        formNode.childNodes[4].checked)
-}
-
-async function fetchAndUpdate(jsonData, url, start, compare) {
-    let lastChar = url.slice(url.length - 1, url.length)
-    // Could also split string on / and check if the last component = "results.json"
-    if (lastChar == "/") {
-        url = url + "results.json"
-    }
-    // TODO url verifying if needed
-    compareState["url"] = url
-    compareState["start"] = start
-    compareState["compare"] = compare
-    if (start || url == "") {
-        diffAgainstFields = {}
-        otherJsonData = null
-        update(jsonData)
-    } else {
-        if (otherJsonData == null) {
-            let response = await fetch(url, {
-                headers: { "content-type": "text/plain" },
-                method: "GET",
-                mode: "cors",
-            })
-            const json = await response.json()
-            for (let test of json.tests) {
-                diffAgainstFields[`${test.name}`] = test
+    //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
+    function toTitleCase(str) {
+        return str.replace(
+            /\w\S*/g,
+            function (txt) {
+                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
             }
-            otherJsonData = json
-        }
-        update(jsonData)
+        )
     }
+
+    function hasNote(note) {
+        return (note ? toTitleCase(note) + " " : "") + "Results"
+    }
+
+    const header = Element("header", {}, [
+        Element("h1", {}, hasNote(jsonData.note)),
+        Element("img", { src: "logo-car.png" }, []),
+        navigation,
+    ])
+
+    const figureRow = Element("div", { classList: "figure-row" }, [
+        Element("figure", { id: "xy" }, [
+            Element("h2", {}, [tempXY_A]),
+            plotXY(jsonData.tests),
+            Element("figcaption", {}, [tempXY_B])
+        ]),
+        Element("figure", { id: "pareto" }, [
+            Element("h2", {}, [tempPareto_A]),
+            plotPareto(jsonData),
+            Element("figcaption", {}, [tempPareto_B])
+        ])
+    ])
+
+    const tableData = tableBody(jsonData)
+
+    const resultsTable = Element("table", { id: "results" }, [
+        Element("thead", {}, [
+            Element("tr", {}, [
+                Element("th", {}, ["Test"]),
+                Element("th", {}, ["Start"]),
+                Element("th", {}, ["Result",
+                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
+                Element("th", {}, ["Target",
+                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
+                Element("th", {}, ["Time"]),
+            ])
+        ]),
+        tableData["tbody"]
+    ])
+
+    const compareDiv = Element("div", { classList: "report-details" }, [
+        compareForm(jsonData),
+        compareInfo(tableData["diffCount"]),
+    ])
+
+    const newBody = Element("body", {}, [
+        header,
+        generateStatsFrom(jsonData),
+        figureRow,
+        compareDiv,
+        buildFilters(jsonData.tests),
+        resultsTable,
+    ])
+    htmlNode.replaceChild(newBody, bodyNode)
+    bodyNode = newBody
 }
+
+// View State
+var detailsState = false
+
+var compareState = {
+    url: "",
+    compare: false,
+    start: true,
+}
+
+var groupState = {
+    "improved": true,
+    "regressed": true
+}
+
+var filterState = {
+    "imp-start": true,
+    "ex-start": true,
+    "eq-start": true,
+    "eq-target": true,
+    "gt-target": true,
+    "gt-start": true,
+    "uni-start": true,
+    "lt-target": true,
+    "lt-start": true,
+    "apx-start": true,
+    "timeout": true,
+    "crash": true,
+    "error": true,
+}
+
+const renames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-target": "Greater than target",
+    "gt-start": "Greater than start",
+    "eq-target": "Equal to target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
+}
+
 
 function buildFilters(jsonTestData) {
     var testTypeCounts = {}
@@ -257,6 +286,7 @@ function plotPareto(jsonData) {
     out.setAttribute('viewBox', '0 0 420 420')
     return out;
 }
+
 
 function tableBody(jsonData) {
     var diffRows = [] // rows that represent a diff
@@ -407,6 +437,112 @@ function tableRow(test) {
     return tr
 }
 
+async function getResultsJson() {
+    if (resultsJsonData == null) {
+        let response = await fetch("results.json", {
+            headers: { "content-type": "text/plain" },
+            method: "GET",
+            mode: "cors",
+        });
+        resultsJsonData = (await response.json());
+        return resultsJsonData
+    } else {
+        return resultsJsonData
+    }
+}
+
+
+function compareInfo(diffCount) {
+    if (otherJsonData != null) {
+        return [
+            Element("details", {}, [
+                Element("summary", {}, [
+                    Element("h2", {}, ["More Info"]),
+                    `Comparing ${diffCount}/${resultsJsonData.tests.length} tests`
+                ]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Current report:"]),
+                    `${resultsJsonData.branch}: @${resultsJsonData.commit}, ${resultsJsonData.date}`]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Compared to:"]),
+                    `${otherJsonData.branch}: @${otherJsonData.commit}, ${otherJsonData.date}`]),
+            ])
+        ]
+    } else {
+        return
+    }
+}
+
+function compareForm(jsonData) {
+    const formName = "compare-form"
+    const compareID = "compare-compare"
+    const defaultID = "compare-default"
+    const inputID = "compare-input"
+    const compare = Element("input", {
+        id: compareID, type: "radio", checked: compareState["compare"],
+        name: formName
+    }, [])
+    const input = Element("input", {
+        id: inputID, value: compareState["url"]
+    }, [])
+    const starting = Element("input", {
+        id: defaultID, type: "radio", checked: compareState["start"],
+        name: formName
+    }, [])
+    const form = Element("form", {}, [
+        Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare"])
+
+    compare.addEventListener("click", async (e) => {
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+    starting.addEventListener("click", async (e) => {
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault()
+        await updateFromForm(jsonData, e.target.parentNode.childNodes[0])
+    })
+    return form
+}
+
+async function updateFromForm(jsonData, formNode) {
+    await fetchAndUpdate(jsonData,
+        formNode.childNodes[1].value,
+        formNode.childNodes[2].checked,
+        formNode.childNodes[4].checked)
+}
+
+async function fetchAndUpdate(jsonData, url, start, compare) {
+    let lastChar = url.slice(url.length - 1, url.length)
+    // Could also split string on / and check if the last component = "results.json"
+    if (lastChar == "/") {
+        url = url + "results.json"
+    }
+    // TODO url verifying if needed
+    compareState["url"] = url
+    compareState["start"] = start
+    compareState["compare"] = compare
+    if (start || url == "") {
+        diffAgainstFields = {}
+        otherJsonData = null
+        update(jsonData)
+    } else {
+        if (otherJsonData == null) {
+            let response = await fetch(url, {
+                headers: { "content-type": "text/plain" },
+                method: "GET",
+                mode: "cors",
+            })
+            const json = await response.json()
+            for (let test of json.tests) {
+                diffAgainstFields[`${test.name}`] = test
+            }
+            otherJsonData = json
+        }
+        update(jsonData)
+    }
+}
+
 function generateStatsFrom(jsonData) {
     var total_start = 0
     var total_result = 0
@@ -451,140 +587,6 @@ function generateStatsFrom(jsonData) {
 }
 
 // end Helpers
-
-// View State
-var detailsState = false
-
-var compareState = {
-    url: "",
-    compare: false,
-    start: true,
-}
-
-var groupState = {
-    "improved": true,
-    "regressed": true
-}
-
-var filterState = {
-    "imp-start": true,
-    "ex-start": true,
-    "eq-start": true,
-    "eq-target": true,
-    "gt-target": true,
-    "gt-start": true,
-    "uni-start": true,
-    "lt-target": true,
-    "lt-start": true,
-    "apx-start": true,
-    "timeout": true,
-    "crash": true,
-    "error": true,
-}
-
-const renames = {
-    "imp-start": "Improved start",
-    "apx-start": "Approximate start",
-    "uni-start": "Regressed from start",
-    "ex-start": "Exact start",
-    "eq-start": "Equal start",
-    "lt-start": "Less than start",
-    "gt-target": "Greater than target",
-    "gt-start": "Greater than start",
-    "eq-target": "Equal to target",
-    "lt-target": "Less than target",
-    "error": "Error",
-    "timeout": "Timeout",
-    "crash": "Crash",
-}
-
-function update(jsonData) {
-
-    const navigation = Element("nav", {}, [
-        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
-    ])
-
-    //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
-    function toTitleCase(str) {
-        return str.replace(
-            /\w\S*/g,
-            function (txt) {
-                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-            }
-        )
-    }
-
-    function hasNote(note) {
-        return (note ? toTitleCase(note) + " " : "") + "Results"
-    }
-
-    const header = Element("header", {}, [
-        Element("h1", {}, hasNote(jsonData.note)),
-        Element("img", { src: "logo-car.png" }, []),
-        navigation,
-    ])
-
-    const figureRow = Element("div", { classList: "figure-row" }, [
-        Element("figure", { id: "xy" }, [
-            Element("h2", {}, [tempXY_A]),
-            plotXY(jsonData.tests),
-            Element("figcaption", {}, [tempXY_B])
-        ]),
-        Element("figure", { id: "pareto" }, [
-            Element("h2", {}, [tempPareto_A]),
-            plotPareto(jsonData),
-            Element("figcaption", {}, [tempPareto_B])
-        ])
-    ])
-
-    const tableData = tableBody(jsonData)
-
-    const resultsTable = Element("table", { id: "results" }, [
-        Element("thead", {}, [
-            Element("tr", {}, [
-                Element("th", {}, ["Test"]),
-                Element("th", {}, ["Start"]),
-                Element("th", {}, ["Result",
-                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
-                Element("th", {}, ["Target",
-                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
-                Element("th", {}, ["Time"]),
-            ])
-        ]),
-        tableData["tbody"]
-    ])
-
-    const compareDiv = Element("div", { classList: "report-details" }, [
-        compareForm(jsonData),
-        compareInfo(tableData["diffCount"]),
-    ])
-
-    const newBody = Element("body", {}, [
-        header,
-        generateStatsFrom(jsonData),
-        figureRow,
-        compareDiv,
-        buildFilters(jsonData.tests),
-        resultsTable,
-    ])
-    htmlNode.replaceChild(newBody, bodyNode)
-    bodyNode = newBody
-}
-
-
-async function getResultsJson() {
-    if (resultsJsonData == null) {
-        let response = await fetch("results.json", {
-            headers: { "content-type": "text/plain" },
-            method: "GET",
-            mode: "cors",
-        });
-        resultsJsonData = (await response.json());
-        return resultsJsonData
-    } else {
-        return resultsJsonData
-    }
-}
 
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
