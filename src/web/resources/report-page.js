@@ -20,7 +20,6 @@ const targetHelpText = `Color key:
     `
 
 // Helper Functions
-
 function calculatePercent(decimal) {
     return ((100 - (100 * (decimal)))).toFixed(1)
 }
@@ -172,7 +171,6 @@ const renames = {
     "crash": "Crash",
 }
 
-
 function buildFilters(jsonTestData) {
     var testTypeCounts = {}
     for (let test of jsonTestData) {
@@ -287,7 +285,6 @@ function plotPareto(jsonData) {
     return out;
 }
 
-
 function tableBody(jsonData) {
     var diffRows = [] // rows that represent a diff
     var rows = [] // rows without a diff
@@ -318,6 +315,33 @@ function tableBody(jsonData) {
     } else {
         return { tbody: Element("tbody", {}, rows), diffCount: 0 }
     }
+}
+
+function tableRow(test) {
+    var startAccuracy = formatAccuracy(test.start / test.bits)
+    var resultAccuracy = formatAccuracy(test.end / test.bits)
+    var targetAccuracy = formatAccuracy(test.target / test.bits)
+    if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
+        targetAccuracy = ""
+    }
+    if (test.status == "timeout" || test.status == "error") {
+        startAccuracy = ""
+        resultAccuracy = ""
+        targetAccuracy = ""
+    }
+    const tr = Element("tr", { classList: test.status }, [
+        Element("td", {}, [test.name]),
+        Element("td", {}, [startAccuracy]),
+        Element("td", {}, [resultAccuracy]),
+        Element("td", {}, [targetAccuracy]),
+        Element("td", {}, [formatTime(test.time)]),
+        Element("td", {}, [
+            Element("a", {
+                href: `${test.link}/graph.html`
+            }, ["»"])]),
+    ])
+    tr.addEventListener("click", () => tr.querySelector("a").click())
+    return tr
 }
 
 function tableRowDiff(test) {
@@ -410,33 +434,6 @@ function tableRowDiff(test) {
     return tr
 }
 
-function tableRow(test) {
-    var startAccuracy = formatAccuracy(test.start / test.bits)
-    var resultAccuracy = formatAccuracy(test.end / test.bits)
-    var targetAccuracy = formatAccuracy(test.target / test.bits)
-    if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
-        targetAccuracy = ""
-    }
-    if (test.status == "timeout" || test.status == "error") {
-        startAccuracy = ""
-        resultAccuracy = ""
-        targetAccuracy = ""
-    }
-    const tr = Element("tr", { classList: test.status }, [
-        Element("td", {}, [test.name]),
-        Element("td", {}, [startAccuracy]),
-        Element("td", {}, [resultAccuracy]),
-        Element("td", {}, [targetAccuracy]),
-        Element("td", {}, [formatTime(test.time)]),
-        Element("td", {}, [
-            Element("a", {
-                href: `${test.link}/graph.html`
-            }, ["»"])]),
-    ])
-    tr.addEventListener("click", () => tr.querySelector("a").click())
-    return tr
-}
-
 async function getResultsJson() {
     if (resultsJsonData == null) {
         let response = await fetch("results.json", {
@@ -450,7 +447,6 @@ async function getResultsJson() {
         return resultsJsonData
     }
 }
-
 
 function compareInfo(diffCount) {
     if (otherJsonData != null) {
