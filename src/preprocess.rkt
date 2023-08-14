@@ -19,7 +19,7 @@
   ;; f(x) = -f(-x)
   (define odd-identities
     (let ([negate (get-parametric-operator 'neg (context-repr context))])
-      (map (lambda (expression) `(negate ,expression)) even-identities)))
+      (map (lambda (expression) (list negate expression)) even-identities)))
   ;; f(a, b) = f(b, a)
   (define pairs (combinations (context-vars context) 2))
   (define swap-identities
@@ -87,7 +87,6 @@
        simplified
        (list initial))
    ;; Absolute value should happen before sorting
-   ;; TODO: Does this order work?
    (append abs-instructions negabs-instructions sort-instructions)))
 
 (define (connected-components variables swaps)
@@ -155,17 +154,16 @@
      (lambda (x y) (values (list-update x index abs) y))]
     [(list 'negabs variable)
      (define index (index-of variables variable))
-     (define negate (operator-info
-                     (get-parametric-operator
-                      'neg
-                      (list-ref (context-var-reprs context) index))
-                     'fl))
+     (define negate-variable
+       (operator-info (get-parametric-operator 'neg (list-ref (context-var-reprs context) index)) 'fl))
+     (define negate-expression
+       (operator-info (get-parametric-operator 'neg (context-repr context)) 'fl))
      (lambda (x y)
-       ;; Real number negation is involutive, i.e. it is its own inverse, -(-x) = x.
-       (if (< (list-ref x index) 0)
+       ;; Negation is involutive, i.e. it is its own inverse, so t^1(y') = -y'
+       (if (negative? (list-ref x index))
            (values
-            (list-update x index negate)
-            (list-update y index negate))
+            (list-update x index negate-variable)
+            (negate-expression y))
            (values x y)))]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
