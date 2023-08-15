@@ -97,8 +97,6 @@ label.timeout {accent-color: var(--result-timeout);}
 #filters label {margin: 0; display: inline-block; padding: .4ex; color: var(--accent-text);}
 #filters summary {accent-color: var(--accent-blue);}
 #filters .sub-filter {column-width: 11.5rem;}
-/* Drop Down*/
-#dropdown {display: inline; float:right;}
 
 /* Table of results */
 
