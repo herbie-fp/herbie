@@ -99,6 +99,7 @@ label.timeout {accent-color: var(--result-timeout);}
 /* Compare Reports */
 .diff-time-red {color: red;}
 .diff-time-green {color: green;}
+.diff-time-gray {color: gray;}
 .diff-status {color: #0000aa;}
 .report-details {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
 .report-details h2 {font-size: 16px;}

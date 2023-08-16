@@ -323,35 +323,20 @@ function plotPareto(jsonData) {
 }
 
 function tableBody(jsonData) {
-    var diffRows = [] // rows that represent a diff
-    var rows = [] // rows without a diff
+    var rows = []
     for (let test of jsonData.tests) {
         if (filterState[test.status]) {
             if (diffAgainstFields[test.name] && compareState["compare"]) {
-                diffRows.push(tableRowDiff(test))
+                const row = tableRowDiff(test)
+                if (!row.equal) {
+                    rows.push(row.tr)
+                }
             } else {
                 rows.push(tableRow(test))
             }
         }
     }
-    if (diffRows.length > 0) {
-        // handles if the diff against json is mismatched with the current json
-        const spacer = Element("tr", { style: "background-color:pink;" }, [
-            Element("td", {}, ["Start tests without Diff"]),
-            Element("td", {}, []),
-            Element("td", {}, []),
-            Element("td", {}, []),
-            Element("td", {}, []),
-            Element("td", {}, []),
-        ])
-        var newRows = diffRows
-        if (rows.length > 0) {
-            newRows = newRows.concat([spacer]).concat(rows)
-        }
-        return { tbody: Element("tbody", {}, newRows), diffCount: diffRows.length }
-    } else {
-        return { tbody: Element("tbody", {}, rows), diffCount: 0 }
-    }
+    return { tbody: Element("tbody", {}, rows), diffCount: rows.length }
 }
 
 function tableRow(test) {
@@ -386,33 +371,46 @@ function tableRowDiff(test) {
         var timeDiff = test.time - diffAgainstFields[test.name].time
         var color = "diff-time-red"
         var text
+        var titleText = null
         // If the time diff is less the 1s don't format
         if (Math.abs(timeDiff) < 1000) {
-            color = ""
-            text = formatTime(test.time)
+            color = "diff-time-gray"
+            text = "~" + formatTime(test.time)
+            titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
         } else if (timeDiff < 0) {
             color = "diff-time-green"
             text = "+ " + `${formatTime(Math.abs(timeDiff))}`
         } else {
             text = "-" + `${formatTime(timeDiff)}`
         }
-        return Element("td", { classList: color }, [text])
+        if (titleText != null) {
+            return { td: Element("td", { classList: color, title: titleText }, [text]), equal: true }
+        } else {
+            return { td: Element("td", { classList: color }, [text]), equal: false }
+        }
     }
 
     function buildTDfor(o, t) {
         const op = calculatePercent(o)
         const tp = calculatePercent(t)
-        if (op - tp == 0) {
-            return Element("td", {}, [formatAccuracy(t)])
-        } else {
-            var color = "diff-time-red"
-            var diff = op - tp
-            if (diff < 0) {
-                diff = Math.abs(diff)
-                color = "diff-time-green"
-            }
-            return Element("td", { classList: color }, [`${(diff).toFixed(1)}%`])
+        var color = "diff-time-red"
+        var diff = op - tp
+        var areEqual = false
+        var titleText = ""
+        var tdText = `- ${(diff).toFixed(1)}%`
+        if (diff < 0) {
+            diff = Math.abs(diff)
+            color = "diff-time-green"
+            tdText = `+ ${(diff).toFixed(1)}%`
         }
+        // TODO what should the tolerance be?
+        else if (diff == 0) {
+            titleText = `Original: ${op} vs ${tp}`
+            color = "diff-time-gray"
+            areEqual = true
+            tdText = `~ ${op}%`
+        }
+        return { td: Element("td", { classList: color, title: titleText }, [tdText]), equal: areEqual }
     }
 
     function startAccuracyTD(test) {
@@ -433,7 +431,7 @@ function tableRowDiff(test) {
         return buildTDfor(o, t)
     }
 
-    var testName = test.name
+    var testTile = ""
     var classList = [test.status]
     var startAccuracy = startAccuracyTD(test)
     var resultAccuracy = resultAccuracyTD(test)
@@ -441,34 +439,43 @@ function tableRowDiff(test) {
 
     if (test.status != diffAgainstFields[test.name].status) {
         classList.push("diff-status")
-        testName = testName + " (" + test.status + " != " + diffAgainstFields[test.name].status + ")"
+        testTile = "(" + test.status + " != " + diffAgainstFields[test.name].status + ")"
     }
 
     if (test.status == "imp-start" ||
         test.status == "ex-start" ||
         test.status == "apx-start") {
-        targetAccuracy = Element("td", {}, [])
+        targetAccuracy.td = Element("td", {}, [])
     }
 
     if (test.status == "timeout" || test.status == "error") {
-        startAccuracy = Element("td", {}, [])
-        resultAccuracy = Element("td", {}, [])
-        targetAccuracy = Element("td", {}, [])
+        startAccuracy.td = Element("td", {}, [])
+        resultAccuracy.td = Element("td", {}, [])
+        targetAccuracy.td = Element("td", {}, [])
+    }
+
+    const time = timeTD(test)
+
+    const areEqual = true && time.equal && startAccuracy.equal && resultAccuracy.equal && targetAccuracy.equal
+
+    var nameTD = Element("td", {}, [test.name])
+    if (testTile != "") {
+        nameTD = Element("td", { title: testTile }, [test.name])
     }
 
     const tr = Element("tr", { classList: classList.join(" ") }, [
-        Element("td", {}, [testName]),
-        startAccuracy,
-        resultAccuracy,
-        targetAccuracy,
-        timeTD(test),
+        nameTD,
+        startAccuracy.td,
+        resultAccuracy.td,
+        targetAccuracy.td,
+        time.td,
         Element("td", {}, [
             Element("a", {
                 href: `${test.link}/graph.html`
             }, ["»"])]),
     ])
     tr.addEventListener("click", () => tr.querySelector("a").click())
-    return tr
+    return { tr: tr, equal: areEqual }
 }
 
 async function getResultsJson() {
@@ -491,7 +498,7 @@ function compareInfo(diffCount) {
             Element("details", {}, [
                 Element("summary", {}, [
                     Element("h2", {}, ["More Info"]),
-                    `Comparing ${diffCount}/${resultsJsonData.tests.length} tests`
+                    `Displaying ${diffCount}/${resultsJsonData.tests.length} tests that are not equal`
                 ]),
                 Element("div", {}, [
                     Element("h3", {}, ["Current report:"]),
