@@ -42,10 +42,8 @@ function displayCrashTimeoutRatio(errors, total) {
 
 function calculateSpeedup(mergedCostAccuracy) {
     const initial_accuracy = mergedCostAccuracy[0][1]
-    const list = mergedCostAccuracy[1].reverse()
-    // BUG seems to be inconsistent in which number this displays. 
-    // Currently bouncing between 0.3 and 2.1
-    for (const point of list) {
+    const deepCopy = JSON.parse(JSON.stringify(mergedCostAccuracy[1]))
+    for (const point of deepCopy.reverse()) {
         if (point[1] > initial_accuracy) {
             return point[0].toFixed(1) + "×"
         }
