@@ -442,6 +442,14 @@ function tableRowDiff(test) {
         testTile = "(" + test.status + " != " + diffAgainstFields[test.name].status + ")"
     }
 
+    if (test.output != diffAgainstFields[test.name].output) {
+        classList.push("diff-output")
+        if (testTile != "") {
+            testTile += "\n\n"
+        }
+        testTile += "{" + test.output + "} != {" + diffAgainstFields[test.name].output + "}"
+    }
+
     if (test.status == "imp-start" ||
         test.status == "ex-start" ||
         test.status == "apx-start") {
@@ -498,7 +506,7 @@ function compareInfo(diffCount) {
             Element("details", {}, [
                 Element("summary", {}, [
                     Element("h2", {}, ["More Info"]),
-                    `Displaying ${diffCount}/${resultsJsonData.tests.length} tests that are not equal`
+                    `Displaying ${diffCount}/${resultsJsonData.tests.length} tests that are not equal, Test marked pink have different output, Test with blue text have different status.`
                 ]),
                 Element("div", {}, [
                     Element("h3", {}, ["Current report:"]),
