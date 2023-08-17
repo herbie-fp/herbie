@@ -19,9 +19,13 @@ const targetHelpText = `Color key:
     Yellow: no accuracy change
     `
 
-// Helpers
-function formatAccuracy(num, dom) {
-    return `${((100 - (100 * (num / dom)))).toFixed(1)}%`
+// Helper Functions
+function calculatePercent(decimal) {
+    return ((100 - (100 * (decimal)))).toFixed(1)
+}
+
+function formatAccuracy(decimal) {
+    return `${calculatePercent(decimal)}%`
 }
 
 function formatTime(ms) {
@@ -45,7 +49,6 @@ function calculateSpeedup(mergedCostAccuracy) {
         }
     }
 }
-// end Helpers
 
 //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
 function toTitleCase(str) {
@@ -67,12 +70,6 @@ function update(jsonData) {
         return (note ? toTitleCase(note) + " " : "") + "Results"
     }
 
-    const header = Element("header", {}, [
-        Element("h1", {}, hasNote(jsonData.note)),
-        Element("img", { src: "logo-car.png" }, []),
-        navigation,
-    ])
-
     var total_start = 0
     var total_result = 0
     var maximum_accuracy = 0
@@ -92,9 +89,9 @@ function update(jsonData) {
         Element("div", {}, [
             "Average Percentage Accurate: ",
             Element("span", { classList: "number" }, [
-                formatAccuracy(total_start, maximum_accuracy),
+                formatAccuracy(total_start / maximum_accuracy),
                 Element("span", { classList: "unit" }, [" → ",]),
-                formatAccuracy(total_result, maximum_accuracy),]),
+                formatAccuracy(total_result / maximum_accuracy),]),
         ]),
         Element("div", {}, [
             "Time:",
@@ -113,6 +110,12 @@ function update(jsonData) {
         ]),
     ])
 
+    const header = Element("header", {}, [
+        Element("h1", {}, hasNote(jsonData.note)),
+        Element("img", { src: "logo-car.png" }, []),
+        navigation,
+    ])
+
     const figureRow = Element("div", { classList: "figure-row" }, [
         Element("figure", { id: "xy" }, [
             Element("h2", {}, [tempXY_A]),
@@ -126,6 +129,8 @@ function update(jsonData) {
         ])
     ])
 
+    const tableData = tableBody(jsonData)
+
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
@@ -138,13 +143,19 @@ function update(jsonData) {
                 Element("th", {}, ["Time"]),
             ])
         ]),
-        tableBody(jsonData)
+        tableData["tbody"]
+    ])
+
+    const compareDiv = Element("div", { classList: "report-details" }, [
+        compareForm(jsonData),
+        compareInfo(tableData["diffCount"]),
     ])
 
     const newBody = Element("body", {}, [
         header,
         stats,
         figureRow,
+        compareDiv,
         buildFilters(jsonData.tests),
         resultsTable,
     ])
@@ -165,8 +176,13 @@ function storeBenchmarks(tests) {
     }
 }
 
-// View State
 var filterDetailsState = false
+
+var compareState = {
+    url: "",
+    compare: false,
+    start: true,
+}
 
 var groupState = {
     "improved": true,
@@ -251,14 +267,15 @@ function buildFilters(jsonTestData) {
     setupGroup("regressed", regressedTags, regressedButton)
 
     var dropDownElements = []
+    const defaultName = "All Benchmarks"
     if (selectedBenchmarkIndex == -1) {
-        dropDownElements = [Element("option", { selected: true }, ["Default"])]
+        dropDownElements = [Element("option", { selected: true }, [defaultName])]
         for (let i in benchMarks) {
             const name = toTitleCase(benchMarks[i])
             dropDownElements.push(Element("option", {}, [name]))
         }
     } else {
-        dropDownElements = [Element("option", {}, ["Default"])]
+        dropDownElements = [Element("option", {}, [defaultName])]
         for (let i in benchMarks) {
             const name = toTitleCase(benchMarks[i])
             if (selectedBenchmarkIndex == i) {
@@ -283,7 +300,7 @@ function buildFilters(jsonTestData) {
         update(resultsJsonData)
     })
 
-    const details = Element("details", { id: "filters", open: filterDetailsState }, [
+    const details = Element("details", { id: "filters", open: filterDetailsState, classList: "report-details" }, [
         Element("summary", {}, [
             Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown]), [
             filterButtons]])
@@ -372,16 +389,23 @@ function tableBody(jsonData) {
     var rows = []
     for (let test of jsonData.tests) {
         if (filterTest(test)) {
-            rows.push(tableRow(test, rows.length))
+            if (diffAgainstFields[test.name] && compareState["compare"]) {
+                const row = tableRowDiff(test)
+                if (!row.equal) {
+                    rows.push(row.tr)
+                }
+            } else {
+                rows.push(tableRow(test))
+            }
         }
     }
-    return Element("tbody", {}, rows)
+    return { tbody: Element("tbody", {}, rows), diffCount: rows.length }
 }
 
-function tableRow(test, i) {
-    var startAccuracy = formatAccuracy(test.start, test.bits)
-    var resultAccuracy = formatAccuracy(test.end, test.bits)
-    var targetAccuracy = formatAccuracy(test.target, test.bits)
+function tableRow(test) {
+    var startAccuracy = formatAccuracy(test.start / test.bits)
+    var resultAccuracy = formatAccuracy(test.end / test.bits)
+    var targetAccuracy = formatAccuracy(test.target / test.bits)
     if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
         targetAccuracy = ""
     }
@@ -390,7 +414,6 @@ function tableRow(test, i) {
         resultAccuracy = ""
         targetAccuracy = ""
     }
-
     const tr = Element("tr", { classList: test.status }, [
         Element("td", {}, [test.name]),
         Element("td", {}, [startAccuracy]),
@@ -399,12 +422,127 @@ function tableRow(test, i) {
         Element("td", {}, [formatTime(test.time)]),
         Element("td", {}, [
             Element("a", {
-                id: `test${i}`,
                 href: `${test.link}/graph.html`
             }, ["»"])]),
     ])
     tr.addEventListener("click", () => tr.querySelector("a").click())
     return tr
+}
+
+function tableRowDiff(test) {
+    function timeTD(test) {
+        var timeDiff = test.time - diffAgainstFields[test.name].time
+        var color = "diff-time-red"
+        var text
+        var titleText = ""
+        // Dirty equal less then 1 second
+        if (Math.abs(timeDiff) < 1000) {
+            color = "diff-time-gray"
+            text = "~"
+            titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
+        } else if (timeDiff < 0) {
+            color = "diff-time-green"
+            text = "+ " + `${formatTime(Math.abs(timeDiff))}`
+        } else {
+            text = "-" + `${formatTime(timeDiff)}`
+        }
+        return { td: Element("td", { classList: color, title: titleText }, [text]), equal: titleText != "" }
+    }
+
+    function buildTDfor(o, t) {
+        const op = calculatePercent(o)
+        const tp = calculatePercent(t)
+        var color = "diff-time-red"
+        var diff = op - tp
+        var areEqual = false
+        var titleText = ""
+        var tdText = `- ${(diff).toFixed(1)}%`
+        if (diff < 0) {
+            diff = Math.abs(diff)
+            color = "diff-time-green"
+            tdText = `+ ${(diff).toFixed(1)}%`
+        }
+        // TODO what should the tolerance be?
+        else if (diff == 0) {
+            titleText = `Original: ${op} vs ${tp}`
+            color = "diff-time-gray"
+            areEqual = true
+            tdText = "~"
+        }
+        return { td: Element("td", { classList: color, title: titleText }, [tdText]), equal: areEqual }
+    }
+
+    function startAccuracyTD(test) {
+        const t = test.start / test.bits
+        const o = diffAgainstFields[test.name].start / diffAgainstFields[test.name].bits
+        return buildTDfor(o, t)
+    }
+
+    function resultAccuracyTD(test) {
+        const t = test.end / test.bits
+        const o = diffAgainstFields[test.name].end / diffAgainstFields[test.name].bits
+        return buildTDfor(o, t)
+    }
+
+    function targetAccuracyTD(test) {
+        const t = test.target / test.bits
+        const o = diffAgainstFields[test.name].target / diffAgainstFields[test.name].bits
+        return buildTDfor(o, t)
+    }
+
+    var testTile = ""
+    var classList = [test.status]
+    var startAccuracy = startAccuracyTD(test)
+    var resultAccuracy = resultAccuracyTD(test)
+    var targetAccuracy = targetAccuracyTD(test)
+
+    if (test.status != diffAgainstFields[test.name].status) {
+        classList.push("diff-status")
+        testTile = "(" + test.status + " != " + diffAgainstFields[test.name].status + ")"
+    }
+
+    if (test.output != diffAgainstFields[test.name].output) {
+        classList.push("diff-output")
+        if (testTile != "") {
+            testTile += "\n\n"
+        }
+        testTile += "{" + test.output + "} != {" + diffAgainstFields[test.name].output + "}"
+    }
+
+    if (test.status == "imp-start" ||
+        test.status == "ex-start" ||
+        test.status == "apx-start") {
+        targetAccuracy.td = Element("td", {}, [])
+    }
+
+    if (test.status == "timeout" || test.status == "error") {
+        startAccuracy.td = Element("td", {}, [])
+        resultAccuracy.td = Element("td", {}, [])
+        targetAccuracy.td = Element("td", {}, [])
+    }
+
+    const time = timeTD(test)
+
+    const areEqual = true && time.equal && startAccuracy.equal && resultAccuracy.equal && targetAccuracy.equal
+
+    var nameTD = Element("td", {}, [test.name])
+    if (testTile != "") {
+        nameTD = Element("td", { title: testTile }, [test.name])
+    }
+
+    const tr = Element("tr", { classList: classList.join(" ") }, [
+        nameTD,
+        startAccuracy.td,
+        resultAccuracy.td,
+        targetAccuracy.td,
+        time.td,
+        Element("td", {}, [
+            Element("a", {
+                href: `${test.link}/graph.html`
+            }, ["»"])]),
+    ])
+    tr.addEventListener("click", () => tr.querySelector("a").click())
+    return { tr: tr, equal: areEqual }
 }
 
 async function getResultsJson() {
@@ -416,6 +554,97 @@ async function getResultsJson() {
         });
         resultsJsonData = (await response.json());
         storeBenchmarks(resultsJsonData.tests)
+    }
+}
+
+function compareInfo(diffCount) {
+    if (otherJsonData != null) {
+        return [
+            Element("details", {}, [
+                Element("summary", {}, [
+                    Element("h2", {}, ["More Info"]),
+                    `Displaying ${diffCount}/${resultsJsonData.tests.length} tests that are not equal, Test marked pink have different output, Test with blue text have different status.`
+                ]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Current report:"]),
+                    `${resultsJsonData.branch}: @${resultsJsonData.commit}, ${resultsJsonData.date}`]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Compared to:"]),
+                    `${otherJsonData.branch}: @${otherJsonData.commit}, ${otherJsonData.date}`]),
+            ])
+        ]
+    } else {
+        return
+    }
+}
+
+function compareForm(jsonData) {
+    const formName = "compare-form"
+    const compareID = "compare-compare"
+    const defaultID = "compare-default"
+    const inputID = "compare-input"
+    const compare = Element("input", {
+        id: compareID, type: "radio", checked: compareState["compare"],
+        name: formName
+    }, [])
+    const input = Element("input", {
+        id: inputID, value: compareState["url"]
+    }, [])
+    const starting = Element("input", {
+        id: defaultID, type: "radio", checked: compareState["start"],
+        name: formName
+    }, [])
+    const form = Element("form", {}, [
+        Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare"])
+
+    compare.addEventListener("click", async (e) => {
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+    starting.addEventListener("click", async (e) => {
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault()
+        await updateFromForm(jsonData, e.target.parentNode.childNodes[0])
+    })
+    return form
+}
+
+async function updateFromForm(jsonData, formNode) {
+    await fetchAndUpdate(jsonData,
+        formNode.childNodes[1].value,
+        formNode.childNodes[2].checked,
+        formNode.childNodes[4].checked)
+}
+
+async function fetchAndUpdate(jsonData, url, start, compare) {
+    let lastChar = url.slice(url.length - 1, url.length)
+    // Could also split string on / and check if the last component = "results.json"
+    if (lastChar == "/") {
+        url = url + "results.json"
+    }
+    // TODO url verifying if needed
+    compareState["url"] = url
+    compareState["start"] = start
+    compareState["compare"] = compare
+    if (start || url == "") {
+        diffAgainstFields = {}
+        otherJsonData = null
+        update(jsonData)
+    } else {
+        if (otherJsonData == null) {
+            let response = await fetch(url, {
+                headers: { "content-type": "text/plain" },
+                method: "GET",
+                mode: "cors",
+            })
+            const json = await response.json()
+            for (let test of json.tests) {
+                diffAgainstFields[`${test.name}`] = test
+            }
+            otherJsonData = json
+        }
+        update(jsonData)
     }
 }
 
@@ -461,7 +690,9 @@ function Element(tagname, props, children) {
 const htmlNode = document.querySelector("html")
 var bodyNode = htmlNode.querySelector("body")
 
+var diffAgainstFields = {}
+var otherJsonData = null
 var resultsJsonData = null
-await getResultsJson()
 
+await getResultsJson()
 update(resultsJsonData)
