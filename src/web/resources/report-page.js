@@ -193,10 +193,10 @@ var selectedBenchmarkIndex = -1
 var benchMarks = []
 
 var diffViewState = {
-    "status": true,
-    "output": true,
-    "accuracy": true,
-    "time": true
+    "status": false,
+    "output": false,
+    "accuracy": false,
+    "time": false
 }
 
 var filterState = {
@@ -503,6 +503,20 @@ function tableRowDiff(test) {
     var resultAccuracy = resultAccuracyTD(test)
     var targetAccuracy = targetAccuracyTD(test)
 
+    const time = timeTD(test)
+
+    var tdStartAccuracy = startAccuracy.td
+    var tdResultAccuracy = resultAccuracy.td
+    var tdTargetAccuracy = targetAccuracy.td
+    var tdTime = time.td
+
+    tdStartAccuracy = diffViewState["accuracy"] ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
+    tdResultAccuracy = diffViewState["accuracy"] ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
+    tdTargetAccuracy = diffViewState["accuracy"] ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
+    tdTime = diffViewState["time"] ? time.td : Element("td", {}, [formatTime(test.time)])
+
+    const areEqual = true && (time.equal && diffViewState["time"]) && (diffViewState["accuracy"] && startAccuracy.equal && resultAccuracy.equal && targetAccuracy.equal)
+
     if (diffViewState["status"] && test.status != diffAgainstFields[test.name].status) {
         classList.push("diff-status")
         testTile = "(" + test.status + " != " + diffAgainstFields[test.name].status + ")"
@@ -519,18 +533,14 @@ function tableRowDiff(test) {
     if (test.status == "imp-start" ||
         test.status == "ex-start" ||
         test.status == "apx-start") {
-        targetAccuracy.td = Element("td", {}, [])
+        tdTargetAccuracy = Element("td", {}, [])
     }
 
     if (test.status == "timeout" || test.status == "error") {
-        startAccuracy.td = Element("td", {}, [])
-        resultAccuracy.td = Element("td", {}, [])
-        targetAccuracy.td = Element("td", {}, [])
+        tdStartAccuracy = Element("td", {}, [])
+        tdResultAccuracy = Element("td", {}, [])
+        tdTargetAccuracy = Element("td", {}, [])
     }
-
-    const time = timeTD(test)
-
-    const areEqual = true && (time.equal && diffViewState["time"]) && (diffViewState["accuracy"] && startAccuracy.equal && resultAccuracy.equal && targetAccuracy.equal)
 
     var nameTD = Element("td", {}, [test.name])
     if (testTile != "") {
@@ -539,10 +549,10 @@ function tableRowDiff(test) {
 
     const tr = Element("tr", { classList: classList.join(" ") }, [
         nameTD,
-        diffViewState["accuracy"] ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)]),
-        diffViewState["accuracy"] ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)]),
-        diffViewState["accuracy"] ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)]),
-        diffViewState["time"] ? time.td : Element("td", {}, [formatTime(test.time)]),
+        tdStartAccuracy,
+        tdResultAccuracy,
+        tdTargetAccuracy,
+        tdTime,
         Element("td", {}, [
             Element("a", {
                 href: `${test.link}/graph.html`
