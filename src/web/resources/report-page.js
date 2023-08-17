@@ -47,21 +47,21 @@ function calculateSpeedup(mergedCostAccuracy) {
 }
 // end Helpers
 
+//https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
+function toTitleCase(str) {
+    return str.replace(
+        /\w\S*/g,
+        function (txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        }
+    )
+}
+
 function update(jsonData) {
 
     const navigation = Element("nav", {}, [
         Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
     ])
-
-    //https://stackoverflow.com/questions/196972/convert-string-to-title-case-with-javascript
-    function toTitleCase(str) {
-        return str.replace(
-            /\w\S*/g,
-            function (txt) {
-                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-            }
-        )
-    }
 
     function hasNote(note) {
         return (note ? toTitleCase(note) + " " : "") + "Results"
@@ -152,12 +152,30 @@ function update(jsonData) {
     bodyNode = newBody
 }
 
+function storeBenchmarks(tests) {
+    var tempDir = {}
+    for (let test of tests) {
+        const linkComponents = test.link.split("/")
+        if (linkComponents.length > 1) {
+            tempDir[linkComponents[0]] = linkComponents[0]
+        }
+    }
+    for (let b in tempDir) {
+        benchMarks.push(b)
+    }
+}
+
 // View State
-var detailsState = false
+var filterDetailsState = false
+
 var groupState = {
     "improved": true,
     "regressed": true
 }
+
+var selectedBenchmarkIndex = -1
+var benchMarks = []
+
 var filterState = {
     "imp-start": true,
     "ex-start": true,
@@ -232,13 +250,46 @@ function buildFilters(jsonTestData) {
     setupGroup("improved", improvedTags, improvedButton)
     setupGroup("regressed", regressedTags, regressedButton)
 
-    const details = Element("details", { id: "filters", open: detailsState }, [
+    var dropDownElements = []
+    if (selectedBenchmarkIndex == -1) {
+        dropDownElements = [Element("option", { selected: true }, ["Default"])]
+        for (let i in benchMarks) {
+            const name = toTitleCase(benchMarks[i])
+            dropDownElements.push(Element("option", {}, [name]))
+        }
+    } else {
+        dropDownElements = [Element("option", {}, ["Default"])]
+        for (let i in benchMarks) {
+            const name = toTitleCase(benchMarks[i])
+            if (selectedBenchmarkIndex == i) {
+                dropDownElements.push(Element("option", { selected: true }, [name]))
+            } else {
+                dropDownElements.push(Element("option", {}, [name]))
+            }
+        }
+    }
+
+    const dropDown = Element("select", { id: "dropdown" }, dropDownElements)
+
+    dropDown.addEventListener("click", (e) => {
+        for (let i in benchMarks) {
+            if (benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
+                selectedBenchmarkIndex = i
+                update(resultsJsonData)
+                return
+            }
+        }
+        selectedBenchmarkIndex = -1
+        update(resultsJsonData)
+    })
+
+    const details = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton]), [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown]), [
             filterButtons]])
     details.addEventListener("click", (e) => {
         if (e.target.nodeName == "SUMMARY") {
-            detailsState = !detailsState
+            filterDetailsState = !filterDetailsState
         }
     })
     return details
@@ -253,7 +304,7 @@ function buildCheckboxLabel(classes, text, boolState) {
 function plotXY(testsData) {
     var filteredTests = []
     testsData.forEach((test) => {
-        if (filterState[test.status]) {
+        if (filterTest(test)) {
             filteredTests.push(test)
         }
     })
@@ -304,10 +355,23 @@ function plotPareto(jsonData) {
     return out;
 }
 
+function filterTest(test) {
+    const linkComponents = test.link.split("/")
+    if (selectedBenchmarkIndex == -1 && filterState[test.status]) {
+        return true
+    } else if (linkComponents.length > 1) {
+        if (benchMarks[selectedBenchmarkIndex].toLowerCase() == linkComponents[0] && filterState[test.status]) {
+            return true
+        }
+    } else {
+        return false
+    }
+}
+
 function tableBody(jsonData) {
     var rows = []
     for (let test of jsonData.tests) {
-        if (filterState[test.status]) {
+        if (filterTest(test)) {
             rows.push(tableRow(test, rows.length))
         }
     }
@@ -351,9 +415,7 @@ async function getResultsJson() {
             mode: "cors",
         });
         resultsJsonData = (await response.json());
-        return resultsJsonData
-    } else {
-        return resultsJsonData
+        storeBenchmarks(resultsJsonData.tests)
     }
 }
 
@@ -399,6 +461,7 @@ function Element(tagname, props, children) {
 const htmlNode = document.querySelector("html")
 var bodyNode = htmlNode.querySelector("body")
 
-var resultsJsonData = await getResultsJson()
+var resultsJsonData = null
+await getResultsJson()
 
 update(resultsJsonData)
