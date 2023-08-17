@@ -396,6 +396,10 @@ function tableBody(jsonData) {
     var rows = []
     for (let test of jsonData.tests) {
         if (filterTest(test)) {
+            // TODO merge tableRowDiff and tableRow so we only have one code path
+            /* 
+            This should be possible now that tableRowDiff without any diff options checked displays the same view as tableRow
+            */
             if (diffAgainstFields[test.name] && compareState["compare"]) {
                 const row = tableRowDiff(test)
                 if (!row.equal) {
@@ -499,30 +503,27 @@ function tableRowDiff(test) {
 
     var testTile = ""
     var classList = [test.status]
-    var startAccuracy = startAccuracyTD(test)
-    var resultAccuracy = resultAccuracyTD(test)
-    var targetAccuracy = targetAccuracyTD(test)
-
+    const startAccuracy = startAccuracyTD(test)
+    const resultAccuracy = resultAccuracyTD(test)
+    const targetAccuracy = targetAccuracyTD(test)
     const time = timeTD(test)
 
-    var tdStartAccuracy = startAccuracy.td
-    var tdResultAccuracy = resultAccuracy.td
-    var tdTargetAccuracy = targetAccuracy.td
-    var tdTime = time.td
+    var tdStartAccuracy = diffViewState["accuracy"] ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
+    var tdResultAccuracy = diffViewState["accuracy"] ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
+    var tdTargetAccuracy = diffViewState["accuracy"] ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
+    const tdTime = diffViewState["time"] ? time.td : Element("td", {}, [formatTime(test.time)])
 
-    tdStartAccuracy = diffViewState["accuracy"] ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
-    tdResultAccuracy = diffViewState["accuracy"] ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
-    tdTargetAccuracy = diffViewState["accuracy"] ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
-    tdTime = diffViewState["time"] ? time.td : Element("td", {}, [formatTime(test.time)])
-
-    const areEqual = true && (time.equal && diffViewState["time"]) && (diffViewState["accuracy"] && startAccuracy.equal && resultAccuracy.equal && targetAccuracy.equal)
+    var statusEqual = false
+    var outputEqual = false
 
     if (diffViewState["status"] && test.status != diffAgainstFields[test.name].status) {
+        statusEqual = true
         classList.push("diff-status")
         testTile = "(" + test.status + " != " + diffAgainstFields[test.name].status + ")"
     }
 
     if (diffViewState["output"] && test.output != diffAgainstFields[test.name].output) {
+        outputEqual = true
         classList.push("diff-output")
         if (testTile != "") {
             testTile += "\n\n"
@@ -535,12 +536,14 @@ function tableRowDiff(test) {
         test.status == "apx-start") {
         tdTargetAccuracy = Element("td", {}, [])
     }
-
     if (test.status == "timeout" || test.status == "error") {
         tdStartAccuracy = Element("td", {}, [])
         tdResultAccuracy = Element("td", {}, [])
         tdTargetAccuracy = Element("td", {}, [])
     }
+
+    // Logic whether to display this table row or not.
+    const areEqual = (time.equal && diffViewState["time"]) || (diffViewState["accuracy"] && startAccuracy.equal && resultAccuracy.equal && targetAccuracy.equal) || (diffViewState["output"] && !outputEqual) || (diffViewState["status"] && !statusEqual)
 
     var nameTD = Element("td", {}, [test.name])
     if (testTile != "") {
