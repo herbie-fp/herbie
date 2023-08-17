@@ -371,11 +371,11 @@ function tableRowDiff(test) {
         var timeDiff = test.time - diffAgainstFields[test.name].time
         var color = "diff-time-red"
         var text
-        var titleText = null
-        // If the time diff is less the 1s don't format
+        var titleText = ""
+        // Dirty equal less then 1 second
         if (Math.abs(timeDiff) < 1000) {
             color = "diff-time-gray"
-            text = "~" + formatTime(test.time)
+            text = "~"
             titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
         } else if (timeDiff < 0) {
             color = "diff-time-green"
@@ -383,11 +383,7 @@ function tableRowDiff(test) {
         } else {
             text = "-" + `${formatTime(timeDiff)}`
         }
-        if (titleText != null) {
-            return { td: Element("td", { classList: color, title: titleText }, [text]), equal: true }
-        } else {
-            return { td: Element("td", { classList: color }, [text]), equal: false }
-        }
+        return { td: Element("td", { classList: color, title: titleText }, [text]), equal: titleText != "" }
     }
 
     function buildTDfor(o, t) {
