@@ -193,7 +193,10 @@ var selectedBenchmarkIndex = -1
 var benchMarks = []
 
 var diffViewState = {
-    "status": true
+    "status": true,
+    "output": true,
+    "accuracy": true,
+    "time": true
 }
 
 var filterState = {
@@ -505,7 +508,7 @@ function tableRowDiff(test) {
         testTile = "(" + test.status + " != " + diffAgainstFields[test.name].status + ")"
     }
 
-    if (test.output != diffAgainstFields[test.name].output) {
+    if (diffViewState["output"] && test.output != diffAgainstFields[test.name].output) {
         classList.push("diff-output")
         if (testTile != "") {
             testTile += "\n\n"
@@ -527,7 +530,7 @@ function tableRowDiff(test) {
 
     const time = timeTD(test)
 
-    const areEqual = true && time.equal && startAccuracy.equal && resultAccuracy.equal && targetAccuracy.equal
+    const areEqual = true && (time.equal && diffViewState["time"]) && (diffViewState["accuracy"] && startAccuracy.equal && resultAccuracy.equal && targetAccuracy.equal)
 
     var nameTD = Element("td", {}, [test.name])
     if (testTile != "") {
@@ -536,10 +539,10 @@ function tableRowDiff(test) {
 
     const tr = Element("tr", { classList: classList.join(" ") }, [
         nameTD,
-        startAccuracy.td,
-        resultAccuracy.td,
-        targetAccuracy.td,
-        time.td,
+        diffViewState["accuracy"] ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)]),
+        diffViewState["accuracy"] ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)]),
+        diffViewState["accuracy"] ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)]),
+        diffViewState["time"] ? time.td : Element("td", {}, [formatTime(test.time)]),
         Element("td", {}, [
             Element("a", {
                 href: `${test.link}/graph.html`
@@ -596,6 +599,21 @@ function compareForm(jsonData) {
         diffViewState["status"] = status.querySelector("input").checked
         update(resultsJsonData)
     })
+    const output = buildCheckboxLabel("", "output", diffViewState["output"])
+    output.addEventListener("click", () => {
+        diffViewState["output"] = output.querySelector("input").checked
+        update(resultsJsonData)
+    })
+    const accuracy = buildCheckboxLabel("", "accuracy", diffViewState["accuracy"])
+    accuracy.addEventListener("click", () => {
+        diffViewState["accuracy"] = accuracy.querySelector("input").checked
+        update(resultsJsonData)
+    })
+    const time = buildCheckboxLabel("", "time", diffViewState["time"])
+    time.addEventListener("click", () => {
+        diffViewState["time"] = time.querySelector("input").checked
+        update(resultsJsonData)
+    })
     const input = Element("input", {
         id: inputID, value: compareState["url"]
     }, [])
@@ -604,7 +622,7 @@ function compareForm(jsonData) {
         name: formName
     }, [])
     const form = Element("form", {}, [
-        Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare", status])
+        Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare", status, output, accuracy, time])
 
     compare.addEventListener("click", async (e) => {
         await updateFromForm(jsonData, e.target.parentNode)
