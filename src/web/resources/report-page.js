@@ -192,6 +192,10 @@ var groupState = {
 var selectedBenchmarkIndex = -1
 var benchMarks = []
 
+var diffViewState = {
+    "status": true
+}
+
 var filterState = {
     "imp-start": true,
     "ex-start": true,
@@ -496,7 +500,7 @@ function tableRowDiff(test) {
     var resultAccuracy = resultAccuracyTD(test)
     var targetAccuracy = targetAccuracyTD(test)
 
-    if (test.status != diffAgainstFields[test.name].status) {
+    if (diffViewState["status"] && test.status != diffAgainstFields[test.name].status) {
         classList.push("diff-status")
         testTile = "(" + test.status + " != " + diffAgainstFields[test.name].status + ")"
     }
@@ -587,6 +591,11 @@ function compareForm(jsonData) {
         id: compareID, type: "radio", checked: compareState["compare"],
         name: formName
     }, [])
+    const status = buildCheckboxLabel("", "status", diffViewState["status"])
+    status.addEventListener("click", () => {
+        diffViewState["status"] = status.querySelector("input").checked
+        update(resultsJsonData)
+    })
     const input = Element("input", {
         id: inputID, value: compareState["url"]
     }, [])
@@ -595,7 +604,7 @@ function compareForm(jsonData) {
         name: formName
     }, [])
     const form = Element("form", {}, [
-        Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare"])
+        Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare", status])
 
     compare.addEventListener("click", async (e) => {
         await updateFromForm(jsonData, e.target.parentNode)
