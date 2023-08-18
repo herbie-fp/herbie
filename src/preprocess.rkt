@@ -72,7 +72,7 @@
   (values
    (if (flag-set? 'setup 'simplify)
        simplified
-       (list initial))
+       (list (make-alt initial)))
    ;; Absolute value should happen before sorting
    (append abs-instructions sort-instructions)))
 
