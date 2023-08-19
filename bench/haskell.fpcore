@@ -1403,9 +1403,10 @@
  :name "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, A"
  (* x (- 1.0 (* x y))))
 
-(FPCore  (x)
- :name "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, B"
- (* x (- 1.0 (* x 0.5))))
+;; TODO: Removing temporarlily
+;; (FPCore  (x)
+;;  :name "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, B"
+;;  (* x (- 1.0 (* x 0.5))))
 
 (FPCore  (x y z t a b)
  :name "Numeric.SpecFunctions:logBeta from math-functions-0.1.5.2, A"
