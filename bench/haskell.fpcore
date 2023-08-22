@@ -1403,7 +1403,7 @@
  :name "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, A"
  (* x (- 1.0 (* x y))))
 
-;; TODO: Removing temporarlily
+;; TODO: Trello Benchmark Sources - Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, B
 ;; (FPCore  (x)
 ;;  :name "Numeric.SpecFunctions:log1p from math-functions-0.1.5.2, B"
 ;;  (* x (- 1.0 (* x 0.5))))
