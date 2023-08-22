@@ -79,11 +79,6 @@ svg.clickable circle:hover { stroke: #00a; stroke-width: 10; cursor: pointer; }
 }
 
 /* Result table filters */
-#filters {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
-#filters h2 {color: var(--accent-title);}
-#filters label {display: inline-block; padding: .4ex; color: var(--accent-text);}
-#filters summary {accent-color: var(--accent-blue);}
-tr.hidden {display: none;}
 label.imp-start {accent-color: var(--result-green);}
 label.apx-start {accent-color: var(--result-orange);}
 label.uni-start {accent-color: var(--result-red-orange);}
@@ -91,11 +86,29 @@ label.ex-start {accent-color: var(--result-light-green);}
 label.eq-start {accent-color: var(--result-green);}
 label.lt-start {accent-color: var(--result-yellow);}
 label.gt-target {accent-color: var(--result-green);}
+label.gt-start {accent-color: var(--result-green);}
 label.eq-target {accent-color: var(--result-green);}
 label.lt-target {accent-color: var(--result-orange);}
 label.crash {accent-color: var(--result-light-orange);}
 label.error {accent-color: var(--result-error);}
 label.timeout {accent-color: var(--result-timeout);}
+#filters label {margin: 0; display: inline-block; padding: .4ex; color: var(--accent-text);}
+#filters summary {accent-color: var(--accent-blue);}
+#filters .sub-filter {column-width: 11.5rem;}
+
+/* Compare Reports */
+.diff-time-red {color: red;}
+.diff-time-green {color: green;}
+.diff-time-gray {color: gray;}
+.diff-status {color: #0000aa;}
+.diff-output {background-color: pink;}
+.report-details {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
+.report-details h2 {font-size: 16px;}
+.report-details h3 {font-size: 14px;}
+.report-details h2, h3 {color: var(--accent-title); line-height: 1.4;}
+.report-details form { display: inline;}
+.report-details > details summary h2 {padding-right: 1em;}
+.report-details > details > div > h3 {margin: 0; display: inline; padding-right: 1em; color: var(--accent-title);}
 
 /* Table of results */
 

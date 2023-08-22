@@ -93,7 +93,7 @@
       (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       (script ([src "interactive.js"]))
-      (script ([src "../report.js"] [type "module"])))
+      (script ([src "../report.js"])))
      (body
       ,(render-menu #:path ".."
         (~a (test-name test))
