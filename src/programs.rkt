@@ -1,6 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
+(require "arb.rkt")
 (require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
 
 (provide expr? expr-contains? expr<?
@@ -127,13 +128,15 @@
     (match mode
      ['fl (λ (x repr) (real->repr x repr))]
      ['bf (λ (x repr) (bf x))]
-     ['ival (λ (x repr) (ival (bf x)))]))
+     ['arb (λ (x repr) (arb (bf x)))]))
+     ;;['ival (λ (x repr) (ival (bf x)))]))
 
   (define arg->precision
     (match mode
      ['fl (λ (x repr) x)]
      ['bf (λ (x repr) (if (bigfloat? x) x ((representation-repr->bf repr) x)))]
-     ['ival (λ (x repr) (if (ival? x) x (ival ((representation-repr->bf repr) x))))]))
+     ['arb (λ (x repr) (if (arb? x) x (arb ((representation-repr->bf repr) x))))]))
+     ;;['ival (λ (x repr) (if (ival? x) x (ival ((representation-repr->bf repr) x))))]))
 
   ;; Expression cache
   (define exprcache '())
@@ -154,7 +157,8 @@
   (define if-op
     (match mode
      [(or 'fl 'bf) (λ (c ift iff) (if c ift iff))]
-     ['ival ival-if]))
+     ['arb arb-if]))
+     ;;['ival ival-if]))
 
   (define (munge prog repr)
     (set! size (+ 1 size))
@@ -209,9 +213,10 @@
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
-      (define iv (apply (compile-prog e 'ival ctx) p))
+      (define ar (apply (compile-prog e 'arb ctx) p))
+      ;;(define iv (apply (compile-prog e 'ival ctx) p))
       (define val (apply (compile-prog e 'bf ctx) p))
-      (check-in-interval? iv val))))
+      (check-in-interval? (arb->ival ar) val))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
