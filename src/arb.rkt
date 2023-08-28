@@ -2,7 +2,9 @@
 (require (for-syntax racket))
 (require math/bigfloat rival)
 
-(require ffi/unsafe ffi/unsafe/alloc)
+(require ffi/unsafe 
+         ffi/unsafe/alloc
+         racket/runtime-path)
 
 (provide arb 
     (rename-out [_arb? arb?]) 
@@ -75,7 +77,16 @@
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
-(define libarb (ffi-lib "/usr/local/lib/libarb"))
+;;(define libarb (ffi-lib "/usr/local/lib/libarb"))
+
+(define-runtime-path libarb-so
+  (case (system-type)
+    [(macosx) '(so "libflint-arb.dylib")] ;; To be implemented
+    [(windows) '(so "libflint-arb.dll")] ;; To be implemented
+    [else '(so "libflint-arb")]))
+
+(define libarb (ffi-lib libarb-so '("2" "") #:fail (λ () #f)))
+
 
 (define _mpfr_t _pointer)
 (define _arb_t _pointer)
@@ -208,7 +219,7 @@
 (define-arb-function (arb-expm1 x))
 
 ;; This function is to be checked
-(define-arb-function (arb-floor))
+(define-arb-function (arb-floor x))
 
 ;; To be checked
 (define-arb-function (arb-lgamma x))
@@ -228,7 +239,7 @@
   (error 'arb-log10 "Unimplemented"))
 (define (arb-trunc x)
   (error 'arb-trunc "Unimplemented"))
-(define (arb-tgamma x)
+(define (arb-tgamma x)  ;; just gamma
   (error 'arb-tgamma "Unimplemented"))
 (define (arb-round x)
   (error 'arb-round "Unimplemented"))
