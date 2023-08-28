@@ -579,6 +579,10 @@ async function getResultsJson() {
 
 function compareInfo(diffCount) {
     if (otherJsonData != null) {
+        let resultsDate = new Date(resultsJsonData.date * 1000)
+        const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
+        let otherDate = new Date(otherJsonData.date * 1000)
+        const otherDayString = `${otherDate.getFullYear()}/${otherDate.getMonth() + 1}/${otherDate.getDay()}`
         return [
             Element("details", {}, [
                 Element("summary", {}, [
@@ -587,10 +591,10 @@ function compareInfo(diffCount) {
                 ]),
                 Element("div", {}, [
                     Element("h3", {}, ["Current report:"]),
-                    `${resultsJsonData.branch}: @${resultsJsonData.commit}, ${resultsJsonData.date}`]),
+                    `${resultsJsonData.branch}: seed(${resultsJsonData.seed}) ${resultDayString}`]),
                 Element("div", {}, [
                     Element("h3", {}, ["Compared to:"]),
-                    `${otherJsonData.branch}: @${otherJsonData.commit}, ${otherJsonData.date}`]),
+                    `${otherJsonData.branch}: seed(${otherJsonData.seed}) ${otherDayString}`]),
             ])
         ]
     } else {
