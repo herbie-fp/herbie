@@ -645,6 +645,8 @@ function compareForm(jsonData) {
         await updateFromForm(jsonData, e.target.parentNode)
     })
     starting.addEventListener("click", async (e) => {
+        compareState["url"] = ""
+        input.value = ""
         await updateFromForm(jsonData, e.target.parentNode)
     })
     form.addEventListener("submit", async (e) => {
