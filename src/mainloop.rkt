@@ -304,9 +304,9 @@
   (match-define (cons initial simplified) alternatives)
   (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
-  ;; TODO: Need to include starting-alts stuff here
-  (define-values (errss costs) (atab-eval-altns table simplified context))
-  (^table^ (atab-add-altns table simplified errss costs)))
+  (define simplified* (append-map starting-alts simplified))
+  (define-values (errss costs) (atab-eval-altns table simplified* context))
+  (^table^ (atab-add-altns table simplified* errss costs)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve vars prog iters
