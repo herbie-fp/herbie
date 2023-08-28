@@ -383,7 +383,7 @@ function filterTest(test) {
     const linkComponents = test.link.split("/")
     if (selectedBenchmarkIndex == -1 && filterState[test.status]) {
         return true
-    } else if (linkComponents.length > 1) {
+    } else if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
         if (benchMarks[selectedBenchmarkIndex].toLowerCase() == linkComponents[0] && filterState[test.status]) {
             return true
         }
