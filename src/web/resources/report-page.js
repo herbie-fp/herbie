@@ -297,7 +297,7 @@ function buildFilters(jsonTestData) {
 
     dropDown.addEventListener("click", (e) => {
         for (let i in benchMarks) {
-            if (benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
+            if (e.target.label != undefined && benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
                 selectedBenchmarkIndex = i
                 update(resultsJsonData)
                 return
