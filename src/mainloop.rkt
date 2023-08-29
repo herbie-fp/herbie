@@ -304,7 +304,7 @@
   (match-define (cons initial simplified) alternatives)
   (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
-  (define simplified* (append-map starting-alts simplified))
+  (define simplified* (append-map (curryr starting-alts context) simplified))
   (define-values (errss costs) (atab-eval-altns table simplified* context))
   (^table^ (atab-add-altns table simplified* errss costs)))
 
