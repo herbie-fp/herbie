@@ -73,7 +73,10 @@
     arb-and
     arb-pi
     arb-e
-    arb-bool)
+    arb-bool
+    mpfr->arb
+    boolean->arb
+    arb-lo)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -87,16 +90,16 @@
 
 (define libarb (ffi-lib libarb-so '("2" "") #:fail (λ () #f)))
 
-
-(define _mpfr_t _pointer)
-(define _arb_t _pointer)
-
 (struct _arb (ptr)
         #:methods gen:custom-write
         [(define (write-proc a port mode)
            (define ptr (_arb-ptr a))
            (define s (_arb-get-str ptr (arb-precision) 0))
            (fprintf port "(arb ~s)" s))])
+           
+
+(define _mpfr_t _pointer)
+(define _arb_t _pointer)
 
 (define _arb_init (get-ffi-obj 'arb_init libarb (_fun _arb_t -> _void)))
 (define _arb_clear (get-ffi-obj 'arb_clear libarb (_fun _arb_t -> _void)))
@@ -128,7 +131,7 @@
    [(bigfloat? x)
     (string->arb (bigfloat->string x))]
    [(boolean? x)
-    (arb 0.bf)]
+    (ival x)]
    [(nan? x)
     (string->arb "nan")]
    [(infinite? x)
@@ -165,40 +168,59 @@
   (define a (ival-lo iv))
   (define b (ival-hi iv))
   ;; Ideally this condition should never succeed
-  (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's boundaries do not match"))
+  (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
   (define prec (bigfloat-precision a))
   (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
-  (print (_arb-ptr ar))
   ar)
   
-(define (arb-if c x y)
-  (define res (ival-if (arb->ival c) x y))
-  (print c)
-  res)
-
-
-;; 2D
+(define (mpfr->arb a b)
+  (define ar (_arb-alloc))
+  ;; Ideally this condition should never succeed
+  (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
+  (define prec (bigfloat-precision a))
+  (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
+  ar)
+  
+;; I guess it is a very slow way
+(define (arb-lo x)
+  (ival-lo (arb->ival x)))
+(define (arb-hi x)
+  (ival-hi (arb->ival x)))
+  
+(define (boolean->arb a b)
+  (ival a b))
+  
 (define-arb-function (arb-add x y))
 (define-arb-function (arb-sub x y))
 (define-arb-function (arb-mul x y))
 (define-arb-function (arb-fma x y z))
 (define-arb-function (arb-div x y))
-(define (arb-atan2 x y)
-  (error 'arb-atan2 "Unimplemented"))
-(define (arb-copysign x y)
-  (error 'arb-copysign "Unimplemented"))
-(define (arb-fdim x y)
-  (error 'arb-fdim "Unimplemented"))
+(define-arb-function (arb-pow x y))
+(define-arb-function (arb-atan2 x y))
+
+
 (define (arb-fmax x y)
-  (error 'arb-fmax "Unimplemented"))
+   (ival->arb(ival-fmax (arb->ival x) (arb->ival y))))
+   
+(define (arb-if c x y)
+  (ival-if (arb->ival c) x y))
+  
+(define (arb-copysign x y)
+  (ival->arb(ival-copysign (arb->ival x) (arb->ival y))))
+
+(define (arb-fdim x y)
+  (ival->arb(ival-fdim (arb->ival x) (arb->ival y))))
+  
 (define (arb-fmin x y)
-  (error 'arb-fmin "Unimplemented"))
+  (ival->arb(ival-fmin (arb->ival x) (arb->ival y))))
+  
 (define (arb-fmod x y)
   (error 'arb-fmod "Unimplemented"))
+  
 (define (arb-hypot x y)
   (error 'arb-hypot "Unimplemented"))
-(define (arb-pow x y)
-  (error 'arb-pow "Unimplemented"))
+  
+
 (define (arb-remainder x y)
   (error 'arb-remainder "Unimplemented"))
 

@@ -1,11 +1,10 @@
 #lang racket
-(require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
          "syntax/sugar.rkt")
 
-(provide make-sampler batch-prepare-points ival-eval)
+(provide make-sampler batch-prepare-points arb-eval)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
@@ -17,14 +16,14 @@
 
   (apply cartesian-product
          (for/list ([var-name (context-vars ctx)] [var-repr (context-var-reprs ctx)])
-           (map (lambda (interval) (fpbench-ival->ival var-repr interval))
+           (map (lambda (interval) (fpbench-arb->arb var-repr interval))
                 (range-table-ref range-table var-name)))))
 
-(define (fpbench-ival->ival repr fpbench-interval)
+(define (fpbench-arb->arb repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
   (match (representation-type repr)
-    ['real (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1)))]
-    ['bool (ival #f #t)]))
+    ['real (mpfr->arb (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1)))]
+    ['bool (boolean->arb #f #t)]))
 
 (module+ test
   (require rackunit "load-plugin.rkt")
@@ -35,7 +34,7 @@
                  '(and (and (<=.f64 0 a) (<=.f64 a 1))
                        (and (<=.f64 0 b) (<=.f64 b 1)))
                  (context '(a b) repr (list repr repr)))
-                (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
+                (list (list (mpfr->arb (bf 0.0) (bf 1.0)) (mpfr->arb (bf 0.0) (bf 1.0))))))
 
 ;; Part 2: using subdivision search to find valid intervals
 
@@ -68,11 +67,11 @@
     (when (> search-result 0)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
 
-(define (sample-ival interval repr)
+(define (sample-arb interval repr)
   (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
   (define <-ordinal (representation-ordinal->repr repr))
-  (<-ordinal (random-integer (->ordinal (ival-lo interval))
-                             (+ 1 (->ordinal (ival-hi interval))))))
+  (<-ordinal (random-integer (->ordinal (arb-lo interval))
+                             (+ 1 (->ordinal (arb-hi interval))))))
 
 (define (make-hyperrect-sampler hyperrects* reprs)
   (when (null? hyperrects*)
@@ -86,7 +85,7 @@
     (map sample-ival hyperrect reprs)))
 
 (module+ test
-  (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
+  (define two-point-hyperrects (list (list (mpfr->arb (bf 0) (bf 0)) (mpfr->arb (bf 1) (bf 1)))))
   (check-true
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
@@ -123,10 +122,10 @@
     (set! start now))
   log!)
 
-(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
+(define (arb-eval repr fn pt #:precision [precision (*starting-prec*)])
   (let loop ([precision precision])
     (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
-    (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
+    (match-define (ival err err?) (apply ival-or (map ival-error? (arb->ival exs))))
     (define precision* (exact-floor (* precision 2)))
     (cond
      [err
