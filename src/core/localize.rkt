@@ -53,7 +53,13 @@
     (make-hash
      (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
        (cons (car subexpr) '()))))
-  (for ([(pt ex) (in-pcontext (*pcontext*))])
+
+  (define rev-points (reverse (
+    for/list ([(pt _) (in-pcontext (*pcontext*))])
+    pt
+  )))
+
+  (for ([(pt) rev-points])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
       (make-immutable-hash (map cons (apply append subexprss) exacts)))
