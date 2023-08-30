@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt" "common.rkt")
+(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt" "common.rkt" "arb.rkt")
 
 (provide sample-points batch-prepare-points make-search-func eval-progs-real)
 
@@ -44,11 +44,11 @@
   (define repr (context-repr (car ctxs)))
   (define fn (make-search-func '(TRUE) progs ctxs))
   (define (f . pt)
-    (define-values (result prec exs) (ival-eval repr fn pt))
+    (define-values (result prec exs) (arb-eval repr fn pt))
     (match exs
       [(? list?)
       (for/list ([ex exs] [ctx* ctxs])
-        ((representation-bf->repr (context-repr ctx*)) (ival-lo ex)))]
+        ((representation-bf->repr (context-repr ctx*)) (arb-lo ex)))]
       [(? nan?)
       (for/list ([ctx* ctxs])
         ((representation-bf->repr (context-repr ctx*)) +nan.bf))]))

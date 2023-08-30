@@ -76,7 +76,8 @@
     arb-bool
     mpfr->arb
     boolean->arb
-    arb-lo)
+    arb-lo
+    arb-hi)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))

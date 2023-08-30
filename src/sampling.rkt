@@ -1,8 +1,9 @@
 #lang racket
+(require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "programs.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
-         "syntax/sugar.rkt")
+         "syntax/sugar.rkt" "arb.rkt")
 
 (provide make-sampler batch-prepare-points arb-eval)
 
@@ -82,7 +83,7 @@
   (λ ()
     (define rand-ordinal (random-integer 0 weight-max))
     (define hyperrect (vector-ref hyperrects (binary-search weights rand-ordinal)))
-    (map sample-ival hyperrect reprs)))
+    (map sample-arb hyperrect reprs)))
 
 (module+ test
   (define two-point-hyperrects (list (list (mpfr->arb (bf 0) (bf 0)) (mpfr->arb (bf 1) (bf 1)))))
@@ -153,8 +154,8 @@
       (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
   (define ival-positive-infinite (monotonic->ival positive-inf?))
   (define ival-negative-infinite (comonotonic->ival negative-inf?))
-  (ival-or (ival-positive-infinite interval)
-           (ival-negative-infinite interval)))
+  (ival-or (ival-positive-infinite arb->ival(interval))
+           (ival-negative-infinite arb->ival(interval))))
 
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
@@ -169,13 +170,13 @@
       (define pt (sampler))
 
       (define-values (status precision out)
-        (ival-eval repr fn pt #:precision starting-precision))
+        (arb-eval repr fn pt #:precision starting-precision))
       (hash-update! outcomes status (curry + 1) 0)
       (logger status precision pt)
 
       (cond
        [(and (list? out) (not (ormap (representation-special-value? repr) pt)))
-        (define exs (map (compose <-bf ival-lo) out))
+        (define exs (map (compose <-bf arb-lo) out))
         (if (>= (+ 1 sampled) (*num-points*))
             (values (cons pt points) (cons exs exactss))
             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
