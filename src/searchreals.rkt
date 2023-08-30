@@ -1,6 +1,6 @@
 #lang racket
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "timeline.rkt" "errors.rkt" "pretty-print.rkt" "float.rkt")
+(require "syntax/types.rkt" "timeline.rkt" "errors.rkt" "pretty-print.rkt" "float.rkt" "arb.rkt")
 
 (provide find-intervals hyperrect-weight)
 
@@ -21,7 +21,7 @@
   (apply * (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
              (define ->ordinal (compose (representation-repr->ordinal repr)
                                         (representation-bf->repr repr)))
-             (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
+             (+ 1 (- (->ordinal (arb-hi interval)) (->ordinal (arb-lo interval)))))))
 
 (define (midpoint repr lo hi)
   ; Midpoint is taken in repr-space, but values are stored in bf
@@ -34,22 +34,22 @@
   (and (bf>= lower lo) (bf<= higher hi) ; False if lo and hi were already close together
        (cons lower higher)))
 
-(define (search-step ival-fn space ctx split-var)
+(define (search-step arb-fn space ctx split-var)
   (match-define (search-space true false other) space)
   (define reprs (context-var-reprs ctx))
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
-      (define res (apply ival-fn rect))
-      (match-define (ival err err?) (apply ival-or (map ival-error? res)))
+      (define res (apply arb-fn rect))
+      (match-define (ival err err?)  (apply ival-or (map ival-error? (arb->ival res))))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth #:url "faq.html#ground-truth"
               "could not determine a ground truth"
               #:extra
-              (for/list ([var (context-vars ctx)] [repr reprs] [ival rect])
+              (for/list ([var (context-vars ctx)] [repr reprs] [arb rect])
                 (define val
                   (value->string
                    ((representation-bf->repr repr)
-                    (bigfloat-pick-point (ival-lo ival) (ival-hi ival)))
+                    (bigfloat-pick-point (arb-lo arb) (arb-hi arb)))
                    repr))
                 (format "~a = ~a" var val))))
       (cond
@@ -60,10 +60,10 @@
        [else
         (define range (list-ref rect split-var))
         (define repr (list-ref reprs split-var))
-        (match (midpoint repr (ival-lo range) (ival-hi range))
+        (match (midpoint repr (arb-lo range) (arb-hi range))
           [(cons midleft midright)
-           (define rect-lo (list-set rect split-var (ival (ival-lo range) midleft)))
-           (define rect-hi (list-set rect split-var (ival midright (ival-hi range))))
+           (define rect-lo (list-set rect split-var (mpfr->arb (arb-lo range) midleft)))
+           (define rect-hi (list-set rect split-var (mpfr->arb midright (arb-hi range))))
            (values true* false* (list* rect-lo rect-hi other*))]
           [#f
            (values true* false* (cons rect other*))])])))
@@ -84,7 +84,7 @@
   (hash-update! out 'precondition (curry + (- 1 total)) 0)
   (make-immutable-hash (hash->list out)))
 
-(define (find-intervals ival-fn rects #:ctx ctx #:fuel [depth 128])
+(define (find-intervals arb-fn rects #:ctx ctx #:fuel [depth 128])
   (if (or (null? rects) (null? (first rects)))
       (map (curryr cons 'other) rects)
       (let loop ([space (apply make-search-space rects)] [n 0])
@@ -96,5 +96,5 @@
             (cons
              (append (search-space-true space) (search-space-other space))
              (make-sampling-table ctx true false other))
-            (loop (search-step ival-fn space ctx n*) (+ n 1))))))
+            (loop (search-step arb-fn space ctx n*) (+ n 1))))))
 

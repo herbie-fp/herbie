@@ -10,7 +10,7 @@
   (define (close-enough? lo hi)
     (let ([lo* (<-bf lo)] [hi* (<-bf hi)])
       (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
-  ((close-enough->ival close-enough?) interval))
+  ival->arb ((close-enough->ival close-enough?) (arb->ival interval)))
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -22,22 +22,22 @@
   (define fns (compile-progs (cons pre exprs) 'arb (car ctxs)))
   (λ inputs
     (define out (apply fns inputs))
-    (match-define (list ival-pre ival-bodies ...) out)
-    (for/list ([y ival-bodies][ctx ctxs])
+    (match-define (list arb-pre arb-bodies ...) out)
+    (for/list ([y arb-bodies][ctx ctxs])
       (define repr (context-repr ctx))
-      (ival-then
+      ival->arb (ival-then
        ; The two `invalid` ones have to go first, because later checks
        ; can error if the input is erroneous
-       (ival-assert (ival-not (ival-error? y)) 'invalid)
-       (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
-       (ival-assert ival-pre 'precondition)
+       (ival-assert (ival-not (ival-error? (arb->ival y))) 'invalid)
+       (ival-assert (ival-not (ival-error? (arb->ival arb-pre))) 'invalid)
+       (ival-assert (arb->ival arb-pre) 'precondition)
        ; 'infinte case handle in `ival-eval`
        (ival-assert
         (if (ground-truth-require-convergence)
             (is-samplable-interval repr y)
-            (ival (ival-hi (is-samplable-interval repr y))))
+            (arb (arb-hi (is-samplable-interval repr y))))
         'unsamplable)
-       y))))
+       (arb->ival y)))))
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)

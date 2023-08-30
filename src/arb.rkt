@@ -77,7 +77,8 @@
     mpfr->arb
     boolean->arb
     arb-lo
-    arb-hi)
+    arb-hi
+    arb-error?)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -157,22 +158,21 @@
                 'name))))])))
           
 (define (arb->ival ar)
-  (bf-precision (arb-precision))
-  (define a (bf 3))
-  (define b (bf 3))
-  (_arb-get-interval-mpfr a b (_arb-ptr ar))
-  (ival a b))
+  (if (ival? ar) ar
+    (let ([a (bf 3)] [b (bf 3)])
+      (bf-precision (arb-precision))
+      (_arb-get-interval-mpfr a b (_arb-ptr ar))
+      (ival a b))))
   
 ;; Not that simple here, ival can be booleans!!
 (define (ival->arb iv)
-  (define ar (_arb-alloc))
-  (define a (ival-lo iv))
-  (define b (ival-hi iv))
-  ;; Ideally this condition should never succeed
-  (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
-  (define prec (bigfloat-precision a))
-  (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
-  ar)
+  (if (_arb? iv) iv
+    (let ([ar (_arb-alloc)] [a (ival-lo iv)] [b (ival-hi iv)])
+      ;; Ideally this condition should never succeed
+      (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
+      (define prec (bigfloat-precision a))
+      (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
+      ar)))
   
 (define (mpfr->arb a b)
   (define ar (_arb-alloc))
@@ -201,10 +201,10 @@
 
 
 (define (arb-fmax x y)
-   (ival->arb(ival-fmax (arb->ival x) (arb->ival y))))
+   (ival->arb (ival-fmax (arb->ival x) (arb->ival y))))
    
 (define (arb-if c x y)
-  (ival-if (arb->ival c) x y))
+  (ival-if (arb->ival c) (arb->ival x) (arb->ival y)))
   
 (define (arb-copysign x y)
   (ival->arb(ival-copysign (arb->ival x) (arb->ival y))))
@@ -297,9 +297,11 @@
   
 (define (arb-not x)
   (error 'arb-not "Unimplemented"))
-(define (arb-and x)
+(define (arb-error? x)
+  (error 'arb-error? "Unimplemented"))
+(define (arb-and . as)
   (error 'arb-and "Unimplemented"))
-(define (arb-or x)
+(define (arb-or . as)
   (error 'arb-or "Unimplemented"))
   
 (define (arb-pi)

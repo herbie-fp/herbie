@@ -129,14 +129,12 @@
      ['fl (λ (x repr) (real->repr x repr))]
      ['bf (λ (x repr) (bf x))]
      ['arb (λ (x repr) (arb (bf x)))]))
-     ;;['ival (λ (x repr) (ival (bf x)))]))
 
   (define arg->precision
     (match mode
      ['fl (λ (x repr) x)]
      ['bf (λ (x repr) (if (bigfloat? x) x ((representation-repr->bf repr) x)))]
      ['arb (λ (x repr) (if (arb? x) x (arb ((representation-repr->bf repr) x))))]))
-     ;;['ival (λ (x repr) (if (ival? x) x (ival ((representation-repr->bf repr) x))))]))
 
   ;; Expression cache
   (define exprcache '())
@@ -158,7 +156,6 @@
     (match mode
      [(or 'fl 'bf) (λ (c ift iff) (if c ift iff))]
      ['arb arb-if]))
-     ;;['ival ival-if]))
 
   (define (munge prog repr)
     (set! size (+ 1 size))
@@ -214,7 +211,6 @@
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
       (define ar (apply (compile-prog e 'arb ctx) p))
-      ;;(define iv (apply (compile-prog e 'ival ctx) p))
       (define val (apply (compile-prog e 'bf ctx) p))
       (check-in-interval? (arb->ival ar) val))))
 
