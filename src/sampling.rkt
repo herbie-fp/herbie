@@ -133,7 +133,7 @@
       (values err precision +nan.0)]
      [(not err?)
       (define infinite?
-      (arb-lo (is-infinite-interval repr (apply arb-or exs))))
+      (ival-lo (is-infinite-interval repr (apply arb-or (map arb->ival exs)))))
       (values (if infinite? 'infinite 'valid) precision exs)
      ]
      [(> precision* (*max-mpfr-prec*))
@@ -154,8 +154,8 @@
       (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
   (define ival-positive-infinite (monotonic->ival positive-inf?))
   (define ival-negative-infinite (comonotonic->ival negative-inf?))
-  (arb-or (ival->arb (ival-positive-infinite (arb->ival interval)))
-           (ival->arb (ival-negative-infinite (arb->ival interval)))))
+  (arb-or ((ival-positive-infinite (arb->ival interval)))
+           ((ival-negative-infinite (arb->ival interval)))))
 
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision

@@ -90,7 +90,7 @@
     [(windows) '(so "libflint-arb.dll")] ;; To be implemented
     [else '(so "libflint-arb")]))
 
-(define libarb (ffi-lib libarb-so '("2" "") #:fail (λ () #f)))
+(define libarb (ffi-lib libarb-so '("2" "13" "1" "") #:fail (λ () #f)))
 
 (struct _arb (ptr)
         #:methods gen:custom-write
@@ -198,6 +198,7 @@
 (define-arb-function (arb-div x y))
 (define-arb-function (arb-pow x y))
 (define-arb-function (arb-atan2 x y))
+(define-arb-function (arb-hypot x y))
 
 
 (define (arb-fmax x y)
@@ -217,10 +218,6 @@
   
 (define (arb-fmod x y)
   (error 'arb-fmod "Unimplemented"))
-  
-(define (arb-hypot x y)
-  (error 'arb-hypot "Unimplemented"))
-  
 
 (define (arb-remainder x y)
   (error 'arb-remainder "Unimplemented"))
@@ -302,7 +299,7 @@
 (define (arb-and . as)
   (error 'arb-and "Unimplemented"))
 (define (arb-or . as)
-  (error 'arb-or "Unimplemented"))
+  (apply ival-or as))
   
 (define (arb-pi)
   (arb pi.bf))
