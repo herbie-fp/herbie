@@ -126,14 +126,14 @@
 (define (arb-eval repr fn pt #:precision [precision (*starting-prec*)])
   (let loop ([precision precision])
     (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
-    (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
+    (match-define (ival err err?) (apply ival-or (map ival-error? (map arb->ival exs))))
     (define precision* (exact-floor (* precision 2)))
     (cond
      [err
       (values err precision +nan.0)]
      [(not err?)
       (define infinite?
-      (ival-lo (is-infinite-interval repr (apply arb-or (map arb->ival exs)))))
+      (ival-lo (is-infinite-interval repr (apply ival-or (map arb->ival exs)))))
       (values (if infinite? 'infinite 'valid) precision exs)
      ]
      [(> precision* (*max-mpfr-prec*))
@@ -154,8 +154,8 @@
       (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
   (define ival-positive-infinite (monotonic->ival positive-inf?))
   (define ival-negative-infinite (comonotonic->ival negative-inf?))
-  (arb-or ((ival-positive-infinite (arb->ival interval)))
-           ((ival-negative-infinite (arb->ival interval)))))
+  (ival-or ((ival-positive-infinite interval))
+           ((ival-negative-infinite interval))))
 
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision

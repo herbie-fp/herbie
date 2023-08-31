@@ -10,7 +10,7 @@
   (define (close-enough? lo hi)
     (let ([lo* (<-bf lo)] [hi* (<-bf hi)])
       (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
-  ival->arb ((close-enough->ival close-enough?) (arb->ival interval)))
+  ((close-enough->ival close-enough?) (arb->ival interval)))
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -35,7 +35,7 @@
        (ival-assert
         (if (ground-truth-require-convergence)
             (is-samplable-interval repr y)
-            (arb (arb-hi (is-samplable-interval repr y))))
+            (ival (ival-hi (is-samplable-interval repr y))))
         'unsamplable)
        (arb->ival y)))))
 

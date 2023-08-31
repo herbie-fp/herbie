@@ -40,7 +40,7 @@
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
       (define res (apply arb-fn rect))
-      (match-define (ival err err?)  (apply ival-or (map ival-error? (arb->ival res))))
+      (match-define (ival err err?)  (apply ival-or (map ival-error? (map arb->ival res))))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth #:url "faq.html#ground-truth"
               "could not determine a ground truth"
