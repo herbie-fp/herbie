@@ -154,8 +154,8 @@
       (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
   (define ival-positive-infinite (monotonic->ival positive-inf?))
   (define ival-negative-infinite (comonotonic->ival negative-inf?))
-  (ival-or ((ival-positive-infinite interval))
-           ((ival-negative-infinite interval))))
+  (ival-or (ival-positive-infinite interval)
+           (ival-negative-infinite interval)))
 
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
