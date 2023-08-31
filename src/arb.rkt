@@ -157,6 +157,22 @@
                   v)
                 'name))))])))
           
+(define-syntax define-arb-function-additional-arg
+  (λ (stx)
+    (syntax-case stx ()
+      [(_ (name n ...))
+       (let* ([num-arguments (- (length (syntax-e (cadr (syntax-e stx)))) 2)]
+              [ffi-name (datum->syntax #'name (string->symbol (string-replace (~a (syntax-e #'name)) "-" "_")))]
+              [args (append (build-list num-arguments (const #'_pointer)) (cons #'_ulong '()))])
+         #`(define name
+             (let ([ffi-fn (get-ffi-obj '#,ffi-name libarb (_fun _pointer #,@args _slong -> _void))])
+               (procedure-rename
+                (λ (n ...)
+                  (define v (_arb-alloc))
+                  (ffi-fn (_arb-ptr v) (_arb-ptr n) ... (arb-precision))
+                  v)
+                'name))))])))
+
 (define (arb->ival ar)
   (if (ival? ar) ar
     (let ([a (bf 3)] [b (bf 3)])
@@ -221,7 +237,7 @@
 
 (define (arb-remainder x y)
   (error 'arb-remainder "Unimplemented"))
-
+  
 ;; 1D
 (define-arb-function (arb-neg x))
 (define-arb-function (arb-abs x))
@@ -237,30 +253,35 @@
 (define-arb-function (arb-cos x))
 (define-arb-function (arb-cosh x))
 (define-arb-function (arb-expm1 x))
-
-;; This function is to be checked
-(define-arb-function (arb-floor x))
-
-;; To be checked
+(define-arb-function (arb-floor x))  ;; This function is to be checked
 (define-arb-function (arb-lgamma x))
 (define-arb-function (arb-log x))
-
 (define-arb-function (arb-log1p x))
 (define-arb-function (arb-sin x))
 (define-arb-function (arb-sinh x))
 (define-arb-function (arb-sqrt x))
 (define-arb-function (arb-tan x))
 (define-arb-function (arb-tanh x))
+(define-arb-function (arb-gamma x))
+(define (arb-tgamma x)
+  (arb-gamma x))
+(define-arb-function (arb-root x k))
+(define-arb-function (arb-log-base-ui x k))
 
+(define (arb-cbrt x)
+  (arb-root x 3))
 
 (define (arb-log2 x)
-  (error 'arb-log10 "Unimplemented"))
+  (arb-log-base-ui x 2))
+  
 (define (arb-log10 x)
-  (error 'arb-log10 "Unimplemented"))
+  (arb-log-base-ui x 10))
+  
+(define (arb-exp2 x)
+  (arb-pow (arb 2.bf) x))
+  
 (define (arb-trunc x)
   (error 'arb-trunc "Unimplemented"))
-(define (arb-tgamma x)  ;; just gamma
-  (error 'arb-tgamma "Unimplemented"))
 (define (arb-round x)
   (error 'arb-round "Unimplemented"))
 (define (arb-rint x)
@@ -269,15 +290,11 @@
   (error 'arb-logb "Unimplemented"))
 (define (arb-fabs x)
   (error 'arb-fabs "Unimplemented"))
-(define (arb-exp2 x)
-  (error 'arb-exp2 "Unimplemented"))
-(define (arb-cbrt x)
-  (error 'arb-cbrt "Unimplemented"))
+
 (define (arb-erf x)
   (error 'arb-erf "Unimplemented"))
 (define (arb-erfc x)
   (error 'arb-erfc "Unimplemented"))
-
   
 (define (arb-==)
   (error 'arb-== "Unimplemented"))
