@@ -78,8 +78,7 @@
     boolean->arb
     arb-lo
     arb-hi
-    arb-error?
-    _arb-prec)
+    arb-error?)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -161,48 +160,50 @@
 (define-syntax define-arb-function-additional-arg
   (λ (stx)
     (syntax-case stx ()
-      [(_ (name n ...))
+      [(_ (name n ... k))
        (let* ([num-arguments (- (length (syntax-e (cadr (syntax-e stx)))) 2)]
               [ffi-name (datum->syntax #'name (string->symbol (string-replace (~a (syntax-e #'name)) "-" "_")))]
               [args (append (build-list num-arguments (const #'_pointer)) (cons #'_ulong '()))])
          #`(define name
              (let ([ffi-fn (get-ffi-obj '#,ffi-name libarb (_fun _pointer #,@args _slong -> _void))])
                (procedure-rename
-                (λ (n ...)
+                (λ (n ... k)
                   (define v (_arb-alloc))
-                  (ffi-fn (_arb-ptr v) (_arb-ptr n) ... (_arb-prec v))
+                  (ffi-fn (_arb-ptr v) (_arb-ptr n) ... k (_arb-prec v))
                   v)
                 'name))))])))
 
 (define (arb->ival ar)
   (if (ival? ar) ar
-    (let ([a (bf 3)] [b (bf 3)])
-      (_arb-get-interval-mpfr a b (_arb-ptr ar))
-      (ival a b))))
+    (parameterize ([bf-precision (_arb-prec ar)])
+      (let ([a (bf 3)] [b (bf 3)])
+        (_arb-get-interval-mpfr a b (_arb-ptr ar))
+        (ival a b)))))
   
 ;; Not that simple here, ival can be booleans!!
 (define (ival->arb iv)
   (if (_arb? iv) iv
-    (let ([ar (_arb-alloc)] [a (ival-lo iv)] [b (ival-hi iv)])
-      ;; Ideally this condition should never succeed
-      (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
-      (define prec (bigfloat-precision a))
-      (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
-      ar)))
+    (parameterize ([bf-precision (bigfloat-precision (ival-lo iv))])
+      (let ([ar (_arb-alloc)] [a (ival-lo iv)] [b (ival-hi iv)])
+        ;; Ideally this condition should never succeed
+        (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match ~a ~b" a b))
+        (define prec (bigfloat-precision a))
+        (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
+        ar))))
   
   
 ;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
-  (define ar (_arb-alloc))
-  ;; Ideally this condition should never succeed
-  (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
-  (if (bf<= a b) void (error "Precisions of ival's endpoints do not match"))
-  (define prec (bigfloat-precision a))
-  (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
-  ar)
+  (parameterize ([bf-precision (bigfloat-precision a)])
+    (define ar (_arb-alloc))
+    ;; Ideally this condition should never succeed
+    (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
+    (if (bf<= a b) void (error "Precisions of ival's endpoints do not match"))
+    (define prec (bigfloat-precision a))
+    (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
+    ar))
   
 
-  
 ;; I guess it is a very slow way
 (define (arb-lo x)
   (ival-lo (arb->ival x)))
@@ -238,7 +239,10 @@
   (ival->arb(ival-fmin (arb->ival x) (arb->ival y))))
   
 (define (arb-fmod x y)
-  (error 'arb-fmod "Unimplemented"))
+  (ival->arb(ival-fmod (arb->ival x) (arb->ival y))))
+  
+(define (arb-fabs x)
+  (ival->arb(ival-fabs (arb->ival x))))
 
 (define (arb-remainder x y)
   (error 'arb-remainder "Unimplemented"))
@@ -270,8 +274,8 @@
 (define-arb-function (arb-gamma x))
 (define (arb-tgamma x)
   (arb-gamma x))
-(define-arb-function (arb-root x k))
-(define-arb-function (arb-log-base-ui x k))
+(define-arb-function-additional-arg (arb-root x k))
+(define-arb-function-additional-arg (arb-log-base-ui x k))
 
 (define (arb-cbrt x)
   (arb-root x 3))
@@ -293,8 +297,6 @@
   (error 'arb-rint "Unimplemented"))
 (define (arb-logb x)
   (error 'arb-logb "Unimplemented"))
-(define (arb-fabs x)
-  (error 'arb-fabs "Unimplemented"))
 
 (define (arb-erf x)
   (error 'arb-erf "Unimplemented"))
@@ -315,11 +317,11 @@
   (error 'arb->= "Unimplemented"))
   
 (define (arb-not x)
-  (error 'arb-not "Unimplemented"))
+  (ival-not (arb->ival x)))
 (define (arb-error? x)
-  (error 'arb-error? "Unimplemented"))
+  (ival-error? (arb->ival x)))
 (define (arb-and . as)
-  (error 'arb-and "Unimplemented"))
+  (apply ival-and (map arb->ival as)))
 (define (arb-or . as)
   (apply ival-or as))
   
