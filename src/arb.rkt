@@ -7,7 +7,7 @@
          racket/runtime-path)
 
 (provide arb 
-    (rename-out [_arb? arb?]) 
+    (rename-out [_arb? arb?] [_arb-prec arb-prec]) 
     arb-neg 
     arb-abs 
     arb-add 
@@ -78,7 +78,8 @@
     boolean->arb
     arb-lo
     arb-hi
-    arb-error?)
+    arb-error?
+    _arb-prec)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -92,11 +93,11 @@
 
 (define libarb (ffi-lib libarb-so '("2" "13" "1" "") #:fail (λ () #f)))
 
-(struct _arb (ptr)
+(struct _arb (ptr prec)
         #:methods gen:custom-write
         [(define (write-proc a port mode)
            (define ptr (_arb-ptr a))
-           (define s (_arb-get-str ptr (arb-precision) 0))
+           (define s (_arb-get-str ptr (_arb-prec a) 0))
            (fprintf port "(arb ~s)" s))])
            
 
@@ -115,11 +116,11 @@
    (λ ()
      (define mem (malloc arb_t-size 'atomic))
      (_arb_init mem)
-     (_arb mem))))
-
+     (_arb mem (bf-precision)))))
+     
 (define (string->arb s)
   (define v (_arb-alloc))
-  (_arb-set-str (_arb-ptr v) s (arb-precision))
+  (_arb-set-str (_arb-ptr v) s (_arb-prec v))
   v)
 
 (define (arb x)
@@ -153,7 +154,7 @@
                (procedure-rename
                 (λ (n ...)
                   (define v (_arb-alloc))
-                  (ffi-fn (_arb-ptr v) (_arb-ptr n) ... (arb-precision))
+                  (ffi-fn (_arb-ptr v) (_arb-ptr n) ... (_arb-prec v))
                   v)
                 'name))))])))
           
@@ -169,14 +170,13 @@
                (procedure-rename
                 (λ (n ...)
                   (define v (_arb-alloc))
-                  (ffi-fn (_arb-ptr v) (_arb-ptr n) ... (arb-precision))
+                  (ffi-fn (_arb-ptr v) (_arb-ptr n) ... (_arb-prec v))
                   v)
                 'name))))])))
 
 (define (arb->ival ar)
   (if (ival? ar) ar
     (let ([a (bf 3)] [b (bf 3)])
-      (bf-precision (arb-precision))
       (_arb-get-interval-mpfr a b (_arb-ptr ar))
       (ival a b))))
   
@@ -190,13 +190,18 @@
       (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
       ar)))
   
+  
+;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
   (define ar (_arb-alloc))
   ;; Ideally this condition should never succeed
   (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
+  (if (bf<= a b) void (error "Precisions of ival's endpoints do not match"))
   (define prec (bigfloat-precision a))
   (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
   ar)
+  
+
   
 ;; I guess it is a very slow way
 (define (arb-lo x)
