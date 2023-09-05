@@ -183,10 +183,13 @@
 ;; Not that simple here, ival can be booleans!!
 (define (ival->arb iv)
   (if (_arb? iv) iv
-    (parameterize ([bf-precision (bigfloat-precision (ival-lo iv))])
+    (parameterize ([bf-precision 
+                   (if (> (bigfloat-precision (ival-lo iv)) (bigfloat-precision (ival-hi iv))) 
+                       (bigfloat-precision (ival-lo iv)) 
+                       (bigfloat-precision (ival-hi iv)))])
       (let ([ar (_arb-alloc)] [a (ival-lo iv)] [b (ival-hi iv)])
         ;; Ideally this condition should never succeed
-        (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
+        ;;(if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
         (define prec (bigfloat-precision a))
         (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
         ar))))
