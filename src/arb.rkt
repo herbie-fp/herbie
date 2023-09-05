@@ -186,7 +186,7 @@
     (parameterize ([bf-precision (bigfloat-precision (ival-lo iv))])
       (let ([ar (_arb-alloc)] [a (ival-lo iv)] [b (ival-hi iv)])
         ;; Ideally this condition should never succeed
-        (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match ~a ~b" a b))
+        (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
         (define prec (bigfloat-precision a))
         (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
         ar))))
@@ -197,8 +197,8 @@
   (parameterize ([bf-precision (bigfloat-precision a)])
     (define ar (_arb-alloc))
     ;; Ideally this condition should never succeed
-    (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
-    (if (bf<= a b) void (error "Precisions of ival's endpoints do not match"))
+    (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of 2 mpfr values do not match"))
+    (if (bf<= a b) void (error "mpfr->arb: a cannot be greater than be to create an interval [a, b]," a b))
     (define prec (bigfloat-precision a))
     (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
     ar))
@@ -303,27 +303,43 @@
 (define (arb-erfc x)
   (error 'arb-erfc "Unimplemented"))
   
-(define (arb-==)
-  (error 'arb-== "Unimplemented"))
-(define (arb-!=)
-  (error 'arb-!= "Unimplemented"))
-(define (arb-<)
-  (error 'arb-< "Unimplemented"))
-(define (arb->)
-  (error 'arb-> "Unimplemented"))
-(define (arb-<=)
-  (error 'arb-<= "Unimplemented"))
-(define (arb->=)
-  (error 'arb->= "Unimplemented"))
+(define arb-==
+  (lambda xs
+    (apply ival-==(map arb->ival xs))))
+    
+(define arb-!=
+  (lambda xs
+    (apply ival-!=(map arb->ival xs))))
+    
+(define arb-<
+  (lambda xs
+    (apply ival-<(map arb->ival xs))))
+    
+(define arb->
+  (lambda xs
+    (apply ival->(map arb->ival xs))))
+    
+(define arb-<=
+  (lambda xs
+    (apply ival-<= (map arb->ival xs))))
+    
+(define arb->=
+  (lambda xs
+    (apply ival->= (map arb->ival xs))))
   
 (define (arb-not x)
   (ival-not (arb->ival x)))
+  
 (define (arb-error? x)
   (ival-error? (arb->ival x)))
-(define (arb-and . as)
-  (apply ival-and (map arb->ival as)))
-(define (arb-or . as)
-  (apply ival-or as))
+  
+(define arb-and
+  (lambda xs
+    (apply ival-and (map arb->ival xs))))
+    
+(define arb-or
+  (lambda xs
+    (apply ival-or (map arb->ival xs))))
   
 (define (arb-pi)
   (arb pi.bf))
