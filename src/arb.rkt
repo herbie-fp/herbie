@@ -1,21 +1,20 @@
 #lang racket
 (require (for-syntax racket))
-(require math/bigfloat rival)
+(require math/bigfloat "rival.rkt")
 
 (require ffi/unsafe 
          ffi/unsafe/alloc
          racket/runtime-path)
 
 (provide arb 
-    (rename-out [_arb? arb?] [_arb-prec arb-prec]) 
+    (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div]) 
     arb-neg 
     arb-abs 
     arb-add 
     arb-sub 
     arb-mul 
     arb-fma 
-    arb-inv 
-    arb-div 
+    arb-inv
     arb-exp 
     arb-log
     arb->ival
@@ -78,7 +77,8 @@
     boolean->arb
     arb-lo
     arb-hi
-    arb-error?)
+    arb-error?
+    arb-fix?)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -92,12 +92,12 @@
 
 (define libarb (ffi-lib libarb-so '("2" "13" "1" "") #:fail (λ () #f)))
 
-(struct _arb (ptr prec)
+(struct _arb (ptr prec err? err)
         #:methods gen:custom-write
         [(define (write-proc a port mode)
            (define ptr (_arb-ptr a))
            (define s (_arb-get-str ptr (_arb-prec a) 0))
-           (fprintf port "(arb ~s)" s))])
+           (fprintf port "(arb ~s) ~e ~e" s (_arb-err? a) (_arb-err a)))])
            
 
 (define _mpfr_t _pointer)
@@ -109,16 +109,18 @@
 (define _arb-get-str (get-ffi-obj 'arb_get_str libarb (_fun _arb_t _slong _ulong -> _string)))
 (define _arb-set-interval-mpfr (get-ffi-obj 'arb_set_interval_mpfr libarb (_fun _arb_t _mpfr_t _mpfr_t _slong -> _void)))
 (define _arb-get-interval-mpfr (get-ffi-obj 'arb_get_interval_mpfr libarb (_fun _mpfr_t _mpfr_t _arb_t -> _void)))
+(define _arb-is-exact (get-ffi-obj 'arb_is_exact libarb (_fun _arb_t -> _int)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
-   (λ ()
+   (λ ([err? #f] [err #f])
      (define mem (malloc arb_t-size 'atomic))
      (_arb_init mem)
-     (_arb mem (bf-precision)))))
+     (_arb mem (bf-precision) err? err))))
      
 (define (string->arb s)
-  (define v (_arb-alloc))
+  (define err? (bfnan? (string->bigfloat s)))
+  (define v (_arb-alloc err? err?))
   (_arb-set-str (_arb-ptr v) s (_arb-prec v))
   v)
 
@@ -131,7 +133,8 @@
    [(and (rational? x) (exact? x))
     (arb-div (string->arb (~a (numerator x))) (string->arb (~a (denominator x))))]
    [(bigfloat? x)
-    (string->arb (bigfloat->string x))]
+    (if (bfinfinite? x) (string->arb "inf")
+    (string->arb (bigfloat->string x)))]
    [(boolean? x)
     (ival x)]
    [(nan? x)
@@ -151,9 +154,9 @@
          #`(define name
              (let ([ffi-fn (get-ffi-obj '#,ffi-name libarb (_fun _pointer #,@args _slong -> _void))])
                (procedure-rename
-                (λ (n ...)
-                  (define v (_arb-alloc))
-                  (ffi-fn (_arb-ptr v) (_arb-ptr n) ... (_arb-prec v))
+                (λ (n ... [err? #f] [err #f])
+                    (define v (_arb-alloc (or err? (_arb-err? n) ...) (or err (_arb-err n) ...)))
+                    (ffi-fn (_arb-ptr v) (_arb-ptr n) ... (_arb-prec v))
                   v)
                 'name))))])))
           
@@ -168,17 +171,18 @@
              (let ([ffi-fn (get-ffi-obj '#,ffi-name libarb (_fun _pointer #,@args _slong -> _void))])
                (procedure-rename
                 (λ (n ... k)
-                  (define v (_arb-alloc))
+                  (define v (_arb-alloc (or (_arb-err? n) ...) (or (_arb-err n) ...)))
                   (ffi-fn (_arb-ptr v) (_arb-ptr n) ... k (_arb-prec v))
                   v)
                 'name))))])))
 
+;; Error flags are not transfered! Rival should be updated
 (define (arb->ival ar)
   (if (ival? ar) ar
     (parameterize ([bf-precision (_arb-prec ar)])
       (let ([a (bf 3)] [b (bf 3)])
         (_arb-get-interval-mpfr a b (_arb-ptr ar))
-        (ival a b)))))
+        (make-exact-ival a b (_arb-err? ar) (_arb-err ar))))))
   
 ;; Not that simple here, ival can be booleans!!
 (define (ival->arb iv)
@@ -187,25 +191,30 @@
                    (if (> (bigfloat-precision (ival-lo iv)) (bigfloat-precision (ival-hi iv))) 
                        (bigfloat-precision (ival-lo iv)) 
                        (bigfloat-precision (ival-hi iv)))])
-      (let ([ar (_arb-alloc)] [a (ival-lo iv)] [b (ival-hi iv)])
+      (let ([ar (_arb-alloc (ival-err? iv) (ival-err iv))] [a (ival-lo iv)] [b (ival-hi iv)])
         ;; Ideally this condition should never succeed
         ;;(if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
         (define prec (bigfloat-precision a))
         (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
         ar))))
-  
-  
+
+
 ;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
   (parameterize ([bf-precision (bigfloat-precision a)])
-    (define ar (_arb-alloc))
+    (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) (or (bfnan? a) (bfnan? b))))
     ;; Ideally this condition should never succeed
-    (if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of 2 mpfr values do not match"))
-    (if (bf<= a b) void (error "mpfr->arb: a cannot be greater than be to create an interval [a, b]," a b))
+    ;;(if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of 2 mpfr values do not match"))
+    ;;(if (bf<= a b) void (error "mpfr->arb: a cannot be greater than be to create an interval [a, b]," a b))
     (define prec (bigfloat-precision a))
     (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
     ar))
   
+(define (arb-fix? x)
+  (define s (_arb-is-exact (_arb-ptr x)))
+  (cond
+  [(zero? s) #f]
+  [else #t]))
 
 ;; I guess it is a very slow way
 (define (arb-lo x)
@@ -221,7 +230,14 @@
 (define-arb-function (arb-mul x y))
 (define-arb-function (arb-fma x y z))
 (define-arb-function (arb-div x y))
+
+(define (_arb-div x y)
+  (define err? (or (_arb-err? x) (_arb-err? y) (and (bf<= (arb-lo y) 0.bf) (bf>= (arb-hi y) 0.bf))))
+  (define err (or (_arb-err x) (_arb-err y) (and (bfzero? (arb-lo y)) (bfzero? (arb-hi y)))))
+  (arb-div x y err? err))
+  
 (define-arb-function (arb-pow x y))
+
 (define-arb-function (arb-atan2 x y))
 (define-arb-function (arb-hypot x y))
 
@@ -230,7 +246,7 @@
    (ival->arb (ival-fmax (arb->ival x) (arb->ival y))))
    
 (define (arb-if c x y)
-  (ival-if (arb->ival c) (arb->ival x) (arb->ival y)))
+  (ival->arb(ival-if (arb->ival c) (arb->ival x) (arb->ival y))))
   
 (define (arb-copysign x y)
   (ival->arb(ival-copysign (arb->ival x) (arb->ival y))))
