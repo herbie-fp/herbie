@@ -5,7 +5,8 @@
          "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
          "ground-truth.rkt" "preprocess.rkt" "core/alt-table.rkt"
          "core/localize.rkt" "core/simplify.rkt" "core/regimes.rkt"
-         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
+         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt"
+         "error-table.rkt")
 
 (provide (all-defined-out))
 
@@ -344,6 +345,7 @@
 
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)
+  (group-errors prog pcontext)
   (initialize-alt-table! prog (*pcontext*) (*context*))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (run-iter!))
