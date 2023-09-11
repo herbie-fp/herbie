@@ -7,7 +7,7 @@
          racket/runtime-path)
 
 (provide arb 
-    (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div]) 
+    (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb-err arb-err] [_arb-err? arb-err?]) 
     arb-neg 
     arb-abs 
     arb-add 
@@ -78,7 +78,8 @@
     arb-lo
     arb-hi
     arb-error?
-    arb-fix?)
+    arb-fix?
+    _arb-get-interval-mpfr _arb-ptr)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -182,7 +183,10 @@
     (parameterize ([bf-precision (_arb-prec ar)])
       (let ([a (bf 3)] [b (bf 3)])
         (_arb-get-interval-mpfr a b (_arb-ptr ar))
-        (make-exact-ival a b (_arb-err? ar) (_arb-err ar))))))
+        
+        (ival-then
+          (ival-assert (ival (not (_arb-err? ar)) (not (_arb-err ar))) #t)
+          (ival (if (bfnan? a) (bf "inf") a) (if (bfnan? b) (bf "inf") b)))))))
   
 ;; Not that simple here, ival can be booleans!!
 (define (ival->arb iv)
@@ -194,8 +198,7 @@
       (let ([ar (_arb-alloc (ival-err? iv) (ival-err iv))] [a (ival-lo iv)] [b (ival-hi iv)])
         ;; Ideally this condition should never succeed
         ;;(if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
-        (define prec (bigfloat-precision a))
-        (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
+        (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
         ar))))
 
 
