@@ -7,7 +7,7 @@
          racket/runtime-path)
 
 (provide arb 
-    (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb-err arb-err] [_arb-err? arb-err?]) 
+    (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb_clear arb-clear]) 
     arb-neg 
     arb-abs 
     arb-add 
@@ -186,7 +186,7 @@
         
         (ival-then
           (ival-assert (ival (not (_arb-err? ar)) (not (_arb-err ar))) #t)
-          (ival (if (bfnan? a) (bf "inf") a) (if (bfnan? b) (bf "inf") b)))))))
+          (ival (if (bfnan? a) (bf "inf") (bfcopy a)) (if (bfnan? b) (bf "inf") (bfcopy b))))))))
   
 ;; Not that simple here, ival can be booleans!!
 (define (ival->arb iv)
@@ -198,20 +198,18 @@
       (let ([ar (_arb-alloc (ival-err? iv) (ival-err iv))] [a (ival-lo iv)] [b (ival-hi iv)])
         ;; Ideally this condition should never succeed
         ;;(if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
-        (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
+        (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
         ar))))
 
 
 ;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
-  (parameterize ([bf-precision (bigfloat-precision a)])
-    (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) (or (bfnan? a) (bfnan? b))))
-    ;; Ideally this condition should never succeed
-    ;;(if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of 2 mpfr values do not match"))
-    ;;(if (bf<= a b) void (error "mpfr->arb: a cannot be greater than be to create an interval [a, b]," a b))
-    (define prec (bigfloat-precision a))
-    (_arb-set-interval-mpfr (_arb-ptr ar) a b prec)
-    ar))
+  (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) (or (bfnan? a) (bfnan? b))))
+  ;; Ideally this condition should never succeed
+  ;;(if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of 2 mpfr values do not match"))
+  ;;(if (bf<= a b) void (error "mpfr->arb: a cannot be greater than be to create an interval [a, b]," a b))
+  (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
+  ar)
   
 (define (arb-fix? x)
   (define s (_arb-is-exact (_arb-ptr x)))
