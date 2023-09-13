@@ -277,10 +277,9 @@
           ,@(for/list ([rec (in-list (sort problems > #:key second))])
               (match-define (list expr count) rec)
               `(tr (td ,(~a count) "×")
-                   (td ,(if (equal? expr #f) 
-                      (~a "No Errors") 
-                      `(code ,(~a expr))) " ")
-                   (td (code ,(~a expr) " "))))))))
+                   (td ,(if (string=? expr "#f")
+                      "No Errors" 
+                      `(code ,expr)))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
