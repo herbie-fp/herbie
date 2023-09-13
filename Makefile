@@ -46,7 +46,7 @@ upgrade:
 	$(MAKE) install
 
 start-server:
-	racket src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
+	racket -y src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
 		--demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
 		--log infra/server.log --quiet 2>&1
 
