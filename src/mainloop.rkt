@@ -86,10 +86,10 @@
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
-    (define best (argmin score-alt altns))
-    (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost repr)))
+    (define best (argmin score-alt altns))    ; where we creat the best_alt we do remove preproc on
+    (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost repr)))  ; other alts? idk
     (define simplest (car altns*))
-    (define altns** (cdr altns*))
+    (define altns** (cdr altns*))                                                                     ; again; ?
     (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
     (append
       (list best simplest)
@@ -333,13 +333,19 @@
 (define (run-improve! expression context pcontext rules iterations #:specification [specification #f])
   (timeline-event! 'preprocess)
   (define preprocessing (find-preprocessing (or specification expression) context rules))
+  ; generates a preprocesssing -> apply to each alternate
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (match-define (and alternatives (cons best _))
     (mutate! expression iterations pcontext*))
+  ; legit no idea if this works lol
+  ; TODO additionally should we just be adding these to the alts as they're generated rather than post hoc?
+  (for ([altern alternatives])
+    (add-alt-preprocessing altern preprocessing))
   (timeline-event! 'preprocess)
   (define preprocessing*
     (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
+    ; per alt remove-u-p 
   (values alternatives preprocessing*))
 
 (define (mutate! prog iters pcontext)

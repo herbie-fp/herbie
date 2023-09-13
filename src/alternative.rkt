@@ -10,19 +10,22 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-(struct alt (expr event prevs)
+(struct alt (expr event prevs preprocessing)
         #:methods gen:custom-write
         [(define (write-proc alt port mode)
            (fprintf port "#<alt ~a>" (alt-expr alt)))])
 
 (define (make-alt expr)
-  (alt expr 'start '()))
+  (alt expr 'start '() '()))  ; added '() as blank for preprocessing instruciton list idk really know if thats what I want
 
 (define (alt-equal? x y)
   (equal? (alt-expr x) (alt-expr y)))
 
 (define (alt-add-event altn event)
-  (alt (alt-expr altn) event (list altn)))
+  (alt (alt-expr altn) event (list altn) '()))  ; added '() ??
+
+(define (alt-add-preprocessing altn preprocessing)
+  (alt (alt-expr altn) even (list altn) preprocessing)) ; no idea if this works lol
 
 (define (alt-cost altn repr)
   (expr-cost (alt-expr altn) repr))
