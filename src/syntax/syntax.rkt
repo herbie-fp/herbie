@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat "../rival.rkt")
+(require math/bigfloat rival)
 (require "../arb.rkt")
 (require "../common.rkt" "../errors.rkt" "types.rkt")
 

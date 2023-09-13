@@ -1,13 +1,14 @@
 #lang racket
 (require (for-syntax racket))
-(require math/bigfloat "rival.rkt")
+(require math/bigfloat rival)
 
 (require ffi/unsafe 
          ffi/unsafe/alloc
          racket/runtime-path)
 
 (provide arb 
-    (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb_clear arb-clear]) 
+    (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb_clear arb-clear] [_arb-sqrt arb-sqrt] 
+                [_arb-log arb-log]) 
     arb-neg 
     arb-abs 
     arb-add 
@@ -15,8 +16,7 @@
     arb-mul 
     arb-fma 
     arb-inv
-    arb-exp 
-    arb-log
+    arb-exp
     arb->ival
     ival->arb
     arb-if
@@ -38,7 +38,6 @@
     arb-fabs
     arb-floor
     arb-lgamma
-    arb-log
     arb-log10
     arb-log1p
     arb-log2
@@ -47,7 +46,6 @@
     arb-round
     arb-sin
     arb-sinh
-    arb-sqrt
     arb-tan
     arb-tanh
     arb-tgamma
@@ -79,7 +77,8 @@
     arb-hi
     arb-error?
     arb-fix?
-    _arb-get-interval-mpfr _arb-ptr)
+    _arb-get-interval-mpfr _arb-ptr
+    _arb-contains-negative )
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -111,6 +110,10 @@
 (define _arb-set-interval-mpfr (get-ffi-obj 'arb_set_interval_mpfr libarb (_fun _arb_t _mpfr_t _mpfr_t _slong -> _void)))
 (define _arb-get-interval-mpfr (get-ffi-obj 'arb_get_interval_mpfr libarb (_fun _mpfr_t _mpfr_t _arb_t -> _void)))
 (define _arb-is-exact (get-ffi-obj 'arb_is_exact libarb (_fun _arb_t -> _int)))
+(define _arb-contains-negative (get-ffi-obj 'arb_contains_negative libarb( _fun _arb_t -> _int)))
+(define _arb-is-negative (get-ffi-obj 'arb_is_negative libarb( _fun _arb_t -> _int)))
+(define _arb-is-nonpositive (get-ffi-obj 'arb_is_nonpositive libarb( _fun _arb_t -> _int)))
+(define _arb-contains-nonpositive (get-ffi-obj 'arb_contains_nonpositive libarb( _fun _arb_t -> _int)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
@@ -180,14 +183,13 @@
 ;; Error flags are not transfered! Rival should be updated
 (define (arb->ival ar)
   (if (ival? ar) ar
-    (parameterize ([bf-precision (_arb-prec ar)])
+    (parameterize ([bf-precision (_arb-prec ar)])=
       (let ([a (bf 3)] [b (bf 3)])
         (_arb-get-interval-mpfr a b (_arb-ptr ar))
-        
         (ival-then
-          (ival-assert (ival (not (_arb-err? ar)) (not (_arb-err ar))) #t)
-          (ival (if (bfnan? a) (bf "inf") (bfcopy a)) (if (bfnan? b) (bf "inf") (bfcopy b))))))))
-  
+          (ival-assert (ival (not (or (_arb-err? ar) (bfnan? a) (bfnan? b))) (not (_arb-err ar))) #t)
+          (ival (if (bfnan? a) (bf "-inf") (bfcopy a)) (if (bfnan? b) (bf "+inf") (bfcopy b))))))))
+
 ;; Not that simple here, ival can be booleans!!
 (define (ival->arb iv)
   (if (_arb? iv) iv
@@ -205,9 +207,6 @@
 ;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
   (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) (or (bfnan? a) (bfnan? b))))
-  ;; Ideally this condition should never succeed
-  ;;(if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of 2 mpfr values do not match"))
-  ;;(if (bf<= a b) void (error "mpfr->arb: a cannot be greater than be to create an interval [a, b]," a b))
   (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
   ar)
   
@@ -236,6 +235,24 @@
   (define err? (or (_arb-err? x) (_arb-err? y) (and (bf<= (arb-lo y) 0.bf) (bf>= (arb-hi y) 0.bf))))
   (define err (or (_arb-err x) (_arb-err y) (and (bfzero? (arb-lo y)) (bfzero? (arb-hi y)))))
   (arb-div x y err? err))
+  
+(define (_arb-sqrt x)
+  (define err? (or (_arb-err? x) 
+                   (if (eq? (_arb-contains-negative (_arb-ptr x)) 1) #t #f)
+               ))
+  (define err (or (_arb-err x)
+                  (if (eq? (_arb-is-negative (_arb-ptr x)) 1) #t #f)
+              ))
+  (arb-sqrt x err? err))
+  
+(define (_arb-log x)
+  (define err? (or (_arb-err? x) 
+                   (if (eq? (_arb-contains-nonpositive (_arb-ptr x)) 1) #t #f)
+               ))
+  (define err (or (_arb-err x)
+                  (if (eq? (_arb-is-nonpositive (_arb-ptr x)) 1) #t #f)
+              ))
+  (arb-log x err? err))
   
 (define-arb-function (arb-pow x y))
 

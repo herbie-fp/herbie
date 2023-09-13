@@ -1,6 +1,6 @@
 #lang racket
 
-(require profile math/bigfloat racket/engine json "rival.rkt")
+(require profile math/bigfloat racket/engine json rival)
 (require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
          "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
          "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
