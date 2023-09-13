@@ -183,7 +183,7 @@
 ;; Error flags are not transfered! Rival should be updated
 (define (arb->ival ar)
   (if (ival? ar) ar
-    (parameterize ([bf-precision (_arb-prec ar)])=
+    (parameterize ([bf-precision (_arb-prec ar)])
       (let ([a (bf 3)] [b (bf 3)])
         (_arb-get-interval-mpfr a b (_arb-ptr ar))
         (ival-then
