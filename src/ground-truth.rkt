@@ -25,7 +25,7 @@
     (match-define (list arb-pre arb-bodies ...) out)
     (for/list ([y arb-bodies][ctx ctxs])
       (define repr (context-repr ctx))
-      ival->arb (ival-then
+      (ival-then
        ; The two `invalid` ones have to go first, because later checks
        ; can error if the input is erroneous
        (ival-assert (ival-not (ival-error? (arb->ival y))) 'invalid)

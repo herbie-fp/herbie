@@ -8,7 +8,7 @@
 
 (provide arb 
     (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb_clear arb-clear] [_arb-sqrt arb-sqrt] 
-                [_arb-log arb-log] [_arb-tan arb-tan]) 
+                [_arb-log arb-log] [_arb-tan arb-tan] [_arb-log1p arb-log1p]) 
     arb-neg 
     arb-abs 
     arb-add 
@@ -39,7 +39,6 @@
     arb-floor
     arb-lgamma
     arb-log10
-    arb-log1p
     arb-log2
     arb-logb
     arb-rint
@@ -75,9 +74,9 @@
     arb-lo
     arb-hi
     arb-error?
-    arb-fix?
-    _arb-get-interval-mpfr _arb-ptr
-    _arb-contains-negative )
+    arb-fix? _arb-ptr
+    _arb-contains-negative 
+    _arb-contains-nonpositive )
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -109,10 +108,10 @@
 (define _arb-set-interval-mpfr (get-ffi-obj 'arb_set_interval_mpfr libarb (_fun _arb_t _mpfr_t _mpfr_t _slong -> _void)))
 (define _arb-get-interval-mpfr (get-ffi-obj 'arb_get_interval_mpfr libarb (_fun _mpfr_t _mpfr_t _arb_t -> _void)))
 (define _arb-is-exact (get-ffi-obj 'arb_is_exact libarb (_fun _arb_t -> _int)))
-(define _arb-contains-negative (get-ffi-obj 'arb_contains_negative libarb( _fun _arb_t -> _int)))
-(define _arb-is-negative (get-ffi-obj 'arb_is_negative libarb( _fun _arb_t -> _int)))
-(define _arb-is-nonpositive (get-ffi-obj 'arb_is_nonpositive libarb( _fun _arb_t -> _int)))
-(define _arb-contains-nonpositive (get-ffi-obj 'arb_contains_nonpositive libarb( _fun _arb_t -> _int)))
+(define _arb-contains-negative (get-ffi-obj 'arb_contains_negative libarb ( _fun _arb_t -> _int)))
+(define _arb-is-negative (get-ffi-obj 'arb_is_negative libarb ( _fun _arb_t -> _int)))
+(define _arb-is-nonpositive (get-ffi-obj 'arb_is_nonpositive libarb ( _fun _arb_t -> _int)))
+(define _arb-contains-nonpositive (get-ffi-obj 'arb_contains_nonpositive libarb ( _fun _arb_t -> _int)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
@@ -173,8 +172,8 @@
          #`(define name
              (let ([ffi-fn (get-ffi-obj '#,ffi-name libarb (_fun _pointer #,@args _slong -> _void))])
                (procedure-rename
-                (λ (n ... k)
-                  (define v (_arb-alloc (or (_arb-err? n) ...) (or (_arb-err n) ...)))
+                (λ (n ... k [err? #f] [err #f])
+                  (define v (_arb-alloc (or err? (_arb-err? n) ...) (or err (_arb-err n) ...)))
                   (ffi-fn (_arb-ptr v) (_arb-ptr n) ... k (_arb-prec v))
                   v)
                 'name))))])))
@@ -197,8 +196,6 @@
                        (bigfloat-precision (ival-lo iv)) 
                        (bigfloat-precision (ival-hi iv)))])
       (let ([ar (_arb-alloc (ival-err? iv) (ival-err iv))] [a (ival-lo iv)] [b (ival-hi iv)])
-        ;; Ideally this condition should never succeed
-        ;;(if (eq? (bigfloat-precision a) (bigfloat-precision b)) void (error "Precisions of ival's endpoints do not match"))
         (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
         ar))))
 
@@ -210,10 +207,7 @@
   ar)
   
 (define (arb-fix? x)
-  (define s (_arb-is-exact (_arb-ptr x)))
-  (cond
-  [(zero? s) #f]
-  [else #t]))
+  (if (zero? (_arb-is-exact (_arb-ptr x))) #f #t))
 
 ;; I guess it is a very slow way
 (define (arb-lo x)
@@ -254,12 +248,14 @@
   (arb-log x err? err))
   
 (define (_arb-tan x)
-  (match-define (ival a b) (arb->ival(arb-floor(arb-sub (arb-div x (arb-pi)) (arb (bf "0.5"))))))
+  (match-define (ival a b) (arb->ival (arb-floor (arb-sub (arb-div x (arb-pi)) (arb (bf "0.5"))))))
   (if (bf= a b)
     (arb-tan x)
     (arb "nan")))
   
-(define-arb-function (arb-pow x y))
+;;(define-arb-function (arb-pow x y))
+(define (arb-pow x y)
+  (ival->arb (ival-pow (arb->ival x) (arb->ival y))))
 
 (define-arb-function (arb-atan2 x y))
 (define-arb-function (arb-hypot x y))
@@ -323,10 +319,33 @@
   (arb-root x 3))
 
 (define (arb-log2 x)
-  (arb-log-base-ui x 2))
+  (define err? (or (_arb-err? x) 
+                   (if (eq? (_arb-contains-nonpositive (_arb-ptr x)) 1) #t #f)
+               ))
+  (define err (or (_arb-err x)
+                  (if (eq? (_arb-is-nonpositive (_arb-ptr x)) 1) #t #f)
+              ))
+  (arb-log-base-ui x 2 err? err))
   
 (define (arb-log10 x)
-  (arb-log-base-ui x 10))
+  (define err? (or (_arb-err? x) 
+                   (if (eq? (_arb-contains-nonpositive (_arb-ptr x)) 1) #t #f)
+               ))
+  (define err (or (_arb-err x)
+                  (if (eq? (_arb-is-nonpositive (_arb-ptr x)) 1) #t #f)
+              ))
+  (arb-log-base-ui x 10 err? err))
+  
+(define (_arb-log1p x)
+  (define err? (or (_arb-err? x) 
+                   (if (eq? (_arb-contains-nonpositive (_arb-ptr (arb-add x (arb (bf 1))))) 1) 
+                     #t 
+                     #f)))
+  (define err (or (_arb-err x)
+                  (if (eq? (_arb-is-nonpositive (_arb-ptr (arb-add x (arb (bf 1))))) 1) 
+                    #t 
+                    #f)))
+  (arb-log1p x err? err))   
   
 (define (arb-exp2 x)
   (arb-pow (arb 2.bf) x))
