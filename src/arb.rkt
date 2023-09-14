@@ -8,7 +8,7 @@
 
 (provide arb 
     (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb_clear arb-clear] [_arb-sqrt arb-sqrt] 
-                [_arb-log arb-log]) 
+                [_arb-log arb-log] [_arb-tan arb-tan]) 
     arb-neg 
     arb-abs 
     arb-add 
@@ -46,7 +46,6 @@
     arb-round
     arb-sin
     arb-sinh
-    arb-tan
     arb-tanh
     arb-tgamma
     arb-trunc
@@ -124,7 +123,7 @@
      
 (define (string->arb s)
   (define err? (bfnan? (string->bigfloat s)))
-  (define v (_arb-alloc err? err?))
+  (define v (_arb-alloc err? #f))
   (_arb-set-str (_arb-ptr v) s (_arb-prec v))
   v)
 
@@ -254,6 +253,12 @@
               ))
   (arb-log x err? err))
   
+(define (_arb-tan x)
+  (match-define (ival a b) (arb->ival(arb-floor(arb-sub (arb-div x (arb-pi)) (arb (bf "0.5"))))))
+  (if (bf= a b)
+    (arb-tan x)
+    (arb "nan")))
+  
 (define-arb-function (arb-pow x y))
 
 (define-arb-function (arb-atan2 x y))
@@ -282,7 +287,7 @@
   (ival->arb(ival-fabs (arb->ival x))))
 
 (define (arb-remainder x y)
-  (error 'arb-remainder "Unimplemented"))
+  (ival->arb(ival-remainder (arb->ival x) (arb->ival y))))
   
 ;; 1D
 (define-arb-function (arb-neg x))
@@ -299,7 +304,7 @@
 (define-arb-function (arb-cos x))
 (define-arb-function (arb-cosh x))
 (define-arb-function (arb-expm1 x))
-(define-arb-function (arb-floor x))  ;; This function is to be checked
+(define-arb-function (arb-floor x))
 (define-arb-function (arb-lgamma x))
 (define-arb-function (arb-log x))
 (define-arb-function (arb-log1p x))
@@ -327,18 +332,18 @@
   (arb-pow (arb 2.bf) x))
   
 (define (arb-trunc x)
-  (error 'arb-trunc "Unimplemented"))
+  (ival->arb(ival-trunc (arb->ival x))))
 (define (arb-round x)
-  (error 'arb-round "Unimplemented"))
+  (ival->arb(ival-round (arb->ival x))))
 (define (arb-rint x)
-  (error 'arb-rint "Unimplemented"))
+  (ival->arb(ival-rint (arb->ival x))))
 (define (arb-logb x)
-  (error 'arb-logb "Unimplemented"))
+  (ival->arb(ival-logb (arb->ival x))))
 
 (define (arb-erf x)
-  (error 'arb-erf "Unimplemented"))
+  (ival->arb(ival-erf (arb->ival x))))
 (define (arb-erfc x)
-  (error 'arb-erfc "Unimplemented"))
+  (ival->arb(ival-erfc (arb->ival x))))
   
 (define arb-==
   (lambda xs

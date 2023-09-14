@@ -86,7 +86,7 @@
     (map sample-arb hyperrect reprs)))
 
 (module+ test
-  (define two-point-hyperrects (list (list (mpfr->arb (bf 0) (bf 0)) (mpfr->arb (bf 1) (bf 1)))))
+  (define two-point-hyperrects (list (list (arb (bf 0)) (arb (bf 1)))))
   (check-true
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
