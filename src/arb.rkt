@@ -76,7 +76,8 @@
     arb-error?
     arb-fix? _arb-ptr
     _arb-contains-negative 
-    _arb-contains-nonpositive )
+    _arb-contains-nonpositive
+    _arb-get-interval-mpfr)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -202,7 +203,7 @@
 
 ;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
-  (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) (or (bfnan? a) (bfnan? b))))
+  (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) #f))
   (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
   ar)
   
