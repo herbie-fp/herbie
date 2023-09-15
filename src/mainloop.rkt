@@ -180,7 +180,7 @@
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
-      (match-define (alt _ event prevs) altn)
+      (match-define (alt _ event prevs '()) altn)
       (cond
        [(equal? event '(patch)) orig]
        [else
@@ -340,8 +340,8 @@
     (mutate! expression iterations pcontext*))
   ; legit no idea if this works lol
   ; TODO additionally should we just be adding these to the alts as they're generated rather than post hoc?
-  (for ([altern alternatives])
-    (add-alt-preprocessing altern preprocessing))
+  ;(for ([altern alternatives])
+  ;  (add-alt-preprocessing altern preprocessing))
   (timeline-event! 'preprocess)
   (define preprocessing*
     (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))

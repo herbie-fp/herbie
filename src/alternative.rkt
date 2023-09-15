@@ -3,7 +3,7 @@
 (require "cost.rkt" "programs.rkt")
 (provide (struct-out alt) make-alt alt? alt-expr
          alt-add-event *start-prog* *all-alts*
-         alt-cost alt-equal? alt-map)
+         alt-cost alt-equal? alt-map alt-add-preprocessing)
 
 ;; Alts are a lightweight audit trail.
 ;; An alt records a low-level view of how Herbie got
@@ -22,10 +22,10 @@
   (equal? (alt-expr x) (alt-expr y)))
 
 (define (alt-add-event altn event)
-  (alt (alt-expr altn) event (list altn) '()))  ; added '() ??
+  (alt (alt-expr altn) event (list altn) (alt-preprocessing altn)))  ; added '() ?? maybe preprocessing
 
 (define (alt-add-preprocessing altn preprocessing)
-  (alt (alt-expr altn) even (list altn) preprocessing)) ; no idea if this works lol
+  (alt (alt-expr altn) (alt-event altn) (list altn) preprocessing)) ; no idea if this works lol
 
 (define (alt-cost altn repr)
   (expr-cost (alt-expr altn) repr))
