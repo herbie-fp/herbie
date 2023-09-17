@@ -66,16 +66,16 @@
     (format "~a on training set" (format-accuracy (errors-score (errors (alt-expr altn) pcontext2 ctx)) (representation-total-bits repr) #:unit "%")))
 
   (match altn
-    [(alt prog 'start (list))
+    [(alt prog 'start (list) '())
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[" ,(program->tex prog ctx) "\\]")))]
 
-    [(alt prog `(start ,strategy) `(,prev))
+    [(alt prog `(start ,strategy) `(,prev) '())
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
-    [(alt _ `(regimes ,splitpoints) prevs)
+    [(alt _ `(regimes ,splitpoints) prevs '())
      (define intervals
        (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
          (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
@@ -93,30 +93,30 @@
                (ol ,@(render-history entry new-pcontext new-pcontext2 ctx))))))
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
-    [(alt prog `(taylor ,loc ,pt ,var) `(,prev))
+    [(alt prog `(taylor ,loc ,pt ,var) `(,prev) '())
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Taylor expanded in " ,(~a var)
               " around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
 
-    [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
+    [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev) '())
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) 
                 "\\]")))]
 
-    [(alt prog `initial-simplify `(,prev))
+    [(alt prog `initial-simplify `(,prev) '())
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
-    [(alt prog `final-simplify `(,prev))
+    [(alt prog `final-simplify `(,prev) '())
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
-    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev))
+    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev) '())
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
        (li (p "Applied " (span ([class "rule"]) , (if (rule? input) "rewrite-once" "egg-rr"))

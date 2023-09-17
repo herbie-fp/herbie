@@ -80,9 +80,9 @@
   (-> alt? (or/c (listof sp?) #f))
   (let loop ([altn altn])
     (match altn
-      [(alt _ `(regimes ,splitpoints) prevs) splitpoints]
-      [(alt _ _ (list)) #f]
-      [(alt _ _ (list prev _ ...)) (loop prev)])))
+      [(alt _ `(regimes ,splitpoints) prevs '()) splitpoints]
+      [(alt _ _ (list) '()) #f]
+      [(alt _ _ (list prev _ ...) '()) (loop prev)])))
 
 (define (regime-splitpoints altn)
   (map sp-point (drop-right (regime-info altn) 1)))

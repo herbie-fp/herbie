@@ -196,7 +196,7 @@
            [(list 'simplify '() input proof soundiness)
             (list 'simplify loc0 input proof soundiness)]))
         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
-        (alt expr* event* (list (loop (first prevs))))])))
+        (alt expr* event* (list (loop (first prevs))) '())])))
   
   (^patched^
    (reap [sow]
@@ -390,7 +390,7 @@
        (define simplified (simplify-batch egg-query))
 
        (for/list ([altn joined-alts] [progs simplified])
-         (alt (last progs) 'final-simplify (list altn)))]
+         (alt (last progs) 'final-simplify (list altn) '()))]
       [else
        joined-alts]))
         

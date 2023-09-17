@@ -15,9 +15,9 @@
   (-> alt? (or/c (listof sp?) #f))
   (let loop ([altn altn])
     (match altn
-      [(alt _ `(regimes ,splitpoints) prevs) splitpoints]
-      [(alt _ _ (list)) #f]
-      [(alt _ _ (list prev _ ...)) (loop prev)])))
+      [(alt _ `(regimes ,splitpoints) prevs '()) splitpoints]
+      [(alt _ _ (list) '()) #f]
+      [(alt _ _ (list prev _ ...) '()) (loop prev)])))
 
 (define/contract (render-interactive vars point)
   (-> (listof symbol?) (listof number?) xexpr?)
