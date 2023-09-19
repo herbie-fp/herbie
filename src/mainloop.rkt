@@ -136,7 +136,7 @@
                [(err expr) (in-dict loc-errs)]
                [i (in-range (*localize-expressions-limit*))])
       (timeline-push! 'locations (~a expr) (errors-score err)
-                      (not (patch-table-has-expr? expr)) (format "~a" (representation-name repr)))
+                      (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
       expr))
 
   ; low-error locations (Pherbie-only with multi-precision)
