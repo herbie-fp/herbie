@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        racket-version: [ '8.0', '8.7' ]
+        racket-version: [ '8.2', '8.10' ]
         precision: [ 'binary32', 'binary64' ]
     steps:
       - name: "Install Packages"
@@ -41,7 +41,7 @@ jobs:
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.9
         with:
-          version: 8.7
+          version: 8.10
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1.0.6
         with:
