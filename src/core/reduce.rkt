@@ -186,10 +186,8 @@
     (for ([term terms])
       (let ([sum (hash-ref! h (cadr term) (λ () 0))])
         (hash-set! h (cadr term) (+ (car term) sum))))
-    (sort
-     (reap [sow]
-       (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k))))))
-     expr<? #:key cdr)))
+    (reap [sow]
+     (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k))))))))
 
 (define (combine-mterms terms)
   (cons
@@ -198,10 +196,8 @@
      (for ([term (cdr terms)])
        (let ([sum (hash-ref! h (cdr term) (λ () 0))])
          (hash-set! h (cdr term) (+ (car term) sum))))
-     (sort
-      (reap [sow]
-        (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k))))))
-      expr<? #:key cdr))))
+     (reap [sow]
+           (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k)))))))))
 
 (define (aterm->expr term)
   (match term
