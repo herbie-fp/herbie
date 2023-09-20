@@ -8,7 +8,8 @@
 
 (provide arb 
     (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb_clear arb-clear] [_arb-sqrt arb-sqrt] 
-                [_arb-log arb-log] [_arb-tan arb-tan] [_arb-log1p arb-log1p]) 
+                [_arb-log arb-log] [_arb-tan arb-tan] [_arb-log1p arb-log1p] [arb-const-pi arb-pi]
+                [arb-const-e arb-e]) 
     arb-neg 
     arb-abs 
     arb-add 
@@ -66,8 +67,6 @@
     arb-not
     arb-or
     arb-and
-    arb-pi
-    arb-e
     arb-bool
     mpfr->arb
     boolean->arb
@@ -77,7 +76,8 @@
     arb-fix? _arb-ptr
     _arb-contains-negative 
     _arb-contains-nonpositive
-    _arb-get-interval-mpfr)
+    _arb-get-interval-mpfr
+    arb-not-error)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -113,6 +113,10 @@
 (define _arb-is-negative (get-ffi-obj 'arb_is_negative libarb ( _fun _arb_t -> _int)))
 (define _arb-is-nonpositive (get-ffi-obj 'arb_is_nonpositive libarb ( _fun _arb_t -> _int)))
 (define _arb-contains-nonpositive (get-ffi-obj 'arb_contains_nonpositive libarb ( _fun _arb_t -> _int)))
+(define _arb-contains-zero (get-ffi-obj 'arb_contains_zero libarb ( _fun _arb_t -> _int)))
+(define _arb-is-zero (get-ffi-obj 'arb_is_zero libarb ( _fun _arb_t -> _int)))
+(define _arb-is-int (get-ffi-obj 'arb_is_int libarb ( _fun _arb_t -> _int)))
+(define _arb-contains-int (get-ffi-obj 'arb_contains_int libarb ( _fun _arb_t -> _int)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
@@ -210,7 +214,7 @@
 (define (arb-fix? x)
   (if (zero? (_arb-is-exact (_arb-ptr x))) #f #t))
 
-;; I guess it is a very slow way
+;; Veeery slow (not a surprise)
 (define (arb-lo x)
   (ival-lo (arb->ival x)))
 (define (arb-hi x)
@@ -226,8 +230,11 @@
 (define-arb-function (arb-div x y))
 
 (define (_arb-div x y)
-  (define err? (or (_arb-err? x) (_arb-err? y) (and (bf<= (arb-lo y) 0.bf) (bf>= (arb-hi y) 0.bf))))
-  (define err (or (_arb-err x) (_arb-err y) (and (bfzero? (arb-lo y)) (bfzero? (arb-hi y)))))
+  (define err? (or (_arb-err? x) (_arb-err? y)
+                (if
+                 (zero? (_arb-contains-zero (_arb-ptr y))) #f #t)))
+  (define err (or (_arb-err x) (_arb-err y)
+                  (if (zero? (_arb-is-zero (_arb-ptr y))) #f #t)))
   (arb-div x y err? err))
   
 (define (_arb-sqrt x)
@@ -249,12 +256,23 @@
   (arb-log x err? err))
   
 (define (_arb-tan x)
-  (match-define (ival a b) (arb->ival (arb-floor (arb-sub (arb-div x (arb-pi)) (arb (bf "0.5"))))))
-  (if (bf= a b)
+  (if (arb-fix? (arb-floor (arb-sub (arb-div x (arb-const-pi)) (arb (bf "0.5")))))
     (arb-tan x)
     (arb "nan")))
-  
+
 ;;(define-arb-function (arb-pow x y))
+;;(define (pow x y)
+;;    cond
+;;     [(x is negative)
+;;           err? := (#false == (y is int?)) and (y contains int?)    // if y contains integers, but y is not integer
+;;           err  := (#false == (y contains int))]                    // if y does not contain any integers
+;;     [(x contains nonpositive)
+;;           err? := (y contains int?)) and (#false == (y is int?))
+;;           err  := #false]
+;;     [(x is positive)
+;;           err? :=
+;;           err  := ]
+;;             
 (define (arb-pow x y)
   (ival->arb (ival-pow (arb->ival x) (arb->ival y))))
 
@@ -297,11 +315,11 @@
 (define-arb-function (arb-asinh x))
 (define-arb-function (arb-atan x))
 (define-arb-function (arb-atanh x))
-(define-arb-function (arb-ceil x))
 (define-arb-function (arb-cos x))
 (define-arb-function (arb-cosh x))
 (define-arb-function (arb-expm1 x))
 (define-arb-function (arb-floor x))
+(define-arb-function (arb-ceil x))
 (define-arb-function (arb-lgamma x))
 (define-arb-function (arb-log x))
 (define-arb-function (arb-log1p x))
@@ -311,6 +329,11 @@
 (define-arb-function (arb-tan x))
 (define-arb-function (arb-tanh x))
 (define-arb-function (arb-gamma x))
+
+; Consts
+(define-arb-function (arb-const-pi))
+(define-arb-function (arb-const-e))
+
 (define (arb-tgamma x)
   (arb-gamma x))
 (define-arb-function-additional-arg (arb-root x k))
@@ -346,7 +369,7 @@
                   (if (eq? (_arb-is-nonpositive (_arb-ptr (arb-add x (arb (bf 1))))) 1) 
                     #t 
                     #f)))
-  (arb-log1p x err? err))   
+  (arb-log1p x err? err)) 
   
 (define (arb-exp2 x)
   (arb-pow (arb 2.bf) x))
@@ -394,7 +417,10 @@
   
 (define (arb-error? x)
   (ival-error? (arb->ival x)))
-  
+
+(define (arb-not-error x)
+  (ival (not (_arb-err? x)) (not (_arb-err x))))
+
 (define arb-and
   (lambda xs
     (apply ival-and (map arb->ival xs))))
@@ -402,12 +428,6 @@
 (define arb-or
   (lambda xs
     (apply ival-or (map arb->ival xs))))
-  
-(define (arb-pi)
-  (arb pi.bf))
-  
-(define (arb-e)
-  (arb (bfexp 1.bf)))
   
 (define (arb-bool b)
   (arb b))

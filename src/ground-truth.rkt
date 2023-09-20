@@ -28,9 +28,9 @@
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
        ; can error if the input is erroneous
-       (ival-assert (ival-not (ival-error? (arb->ival y))) 'invalid)
-       (ival-assert (ival-not (ival-error? (arb->ival arb-pre))) 'invalid)
-       (ival-assert (arb->ival arb-pre) 'precondition)
+       (ival-assert (arb-not-error y) 'invalid)
+       (ival-assert (ival-not (ival-error? arb-pre)) 'invalid)
+       (ival-assert arb-pre 'precondition)
        ; 'infinte case handle in `ival-eval`
        (ival-assert
         (if (ground-truth-require-convergence)
