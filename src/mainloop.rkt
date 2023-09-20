@@ -304,8 +304,10 @@
   (match-define (cons initial simplified) alternatives)
   (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
-  (define simplified* (append-map (curryr starting-alts context) simplified))
+  (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
+  (timeline-event! 'eval)
   (define-values (errss costs) (atab-eval-altns table simplified* context))
+  (timeline-event! 'prune)
   (^table^ (atab-add-altns table simplified* errss costs)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
