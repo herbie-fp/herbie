@@ -47,7 +47,7 @@
   (define dfs (map car rss))
   (define joint-rs (merge-datafiles dfs #:dirs dirs #:name name))
   (write-datafile (build-path outdir "results.json") joint-rs)
-  (call-with-output-file (build-path outdir "results.html")
+  (call-with-output-file (build-path outdir "index.html")
     #:exists 'replace
     (curryr make-report-page joint-rs outdir #:merge-data rss)))
 
@@ -62,4 +62,6 @@
     (apply merge-timelines outdir dirs)
     (apply merge-profiles outdir dirs)
     (copy-file (web-resource "report.js") (build-path outdir "report.js") #t)
-    (copy-file (web-resource "report.css") (build-path outdir "report.css") #t)))
+    (copy-file (web-resource "report-page.js") (build-path outdir "report-page.js") #t)
+    (copy-file (web-resource "report.css") (build-path outdir "report.css") #t)
+    (copy-file (web-resource "logo-car.png") (build-path outdir "logo-car.png") #t)))

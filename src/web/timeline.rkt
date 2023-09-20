@@ -8,7 +8,7 @@
 
 ;; This first part handles timelines for a single Herbie run
 
-(define (make-timeline name timeline out #:info [info #f])
+(define (make-timeline name timeline out #:info [info #f] #:path [path "."])
   (fprintf out "<!doctype html>\n")
   (write-xexpr
     `(html
@@ -19,12 +19,10 @@
        (script ([src ,(if info "report.js" "../report.js")])))
       (body
        ,(render-menu
-         (list
-          (and info '("About" . "#about"))
-          '("Timeline" . "#process-info")
-          '("Profile" . "#profile"))
+         (~a name)
+         #:path path
          (if info 
-             `(("Report" . "results.html"))
+             `(("Report" . "index.html"))
              `(("Details" . "graph.html"))))
        ,(if info (render-about info) "")
        ,(render-timeline timeline)
@@ -35,7 +33,6 @@
   (-> timeline? xexpr?)
   (define time (apply + (map (curryr dict-ref 'time) timeline)))
   `(section ([id "process-info"])
-     (h1 "Details")
      (p ((class "header"))
         "Time bar (total: " (span ((class "number")) ,(format-time time)) ")")
      (div ((class "timeline"))
@@ -60,7 +57,7 @@
         (dl
          ,@(dict-call curr render-phase-algorithm 'method)
          ,@(dict-call curr render-phase-locations 'locations)
-         ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline 'name 'link)
+         ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline 'name 'link 'repr)
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
@@ -111,17 +108,17 @@
                [data-timespan ,(~a (hash-ref domain-info tag 0))]
                [title ,(format "~a (~a)" tag
                                (format-percent (hash-ref domain-info tag 0) total))])))))))
-
-
+                               
 (define (render-phase-locations locations)
-  `((dt "Local error")
+  `((dt "Localize:")
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
-          (thead (tr (th "New") (th "Error") (th "Program")))
+          (thead (tr (th "New") (th "Accuracy") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
-              (match-define (list expr err new?) rec)
+
+              (match-define (list expr err new? repr) rec)
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-bits err) "b")
+                  (td ,(format-accuracy err (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
@@ -209,7 +206,7 @@
     (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
   empty))
 
-(define (render-phase-accuracy accuracy oracle baseline name link)
+(define (render-phase-accuracy accuracy oracle baseline name link repr)
   (define rows
     (sort
      (for/list ([acc accuracy] [ora oracle] [bas baseline] [name name] [link link])
@@ -223,15 +220,15 @@
   (define total-remaining (apply + accuracy))
 
   `((dt "Accuracy")
-    (dd (p "Total " ,(format-bits (apply + bits)) "b" " remaining"
+    (dd (p "Total " ,(format-bits (apply + bits) #:unit #t) " remaining"
             " (" ,(format-percent (apply + bits) total-remaining) ")"
-        (p "Threshold costs " ,(format-bits (apply + (filter (curry > 1) bits))) "b"
+        (p "Threshold costs " ,(format-cost (apply + (filter (curry > 1) bits)) (get-representation (string->symbol (car repr)))) "b"
            " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
         ,@(if (> (length rows) 1)
               `((table ([class "times"])
                   ,@(for/list ([rec (in-list rows)] [_ (in-range 5)])
                       (match-define (list left gained link name) rec)
-                      `(tr (td ,(format-bits left) "b")
+                      `(tr (td ,(format-bits left #:unit #t))
                            (td ,(format-percent gained (+ left gained)))
                            (td (a ([href ,(format "~a/graph.html" link)]) ,(or name "")))))))
               '())))))
@@ -261,9 +258,9 @@
               (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
 
 (define (render-phase-error min-error-table)
-  (match-define (list min-error) min-error-table)
-  `((dt "Error")
-    (dd ,(format-bits min-error) "b")))
+  (match-define (list min-error repr) (car min-error-table))
+  `((dt "Accuracy")
+    (dd ,(format-accuracy min-error (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")))
 
 (define (render-phase-rules rules)
   `((dt "Rules")
@@ -282,15 +279,15 @@
     (dd (details
          (summary "Click to see full alt table")
          (table ([class "times"])
-                (thead (tr (th "Status") (th "Error") (th "Program")))
+                (thead (tr (th "Status") (th "Accuracy") (th "Program")))
                 ,@(for/list ([rec (in-list alts)])
-                    (match-define (list expr status score) rec)
+                    (match-define (list expr status score repr) rec)
                     `(tr
                       ,(match status
                          ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                          ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                          ["fresh" `(td)])
-                      (td ,(format-bits score) "b")
+                      (td ,(format-accuracy score (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
                       (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
@@ -328,10 +325,10 @@
 (define (render-phase-branches branches)
   `((dt "Results")
     (dd (table ([class "times"])
-               (thead (tr (th "Error") (th "Segments") (th "Branch")))
+               (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
-             (match-define (list expr score splits) rec)
-             `(tr (td ,(format-bits score) "b")
+             (match-define (list expr score splits repr) rec)
+             `(tr (td ,(format-accuracy score (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
                   (td ,(~a splits))
                   (td (code ,expr))))))))
 
@@ -360,7 +357,7 @@
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (render-about info)
-  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy) info)
 
   `(table ((id "about"))
      (tr (th "Date:") (td ,(date->string date)))

@@ -19,6 +19,7 @@ upload () {
     nightly-results publish --name report.js src/web/resources/report.js
     nightly-results publish --name regression-chart.js infra/regression-chart.js
 
+    find "$DIR" -name "timeline.html" -exec gzip -f {} \;
     find "$DIR" -name "*.txt" -exec gzip -f {} \;
     find "$DIR" -name "*.json" -exec gzip -f {} \;
     nightly-results publish --name "$RDIR" "$DIR"

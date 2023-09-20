@@ -4,6 +4,7 @@
 .DS_Store
 
 # Standard directories
+reports
 previous
 graphs
 www/demo
@@ -12,9 +13,11 @@ demo.log
 # Related repositories
 papers
 plugins
+plugin
 rival
 regraph
 egg-herbie/pkg
+odyssey
 
 # Racket
 *.zo
