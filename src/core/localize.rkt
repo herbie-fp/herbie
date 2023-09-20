@@ -28,13 +28,11 @@
     (if (null? exprs) empty (compute-local-errors exprs ctx)))
   (for/list ([expr (in-list exprs)] [errs (in-list errss)])
     (sort
-     (sort
-      (reap [sow]
-        (for ([(expr err) (in-hash errs)])
-          (unless (andmap (curry = 1) err)
-            (sow (cons err expr)))))
-      > #:key (compose errors-score car))
-     expr<? #:key cdr)))
+     (reap [sow]
+       (for ([(expr err) (in-hash errs)])
+         (unless (andmap (curry = 1) err)
+           (sow (cons err expr)))))
+     > #:key (compose errors-score car))))
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors exprs ctx)
