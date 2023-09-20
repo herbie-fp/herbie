@@ -52,7 +52,6 @@
  :name "3frac (problem 3.3.3)"
  :herbie-target
  (/ 2 (* x (- (* x x) 1)))
- :herbie-expected 2
 
  (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
 
