@@ -15,7 +15,7 @@ jobs:
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.9
         with:
-          version: 8.7
+          version: 8.10
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1.0.6
         with:
@@ -45,7 +45,7 @@ jobs:
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.8
         with:
-          version: 8.5
+          version: 8.10
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1
         with:
