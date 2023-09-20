@@ -11,8 +11,10 @@
 ; is only interesting when clamping is kept minimal.
 ;
 ; While the section mentions "reasonable" limits for derivatives,
-; unreasonable is still allowable, so any good algorithm should be able
-; to handle inputs in this space.
+; unreasonable is still allowable, so any good algorithm should
+; be able to handle inputs in this space. The limits on derivatives
+; are conservative and handle inputs far output the "reasonable" space
+; 
 ;
 
 ;
@@ -24,6 +26,10 @@
   :precision binary32
   :pre (and (<= 1 w 16384)
             (<= 1 h 16384)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
             (== maxAniso 16))
   
   (let* ([w         (floor w)]
@@ -39,17 +45,16 @@
          [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
          [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
 
-         [isMajorX      (> dX2 dY2)]
-         [major2        (if isMajorX dX2 dY2)]
+         [major2        (fmax dX2 dY2)]
          [major         (sqrt major2)]
-         [normMajor     (/ 1 major2)]
+         [normMajor     (/ 1 major)]
          [ratioAniso0   (/ major2 det)]
 
          ; first round of clamping
-         [minor         (if (> ratioAniso maxAniso)
+         [minor         (if (> ratioAniso0 maxAniso)
                             (/ major maxAniso)
                             (/ det major))]
-         [ratioAniso1   (if (> ratioAniso maxAniso)
+         [ratioAniso1   (if (> ratioAniso0 maxAniso)
                             maxAniso
                             ratioAniso0)]
 
@@ -65,6 +70,10 @@
   :precision binary32
   :pre (and (<= 1 w 16384)
             (<= 1 h 16384)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
             (== maxAniso 16))
   
   (let* ([w         (floor w)]
@@ -80,17 +89,16 @@
          [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
          [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
 
-         [isMajorX      (> dX2 dY2)]
-         [major2        (if isMajorX dX2 dY2)]
+         [major2        (fmax dX2 dY2)]
          [major         (sqrt major2)]
-         [normMajor     (/ 1 major2)]
+         [normMajor     (/ 1 major)]
          [ratioAniso0   (/ major2 det)]
 
          ; first round of clamping
-         [minor         (if (> ratioAniso maxAniso)
+         [minor         (if (> ratioAniso0 maxAniso)
                             (/ major maxAniso)
                             (/ det major))]
-         [ratioAniso1   (if (> ratioAniso maxAniso)
+         [ratioAniso1   (if (> ratioAniso0 maxAniso)
                             maxAniso
                             ratioAniso0)]
 
@@ -106,6 +114,10 @@
   :precision binary32
   :pre (and (<= 1 w 16384)
             (<= 1 h 16384)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
             (== maxAniso 16))
   
   (let* ([w         (floor w)]
@@ -121,17 +133,16 @@
          [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
          [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
 
-         [isMajorX      (> dX2 dY2)]
-         [major2        (if isMajorX dX2 dY2)]
+         [major2        (fmax dX2 dY2)]
          [major         (sqrt major2)]
-         [normMajor     (/ 1 major2)]
+         [normMajor     (/ 1 major)]
          [ratioAniso0   (/ major2 det)]
 
          ; first round of clamping
-         [minor         (if (> ratioAniso maxAniso)
+         [minor         (if (> ratioAniso0 maxAniso)
                             (/ major maxAniso)
                             (/ det major))]
-         [ratioAniso1   (if (> ratioAniso maxAniso)
+         [ratioAniso1   (if (> ratioAniso0 maxAniso)
                             maxAniso
                             ratioAniso0)]
 
@@ -140,7 +151,7 @@
                             (fmax 1.0 (* ratioAniso1 minor))
                             ratioAniso1)])
 
-    (if isMajorX
+    (if (>= dX2 dY2)
         (* normMajor dX.u)
         (* normMajor dY.u))))
 
@@ -149,6 +160,10 @@
   :precision binary32
   :pre (and (<= 1 w 16384)
             (<= 1 h 16384)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
             (== maxAniso 16))
   
   (let* ([w         (floor w)]
@@ -164,17 +179,16 @@
          [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
          [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
 
-         [isMajorX      (> dX2 dY2)]
-         [major2        (if isMajorX dX2 dY2)]
+         [major2        (fmax dX2 dY2)]
          [major         (sqrt major2)]
-         [normMajor     (/ 1 major2)]
+         [normMajor     (/ 1 major)]
          [ratioAniso0   (/ major2 det)]
 
          ; first round of clamping
-         [minor         (if (> ratioAniso maxAniso)
+         [minor         (if (> ratioAniso0 maxAniso)
                             (/ major maxAniso)
                             (/ det major))]
-         [ratioAniso1   (if (> ratioAniso maxAniso)
+         [ratioAniso1   (if (> ratioAniso0 maxAniso)
                             maxAniso
                             ratioAniso0)]
 
@@ -183,7 +197,7 @@
                             (fmax 1.0 (* ratioAniso1 minor))
                             ratioAniso1)])
 
-    (if isMajorX
+    (if (>= dX2 dY2)
         (* normMajor dX.v)
         (* normMajor dY.v))))
 
@@ -196,25 +210,29 @@
   :precision binary32
   :pre (and (<= 1 w 16384)
             (<= 1 h 16384)
-            (<= 1 d 4096))
+            (<= 1 d 4096)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dX.w) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
+            (<= 1e-20 (fabs dY.w) 1e+20))
   
   (let* ([w         (floor w)]
          [h         (floor h)]
          [d         (floor d)]
-         [maxAniso  (floor maxAniso)]
 
          [dX.u (* w dX.u)]
          [dX.v (* h dX.v)]
          [dX.w (* d dX.w)]
          [dY.u (* w dY.u)]
          [dY.v (* h dY.v)]
-         [dY.w (* d dY.w)])
+         [dY.w (* d dY.w)]
     
          [dX2  (+ (+ (* dX.u dX.u) (* dX.v dX.v)) (* dX.w dX.w))]
          [dY2  (+ (+ (* dY.u dY.u) (* dY.v dY.v)) (* dY.w dY.w))]
 
-         [isMajorX      (> dX2 dY2)]
-         [major2        (if isMajorX dX2 dY2)]
-         [major         (sqrt major)])
+         [major2        (fmax dX2 dY2)]
+         [major         (sqrt major2)])
   
-    (log2 major))
+    (log2 major)))
