@@ -13,7 +13,7 @@
 ; While the section mentions "reasonable" limits for derivatives,
 ; unreasonable is still allowable, so any good algorithm should
 ; be able to handle inputs in this space. The limits on derivatives
-; are conservative and handle inputs far output the "reasonable" space
+; are conservative and handle inputs far outside the "reasonable" space
 ; 
 ;
 
