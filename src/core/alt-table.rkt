@@ -24,7 +24,7 @@
 (struct alt-table (point->alts alt->points alt->done? alt->cost context all) #:prefab)
 
 (define (backup-alt-cost altn)
-  (let loop ([expr (program-body (alt-program altn))])
+  (let loop ([expr (alt-expr altn)])
     (match expr
      [(list 'if cond ift iff) (+ 1 (loop cond) (max (loop ift) (loop iff)))]
      [(list op args ...) (apply + 1 (map loop args))]
@@ -41,7 +41,7 @@
   (define cost (alt-cost* initial-alt (context-repr ctx)))
   (alt-table (make-immutable-hash
                (for/list ([(pt ex) (in-pcontext pcontext)]
-                          [err (errors (alt-program initial-alt) pcontext ctx)])
+                          [err (errors (alt-expr initial-alt) pcontext ctx)])
                  (cons pt (list (pareto-point cost err (list initial-alt))))))
              (hash initial-alt (for/list ([(pt ex) (in-pcontext pcontext)]) pt))
              (hash initial-alt #f)
@@ -73,7 +73,7 @@
 ;; by sorting shouldn't everything else be deterministic???
 ;;
 (define (order-altns altns)
-  (sort altns expr<? #:key (compose program-body alt-program)))
+  (sort altns expr<? #:key alt-expr))
 
 (define (atab-active-alts atab)
   (order-altns (hash-keys (alt-table-alt->points atab))))
@@ -191,18 +191,18 @@
                [alt->cost (hash-remove* alt->cost altns)]))
 
 (define (atab-eval-altns atab altns ctx)
-  (define errss (flip-lists (batch-errors (map alt-program altns) (alt-table-context atab) ctx)))
+  (define errss (flip-lists (batch-errors (map alt-expr altns) (alt-table-context atab) ctx)))
   (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
   (values errss costs))
 
 (define (atab-add-altns atab altns errss costs)
   (define-values (atab* progs*)
-    (for/fold ([atab atab] [progs (set-map (alt-table-all atab) alt-program)])
+    (for/fold ([atab atab] [progs (set-map (alt-table-all atab) alt-expr)])
               ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
       ;; this is subtle, we actually want to check for duplicates
       ;; in terms of expressions, not alts: the default `equal?`
       ;; returns #f for the same expression with different derivations.
-      (let ([prog (alt-program altn)])
+      (let ([prog (alt-expr altn)])
         (if (set-member? progs prog)
             (values atab progs)
             (values (atab-add-altn atab altn errs cost) (set-add progs prog))))))

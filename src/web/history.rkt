@@ -4,7 +4,7 @@
          (only-in fpbench core->tex supported-by-lang?))
 (require "../points.rkt" "../float.rkt" "../alternative.rkt" "../syntax/types.rkt"
          "../syntax/rules.rkt" "../core/bsearch.rkt" "../common.rkt"
-         "common.rkt" "../syntax/sugar.rkt")
+         "common.rkt" "../syntax/sugar.rkt" "../programs.rkt")
 (provide render-history)
 
 (define (split-pcontext pcontext splitpoints alts ctx)
@@ -39,21 +39,38 @@
         ""
         (format " < ~a" (value->string end repr))))))
 
+(define (splice-proof-step step)
+  (let/ec k
+    (let loop ([expr step] [loc '()])
+      (match expr
+        [(list 'Rewrite=> rule sub)
+         (define loc* (reverse loc))
+         (k 'Rewrite=> rule loc* (location-do loc* step (λ _ sub)))]
+        [(list 'Rewrite<= rule sub)
+         (define loc* (reverse loc))
+         (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
+        [(list op args ...)
+         (for ([arg (in-list args)] [i (in-naturals 1)])
+           (loop arg (cons i loc)))]
+        [_ (void)]))
+    (k 'Goal #f #f step)))
+
+;; HTML renderer for derivations
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))
 
   (define repr (context-repr ctx))
   (define err
-    (format-bits (errors-score (errors (alt-program altn) pcontext ctx))))
+    (format-accuracy (errors-score (errors (alt-expr altn) pcontext ctx)) (representation-total-bits repr) #:unit "%"))
   (define err2
-    (format "Internally ~a" (format-bits (errors-score (errors (alt-program altn) pcontext2 ctx)))))
+    (format "~a on training set" (format-accuracy (errors-score (errors (alt-expr altn) pcontext2 ctx)) (representation-total-bits repr) #:unit "%")))
 
   (match altn
     [(alt prog 'start (list))
-     (define prog* (program->fpcore (resugar-program prog repr)))
      (list
       `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[" ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
+           (div ([class "math"]) "\\[" ,(program->tex prog ctx) "\\]")))]
+
     [(alt prog `(start ,strategy) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
@@ -76,52 +93,57 @@
                (ol ,@(render-history entry new-pcontext new-pcontext2 ctx))))))
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
-    [(alt prog `(taylor ,pt ,var ,loc) `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
+    [(alt prog `(taylor ,loc ,pt ,var) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Taylor expanded in " ,(~a var)
               " around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc loc #:color "blue") 
-                                                      "ERROR")        
-                                                  "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 ctx)
+       (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc loc #:color "blue") 
-                                                      "ERROR") 
-                "\\]")
-           (div ([class "math"]) "Proof")
-           ,@(for/list ([step proof] [data soundiness])
-                       (define text (format "~a: ~a points increase in error, ~a points decrease in error"
-                                    step (first data) (second data)))
-                       `(div ([class "math"])
-                             ,(if (> (first data) 0)
-                                  `(b ,text)
-                                  text)))))]
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) 
+                "\\]")))]
 
     [(alt prog `initial-simplify `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
     [(alt prog `final-simplify `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") (core->tex prog*) "ERROR") "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
 
-    [(alt prog (list 'change cng) `(,prev))
-     (define prog* (program->fpcore (resugar-program prog repr)))
+    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
-       (li (p "Applied " (span ([class "rule"]) ,(~a (rule-name (change-rule cng))))
+       (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
+       (li (p "Applied " (span ([class "rule"]) , (if (rule? input) "rewrite-once" "egg-rr"))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(if (supported-by-lang? prog* "tex") 
-                                                      (core->tex prog* #:loc (change-location cng) #:color "blue")
-                                                      "ERROR")
-                                                  "\\]")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
     ))
+
+(define (render-proof proof soundiness pcontext ctx)
+  `(div ([class "proof"])
+    (details
+     (summary "Step-by-step derivation")
+     (ol
+      ,@(for/list ([step proof] [sound soundiness])
+          (define-values (dir rule loc expr) (splice-proof-step step))
+          (define step-prog (program->fpcore expr ctx))
+          (define err
+            (format-accuracy (errors-score (errors expr pcontext ctx))
+                             (representation-total-bits (context-repr ctx))
+                             #:unit "%"))
+          (if (equal? dir 'Goal)
+              ""
+              `(li ,(let ([dir (match dir ['Rewrite<= "right to left"] ['Rewrite=> "left to right"])]
+                          [tag (string-append (format " ↑ ~a" (first sound))
+                                              (format " ↓ ~a" (second sound)))])
+                      `(p (code ([title ,dir]) ,(~a rule))
+                          (span ([class "error"] [title ,tag]) ,err)))
+                   (div ([class "math"])
+                        "\\[\\leadsto "
+                        ,(core->tex step-prog #:loc (cons 2 loc) #:color "blue")
+                        "\\]"))))))))

@@ -23,3 +23,11 @@
    (- (* (cos re) (+ im (* 1/6 im im im) (* 1/120 im im im im im))))
    (* (* 0.5 (cos re)) (- (exp (- 0 im)) (exp im))))
  (* (* 0.5 (cos re)) (- (exp (- 0 im)) (exp im))))
+
+
+(FPCore (x)
+  :name "Ian Simplification"
+  :herbie-target (asin x)
+  (- (/ PI 2)
+     (* 2
+        (asin (sqrt (/ (- 1 x) 2))))))

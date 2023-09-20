@@ -2,7 +2,7 @@
 
 (require racket/place)
 (require "../common.rkt" "../sandbox.rkt" "../load-plugin.rkt" "pages.rkt"
-         "../syntax/read.rkt" "../datafile.rkt")
+         "../syntax/read.rkt" "../syntax/types.rkt" "../datafile.rkt")
 
 (provide get-test-results)
 
@@ -21,10 +21,10 @@
       (cond
        [profile?
         (call-with-output-file
-            (build-path rdir "profile.json") #:exists 'replace
-            (λ (pp) (get-test-result test #:seed seed #:profile pp)))]
+          (build-path rdir "profile.json") #:exists 'replace
+          (λ (pp) (run-herbie 'improve test #:seed seed #:profile? pp)))]
        [else
-        (get-test-result test #:seed seed #:profile #f)]))
+        (run-herbie test 'improve #:seed seed)]))
 
     (set-seed! seed)
     (define error? #f)
@@ -32,12 +32,12 @@
       (with-handlers ([exn:fail? (λ (e) ((page-error-handler result page) e) (set! error? #t))])
         (call-with-output-file (build-path rdir page)
           #:exists 'replace
-          (λ (out) (make-page page out result profile?)))))
+          (λ (out) (make-page page out result #t profile?)))))
 
     (define out (get-table-data result dirname))
     (if error? (struct-copy table-row out [status "crash"]) out)]
    [else
-    (define result (get-test-result test #:seed seed))
+    (define result (run-herbie 'improve test #:seed seed))
     (get-table-data result "")]))
 
 (define-syntax (place/context* stx)
@@ -60,18 +60,19 @@
 
 (define (print-test-result i n data)
   (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
+  (define bits (representation-total-bits (get-representation (table-row-precision data))))
   (match (table-row-status data)
     ["error"  
-     (eprintf "[  ERROR  ]\t\t~a\n" (table-row-name data))]
+     (eprintf "[ ERROR ]\t\t~a\n" (table-row-name data))]
     ["crash"  
-     (eprintf "[  CRASH  ]\t\t~a\n" (table-row-name data))]
+     (eprintf "[ CRASH ]\t\t~a\n" (table-row-name data))]
     ["timeout"
-     (eprintf "[  TIMEOUT]\t\t~a\n" (table-row-name data))]
+     (eprintf "[TIMEOUT]\t\t~a\n" (table-row-name data))]
     [_
-     (eprintf "[ ~as]   ~a→~a\t~a\n"
-              (~r (/ (table-row-time data) 1000) #:min-width 7 #:precision '(= 3))
-              (~r (table-row-start data) #:min-width 2 #:precision 0)
-              (~r (table-row-result data) #:min-width 2 #:precision 0)
+     (eprintf "[~as]  ~a% → ~a%\t~a\n"
+              (~r (/ (table-row-time data) 1000) #:min-width 6 #:precision '(= 1))
+              (~r (* 100 (- 1 (/ (table-row-start data) bits))) #:min-width 3 #:precision 0)
+              (~r (* 100 (- 1 (/ (table-row-result data) bits))) #:min-width 3 #:precision 0)
               (table-row-name data))]))
 
 (define (run-workers progs threads #:seed seed #:profile profile? #:dir dir)

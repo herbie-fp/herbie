@@ -9,7 +9,7 @@
    ;; Constants are zero-ary functions
    [(? constant-operator?) (list expr)]
    ;; unfold let
-   [(list let* (list (list var val) rest ...) body)
+   [(list 'let* (list (list var val) rest ...) body)
     (replace-vars (list (cons var (expand val))) (expand `(let* ,rest ,body)))]
    [(list 'let (list (list vars vals) ...) body)
     (replace-vars (map cons vars (map expand vals)) (expand body))]
@@ -177,11 +177,10 @@
       (expand-parametric prog repr var-reprs full?)))
 
 (define (resugar-program prog repr #:full [full? #t])
-  (match prog
-    [(list 'FPCore (list vars ...) body) `(FPCore ,vars ,(expand-parametric-reverse body repr full?))]
-    [(list (or 'λ 'lambda) (list vars ...) body) `(λ ,vars ,(expand-parametric-reverse body repr full?))]
-    [_ (expand-parametric-reverse prog repr full?)]))
+  (expand-parametric-reverse prog repr full?))
 
+;; This is a duplicate of the one in programs.rkt, but there's a cycle when you
+;; try to make sugar.rkt depend on programs.rkt and I couldn't untangle it.
 (define (replace-vars dict expr)
   (cond
     [(dict-has-key? dict expr) (dict-ref dict expr)]

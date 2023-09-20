@@ -53,7 +53,7 @@
 (define/contract (compute-row folder)
   (-> path? cache-row?)
   (define info (read-datafile (build-path folder "results.json")))
-  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy) info)
 
   (define-values (total-start total-end)
     (for/fold ([start 0] [end 0]) ([row (or tests '())])
@@ -124,7 +124,7 @@
            (td ,(if (> (field 'tests-available) 0) (format "~a/~a" (field 'tests-passed) (field 'tests-available)) ""))
            (td ,(if (field 'bits-improved) (format "~a/~a" (round* (field 'bits-improved)) (round* (field 'bits-available))) ""))
            (td ([title ,(format "At ~a\nOn ~a\nFlags ~a" (field 'date-full) (field 'hostname) (string-join (field 'options) " "))])
-               (a ([href ,(format "./~a/results.html" (field 'folder))]) "»")))))))
+               (a ([href ,(format "./~a/index.html" (field 'folder))]) "»")))))))
 
 (define (make-index-page folders out)
   (define branch-infos

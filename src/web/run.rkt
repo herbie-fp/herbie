@@ -62,10 +62,11 @@
   (define info (make-report-info (filter values results) #:note note #:seed seed))
 
   (write-datafile (build-path dir "results.json") info)
+  (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
-  (copy-file (web-resource "arrow-chart.js") (build-path dir "arrow-chart.js") #t)
-  (call-with-output-file (build-path dir "results.html")
+  (copy-file (web-resource "logo-car.png") (build-path dir "logo-car.png") #t)
+  (call-with-output-file (build-path dir "index.html")
     (curryr make-report-page info dir) #:exists 'replace)
   (define timeline (merge-timeline-jsons (read-json-files info dir "timeline.json")))
   (call-with-output-file (build-path dir "timeline.json") (curry write-json timeline) #:exists 'replace)
@@ -74,7 +75,7 @@
 
   (call-with-output-file (build-path dir "timeline.html")
     #:exists 'replace
-    (λ (out) (make-timeline "Herbie run" timeline out #:info info)))
+    (λ (out) (make-timeline "Herbie run" timeline out #:info info #:path ".")))
 
   ; Delete old files
   (let* ([expected-dirs (map string->path (filter identity (map table-row-link (report-info-tests info))))]
@@ -97,6 +98,6 @@
 (define (diff-report old new)
   (define df (diff-datafiles (read-datafile (build-path old "results.json"))
                              (read-datafile (build-path new "results.json"))))
-  (call-with-output-file (build-path new "results.html")
+  (call-with-output-file (build-path new "index.html")
     #:exists 'replace
     (curryr make-report-page df #f)))

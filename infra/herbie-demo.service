@@ -1,0 +1,12 @@
+[Unit]
+Description=The Herbie web demo
+Documentation=https://herbie.uwplse.org/demo/
+After=network.target
+
+[Service]
+ExecStart=make start-server
+WorkingDirectory=/var/www/herbie
+User=pavpan
+
+[Install]
+WantedBy=multi-user.target

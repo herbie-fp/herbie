@@ -1,0 +1,54 @@
+name: API tests
+
+on: [push]
+
+env:
+  RUST_BACKTRACE: full
+
+jobs:
+  api:
+    name: "The API endpoints"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v1.8
+        with:
+          version: 8.5
+      - name: Install Rust compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            default: true
+            override: true
+            components: rustfmt, clippy
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+
+      - name: "Start server"
+        run: racket src/herbie.rkt web --port 8000 &
+      
+      - name: "Wait for server startup"
+        run: while ! nc -z localhost 8000; do sleep 0.1; done
+
+      # - name: "Get node v19"
+      #   run: curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E bash -
+      
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # - name: "Install node"
+      #   run: sudo apt-get install -y nodejs
+
+      - name: "Print node version"
+        run: node --version
+      
+      # - name: "Test fetch"
+      #   run: node -e "fetch('https://google.com')"
+
+      - name: "Test the endpoint"
+        run: node infra/testApi.mjs

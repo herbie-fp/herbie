@@ -119,3 +119,13 @@
       (- (sin x) x))
 
   (- (sin x) x))
+
+(FPCore (x)
+  :name "bug500, discussion (missed optimization)"
+  :herbie-target
+  (if (< (fabs x) .085)
+      (let ([x2 (* x x)])
+        (* x2 (fma (fma (fma -1/37800 x2 1/2835) x2 -1/180) x2 1/6)))
+      (log (/ (sinh x) x)))
+  
+  (log (/ (sinh x) x)))

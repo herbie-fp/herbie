@@ -26,18 +26,17 @@
 
     (define expr*
       (for/fold
-          ([expr (program-body (alt-program (list-ref alts (sp-cidx (last splitpoints)))))])
+          ([expr (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
           ([splitpoint (cdr (reverse splitpoints))])
         (define repr (repr-of (sp-bexpr splitpoint) ctx))
         (define <=-operator (get-parametric-operator '<= repr repr))
         `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
-             ,(program-body (alt-program (list-ref alts (sp-cidx splitpoint))))
+             ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
              ,expr)))
 
     ;; We don't want unused alts in our history!
     (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
-    (alt `(λ ,(program-variables (alt-program (first alts))) ,expr*)
-         (list 'regimes splitpoints*) alts*)]))
+    (alt expr* (list 'regimes splitpoints*) alts*)]))
 
 (define (remove-unused-alts alts splitpoints)
   (for/fold ([alts* '()] [splitpoints* '()]) ([splitpoint splitpoints])
@@ -52,21 +51,31 @@
 (define (binary-search-floats pred p1 p2 repr)
   (cond
    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
+    (timeline-push! 'stop "narrow-enough" 1)
     (values p1 p2)]
    [else
     (define p3 (midpoint p1 p2 repr))
-    (define cmp (pred p3))
+    (define cmp
+      ;; Sampling error: don't know who's better
+      (with-handlers ([exn:fail:user:herbie? (const 'fail)])
+        (pred p3)))
+
     (cond
+     [(eq? cmp 'fail)
+      (timeline-push! 'stop "predicate-failed" 1)
+      (values p1 p2)]
      [(negative? cmp) (binary-search-floats pred p3 p2 repr)]
      [(positive? cmp) (binary-search-floats pred p1 p3 repr)]
      ;; cmp = 0 usually means sampling failed, so we give up
-     [else (values p1 p2)])]))
+     [else
+      (timeline-push! 'stop "predicate-same" 1)
+      (values p1 p2)])]))
 
-(define (extract-subexpression program var expr)
-  (define body* (replace-expression (program-body program) expr var))
-  (define vars* (set-subtract (program-variables program) (free-variables expr)))
+(define (extract-subexpression expr var pattern ctx)
+  (define body* (replace-expression expr pattern var))
+  (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
   (if (subset? (free-variables body*) (cons var vars*))
-      `(λ (,var ,@vars*) ,body*)
+      body*
       #f))
 
 (define (prepend-argument fn val pcontext ctx)
@@ -82,50 +91,34 @@
 (define (sindices->spoints points expr alts sindices ctx)
   (define repr (repr-of expr ctx))
 
-  (define eval-expr
-    (eval-prog `(λ ,(program-variables (alt-program (car alts))) ,expr) 'fl ctx))
+  (define eval-expr (compile-prog expr 'fl ctx))
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
-  (define progs (map (compose (curryr extract-subexpression var expr) alt-program) alts))
-  (define start-prog (extract-subexpression (*start-prog*) var expr))
+  (define progs (map (compose (curryr extract-subexpression var expr ctx) alt-expr) alts))
+  (define start-prog (extract-subexpression (*start-prog*) var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
-  (define precondition `(λ ,(program-variables start-prog) (TRUE)))
-  (define start-fn (make-search-func precondition (list start-prog) ctx*))
+  (define start-fn 
+    (and start-prog 
+      (make-search-func '(TRUE) (list start-prog)  (cons ctx* `()))))
 
-  (define (find-split prog1 prog2 v1 v2)
-
-    (define best-guess #f)
-    (define current-guess v1)
-    (define sampling-fail? #f)
-
+  (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
-      (set! best-guess current-guess)
-      (set! current-guess v)
-      (with-handlers ([exn:fail:user:herbie?
-                       (λ (e) (set! sampling-fail? #t) 0)]) ; couldn't sample points
-        (define pctx
-          (parameterize ([*num-points* (*binary-search-test-points*)])
-            (prepend-argument start-fn v (*pcontext*) ctx*)))
-        (define acc1 (errors-score (errors prog1 pctx ctx*)))
-        (define acc2 (errors-score (errors prog2 pctx ctx*)))
-        (- acc1 acc2)))
+      (define pctx
+        (parameterize ([*num-points* (*binary-search-test-points*)])
+          (prepend-argument start-fn v (*pcontext*) ctx*)))
+      (define acc1 (errors-score (errors expr1 pctx ctx*)))
+      (define acc2 (errors-score (errors expr2 pctx ctx*)))
+      (- acc1 acc2))
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
-    (if sampling-fail?
-      best-guess
-      (left-point p1 p2)))
+    (left-point p1 p2))
 
-  ; a little more rigorous than it sounds:
-  ; finds the shortest number `x` near `p1` such that
-  ; `x1` is in `[p1, p2]` and is no larger than
-  ;  - if `p1` is negative, `p1 / 2`
-  ;  - if `p1` is positive, `p1 * 2`
   (define (left-point p1 p2)
     (let ([left ((representation-repr->bf repr) p1)]
           [right ((representation-repr->bf repr) p2)])
       ((representation-bf->repr repr)
-        (if (bfnegative? left)
+       (if (bfnegative? left)
             (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
             (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))))
 
@@ -162,7 +155,7 @@
 
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
-  (define prog (eval-prog `(λ ,(context-vars ctx*) ,bexpr) 'fl ctx*))
+  (define prog (compile-prog bexpr 'fl ctx*))
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
@@ -175,7 +168,7 @@
 
 (module+ test
   (define context (make-debug-context '(x y)))
-  (parameterize ([*start-prog* '(λ (x y) (/.f64 x y))])
+  (parameterize ([*start-prog* '(/.f64 x y)])
     (define sps
       (list (sp 0 '(/.f64 y x) -inf.0)
             (sp 2 '(/.f64 y x) 0.0)

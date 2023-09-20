@@ -41,8 +41,12 @@ minimal-distribution:
 nightly: install
 	bash infra/nightly.sh reports
 
-start-server: install
-	racket src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
+upgrade:
+	git pull
+	$(MAKE) install
+
+start-server:
+	racket -y src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
 		--demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
 		--log infra/server.log --quiet 2>&1
 

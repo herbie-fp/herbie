@@ -18,7 +18,10 @@ Installing from source requires Racket 8.0 or later,
   Rust 1.60.0 or later, and supports Windows, macOS, and Linux
   for various architectures.
 
-Install Racket from [here](https://download.racket-lang.org/).
+Install Racket from [here](https://download.racket-lang.org/). We recommend 
+the official Racket installer over Snap. If your configuration depends on Racket 
+being installed via Snap, you will need to ensure that Herbie and all packages are 
+located in your home directory or another allow-listed directory.
 Install Rust from [here](https://www.rust-lang.org/tools/install).
 In this directory, build Herbie with:
 
@@ -26,7 +29,9 @@ In this directory, build Herbie with:
 
 This will install a `herbie` binary somewhere under `~/.racket` (Linux)
   although this path is dependent on OS and Racket version
-  (check installation messages for a possible location).
+  (check installation messages for a possible location). Depending on
+  your configuration, you may need to add the binary to your path 
+  manually.
 You can also run `src/herbie.rkt` directly.
 
 ### Installing from the Racket package index
@@ -79,11 +84,8 @@ for more.
 
 ## Helping Out
 
-Herbie development is organized on our
-[mailing list](https://mailman.cs.washington.edu/mailman/listinfo/herbie),
-where we discuss work in progress and announce major improvements.
-[Email us](mailto:herbie@cs.washington.edu) to get involved!
-
+Herbie is developed as a joint project of the Universities of
+[Washington](https://uwplse.org) and [Utah](https://cpu.cs.utah.edu).
 We use [Github](https://github.com/herbie-fp/herbie) and
 [Trello](https://trello.com/b/lh7b33Dr/herbie) to organize development
 goals.
@@ -112,4 +114,4 @@ Herbie on basic but representative examples with:
 This takes approximately 10 minutes.
 
 Historic and nightly test results are collected on
-[uwplse.org](https://herbie.uwplse.org/reports/).
+[nightly](https://nightly.cs.washington.edu/reports/herbie/).
