@@ -73,11 +73,13 @@
     arb-lo
     arb-hi
     arb-error?
-    arb-fix? _arb-ptr
+    arb-fix?
+    _arb-ptr
     _arb-contains-negative 
     _arb-contains-nonpositive
     _arb-get-interval-mpfr
-    arb-not-error)
+    arb-not-error
+    arb-inf)
 
 (define arb_t-size 48)
 (define arb-precision (make-parameter 80))
@@ -117,6 +119,7 @@
 (define _arb-is-zero (get-ffi-obj 'arb_is_zero libarb ( _fun _arb_t -> _int)))
 (define _arb-is-int (get-ffi-obj 'arb_is_int libarb ( _fun _arb_t -> _int)))
 (define _arb-contains-int (get-ffi-obj 'arb_contains_int libarb ( _fun _arb_t -> _int)))
+(define _arb-zero-pm-inf (get-ffi-obj 'arb_zero_pm_inf libarb ( _fun _arb_t -> _void)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
@@ -131,6 +134,11 @@
   (_arb-set-str (_arb-ptr v) s (_arb-prec v))
   v)
 
+(define (arb-inf)
+  (define v (_arb-alloc #f #f))
+  (_arb-zero-pm-inf (_arb-ptr v))
+  v)
+
 (define (arb x)
   (cond
    [(string? x) (string->arb x)]
@@ -140,8 +148,8 @@
    [(and (rational? x) (exact? x))
     (arb-div (string->arb (~a (numerator x))) (string->arb (~a (denominator x))))]
    [(bigfloat? x)
-    (if (bfinfinite? x) (string->arb "inf")
-    (string->arb (bigfloat->string x)))]
+    (if (bfinfinite? x) (arb-inf)
+    (mpfr->arb x x))]
    [(boolean? x)
     (ival x)]
    [(nan? x)
@@ -419,7 +427,9 @@
   (ival-error? (arb->ival x)))
 
 (define (arb-not-error x)
-  (ival (not (_arb-err? x)) (not (_arb-err x))))
+  (if (_arb? x) 
+      (ival (not (_arb-err? x)) (not (_arb-err x)))
+      (ival (not (ival-err? x)) (not (ival-err x)))))
 
 (define arb-and
   (lambda xs
