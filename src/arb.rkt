@@ -120,6 +120,7 @@
 (define _arb-is-int (get-ffi-obj 'arb_is_int libarb ( _fun _arb_t -> _int)))
 (define _arb-contains-int (get-ffi-obj 'arb_contains_int libarb ( _fun _arb_t -> _int)))
 (define _arb-zero-pm-inf (get-ffi-obj 'arb_zero_pm_inf libarb ( _fun _arb_t -> _void)))
+(define _arb-set (get-ffi-obj 'arb_set libarb ( _fun _arb_t _arb_t -> _void)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
@@ -127,7 +128,7 @@
      (define mem (malloc arb_t-size 'atomic))
      (_arb_init mem)
      (_arb mem (bf-precision) err? err))))
-     
+
 (define (string->arb s)
   (define err? (bfnan? (string->bigfloat s)))
   (define v (_arb-alloc err? #f))
@@ -155,7 +156,7 @@
    [(nan? x)
     (string->arb "nan")]
    [(infinite? x)
-    (string->arb "inf")]
+    (arb-inf)]
    [else
     (error 'arb "Unknown value ~a" x)]))
 
@@ -191,6 +192,11 @@
                   v)
                 'name))))])))
 
+(define (arb-copy-with-flags ar err? err)
+  (define v (_arb-alloc (or err? (_arb-err? ar)) (or err (_arb-err ar))))
+  (_arb-set (_arb-ptr v) (_arb-ptr ar))
+  v)
+
 ;; Error flags are not transfered! Rival should be updated
 (define (arb->ival ar)
   (if (ival? ar) ar
@@ -209,14 +215,14 @@
                        (bigfloat-precision (ival-lo iv)) 
                        (bigfloat-precision (ival-hi iv)))])
       (let ([ar (_arb-alloc (ival-err? iv) (ival-err iv))] [a (ival-lo iv)] [b (ival-hi iv)])
-        (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
+        (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
         ar))))
 
 
 ;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
   (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) #f))
-  (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
+  (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
   ar)
   
 (define (arb-fix? x)
@@ -430,6 +436,7 @@
   (if (_arb? x) 
       (ival (not (_arb-err? x)) (not (_arb-err x)))
       (ival (not (ival-err? x)) (not (ival-err x)))))
+
 
 (define arb-and
   (lambda xs
