@@ -202,7 +202,7 @@
   (if (ival? ar) ar
     (parameterize ([bf-precision (_arb-prec ar)])
       (let ([a (bf 3)] [b (bf 3)])
-        (_arb-get-interval-mpfr a b (_arb-ptr ar))
+        (_arb-get-interval-mpfr (bfcopy a) (bfcopy b) (_arb-ptr ar))
         (ival-then
           (ival-assert (ival (not (or (_arb-err? ar) (bfnan? a) (bfnan? b))) (not (_arb-err ar))) #t)
           (ival (if (bfnan? a) (bf "-inf") (bfcopy a)) (if (bfnan? b) (bf "+inf") (bfcopy b))))))))
@@ -215,7 +215,7 @@
                        (bigfloat-precision (ival-lo iv)) 
                        (bigfloat-precision (ival-hi iv)))])
       (let ([ar (_arb-alloc (ival-err? iv) (ival-err iv))] [a (ival-lo iv)] [b (ival-hi iv)])
-        (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
+        (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
         ar))))
 
 
@@ -261,7 +261,7 @@
   (arb-sqrt x err? err))
   
 (define (_arb-log x)
-  (define err? (or (_arb-err? x) 
+  (define err? (or (_arb-err? x)
                    (if (eq? (_arb-contains-nonpositive (_arb-ptr x)) 1) #t #f)
                ))
   (define err (or (_arb-err x)
@@ -286,7 +286,7 @@
 ;;     [(x is positive)
 ;;           err? :=
 ;;           err  := ]
-;;             
+     
 (define (arb-pow x y)
   (ival->arb (ival-pow (arb->ival x) (arb->ival y))))
 
