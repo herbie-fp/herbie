@@ -56,11 +56,13 @@
      ;; We excluded the first element of `initials` above so that we can add it
      ;; here manually, but without a self-referential history.
      alternative
-     (for/list ([expression (in-list initials)])
-       (alt
-        expression
-        (list 'simplify null query #f #f)
-        (list alternative)))))
+     (remove-duplicates
+      (for/list ([expression (in-list initials)])
+        (alt
+         expression
+         (list 'simplify null query #f #f)
+         (list alternative)))
+      alt-equal?)))
   (define components
     (connected-components
      (context-vars context)
@@ -85,7 +87,7 @@
   (values
    (if (flag-set? 'setup 'simplify)
        simplified
-       (list initial))
+       (list (make-alt initial)))
    ;; Absolute value should happen before sorting
    (append abs-instructions negabs-instructions sort-instructions)))
 

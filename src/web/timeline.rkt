@@ -110,8 +110,8 @@
                                (format-percent (hash-ref domain-info tag 0) total))])))))))
                                
 (define (render-phase-locations locations)
-  `((dt "Local Accuracy")
-    (dd (p "Found " ,(~a (length locations)) " expressions with local accuracy:")
+  `((dt "Localize:")
+    (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
           (thead (tr (th "New") (th "Accuracy") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
@@ -259,7 +259,7 @@
 
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr) (car min-error-table))
-  `((dt "Accurracy")
+  `((dt "Accuracy")
     (dd ,(format-accuracy min-error (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")))
 
 (define (render-phase-rules rules)

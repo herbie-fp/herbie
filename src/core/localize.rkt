@@ -53,6 +53,7 @@
     (make-hash
      (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
        (cons (car subexpr) '()))))
+
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
@@ -76,7 +77,7 @@
 
   (for/list ([expr (in-list exprs)] [subexprs (in-list subexprss)])
     (for/hash ([subexpr (in-list subexprs)])
-      (values (car subexpr) (hash-ref errs (car subexpr))))))
+      (values (car subexpr) (reverse (hash-ref errs (car subexpr)))))))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
