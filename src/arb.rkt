@@ -79,11 +79,16 @@
     _arb-contains-nonpositive
     _arb-get-interval-mpfr
     arb-not-error
-    arb-inf)
+    arb-inf
+    arb->arf
+    _arf-equal
+    _arf-is-finite
+    _arf-ptr
+    _arb-err
+    _arb-err?)
 
 (define arb_t-size 48)
-(define arb-precision (make-parameter 80))
-;;(define libarb (ffi-lib "/usr/local/lib/libarb"))
+(define arf_t-size 128)
 
 (define-runtime-path libarb-so
   (case (system-type)
@@ -99,10 +104,18 @@
            (define ptr (_arb-ptr a))
            (define s (_arb-get-str ptr (_arb-prec a) 0))
            (fprintf port "(arb ~s) ~e ~e" s (_arb-err? a) (_arb-err a)))])
+
+(struct _arf (ptr prec)
+        #:methods gen:custom-write
+        [(define (write-proc a port mode)
+           (define ptr (_arf-ptr a))
+           (define s (_arf-get-str ptr (_arf-prec a)))
+           (fprintf port "(arf ~s)" s ))])
            
 
 (define _mpfr_t _pointer)
 (define _arb_t _pointer)
+(define _arf_t _pointer)
 
 (define _arb_init (get-ffi-obj 'arb_init libarb (_fun _arb_t -> _void)))
 (define _arb_clear (get-ffi-obj 'arb_clear libarb (_fun _arb_t -> _void)))
@@ -121,6 +134,14 @@
 (define _arb-contains-int (get-ffi-obj 'arb_contains_int libarb ( _fun _arb_t -> _int)))
 (define _arb-zero-pm-inf (get-ffi-obj 'arb_zero_pm_inf libarb ( _fun _arb_t -> _void)))
 (define _arb-set (get-ffi-obj 'arb_set libarb ( _fun _arb_t _arb_t -> _void)))
+(define _arb-get-interval-arf (get-ffi-obj 'arb_get_interval_arf libarb ( _fun _arf_t _arf_t _arb_t _slong -> _void)))
+
+(define _arf_init (get-ffi-obj 'arb_init libarb (_fun _arf_t -> _void)))
+(define _arf_clear (get-ffi-obj 'arb_clear libarb (_fun _arf_t -> _void)))
+(define _arf-load-str (get-ffi-obj 'arf_load_str libarb (_fun _arf_t _string -> _int)))
+(define _arf-get-str (get-ffi-obj 'arf_get_str libarb (_fun _arf_t _slong -> _string)))
+(define _arf-equal (get-ffi-obj 'arf_equal libarb ( _fun _arf_t _arf_t -> _int)))
+(define _arf-is-finite (get-ffi-obj 'arf_is_finite libarb ( _fun _arf_t -> _int)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
@@ -128,6 +149,13 @@
      (define mem (malloc arb_t-size 'atomic))
      (_arb_init mem)
      (_arb mem (bf-precision) err? err))))
+
+(define _arf-alloc
+  ((allocator (λ (v) (_arf_clear (_arf-ptr v))))
+   (λ ([prec (bf-precision)])
+     (define mem (malloc arf_t-size 'atomic))
+     (_arf_init mem)
+     (_arf mem (bf-precision)))))
 
 (define (string->arb s)
   (define err? (bfnan? (string->bigfloat s)))
@@ -224,6 +252,14 @@
   (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) #f))
   (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
   ar)
+
+(define (arb->arf ar target-prec)
+  (parameterize ([bf-precision target-prec])
+    (define a (_arf-alloc (bf-precision)))
+    (define b (_arf-alloc (bf-precision)))
+    (_arb-get-interval-arf (_arf-ptr a) (_arf-ptr b) (_arb-ptr ar) (bf-precision))
+    (list a b)))
+
   
 (define (arb-fix? x)
   (if (zero? (_arb-is-exact (_arb-ptr x))) #f #t))
