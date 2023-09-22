@@ -34,9 +34,9 @@
     (match-define (list arb-pre arb-bodies ...) out)
     (for/list ([y arb-bodies][ctx ctxs])
       (define repr (context-repr ctx))
-      (println y)
-      (println (is-samplable-interval repr y))
-      (println "")
+      ;(println y)
+      ;(println (is-samplable-interval repr y))
+      ;(println "")
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
        ; can error if the input is erroneous
