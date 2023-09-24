@@ -5,16 +5,13 @@
          "../src/syntax/types.rkt")
 
 (define *precision* (make-parameter #f))
-(define *ignore-target* (make-parameter #f))
 
 (define (test-successful? test input-bits target-bits output-bits)
-  (if (*ignore-target*)
-      #t
-      (match* ((test-output test) (test-expected test))
-       [(_ #f) #t]
-       [(_ (? number? n)) (>= n output-bits)]
-       [(#f #t) (>= input-bits output-bits)]
-       [(_ #t) (>= target-bits (- output-bits 1))])))
+  (match* ((test-output test) (test-expected test))
+    [(_ #f) #t]
+    [(_ (? number? n)) (>= n output-bits)]
+    [(#f #t) (>= input-bits output-bits)]
+    [(_ #t) (>= target-bits (- output-bits 1))]))
 
 (define (override-test-precision the-test repr)
   (struct-copy test the-test
@@ -96,10 +93,5 @@
     (*precision* (get-representation (string->symbol prec)))]
    [("--num-iters") num "The number of iterations to use for the main loop"
     (*num-iterations* (string->number num))]
-   [("--pareto") "Enables Pherbie"
-    (*pareto-mode* #t)
-    (*ignore-target* #t)
-    (*timeout* (* 1000 60 10))
-    (disable-flag! 'rules 'numerics)] ; causes time to increase
    #:args bench-dir
    (exit (if (apply run-tests bench-dir) 0 1))))
