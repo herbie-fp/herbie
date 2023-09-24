@@ -1,4 +1,4 @@
-name: Distribution tests
+name: Distribute
 
 on: [push]
 

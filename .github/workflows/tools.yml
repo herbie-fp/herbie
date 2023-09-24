@@ -1,4 +1,4 @@
-name: Tool tests
+name: Tool
 
 on: [push]
 
