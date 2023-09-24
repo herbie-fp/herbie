@@ -71,7 +71,8 @@
       ['failure
        (define exn backend)
        (printf "[  CRASH  ]\t\t~a\n" (test-name test))
-       ((error-display-handler) (exn-message exn) exn)]
+       ((error-display-handler) (exn-message exn) exn)
+       #f]
       ['timeout
        (printf "[  TIMEOUT]\t\t~a\n" (test-name test))
        #f])))
