@@ -367,6 +367,7 @@ var radioStates = [
     "targetAccuracy",
     "time"
 ]
+var filterTolerance = 1000
 
 function tableRowDiff(test) {
 
@@ -376,7 +377,7 @@ function tableRowDiff(test) {
         var text
         var titleText = ""
         // Dirty equal less then 1 second
-        if (Math.abs(timeDiff) < 1000) {
+        if (Math.abs(timeDiff) < filterTolerance) {
             color = "diff-time-gray"
             text = "~"
             titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
@@ -402,8 +403,8 @@ function tableRowDiff(test) {
             color = "diff-time-green"
             tdText = `+ ${(diff).toFixed(1)}%`
         }
-        // TODO what should the tolerance be?
-        else if (diff == 0) {
+        // TODO figure out diffing tolerance
+        else if (diff <= filterTolerance || diff >= -filterTolerance) {
             titleText = `Original: ${op} vs ${tp}`
             color = "diff-time-gray"
             areEqual = true
@@ -624,9 +625,6 @@ function compareInfo(diffCount) {
 
 function compareForm(jsonData) {
     const formName = "compare-form"
-    const defaultID = "compare-default"
-    const statusID = "compare-status"
-    const inputID = "compare-input"
 
     const output = Element("input", {
         id: "compare-output", type: "radio", checked: radioStates[radioStatesIndex] == "output",
@@ -643,6 +641,7 @@ function compareForm(jsonData) {
     }, [])
     startAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 3
+        filterTolerance = 0
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -652,6 +651,7 @@ function compareForm(jsonData) {
     }, [])
     resultAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 4
+        filterTolerance = 0
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -661,6 +661,7 @@ function compareForm(jsonData) {
     }, [])
     targetAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 5
+        filterTolerance = 0
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -670,23 +671,47 @@ function compareForm(jsonData) {
     }, [])
     time.addEventListener("click", async (e) => {
         radioStatesIndex = 6
+        filterTolerance = 1000
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
+    const toleranceInputField = Element("input", {
+        id: `toleranceID`, value: filterTolerance
+    }, [])
+    toleranceInputField.addEventListener("keyup", async (e) => {
+        e.preventDefault();
+        // if Enter key is pressed
+        if (e.keyCode === 13) {
+            filterTolerance = e.target.value
+            await updateFromForm(jsonData, e.target.parentNode)
+        }
+    })
+
     const status = Element("input", {
-        id: statusID, type: "radio", checked: radioStates[radioStatesIndex] == "status",
+        id: "compare-status", type: "radio", checked: radioStates[radioStatesIndex] == "status",
         name: formName
     }, [])
     const input = Element("input", {
-        id: inputID, value: compareAgainstURL
+        id: "compare-input", value: compareAgainstURL
     }, [])
     const noComparison = Element("input", {
-        id: defaultID, type: "radio", checked: radioStates[radioStatesIndex] == "noComparison",
+        id: "compare-default", type: "radio", checked: radioStates[radioStatesIndex] == "noComparison",
         name: formName
     }, [])
+
+    function showTolerance() {
+        if (radioStates[radioStatesIndex] == "startAccuracy" ||
+            radioStates[radioStatesIndex] == "resultAccuracy" ||
+            radioStates[radioStatesIndex] == "targetAccuracy") {
+            return [toleranceInputField, ""]
+        } else if (radioStates[radioStatesIndex] == "time") {
+            return [toleranceInputField, "ms"]
+        }
+    }
+
     const form = Element("form", {}, [
         Element("h2", {}, ["Compare"]), input, noComparison, "No comparison", status, "Status", output, "Output", startAccuracy, "Start Accuracy", resultAccuracy, "Result Accuracy", targetAccuracy, "Target Accuracy",
-        time, "Time"
+        time, "Time", showTolerance()
     ])
     status.addEventListener("click", async (e) => {
         radioStatesIndex = 1
