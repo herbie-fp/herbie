@@ -1,4 +1,3 @@
-// Constants
 const tempXY_A = "Output vs Input Accuracy"
 const tempXY_B = "Each point represents a Herbie run below. Its horizontal position shows initial accuracy, and vertical position shows final accuracy. Points above the line are improved by Herbie."
 
@@ -19,6 +18,26 @@ const targetHelpText = `Color key:
     Yellow: no accuracy change
     `
 
+function Element(tagname, props, children) {
+    if (children === undefined) { children = props; props = {}; }
+
+    var $elt = document.createElement(tagname);
+    for (var i in props) if (props.hasOwnProperty(i)) $elt[i] = props[i];
+
+    function addAll(c) {
+        if (!c) return;
+        else if (Array.isArray(c)) c.map(addAll);
+        else if (typeof c == "string") $elt.appendChild(document.createTextNode(c))
+        else if (c instanceof Node) $elt.appendChild(c);
+        else {
+            console.error("Not an element: ", c);
+            throw "Invalid element!"
+        }
+    }
+    addAll(children);
+    return $elt;
+}
+
 // Helper Functions
 function calculatePercent(decimal) {
     return ((100 - (100 * (decimal)))).toFixed(1)
@@ -34,10 +53,6 @@ function formatTime(ms) {
     } else {
         return (ms / 1000).toFixed(1) + "s"
     }
-}
-
-function displayCrashTimeoutRatio(errors, total) {
-    return `${errors}/${total}`
 }
 
 function calculateSpeedup(mergedCostAccuracy) {
@@ -60,270 +75,22 @@ function toTitleCase(str) {
     )
 }
 
-function update(jsonData) {
-
-    const navigation = Element("nav", {}, [
-        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
-    ])
-
-    function hasNote(note) {
-        return (note ? toTitleCase(note) + " " : "") + "Results"
-    }
-
-    var total_start = 0
-    var total_result = 0
-    var maximum_accuracy = 0
-    var total_time = 0
-    var total_crash_timeout = 0
-    jsonData.tests.forEach((test) => {
-        total_start += test.start
-        total_result += test.end
-        maximum_accuracy += test.bits
-        total_time += test.time
-        if (test.status == "timeout" || test.status == "crash") {
-            total_crash_timeout += 1
+// Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
+// However, simplified because we don't need hit box data
+function on(mark, listeners = {}) {
+    const render = mark.render
+    mark.render = function (facet, { x, y }, channels) {
+        const data = this.data
+        const g = render.apply(this, arguments)
+        const r = d3.select(g).selectChildren()
+        for (const [type, callback] of Object.entries(listeners)) {
+            r.on(type, function (event, i) {
+                return callback(event, data[i])
+            })
         }
-    })
-
-    const stats = Element("div", { id: "large" }, [
-        Element("div", {}, [
-            "Average Percentage Accurate: ",
-            Element("span", { classList: "number" }, [
-                formatAccuracy(total_start / maximum_accuracy),
-                Element("span", { classList: "unit" }, [" → ",]),
-                formatAccuracy(total_result / maximum_accuracy),]),
-        ]),
-        Element("div", {}, [
-            "Time:",
-            Element("span", { classList: "number" }, [formatTime(total_time)])
-        ]),
-        Element("div", {}, [
-            "Bad Runs:",
-            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [displayCrashTimeoutRatio(total_crash_timeout, jsonData.tests.length)])
-        ]),
-        Element("div", {}, [
-            "Speedup:",
-            Element("span", {
-                classList: "number",
-                title: "Aggregate speedup of fastest alternative that improves accuracy."
-            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
-        ]),
-    ])
-
-    const header = Element("header", {}, [
-        Element("h1", {}, hasNote(jsonData.note)),
-        Element("img", { src: "logo-car.png" }, []),
-        navigation,
-    ])
-
-    const figureRow = Element("div", { classList: "figure-row" }, [
-        Element("figure", { id: "xy" }, [
-            Element("h2", {}, [tempXY_A]),
-            plotXY(jsonData.tests),
-            Element("figcaption", {}, [tempXY_B])
-        ]),
-        Element("figure", { id: "pareto" }, [
-            Element("h2", {}, [tempPareto_A]),
-            plotPareto(jsonData),
-            Element("figcaption", {}, [tempPareto_B])
-        ])
-    ])
-
-    const tableData = tableBody(jsonData)
-
-    const resultsTable = Element("table", { id: "results" }, [
-        Element("thead", {}, [
-            Element("tr", {}, [
-                Element("th", {}, ["Test"]),
-                Element("th", {}, ["Start"]),
-                Element("th", {}, ["Result",
-                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
-                Element("th", {}, ["Target",
-                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
-                Element("th", {}, ["Time"]),
-            ])
-        ]),
-        tableData["tbody"]
-    ])
-
-    const compareDiv = Element("div", { classList: "report-details" }, [
-        compareForm(jsonData),
-        compareInfo(tableData["diffCount"]),
-    ])
-
-    const newBody = Element("body", {}, [
-        header,
-        stats,
-        figureRow,
-        compareDiv,
-        buildFilters(jsonData.tests),
-        resultsTable,
-    ])
-    htmlNode.replaceChild(newBody, bodyNode)
-    bodyNode = newBody
-}
-
-function storeBenchmarks(tests) {
-    var tempDir = {}
-    for (let test of tests) {
-        const linkComponents = test.link.split("/")
-        if (linkComponents.length > 1) {
-            tempDir[linkComponents[0]] = linkComponents[0]
-        }
+        return g
     }
-    for (let b in tempDir) {
-        benchMarks.push(b)
-    }
-}
-
-var filterDetailsState = false
-
-var compareAgainstURL = ""
-// State for Form radio buttons
-// Why no some Types :(
-var radioStatesIndex = 0
-var radioStates = [
-    "noComparison",
-    "status",
-    "output",
-    "startAccuracy",
-    "resultAccuracy",
-    "targetAccuracy",
-    "time"
-]
-
-var groupState = {
-    "improved": true,
-    "regressed": true
-}
-
-var selectedBenchmarkIndex = -1
-var benchMarks = []
-
-var filterState = {
-    "imp-start": true,
-    "ex-start": true,
-    "eq-start": true,
-    "eq-target": true,
-    "gt-target": true,
-    "gt-start": true,
-    "uni-start": true,
-    "lt-target": true,
-    "lt-start": true,
-    "apx-start": true,
-    "timeout": true,
-    "crash": true,
-    "error": true,
-}
-
-const renames = {
-    "imp-start": "Improved start",
-    "apx-start": "Approximate start",
-    "uni-start": "Regressed from start",
-    "ex-start": "Exact start",
-    "eq-start": "Equal start",
-    "lt-start": "Less than start",
-    "gt-target": "Greater than target",
-    "gt-start": "Greater than start",
-    "eq-target": "Equal to target",
-    "lt-target": "Less than target",
-    "error": "Error",
-    "timeout": "Timeout",
-    "crash": "Crash",
-}
-
-function buildFilters(jsonTestData) {
-    var testTypeCounts = {}
-    for (let test of jsonTestData) {
-        testTypeCounts[test.status] == null ?
-            testTypeCounts[test.status] = 1 :
-            testTypeCounts[test.status] += 1
-    }
-
-    var filterButtons = []
-    for (let f in filterState) {
-        const name = `${renames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
-        const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
-        button.addEventListener("click", () => {
-            filterState[f] = button.querySelector("input").checked
-            update(resultsJsonData)
-        })
-        filterButtons.push(button)
-    }
-
-    function setupGroup(name, childStateNames, parent) {
-        parent.addEventListener("click", (e) => {
-            if (e.target.nodeName == "INPUT") {
-                groupState[name] = e.target.checked
-                for (let i in childStateNames) {
-                    filterState[childStateNames[i]] = e.target.checked
-                }
-                update(resultsJsonData)
-            }
-        })
-    }
-
-    const regressedTags = ["uni-start", "lt-target", "lt-start",
-        "apx-start", "timeout", "crash", "error"]
-    const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
-        "gt-target", "gt-start"]
-
-    const improvedButton = buildCheckboxLabel("improved", "Improved", groupState["improved"])
-    const regressedButton = buildCheckboxLabel("regressed", "Regressed", groupState["regressed"])
-
-    setupGroup("improved", improvedTags, improvedButton)
-    setupGroup("regressed", regressedTags, regressedButton)
-
-    var dropDownElements = []
-    const defaultName = "All Benchmarks"
-    if (selectedBenchmarkIndex == -1) {
-        dropDownElements = [Element("option", { selected: true }, [defaultName])]
-        for (let i in benchMarks) {
-            const name = toTitleCase(benchMarks[i])
-            dropDownElements.push(Element("option", {}, [name]))
-        }
-    } else {
-        dropDownElements = [Element("option", {}, [defaultName])]
-        for (let i in benchMarks) {
-            const name = toTitleCase(benchMarks[i])
-            if (selectedBenchmarkIndex == i) {
-                dropDownElements.push(Element("option", { selected: true }, [name]))
-            } else {
-                dropDownElements.push(Element("option", {}, [name]))
-            }
-        }
-    }
-
-    const dropDown = Element("select", { id: "dropdown" }, dropDownElements)
-
-    dropDown.addEventListener("click", (e) => {
-        for (let i in benchMarks) {
-            if (e.target.label != undefined && benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
-                selectedBenchmarkIndex = i
-                update(resultsJsonData)
-                return
-            }
-        }
-        selectedBenchmarkIndex = -1
-        update(resultsJsonData)
-    })
-
-    const details = Element("details", { id: "filters", open: filterDetailsState, classList: "report-details" }, [
-        Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown]), [
-            filterButtons]])
-    details.addEventListener("click", (e) => {
-        if (e.target.nodeName == "SUMMARY") {
-            filterDetailsState = !filterDetailsState
-        }
-    })
-    return details
-}
-
-function buildCheckboxLabel(classes, text, boolState) {
-    return Element("label", { classList: classes }, [
-        Element("input", { type: "checkbox", checked: boolState }, []),
-        text])
+    return mark
 }
 
 function plotXY(testsData) {
@@ -378,6 +145,153 @@ function plotPareto(jsonData) {
     })
     out.setAttribute('viewBox', '0 0 420 420')
     return out;
+}
+
+function buildBody(jsonData) {
+
+    const navigation = Element("nav", {}, [
+        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
+    ])
+
+    function hasNote(note) {
+        return (note ? toTitleCase(note) + " " : "") + "Results"
+    }
+
+    var total_start = 0
+    var total_result = 0
+    var maximum_accuracy = 0
+    var total_time = 0
+    var total_crash_timeout = 0
+    jsonData.tests.forEach((test) => {
+        total_start += test.start
+        total_result += test.end
+        maximum_accuracy += test.bits
+        total_time += test.time
+        if (test.status == "timeout" || test.status == "crash") {
+            total_crash_timeout += 1
+        }
+    })
+
+    const stats = Element("div", { id: "large" }, [
+        Element("div", {}, [
+            "Average Percentage Accurate: ",
+            Element("span", { classList: "number" }, [
+                formatAccuracy(total_start / maximum_accuracy),
+                Element("span", { classList: "unit" }, [" → ",]),
+                formatAccuracy(total_result / maximum_accuracy),]),
+        ]),
+        Element("div", {}, [
+            "Time:",
+            Element("span", { classList: "number" }, [formatTime(total_time)])
+        ]),
+        Element("div", {}, [
+            "Bad Runs:",
+            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [`${total_crash_timeout}/${jsonData.tests.length}`])
+        ]),
+        Element("div", {}, [
+            "Speedup:",
+            Element("span", {
+                classList: "number",
+                title: "Aggregate speedup of fastest alternative that improves accuracy."
+            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
+        ]),
+    ])
+
+    const header = Element("header", {}, [
+        Element("h1", {}, hasNote(jsonData.note)),
+        Element("img", { src: "logo-car.png" }, []),
+        navigation,
+    ])
+
+    const figureRow = Element("div", { classList: "figure-row" }, [
+        Element("figure", { id: "xy" }, [
+            Element("h2", {}, [tempXY_A]),
+            plotXY(jsonData.tests),
+            Element("figcaption", {}, [tempXY_B])
+        ]),
+        Element("figure", { id: "pareto" }, [
+            Element("h2", {}, [tempPareto_A]),
+            plotPareto(jsonData),
+            Element("figcaption", {}, [tempPareto_B])
+        ])
+    ])
+
+    const tableData = tableBody(jsonData)
+
+    const resultsTable = Element("table", { id: "results" }, [
+        Element("thead", {}, [
+            Element("tr", {}, [
+                Element("th", {}, ["Test"]),
+                Element("th", {}, ["Start"]),
+                Element("th", {}, ["Result",
+                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
+                Element("th", {}, ["Target",
+                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
+                Element("th", {}, ["Time"]),
+            ])
+        ]),
+        tableData["tbody"]
+    ])
+
+    const compareDiv = Element("div", { classList: "report-details" }, [
+        compareForm(jsonData),
+        compareInfo(tableData["diffCount"]),
+    ])
+
+    return [
+        header,
+        stats,
+        figureRow,
+        compareDiv,
+        buildFilters(jsonData.tests),
+        resultsTable,
+    ]
+}
+
+// -------------------------------------------------
+// ----------------- Table Builder -----------------
+// -------------------------------------------------
+
+const renames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-target": "Greater than target",
+    "gt-start": "Greater than start",
+    "eq-target": "Equal to target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
+}
+
+var filterDetailsState = false
+
+var groupState = {
+    "improved": true,
+    "regressed": true
+}
+
+var selectedBenchmarkIndex = -1
+var benchMarks = []
+
+var filterState = {
+    "imp-start": true,
+    "ex-start": true,
+    "eq-start": true,
+    "eq-target": true,
+    "gt-target": true,
+    "gt-start": true,
+    "uni-start": true,
+    "lt-target": true,
+    "lt-start": true,
+    "apx-start": true,
+    "timeout": true,
+    "crash": true,
+    "error": true,
 }
 
 function filterTest(test) {
@@ -441,7 +355,21 @@ function tableRow(test) {
     return tr
 }
 
+// State for Forum radio buttons
+// Why no some Types :(
+var radioStatesIndex = 0
+var radioStates = [
+    "noComparison",
+    "status",
+    "output",
+    "startAccuracy",
+    "resultAccuracy",
+    "targetAccuracy",
+    "time"
+]
+
 function tableRowDiff(test) {
+
     function timeTD(test) {
         var timeDiff = test.time - diffAgainstFields[test.name].time
         var color = "diff-time-red"
@@ -571,18 +499,6 @@ function tableRowDiff(test) {
     return { tr: tr, equal: hideRow }
 }
 
-async function getResultsJson() {
-    if (resultsJsonData == null) {
-        let response = await fetch("results.json", {
-            headers: { "content-type": "text/plain" },
-            method: "GET",
-            mode: "cors",
-        });
-        resultsJsonData = (await response.json());
-        storeBenchmarks(resultsJsonData.tests)
-    }
-}
-
 function compareInfo(diffCount) {
     if (otherJsonData != null) {
         let resultsDate = new Date(resultsJsonData.date * 1000)
@@ -606,6 +522,104 @@ function compareInfo(diffCount) {
     } else {
         return
     }
+}
+
+// -------------------------------------------------
+// ------------ Data Control Elements --------------
+// -------------------------------------------------
+
+function buildCheckboxLabel(classes, text, boolState) {
+    return Element("label", { classList: classes }, [
+        Element("input", { type: "checkbox", checked: boolState }, []),
+        text])
+}
+
+function buildFilters(jsonTestData) {
+    var testTypeCounts = {}
+    for (let test of jsonTestData) {
+        testTypeCounts[test.status] == null ?
+            testTypeCounts[test.status] = 1 :
+            testTypeCounts[test.status] += 1
+    }
+
+    var filterButtons = []
+    for (let f in filterState) {
+        const name = `${renames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
+        const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
+        button.addEventListener("click", () => {
+            filterState[f] = button.querySelector("input").checked
+            update(resultsJsonData)
+        })
+        filterButtons.push(button)
+    }
+
+    function setupGroup(name, childStateNames, parent) {
+        parent.addEventListener("click", (e) => {
+            if (e.target.nodeName == "INPUT") {
+                groupState[name] = e.target.checked
+                for (let i in childStateNames) {
+                    filterState[childStateNames[i]] = e.target.checked
+                }
+                update(resultsJsonData)
+            }
+        })
+    }
+
+    const regressedTags = ["uni-start", "lt-target", "lt-start",
+        "apx-start", "timeout", "crash", "error"]
+    const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
+        "gt-target", "gt-start"]
+
+    const improvedButton = buildCheckboxLabel("improved", "Improved", groupState["improved"])
+    const regressedButton = buildCheckboxLabel("regressed", "Regressed", groupState["regressed"])
+
+    setupGroup("improved", improvedTags, improvedButton)
+    setupGroup("regressed", regressedTags, regressedButton)
+
+    var dropDownElements = []
+    const defaultName = "All Benchmarks"
+    if (selectedBenchmarkIndex == -1) {
+        dropDownElements = [Element("option", { selected: true }, [defaultName])]
+        for (let i in benchMarks) {
+            const name = toTitleCase(benchMarks[i])
+            dropDownElements.push(Element("option", {}, [name]))
+        }
+    } else {
+        dropDownElements = [Element("option", {}, [defaultName])]
+        for (let i in benchMarks) {
+            const name = toTitleCase(benchMarks[i])
+            if (selectedBenchmarkIndex == i) {
+                dropDownElements.push(Element("option", { selected: true }, [name]))
+            } else {
+                dropDownElements.push(Element("option", {}, [name]))
+            }
+        }
+    }
+
+    const dropDown = Element("select", { id: "dropdown" }, dropDownElements)
+
+    dropDown.addEventListener("click", (e) => {
+        for (let i in benchMarks) {
+            if (e.target.label != undefined && benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
+                selectedBenchmarkIndex = i
+                update(resultsJsonData)
+                return
+            }
+        }
+        selectedBenchmarkIndex = -1
+        update(resultsJsonData)
+    })
+
+    const details = Element("details", { id: "filters", open: filterDetailsState, classList: "report-details" }, [
+        Element("summary", {}, [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown]), [
+            filterButtons]])
+    details.addEventListener("click", (e) => {
+        if (e.target.nodeName == "SUMMARY") {
+            filterDetailsState = !filterDetailsState
+        }
+    })
+    return details
 }
 
 function compareForm(jsonData) {
@@ -691,6 +705,16 @@ function compareForm(jsonData) {
     return form
 }
 
+// -------------------------------------------------
+// ------ Setup and Data fetching helpers ----------
+// -------------------------------------------------
+
+function update(jsonData) {
+    const newBody = Element("body", {}, buildBody(jsonData))
+    htmlNode.replaceChild(newBody, bodyNode)
+    bodyNode = newBody
+}
+
 async function updateFromForm(jsonData, formNode) {
     await fetchAndUpdate(jsonData,
         formNode.childNodes[1].value,
@@ -727,48 +751,35 @@ async function fetchAndUpdate(jsonData, url, start, compare) {
     }
 }
 
-// Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
-// However, simplified because we don't need hit box data
-function on(mark, listeners = {}) {
-    const render = mark.render
-    mark.render = function (facet, { x, y }, channels) {
-        const data = this.data
-        const g = render.apply(this, arguments)
-        const r = d3.select(g).selectChildren()
-        for (const [type, callback] of Object.entries(listeners)) {
-            r.on(type, function (event, i) {
-                return callback(event, data[i])
-            })
-        }
-        return g
+async function getResultsJson() {
+    if (resultsJsonData == null) {
+        let response = await fetch("results.json", {
+            headers: { "content-type": "text/plain" },
+            method: "GET",
+            mode: "cors",
+        });
+        resultsJsonData = (await response.json());
+        storeBenchmarks(resultsJsonData.tests)
     }
-    return mark
 }
 
-function Element(tagname, props, children) {
-    if (children === undefined) { children = props; props = {}; }
-
-    var $elt = document.createElement(tagname);
-    for (var i in props) if (props.hasOwnProperty(i)) $elt[i] = props[i];
-
-    function addAll(c) {
-        if (!c) return;
-        else if (Array.isArray(c)) c.map(addAll);
-        else if (typeof c == "string") $elt.appendChild(document.createTextNode(c))
-        else if (c instanceof Node) $elt.appendChild(c);
-        else {
-            console.error("Not an element: ", c);
-            throw "Invalid element!"
+function storeBenchmarks(tests) {
+    var tempDir = {}
+    for (let test of tests) {
+        const linkComponents = test.link.split("/")
+        if (linkComponents.length > 1) {
+            tempDir[linkComponents[0]] = linkComponents[0]
         }
     }
-    addAll(children);
-    return $elt;
+    for (let b in tempDir) {
+        benchMarks.push(b)
+    }
 }
-
 
 const htmlNode = document.querySelector("html")
 var bodyNode = htmlNode.querySelector("body")
 
+var compareAgainstURL = ""
 var diffAgainstFields = {}
 var otherJsonData = null
 var resultsJsonData = null
