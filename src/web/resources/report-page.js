@@ -499,31 +499,6 @@ function tableRowDiff(test) {
     return { tr: tr, equal: hideRow }
 }
 
-function compareInfo(diffCount) {
-    if (otherJsonData != null) {
-        let resultsDate = new Date(resultsJsonData.date * 1000)
-        const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
-        let otherDate = new Date(otherJsonData.date * 1000)
-        const otherDayString = `${otherDate.getFullYear()}/${otherDate.getMonth() + 1}/${otherDate.getDay()}`
-        return [
-            Element("details", {}, [
-                Element("summary", {}, [
-                    Element("h2", {}, ["More Info"]),
-                    `Displaying ${diffCount}/${resultsJsonData.tests.length} tests that are not equal, Test marked pink have different output, Test with blue text have different status.`
-                ]),
-                Element("div", {}, [
-                    Element("h3", {}, ["Current report:"]),
-                    `${resultsJsonData.branch}: seed(${resultsJsonData.seed}) ${resultDayString}`]),
-                Element("div", {}, [
-                    Element("h3", {}, ["Compared to:"]),
-                    `${otherJsonData.branch}: seed(${otherJsonData.seed}) ${otherDayString}`]),
-            ])
-        ]
-    } else {
-        return
-    }
-}
-
 // -------------------------------------------------
 // ------------ Data Control Elements --------------
 // -------------------------------------------------
@@ -620,6 +595,31 @@ function buildFilters(jsonTestData) {
         }
     })
     return details
+}
+
+function compareInfo(diffCount) {
+    if (otherJsonData != null) {
+        let resultsDate = new Date(resultsJsonData.date * 1000)
+        const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
+        let otherDate = new Date(otherJsonData.date * 1000)
+        const otherDayString = `${otherDate.getFullYear()}/${otherDate.getMonth() + 1}/${otherDate.getDay()}`
+        return [
+            Element("details", {}, [
+                Element("summary", {}, [
+                    Element("h2", {}, ["More Info"]),
+                    `Displaying ${diffCount}/${resultsJsonData.tests.length} tests that are not equal, Test marked pink have different output, Test with blue text have different status.`
+                ]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Current report:"]),
+                    `${resultsJsonData.branch}: seed(${resultsJsonData.seed}) ${resultDayString}`]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Compared to:"]),
+                    `${otherJsonData.branch}: seed(${otherJsonData.seed}) ${otherDayString}`]),
+            ])
+        ]
+    } else {
+        return
+    }
 }
 
 function compareForm(jsonData) {
