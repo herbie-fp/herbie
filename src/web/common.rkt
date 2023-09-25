@@ -128,7 +128,12 @@
      (define comma-joined (string-join (map ~a variables) ", "))
      (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]
     [(list 'abs x)
-     (format "~a = |~a|\\\\" x x)]))
+     (format "~a = |~a|\\\\" x x)]
+    [(list 'negabs x)
+     (format
+      (string-append
+       "sign-~a = copysign(1, ~a)\\\\"
+       "~a = |~a|\\\\"))]))
 
 (define (preprocess->default preprocess)
   (match preprocess
@@ -163,14 +168,37 @@
       (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
+(define (even x e)
+  (define x* (string->symbol (string-append (symbol->string x) "*")))
+  (define e* (replace-vars (list (cons x x*)) e))
+  `(let ([,x* (abs ,x)])
+     ,e))
+
+(define (odd x e)
+  (define x-string (symbol->string x))
+  (define x-sign (string->symbol (string-append x-string "-sign")))
+  (define x* (string->symbol (string-append x-string "*")))
+  (define e* (replace-vars (list (cons x x*)) e))
+  `(let ([,x-sign `(copysign 1 ,x)]
+         [,x* `(abs ,x)])
+     (* ,x-sign ,e*)))
+
+(define (add-preprocessing p e)
+  (match p
+    [(list 'abs x) (even x e)]
+    [(list 'negabs x) (odd x e)]))
+
 (define (add-preprocessing-tex preprocess-lines output)
   (format "\\begin{array}{l}\n~a\\\\\n~a\\end{array}\n"
           preprocess-lines output))
 
-(define (render-program preprocesses expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
+(define (render-program preprocessing expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
   (define output-repr (context-repr ctx))
+  ;; TODO: Unfinished
+  ;; Gotta remove even handling in preprocessing->* functions, sort only, test
   (define out-prog
     (parameterize ([*expr-cse-able?* at-least-two-ops?])
+      (define expr* (foldl add-preprocessing expr preprocessing))
       (core-cse (program->fpcore expr ctx #:ident identifier))))
 
   (define output-prec (representation-name output-repr))
@@ -184,11 +212,11 @@
                    (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
           (define name (if identifier (symbol->string identifier) "code"))
           (define out (converter out-prog* name))
-          (define preprocess-lines
-            (string-join (map preprocess preprocesses) "\n" #:after-last "\n"))
+          (define preprocessing-lines
+            (string-join (map preprocess preprocessing) "\n" #:after-last "\n"))
           (define add-preprocessing
             (if (equal? lang "TeX") add-preprocessing-tex string-append))
-          (sow (cons lang (add-preprocessing preprocess-lines out)))))))
+          (sow (cons lang (add-preprocessing preprocessing-lines out)))))))
 
   (define math-out
     (if (dict-has-key? versions "TeX")
