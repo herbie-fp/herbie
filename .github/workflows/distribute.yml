@@ -37,6 +37,7 @@ jobs:
             toolchain: stable
             default: true
             override: true
+            profile: minimal
             components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
