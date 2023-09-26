@@ -1,4 +1,4 @@
-name: Distribution tests
+name: Distribute
 
 on: [push]
 
@@ -14,11 +14,17 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@master
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.9
         with:
-            version: 8.7
+            version: "8.10"
+      - name: Cache Racket dependencies
+        uses: actions/cache@v2
+        with:
+          key: ${{ runner.os }}-racket
+          path: |
+            ~/.cache/racket
+            ~/.local/share/racket
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1.0.6
         with:

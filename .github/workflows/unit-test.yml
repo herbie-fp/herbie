@@ -15,7 +15,7 @@ jobs:
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.9
         with:
-          version: 8.7
+          version: "8.10"
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1.0.6
         with:
@@ -26,4 +26,24 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
+
+      # Run the Herbie unit tests
       - run: raco test src/ infra/ egg-herbie/
+
+      # Test the egg-herbie Rust code
+      - run: cd egg-herbie && cargo clippy --tests
+        continue-on-error: true
+      - run: cd egg-herbie && cargo test
+      - run: cd egg-herbie && cargo fmt -- --check
+      - run: cd egg-herbie && raco test ./
+
+      # Test the API
+      - name: "Start server"
+        run: racket src/herbie.rkt web --port 8000 &
+      - name: "Wait for server startup"
+        run: while ! nc -z localhost 8000; do sleep 0.1; done
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: "Test the endpoint"
+        run: node infra/testApi.mjs
