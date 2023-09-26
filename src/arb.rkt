@@ -81,11 +81,14 @@
     arb-not-error
     arb-inf
     arb->arf
-    _arf-equal
-    _arf-is-finite
+    arf-equal
+    arf-is-finite
+    arf-is-nan
     _arf-ptr
     _arb-err
-    _arb-err?)
+    _arb-err?
+    arb-set-round
+    arf-get-d)
 
 (define arb_t-size 48)
 (define arf_t-size 128)
@@ -116,6 +119,7 @@
 (define _mpfr_t _pointer)
 (define _arb_t _pointer)
 (define _arf_t _pointer)
+(define _arf_rnd_t _pointer)
 
 (define _arb_init (get-ffi-obj 'arb_init libarb (_fun _arb_t -> _void)))
 (define _arb_clear (get-ffi-obj 'arb_clear libarb (_fun _arb_t -> _void)))
@@ -135,6 +139,7 @@
 (define _arb-zero-pm-inf (get-ffi-obj 'arb_zero_pm_inf libarb ( _fun _arb_t -> _void)))
 (define _arb-set (get-ffi-obj 'arb_set libarb ( _fun _arb_t _arb_t -> _void)))
 (define _arb-get-interval-arf (get-ffi-obj 'arb_get_interval_arf libarb ( _fun _arf_t _arf_t _arb_t _slong -> _void)))
+(define _arb-set-round (get-ffi-obj 'arb_set_round libarb ( _fun _arb_t _arb_t _slong -> _void)))
 
 (define _arf_init (get-ffi-obj 'arb_init libarb (_fun _arf_t -> _void)))
 (define _arf_clear (get-ffi-obj 'arb_clear libarb (_fun _arf_t -> _void)))
@@ -142,6 +147,8 @@
 (define _arf-get-str (get-ffi-obj 'arf_get_str libarb (_fun _arf_t _slong -> _string)))
 (define _arf-equal (get-ffi-obj 'arf_equal libarb ( _fun _arf_t _arf_t -> _int)))
 (define _arf-is-finite (get-ffi-obj 'arf_is_finite libarb ( _fun _arf_t -> _int)))
+(define _arf-is-nan (get-ffi-obj 'arf_is_nan libarb ( _fun _arf_t -> _int)))
+(define _arf-get-d (get-ffi-obj 'arf_get_d libarb ( _fun _arf_t _int -> _double)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
@@ -152,7 +159,7 @@
 
 (define _arf-alloc
   ((allocator (λ (v) (_arf_clear (_arf-ptr v))))
-   (λ ([prec (bf-precision)])
+   (λ ()
      (define mem (malloc arf_t-size 'atomic))
      (_arf_init mem)
      (_arf mem (bf-precision)))))
@@ -220,6 +227,18 @@
                   v)
                 'name))))])))
 
+
+;; 4 = RND_NEAREST (got from https://github.com/fredrik-johansson/arb/blob/master/fmpr.h)
+(define (arf-get-d x)
+  (_arf-get-d (_arf-ptr x) 4))
+  
+
+(define (arb-set-round x prec)
+  (parameterize ([bf-precision prec])
+    (define v (_arb-alloc (_arb-err? x) (_arb-err x)))
+    (_arb-set-round (_arb-ptr v) (_arb-ptr x) prec)
+    v))
+  
 (define (arb-copy-with-flags ar err? err)
   (define v (_arb-alloc (or err? (_arb-err? ar)) (or err (_arb-err ar))))
   (_arb-set (_arb-ptr v) (_arb-ptr ar))
@@ -230,7 +249,7 @@
   (if (ival? ar) ar
     (parameterize ([bf-precision (_arb-prec ar)])
       (let ([a (bf 3)] [b (bf 3)])
-        (_arb-get-interval-mpfr (bfcopy a) (bfcopy b) (_arb-ptr ar))
+        (_arb-get-interval-mpfr a b (_arb-ptr ar))
         (ival-then
           (ival-assert (ival (not (or (_arb-err? ar) (bfnan? a) (bfnan? b))) (not (_arb-err ar))) #t)
           (ival (if (bfnan? a) (bf "-inf") (bfcopy a)) (if (bfnan? b) (bf "+inf") (bfcopy b))))))))
@@ -250,19 +269,28 @@
 ;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
   (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) #f))
-  (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
+  (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
   ar)
 
-(define (arb->arf ar target-prec)
-  (parameterize ([bf-precision target-prec])
-    (define a (_arf-alloc (bf-precision)))
-    (define b (_arf-alloc (bf-precision)))
-    (_arb-get-interval-arf (_arf-ptr a) (_arf-ptr b) (_arb-ptr ar) (bf-precision))
-    (list a b)))
+(define (arb->arf ar)
+  (define a (_arf-alloc))
+  (define b (_arf-alloc))
+  (_arb-get-interval-arf (_arf-ptr a) (_arf-ptr b) (_arb-ptr ar) (_arb-prec ar))
+  
+  (list a b))
 
   
 (define (arb-fix? x)
   (if (zero? (_arb-is-exact (_arb-ptr x))) #f #t))
+
+(define (arf-equal x y)
+  (if (zero? (_arf-equal (_arf-ptr x) (_arf-ptr y))) #f #t))
+ 
+(define (arf-is-finite x)
+  (if (zero? (_arf-is-finite (_arf-ptr x))) #f #t))
+
+(define (arf-is-nan x)
+  (if (zero? (_arf-is-nan (_arf-ptr x))) #f #t))
 
 ;; Veeery slow (not a surprise)
 (define (arb-lo x)

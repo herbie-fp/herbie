@@ -5,21 +5,17 @@
 
 (provide sample-points batch-prepare-points make-search-func eval-progs-real)
 
+
 (define (is-samplable-interval repr interval)
-  ;(define target-prec 53) ;; double
-  ;(parameterize ([bf-precision target-prec])
-  ;  (match-define (list lo hi) (arb->arf interval target-prec))
-  ;  (define flag (or (if (zero? (_arf-equal (_arf-ptr lo) (_arf-ptr hi))) #f #t)
-                     (and (if (zero? (_arf-is-finite (_arf-ptr lo))) #f #t)
-                          (if (zero? (_arf-equal (_arf-ptr lo) (_arf-ptr hi))) #f #t))))
-  ;  (ival-then
-  ;   (ival-assert (ival (not (_arb-err? interval)) (not (_arb-err interval))) #t)
-  ;   (ival flag flag))))
-  (define <-bf (representation-bf->repr repr))
-  (define (close-enough? lo hi)
-    (let ([lo* (<-bf lo)] [hi* (<-bf hi)])
-      (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
-  ((close-enough->ival close-enough?) (arb->ival interval)))
+  (define (close-enough_? lo hi)
+    (and (number? lo) (= lo hi)))
+
+  (define fix-flag (arb-fix? interval))
+  (match-define (list lo hi) (map arf-get-d (arb->arf interval)))
+  (define flag (close-enough_? lo hi))
+  (ival-then
+   (ival-assert (ival (not (_arb-err? interval)) (not (_arb-err interval))) #t)
+   (ival flag (or (not fix-flag) flag))))
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -34,9 +30,6 @@
     (match-define (list arb-pre arb-bodies ...) out)
     (for/list ([y arb-bodies][ctx ctxs])
       (define repr (context-repr ctx))
-      ;(println y)
-      ;(println (is-samplable-interval repr y))
-      ;(println "")
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
        ; can error if the input is erroneous
