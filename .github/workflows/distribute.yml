@@ -25,6 +25,7 @@ jobs:
           path: |
             ~/.cache/racket
             ~/.local/share/racket
+            ~/Library/Racket/
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1.0.6
         with:
