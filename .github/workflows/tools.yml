@@ -1,6 +1,6 @@
 name: Tool
 
-on: #[push]
+on: [push]
 
 env:
   RUST_BACKTRACE: full
