@@ -9,7 +9,7 @@
 (provide arb 
     (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb_clear arb-clear] [_arb-sqrt arb-sqrt] 
                 [_arb-log arb-log] [_arb-tan arb-tan] [_arb-log1p arb-log1p] [arb-const-pi arb-pi]
-                [arb-const-e arb-e]) 
+                [arb-const-e arb-e] [pow arb-pow]) 
     arb-neg 
     arb-abs 
     arb-add 
@@ -56,7 +56,6 @@
     arb-fmin
     arb-fmod
     arb-hypot
-    arb-pow
     arb-remainder
     arb-==
     arb-!=
@@ -80,6 +79,8 @@
     _arb-get-interval-mpfr
     arb-not-error
     arb-inf
+    arb-pos-inf
+    arb-neg-inf
     arb->arf
     arf-equal
     arf-is-finite
@@ -130,17 +131,23 @@
 (define _arb-is-exact (get-ffi-obj 'arb_is_exact libarb (_fun _arb_t -> _int)))
 (define _arb-contains-negative (get-ffi-obj 'arb_contains_negative libarb ( _fun _arb_t -> _int)))
 (define _arb-is-negative (get-ffi-obj 'arb_is_negative libarb ( _fun _arb_t -> _int)))
+(define _arb-is-positive (get-ffi-obj 'arb_is_positive libarb ( _fun _arb_t -> _int)))
 (define _arb-is-nonpositive (get-ffi-obj 'arb_is_nonpositive libarb ( _fun _arb_t -> _int)))
+(define _arb-is-nonnegative (get-ffi-obj 'arb_is_nonnegative libarb ( _fun _arb_t -> _int)))
 (define _arb-contains-nonpositive (get-ffi-obj 'arb_contains_nonpositive libarb ( _fun _arb_t -> _int)))
+(define _arb-contains-positive (get-ffi-obj 'arb_contains_positive libarb ( _fun _arb_t -> _int)))
 (define _arb-contains-zero (get-ffi-obj 'arb_contains_zero libarb ( _fun _arb_t -> _int)))
 (define _arb-is-zero (get-ffi-obj 'arb_is_zero libarb ( _fun _arb_t -> _int)))
 (define _arb-is-int (get-ffi-obj 'arb_is_int libarb ( _fun _arb_t -> _int)))
 (define _arb-contains-int (get-ffi-obj 'arb_contains_int libarb ( _fun _arb_t -> _int)))
 (define _arb-zero-pm-inf (get-ffi-obj 'arb_zero_pm_inf libarb ( _fun _arb_t -> _void)))
+(define _arb-neg-inf (get-ffi-obj 'arb_neg_inf libarb ( _fun _arb_t -> _void)))
+(define _arb-pos-inf (get-ffi-obj 'arb_pos_inf libarb ( _fun _arb_t -> _void)))
 (define _arb-set (get-ffi-obj 'arb_set libarb ( _fun _arb_t _arb_t -> _void)))
 (define _arb-get-interval-arf (get-ffi-obj 'arb_get_interval_arf libarb ( _fun _arf_t _arf_t _arb_t _slong -> _void)))
 (define _arb-set-round (get-ffi-obj 'arb_set_round libarb ( _fun _arb_t _arb_t _slong -> _void)))
 (define _arb-set-si (get-ffi-obj 'arb_set_si libarb ( _fun _arb_t _slong -> _void)))
+
 
 (define _arf_init (get-ffi-obj 'arb_init libarb (_fun _arf_t -> _void)))
 (define _arf_clear (get-ffi-obj 'arb_clear libarb (_fun _arf_t -> _void)))
@@ -171,6 +178,16 @@
   (_arb-set-str (_arb-ptr v) s (_arb-prec v))
   v)
 
+(define (arb-pos-inf)
+  (define v (_arb-alloc #f #f))
+  (_arb-pos-inf (_arb-ptr v))
+  v)
+
+(define (arb-neg-inf)
+  (define v (_arb-alloc #f #f))
+  (_arb-neg-inf (_arb-ptr v))
+  v)
+
 (define (arb-inf)
   (define v (_arb-alloc #f #f))
   (_arb-zero-pm-inf (_arb-ptr v))
@@ -185,14 +202,17 @@
    [(and (rational? x) (exact? x))
     (arb-div (string->arb (~a (numerator x))) (string->arb (~a (denominator x))))]
    [(bigfloat? x)
-    (if (bfinfinite? x) (arb-inf)
-    (mpfr->arb x x))]
+    (if (bfinfinite? x)
+        (if (bfpositive? x)
+            (arb-pos-inf)
+            (arb-neg-inf))
+        (mpfr->arb x x))]
    [(boolean? x)
     (ival x)]
    [(nan? x)
     (string->arb "nan")]
    [(infinite? x)
-    (arb-inf)]
+    (if (positive? x) (arb-pos-inf) (arb-neg-inf))]
    [else
     (error 'arb "Unknown value ~a" x)]))
 
@@ -228,6 +248,38 @@
                   v)
                 'name))))])))
 
+;(define-syntax define-arb-cmp-function)
+
+(define (arb-is-int x)
+  (if (zero? (_arb-is-int (_arb-ptr x))) #f #t))
+
+(define (arb-is-positive x)
+  (if (zero? (_arb-is-positive (_arb-ptr x))) #f #t))
+
+(define (arb-is-nonnegative x)
+  (if (zero? (_arb-is-nonnegative (_arb-ptr x))) #f #t))
+
+(define (arb-contains-int x)
+  (if (zero? (_arb-contains-int (_arb-ptr x))) #f #t))
+
+(define (arb-contains-zero x)
+  (if (zero? (_arb-contains-int (_arb-ptr x))) #f #t))
+
+(define (arb-contains-nonpositive x)
+  (if (zero? (_arb-contains-nonpositive (_arb-ptr x))) #f #t))
+
+(define (arb-contains-positive x)
+  (if (zero? (_arb-contains-positive (_arb-ptr x))) #f #t))
+
+(define (arb-contains-negative x)
+  (if (zero? (_arb-contains-negative (_arb-ptr x))) #f #t))
+
+(define (arb-is-negative x)
+  (if (zero? (_arb-is-negative (_arb-ptr x))) #f #t))
+
+(define (arb-is-zero x)
+  (if (zero? (_arb-is-zero (_arb-ptr x))) #f #t))
+
 (define (arb-set-si x)
   (define v (_arb-alloc #f #f))
   (_arb-set-si (_arb-ptr v) x)
@@ -249,7 +301,6 @@
   (_arb-set (_arb-ptr v) (_arb-ptr ar))
   v)
 
-;; Error flags are not transfered! Rival should be updated
 (define (arb->ival ar)
   (if (ival? ar) ar
     (parameterize ([bf-precision (_arb-prec ar)])
@@ -259,7 +310,8 @@
           (ival-assert (ival (not (or (_arb-err? ar) (bfnan? a) (bfnan? b))) (not (_arb-err ar))) #t)
           (ival (if (bfnan? a) (bf "-inf") (bfcopy a)) (if (bfnan? b) (bf "+inf") (bfcopy b))))))))
 
-;; Not that simple here, ival can be booleans!!
+
+;; Not that simple here, ival can be booleans
 (define (ival->arb iv)
   (if (_arb? iv) iv
     (parameterize ([bf-precision 
@@ -320,7 +372,7 @@
   (arb-div x y err? err))
   
 (define (_arb-sqrt x)
-  (define err? (or (_arb-err? x) 
+  (define err? (or (_arb-err? x)
                    (if (eq? (_arb-contains-negative (_arb-ptr x)) 1) #t #f)
                ))
   (define err (or (_arb-err x)
@@ -342,21 +394,24 @@
     (arb-tan x)
     (arb "nan")))
 
-;;(define-arb-function (arb-pow x y))
-;;(define (pow x y)
-;;    cond
-;;     [(x is negative)
-;;           err? := (#false == (y is int?)) and (y contains int?)    // if y contains integers, but y is not integer
-;;           err  := (#false == (y contains int))]                    // if y does not contain any integers
-;;     [(x contains nonpositive)
-;;           err? := (y contains int?)) and (#false == (y is int?))
-;;           err  := #false]
-;;     [(x is positive)
-;;           err? :=
-;;           err  := ]
+(define-arb-function (arb-pow x y))
+(define (pow x y)
+    (cond
+      [(arb-is-negative x)
+       (arb-pow x y
+                (and (arb-contains-int y) (not (arb-is-int y))) ; if y contains integers, but y is not integer
+                (not (arb-contains-int y)))]                    ; if y does not contain any integers
+      [(and (arb-contains-negative x) (arb-contains-positive x))
+       (arb-pow x y
+                (and (arb-contains-int y) (not (arb-is-int y))) ; if y contains integers, but y is not integer
+                #f)]
+      [(arb-is-nonnegative x)
+       (arb-pow x y
+                (and (arb-contains-zero x) (arb-contains-negative y))
+                (and (arb-is-zero x) (arb-is-negative y)))]))
      
-(define (arb-pow x y)
-  (ival->arb (ival-pow (arb->ival x) (arb->ival y))))
+;(define (arb-pow x y)
+;  (ival->arb (ival-pow (arb->ival x) (arb->ival y))))
 
 (define-arb-function (arb-atan2 x y))
 (define-arb-function (arb-hypot x y))
@@ -516,3 +571,8 @@
   
 (define (arb-bool b)
   (arb b))
+
+;(define (arb-then-imitate a . as)
+;  (ival (ival-lo (last (cons a as))) (ival-hi (last (cons a as)))
+;        (or (ival-err? a) (ormap ival-err? as))
+;        (or (ival-err a) (ormap ival-err as))))
