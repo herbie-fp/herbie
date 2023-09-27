@@ -91,7 +91,7 @@
     arf-get-d)
 
 (define arb_t-size 48)
-(define arf_t-size 128)
+(define arf_t-size 64) ;; 128bits?
 
 (define-runtime-path libarb-so
   (case (system-type)
@@ -140,6 +140,7 @@
 (define _arb-set (get-ffi-obj 'arb_set libarb ( _fun _arb_t _arb_t -> _void)))
 (define _arb-get-interval-arf (get-ffi-obj 'arb_get_interval_arf libarb ( _fun _arf_t _arf_t _arb_t _slong -> _void)))
 (define _arb-set-round (get-ffi-obj 'arb_set_round libarb ( _fun _arb_t _arb_t _slong -> _void)))
+(define _arb-set-si (get-ffi-obj 'arb_set_si libarb ( _fun _arb_t _slong -> _void)))
 
 (define _arf_init (get-ffi-obj 'arb_init libarb (_fun _arf_t -> _void)))
 (define _arf_clear (get-ffi-obj 'arb_clear libarb (_fun _arf_t -> _void)))
@@ -178,7 +179,11 @@
 (define (arb x)
   (cond
    [(string? x) (string->arb x)]
-   [(integer? x) (string->arb (~a x))]
+   [(nan? x)
+    (string->arb "nan")]
+   [(infinite? x)
+    (arb-inf)]
+   [(integer? x) (arb-set-si x)]
    [(and (rational? x) (not (exact? x)))
     (string->arb (~a x))]
    [(and (rational? x) (exact? x))
@@ -188,10 +193,8 @@
     (mpfr->arb x x))]
    [(boolean? x)
     (ival x)]
-   [(nan? x)
-    (string->arb "nan")]
-   [(infinite? x)
-    (arb-inf)]
+   
+   
    [else
     (error 'arb "Unknown value ~a" x)]))
 
@@ -227,6 +230,10 @@
                   v)
                 'name))))])))
 
+(define (arb-set-si x)
+  (define v (_arb-alloc #f #f))
+  (_arb-set-si (_arb-ptr v) x)
+  v)
 
 ;; 4 = RND_NEAREST (got from https://github.com/fredrik-johansson/arb/blob/master/fmpr.h)
 (define (arf-get-d x)
@@ -276,7 +283,6 @@
   (define a (_arf-alloc))
   (define b (_arf-alloc))
   (_arb-get-interval-arf (_arf-ptr a) (_arf-ptr b) (_arb-ptr ar) (_arb-prec ar))
-  
   (list a b))
 
   
