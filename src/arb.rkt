@@ -179,10 +179,6 @@
 (define (arb x)
   (cond
    [(string? x) (string->arb x)]
-   [(nan? x)
-    (string->arb "nan")]
-   [(infinite? x)
-    (arb-inf)]
    [(integer? x) (arb-set-si x)]
    [(and (rational? x) (not (exact? x)))
     (string->arb (~a x))]
@@ -193,8 +189,10 @@
     (mpfr->arb x x))]
    [(boolean? x)
     (ival x)]
-   
-   
+   [(nan? x)
+    (string->arb "nan")]
+   [(infinite? x)
+    (arb-inf)]
    [else
     (error 'arb "Unknown value ~a" x)]))
 
