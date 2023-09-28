@@ -313,7 +313,7 @@
         (_arb-get-interval-mpfr a b (_arb-ptr ar))
         (ival-then
           (ival-assert (ival (not (or (_arb-err? ar) (bfnan? a) (bfnan? b))) (not (_arb-err ar))) #t)
-          (ival (if (bfnan? a) (bf "-inf") (bfcopy a)) (if (bfnan? b) (bf "+inf") (bfcopy b))))))))
+          (ival (if (bfnan? a) (bf "-inf") a) (if (bfnan? b) (bf "+inf") b)))))))
 
 
 ;; Not that simple here, ival can be booleans
@@ -324,7 +324,7 @@
                        (bigfloat-precision (ival-lo iv)) 
                        (bigfloat-precision (ival-hi iv)))])
       (let ([ar (_arb-alloc (ival-err? iv) (ival-err iv))] [a (ival-lo iv)] [b (ival-hi iv)])
-        (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
+        (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
         ar))))
 
 
@@ -332,8 +332,8 @@
 (define (mpfr->arb a b)
   (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) #f))
   (if (bf< a b)
-      (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
-      (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy b) (bfcopy a) (bf-precision)))
+      (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
+      (_arb-set-interval-mpfr (_arb-ptr ar) b a (bf-precision)))
   ar)
 
 (define (arb->arf ar)
