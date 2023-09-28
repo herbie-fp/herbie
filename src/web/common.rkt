@@ -77,90 +77,16 @@
 (define (render-comparison #:title [title #f] name a b )
   (render-large #:title title name a `(span ([class "unit"]) " → ") b))
 
-(define (format-less-than-condition variables)
-  (string-join
-   (for/list ([a (in-list variables)]
-              [b (in-list (cdr variables))])
-     (format "~a < ~a" a b))
-   " && "))
-
-(define (preprocess->c preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (format "assert(~a);" (format-less-than-condition variables))]
-    [(list 'abs x)
-     (format "~a = abs(~a);" x x)]))
-
-(define (preprocess->java preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (format "assert ~a;" (format-less-than-condition variables))]
-    [(list 'abs x)
-     (format "~a = Math.abs(~a);" x x)]))
-
-(define (preprocess->python preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (define comma-joined (string-join (map ~a variables) ", "))
-     (format "[~a] = sort([~a])" comma-joined comma-joined)]
-    [(list 'abs x)
-     (format "~a = abs(~a)" x x)]))
-
-(define (preprocess->julia preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-      (define comma-joined (string-join (map ~a variables) ", "))
-      (format "~a = sort([~a])" comma-joined comma-joined)]
-    [(list 'abs x)
-     (format "~a = abs(~a)" x x)]))
-
-(define (preprocess->matlab preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (define comma-joined (string-join (map ~a variables) ", "))
-     (format "~a = num2cell(sort([~a])){:}" comma-joined comma-joined)]
-    [(list 'abs x)
-     (format "~a = abs(~a)" x x)]))
-
-(define (preprocess->tex preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (define comma-joined (string-join (map ~a variables) ", "))
-     (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]
-    [(list 'abs x)
-     (format "~a = |~a|\\\\" x x)]
-    [(list 'negabs x)
-     (format
-      (string-append
-       "sign-~a = copysign(1, ~a)\\\\"
-       "~a = |~a|\\\\"))]))
-
-(define (preprocess->default preprocess)
-  (match preprocess
-    [(list 'sort a b)
-     (format sort-note (format "~a and ~a" a b))]
-    [(list 'sort variables ...)
-     (format
-      sort-note
-      (string-join (map ~a variables) ", " #:before-last ", and "))]
-    [(list 'abs x)
-     (format abs-note x)]))
-
-(define sort-note
-  "NOTE: ~a should be sorted in increasing order before calling this function.")
-
-(define abs-note "NOTE: ~a should be positive before calling this function")
-
 (define languages
-  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)) ,preprocess->default)
-    ("C" "c" ,core->c ,preprocess->c)
-    ("Fortran" "f03" ,core->fortran ,preprocess->default)
-    ("Java" "java" ,core->java ,preprocess->java)
-    ("Python" "py" ,core->python ,preprocess->python)
-    ("Julia" "jl" ,core->julia ,preprocess->julia)
-    ("MATLAB" "mat" ,core->matlab ,preprocess->matlab)
-    ("Wolfram" "wl" ,core->wls ,preprocess->default)
-    ("TeX" "tex" ,(λ (c i) (core->tex c)) ,preprocess->tex)))
+  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)))
+    ("C" "c" ,core->c)
+    ("Fortran" "f03" ,core->fortran)
+    ("Java" "java" ,core->java)
+    ("Python" "py" ,core->python)
+    ("Julia" "jl" ,core->julia)
+    ("MATLAB" "mat" ,core->matlab)
+    ("Wolfram" "wl" ,core->wls)
+    ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
 (define (program->tex prog ctx #:loc [loc #f])
   (define prog* (program->fpcore prog ctx))
@@ -168,38 +94,78 @@
       (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-(define (even x e)
+(define (fpcore-instruction? i)
+  (match (first i)
+    [(or 'abs 'negabs) #t]
+    ['sort #f]))
+
+(define (combine-fpcore-instruction i e)
+  (match i
+    [(list 'abs x) (combine-abs x e)]
+    [(list 'negabs x) (combine-negabs x e)]))
+
+(define (combine-abs x e)
   (define x* (string->symbol (string-append (symbol->string x) "*")))
   (define e* (replace-vars (list (cons x x*)) e))
-  `(let ([,x* (abs ,x)])
+  `(let* ([,x* (abs ,x)])
      ,e))
 
-(define (odd x e)
+(define (combine-negabs x e)
   (define x-string (symbol->string x))
   (define x-sign (string->symbol (string-append x-string "-sign")))
   (define x* (string->symbol (string-append x-string "*")))
   (define e* (replace-vars (list (cons x x*)) e))
-  `(let ([,x-sign `(copysign 1 ,x)]
-         [,x* `(abs ,x)])
+  `(let* ([,x-sign `(copysign 1 ,x)]
+          [,x* `(abs ,x)])
      (* ,x-sign ,e*)))
 
-(define (add-preprocessing p e)
-  (match p
-    [(list 'abs x) (even x e)]
-    [(list 'negabs x) (odd x e)]))
+(define (format-prelude-instruction l i)
+  (match (cons i l)
+    [(cons (list 'sort vs ...) "C")
+     (format "assert(~a);" (format-less-than-condition vs))]
+    [(cons (list 'sort vs ...) "Java")
+     (format "assert ~a;" (format-less-than-condition vs))]
+    [(cons (list 'sort vs ...) "Python")
+     (define comma-joined (comma-join vs))
+     (format "[~a] = sort([~a])" comma-joined comma-joined)]
+    [(cons (list 'sort vs ...) "Julia")
+      (define comma-joined (comma-join vs))
+      (format "~a = sort([~a])" comma-joined comma-joined)]
+    [(cons (list 'sort vs ...) "MATLAB")
+     (define comma-joined (comma-join vs))
+     (format "~a = num2cell(sort([~a])){:}" comma-joined comma-joined)]
+    [(cons (list 'sort vs ...) "TeX")
+     (define comma-joined (comma-join vs))
+     (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]
+    [(cons (list 'sort x y) _) (format sort-note (format "~a and ~a" x y))]
+    [(cons (list 'sort vs ...) _)
+     (format
+      sort-note
+      (string-join (map ~a vs) ", "
+                   ;; "Lil Jon, he always tells the truth"
+                   #:before-last ", and "))]
+    [_ #f]))
 
-(define (add-preprocessing-tex preprocess-lines output)
-  (format "\\begin{array}{l}\n~a\\\\\n~a\\end{array}\n"
-          preprocess-lines output))
+(define (format-less-than-condition variables)
+  (string-join
+   (for/list ([a (in-list variables)]
+              [b (in-list (cdr variables))])
+     (format "~a < ~a" a b))
+   " && "))
 
-(define (render-program preprocessing expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
+(define (comma-join vs)
+  (string-join (map ~a vs) ", "))
+
+(define sort-note
+  "NOTE: ~a should be sorted in increasing order before calling this function.")
+
+(define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)] #:instructions [instructions empty])
   (define output-repr (context-repr ctx))
-  ;; TODO: Unfinished
-  ;; Gotta remove even handling in preprocessing->* functions, sort only, test
+  (define-values (fpcore-instructions prelude-instructions) (partition fpcore-instruction? instructions))
   (define out-prog
     (parameterize ([*expr-cse-able?* at-least-two-ops?])
-      (define expr* (foldl add-preprocessing expr preprocessing))
-      (core-cse (program->fpcore expr ctx #:ident identifier))))
+      (define expr* (foldl combine-fpcore-instruction expr fpcore-instructions))
+      (core-cse (program->fpcore expr* ctx #:ident identifier))))
 
   (define output-prec (representation-name output-repr))
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
@@ -207,16 +173,21 @@
   (define versions
     (reap [sow]
       (for ([(lang record) (in-dict languages)])
-        (match-define (list ext converter preprocess) record)
+        (match-define (list ext converter) record)
         (when (and (fpcore? out-prog*)
                    (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
           (define name (if identifier (symbol->string identifier) "code"))
           (define out (converter out-prog* name))
-          (define preprocessing-lines
-            (string-join (map preprocess preprocessing) "\n" #:after-last "\n"))
-          (define add-preprocessing
-            (if (equal? lang "TeX") add-preprocessing-tex string-append))
-          (sow (cons lang (add-preprocessing preprocessing-lines out)))))))
+          (define prelude-lines
+            (string-join
+             (filter-map (curry format-prelude-instruction lang) prelude-instructions)
+             "\n" #:after-last "\n"))
+          (sow
+           (cons lang
+                 ((if (equal? lang "TeX")
+                      (curry format "\\begin{array}{l}\n~a\\\\\n~a\\end{array}\n")
+                      string-append)
+                  prelude-lines out)))))))
 
   (define math-out
     (if (dict-has-key? versions "TeX")
