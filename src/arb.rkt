@@ -92,7 +92,7 @@
     arf-get-d)
 
 (define arb_t-size 48)
-(define arf_t-size 64) ;; 128bits?
+(define arf_t-size 128)
 
 (define-runtime-path libarb-so
   (case (system-type)
@@ -120,7 +120,7 @@
 (define _mpfr_t _pointer)
 (define _arb_t _pointer)
 (define _arf_t _pointer)
-(define _arf_rnd_t _pointer)
+(define _arf_rnd_t _int)
 
 (define _arb_init (get-ffi-obj 'arb_init libarb (_fun _arb_t -> _void)))
 (define _arb_clear (get-ffi-obj 'arb_clear libarb (_fun _arb_t -> _void)))
@@ -128,6 +128,7 @@
 (define _arb-get-str (get-ffi-obj 'arb_get_str libarb (_fun _arb_t _slong _ulong -> _string)))
 (define _arb-set-interval-mpfr (get-ffi-obj 'arb_set_interval_mpfr libarb (_fun _arb_t _mpfr_t _mpfr_t _slong -> _void)))
 (define _arb-get-interval-mpfr (get-ffi-obj 'arb_get_interval_mpfr libarb (_fun _mpfr_t _mpfr_t _arb_t -> _void)))
+
 (define _arb-is-exact (get-ffi-obj 'arb_is_exact libarb (_fun _arb_t -> _int)))
 (define _arb-contains-negative (get-ffi-obj 'arb_contains_negative libarb ( _fun _arb_t -> _int)))
 (define _arb-is-negative (get-ffi-obj 'arb_is_negative libarb ( _fun _arb_t -> _int)))
@@ -140,6 +141,7 @@
 (define _arb-is-zero (get-ffi-obj 'arb_is_zero libarb ( _fun _arb_t -> _int)))
 (define _arb-is-int (get-ffi-obj 'arb_is_int libarb ( _fun _arb_t -> _int)))
 (define _arb-contains-int (get-ffi-obj 'arb_contains_int libarb ( _fun _arb_t -> _int)))
+
 (define _arb-zero-pm-inf (get-ffi-obj 'arb_zero_pm_inf libarb ( _fun _arb_t -> _void)))
 (define _arb-neg-inf (get-ffi-obj 'arb_neg_inf libarb ( _fun _arb_t -> _void)))
 (define _arb-pos-inf (get-ffi-obj 'arb_pos_inf libarb ( _fun _arb_t -> _void)))
@@ -156,7 +158,7 @@
 (define _arf-equal (get-ffi-obj 'arf_equal libarb ( _fun _arf_t _arf_t -> _int)))
 (define _arf-is-finite (get-ffi-obj 'arf_is_finite libarb ( _fun _arf_t -> _int)))
 (define _arf-is-nan (get-ffi-obj 'arf_is_nan libarb ( _fun _arf_t -> _int)))
-(define _arf-get-d (get-ffi-obj 'arf_get_d libarb ( _fun _arf_t _int -> _double)))
+(define _arf-get-d (get-ffi-obj 'arf_get_d libarb ( _fun _arf_t _arf_rnd_t -> _double)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
@@ -178,24 +180,9 @@
   (_arb-set-str (_arb-ptr v) s (_arb-prec v))
   v)
 
-(define (arb-pos-inf)
-  (define v (_arb-alloc #f #f))
-  (_arb-pos-inf (_arb-ptr v))
-  v)
-
-(define (arb-neg-inf)
-  (define v (_arb-alloc #f #f))
-  (_arb-neg-inf (_arb-ptr v))
-  v)
-
-(define (arb-inf)
-  (define v (_arb-alloc #f #f))
-  (_arb-zero-pm-inf (_arb-ptr v))
-  v)
-
 (define (arb x)
   (cond
-   [(string? x) (string->arb x)]
+   [(string? x) (arb (string->bigfloat x))]
    [(integer? x) (arb-set-si x)]
    [(and (rational? x) (not (exact? x)))
     (string->arb (~a x))]
@@ -212,9 +199,27 @@
    [(nan? x)
     (string->arb "nan")]
    [(infinite? x)
-    (if (positive? x) (arb-pos-inf) (arb-neg-inf))]
+    (if (positive? x)
+        (arb-pos-inf)
+        (arb-neg-inf))]
    [else
     (error 'arb "Unknown value ~a" x)]))
+
+(define (arb-pos-inf)
+  (define v (_arb-alloc #f #f))
+  (_arb-pos-inf (_arb-ptr v))
+  v)
+
+(define (arb-neg-inf)
+  (define v (_arb-alloc #f #f))
+  (_arb-neg-inf (_arb-ptr v))
+  v)
+
+(define (arb-inf)
+  (define v (_arb-alloc #f #f))
+  (_arb-zero-pm-inf (_arb-ptr v))
+  v)
+
 
 (define-syntax define-arb-function
   (λ (stx)
