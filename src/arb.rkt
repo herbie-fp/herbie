@@ -331,7 +331,9 @@
 ;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
   (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) #f))
-  (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
+  (if (bf< a b)
+      (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy a) (bfcopy b) (bf-precision))
+      (_arb-set-interval-mpfr (_arb-ptr ar) (bfcopy b) (bfcopy a) (bf-precision)))
   ar)
 
 (define (arb->arf ar)
