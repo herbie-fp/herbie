@@ -367,7 +367,7 @@ var radioStates = [
     "targetAccuracy",
     "time"
 ]
-var filterTolerance = 1000
+var filterTolerance = 0
 
 function tableRowDiff(test) {
 
@@ -403,8 +403,7 @@ function tableRowDiff(test) {
             color = "diff-time-green"
             tdText = `+ ${(diff).toFixed(1)}%`
         }
-        // TODO figure out diffing tolerance
-        else if (diff <= filterTolerance || diff >= -filterTolerance) {
+        else if (Math.abs(diff) <= filterTolerance) {
             titleText = `Original: ${op} vs ${tp}`
             color = "diff-time-gray"
             areEqual = true
@@ -641,7 +640,6 @@ function compareForm(jsonData) {
     }, [])
     startAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 3
-        filterTolerance = 0
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -651,7 +649,6 @@ function compareForm(jsonData) {
     }, [])
     resultAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 4
-        filterTolerance = 0
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -661,7 +658,6 @@ function compareForm(jsonData) {
     }, [])
     targetAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 5
-        filterTolerance = 0
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -671,7 +667,6 @@ function compareForm(jsonData) {
     }, [])
     time.addEventListener("click", async (e) => {
         radioStatesIndex = 6
-        filterTolerance = 1000
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -680,7 +675,6 @@ function compareForm(jsonData) {
     }, [])
     toleranceInputField.addEventListener("keyup", async (e) => {
         e.preventDefault();
-        // if Enter key is pressed
         if (e.keyCode === 13) {
             filterTolerance = e.target.value
             await updateFromForm(jsonData, e.target.parentNode)
@@ -703,10 +697,11 @@ function compareForm(jsonData) {
         if (radioStates[radioStatesIndex] == "startAccuracy" ||
             radioStates[radioStatesIndex] == "resultAccuracy" ||
             radioStates[radioStatesIndex] == "targetAccuracy") {
-            return [toleranceInputField, ""]
-        } else if (radioStates[radioStatesIndex] == "time") {
-            return [toleranceInputField, "ms"]
-        }
+            return [toleranceInputField, "unit?"]
+        } else
+            if (radioStates[radioStatesIndex] == "time") {
+                return [toleranceInputField, "ms"]
+            }
     }
 
     const form = Element("form", {}, [
