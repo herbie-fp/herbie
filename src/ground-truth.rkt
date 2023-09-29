@@ -7,12 +7,13 @@
 
 
 (define (is-samplable-interval repr interval)
-  (define (close-enough_? lo hi)
-    (and (number? lo) (= lo hi)))
+  ;(define (close-enough_? lo hi)
+  ;  (and (number? lo) (= lo hi)))
 
   (define fix-flag (arb-fix? interval))
-  (match-define (list lo hi) (map arf-get-d (arb->arf interval)))
-  (define flag (close-enough_? lo hi))
+  ;(match-define (list lo hi) (map arf-get-d (arb->arf interval)))
+  ;(define flag (close-enough_? lo hi))
+  (define flag (and (arb-is-finite interval) (arb-can-round-arf interval 53)))
   (ival-then
    (ival-assert (ival (not (_arb-err? interval)) (not (_arb-err interval))) #t)
    (ival flag (or (not fix-flag) flag))))

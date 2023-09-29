@@ -89,7 +89,11 @@
     _arb-err
     _arb-err?
     arb-set-round
-    arf-get-d)
+    arf-get-d
+    arb-get-rad-d
+    arb-is-zero
+    arb-can-round-arf
+    arb-is-finite)
 
 (define arb_t-size 48)
 (define arf_t-size 128)
@@ -128,6 +132,8 @@
 (define _arb-get-str (get-ffi-obj 'arb_get_str libarb (_fun _arb_t _slong _ulong -> _string)))
 (define _arb-set-interval-mpfr (get-ffi-obj 'arb_set_interval_mpfr libarb (_fun _arb_t _mpfr_t _mpfr_t _slong -> _void)))
 (define _arb-get-interval-mpfr (get-ffi-obj 'arb_get_interval_mpfr libarb (_fun _mpfr_t _mpfr_t _arb_t -> _void)))
+(define _arb-get-rad-arb (get-ffi-obj 'arb_get_rad_arb libarb ( _fun _arb_t _arb_t -> _void )))
+(define _arb-can-round-arf (get-ffi-obj 'arb_can_round_arf libarb ( _fun _arb_t _slong _arf_rnd_t -> _int )))
 
 (define _arb-is-exact (get-ffi-obj 'arb_is_exact libarb (_fun _arb_t -> _int)))
 (define _arb-contains-negative (get-ffi-obj 'arb_contains_negative libarb ( _fun _arb_t -> _int)))
@@ -141,6 +147,7 @@
 (define _arb-is-zero (get-ffi-obj 'arb_is_zero libarb ( _fun _arb_t -> _int)))
 (define _arb-is-int (get-ffi-obj 'arb_is_int libarb ( _fun _arb_t -> _int)))
 (define _arb-contains-int (get-ffi-obj 'arb_contains_int libarb ( _fun _arb_t -> _int)))
+(define _arb-is-finite (get-ffi-obj 'arb_is_finite libarb ( _fun _arb_t -> _int)))
 
 (define _arb-zero-pm-inf (get-ffi-obj 'arb_zero_pm_inf libarb ( _fun _arb_t -> _void)))
 (define _arb-neg-inf (get-ffi-obj 'arb_neg_inf libarb ( _fun _arb_t -> _void)))
@@ -220,6 +227,18 @@
   (_arb-zero-pm-inf (_arb-ptr v))
   v)
 
+(define (arb-get-rad-d x)
+  (define double-prec 53)
+  (define v (_arb-alloc #f #f))
+  (_arb-get-rad-arb (_arb-ptr v) (_arb-ptr x))
+
+  (parameterize ([bf-precision 53])
+    (define v* (_arb-alloc #f #f))
+    (_arb-set-round (_arb-ptr v*) (_arb-ptr v) double-prec)
+    v*))
+
+(define (arb-can-round-arf x prec)
+  (if (zero? (_arb-can-round-arf (_arb-ptr x) prec 4)) #f #t))
 
 (define-syntax define-arb-function
   (λ (stx)
@@ -257,6 +276,9 @@
 
 (define (arb-is-int x)
   (if (zero? (_arb-is-int (_arb-ptr x))) #f #t))
+
+(define (arb-is-finite x)
+  (if (zero? (_arb-is-finite (_arb-ptr x))) #f #t))
 
 (define (arb-is-positive x)
   (if (zero? (_arb-is-positive (_arb-ptr x))) #f #t))
@@ -313,7 +335,7 @@
         (_arb-get-interval-mpfr a b (_arb-ptr ar))
         (ival-then
           (ival-assert (ival (not (or (_arb-err? ar) (bfnan? a) (bfnan? b))) (not (_arb-err ar))) #t)
-          (ival (if (bfnan? a) (bf "-inf") a) (if (bfnan? b) (bf "+inf") b)))))))
+          (ival (if (bfnan? a) -inf.bf a) (if (bfnan? b) +inf.bf b)))))))
 
 
 ;; Not that simple here, ival can be booleans
