@@ -248,23 +248,26 @@ pub unsafe extern "C" fn egraph_get_proof(
     goal: *const c_char,
 ) -> *const c_char {
     // Safety: `ptr` was box allocated by `egraph_create`
-    let context = Box::from_raw(ptr);
+    let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     // Send `EGraph` since neither `Context` nor `Runner` are `Send`. `Runner::explain_equivalence` just forwards to `EGraph::explain_equivalence` so this is fine.
+    let egraph = &mut context.runner.egraph;
     let expr_rec = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
     let goal_rec = CStr::from_ptr(goal).to_str().unwrap().parse().unwrap();
-    let mut egraph = context.runner.egraph;
+    let thread = thread::Builder::new().stack_size(PROOF_BANDAID_STACK_SIZE);
 
     // *Java programmers hate him! Prevent stack overflows with this one weird trick!*
-    let string = thread::Builder::new()
-        .stack_size(PROOF_BANDAID_STACK_SIZE)
-        .spawn(move || {
-            let proof = egraph.explain_equivalence(&expr_rec, &goal_rec);
-
-            proof.get_string_with_let().replace('\n', "")
-        })
-        .unwrap()
-        .join()
-        .unwrap();
+    let string = thread::scope(|scope| {
+        thread
+            .spawn_scoped(scope, move || {
+                egraph
+                    .explain_equivalence(&expr_rec, &goal_rec)
+                    .get_string_with_let()
+                    .replace('\n', "")
+            })
+            .unwrap()
+            .join()
+            .unwrap()
+    });
     let c_string = ManuallyDrop::new(CString::new(string).unwrap());
 
     c_string.as_ptr()
