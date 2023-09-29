@@ -21,16 +21,24 @@ jobs:
       - name: Cache Racket dependencies
         uses: actions/cache@v2
         with:
-          key: ${{ runner.os }}-racket
+          key: ${{ runner.os }}-deps
           path: |
             ~/.cache/racket
             ~/.local/share/racket
+            ~/Library/Racket/
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            egg-herbie/target/            
+            ${{ env.APPDATA }}/Racket
       - name: Install Rust compiler
         uses: actions-rs/toolchain@v1.0.6
         with:
             toolchain: stable
             default: true
             override: true
+            profile: minimal
             components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
