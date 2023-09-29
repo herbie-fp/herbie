@@ -261,7 +261,9 @@
     (if profile?
         (profile-thunk
          (λ () (compute-result test))
-         #:order 'total
+         #:threads #t
+         #:delay 0.01
+         #:use-errortrace? #t
          #:render (λ (p order) (write-json (profile->json p) profile?)))
         (compute-result test)))
 
