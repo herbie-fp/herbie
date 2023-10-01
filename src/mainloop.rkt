@@ -180,7 +180,7 @@
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
-      (match-define (alt _ event prevs '()) altn)
+      (match-define (alt _ event prevs _) altn)
       (cond
        [(equal? event '(patch)) orig]
        [else
@@ -328,12 +328,13 @@
     (find-preprocessing initial specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (match-define (and alternatives (cons (alt best _ _) _))
+  (match-define (and alternatives (cons (alt best _ _ _) _))
     (mutate! simplified context pcontext* (*num-iterations*)))
   (timeline-event! 'preprocess)
-  (define preprocessing*
-    (remove-unnecessary-preprocessing best context pcontext preprocessing))
-  (values alternatives preprocessing*))
+  (define final-alts
+    (for/list ([altern simplified])
+      (make-alt-preprocessing (alt-expr altern) (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
+  (values final-alts preprocessing)) 
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)

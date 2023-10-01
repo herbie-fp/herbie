@@ -40,19 +40,6 @@
            specification*
            (app (curryr split-at (length even-identities)) evens* swaps*))))
     (simplify-batch query))
-  (define alternative (make-alt initial))
-  (define simplified
-    (cons
-     ;; We excluded the first element of `initials` above so that we can add it
-     ;; here manually, but without a self-referential history.
-     alternative
-     (remove-duplicates
-      (for/list ([expression (in-list initials)])
-        (alt
-         expression
-         (list 'simplify null query #f #f)
-         (list alternative)))
-      alt-equal?)))
   (define components
     (connected-components
      (context-vars context)
@@ -68,13 +55,28 @@
   (define sort-instructions
     (for/list ([component (in-list components)]
                #:when (> (length component) 1))
-      (cons 'sort component)))
+      (cons 'sort component)))      
+  (define preprocessing (append abs-instructions sort-instructions))
+  (define alternative (make-alt-preprocessing initial preprocessing))
+   ;; Absolute value should happen before sorting
+  (define simplified
+    (cons
+     ;; We excluded the first element of `initials` above so that we can add it
+     ;; here manually, but without a self-referential history.
+     alternative
+     (remove-duplicates
+      (for/list ([expression (in-list initials)])
+        (alt
+         expression
+         (list 'simplify null query #f #f)
+         (list alternative)
+         preprocessing))
+      alt-equal?)))
   (values
    (if (flag-set? 'setup 'simplify)
        simplified
-       (list (make-alt initial)))
-   ;; Absolute value should happen before sorting
-   (append abs-instructions sort-instructions)))
+       (list (make-alt-preprocessing initial preprocessing)))
+   preprocessing))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))
@@ -118,8 +120,8 @@
      (curryr list-update index abs)]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-; (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
-; (remove-unnecessary-preprocessing (alt-expr curr) context pcontext)
+; (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing)) -> optimal preprocessing
+; (remove-unnecessary-preprocessing (alt-expr curr) context pcontext (alt-expr preprocessing)) -> new alt with modified
 (define (remove-unnecessary-preprocessing expression context pcontext preprocessing #:removed [removed empty])
   (define-values (result newly-removed)
     (let loop ([preprocessing preprocessing] [i 0] [removed removed])
