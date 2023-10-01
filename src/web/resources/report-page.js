@@ -398,16 +398,15 @@ function tableRowDiff(test) {
         var areEqual = false
         var titleText = ""
         var tdText = `- ${(diff).toFixed(1)}%`
-        if (diff < 0) {
-            diff = Math.abs(diff)
-            color = "diff-time-green"
-            tdText = `+ ${(diff).toFixed(1)}%`
-        }
-        else if (Math.abs(diff) <= filterTolerance) {
+        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
             titleText = `Original: ${op} vs ${tp}`
             color = "diff-time-gray"
             areEqual = true
             tdText = "~"
+        } else if (diff < 0) {
+            diff = Math.abs(diff)
+            color = "diff-time-green"
+            tdText = `+ ${(diff).toFixed(1)}%`
         }
         return { td: Element("td", { classList: color, title: titleText }, [tdText]), equal: areEqual }
     }
