@@ -621,6 +621,8 @@ function compareInfo(diffCount) {
     }
 }
 
+const ENTER_KEY = 13
+
 function compareForm(jsonData) {
     const formName = "compare-form"
 
@@ -668,18 +670,6 @@ function compareForm(jsonData) {
         radioStatesIndex = 6
         await updateFromForm(jsonData, e.target.parentNode)
     })
-
-    const toleranceInputField = Element("input", {
-        id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;"
-    }, [])
-    toleranceInputField.addEventListener("keyup", async (e) => {
-        e.preventDefault();
-        if (e.keyCode === 13) {
-            filterTolerance = e.target.value
-            await updateFromForm(jsonData, e.target.parentNode)
-        }
-    })
-
     const status = Element("input", {
         id: "compare-status", type: "radio", checked: radioStates[radioStatesIndex] == "status",
         name: formName
@@ -687,24 +677,61 @@ function compareForm(jsonData) {
     const input = Element("input", {
         id: "compare-input", value: compareAgainstURL
     }, [])
+    input.addEventListener("keyup", async (e) => {
+        e.preventDefault();
+        compareAgainstURL = form.childNodes[1].value
+        const forum = e.target.parentNode
+        const inputLength = form.childNodes[1].value.length
+        if (inputLength > 0 && e.keyCode === ENTER_KEY) {
+            radioStatesIndex = 4
+            await updateFromForm(jsonData, forum)
+        } else if (inputLength < 1 && e.keyCode === ENTER_KEY) {
+            radioStatesIndex = 0
+            compareAgainstURL = ""
+            input.value = ""
+            await updateFromForm(jsonData, forum)
+        }
+    })
     const noComparison = Element("input", {
         id: "compare-default", type: "radio", checked: radioStates[radioStatesIndex] == "noComparison",
         name: formName
     }, [])
 
-    function showTolerance() {
-        if (radioStates[radioStatesIndex] == "startAccuracy" ||
-            radioStates[radioStatesIndex] == "resultAccuracy" ||
-            radioStates[radioStatesIndex] == "targetAccuracy") {
-            return [" ±", toleranceInputField, "%"]
-        } else if (radioStates[radioStatesIndex] == "time") {
-            return [" ±", toleranceInputField, "s"]
+    function showTolerance(show) {
+        const toleranceInputField = Element("input", {
+            id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
+        }, [])
+        const hidingText = Element("text",{},[" Hiding: ±"])
+        var unitText
+        if (radioStates[radioStatesIndex] == "time") {
+            unitText = Element("text",{},["s"])
+        } else {
+            unitText = Element("text",{},["%"])
         }
+        toleranceInputField.addEventListener("keyup", async (e) => {
+            e.preventDefault();
+            if (e.keyCode === 13) {
+                filterTolerance = e.target.value
+                await updateFromForm(jsonData, e.target.parentNode)
+            }
+        })
+        toleranceInputField.style.display = show ? "inline" : "none"
+        hidingText.style.display = show ? "inline" : "none"
+        unitText.style.display = show ? "inline" : "none"
+        return [hidingText, toleranceInputField, unitText]
+    }
+
+    var showToleranceBool = false
+    if (radioStates[radioStatesIndex] == "time" ||
+        radioStates[radioStatesIndex] == "targetAccuracy" ||
+        radioStates[radioStatesIndex] == "resultAccuracy" ||
+        radioStates[radioStatesIndex] == "startAccuracy") {
+        showToleranceBool = true
     }
 
     const form = Element("form", {}, [
         Element("h2", {}, ["Compare"]), input, noComparison, "No comparison", status, "Status", output, "Output", startAccuracy, "Start Accuracy", resultAccuracy, "Result Accuracy", targetAccuracy, "Target Accuracy",
-        time, "Time", showTolerance()
+        time, "Time", showTolerance(showToleranceBool)
     ])
     status.addEventListener("click", async (e) => {
         radioStatesIndex = 1
@@ -716,9 +743,9 @@ function compareForm(jsonData) {
         input.value = ""
         await updateFromForm(jsonData, e.target.parentNode)
     })
+    // disable enter key so we can handle the event elsewhere
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
-        await updateFromForm(jsonData, e.target.parentNode.childNodes[0])
     })
     return form
 }
@@ -741,11 +768,7 @@ async function updateFromForm(jsonData, formNode) {
 }
 
 async function fetchAndUpdate(jsonData, url, start, compare) {
-    let lastChar = url.slice(url.length - 1, url.length)
     // Could also split string on / and check if the last component = "results.json"
-    if (lastChar == "/") {
-        url = url + "results.json"
-    }
     // TODO url verifying if needed
     compareAgainstURL = url
     if (start || url == "") {
@@ -754,6 +777,10 @@ async function fetchAndUpdate(jsonData, url, start, compare) {
         update(jsonData)
     } else {
         if (otherJsonData == null) {
+            let lastChar = url.slice(url.length - 1, url.length)
+            if (lastChar == "/") {
+                url = url + "results.json"
+            }
             let response = await fetch(url, {
                 headers: { "content-type": "text/plain" },
                 method: "GET",
