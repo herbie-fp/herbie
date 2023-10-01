@@ -377,7 +377,7 @@ function tableRowDiff(test) {
         var text
         var titleText = ""
         // Dirty equal less then 1 second
-        if (Math.abs(timeDiff) < filterTolerance) {
+        if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
             color = "diff-time-gray"
             text = "~"
             titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
@@ -671,7 +671,7 @@ function compareForm(jsonData) {
     })
 
     const toleranceInputField = Element("input", {
-        id: `toleranceID`, value: filterTolerance
+        id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;"
     }, [])
     toleranceInputField.addEventListener("keyup", async (e) => {
         e.preventDefault();
@@ -697,11 +697,10 @@ function compareForm(jsonData) {
         if (radioStates[radioStatesIndex] == "startAccuracy" ||
             radioStates[radioStatesIndex] == "resultAccuracy" ||
             radioStates[radioStatesIndex] == "targetAccuracy") {
-            return [toleranceInputField, "unit?"]
-        } else
-            if (radioStates[radioStatesIndex] == "time") {
-                return [toleranceInputField, "ms"]
-            }
+            return [" ±", toleranceInputField, "%"]
+        } else if (radioStates[radioStatesIndex] == "time") {
+            return [" ±", toleranceInputField, "s"]
+        }
     }
 
     const form = Element("form", {}, [
