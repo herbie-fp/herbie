@@ -27,6 +27,9 @@ else
   FLAGS="$@"
 fi
 
+# Delete compiled files to enable errortrace
+find "$INFRA_DIR/.." -name "*.zo" -delete
+
 # run
 RECURSE=1 LOG=1 \
   bash "$INFRA_DIR"/run.sh \
