@@ -10,7 +10,7 @@
     (rename-out [_arb? arb?] [_arb-prec arb-prec] [_arb-div arb-div] [_arb_clear arb-clear] [_arb-sqrt arb-sqrt] 
                 [_arb-log arb-log] [_arb-tan arb-tan] [_arb-log1p arb-log1p] [arb-const-pi arb-pi]
                 [arb-const-e arb-e] [pow arb-pow]) 
-    arb-neg 
+    arb-neg
     arb-abs 
     arb-add 
     arb-sub 
@@ -21,6 +21,8 @@
     arb->ival
     ival->arb
     arb-if
+    arb-ge
+    arb-gt
     arb-acos
     arb-acosh
     arb-asin
@@ -93,7 +95,8 @@
     arb-get-rad-d
     arb-is-zero
     arb-can-round-arf
-    arb-is-finite)
+    arb-is-finite
+    arb-overlaps)
 
 (define arb_t-size 48)
 (define arf_t-size 128)
@@ -149,14 +152,21 @@
 (define _arb-contains-int (get-ffi-obj 'arb_contains_int libarb ( _fun _arb_t -> _int)))
 (define _arb-is-finite (get-ffi-obj 'arb_is_finite libarb ( _fun _arb_t -> _int)))
 
+(define _arb-eq (get-ffi-obj 'arb_eq libarb ( _fun _arb_t _arb_t -> _int )))
+(define _arb-ne (get-ffi-obj 'arb_ne libarb ( _fun _arb_t _arb_t -> _int )))
+(define _arb-lt (get-ffi-obj 'arb_lt libarb ( _fun _arb_t _arb_t -> _int )))
+(define _arb-le (get-ffi-obj 'arb_le libarb ( _fun _arb_t _arb_t -> _int )))
+(define _arb-gt (get-ffi-obj 'arb_gt libarb ( _fun _arb_t _arb_t -> _int )))
+(define _arb-ge (get-ffi-obj 'arb_ge libarb ( _fun _arb_t _arb_t -> _int )))
+(define _arb-overlaps (get-ffi-obj 'arb_overlaps libarb ( _fun _arb_t _arb_t -> _int )))
+
 (define _arb-zero-pm-inf (get-ffi-obj 'arb_zero_pm_inf libarb ( _fun _arb_t -> _void)))
 (define _arb-neg-inf (get-ffi-obj 'arb_neg_inf libarb ( _fun _arb_t -> _void)))
 (define _arb-pos-inf (get-ffi-obj 'arb_pos_inf libarb ( _fun _arb_t -> _void)))
 (define _arb-set (get-ffi-obj 'arb_set libarb ( _fun _arb_t _arb_t -> _void)))
 (define _arb-get-interval-arf (get-ffi-obj 'arb_get_interval_arf libarb ( _fun _arf_t _arf_t _arb_t _slong -> _void)))
 (define _arb-set-round (get-ffi-obj 'arb_set_round libarb ( _fun _arb_t _arb_t _slong -> _void)))
-(define _arb-set-si (get-ffi-obj 'arb_set_si libarb ( _fun _arb_t _slong -> _void)))
-
+(define _arb-set-ui (get-ffi-obj 'arb_set_ui libarb ( _fun _arb_t _slong -> _void)))
 
 (define _arf_init (get-ffi-obj 'arb_init libarb (_fun _arf_t -> _void)))
 (define _arf_clear (get-ffi-obj 'arb_clear libarb (_fun _arf_t -> _void)))
@@ -190,7 +200,8 @@
 (define (arb x)
   (cond
    [(string? x) (arb (string->bigfloat x))]
-   [(integer? x) (arb-set-si x)]
+   [(real? x) (arb (bf (~v x)))]
+   [(integer? x) (arb-set-ui x)]
    [(and (rational? x) (not (exact? x)))
     (string->arb (~a x))]
    [(and (rational? x) (exact? x))
@@ -273,6 +284,20 @@
                 'name))))])))
 
 ;(define-syntax define-arb-cmp-function)
+(define (arb-overlaps x y)
+  (if (zero? (_arb-overlaps (_arb-ptr x) (_arb-ptr y))) #f #t))
+(define (arb-eq x y)
+  (if (zero? (_arb-eq (_arb-ptr x) (_arb-ptr y))) #f #t))
+(define (arb-ne x y)
+  (if (zero? (_arb-ne (_arb-ptr x) (_arb-ptr y))) #f #t))
+(define (arb-lt x y)
+  (if (zero? (_arb-lt (_arb-ptr x) (_arb-ptr y))) #f #t))
+(define (arb-le x y)
+  (if (zero? (_arb-le (_arb-ptr x) (_arb-ptr y))) #f #t))
+(define (arb-gt x y)
+  (if (zero? (_arb-gt (_arb-ptr x) (_arb-ptr y))) #f #t))
+(define (arb-ge x y)
+  (if (zero? (_arb-ge (_arb-ptr x) (_arb-ptr y))) #f #t))
 
 (define (arb-is-int x)
   (if (zero? (_arb-is-int (_arb-ptr x))) #f #t))
@@ -295,6 +320,9 @@
 (define (arb-contains-nonpositive x)
   (if (zero? (_arb-contains-nonpositive (_arb-ptr x))) #f #t))
 
+(define (arb-is-nonpositive x)
+  (if (zero? (_arb-is-nonpositive (_arb-ptr x))) #f #t))
+
 (define (arb-contains-positive x)
   (if (zero? (_arb-contains-positive (_arb-ptr x))) #f #t))
 
@@ -307,9 +335,9 @@
 (define (arb-is-zero x)
   (if (zero? (_arb-is-zero (_arb-ptr x))) #f #t))
 
-(define (arb-set-si x)
+(define (arb-set-ui x)
   (define v (_arb-alloc #f #f))
-  (_arb-set-si (_arb-ptr v) x)
+  (_arb-set-ui (_arb-ptr v) x)
   v)
 
 ;; 4 = RND_NEAREST (got from https://github.com/fredrik-johansson/arb/blob/master/fmpr.h)
@@ -349,8 +377,6 @@
         (_arb-set-interval-mpfr (_arb-ptr ar) a b (bf-precision))
         ar))))
 
-
-;; This function is to be corrected from the precision point
 (define (mpfr->arb a b)
   (define ar (_arb-alloc (or (bfnan? a) (bfnan? b)) #f))
   (if (bf< a b)
@@ -363,7 +389,6 @@
   (define b (_arf-alloc))
   (_arb-get-interval-arf (_arf-ptr a) (_arf-ptr b) (_arb-ptr ar) (_arb-prec ar))
   (list a b))
-
   
 (define (arb-fix? x)
   (if (zero? (_arb-is-exact (_arb-ptr x))) #f #t))
@@ -394,28 +419,23 @@
 
 (define (_arb-div x y)
   (define err? (or (_arb-err? x) (_arb-err? y)
-                (if
-                 (zero? (_arb-contains-zero (_arb-ptr y))) #f #t)))
+                (arb-contains-zero y)))
   (define err (or (_arb-err x) (_arb-err y)
-                  (if (zero? (_arb-is-zero (_arb-ptr y))) #f #t)))
+                  (arb-is-zero y)))
   (arb-div x y err? err))
   
 (define (_arb-sqrt x)
   (define err? (or (_arb-err? x)
-                   (if (eq? (_arb-contains-negative (_arb-ptr x)) 1) #t #f)
-               ))
+                   (arb-contains-negative x)))
   (define err (or (_arb-err x)
-                  (if (eq? (_arb-is-negative (_arb-ptr x)) 1) #t #f)
-              ))
+                  (arb-is-negative x)))
   (arb-sqrt x err? err))
   
 (define (_arb-log x)
   (define err? (or (_arb-err? x)
-                   (if (eq? (_arb-contains-nonpositive (_arb-ptr x)) 1) #t #f)
-               ))
+                   (arb-contains-nonpositive x)))
   (define err (or (_arb-err x)
-                  (if (eq? (_arb-is-nonpositive (_arb-ptr x)) 1) #t #f)
-              ))
+                  (arb-is-nonpositive x)))
   (arb-log x err? err))
   
 (define (_arb-tan x)
@@ -553,33 +573,80 @@
   (ival->arb(ival-erf (arb->ival x))))
 (define (arb-erfc x)
   (ival->arb(ival-erfc (arb->ival x))))
-  
-(define arb-==
-  (lambda xs
-    (apply ival-==(map arb->ival xs))))
-    
-(define arb-!=
-  (lambda xs
-    (apply ival-!=(map arb->ival xs))))
-    
-(define arb-<
-  (lambda xs
-    (apply ival-<(map arb->ival xs))))
-    
-(define arb->
-  (lambda xs
-    (apply ival->(map arb->ival xs))))
-    
-(define arb-<=
-  (lambda xs
-    (apply ival-<= (map arb->ival xs))))
-    
-(define arb->=
-  (lambda xs
-    (apply ival->= (map arb->ival xs))))
+
+(define (arb-cmp x y)
+  (define can-< (or (arb-lt x y) (arb-overlaps x y)))
+  (define must-< (arb-lt x y))
+  (define can-> (or (arb-gt x y) (arb-overlaps x y)))
+  (define must-> (arb-gt x y))
+  (values can-< must-< can-> must->))
+
+(define ((arb-comparator f name) . as)
+  (if (null? as)
+      (ival #t)
+      (let loop ([head (car as)] [tail (cdr as)] [acc (ival #t)])
+        (match tail
+          ['() acc]
+          [(cons next rest)
+           (loop next rest (ival-and (f head next) acc))]))))
+
+(define-syntax-rule (define* name expr)
+  (define name (procedure-rename expr 'name)))
+
+(define (arb-<2 x y)
+  (define-values (c< m< c> m>) (arb-cmp x y))
+  (ival-then
+   (ival-assert (ival (not (or (_arb-err? x) (_arb-err? y))) (not (or (_arb-err x) (_arb-err y)))) #t)
+   (ival m< c<)))
+
+(define (arb-<=2 x y)
+  (define-values (c< m< c> m>) (arb-cmp x y))
+  (ival-then
+   (ival-assert (ival (not (or (_arb-err? x) (_arb-err? y))) (not (or (_arb-err x) (_arb-err y)))) #t)
+   (ival (not c>) (not m>))))
+
+(define (arb->2 x y)
+  (define-values (c< m< c> m>) (arb-cmp x y))
+  (ival-then
+   (ival-assert (ival (not (or (_arb-err? x) (_arb-err? y))) (not (or (_arb-err x) (_arb-err y)))) #t)
+   (ival m> c>)))
+
+(define (arb->=2 x y)
+  (define-values (c< m< c> m>) (arb-cmp x y))
+  (ival-then
+   (ival-assert (ival (not (or (_arb-err? x) (_arb-err? y))) (not (or (_arb-err x) (_arb-err y)))) #t)
+   (ival (not c<) (not m<))))
+
+(define (arb-==2 x y)
+  (define-values (c< m< c> m>) (arb-cmp x y))
+  (ival-then
+   (ival-assert (ival (not (or (_arb-err? x) (_arb-err? y))) (not (or (_arb-err x) (_arb-err y)))) #t)
+   (ival (and (not c<) (not c>)) (and (not m<) (not m>)))))
+
+(define (arb-!=2 x y)
+  (define-values (c< m< c> m>) (arb-cmp x y))
+  (ival-then
+   (ival-assert (ival (not (or (_arb-err? x) (_arb-err? y))) (not (or (_arb-err x) (_arb-err y)))) #t)
+   (ival (or m< m>) (or c< c>))))
+
+(define (arb-!= . as)
+  (if (null? as)
+      (ival #t)
+      (let loop ([head (car as)] [tail (cdr as)])
+        (if (null? tail)
+            (ival #t)
+            (ival-and
+             (foldl ival-and (ival #t) (map (curry arb-!=2 head) tail))
+             (loop (car tail) (cdr tail)))))))
+
+(define* arb-<  (arb-comparator arb-<2  'arb-<))
+(define* arb-<= (arb-comparator arb-<=2 'arb-<=))
+(define* arb->  (arb-comparator arb->2  'arb->))
+(define* arb->= (arb-comparator arb->=2 'arb->=))
+(define* arb-== (arb-comparator arb-==2 'arb-==))
   
 (define (arb-not x)
-  (ival-not (arb->ival x)))
+  (ival-not x))
   
 (define (arb-error? x)
   (ival-error? (arb->ival x)))
@@ -589,19 +656,13 @@
       (ival (not (_arb-err? x)) (not (_arb-err x)))
       (ival (not (ival-err? x)) (not (ival-err x)))))
 
-
 (define arb-and
   (lambda xs
-    (apply ival-and (map arb->ival xs))))
+    (apply ival-and xs)))
     
 (define arb-or
   (lambda xs
-    (apply ival-or (map arb->ival xs))))
+    (apply ival-or xs)))
   
 (define (arb-bool b)
   (arb b))
-
-;(define (arb-then-imitate a . as)
-;  (ival (ival-lo (last (cons a as))) (ival-hi (last (cons a as)))
-;        (or (ival-err? a) (ormap ival-err? as))
-;        (or (ival-err a) (ormap ival-err as))))
