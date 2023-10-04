@@ -1,6 +1,6 @@
 #lang racket
 
-;; Racket profile:
+;; Racket platform:
 ;;  - double-precision, boolean types
 ;;  - (Racket) double-precision operators
 ;;  - boolean operators

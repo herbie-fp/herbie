@@ -1,9 +1,11 @@
 #lang racket
 
-;; Builtin fallback plugin (:precision racket)
+;; Double-precision (native Racket) platform
 
 (require math/base math/bigfloat math/flonum math/special-functions)
-(require "../plugin.rkt" "bool.rkt")
+(require "../../plugin.rkt" "bool.rkt")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (shift bits fn)
   (define shift-val (expt 2 bits))
@@ -12,8 +14,6 @@
 (define (unshift bits fn)
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (racket real flonum?)
   bigfloat->flonum

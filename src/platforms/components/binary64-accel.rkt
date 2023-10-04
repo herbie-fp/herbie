@@ -1,6 +1,6 @@
 #lang racket
 
-;; Double-precision profile (accelerators only)
+;; Double-precision platform (accelerators only)
 
 (require ffi/unsafe)
 (require "../../plugin.rkt" "binary64.rkt")

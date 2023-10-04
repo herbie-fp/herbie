@@ -1,6 +1,6 @@
 #lang racket
 
-;; Double-precision profile (math only)
+;; Double-precision platform (math only)
 
 (require math/flonum math/bigfloat ffi/unsafe)
 (require "../../plugin.rkt" "bool.rkt")

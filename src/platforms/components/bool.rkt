@@ -1,6 +1,6 @@
 #lang racket
 
-;; Boolean profile
+;; Boolean platform
 
 (require "../../plugin.rkt")
 

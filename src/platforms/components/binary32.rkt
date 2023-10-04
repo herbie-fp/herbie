@@ -1,16 +1,16 @@
 #lang racket
 
-;; Builtin single-precision plugin (:precision binary32)
+;; Single-precision platform (math only)
 
-(require math/flonum math/bigfloat racket/flonum)
-(require "../plugin.rkt" "bool.rkt" "binary64.rkt")
+(require math/flonum math/bigfloat ffi/unsafe)
+(require "../../plugin.rkt" "bool.rkt" "binary64.rkt")
 
 (module+ test (require rackunit))
 
-; Racket CS made single-flonums a little confusing
-; All single-precision code is here to make things easier
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; float32 library ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Racket CS only has double-precision numbers but can do single-precision rounding,
+;; so we need to provide some additional emulation
 
 (define float32? flonum?)
 
@@ -66,10 +66,7 @@
   (check-equal? (fl32* 1.0 2.0) (->float32 2.0))
   (check-equal? (fl32/ 1.0 2.0) (->float32 0.5)))
 
-; for define-libm-operator (must be top-level)
-(require ffi/unsafe)
-
-; (eprintf "Loading binary32 support...\n")
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (shift bits fn)
   (define shift-val (expt 2 bits))
@@ -78,8 +75,6 @@
 (define (unshift bits fn)
   (define shift-val (expt 2 bits))
   (λ (x) (+ (fn x) shift-val)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (binary32 real float32?)
   bigfloat->float32
@@ -163,13 +158,13 @@
  erfc
  exp
  exp2
- expm1
+;  expm1
  fabs
  floor
  lgamma
  log
  log10
- log1p
+;  log1p
  log2
  logb
  rint
@@ -183,17 +178,17 @@
  trunc)
 
 (define-2ary-libm-operators
- atan2
+;  atan2
  copysign
  fdim
  fmax
  fmin
  fmod
- hypot
+;  hypot
  pow
  remainder)
 
-(define-libm-operator (fma real real real))
+; (define-libm-operator (fma real real real))
 
 (define-operator-impl (== ==.f32 binary32 binary32) bool
   [fl =])

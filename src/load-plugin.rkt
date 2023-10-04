@@ -1,30 +1,34 @@
 #lang racket
+
 (require setup/getinfo racket/runtime-path)
 (require "syntax/types.rkt" (submod "syntax/types.rkt" internals))
 (provide load-herbie-plugins load-herbie-builtins make-debug-context)
 
-(define-runtime-module-path bool-plugin     "reprs/bool.rkt")
-(define-runtime-module-path binary32-plugin "reprs/binary32.rkt")
-(define-runtime-module-path binary64-plugin "reprs/binary64.rkt")
-(define-runtime-module-path fallback-plugin "reprs/fallback.rkt")
+(define-runtime-module-path default-platform  "platforms/default.rkt")
+(define-runtime-module-path fallback-platform "platforms/fallback.rkt")
+(define-runtime-module-path math-platform     "platforms/math.rkt")
+
+(define *default-platform* (make-parameter math-platform))
+(define *active-platforms* (make-parameter '()))
+
+(define (add-platform! key)
+  (unless (member key (*active-platforms*))
+    (eprintf "activating platform ~a ...\n" key)
+    (dynamic-require key #f)
+    (*active-platforms* (cons key (*active-platforms*)))))
 
 (define (load-herbie-builtins)
-  ;; Warning: the order here is important!
-  (dynamic-require bool-plugin #f)
-  (dynamic-require binary64-plugin #f)
-  (dynamic-require binary32-plugin #f)
-  (dynamic-require fallback-plugin #f))
-
+  (add-platform! (*default-platform*)))
 
 ;; loads builtin representations as needed
 ;; usually if 'load-herbie-plugins' has not been called
 (define (generate-builtins name)
   (match name
-   ['bool     (dynamic-require bool-plugin #f) #t]
-   ['binary64 (dynamic-require binary64-plugin #f) #t]
-   ['binary32 (dynamic-require binary32-plugin #f) #t]
-   ['racket   (dynamic-require fallback-plugin #f) #t]
-   [_ #f]))
+    ['bool     (begin (add-platform! default-platform)  #t)]
+    ['binary64 (begin (add-platform! default-platform)  #t)]
+    ['binary32 (begin (add-platform! default-platform)  #t)]
+    ['racket   (begin (add-platform! fallback-platform) #t)]
+    [_ #f]))
 
 (define (load-herbie-plugins)
   (load-herbie-builtins)    ; automatically load default representations
@@ -35,7 +39,7 @@
     (define value (info 'herbie-plugin (const false)))
     (when value
       (with-handlers ([exn:fail:filesystem:missing-module? void])
-        (dynamic-require value #f)))))
+        (add-platform! value)))))
 
 ;; requiring "load-plugin.rkt" automatically registers
 ;; all built-in representation but does not load them

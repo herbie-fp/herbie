@@ -1,6 +1,6 @@
 #lang racket
 
-;; Default profile:
+;; Default platform:
 ;; - double-precision, single-precision, bool types
 ;; - double-precision libc operators
 ;; - single-precision libc operators

@@ -1,6 +1,6 @@
 #lang racket
 
-;; Single-precision profile (math only)
+;; Single-precision platform (math only)
 
 (require ffi/unsafe)
 (require "../../plugin.rkt" "binary32.rkt")
