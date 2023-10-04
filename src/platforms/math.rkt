@@ -6,6 +6,6 @@
 ;; - single-precision (no numerics) libc operators
 ;; - boolean operators
 
-(require "components/bool.rkt"
-         "components/binary64.rkt"
-         "components/binary32.rkt")
+(require "runtime/bool.rkt"
+         "runtime/binary64.rkt"
+         "runtime/binary32.rkt")

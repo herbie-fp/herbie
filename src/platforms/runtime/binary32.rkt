@@ -3,7 +3,9 @@
 ;; Single-precision platform (math only)
 
 (require math/flonum math/bigfloat ffi/unsafe)
-(require "../../plugin.rkt" "bool.rkt" "binary64.rkt")
+(require "../../plugin.rkt" "bool.rkt" "binary64.rkt"
+         (rename-in "libm.rkt"
+            [define-binary32-impl/libm define-libm-operator]))
 
 (module+ test (require rackunit))
 

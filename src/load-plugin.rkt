@@ -8,12 +8,12 @@
 (define-runtime-module-path fallback-platform "platforms/fallback.rkt")
 (define-runtime-module-path math-platform     "platforms/math.rkt")
 
-(define *default-platform* (make-parameter math-platform))
+(define *default-platform* (make-parameter default-platform))
 (define *active-platforms* (make-parameter '()))
 
 (define (add-platform! key)
   (unless (member key (*active-platforms*))
-    (eprintf "activating platform ~a ...\n" key)
+    (eprintf "Using platform at ~a\n" key)
     (dynamic-require key #f)
     (*active-platforms* (cons key (*active-platforms*)))))
 
@@ -24,9 +24,9 @@
 ;; usually if 'load-herbie-plugins' has not been called
 (define (generate-builtins name)
   (match name
-    ['bool     (begin (add-platform! default-platform)  #t)]
-    ['binary64 (begin (add-platform! default-platform)  #t)]
-    ['binary32 (begin (add-platform! default-platform)  #t)]
+    ['bool     (begin (add-platform! (*default-platform*))  #t)]
+    ['binary64 (begin (add-platform! (*default-platform*))  #t)]
+    ['binary32 (begin (add-platform! (*default-platform*))  #t)]
     ['racket   (begin (add-platform! fallback-platform) #t)]
     [_ #f]))
 
