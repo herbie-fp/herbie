@@ -1,6 +1,7 @@
 #lang racket
 
 (require json)
+(require racket/exn)
 (require openssl/sha1 (rename-in xml [location? xml-location?]))
 (require web-server/servlet web-server/servlet-env web-server/dispatch
          web-server/dispatchers/dispatch web-server/dispatch/extend
@@ -51,7 +52,8 @@
    [("api" "calculate") #:method "post" calculate-endpoint]
    [("api" "cost") #:method "post" cost-endpoint]
    [("api" "mathjs") #:method "post" ->mathjs-endpoint]
-   [((hash-arg) (string-arg)) generate-page]))
+   [((hash-arg) (string-arg)) generate-page]
+   [("results.json") generate-report]))
 
 (define (generate-page req results page)
   (match-define result results)
@@ -61,9 +63,18 @@
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page)])
-                  (make-page page out result #f))))]
+                  (make-page page out result (*demo-output*) #f))))]
    [else
     (next-dispatcher)]))
+
+(define (generate-report req)
+  (define data
+    (for/list ([(k v) (in-hash *completed-jobs*)])
+      (get-table-data v (format "~a.~a" hash *herbie-commit*))))
+  (define info (make-report-info data #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
+  (response 200 #"OK" (current-seconds) #"text"
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+            (λ (out) (write-datafile out info))))
 
 (define url (compose add-prefix url*))
 
@@ -220,7 +231,7 @@
               (for ([page (all-pages result)])
                 (with-handlers ([exn:fail? (page-error-handler result page)])
                   (call-with-output-file (build-path (*demo-output*) path page)
-                    (λ (out) (make-page page out result #f)))))
+                    (λ (out) (make-page page out result (*demo-output*) #f)))))
               (update-report result path seed
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "index.html")))
@@ -258,12 +269,20 @@
   (lambda (req)
     (define post-body (request-post-data/raw req))
     (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
-    (response 200
-              #"OK"
-              (current-seconds)
-              APPLICATION/JSON-MIME-TYPE
-              (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-              (λ (op) (write-json (fn post-data) op)))))
+    (define resp (with-handlers ([exn:fail? (λ (e) (hash 'error (exn->string e)))]) (fn post-data)))
+    (if (hash-has-key? resp 'error)
+        (response 500
+                  #"Bad Request"
+                  (current-seconds)
+                  APPLICATION/JSON-MIME-TYPE
+                  (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+                  (λ (op) (write-json resp op)))
+        (response 200
+                  #"OK"
+                  (current-seconds)
+                  APPLICATION/JSON-MIME-TYPE
+                  (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+                  (λ (op) (write-json resp op))))))
 
 (define (response/error title body)
   (response/full 400
@@ -331,7 +350,8 @@
   (response/full (if (thread-running? *worker-thread*) 200 500)
                  (if (thread-running? *worker-thread*) #"Up" #"Down")
                  (current-seconds) #"text/plain"
-                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*))))
+                       (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
 
 (define (improve req)
@@ -358,7 +378,7 @@
       (define pctx (job-result-backend result))
 
       (eprintf " complete\n")
-      (hasheq 'points (pcontext->json pctx)))))
+      (hasheq 'points (pcontext->json pctx (context-repr (test-context test)))))))
 
 (define analyze-endpoint
   (post-with-json-response

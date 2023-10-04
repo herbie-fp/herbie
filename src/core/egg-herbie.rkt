@@ -305,10 +305,6 @@
           (for/list ([iter (in-range (length iter-data))])
             (egraph-get-simplest egg-graph id iter)))))
   
-  (when (egraph-is-unsound-detected egg-graph) 
-    (warn 'unsound-rules #:url "faq.html#unsound-rules"
-          "Unsound rule application detected in e-graph. Results may not be sound."))
-
   (match proof-input
     [(cons start end)
      #:when (not (and (egraph-is-unsound-detected egg-graph) proof-ignore-when-unsound?))
@@ -466,29 +462,29 @@
   (define res (cast pointer _pointer _string/utf-8))
   (destroy_string pointer)
   (define env (make-hash))
-  (define converted
-    (for/list ([line (in-list (string-split res "\n"))])
-      (egg-expr->expr line egraph-data)))
-  (define expanded
-    (expand-proof
-     converted
-     (box (*proof-max-length*))))
-
-  (if (member #f expanded)
-      #f
-      expanded))
+  (cond
+   ;; TODO: sometimes the proof is *super* long and it takes us too long just string-split
+   ;; Ideally we would skip the string-splitting
+   [(< (string-length res) 10000)
+    (define converted
+      (for/list ([line (in-list (string-split res "\n"))])
+        (egg-expr->expr line egraph-data)))
+    (define expanded
+      (expand-proof
+       converted
+       (box (*proof-max-length*))))
+    (if (member #f expanded)
+        #f
+        expanded)]
+   [else
+    #f]))
 
 (struct egg-add-exn exn:fail ())
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)
   (define egg-expr (~a (expr->egg-expr expr eg-data)))
-  (define result (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
-  (when (= result 0)
-    (raise (egg-add-exn
-            "Failed to add expr to egraph"
-            (current-continuation-marks))))
-  (- result 1))
+  (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
 
 (struct iteration-data (num-nodes num-eclasses time))
 
@@ -505,13 +501,13 @@
 ;; can optionally specify an iter limit
 (define (egraph-run egraph-data node-limit ffi-rules const-folding? [iter-limit #f])
   (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
-  (define-values (egraphiters res-len)
+  (define-values (iterations length ptr)
     (if iter-limit
-        (egraph_run_with_iter_limit egraph-ptr iter-limit node-limit ffi-rules const-folding?)
-        (egraph_run egraph-ptr node-limit ffi-rules const-folding?)))
-  (define res (convert-iteration-data egraphiters res-len))
-  (destroy_egraphiters res-len egraphiters)
-  res)
+        (egraph_run_with_iter_limit egraph-ptr ffi-rules iter-limit node-limit const-folding?)
+        (egraph_run egraph-ptr ffi-rules node-limit const-folding?)))
+  (define iteration-data (convert-iteration-data iterations length))
+  (destroy_egraphiters ptr)
+  iteration-data)
 
 ;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
 (define-resetter *ffi-rules-cache*

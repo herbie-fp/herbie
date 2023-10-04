@@ -63,7 +63,7 @@
   (define err
     (format-accuracy (errors-score (errors (alt-expr altn) pcontext ctx)) (representation-total-bits repr) #:unit "%"))
   (define err2
-    (format "Internally ~a" (format-accuracy (errors-score (errors (alt-expr altn) pcontext2 ctx)) (representation-total-bits repr))))
+    (format "~a on training set" (format-accuracy (errors-score (errors (alt-expr altn) pcontext2 ctx)) (representation-total-bits repr) #:unit "%")))
 
   (match altn
     [(alt prog 'start (list))
@@ -101,10 +101,10 @@
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
+       (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
        (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
            (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) 
-                "\\]")
-           ,(if proof (render-proof proof soundiness pcontext ctx) "")))]
+                "\\]")))]
 
     [(alt prog `initial-simplify `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
@@ -118,17 +118,17 @@
 
     [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev))
      `(,@(render-history prev pcontext pcontext2 ctx)
+       (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
        (li (p "Applied " (span ([class "rule"]) , (if (rule? input) "rewrite-once" "egg-rr"))
               (span ([class "error"] [title ,err2]) ,err))
-           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")
-           ,(if proof (render-proof proof soundiness pcontext ctx) "")))]
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
     ))
 
 (define (render-proof proof soundiness pcontext ctx)
   `(div ([class "proof"])
     (details
      (summary "Step-by-step derivation")
-     (table
+     (ol
       ,@(for/list ([step proof] [sound soundiness])
           (define-values (dir rule loc expr) (splice-proof-step step))
           (define step-prog (program->fpcore expr ctx))
@@ -136,18 +136,14 @@
             (format-accuracy (errors-score (errors expr pcontext ctx))
                              (representation-total-bits (context-repr ctx))
                              #:unit "%"))
-          `(tr (th ,(if (equal? dir 'Goal)
-                        `(p "[Start]"
-                            (span ([class "info"]) ,err))
-                        (let ([dir (match dir ['Rewrite<= "<="] ['Rewrite=> "=>"])]
-                              [tag (string-append (format " ↑ ~a" (first sound))
-                                                  (format " ↓ ~a" (second sound)))])
-                          `(p ,(format "~a [~a]" rule dir)
-                              (span ([class "info"] [title ,tag]) ,err)))
-                        ))
-               (td (div ([class "math"])
-                        "\\[ "
-                        ,(if (equal? dir 'Goal)
-                             (core->tex step-prog)
-                             (core->tex step-prog #:loc (cons 2 loc) #:color "blue"))
+          (if (equal? dir 'Goal)
+              ""
+              `(li ,(let ([dir (match dir ['Rewrite<= "right to left"] ['Rewrite=> "left to right"])]
+                          [tag (string-append (format " ↑ ~a" (first sound))
+                                              (format " ↓ ~a" (second sound)))])
+                      `(p (code ([title ,dir]) ,(~a rule))
+                          (span ([class "error"] [title ,tag]) ,err)))
+                   (div ([class "math"])
+                        "\\[\\leadsto "
+                        ,(core->tex step-prog #:loc (cons 2 loc) #:color "blue")
                         "\\]"))))))))

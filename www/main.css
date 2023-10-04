@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif&family=IBM+Plex+Mono&family=Ruda:wght@600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400,700&family=IBM+Plex+Mono&family=Ruda:wght@600&display=swap');
 
 html { font-family: 'IBM Plex Serif', serif; font-size: 16px; line-height: 1.4; }
 body { max-width: 650px; margin: .5em auto 3em;}
@@ -20,6 +20,7 @@ dd { margin: .5em 0 1em; }
 .showcase { background: #ddd; padding: 1em; margin: 4em 0; clear: both;}
 .showcase > h2 { margin: 0 0 1em; }
 .showcase figcaption {font-size: 15px; line-height: 1.4; margin-top: 1em;}
+.showcase img { width: 100%; }
 .before-after { font-size: 20px; text-align: center; line-height: 1.5; }
 .before-after code { padding: 0 1ex; font-weight: bold; }
 .before-after .before { color: #aa2e00; }

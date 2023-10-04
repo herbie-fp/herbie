@@ -143,7 +143,7 @@ impl Analysis<Math> for ConstantFold {
                         x(a)? / x(b)?
                     }
                 }
-                Math::Neg([_p, a]) => -x(a)?.clone(),
+                Math::Neg([_p, a]) => -x(a)?,
                 Math::Pow([_p, a, b]) => {
                     if is_zero(a) {
                         if x(b)?.is_positive() {
@@ -188,7 +188,7 @@ impl Analysis<Math> for ConstantFold {
                         return None;
                     }
                 }
-                Math::Fabs([_p, a]) => x(a)?.clone().abs(),
+                Math::Fabs([_p, a]) => x(a)?.abs(),
                 Math::Floor([_p, a]) => x(a)?.floor(),
                 Math::Ceil([_p, a]) => x(a)?.ceil(),
                 Math::Round([_p, a]) => x(a)?.round(),

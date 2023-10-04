@@ -28,18 +28,26 @@
 
       ,(render-warnings warnings)
 
+      ,(let-values ([(dropdown body) (render-program '() (test-spec test) (test-context test) #:pre (test-pre test) #:ident (test-identifier test))])
+         `(section
+           (details ([id "specification"] [class "programs"])
+                    (summary (h2 "Specification")
+                             ,dropdown
+                             (a ([class "help-button float"] 
+                                 [href "/doc/latest/report.html#spec"] 
+                                 [target "_blank"]) "?"))
+                    ,body)))
+
       ,(match exn
          [(? exn:fail:user:herbie?)
-          `(section ([id "user-error"])
-            (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) " (more)"))
+          `(section ([id "user-error"] [class "error"])
+            (h2 ,(~a (exn-message exn)) " " (a ([href ,(herbie-error-url exn)]) "(more)"))
             ,(if (exn:fail:user:herbie:syntax? exn) (render-syntax-errors exn) ""))]
          ['timeout
-          `(section ([id "user-error"])
+          `(section ([id "user-error"] [class "error"])
             (h2 "Timeout after " ,(format-time time))
             (p "Use the " (code "--timeout") " flag to change the timeout."))]
          [_ ""])
-
-      ,(render-program empty test)
 
       ,(match exn
         [(? exn:fail:user:herbie?) ""]

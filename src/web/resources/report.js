@@ -35,37 +35,6 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
-// Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
-// However, simplified because we don't need hit box data
-function on(mark, listeners = {}) {
-  const render = mark.render;
-  mark.render = function (facet, { x, y }, channels) {
-    const data = this.data;
-    const g = render.apply(this, arguments);
-    const r = d3.select(g).selectChildren();
-    for (const [type, callback] of Object.entries(listeners)) {
-      r.on(type, function(event, i) {
-          return callback(event, data[i]);
-      });
-    }
-    return g;
-  };
-  return mark;
-}
-
-var Subreport = new Component("#subreports", {
-    setup: function() {
-        this.elt.classList.add("no-subreports");
-        this.button = Element("a", {id: "subreports-toggle"}, "See subreports");
-        this.button.addEventListener("click", this.toggle);
-        this.elt.insertBefore(this.button, this.elt.children[0]);
-    },
-    toggle: function() {
-        this.elt.classList.toggle("no-subreports");
-        var changed_only = this.elt.classList.contains("no-subreports");
-        this.button.innerText = changed_only ? "See subreports" : "Hide subreports";
-    }
-});
 
 var TogglableFlags = new Component("#flag-list", {
     setup: function() {
@@ -81,45 +50,13 @@ var TogglableFlags = new Component("#flag-list", {
     }
 });
 
-var TryIt = new Component("#try-it", {
-    depends: function() {
-        if (typeof window.start === "undefined") throw "start() function not defined";
-        if (typeof window.end === "undefined") throw "end() function not defined";
-    },
-    setup: function() {
-        this.origOut = this.elt.querySelector("#try-original-output");
-        this.herbieOut = this.elt.querySelector("#try-herbie-output");
-        this.result = this.elt.querySelector("#try-result");
-        this.inputs = this.elt.querySelectorAll("#try-inputs input");
-        this.submit();
-        for (var i = 0; i < this.inputs.length; i++) {
-            this.inputs[i].addEventListener("input", this.submit);
-        }
-    },
-    submit: function() {
-        var values = [];
-        for (var i = 0; i < this.inputs.length; i++) {
-            var val = parseFloat(this.inputs[i].value);
-            if (isNaN(val)) {
-                if (this.inputs[i].value.length != 0) {
-                    // Don't update error message if there is no input
-                    this.result.className = 'error'
-                }
-                return;
-            } else {
-                this.result.className = 'no-error'
-                values.push(val);
-            }
-        }
-        this.origOut.innerHTML = start.apply(null, values);
-        this.herbieOut.innerHTML = end.apply(null, values);
-    },
-});
-
 const ALL_LINES = [
-    { name: 'start', line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
-    { name: 'end', line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
-    { name: 'target', line: { stroke: 'green' }, dot: { stroke: '#00ff0035'}}
+    { name: 'start', description: "Initial program",
+      line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
+    { name: 'end', description: "Most accurate alternative",
+      line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
+    { name: 'target', description: "Developer target",
+      line: { stroke: '#080' }, dot: { stroke: '#0802'}}
 ]
 
 const ClientGraph = new Component('#graphs', {
@@ -134,6 +71,37 @@ const ClientGraph = new Component('#graphs', {
         this.$variables = this.elt.querySelector("#variables");
         this.$functions = this.elt.querySelector("#functions");
         await this.render(this.all_vars[0], ['start', 'end']);
+    },
+
+    render_variables: function($elt, selected_var_name, selected_functions) {
+        $elt.replaceChildren(
+            Element("select", {
+                oninput: (e) => this.render(e.target.value, selected_functions),
+            }, this.all_vars.map(v =>
+                Element("option", {
+                    value: v,
+                    selected: selected_var_name == v,
+                }, v)
+            )));
+    },
+
+    render_functions: function($elt, selected_var_name, selected_functions) {
+        const all_lines = ALL_LINES.filter(o => this.points_json.error[o.name] != false)
+        const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+        $elt.replaceChildren.apply(
+            $elt,
+            all_lines.map(fn => 
+                Element("label", [
+                    Element("input", {
+                        type: "checkbox",
+                        style: "accent-color: " + fn.line.stroke,
+                        checked: selected_functions.includes(fn.name),
+                        onclick: (e) => this.render(selected_var_name, toggle(fn.name, selected_functions))
+                    }, []),
+                    Element("span", { className: "functionDescription" }, [
+                        " ", fn.description]),
+                ])),
+        );
     },
     
     sliding_window: function(A, size) {
@@ -199,20 +167,21 @@ const ClientGraph = new Component('#graphs', {
                     x: points.reduce((acc, e) => e.x + acc, 0) / points.length
                 }))
             marks = marks.concat([
+                Plot.dot(compress(data, 800), {
+                    x: "x", y: "y", r: 1.3,
+                    title: d => `x: ${d.x} \n i: ${d.i} \n bits of error: ${d.y}`,
+                    ...dot
+                }),
                 Plot.line(sliding_window_data, {
                     x: "x",
                     y: "average",
                     strokeWidth: 2, ...line,
                 }),
-                Plot.dot(compress(data, 800), {x: "x", y: "y", r: 1.3,
-                                               title: d => `x: ${d.x} \n i: ${d.i} \n bits of error: ${d.y}`,
-                                               ...dot
-                                              }),
             ]);
         }
         const out = Plot.plot({
             width: '800',
-            height: '400',                
+            height: '300',
             marks: splitpoints.concat(marks),
             x: {
                 tickFormat: d => tick_strings[tick_ordinals.indexOf(d)],
@@ -224,119 +193,18 @@ const ClientGraph = new Component('#graphs', {
             marginBottom: 0,
             marginRight: 0,
         });
-        out.setAttribute('viewBox', '0 0 820 420')
+        out.setAttribute('viewBox', '0 0 820 320')
         return out
     },
 
     render: async function(selected_var_name, selected_functions) {
-        this.$variables.replaceChildren.apply(
-            this.$variables,
-            [Element("select", {
-                oninput: (e) => this.render(e.target.value, selected_functions),
-            }, this.all_vars.map(v =>
-                Element("option", {
-                    value: v,
-                    selected: selected_var_name == v,
-                }, v)
-            ))]
-        );
-
-        const all_fns = ['start', 'end', 'target'].filter(name => this.points_json.error[name] != false)
-        const fn_description = {
-            start: "Initial program",
-            end: "Most accurate alternative",
-            target: "Target program"
-        }
-        const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-        this.$functions.replaceChildren.apply(
-            this.$functions,
-            all_fns.map(fn => Element("div", [
-                Element("div", {
-                    id: "function_"+fn,
-                    className: "function " + (selected_functions.includes(fn) ? "selected" : ""),
-                    onclick: (e) => this.render(selected_var_name, toggle(fn, selected_functions))
-                }, []),
-                Element("span", { className: "functionDescription" }, fn_description[fn]),
-            ])),
-        );
+        this.render_variables(this.$variables, selected_var_name, selected_functions);
+        this.render_functions(this.$functions, selected_var_name, selected_functions);
         let $svg = this.elt.querySelector("svg");
         this.elt.replaceChild(await this.plot(selected_var_name, selected_functions), $svg);
     }
 })
 
-const ResultPlot = new Component('#xy', {
-    setup: async function() {
-        let response = await fetch("results.json", {
-            headers: {"content-type": "text/plain"},
-            method: "GET",
-            mode: "cors",
-        });
-        let stub = this.elt.querySelector("svg");
-        let data = (await response.json()).tests;
-        this.elt.replaceChild(this.plot(data), stub)
-    },
-
-    plot: function(tests) {
-        const out = Plot.plot({
-            marks: [
-                Plot.line([[0, 0], [1, 1]], {stroke: '#ddd'}),
-                on(Plot.dot(tests, {
-                    x: d => 1 - d.start/64, y: d => 1 - d.end/64,
-                    fill: "#00a", strokeWidth: 2,
-                }), {
-                    click: (e, d) => { window.location = d.link + "/graph.html"; },
-                }),
-            ],
-            className: "clickable",
-            marginBottom: 0,
-            marginRight: 0,
-            width: '400',
-            height: '400',
-            x: { nice: true, line: true, tickFormat: "%", },
-            y: { nice: true, line: true, tickFormat: "%", },
-        })
-        out.setAttribute('viewBox', '0 0 420 420')
-        return out;
-    }
-})
-
-const MergedCostAccuracy = new Component('#pareto', {
-    setup: async function() {
-        let response = await fetch('results.json', {
-            headers: {"content-type": "text/plain"},
-            method: "GET",
-            mode: 'cors'
-        });
-        let stub = this.elt.querySelector("svg");
-        let json = await response.json();
-        const [initial, frontier] = json["merged-cost-accuracy"];
-        this.elt.replaceChild(this.plot(initial, frontier), stub)
-    },
-
-    plot: function(initial, frontier) {
-        const out = Plot.plot({
-            marks: [
-                Plot.dot([initial], {
-                    stroke: "#d00",
-                    symbol: "square",
-                    strokeWidth: 2,
-                }),
-                Plot.line(frontier, {
-                    stroke: "#00a",
-                    strokeWidth: 2,
-                }),
-            ],
-            width: '400',
-            height: '400',
-            x: { line: true, nice: true, tickFormat: c => c + "×" },
-            y: { line: true, nice: true, domain: [0, 1], tickFormat: "%", },
-            marginBottom: 0,
-            marginRight: 0,
-        })
-        out.setAttribute('viewBox', '0 0 420 420')
-        return out;
-    }
-})
 
 const CostAccuracy = new Component('#cost-accuracy', {
     setup: async function() {
@@ -353,18 +221,18 @@ const CostAccuracy = new Component('#cost-accuracy', {
         // find right test by iterating through results_json
         for (let test of results_json.tests) {
             if (test.name == this.elt.dataset.benchmarkName) {
-                $svg.replaceWith(await this.plot(test));
-                $tbody.replaceWith(await this.tbody(test));
+                let [initial_pt, best_pt, rest_pts] = test["cost-accuracy"];
+                let target_pt = test["target"] && [this.elt.dataset.targetCost, test["target"]]
+                rest_pts = [best_pt].concat(rest_pts)
+                $svg.replaceWith(await this.plot(test, initial_pt, target_pt, rest_pts));
+                $tbody.replaceWith(await this.tbody(test, initial_pt, target_pt, rest_pts));
                 break;
             }
         }
     },
 
-    plot: async function(benchmark) {
-        const [initial_pt, best_pt, rest_pts] = benchmark["cost-accuracy"];
+    plot: async function(benchmark, initial_pt, target_pt, rest_pts) {
         const bits = benchmark["bits"];
-        rest_pts.push(best_pt);
-        rest_pts.sort((a, b) => a[0]-b[0]);
 
         // The line differs from rest_pts in two ways:
         // - We filter to the actual pareto frontier, in case points moved
@@ -372,7 +240,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
         let line = []
         let last = null;
         for (let pt of rest_pts) {
-            if (!last || pt[1] < last[1]) {
+            if (!last || pt[1] > last[1]) {
                 if (last) line.push([pt[0], last[1]]);
                 line.push([pt[0], pt[1]]);
                 last = pt;
@@ -394,8 +262,14 @@ const CostAccuracy = new Component('#cost-accuracy', {
                 Plot.dot([initial_pt], {
                     x: d => initial_pt[0]/d[0],
                     y: d => 1 - d[1]/bits,
-                    stroke: "#d00", symbol: "square", strokeWidth: 2 }),
-            ],
+                    stroke: "#d00", symbol: "square", strokeWidth: 2
+                }),
+                target_pt && Plot.dot([target_pt], {
+                    x: d => initial_pt[0]/d[0],
+                    y: d => 1 - d[1]/bits,
+                    stroke: "#080", symbol: "circle", strokeWidth: 2
+                }),
+            ].filter(x=>x),
             marginBottom: 0,
             marginRight: 0,
             width: '400',
@@ -407,17 +281,15 @@ const CostAccuracy = new Component('#cost-accuracy', {
         return out
     },
 
-    tbody: async function(benchmark) {
-        const [initial_pt, best_pt, rest_pts] = benchmark["cost-accuracy"];
+    tbody: async function(benchmark, initial_pt, target_pt, rest_pts) {
         const bits = benchmark["bits"];
         const initial_accuracy = 100*(1 - initial_pt[1]/bits);
-        rest_pts.sort((a, b) => b[0]-a[0]);
 
         return Element("tbody", [
             Element("tr", [
                 Element("th", "Initial program"),
                 Element("td", initial_accuracy.toFixed(1) + "%"),
-                Element("td", "1×")
+                Element("td", "1.0×")
             ]),
             rest_pts.map((d, i) => {
                 let accuracy = 100*(1 - d[1]/bits);
@@ -435,6 +307,11 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     Element("td", { className: speedup >= 1 ? "better" : "" },
                             speedup.toFixed(1) + "×")
             ])}),
+            target_pt && Element("tr", [
+                Element("th", "Developer target"),
+                Element("td", 100 * (1 - target_pt[1]/bits).toFixed(1) + "%"),
+                Element("td", (initial_pt[0] / target_pt[0]).toFixed(1) + "×"),
+            ]),
         ]);
     }
 });
@@ -470,16 +347,7 @@ var Bogosity = new Component(".bogosity", {
     }
 });
 
-var ClickableRows = new Component("#results", {
-    setup: function() {
-        let $rows = this.elt.querySelectorAll("tbody tr");
-        for (let $row of $rows) {
-            $row.addEventListener("click", () => $row.querySelector("a").click());
-        }
-    }
-})
-
-var Implementations = new Component("#program", {
+var Implementations = new Component(".programs", {
     setup: function() {
         this.dropdown = this.elt.querySelector("select");
         this.programs = this.elt.querySelectorAll(".implementation");
@@ -492,19 +360,8 @@ var Implementations = new Component("#program", {
             var $prog = this.programs[i];
             if ($prog.dataset["language"] == lang) {
                 $prog.style.display = "block";
-                this.arrow($prog);
             } else {
                 $prog.style.display =  "none";
-            }
-        }
-    },
-    arrow: function($prog) {
-        var progs = $prog.querySelectorAll(".program");
-        $prog.classList.add("horizontal");
-        for (var i = 0; i < progs.length; i++) {
-            var progBot = progs[i].offsetTop + progs[i].offsetHeight;
-            if (progs[i].offsetTop >= progBot) {
-                return $prog.classList.remove("horizontal");
             }
         }
     },
