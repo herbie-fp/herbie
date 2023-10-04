@@ -92,11 +92,14 @@
     _arb-err?
     arb-set-round
     arf-get-d
+    arf-sub
+    mpfr->arf
     arb-get-rad-d
     arb-is-zero
     arb-can-round-arf
     arb-is-finite
-    arb-overlaps)
+    arb-overlaps
+    arb-get-rad-arb)
 
 (define arb_t-size 48)
 (define arf_t-size 128)
@@ -176,6 +179,8 @@
 (define _arf-is-finite (get-ffi-obj 'arf_is_finite libarb ( _fun _arf_t -> _int)))
 (define _arf-is-nan (get-ffi-obj 'arf_is_nan libarb ( _fun _arf_t -> _int)))
 (define _arf-get-d (get-ffi-obj 'arf_get_d libarb ( _fun _arf_t _arf_rnd_t -> _double)))
+(define _arf-sub (get-ffi-obj 'arf_sub libarb ( _fun _arf_t _arf_t _arf_t _slong _arf_rnd_t -> _void)))
+(define _arf-set-mpfr (get-ffi-obj 'arf_set_mpfr libarb ( _fun _arf_t _mpfr_t -> _void)))
 
 (define _arb-alloc
   ((allocator (λ (v) (_arb_clear (_arb-ptr v))))
@@ -223,6 +228,11 @@
    [else
     (error 'arb "Unknown value ~a" x)]))
 
+(define (arb-get-rad-arb x)
+  (define v (_arb-alloc #f #f))
+  (_arb-get-rad-arb (_arb-ptr v) (_arb-ptr x))
+  v)
+  
 (define (arb-pos-inf)
   (define v (_arb-alloc #f #f))
   (_arb-pos-inf (_arb-ptr v))
@@ -246,6 +256,7 @@
   (parameterize ([bf-precision 53])
     (define v* (_arb-alloc #f #f))
     (_arb-set-round (_arb-ptr v*) (_arb-ptr v) double-prec)
+    (_arb_clear (_arb-ptr v))
     v*))
 
 (define (arb-can-round-arf x prec)
@@ -343,7 +354,16 @@
 ;; 4 = RND_NEAREST (got from https://github.com/fredrik-johansson/arb/blob/master/fmpr.h)
 (define (arf-get-d x)
   (_arf-get-d (_arf-ptr x) 4))
-  
+
+(define (arf-sub x y prec rnd_mode)
+  (define v (_arf-alloc))
+  (_arf-sub (_arf-ptr v) (_arf-ptr x) (_arf-ptr y) prec rnd_mode)
+  v)
+
+(define (mpfr->arf x)
+  (define v (_arf-alloc))
+  (_arf-set-mpfr (_arf-ptr v) x)
+  v)
 
 (define (arb-set-round x prec)
   (parameterize ([bf-precision prec])
