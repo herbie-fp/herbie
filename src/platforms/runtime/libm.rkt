@@ -9,7 +9,9 @@
 
 (provide define/libm
          define-binary64-impl/libm
-         define-binary32-impl/libm)
+         define-binary32-impl/libm
+         define-binary64-impls/libm
+         define-binary32-impls/libm)
 
 (begin-for-syntax
 
@@ -64,3 +66,33 @@
 
 (define-syntax define-binary64-impl/libm (make-libm-definer 'binary64))
 (define-syntax define-binary32-impl/libm (make-libm-definer 'binary32))
+
+(begin-for-syntax
+
+(define (make-libm-multi-definer definer)
+  (lambda (stx)
+    (syntax-case stx ()
+      [(_ [ops ...] ...)
+       (let loop ([ops (syntax->list #'((ops ...) ...))] [exprs '()] [arity 1])
+         (cond
+           [(null? ops)
+            (printf "~a\n" exprs)
+            (datum->syntax stx (cons #'begin exprs))]
+           [else
+            (define ops-at-arity (car ops))
+            (define args (build-list arity (λ (_) #'real)))
+            (loop (cdr ops)
+                  (for/fold ([exprs exprs]) ([op (syntax->list ops-at-arity)])
+                    (cons
+                      (datum->syntax ops-at-arity
+                        (list definer (cons op args)))
+                      exprs))
+                  (+ arity 1))]))])))
+
+)
+
+(define-syntax define-binary64-impls/libm
+  (make-libm-multi-definer 'define-binary64-impl/libm))
+
+(define-syntax define-binary32-impls/libm
+  (make-libm-multi-definer 'define-binary32-impl/libm))

@@ -7,6 +7,7 @@
 (define-runtime-module-path default-platform  "platforms/default.rkt")
 (define-runtime-module-path fallback-platform "platforms/fallback.rkt")
 (define-runtime-module-path math-platform     "platforms/math.rkt")
+(define-runtime-module-path hardware-platform     "platforms/hardware.rkt")
 
 (define *default-platform* (make-parameter default-platform))
 (define *active-platforms* (make-parameter '()))

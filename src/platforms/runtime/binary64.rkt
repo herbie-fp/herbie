@@ -4,8 +4,8 @@
 
 (require math/flonum math/bigfloat ffi/unsafe)
 (require "../../plugin.rkt" "bool.rkt"
-         (rename-in "libm.rkt"
-            [define-binary64-impl/libm define-libm-operator]))
+         (only-in "libm.rkt"
+           [define-binary64-impl/libm define-libm-operator]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
