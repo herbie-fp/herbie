@@ -345,7 +345,11 @@
 
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)
-  (group-errors prog pcontext)
+  
+  (for ([(subexpr num-of-errors) (group-errors prog pcontext)])
+    (unless (= 0 num-of-errors)
+      (timeline-push! 'problems (and subexpr (~a subexpr)) num-of-errors)))
+  
   (initialize-alt-table! prog (*pcontext*) (*context*))
   (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
     (run-iter!))

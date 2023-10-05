@@ -277,7 +277,7 @@
           ,@(for/list ([rec (in-list (sort problems > #:key second))])
               (match-define (list expr count) rec)
               `(tr (td ,(~a count) "×")
-                   (td ,(if (string=? expr "#f")
+                   (td ,(if (equal? expr #f)
                       "No Errors" 
                       `(code ,expr)))))))))
 
