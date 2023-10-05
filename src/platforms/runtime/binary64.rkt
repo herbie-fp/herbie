@@ -4,8 +4,7 @@
 
 (require math/flonum math/bigfloat ffi/unsafe)
 (require "../../plugin.rkt" "bool.rkt"
-         (only-in "libm.rkt"
-           [define-binary64-impl/libm define-libm-operator]))
+         (only-in "libm.rkt" [define-binary64-impls/libm define-libm-operators]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -41,86 +40,61 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-syntax-rule (define-1ary-libm-operator op)
-  (define-libm-operator (op real)))
-
-(define-syntax-rule (define-2ary-libm-operator op)
-  (define-libm-operator (op real real)))
-
-(define-syntax-rule (define-1ary-libm-operators op ...)
-  (begin (define-1ary-libm-operator op) ...))
-
-(define-syntax-rule (define-2ary-libm-operators op ...)
-  (begin (define-2ary-libm-operator op) ...))
-
-
 (define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
 (define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
 (define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
 (define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
 (define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
 
-(define-1ary-libm-operators
- acos
- acosh
- asin
- asinh
- atan
- atanh
- cbrt
- ceil
- cos
- cosh
- erf
- erfc
- exp
- exp2
-;  expm1
- fabs
- floor
- lgamma
- log
- log10
-;  log1p
- log2
- logb
- rint
- round
- sin
- sinh
- sqrt
- tan
- tanh
- tgamma
- trunc)
+(define-libm-operators
+  [acos
+   acosh
+   asin
+   asinh
+   atan
+   atanh
+   cbrt
+   ceil
+   cos
+   cosh
+   erf
+   erfc
+   exp
+   exp2
+   fabs
+   floor
+   lgamma
+   log
+   log10
+   log2
+   logb
+   rint
+   round
+   sin
+   sinh
+   sqrt
+   tan
+   tanh
+   tgamma
+   trunc]
+  [copysign
+   fdim
+   fmax
+   fmin
+   fmod
+   pow
+   remainder])
 
-(define-2ary-libm-operators
-;  atan2
- copysign
- fdim
- fmax
- fmin
- fmod
-;  hypot
- pow
- remainder)
+(define-syntax-rule (define-comparator-impls [name impl-name impl-fn] ...)
+  (begin
+    (define-operator-impl (name impl-name binary64 binary64) bool
+      [fl impl-fn])
+    ...))
 
-; (define-libm-operator (fma real real real))
-
-(define-operator-impl (== ==.f64 binary64 binary64) bool
-  [fl =])
-
-(define-operator-impl (!= !=.f64 binary64 binary64) bool
-  [fl (negate =)])
-
-(define-operator-impl (< <.f64 binary64 binary64) bool
-  [fl <])
-
-(define-operator-impl (> >.f64 binary64 binary64) bool
-  [fl >])
-
-(define-operator-impl (<= <=.f64 binary64 binary64) bool
-  [fl <=])
-
-(define-operator-impl (>= >=.f64 binary64 binary64) bool
-  [fl >=])
+(define-comparator-impls
+  [== ==.f64 =]
+  [!= !=.f64 (negate =)]
+  [< <.f64 <]
+  [> >.f64 >]
+  [<= <=.f64 <=]
+  [>= >=.f64 >=])

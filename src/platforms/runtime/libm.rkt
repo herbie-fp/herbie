@@ -76,7 +76,6 @@
        (let loop ([ops (syntax->list #'((ops ...) ...))] [exprs '()] [arity 1])
          (cond
            [(null? ops)
-            (printf "~a\n" exprs)
             (datum->syntax stx (cons #'begin exprs))]
            [else
             (define ops-at-arity (car ops))

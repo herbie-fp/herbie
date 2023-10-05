@@ -8,8 +8,8 @@
 (require math/flonum math/bigfloat ffi/unsafe)
 (require "../plugin.rkt" "runtime/bool.rkt" "runtime/float32.rkt"
         (only-in "runtime/libm.rkt"
-          define-binary64-impl/libm
-          define-binary32-impl/libm))
+                 define-binary64-impls/libm
+                 define-binary32-impls/libm))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -63,20 +63,6 @@
 (define-operator-impl (NAN NAN.f32) binary32
   [fl (const (->float32 +nan.0))])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;; libm support ;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define-syntax (define-binary64-impls/libm stx)
-  (syntax-case stx ()
-    [(_ argc ops ...)
-     (with-syntax ([(args ...) (build-list (syntax->datum #'argc) (λ (_) #'real))])
-       #'(begin (define-binary64-impl/libm (ops args ...)) ...))]))
-
-(define-syntax (define-binary32-impls/libm stx)
-  (syntax-case stx ()
-    [(_ argc ops ...)
-     (with-syntax ([(args ...) (build-list (syntax->datum #'argc) (λ (_) #'real))])
-       #'(begin (define-binary32-impl/libm (ops args ...)) ...))]))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
@@ -85,26 +71,23 @@
 (define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
 (define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
 
-(define-binary64-impls/libm 1 sqrt log2 fabs floor ceil)
-(define-binary64-impls/libm 2 fmin fmax)
+(define-binary64-impls/libm
+  [sqrt log2 fabs floor ceil]
+  [fmin fmax])
 
-(define-operator-impl (== ==.f64 binary64 binary64) bool
-  [fl =])
+(define-syntax-rule (define-comparator-binary64-impls [name impl-name impl-fn] ...)
+  (begin
+    (define-operator-impl (name impl-name binary64 binary64) bool
+      [fl impl-fn])
+    ...))
 
-(define-operator-impl (!= !=.f64 binary64 binary64) bool
-  [fl (negate =)])
-
-(define-operator-impl (< <.f64 binary64 binary64) bool
-  [fl <])
-
-(define-operator-impl (> >.f64 binary64 binary64) bool
-  [fl >])
-
-(define-operator-impl (<= <=.f64 binary64 binary64) bool
-  [fl <=])
-
-(define-operator-impl (>= >=.f64 binary64 binary64) bool
-  [fl >=])
+(define-comparator-binary64-impls
+  [== ==.f64 =]
+  [!= !=.f64 (negate =)]
+  [< <.f64 <]
+  [> >.f64 >]
+  [<= <=.f64 <=]
+  [>= >=.f64 >=])
 
 (define-operator-impl (neg neg.f32 binary32) binary32 [fl fl32-])
 (define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl fl32+])
@@ -112,26 +95,23 @@
 (define-operator-impl (* *.f32 binary32 binary32) binary32 [fl fl32*])
 (define-operator-impl (/ /.f32 binary32 binary32) binary32 [fl fl32/])
 
-(define-binary32-impls/libm 1 sqrt log2 fabs floor ceil)
-(define-binary32-impls/libm 2 fmin fmax)
+(define-binary32-impls/libm
+  [sqrt log2 fabs floor ceil]
+  [fmin fmax])
 
-(define-operator-impl (== ==.f32 binary32 binary32) bool
-  [fl =])
+(define-syntax-rule (define-comparator-binary32-impls [name impl-name impl-fn] ...)
+  (begin
+    (define-operator-impl (name impl-name binary32 binary32) bool
+      [fl impl-fn])
+    ...))
 
-(define-operator-impl (!= !=.f32 binary32 binary32) bool
-  [fl (negate =)])
-
-(define-operator-impl (< <.f32 binary32 binary32) bool
-  [fl <])
-
-(define-operator-impl (> >.f32 binary32 binary32) bool
-  [fl >])
-
-(define-operator-impl (<= <=.f32 binary32 binary32) bool
-  [fl <=])
-
-(define-operator-impl (>= >=.f32 binary32 binary32) bool
-  [fl >=])
+(define-comparator-binary32-impls
+  [== ==.f32 =]
+  [!= !=.f32 (negate =)]
+  [< <.f32 <]
+  [> >.f32 >]
+  [<= <=.f32 <=]
+  [>= >=.f32 >=])
 
 (define-operator-impl (cast binary64->binary32 binary64) binary32
   [fl (curryr ->float32)])
