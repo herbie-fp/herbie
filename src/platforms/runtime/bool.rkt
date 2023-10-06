@@ -2,7 +2,7 @@
 
 ;; Boolean platform
 
-(require "../../plugin.rkt")
+(require "utils.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

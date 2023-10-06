@@ -5,7 +5,7 @@
 ;; the underlying libm rather than Racket's implementations
 
 (require ffi/unsafe (for-syntax racket/match))
-(require "../../plugin.rkt")
+(require "utils.rkt")
 
 (provide define/libm
          define-binary64-impl/libm

@@ -1,20 +1,9 @@
 #lang racket
 
-;; Double-precision platform (math only)
+;; Double-precision representation and consants
 
-(require math/flonum math/bigfloat ffi/unsafe)
-(require "../../plugin.rkt" "bool.rkt"
-         (only-in "libm.rkt" [define-binary64-impls/libm define-libm-operators]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (shift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (fn (- x shift-val))))
-
-(define (unshift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (+ (fn x) shift-val)))
+(require math/flonum math/bigfloat)
+(require "bool.rkt" "utils.rkt")
 
 (define-representation (binary64 real flonum?)
   bigfloat->flonum
@@ -24,77 +13,14 @@
   64
   (conjoin number? nan?))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define-operator-impl (PI PI.f64) binary64
-  [fl (const pi)])
-
-(define-operator-impl (E E.f64) binary64
-  [fl (const (exp 1.0))])
-
-(define-operator-impl (INFINITY INFINITY.f64) binary64
-  [fl (const +inf.0)])
-
-(define-operator-impl (NAN NAN.f64) binary64
-  [fl (const +nan.0)])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
-(define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
-(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
-(define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
-(define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
-
-(define-libm-operators
-  [acos
-   acosh
-   asin
-   asinh
-   atan
-   atanh
-   cbrt
-   ceil
-   cos
-   cosh
-   erf
-   erfc
-   exp
-   exp2
-   fabs
-   floor
-   lgamma
-   log
-   log10
-   log2
-   logb
-   rint
-   round
-   sin
-   sinh
-   sqrt
-   tan
-   tanh
-   tgamma
-   trunc]
-  [copysign
-   fdim
-   fmax
-   fmin
-   fmod
-   pow
-   remainder])
-
-(define-syntax-rule (define-comparator-impls [name impl-name impl-fn] ...)
+(define-syntax-rule (define-constants [name impl-name value] ...)
   (begin
-    (define-operator-impl (name impl-name binary64 binary64) bool
-      [fl impl-fn])
+    (define-operator-impl (name impl-name) binary64
+      [fl (const value)])
     ...))
 
-(define-comparator-impls
-  [== ==.f64 =]
-  [!= !=.f64 (negate =)]
-  [< <.f64 <]
-  [> >.f64 >]
-  [<= <=.f64 <=]
-  [>= >=.f64 >=])
+(define-constants
+  [PI PI.f64 pi]
+  [E E.f64 (exp 1.0)]
+  [INFINITY INFINITY.f64 +inf.0]
+  [NAN NAN.f64 +nan.0])

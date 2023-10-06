@@ -3,7 +3,7 @@
 ;; Double-precision platform (accelerators only)
 
 (require ffi/unsafe)
-(require "../../plugin.rkt" "binary64.rkt"
+(require "binary64.rkt" "utils.rkt"
          (only-in "libm.rkt" [define-binary64-impls/libm define-libm-operators]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -3,7 +3,7 @@
 ;; Single-precision platform (math only)
 
 (require ffi/unsafe)
-(require "../../plugin.rkt" "binary32.rkt"
+(require "binary32.rkt" "utils.rkt"
          (only-in "libm.rkt" [define-binary32-impls/libm define-libm-operators]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -1,5 +1,6 @@
 #lang racket
 
+;; Single-precision floating-point library
 ;; Racket CS only has double-precision numbers but can do
 ;; single-precision rounding, so we need to provide some additional emulation
 
