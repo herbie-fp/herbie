@@ -503,6 +503,7 @@ function dataControls(jsonData, diffCount) {
         const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
         button.addEventListener("click", () => {
             filterState[f] = button.querySelector("input").checked
+            filterDetailsState = true
             update(resultsJsonData)
         })
         filterButtons.push(button)
