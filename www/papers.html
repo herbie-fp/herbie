@@ -280,25 +280,6 @@ received 🏆&nbsp;awards.</p>
   talk</a> are available.
 </p>
 
-<h2>ArXiv’21: Rival</h2>
-
-<details>
-  <summary>
-    <a href="https://arxiv.org/pdf/2107.05784.pdf">An Interval
-    Arithmetic for Robust Error Estimation</a> is an unpublished
-    manuscript. This paper describes Herbie's interval arithmetic
-    library.
-  </summary>
-  <blockquote class="abstract">
-    <p>Interval arithmetic is a simple way to compute a mathematical expression to an arbitrary accuracy, widely used for verifying floating-point computations. Yet this simplicity belies challenges. Some inputs violate preconditions or cause domain errors. Others cause the algorithm to enter an infinite loop and fail to compute a ground truth. Plus, finding valid inputs is itself a challenge when invalid and unsamplable points make up the vast majority of the input space. These issues can make interval arithmetic brittle and temperamental.</p>
-    <p>This paper introduces three extensions to interval arithmetic to address these challenges. Error intervals express rich notions of input validity and indicate whether all or some points in an interval violate implicit or explicit preconditions. Movability flags detect futile recomputations and prevent timeouts by indicating whether a higher-precision recomputation will yield a more accurate result. Andinput search restricts sampling to valid, samplable points, so they are easier to find. We compare these extensions to the state-of-the-art technical computing software Mathematica, and demonstrate that our extensions are able to resolve 60.3% more challenging inputs, return 10.2x fewer completely indeterminate results, and avoid 64 cases of fatal error.</p>
-  </blockquote>
-</details>
-
-<p>
-  The <a href="https://arxiv.org/pdf/2107.05784.pdf">paper</a> is available.
-</p>
-
 <h2>ARITH’21: Pareto Herbie <span class="badges">★</span></h2>
 
 <details>
@@ -501,4 +482,90 @@ received 🏆&nbsp;awards.</p>
   The <a href="https://repositum.tuwien.at/bitstream/20.500.12708/81325/1/Flatt-2022-Small%20Proofs%20from%20Congruence%20Closure-vor.pdf">paper</a>
   and <a href="https://www.youtube.com/watch?v=_KnAHFdqWT0">conference
   talk</a> are available.
+</p>
+
+<h2>UIST’23: Odyssey</h2>
+
+<details>
+  <summary>
+    <a href="https://arxiv.org/pdf/2305.10599.pdf">Odyssey: An
+    Interactive Workbench for Expert-Driven Floating-Point Expression
+    Rewriting</a> was published in <a href="https://uist.acm.org/2023/">UIST’23</a>. This paper describes
+    an experimental new user interface for Herbie.
+  </summary>
+  <blockquote class="abstract">
+    <p>In recent years, researchers have proposed a number of automated tools to
+      identify and improve floating-point rounding error in mathematical expressions.
+    However, users struggle to effectively apply these tools.
+    In this paper, we work with 
+      novices, experts, and tool developers to 
+      investigate user needs during the expression rewriting process.
+    We find that users follow an iterative design process.
+    They want to compare expressions on multiple input ranges, 
+      integrate and guide various rewriting tools,
+      and understand where errors come from.
+    We organize this investigation's results into a three-stage workflow
+      and implement that workflow
+      in a new, extensible workbench dubbed Odyssey.
+    Odyssey enables users to:
+      (1) diagnose problems in an expression, 
+      (2) generate solutions automatically or by hand, and 
+      (3) tune their results. 
+    Odyssey tracks a working set of expressions
+      and turns a state-of-the-art automated tool "inside out,"
+      giving the user access to internal heuristics, algorithms, 
+      and functionality.
+    In a user study, Odyssey enabled five expert numerical analysts
+       to solve challenging rewriting problems
+      where state-of-the-art automated tools fail.
+    In particular, the experts unanimously praised Odyssey’s novel support for
+      interactive range modification and local error visualization.</p>
+  </blockquote>
+</details>
+
+<p>
+  The <a href="https://arxiv.org/abs/2305.10599">paper</a>
+  and <a href="https://github.com/herbie-fp/odyssey">application</a>
+  are available.
+</p>
+
+
+
+<h2>EGRAPHS’23: Using egglog to Improve Floating-point Error</h2>
+
+<details>
+  <summary>
+    <a href="https://effect.systems/doc/egraphs-2023-egglog/paper.pdf">egglog In Practice: Automatically Improving Floating-point Error</a> was published in the workshop
+    <a href="https://pldi23.sigplan.org/home/egraphs-2023#About">EGRAPHS'23</a>.
+    The paper describes how to use egglog to
+    optimize floating-point error in programs.
+  </summary>
+  <blockquote class="abstract">
+    <p>
+      Herbie is a tool for automatically improving floating-point accuracy in programs. Egglog is a new language for performing rewriting over equality, supporting robust analysis. In this tutorial, we show how we improved Herbie in two ways. First, we will show how we leverage egglog to perform sound rewriting in the presence of division for Herbie. Second, we show how to use egglog's powerful rules to extract more accurate programs from the database.
+    </p>
+  </blockquote>
+</details>
+
+
+
+<h2>ARITH’23: Rival</h2>
+
+<details>
+  <summary>
+    <a href="arith23-paper.pdf">Making Interval Arithmetic Robust to Overflow</a>
+    was published at <a href="https://arith2023.arithsymposium.org/">ARITH'23</a>.
+    This paper describes Herbie's interval arithmetic library and
+    specifically how it deals with overflow to infinity.
+  </summary>
+  <blockquote class="abstract">
+    <p>In theory, interval arithmetic at high precision can compute mathematical expressions to any required accuracy. An arbitrary precision library like MPFR can thus be used to evaluate real-valued expressions. In practice, however, MPFR's maximum representable exponent means some inputs cannot be evaluated to the required accuracy. This paper introduces movability flags, which soundly detect the majority of these inputs. Movability flags are set when overflow occurs and track whether recomputing at higher precision could possibly result in narrow intervals. In our tests on 481 expressions, movability flags detect 81.0% of unsamplable inputs. Compared to Mathematica, our movability-flag-enhanced interval arithmetic library resolves 60.3% more challenging inputs, returns 7.6× fewer completely indeterminate results, and avoids 64 cases of fatal error.</p>
+  </blockquote>
+</details>
+
+<p>
+  A long <a href="https://arxiv.org/pdf/2107.05784.pdf">preprint</a>,
+  <a href="https://docs.racket-lang.org/rival/">documentation</a>,
+  and <a href="https://github.com/herbie-fp/rival">source code</a> is
+  available.
 </p>

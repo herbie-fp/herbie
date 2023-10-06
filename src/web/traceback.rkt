@@ -7,8 +7,8 @@
 
 (define (make-traceback result out profile?)
   ;; Called with timeout or failure results
-  (match-define (test-result test bits time timeline warnings) result)
-  (define exn (if (test-failure? result) (test-failure-exn result) 'timeout))
+  (match-define (job-result test status time timeline warnings backend) result)
+  (define exn (if (eq? status 'failure) backend 'timeout))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -21,25 +21,33 @@
       (script ([src "../report.js"])))
      (body
       ,(render-menu
-        (list)
+        (~a (test-name test))
         (list
-         '("Report" . "../results.html")
+         '("Report" . "../index.html")
          '("Metrics" . "timeline.html")))
 
       ,(render-warnings warnings)
 
+      ,(let-values ([(dropdown body) (render-program '() (test-spec test) (test-context test) #:pre (test-pre test) #:ident (test-identifier test))])
+         `(section
+           (details ([id "specification"] [class "programs"])
+                    (summary (h2 "Specification")
+                             ,dropdown
+                             (a ([class "help-button float"] 
+                                 [href "/doc/latest/report.html#spec"] 
+                                 [target "_blank"]) "?"))
+                    ,body)))
+
       ,(match exn
          [(? exn:fail:user:herbie?)
-          `(section ([id "user-error"])
-            (h2 ,(~a (exn-message exn)) (a ([href ,(herbie-error-url exn)]) " (more)"))
+          `(section ([id "user-error"] [class "error"])
+            (h2 ,(~a (exn-message exn)) " " (a ([href ,(herbie-error-url exn)]) "(more)"))
             ,(if (exn:fail:user:herbie:syntax? exn) (render-syntax-errors exn) ""))]
          ['timeout
-          `(section ([id "user-error"])
+          `(section ([id "user-error"] [class "error"])
             (h2 "Timeout after " ,(format-time time))
             (p "Use the " (code "--timeout") " flag to change the timeout."))]
          [_ ""])
-
-      ,(render-program empty test)
 
       ,(match exn
         [(? exn:fail:user:herbie?) ""]

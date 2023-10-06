@@ -8,7 +8,7 @@
 
 ;; This first part handles timelines for a single Herbie run
 
-(define (make-timeline name timeline out #:info [info #f])
+(define (make-timeline name timeline out #:info [info #f] #:path [path "."])
   (fprintf out "<!doctype html>\n")
   (write-xexpr
     `(html
@@ -19,12 +19,10 @@
        (script ([src ,(if info "report.js" "../report.js")])))
       (body
        ,(render-menu
-         (list
-          (and info '("About" . "#about"))
-          '("Timeline" . "#process-info")
-          '("Profile" . "#profile"))
+         (~a name)
+         #:path path
          (if info 
-             `(("Report" . "results.html"))
+             `(("Report" . "index.html"))
              `(("Details" . "graph.html"))))
        ,(if info (render-about info) "")
        ,(render-timeline timeline)
@@ -35,7 +33,6 @@
   (-> timeline? xexpr?)
   (define time (apply + (map (curryr dict-ref 'time) timeline)))
   `(section ([id "process-info"])
-     (h1 "Details")
      (p ((class "header"))
         "Time bar (total: " (span ((class "number")) ,(format-time time)) ")")
      (div ((class "timeline"))
@@ -64,6 +61,7 @@
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
+         ,@(dict-call curr render-phase-problems 'problems)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -113,15 +111,15 @@
                                (format-percent (hash-ref domain-info tag 0) total))])))))))
                                
 (define (render-phase-locations locations)
-  `((dt "Local error")
+  `((dt "Localize:")
     (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
-          (thead (tr (th "New") (th "Error") (th "Program")))
+          (thead (tr (th "New") (th "Accuracy") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
 
               (match-define (list expr err new? repr) rec)
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-error err (get-representation (string->symbol repr)) #:unit "%") "")
+                  (td ,(format-accuracy err (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
@@ -262,8 +260,8 @@
 
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr) (car min-error-table))
-  `((dt "Error")
-    (dd ,(format-error min-error (get-representation (string->symbol repr)) #:unit "%") "")))
+  `((dt "Accuracy")
+    (dd ,(format-accuracy min-error (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")))
 
 (define (render-phase-rules rules)
   `((dt "Rules")
@@ -272,6 +270,16 @@
               (match-define (list rule count) rec)
               `(tr (td ,(~a count) "×")
                    (td (code ,(~a rule) " "))))))))
+
+(define (render-phase-problems problems)
+  `((dt "Problems")
+    (dd (table ([class "times"])
+               ,@(for/list ([rec (in-list (sort problems > #:key second))])
+                   (match-define (list expr count) rec)
+                   `(tr (td ,(~a count) "×")
+                        (td ,(if expr
+                                 `(code ,expr)
+                                 "No Errors"))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
@@ -282,7 +290,7 @@
     (dd (details
          (summary "Click to see full alt table")
          (table ([class "times"])
-                (thead (tr (th "Status") (th "Error") (th "Program")))
+                (thead (tr (th "Status") (th "Accuracy") (th "Program")))
                 ,@(for/list ([rec (in-list alts)])
                     (match-define (list expr status score repr) rec)
                     `(tr
@@ -290,7 +298,7 @@
                          ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                          ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                          ["fresh" `(td)])
-                      (td ,(format-error score (get-representation (string->symbol repr)) #:unit "%") "")
+                      (td ,(format-accuracy score (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
                       (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
@@ -328,10 +336,10 @@
 (define (render-phase-branches branches)
   `((dt "Results")
     (dd (table ([class "times"])
-               (thead (tr (th "Error") (th "Segments") (th "Branch")))
+               (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
              (match-define (list expr score splits repr) rec)
-             `(tr (td ,(format-error score (get-representation (string->symbol repr)) #:unit "%") "")
+             `(tr (td ,(format-accuracy score (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
                   (td ,(~a splits))
                   (td (code ,expr))))))))
 
@@ -360,7 +368,7 @@
 ;; This next part handles summarizing several timelines into one details section for the report page.
 
 (define (render-about info)
-  (match-define (report-info date commit branch hostname seed flags points iterations note tests) info)
+  (match-define (report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy) info)
 
   `(table ((id "about"))
      (tr (th "Date:") (td ,(date->string date)))

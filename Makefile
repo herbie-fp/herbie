@@ -7,22 +7,22 @@ help:
 install: clean egg-herbie update
 
 clean:
-	raco pkg remove --force herbie && echo "Uninstalled old herbie" || :
-	raco pkg remove --force egg-herbie && echo "Uninstalled old egg-herbie" || :
-	raco pkg remove --force egg-herbie-linux && echo "Uninstalled old egg-herbie" || :
-	raco pkg remove --force egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
-	raco pkg remove --force egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force --no-docs herbie && echo "Uninstalled old herbie" || :
+	raco pkg remove --force --no-docs egg-herbie && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force --no-docs egg-herbie-linux && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 
 update:
-	raco pkg install --skip-installed --auto --name herbie src/
+	raco pkg install --skip-installed --no-docs --auto --name herbie src/
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
 	cargo build --release --manifest-path=egg-herbie/Cargo.toml
-	raco pkg remove --force egg-herbie && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
-	raco pkg remove --force egg-herbie-linux && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
-	raco pkg remove --force egg-herbie-windows && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
-	raco pkg remove --force egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
+	raco pkg remove --force --no-docs egg-herbie && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
+	raco pkg remove --force --no-docs egg-herbie-linux && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
+	raco pkg remove --force --no-docs egg-herbie-windows && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
+	raco pkg remove --force --no-docs egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
 
 distribution: minimal-distribution
@@ -41,8 +41,12 @@ minimal-distribution:
 nightly: install
 	bash infra/nightly.sh reports
 
-start-server: install
-	racket src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
+upgrade:
+	git pull
+	$(MAKE) install
+
+start-server:
+	racket -y src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
 		--demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
 		--log infra/server.log --quiet 2>&1
 

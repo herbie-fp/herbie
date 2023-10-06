@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Using Herbie from the Browser</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <h1>The Browser UI</h1>
+    <a href="../../"><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <p>
+    <a href="../../">Herbie</a> rewrites floating point expressions to
+    make them more accurate. Herbie can be used
+    from <a href="using-cli.html">the command-line</a> or from the
+    browser; this page is about using Herbie from the browser.</p>
+
+
+  <h2 id="interactive">The Herbie web shell</h2>
+
+  <p>
+    The Herbie web shell lets you interact with Herbie through your
+    browser, featuring a convenient input format. The web shell is the
+    friendliest and easiest way to use Herbie. Run the Herbie web
+    shell with this command:
+  </p>
+
+  <pre class="shell">herbie web</pre>
+
+  <p>After a few seconds, the web shell will rev up and direct your
+  browser to Herbie:</p>
+  
+  <pre class="shell">herbie web
+Herbie 2.0 with seed 1003430182
+Find help on https://herbie.uwplse.org/, exit with Ctrl-C
+Your Web application is running at http://localhost:8000/.
+Stop this program at any time to terminate the Web Server.</pre>
+
+  <figure>
+    <img width="100%" src="web-main.png" alt="A screenshot of the Herbie web shell main page."/>
+  </figure>
+
+  <p>You can type an input expressions in
+    <a href="input.html">standard mathematical syntax</a>. After typing in an 
+    expression, you will be asked to specify the range of values for each input 
+    variable that Herbie should consider when trying to improve the expression. 
+    Hit the "Improve with Herbie" button once you're done to run Herbie.
+  </p>
+  
+  <p>
+    The web shell reports Herbie's progress and redirects to a
+    <a href="report.html">report</a> once Herbie is done.
+  </p>
+
+  <p>
+    The web shell can also automatically save the generated reports,
+    and has <a href="options.html">many other options</a> you might
+    want to explore.
+  </p>
+
+
+  <h2 id="batch">Batch report generation</h2>
+
+  <p>A <a href="report.html">report</a> can also be generated directly
+  from a file of input expressions in <a href="input.html">FPCore format</a>:</p>
+  
+  <pre class="shell">herbie report bench/tutorial.fpcore output/ 
+Starting Herbie on 3 problems (seed: 770126425)...
+Warning: 25.0% of points produce a very large (infinite) output. 
+You may want to add a precondition.
+See <a href="faq.html#inf-points">https://herbie.uwplse.org/doc/latest/faq.html#inf-points</a> for 
+more.
+  1/3   [   0.703s]   29→ 0     Expanding a square
+  2/3   [   1.611s]    0→ 0     Commute and associate
+  3/3   [   0.353s]   30→ 0     Cancel like terms</pre>
+
+  <p>
+    This command asks generates a report from the input expressions
+    in <code>bench/tutorial.fpcore</code> and saves the report in the
+    directory <code>output/</code>. It's best if that directory
+    doesn't exist before running this command, because otherwise
+    Herbie may overwrite files in that directory.
+  </p>
+
+  <p>
+    Occasionally you may also see Herbie emit warnings as shown above.
+    All of Herbie's warnings are listed, with explanations, in
+    the <a href="faq.html">FAQ</a>.
+  </p>
+
+  <p>
+    Once generated, open <code>output/index.html</code> in your
+    favorite browser (but see <a href="faq.html">the FAQ</a> if you're
+    using Chrome). That page summarizes Herbie's results for all
+    expression in your input file, and you can click on individual
+    expressions to see their report.
+  </p>
+
+  <p>Batch report generation is the most informative way to run Herbie
+  on a large collection of inputs. Like the web shell, it can be
+  customized through <a href="options.html">command-line options</a>,
+  including parallelizing Herbie with multiple threads.</p>
+
+
+</body>
+</html>

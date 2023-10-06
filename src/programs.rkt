@@ -3,11 +3,10 @@
 (require math/bigfloat rival)
 (require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
 
-(provide program-body program-variables
-         expr? expr-contains? expr<?
+(provide expr? expr-contains? expr<?
          type-of repr-of
          location-do location-get
-         batch-eval-progs eval-prog eval-application
+         compile-progs compile-prog eval-application
          free-variables replace-expression replace-vars)
 
 (module+ test
@@ -17,16 +16,6 @@
 (define expr? (or/c list? symbol? boolean? real?))
 
 ;; Programs are just lambda expressions
-
-(define/contract (program-body prog)
-  (-> expr? expr?)
-  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
-  body)
-
-(define/contract (program-variables prog)
-  (-> expr? (listof symbol?))
-  (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
-  vars)
 
 ;; Returns type name
 ;; Fast version does not recurse into functions applications
@@ -126,11 +115,10 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define (eval-prog prog mode ctx)
-  (define f (batch-eval-progs (list prog) mode ctx))
-  (λ args (first (apply f args))))
+(define (compile-prog expr mode ctx)
+  (compose first (compile-progs (list expr) mode ctx)))
 
-(define (batch-eval-progs progs mode ctx)
+(define (compile-progs exprs mode ctx)
   (define repr (context-repr ctx))
   (define vars (context-vars ctx))
   (define var-reprs (context-var-reprs ctx))
@@ -148,7 +136,7 @@
      ['ival (λ (x repr) (if (ival? x) x (ival ((representation-repr->bf repr) x))))]))
 
   ;; Expression cache
-  (define exprs '())
+  (define exprcache '())
   (define exprhash
     (make-hash
      (for/list ([var vars] [i (in-naturals)])
@@ -188,15 +176,13 @@
               (λ ()
                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
                   (set! exprc (+ 1 exprc))
-                  (set! exprs (cons expr exprs))))))
+                  (set! exprcache (cons expr exprcache))))))
 
-  (define names
-    (for/list ([prog progs])
-      (munge (program-body prog) repr)))
+  (define names (for/list ([expr exprs]) (munge expr repr)))
   (define lt (+ exprc varc))
 
   (timeline-push! 'compiler (+ varc size) lt)
-  (define exprvec (list->vector (reverse exprs)))
+  (define exprvec (list->vector (reverse exprcache)))
   (define (f . args)
     (define v (make-vector lt))
     (for ([arg (in-list args)] [n (in-naturals)] [repr (in-list var-reprs)])
@@ -213,7 +199,7 @@
 (module+ test
   (define ctx (make-debug-context '(a b c)))
   (define tests
-    #hash([(λ (a b c) (/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a))
+    #hash([(/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a)
            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
            ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
 
@@ -223,8 +209,8 @@
 
   (for ([(e p) (in-hash tests)])
     (parameterize ([bf-precision 4000])
-      (define iv (apply (eval-prog e 'ival ctx) p))
-      (define val (apply (eval-prog e 'bf ctx) p))
+      (define iv (apply (compile-prog e 'ival ctx) p))
+      (define val (apply (compile-prog e 'bf ctx) p))
       (check-in-interval? iv val))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
@@ -276,15 +262,14 @@
   (-> expr? expr? expr? expr?)
   (match haystack
    [(== needle) needle*]
-   [(list (or 'lambda 'λ) (list vars ...) body)
-    `(λ ,vars ,(replace-expression body needle needle*))]
    [(list op args ...)
     (cons op (map (curryr replace-expression needle needle*) args))]
    [x x]))
 
 (module+ test
-  (check-equal? (replace-expression '(λ (x) (- x (sin x))) 'x 1)
-                '(λ (x) (- 1 (sin 1))))
+  (check-equal?
+   (replace-expression '(- x (sin x)) 'x 1)
+   '(- 1 (sin 1)))
 
   (check-equal?
    (replace-expression

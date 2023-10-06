@@ -1,4 +1,5 @@
 #lang racket
+
 (provide (all-defined-out))
 
 ;;; Flags
@@ -6,14 +7,14 @@
 (define all-flags
   #hash([precision . (double fallback)]
         [setup . (simplify search)]
-        [generate . (rr taylor simplify better-rr)]
+        [generate . (rr taylor simplify better-rr proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define default-flags
   #hash([precision . ()]
         [setup . (simplify search)]
-        [generate . (rr taylor simplify)]
+        [generate . (rr taylor simplify proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
@@ -27,14 +28,10 @@
      (eprintf "The precision:fallback option has been removed.\n")
      (eprintf "  The fallback representation is specified with :precision racket.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
-    [('precision 'fallback)
-     (eprintf "The precision:fallback option has been removed.\n")
-     (eprintf "  Please use :precision racket instead.\n")
-     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
     [('generate 'better-rr)
      (eprintf "The generate:better-rr option has been removed.\n")
      (eprintf "  The current recursive rewriter does not support the it.\n")
-     (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [(_ _)
      (void)]))
 
@@ -50,6 +47,13 @@
 
 (define (flag-set? class flag)
   (set-member? (dict-ref (*flags*) class) flag))
+
+(define (flag-deprecated? category flag)
+  (match* (category flag)
+    [('precision 'double) #t]
+    [('precision 'fallback) #t]
+    [('generate 'better-rr) #t]
+    [(_ _) #f]))
 
 ; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
 (define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
@@ -87,6 +91,7 @@
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
 (define *proof-max-length* (make-parameter 200))
+(define *proof-max-string-length* (make-parameter 10000))
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
@@ -117,7 +122,7 @@
           (if (equal? out "") default out))
       default))
 
-(define *herbie-version* "1.6")
+(define *herbie-version* "2.0")
 
 (define *hostname* (run-command "hostname"))
 
@@ -131,8 +136,23 @@
 
 (define resetters '())
 
-(define (register-reset fn #:priority [priority 0])
+(define (register-reset! fn #:priority [priority 0])
   (set! resetters (cons (cons priority fn) resetters)))
+
+;; Defines a resetter as a parameter
+;; An initialize and reset function must be provided
+;; A finializer may be optionally specified
+(define-syntax define-resetter
+  (syntax-rules ()
+    [(_ name init-fn reset-fn)
+     (define-resetter name init-fn reset-fn (λ _ (void)))]
+    [(_ name init-fn reset-fn finalize-fn)
+     (begin
+       (define name (make-parameter (init-fn)))
+       (register-reset!
+         (λ ()
+           (finalize-fn (name))
+           (name (reset-fn)))))]))
 
 (define (reset!)
   (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn-rec))))

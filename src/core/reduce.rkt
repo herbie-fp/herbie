@@ -1,33 +1,27 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt" "matcher.rkt"
-         "../syntax/rules.rkt" "../syntax/syntax.rkt" "../syntax/sugar.rkt")
-
+(require "../common.rkt" "../programs.rkt" "../syntax/syntax.rkt")
 (provide simplify)
 
 ;; Cancellation's goal is to cancel (additively or multiplicatively) like terms.
 ;; It uses commutativity, identities, inverses, associativity,
 ;; distributativity, and function inverses.
 
-(define simplify-cache (make-hash))
-(define simplify-node-cache (make-hash))
+(define-resetter simplify-cache
+  (λ () (make-hash))
+  (λ () (make-hash)))
 
-(register-reset
- (λ ()
-  (set! simplify-cache (make-hash))
-  (set! simplify-node-cache (make-hash))))
+(define-resetter simplify-node-cache
+  (λ () (make-hash))
+  (λ () (make-hash)))
 
 (define (simplify expr)
-  (hash-ref! simplify-cache expr (λ () (simplify* expr))))
+  (hash-ref! (simplify-cache) expr (λ () (simplify* expr))))
 
 (define (simplify* expr)
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
-    [`(λ ,vars ,body)
-     `(λ ,vars ,(simplify body))]
-    [`(lambda ,vars ,body)
-     `(λ ,vars ,(simplify body))]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
      (list op (simplify body))]
     [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary 
@@ -86,7 +80,8 @@
     [_ expr]))
 
 (define (simplify-node expr)
-  (hash-ref! simplify-node-cache expr (λ () (simplify-node* expr))))
+  (hash-ref! (simplify-node-cache) expr
+             (λ () (simplify-node* expr))))
 
 (define (simplify-node* expr)
   (match (simplify-evaluation expr)
@@ -191,8 +186,10 @@
     (for ([term terms])
       (let ([sum (hash-ref! h (cadr term) (λ () 0))])
         (hash-set! h (cadr term) (+ (car term) sum))))
-    (reap [sow]
-     (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k))))))))
+    (sort
+     (reap [sow]
+       (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k))))))
+     expr<? #:key cdr)))
 
 (define (combine-mterms terms)
   (cons
@@ -201,8 +198,10 @@
      (for ([term (cdr terms)])
        (let ([sum (hash-ref! h (cdr term) (λ () 0))])
          (hash-set! h (cdr term) (+ (car term) sum))))
-     (reap [sow]
-           (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k)))))))))
+     (sort
+      (reap [sow]
+        (hash-for-each h (λ (k v) (when (not (= v 0)) (sow (cons v k))))))
+      expr<? #:key cdr))))
 
 (define (aterm->expr term)
   (match term

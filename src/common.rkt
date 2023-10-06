@@ -1,15 +1,15 @@
 #lang racket
 
 (require racket/runtime-path math/base)
-(require "config.rkt" "../src/syntax/types.rkt")
+(require "config.rkt" "syntax/types.rkt")
 (module+ test (require rackunit))
 
 (provide reap
-         flip-lists find-duplicates partial-sums
-         argmins argmaxs index-of set-disjoint?
-         get-seed set-seed!
+         flip-lists drop-at find-duplicates partial-sums
+         argmins argmaxs set-disjoint? subsequence? list-set* disjoint-set
+         disjoint-set-find! disjoint-set-union! get-seed set-seed!
          quasisyntax dict sym-append
-         format-time format-bits format-error format-cost web-resource
+         format-time format-bits format-accuracy format-cost web-resource
          (all-from-out "config.rkt"))
 
 ;; Various syntactic forms of convenience used in Herbie
@@ -59,6 +59,10 @@
   (check-equal? (argmaxs string-length '("a" "bb" "f" "ccc" "dd" "eee" "g"))
                 '("ccc" "eee")))
 
+(define (drop-at ls index)
+  (define-values (front back) (split-at ls index))
+  (append front (rest back)))
+
 (define (flip-lists list-list)
   "Flip a list of rows into a list of columns"
   (apply map list list-list))
@@ -87,15 +91,6 @@
     (set-add! found x))
   (reverse duplicates))
 
-(define (index-of lst elt)
-  (for/first ([e lst] [i (in-naturals)]
-             #:when (equal? e elt))
-             i))
-
-(module+ test
-  (check-equal? (index-of '(a b c d e) 'd) 3)
-  (check-equal? (index-of '(a b c d e) 'foo) #f))
-
 (define (set-disjoint? s1 s2)
   (set-empty? (set-intersect s2 s1)))
 
@@ -103,6 +98,55 @@
   (check-true (set-disjoint? '(a b c) '(e f g)))
   (check-true (set-disjoint? '() '()))
   (check-false (set-disjoint? '(a b c) '(a))))
+
+(define (subsequence? v l)
+  (or
+   (empty? v)
+   (let ([v* (member (first v) l)])
+     (and v* (subsequence? (rest v) v*)))))
+
+(module+ test
+  (define l (range 10))
+  (check-true (subsequence? empty empty))
+  (check-true (subsequence? empty l))
+  (check-true (subsequence? '(1) l))
+  (check-true (subsequence? '(1 2) l))
+  (check-true (subsequence? '(1 3 5 7 9) l))
+  (check-true (subsequence? '(1 2 5 8) l))
+  (check-false (subsequence? '(x y) l))
+  (check-false (subsequence? '(1 2 10) l)))
+
+(define (list-set* l p v)
+  (let loop ([l l] [p p] [v v] [i 0])
+    (cond
+      [(empty? l)
+       empty]
+      [(and (not (empty? p)) (equal? (first p) i))
+       (cons (first v) (loop (rest l) (rest p) (rest v) (add1 i)))]
+      [else
+       (cons (first l) (loop (rest l) p v (add1 i)))])))
+
+(module+ test
+  (define n '(a b c d e f g))
+  (check-equal? (list-set* empty empty empty) empty)
+  (check-equal? (list-set* n empty empty) n)
+  (check-equal? (list-set* n '(0) '(x)) '(x b c d e f g))
+  (check-equal? (list-set* n '(1 2 5) '(x y z)) '(a x y d e z g)))
+
+;; Union-find
+
+(define (disjoint-set s)
+  (list->vector (range s)))
+
+(define (disjoint-set-find! d x)
+  (define p (vector-ref d x))
+  (if (= p x)
+      x
+      (let ([r (disjoint-set-find! d p)])
+        (vector-set! d x r)
+        r)))
+
+(define (disjoint-set-union! d x y) (vector-set! d y x))
 
 ;; Miscellaneous helper
 
@@ -156,12 +200,42 @@
 
 ;; String formatting operations
 
-(define (format-time ms #:min [min-unit 0])
+(define (format-time ms #:min [min-unit 'millisecond] #:max [max-unit 'hour])
+  (define min-unit*
+    (match min-unit
+      ['millisecond 0]
+      ['second 1000]
+      ['minute 60000]
+      ['hour 3600000]))
   (cond
-   [(< (max ms min-unit) 1000) (format "~ams" (round ms))]
-   [(< (max ms min-unit) 60000) (format "~as" (/ (round (/ ms 100.0)) 10))]
-   [(< (max ms min-unit) 3600000) (format "~amin" (/ (round (/ ms 6000.0)) 10))]
-   [else (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
+    [(or
+      (eq? max-unit 'millisecond)
+      (< (max ms min-unit*) 1000))
+     (format "~ams" (round ms))]
+    [(or
+      (eq? max-unit 'second)
+      (< (max ms min-unit*) 60000))
+     (format "~as" (/ (round (/ ms 100.0)) 10))]
+    [(or
+      (eq? max-unit 'minute)
+      (< (max ms min-unit*) 3600000))
+     (format "~amin" (/ (round (/ ms 6000.0)) 10))]
+    [else
+     (format "~ahr" (/ (round (/ ms 360000.0)) 10))]))
+
+(module+ test
+  (check-equal? (format-time 60000) "1.0min")
+  (check-equal? (format-time 3600000) "1.0hr")
+  (check-equal? (format-time 60000 #:min 'second) "1.0min")
+  (check-equal? (format-time 60000 #:max 'millisecond) "60000ms")
+  (check-equal? (format-time 500 #:min 'second #:max 'minute) "0.5s")
+  (check-equal? (format-time 2000 #:min 'second #:max 'minute) "2.0s")
+  (check-equal? (format-time 60000 #:min 'second #:max 'minute) "1.0min")
+  (check-equal? (format-time 3600000 #:min 'second #:max 'minute) "60.0min")
+  (check-equal? (format-time 7200000 #:min 'second #:max 'minute) "120.0min")
+  (check-equal? (format-time 0 #:min 'hour) "0hr")
+  (check-equal? (format-time 1800000 #:min 'hour) "0.5hr")
+  (check-equal? (format-time 7200000 #:max 'millisecond) "7200000ms"))
 
 (define (format-bits r #:sign [sign #f] #:unit [unit? #f])
   (define unit (if unit? "b" ""))
@@ -170,16 +244,13 @@
    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
    [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
-(define (format-error r repr #:sign [sign #f] #:unit [unit #f])
-  (cond 
-    [(not r) ""]
-    [else
-      (define unit- (if unit unit ""))
-      (define percent (~r (* (/ r (representation-total-bits repr)) 100) #:precision 2))
-
-      (cond
-      [(and (> r 0) sign) (format "+~a~a" percent unit-)]
-      [else (format "~a~a" percent unit-)])]))
+(define (format-accuracy numerator denominator #:sign [sign #f] #:unit [unit ""])
+  (if (and numerator (positive? denominator))
+      (let ([percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1))])
+        (if (and (> numerator 0) sign)
+            (format "+~a~a" percent unit)
+            (format "~a~a" percent unit)))
+      ""))
 
 (define (format-cost r repr #:sign [sign #f])  
   (cond 

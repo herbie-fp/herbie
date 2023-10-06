@@ -1,25 +1,20 @@
 #lang racket
-(require profile math/bigfloat racket/engine json)
-(require "syntax/read.rkt" "syntax/sugar.rkt" "syntax/types.rkt"
-         "alternative.rkt" "common.rkt" "conversions.rkt" "cost.rkt"
-         "datafile.rkt" "errors.rkt"
+
+(require profile math/bigfloat racket/engine json rival)
+(require "syntax/read.rkt" "syntax/rules.rkt" "syntax/sugar.rkt"
+         "syntax/types.rkt" "alternative.rkt" "common.rkt" "conversions.rkt"
+         "cost.rkt" "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
-         "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug))
+         "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
+         "core/localize.rkt" "ground-truth.rkt")
 
-(provide get-test-result *reeval-pts* *timeout*
-         (struct-out test-result) (struct-out test-success)
-         (struct-out test-failure) (struct-out test-timeout)
-         get-table-data unparse-result)
+(provide run-herbie get-table-data unparse-result *reeval-pts* *timeout*
+         (struct-out job-result) (struct-out improve-result)
+         (struct-out alt-analysis))
 
-;; These cannot move between threads!
-(struct test-result (test bits time timeline warnings))
-(struct test-success test-result
-  (start-alt end-alts preprocess points exacts
-   start-est-error end-est-error newpoints newexacts
-   start-error end-errors target-error
-   start-cost end-costs all-alts))
-(struct test-failure test-result (exn))
-(struct test-timeout test-result ())
+(struct job-result (test status time timeline warnings backend))
+(struct improve-result (preprocess pctxs start target end bogosity))
+(struct alt-analysis (alt train-errors test-errors))
 
 (define *reeval-pts* (make-parameter 8000))
 (define *timeout* (make-parameter (* 1000 60 5/2)))
@@ -33,121 +28,236 @@
         (and (= major 8) (< minor 2))
         (and (= major 8) (= minor 2) (zero? (string-length rest))))))
 
-(define (get-p&es context)
-  (for/lists (pts exs)
-      ([(pt ex) (in-pcontext context)])
-    (values pt ex)))
+;; Partitions a joint pcontext into a training and testing set
+(define (partition-pcontext joint-pcontext ctx)
+  (define num-points (pcontext-length joint-pcontext))
+  (cond
+    [(= num-points (+ (*num-points*) (*reeval-pts*)))
+     ; got the expected amount of points
+     ; will partition into training and testing set
+     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))]
+    [else
+     ; the training set will just be up to the first 256
+     ; the testing set will just be the entire set
+     ; TODO: where is 256 coming from?
+     (define training-count (min 256 num-points))
+     (define testing-count (- num-points training-count))
+     (define-values (train-pcontext _) (split-pcontext joint-pcontext training-count testing-count))
+     (values train-pcontext joint-pcontext)]))
 
+;;
+;;  API endpoint backends
+;;
+
+;; Given a test, computes the program cost of the input expression
+(define (get-cost test)
+  (expr-cost (test-input test) (test-output-repr test)))
+
+;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
-  (define output-repr (test-output-repr test))
-  (define context (test-context test))
-  (*needed-reprs* (list output-repr (get-representation 'bool)))
-
-  (match-define (cons domain-stats joint-pcontext)
+  (define repr (test-output-repr test))
+  (match-define (cons _ joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (setup-context!
-        (or (test-specification test) (test-program test)) (test-precondition test)
-        output-repr)))
-  (define-values (train-pcontext test-pcontext)
-    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
+      (setup-context! (test-vars test)
+                      (or (test-spec test) (test-input test))
+                      (test-pre test)
+                      repr)))
 
-  (define-values (points exacts) (get-p&es test-pcontext))
-  (for/list ([point points] [exact exacts]) (list point exact)))
+  (define-values (_ test-pcontext)
+    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
+  test-pcontext)
 
-(define (run-herbie test)
+;; Given a test and a sample of points, computes the error at each point.
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
+(define (get-errors test pcontext)
+  (unless pcontext
+    (error 'get-errors "cannnot run without a pcontext"))
+
+  (define-values (_ test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define errs (errors (test-input test) test-pcontext (*context*)))
+
+  (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
+    (list pt (format-bits (ulps->bits err)))))
+
+;; Given a test and a sample of points, the ground truth of each point
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
+(define (get-exacts test pcontext)
+  (unless pcontext
+    (error 'get-exacts "cannnot run without a pcontext"))
+
+  (define repr (test-output-repr test))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (pts _) (pcontext->lists test-pcontext))
+  (define fn (eval-progs-real 
+              (list (test-input test)) 
+              (list (*context*))))
+  (for/list ([pt pts])
+    (list pt (car (apply fn pt)))))
+
+;; Given a test and a sample of points,
+;; the floating-point result at each point
+(define (get-calculation test pcontext)
+  (unless pcontext
+    (error 'get-calculation "cannnot run without a pcontext"))
+
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (pts _) (pcontext->lists test-pcontext))
+
+  (define fn (compile-prog (test-input test) 'fl (test-context test)))
+  (for/list ([pt pts])
+    (list pt (apply fn pt))))
+
+;; Given a test and a sample of points, computes the local error at every node in the expression
+;; returning a tree of errors that mirrors the structure of the expression.
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
+(define (get-local-error test pcontext)
+  (unless pcontext
+    (error 'get-local-error "cannnot run without a pcontext"))
+
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (*pcontext* test-pcontext)
+  (local-error-as-tree (test-input test) (*context*)))
+
+;; TODO: What in the timeline needs fixing with these changes?
+
+;; Given a test and a sample of points, returns a list of improved alternatives
+;; and both the test set of points and processed test set of points.
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
+(define (get-alternatives test pcontext seed)
+  (unless pcontext
+    (error 'get-alternatives "cannnot run without a pcontext"))
+
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext context))
+  ;; TODO: Ignoring all user-provided preprocessing right now
+  (define-values (alternatives preprocessing)
+    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define test-pcontext*
+    (preprocess-pcontext (*context*) test-pcontext preprocessing))
+  (when seed (set-seed! seed))
+  (list alternatives test-pcontext test-pcontext*))
+
+;; Improvement backend for generating reports
+;; A more heavyweight version of `get-alternatives`
+(define (get-alternatives/report test)
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
   
-  (define output-repr (test-output-repr test))
-  (define context (test-context test))
-  (*needed-reprs* (list output-repr (get-representation 'bool)))
-  (generate-prec-rewrites (test-conversions test))
-
+  (define repr (test-output-repr test))
+  (define ctx (test-context test))
   (match-define (cons domain-stats joint-pcontext)
-                (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-                  (setup-context!
-                   (or (test-specification test) (test-program test)) (test-precondition test)
-                   output-repr)))
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (setup-context! (test-vars test)
+                      (or (test-spec test) (test-input test))
+                      (test-pre test)
+                      repr)))
   (timeline-push! 'bogosity domain-stats)
   (define-values (train-pcontext test-pcontext)
-    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))) 
-
-  (define alts
-    (run-improve! (test-program test) train-pcontext (*num-iterations*)
-                  #:specification (test-specification test)
-                  #:preprocess (test-preprocess test)))
-
+    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
+  ;; TODO: Ignoring all user-provided preprocessing right now
+  (define-values (end-alts preprocessing)
+    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define test-pcontext*
+    (preprocess-pcontext ctx test-pcontext preprocessing))
   (when seed (set-seed! seed))
-  (define processed-test-pcontext
-    (preprocess-pcontext test-pcontext (*herbie-preprocess*) context))
+  
+  ;; compute error/cost for input expression
+  (define start-expr (test-input test))
+  (define start-alt (make-alt start-expr))
+  (define start-train-errs (errors start-expr train-pcontext ctx))
+  (define start-test-errs (errors start-expr test-pcontext* ctx))
+  (define start-alt-data (alt-analysis start-alt start-train-errs start-test-errs))
 
-  (define end-errs
-    (flip-lists
-     (batch-errors (map alt-program alts) processed-test-pcontext context)))
+  ;; optionally compute error/cost for input expression
+  (define target-alt-data
+    (cond
+      [(test-output test)
+       (define target-expr (test-output test))
+       (define target-train-errs (errors target-expr train-pcontext ctx))
+       (define target-test-errs (errors target-expr test-pcontext* ctx))
+       (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)]
+      [else
+       #f]))
 
+  ;; compute error/cost for output expression
+  (define end-exprs (map alt-expr end-alts))
+  (define end-train-errs (flip-lists (batch-errors end-exprs train-pcontext ctx)))
+  (define end-test-errs (flip-lists (batch-errors end-exprs test-pcontext* ctx)))
+  (define end-alts-data (map alt-analysis end-alts end-train-errs end-test-errs))
+
+  ;; bundle up the result
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
 
-  (define-values (points exacts) (get-p&es train-pcontext))
-  (define-values (newpoints newexacts) (get-p&es processed-test-pcontext))
-  (test-success test
-                (bf-precision)
-                #f
-                (timeline-extract)
-                warning-log (make-alt (test-program test)) alts
-                (*herbie-preprocess*) points exacts
-                (errors (test-program test) train-pcontext context)
-                (errors (alt-program (car alts)) train-pcontext context)
-                newpoints newexacts
-                (errors (test-program test) processed-test-pcontext context)
-                end-errs
-                (if (test-output test)
-                    (errors (test-target test) processed-test-pcontext context)
-                    #f)
-                (program-cost (test-program test) output-repr)
-                (map (curryr alt-cost output-repr) alts)
-                (*all-alts*)))
+  (define pctxs (list train-pcontext test-pcontext*))
+  (improve-result preprocessing pctxs start-alt-data target-alt-data end-alts-data domain-stats))
 
-;; Ugly, but struct-copy doesn't do the right thing with inheritance
-(define (add-time result time)
-  (match-define (test-success test bits _time timeline warnings
-                              start-alt end-alts preprocess points exacts
-                              start-est-error end-est-error newpoints newexacts
-                              start-error end-errors target-error
-                              start-cost end-costs all-alts) result)
-  (test-success test bits time timeline warnings
-                start-alt end-alts preprocess points exacts
-                start-est-error end-est-error newpoints newexacts
-                start-error end-errors target-error
-                start-cost end-costs all-alts))
+;;
+;;  Public interface
+;;
 
-(define (get-test-result command test #:seed [seed #f] #:profile [profile? #f])
+(define (run-herbie command test
+                    #:seed [seed #f]
+                    #:pcontext [pcontext #f]
+                    #:profile? [profile? #f]
+                    #:timeline-disabled? [timeline-disabled? #f])
   (define timeline #f)
 
-  (define (compute-result test)
-    (parameterize ([*timeline-disabled* false]
-                   [*warnings-disabled* true])
-      (define start-time (current-inexact-milliseconds))
-      (rollback-improve!)
-      (when seed (set-seed! seed))
-      (with-handlers ([exn? (curry on-exception start-time)])
-        (define out
-          (match command
-            ['improve (run-herbie test)]
-            ['sample (get-sample test)]))
-        (print-warnings)
-        (if (eq? command 'sample) out (add-time out (- (current-inexact-milliseconds) start-time))))))
+  ;; CS versions <= 8.2: problems with scheduler cause places to stay
+  ;; in a suspended state
+  (when cs-places-workaround?
+    (thread (lambda () (sync (system-idle-evt)))))
 
   (define (on-exception start-time e)
-    (parameterize ([*timeline-disabled* false])
-      (timeline-event! 'end))
-    (print-warnings)
-    (test-failure test (bf-precision)
-                  (- (current-inexact-milliseconds) start-time) (timeline-extract)
-                  warning-log e))
+    (parameterize ([*timeline-disabled* timeline-disabled?])
+      (timeline-event! 'end)
+      (define time (- (current-inexact-milliseconds) start-time))
+      (match command 
+        ['improve (job-result test 'failure time (timeline-extract) (warning-log) e)]
+        [_ (raise e)])))
 
+  (define (on-timeout)
+    (parameterize ([*timeline-disabled* timeline-disabled?])
+      (timeline-load! timeline)
+      (timeline-compact! 'outcomes)
+      (match command 
+        ['improve (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
+        [_ (error 'run-herbie "command ~a timed out" command)])))
+
+  (define (compute-result test)
+    (parameterize ([*timeline-disabled* timeline-disabled?]
+                   [*warnings-disabled* false])
+      (define start-time (current-inexact-milliseconds))
+      (define repr (test-output-repr test))
+      (rollback-improve!)
+      (*context* (test-context test))
+      (*needed-reprs* (list repr (get-representation 'bool)))
+      (generate-prec-rewrites (test-conversions test))
+      (set! timeline (*timeline*))
+      (when seed (set-seed! seed))
+      (with-handlers ([exn? (curry on-exception start-time)])
+        (define result
+          (match command 
+            ['alternatives (get-alternatives test pcontext seed)]
+            ['evaluate (get-calculation test pcontext)]
+            ['cost (get-cost test)]
+            ['errors (get-errors test pcontext)]
+            ['exacts (get-exacts test pcontext)]
+            ['improve (get-alternatives/report test)]
+            ['local-error (get-local-error test pcontext)]
+            ['sample (get-sample test)]
+            [_ (error 'compute-result "unknown command ~a" command)]))
+        (define time (- (current-inexact-milliseconds) start-time))
+        (job-result test 'success time (timeline-extract) (warning-log) result))))
+  
   (define (in-engine _)
-    (set! timeline *timeline*)
     (if profile?
         (profile-thunk
          (λ () (compute-result test))
@@ -155,85 +265,92 @@
          #:render (λ (p order) (write-json (profile->json p) profile?)))
         (compute-result test)))
 
-  ;; CS versions <= 8.2: problems with scheduler cause places to stay
-  ;; in a suspended state
-  (when cs-places-workaround?
-    (thread (lambda () (sync (system-idle-evt)))))
-
+  ;; Branch on whether or not we should run inside an engine
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)
-      (parameterize ([*timeline-disabled* false])
-        (timeline-load! timeline)
-        (timeline-compact! 'outcomes)
-        (print-warnings)
-        (test-timeout test (bf-precision) (*timeout*) (timeline-extract) '()))))
+      (on-timeout)))
 
 (define (dummy-table-row result status link)
-  (define test (test-result-test result))
+  (define test (job-result-test result))
   (define repr (test-output-repr test))
+  (define preprocess
+    (if (eq? (job-result-status result) 'success)
+             (improve-result-preprocess (job-result-backend result))
+             (test-preprocess test)))
   (table-row (test-name test) (test-identifier test) status
-             (resugar-program (program-body (test-precondition test)) repr)
-             (if (test-success? result) (test-success-preprocess result) (test-preprocess test))
-             (representation-name (test-output-repr test))
+             (resugar-program (test-pre test) repr)
+             preprocess
+             (representation-name repr)
              (map (curry map representation-name) (test-conversions test))
              (test-vars test)
              (resugar-program (test-input test) repr) #f
              (resugar-program (test-spec test) repr)
              (and (test-output test) (resugar-program (test-output test) repr))
-             #f #f #f #f #f (test-result-time result)
-             (test-result-bits result) link '()))
+             #f #f #f #f #f (job-result-time result) link '()))
 
 (define (get-table-data result link)
-  (define test (test-result-test result))
-  (cond
-   [(test-success? result)
-    (define name (test-name test))
-    (define start-errors  (test-success-start-error result))
-    (define end-errorss   (test-success-end-errors result))
-    (define target-errors (test-success-target-error result))
-    (define start-prog    (alt-program (test-success-start-alt result)))
-    (define end-progs     (map alt-program (test-success-end-alts result)))
-    (define costs         (test-success-end-costs result))
+  (match-define (job-result test status time _ _ backend) result)
+  (match status
+    ['success
+     (match-define (improve-result _ _ start target end _) backend)
+     (define repr (test-output-repr test))
+    
+     ; starting expr analysis
+     (match-define (alt-analysis start-alt start-train-errs start-test-errs) start)
+     (define start-expr (alt-expr start-alt))
+     (define start-train-score (errors-score start-train-errs))
+     (define start-test-score (errors-score start-test-errs))
+     (define start-cost (expr-cost start-expr repr))
 
-    (define start-score (errors-score start-errors))
-    (define end-scores (map errors-score end-errorss))
-    (define end-score (car end-scores))
-    (define target-score (and target-errors (errors-score target-errors)))
-    (define est-start-score (errors-score (test-success-start-est-error result)))
-    (define est-end-score (errors-score (test-success-end-est-error result)))
-    (define end-exprs (map (λ (p) (program-body (resugar-program p (test-output-repr test)))) end-progs))
+     ; target analysis for comparison
+     (define target-score (and target (errors-score (alt-analysis-test-errors target))))
+     
+     ; analysis of output expressions
+     (define-values (end-exprs end-train-scores end-test-scores end-costs)
+       (for/lists (l1 l2 l3 l4) ([result end])
+         (match-define (alt-analysis alt train-errors test-errors) result)
+         (values (alt-expr alt)
+                 (errors-score train-errors)
+                 (errors-score test-errors)
+                 (expr-cost (alt-expr alt) repr))))
 
-    (define cost&accuracy
-      (list (list (program-cost start-prog (test-output-repr test)) start-score)
-            (list (car costs) (car end-scores))
-            (map list (cdr costs) (cdr end-scores) (cdr end-exprs))))
+     ; terribly formatted pareto-optimal frontier
+     (define cost&accuracy
+       (list (list start-cost start-test-score)
+             (list (car end-costs) (car end-test-scores))
+             (map list (cdr end-costs) (cdr end-test-scores) (cdr end-exprs))))
+ 
+     (define fuzz 0.1)
+     (define end-est-score (car end-train-scores))
+     (define end-score (car end-test-scores))
+     (define status
+       (if target-score
+           (cond
+            [(< end-score (- target-score fuzz)) "gt-target"]
+            [(< end-score (+ target-score fuzz)) "eq-target"]
+            [(> end-score (+ start-test-score fuzz)) "lt-start"]
+            [(> end-score (- start-test-score fuzz)) "eq-start"]
+            [(> end-score (+ target-score fuzz)) "lt-target"])
+           (cond
+            [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
+            [(< end-score (- start-test-score 1)) "imp-start"]
+            [(< end-score (+ start-test-score fuzz)) "apx-start"]
+            [else "uni-start"])))
 
-    (define fuzz 0.1)
-    (define status
-      (if target-score
-          (cond
-           [(< end-score (- target-score fuzz)) "gt-target"]
-           [(< end-score (+ target-score fuzz)) "eq-target"]
-           [(> end-score (+ start-score fuzz)) "lt-start"]
-           [(> end-score (- start-score fuzz)) "eq-start"]
-           [(> end-score (+ target-score fuzz)) "lt-target"])
-          (cond
-           [(and (< start-score 1) (< end-score (+ start-score 1))) "ex-start"]
-           [(< end-score (- start-score 1)) "imp-start"]
-           [(< end-score (+ start-score fuzz)) "apx-start"]
-           [else "uni-start"])))
-
-    (struct-copy table-row (dummy-table-row result status link)
-                 [output (car end-exprs)]
-                 [start start-score] [result end-score] [target target-score]
-                 [start-est est-start-score] [result-est est-end-score]
-                 [cost-accuracy cost&accuracy])]
-   [(test-failure? result)
-    (define status (if (exn:fail:user:herbie? (test-failure-exn result)) "error" "crash"))
-    (dummy-table-row result status link)]
-   [(test-timeout? result)
-    (dummy-table-row result "timeout" link)]))
+     (struct-copy table-row (dummy-table-row result status link)
+                  [start-est start-train-score] [start start-test-score]
+                  [target target-score]
+                  [result-est end-est-score] [result end-score]
+                  [output (car end-exprs)] [cost-accuracy cost&accuracy])]
+    ['failure
+     (define exn backend)
+     (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
+     (dummy-table-row result status link)]
+    ['timeout
+     (dummy-table-row result "timeout" link)]
+    [_
+     (error 'get-table-data "unknown result type ~a"status)]))
 
 (define (unparse-result row)
   (define top
