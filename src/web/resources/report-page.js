@@ -233,17 +233,11 @@ function buildBody(jsonData) {
         tableData["tbody"]
     ])
 
-    const compareDiv = Element("div", { classList: "report-details" }, [
-        compareForm(jsonData),
-        compareInfo(tableData["diffCount"]),
-    ])
-
     return [
         header,
         stats,
         figureRow,
-        compareDiv,
-        buildFilters(jsonData.tests),
+        dataControls(jsonData, tableData["diffCount"]),
         resultsTable,
     ]
 }
@@ -493,9 +487,9 @@ function buildCheckboxLabel(classes, text, boolState) {
         text])
 }
 
-function buildFilters(jsonTestData) {
+function dataControls(jsonData, diffCount) {
     var testTypeCounts = {}
-    for (let test of jsonTestData) {
+    for (let test of jsonData.tests) {
         testTypeCounts[test.status] == null ?
             testTypeCounts[test.status] = 1 :
             testTypeCounts[test.status] += 1
@@ -519,7 +513,7 @@ function buildFilters(jsonTestData) {
                 for (let i in childStateNames) {
                     filterState[childStateNames[i]] = e.target.checked
                 }
-                update(resultsJsonData)
+                update(jsonData)
             }
         })
     }
@@ -578,37 +572,9 @@ function buildFilters(jsonTestData) {
             filterDetailsState = !filterDetailsState
         }
     })
-    return details
-}
 
-function compareInfo(diffCount) {
-    if (otherJsonData != null) {
-        let resultsDate = new Date(resultsJsonData.date * 1000)
-        const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
-        let otherDate = new Date(otherJsonData.date * 1000)
-        const otherDayString = `${otherDate.getFullYear()}/${otherDate.getMonth() + 1}/${otherDate.getDay()}`
-        return [
-            Element("details", {}, [
-                Element("summary", {}, [
-                    Element("h2", {}, ["More Info"]),
-                    `Displaying ${diffCount}/${resultsJsonData.tests.length} tests that are not equal, Test marked pink have different output, Test with blue text have different status.`
-                ]),
-                Element("div", {}, [
-                    Element("h3", {}, ["Current report:"]),
-                    `${resultsJsonData.branch}: seed(${resultsJsonData.seed}) ${resultDayString}`]),
-                Element("div", {}, [
-                    Element("h3", {}, ["Compared to:"]),
-                    `${otherJsonData.branch}: seed(${otherJsonData.seed}) ${otherDayString}`]),
-            ])
-        ]
-    } else {
-        return
-    }
-}
+    const filters = details
 
-const ENTER_KEY = 13
-
-function compareForm(jsonData) {
     const formName = "compare-form"
 
     const output = Element("input", {
@@ -658,6 +624,9 @@ function compareForm(jsonData) {
     const input = Element("input", {
         id: "compare-input", value: compareAgainstURL
     }, [])
+
+    const ENTER_KEY = 13
+
     input.addEventListener("keyup", async (e) => {
         e.preventDefault();
         compareAgainstURL = form.childNodes[1].value
@@ -714,9 +683,38 @@ function compareForm(jsonData) {
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
     })
-    var otherInput = Element("div",{},showTolerance(showToleranceBool))
+    var otherInput = Element("div", {}, showTolerance(showToleranceBool))
     otherInput.style.display = "block"
-    return Element("div", {}, [form, otherInput])
+    const compareForm = Element("div", {}, [form, otherInput])
+
+    var compareInfo = []
+
+    if (otherJsonData != null) {
+        let resultsDate = new Date(resultsJsonData.date * 1000)
+        const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
+        let otherDate = new Date(otherJsonData.date * 1000)
+        const otherDayString = `${otherDate.getFullYear()}/${otherDate.getMonth() + 1}/${otherDate.getDay()}`
+        compareInfo = [
+            Element("details", {}, [
+                Element("summary", {}, [
+                    Element("h2", {}, ["More Info"]),
+                    `Displaying ${diffCount}/${resultsJsonData.tests.length} tests that are not equal, Test marked pink have different output, Test with blue text have different status.`
+                ]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Current report:"]),
+                    `${resultsJsonData.branch}: seed(${resultsJsonData.seed}) ${resultDayString}`]),
+                Element("div", {}, [
+                    Element("h3", {}, ["Compared to:"]),
+                    `${otherJsonData.branch}: seed(${otherJsonData.seed}) ${otherDayString}`]),
+            ])
+        ]
+    }
+
+    return Element("div", { classList: "report-details" }, [
+        compareForm,
+        compareInfo,
+        filters
+    ])
 }
 
 // -------------------------------------------------
