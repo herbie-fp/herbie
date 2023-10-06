@@ -339,7 +339,7 @@
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
   
-  (for ([(subexpr num-of-errors) (in-dict (group-errors prog pcontext))])
+  (for ([(subexpr num-of-errors) (in-dict (group-errors (alt-expr (car simplified)) pcontext))])
     (unless (= 0 num-of-errors)
       (timeline-push! 'problems (and subexpr (~a subexpr)) num-of-errors)))
 
