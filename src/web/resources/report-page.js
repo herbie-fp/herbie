@@ -563,7 +563,7 @@ function dataControls(jsonData, diffCount) {
         update(resultsJsonData)
     })
 
-    const details = Element("details", { id: "filters", open: filterDetailsState, classList: "report-details" }, [
+    const details = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
             Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown]), [
             filterButtons]])
@@ -698,7 +698,7 @@ function dataControls(jsonData, diffCount) {
             Element("details", {}, [
                 Element("summary", {}, [
                     Element("h2", {}, ["More Info"]),
-                    `Displaying ${diffCount}/${resultsJsonData.tests.length} tests that are not equal, Test marked pink have different output, Test with blue text have different status.`
+                    `Displaying ${diffCount}/${resultsJsonData.tests.length}`
                 ]),
                 Element("div", {}, [
                     Element("h3", {}, ["Current report:"]),
@@ -712,8 +712,8 @@ function dataControls(jsonData, diffCount) {
 
     return Element("div", { classList: "report-details" }, [
         compareForm,
-        compareInfo,
-        filters
+        filters,
+        compareInfo
     ])
 }
 
