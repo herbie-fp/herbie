@@ -367,19 +367,20 @@ function tableRowDiff(test) {
         var timeDiff = test.time - diffAgainstFields[test.name].time
         var color = "diff-time-red"
         var text
-        var titleText = ""
+        var titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
         // Dirty equal less then 1 second
+        var areEqual = false
         if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
+            areEqual = true
             color = "diff-time-gray"
             text = "~"
-            titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
         } else if (timeDiff < 0) {
             color = "diff-time-green"
             text = "+ " + `${formatTime(Math.abs(timeDiff))}`
         } else {
             text = "-" + `${formatTime(timeDiff)}`
         }
-        return { td: Element("td", { classList: color, title: titleText }, [text]), equal: titleText != "" }
+        return { td: Element("td", { classList: color, title: titleText }, [text]), equal: areEqual }
     }
 
     function buildTDfor(o, t) {
@@ -388,10 +389,9 @@ function tableRowDiff(test) {
         var color = "diff-time-red"
         var diff = op - tp
         var areEqual = false
-        var titleText = ""
+        var titleText = `Original: ${op} vs ${tp}`
         var tdText = `- ${(diff).toFixed(1)}%`
         if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-            titleText = `Original: ${op} vs ${tp}`
             color = "diff-time-gray"
             areEqual = true
             tdText = "~"
@@ -421,7 +421,6 @@ function tableRowDiff(test) {
         return buildTDfor(o, t)
     }
 
-    var testTile = ""
     var classList = [test.status]
     const startAccuracy = startAccuracyTD(test)
     const resultAccuracy = resultAccuracyTD(test)
@@ -433,12 +432,15 @@ function tableRowDiff(test) {
     var tdTargetAccuracy = radioStates[radioStatesIndex] == "targetAccuracy" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
     const tdTime = radioStates[radioStatesIndex] == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
 
+    var testTile = ""
     var outputEqual = true
-
-    if (radioStates[radioStatesIndex] == "output" && test.output != diffAgainstFields[test.name].output) {
+    if (radioStates[radioStatesIndex] == "output") {
         outputEqual = false
     }
-
+    if (test.output != diffAgainstFields[test.name].output) {
+        // TODO steal Latex formatting from Odyssey
+        testTile += `Current output:\n${test.output} \n \n Comparing to:\n ${diffAgainstFields[test.name].output}`
+    }
     if (test.status == "imp-start" ||
         test.status == "ex-start" ||
         test.status == "apx-start") {
@@ -563,18 +565,6 @@ function dataControls(jsonData, diffCount) {
         update(resultsJsonData)
     })
 
-    const details = Element("details", { id: "filters", open: filterDetailsState }, [
-        Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown]), [
-            filterButtons]])
-    details.addEventListener("click", (e) => {
-        if (e.target.nodeName == "SUMMARY") {
-            filterDetailsState = !filterDetailsState
-        }
-    })
-
-    const filters = details
-
     const formName = "compare-form"
 
     const output = Element("input", {
@@ -583,7 +573,7 @@ function dataControls(jsonData, diffCount) {
     }, [])
     output.addEventListener("click", async (e) => {
         radioStatesIndex = 0
-        await updateFromForm(jsonData, e.target.parentNode)
+        await fetchAndUpdate(jsonData, compareAgainstURL)
     })
 
     const startAccuracy = Element("input", {
@@ -592,7 +582,7 @@ function dataControls(jsonData, diffCount) {
     }, [])
     startAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 1
-        await updateFromForm(jsonData, e.target.parentNode)
+        await fetchAndUpdate(jsonData, compareAgainstURL)
     })
 
     const resultAccuracy = Element("input", {
@@ -601,7 +591,7 @@ function dataControls(jsonData, diffCount) {
     }, [])
     resultAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 2
-        await updateFromForm(jsonData, e.target.parentNode)
+        await fetchAndUpdate(jsonData, compareAgainstURL)
     })
 
     const targetAccuracy = Element("input", {
@@ -610,7 +600,7 @@ function dataControls(jsonData, diffCount) {
     }, [])
     targetAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 3
-        await updateFromForm(jsonData, e.target.parentNode)
+        await fetchAndUpdate(jsonData, compareAgainstURL)
     })
 
     const time = Element("input", {
@@ -619,28 +609,29 @@ function dataControls(jsonData, diffCount) {
     }, [])
     time.addEventListener("click", async (e) => {
         radioStatesIndex = 4
-        await updateFromForm(jsonData, e.target.parentNode)
+        await fetchAndUpdate(jsonData, compareAgainstURL)
     })
+
     const input = Element("input", {
-        id: "compare-input", value: compareAgainstURL
+        id: "compare-input", value: compareAgainstURL,
+        placeholder: "current report against"
     }, [])
 
     const ENTER_KEY = 13
 
     input.addEventListener("keyup", async (e) => {
         e.preventDefault();
-        compareAgainstURL = form.childNodes[1].value
+        compareAgainstURL = form.parentNode.querySelector("#compare-input").value
         const forum = e.target.parentNode
-        const inputLength = form.childNodes[1].value.length
-        if (inputLength > 0 && e.keyCode === ENTER_KEY) {
+        if (compareAgainstURL.length > 0 && e.keyCode === ENTER_KEY) {
             radioStatesIndex = 2
             filterTolerance = 1
-            await updateFromForm(jsonData, forum)
-        } else if (inputLength < 1 && e.keyCode === ENTER_KEY) {
+            await fetchAndUpdate(jsonData, compareAgainstURL)
+        } else if (compareAgainstURL.length < 1 && e.keyCode === ENTER_KEY) {
             radioStatesIndex = -1
             compareAgainstURL = ""
             input.value = ""
-            await updateFromForm(jsonData, forum)
+            await fetchAndUpdate(jsonData, compareAgainstURL)
         }
     })
     function showTolerance(show) {
@@ -655,10 +646,10 @@ function dataControls(jsonData, diffCount) {
             unitText = Element("text", {}, ["%"])
         }
         toleranceInputField.addEventListener("keyup", async (e) => {
-            e.preventDefault();
+            e.preventDefault()
             if (e.keyCode === 13) {
                 filterTolerance = e.target.value
-                await updateFromForm(jsonData, e.target.parentNode.parentNode.childNodes[0])
+                await fetchAndUpdate(jsonData, compareAgainstURL)
             }
         })
         toleranceInputField.style.display = show ? "inline" : "none"
@@ -675,20 +666,26 @@ function dataControls(jsonData, diffCount) {
         showToleranceBool = true
     }
 
+    var compareText = Element("text", {}, ["Compare"])
+    compareText.style.padding = "0em 0.5em 0em 0em"
+    var toggles = []
+    var helpText = Element("text", {}, ["press enter to update."])
+    helpText.style.padding = "0em 0em 0em 0.5em"
+    if (input.value.length > 0) {
+        toggles = [output, "Output", startAccuracy, "Start Accuracy", resultAccuracy, "Result Accuracy", targetAccuracy, "Target Accuracy",
+            time, "Time"]
+    }
     const form = Element("form", {}, [
-        Element("h2", {}, ["Compare"]), input, output, "Output", startAccuracy, "Start Accuracy", resultAccuracy, "Result Accuracy", targetAccuracy, "Target Accuracy",
-        time, "Time"
+        Element("h2", { id: "data-controls-form" }, [compareText, input, helpText]),
+        toggles
     ])
     // disable enter key so we can handle the event elsewhere
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
     })
-    var otherInput = Element("div", {}, showTolerance(showToleranceBool))
-    otherInput.style.display = "block"
-    const compareForm = Element("div", {}, [form, otherInput])
+    const compareForm = Element("div", {}, [form])
 
     var compareInfo = []
-
     if (otherJsonData != null) {
         let resultsDate = new Date(resultsJsonData.date * 1000)
         const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
@@ -710,6 +707,16 @@ function dataControls(jsonData, diffCount) {
         ]
     }
 
+    const filters = Element("details", { id: "filters", open: filterDetailsState }, [
+        Element("summary", {}, [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown, showTolerance(showToleranceBool)]), [
+            filterButtons]])
+    filters.addEventListener("click", (e) => {
+        if (e.target.nodeName == "SUMMARY") {
+            filterDetailsState = !filterDetailsState
+        }
+    })
+
     return Element("div", { classList: "report-details" }, [
         compareForm,
         filters,
@@ -725,10 +732,6 @@ function update(jsonData) {
     const newBody = Element("body", {}, buildBody(jsonData))
     htmlNode.replaceChild(newBody, bodyNode)
     bodyNode = newBody
-}
-
-async function updateFromForm(jsonData, formNode) {
-    await fetchAndUpdate(jsonData, formNode.childNodes[1].value)
 }
 
 async function fetchAndUpdate(jsonData, url) {
