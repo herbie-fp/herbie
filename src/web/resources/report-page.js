@@ -178,11 +178,19 @@ function storeBenchmarks(tests) {
 
 var filterDetailsState = false
 
-var compareState = {
-    url: "",
-    compare: false,
-    start: true,
-}
+var compareAgainstURL = ""
+// State for Form radio buttons
+// Why no some Types :(
+var radioStatesIndex = 0
+var radioStates = [
+    "noComparison",
+    "status",
+    "output",
+    "startAccuracy",
+    "resultAccuracy",
+    "targetAccuracy",
+    "time"
+]
 
 var groupState = {
     "improved": true,
@@ -290,7 +298,7 @@ function buildFilters(jsonTestData) {
 
     dropDown.addEventListener("click", (e) => {
         for (let i in benchMarks) {
-            if (benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
+            if (e.target.label != undefined && benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
                 selectedBenchmarkIndex = i
                 update(resultsJsonData)
                 return
@@ -376,7 +384,7 @@ function filterTest(test) {
     const linkComponents = test.link.split("/")
     if (selectedBenchmarkIndex == -1 && filterState[test.status]) {
         return true
-    } else if (linkComponents.length > 1) {
+    } else if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
         if (benchMarks[selectedBenchmarkIndex].toLowerCase() == linkComponents[0] && filterState[test.status]) {
             return true
         }
@@ -389,7 +397,11 @@ function tableBody(jsonData) {
     var rows = []
     for (let test of jsonData.tests) {
         if (filterTest(test)) {
-            if (diffAgainstFields[test.name] && compareState["compare"]) {
+            // TODO merge tableRowDiff and tableRow so we only have one code path
+            /* 
+            This should be possible now that tableRowDiff without any diff options checked displays the same view as tableRow
+            */
+            if (diffAgainstFields[test.name] && radioStates[radioStatesIndex] != "noComparison") {
                 const row = tableRowDiff(test)
                 if (!row.equal) {
                     rows.push(row.tr)
@@ -492,16 +504,27 @@ function tableRowDiff(test) {
 
     var testTile = ""
     var classList = [test.status]
-    var startAccuracy = startAccuracyTD(test)
-    var resultAccuracy = resultAccuracyTD(test)
-    var targetAccuracy = targetAccuracyTD(test)
+    const startAccuracy = startAccuracyTD(test)
+    const resultAccuracy = resultAccuracyTD(test)
+    const targetAccuracy = targetAccuracyTD(test)
+    const time = timeTD(test)
 
-    if (test.status != diffAgainstFields[test.name].status) {
+    var tdStartAccuracy = radioStates[radioStatesIndex] == "startAccuracy" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
+    var tdResultAccuracy = radioStates[radioStatesIndex] == "resultAccuracy" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
+    var tdTargetAccuracy = radioStates[radioStatesIndex] == "targetAccuracy" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
+    const tdTime = radioStates[radioStatesIndex] == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
+
+    var statusEqual = true
+    var outputEqual = true
+
+    if (radioStates[radioStatesIndex] == "status" && test.status != diffAgainstFields[test.name].status) {
+        statusEqual = false
         classList.push("diff-status")
         testTile = "(" + test.status + " != " + diffAgainstFields[test.name].status + ")"
     }
 
-    if (test.output != diffAgainstFields[test.name].output) {
+    if (radioStates[radioStatesIndex] == "output" && test.output != diffAgainstFields[test.name].output) {
+        outputEqual = false
         classList.push("diff-output")
         if (testTile != "") {
             testTile += "\n\n"
@@ -512,18 +535,21 @@ function tableRowDiff(test) {
     if (test.status == "imp-start" ||
         test.status == "ex-start" ||
         test.status == "apx-start") {
-        targetAccuracy.td = Element("td", {}, [])
+        tdTargetAccuracy = Element("td", {}, [])
     }
-
     if (test.status == "timeout" || test.status == "error") {
-        startAccuracy.td = Element("td", {}, [])
-        resultAccuracy.td = Element("td", {}, [])
-        targetAccuracy.td = Element("td", {}, [])
+        tdStartAccuracy = Element("td", {}, [])
+        tdResultAccuracy = Element("td", {}, [])
+        tdTargetAccuracy = Element("td", {}, [])
     }
 
-    const time = timeTD(test)
-
-    const areEqual = true && time.equal && startAccuracy.equal && resultAccuracy.equal && targetAccuracy.equal
+    const radioSelected = radioStates[radioStatesIndex]
+    const hideRow = (radioSelected == "status" && statusEqual) ||
+        (radioSelected == "output" && outputEqual) ||
+        (radioSelected == "startAccuracy" && startAccuracy.equal) ||
+        (radioSelected == "resultAccuracy" && resultAccuracy.equal) ||
+        (radioSelected == "targetAccuracy" && targetAccuracy.equal) ||
+        (radioSelected == "time" && time.equal)
 
     var nameTD = Element("td", {}, [test.name])
     if (testTile != "") {
@@ -532,17 +558,17 @@ function tableRowDiff(test) {
 
     const tr = Element("tr", { classList: classList.join(" ") }, [
         nameTD,
-        startAccuracy.td,
-        resultAccuracy.td,
-        targetAccuracy.td,
-        time.td,
+        tdStartAccuracy,
+        tdResultAccuracy,
+        tdTargetAccuracy,
+        tdTime,
         Element("td", {}, [
             Element("a", {
                 href: `${test.link}/graph.html`
             }, ["»"])]),
     ])
     tr.addEventListener("click", () => tr.querySelector("a").click())
-    return { tr: tr, equal: areEqual }
+    return { tr: tr, equal: hideRow }
 }
 
 async function getResultsJson() {
@@ -559,6 +585,10 @@ async function getResultsJson() {
 
 function compareInfo(diffCount) {
     if (otherJsonData != null) {
+        let resultsDate = new Date(resultsJsonData.date * 1000)
+        const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
+        let otherDate = new Date(otherJsonData.date * 1000)
+        const otherDayString = `${otherDate.getFullYear()}/${otherDate.getMonth() + 1}/${otherDate.getDay()}`
         return [
             Element("details", {}, [
                 Element("summary", {}, [
@@ -567,10 +597,10 @@ function compareInfo(diffCount) {
                 ]),
                 Element("div", {}, [
                     Element("h3", {}, ["Current report:"]),
-                    `${resultsJsonData.branch}: @${resultsJsonData.commit}, ${resultsJsonData.date}`]),
+                    `${resultsJsonData.branch}: seed(${resultsJsonData.seed}) ${resultDayString}`]),
                 Element("div", {}, [
                     Element("h3", {}, ["Compared to:"]),
-                    `${otherJsonData.branch}: @${otherJsonData.commit}, ${otherJsonData.date}`]),
+                    `${otherJsonData.branch}: seed(${otherJsonData.seed}) ${otherDayString}`]),
             ])
         ]
     } else {
@@ -580,27 +610,78 @@ function compareInfo(diffCount) {
 
 function compareForm(jsonData) {
     const formName = "compare-form"
-    const compareID = "compare-compare"
     const defaultID = "compare-default"
+    const statusID = "compare-status"
     const inputID = "compare-input"
-    const compare = Element("input", {
-        id: compareID, type: "radio", checked: compareState["compare"],
+
+    const output = Element("input", {
+        id: "compare-output", type: "radio", checked: radioStates[radioStatesIndex] == "output",
+        name: formName
+    }, [])
+    output.addEventListener("click", async (e) => {
+        radioStatesIndex = 2
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+
+    const startAccuracy = Element("input", {
+        id: "compare-startAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "startAccuracy",
+        name: formName
+    }, [])
+    startAccuracy.addEventListener("click", async (e) => {
+        radioStatesIndex = 3
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+
+    const resultAccuracy = Element("input", {
+        id: "compare-resultAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "resultAccuracy",
+        name: formName
+    }, [])
+    resultAccuracy.addEventListener("click", async (e) => {
+        radioStatesIndex = 4
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+
+    const targetAccuracy = Element("input", {
+        id: "compare-targetAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "targetAccuracy",
+        name: formName
+    }, [])
+    targetAccuracy.addEventListener("click", async (e) => {
+        radioStatesIndex = 5
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+
+    const time = Element("input", {
+        id: "compare-time", type: "radio", checked: radioStates[radioStatesIndex] == "time",
+        name: formName
+    }, [])
+    time.addEventListener("click", async (e) => {
+        radioStatesIndex = 6
+        await updateFromForm(jsonData, e.target.parentNode)
+    })
+
+    const status = Element("input", {
+        id: statusID, type: "radio", checked: radioStates[radioStatesIndex] == "status",
         name: formName
     }, [])
     const input = Element("input", {
-        id: inputID, value: compareState["url"]
+        id: inputID, value: compareAgainstURL
     }, [])
-    const starting = Element("input", {
-        id: defaultID, type: "radio", checked: compareState["start"],
+    const noComparison = Element("input", {
+        id: defaultID, type: "radio", checked: radioStates[radioStatesIndex] == "noComparison",
         name: formName
     }, [])
     const form = Element("form", {}, [
-        Element("h2", {}, ["Compare"]), input, starting, "Default", compare, "Compare"])
-
-    compare.addEventListener("click", async (e) => {
+        Element("h2", {}, ["Compare"]), input, noComparison, "No comparison", status, "Status", output, "Output", startAccuracy, "Start Accuracy", resultAccuracy, "Result Accuracy", targetAccuracy, "Target Accuracy",
+        time, "Time"
+    ])
+    status.addEventListener("click", async (e) => {
+        radioStatesIndex = 1
         await updateFromForm(jsonData, e.target.parentNode)
     })
-    starting.addEventListener("click", async (e) => {
+    noComparison.addEventListener("click", async (e) => {
+        radioStatesIndex = 0
+        compareAgainstURL = ""
+        input.value = ""
         await updateFromForm(jsonData, e.target.parentNode)
     })
     form.addEventListener("submit", async (e) => {
@@ -624,9 +705,7 @@ async function fetchAndUpdate(jsonData, url, start, compare) {
         url = url + "results.json"
     }
     // TODO url verifying if needed
-    compareState["url"] = url
-    compareState["start"] = start
-    compareState["compare"] = compare
+    compareAgainstURL = url
     if (start || url == "") {
         diffAgainstFields = {}
         otherJsonData = null

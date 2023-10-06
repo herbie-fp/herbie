@@ -46,30 +46,30 @@
     (map last (simplify-batch (make-egg-query args (*simplify-rules*)))))
 
   (define test-exprs
-    #hash([1 . 1]
-          [0 . 0]
-          [(+.f64 1 0) . 1]
-          [(+.f64 1 5) . 6]
-          [(+.f64 x 0) . x]
-          [(-.f64 x 0) . x]
-          [(*.f64 x 1) . x]
-          [(/.f64 x 1) . x]
-          [(-.f64 (*.f64 1 x) (*.f64 (+.f64 x 1) 1)) . -1]
-          [(-.f64 (+.f64 x 1) x) . 1]
-          [(-.f64 (+.f64 x 1) 1) . x]
-          [(/.f64 (*.f64 x 3) x) . 3]
-          [(-.f64 (*.f64 (sqrt.f64 (+.f64 x 1)) (sqrt.f64 (+.f64 x 1)))
-              (*.f64 (sqrt.f64 x) (sqrt.f64 x))) . 1]
-          [(+.f64 1/5 3/10) . 1/2]
-          [(cos.f64 (PI.f64)) . -1]
-          [(pow.f64 (E.f64) 1) . (E.f64)]
-          ;; this test is problematic and runs out of nodes currently
-          ;[(/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5))]
-          ))
+    '((1 . 1)
+      (0 . 0)
+      ((+.f64 1 0) . 1)
+      ((+.f64 1 5) . 6)
+      ((+.f64 x 0) . x)
+      ((-.f64 x 0) . x)
+      ((*.f64 x 1) . x)
+      ((/.f64 x 1) . x)
+      ((-.f64 (*.f64 1 x) (*.f64 (+.f64 x 1) 1)) . -1)
+      ((-.f64 (+.f64 x 1) x) . 1)
+      ((-.f64 (+.f64 x 1) 1) . x)
+      ((/.f64 (*.f64 x 3) x) . 3)
+      ((-.f64 (*.f64 (sqrt.f64 (+.f64 x 1)) (sqrt.f64 (+.f64 x 1)))
+              (*.f64 (sqrt.f64 x) (sqrt.f64 x))) . 1)
+      ((+.f64 1/5 3/10) . 1/2)
+      ((cos.f64 (PI.f64)) . -1)
+      ((pow.f64 (E.f64) 1) . (E.f64))
+      ;; this test is problematic and runs out of nodes currently
+      ;;((/ 1 (- (/ (+ 1 (sqrt 5)) 2) (/ (- 1 (sqrt 5)) 2))) . (/ 1 (sqrt 5)))
+      ))
 
   (*timeline-disabled* true)
-  (define outputs (apply test-simplify (hash-keys test-exprs)))
-  (for ([(original target) test-exprs] [output outputs])
+  (define outputs (apply test-simplify (dict-keys test-exprs)))
+  (for ([(original target) (in-dict test-exprs)] [output outputs])
     (with-check-info (['original original])
        (check-equal? output target)))
 

@@ -7,7 +7,6 @@
 (provide
   (contract-out
    [patch-table-has-expr? (-> expr? boolean?)]
-   [patch-table-run-simplify (-> (listof alt?) (listof alt?))]
    [patch-table-run (-> (listof expr?) (listof expr?) (listof alt?))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -288,10 +287,3 @@
     (simplify!)
     (begin0 (apply append (^final^) (map patch-table-get cached))
       (patch-table-clear!))]))
-
-(define (patch-table-run-simplify altns)
-  (^rewrites^ (append altns (if (^rewrites^) (^rewrites^) '())))
-  (simplify!)
-  (begin0 (^final^)
-    (patch-table-clear!)))
-          

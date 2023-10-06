@@ -1,46 +1,83 @@
 #lang racket
 
-(require "core/egg-herbie.rkt" "core/simplify.rkt"
-         "syntax/syntax.rkt" "syntax/types.rkt" "alternative.rkt" "common.rkt"
-         "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
+(require "core/egg-herbie.rkt" "core/simplify.rkt" "errors.rkt"
+         "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
+         "alternative.rkt" "common.rkt" "programs.rkt" "points.rkt"
+         "timeline.rkt" "float.rkt")
 
 (provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing expression context rules)
-  ;; Here `*` means a test identity that *may* be equal to `expression`, and
-  ;; `~` means the simplest form of an expression.
-  (define variables (context-vars context))
-  (define variable-representations (context-var-reprs context))
-  (define evens*
-    (for/list ([variable (in-list variables)]
-               [representation (in-list variable-representations)])
+(define (find-preprocessing initial specification context)
+  (define even-identities
+    (for/list ([variable (in-list (context-vars context))]
+               [representation (in-list (context-var-reprs context))])
       ;; TODO: Handle case where neg isn't supported for this representation
-      (define negate (get-parametric-operator 'neg representation))
-      (replace-vars (list (cons variable (list negate variable))) expression)))
-  (define pairs (combinations variables 2))
-  (define swaps*
+      (with-handlers ([exn:fail:user:herbie? (const #f)])
+        (define negate (get-parametric-operator 'neg representation))
+        ; Check if representation has an fabs operator
+        (define fabs (get-parametric-operator 'fabs representation))
+        (replace-vars (list (cons variable (list negate variable))) specification))))
+  (define pairs (combinations (context-vars context) 2))
+  (define swap-identities
     (for/list ([pair (in-list pairs)])
       (match-define (list a b) pair)
-      (replace-vars (list (cons a b) (cons b a)) expression)))
-  (define query (make-egg-query (cons expression (append evens* swaps*)) rules))
-  (match-define (cons expression~ rest~) (map last (simplify-batch query)))
-  (define-values (evens~ swaps~) (split-at rest~ (length evens*)))
-  (define swaps (filter-map
-                 (lambda (pair swap~) (and (equal? expression~ swap~) pair))
-                 pairs
-                 swaps~))
-  (define components (connected-components variables swaps))
+      (replace-vars (list (cons a b) (cons b a)) specification)))
+  (define query
+    (make-egg-query
+     (list*
+      initial
+      specification
+      (append even-identities swap-identities))
+     (*simplify-rules*)))
+  (match-define
+    (cons
+     ;; The first element of the list returned by `simplify-batch` will be a list
+     ;; containing progressively simpler versions of `initial` at each iteration
+     ;; of the e-graph, the first of which will always be the unsimplified
+     ;; `initial` from iteration 0, which we want to exclude here to avoid adding
+     ;; it twice to the alt-table.
+     (app rest initials)
+     (app (curry map last)
+          (cons
+           specification*
+           (app (curryr split-at (length even-identities)) evens* swaps*))))
+    (simplify-batch query))
+  (define alternative (make-alt initial))
+  (define simplified
+    (cons
+     ;; We excluded the first element of `initials` above so that we can add it
+     ;; here manually, but without a self-referential history.
+     alternative
+     (remove-duplicates
+      (for/list ([expression (in-list initials)])
+        (alt
+         expression
+         (list 'simplify null query #f #f)
+         (list alternative)))
+      alt-equal?)))
+  (define components
+    (connected-components
+     (context-vars context)
+     (filter-map
+      (lambda (pair swap*) (and (equal? specification* swap*) pair))
+      pairs
+      swaps*)))
   (define abs-instructions
-    (for/list ([variable (in-list variables)] [even~ (in-list evens~)]
-               #:when (equal? expression~ even~))
+    (for/list ([variable (in-list (context-vars context))]
+               [even* (in-list evens*)]
+               #:when (equal? specification* even*))
       (list 'abs variable)))
   (define sort-instructions
     (for/list ([component (in-list components)]
                #:when (> (length component) 1))
       (cons 'sort component)))
-  ;; Absolute value should happen before sorting
-  (append abs-instructions sort-instructions))
+  (values
+   (if (flag-set? 'setup 'simplify)
+       simplified
+       (list (make-alt initial)))
+   ;; Absolute value should happen before sorting
+   (append abs-instructions sort-instructions)))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))
