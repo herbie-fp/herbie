@@ -357,10 +357,8 @@ function tableRow(test) {
 
 // State for Forum radio buttons
 // Why no some Types :(
-var radioStatesIndex = 0
+var radioStatesIndex = -1
 var radioStates = [
-    "noComparison",
-    "status",
     "output",
     "startAccuracy",
     "resultAccuracy",
@@ -441,22 +439,10 @@ function tableRowDiff(test) {
     var tdTargetAccuracy = radioStates[radioStatesIndex] == "targetAccuracy" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
     const tdTime = radioStates[radioStatesIndex] == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
 
-    var statusEqual = true
     var outputEqual = true
-
-    if (radioStates[radioStatesIndex] == "status" && test.status != diffAgainstFields[test.name].status) {
-        statusEqual = false
-        classList.push("diff-status")
-        testTile = "(" + test.status + " != " + diffAgainstFields[test.name].status + ")"
-    }
 
     if (radioStates[radioStatesIndex] == "output" && test.output != diffAgainstFields[test.name].output) {
         outputEqual = false
-        classList.push("diff-output")
-        if (testTile != "") {
-            testTile += "\n\n"
-        }
-        testTile += "{" + test.output + "} != {" + diffAgainstFields[test.name].output + "}"
     }
 
     if (test.status == "imp-start" ||
@@ -471,8 +457,7 @@ function tableRowDiff(test) {
     }
 
     const radioSelected = radioStates[radioStatesIndex]
-    const hideRow = (radioSelected == "status" && statusEqual) ||
-        (radioSelected == "output" && outputEqual) ||
+    const hideRow = (radioSelected == "output" && outputEqual) ||
         (radioSelected == "startAccuracy" && startAccuracy.equal) ||
         (radioSelected == "resultAccuracy" && resultAccuracy.equal) ||
         (radioSelected == "targetAccuracy" && targetAccuracy.equal) ||
@@ -631,7 +616,7 @@ function compareForm(jsonData) {
         name: formName
     }, [])
     output.addEventListener("click", async (e) => {
-        radioStatesIndex = 2
+        radioStatesIndex = 0
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -640,7 +625,7 @@ function compareForm(jsonData) {
         name: formName
     }, [])
     startAccuracy.addEventListener("click", async (e) => {
-        radioStatesIndex = 3
+        radioStatesIndex = 1
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -649,7 +634,7 @@ function compareForm(jsonData) {
         name: formName
     }, [])
     resultAccuracy.addEventListener("click", async (e) => {
-        radioStatesIndex = 4
+        radioStatesIndex = 2
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -658,7 +643,7 @@ function compareForm(jsonData) {
         name: formName
     }, [])
     targetAccuracy.addEventListener("click", async (e) => {
-        radioStatesIndex = 5
+        radioStatesIndex = 3
         await updateFromForm(jsonData, e.target.parentNode)
     })
 
@@ -667,24 +652,23 @@ function compareForm(jsonData) {
         name: formName
     }, [])
     time.addEventListener("click", async (e) => {
-        radioStatesIndex = 6
+        radioStatesIndex = 4
         await updateFromForm(jsonData, e.target.parentNode)
     })
     const input = Element("input", {
         id: "compare-input", value: compareAgainstURL
     }, [])
     input.addEventListener("keyup", async (e) => {
-        console.log(`HERE ${e.keyCode}`)
         e.preventDefault();
         compareAgainstURL = form.childNodes[1].value
         const forum = e.target.parentNode
         const inputLength = form.childNodes[1].value.length
         if (inputLength > 0 && e.keyCode === ENTER_KEY) {
-            radioStatesIndex = 4
+            radioStatesIndex = 2
             filterTolerance = 1
             await updateFromForm(jsonData, forum)
         } else if (inputLength < 1 && e.keyCode === ENTER_KEY) {
-            radioStatesIndex = 0
+            radioStatesIndex = -1
             compareAgainstURL = ""
             input.value = ""
             await updateFromForm(jsonData, forum)
@@ -705,7 +689,7 @@ function compareForm(jsonData) {
             e.preventDefault();
             if (e.keyCode === 13) {
                 filterTolerance = e.target.value
-                await updateFromForm(jsonData, e.target.parentNode)
+                await updateFromForm(jsonData, e.target.parentNode.parentNode.childNodes[0])
             }
         })
         toleranceInputField.style.display = show ? "inline" : "none"
@@ -730,7 +714,9 @@ function compareForm(jsonData) {
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
     })
-    return Element("div", {}, [form, showTolerance(showToleranceBool)])
+    var otherInput = Element("div",{},showTolerance(showToleranceBool))
+    otherInput.style.display = "block"
+    return Element("div", {}, [form, otherInput])
 }
 
 // -------------------------------------------------
@@ -762,7 +748,6 @@ async function fetchAndUpdate(jsonData, url) {
             mode: "cors",
         })
         const json = await response.json()
-        console.log(json)
         for (let test of json.tests) {
             diffAgainstFields[`${test.name}`] = test
         }
