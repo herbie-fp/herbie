@@ -274,12 +274,12 @@
 (define (render-phase-problems problems)
   `((dt "Problems")
     (dd (table ([class "times"])
-          ,@(for/list ([rec (in-list (sort problems > #:key second))])
-              (match-define (list expr count) rec)
-              `(tr (td ,(~a count) "×")
-                   (td ,(if (equal? expr #f)
-                      "No Errors" 
-                      `(code ,expr)))))))))
+               ,@(for/list ([rec (in-list (sort problems > #:key second))])
+                   (match-define (list expr count) rec)
+                   `(tr (td ,(~a count) "×")
+                        (td ,(if expr
+                                 `(code ,expr)
+                                 "No Errors"))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)

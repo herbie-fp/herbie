@@ -346,7 +346,7 @@
 (define (mutate! prog iters pcontext)
   (*pcontext* pcontext)
   
-  (for ([(subexpr num-of-errors) (group-errors prog pcontext)])
+  (for ([(subexpr num-of-errors) (in-dict (group-errors prog pcontext))])
     (unless (= 0 num-of-errors)
       (timeline-push! 'problems (and subexpr (~a subexpr)) num-of-errors)))
   
