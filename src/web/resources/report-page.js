@@ -670,10 +670,6 @@ function compareForm(jsonData) {
         radioStatesIndex = 6
         await updateFromForm(jsonData, e.target.parentNode)
     })
-    const status = Element("input", {
-        id: "compare-status", type: "radio", checked: radioStates[radioStatesIndex] == "status",
-        name: formName
-    }, [])
     const input = Element("input", {
         id: "compare-input", value: compareAgainstURL
     }, [])
@@ -694,21 +690,16 @@ function compareForm(jsonData) {
             await updateFromForm(jsonData, forum)
         }
     })
-    const noComparison = Element("input", {
-        id: "compare-default", type: "radio", checked: radioStates[radioStatesIndex] == "noComparison",
-        name: formName
-    }, [])
-
     function showTolerance(show) {
         const toleranceInputField = Element("input", {
             id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
         }, [])
-        const hidingText = Element("text",{},[" Hiding: ±"])
+        const hidingText = Element("text", {}, [" Hiding: ±"])
         var unitText
         if (radioStates[radioStatesIndex] == "time") {
-            unitText = Element("text",{},["s"])
+            unitText = Element("text", {}, ["s"])
         } else {
-            unitText = Element("text",{},["%"])
+            unitText = Element("text", {}, ["%"])
         }
         toleranceInputField.addEventListener("keyup", async (e) => {
             e.preventDefault();
@@ -732,24 +723,14 @@ function compareForm(jsonData) {
     }
 
     const form = Element("form", {}, [
-        Element("h2", {}, ["Compare"]), input, noComparison, "No comparison", status, "Status", output, "Output", startAccuracy, "Start Accuracy", resultAccuracy, "Result Accuracy", targetAccuracy, "Target Accuracy",
-        time, "Time", showTolerance(showToleranceBool)
+        Element("h2", {}, ["Compare"]), input, output, "Output", startAccuracy, "Start Accuracy", resultAccuracy, "Result Accuracy", targetAccuracy, "Target Accuracy",
+        time, "Time"
     ])
-    status.addEventListener("click", async (e) => {
-        radioStatesIndex = 1
-        await updateFromForm(jsonData, e.target.parentNode)
-    })
-    noComparison.addEventListener("click", async (e) => {
-        radioStatesIndex = 0
-        compareAgainstURL = ""
-        input.value = ""
-        await updateFromForm(jsonData, e.target.parentNode)
-    })
     // disable enter key so we can handle the event elsewhere
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
     })
-    return form
+    return Element("div", {}, [form, showTolerance(showToleranceBool)])
 }
 
 // -------------------------------------------------
@@ -763,58 +744,33 @@ function update(jsonData) {
 }
 
 async function updateFromForm(jsonData, formNode) {
-    await fetchAndUpdate(jsonData,
-        formNode.childNodes[1].value,
-        formNode.childNodes[2].checked,
-        formNode.childNodes[4].checked)
+    await fetchAndUpdate(jsonData, formNode.childNodes[1].value)
 }
 
-async function fetchAndUpdate(jsonData, url, start, compare) {
-    // Could also split string on / and check if the last component = "results.json"
-    // TODO url verifying if needed
-    compareAgainstURL = url
-    if (compareAgainstURL.length > 0) {
-        if (otherJsonData == null) {
-            let lastChar = url.slice(url.length - 1, url.length)
-            if (lastChar == "/") {
-                url = url + "results.json"
-            }
-            let response = await fetch(url, {
-                headers: { "content-type": "text/plain" },
-                method: "GET",
-                mode: "cors",
-            })
-            const json = await response.json()
-            for (let test of json.tests) {
-                diffAgainstFields[`${test.name}`] = test
-            }
-            otherJsonData = json
+async function fetchAndUpdate(jsonData, url) {
+    if (url.length > 0) {
+        // TODO url verifying if needed
+        compareAgainstURL = url
+        // Could also split string on / and check if the last component = "results.json"
+        let lastChar = url.slice(url.length - 1, url.length)
+        if (lastChar == "/") {
+            url = url + "results.json"
         }
+        let response = await fetch(url, {
+            headers: { "content-type": "text/plain" },
+            method: "GET",
+            mode: "cors",
+        })
+        const json = await response.json()
+        console.log(json)
+        for (let test of json.tests) {
+            diffAgainstFields[`${test.name}`] = test
+        }
+        otherJsonData = json
         update(jsonData)
     } else {
-        if (start || url == "") {
-            diffAgainstFields = {}
-            otherJsonData = null
-            update(jsonData)
-        } else {
-            if (otherJsonData == null) {
-                let lastChar = url.slice(url.length - 1, url.length)
-                if (lastChar == "/") {
-                    url = url + "results.json"
-                }
-                let response = await fetch(url, {
-                    headers: { "content-type": "text/plain" },
-                    method: "GET",
-                    mode: "cors",
-                })
-                const json = await response.json()
-                for (let test of json.tests) {
-                    diffAgainstFields[`${test.name}`] = test
-                }
-                otherJsonData = json
-            }
-            update(jsonData)
-        }
+        otherJsonData = null
+        update(jsonData)
     }
 }
 
