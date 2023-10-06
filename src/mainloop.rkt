@@ -5,7 +5,8 @@
          "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
          "ground-truth.rkt" "preprocess.rkt" "core/alt-table.rkt"
          "core/localize.rkt" "core/simplify.rkt" "core/regimes.rkt"
-         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
+         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt"
+         "error-table.rkt")
 
 (provide (all-defined-out))
 
@@ -337,6 +338,11 @@
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
+  
+  (for ([(subexpr num-of-errors) (in-dict (group-errors (alt-expr (car simplified)) pcontext))])
+    (unless (= 0 num-of-errors)
+      (timeline-push! 'problems (and subexpr (~a subexpr)) num-of-errors)))
+
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))

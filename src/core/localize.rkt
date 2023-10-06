@@ -3,7 +3,7 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
 
-(provide batch-localize-error local-error-as-tree)
+(provide batch-localize-error local-error-as-tree compute-local-errors)
 
 (define (all-subexpressions expr repr)
   (remove-duplicates
