@@ -367,7 +367,7 @@ var radioStates = [
     "targetAccuracy",
     "time"
 ]
-var filterTolerance = 0
+var filterTolerance = 1
 
 function tableRowDiff(test) {
 
@@ -678,12 +678,14 @@ function compareForm(jsonData) {
         id: "compare-input", value: compareAgainstURL
     }, [])
     input.addEventListener("keyup", async (e) => {
+        console.log(`HERE ${e.keyCode}`)
         e.preventDefault();
         compareAgainstURL = form.childNodes[1].value
         const forum = e.target.parentNode
         const inputLength = form.childNodes[1].value.length
         if (inputLength > 0 && e.keyCode === ENTER_KEY) {
             radioStatesIndex = 4
+            filterTolerance = 1
             await updateFromForm(jsonData, forum)
         } else if (inputLength < 1 && e.keyCode === ENTER_KEY) {
             radioStatesIndex = 0
@@ -771,11 +773,7 @@ async function fetchAndUpdate(jsonData, url, start, compare) {
     // Could also split string on / and check if the last component = "results.json"
     // TODO url verifying if needed
     compareAgainstURL = url
-    if (start || url == "") {
-        diffAgainstFields = {}
-        otherJsonData = null
-        update(jsonData)
-    } else {
+    if (compareAgainstURL.length > 0) {
         if (otherJsonData == null) {
             let lastChar = url.slice(url.length - 1, url.length)
             if (lastChar == "/") {
@@ -793,6 +791,30 @@ async function fetchAndUpdate(jsonData, url, start, compare) {
             otherJsonData = json
         }
         update(jsonData)
+    } else {
+        if (start || url == "") {
+            diffAgainstFields = {}
+            otherJsonData = null
+            update(jsonData)
+        } else {
+            if (otherJsonData == null) {
+                let lastChar = url.slice(url.length - 1, url.length)
+                if (lastChar == "/") {
+                    url = url + "results.json"
+                }
+                let response = await fetch(url, {
+                    headers: { "content-type": "text/plain" },
+                    method: "GET",
+                    mode: "cors",
+                })
+                const json = await response.json()
+                for (let test of json.tests) {
+                    diffAgainstFields[`${test.name}`] = test
+                }
+                otherJsonData = json
+            }
+            update(jsonData)
+        }
     }
 }
 
