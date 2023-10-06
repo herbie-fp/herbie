@@ -8,7 +8,7 @@
                           *expr-cse-able?*))
 
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
-         "../syntax/types.rkt" "../syntax/sugar.rkt")
+         "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt")
 
 (provide render-menu render-warnings render-large render-comparison render-program
          render-bogosity render-help
@@ -94,57 +94,68 @@
       (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-(define (fpcore-instruction? i)
-  (match (first i)
-    [(or 'abs 'negabs) #t]
-    ['sort #f]))
+   ;; `(let* ([,x-sign `(copysign 1 ,x)]
+   ;;         [,x* `(abs ,x)])
 
-(define (combine-fpcore-instruction i e)
+(define (combine-fpcore-instruction i e c)
   (match i
-    [(list 'abs x) (combine-abs x e)]
-    [(list 'negabs x) (combine-negabs x e)]))
+    [(list 'abs x)
+     (define x* (string->symbol (string-append (symbol->string x) "*")))
+     (define e* (replace-vars (list (cons x x*)) e))
+     (define p (index-of (context-vars c) x))
+     (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
+     (cons e* c*)]
+    [(list 'negabs x)
+     (define x-string (symbol->string x))
+     (define x-sign (string->symbol (string-append x-string "-sign")))
+     (define x* (string->symbol (string-append x-string "*")))
+     (define e* `(* ,x-sign ,(replace-vars (list (cons x x*)) e)))
+     (define p (index-of (context-vars c) x))
+     (define r (list-ref (context-var-reprs c) p))
+     (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
+     (define c** (context-extend c* x-sign r))
+     (cons e* c**)]
+    [_
+     (cons e c)]))
 
-(define (combine-abs x e)
-  (define x* (string->symbol (string-append (symbol->string x) "*")))
-  (define e* (replace-vars (list (cons x x*)) e))
-  `(let* ([,x* (abs ,x)])
-     ,e))
+;; (define (combine-abs x e)
+;;   (define x* (string->symbol (string-append (symbol->string x) "*")))
+;;   (replace-vars (list (cons x x*)) e))
 
-(define (combine-negabs x e)
-  (define x-string (symbol->string x))
-  (define x-sign (string->symbol (string-append x-string "-sign")))
-  (define x* (string->symbol (string-append x-string "*")))
-  (define e* (replace-vars (list (cons x x*)) e))
-  `(let* ([,x-sign `(copysign 1 ,x)]
-          [,x* `(abs ,x)])
-     (* ,x-sign ,e*)))
+;; (define (combine-negabs x e)
+;;   (define x-string (symbol->string x))
+;;   (define x-sign (string->symbol (string-append x-string "-sign")))
+;;   (define x* (string->symbol (string-append x-string "*")))
+;;   (define e* (replace-vars (list (cons x x*)) e))
+;;   `(let* ([,x-sign `(copysign 1 ,x)]
+;;           [,x* `(abs ,x)])
+;;      (* ,x-sign ,e*)))
 
-(define (format-prelude-instruction l i)
-  (match (cons i l)
-    [(cons (list 'sort vs ...) "C")
-     (format "assert(~a);" (format-less-than-condition vs))]
-    [(cons (list 'sort vs ...) "Java")
-     (format "assert ~a;" (format-less-than-condition vs))]
-    [(cons (list 'sort vs ...) "Python")
+(define (format-sort-instruction vs l)
+  (match l
+    ["C" (format "assert(~a);" (format-less-than-condition vs))]
+    ["Java" (format "assert ~a;" (format-less-than-condition vs))]
+    ["Python"
      (define comma-joined (comma-join vs))
      (format "[~a] = sort([~a])" comma-joined comma-joined)]
-    [(cons (list 'sort vs ...) "Julia")
+    ["Julia"
       (define comma-joined (comma-join vs))
       (format "~a = sort([~a])" comma-joined comma-joined)]
-    [(cons (list 'sort vs ...) "MATLAB")
+    ["MATLAB"
      (define comma-joined (comma-join vs))
      (format "~a = num2cell(sort([~a])){:}" comma-joined comma-joined)]
-    [(cons (list 'sort vs ...) "TeX")
+    ["TeX"
      (define comma-joined (comma-join vs))
      (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]
-    [(cons (list 'sort x y) _) (format sort-note (format "~a and ~a" x y))]
-    [(cons (list 'sort vs ...) _)
-     (format
-      sort-note
-      (string-join (map ~a vs) ", "
-                   ;; "Lil Jon, he always tells the truth"
-                   #:before-last ", and "))]
-    [_ #f]))
+    [_
+     (match vs
+       [(list x y) (format sort-note (format "~a and ~a" x y))]
+       [(list vs ...)
+        (format
+         sort-note
+         (string-join (map ~a vs) ", "
+                      ;; "Lil Jon, he always tells the truth"
+                      #:before-last ", and "))])]))
 
 (define (format-less-than-condition variables)
   (string-join
@@ -161,11 +172,14 @@
 
 (define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)] #:instructions [instructions empty])
   (define output-repr (context-repr ctx))
-  (define-values (fpcore-instructions prelude-instructions) (partition fpcore-instruction? instructions))
+  (match-define (cons expr* ctx*)
+    (foldl
+     (match-lambda* [(list i (cons e c)) (combine-fpcore-instruction i e c)])
+     (cons expr ctx)
+     instructions))
   (define out-prog
     (parameterize ([*expr-cse-able?* at-least-two-ops?])
-      (define expr* (foldl combine-fpcore-instruction expr fpcore-instructions))
-      (core-cse (program->fpcore expr* ctx #:ident identifier))))
+      (core-cse (program->fpcore expr* ctx* #:ident identifier))))
 
   (define output-prec (representation-name output-repr))
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
@@ -179,6 +193,43 @@
           (define name (if identifier (symbol->string identifier) "code"))
           (define out (converter out-prog* name))
           (define prelude-lines
+            (string-join
+             (map
+              (match-lambda
+                [(list 'abs x)
+                 (define x* (string->symbol (string-append (symbol->string x) "*")))
+                 (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
+                 (define e (list (get-parametric-operator 'fabs r) x))
+                 (define c (context (list x*) r r))
+                 (format "~a = ~a" x* (converter (program->fpcore e c) name))]
+                [(list 'negabs x)
+                 (define x-string (symbol->string x))
+                 (define x* (string->symbol (string-append x-string "*")))
+                 (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
+                 (define e* (list (get-parametric-operator 'fabs r) x))
+                 (define x-sign (string->symbol (string-append x-string "-sign")))
+                 (define e-sign (list (get-parametric-operator 'copysign r) 1 x))
+                 (define c (context (list x*) r r))
+                 (format "~a = ~a\n~a = ~a"
+                         x* (converter (program->fpcore e* c) name)
+                         x-sign (converter (program->fpcore e-sign c) name))]
+                [(list 'sort vs ...)
+                 (define vs (context-vars ctx))
+                 (define vs* (context-vars ctx*))
+                 (format-sort-instruction
+                  ;; We added some sign-* variables to the front of the variable
+                  ;; list in `ctx*`. Finding the difference in lengths and taking
+                  ;; the list after that position yields a list containing only
+                  ;; the (potentially modified) original variable symbols.
+                  (drop vs* (- (length vs*) (length vs)))
+                  lang)])
+              instructions)
+             #;"\n"
+             (if (equal? lang "TeX") "\\\n" "\n")
+             #:after-last
+             "\n"))
+          (printf "~a\n" prelude-lines)
+          #;(define prelude-lines
             (string-join
              (filter-map (curry format-prelude-instruction lang) prelude-instructions)
              "\n" #:after-last "\n"))
