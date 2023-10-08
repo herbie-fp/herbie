@@ -262,6 +262,7 @@
         (profile-thunk
          (λ () (compute-result test))
          #:order 'total
+         #:delay 0.01
          #:render (λ (p order) (write-json (profile->json p) profile?)))
         (compute-result test)))
 
