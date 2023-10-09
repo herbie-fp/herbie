@@ -233,19 +233,11 @@ function buildBody(jsonData) {
         tableData["tbody"]
     ])
 
-
-    // 
-    var dc = null
-    if (oldDate) {
-        dc = dataControls(jsonData, tableData["diffCount"])
-    } else {
-        dc = newDateControls(jsonData, tableData["diffCount"])
-    }
     return [
         header,
         stats,
         figureRow,
-        dc,
+        newDateControls(jsonData, tableData["diffCount"]),
         resultsTable,
     ]
 }
@@ -498,30 +490,43 @@ function buildCheckboxLabel(classes, text, boolState) {
         text])
 }
 
-var oldDate = false
-
 function newDateControls(jsonData, diffCount) {
-    console.log(jsonData)
-    const showing = 0
-    const outOf = 0
-    const branchName = "branch name Here"
+    const showing = diffCount
+    const outOf = jsonData.tests.length
     var otherBranch = ""
-    if (true) {
-        otherBranch = `vs ${"Other branch name"}`
+    if (otherJsonData != null) {
+        otherBranch = ` vs ${otherJsonData.branch}`
     }
-    var displayingDiv = Element("text", {}, [`Displaying ${showing}/${outOf} on ${branchName}${otherBranch}`])
-    var summary = Element("details", {}, [
+    // TODO if branches, or seeds are different
+    let resultsDate = new Date(resultsJsonData.date * 1000)
+    const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
+    let branchName = `${resultsJsonData.branch}`
+    var displayingDiv = Element("text", {}, [`Displaying ${showing}/${outOf} benchmarks on ${branchName}${otherBranch}`])
+
+    const input = Element("input", {
+        id: "compare-input", value: compareAgainstURL,
+        placeholder: "current report against"
+    }, [])
+    const submitButton = Element("input", { type: "submit", value: "Compare" }, [])
+    submitButton.addEventListener("click", async (e) => {
+        e.preventDefault();
+        compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
+        radioStatesIndex = 2
+        fetchAndUpdate(jsonData, compareAgainstURL)
+    })
+    var hideShow = true
+    var summary = Element("details", { open: hideShow }, [
         Element("summary", {}, [
             Element("h2", {}, ["Compare"]),
-            `BRANCH URL INPUT HERE`
+            input,
+            submitButton
         ]),
         Element("div", {}, [
-            Element("text", {}, ["tolerance"]),
-            `Hello`]),
+            buildCompareForm(jsonData, hideShow),
+        ]),
     ])
 
-
-    return Element("div", {}, [
+    return Element("div", { classList: "report-details" }, [
         displayingDiv,
         summary,
         buildFiltersElement(jsonData)
@@ -557,31 +562,6 @@ function buildFiltersElement(jsonData) {
         radioStates[radioStatesIndex] == "startAccuracy") {
         showToleranceBool = true
     }
-
-    function showTolerance(show) {
-        const toleranceInputField = Element("input", {
-            id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
-        }, [])
-        const hidingText = Element("text", {}, [" Hiding: ±"])
-        var unitText
-        if (radioStates[radioStatesIndex] == "time") {
-            unitText = Element("text", {}, ["s"])
-        } else {
-            unitText = Element("text", {}, ["%"])
-        }
-        toleranceInputField.addEventListener("keyup", async (e) => {
-            e.preventDefault()
-            if (e.keyCode === 13) {
-                filterTolerance = e.target.value
-                await fetchAndUpdate(jsonData, compareAgainstURL)
-            }
-        })
-        toleranceInputField.style.display = show ? "inline" : "none"
-        hidingText.style.display = show ? "inline" : "none"
-        unitText.style.display = show ? "inline" : "none"
-        return [hidingText, toleranceInputField, unitText]
-    }
-
 
     var dropDownElements = []
     const defaultName = "All Benchmarks"
@@ -640,11 +620,15 @@ function buildFiltersElement(jsonData) {
     setupGroup("improved", improvedTags, improvedButton)
     setupGroup("regressed", regressedTags, regressedButton)
 
-    buildCheckboxLabel("PreProcessed",)
+    const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", false)
+    preProcessed.addEventListener("click", (e) => {
+        console.log("Coming soon...")
+        update(jsonData)
+    })
 
     const filters = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, "PreProcessed", dropDown, showTolerance(showToleranceBool)]), [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown]), [
             filterButtons]])
     filters.addEventListener("click", (e) => {
         if (e.target.nodeName == "SUMMARY") {
@@ -654,7 +638,31 @@ function buildFiltersElement(jsonData) {
     return filters
 }
 
-function dataControls(jsonData, diffCount) {
+function showTolerance(show) {
+    const toleranceInputField = Element("input", {
+        id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
+    }, [])
+    const hidingText = Element("text", {}, [" Hiding: ±"])
+    var unitText
+    if (radioStates[radioStatesIndex] == "time") {
+        unitText = Element("text", {}, ["s"])
+    } else {
+        unitText = Element("text", {}, ["%"])
+    }
+    toleranceInputField.addEventListener("keyup", async (e) => {
+        e.preventDefault()
+        if (e.keyCode === 13) {
+            filterTolerance = e.target.value
+            await fetchAndUpdate(jsonData, compareAgainstURL)
+        }
+    })
+    toleranceInputField.style.display = show ? "inline" : "none"
+    hidingText.style.display = show ? "inline" : "none"
+    unitText.style.display = show ? "inline" : "none"
+    return [hidingText, toleranceInputField, unitText]
+}
+
+function buildCompareForm(jsonData, hideShow) {
 
     const formName = "compare-form"
 
@@ -726,57 +734,20 @@ function dataControls(jsonData, diffCount) {
         }
     })
 
-
-    var compareText = Element("text", {}, ["Compare"])
-    compareText.style.padding = "0em 0.5em 0em 0em"
     var toggles = []
-    var helpText = Element("text", {}, ["press enter to update."])
-    helpText.style.padding = "0em 0em 0em 0.5em"
     if (input.value.length > 0) {
         toggles = [output, "Output", startAccuracy, "Start Accuracy", resultAccuracy, "Result Accuracy", targetAccuracy, "Target Accuracy",
             time, "Time"]
     }
     const form = Element("form", {}, [
-        Element("h2", { id: "data-controls-form" }, [compareText, input, helpText]),
-        toggles
+        toggles, showTolerance(hideShow)
     ])
     // disable enter key so we can handle the event elsewhere
     form.addEventListener("submit", async (e) => {
         e.preventDefault()
     })
-    const compareForm = Element("div", {}, [form])
-
-    var compareInfo = []
-    if (otherJsonData != null) {
-        let resultsDate = new Date(resultsJsonData.date * 1000)
-        const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
-        let otherDate = new Date(otherJsonData.date * 1000)
-        const otherDayString = `${otherDate.getFullYear()}/${otherDate.getMonth() + 1}/${otherDate.getDay()}`
-        compareInfo = [
-            Element("details", {}, [
-                Element("summary", {}, [
-                    Element("h2", {}, ["More Info"]),
-                    `Displaying ${diffCount}/${resultsJsonData.tests.length}`
-                ]),
-                Element("div", {}, [
-                    Element("h3", {}, ["Current report:"]),
-                    `${resultsJsonData.branch}: seed(${resultsJsonData.seed}) ${resultDayString}`]),
-                Element("div", {}, [
-                    Element("h3", {}, ["Compared to:"]),
-                    `${otherJsonData.branch}: seed(${otherJsonData.seed}) ${otherDayString}`]),
-            ])
-        ]
-    }
-
-
-
-    return Element("div", { classList: "report-details" }, [
-        compareForm,
-        filters,
-        compareInfo
-    ])
+    return form
 }
-
 // -------------------------------------------------
 // ------ Setup and Data fetching helpers ----------
 // -------------------------------------------------
