@@ -233,14 +233,23 @@ function buildBody(jsonData) {
         tableData["tbody"]
     ])
 
+
+    // 
+    var dc = null
+    if (oldDate) {
+        dc = dataControls(jsonData, tableData["diffCount"])
+    } else {
+        dc = newDateControls(jsonData, tableData["diffCount"])
+    }
     return [
         header,
         stats,
         figureRow,
-        dataControls(jsonData, tableData["diffCount"]),
+        dc,
         resultsTable,
     ]
 }
+
 
 // -------------------------------------------------
 // ----------------- Table Builder -----------------
@@ -487,6 +496,46 @@ function buildCheckboxLabel(classes, text, boolState) {
     return Element("label", { classList: classes }, [
         Element("input", { type: "checkbox", checked: boolState }, []),
         text])
+}
+
+var oldDate = false
+
+function newDateControls(jsonData, diffCount) {
+    console.log(jsonData)
+    const showing = 0
+    const outOf = 0
+    const branchName = "branch name Here"
+    var otherBranch = ""
+    if (true) {
+        otherBranch = `vs ${"Other branch name"}`
+    }
+    var displayingDiv = Element("text", {}, [`Displaying ${showing}/${outOf} on ${branchName}${otherBranch}`])
+    var summary = Element("details", {}, [
+        Element("summary", {}, [
+            Element("h2", {}, ["Compare"]),
+            `BRANCH URL INPUT HERE`
+        ]),
+        Element("div", {}, [
+            Element("text", {}, ["tolerance"]),
+            `Hello`]),
+    ])
+
+    var filters = Element("details", {}, [
+        Element("summary", {}, [
+            Element("h2", {}, ["Filters"]),
+            `BRANCH URL INPUT HERE`
+        ]),
+        Element("div", {}, [
+            Element("text", {}, ["FIlter one"]),
+            `Hello`]),
+        "Filter Two"
+    ])
+
+    return Element("div", {}, [
+        displayingDiv,
+        summary,
+        filters
+    ])
 }
 
 function dataControls(jsonData, diffCount) {
