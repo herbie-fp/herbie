@@ -490,6 +490,8 @@ function buildCheckboxLabel(classes, text, boolState) {
         text])
 }
 
+var hideShowCompareDetails = false
+
 function newDateControls(jsonData, diffCount) {
     const showing = diffCount
     const outOf = jsonData.tests.length
@@ -511,20 +513,27 @@ function newDateControls(jsonData, diffCount) {
     submitButton.addEventListener("click", async (e) => {
         e.preventDefault();
         compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
+        hideShowCompareDetails = true
         radioStatesIndex = 2
         fetchAndUpdate(jsonData, compareAgainstURL)
     })
-    var hideShow = true
-    var summary = Element("details", { open: hideShow }, [
+    var summary = Element("details", { open: hideShowCompareDetails }, [
         Element("summary", {}, [
             Element("h2", {}, ["Compare"]),
             input,
             submitButton
         ]),
         Element("div", {}, [
-            buildCompareForm(jsonData, hideShow),
+            buildCompareForm(jsonData),
         ]),
     ])
+    // GRR this events are annoying
+    summary.addEventListener("click", async (e) => {
+        if (e.target.nodeName == "SUMMARY") {
+            hideShowCompareDetails = !hideShowCompareDetails
+            fetchAndUpdate(jsonData, compareAgainstURL)
+        }
+    })
 
     return Element("div", { classList: "report-details" }, [
         displayingDiv,
@@ -534,8 +543,6 @@ function newDateControls(jsonData, diffCount) {
 }
 
 function buildFiltersElement(jsonData) {
-
-    // Filter code here
     var testTypeCounts = {}
     for (let test of jsonData.tests) {
         testTypeCounts[test.status] == null ?
@@ -553,14 +560,6 @@ function buildFiltersElement(jsonData) {
             update(resultsJsonData)
         })
         filterButtons.push(button)
-    }
-
-    var showToleranceBool = false
-    if (radioStates[radioStatesIndex] == "time" ||
-        radioStates[radioStatesIndex] == "targetAccuracy" ||
-        radioStates[radioStatesIndex] == "resultAccuracy" ||
-        radioStates[radioStatesIndex] == "startAccuracy") {
-        showToleranceBool = true
     }
 
     var dropDownElements = []
@@ -638,7 +637,7 @@ function buildFiltersElement(jsonData) {
     return filters
 }
 
-function showTolerance(show) {
+function showTolerance(jsonData, show) {
     const toleranceInputField = Element("input", {
         id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
     }, [])
@@ -662,7 +661,7 @@ function showTolerance(show) {
     return [hidingText, toleranceInputField, unitText]
 }
 
-function buildCompareForm(jsonData, hideShow) {
+function buildCompareForm(jsonData) {
 
     const formName = "compare-form"
 
@@ -716,31 +715,30 @@ function buildCompareForm(jsonData, hideShow) {
         placeholder: "current report against"
     }, [])
 
-    const ENTER_KEY = 13
-
     input.addEventListener("keyup", async (e) => {
         e.preventDefault();
         compareAgainstURL = form.parentNode.querySelector("#compare-input").value
-        const forum = e.target.parentNode
-        if (compareAgainstURL.length > 0 && e.keyCode === ENTER_KEY) {
-            radioStatesIndex = 2
-            filterTolerance = 1
-            await fetchAndUpdate(jsonData, compareAgainstURL)
-        } else if (compareAgainstURL.length < 1 && e.keyCode === ENTER_KEY) {
-            radioStatesIndex = -1
-            compareAgainstURL = ""
-            input.value = ""
-            await fetchAndUpdate(jsonData, compareAgainstURL)
-        }
     })
 
+    var showToleranceBool = false
+    if (radioStates[radioStatesIndex] == "time" ||
+        radioStates[radioStatesIndex] == "targetAccuracy" ||
+        radioStates[radioStatesIndex] == "resultAccuracy" ||
+        radioStates[radioStatesIndex] == "startAccuracy") {
+        showToleranceBool = true
+    }
+
     var toggles = []
+    const toleranceInputField = showTolerance(jsonData, showToleranceBool)
+    // TODO visually group these
     if (input.value.length > 0) {
-        toggles = [output, "Output", startAccuracy, "Start Accuracy", resultAccuracy, "Result Accuracy", targetAccuracy, "Target Accuracy",
-            time, "Time"]
+        toggles = [output, "Output", startAccuracy, "Start Accuracy",
+            resultAccuracy, "Result Accuracy", targetAccuracy,
+            "Target Accuracy",
+            time, "Time", " ", toleranceInputField]
     }
     const form = Element("form", {}, [
-        toggles, showTolerance(hideShow)
+        toggles,
     ])
     // disable enter key so we can handle the event elsewhere
     form.addEventListener("submit", async (e) => {
