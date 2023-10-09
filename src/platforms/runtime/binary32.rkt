@@ -1,6 +1,6 @@
 #lang racket
 
-;; Single-precision platform (math only)
+;; Single-precision representation and constants
 
 (require math/flonum math/bigfloat)
 (require "bool.rkt" "float32.rkt" "utils.rkt")

@@ -13,6 +13,16 @@
          remove-rewrites run-egg make-egg-query
         (struct-out egraph-query))
 
+;; Name sanitization (this is sort of dumb)
+(define (name->egg-name name)
+  (match name
+    [(list args ...)
+     (format "<~a>" (string-join (map name->egg-name args) "_"))]
+    [(? symbol?)
+     (symbol->string name)]
+    [(? number?)
+     (~a name)]))
+
 ;; Flattens proofs
 ;; NOT FPCore format
 (define (flatten-let expr)
@@ -255,7 +265,7 @@
            ;; The easier way to tell if every operator is supported
            ;; in a given representation is to just try to desguar
            ;; the expression and catch any errors.
-           (define name* (sym-append name '_ (representation-name sugar-otype)))
+           (define name* (sym-append name '_ (name->egg-name (representation-name sugar-otype))))
            (define input* (desugar-program input sugar-ctx #:full #f))
            (define output* (desugar-program output sugar-ctx #:full #f))
            (when (andmap (curry set-member? (*needed-reprs*))

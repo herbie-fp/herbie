@@ -1,6 +1,6 @@
 #lang racket
 
-;; Single-precision platform (math only)
+;; Single-precision accelerators
 
 (require ffi/unsafe)
 (require "binary32.rkt" "utils.rkt"

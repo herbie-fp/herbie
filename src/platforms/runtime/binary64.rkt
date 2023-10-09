@@ -1,6 +1,6 @@
 #lang racket
 
-;; Double-precision representation and consants
+;; Double-precision representation and constants
 
 (require math/flonum math/bigfloat)
 (require "bool.rkt" "utils.rkt")
