@@ -520,25 +520,17 @@ function newDateControls(jsonData, diffCount) {
             `Hello`]),
     ])
 
-    var filters = Element("details", {}, [
-        Element("summary", {}, [
-            Element("h2", {}, ["Filters"]),
-            `BRANCH URL INPUT HERE`
-        ]),
-        Element("div", {}, [
-            Element("text", {}, ["FIlter one"]),
-            `Hello`]),
-        "Filter Two"
-    ])
 
     return Element("div", {}, [
         displayingDiv,
         summary,
-        filters
+        buildFiltersElement(jsonData)
     ])
 }
 
-function dataControls(jsonData, diffCount) {
+function buildFiltersElement(jsonData) {
+
+    // Filter code here
     var testTypeCounts = {}
     for (let test of jsonData.tests) {
         testTypeCounts[test.status] == null ?
@@ -558,28 +550,38 @@ function dataControls(jsonData, diffCount) {
         filterButtons.push(button)
     }
 
-    function setupGroup(name, childStateNames, parent) {
-        parent.addEventListener("click", (e) => {
-            if (e.target.nodeName == "INPUT") {
-                groupState[name] = e.target.checked
-                for (let i in childStateNames) {
-                    filterState[childStateNames[i]] = e.target.checked
-                }
-                update(jsonData)
-            }
-        })
+    var showToleranceBool = false
+    if (radioStates[radioStatesIndex] == "time" ||
+        radioStates[radioStatesIndex] == "targetAccuracy" ||
+        radioStates[radioStatesIndex] == "resultAccuracy" ||
+        radioStates[radioStatesIndex] == "startAccuracy") {
+        showToleranceBool = true
     }
 
-    const regressedTags = ["uni-start", "lt-target", "lt-start",
-        "apx-start", "timeout", "crash", "error"]
-    const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
-        "gt-target", "gt-start"]
+    function showTolerance(show) {
+        const toleranceInputField = Element("input", {
+            id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
+        }, [])
+        const hidingText = Element("text", {}, [" Hiding: ±"])
+        var unitText
+        if (radioStates[radioStatesIndex] == "time") {
+            unitText = Element("text", {}, ["s"])
+        } else {
+            unitText = Element("text", {}, ["%"])
+        }
+        toleranceInputField.addEventListener("keyup", async (e) => {
+            e.preventDefault()
+            if (e.keyCode === 13) {
+                filterTolerance = e.target.value
+                await fetchAndUpdate(jsonData, compareAgainstURL)
+            }
+        })
+        toleranceInputField.style.display = show ? "inline" : "none"
+        hidingText.style.display = show ? "inline" : "none"
+        unitText.style.display = show ? "inline" : "none"
+        return [hidingText, toleranceInputField, unitText]
+    }
 
-    const improvedButton = buildCheckboxLabel("improved", "Improved", groupState["improved"])
-    const regressedButton = buildCheckboxLabel("regressed", "Regressed", groupState["regressed"])
-
-    setupGroup("improved", improvedTags, improvedButton)
-    setupGroup("regressed", regressedTags, regressedButton)
 
     var dropDownElements = []
     const defaultName = "All Benchmarks"
@@ -614,6 +616,45 @@ function dataControls(jsonData, diffCount) {
         selectedBenchmarkIndex = -1
         update(resultsJsonData)
     })
+
+    function setupGroup(name, childStateNames, parent) {
+        parent.addEventListener("click", (e) => {
+            if (e.target.nodeName == "INPUT") {
+                groupState[name] = e.target.checked
+                for (let i in childStateNames) {
+                    filterState[childStateNames[i]] = e.target.checked
+                }
+                update(jsonData)
+            }
+        })
+    }
+
+    const regressedTags = ["uni-start", "lt-target", "lt-start",
+        "apx-start", "timeout", "crash", "error"]
+    const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
+        "gt-target", "gt-start"]
+
+    const improvedButton = buildCheckboxLabel("improved", "Improved", groupState["improved"])
+    const regressedButton = buildCheckboxLabel("regressed", "Regressed", groupState["regressed"])
+
+    setupGroup("improved", improvedTags, improvedButton)
+    setupGroup("regressed", regressedTags, regressedButton)
+
+    buildCheckboxLabel("PreProcessed",)
+
+    const filters = Element("details", { id: "filters", open: filterDetailsState }, [
+        Element("summary", {}, [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, "PreProcessed", dropDown, showTolerance(showToleranceBool)]), [
+            filterButtons]])
+    filters.addEventListener("click", (e) => {
+        if (e.target.nodeName == "SUMMARY") {
+            filterDetailsState = !filterDetailsState
+        }
+    })
+    return filters
+}
+
+function dataControls(jsonData, diffCount) {
 
     const formName = "compare-form"
 
@@ -684,37 +725,7 @@ function dataControls(jsonData, diffCount) {
             await fetchAndUpdate(jsonData, compareAgainstURL)
         }
     })
-    function showTolerance(show) {
-        const toleranceInputField = Element("input", {
-            id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
-        }, [])
-        const hidingText = Element("text", {}, [" Hiding: ±"])
-        var unitText
-        if (radioStates[radioStatesIndex] == "time") {
-            unitText = Element("text", {}, ["s"])
-        } else {
-            unitText = Element("text", {}, ["%"])
-        }
-        toleranceInputField.addEventListener("keyup", async (e) => {
-            e.preventDefault()
-            if (e.keyCode === 13) {
-                filterTolerance = e.target.value
-                await fetchAndUpdate(jsonData, compareAgainstURL)
-            }
-        })
-        toleranceInputField.style.display = show ? "inline" : "none"
-        hidingText.style.display = show ? "inline" : "none"
-        unitText.style.display = show ? "inline" : "none"
-        return [hidingText, toleranceInputField, unitText]
-    }
 
-    var showToleranceBool = false
-    if (radioStates[radioStatesIndex] == "time" ||
-        radioStates[radioStatesIndex] == "targetAccuracy" ||
-        radioStates[radioStatesIndex] == "resultAccuracy" ||
-        radioStates[radioStatesIndex] == "startAccuracy") {
-        showToleranceBool = true
-    }
 
     var compareText = Element("text", {}, ["Compare"])
     compareText.style.padding = "0em 0.5em 0em 0em"
@@ -757,15 +768,7 @@ function dataControls(jsonData, diffCount) {
         ]
     }
 
-    const filters = Element("details", { id: "filters", open: filterDetailsState }, [
-        Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown, showTolerance(showToleranceBool)]), [
-            filterButtons]])
-    filters.addEventListener("click", (e) => {
-        if (e.target.nodeName == "SUMMARY") {
-            filterDetailsState = !filterDetailsState
-        }
-    })
+
 
     return Element("div", { classList: "report-details" }, [
         compareForm,
