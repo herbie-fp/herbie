@@ -7,7 +7,8 @@
          variable? constant-operator?
          operator-exists? operator-deprecated? impl-exists?
          real-operator-info operator-info 
-         impl->operator all-constants operator-all-impls
+         impl->operator all-constants
+         operator-all-impls operator-active-impls
          *functions* register-function!
          get-parametric-operator get-parametric-constant
          generate-conversion-impl!
@@ -21,29 +22,70 @@
            register-operator!
            register-conversion-generator!))
 
-;; Real operator table
-;; Implementations inherit attributes
-
+;; Real operator: a pure mathematical operator specified by
+;;  - (unique) name
+;;  - input and output types
+;;  - "bigfloat" implementation (legacy high-precision)
+;;  - Rival implementation (ground truth)
+;;  - Deprecated?
+;; For any tuple of representations implementing the input
+;; and output types, an operator implementation may be
+;; specified for a particular operator
 (struct operator (name itype otype bf ival deprecated))
 
+;; Real operator table and a mapping from operator to its various implementations.
+;; Real operators are global and are never removed.
 (define operators (make-hasheq))
 (define operators-to-impls (make-hasheq))
 
+;; Checks if an operator has been registered.
 (define (operator-exists? op)
   (hash-has-key? operators op))
 
+;; Checks if an operator has been registered as deprecated.
 (define (operator-deprecated? op)
   (operator-deprecated (hash-ref operators op)))
 
+;; Looks up a property `field` of an real operator `op`.
+;; Panics if the operator is not found.
+(define/contract (real-operator-info op field)
+  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
+  (unless (hash-has-key? operators op)
+    (raise-herbie-missing-error "Unknown operator ~a" op))
+  (define accessor
+    (match field
+      ['itype operator-itype]
+      ['otype operator-otype]
+      ['bf operator-bf]
+      ['ival operator-ival]))
+  (accessor (hash-ref operators op)))
+
+;; All implementations of an operator `op`.
+;; Panics if the operator is not found.
+(define (operator-all-impls op)
+  (unless (hash-has-key? operators op)
+    (raise-herbie-missing-error "Unknown operator ~a" op))
+  (hash-ref operators-to-impls op))
+
+;; Registers an operator with an attribute mapping.
+;; Panics if an operator with name `name` has already been registered.
+;; By default, the input types are specified by `itypes`,
+;; the output type is specified by `otype`, and the operator is not
+;; deprected, but `attrib-dict` can override these properties.
 (define (register-operator! name itypes otype attrib-dict)
-  (define override-dict
-    (list
-      (cons 'itype (dict-ref attrib-dict 'itype itypes))
-      (cons 'otype (dict-ref attrib-dict 'otype otype))
-      (cons 'deprecated (dict-ref attrib-dict 'deprecated #f))))
-  (define fields (make-hasheq (append attrib-dict override-dict)))
+  (when (hash-has-key? operators name)
+    (error 'register-operator! "operator already registered: ~a" name))
+  (define attribs
+    (hash 'itype (dict-ref attrib-dict 'itype itypes)
+          'otype (dict-ref attrib-dict 'otype otype)
+          'deprecated (dict-ref attrib-dict 'deprected #f)
+          'ival (dict-ref attrib-dict 'ival
+                          (λ () (error 'register-operator! "missing interval impl for ~a" name)))
+          'bf   (dict-ref attrib-dict 'ival
+                          (λ () (error 'register-operator! "missing bigfloat impl for ~a" name)))))
   (define field-names '(itype otype bf ival deprecated))
-  (hash-set! operators name (apply operator name (map (curry hash-ref fields) field-names)))
+  (define table-entry (apply operator name (map (curry hash-ref attribs) field-names)))
+  (hash-set! operators name table-entry)
   (hash-set! operators-to-impls name '()))
 
 (define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
@@ -65,9 +107,6 @@
 
 (define (bfcopysign x y)
   (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
-
-(define (from-bigfloat bff)
-  (λ args (bigfloat->flonum (apply bff (map bf args)))))
 
 (define (bffdim x y)
   (if (bf> x y) (bf- x y) 0.bf))
@@ -137,111 +176,6 @@
 (define-operator (fma real real real) real
  [bf bffma] [ival ival-fma])
 
-;; Deprecated operators
-
-(module hairy racket/base
-  (require ffi/unsafe)
-  (provide check-native-1ary-exists?)
-
-  (define (check-native-1ary-exists? op)
-    (let ([f32-name (string->symbol (string-append (symbol->string op) "f"))])
-      (or (get-ffi-obj op #f (_fun _double -> _double) (λ () #f))
-          (get-ffi-obj f32-name #f (_fun _float -> _float) (λ () #f)))))
-)
-
-(require (submod "." hairy))
-
-;; Operator implementations
-
-(struct operator-impl (name op itype otype fl bf ival))
-(define operator-impls (make-hasheq))
-
-(define/contract (real-operator-info operator field)
-  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
-  (unless (hash-has-key? operators operator)
-    (raise-herbie-missing-error "Unknown operator ~a" operator))
-  (define accessor
-    (match field
-      ['itype operator-itype]
-      ['otype operator-otype]
-      ['bf operator-bf]
-      ['ival operator-ival]))
-  (accessor (hash-ref operators operator)))
-
-(define/contract (operator-info operator field)
-  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
-  (unless (hash-has-key? operator-impls operator)
-    (error 'operator-info "Unknown operator ~a" operator))
-    ; (raise-herbie-missing-error "Unknown operator ~a" operator))
-  (define accessor
-    (match field
-      ['itype operator-impl-itype]
-      ['otype operator-impl-otype]
-      ['bf operator-impl-bf]
-      ['fl operator-impl-fl]
-      ['ival operator-impl-ival]))
-  (accessor (hash-ref operator-impls operator)))
-
-(define/contract (operator-remove! operator)
-  (-> symbol? any/c)
-  (hash-remove! operator-impls operator))
-
-(define (register-operator-impl! operator name areprs rrepr attrib-dict)
-  (unless (hash-has-key? operators operator)
-    (raise-herbie-missing-error
-      "Cannot register ~a as implementation of ~a: no such operator"
-      name operator))
-
-  (define op (hash-ref operators operator))
-  (define fl-fun (dict-ref attrib-dict 'fl))
-  (define bf-fun (dict-ref attrib-dict 'bf (λ () (operator-bf op))))
-  (define ival-fun (dict-ref attrib-dict 'ival (λ () (operator-ival op))))
-
-  (unless (equal? operator 'if) ;; Type check all operators except if
-    (for ([arepr (cons rrepr areprs)]
-          [itype (cons (operator-otype op) (operator-itype op))])
-      (unless (equal? (representation-type arepr) itype)
-        (raise-herbie-missing-error
-          "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
-          name operator (representation-name rrepr) (operator-otype op)))))
-
-  (define impl (operator-impl name op areprs rrepr fl-fun bf-fun ival-fun))
-  (hash-set! operator-impls name impl)
-  (hash-update! operators-to-impls operator (curry cons name)))
-
-
-(define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator 'name
-                           (list (get-representation 'atypes) ...)
-                           (get-representation 'rtype)
-                           (list (cons 'key value) ...)))
-
-(define (get-parametric-operator name . actual-types)
-  (or
-   (for/first ([impl (operator-all-impls name)]
-               #:when (equal? (operator-info impl 'itype) actual-types))
-     impl)
-   (raise-herbie-missing-error
-    "Parametric operator (~a ~a) not found"
-    name
-    (string-join (map (λ (r) (format "<~a>" (representation-name r))) actual-types) " "))))
-
-(define (get-parametric-constant name repr)
-  (let/ec k
-    (for/list ([impl (operator-all-impls name)])
-      (define rtype (operator-info impl 'otype))
-      (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
-        (k impl)))
-      (raise-herbie-missing-error
-        "Could not find constant implementation for ~a at ~a"
-        name (representation-name repr))))
-
-(define (impl->operator name)
-  (operator-name (operator-impl-op (hash-ref operator-impls name))))
-
-(define (operator-all-impls name)
-  (hash-ref operators-to-impls name))
-
 (define ((comparator test) . args)
   (for/and ([left args] [right (cdr args)])
     (test left right)))
@@ -279,25 +213,6 @@
 (define-operator (or bool bool) bool
   [bf or-fn] [ival ival-or])
 
-;; Miscellaneous operators ;;
-
-(define (repr-conv? expr)
-  (and (symbol? expr) (set-member? (operator-all-impls 'cast) expr)))
-
-(define (rewrite-repr-op? expr)
-  (and (symbol? expr) (set-member? (operator-all-impls 'convert) expr)))
-
-(define (get-repr-conv irepr orepr)
-  (for/or ([name (operator-all-impls 'cast)])
-    (and (equal? (operator-info name 'otype) orepr)
-         (equal? (first (operator-info name 'itype)) irepr)
-         name)))
-
-(define (get-rewrite-operator repr)
-  (for/or ([name (operator-all-impls 'convert)])
-    (and (equal? (operator-info name 'itype) (list repr))
-         name)))
-
 (define-operator (PI) real
   [bf (λ () pi.bf)] 
   [ival ival-pi])
@@ -322,9 +237,141 @@
   [bf (const false)]
   [ival (const (ival-bool false))])
 
-(define (dict-merge dict dict2)
-  (for/fold ([dict dict]) ([(key value) (in-dict dict2)])
-    (dict-set dict key value)))
+;; Operator implementations
+;; An "operator implementation" implements a mathematical operator for
+;; a particular set of representations satisfying the types described
+;; by the `itype` and `otype` properties of the operator.
+(struct operator-impl (name op itype otype fl bf ival))
+
+;; Operator implementation table
+;; Tracks implementations that is loaded into Racket's runtime
+(define operator-impls (make-hasheq))
+
+;; "Active" operator implementation table
+;; Tracks implementations that will be used by Herbie during the improvement loop.
+;; Guaranteed to be a subset of the `operator-impls` table.
+(define active-operator-impls (make-hasheq))
+
+;; Looks up a property `field` of an real operator `op`.
+;; Panics if the operator is not found.
+(define/contract (operator-info op field)
+  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
+  (unless (hash-has-key? operator-impls op)
+    (raise-herbie-missing-error "Unknown operator ~a" op))
+  (define accessor
+    (match field
+      ['itype operator-impl-itype]
+      ['otype operator-impl-otype]
+      ['bf operator-impl-bf]
+      ['fl operator-impl-fl]
+      ['ival operator-impl-ival]))
+  (accessor (hash-ref operator-impls op)))
+
+;; Like `operator-all-impls`, but filters for only active implementations.
+(define (operator-active-impls name)
+  (filter (curry hash-has-key? active-operator-impls) (operator-all-impls name)))
+
+;; Looks up the name of an operator corresponding to an implementation `name`.
+;; Panics if the operator is not found.
+(define (impl->operator name)
+  (unless (hash-has-key? operator-impls name)
+    (raise-herbie-missing-error "Unknown operator ~a" name))
+  (define impl (hash-ref operator-impls name))
+  (operator-name (operator-impl-op impl)))
+
+;; Activates an implementation.
+;; Panics if the operator is not found.
+(define (activate-operator-impl! name)
+  (unless (hash-has-key? operator-impls name)
+    (raise-herbie-missing-error "Unknown operator ~a" name))
+  (define impl (hash-ref operator-impls name))
+  (hash-set! active-operator-impls name impl))
+
+;; Clears the table of active implementations.
+(define (clear-active-operator-impls!)
+  (hash-clear! active-operator-impls))
+
+;; Registers an operator implementation `name` or real operator `op`.
+;; The input and output representations must satisfy the types
+;; specified by the `itype` and `otype` fields for `op`.
+(define (register-operator-impl! operator name ireprs orepr attrib-dict)
+  ; Ideally we check for uniqueness, but the loading code may fire multiple times
+  ; (unless (hash-has-key? operator-impls name)
+  ;   (error 'register-operator-impl! "implementation already registered ~a" name))
+  (unless (hash-has-key? operators operator)
+    (raise-herbie-missing-error
+      "Cannot register ~a as implementation of ~a: no such operator"
+      name operator))
+
+  (define op (hash-ref operators operator))
+  (define fl-fun (dict-ref attrib-dict 'fl))
+  (define bf-fun (dict-ref attrib-dict 'bf (λ () (operator-bf op))))
+  (define ival-fun (dict-ref attrib-dict 'ival (λ () (operator-ival op))))
+
+  (unless (equal? operator 'if) ;; Type check all operators except if
+    (for ([arepr (cons orepr ireprs)]
+          [itype (cons (operator-otype op) (operator-itype op))])
+      (unless (equal? (representation-type arepr) itype)
+        (raise-herbie-missing-error
+          "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
+          name operator (representation-name orepr) (operator-otype op)))))
+
+  (define impl (operator-impl name op ireprs orepr fl-fun bf-fun ival-fun))
+  (hash-set! operator-impls name impl)
+  (hash-update! operators-to-impls operator (curry cons name)))
+
+(define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
+  (register-operator-impl! 'operator 'name
+                           (list (get-representation 'atypes) ...)
+                           (get-representation 'rtype)
+                           (list (cons 'key value) ...)))
+
+;; Among active implementations, looks up an implementation with
+;; the operator name `name` and argument representations `ireprs`.
+(define (get-parametric-operator name . ireprs)
+  (let/ec k
+    (for ([impl (operator-all-impls name)])
+      (when (hash-has-key? active-operator-impls impl)
+        (define itypes (operator-info impl 'itype))
+        (when (equal? itypes ireprs)
+          (k impl))))
+    (raise-herbie-missing-error
+      "Could not find operator implementation for ~a with ~a"
+      name (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
+
+;; Among active implementations, looks up an implementation of a constant
+;; (nullary operator) with the operator name `name` and representation `repr`.
+(define (get-parametric-constant name repr)
+  (let/ec k
+    (for ([impl (operator-all-impls name)])
+      (define itypes (operator-info impl 'itype))
+      (when (and (hash-has-key? active-operator-impls impl) (null? itypes))
+        (define otype (operator-info impl 'otype))
+        (when (or (equal? otype repr) (equal? (representation-type otype) 'bool))
+          (k impl))))
+    (raise-herbie-missing-error
+      "Could not find constant implementation for ~a with ~a"
+      name (format "<~a>" (representation-name repr)))))
+
+
+;; Miscellaneous operators ;;
+
+(define (repr-conv? expr)
+  (and (symbol? expr) (set-member? (operator-all-impls 'cast) expr)))
+
+(define (rewrite-repr-op? expr)
+  (and (symbol? expr) (set-member? (operator-all-impls 'convert) expr)))
+
+(define (get-repr-conv irepr orepr)
+  (for/or ([name (operator-all-impls 'cast)])
+    (and (equal? (operator-info name 'otype) orepr)
+         (equal? (first (operator-info name 'itype)) irepr)
+         name)))
+
+(define (get-rewrite-operator repr)
+  (for/or ([name (operator-all-impls 'convert)])
+    (and (equal? (operator-info name 'itype) (list repr))
+         name)))
 
 ;; Conversions
 
