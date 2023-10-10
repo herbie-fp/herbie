@@ -2,7 +2,7 @@
 
 ;; Builtin boolean plugin
 
-(require "../plugin.rkt")
+(require "runtime/utils.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
