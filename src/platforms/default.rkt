@@ -1,24 +1,73 @@
 #lang racket
 
-;; Default platform:
-;; - double-precision, single-precision, bool types
-;; - double-precision libc operators
-;; - single-precision libc operators
-;; - boolean operators
+;;; The default platform:
+;;; Optimized for C/C++ on Linux with a full libm
 
-(require "runtime/bool.rkt"
-         "runtime/binary64.rkt"
-         "runtime/binary64-math.rkt"
-         "runtime/binary64-accel.rkt"
-         "runtime/binary32.rkt"
-         "runtime/binary32-math.rkt"
-         "runtime/binary32-accel.rkt"
-         ; for conversions
-         "runtime/float32.rkt"
-         "runtime/utils.rkt")
+(require "../plugin.rkt")
 
-(define-operator-impl (cast binary64->binary32 binary64) binary32
-  [fl (curryr ->float32)])
-
-(define-operator-impl (cast binary32->binary64 binary32) binary64
-  [fl identity])
+(define-platform default
+  [bool ()
+    [TRUE]
+    [FALSE]
+    [not bool]
+    [and bool bool]
+    [or bool bool]
+    [== binary64 binary64]
+    [!= binary64 binary64]
+    [> binary64 binary64]
+    [< binary64 binary64]
+    [>= binary64 binary64]
+    [<= binary64 binary64]]
+  [binary64 ()
+    [PI]
+    [E]
+    [INFINITY]
+    [NAN]
+    [neg binary64]
+    [+ binary64 binary64]
+    [- binary64 binary64]
+    [* binary64 binary64]
+    [/ binary64 binary64]
+    [acos binary64]
+    [acosh binary64]
+    [asin binary64]
+    [asinh binary64]
+    [atan binary64]
+    [atanh binary64]
+    [cbrt binary64]
+    [ceil binary64]
+    [cos binary64]
+    [cosh binary64]
+    [erf binary64]
+    [erfc binary64]
+    [exp binary64]
+    [exp2 binary64]
+    [expm1 binary64]
+    [fabs binary64]
+    [floor binary64]
+    [lgamma binary64]
+    [log binary64]
+    [log10 binary64]
+    [log1p binary64]
+    [log2 binary64]
+    [logb binary64]
+    [rint binary64]
+    [round binary64]
+    [sin binary64]
+    [sinh binary64]
+    [sqrt binary64]
+    [tan binary64]
+    [tanh binary64]
+    [tgamma binary64]
+    [trunc binary64]
+    [atan2 binary64 binary64]
+    [copysign binary64 binary64]
+    [fdim binary64 binary64]
+    [fmax binary64 binary64]
+    [fmin binary64 binary64]
+    [fmod binary64 binary64]
+    [hypot binary64 binary64]
+    [pow binary64 binary64]
+    [remainder binary64 binary64]
+    [fma binary64 binary64 binary64]])
+    

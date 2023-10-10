@@ -1,8 +1,8 @@
 #lang racket
 
-;; Boolean platform
+;; Builtin boolean plugin
 
-(require "utils.rkt")
+(require "../plugin.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -44,6 +44,34 @@
              (if t (format "<~a>" (representation-name t)) "<?>"))
            " ")))
 
+(define (resolve-missing-op! stx op actual-types error!)
+  (define active-impls (operator-active-impls op))
+  (cond
+    [(null? active-impls)
+     ; no active implementations
+     (define all-impls (operator-all-impls op))
+     (cond
+       [(null? all-impls)
+        ; no implementations at all
+        (error! stx "No implementations of ~a found; check plugins" op)]
+       [else
+        ; found in-active implementations
+        (error! stx
+               "No implementations of `~a` in platform, but found inactive implementations ~a"
+               op
+               (string-join
+                 (for/list ([impl all-impls])
+                   (application->string op (operator-info impl 'itype)))
+                 " or "))])]
+    [else
+     ; active implementations were found
+     (error! stx "Invalid arguments to ~a; found ~a, but got ~a" op
+             (string-join
+               (for/list ([impl active-impls])
+                 (application->string op (operator-info impl 'itype)))
+               " or ")
+             (application->string op actual-types))]))
+
 (define (expression->type stx env type error!)
   (match stx
     [#`,(? number?) type]
@@ -123,52 +151,16 @@
        [else
         (expression->type body env type error!)])]
     [#`(- #,arg)
+     ; special case: unary negation
      (define actual-type (expression->type arg env type error!))
      (define op*
        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
          (get-parametric-operator 'neg actual-type)))
-     (if op*
-         (operator-info op* 'otype)
-         (begin
-          (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
-                  (string-join
-                   (for/list ([sig (operator-active-impls 'neg)])
-                     (define atypes (operator-info sig 'itype))
-                     (format "(- ~a)" (string-join
-                                       (for/list ([atype atypes])
-                                         (format "<~a>" atype))
-                                       " ")))
-                   " or ")
-                  actual-type)
-          #f))]
-    [#`(,(and (or '+ '- '* '/) op) #,exprs ...)
-     (define t #f)
-     (for ([arg exprs] [i (in-naturals)])
-       (define actual-type (expression->type arg env type error!))
-       (when (repr-has-type? actual-type 'bool)
-          (error! stx "~a does not take boolean arguments" op))
-       (if (= i 0) (set! t actual-type) #f)
-       (unless (equal? t actual-type)
-         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1)
-                 t actual-type)))
-     t]
-    [#`(,(and (or '< '> '<= '>= '= '!=) op) #,exprs ...)
-     (define t #f)
-     (for ([arg exprs] [i (in-naturals)])
-       (define actual-type (expression->type arg env type error!))
-       (when (repr-has-type? actual-type 'bool)
-          (error! stx "~a does not take boolean arguments" op))
-       (if (= i 0) (set! t actual-type) #f)
-       (unless (equal? t actual-type)
-         (error! stx "~a expects argument ~a of type ~a (not ~a)" op (+ i 1)
-                 t actual-type)))
-     (get-representation 'bool)]
-    [#`(,(and (or 'and 'or) op) #,exprs ...)
-     (for ([arg exprs] [i (in-naturals)])
-       (define actual-type (expression->type arg env type error!))
-       (unless (repr-has-type? actual-type 'bool)
-          (error! stx "~a only takes boolean arguments" op)))
-     (get-representation 'bool)]
+     (cond
+       [op* (operator-info op* 'otype)]
+       [else
+        (resolve-missing-op! stx '- (list actual-type) error!)
+        #f])]
     [#`(,(? operator-exists? op) #,exprs ...)
      (define actual-types
       (for/list ([arg exprs])
@@ -180,32 +172,7 @@
        [op* (operator-info op* 'otype)]
        [else
         ; implementation not supported so try to report a useful error
-        (define active-impls (operator-active-impls op))
-        (cond
-          [(null? active-impls)
-           ; no active implementations
-           (define all-impls (operator-all-impls op))
-           (cond
-             [(null? all-impls)
-              ; no implementations at all
-              (error! stx "No implementations of ~a found; check plugins" op)]
-             [else
-              ; found in-active implementations
-              (error! stx
-                     "No implementations of `~a` in platform, but found inactive implementations ~a"
-                     op
-                     (string-join
-                       (for/list ([impl all-impls])
-                         (application->string op (operator-info impl 'itype)))
-                       " or "))])]
-          [else
-           ; active implementations were found
-           (error! stx "Invalid arguments to ~a; found ~a, but got ~a" op
-                   (string-join
-                     (for/list ([impl active-impls])
-                       (application->string op (operator-info impl 'itype)))
-                     " or ")
-                   (application->string op actual-types))])
+        (resolve-missing-op! stx op actual-types error!)
         type])]
     [#`(,(? (curry hash-has-key? (*functions*)) fname) #,exprs ...)
      (match-define (list vars repr _) (hash-ref (*functions*) fname))

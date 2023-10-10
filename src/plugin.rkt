@@ -1,7 +1,10 @@
 #lang racket
 
-(require "errors.rkt" "syntax/types.rkt" (submod "syntax/types.rkt" internals)
-         (submod "syntax/syntax.rkt" internals) (submod "syntax/rules.rkt" internals))
+(require "syntax/types.rkt" "errors.rkt"
+         (submod "syntax/types.rkt" internals)
+         (submod "syntax/syntax.rkt" internals)
+         (submod "syntax/rules.rkt" internals)
+         (submod "platform.rkt" internals))
 
 (provide define-type define-representation define-operator-impl
          define-operator define-ruleset define-ruleset*
@@ -9,5 +12,5 @@
          register-representation! register-representation-alias!
          register-conversion-generator!
          register-generator! register-operator!
-         (struct-out representation) get-representation
-         warn)
+         (struct-out representation) get-representation warn
+         define-platform)

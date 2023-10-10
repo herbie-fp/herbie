@@ -4,8 +4,6 @@
 (require "../common.rkt" "../conversions.rkt" "../errors.rkt" "types.rkt" "syntax.rkt")
 (provide assert-program!)
 
-
-
 (define (check-expression* stx vars error! deprecated-ops)
   (let loop ([stx stx] [vars vars])
     (match stx
@@ -45,6 +43,15 @@
      [#`(! #,props ... #,body)
       (check-properties* props '() body deprecated-ops)
       (loop body vars)]
+     [#`(,(? (curry set-member? '(+ * and or))) #,args ...)
+      ;; Variary (minimum 0 arguments)
+      (for ([arg args]) (loop arg vars))]
+     [#`(,(? (curry set-member? '(- / = != < > <= >=))))
+      ;; Variary (minimum 1 arg)
+      (error! stx "Variary operator expects at least one argument")]
+     [#`(,(? (curry set-member? '(- / = != < > <= >=))) #,args ...)
+      ;; Variary (minimum 1 arg)
+      (for ([arg args]) (loop arg vars))]
      [#`(,(? (curry set-member? '(+ - * / and or = != < > <= >=))) #,args ...)
       ;; These expand by associativity so we don't check the number of arguments
       (for ([arg args]) (loop arg vars))]

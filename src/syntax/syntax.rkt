@@ -1,14 +1,14 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "../common.rkt" "../errors.rkt" "types.rkt")
+(require "../errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
          variable? constant-operator?
          operator-exists? operator-deprecated? impl-exists?
          real-operator-info operator-info 
-         impl->operator all-constants
-         operator-all-impls operator-active-impls
+         impl->operator all-constants operator-all-impls
+         operator-active-impls activate-operator-impl! clear-active-operator-impls!
          *functions* register-function!
          get-parametric-operator get-parametric-constant
          generate-conversion-impl!
@@ -328,27 +328,27 @@
 
 ;; Among active implementations, looks up an implementation with
 ;; the operator name `name` and argument representations `ireprs`.
-(define (get-parametric-operator name . ireprs)
+(define (get-parametric-operator #:all? [all? #f] name . ireprs)
+  (define get-impls (if all? operator-all-impls operator-active-impls))
   (let/ec k
-    (for ([impl (operator-all-impls name)])
-      (when (hash-has-key? active-operator-impls impl)
-        (define itypes (operator-info impl 'itype))
-        (when (equal? itypes ireprs)
-          (k impl))))
+    (for ([impl (get-impls name)])
+      (define itypes (operator-info impl 'itype))
+      (when (equal? itypes ireprs)
+        (k impl)))
     (raise-herbie-missing-error
       "Could not find operator implementation for ~a with ~a"
       name (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
 
 ;; Among active implementations, looks up an implementation of a constant
 ;; (nullary operator) with the operator name `name` and representation `repr`.
-(define (get-parametric-constant name repr)
+(define (get-parametric-constant name repr #:all? [all? #f])
+  (define get-impls (if all? operator-all-impls operator-active-impls))
   (let/ec k
-    (for ([impl (operator-all-impls name)])
+    (for ([impl (get-impls name)])
       (define itypes (operator-info impl 'itype))
-      (when (and (hash-has-key? active-operator-impls impl) (null? itypes))
-        (define otype (operator-info impl 'otype))
-        (when (or (equal? otype repr) (equal? (representation-type otype) 'bool))
-          (k impl))))
+      (define otype (operator-info impl 'otype))
+      (when (or (equal? otype repr) (equal? (representation-type otype) 'bool))
+        (k impl)))
     (raise-herbie-missing-error
       "Could not find constant implementation for ~a with ~a"
       name (format "<~a>" (representation-name repr)))))
