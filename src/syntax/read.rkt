@@ -30,70 +30,76 @@
   (match stx
     ; expand let statements
     [#`(let* ((#,vars #,vals) ...) #,body)
-     (datum->syntax stx
+     (datum->syntax #f
        (list 'let*
              (for/list ([var (in-list vars)] [val (in-list vals)])
                 (list var (expand val)))
-             (expand body)))]
+             (expand body))
+       stx)]
     [#`(let ((#,vars #,vals) ...) #,body)
-     (datum->syntax stx
+     (datum->syntax #f
        (list 'let
              (for/list ([var (in-list vars)] [val (in-list vals)])
                 (list var (expand val)))
-             (expand body)))]
+             (expand body))
+       stx)]
     ; special nullary operators
-    [#`(,(or 'and 'or)) (datum->syntax stx 'TRUE)]
-    [#`(+) (datum->syntax stx 0)]
-    [#`(*) (datum->syntax stx 1)]
+    [#`(,(or 'and 'or)) (datum->syntax #f 'TRUE stx)]
+    [#`(+) (datum->syntax #f 0 stx)]
+    [#`(*) (datum->syntax #f 1 stx)]
     ; special unary operators
     [#`(,(or 'and 'or '+ '*) #,a) (expand a)]
-    [#`(/ #,a) (datum->syntax stx (list '/ 1 (expand a)))]
+    [#`(/ #,a) (datum->syntax #f (list '/ 1 (expand a)) stx)]
     ; variary operators
     [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2 #,rest ...)
-     (define prev (datum->syntax stx (list op (expand arg1) (expand arg2))))
+     (define prev (datum->syntax #f (list op (expand arg1) (expand arg2)) stx))
      (let loop ([prev prev] [rest rest])
        (match rest
          [(list)
           prev]
          [(list next rest ...)
-          (define prev* (datum->syntax next (list op prev (expand next))))
+          (define prev* (datum->syntax #f (list op prev (expand next)) next))
           (loop prev* rest)]))]
     [#`(,(and (or '< '<= '> '>= '=) op) #,args ...)
      (define args* (map expand args))
      (define out
        (for/fold ([out #f]) ([term args*] [next (cdr args*)])
-         (datum->syntax term
+         (datum->syntax #f
            (if out
                (list 'and out (list op term next))
-               (list op term next)))))
-     (or out (datum->syntax stx 'TRUE))]
+               (list op term next))
+           term)))
+     (or out (datum->syntax #f 'TRUE stx))]
     [#`(!= #,args ...)
      (define args* (map expand args))
      (define out
        (for/fold ([out #f])
                  ([term args*] [i (in-naturals)] #:when #t
                   [term2 args*] [j (in-naturals)] #:when (< i j))
-          (datum->syntax stx
+          (datum->syntax #f
             (if out
                (list 'and out (list '!= term term2))
-               (list '!= term term2)))))
-     (or out (datum->syntax stx 'TRUE))]
+               (list '!= term term2))
+            stx)))
+     (or out (datum->syntax #f 'TRUE stx))]
     ; other operators
     [#`(#,op #,args ...)
-     (datum->syntax stx (cons op (map expand args)))]
+     (datum->syntax #f (cons op (map expand args)) stx)]
     ; numbers, variables
     [_ stx]))
 
 (define (expand-core stx)
   (match stx
    [#`(FPCore #,name (#,vars ...) #,props ... #,body)
-    (datum->syntax stx
+    (datum->syntax #f
       (append (list 'FPCore name vars) props
-              (list (expand body))))]
+              (list (expand body)))
+      stx)]
    [#`(FPCore (#,vars ...) #,props ... #,body)
-    (datum->syntax stx
+    (datum->syntax #f
       (append (list 'FPCore vars) props
-              (list (expand body))))]))
+              (list (expand body)))
+      stx)]))
 
 (define (parse-test stx)
   (assert-program! stx)

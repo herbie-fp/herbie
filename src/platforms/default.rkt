@@ -12,6 +12,7 @@
     #:2ary [and or]
     #:2ary binary64 [== != > < >= <=]
     #:2ary binary32 [== != > < >= <=]]
+
   [binary64 (binary32)
     #:const [PI E INFINITY NAN]
     ; arithmetic
@@ -26,6 +27,7 @@
     #:1ary [expm1 log1p]
     #:2ary [atan2 hypot]
     #:3ary [fma]]
+
   [binary32 (binary64)
     #:const [PI E INFINITY NAN]
     ; arithmetic
