@@ -1,7 +1,7 @@
 #lang racket
 
 (require (for-syntax racket/match))
-(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt"
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt" "errors.rkt"
          (submod "syntax/syntax.rkt" internals))
 
 (provide platform? platform-reprs platform-operators
@@ -12,7 +12,7 @@
 (module+ internals
   (provide define-platform register-platform!))
 
-;; Representaiton name sanitizer
+;; Representation name sanitizer
 (define (repr->symbol repr)
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (string->symbol (string-replace* (~a (representation-name repr)) replace-table)))
@@ -33,10 +33,9 @@
 ;; Looks up a platform by identifier.
 ;; Panics if no platform is found.
 (define (get-platform name)
-  (hash-ref platforms name
-            (λ ()
-              (error 'get-platform "unknown platform ~a, found ~a"
-                     name (string-join (map ~a (hash-keys platforms)) ", ")))))
+  (or (hash-ref platforms name #f)
+      (raise-herbie-error "unknown platform ~a, found ~a" name
+                          (string-join (map ~a (hash-keys platforms)) ", "))))
 
 ;; Loads a platform.
 (define/contract (activate-platform! pform)

@@ -295,13 +295,8 @@
   
 (define (setup-context! vars specification precondition repr)
   (*context* (context vars repr (map (const repr) vars)))
-  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
-    (*needed-reprs* (list repr (get-representation 'bool))))
-
-  (match-define (cons domain pts+exs)
-                  (sample-points precondition 
-                    (list specification) 
-                    (list (*context*))))
+  (define sample (sample-points precondition (list specification) (list (*context*))))
+  (match-define (cons domain pts+exs) sample)
   (cons domain (apply mk-pcontext pts+exs)))
 
 (define (initialize-alt-table! alternatives context pcontext)

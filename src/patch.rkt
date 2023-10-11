@@ -1,8 +1,9 @@
 #lang racket
 
-(require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
-(require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
-(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "core/egg-herbie.rkt")
+(require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt"
+         "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "core/egg-herbie.rkt"
+         "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
+         "platform.rkt" "programs.rkt" "timeline.rkt")
 
 (provide
   (contract-out
@@ -153,7 +154,8 @@
     ;; - check loaded representations
     ;; - if there is only one real representation, allow expansive rules to be run in egg
     ;; This is just a workaround and should definitely be fixed
-    (define one-real-repr? (= (count (λ (r) (equal? (representation-type r) 'real)) (*needed-reprs*)) 1))
+    (define active-reprs (platform-reprs (*active-platform*)))
+    (define one-real-repr? (= (count (λ (r) (equal? (representation-type r) 'real)) active-reprs) 1))
 
     ;; rewrite high-error locations
     (define changelists

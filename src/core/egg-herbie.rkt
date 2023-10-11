@@ -1,8 +1,9 @@
 #lang racket
 
 (require egg-herbie ffi/unsafe)
-(require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../common.rkt" "../errors.rkt" "../timeline.rkt" "../alternative.rkt")
+(require "../syntax/rules.rkt" "../syntax/sugar.rkt"  "../syntax/syntax.rkt"
+         "../syntax/types.rkt" "../alternative.rkt" "../common.rkt"
+         "../errors.rkt" "../platform.rkt" "../timeline.rkt")
 
 (module+ test (require rackunit))
 
@@ -205,7 +206,7 @@
 ;; Given a list of types, computes the product of all possible
 ;; representation assignments where each element
 ;; is a dictionary mapping type to representation
-(define (type-combinations types [reprs (*needed-reprs*)])
+(define (type-combinations types [reprs (platform-reprs (*active-platform*))])
   (reap [sow]
     (let loop ([types types] [assigns '()])
       (match types
@@ -232,13 +233,14 @@
 ;; Translates a Herbie rule into possibly multiple rules
 (define (rule->egg-rules r)
   (match-define (rule name input output itypes otype) r)
+  (define active-reprs (platform-reprs (*active-platform*)))
   (cond
     [(andmap representation? (cons otype (map cdr itypes)))
      ;; rules over representations
      ;; nothing special here: just return the 1 rule
      ;; validate that we support the operators
-     (if (andmap (curry set-member? (*needed-reprs*))
-                 (append (reprs-in-expr input) (reprs-in-expr output)))
+     (if (and (subset? (reprs-in-expr input) active-reprs)
+              (subset? (reprs-in-expr output) active-reprs))
          (list r)
          (list))]
     [else
@@ -268,14 +270,13 @@
            (define name* (sym-append name '_ (name->egg-name (representation-name sugar-otype))))
            (define input* (desugar-program input sugar-ctx #:full #f))
            (define output* (desugar-program output sugar-ctx #:full #f))
-           (when (andmap (curry set-member? (*needed-reprs*))
-                         (append (reprs-in-expr input*) (reprs-in-expr output*)))
+           (when (and (subset? (reprs-in-expr input*) active-reprs)
+                      (subset? (reprs-in-expr output*) active-reprs))
              (sow (rule name* input* output* itypes* otype*))))))]))
 
 (module+ test
-  ;; Make sure all built-in rules are valid in some
-  ;; configuration of representations
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
+  ;; Make sure all built-in rules are valid in
+  ;; some configuration of representations
   (for ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
                (check-true (> (length (rule->egg-rules rule)) 0))))
@@ -546,7 +547,7 @@
 ;; necessary reasons (see `rule->egg-rules` for details).
 ;; checks the cache in case we used them previously
 (define (expand-rules rules)
-  (define key (cons rules (*needed-reprs*)))
+  (define key (cons rules (platform-reprs (*active-platform*))))
   (unless (and (*ffi-rules-cache*) (equal? (car (*ffi-rules-cache*)) key))
     ; free any rules in the cache
     (when (*ffi-rules-cache*)

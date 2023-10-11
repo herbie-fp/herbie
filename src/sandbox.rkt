@@ -238,7 +238,6 @@
       (define repr (test-output-repr test))
       (rollback-improve!)
       (*context* (test-context test))
-      (*needed-reprs* (list repr (get-representation 'bool)))
       ; (generate-prec-rewrites (test-conversions test))
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))

@@ -3,8 +3,8 @@
 (require "../errors.rkt")
 
 (provide type-name? (struct-out representation) get-representation
-         (struct-out context) *context* context-extend context-lookup
-         *needed-reprs*)
+         (struct-out context) *context* context-extend context-lookup)
+
 (module+ internals
   (provide define-type define-representation
            register-generator! register-representation! register-representation-alias!))
@@ -99,8 +99,8 @@
 
 (struct context (vars repr var-reprs) #:transparent)
 
+;; Current context
 (define *context* (make-parameter #f))
-(define *needed-reprs* (make-parameter '()))
 
 (define (context-extend ctx var repr)
   (struct-copy context ctx
