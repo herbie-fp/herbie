@@ -11,7 +11,7 @@
          operator-active-impls activate-operator-impl! clear-active-operator-impls!
          *functions* register-function!
          get-parametric-operator get-parametric-constant
-         generate-conversion-impl!
+         generate-conversion-impl! generate-conversion-impl
          repr-conv? rewrite-repr-op?
          get-repr-conv get-rewrite-operator)
 
@@ -391,6 +391,15 @@
   (-> (-> any/c any/c boolean?) void?)
   (unless (set-member? conversion-generators proc)
     (set! conversion-generators (cons proc conversion-generators))))
+
+(define (generate-conversion-impl irepr orepr)
+  (define maybe-impl (get-repr-conv irepr orepr))
+  (cond
+    [maybe-impl maybe-impl]
+    [else
+     (for/first ([gen conversion-generators])
+        (gen (representation-name irepr) (representation-name orepr)))
+     (get-repr-conv irepr orepr)]))
 
 (define (generate-conversion-impl! conv1 conv2 repr1 repr2)
   (or (impl-exists? conv1)

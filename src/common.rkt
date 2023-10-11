@@ -8,7 +8,7 @@
          flip-lists drop-at find-duplicates partial-sums
          argmins argmaxs set-disjoint? subsequence? list-set* disjoint-set
          disjoint-set-find! disjoint-set-union! get-seed set-seed!
-         quasisyntax dict sym-append
+         quasisyntax dict sym-append string-replace*
          format-time format-bits format-accuracy format-cost web-resource
          (all-from-out "config.rkt"))
 
@@ -271,3 +271,11 @@
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~a args))))
 
+(define/contract (string-replace* str changes)
+  (-> string? (listof (cons/c string? string?)) string?)
+  (let loop ([str str] [changes changes])
+    (match changes
+      [(? null?) str]
+      [(list change rest ...)
+       (match-define (cons find replace) change)
+       (loop (string-replace str find replace) rest)])))

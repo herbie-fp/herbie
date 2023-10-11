@@ -1,37 +1,68 @@
 #lang racket
 
 (require (for-syntax racket/match))
-(require "syntax/types.rkt" "syntax/syntax.rkt")
+(require "common.rkt" "syntax/types.rkt" "syntax/syntax.rkt"
+         (submod "syntax/syntax.rkt" internals))
 
-(provide *active-platform* activate-platform!)
+(provide platform? platform-reprs platform-operators
+         (rename-out [platform-ops platform-operator-impls])
+         platform-conversions get-platform
+         *active-platform* activate-platform!)
 
 (module+ internals
   (provide define-platform register-platform!))
+
+;; Representaiton name sanitizer
+(define (repr->symbol repr)
+  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
+  (string->symbol (string-replace* (~a (representation-name repr)) replace-table)))
 
 ;;; Platforms specify what representations, operators, and constants Herbie
 ;;; is allowed to produce in its output. Platforms provide no implementation
 ;;; of floating-point operations and will verify that implementations
 ;;; are loaded. Unlike plugins, only one platform may be active at any
 ;;; given time and platforms may be activated or deactivated.
-(struct platform (reprs ops))
+(struct platform (name reprs ops))
 
 ;; Platform table, mapping name to platform
 (define platforms (make-hash))
 
 ;; Active platform
-(define *active-platform* (make-parameter 'default))
+(define *active-platform* (make-parameter #f))
+
+;; Looks up a platform by identifier.
+;; Panics if no platform is found.
+(define (get-platform name)
+  (hash-ref platforms name
+            (λ ()
+              (error 'get-platform "unknown platform ~a, found ~a"
+                     name (string-join (map ~a (hash-keys platforms)) ", ")))))
 
 ;; Loads a platform.
-(define (activate-platform! name)
-  (unless (hash-has-key? platforms name)
-    (error 'register-platform! "unknown platform ~a, found ~a" name
-           (string-join (map ~a (hash-keys platforms)) ", ")))
-  (define pform (hash-ref platforms name))
-  (printf "Activating platform `~a`\n" name)
+(define/contract (activate-platform! pform)
+  (-> platform? void?)
+  (printf "Activating platform `~a`\n" (platform-name pform))
 
+  ; replace the active operator table
   (clear-active-operator-impls!)
   (for ([impl (in-list (platform-ops pform))])
     (activate-operator-impl! impl)))
+
+;; Real operators in a platform.
+(define/contract (platform-operators pform)
+  (-> platform? (listof symbol?))
+  (define ops (mutable-set))
+  (for ([impl (in-list (platform-ops pform))])
+    (set-add! ops (impl->operator impl)))
+  (set->list ops))
+
+;; Representation conversions in a platform.
+(define/contract (platform-conversions pform)
+  (-> platform? (listof any/c))
+  (reap [sow]
+    (for ([impl (in-list (platform-ops pform))])
+      (when (eq? (impl->operator impl) 'cast)
+        (sow impl)))))
 
 ;; Registers a platform: `repr-data` is a dictionary
 ;; mapping a representation name to a list of operators
@@ -50,11 +81,27 @@
           [(list name)
            (define impl (get-parametric-constant name repr #:all? #t))
            (cons impl ops)]
+          [(list 'cast itype)
+           (define irepr (get-representation itype)) 
+           (define impl
+             (or (get-repr-conv irepr repr)
+                 (generate-conversion-impl irepr repr)))
+           (unless impl
+             (error 'register-platform! "could not generate conversion ~a => ~a"
+                    (format "<~a>" (representation-name irepr))
+                    (format "<~a>" (representation-name repr))))
+           (unless (get-rewrite-operator repr)
+             ; need to make a "precision rewrite" operator
+             ; (only if we did not generate it before)
+             (define rewrite-name (sym-append '<- (repr->symbol repr)))
+             (register-operator-impl! 'convert rewrite-name (list repr) repr
+                (list (cons 'fl identity))))
+           (cons impl ops)]
           [(list name itypes ...)
            (define ireprs (map get-representation itypes))
            (define impl (apply get-parametric-operator name ireprs #:all? #t))
            (cons impl ops)]))))
-  (define pform (platform reprs ops))
+  (define pform (platform name reprs ops))
   (hash-set! platforms name pform))
 
 ;; Macro version of `register-platform!`

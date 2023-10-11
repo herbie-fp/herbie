@@ -1,6 +1,7 @@
 #lang racket
 (require setup/getinfo racket/runtime-path)
-(require "syntax/types.rkt" "platform.rkt" (submod "syntax/types.rkt" internals))
+(require "config.rkt" "platform.rkt" "syntax/types.rkt"
+         (submod "syntax/types.rkt" internals))
 
 (provide load-herbie-plugins load-herbie-builtins make-debug-context)
 
@@ -11,7 +12,7 @@
 (define-runtime-module-path fallback-plugin "reprs/fallback.rkt")
 (define-runtime-module-path float-plugin    "reprs/float.rkt")
 
-;; Buildin platforms
+;; Builtin platforms
 (define-runtime-module-path default-platform "platforms/default.rkt")
 
 (define (load-herbie-builtins)
@@ -44,6 +45,7 @@
     (when value
       (with-handlers ([exn:fail:filesystem:missing-module? void])
         (dynamic-require value #f))))
+  (*active-platform* (get-platform (*default-platform-name*)))
   (activate-platform! (*active-platform*)))
 
 ;; requiring "load-plugin.rkt" automatically registers

@@ -239,7 +239,7 @@
       (rollback-improve!)
       (*context* (test-context test))
       (*needed-reprs* (list repr (get-representation 'bool)))
-      (generate-prec-rewrites (test-conversions test))
+      ; (generate-prec-rewrites (test-conversions test))
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])

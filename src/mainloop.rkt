@@ -3,9 +3,10 @@
 (require "common.rkt" "errors.rkt" "alternative.rkt" "timeline.rkt"
          "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt"
          "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
-         "ground-truth.rkt" "preprocess.rkt" "core/alt-table.rkt"
-         "core/localize.rkt" "core/simplify.rkt" "core/regimes.rkt"
-         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
+         "platform.rkt" "ground-truth.rkt" "preprocess.rkt"
+         "core/alt-table.rkt" "core/localize.rkt" "core/simplify.rkt"
+         "core/regimes.rkt" "core/bsearch.rkt" "core/egg-herbie.rkt"
+         "soundiness.rkt")
 
 (provide (all-defined-out))
 
@@ -43,13 +44,16 @@
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn ctx)
-  (filter alt-expr
-    (for/list ([(k v) (in-hash (*conversions*))]
-              #:unless (equal? k (context-repr ctx))
-              #:when (set-member? v (context-repr ctx)))
-      (define rewrite (get-rewrite-operator k))
-      (define body* (apply-repr-change-expr (list rewrite (alt-expr altn)) ctx))
-      (make-alt body*))))
+  (define starting-exprs
+    (reap [sow]
+      (for ([conv (platform-conversions (*active-platform*))])
+        (match-define (list itype) (operator-info conv 'itype))
+        (when (equal? itype (context-repr ctx))
+          (define otype (operator-info conv 'otype))
+          (define expr* (list (get-rewrite-operator otype) (alt-expr altn)))
+          (define body* (apply-repr-change-expr expr* ctx))
+          (when body* (sow body*))))))
+  (map make-alt starting-exprs))
 
 ;; Information
 (define (list-alts)
@@ -141,7 +145,7 @@
 
   ; low-error locations (Pherbie-only with multi-precision)
   (^lowlocs^
-    (if (and (*pareto-mode*) (not (hash-empty? (*conversions*))))
+    (if (and (*pareto-mode*) (not (null? (platform-conversions (*active-platform*)))))
         (for/list ([loc-errs (in-list loc-errss)]
                    #:when true
                    [(err expr) (in-dict (reverse loc-errs))]

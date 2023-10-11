@@ -125,25 +125,26 @@
   (when (dict-has-key? prop-dict ':herbie-target)
     (check-expression* (dict-ref prop-dict ':herbie-target) vars error! deprecated-ops))
     
-  (when (dict-has-key? prop-dict ':herbie-conversions)
-    (define conversion-stx (dict-ref prop-dict ':herbie-conversions))
-    (cond
-     [(list? (syntax-e conversion-stx))
-      (define conversions (syntax->datum conversion-stx))
-      (for ([conv conversions])
-        (match conv
-         [(list repr-name-1 repr-name2)
-          (define known-repr?
-            (with-handlers ([exn:fail:user:herbie? (const #f)])
-              (get-representation (first conv))
-              (get-representation (second conv))
-              #t))
-          (unless known-repr? (error! conversion-stx "Unknown precision in conversion ~a" conv))]
-         [_ (error! conversion-stx "Invalid conversion ~a; Valid example: (binary64 binary32)" conv)]))
-      (generate-conversions (map (curry map get-representation) conversions))]
-     [else
-      (error! conversion-stx "Invalid :herbie-conversions ~a; must be a list" conversion-stx)]))
-)
+  ; (when (dict-has-key? prop-dict ':herbie-conversions)
+  ;   (define conversion-stx (dict-ref prop-dict ':herbie-conversions))
+  ;   (cond
+  ;    [(list? (syntax-e conversion-stx))
+  ;     (define conversions (syntax->datum conversion-stx))
+  ;     (for ([conv conversions])
+  ;       (match conv
+  ;        [(list repr-name-1 repr-name2)
+  ;         (define known-repr?
+  ;           (with-handlers ([exn:fail:user:herbie? (const #f)])
+  ;             (get-representation (first conv))
+  ;             (get-representation (second conv))
+  ;             #t))
+  ;         (unless known-repr? (error! conversion-stx "Unknown precision in conversion ~a" conv))]
+  ;        [_ (error! conversion-stx "Invalid conversion ~a; Valid example: (binary64 binary32)" conv)]))
+  ;     (generate-conversions (map (curry map get-representation) conversions))]
+  ;    [else
+  ;     (error! conversion-stx "Invalid :herbie-conversions ~a; must be a list" conversion-stx)]))
+  
+  (void))
 
 (define (check-program* stx vars props body error!)
   (unless (list? vars)

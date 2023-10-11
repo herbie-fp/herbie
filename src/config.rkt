@@ -108,6 +108,7 @@
 (define *use-improve-cache* (make-parameter #t))
 
 (define *default-precision* (make-parameter 'binary64))
+(define *default-platform-name* (make-parameter 'default))
 
 ;;; About Herbie:
 
