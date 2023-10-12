@@ -235,10 +235,8 @@
     (parameterize ([*timeline-disabled* timeline-disabled?]
                    [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
-      (define repr (test-output-repr test))
       (rollback-improve!)
       (*context* (test-context test))
-      ; (generate-prec-rewrites (test-conversions test))
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])

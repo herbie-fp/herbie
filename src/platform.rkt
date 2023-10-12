@@ -74,23 +74,46 @@
 
 ;; The "precision change" rules valid for a platform
 (define (platform-reprchange-rules pform)
-  (for/list ([impl (platform-conversions pform)])
-    ; representations
+  ; by directionality
+  (define unidir (mutable-set))
+  (define bidir (mutable-set))
+
+  ; conversion signatures
+  (for ([impl (platform-conversions pform)])
     (match-define (list irepr) (operator-info impl 'itype))
     (define orepr (operator-info impl 'otype))
+    (define sig (cons irepr orepr))
+    (set-add! unidir sig)
+    
+    (define rev-sig (cons orepr irepr))
+    (when (set-member? unidir rev-sig)
+      (set-add! bidir rev-sig)))
+
+  ; for each conversion, enable a rewrite
+  (define rules
+    (for/list ([(irepr orepr) (in-dict (set->list unidir))])
+      ; names
+      (define irepr-sym (repr->symbol irepr))
+      (define orepr-sym (repr->symbol orepr))
+      (define conv (sym-append irepr-sym '-> orepr-sym))
+      (define change (sym-append '<- irepr-sym))
+      (define rewrite-name (sym-append 'rewrite- orepr-sym '/ irepr-sym))
+      ; rules
+      (rule rewrite-name 'a `(,conv (,change a)) `((a . ,irepr)) orepr)))
+
+  ; for each bidirectional conversion, enable a pair of simplification rewrites
+  (for/fold ([rules rules]) ([(irepr orepr) (in-dict (set->list unidir))])
     ; names
     (define irepr-sym (repr->symbol irepr))
     (define orepr-sym (repr->symbol orepr))
-    (define conv (sym-append irepr-sym '-> orepr-sym))
-    (define change (sym-append '<- irepr-sym))
-    (define rewrite-name (sym-append 'rewrite- orepr-sym '/ irepr-sym))
+    (define conv1 (sym-append irepr-sym '-> orepr-sym))
+    (define conv2 (sym-append orepr-sym '-> irepr-sym))
+    (define rw-name1 (sym-append 'rewrite- orepr-sym '/ irepr-sym '-simplify))
+    (define rw-name2 (sym-append 'rewrite- irepr-sym '/ orepr-sym '-simplify))
     ; rules
-    (rule rewrite-name 'a (list conv (list change 'a)) (list (cons 'a irepr)) orepr)))
-
-;; simplify rule
-;; (register-ruleset! rulename4 '(arithmetic simplify) (list (cons 'a repr2))
-;;   (list (list rulename4 `(,conv1 (,conv2 a)) 'a))))
-
+    (define simplify1 (rule rw-name1 'a `(,conv1 (,conv2 a)) `((a . ,orepr)) orepr))
+    (define simplify2 (rule rw-name2 'a `(,conv2 (,conv1 a)) `((a . ,irepr)) irepr))
+    (append (list simplify1 simplify2) rules)))
 
 ;; Registers a platform: `repr-data` is a dictionary
 ;; mapping a representation name to a list of operators
@@ -107,9 +130,12 @@
       (for/fold ([ops ops]) ([op (in-list op-data)])
         (match op
           [(list name)
+           ; special case: constants
            (define impl (get-parametric-constant name repr #:all? #t))
            (cons impl ops)]
           [(list 'cast itype)
+           ; special case: casts are "representation changes"
+           ; these enable other operators as well for precision tuning
            (define irepr (get-representation itype)) 
            (define impl
              (or (get-repr-conv irepr repr #:all? #t)
@@ -128,6 +154,7 @@
              (set! rw-impl (get-rewrite-operator repr #:all? #t)))
            (append (list impl rw-impl) ops)]
           [(list name itypes ...)
+           ; any other operator
            (define ireprs (map get-representation itypes))
            (define impl (apply get-parametric-operator name ireprs #:all? #t))
            (cons impl ops)]))))

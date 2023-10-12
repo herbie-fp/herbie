@@ -145,11 +145,6 @@
         func-name
         body))
 
-  ;; load conversion operators for desugaring
-  (define conv-syntax (dict-ref prop-dict ':herbie-conversions '()))
-  ; (define convs (map (curry map get-representation) conv-syntax))
-  ; (generate-conversions convs)
-
   ;; inline and desugar
   (define body* (desugar-program body ctx))
   (define pre* (desugar-program (dict-ref prop-dict ':pre 'TRUE) ctx))
@@ -169,7 +164,7 @@
         (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
         (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
-        conv-syntax))
+        '()))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
