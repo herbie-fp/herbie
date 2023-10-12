@@ -74,9 +74,6 @@
   ; (register-ruleset! rulename3 '(arithmetic simplify) (list (cons 'a repr1))
   ;   (list (list rulename3 `(,conv2 (,conv1 a)) 'a)))
 
-  ; (register-ruleset! rulename4 '(arithmetic simplify) (list (cons 'a repr2))
-  ;   (list (list rulename4 `(,conv1 (,conv2 a)) 'a))))
-
 ;; generate conversions, precision rewrites, etc.
 ; (define (generate-prec-rewrites convs)
 ;   (for ([conv convs])

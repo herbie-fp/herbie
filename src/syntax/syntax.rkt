@@ -11,8 +11,7 @@
          operator-active-impls activate-operator-impl! clear-active-operator-impls!
          *functions* register-function!
          get-parametric-operator get-parametric-constant
-         generate-conversion-impl! generate-conversion-impl
-         repr-conv? rewrite-repr-op?
+         generate-conversion-impl repr-conv? rewrite-repr-op?
          get-repr-conv get-rewrite-operator)
 
 (module+ internals 
@@ -339,13 +338,13 @@
       "Could not find operator implementation for ~a with ~a"
       name (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
 
-;; Among active implementations, looks up an implementation of a constant
-;; (nullary operator) with the operator name `name` and representation `repr`.
+;; Among active implementations, looks up an implementation of
+;; a constant (nullary operator) with the operator name `name`
+;; and representation `repr`.
 (define (get-parametric-constant name repr #:all? [all? #f])
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (let/ec k
     (for ([impl (get-impls name)])
-      (define itypes (operator-info impl 'itype))
       (define otype (operator-info impl 'otype))
       (when (or (equal? otype repr) (equal? (representation-type otype) 'bool))
         (k impl)))
@@ -362,14 +361,16 @@
 (define (rewrite-repr-op? expr)
   (and (symbol? expr) (set-member? (operator-all-impls 'convert) expr)))
 
-(define (get-repr-conv irepr orepr)
-  (for/or ([name (operator-all-impls 'cast)])
+(define (get-repr-conv irepr orepr #:all? [all? #f])
+  (define get-impls (if all? operator-all-impls operator-active-impls))
+  (for/or ([name (get-impls 'cast)])
     (and (equal? (operator-info name 'otype) orepr)
          (equal? (first (operator-info name 'itype)) irepr)
          name)))
 
-(define (get-rewrite-operator repr)
-  (for/or ([name (operator-all-impls 'convert)])
+(define (get-rewrite-operator repr #:all? [all? #f])
+  (define get-impls (if all? operator-all-impls operator-active-impls))
+  (for/or ([name (get-impls 'convert)])
     (and (equal? (operator-info name 'itype) (list repr))
          name)))
 
@@ -400,12 +401,6 @@
      (for/first ([gen conversion-generators])
         (gen (representation-name irepr) (representation-name orepr)))
      (get-repr-conv irepr orepr)]))
-
-(define (generate-conversion-impl! conv1 conv2 repr1 repr2)
-  (or (impl-exists? conv1)
-      (impl-exists? conv2)
-      (for ([generate conversion-generators])
-        (generate (representation-name repr1) (representation-name repr2)))))
 
 ;; Expression predicates ;;
 

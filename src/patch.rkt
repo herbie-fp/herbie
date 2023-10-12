@@ -143,8 +143,12 @@
     (timeline-event! 'rewrite)
     (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) (^queued^)))
 
-    ;; partition the rules
-    (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
+    ;; partition the rules to find expansive rules
+    (define expansive? (compose variable? rule-input))
+    (define-values (expansive-rules normal-rules) (partition expansive? (*rules*)))
+
+    ;; only the platform knows what precision changes are valid
+    (define reprchange-rules (platform-reprchange-rules (*active-platform*)))
 
     ;; get subexprs and locations
     (define real-exprs (map alt-expr real-alts))
