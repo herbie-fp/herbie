@@ -558,7 +558,6 @@
 (define (ival-sin x)
   (define intermediate (ival-div x (ival-pi)))
   (define remainder (ival-mult ((monotonic bffrac) intermediate) (ival-pi)))
-  (println remainder)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
                 (ival-floor (ival-sub intermediate (mk-big-ival half.bf half.bf))))
   (cond
