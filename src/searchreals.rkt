@@ -1,5 +1,5 @@
 #lang racket
-(require math/bigfloat rival)
+(require math/bigfloat "rival.rkt")
 (require "syntax/types.rkt" "timeline.rkt" "errors.rkt" "pretty-print.rkt" "float.rkt")
 
 (provide find-intervals hyperrect-weight)

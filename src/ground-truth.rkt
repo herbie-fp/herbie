@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat rival)
+(require math/bigfloat "rival.rkt")
 (require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt" "common.rkt")
 
 (provide sample-points batch-prepare-points make-search-func eval-progs-real)
