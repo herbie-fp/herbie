@@ -6,28 +6,13 @@
  :herbie-target
  (let ([sqtD
   (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
-    (if (or (and (> a 0) (> c 0)) (and (<= a 0) (<= c 0)))
-      (let ([acx
-        (if (and (> (fabs a) 1) (> x 1))
-                (* (/ (fabs a) x) (fabs c))
-                (* (fabs a) (/ (fabs c) x)))])
-      (let ([acxe 
-        (if (and (> (fabs a) 1) (> x 1))
-              (+ (fma (/ (fabs a) x) (- (fabs c)) acx) (* (/ (fma (/ (fabs a) x) x (- (fabs a))) x) (fabs c)))
-              (+ (fma (- (fabs a)) (/ (fabs c) x) acx) (* (/ (fma (/ (fabs c) x) x (- (fabs c))) x) a)))])
-      (let ([dp
-       (- (- (fabs b) x) (/ (- (- acx x) acxe) 2))])
-          (if (> dp 0) (* (sqrt dp) (sqrt (+ (fabs b) x)))
-          (if (== dp 0) 0
-            NAN)))))
+    (if (== (copysign a c) a)
       (if (> (fabs b) x)
-        (* (fabs b) (sqrt (+ 1.0 (* (/ x (fabs b)) (/ x (fabs b))))))
-        (* x (sqrt (+ (* (/ (fabs b) x) (/ (fabs b) x)) 1.0))))))])
-  (if (== a 0) (- (/ c b))
-    (if (== sqtD NAN) NAN
-    (if (== sqtD 0) (- (/ (/ b 2) a))
+        (* (sqrt (- (fabs b) x)) (sqrt (+ (fabs b) x)))
+        NAN)
+      (hypot b x)))])
     (if (< b 0) (/ (- sqtD (/ b 2)) a)
-      (/ (- c) (+ (/ b 2) sqtD)))))))
+      (/ (- c) (+ (/ b 2) sqtD))))
 
  (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
    (/ (+ (- b) d) (* 2 a))))
@@ -38,28 +23,13 @@
  :herbie-target
  (let ([sqtD
   (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
-    (if (or (and (> a 0) (> c 0)) (and (<= a 0) (<= c 0)))
-      (let ([acx
-        (if (and (> (fabs a) 1) (> x 1))
-                (* (/ (fabs a) x) (fabs c))
-                (* (fabs a) (/ (fabs c) x)))])
-      (let ([acxe 
-        (if (and (> (fabs a) 1) (> x 1))
-              (+ (fma (/ (fabs a) x) (- (fabs c)) acx) (* (/ (fma (/ (fabs a) x) x (- (fabs a))) x) (fabs c)))
-              (+ (fma (- (fabs a)) (/ (fabs c) x) acx) (* (/ (fma (/ (fabs c) x) x (- (fabs c))) x) a)))])
-      (let ([dp
-       (- (- (fabs b) x) (/ (- (- acx x) acxe) 2))])
-          (if (> dp 0) (* (sqrt dp) (sqrt (+ (fabs b) x)))
-          (if (== dp 0) 0
-            NAN)))))
+    (if (== (copysign a c) a)
       (if (> (fabs b) x)
-        (* (fabs b) (sqrt (+ 1.0 (* (/ x (fabs b)) (/ x (fabs b))))))
-        (* x (sqrt (+ (* (/ (fabs b) x) (/ (fabs b) x)) 1.0))))))])
-  (if (== a 0) (- (/ c b))
-    (if (== sqtD NAN) NAN
-    (if (== sqtD 0) (- (/ (/ b 2) a))
+        (* (sqrt (- (fabs b) x)) (sqrt (+ (fabs b) x)))
+        NAN)
+      (hypot b x)))])
     (if (< b 0) (/ c (- sqtD (/ b 2)))
-      (/ (+ (/ b 2) sqtD) (- a)))))))
+      (/ (+ (/ b 2) sqtD) (- a))))
 
  (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
    (/ (- (- b) d) (* 2 a))))
@@ -69,28 +39,13 @@
  :herbie-target
  (let ([sqtD
   (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
-    (if (or (and (> a 0) (> c 0)) (and (<= a 0) (<= c 0)))
-      (let ([acx
-        (if (and (> (fabs a) 1) (> x 1))
-                (* (/ (fabs a) x) (fabs c))
-                (* (fabs a) (/ (fabs c) x)))])
-      (let ([acxe 
-        (if (and (> (fabs a) 1) (> x 1))
-              (+ (fma (/ (fabs a) x) (- (fabs c)) acx) (* (/ (fma (/ (fabs a) x) x (- (fabs a))) x) (fabs c)))
-              (+ (fma (- (fabs a)) (/ (fabs c) x) acx) (* (/ (fma (/ (fabs c) x) x (- (fabs c))) x) a)))])
-      (let ([dp
-       (- (- (fabs b_2) x) (/ (- (- acx x) acxe) 2))])
-          (if (> dp 0) (* (sqrt dp) (sqrt (+ (fabs b_2) x)))
-          (if (== dp 0) 0
-            NAN)))))
+    (if (== (copysign a c) a)
       (if (> (fabs b_2) x)
-        (* (fabs b_2) (sqrt (+ 1.0 (* (/ x (fabs b_2)) (/ x (fabs b_2))))))
-        (* x (sqrt (+ (* (/ (fabs b_2) x) (/ (fabs b_2) x)) 1.0))))))])
-  (if (== a 0) (- (/ c b_2))
-    (if (== sqtD NAN) NAN
-    (if (== sqtD 0) (- (/ (/ b_2 2) a))
+        (* (sqrt (- (fabs b_2) x)) (sqrt (+ (fabs b_2) x)))
+        NAN)
+      (hypot b_2 x)))])
     (if (< b_2 0) (/ c (- sqtD (/ b_2 2)))
-      (/ (+ (/ b_2 2) sqtD) (- a)))))))
+      (/ (+ (/ b_2 2) sqtD) (- a))))
 
  (let ([d (sqrt (- (* b_2 b_2) (* a c)))])
    (/ (- (- b_2) d) a)))
@@ -100,28 +55,13 @@
  :herbie-target
 (let ([sqtD
   (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
-    (if (or (and (> a 0) (> c 0)) (and (<= a 0) (<= c 0)))
-      (let ([acx
-        (if (and (> (fabs a) 1) (> x 1))
-                (* (/ (fabs a) x) (fabs c))
-                (* (fabs a) (/ (fabs c) x)))])
-      (let ([acxe 
-        (if (and (> (fabs a) 1) (> x 1))
-              (+ (fma (/ (fabs a) x) (- (fabs c)) acx) (* (/ (fma (/ (fabs a) x) x (- (fabs a))) x) (fabs c)))
-              (+ (fma (- (fabs a)) (/ (fabs c) x) acx) (* (/ (fma (/ (fabs c) x) x (- (fabs c))) x) a)))])
-      (let ([dp
-       (- (- (fabs b_2) x) (/ (- (- acx x) acxe) 2))])
-          (if (> dp 0) (* (sqrt dp) (sqrt (+ (fabs b_2) x)))
-          (if (== dp 0) 0
-            NAN)))))
+    (if (== (copysign a c) a)
       (if (> (fabs b_2) x)
-        (* (fabs b_2) (sqrt (+ 1.0 (* (/ x (fabs b_2)) (/ x (fabs b_2))))))
-        (* x (sqrt (+ (* (/ (fabs b_2) x) (/ (fabs b_2) x)) 1.0))))))])
-  (if (== a 0) (- (/ c b_2))
-    (if (== sqtD NAN) NAN
-    (if (== sqtD 0) (- (/ (/ b_2 2) a))
+        (* (sqrt (- (fabs b_2) x)) (sqrt (+ (fabs b_2) x)))
+        NAN)
+      (hypot b_2 x)))])
     (if (< b_2 0) (/ (- sqtD (/ b_2 2)) a)
-      (/ (- c) (+ (/ b_2 2) sqtD)))))))
+      (/ (- c) (+ (/ b_2 2) sqtD))))
 
  (let ([d (sqrt (- (* b_2 b_2) (* a c)))])
    (/ (+ (- b_2) d) a)))
