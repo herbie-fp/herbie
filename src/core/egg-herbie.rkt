@@ -10,12 +10,9 @@
 
 (module+ test (require rackunit))
 
-(provide make-egraph egraph-add-expr egraph-run-rules
-         egraph-get-simplest egraph-get-variants
-         egraph-get-proof egraph-is-unsound-detected
-         rule->egg-rules expand-rules get-canon-rule-name
-         remove-rewrites run-egg make-egg-query
-        (struct-out egraph-query))
+(provide (struct-out egraph-query) make-egg-query run-egg
+         expand-rules rule->egg-rules get-canon-rule-name
+         remove-rewrites)
 
 ;; Unfortunately Herbie expressions can't be placed directly into egg,
 ;; so we need an IR to represent both expressions and patterns.
@@ -46,14 +43,14 @@
        (error "Unknown term ~a" expr)])))
 
 ;; Parses a string from egg into a list of S-exprs.
-(define (egg-exprs->exprs exprs egraph-data)
+(define (egg-exprs->exprs s egraph-data)
   (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
-  (for/list ([egg-expr (in-port read (open-input-string exprs))])
+  (for/list ([egg-expr (in-port read (open-input-string s))])
     (egg-parsed->expr (flatten-let egg-expr) egg->herbie)))
 
 ;; Parses a string from egg into a single S-expr.
-(define (egg-expr->expr expr egraph-data)
-  (first (egg-exprs->exprs expr egraph-data)))
+(define (egg-expr->expr s egraph-data)
+  (first (egg-exprs->exprs s egraph-data)))
 
 ;; Converts an S-expr from egg into one Herbie understands
 (define (egg-parsed->expr expr rename-dict)
@@ -67,6 +64,8 @@
        (list 'Rewrite<= rule (loop expr))]
       [(list 'if 'real cond ift iff)
        (list 'if (loop cond) (loop ift) (loop iff))]
+      [(list '$Var _ name)
+       (hash-ref rename-dict name)]
       [(list (? repr-conv? op) 'real arg)
        (list op (loop arg))]
       [(list op prec)
@@ -77,9 +76,7 @@
        (define op* (apply get-parametric-operator op (map get-representation itypes)))
        (cons op* (map loop args))]
       [(? number?)
-       expr]
-      [_
-       (hash-ref rename-dict expr)])))
+       expr])))
 
 ;; Expands operators into `(op, sig)` so that we can
 ;; recover the exact operator implementation when extracting.
@@ -122,12 +119,13 @@
   expr*)
 
 ;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
-(define (expr->egg-expr expr egg-data)
+(define (expr->egg-expr expr egg-data ctx)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
-  (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict))
+  (define expr* (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict ctx))
+  expr*)
 
-(define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict)
+(define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict ctx)
   (let loop ([expr expr])
     (match expr
       [(list 'if cond ift iff)
@@ -140,12 +138,15 @@
       [(? number?)
        expr]
       [(? (curry hash-has-key? herbie->egg-dict))
-       (hash-ref herbie->egg-dict expr)]
+       (define prec (list '$Type (representation-name (context-lookup ctx expr))))
+       (define replacement (hash-ref herbie->egg-dict expr))
+       (list '$Var prec replacement)]
       [_
+       (define prec (list '$Type (representation-name (context-lookup ctx expr))))
        (define replacement (string->symbol (format "h~a" (hash-count herbie->egg-dict))))
        (hash-set! herbie->egg-dict expr replacement)
        (hash-set! egg->herbie-dict replacement expr)
-       replacement])))
+       (list '$Var prec replacement)])))
 
 (module+ test
   (require "../load-plugin.rkt")
@@ -308,19 +309,23 @@
 
 ;; Herbie's version of an egg runner
 ;; Defines parameters for running rewrite rules with egg
-(struct egraph-query (exprs rules iter-limit node-limit const-folding?) #:transparent)
+(struct egraph-query (exprs rules ctx iter-limit node-limit const-folding?) #:transparent)
 
 (define (make-egg-query exprs rules
+                        #:context [ctx (*context*)]
                         #:iter-limit [iter-limit #f]
                         #:node-limit [node-limit (*node-limit*)]
                         #:const-folding? [const-folding? #t])
-  (egraph-query exprs rules iter-limit node-limit const-folding?))
+  (egraph-query exprs rules ctx iter-limit node-limit const-folding?))
 
 (define (run-egg input variants?
                  #:proof-input [proof-input '()]
                  #:proof-ignore-when-unsound? [proof-ignore-when-unsound? #f])
   (define egg-graph (make-egraph))
-  (define node-ids (map (curry egraph-add-expr egg-graph) (egraph-query-exprs input)))
+  (define ctx (egraph-query-ctx input))
+  (define node-ids
+    (for/list ([expr (egraph-query-exprs input)])
+      (egraph-add-expr egg-graph expr ctx)))
   (define iter-data (egraph-run-rules egg-graph
                                       (egraph-query-node-limit input)
                                       (egraph-query-rules input)
@@ -331,7 +336,7 @@
   (define variants
     (if variants?
         (for/list ([id node-ids] [expr (egraph-query-exprs input)])
-          (egraph-get-variants egg-graph id expr))
+          (egraph-get-variants egg-graph id expr ctx))
         (for/list ([id node-ids])
           (for/list ([iter (in-range (length iter-data))])
             (egraph-get-simplest egg-graph id iter)))))
@@ -339,10 +344,10 @@
   (match proof-input
     [(cons start end)
      #:when (not (and (egraph-is-unsound-detected egg-graph) proof-ignore-when-unsound?))
-     (when (not (egraph-is-equal egg-graph start end))
+     (when (not (egraph-is-equal egg-graph start end ctx))
         (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
 
-     (define proof (egraph-get-proof egg-graph start end))
+     (define proof (egraph-get-proof egg-graph start end ctx))
      (when (null? proof)
        (error (format "Failed to produce proof for ~a to ~a" start end)))
      (cons variants proof)]
@@ -354,8 +359,8 @@
   (destroy_string ptr)
   (egg-expr->expr str egraph-data))
 
-(define (egraph-get-variants egraph-data node-id orig-expr)
-  (define expr-str (~a (expr->egg-expr orig-expr egraph-data)))
+(define (egraph-get-variants egraph-data node-id orig-expr ctx)
+  (define expr-str (~a (expr->egg-expr orig-expr egraph-data ctx)))
   (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
@@ -404,9 +409,9 @@
 
 (define (remove-rewrites proof)
   (match proof
-    [`(Rewrite=> _ ,something)
+    [`(Rewrite=> ,_ ,something)
      (remove-rewrites something)]
-    [`(Rewrite<= _ ,something)
+    [`(Rewrite<= ,_ ,something)
      (remove-rewrites something)]
     [(list _ ...)
      (map remove-rewrites proof)]
@@ -436,26 +441,28 @@
 ;; returns a flattened list of terms
 ;; The first term has no rewrite- the rest have exactly one rewrite
 (define (expand-proof-term term budget)
-  (cond
-    [(<= (unbox budget) 0) (list #f)]
-    [else
-     (match term
-       [`(Explanation ,body ...)
-        (expand-proof body budget)]
-       [(? symbol?)
-        (list term)]
-       [(? number?)
-        (list term)]
-       [(? list?)
-        (define children (map (curryr expand-proof-term budget) term))
-        (cond 
-          [(member (list #f) children)
-           (list #f)]
-          [else
-           (define res (sequential-product children))
-           (set-box! budget (- (unbox budget) (length res)))
-           res])]
-       [_ (error "Unknown proof term ~a" term)])]))
+  (let loop ([term term])
+    (cond
+      [(<= (unbox budget) 0)
+       (list #f)]
+      [else
+       (match term
+         [`(Explanation ,body ...)
+          (expand-proof body budget)]
+         [(? symbol?)
+          (list term)]
+         [(? number?)
+          (list term)]
+         [(? list?)
+          (define children (map loop term))
+          (cond 
+            [(member (list #f) children)
+             (list #f)]
+            [else
+             (define res (sequential-product children))
+             (set-box! budget (- (unbox budget) (length res)))
+             res])]
+         [_ (error "Unknown proof term ~a" term)])])))
 
 
 ;; Remove the front term if it doesn't have any rewrites
@@ -467,29 +474,25 @@
 ;; converts a let-bound tree explanation
 ;; into a flattened proof for use by Herbie
 (define (expand-proof proof budget)
-  (define expanded
-          (map (curryr expand-proof-term budget) proof))
+  (define expanded (map (curryr expand-proof-term budget) proof))
   ;; get rid of any unnecessary terms
-  (define contiguous
-    (cons (first expanded) (map remove-front-term (rest expanded))))
+  (define contiguous (cons (first expanded) (map remove-front-term (rest expanded))))
   ;; append together the proofs
-  (define res
-    (apply append contiguous))
-
+  (define res (apply append contiguous))
   (set-box! budget (- (unbox budget) (length proof)))
   (if (member #f res)
       (list #f)
       res))
 
-(define (egraph-is-equal egraph-data expr goal)
-  (define egg-expr (~a (expr->egg-expr expr egraph-data)))
-  (define egg-goal (~a (expr->egg-expr goal egraph-data)))
+(define (egraph-is-equal egraph-data expr goal ctx)
+  (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
+  (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
   (egraph_is_equal (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
-(define (egraph-get-proof egraph-data expr goal)
-  (define egg-expr (~a (expr->egg-expr expr egraph-data)))
-  (define egg-goal (~a (expr->egg-expr goal egraph-data)))
+(define (egraph-get-proof egraph-data expr goal ctx)
+  (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
+  (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
   (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (define res (cast pointer _pointer _string/utf-8))
   (destroy_string pointer)
@@ -500,19 +503,14 @@
     (define converted
       (for/list ([line (in-list (string-split res "\n"))])
         (egg-expr->expr line egraph-data)))
-    (define expanded
-      (expand-proof
-       converted
-       (box (*proof-max-length*))))
-    (if (member #f expanded)
-        #f
-        expanded)]
+    (define expanded (expand-proof converted (box (*proof-max-length*))))
+    (and (member #f expanded) expanded)]
    [else
     #f]))
 
 ;; result function is a function that takes the ids of the nodes
-(define (egraph-add-expr eg-data expr)
-  (define egg-expr (~a (expr->egg-expr expr eg-data)))
+(define (egraph-add-expr eg-data expr ctx)
+  (define egg-expr (~a (expr->egg-expr expr eg-data ctx)))
   (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
 
 (struct iteration-data (num-nodes num-eclasses time))
@@ -571,23 +569,13 @@
     (when (*ffi-rules-cache*)
       (free-ffi-rule-cache))
     ; instantiate rules
-    ; (define canon-name (make-hasheq))
-    ; (define ffi->canon (make-hasheq))
-    ; (define ffi-rules
-    ;   (for/fold ([rules* '()]) ([rule (in-list rules)])
-    ;     (define orig-name (rule-name rule))
-    ;     (define egg-rules (rule->egg-rules rule))
-    ;     (for/fold ([rules* '()]) ([egg-rule (in-list egg-rules)])
     (define-values (egg-rules canon-names)
-      (for/fold ([rules* '()] [canon-names (hash)] #:result (values (reverse rules*) canon-names))
-                ([rule (in-list rules)])
-        (define expanded (rule->egg-rules rule))
+      (for/fold ([rules* '()] [canon-names (hash)]) ([rule (in-list rules)])
+        (define egg-rules (rule->egg-rules rule))
         (define orig-name (rule-name rule))
-        (values (append expanded rules*)
-                (for/fold ([canon-names* canon-names])
-                          ([exp-rule (in-list expanded)])
-                  ; (printf "~a: ~a => ~a\n" (rule-name exp-rule) (rule-input exp-rule) (rule-output exp-rule))
-                  (hash-set canon-names* (rule-name exp-rule) orig-name)))))
+        (values (append egg-rules rules*)
+                (for/fold ([canon-names canon-names]) ([egg-rule (in-list egg-rules)])
+                  (hash-set canon-names (rule-name egg-rule) orig-name)))))
     ; update the cache
     (define ffi-rules (map make-ffi-rule egg-rules))
     (*ffi-rules-cache* (cons key (list egg-rules ffi-rules canon-names))))
