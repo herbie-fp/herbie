@@ -91,34 +91,23 @@
     [else
      (values op-or-impl 'real)]))
 
-(define (expr->egg-pattern+vars expr)
-  (define ppatterns (make-hash))
-  (define (get-pattern key)
-    (hash-ref! ppatterns (real-operator-info key 'otype)
-               (λ () (string->symbol (format "?p~a" (hash-count ppatterns))))))
-  (define expr*
-    (let loop ([expr expr])
-      (match expr
-        [(list 'if cond ift iff)
-         (list 'if 'real (loop cond) (loop ift) (loop iff))]
-        [(list (? repr-conv? op) arg)
-         (list op 'real (loop arg))]
-        [(list (? impl-exists? op) args ...)
-         (define-values (op* prec) (expand-operator op))
-         (cons op* (cons prec (map loop args)))]
-        [(list (? operator-exists? op) args ...)
-         (cons op (cons (get-pattern op) (map loop args)))]
-        [(? number?) expr]
-        [_ (string->symbol (format "?~a" expr))])))
-  (values expr* (hash-keys ppatterns)))
-
-;; Translates a Herbie rule LHS or RHS into a
-;; pattern suitable for use in egg.
+;; Translates a Herbie rule LHS or RHS into a pattern usable by egg
 (define (expr->egg-pattern expr)
-  (define-values (expr* _) (expr->egg-pattern+vars expr))
-  expr*)
+  (let loop ([expr expr])
+    (match expr
+      [(list 'if cond ift iff)
+       (list 'if 'real (loop cond) (loop ift) (loop iff))]
+      [(list (? repr-conv? op) arg)
+       (list op 'real (loop arg))]
+      [(list (? impl-exists? op) args ...)
+       (define-values (op* prec) (expand-operator op))
+       (cons op* (cons prec (map loop args)))]
+      [(? number?) expr]
+      [_ (string->symbol (format "?~a" expr))])))
 
-;; returns a pair of the string representing an egg expr, and updates the hash tables in the egraph
+;; Translates a Herbie expression into an expression usable by egg
+;; Returns the string representing the expression and updates
+;; the translation dictionary
 (define (expr->egg-expr expr egg-data ctx)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
@@ -232,44 +221,28 @@
      [_ (void)]))
   (set->list reprs))
 
-;; Translates a Herbie rule into possibly multiple egg rules
-;; Filters rules based on supported operator implementations.
-;; Special pass for expansive rules: `?x => f(?x)`.
-(define (rule->egg-rules r)
+;; Like `rule->egg-rules*` except no special handling of expansive rules.
+(define (rule->egg-rules* r)
   (match-define (rule name input output itypes otype) r)
+  (define supported? (curry set-member? (*needed-reprs*)))
   (cond
-    [(variable? input)
-      ; expansive rule: special care needs to be taken here
-      (when (variable? output)
-        (error 'rule->egg-rules "rewriting variable to variable ~a" r))
-      ; for each real operator `app` instantiate a rule of
-      ; the form: `(app e ...) => f((app e ...))`
-      (for/fold ([rules '()]) ([op (all-operators)] #:unless (eq? op 'cast))
-        (define itypes (real-operator-info op 'itype))
-        (define otype (real-operator-info op 'otype))
-        (define vars (build-list (length itypes) (λ (i) (string->symbol (format "$T~a" i)))))
-
-        (define name* (sym-append name '- op))
-        (define input* (cons op vars))
-        (define output* (replace-expression output input input*))
-        (define itypes* (map cons vars itypes))
-
-        (define rule* (rule name* input* output* itypes* otype))
-        (append (rule->egg-rules rule*) rules))]
     [(andmap representation? (cons otype (map cdr itypes)))
      ; rule over representation: just return the rule
      ; make sure to validate that the operators are supported
-     (define supported? (curry set-member? (*needed-reprs*)))
-     (if (and (andmap supported? (reprs-in-expr input))
-              (andmap supported? (reprs-in-expr output)))
-         (list r)
-         (list))]
+     (cond
+       [(and (andmap supported? (reprs-in-expr input))
+             (andmap supported? (reprs-in-expr output)))
+        (define in-pat (expr->egg-pattern input))
+        (define out-pat (expr->egg-pattern output))
+        (list (rule name in-pat out-pat itypes otype))]
+       [else
+        (list)])]
     [else
      ; rule over types: must instanstiate over all possible
      ; assignments of representations keeping in mind that
      ; some operator implementations may not exist
+     (define types (remove-duplicates (cons otype (map cdr itypes))))
      (reap [sow]
-       (define types (remove-duplicates (cons otype (map cdr itypes))))
        (for ([type-ctx (in-list (type-combinations types))])
          ;; Strange corner case:
          ;; Rules containing comparators cause desugaring to misbehave.
@@ -290,9 +263,53 @@
            (define name* (sym-append name '_ (representation-name sugar-otype)))
            (define input* (desugar-program input sugar-ctx #:full #f))
            (define output* (desugar-program output sugar-ctx #:full #f))
-           (when (andmap (curry set-member? (*needed-reprs*))
-                         (append (reprs-in-expr input*) (reprs-in-expr output*)))
-             (sow (rule name* input* output* itypes* otype*))))))]))
+           (when (and (andmap supported? (reprs-in-expr input*))
+                      (andmap supported? (reprs-in-expr output*)))
+             (define in-pat (expr->egg-pattern input*))
+             (define out-pat (expr->egg-pattern output*))
+             (sow (rule name* in-pat out-pat itypes* otype*))))))]))
+
+;; Translates a Herbie rule into possibly multiple egg rules
+;; Filters rules based on supported operator implementations.
+;; Special pass for expansive rules: `?x => f(?x)`.
+(define (rule->egg-rules r)
+  (match-define (rule name input output _ _) r)
+  (cond
+    [(variable? input)
+     ; expansive rule: `?x => f(?x)`
+     ; special care needs to be taken here
+     (when (variable? output)
+       (error 'rule->egg-rules "rewriting variable to variable ~a" r))
+     ; for each real operator `app` instantiate a rule of
+     ; the form: `(app e ...) => f((app e ...))`
+     (define op-rules
+       (for/fold ([rules '()]) ([op (all-operators)] #:unless (eq? op 'cast))
+         (define itypes (real-operator-info op 'itype))
+         (define otype (real-operator-info op 'otype))
+         (define vars (build-list (length itypes) (λ (i) (string->symbol (format "$T~a" i)))))
+ 
+         (define name* (sym-append name '- op))
+         (define input* (cons op vars))
+         (define output* (replace-expression output input input*))
+         (define itypes* (map cons vars itypes))
+ 
+         (define rule* (rule name* input* output* itypes* otype))
+         (append (rule->egg-rules* rule*) rules)))
+     ; for each implementation matching the output type/representation,
+     ; make a rule for a variable under the same implementation
+     (define var-rules
+       (for/list ([egg-rule (rule->egg-rules* r)])
+         ; replace the LHS with a variable node
+         (match-define (rule name _ output itypes otype) egg-rule)
+         (define repr (dict-ref itypes input))
+         (define prec (list '$Type (representation-name repr)))
+         (define input* (list '$Var prec input))
+         (define output* (replace-expression output input input*))
+         (rule name (expr->egg-pattern input*) (expr->egg-pattern output*) itypes otype)))
+     (append op-rules var-rules)]
+    [else
+     (rule->egg-rules* r)]))
+    
 
 (module+ test
   ;; Make sure all built-in rules are valid in some
@@ -393,8 +410,8 @@
 
 (define (make-ffi-rule rule)
   (define name (make-raw-string (~a (rule-name rule))))
-  (define lhs (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
-  (define rhs (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
+  (define lhs (make-raw-string (~a (rule-input rule))))
+  (define rhs (make-raw-string (~a (rule-output rule))))
   (make-FFIRule name lhs rhs))
 
 (define (free-ffi-rule rule)
@@ -536,7 +553,7 @@
   (destroy_egraphiters ptr)
   iteration-data)
 
-;; (rules, reprs) -> (egg-rules, ffi-rules, name-map)
+;; (rules, reprs) -> (ffi-rules, name-map)
 (define-resetter *ffi-rules-cache*
   (λ () #f)
   (λ () #f)
@@ -545,16 +562,16 @@
       (free-ffi-rule-cache))))
 
 (define (free-ffi-rule-cache)
-  (match-define (list _  ffi-rules _) (cdr (*ffi-rules-cache*)))
+  (match-define (list ffi-rules _) (cdr (*ffi-rules-cache*)))
   (*ffi-rules-cache* #f)
-  (for-each free-ffi-rule ffi-rules))
+  (for-each free-ffi-rule (map cdr ffi-rules)))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
 (define (get-canon-rule-name name [failure #f])
   (cond
     [(*ffi-rules-cache*)
-     (match-define (list _ _ canon-names) (cdr (*ffi-rules-cache*)))
+     (match-define (list _ canon-names) (cdr (*ffi-rules-cache*)))
      (hash-ref canon-names name failure)]
     [else
      failure]))
@@ -569,21 +586,24 @@
     (when (*ffi-rules-cache*)
       (free-ffi-rule-cache))
     ; instantiate rules
-    (define-values (egg-rules canon-names)
-      (for/fold ([rules* '()] [canon-names (hash)]) ([rule (in-list rules)])
-        (define egg-rules (rule->egg-rules rule))
+    (define canon-names (make-hasheq))
+    (define ffi-rules
+      (for/fold ([rules* '()]) ([rule (in-list rules)])
         (define orig-name (rule-name rule))
-        (values (append egg-rules rules*)
-                (for/fold ([canon-names canon-names]) ([egg-rule (in-list egg-rules)])
-                  (hash-set canon-names (rule-name egg-rule) orig-name)))))
-    ; update the cache
-    (define ffi-rules (map make-ffi-rule egg-rules))
-    (*ffi-rules-cache* (cons key (list egg-rules ffi-rules canon-names))))
+        (define egg-rules (rule->egg-rules rule))
+        (append (for/list ([egg-rule (in-list egg-rules)])
+                  (define name (rule-name egg-rule))
+                  (hash-set! canon-names name orig-name)
+                  ; (printf "~a => ~a\n" (rule-input egg-rule) (rule-output egg-rule))
+                  (cons name (make-ffi-rule egg-rule)))
+                rules*)))
+    (*ffi-rules-cache* (cons key (list ffi-rules canon-names))))
   (cdr (*ffi-rules-cache*)))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids const-folding? #:limit [iter-limit #f])
   ;; expand rules (will also check cache)
-  (match-define (list egg-rules ffi-rules canon-names) (expand-rules rules))
+  (match-define (list egg-rules canon-names) (expand-rules rules))
+  (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
   (define iteration-data (egraph-run egg-graph node-limit ffi-rules const-folding? iter-limit))
@@ -600,9 +620,9 @@
 
   ;; get rule statistics
   (define rule-apps (make-hash))
-  (for ([ffi-rule (in-list ffi-rules)] [rule (in-list egg-rules)])
+  (for ([(name ffi-rule) (in-dict egg-rules)])
     (define count (egraph-get-times-applied egg-graph ffi-rule))
-    (define canon-name (hash-ref canon-names (rule-name rule)))
+    (define canon-name (hash-ref canon-names name))
     (hash-update! rule-apps canon-name (curry + count) count))
 
   (for ([(name count) (in-hash rule-apps)])
