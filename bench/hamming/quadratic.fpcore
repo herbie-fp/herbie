@@ -2,33 +2,60 @@
 
 (FPCore (a b c)
  :name "quadp (p42, positive)"
- ;:herbie-expected #f ; Fails in single precision due to bad samples
- :herbie-target
- (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
-   (let ([r1 (/ (+ (- b) d) (* 2 a))]
-         [r2 (/ (- (- b) d) (* 2 a))])
-     (if (< b 0) r1 (/ c (* a r2))))) 
+ :herbie-expected 10
+ :herbie-target ; From Racket Math Lib implementation
+ (let ([sqtD
+  (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
+    (if (== (copysign a c) a)
+      (* (sqrt (- (fabs (/ b 2)) x)) (sqrt (+ (fabs (/ b 2)) x)))
+      (hypot (/ b 2) x)))])
+    (if (< b 0) (/ (- sqtD (/ b 2)) a)
+      (/ (- c) (+ (/ b 2) sqtD))))
 
  (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
    (/ (+ (- b) d) (* 2 a))))
 
 (FPCore (a b c)
  :name "quadm (p42, negative)"
- ;:herbie-expected #f ; Fails in single precision due to bad samples
- :herbie-target
- (let ((d (sqrt (- (* b b) (* 4 (* a c))))))
-   (let ([r1 (/ (+ (- b) d) (* 2 a))] [r2 (/ (- (- b) d) (* 2 a))])
-     (if (< b 0) (/ c (* a r1)) r2)))
+ :herbie-expected 10
+ :herbie-target ; From Racket Math Lib implementation
+ (let ([sqtD
+  (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
+    (if (== (copysign a c) a)
+      (* (sqrt (- (fabs (/ b 2)) x)) (sqrt (+ (fabs (/ b 2)) x)))
+      (hypot (/ b 2) x)))])
+    (if (< b 0) (/ c (- sqtD (/ b 2)))
+      (/ (+ (/ b 2) sqtD) (- a))))
 
  (let ([d (sqrt (- (* b b) (* 4 (* a c))))])
    (/ (- (- b) d) (* 2 a))))
 
 (FPCore (a b_2 c)
  :name "quad2m (problem 3.2.1, negative)"
+ :herbie-expected 10
+ :herbie-target ; From Racket Math Lib implementation
+ (let ([sqtD
+  (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
+    (if (== (copysign a c) a)
+      (* (sqrt (- (fabs b_2) x)) (sqrt (+ (fabs b_2) x)))
+      (hypot b_2 x)))])
+    (if (< b_2 0) (/ c (- sqtD b_2))
+      (/ (+ b_2 sqtD) (- a))))
+
  (let ([d (sqrt (- (* b_2 b_2) (* a c)))])
    (/ (- (- b_2) d) a)))
 
 (FPCore (a b_2 c)
  :name "quad2p (problem 3.2.1, positive)"
+ :herbie-expected 10
+ :herbie-target ; From Racket Math Lib implementation
+(let ([sqtD
+  (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
+    (if (== (copysign a c) a)
+      (* (sqrt (- (fabs b_2) x)) (sqrt (+ (fabs b_2) x)))
+      (hypot b_2 x)))])
+    (if (< b_2 0) (/ (- sqtD b_2) a)
+      (/ (- c) (+ b_2 sqtD))))
+
  (let ([d (sqrt (- (* b_2 b_2) (* a c)))])
    (/ (+ (- b_2) d) a)))
