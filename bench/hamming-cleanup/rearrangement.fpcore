@@ -1,30 +1,19 @@
 ; -*- mode: scheme -*-
+ (FPCore (x)
+   :name "2sqrt (example 3.1)"
+   :herbie-target
+   (if (<= x 66000000.0)
+      (- (sqrt (+ 1.0 x)) (sqrt x))
+      (/ 1 (+ (sqrt (+ x 1.0)) (sqrt x))))
 
-(FPCore (x)
- :name "2sqrt (example 3.1)"
- :herbie-target
- (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))
+   (- (sqrt (+ x 1)) (sqrt x)))
 
- (- (sqrt (+ x 1)) (sqrt x)))
-
-(FPCore (x eps)
- :name "2sin (example 3.3)"
- ;:herbie-target
- :alt
-   ; for -inf to inf x and 0 to inf eps
-   (* (* sin(* eps 0.5) 2.0)
-      (+ (fma(- sin(* eps 0.5), sin(x), (* sin(* eps 0.5) sin(x))))
-         (fma(cos(* eps 0.5), cos(x), (* sin(* eps 0.5) (- sin(x)))))))
-
-   ; for -inf to inf x and -1 to 1 eps
-   (- (* (sin y) (cos x)) (* (sin y) ((sin x) (tan (* y 0.5)))))
-
-   (* eps (cos x))  ; for -2pi to 2pi x and -1 to 1 eps
-
-   (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2))))  ; general case
-
- (- (sin (+ x eps)) (sin x)))
-
+ (FPCore (x eps)
+   :name "2sin (example 3.3)"
+   :herbie-target
+   (fma (sin x) (- (cos eps) 1) (* (sin eps) (cos x)))
+   
+   (- (sin (+ x eps)) (sin x)))
 
 (FPCore (x)
  :name "tanhf (example 3.4)"
@@ -50,6 +39,7 @@
 
 (FPCore (x)
  :name "2frac (problem 3.3.1)"
+
  (- (/ 1 (+ x 1)) (/ 1 x)))
 
 (FPCore (x eps)
