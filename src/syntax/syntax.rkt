@@ -7,7 +7,7 @@
          variable? constant-operator?
          operator-exists? operator-deprecated? impl-exists?
          real-operator-info operator-info 
-         impl->operator all-constants operator-all-impls
+         impl->operator all-operators all-constants operator-all-impls
          *functions* register-function!
          get-parametric-operator get-parametric-constant
          generate-conversion-impl!
@@ -380,6 +380,10 @@
 
 (define (register-function! name args repr body)
   (hash-set! (*functions*) name (list args repr body)))
+
+(define (all-operators)
+  (for/list ([(name _) (in-hash operators)])
+    name))
 
 (define (all-constants)
   (for/list ([(name rec) (in-hash operators)]

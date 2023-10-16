@@ -1,8 +1,12 @@
 #lang racket
 
-(require egg-herbie ffi/unsafe)
-(require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../common.rkt" "../errors.rkt" "../timeline.rkt" "../alternative.rkt")
+(require egg-herbie
+        (only-in ffi/unsafe
+          malloc memcpy free cast ptr-set! ptr-add
+          _byte _pointer _string/utf-8))
+(require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
+         "../syntax/types.rkt" "../common.rkt" "../errors.rkt" "../timeline.rkt"
+         "../alternative.rkt" "../programs.rkt")
 
 (module+ test (require rackunit))
 
@@ -13,8 +17,20 @@
          remove-rewrites run-egg make-egg-query
         (struct-out egraph-query))
 
-;; Flattens proofs
-;; NOT FPCore format
+;; Unfortunately Herbie expressions can't be placed directly into egg,
+;; so we need an IR to represent both expressions and patterns.
+;; The egg IR is similar to Herbie's IR:
+;;
+;; <expr> ::= (<op> <sig> <expr> ...)
+;;        ::= ($Var <sig> <ident>)
+;;        ::= <number>
+;;
+;; <sig> ::= ($Type <otype> <itype> ...)
+;;
+;; The main difference is the use of type signatures to differentiate
+;; operator implementations for different representations.
+
+;; Flatterns proof directly from egg (NOT FPCore format!)
 (define (flatten-let expr)
   (let loop ([expr expr] [env (hash)])
     (match expr
@@ -26,21 +42,18 @@
        (map (curryr loop env) expr)]
       [(? number?)
        expr]
-      [else
+      [_
        (error "Unknown term ~a" expr)])))
 
-;; Converts a string expression from egg into a Racket S-expr
-(define (egg-expr->expr expr eg-data)
-  (define parsed (read (open-input-string expr)))
-  (egg-parsed->expr (flatten-let parsed)
-                    (egraph-data-egg->herbie-dict eg-data)))
-
-;; Like `egg-expr->expr` but expected the string to
-;; parse into a list of S-exprs
-(define (egg-exprs->exprs exprs eg-data)
+;; Parses a string from egg into a list of S-exprs.
+(define (egg-exprs->exprs exprs egraph-data)
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
   (for/list ([egg-expr (in-port read (open-input-string exprs))])
-    (egg-parsed->expr (flatten-let egg-expr)
-                      (egraph-data-egg->herbie-dict eg-data))))
+    (egg-parsed->expr (flatten-let egg-expr) egg->herbie)))
+
+;; Parses a string from egg into a single S-expr.
+(define (egg-expr->expr expr egraph-data)
+  (first (egg-exprs->exprs expr egraph-data)))
 
 ;; Converts an S-expr from egg into one Herbie understands
 (define (egg-parsed->expr expr rename-dict)
@@ -60,7 +73,7 @@
        (match-define (list '$Type otype) prec)
        (list (get-parametric-constant op (get-representation otype)))]
       [(list op prec args ...)
-       (match-define (list '$Type otype itypes ...) prec)
+       (match-define (list '$Type _ itypes ...) prec)
        (define op* (apply get-parametric-operator op (map get-representation itypes)))
        (cons op* (map loop args))]
       [(? number?)
@@ -68,10 +81,9 @@
       [_
        (hash-ref rename-dict expr)])))
 
-;; Expands operators into (op, prec) so
-;; that the egraph can happily constant fold
-;; and so that we can recover the implementation
-;; The ugly solution is to make prec = '(type otype itypes).
+;; Expands operators into `(op, sig)` so that we can
+;; recover the exact operator implementation when extracting.
+;; The ugly solution is to make `sig` = `($Type otype itypes ...)`.
 (define (expand-operator op-or-impl)
   (cond
     [(impl-exists? op-or-impl)
@@ -129,7 +141,7 @@
        expr]
       [(? (curry hash-has-key? herbie->egg-dict))
        (hash-ref herbie->egg-dict expr)]
-      [else
+      [_
        (define replacement (string->symbol (format "h~a" (hash-count herbie->egg-dict))))
        (hash-set! herbie->egg-dict expr replacement)
        (hash-set! egg->herbie-dict replacement expr)
@@ -219,23 +231,42 @@
      [_ (void)]))
   (set->list reprs))
 
-;; Translates a Herbie rule into possibly multiple rules
+;; Translates a Herbie rule into possibly multiple egg rules
+;; Filters rules based on supported operator implementations.
+;; Special pass for expansive rules: `?x => f(?x)`.
 (define (rule->egg-rules r)
   (match-define (rule name input output itypes otype) r)
   (cond
+    [(variable? input)
+      ; expansive rule: special care needs to be taken here
+      (when (variable? output)
+        (error 'rule->egg-rules "rewriting variable to variable ~a" r))
+      ; for each real operator `app` instantiate a rule of
+      ; the form: `(app e ...) => f((app e ...))`
+      (for/fold ([rules '()]) ([op (all-operators)] #:unless (eq? op 'cast))
+        (define itypes (real-operator-info op 'itype))
+        (define otype (real-operator-info op 'otype))
+        (define vars (build-list (length itypes) (λ (i) (string->symbol (format "$T~a" i)))))
+
+        (define name* (sym-append name '- op))
+        (define input* (cons op vars))
+        (define output* (replace-expression output input input*))
+        (define itypes* (map cons vars itypes))
+
+        (define rule* (rule name* input* output* itypes* otype))
+        (append (rule->egg-rules rule*) rules))]
     [(andmap representation? (cons otype (map cdr itypes)))
-     ;; rules over representations
-     ;; nothing special here: just return the 1 rule
-     ;; validate that we support the operators
-     (if (andmap (curry set-member? (*needed-reprs*))
-                 (append (reprs-in-expr input) (reprs-in-expr output)))
+     ; rule over representation: just return the rule
+     ; make sure to validate that the operators are supported
+     (define supported? (curry set-member? (*needed-reprs*)))
+     (if (and (andmap supported? (reprs-in-expr input))
+              (andmap supported? (reprs-in-expr output)))
          (list r)
          (list))]
     [else
-     ;; rules over types
-     ;; must instantiate the rule over all possible
-     ;; representation combinations, keeping in mind that
-     ;; representations may not support certain operators
+     ; rule over types: must instanstiate over all possible
+     ; assignments of representations keeping in mind that
+     ; some operator implementations may not exist
      (reap [sow]
        (define types (remove-duplicates (cons otype (map cdr itypes))))
        (for ([type-ctx (in-list (type-combinations types))])
@@ -315,7 +346,7 @@
      (when (null? proof)
        (error (format "Failed to produce proof for ~a to ~a" start end)))
      (cons variants proof)]
-    [else (cons variants #f)]))
+    [_ (cons variants #f)]))
 
 (define (egraph-get-simplest egraph-data node-id iteration)
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
@@ -373,13 +404,13 @@
 
 (define (remove-rewrites proof)
   (match proof
-    [`(Rewrite=> ,rule ,something)
+    [`(Rewrite=> _ ,something)
      (remove-rewrites something)]
-    [`(Rewrite<= ,rule ,something)
+    [`(Rewrite<= _ ,something)
      (remove-rewrites something)]
     [(list _ ...)
      (map remove-rewrites proof)]
-    [else proof]))
+    [_ proof]))
 
 ;; Performs a product, but traverses the elements in order
 ;; This is the core logic of flattening a proof given flattened proofs for each child of a node
@@ -405,25 +436,26 @@
 ;; returns a flattened list of terms
 ;; The first term has no rewrite- the rest have exactly one rewrite
 (define (expand-proof-term term budget)
-  (match term
-    [(? (lambda (x) (<= (unbox budget) 0)))
-     (list #f)]
-    [`(Explanation ,body ...)
-     (expand-proof body budget)]
-    [(? symbol?)
-     (list term)]
-    [(? number?)
-     (list term)]
-    [(? list?)
-     (define children (map (curryr expand-proof-term budget) term))
-     (cond 
-       [(member (list #f) children)
-        (list #f)]
-       [else
-        (define res (sequential-product children))
-        (set-box! budget (- (unbox budget) (length res)))
-        res])]
-    [else (error "Unknown proof term ~a" term)]))
+  (cond
+    [(<= (unbox budget) 0) (list #f)]
+    [else
+     (match term
+       [`(Explanation ,body ...)
+        (expand-proof body budget)]
+       [(? symbol?)
+        (list term)]
+       [(? number?)
+        (list term)]
+       [(? list?)
+        (define children (map (curryr expand-proof-term budget) term))
+        (cond 
+          [(member (list #f) children)
+           (list #f)]
+          [else
+           (define res (sequential-product children))
+           (set-box! budget (- (unbox budget) (length res)))
+           res])]
+       [_ (error "Unknown proof term ~a" term)])]))
 
 
 ;; Remove the front term if it doesn't have any rewrites
@@ -461,7 +493,6 @@
   (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (define res (cast pointer _pointer _string/utf-8))
   (destroy_string pointer)
-  (define env (make-hash))
   (cond
    ;; TODO: sometimes the proof is *super* long and it takes us too long just string-split
    ;; Ideally we would skip the string-splitting
@@ -478,8 +509,6 @@
         expanded)]
    [else
     #f]))
-
-(struct egg-add-exn exn:fail ())
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr)
@@ -542,6 +571,13 @@
     (when (*ffi-rules-cache*)
       (free-ffi-rule-cache))
     ; instantiate rules
+    ; (define canon-name (make-hasheq))
+    ; (define ffi->canon (make-hasheq))
+    ; (define ffi-rules
+    ;   (for/fold ([rules* '()]) ([rule (in-list rules)])
+    ;     (define orig-name (rule-name rule))
+    ;     (define egg-rules (rule->egg-rules rule))
+    ;     (for/fold ([rules* '()]) ([egg-rule (in-list egg-rules)])
     (define-values (egg-rules canon-names)
       (for/fold ([rules* '()] [canon-names (hash)] #:result (values (reverse rules*) canon-names))
                 ([rule (in-list rules)])
@@ -550,6 +586,7 @@
         (values (append expanded rules*)
                 (for/fold ([canon-names* canon-names])
                           ([exp-rule (in-list expanded)])
+                  ; (printf "~a: ~a => ~a\n" (rule-name exp-rule) (rule-input exp-rule) (rule-output exp-rule))
                   (hash-set canon-names* (rule-name exp-rule) orig-name)))))
     ; update the cache
     (define ffi-rules (map make-ffi-rule egg-rules))
