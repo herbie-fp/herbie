@@ -153,15 +153,15 @@
     (define altns (append real-alts (^queuedlow^)))
     
     (define rewritten
-      (for/fold ([done '()] #:result (reverse done))
-                ([cls comb-changelists] [altn altns]
-                #:when true [cl cls])
-          (match-define (list subexp input) cl)
+      (reap [sow]
+        (for ([changelists comb-changelists] [altn altns])
+          (for ([cl changelists])
+            (match-define (list subexp input) cl)
             (define body* (apply-repr-change-expr subexp (*context*)))
-            (if body*
-              ; We need to pass '() here so it can get overwritten on patch-fix
-              (cons (alt body* (list 'rr '() input #f #f) (list altn)) done)
-              done)))
+            (when body*
+              ; apply-repr-change-expr is partial
+              ; we need to pass '() here so it can get overwritten on patch-fix
+              (sow (alt body* (list 'rr '() input #f #f) (list altn))))))))
 
     (timeline-push! 'count (length (^queued^)) (length rewritten))
     ; TODO: accuracy stats for timeline

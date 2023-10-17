@@ -114,8 +114,7 @@
 (define (expr->egg-expr expr egg-data ctx)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
-  (define expr* (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict ctx))
-  expr*)
+  (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict ctx))
 
 (define (expr->egg-expr-helper expr egg->herbie-dict herbie->egg-dict ctx)
   (let loop ([expr expr])
