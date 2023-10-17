@@ -11,8 +11,11 @@
 (module+ test (require rackunit))
 
 (provide (struct-out egraph-query) make-egg-query run-egg
-         expand-rules rule->egg-rules get-canon-rule-name
-         remove-rewrites)
+         expand-rules get-canon-rule-name remove-rewrites)
+
+;; Imported by `<herbie>/syntax/test-rules.rkt`
+(module+ internals
+  (provide rule->impl-rules))
 
 ;; Unfortunately Herbie expressions can't be placed directly into egg,
 ;; so we need an IR to represent both expressions and patterns.
@@ -139,40 +142,56 @@
 
 (module+ test
   (require "../load-plugin.rkt")
+  (define repr (get-representation 'binary64))
   (*context* (make-debug-context '()))
-
-  (check-equal? (expr->egg-pattern `(+ a b)) '(+ ?p0 ?a ?b))
-  (check-equal? (expr->egg-pattern `(/ c (- 2 a))) '(/ ?p0 ?c (- ?p0 2 ?a)))
-  (check-equal? (expr->egg-pattern `(cos.f64 (PI.f64)))
-                '(cos ($Type binary64 binary64) (PI ($Type binary64))))
-  (check-equal? (expr->egg-pattern `(if (TRUE) x y))
-                '(if real (TRUE ($Type bool)) ?x ?y))
+  (*context* (context-extend (*context*) 'x repr))
+  (*context* (context-extend (*context*) 'y repr))
+  (*context* (context-extend (*context*) 'z repr))
 
   (define test-exprs
     (list (cons '(+.f64 y x)
-                "(+ ($Type binary64 binary64 binary64) h0 h1)")
+                (~a `(+ ($Type binary64 binary64 binary64)
+                        ($Var ($Type binary64) h0)
+                        ($Var ($Type binary64) h1))))
           (cons '(+.f64 x y)
-                "(+ ($Type binary64 binary64 binary64) h1 h0)")
+                (~a `(+ ($Type binary64 binary64 binary64)
+                        ($Var ($Type binary64) h1)
+                        ($Var ($Type binary64) h0))))
           (cons '(-.f64 2 (+.f64 x y))
                 (~a '(- ($Type binary64 binary64 binary64) 2
-                        (+ ($Type binary64 binary64 binary64) h1 h0))))
-          (cons '(-.f64 z (+.f64 (+.f64 y 2) x))
-                (~a '(- ($Type binary64 binary64 binary64) h2
                         (+ ($Type binary64 binary64 binary64)
-                            (+ ($Type binary64 binary64 binary64) h0 2) h1))))
+                           ($Var ($Type binary64) h1)
+                           ($Var ($Type binary64) h0)))))
+          (cons '(-.f64 z (+.f64 (+.f64 y 2) x))
+                (~a '(- ($Type binary64 binary64 binary64)
+                        ($Var ($Type binary64) h2)
+                        (+ ($Type binary64 binary64 binary64)
+                           (+ ($Type binary64 binary64 binary64)
+                              ($Var ($Type binary64) h0)
+                              2)
+                           ($Var ($Type binary64) h1)))))
           (cons '(*.f64 x y)
-                "(* ($Type binary64 binary64 binary64) h1 h0)")
+                (~a `(* ($Type binary64 binary64 binary64)
+                        ($Var ($Type binary64) h1)
+                        ($Var ($Type binary64) h0))))
           (cons '(+.f64 (*.f64 x y) 2)
                 (~a '(+ ($Type binary64 binary64 binary64)
-                        (* ($Type binary64 binary64 binary64) h1 h0) 2)))
+                        (* ($Type binary64 binary64 binary64)
+                           ($Var ($Type binary64) h1)
+                           ($Var ($Type binary64) h0))
+                        2)))
           (cons '(cos.f32 (PI.f32))
-                "(cos ($Type binary32 binary32) (PI ($Type binary32)))")
+                (~a '(cos ($Type binary32 binary32)
+                          (PI ($Type binary32)))))
           (cons '(if (TRUE) x y)
-                "(if real (TRUE ($Type bool)) h1 h0)")))
+                (~a '(if real
+                         (TRUE ($Type bool))
+                         ($Var ($Type binary64) h1)
+                         ($Var ($Type binary64) h0))))))
 
   (let ([egg-graph (make-egraph)])
     (for ([(in expected-out) (in-dict test-exprs)])
-      (define out (~a (expr->egg-expr in egg-graph)))
+      (define out (~a (expr->egg-expr in egg-graph (*context*))))
       (define computed-in (egg-expr->expr out egg-graph))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
@@ -190,7 +209,7 @@
   (let ([egg-graph (make-egraph)])
     (for ([expr extended-expr-list])
       (define expr* (desugar-program expr (*context*) #:full #f))
-      (define egg-expr (expr->egg-expr expr* egg-graph))
+      (define egg-expr (expr->egg-expr expr* egg-graph (*context*)))
       (check-equal? (egg-expr->expr (~a egg-expr) egg-graph) expr*))))
 
 
@@ -221,22 +240,20 @@
      [_ (void)]))
   (set->list reprs))
 
-;; Like `rule->egg-rules*` except no special handling of expansive rules.
-(define (rule->egg-rules* r)
+;; Translates a rewrite rule into potentially many rules.
+;; If the rule is over types, the rule is duplicated for every
+;; valid assignment of representations.
+(define (rule->impl-rules r)
   (match-define (rule name input output itypes otype) r)
   (define supported? (curry set-member? (*needed-reprs*)))
   (cond
     [(andmap representation? (cons otype (map cdr itypes)))
      ; rule over representation: just return the rule
      ; make sure to validate that the operators are supported
-     (cond
-       [(and (andmap supported? (reprs-in-expr input))
-             (andmap supported? (reprs-in-expr output)))
-        (define in-pat (expr->egg-pattern input))
-        (define out-pat (expr->egg-pattern output))
-        (list (rule name in-pat out-pat itypes otype))]
-       [else
-        (list)])]
+     (if (and (andmap supported? (reprs-in-expr input))
+              (andmap supported? (reprs-in-expr output)))
+         (list r)
+         (list))]
     [else
      ; rule over types: must instanstiate over all possible
      ; assignments of representations keeping in mind that
@@ -265,13 +282,10 @@
            (define output* (desugar-program output sugar-ctx #:full #f))
            (when (and (andmap supported? (reprs-in-expr input*))
                       (andmap supported? (reprs-in-expr output*)))
-             (define in-pat (expr->egg-pattern input*))
-             (define out-pat (expr->egg-pattern output*))
-             (sow (rule name* in-pat out-pat itypes* otype*))))))]))
+             (sow (rule name* input* output* itypes* otype*))))))]))
 
-;; Translates a Herbie rule into possibly multiple egg rules
-;; Filters rules based on supported operator implementations.
-;; Special pass for expansive rules: `?x => f(?x)`.
+;; Like `rule->impl-rule` except rules are consumable by egg.
+;; Special pass to handle expansive rules `?x => f(?x)`
 (define (rule->egg-rules r)
   (match-define (rule name input output _ _) r)
   (cond
@@ -292,23 +306,31 @@
          (define input* (cons op vars))
          (define output* (replace-expression output input input*))
          (define itypes* (map cons vars itypes))
- 
-         (define rule* (rule name* input* output* itypes* otype))
-         (append (rule->egg-rules* rule*) rules)))
+
+         (append (rule->egg-rules (rule name* input* output* itypes* otype)) rules)))
      ; for each implementation matching the output type/representation,
      ; make a rule for a variable under the same implementation
      (define var-rules
-       (for/list ([egg-rule (rule->egg-rules* r)])
+       (for/list ([impl-rule (rule->impl-rules r)])
          ; replace the LHS with a variable node
-         (match-define (rule name input output itypes otype) egg-rule)
-         (define repr (dict-ref itypes (rule-input r)))
+         (match-define (rule name input output itypes otype)
+           (struct-copy rule impl-rule
+                        [input (expr->egg-pattern (rule-input impl-rule))]
+                        [output (expr->egg-pattern (rule-output impl-rule))]))
+         (define repr (dict-ref itypes (rule-input impl-rule)))
          (define prec (list '$Type (representation-name repr)))
          (define input* (list '$Var prec input))
          (define output* (replace-expression output input input*))
          (rule name input* output* itypes otype)))
+     ; both over ops and over a variable
      (append op-rules var-rules)]
     [else
-     (rule->egg-rules* r)]))
+     ;; all other rules should be replicated across representations
+     ;; and then translated into a format usable by egg
+     (for/list ([impl-rule (rule->impl-rules r)])
+       (struct-copy rule impl-rule
+                    [input (expr->egg-pattern (rule-input impl-rule))]
+                    [output (expr->egg-pattern (rule-output impl-rule))]))]))
     
 
 (module+ test
