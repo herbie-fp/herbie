@@ -382,8 +382,7 @@
   (hash-set! (*functions*) name (list args repr body)))
 
 (define (all-operators)
-  (for/list ([(name _) (in-hash operators)])
-    name))
+  (sort (hash-keys operators) symbol<?))
 
 (define (all-constants)
   (for/list ([(name rec) (in-hash operators)]
