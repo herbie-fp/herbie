@@ -5,8 +5,8 @@
           malloc memcpy free cast ptr-set! ptr-add
           _byte _pointer _string/utf-8))
 (require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
-         "../syntax/types.rkt" "../common.rkt" "../errors.rkt" "../timeline.rkt"
-         "../alternative.rkt" "../programs.rkt")
+         "../syntax/types.rkt" "../common.rkt" "../errors.rkt"
+         "../programs.rkt" "../timeline.rkt")
 
 (module+ test (require rackunit))
 
@@ -300,12 +300,12 @@
      (define var-rules
        (for/list ([egg-rule (rule->egg-rules* r)])
          ; replace the LHS with a variable node
-         (match-define (rule name _ output itypes otype) egg-rule)
-         (define repr (dict-ref itypes input))
+         (match-define (rule name input output itypes otype) egg-rule)
+         (define repr (dict-ref itypes (rule-input r)))
          (define prec (list '$Type (representation-name repr)))
          (define input* (list '$Var prec input))
          (define output* (replace-expression output input input*))
-         (rule name (expr->egg-pattern input*) (expr->egg-pattern output*) itypes otype)))
+         (rule name input* output* itypes otype)))
      (append op-rules var-rules)]
     [else
      (rule->egg-rules* r)]))
@@ -521,7 +521,9 @@
       (for/list ([line (in-list (string-split res "\n"))])
         (egg-expr->expr line egraph-data)))
     (define expanded (expand-proof converted (box (*proof-max-length*))))
-    (and (member #f expanded) expanded)]
+    (if (member #f expanded)
+        #f
+        expanded)]
    [else
     #f]))
 
@@ -553,59 +555,52 @@
   (destroy_egraphiters ptr)
   iteration-data)
 
-;; (rules, reprs) -> (ffi-rules, name-map)
-(define-resetter *ffi-rules-cache*
-  (λ () #f)
-  (λ () #f)
-  (λ (rules)
-    (when rules
-      (free-ffi-rule-cache))))
+;; Cache mapping (name, representations) -> (listof ffi-rules)
+;; Rule expansion takes a significant amount of time, so we cache
+;; Assumes the set of rules, representations, and operator implementations
+;; are fixed throughout the improvement loop; rules are added and never
+;; removed or mutated
+(define-resetter *ffi-rules*
+  (λ () (make-hash))
+  (λ () (make-hash))
+  (λ (cache)
+    (define ffi-rules/rule (hash-values cache))
+    (for ([ffi-rules (in-list ffi-rules/rule)])
+      (for-each free-ffi-rule ffi-rules))))
 
-(define (free-ffi-rule-cache)
-  (match-define (list ffi-rules _) (cdr (*ffi-rules-cache*)))
-  (*ffi-rules-cache* #f)
-  (for-each free-ffi-rule (map cdr ffi-rules)))
+;; Cache mapping name to its canonical rule name
+;; See `*egg-rules*` for details
+(define-resetter *canon-names*
+  (λ () (make-hash))
+  (λ () (make-hash)))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
 (define (get-canon-rule-name name [failure #f])
-  (cond
-    [(*ffi-rules-cache*)
-     (match-define (list _ canon-names) (cdr (*ffi-rules-cache*)))
-     (hash-ref canon-names name failure)]
-    [else
-     failure]))
+  (hash-ref (*canon-names*) name failure))
 
 ;; expand the rules first due to some bad but currently
 ;; necessary reasons (see `rule->egg-rules` for details).
 ;; checks the cache in case we used them previously
 (define (expand-rules rules)
-  (define key (cons rules (*needed-reprs*)))
-  (unless (and (*ffi-rules-cache*) (equal? (car (*ffi-rules-cache*)) key))
-    ; free any rules in the cache
-    (when (*ffi-rules-cache*)
-      (free-ffi-rule-cache))
-    ; instantiate rules
-    (define canon-names (make-hasheq))
-    (define ffi-rules
-      (for/fold ([rules* '()]) ([rule (in-list rules)])
-        (define orig-name (rule-name rule))
-        (define egg-rules (rule->egg-rules rule))
-        (append (for/list ([egg-rule (in-list egg-rules)])
-                  (define name (rule-name egg-rule))
-                  (hash-set! canon-names name orig-name)
-                  ; (printf "~a => ~a\n" (rule-input egg-rule) (rule-output egg-rule))
-                  (cons name (make-ffi-rule egg-rule)))
-                rules*)))
-    (*ffi-rules-cache* (cons key (list ffi-rules canon-names))))
-  (cdr (*ffi-rules-cache*)))
+  (for/fold ([rules* '()]) ([rule (in-list rules)])
+    (append
+      (hash-ref! (*ffi-rules*) (cons rule (*needed-reprs*))
+                 (λ ()
+                   (define orig-name (rule-name rule))
+                   (define egg-rules (rule->egg-rules rule))
+                   (for/list ([egg-rule (in-list egg-rules)])
+                     (define name (rule-name egg-rule))
+                     (hash-set! (*canon-names*) name orig-name)
+                     (cons name (make-ffi-rule egg-rule)))))
+      rules*)))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids const-folding? #:limit [iter-limit #f])
-  ;; expand rules (will also check cache)
-  (match-define (list egg-rules canon-names) (expand-rules rules))
-  (define ffi-rules (map cdr egg-rules))
+  ;; expand rules (may possibly be cached)
+  (define egg-rules (expand-rules rules))
 
   ;; run the rules
+  (define ffi-rules (map cdr egg-rules))
   (define iteration-data (egraph-run egg-graph node-limit ffi-rules const-folding? iter-limit))
 
   ;; get cost statistics
@@ -622,7 +617,7 @@
   (define rule-apps (make-hash))
   (for ([(name ffi-rule) (in-dict egg-rules)])
     (define count (egraph-get-times-applied egg-graph ffi-rule))
-    (define canon-name (hash-ref canon-names name))
+    (define canon-name (hash-ref (*canon-names*) name))
     (hash-update! rule-apps canon-name (curry + count) count))
 
   (for ([(name count) (in-hash rule-apps)])
