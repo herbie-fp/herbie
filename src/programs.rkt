@@ -197,23 +197,6 @@
       (vector-ref v n)))
   (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
 
-; (module+ test
-;   (define ctx (make-debug-context '(a b c)))
-;   (define tests
-;     #hash([(/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a)
-;            . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
-;            ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
-
-;   (define-simple-check (check-in-interval? iv pt)
-;     (match-define (ival lo hi) iv)
-;     (and (bf<= lo pt) (bf<= pt hi)))
-
-;   (for ([(e p) (in-hash tests)])
-;     (parameterize ([bf-precision 4000])
-;       (define iv (apply (compile-prog e 'ival ctx) p))
-;       (define val (apply (compile-prog e 'bf ctx) p))
-;       (check-in-interval? iv val))))
-
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
   (define exact-value? (conjoin number? exact?))
