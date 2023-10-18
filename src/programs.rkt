@@ -126,14 +126,15 @@
   (define real->precision
     (match mode
      ['fl (λ (x repr) (real->repr x repr))]
-     ['bf (λ (x repr) (bf x))]
-     ['ival (λ (x repr) (ival (bf x)))]))
+     ['ival (λ (x _) (ival (bf x)))]))
 
   (define arg->precision
     (match mode
-     ['fl (λ (x repr) x)]
-     ['bf (λ (x repr) (if (bigfloat? x) x ((representation-repr->bf repr) x)))]
-     ['ival (λ (x repr) (if (ival? x) x (ival ((representation-repr->bf repr) x))))]))
+     ['fl (λ (x _) x)]
+     ['ival (λ (x repr)
+              (if (ival? x)
+                  x
+                  (ival ((representation-repr->bf repr) x))))]))
 
   ;; Expression cache
   (define exprcache '())
@@ -153,7 +154,7 @@
   ;; 'if' operator
   (define if-op
     (match mode
-     [(or 'fl 'bf) (λ (c ift iff) (if c ift iff))]
+     ['fl (λ (c ift iff) (if c ift iff))]
      ['ival ival-if]))
 
   (define (munge prog repr)
@@ -195,23 +196,6 @@
     (for/list ([n (in-list names)])
       (vector-ref v n)))
   (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
-
-(module+ test
-  (define ctx (make-debug-context '(a b c)))
-  (define tests
-    #hash([(/.f64 (-.f64 (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 a c))) b) a)
-           . (-1.918792216976527e-259 8.469572834134629e-97 -7.41524568576933e-282)
-           ])) ;(2.4174342574957107e-18 -1.4150052601637869e-40 -1.1686799408259549e+57)
-
-  (define-simple-check (check-in-interval? iv pt)
-    (match-define (ival lo hi) iv)
-    (and (bf<= lo pt) (bf<= pt hi)))
-
-  (for ([(e p) (in-hash tests)])
-    (parameterize ([bf-precision 4000])
-      (define iv (apply (compile-prog e 'ival ctx) p))
-      (define val (apply (compile-prog e 'bf ctx) p))
-      (check-in-interval? iv val))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
