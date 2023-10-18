@@ -161,8 +161,6 @@
   ;; If we're using the bf fallback, start at the max precision
   (define repr (context-repr ctx))
   ;(define starting-precision (*starting-prec*))
-  (printf "Starting precision ~a" starting-precision)
-  (printf "Max precision ~a" max-precision)
   (define <-bf (representation-bf->repr repr))
   (define logger (point-logger 'body (context-vars ctx)))
   (define outcomes (make-hash))

@@ -607,9 +607,15 @@
       [(and (bf=? a b) (bfodd? a))
        ((monotonic bfsin) remainder)]
       [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-       (ival (endpoint -1.bf #f) (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder))) (ival-err? x) (ival-err x))]
+       (ival (endpoint -1.bf #f)
+             (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder)))
+             (ival-err? x)
+             (ival-err x))]
       [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-       (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder))) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
+       (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder)))
+             (endpoint 1.bf #f)
+             (ival-err? x)
+             (ival-err x))]
       [else
        (ival-then x (mk-big-ival -1.bf 1.bf))])))
 
