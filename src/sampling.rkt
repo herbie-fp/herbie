@@ -123,7 +123,7 @@
     (set! start now))
   log!)
 
-(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
+(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)] [max-precision (*max-mpfr-prec*)])
   (let loop ([precision precision])
     (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
     (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
@@ -136,7 +136,7 @@
       (ival-lo (is-infinite-interval repr (apply ival-or exs))))
       (values (if infinite? 'infinite 'valid) precision exs)
      ]
-     [(> precision* (*max-mpfr-prec*))
+     [(> precision* max-precision)
       (values 'exit precision +nan.0)]
      [else
       (loop precision*)])))
@@ -157,10 +157,12 @@
   (ival-or (ival-positive-infinite interval)
            (ival-negative-infinite interval)))
 
-(define (batch-prepare-points fn ctx sampler)
+(define (batch-prepare-points fn ctx sampler [starting-precision (*starting-prec*)] [max-precision (*max-mpfr-prec*)])
   ;; If we're using the bf fallback, start at the max precision
   (define repr (context-repr ctx))
-  (define starting-precision (*starting-prec*))
+  ;(define starting-precision (*starting-prec*))
+  (printf "Starting precision ~a" starting-precision)
+  (printf "Max precision ~a" max-precision)
   (define <-bf (representation-bf->repr repr))
   (define logger (point-logger 'body (context-vars ctx)))
   (define outcomes (make-hash))

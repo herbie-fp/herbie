@@ -18,7 +18,7 @@
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func pre exprs ctxs)
-  ; (eprintf "pre ~a, expers ~a, ctxs ~a\n" pre exprs ctxs)
+  ;(eprintf "pre ~a, expers ~a, ctxs ~a\n" pre exprs ctxs)
   (define fns (compile-progs (cons pre exprs) 'ival (car ctxs)))
   (λ inputs
     (define out (apply fns inputs))
@@ -70,7 +70,9 @@
       (make-sampler (first ctxs) pre fn)))
   (timeline-event! 'sample)
   ;; TODO: should batch-prepare-points allow multiple contexts?
-  (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler))
+  ; Use maximum of 64 bits precision
+  (define analyze-precision 64)
+  (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler analyze-precision analyze-precision))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
    (warn 'inf-points #:url "faq.html#inf-points"
