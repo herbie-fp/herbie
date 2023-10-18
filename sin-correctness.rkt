@@ -14,8 +14,8 @@
 (define (sin-correctness)
   ; Random number in double-precision
   (define flo-num-lo (bit-field->flonum (random-bits 64)))
-  ;(define flo-num-hi (flstep flo-num-lo (random-integer 1 1000)))
-  (define flo-num-hi (flstep flo-num-lo 1))
+  (define flo-num-hi (flstep flo-num-lo (random-integer 1 1000)))
+  ;(define flo-num-hi (flstep flo-num-lo 1))
   ; Make an ival out of these floats
   (define iv (ival (bf flo-num-lo) (bf flo-num-hi)))
   
@@ -27,17 +27,10 @@
      (printf "regular sin in double precision: ~a\n" (ival->list-flo (ival-sin iv)))
      (printf "mixed sin in double precision  : ~a\n\n" (ival->list-flo (ival-sin-mixed iv)))]))
 
-#;(define (recursive-call n)
-  (cond
-    [(zero? (- n 1)) (sin-correctness)]
-    [else
-     ((sin-correctness)
-      (recursive-call (- n 1)))]))
-
 (bf-precision 512)
 (sin-correctness)
 
-(for/list ([i (in-range 100000)]) (sin-correctness))
+(for/list ([i (in-range 1000)]) (sin-correctness))
 
 
 

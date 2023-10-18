@@ -70,9 +70,9 @@
       (make-sampler (first ctxs) pre fn)))
   (timeline-event! 'sample)
   ;; TODO: should batch-prepare-points allow multiple contexts?
-  ; Use maximum of 64 bits precision
-  (define analyze-precision 64)
-  (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler analyze-precision analyze-precision))
+  ; Use maximum of 53 bits precision
+  (define analyze-precision 53)
+  (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler analyze-precision 113))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
    (warn 'inf-points #:url "faq.html#inf-points"

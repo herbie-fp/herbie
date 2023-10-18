@@ -598,8 +598,8 @@
   
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
                 (ival-floor (ival-sub intermediate (mk-big-ival half.bf half.bf))))
-  
-  (parameterize ([bf-precision 64])
+
+  (parameterize ([bf-precision 53])
     (define remainder (sin-fraction intermediate))
     (cond
       [(and (bf=? a b) (bfeven? a))

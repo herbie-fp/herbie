@@ -170,7 +170,7 @@
       (define pt (sampler))
 
       (define-values (status precision out)
-        (ival-eval repr fn pt #:precision starting-precision))
+        (ival-eval repr fn pt #:precision starting-precision max-precision))
       (hash-update! outcomes status (curry + 1) 0)
       (logger status precision pt)
 
