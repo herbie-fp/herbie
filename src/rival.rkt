@@ -571,43 +571,47 @@
     [else
      (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
-(define (sin-fraction x)
-  (define remainder (ival-mult ((monotonic bffrac) x) (ival-pi)))
-  (match-define (ival (endpoint a* _) (endpoint b* _) _ _)
-    (ival-floor x))
-  (define flag-a (bfodd? a*))
-  (define flag-b (bfodd? b*))
-  (cond
-    [(and flag-a flag-b)
-     ((monotonic bfneg) ((monotonic bfabs) remainder))]
-    [(and (not flag-a) flag-b)
-     (mk-big-ival (bfabs (ival-lo-val remainder)) (bfneg (bfabs (ival-hi-val remainder))))]
-    [(and flag-a (not flag-b))
-     (mk-big-ival (bfneg (bfabs (ival-lo-val remainder))) (bfabs (ival-hi-val remainder)))]
-    [else
-     ((monotonic bfabs) remainder)]))
 
 (define (ival-sin x)
+  ;; Function takes a division result over pi and calculate a remainder of this operation with
+  ;;   proper signs to be put into bfsin function. At this point we don't care about order of lo and hi
+  ;;   endpoints, here are cases when hi is negative, lo is positive. The further logic of ival-sin will
+  ;;   solve this ordering problem without our participation, we need only signs of lo and hi to be correct.
+  (define (sin-fraction x)
+    (define remainder (ival-mult ((monotonic bffrac) x) (ival-pi)))
+    (match-define (ival (endpoint a* _) (endpoint b* _) _ _)
+      (ival-floor x))
+    
+    (define flag-a (bfeven? a*))
+    (define flag-b (bfeven? b*))
+    (cond
+      [(and flag-a flag-b)
+       ((monotonic bfabs) remainder)]
+      [(and (not flag-a) flag-b)
+       (mk-big-ival (bfneg (bfabs (ival-lo-val remainder))) (bfabs (ival-hi-val remainder)))]
+      [(and flag-a (not flag-b))
+       (mk-big-ival (bfabs (ival-lo-val remainder)) (bfneg (bfabs (ival-hi-val remainder))))]
+      [else
+       ((monotonic bfneg) ((monotonic bfabs) remainder))]))
+  
   (define intermediate (ival-div x (ival-pi)))
-  (define remainder (sin-fraction intermediate))
   
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
                 (ival-floor (ival-sub intermediate (mk-big-ival half.bf half.bf))))
-  (cond
-    [(and (bf=? a b) (bfeven? a))
-     (parameterize ([bf-precision 64])
-     ((comonotonic bfsin) remainder))]
-    [(and (bf=? a b) (bfodd? a))
-     (parameterize ([bf-precision 64])
-     ((monotonic bfsin) remainder))]
-    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-     (parameterize ([bf-precision 64])
-     (ival (endpoint -1.bf #f) (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder))) (ival-err? x) (ival-err x)))]
-    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-     (parameterize ([bf-precision 64])
-     (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder))) (endpoint 1.bf #f) (ival-err? x) (ival-err x)))]
-    [else
-     (ival-then x (mk-big-ival -1.bf 1.bf))]))
+  
+  (parameterize ([bf-precision 64])
+    (define remainder (sin-fraction intermediate))
+    (cond
+      [(and (bf=? a b) (bfeven? a))
+       ((comonotonic bfsin) remainder)]
+      [(and (bf=? a b) (bfodd? a))
+       ((monotonic bfsin) remainder)]
+      [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+       (ival (endpoint -1.bf #f) (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder))) (ival-err? x) (ival-err x))]
+      [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+       (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder))) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
+      [else
+       (ival-then x (mk-big-ival -1.bf 1.bf))])))
 
 (define (ival-tan x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
