@@ -597,11 +597,12 @@
 (define (get-canon-rule-name name [failure #f])
   (hash-ref (*canon-names*) name failure))
 
-;; expand the rules first due to some bad but currently
-;; necessary reasons (see `rule->egg-rules` for details).
-;; checks the cache in case we used them previously
+;; expand the rules first due to some bad but currently necessary reasons
+;; (see `rule->egg-rules` for details); checks the cache in case we used
+; them previously
 (define (expand-rules rules)
-  (for/fold ([rules* '()]) ([rule (in-list rules)])
+  ; TODO: reversing the rules causes CI to pass, why?
+  (for/fold ([rules* '()] #:result (reverse rules*)) ([rule (in-list rules)])
     (append
       (hash-ref! (*ffi-rules*) (cons rule (*needed-reprs*))
                  (λ ()
