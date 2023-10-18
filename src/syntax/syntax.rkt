@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "../common.rkt" "../errors.rkt" "types.rkt")
+(require "../errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
          variable? constant-operator?
@@ -24,7 +24,7 @@
 ;; Real operator table
 ;; Implementations inherit attributes
 
-(struct operator (name itype otype bf ival deprecated))
+(struct operator (name itype otype ival deprecated))
 
 (define operators (make-hasheq))
 (define operators-to-impls (make-hasheq))
@@ -42,134 +42,96 @@
       (cons 'otype (dict-ref attrib-dict 'otype otype))
       (cons 'deprecated (dict-ref attrib-dict 'deprecated #f))))
   (define fields (make-hasheq (append attrib-dict override-dict)))
-  (define field-names '(itype otype bf ival deprecated))
+  (define field-names '(itype otype ival deprecated))
   (hash-set! operators name (apply operator name (map (curry hash-ref fields) field-names)))
   (hash-set! operators-to-impls name '()))
 
 (define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
   (register-operator! 'name '(itypes ...) 'otype (list (cons 'key value) ...)))
 
-(define-syntax-rule (define-1ary-real-operator name bf-impl ival-impl)
-  (define-operator (name real) real
-    [bf bf-impl] [ival ival-impl]))
+(define-syntax-rule (define-1ary-real-operator name ival-impl)
+  (define-operator (name real) real [ival ival-impl]))
 
-(define-syntax-rule (define-2ary-real-operator name bf-impl ival-impl)
-  (define-operator (name real real) real
-    [bf bf-impl] [ival ival-impl]))
+(define-syntax-rule (define-2ary-real-operator name ival-impl)
+  (define-operator (name real real) real [ival ival-impl]))
 
-(define-syntax-rule (define-1ary-real-operators [name bf-impl ival-impl] ...)
-  (begin (define-1ary-real-operator name bf-impl ival-impl) ...))
+(define-syntax-rule (define-1ary-real-operators [name ival-impl] ...)
+  (begin (define-1ary-real-operator name ival-impl) ...))
 
-(define-syntax-rule (define-2ary-real-operators [name bf-impl ival-impl] ...)
-  (begin (define-2ary-real-operator name bf-impl ival-impl) ...))
-
-(define (bfcopysign x y)
-  (bf* (bfabs x) (bf (expt -1 (bigfloat-signbit y)))))
-
-(define (from-bigfloat bff)
-  (λ args (bigfloat->flonum (apply bff (map bf args)))))
-
-(define (bffdim x y)
-  (if (bf> x y) (bf- x y) 0.bf))
-
-(define (bffma x y z)
-  (bf+ (bf* x y) z))
-
-(define (bffmod x mod)
-  (bf- x (bf* (bftruncate (bf/ x mod)) mod)))
-
-(define (bflogb x)
-  (bffloor (bflog2 (bfabs x))))
-
-(define (bfremainder x mod)
-  (bf- x (bf* (bfround (bf/ x mod)) mod)))
+(define-syntax-rule (define-2ary-real-operators [name ival-impl] ...)
+  (begin (define-2ary-real-operator name ival-impl) ...))
 
 (define-1ary-real-operators
- [neg bf- ival-neg]
- [acos bfacos ival-acos]
- [acosh bfacosh ival-acosh]
- [asin bfasin ival-asin]
- [asinh bfasinh ival-asinh]
- [atan bfatan ival-atan]
- [atanh bfatanh ival-atanh]
- [cbrt bfcbrt ival-cbrt]
- [ceil bfceiling ival-ceil]
- [cos bfcos ival-cos]
- [cosh bfcosh ival-cosh]
- [erf bferf ival-erf]
- [erfc bferfc ival-erfc]
- [exp bfexp ival-exp]
- [exp2 bfexp2 ival-exp2]
- [expm1 bfexpm1 ival-expm1]
- [fabs bfabs ival-fabs]
- [floor bffloor ival-floor]
- [lgamma bflog-gamma ival-lgamma]
- [log bflog ival-log]
- [log10 bflog10 ival-log10]
- [log1p bflog1p ival-log1p]
- [log2 bflog2 ival-log2]
- [logb bflogb ival-logb]
- [rint bfrint ival-rint]
- [round bfround ival-round]
- [sin bfsin ival-sin]
- [sinh bfsinh ival-sinh]
- [sqrt bfsqrt ival-sqrt]
- [tan bftan ival-tan]
- [tanh bftanh ival-tanh]
- [tgamma bfgamma ival-tgamma]
- [trunc bftruncate ival-trunc])
+  [neg ival-neg]
+  [acos ival-acos]
+  [acosh ival-acosh]
+  [asin ival-asin]
+  [asinh ival-asinh]
+  [atan ival-atan]
+  [atanh ival-atanh]
+  [cbrt ival-cbrt]
+  [ceil ival-ceil]
+  [cos ival-cos]
+  [cosh ival-cosh]
+  [erf ival-erf]
+  [erfc ival-erfc]
+  [exp ival-exp]
+  [exp2 ival-exp2]
+  [expm1 ival-expm1]
+  [fabs ival-fabs]
+  [floor ival-floor]
+  [lgamma ival-lgamma]
+  [log ival-log]
+  [log10 ival-log10]
+  [log1p ival-log1p]
+  [log2 ival-log2]
+  [logb ival-logb]
+  [rint ival-rint]
+  [round ival-round]
+  [sin ival-sin]
+  [sinh ival-sinh]
+  [sqrt ival-sqrt]
+  [tan ival-tan]
+  [tanh ival-tanh]
+  [tgamma ival-tgamma]
+  [trunc ival-trunc])
 
 (define-2ary-real-operators
- [+ bf+ ival-add]
- [- bf- ival-sub]
- [* bf* ival-mult]
- [/ bf/ ival-div]
- [atan2 bfatan2 ival-atan2]
- [copysign bfcopysign ival-copysign]
- [fdim bffdim ival-fdim]
- [fmax bfmax ival-fmax]
- [fmin bfmin ival-fmin]
- [fmod bffmod ival-fmod]
- [hypot bfhypot ival-hypot]
- [pow bfexpt ival-pow]
- [remainder bfremainder ival-remainder])
+  [+ ival-add]
+  [- ival-sub]
+  [* ival-mult]
+  [/ ival-div]
+  [atan2 ival-atan2]
+  [copysign ival-copysign]
+  [fdim ival-fdim]
+  [fmax ival-fmax]
+  [fmin ival-fmin]
+  [fmod ival-fmod]
+  [hypot ival-hypot]
+  [pow ival-pow]
+  [remainder ival-remainder])
 
 (define-operator (fma real real real) real
- [bf bffma] [ival ival-fma])
-
-;; Deprecated operators
-
-(module hairy racket/base
-  (require ffi/unsafe)
-  (provide check-native-1ary-exists?)
-
-  (define (check-native-1ary-exists? op)
-    (let ([f32-name (string->symbol (string-append (symbol->string op) "f"))])
-      (or (get-ffi-obj op #f (_fun _double -> _double) (λ () #f))
-          (get-ffi-obj f32-name #f (_fun _float -> _float) (λ () #f)))))
-)
-
-(require (submod "." hairy))
+  [ival ival-fma])
 
 ;; Operator implementations
 
-(struct operator-impl (name op itype otype fl bf ival))
+(struct operator-impl (name op itype otype fl ival))
 (define operator-impls (make-hasheq))
 
 (define/contract (real-operator-info operator field)
-  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
+  (-> symbol? (or/c 'itype 'otype 'fl 'ival) any/c)
   (unless (hash-has-key? operators operator)
     (raise-herbie-missing-error "Unknown operator ~a" operator))
   (define accessor
     (match field
       ['itype operator-itype]
       ['otype operator-otype]
-      ['bf operator-bf]
       ['ival operator-ival]))
   (accessor (hash-ref operators operator)))
 
 (define/contract (operator-info operator field)
-  (-> symbol? (or/c 'itype 'otype 'bf 'fl 'ival) any/c)
+  (-> symbol? (or/c 'itype 'otype 'fl 'ival) any/c)
   (unless (hash-has-key? operator-impls operator)
     (error 'operator-info "Unknown operator ~a" operator))
     ; (raise-herbie-missing-error "Unknown operator ~a" operator))
@@ -177,7 +139,6 @@
     (match field
       ['itype operator-impl-itype]
       ['otype operator-impl-otype]
-      ['bf operator-impl-bf]
       ['fl operator-impl-fl]
       ['ival operator-impl-ival]))
   (accessor (hash-ref operator-impls operator)))
@@ -194,7 +155,6 @@
 
   (define op (hash-ref operators operator))
   (define fl-fun (dict-ref attrib-dict 'fl))
-  (define bf-fun (dict-ref attrib-dict 'bf (λ () (operator-bf op))))
   (define ival-fun (dict-ref attrib-dict 'ival (λ () (operator-ival op))))
 
   (unless (equal? operator 'if) ;; Type check all operators except if
@@ -205,7 +165,7 @@
           "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
           name operator (representation-name rrepr) (operator-otype op)))))
 
-  (define impl (operator-impl name op areprs rrepr fl-fun bf-fun ival-fun))
+  (define impl (operator-impl name op areprs rrepr fl-fun ival-fun))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls operator (curry cons name)))
 
@@ -242,42 +202,36 @@
 (define (operator-all-impls name)
   (hash-ref operators-to-impls name))
 
-(define ((comparator test) . args)
-  (for/and ([left args] [right (cdr args)])
-    (test left right)))
+;; comparators ;;
 
-;; real operators
 (define-operator (== real real) bool
-  [bf (comparator bf=)] [ival ival-==])
+  [ival ival-==])
 
 (define-operator (!= real real) bool
-  [bf (negate (comparator bf=))] [ival ival-!=])
+  [ival ival-!=])
 
 (define-operator (< real real) bool
-  [bf (comparator bf<)] [ival ival-<])
+  [ival ival-<])
 
 (define-operator (> real real) bool
-  [bf (comparator bf>)] [ival ival->])
+  [ival ival->])
 
 (define-operator (<= real real) bool
-  [bf (comparator bf<=)] [ival ival-<=])
+  [ival ival-<=])
 
 (define-operator (>= real real) bool
-  [bf (comparator bf>=)] [ival ival->=])
+  [ival ival->=])
 
 ;; logical operators ;;
 
-(define (and-fn . as) (andmap identity as))
-(define (or-fn  . as) (ormap identity as))
-
 (define-operator (not bool) bool
-  [bf not] [ival ival-not])
+   [ival ival-not])
 
 (define-operator (and bool bool) bool
-  [bf and-fn] [ival ival-and])
+   [ival ival-and])
 
 (define-operator (or bool bool) bool
-  [bf or-fn] [ival ival-or])
+   [ival ival-or])
 
 ;; Miscellaneous operators ;;
 
@@ -299,40 +253,30 @@
          name)))
 
 (define-operator (PI) real
-  [bf (λ () pi.bf)] 
   [ival ival-pi])
 
 (define-operator (E) real
-  [bf (λ () (bfexp 1.bf))]
   [ival ival-e])
 
 (define-operator (INFINITY) real
-  [bf (λ () +inf.bf)]
   [ival (λ () (ival +inf.bf))])
 
 (define-operator (NAN) real
-  [bf (λ () +nan.bf)]
   [ival (λ () (ival +nan.bf))])
 
 (define-operator (TRUE) bool
-  [bf (const true)]
   [ival (const (ival-bool true))])
 
 (define-operator (FALSE) bool
-  [bf (const false)]
   [ival (const (ival-bool false))])
-
-(define (dict-merge dict dict2)
-  (for/fold ([dict dict]) ([(key value) (in-dict dict2)])
-    (dict-set dict key value)))
 
 ;; Conversions
 
 (define-operator (convert real) real
-  [bf identity] [ival identity])
+  [ival identity])
 
 (define-operator (cast real) real
-  [bf identity] [ival identity])
+  [ival identity])
 
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations
