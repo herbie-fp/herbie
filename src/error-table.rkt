@@ -82,7 +82,8 @@ NOTE: This is not the correct definition of exactness. We need to also
   
   (define subexprs
     (all-subexpressions-rev expr (context-repr ctx)))
-  
+
+  ;; map car subexprs
   (define subexprs-list
     (for/list ([subexpr (in-list subexprs)])
       (car subexpr)))
@@ -183,7 +184,9 @@ NOTE: This is not the correct definition of exactness. We need to also
          (define larg-val (flabs (hash-ref exacts-hash larg)))
          (define rarg-val (flabs (hash-ref exacts-hash rarg)))
          (define larg-uflow? (hash-ref uflow-hash larg))
-         (and larg-uflow? (fl< rarg-val 1e-150) (mark-erroneous! subexpr))]
+         (cond
+           [(and larg-uflow? (fl< rarg-val 1e-150)) (mark-erroneous! subexpr)]
+           [_ #f])]
  
         #|
         TODO: log is very goo at rescuing underflow/overflows
