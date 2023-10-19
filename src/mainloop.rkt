@@ -339,15 +339,15 @@
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
 
-  (define true-error-counts-hash (group-errors (alt-expr (car simplified)) pcontext))
-  (define pred-error-counts-hash (list-all-errors (alt-expr (car simplified)) context pcontext))
-  (for ([(subexpr tcount) (in-dict true-error-counts-hash)]
+  (define tcount-hash (group-errors (alt-expr (car simplified)) pcontext))
+  (define pcount-hash (list-all-errors (alt-expr (car simplified)) context pcontext))
+  (for ([(subexpr tcount) (in-dict tcount-hash)]
         #:when subexpr)
-    (define pcount (hash-ref pred-error-counts-hash subexpr))
+    (define pcount (hash-ref pcount-hash subexpr))
     (timeline-push! 'fperrors (~a subexpr) tcount pcount))
   (timeline-push! 'fperrors #f
-                  (hash-ref true-error-counts-hash #f)
-                  (hash-ref pred-error-counts-hash #f))
+                  (if (hash-has-key? tcount-hash #f) (hash-ref tcount-hash #f) 0)
+                  (hash-ref pcount-hash #f))
   
   #;(for ([(subexpr num-of-errors) (in-dict (group-errors (alt-expr (car simplified)) pcontext))])
     (unless (= 0 num-of-errors)
