@@ -11,21 +11,33 @@
 (define (ival-fl-cmp x-lo x-hi y-lo y-hi)
   (and (equal? x-lo y-lo) (equal? x-hi y-hi)))
 
+(define (ival-bf-cmp x-lo x-hi y-lo y-hi)
+  (and (bf= x-lo y-lo) (bf= x-hi y-hi)))
+
 (define (sin-correctness)
   ; Random number in double-precision
   (define flo-num-lo (bit-field->flonum (random-bits 64)))
   (define flo-num-hi (flstep flo-num-lo (random-integer 1 1000)))
+  
   ;(define flo-num-hi (flstep flo-num-lo 1))
   ; Make an ival out of these floats
   (define iv (ival (bf flo-num-lo) (bf flo-num-hi)))
   
-  (match-define (list reg-lo reg-hi) (ival->list-flo (ival-cos iv)))
-  (match-define (list mix-lo mix-hi) (ival->list-flo (ival-cos-mixed iv)))
+  (match-define (list reg-lo reg-hi) (ival->list-flo (ival-sin iv)))
+  (match-define (list mix-lo mix-hi) (ival->list-flo (ival-sin-mixed iv)))
   (cond
     [(not (ival-fl-cmp reg-lo reg-hi mix-lo mix-hi))
      (printf "interval that caused rounding errors ~a\n" iv)
-     (printf "regular sin in double precision: ~a\n" (ival->list-flo (ival-cos iv)))
-     (printf "mixed sin in double precision  : ~a\n\n" (ival->list-flo (ival-cos-mixed iv)))]))
+     (printf "regular sin in double precision: ~a\n" (ival->list-flo (ival-sin iv)))
+     (printf "mixed sin in double precision  : ~a\n\n" (ival->list-flo (ival-sin-mixed iv)))]))
+
+  ;(match-define (ival reg-lo reg-hi) (ival-sin iv))
+  ;(match-define (ival mix-lo mix-hi) (ival-sin-mixed iv))
+  ;(cond
+  ;  [(not (ival-bf-cmp reg-lo reg-hi mix-lo mix-hi))
+  ;   (printf "interval that caused rounding errors ~a\n" iv)
+  ;   (printf "regular sin in double precision: ~a\n" (ival-sin iv))
+  ;   (printf "mixed sin in double precision  : ~a\n\n" (ival-sin-mixed iv))]))
 
 (bf-precision 512)
 (sin-correctness)

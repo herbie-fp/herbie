@@ -559,12 +559,35 @@
 
 #;(define (ival-cos-mixed x)
   (define pi (ival-pi))
+
+  (define (cos-fraction x)
+    (define remainder (ival-mult ((monotonic bffrac) x) pi))
+    (println remainder)
+    (match-define (ival (endpoint a* _) (endpoint b* _) _ _)
+                (ival-round x))
+    (println a*)
+    (println b*)
+    
+    (define flag-a (bfeven? a*))
+    (define flag-b (bfeven? b*))
+    (cond
+      [(and flag-a flag-b)
+       ((monotonic bfabs) remainder)]
+      [(and (not flag-a) flag-b)
+       (mk-big-ival (bfneg (bfabs (ival-lo-val remainder))) (bfabs (ival-hi-val remainder)))]
+      [(and flag-a (not flag-b))
+       (mk-big-ival (bfabs (ival-lo-val remainder)) (bfneg (bfabs (ival-hi-val remainder))))]
+      [else
+       ((monotonic bfneg) ((monotonic bfabs) remainder))]))
+    
+  
   (define intermediate (ival-div x pi))
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
                 (ival-floor intermediate))
+    
   (parameterize ([bf-precision 64])
-    (define remainder (ival-mult ((monotonic bffrac) intermediate) pi))
-    (println remainder)
+    (define remainder (cos-fraction intermediate))
+    ;(println remainder )
     (cond
       [(and (bf=? a b) (bfeven? a))
        ((comonotonic bfcos) remainder)]
@@ -622,21 +645,21 @@
   (define intermediate (ival-div x pi))
   
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-floor (ival-sub intermediate (mk-big-ival half.bf half.bf))))
-
+                (ival-round intermediate))
+  
   (parameterize ([bf-precision 64])
     (define remainder (sin-fraction intermediate))
     (cond
-      [(and (bf=? a b) (bfeven? a))
-       ((comonotonic bfsin) remainder)]
       [(and (bf=? a b) (bfodd? a))
+       ((comonotonic bfsin) remainder)]
+      [(and (bf=? a b) (bfeven? a))
        ((monotonic bfsin) remainder)]
-      [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+      [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
        (ival (endpoint -1.bf #f)
              (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder)))
              (ival-err? x)
              (ival-err x))]
-      [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+      [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
        (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder)))
              (endpoint 1.bf #f)
              (ival-err? x)
