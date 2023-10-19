@@ -68,6 +68,7 @@
           [ival-pow (-> ival? ival? ival?)]
           ;[ival-sin-mixed (-> ival? ival?)]
           [ival-sin (-> ival? ival?)]
+          ;[ival-cos-mixed (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
           [ival-tan (-> ival? ival?)]
           [ival-asin (-> ival? ival?)]
@@ -556,6 +557,29 @@
    [else
     (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
+#;(define (ival-cos-mixed x)
+  (define pi (ival-pi))
+  (define intermediate (ival-div x pi))
+  (match-define (ival (endpoint a _) (endpoint b _) _ _)
+                (ival-floor intermediate))
+  (parameterize ([bf-precision 64])
+    (define remainder (ival-mult ((monotonic bffrac) intermediate) pi))
+    (println remainder)
+    (cond
+      [(and (bf=? a b) (bfeven? a))
+       ((comonotonic bfcos) remainder)]
+      [(and (bf=? a b) (bfodd? a))
+       ((monotonic bfcos) remainder)]
+      [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+       (ival (endpoint -1.bf #f)
+             (rnd 'up epfn bfmax2 (epfn bfcos (ival-lo remainder)) (epfn bfcos (ival-hi remainder)))
+             (ival-err? x) (ival-err x))]
+      [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+       (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo remainder)) (epfn bfcos (ival-hi remainder)))
+             (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
+      [else
+       (ival-then x (mk-big-ival -1.bf 1.bf))])))
+
 #;(define (ival-sin x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
                 (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf))))
@@ -577,8 +601,9 @@
   ;;   proper signs to be put into bfsin function. At this point we don't care about order of lo and hi
   ;;   endpoints, here are cases when hi is negative, lo is positive. The further logic of ival-sin will
   ;;   solve this ordering problem without our participation, we need only signs of lo and hi to be correct.
+  (define pi (ival-pi))
   (define (sin-fraction x)
-    (define remainder (ival-mult ((monotonic bffrac) x) (ival-pi)))
+    (define remainder (ival-mult ((monotonic bffrac) x) pi))
     (match-define (ival (endpoint a* _) (endpoint b* _) _ _)
       (ival-floor x))
     
@@ -594,12 +619,12 @@
       [else
        ((monotonic bfneg) ((monotonic bfabs) remainder))]))
   
-  (define intermediate (ival-div x (ival-pi)))
+  (define intermediate (ival-div x pi))
   
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
                 (ival-floor (ival-sub intermediate (mk-big-ival half.bf half.bf))))
 
-  (parameterize ([bf-precision 53])
+  (parameterize ([bf-precision 64])
     (define remainder (sin-fraction intermediate))
     (cond
       [(and (bf=? a b) (bfeven? a))

@@ -19,18 +19,18 @@
   ; Make an ival out of these floats
   (define iv (ival (bf flo-num-lo) (bf flo-num-hi)))
   
-  (match-define (list reg-lo reg-hi) (ival->list-flo (ival-sin iv)))
-  (match-define (list mix-lo mix-hi) (ival->list-flo (ival-sin-mixed iv)))
+  (match-define (list reg-lo reg-hi) (ival->list-flo (ival-cos iv)))
+  (match-define (list mix-lo mix-hi) (ival->list-flo (ival-cos-mixed iv)))
   (cond
     [(not (ival-fl-cmp reg-lo reg-hi mix-lo mix-hi))
      (printf "interval that caused rounding errors ~a\n" iv)
-     (printf "regular sin in double precision: ~a\n" (ival->list-flo (ival-sin iv)))
-     (printf "mixed sin in double precision  : ~a\n\n" (ival->list-flo (ival-sin-mixed iv)))]))
+     (printf "regular sin in double precision: ~a\n" (ival->list-flo (ival-cos iv)))
+     (printf "mixed sin in double precision  : ~a\n\n" (ival->list-flo (ival-cos-mixed iv)))]))
 
 (bf-precision 512)
 (sin-correctness)
 
-(for/list ([i (in-range 1000)]) (sin-correctness))
+(for/list ([i (in-range 10000)]) (sin-correctness))
 
 
 
