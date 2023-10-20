@@ -436,6 +436,10 @@ function tableRow(test) {
             Element("a", {
                 href: `${test.link}/graph.html`
             }, ["»"])]),
+        Element("td", {}, [
+            Element("a", {
+                href: `${test.link}/timeline.html`
+            }, ["📊"])]),
     ])
     tr.addEventListener("click", () => tr.querySelector("a").click())
     return tr
@@ -566,6 +570,10 @@ function tableRowDiff(test) {
             Element("a", {
                 href: `${test.link}/graph.html`
             }, ["»"])]),
+        Element("td", {}, [
+            Element("a", {
+                href: `${test.link}/timeline.html`
+            }, ["📊"])]),
     ])
     tr.addEventListener("click", () => tr.querySelector("a").click())
     return { tr: tr, equal: hideRow }
