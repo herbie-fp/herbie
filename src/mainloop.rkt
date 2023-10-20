@@ -196,11 +196,11 @@
            [(list 'simplify '() input proof soundiness)
             (list 'simplify loc0 input proof soundiness)]))
         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
-        (alt expr* event* (list (loop (first prevs))) '())])))
+        (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
   
   (^patched^
    (reap [sow]
-     (for ([altn (in-list alts)])
+     (for ([altn (in-list alts)]) ;; does not have preproc
        (define expr0 (get-starting-expr altn))
        (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
            (for* ([alt0 (in-list (^next-alts^))]
@@ -286,6 +286,9 @@
         (atab-pick-alt table #:picking-func picking-func #:only-fresh #t))
       table*))
   (localize!)
+
+ 
+
   (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!))
   
@@ -322,18 +325,32 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
+;;; (define (check-alts-have-preprocessing! phase alts)
+;;;   (writeln phase)
+;;;   (for ([alt (in-list alts)])
+;;;     (writeln (alt-preprocessing alt))
+;;;     ;;; (null? (alt-preprocessing alt)
+;;;     ;;;   (error "Lost my preprocessing at ~a, sad, qq" phase))
+;;;       )
+;;;     (writeln phase))
+
 (define (run-improve! initial specification context pcontext)
   (timeline-event! 'preprocess)
   (define-values (simplified preprocessing)
     (find-preprocessing initial specification context))
+
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (match-define (and alternatives (cons (alt best _ _ _) _))
     (mutate! simplified context pcontext* (*num-iterations*)))
+  
+  ;;; (check-alts-have-preprocessing! 'from-ffp-2! alternatives)
+  
   (timeline-event! 'preprocess)
   (define final-alts
-    (for/list ([altern simplified])
+    (for/list ([altern alternatives])
       (make-alt-preprocessing (alt-expr altern) (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
+  ;;; (check-alts-have-preprocessing! 'fintal-alts final-alts)
   (values final-alts preprocessing)) 
 
 (define (mutate! simplified context pcontext iterations)
@@ -348,6 +365,9 @@
   (define repr (context-repr ctx))
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* (atab-active-alts (^table^)))
+  
+
+  ;;; (check-alts-have-preprocessing! 'extract all-alts)
 
   (define ndone-alts (atab-not-done-alts (^table^)))
   (for ([alt (atab-active-alts (^table^))])
@@ -367,7 +387,7 @@
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
-
+  ;;; (check-alts-have-preprocessing! 'extract-2 joined-alts)
   (define cleaned-alts
     (cond
       [(flag-set? 'generate 'simplify)
@@ -378,7 +398,7 @@
        (define simplified (simplify-batch egg-query))
 
        (for/list ([altn joined-alts] [progs simplified])
-         (alt (last progs) 'final-simplify (list altn) '()))]
+         (alt (last progs) 'final-simplify (list altn) (alt-preprocessing altn)))] ;;; TODO HERE
       [else
        joined-alts]))
         

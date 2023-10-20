@@ -1,0 +1,5 @@
+; -*- mode: scheme -*-
+
+(FPCore (x y z)
+ :name "preprocess cont"
+ (sqrt ( + (* x x) (* y y) (* z z))))
