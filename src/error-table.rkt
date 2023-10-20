@@ -6,6 +6,10 @@
 
 (provide group-errors list-all-errors)
 
+#|
+Need to fix this code!
+We need to count all max error
+|#
 (define (group-errors expr pcontext)  
   (match-define (cons subexprs pt-errorss)
     (flip-lists
@@ -21,39 +25,7 @@
     (values (first group) (length group))))
 
 ;- Error Listing ---------------------------------------------------------------
- 
-;; Using for debugging
-(define (print-errors expr pcontext)
-  (define (zip l1 l2) (map list l1 l2))
-  (define points (for/list ([(pt _) (in-pcontext pcontext)]) pt))
-  (define local-errors (car (compute-local-errors (list expr) (*context*))))
- 
-  (define max-per-point (make-hash))
-  (define errpts-per-subexpr (make-hash))
- 
-  (for ([pt points])
-    (hash-set! max-per-point pt (list 0 0)))
- 
-  (for ([(sub-expr errors) local-errors])
-    (hash-set! errpts-per-subexpr sub-expr null)
-    (for ([pair (zip points errors)])
-      (define pt (car pair))
-      (define err (cadr pair))
-      (define old-error (hash-ref max-per-point pt))
-      (if (> err (cadr old-error))
-        (hash-set! max-per-point pt (list sub-expr err))
-        null)))
- 
-  (hash-set! errpts-per-subexpr #f null)
- 
-  (for ([(k v) max-per-point])
-    (define sub-expr (car v))
-    (define err (cadr v))
-    (if (> err 2)
-      (hash-update! errpts-per-subexpr sub-expr (curry cons k))
-      (hash-update! errpts-per-subexpr #f (curry cons k)))))
- 
- 
+
 #|
 NOTE: This is not the correct definition of exactness. We need to also
       include the notion of introduced error as well. Some time later
@@ -78,14 +50,12 @@ NOTE: This is not the correct definition of exactness. We need to also
           (fl> (flabs a) (fl/ (flabs b) 2.0)))]))
  
 (define (list-all-errors expr ctx pctx)
-  ;; (print-errors expr pctx)
-  
   (define subexprs
     (all-subexpressions-rev expr (context-repr ctx)))
 
   ;; map car subexprs
-  (define subexprs-list
-    (for/list ([subexpr (in-list subexprs)])
+  (define subexprs-list (map car subexprs)
+    #;(for/list ([subexpr (in-list subexprs)])
       (car subexpr)))
  
   (define ctx-list
@@ -121,7 +91,7 @@ NOTE: This is not the correct definition of exactness. We need to also
  
       (match subexpr
         #|
-        TODO: Suffers pretty badly because of are bad definition of exactness
+        TODO: -/+ suffers pretty badly because of are bad definition of exactness
         |#
         [(list '+.f64 larg rarg)
          #:when (or (is-inexact? larg) (is-inexact? rarg))
@@ -184,26 +154,45 @@ NOTE: This is not the correct definition of exactness. We need to also
          (define larg-val (flabs (hash-ref exacts-hash larg)))
          (define rarg-val (flabs (hash-ref exacts-hash rarg)))
          (define larg-uflow? (hash-ref uflow-hash larg))
+         (define larg-oflow? (hash-ref oflow-hash larg))
+         (define rarg-uflow? (hash-ref uflow-hash rarg))
+         (define rarg-oflow? (hash-ref oflow-hash rarg))
          (cond
            [(and larg-uflow? (fl< rarg-val 1e-150)) (mark-erroneous! subexpr)]
-           [_ #f])]
+           [(and (fl< larg-val 1e-150) rarg-uflow?) (mark-erroneous! subexpr)]
+           [else #f])]
  
         #|
-        TODO: log is very goo at rescuing underflow/overflows
+        TODO: log is very good at rescuing underflow/overflows
         |#
         [(list 'log.f64 arg)
          #:when (is-inexact? arg)
-         (define argval (hash-ref exacts-hash arg))
-         (and (very-close? argval 1.0) (mark-erroneous! subexpr))]
- 
+         (define arg-val (hash-ref exacts-hash arg))
+         (define arg-oflow? (hash-ref oflow-hash arg))
+         (define arg-uflow? (hash-ref uflow-hash arg))
+         (cond
+           [arg-oflow? (mark-erroneous! subexpr)]
+           [arg-uflow? (mark-erroneous! subexpr)]
+           [(very-close? arg-val 1.0) (mark-erroneous! subexpr)]
+           [else #f])]
+
+        #|
+        TODO: I'm not sure of the limit
+        |#
+        [(list 'exp.f64 arg)
+         #:when (is-inexact? arg)
+         (define arg-val (flabs (hash-ref exacts-hash arg)))
+         (and (fl> arg-val 1e308) (mark-erroneous! subexpr))]
+        
         #|
         TODO:
-        - need to figure out the exact error conditions for pow. Lot of things
+        - Need to figure out the exact error conditions for pow. Lot of things
         can happen. It can have high condition number, it can also rescue
         underflows and overflows. This gets even more complicated with a
         variable exponent
         - We know for a fact exp errors for high inputs. But high inputs for exp
         also overflow. At what limit does exp not overflow and still error?
+        - Multiplication definitely can rescue oflows/uflows
         |#
         
         [_ #f])))

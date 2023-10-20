@@ -340,18 +340,16 @@
   (*pcontext* pcontext)
 
   (define tcount-hash (group-errors (alt-expr (car simplified)) pcontext))
+  (eprintf "[tcount] ~a\n" tcount-hash)
   (define pcount-hash (list-all-errors (alt-expr (car simplified)) context pcontext))
-  (for ([(subexpr tcount) (in-dict tcount-hash)]
+  (eprintf "[pcount] ~a\n" pcount-hash)
+  (for ([(subexpr pcount) (in-dict pcount-hash)]
         #:when subexpr)
-    (define pcount (hash-ref pcount-hash subexpr))
+    (define tcount (if (hash-has-key? tcount-hash subexpr) (hash-ref tcount-hash subexpr) 0))
     (timeline-push! 'fperrors (~a subexpr) tcount pcount))
   (timeline-push! 'fperrors #f
                   (if (hash-has-key? tcount-hash #f) (hash-ref tcount-hash #f) 0)
                   (hash-ref pcount-hash #f))
-  
-  #;(for ([(subexpr num-of-errors) (in-dict (group-errors (alt-expr (car simplified)) pcontext))])
-    (unless (= 0 num-of-errors)
-      (timeline-push! 'problems (and subexpr (~a subexpr)) num-of-errors)))
 
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
