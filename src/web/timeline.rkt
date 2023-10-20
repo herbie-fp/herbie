@@ -273,15 +273,17 @@
 
 (define (render-phase-fperrors fperrors)
   `((dt "FPErrors")
-    (dd (table ([class "times"])
-               (thead (tr (th "truth") (th "mispredicted") (th "subexpr")))
-               ,@(for/list ([rec (in-list fperrors)])
-                   (match-define (list expr tcount pcount) rec)
-                   `(tr (td ,(~a tcount) "×")
-                        (td ,(~a (- pcount tcount)))
-                        (td ,(if expr
-                                 `(code ,expr)
-                                 "No Errors"))))))))
+    (dd (details
+         (summary "Click to see full error table")
+         (table ([class "times"])
+                (thead (tr (th "truth") (th "mispredicted") (th "subexpr")))
+                ,@(for/list ([rec (in-list (sort fperrors > #:key second))])
+                    (match-define (list expr tcount pcount) rec)
+                    `(tr (td ,(~a tcount) "×")
+                         (td ,(~a pcount #;(- pcount tcount)))
+                         (td ,(if expr
+                                  `(code ,expr)
+                                  "No Errors")))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
