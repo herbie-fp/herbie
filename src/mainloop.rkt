@@ -340,9 +340,8 @@
   (*pcontext* pcontext)
 
   (define tcount-hash (group-errors (alt-expr (car simplified)) pcontext))
-  (eprintf "[tcount] ~a\n" tcount-hash)
   (define pcount-hash (list-all-errors (alt-expr (car simplified)) context pcontext))
-  (eprintf "[pcount] ~a\n" pcount-hash)
+
   (for ([(subexpr pcount) (in-dict pcount-hash)]
         #:when subexpr)
     (define tcount (if (hash-has-key? tcount-hash subexpr) (hash-ref tcount-hash subexpr) 0))
