@@ -16,12 +16,17 @@
                        platform?)]
     [platform-reprs (-> platform? (listof representation?))]
     [platform-operators (-> platform? (listof symbol?))]
-    [rename platform-ops platform-operator-impls (-> platform? (listof symbol?))]
+    [rename platform-impls platform-operator-impls (-> platform? (listof symbol?))]
     [platform-conversions (-> platform? (listof symbol?))]
-    [platform-reprchange-rules (-> platform? (listof rule?))]))
+    [platform-reprchange-rules (-> platform? (listof rule?))]
+    [platform-union (-> platform? platform? ... platform?)]
+    [platform-intersect (-> platform? platform? ... platform?)]
+    [platform-subtract (-> platform? platform? ... platform?)]))
 
 (module+ internals
-  (provide define-platform register-platform!))
+  (provide define-platform
+           register-platform!
+           platform-union))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -33,7 +38,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name reprs ops))
+(struct platform (name reprs impls))
 
 ;; Platform table, mapping name to platform
 (define platforms (make-hash))
@@ -53,75 +58,10 @@
   (printf "Activating platform `~a`\n" (platform-name pform))
   ; replace the active operator table
   (clear-active-operator-impls!)
-  (for ([impl (in-list (platform-ops pform))])
+  (for ([impl (in-list (platform-impls pform))])
     (activate-operator-impl! impl)))
 
-;; Real operators in a platform.
-(define (platform-operators pform)
-  (define ops (mutable-set))
-  (for ([impl (in-list (platform-ops pform))])
-    (set-add! ops (impl->operator impl)))
-  (set->list ops))
-
-;; Representation conversions in a platform.
-(define (platform-conversions pform)
-  (reap [sow]
-    (for ([impl (in-list (platform-ops pform))])
-      (when (eq? (impl->operator impl) 'cast)
-        (sow impl)))))
-
-;; Representation name sanitizer
-(define (repr->symbol repr)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
-  (define repr-name (representation-name repr))
-  (string->symbol (string-replace* (~a repr-name) replace-table)))
-
-;; The "precision change" rules valid for a platform
-(define (platform-reprchange-rules pform)
-  ; by directionality
-  (define unidir (mutable-set))
-  (define bidir (mutable-set))
-
-  ; conversion signatures
-  (for ([impl (platform-conversions pform)])
-    (match-define (list irepr) (operator-info impl 'itype))
-    (define orepr (operator-info impl 'otype))
-    (define sig (cons irepr orepr))
-    (set-add! unidir sig)
-    
-    (define rev-sig (cons orepr irepr))
-    (when (set-member? unidir rev-sig)
-      (set-add! bidir rev-sig)))
-
-  ; for each conversion, enable a rewrite
-  (define rules
-    (for/list ([(irepr orepr) (in-dict (set->list unidir))])
-      ; names
-      (define irepr-sym (repr->symbol irepr))
-      (define orepr-sym (repr->symbol orepr))
-      (define conv (sym-append irepr-sym '-> orepr-sym))
-      (define change (sym-append '<- irepr-sym))
-      (define rewrite-name (sym-append 'rewrite- orepr-sym '/ irepr-sym))
-      ; rules
-      (rule rewrite-name 'a `(,conv (,change a)) `((a . ,irepr)) orepr)))
-
-  ; for each bidirectional conversion, enable a pair of simplification rewrites
-  (for/fold ([rules rules]) ([(irepr orepr) (in-dict (set->list unidir))])
-    ; names
-    (define irepr-sym (repr->symbol irepr))
-    (define orepr-sym (repr->symbol orepr))
-    (define conv1 (sym-append irepr-sym '-> orepr-sym))
-    (define conv2 (sym-append orepr-sym '-> irepr-sym))
-    (define rw-name1 (sym-append 'rewrite- orepr-sym '/ irepr-sym '-simplify))
-    (define rw-name2 (sym-append 'rewrite- irepr-sym '/ orepr-sym '-simplify))
-    ; rules
-    (define simplify1 (rule rw-name1 'a `(,conv1 (,conv2 a)) `((a . ,orepr)) orepr))
-    (define simplify2 (rule rw-name2 'a `(,conv2 (,conv1 a)) `((a . ,irepr)) irepr))
-    (append (list simplify1 simplify2) rules)))
-
-;; Registers a platform: `repr-data` is a dictionary
-;; mapping a representation name to a list of operators
-;; and their types signatures (argument representations)
+;; Registers a platform under identifier `name`.
 (define (register-platform! name pform)
   (when (hash-has-key? platforms name)
     (error 'register-platform!
@@ -129,6 +69,12 @@
            name))
   (hash-set! platforms name
             (struct-copy platform pform [name name])))
+
+;; Representation name sanitizer
+(define (repr->symbol repr)
+  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
+  (define repr-name (representation-name repr))
+  (string->symbol (string-replace* (~a repr-name) replace-table)))
 
 ;; Loading conversion-related implementations for `repr1 => repr2`.
 (define (get-conversion-impls irepr orepr)
@@ -206,6 +152,7 @@
                              "expected identifier"
                              stx
                              #'id))
+       ;; iterate over `cs ...` to get conversions
        (define convs
          (let loop ([clauses (syntax->list #'(cs ...))] [convs '()])
            (match clauses
@@ -219,6 +166,7 @@
                                      "malformed conversion clause"
                                      stx
                                      entry)])])))
+       ;; iterate over `e1 es ...` to get operators
        (define-values (reprs ops)
          (let loop ([entries (syntax->list #'(e1 es ...))]
                     [reprs '()]
@@ -258,15 +206,17 @@
                          [([op itypes ...] rest ...)
                           (loop #'(rest ...) (cons #'(op itypes ...) done))]
                          [_
-                          (raise-syntax-error 'define-platform "malformed operator" stx clauses)])))
+                          (raise-syntax-error 'define-platform
+                                              "malformed operator entry"
+                                              stx clauses)])))
                    (loop rest
                          (cons (syntax->datum #'name) reprs)
                          (append ops ops/repr)))])]
                 [_
                  (raise-syntax-error 'define-platform
                                      "malformed representation entry"
-                                     stx
-                                     #'entry)])))
+                                     stx #'entry)])))
+       ;; compose everything into a `make-platform` call
        (with-syntax ([(repr-names ...) reprs]   
                      [(convs ...) convs]
                      [(ops ...) ops])
@@ -278,19 +228,76 @@
     [_
      (raise-syntax-error 'define-platform "bad syntax" stx)]))
 
-;; This is a simpler implementation of `define-platform` that
-;; does not support keywords
-;; Macro version of `register-platform!`.
-; (define-syntax define-platform
-;   (syntax-rules ()
-;     [(_ name [repr-name (conv-targets ...) [op itypes ...] ...] ...)
-;      (begin
-;        (define repr-data
-;          (for/list ([repr '(repr-name ...)]
-;                     [convs-to '((conv-targets ...) ...)]
-;                     [op-data '(((op itypes ...) ...) ...)])
-;            (define conversions
-;              (for/list ([conv-to convs-to])
-;                (list 'cast conv-to)))
-;            (cons repr (append conversions op-data))))
-;        (register-platform! 'name repr-data))]))
+;; Real operators in a platform.
+(define (platform-operators pform)
+  (define ops (mutable-set))
+  (for ([impl (in-list (platform-impls pform))])
+    (set-add! ops (impl->operator impl)))
+  (set->list ops))
+
+;; Representation conversions in a platform.
+(define (platform-conversions pform)
+  (reap [sow]
+    (for ([impl (in-list (platform-impls pform))])
+      (when (eq? (impl->operator impl) 'cast)
+        (sow impl)))))
+
+;; The "precision change" rules valid for a platform
+(define (platform-reprchange-rules pform)
+  ; by directionality
+  (define unidir (mutable-set))
+  (define bidir (mutable-set))
+
+  ; conversion signatures
+  (for ([impl (platform-conversions pform)])
+    (match-define (list irepr) (operator-info impl 'itype))
+    (define orepr (operator-info impl 'otype))
+    (define sig (cons irepr orepr))
+    (set-add! unidir sig)
+    
+    (define rev-sig (cons orepr irepr))
+    (when (set-member? unidir rev-sig)
+      (set-add! bidir rev-sig)))
+
+  ; for each conversion, enable a rewrite
+  (define rules
+    (for/list ([(irepr orepr) (in-dict (set->list unidir))])
+      ; names
+      (define irepr-sym (repr->symbol irepr))
+      (define orepr-sym (repr->symbol orepr))
+      (define conv (sym-append irepr-sym '-> orepr-sym))
+      (define change (sym-append '<- irepr-sym))
+      (define rewrite-name (sym-append 'rewrite- orepr-sym '/ irepr-sym))
+      ; rules
+      (rule rewrite-name 'a `(,conv (,change a)) `((a . ,irepr)) orepr)))
+
+  ; for each bidirectional conversion, enable a pair of simplification rewrites
+  (for/fold ([rules rules]) ([(irepr orepr) (in-dict (set->list unidir))])
+    ; names
+    (define irepr-sym (repr->symbol irepr))
+    (define orepr-sym (repr->symbol orepr))
+    (define conv1 (sym-append irepr-sym '-> orepr-sym))
+    (define conv2 (sym-append orepr-sym '-> irepr-sym))
+    (define rw-name1 (sym-append 'rewrite- orepr-sym '/ irepr-sym '-simplify))
+    (define rw-name2 (sym-append 'rewrite- irepr-sym '/ orepr-sym '-simplify))
+    ; rules
+    (define simplify1 (rule rw-name1 'a `(,conv1 (,conv2 a)) `((a . ,orepr)) orepr))
+    (define simplify2 (rule rw-name2 'a `(,conv2 (,conv1 a)) `((a . ,irepr)) irepr))
+    (append (list simplify1 simplify2) rules)))
+
+;; Applier for set operations on platforms
+(define ((make-set-applier set-fn) p1 . ps)
+  (define reprs
+    (apply set-fn
+      (for/list ([p (in-list (cons p1 ps))])
+        (list->set (platform-reprs p)))))
+  (define impls
+    (apply set-fn
+      (for/list ([p (in-list (cons p1 ps))])
+        (list->set (platform-impls p)))))
+  (platform #f (set->list reprs) (set->list impls)))
+  
+;; Set operations on platforms
+(define platform-union (make-set-applier set-union))
+(define platform-intersect (make-set-applier set-intersect))
+(define platform-subtract (make-set-applier set-subtract))

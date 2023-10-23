@@ -13,4 +13,4 @@
          register-conversion-generator!
          register-generator! register-operator!
          (struct-out representation) get-representation warn
-         define-platform register-platform!)
+         define-platform register-platform! platform-union)

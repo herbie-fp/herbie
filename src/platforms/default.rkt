@@ -5,21 +5,37 @@
 
 (require "../plugin.rkt")
 
-(define-platform default
-  ([binary32 binary64])
-
+; boolean platform (universal)
+(define-platform boolean-platform ()
   (bool
     #:const [TRUE FALSE]
     #:1ary [not]
-    #:2ary [and or]
+    #:2ary [and or]))
+
+(register-platform! 'boolean boolean-platform)
+
+; machine floating-point operations
+(define-platform machine-platform
+  ([binary64 binary32])
+  (bool
     #:2ary binary64 [== != > < >= <=]
     #:2ary binary32 [== != > < >= <=])
-
   (binary64
     #:const [PI E INFINITY NAN]
-    ; arithmetic
     #:1ary [neg]
-    #:2ary [+ - * /]
+    #:2ary [+ - * /])
+  (binary32
+    #:const [PI E INFINITY NAN]
+    #:1ary [neg]
+    #:2ary [+ - * /]))
+
+(register-platform! 'hardware
+  (platform-union boolean-platform
+                  machine-platform))
+
+; libm platform
+(define-platform libm-platform ()
+  (binary64
     ; libm (common)
     #:1ary [acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
             exp exp2 fabs floor lgamma log log10 log2 logb rint round
@@ -31,10 +47,6 @@
     #:3ary [fma])
 
   (binary32
-    #:const [PI E INFINITY NAN]
-    ; arithmetic
-    #:1ary [neg]
-    #:2ary [+ - * /]
     ; libm (common)
     #:1ary [acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
             exp exp2 fabs floor lgamma log log10 log2 logb rint round
@@ -45,4 +57,7 @@
     #:2ary [atan2 hypot]
     #:3ary [fma]))
 
-(register-platform! 'default default)
+(register-platform! 'default
+  (platform-union boolean-platform
+                  machine-platform
+                  libm-platform))
