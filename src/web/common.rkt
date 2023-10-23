@@ -4,6 +4,7 @@
                           core->c core->fortran core->java core->python
                           core->julia core->matlab core->wls core->tex
                           expr->tex
+                          compilers
                           [core-common-subexpr-elim core-cse]
                           *expr-cse-able?*))
 
@@ -100,15 +101,15 @@
 (define (combine-fpcore-instruction i e c)
   (match i
     [(list 'abs x)
-     (define x* (string->symbol (string-append (symbol->string x) "*")))
+     (define x* (string->symbol (string-append (symbol->string x) "_prime")))
      (define e* (replace-vars (list (cons x x*)) e))
      (define p (index-of (context-vars c) x))
      (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
      (cons e* c*)]
     [(list 'negabs x)
      (define x-string (symbol->string x))
-     (define x-sign (string->symbol (string-append x-string "-sign")))
-     (define x* (string->symbol (string-append x-string "*")))
+     (define x-sign (string->symbol (string-append x-string "_sign")))
+     (define x* (string->symbol (string-append x-string "_prime")))
      (define e* `(* ,x-sign ,(replace-vars (list (cons x x*)) e)))
      (define p (index-of (context-vars c) x))
      (define r (list-ref (context-var-reprs c) p))
@@ -192,27 +193,46 @@
                    (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
           (define name (if identifier (symbol->string identifier) "code"))
           (define out (converter out-prog* name))
+          (define (strip-function-declaration s)
+            (define lines (string-split s "\n"))
+            (match lang
+              ;; TODO
+              ["FPCore" (pretty-format (last out-prog*) #:mode 'display)]
+              ["C" (string-trim (second lines) #px"\\s+return\\s+")]
+              ["Fortran" (string-trim (third lines) #px"\\s+code\\s+=\\s+")]
+              ["Java" (string-trim (second lines) #px"\\s+return\\s+")]
+              ["Python" (string-trim (second lines) #px"\\s+return\\s+")]
+              ["Julia" (string-trim (second lines) #px"\\s+return\\s+")]
+              ["MATLAB" (string-trim (second lines) #px"\\s+tmp\\s+=\\s+")]
+              ["Wolfram" (string-trim (first lines) #px".*:=\\s+")]
+              ["TeX" s]
+              [_
+               (when (<= (length lines) 2)
+                 (eprintf "~a\n" ext)
+                 (eprintf "~a\n" s))
+               (string-join (drop (drop-right lines 1) 1) "\n")]))
+          (define converter* (compose strip-function-declaration converter))
           (define prelude-lines
             (string-join
              (map
               (match-lambda
                 [(list 'abs x)
-                 (define x* (string->symbol (string-append (symbol->string x) "*")))
+                 (define x* (string->symbol (string-append (symbol->string x) "_prime")))
                  (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
                  (define e (list (get-parametric-operator 'fabs r) x))
                  (define c (context (list x*) r r))
-                 (format "~a = ~a" x* (converter (program->fpcore e c) name))]
+                 (format "~a = ~a" x* (converter* (program->fpcore e c) name))]
                 [(list 'negabs x)
                  (define x-string (symbol->string x))
-                 (define x* (string->symbol (string-append x-string "*")))
+                 (define x* (string->symbol (string-append x-string "_prime")))
                  (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
                  (define e* (list (get-parametric-operator 'fabs r) x))
-                 (define x-sign (string->symbol (string-append x-string "-sign")))
+                 (define x-sign (string->symbol (string-append x-string "_sign")))
                  (define e-sign (list (get-parametric-operator 'copysign r) 1 x))
                  (define c (context (list x*) r r))
                  (format "~a = ~a\n~a = ~a"
-                         x* (converter (program->fpcore e* c) name)
-                         x-sign (converter (program->fpcore e-sign c) name))]
+                         x* (converter* (program->fpcore e* c) name)
+                         x-sign (converter* (program->fpcore e-sign c) name))]
                 [(list 'sort vs ...)
                  (define vs (context-vars ctx))
                  (define vs* (context-vars ctx*))
@@ -221,14 +241,15 @@
                   ;; list in `ctx*`. Finding the difference in lengths and taking
                   ;; the list after that position yields a list containing only
                   ;; the (potentially modified) original variable symbols.
+                  #;(take-right vs* (length vs))
                   (drop vs* (- (length vs*) (length vs)))
                   lang)])
               instructions)
              #;"\n"
-             (if (equal? lang "TeX") "\\\n" "\n")
+             (if (equal? lang "TeX") "\\\\\n" "\n")
              #:after-last
              "\n"))
-          (printf "~a\n" prelude-lines)
+          ;; (printf "~a\n" prelude-lines)
           #;(define prelude-lines
             (string-join
              (filter-map (curry format-prelude-instruction lang) prelude-instructions)
