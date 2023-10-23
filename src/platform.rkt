@@ -10,10 +10,6 @@
   ;;; Platform API
   (contract-out
     [platform? (-> any/c boolean?)]
-    [make-platform (-> (listof representation?)
-                       (listof (cons/c representation? representation?))
-                       (listof (listof any/c))
-                       platform?)]
     [platform-reprs (-> platform? (listof representation?))]
     [platform-operators (-> platform? (listof symbol?))]
     [rename platform-impls platform-operator-impls (-> platform? (listof symbol?))]
@@ -22,13 +18,13 @@
     [platform-union (-> platform? platform? ... platform?)]
     [platform-intersect (-> platform? platform? ... platform?)]
     [platform-subtract (-> platform? platform? ... platform?)]
-    [platform-product (-> (listof (cons/c symbol? representation?))
-                          (listof symbol?)
-                          platform?)]))
+    [make-platform-product (-> (listof (cons/c symbol? representation?))
+                           (listof symbol?)
+                           platform?)]))
 
 (module+ internals
-  (provide define-platform register-platform!
-           define-platform-product platform-product
+  (provide platform make-platform register-platform!
+           platform-product make-platform-product
            platform-union platform-intersect platform-subtract))
 
 ;;; Platforms describe a set of representations, operator, and constants
@@ -41,7 +37,14 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name reprs impls))
+(struct platform (name reprs impls)
+        #:name $platform
+        #:constructor-name create-platform
+        #:methods gen:custom-write
+        [(define (write-proc p port mode)
+           (if (platform-name p)
+               (fprintf port "#<platform:~a>" (platform-name p))
+               (fprintf port "#<platform>")))])
 
 ;; Platform table, mapping name to platform
 (define platforms (make-hash))
@@ -71,7 +74,7 @@
            "platform already registered ~a"
            name))
   (hash-set! platforms name
-            (struct-copy platform pform [name name])))
+            (struct-copy $platform pform [name name])))
 
 ;; Representation name sanitizer
 (define (repr->symbol repr)
@@ -126,35 +129,31 @@
          (define ireprs (map get-representation itypes))
          (apply get-parametric-operator name ireprs #:all? #t)])))
   ; make the platform
-  (platform #f reprs (append convs ops)))
+  (create-platform #f reprs (append convs ops)))
 
 ;; Macro version of `make-platform`
 ;; 
 ;; Example usage:
 ;; ```
-;; (define-platform default
-;;   ([binary64 binary32] ...)  ; conversions
-;;   (bool
-;;    #:const [TRUE]            ; keyword declaration
-;;    [FALSE]                   ; non-keyword declaration
-;;    #:1ary [not]              ; keyword declaration (e.g., not : bool -> bool)
-;;    #:2ary [and or]           ; keyword declaration (e.g., and : bool x bool -> bool)
-;;    #:2ary binary64 [== > <]  ; keyword declaration (e.g., == : binary64 x binary64 -> bool)
-;;    [>= binary64 binary64]    ; non-keyword declaration
-;;    [<= binary64 binary64]    ; non-keyword declaration
-;;   )
-;;   ...
-;; )
+;; (define default
+;    (platform
+;;     ([binary64 binary32] ...)  ; conversions
+;;     (bool
+;;       #:const [TRUE]            ; keyword declaration
+;;       [FALSE]                   ; non-keyword declaration
+;;       #:1ary [not]              ; keyword declaration (e.g., not : bool -> bool)
+;;       #:2ary [and or]           ; keyword declaration (e.g., and : bool x bool -> bool)
+;;       #:2ary binary64 [== > <]  ; keyword declaration (e.g., == : binary64 x binary64 -> bool)
+;;       [>= binary64 binary64]    ; non-keyword declaration
+;;       [<= binary64 binary64]    ; non-keyword declaration
+;;      )
+;;     ...
+;;   ))
 ;; ```
-(define-syntax (define-platform stx)
+(define-syntax (platform stx)
   (syntax-case stx ()
-    [(_ id (cs ...) e1 es ...)
+    [(_ (cs ...) e1 es ...)
      (begin
-       (unless (identifier? #'id)
-         (raise-syntax-error 'define-platform
-                             "expected identifier"
-                             stx
-                             #'id))
        ;; iterate over `cs ...` to get conversions
        (define convs
          (let loop ([clauses (syntax->list #'(cs ...))] [convs '()])
@@ -223,7 +222,7 @@
        (with-syntax ([(repr-names ...) reprs]   
                      [(convs ...) convs]
                      [(ops ...) ops])
-         #'(define id (make-platform '(repr-names ...) '(convs ...) '(ops ...)))))]
+         #'(make-platform '(repr-names ...) '(convs ...) '(ops ...))))]
     [(_ _ _ _ ...)
      (raise-syntax-error 'define-platform "malformed conversions clause" stx)]
     [(_ _)
@@ -298,7 +297,7 @@
     (apply set-fn
       (for/list ([p (in-list (cons p1 ps))])
         (list->set (platform-impls p)))))
-  (platform #f (set->list reprs) (set->list impls)))
+  (create-platform #f (set->list reprs) (set->list impls)))
   
 ;; Set operations on platforms
 (define platform-union (make-set-applier set-union))
@@ -318,7 +317,7 @@
 ;; Specialized "product" construction of a platform.
 ;; Given a map from type to representations, instantiate an operator implementation
 ;; for each valid assignment of representations.
-(define (platform-product type-dict ops)
+(define (make-platform-product type-dict ops)
   (define reprs
     (for/fold ([reprs* '()]) ([(_ reprs) (in-dict type-dict)])
       (append reprs reprs*)))
@@ -333,16 +332,11 @@
         (cons (list* op orepr ireprs) impls))))
   (make-platform reprs '() impls))
 
-;; Macro version of `platform-product`
-(define-syntax (define-platform-product stx)
+;; Macro version of `make-platform-product`
+(define-syntax (platform-product stx)
   (syntax-case stx ()
-    [(_ id cs ...)
+    [(_ cs ...)
      (begin
-       (unless (identifier? #'id)
-         (raise-syntax-error 'define-platform-product
-                             "expected identifier"
-                             stx
-                             #'id))
        (define-values (type-dict op-names)
          (let loop ([clauses (syntax->list #'(cs ...))]
                     [type-dict '()]
@@ -384,7 +378,7 @@
                                  clauses)])))
        (with-syntax ([(type-dict ...) type-dict]
                      [(op-names ...) op-names])
-         #'(define id (platform-product '(type-dict ...) '(op-names ...)))))]
+         #'(make-platform-product '(type-dict ...) '(op-names ...))))]
     [_
      (raise-syntax-error 'define-platform-product
                          "bad syntax"
