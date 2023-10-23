@@ -10,6 +10,10 @@
   ;;; Platform API
   (contract-out
     [platform? (-> any/c boolean?)]
+    [make-platform (-> (listof representation?)
+                       (listof (cons/c representation? representation?))
+                       (listof (listof any/c))
+                       platform?)]
     [platform-reprs (-> platform? (listof representation?))]
     [platform-operators (-> platform? (listof symbol?))]
     [rename platform-ops platform-operator-impls (-> platform? (listof symbol?))]
@@ -41,7 +45,7 @@
 ;; Panics if no platform is found.
 (define (get-platform name)
   (or (hash-ref platforms name #f)
-      (raise-herbie-error "unknown platform ~a, found ~a" name
+      (raise-herbie-error "unknown platform `~a`, found (~a)" name
                           (string-join (map ~a (hash-keys platforms)) ", "))))
 
 ;; Loads a platform.
@@ -118,55 +122,70 @@
 ;; Registers a platform: `repr-data` is a dictionary
 ;; mapping a representation name to a list of operators
 ;; and their types signatures (argument representations)
-(define (register-platform! name repr-data)
+(define (register-platform! name pform)
   (when (hash-has-key? platforms name)
-    (error 'register-platform! "platform already registered ~a" name))
+    (error 'register-platform!
+           "platform already registered ~a"
+           name))
+  (hash-set! platforms name
+            (struct-copy platform pform [name name])))
+
+;; Loading conversion-related implementations for `repr1 => repr2`.
+(define (get-conversion-impls irepr orepr)
+  (define impl
+    (or (get-repr-conv irepr orepr #:all? #t)
+        (generate-conversion-impl irepr orepr)))
+  (unless impl
+    (error 'load-conversion-impls! "could not generate conversion ~a => ~a"
+           (format "<~a>" (representation-name irepr))
+           (format "<~a>" (representation-name orepr))))
+  (define rw-impl (get-rewrite-operator orepr #:all? #t))
+  (unless rw-impl
+    ; need to make a "precision rewrite" operator
+    ; (only if we did not generate it before)
+    (define rewrite-name (sym-append '<- (repr->symbol orepr)))
+    (register-operator-impl! 'convert rewrite-name
+      (list orepr) orepr (list (cons 'fl identity)))
+    (set! rw-impl (get-rewrite-operator orepr #:all? #t)))
+  (list impl rw-impl))
+
+;; Constructor procedure for platforms.
+;; Verifies that a platform is well-formed and
+;; the platform will be supported by Herbie's runtime.
+(define (make-platform repr-names convs-dict ops-data)
+  ; load the representations
   (define reprs
-    (for/list ([(repr-name _) (in-dict repr-data)])
-       (get-representation repr-name)))
+    (for/list ([repr-name (in-list repr-names)])
+      (get-representation repr-name)))
+  ; load the conversions
+  (define convs
+    (for/fold ([convs '()]) ([(in out) (in-dict convs-dict)])
+      (define irepr (get-representation in))
+      (define orepr (get-representation out))
+      (append (get-conversion-impls irepr orepr)
+              (get-conversion-impls orepr irepr)
+              convs)))
+  ; load the operators
   (define ops
-    (for/fold ([ops '()]) ([(repr-name op-data) (in-dict repr-data)])
-      (define repr (get-representation repr-name))
-      (for/fold ([ops ops]) ([op (in-list op-data)])
-        (match op
-          [(list name)
-           ; special case: constants
-           (define impl (get-parametric-constant name repr #:all? #t))
-           (cons impl ops)]
-          [(list 'cast itype)
-           ; special case: casts are "representation changes"
-           ; these enable other operators as well for precision tuning
-           (define irepr (get-representation itype)) 
-           (define impl
-             (or (get-repr-conv irepr repr #:all? #t)
-                 (generate-conversion-impl irepr repr)))
-           (unless impl
-             (error 'register-platform! "could not generate conversion ~a => ~a"
-                    (format "<~a>" (representation-name irepr))
-                    (format "<~a>" (representation-name repr))))
-           (define rw-impl (get-rewrite-operator repr #:all? #t))
-           (unless rw-impl
-             ; need to make a "precision rewrite" operator
-             ; (only if we did not generate it before)
-             (define rewrite-name (sym-append '<- (repr->symbol repr)))
-             (register-operator-impl! 'convert rewrite-name
-               (list repr) repr (list (cons 'fl identity)))
-             (set! rw-impl (get-rewrite-operator repr #:all? #t)))
-           (append (list impl rw-impl) ops)]
-          [(list name itypes ...)
-           ; any other operator
-           (define ireprs (map get-representation itypes))
-           (define impl (apply get-parametric-operator name ireprs #:all? #t))
-           (cons impl ops)]))))
-  (define pform (platform name reprs ops))
-  (hash-set! platforms name pform))
+    (for/list ([op-data (in-list ops-data)])
+      (match op-data
+        [(list name otype)
+         ; special case: constants
+         (define orepr (get-representation otype))
+         (get-parametric-constant name orepr #:all? #t)]
+        [(list name _ itypes ...)
+         (define ireprs (map get-representation itypes))
+         (apply get-parametric-operator name ireprs #:all? #t)])))
+  ; make the platform
+  (platform #f reprs (append convs ops)))
 
 ;; Macro version of `register-platform!`
 ;; 
 ;; Example usage:
 ;; ```
 ;; (define-platform default
-;;   [bool ()                   ; no conversions
+;;   ([binary64 binary32] ...)  ; conversions
+;;   (bool
 ;;    #:const [TRUE]            ; keyword declaration
 ;;    [FALSE]                   ; non-keyword declaration
 ;;    #:1ary [not]              ; keyword declaration (e.g., not : bool -> bool)
@@ -174,75 +193,90 @@
 ;;    #:2ary binary64 [== > <]  ; keyword declaration (e.g., == : binary64 x binary64 -> bool)
 ;;    [>= binary64 binary64]    ; non-keyword declaration
 ;;    [<= binary64 binary64]    ; non-keyword declaration
-;;   ]
+;;   )
 ;;   ...
 ;; )
 ;; ```
 (define-syntax (define-platform stx)
   (syntax-case stx ()
-    [(_ name e1 es ...)
-     (let loop ([entries (syntax->list #'(e1 es ...))]
-                [repr-names '()]
-                [convs/repr '()]
-                [ops/repr '()])
-       (match entries
-         [(list)
-          (with-syntax ([(repr-names ...) repr-names]
-                        [(convs/repr ...) convs/repr]
-                        [(ops/repr ...) ops/repr])
-          #'(begin
-              (define repr-data
-                (for/list ([repr '(repr-names ...)]
-                           [convs-to '(convs/repr ...)]
-                           [op-data '(ops/repr ...)])
-                  (define conversions
-                    (for/list ([conv-to convs-to])
-                      (list 'cast conv-to)))
-                  (cons repr (append conversions op-data))))
-              (register-platform! 'name repr-data)))]
-         [(list entry rest ...)
-          (syntax-case entry ()
-            [(name (conv-targets ...) op-clauses ...)
-             (begin
-               (define targets (syntax->list #'(conv-targets ...)))
-               (define ops
-                 (let loop ([clauses #'(op-clauses ...)] [done '()])
-                   (syntax-case clauses ()
-                     [() done]
-                     [(#:const [ops ...] rest ...)
-                      (loop #'(rest ...) (append (syntax->list #'((ops) ...)) done))]
-                     [(#:1ary [ops ...] rest ...)
-                      (loop #'(#:1ary name [ops ...] rest ...) done)]
-                     [(#:2ary [ops ...] rest ...)
-                      (loop #'(#:2ary name [ops ...] rest ...) done)]
-                     [(#:3ary [ops ...] rest ...)
-                      (loop #'(#:3ary name [ops ...] rest ...) done)]
-                     [(#:4ary [ops ...] rest ...)
-                      (loop #'(#:4ary name [ops ...] rest ...) done)]
-                     [(#:1ary itype [ops ...] rest ...)
-                      (with-syntax ([(itypes ...) (build-list 1 (λ (_) #'itype))])
-                        (loop #'(rest ...) (append (syntax->list #'((ops itypes ...) ...)) done)))]
-                     [(#:2ary itype [ops ...] rest ...)
-                      (with-syntax ([(itypes ...) (build-list 2 (λ (_) #'itype))])
-                        (loop #'(rest ...) (append (syntax->list #'((ops itypes ...) ...)) done)))]
-                     [(#:3ary itype [ops ...] rest ...)
-                      (with-syntax ([(itypes ...) (build-list 3 (λ (_) #'itype))])
-                        (loop #'(rest ...) (append (syntax->list #'((ops itypes ...) ...)) done)))]
-                     [(#:4ary itype [ops ...] rest ...)
-                      (with-syntax ([(itypes ...) (build-list 4 (λ (_) #'itype))])
-                        (loop #'(rest ...) (append (syntax->list #'((ops itypes ...) ...)) done)))]
-                     [([op itypes ...] rest ...)
-                      (loop #'(rest ...) (cons #'(op itypes ...) done))]
-                     [_
-                      (raise-syntax-error 'define-platform "malformed operator" stx clauses)])))
-               (loop rest
-                     (cons (syntax->datum #'name) repr-names)
-                     (cons targets convs/repr)
-                     (cons ops ops/repr)))]
-            [_
-             (raise-syntax-error 'define-platform "malformed entry" stx entry)])]))]
+    [(_ id (cs ...) e1 es ...)
+     (begin
+       (unless (identifier? #'id)
+         (raise-syntax-error 'define-platform
+                             "expected identifier"
+                             stx
+                             #'id))
+       (define convs
+         (let loop ([clauses (syntax->list #'(cs ...))] [convs '()])
+           (match clauses
+             [(list) convs]
+             [(list entry rest ...)
+              (syntax-case entry ()
+                [(in out)
+                 (loop rest (cons (cons #'in #'out) convs))]
+                [_
+                 (raise-syntax-error 'define-platform
+                                     "malformed conversion clause"
+                                     stx
+                                     entry)])])))
+       (define-values (reprs ops)
+         (let loop ([entries (syntax->list #'(e1 es ...))]
+                    [reprs '()]
+                    [ops/repr '()])
+           (match entries
+             [(list) (values reprs ops/repr)]
+             [(list entry rest ...)
+              (syntax-case entry ()
+                [(name op-clauses ...)
+                 (begin
+                   (define ops
+                     (let loop ([clauses #'(op-clauses ...)] [done '()])
+                       (syntax-case clauses ()
+                         [() done]
+                         [(#:const [ops ...] rest ...)
+                          (loop #'(rest ...) (append (syntax->list #'((ops name) ...)) done))]
+                         [(#:1ary [ops ...] rest ...)
+                          (loop #'(#:1ary name [ops ...] rest ...) done)]
+                         [(#:2ary [ops ...] rest ...)
+                          (loop #'(#:2ary name [ops ...] rest ...) done)]
+                         [(#:3ary [ops ...] rest ...)
+                          (loop #'(#:3ary name [ops ...] rest ...) done)]
+                         [(#:4ary [ops ...] rest ...)
+                          (loop #'(#:4ary name [ops ...] rest ...) done)]
+                         [(#:1ary itype [ops ...] rest ...)
+                          (with-syntax ([(itypes ...) (build-list 1 (λ (_) #'itype))])
+                            (loop #'(rest ...) (append (syntax->list #'((ops name itypes ...) ...)) done)))]
+                         [(#:2ary itype [ops ...] rest ...)
+                          (with-syntax ([(itypes ...) (build-list 2 (λ (_) #'itype))])
+                            (loop #'(rest ...) (append (syntax->list #'((ops name itypes ...) ...)) done)))]
+                         [(#:3ary itype [ops ...] rest ...)
+                          (with-syntax ([(itypes ...) (build-list 3 (λ (_) #'itype))])
+                            (loop #'(rest ...) (append (syntax->list #'((ops name itypes ...) ...)) done)))]
+                         [(#:4ary itype [ops ...] rest ...)
+                          (with-syntax ([(itypes ...) (build-list 4 (λ (_) #'itype))])
+                            (loop #'(rest ...) (append (syntax->list #'((ops name itypes ...) ...)) done)))]
+                         [([op itypes ...] rest ...)
+                          (loop #'(rest ...) (cons #'(op itypes ...) done))]
+                         [_
+                          (raise-syntax-error 'define-platform "malformed operator" stx clauses)])))
+                   (loop rest
+                         (cons (syntax->datum #'name) reprs)
+                         (append ops ops/repr)))])]
+                [_
+                 (raise-syntax-error 'define-platform
+                                     "malformed representation entry"
+                                     stx
+                                     #'entry)])))
+       (with-syntax ([(repr-names ...) reprs]   
+                     [(convs ...) convs]
+                     [(ops ...) ops])
+         #'(define id (make-platform '(repr-names ...) '(convs ...) '(ops ...)))))]
+    [(_ _ _ _ ...)
+     (raise-syntax-error 'define-platform "malformed conversions clause" stx)]
     [(_ _)
-     (raise-syntax-error 'define-platform "empty platform" stx)]))
+     (raise-syntax-error 'define-platform "missing conversions clause" stx)]
+    [_
+     (raise-syntax-error 'define-platform "bad syntax" stx)]))
 
 ;; This is a simpler implementation of `define-platform` that
 ;; does not support keywords

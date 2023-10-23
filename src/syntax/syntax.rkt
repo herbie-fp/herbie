@@ -79,7 +79,7 @@
           'deprecated (dict-ref attrib-dict 'deprected #f)
           'ival (dict-ref attrib-dict 'ival
                           (λ () (error 'register-operator! "missing interval impl for ~a" name)))))
-  (define field-names '(itype otype bf ival deprecated))
+  (define field-names '(itype otype ival deprecated))
   (define table-entry (apply operator name (map (curry hash-ref attribs) field-names)))
   (hash-set! operators name table-entry)
   (hash-set! operators-to-impls name '()))
@@ -213,7 +213,7 @@
 ;; An "operator implementation" implements a mathematical operator for
 ;; a particular set of representations satisfying the types described
 ;; by the `itype` and `otype` properties of the operator.
-(struct operator-impl (name op itype otype fl bf ival))
+(struct operator-impl (name op itype otype fl ival))
 
 ;; Operator implementation table
 ;; Tracks implementations that is loaded into Racket's runtime

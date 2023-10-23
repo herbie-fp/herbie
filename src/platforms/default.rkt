@@ -6,14 +6,16 @@
 (require "../plugin.rkt")
 
 (define-platform default
-  [bool ()
+  ([binary32 binary64])
+
+  (bool
     #:const [TRUE FALSE]
     #:1ary [not]
     #:2ary [and or]
     #:2ary binary64 [== != > < >= <=]
-    #:2ary binary32 [== != > < >= <=]]
+    #:2ary binary32 [== != > < >= <=])
 
-  [binary64 (binary32)
+  (binary64
     #:const [PI E INFINITY NAN]
     ; arithmetic
     #:1ary [neg]
@@ -26,9 +28,9 @@
     ; libm (accelerators)
     #:1ary [expm1 log1p]
     #:2ary [atan2 hypot]
-    #:3ary [fma]]
+    #:3ary [fma])
 
-  [binary32 (binary64)
+  (binary32
     #:const [PI E INFINITY NAN]
     ; arithmetic
     #:1ary [neg]
@@ -41,5 +43,6 @@
     ; libm (accelerators)
     #:1ary [expm1 log1p]
     #:2ary [atan2 hypot]
-    #:3ary [fma]])
-    
+    #:3ary [fma]))
+
+(register-platform! 'default default)

@@ -22,7 +22,6 @@
   (dynamic-require binary32-plugin #f)
   (dynamic-require fallback-plugin #f)
   (dynamic-require float-plugin #f)
-
   (dynamic-require default-platform #f))
 
 ;; loads builtin representations as needed
