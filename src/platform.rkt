@@ -21,12 +21,15 @@
     [platform-reprchange-rules (-> platform? (listof rule?))]
     [platform-union (-> platform? platform? ... platform?)]
     [platform-intersect (-> platform? platform? ... platform?)]
-    [platform-subtract (-> platform? platform? ... platform?)]))
+    [platform-subtract (-> platform? platform? ... platform?)]
+    [platform-product (-> (listof (cons/c symbol? representation?))
+                          (listof symbol?)
+                          platform?)]))
 
 (module+ internals
-  (provide define-platform
-           register-platform!
-           platform-union))
+  (provide define-platform register-platform!
+           define-platform-product platform-product
+           platform-union platform-intersect platform-subtract))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -125,7 +128,7 @@
   ; make the platform
   (platform #f reprs (append convs ops)))
 
-;; Macro version of `register-platform!`
+;; Macro version of `make-platform`
 ;; 
 ;; Example usage:
 ;; ```
@@ -301,3 +304,88 @@
 (define platform-union (make-set-applier set-union))
 (define platform-intersect (make-set-applier set-intersect))
 (define platform-subtract (make-set-applier set-subtract))
+
+;; Also in <herbie>/core/egg-herbie.rkt
+(define (type-combinations types type-dict)
+  (reap [sow]
+    (let loop ([types types] [assigns '()])
+      (match types
+        [(list) (sow assigns)]
+        [(list type rest ...)
+         (for ([repr (dict-ref type-dict type)])
+           (loop rest (cons (cons type repr) assigns)))]))))
+
+;; Specialized "product" construction of a platform.
+;; Given a map from type to representations, instantiate an operator implementation
+;; for each valid assignment of representations.
+(define (platform-product type-dict ops)
+  (define reprs
+    (for/fold ([reprs* '()]) ([(_ reprs) (in-dict type-dict)])
+      (append reprs reprs*)))
+  (define impls
+    (for/fold ([impls '()]) ([op (in-list ops)])
+      (define otype (real-operator-info op 'otype))
+      (define itypes (real-operator-info op 'itype))
+      (define types (remove-duplicates (cons otype itypes)))
+      (for/fold ([impls impls]) ([assigns (type-combinations types type-dict)])
+        (define orepr (dict-ref assigns otype))
+        (define ireprs (map (curry dict-ref assigns) itypes))
+        (cons (list* op orepr ireprs) impls))))
+  (make-platform reprs '() impls))
+
+;; Macro version of `platform-product`
+(define-syntax (define-platform-product stx)
+  (syntax-case stx ()
+    [(_ id cs ...)
+     (begin
+       (unless (identifier? #'id)
+         (raise-syntax-error 'define-platform-product
+                             "expected identifier"
+                             stx
+                             #'id))
+       (define-values (type-dict op-names)
+         (let loop ([clauses (syntax->list #'(cs ...))]
+                    [type-dict '()]
+                    [op-names '()])
+          (syntax-case clauses ()
+            [() (values type-dict op-names)]
+            [(#:type type [reprs ...] rest ...)
+             (loop #'(rest ...)
+                   (cons (cons #'type (syntax->list #'(reprs ...))) type-dict)
+                   op-names)]
+            [(#:operators [ops ...] rest ...)
+             (loop #'(rest ...)
+                   type-dict
+                   (append (syntax->list #'(ops ...)) op-names))]
+            [(#:type _ _)
+             (raise-syntax-error 'define-platform-product
+                                 "representation list malformed"
+                                 stx
+                                 clauses)]
+            [(#:type _)
+             (raise-syntax-error 'define-platform-product
+                                 "missing representations"
+                                 stx
+                                 clauses)]
+            [(#:type)
+             (raise-syntax-error 'define-platform-product
+                                 "missing type and representations"
+                                 stx
+                                 clauses)]
+            [(#:operators _)
+             (raise-syntax-error 'define-platform-product
+                                 "operator list malformed"
+                                 stx
+                                 clauses)]
+            [(#:operators)
+             (raise-syntax-error 'define-platform-product
+                                 "missing operators"
+                                 stx
+                                 clauses)])))
+       (with-syntax ([(type-dict ...) type-dict]
+                     [(op-names ...) op-names])
+         #'(define id (platform-product '(type-dict ...) '(op-names ...)))))]
+    [_
+     (raise-syntax-error 'define-platform-product
+                         "bad syntax"
+                         stx)]))

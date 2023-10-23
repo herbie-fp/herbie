@@ -13,4 +13,6 @@
          register-conversion-generator!
          register-generator! register-operator!
          (struct-out representation) get-representation warn
-         define-platform register-platform! platform-union)
+         define-platform register-platform!
+         define-platform-product platform-product
+         platform-union platform-intersect platform-subtract)
