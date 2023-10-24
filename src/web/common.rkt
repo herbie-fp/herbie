@@ -95,9 +95,6 @@
       (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-   ;; `(let* ([,x-sign `(copysign 1 ,x)]
-   ;;         [,x* `(abs ,x)])
-
 (define (combine-fpcore-instruction i e c)
   (match i
     [(list 'abs x)
@@ -119,18 +116,44 @@
     [_
      (cons e c)]))
 
-;; (define (combine-abs x e)
-;;   (define x* (string->symbol (string-append (symbol->string x) "*")))
-;;   (replace-vars (list (cons x x*)) e))
-
-;; (define (combine-negabs x e)
-;;   (define x-string (symbol->string x))
-;;   (define x-sign (string->symbol (string-append x-string "-sign")))
-;;   (define x* (string->symbol (string-append x-string "*")))
-;;   (define e* (replace-vars (list (cons x x*)) e))
-;;   `(let* ([,x-sign `(copysign 1 ,x)]
-;;           [,x* `(abs ,x)])
-;;      (* ,x-sign ,e*)))
+(define (format-prelude-instruction instruction ctx ctx* language converter)
+  (define (converter* e c)
+    (define fpcore (program->fpcore e c))
+    (define output (converter fpcore "code"))
+    (define lines (string-split output "\n"))
+    (match language
+      ["FPCore" (pretty-format e #:mode 'display)]
+      ["Fortran" (string-trim (third lines) #px"\\s+code\\s+=\\s+")]
+      ["MATLAB" (string-trim (second lines) #px"\\s+tmp\\s+=\\s+")]
+      ["Wolfram" (string-trim (first lines) #px".*:=\\s+")]
+      ["TeX" output]
+      [_ (string-trim (second lines) #px"\\s+return\\s+")]))
+  (match instruction
+    [(list 'abs x)
+     (define x* (string->symbol (string-append (symbol->string x) "_prime")))
+     (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
+     (define e (list (get-parametric-operator 'fabs r) x))
+     (define c (context (list x*) r r))
+     (format "~a = ~a" x* (converter* e c))]
+    [(list 'negabs x)
+     (define x-string (symbol->string x))
+     (define x* (string->symbol (string-append x-string "_prime")))
+     (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
+     (define e* (list (get-parametric-operator 'fabs r) x))
+     (define x-sign (string->symbol (string-append x-string "_sign")))
+     (define e-sign (list (get-parametric-operator 'copysign r) 1 x))
+     (define c (context (list x*) r r))
+     (format "~a = ~a\n~a = ~a"
+             x* (converter* e* c)
+             x-sign (converter* e-sign c))]
+    [(list 'sort vs ...)
+     (define vs (context-vars ctx))
+     (define vs* (context-vars ctx*))
+     (format-sort-instruction
+      ;; We added some sign-* variables to the front of the variable
+      ;; list in `ctx*`, we only want the originals here
+      (take-right vs* (length vs))
+      language)]))
 
 (define (format-sort-instruction vs l)
   (match l
@@ -193,67 +216,14 @@
                    (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
           (define name (if identifier (symbol->string identifier) "code"))
           (define out (converter out-prog* name))
-          (define (strip-function-declaration s)
-            (define lines (string-split s "\n"))
-            (match lang
-              ;; TODO
-              ["FPCore" (pretty-format (last out-prog*) #:mode 'display)]
-              ["C" (string-trim (second lines) #px"\\s+return\\s+")]
-              ["Fortran" (string-trim (third lines) #px"\\s+code\\s+=\\s+")]
-              ["Java" (string-trim (second lines) #px"\\s+return\\s+")]
-              ["Python" (string-trim (second lines) #px"\\s+return\\s+")]
-              ["Julia" (string-trim (second lines) #px"\\s+return\\s+")]
-              ["MATLAB" (string-trim (second lines) #px"\\s+tmp\\s+=\\s+")]
-              ["Wolfram" (string-trim (first lines) #px".*:=\\s+")]
-              ["TeX" s]
-              [_
-               (when (<= (length lines) 2)
-                 (eprintf "~a\n" ext)
-                 (eprintf "~a\n" s))
-               (string-join (drop (drop-right lines 1) 1) "\n")]))
-          (define converter* (compose strip-function-declaration converter))
           (define prelude-lines
             (string-join
              (map
-              (match-lambda
-                [(list 'abs x)
-                 (define x* (string->symbol (string-append (symbol->string x) "_prime")))
-                 (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
-                 (define e (list (get-parametric-operator 'fabs r) x))
-                 (define c (context (list x*) r r))
-                 (format "~a = ~a" x* (converter* (program->fpcore e c) name))]
-                [(list 'negabs x)
-                 (define x-string (symbol->string x))
-                 (define x* (string->symbol (string-append x-string "_prime")))
-                 (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
-                 (define e* (list (get-parametric-operator 'fabs r) x))
-                 (define x-sign (string->symbol (string-append x-string "_sign")))
-                 (define e-sign (list (get-parametric-operator 'copysign r) 1 x))
-                 (define c (context (list x*) r r))
-                 (format "~a = ~a\n~a = ~a"
-                         x* (converter* (program->fpcore e* c) name)
-                         x-sign (converter* (program->fpcore e-sign c) name))]
-                [(list 'sort vs ...)
-                 (define vs (context-vars ctx))
-                 (define vs* (context-vars ctx*))
-                 (format-sort-instruction
-                  ;; We added some sign-* variables to the front of the variable
-                  ;; list in `ctx*`. Finding the difference in lengths and taking
-                  ;; the list after that position yields a list containing only
-                  ;; the (potentially modified) original variable symbols.
-                  #;(take-right vs* (length vs))
-                  (drop vs* (- (length vs*) (length vs)))
-                  lang)])
+              (curryr format-prelude-instruction ctx ctx* lang converter)
               instructions)
-             #;"\n"
              (if (equal? lang "TeX") "\\\\\n" "\n")
              #:after-last
              "\n"))
-          ;; (printf "~a\n" prelude-lines)
-          #;(define prelude-lines
-            (string-join
-             (filter-map (curry format-prelude-instruction lang) prelude-instructions)
-             "\n" #:after-last "\n"))
           (sow
            (cons lang
                  ((if (equal? lang "TeX")
