@@ -1,6 +1,6 @@
 #lang racket
 
-(require "core/egg-herbie.rkt" "core/simplify.rkt"
+(require "core/egg-herbie.rkt" "core/simplify.rkt" "errors.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
          "alternative.rkt" "common.rkt" "programs.rkt" "points.rkt"
          "timeline.rkt" "float.rkt")
@@ -13,12 +13,17 @@
   (define even-identities
     (for/list ([variable (in-list (context-vars context))]
                [representation (in-list (context-var-reprs context))])
-      ;; TODO: Handle case where neg isn't supported for this representation
-      (define negate (get-parametric-operator 'neg representation))
-      (replace-vars (list (cons variable (list negate variable))) specification)))
+      (with-handlers ([exn:fail:user:herbie? (const #f)])
+        (define negate (get-parametric-operator 'neg representation))
+        ; Check if representation has an fabs operator
+        (define fabs (get-parametric-operator 'fabs representation))
+        (replace-vars (list (cons variable (list negate variable))) specification))))
   ;; f(x) = -f(-x)
   (define odd-identities
-    (let ([negate (get-parametric-operator 'neg (context-repr context))])
+    (with-handlers ([exn:fail:user:herbie? (const empty)])
+      (define negate (get-parametric-operator 'neg (context-repr context)))
+      ; Check if representation has an fabs operator
+      (define fabs (get-parametric-operator 'fabs (context-repr context)))
       (map (lambda (expression) (list negate expression)) even-identities)))
   ;; f(a, b) = f(b, a)
   (define pairs (combinations (context-vars context) 2))
