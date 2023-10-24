@@ -360,9 +360,6 @@
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* (atab-active-alts (^table^)))
   
-
-  ;;; (check-alts-have-preprocessing! 'extract all-alts)
-
   (define ndone-alts (atab-not-done-alts (^table^)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts (~a (alt-expr alt))
@@ -381,7 +378,6 @@
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
-  ;;; (check-alts-have-preprocessing! 'extract-2 joined-alts)
   (define cleaned-alts
     (cond
       [(flag-set? 'generate 'simplify)
@@ -392,7 +388,7 @@
        (define simplified (simplify-batch egg-query))
 
        (for/list ([altn joined-alts] [progs simplified])
-         (alt (last progs) 'final-simplify (list altn) (alt-preprocessing altn)))] ;;; TODO HERE
+         (alt (last progs) 'final-simplify (list altn) (alt-preprocessing altn)))]
       [else
        joined-alts]))
         

@@ -17,7 +17,7 @@
            (fprintf port "#<alt ~a>" (alt-expr alt)))])
 
 (define (make-alt expr)
-  (alt expr 'start '() '()))  ; added '() as blank for preprocessing instruciton list idk really know if thats what I want
+  (alt expr 'start '() '()))
 
 (define (make-alt-preprocessing expr preprocessing)
   (alt expr 'start '() preprocessing))
@@ -26,10 +26,10 @@
   (equal? (alt-expr x) (alt-expr y)))
 
 (define (alt-add-event altn event)
-  (alt (alt-expr altn) event (list altn) (alt-preprocessing altn)))  ; added '() ?? maybe preprocessing
+  (alt (alt-expr altn) event (list altn) (alt-preprocessing altn)))  
 
 (define (alt-add-preprocessing altn preprocessing)
-  (alt (alt-expr altn) (alt-event altn) (list altn) preprocessing)) ; no idea if this works lol
+  (alt (alt-expr altn) (alt-event altn) (list altn) preprocessing))
 
 (define (alt-cost altn repr)
   (expr-cost (alt-expr altn) repr))
