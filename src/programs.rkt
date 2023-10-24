@@ -136,6 +136,16 @@
                   x
                   (ival ((representation-repr->bf repr) x))))]))
 
+  (define get-proc
+    (match mode
+      ['fl (λ (impl) (impl-info impl 'fl))]
+      ['ival (λ (impl) (operator-info (impl->operator impl) 'ival))]))
+
+  (define get-itypes
+    (match mode
+      ['fl (λ (impl) (impl-info impl 'itype))]
+      ['ival (λ (impl) (operator-info (impl->operator impl) 'itype))]))
+
   ;; Expression cache
   (define exprcache '())
   (define exprhash
@@ -169,8 +179,8 @@
               (munge t repr)
               (munge f repr))]
        [(list op args ...)
-        (define fn (impl-info op mode))
-        (define atypes (impl-info op 'itype))
+        (define fn (get-proc op))
+        (define atypes (get-itypes op))
         (cons fn (map munge args atypes))]
        [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr

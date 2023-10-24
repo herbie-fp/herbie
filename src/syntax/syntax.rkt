@@ -116,11 +116,11 @@
 
 ;; Operator implementations
 
-(struct operator-impl (name op itype otype fl ival))
+(struct operator-impl (name op itype otype fl))
 (define operator-impls (make-hasheq))
 
 (define/contract (operator-info operator field)
-  (-> symbol? (or/c 'itype 'otype 'fl 'ival) any/c)
+  (-> symbol? (or/c 'itype 'otype 'ival) any/c)
   (unless (hash-has-key? operators operator)
     (raise-herbie-missing-error "Unknown operator ~a" operator))
   (define accessor
@@ -131,7 +131,7 @@
   (accessor (hash-ref operators operator)))
 
 (define/contract (impl-info operator field)
-  (-> symbol? (or/c 'itype 'otype 'fl 'ival) any/c)
+  (-> symbol? (or/c 'itype 'otype 'fl) any/c)
   (unless (hash-has-key? operator-impls operator)
     (error 'impl-info "Unknown operator ~a" operator))
     ; (raise-herbie-missing-error "Unknown operator ~a" operator))
@@ -139,8 +139,7 @@
     (match field
       ['itype operator-impl-itype]
       ['otype operator-impl-otype]
-      ['fl operator-impl-fl]
-      ['ival operator-impl-ival]))
+      ['fl operator-impl-fl]))
   (accessor (hash-ref operator-impls operator)))
 
 (define/contract (operator-remove! operator)
@@ -155,7 +154,6 @@
 
   (define op (hash-ref operators operator))
   (define fl-fun (dict-ref attrib-dict 'fl))
-  (define ival-fun (dict-ref attrib-dict 'ival (λ () (operator-ival op))))
 
   (unless (equal? operator 'if) ;; Type check all operators except if
     (for ([arepr (cons rrepr areprs)]
@@ -165,7 +163,7 @@
           "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
           name operator (representation-name rrepr) (operator-otype op)))))
 
-  (define impl (operator-impl name op areprs rrepr fl-fun ival-fun))
+  (define impl (operator-impl name op areprs rrepr fl-fun))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls operator (curry cons name)))
 
