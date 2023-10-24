@@ -10,14 +10,15 @@
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing initial specification context)
   (define even-identities
-    (for/list ([variable (in-list (context-vars context))]
-               [representation (in-list (context-var-reprs context))])
-      ;; TODO: Handle case where neg isn't supported for this representation
-      (with-handlers ([exn:fail:user:herbie? (const #f)])
-        (define negate (get-parametric-operator 'neg representation))
-        ; Check if representation has an fabs operator
-        (define fabs (get-parametric-operator 'fabs representation))
-        (replace-vars (list (cons variable (list negate variable))) specification))))
+    (reap [sow]
+      (for ([variable (in-list (context-vars context))]
+            [representation (in-list (context-var-reprs context))])
+        (with-handlers ([exn:fail:user:herbie? (const (void))])
+          ; TODO: Handle case where neg isn't supported for this representation
+          (define negate (get-parametric-operator 'neg representation))
+          ; Check if representation has an fabs operator
+          (define fabs (get-parametric-operator 'fabs representation))
+          (sow (replace-vars (list (cons variable (list negate variable))) specification))))))
   (define pairs (combinations (context-vars context) 2))
   (define swap-identities
     (for/list ([pair (in-list pairs)])
