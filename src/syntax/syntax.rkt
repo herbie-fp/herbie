@@ -6,7 +6,7 @@
 (provide (rename-out [operator-or-impl? operator?])
          variable? constant-operator?
          operator-exists? operator-deprecated? impl-exists?
-         real-operator-info operator-info 
+         operator-info impl-info 
          impl->operator all-operators all-constants operator-all-impls
          *functions* register-function!
          get-parametric-operator get-parametric-constant
@@ -119,7 +119,7 @@
 (struct operator-impl (name op itype otype fl ival))
 (define operator-impls (make-hasheq))
 
-(define/contract (real-operator-info operator field)
+(define/contract (operator-info operator field)
   (-> symbol? (or/c 'itype 'otype 'fl 'ival) any/c)
   (unless (hash-has-key? operators operator)
     (raise-herbie-missing-error "Unknown operator ~a" operator))
@@ -130,10 +130,10 @@
       ['ival operator-ival]))
   (accessor (hash-ref operators operator)))
 
-(define/contract (operator-info operator field)
+(define/contract (impl-info operator field)
   (-> symbol? (or/c 'itype 'otype 'fl 'ival) any/c)
   (unless (hash-has-key? operator-impls operator)
-    (error 'operator-info "Unknown operator ~a" operator))
+    (error 'impl-info "Unknown operator ~a" operator))
     ; (raise-herbie-missing-error "Unknown operator ~a" operator))
   (define accessor
     (match field
@@ -179,7 +179,7 @@
 (define (get-parametric-operator name . actual-types)
   (or
    (for/first ([impl (operator-all-impls name)]
-               #:when (equal? (operator-info impl 'itype) actual-types))
+               #:when (equal? (impl-info impl 'itype) actual-types))
      impl)
    (raise-herbie-missing-error
     "Parametric operator (~a ~a) not found"
@@ -189,7 +189,7 @@
 (define (get-parametric-constant name repr)
   (let/ec k
     (for/list ([impl (operator-all-impls name)])
-      (define rtype (operator-info impl 'otype))
+      (define rtype (impl-info impl 'otype))
       (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
         (k impl)))
       (raise-herbie-missing-error
@@ -243,13 +243,13 @@
 
 (define (get-repr-conv irepr orepr)
   (for/or ([name (operator-all-impls 'cast)])
-    (and (equal? (operator-info name 'otype) orepr)
-         (equal? (first (operator-info name 'itype)) irepr)
+    (and (equal? (impl-info name 'otype) orepr)
+         (equal? (first (impl-info name 'itype)) irepr)
          name)))
 
 (define (get-rewrite-operator repr)
   (for/or ([name (operator-all-impls 'convert)])
-    (and (equal? (operator-info name 'itype) (list repr))
+    (and (equal? (impl-info name 'itype) (list repr))
          name)))
 
 (define-operator (PI) real

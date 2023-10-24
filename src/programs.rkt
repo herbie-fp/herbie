@@ -24,7 +24,7 @@
    [(? number?) 'real]
    [(? variable?) (representation-type (context-lookup ctx expr))]
    [(list 'if cond ift iff) (type-of ift ctx)]
-   [(list op args ...) (representation-type (operator-info op 'otype))]))
+   [(list op args ...) (representation-type (impl-info op 'otype))]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
@@ -33,7 +33,7 @@
    [(? number?) (context-repr ctx)]
    [(? variable?) (context-lookup ctx expr)]
    [(list 'if cond ift iff) (repr-of ift ctx)]
-   [(list op args ...) (operator-info op 'otype)]))
+   [(list op args ...) (impl-info op 'otype)]))
 
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
@@ -169,8 +169,8 @@
               (munge t repr)
               (munge f repr))]
        [(list op args ...)
-        (define fn (operator-info op mode))
-        (define atypes (operator-info op 'itype))
+        (define fn (impl-info op mode))
+        (define atypes (impl-info op 'itype))
         (cons fn (map munge args atypes))]
        [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
