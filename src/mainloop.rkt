@@ -325,32 +325,20 @@
   (define original-points (setup-context! vars (or specification prog) precondition repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-;;; (define (check-alts-have-preprocessing! phase alts)
-;;;   (writeln phase)
-;;;   (for ([alt (in-list alts)])
-;;;     (writeln (alt-preprocessing alt))
-;;;     ;;; (null? (alt-preprocessing alt)
-;;;     ;;;   (error "Lost my preprocessing at ~a, sad, qq" phase))
-;;;       )
-;;;     (writeln phase))
-
 (define (run-improve! initial specification context pcontext)
   (timeline-event! 'preprocess)
   (define-values (simplified preprocessing)
-    (find-preprocessing initial specification context))
-
+    (find-preprocessing initial specification context)) ;; Eventually we can remove the preprocessing return here, but that requires fixing 
+                                                        ;; calls here & the sandbox call & subsequent usage that still require it
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (match-define (and alternatives (cons (alt best _ _ _) _))
     (mutate! simplified context pcontext* (*num-iterations*)))
-  
-  ;;; (check-alts-have-preprocessing! 'from-ffp-2! alternatives)
-  
+    
   (timeline-event! 'preprocess)
   (define final-alts
     (for/list ([altern alternatives])
       (make-alt-preprocessing (alt-expr altern) (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
-  ;;; (check-alts-have-preprocessing! 'fintal-alts final-alts)
   (values final-alts preprocessing)) 
 
 (define (mutate! simplified context pcontext iterations)

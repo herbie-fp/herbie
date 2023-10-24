@@ -120,8 +120,6 @@
      (curryr list-update index abs)]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-; (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing)) -> optimal preprocessing
-; (remove-unnecessary-preprocessing (alt-expr curr) context pcontext (alt-expr preprocessing)) -> new alt with modified
 (define (remove-unnecessary-preprocessing expression context pcontext preprocessing #:removed [removed empty])
   (define-values (result newly-removed)
     (let loop ([preprocessing preprocessing] [i 0] [removed removed])
