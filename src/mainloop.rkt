@@ -340,7 +340,9 @@
   (define final-alts
     (for/list ([altern alternatives])
       (make-alt-preprocessing (alt-expr altern) (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
-  (values final-alts preprocessing)) 
+
+
+  (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing))) 
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
