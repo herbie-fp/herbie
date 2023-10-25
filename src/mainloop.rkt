@@ -339,7 +339,7 @@
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
 
-  (define tcount-hash (group-errors (alt-expr (car simplified)) pcontext))
+  (define tcount-hash (ground-truth-counts (alt-expr (car simplified)) pcontext))
   (define pcount-hash (list-all-errors (alt-expr (car simplified)) context pcontext))
 
   (for ([(subexpr pcount) (in-dict pcount-hash)]
