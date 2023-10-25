@@ -346,7 +346,6 @@
     (define tset (if (hash-has-key? tcount-hash subexpr) (hash-ref tcount-hash subexpr) '()))
     (define opred (set-subtract pset tset))
     (define upred (set-subtract tset pset))
-    (eprintf "---------\n~a ~a ~a\n" subexpr pset tset)
     (timeline-push! 'fperrors
                     (~a subexpr)
                     (length tset)
