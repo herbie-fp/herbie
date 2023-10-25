@@ -4,25 +4,7 @@
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "timeline.rkt"
          "common.rkt" "ground-truth.rkt")
 
-(provide group-errors list-all-errors)
-
-#|
-Need to fix this code!
-We need to count all max error
-|#
-(define (group-errors expr pcontext)  
-  (match-define (cons subexprs pt-errorss)
-    (flip-lists
-     (hash->list (car (compute-local-errors (list expr) (*context*))))))
-
-  (define pt-worst-subexprs
-    (for/list ([pt-errors (in-list pt-errorss)])
-      (match-define (cons worst-subexpr pt-max-error)
-        (argmax cdr (map cons subexprs pt-errors)))
-      (if (> pt-max-error 2) worst-subexpr #f)))
-
-  (for/hash ([group (in-list (group-by identity pt-worst-subexprs))])
-    (values (first group) (length group))))
+(provide ground-truth-counts list-all-errors)
 
 ;- Error Listing ---------------------------------------------------------------
 
@@ -32,6 +14,23 @@ NOTE: This is not the correct definition of exactness. We need to also
       will need to calculate subepxrs to some arb precision, to
       compare to the correctly rounded floating point value.
 |#
+
+(define (ground-truth-counts expr pcontext)
+  (match-define (cons subexprs pt-errorss)
+    (flip-lists
+     (hash->list (car (compute-local-errors (list expr) (*context*))))))
+  
+  (define pt-worst-subexprs
+    (foldr append '() (for/list ([pt-errors (in-list pt-errorss)]
+               [(pt _) (in-pcontext pcontext)])
+      (define sub-error (map cons subexprs pt-errors))
+      (define filtered-sub-error (filter (lambda (p) (> (cdr p) 2)) sub-error))
+      (if (empty? filtered-sub-error) (list #f) (map car filtered-sub-error)))))
+  
+  (for/hash ([group (in-list (group-by identity pt-worst-subexprs))])
+    (values (first group) (length group))))
+
+
 (define (is-exact? expr) (compose list? not))
 (define is-inexact? list?)
  
