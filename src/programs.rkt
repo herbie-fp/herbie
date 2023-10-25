@@ -156,21 +156,25 @@
      [(or 'fl 'bf) (λ (c ift iff) (if c ift iff))]
      ['ival ival-if]))
 
+  ;(define (munge prog repr is-inside-trig)
   (define (munge prog repr)
     (set! size (+ 1 size))
     (define expr
       (match prog
-       [(? number?) (list (const (real->precision prog repr)))]
+       [(? number?) (list (const (real->precision prog repr)) #f)]
+       ;[(? number?) (list (const (real->precision prog repr)))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
         (list if-op
+              #f
               (munge c bool-repr)
               (munge t repr)
               (munge f repr))]
        [(list op args ...)
         (define fn (operator-info op mode))
         (define atypes (operator-info op 'itype))
-        (cons fn (map munge args atypes))]
+        (list* fn (set-member? '(sin.f64 cos.f64 tan.f64) op) (map munge args atypes))]
+        ;(list* fn (if (set-member? '(sin cos tan) op) #t #f) (map munge args atypes))]
        [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
               (λ ()
@@ -189,9 +193,12 @@
       (vector-set! v n (arg->precision arg repr)))
     (for ([expr (in-vector exprvec)] [n (in-naturals varc)])
       (define tl
-        (for/list ([arg (in-list (cdr expr))])
+        (for/list ([arg (in-list (cddr expr))])
           (vector-ref v arg)))
-      (vector-set! v n (apply (car expr) tl)))
+      (if (second expr)
+        (parameterize ([bf-precision 2048])
+          (vector-set! v n (apply (first expr) tl)))
+        (vector-set! v n (apply (first expr) tl))))
     (for/list ([n (in-list names)])
       (vector-ref v n)))
   (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))

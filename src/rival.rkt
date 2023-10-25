@@ -66,7 +66,7 @@
           [ival-log1p (-> ival? ival?)]
           [ival-logb (-> ival? ival?)]
           [ival-pow (-> ival? ival? ival?)]
-          ;[ival-sin-mixed (-> ival? ival?)]
+          [ival-sin-modified (-> ival? ival?)]
           [ival-sin (-> ival? ival?)]
           ;[ival-cos-mixed (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
@@ -541,7 +541,8 @@
 
 (define (ival-cos x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-floor (ival-div x (ival-pi))))
+    (parameterize ([bf-precision (bigfloat-precision (ival-lo-val x))])
+      (ival-floor (ival-div x (ival-pi)))))
   (cond
    [(and (bf=? a b) (bfeven? a))
     ((comonotonic bfcos) x)]
@@ -603,9 +604,10 @@
       [else
        (ival-then x (mk-big-ival -1.bf 1.bf))])))
 
-#;(define (ival-sin x)
+(define (ival-sin x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf))))
+    (parameterize ([bf-precision (bigfloat-precision (ival-lo-val x))])
+      (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf)))))
   (cond
     [(and (bf=? a b) (bfeven? a))
      ((comonotonic bfsin) x)]
@@ -618,8 +620,28 @@
     [else
      (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
+(define (ival-sin-modified x)
+  (match-define (ival (endpoint a _) (endpoint b _) _ _)
+                (ival-round (ival-div x (ival-pi))))
+  (cond
+    [(and (bf=? a b) (bfodd? a))
+     ((comonotonic bfsin) x)]
+    [(and (bf=? a b) (bfeven? a))
+     ((monotonic bfsin) x)]
+    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+     (ival (endpoint -1.bf #f)
+           (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+           (ival-err? x)
+           (ival-err x))]
+    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+     (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+           (endpoint 1.bf #f)
+           (ival-err? x)
+           (ival-err x))]
+    [else
+     (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
-(define (ival-sin x)
+(define (ival-sin-mixed x)
   ;; Function takes a division result over pi and calculate a remainder of this operation with
   ;;   proper signs to be put into bfsin function. At this point we don't care about order of lo and hi
   ;;   endpoints, here are cases when hi is negative, lo is positive. The further logic of ival-sin will
@@ -647,8 +669,8 @@
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
                 (ival-round intermediate))
   
+  (define remainder (sin-fraction intermediate))
   (parameterize ([bf-precision 64])
-    (define remainder (sin-fraction intermediate))
     (cond
       [(and (bf=? a b) (bfodd? a))
        ((comonotonic bfsin) remainder)]

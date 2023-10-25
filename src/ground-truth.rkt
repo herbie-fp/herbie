@@ -62,6 +62,7 @@
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
 (define (sample-points pre exprs ctxs)
+  ;(printf "Analyze\n")
   (timeline-event! 'analyze)
   (define fn (make-search-func pre exprs ctxs))
   (match-define (cons sampler table)
@@ -70,12 +71,11 @@
       (make-sampler (first ctxs) pre fn)))
   (timeline-event! 'sample)
   ;; TODO: should batch-prepare-points allow multiple contexts?
-  ; Use maximum of 53 bits precision
-  ;(define analyze-precision 53)
   (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
    (warn 'inf-points #:url "faq.html#inf-points"
     "~a of points produce a very large (infinite) output. You may want to add a precondition." 
     (format-accuracy (- total (hash-ref table2 'infinite)) total #:unit "%")))
+  ;(printf "End of analyze \n")
   (cons (combine-tables table table2) results))
