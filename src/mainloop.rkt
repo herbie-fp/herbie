@@ -339,16 +339,19 @@
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
 
-  (define tcount-hash (ground-truth-counts (alt-expr (car simplified)) pcontext))
-  (define pcount-hash (list-all-errors (alt-expr (car simplified)) context pcontext))
+  (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
+  (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
 
-  (for ([(subexpr pcount) (in-dict pcount-hash)]
-        #:when subexpr)
-    (define tcount (if (hash-has-key? tcount-hash subexpr) (hash-ref tcount-hash subexpr) 0))
-    (timeline-push! 'fperrors (~a subexpr) tcount pcount))
-  (timeline-push! 'fperrors #f
-                  (if (hash-has-key? tcount-hash #f) (hash-ref tcount-hash #f) 0)
-                  (hash-ref pcount-hash #f))
+  (for ([(subexpr pset) (in-dict pcount-hash)])
+    (define tset (if (hash-has-key? tcount-hash subexpr) (hash-ref tcount-hash subexpr) '()))
+    (define opred (set-subtract pset tset))
+    (define upred (set-subtract tset pset))
+    (eprintf "---------\n~a ~a ~a\n" subexpr pset tset)
+    (timeline-push! 'fperrors
+                    (~a subexpr)
+                    (length tset)
+                    (length opred) (and (not (empty? opred)) (first opred))
+                    (length upred) (and (not (empty? upred)) (first upred))))
 
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
