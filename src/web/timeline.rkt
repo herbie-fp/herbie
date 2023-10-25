@@ -276,11 +276,18 @@
     (dd (details
          (summary "Click to see full error table")
          (table ([class "times"])
-                (thead (tr (th "truth") (th "mispredicted") (th "subexpr")))
+                (thead (tr (th "truth") (th "opred") (th "ex") (th "upred") (th "ex") (th "subexpr")))
                 ,@(for/list ([rec (in-list (sort fperrors > #:key second))])
-                    (match-define (list expr tcount pcount) rec)
-                    `(tr (td ,(~a tcount) "×")
-                         (td ,(~a pcount #;(- pcount tcount)))
+                    (match-define (list expr tcount opred oex upred uex) rec)
+                    `(tr (td ,(~a tcount))
+                         (td ,(~a opred))
+                         (td ,(if oex
+                                  (~a oex)
+                                  "-"))
+                         (td ,(~a upred))
+                         (td ,(if uex
+                                  (~a uex)
+                                  "-"))
                          (td ,(if expr
                                   `(code ,expr)
                                   "No Errors")))))))))

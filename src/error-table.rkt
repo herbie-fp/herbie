@@ -1,10 +1,10 @@
 #lang racket
 
-(require racket/flonum)
+(require racket/flonum racket/set)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "timeline.rkt"
          "common.rkt" "ground-truth.rkt")
 
-(provide ground-truth-counts list-all-errors)
+(provide actual-errors predicted-errors)
 
 ;- Error Listing ---------------------------------------------------------------
 
@@ -15,20 +15,22 @@ NOTE: This is not the correct definition of exactness. We need to also
       compare to the correctly rounded floating point value.
 |#
 
-(define (ground-truth-counts expr pcontext)
+(define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
     (flip-lists
      (hash->list (car (compute-local-errors (list expr) (*context*))))))
   
   (define pt-worst-subexprs
     (foldr append '() (for/list ([pt-errors (in-list pt-errorss)]
-               [(pt _) (in-pcontext pcontext)])
-      (define sub-error (map cons subexprs pt-errors))
-      (define filtered-sub-error (filter (lambda (p) (> (cdr p) 2)) sub-error))
-      (if (empty? filtered-sub-error) (list #f) (map car filtered-sub-error)))))
-  
-  (for/hash ([group (in-list (group-by identity pt-worst-subexprs))])
-    (values (first group) (length group))))
+                                 [(pt _) (in-pcontext pcontext)])
+                        (define sub-error (map cons subexprs pt-errors))
+                        (define filtered-sub-error (filter (lambda (p) (> (cdr p) 2)) sub-error))
+                        (define mapped-sub-error (map (lambda (p) (cons (car p) pt)) filtered-sub-error))
+                        (if (empty? mapped-sub-error) (list (cons #f pt)) mapped-sub-error))))
+
+  (for/hash ([group (in-list (group-by car pt-worst-subexprs))])
+    (let ([key (caar group)])
+      (values key (map cdr group)))))
 
 
 (define (is-exact? expr) (compose list? not))
@@ -48,7 +50,7 @@ NOTE: This is not the correct definition of exactness. We need to also
      (and (fl< (flabs a) (fl* (flabs b) 2.0))
           (fl> (flabs a) (fl/ (flabs b) 2.0)))]))
  
-(define (list-all-errors expr ctx pctx)
+(define (predicted-errors expr ctx pctx)
   (define subexprs
     (all-subexpressions-rev expr (context-repr ctx)))
 
@@ -64,10 +66,10 @@ NOTE: This is not the correct definition of exactness. We need to also
   (define subexprs-fn (eval-progs-real subexprs-list ctx-list))
  
   (define error-count-hash
-    (make-hash (map (lambda (x) (cons x 0)) (cons #f subexprs-list))))
+    (make-hash (map (lambda (x) (cons x '())) (cons #f subexprs-list))))
  
-  (define (mark-erroneous! expr)
-    (hash-update! error-count-hash expr (lambda (x) (+ x 1))))
+  (define (mark-erroneous! expr pt)
+    (hash-update! error-count-hash expr (lambda (x) (set-add x pt))))
   
   (for ([(pt _) (in-pcontext pctx)])
     (define exacts (apply subexprs-fn pt))
@@ -99,7 +101,7 @@ NOTE: This is not the correct definition of exactness. We need to also
          (cond
            [(fl= subexpr-val 0.0) #f #;(mark-erroneous! subexpr)]
            [(very-close? larg-val (fl* -1.0 rarg-val))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr pt)]
            [else #f])]
          
         [(list '-.f64 larg rarg)
@@ -109,7 +111,7 @@ NOTE: This is not the correct definition of exactness. We need to also
          (cond
            [(fl= subexpr-val 0.0) #f #;(mark-erroneous! subexpr)]
            [(very-close? larg-val rarg-val)
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr pt)]
            [else #f])]
  
         #|
@@ -119,17 +121,17 @@ NOTE: This is not the correct definition of exactness. We need to also
         [(list 'sin.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val  (flabs (hash-ref exacts-hash arg)))
-         (and (fl> arg-val 1e30) (mark-erroneous! subexpr))]
+         (and (fl> arg-val 1e30) (mark-erroneous! subexpr pt))]
  
         [(list 'cos.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val  (flabs (hash-ref exacts-hash arg)))
-         (and (fl> arg-val 1e30) (mark-erroneous! subexpr))]
+         (and (fl> arg-val 1e30) (mark-erroneous! subexpr pt))]
  
         [(list 'tan.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val (flabs (hash-ref exacts-hash arg)))
-         (and (fl> arg-val 1e30) (mark-erroneous! subexpr))]
+         (and (fl> arg-val 1e30) (mark-erroneous! subexpr pt))]
  
         #|
         TODO: refine understanding of when an overflow/underflow can be rescued
@@ -140,7 +142,7 @@ NOTE: This is not the correct definition of exactness. We need to also
          (define arg-val (hash-ref exacts-hash arg))
          (and (or (hash-ref uflow-hash arg)
                   (hash-ref oflow-hash arg))
-              (mark-erroneous! subexpr))]
+              (mark-erroneous! subexpr pt))]
         #|
         TODO: remaining cases for which rescuing underflow/overflow can occur
         a / b
@@ -157,8 +159,8 @@ NOTE: This is not the correct definition of exactness. We need to also
          (define rarg-uflow? (hash-ref uflow-hash rarg))
          (define rarg-oflow? (hash-ref oflow-hash rarg))
          (cond
-           [(and larg-uflow? (fl< rarg-val 1e-150)) (mark-erroneous! subexpr)]
-           [(and (fl< larg-val 1e-150) rarg-uflow?) (mark-erroneous! subexpr)]
+           [(and larg-uflow? (fl< rarg-val 1e-150)) (mark-erroneous! subexpr pt)]
+           [(and (fl< larg-val 1e-150) rarg-uflow?) (mark-erroneous! subexpr pt)]
            [else #f])]
  
         #|
@@ -172,7 +174,7 @@ NOTE: This is not the correct definition of exactness. We need to also
          (cond
            [arg-oflow? (mark-erroneous! subexpr)]
            [arg-uflow? (mark-erroneous! subexpr)]
-           [(very-close? arg-val 1.0) (mark-erroneous! subexpr)]
+           [(very-close? arg-val 1.0) (mark-erroneous! subexpr pt)]
            [else #f])]
 
         #|
@@ -181,7 +183,7 @@ NOTE: This is not the correct definition of exactness. We need to also
         [(list 'exp.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val (flabs (hash-ref exacts-hash arg)))
-         (and (fl> arg-val 1e308) (mark-erroneous! subexpr))]
+         (and (fl> arg-val 1e308) (mark-erroneous! subexpr pt))]
         
         #|
         TODO:
@@ -195,5 +197,5 @@ NOTE: This is not the correct definition of exactness. We need to also
         |#
         
         [_ #f])))
-      (hash-update! error-count-hash #f (lambda (x) (+ x 1)))))
+      (hash-update! error-count-hash #f (lambda (x) (set-add x pt)))))
   error-count-hash)
