@@ -128,7 +128,7 @@
 (define (make-progs-interpreter vars ivec roots)
   (define vreg-count (+ (length vars) (vector-length ivec)))
   (define vregs (make-vector vreg-count))
-  (λ args
+  (lambda args
     (for ([arg (in-list args)] [n (in-naturals)])
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
@@ -142,96 +142,67 @@
 (define (compile-spec spec vars)
   (compose first (compile-specs (list spec) vars)))
 
+(define (compile-specs specs vars)
+  (define compiler
+    (make-compiler
+     (lambda (x _) (ival (bf x))) 
+     (curryr operator-info 'ival)
+     (curryr operator-info 'itype)
+     ival-if 'bool))
+  (compiler specs vars 'real))
+
 (define (compile-prog expr ctx)
   (compose first (compile-progs (list expr) ctx)))
 
-;; Compiles a program of operators into a procedure
-;; that evaluates the program on a single input of intervals
-;; returning intervals.
-(define (compile-specs specs vars)
-  ;; Instruction cache
-  (define icache '())
-  (define exprhash
-    (make-hash
-     (for/list ([var vars] [i (in-naturals)])
-       (cons var i))))
-
-  ; Counts
-  (define size 0)
-  (define exprc 0)
-  (define varc (length vars))
-
-  ; Translates programs into an instruction sequence
-  (define (munge prog)
-    (set! size (+ 1 size))
-    (define expr
-      (match prog
-       [(? number?) (list (const (ival (bf prog))))]
-       [(? variable?) prog]
-       [`(if ,c ,t ,f)
-        (list ival-if (munge c) (munge t) (munge f))]
-       [(list op args ...)
-        (cons (operator-info op 'ival) (map munge args))]
-       [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
-    (hash-ref! exprhash expr
-              (λ ()
-                (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                  (set! exprc (+ 1 exprc))
-                  (set! icache (cons expr icache))))))
-
-  (define names (map munge specs))
-  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
-  (define ivec (list->vector (reverse icache)))
-  (define interpret (make-progs-interpreter vars ivec names))
-  (procedure-rename interpret (string->symbol "<eval-prog-ival>")))
-
-;; Compiles a program of operator implementations into a procedure
-;; that evaluates the program on a single input of representation values
-;; returning representation values.
 (define (compile-progs exprs ctx)
-  (define repr (context-repr ctx))
-  (define vars (context-vars ctx))
+  (define compiler
+    (make-compiler 
+     real->repr
+     (curryr impl-info 'fl)
+     (curryr impl-info 'itype)
+     (lambda (c t f) (if c t f)) (get-representation 'bool)))
+  (compiler exprs (context-vars ctx) (context-repr ctx)))
 
-  ;; Expression cache
-  (define icache '())
-  (define exprhash
-    (make-hash
-     (for/list ([var vars] [i (in-naturals)])
-       (cons var i))))
-
-  ; Counts
-  (define size 0)
-  (define exprc 0)
-  (define varc (length vars))
-
-  ; Translates programs into an instruction sequence
-  (define (munge prog repr)
-    (set! size (+ 1 size))
-    (define expr
-      (match prog
-       [(? number?) (list (const (real->repr prog repr)))]
-       [(? variable?) prog]
-       [`(if ,c ,t ,f)
-        (list (λ (c ift iff) (if c ift iff))
-              (munge c (get-representation 'bool))
-              (munge t repr)
-              (munge f repr))]
-       [(list op args ...)
-        (define fn (impl-info op 'fl))
-        (define atypes (impl-info op 'itype))
-        (cons fn (map munge args atypes))]
-       [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
-    (hash-ref! exprhash expr
-              (λ ()
-                (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                  (set! exprc (+ 1 exprc))
-                  (set! icache (cons expr icache))))))
-
-  (define names (for/list ([expr exprs]) (munge expr repr)))
-  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
-  (define ivec (list->vector (reverse icache)))
-  (define interpret (make-progs-interpreter vars ivec names))
-  (procedure-rename interpret (string->symbol "<eval-prog-fl>")))
+(define (make-compiler operand-handler operator-handler operator-type-handler if-handler if-type)
+  (lambda (exprs vars type)
+    ;; Expression cache
+    (define icache '())
+    (define exprhash
+      (make-hash
+       (for/list ([var vars] [i (in-naturals)])
+         (cons var i))))
+    
+    ; Counts
+    (define size 0)
+    (define exprc 0)
+    (define varc (length vars))
+    
+    ; Translates programs into an instruction sequence
+    (define (munge expr type)
+      (set! size (+ 1 size))
+      (define instruction
+        (match expr
+          [(? number?) (list (const (operand-handler expr type)))]
+          [(? variable?) expr]
+          [`(if ,c ,t ,f)
+           (list if-handler
+                 (munge c if-type)
+                 (munge t type)
+                 (munge f type))]
+          [(list op args ...)
+           (cons (operator-handler op) (map munge args (operator-type-handler op)))]
+          [_ (raise-argument-error 'eval-prog "Not a valid expression!" expr)]))
+      (hash-ref! exprhash expr
+                 (λ ()
+                   (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
+                     (set! exprc (+ 1 exprc))
+                     (set! icache (cons expr icache))))))
+    
+    (define names (for/list ([expr exprs]) (munge expr type)))
+    (timeline-push! 'compiler (+ varc size) (+ exprc varc))
+    (define ivec (list->vector (reverse icache)))
+    (define interpret (make-progs-interpreter vars ivec names))
+    (procedure-rename interpret (string->symbol "<eval-prog-fl>"))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
