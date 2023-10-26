@@ -66,9 +66,9 @@
           [ival-log1p (-> ival? ival?)]
           [ival-logb (-> ival? ival?)]
           [ival-pow (-> ival? ival? ival?)]
-          [ival-sin-modified (-> ival? ival?)]
+          ;[ival-sin-modified (-> ival? ival?)]
           [ival-sin (-> ival? ival?)]
-          ;[ival-cos-mixed (-> ival? ival?)]
+          [ival-sin-reduced (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
           [ival-tan (-> ival? ival?)]
           [ival-asin (-> ival? ival?)]
@@ -558,71 +558,34 @@
    [else
     (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
-#;(define (ival-cos-mixed x)
-  (define pi (ival-pi))
-
-  (define (cos-fraction x)
-    (define remainder (ival-mult ((monotonic bffrac) x) pi))
-    (println remainder)
-    (match-define (ival (endpoint a* _) (endpoint b* _) _ _)
-                (ival-round x))
-    (println a*)
-    (println b*)
-    
-    (define flag-a (bfeven? a*))
-    (define flag-b (bfeven? b*))
-    (cond
-      [(and flag-a flag-b)
-       ((monotonic bfabs) remainder)]
-      [(and (not flag-a) flag-b)
-       (mk-big-ival (bfneg (bfabs (ival-lo-val remainder))) (bfabs (ival-hi-val remainder)))]
-      [(and flag-a (not flag-b))
-       (mk-big-ival (bfabs (ival-lo-val remainder)) (bfneg (bfabs (ival-hi-val remainder))))]
-      [else
-       ((monotonic bfneg) ((monotonic bfabs) remainder))]))
-    
-  
-  (define intermediate (ival-div x pi))
-  (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-floor intermediate))
-    
-  (parameterize ([bf-precision 64])
-    (define remainder (cos-fraction intermediate))
-    ;(println remainder )
-    (cond
-      [(and (bf=? a b) (bfeven? a))
-       ((comonotonic bfcos) remainder)]
-      [(and (bf=? a b) (bfodd? a))
-       ((monotonic bfcos) remainder)]
-      [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-       (ival (endpoint -1.bf #f)
-             (rnd 'up epfn bfmax2 (epfn bfcos (ival-lo remainder)) (epfn bfcos (ival-hi remainder)))
-             (ival-err? x) (ival-err x))]
-      [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-       (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo remainder)) (epfn bfcos (ival-hi remainder)))
-             (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
-      [else
-       (ival-then x (mk-big-ival -1.bf 1.bf))])))
-
 (define (ival-sin x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
     (parameterize ([bf-precision (bigfloat-precision (ival-lo-val x))])
-      (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf)))))
+      (ival-round (ival-div x (ival-pi)))))
   (cond
-    [(and (bf=? a b) (bfeven? a))
-     ((comonotonic bfsin) x)]
     [(and (bf=? a b) (bfodd? a))
+     ((comonotonic bfsin) x)]
+    [(and (bf=? a b) (bfeven? a))
      ((monotonic bfsin) x)]
-    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-     (ival (endpoint -1.bf #f) (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (ival-err? x) (ival-err x))]
     [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-     (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x))) (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
+     (ival (endpoint -1.bf #f)
+           (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+           (ival-err? x)
+           (ival-err x))]
+    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+     (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+           (endpoint 1.bf #f)
+           (ival-err? x)
+           (ival-err x))]
     [else
      (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
-(define (ival-sin-modified x)
+(define (ival-sin-reduced x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-round (ival-div x (ival-pi))))
+    (ival-round
+     (parameterize ([bf-precision 2048])
+       (ival-div x (ival-pi)))))
+  
   (cond
     [(and (bf=? a b) (bfodd? a))
      ((comonotonic bfsin) x)]
@@ -691,7 +654,8 @@
 
 (define (ival-tan x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf))))
+    (parameterize ([bf-precision (bigfloat-precision (ival-lo-val x))])
+      (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf)))))
   (if (bf=? a b) ; Same period
       ((monotonic bftan) x)
       (ival-then x (ival-assert (mk-big-ival #f #t) 'ival-tan) (mk-big-ival -inf.bf +inf.bf))))

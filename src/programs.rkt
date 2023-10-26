@@ -156,31 +156,34 @@
      [(or 'fl 'bf) (λ (c ift iff) (if c ift iff))]
      ['ival ival-if]))
 
-  ;(define (munge prog repr is-inside-trig)
-  (define (munge prog repr)
+  (define (munge prog repr [is-inside-trig #f])
+  ;(define (munge prog repr)
     (set! size (+ 1 size))
     (define expr
       (match prog
-       [(? number?) (list (const (real->precision prog repr)) #f)]
-       ;[(? number?) (list (const (real->precision prog repr)))]
-       [(? variable?) prog]
-       [`(if ,c ,t ,f)
-        (list if-op
-              #f
-              (munge c bool-repr)
-              (munge t repr)
-              (munge f repr))]
-       [(list op args ...)
-        (define fn (operator-info op mode))
-        (define atypes (operator-info op 'itype))
-        (list* fn (set-member? '(sin.f64 cos.f64 tan.f64) op) (map munge args atypes))]
-        ;(list* fn (if (set-member? '(sin cos tan) op) #t #f) (map munge args atypes))]
-       [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
+        ;[(? number?) (list (const (real->precision prog repr)) #f)]
+        [(? number?) (list (const (real->precision prog repr)))] ;(list (const (real->precision prog repr)))]
+        [(? variable?) prog]
+        [`(if ,c ,t ,f)
+         (list (list if-op is-inside-trig) ;if-op
+               (munge c bool-repr is-inside-trig)
+               (munge t repr is-inside-trig)
+               (munge f repr is-inside-trig))]
+        [(list op args ...)
+         (define fn (operator-info op mode))
+         (define atypes (operator-info op 'itype))
+         ;(list* fn is-inside-trig (map munge args atypes (set-member? '(sin.f64 cos.f64 tan.f64) op)))]
+         (cons (list fn is-inside-trig) ;fn
+               (map munge
+                    args
+                    atypes
+                    (make-list (length args) (set-member? '(sin.f64 cos.f64 tan.f64) op))))]
+        [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
-              (λ ()
-                (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                  (set! exprc (+ 1 exprc))
-                  (set! exprcache (cons expr exprcache))))))
+               (λ ()
+                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
+                         (set! exprc (+ 1 exprc))
+                         (set! exprcache (cons expr exprcache))))))
 
   (define names (for/list ([expr exprs]) (munge expr repr)))
   (define lt (+ exprc varc))
@@ -193,12 +196,21 @@
       (vector-set! v n (arg->precision arg repr)))
     (for ([expr (in-vector exprvec)] [n (in-naturals varc)])
       (define tl
-        (for/list ([arg (in-list (cddr expr))])
-          (vector-ref v arg)))
-      (if (second expr)
-        (parameterize ([bf-precision 2048])
-          (vector-set! v n (apply (first expr) tl)))
-        (vector-set! v n (apply (first expr) tl))))
+        (for/list ([arg (in-list (cdr expr))])
+          (if (cdar expr)
+              (parameterize ([bf-precision 2048])
+                (vector-ref v arg))
+              (vector-ref v arg))))
+      #;(if (cdar expr)
+          (parameterize ([bf-precision 2048])
+            (vector-set! v n (apply (caar expr) tl)))
+          (vector-set! v n (apply (caar expr) tl)))
+      (if (pair? (car expr))
+          (if (cdar expr)
+              (parameterize ([bf-precision 2048])
+                (vector-set! v n (apply (caar expr) tl)))
+              (vector-set! v n (apply (caar expr) tl)))
+          (vector-set! v n (apply (car expr) tl))))
     (for/list ([n (in-list names)])
       (vector-ref v n)))
   (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
