@@ -117,6 +117,14 @@
   (let/ec return
     (location-do loc prog return)))
 
+;; Interpreter taking a narrow IR
+;; ```
+;; <instrs> ::= #(<instr> ..+)
+;;          ::= '(<op-procedure> <index> ...)
+;; ```
+;; where <index> refers to a previous virtual register slot.
+;; Must also provide the input variables for the program(s)
+;; as well as the indices of the roots to extract.
 (define (make-progs-interpreter vars ivec roots)
   (define vreg-count (+ (length vars) (vector-length ivec)))
   (define vregs (make-vector vreg-count))
@@ -134,9 +142,15 @@
 (define (compile-spec spec vars)
   (compose first (compile-specs (list spec) vars)))
 
+(define (compile-prog expr ctx)
+  (compose first (compile-progs (list expr) ctx)))
+
+;; Compiles a program of operators into a procedure
+;; that evaluates the program on a single input of intervals
+;; returning intervals.
 (define (compile-specs specs vars)
   ;; Instruction cache
-  (define exprcache '())
+  (define icache '())
   (define exprhash
     (make-hash
      (for/list ([var vars] [i (in-naturals)])
@@ -147,6 +161,7 @@
   (define exprc 0)
   (define varc (length vars))
 
+  ; Translates programs into an instruction sequence
   (define (munge prog)
     (set! size (+ 1 size))
     (define expr
@@ -162,23 +177,23 @@
               (λ ()
                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
                   (set! exprc (+ 1 exprc))
-                  (set! exprcache (cons expr exprcache))))))
+                  (set! icache (cons expr icache))))))
 
   (define names (map munge specs))
   (timeline-push! 'compiler (+ varc size) (+ exprc varc))
-  (define exprvec (list->vector (reverse exprcache)))
-  (define interpret (make-progs-interpreter vars exprvec names))
+  (define ivec (list->vector (reverse icache)))
+  (define interpret (make-progs-interpreter vars ivec names))
   (procedure-rename interpret (string->symbol "<eval-prog-ival>")))
 
-(define (compile-prog expr ctx)
-  (compose first (compile-progs (list expr) ctx)))
-
+;; Compiles a program of operator implementations into a procedure
+;; that evaluates the program on a single input of representation values
+;; returning representation values.
 (define (compile-progs exprs ctx)
   (define repr (context-repr ctx))
   (define vars (context-vars ctx))
 
   ;; Expression cache
-  (define exprcache '())
+  (define icache '())
   (define exprhash
     (make-hash
      (for/list ([var vars] [i (in-naturals)])
@@ -189,6 +204,7 @@
   (define exprc 0)
   (define varc (length vars))
 
+  ; Translates programs into an instruction sequence
   (define (munge prog repr)
     (set! size (+ 1 size))
     (define expr
@@ -209,14 +225,12 @@
               (λ ()
                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
                   (set! exprc (+ 1 exprc))
-                  (set! exprcache (cons expr exprcache))))))
+                  (set! icache (cons expr icache))))))
 
   (define names (for/list ([expr exprs]) (munge expr repr)))
-  (define lt (+ exprc varc))
-
-  (timeline-push! 'compiler (+ varc size) lt)
-  (define exprvec (list->vector (reverse exprcache)))
-  (define interpret (make-progs-interpreter vars exprvec names))
+  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
+  (define ivec (list->vector (reverse icache)))
+  (define interpret (make-progs-interpreter vars ivec names))
   (procedure-rename interpret (string->symbol "<eval-prog-fl>")))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
