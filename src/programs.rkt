@@ -6,7 +6,9 @@
 (provide expr? expr-contains? expr<?
          type-of repr-of
          location-do location-get
-         compile-progs compile-prog eval-application
+         compile-specs compile-spec
+         compile-progs compile-prog
+         eval-application
          free-variables replace-expression replace-vars)
 
 (module+ test
@@ -115,36 +117,65 @@
   (let/ec return
     (location-do loc prog return)))
 
-(define (compile-prog expr mode ctx)
-  (compose first (compile-progs (list expr) mode ctx)))
+(define (make-progs-interpreter vars ivec roots)
+  (define vreg-count (+ (length vars) (vector-length ivec)))
+  (define vregs (make-vector vreg-count))
+  (λ args
+    (for ([arg (in-list args)] [n (in-naturals)])
+      (vector-set! vregs n arg))
+    (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
+      (define srcs
+        (for/list ([idx (in-list (cdr instr))])
+          (vector-ref vregs idx)))
+      (vector-set! vregs n (apply (car instr) srcs)))
+    (for/list ([root (in-list roots)])
+      (vector-ref vregs root))))
 
-(define (compile-progs exprs mode ctx)
+(define (compile-spec spec vars)
+  (compose first (compile-specs (list spec) vars)))
+
+(define (compile-specs specs vars)
+  ;; Instruction cache
+  (define exprcache '())
+  (define exprhash
+    (make-hash
+     (for/list ([var vars] [i (in-naturals)])
+       (cons var i))))
+
+  ; Counts
+  (define size 0)
+  (define exprc 0)
+  (define varc (length vars))
+
+  (define (munge prog)
+    (set! size (+ 1 size))
+    (define expr
+      (match prog
+       [(? number?) (list (const (ival (bf prog))))]
+       [(? variable?) prog]
+       [`(if ,c ,t ,f)
+        (list ival-if (munge c) (munge t) (munge f))]
+       [(list op args ...)
+        (cons (operator-info op 'ival) (map munge args))]
+       [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
+    (hash-ref! exprhash expr
+              (λ ()
+                (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
+                  (set! exprc (+ 1 exprc))
+                  (set! exprcache (cons expr exprcache))))))
+
+  (define names (map munge specs))
+  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
+  (define exprvec (list->vector (reverse exprcache)))
+  (define interpret (make-progs-interpreter vars exprvec names))
+  (procedure-rename interpret (string->symbol "<eval-prog-ival>")))
+
+(define (compile-prog expr ctx)
+  (compose first (compile-progs (list expr) ctx)))
+
+(define (compile-progs exprs ctx)
   (define repr (context-repr ctx))
   (define vars (context-vars ctx))
-  (define var-reprs (context-var-reprs ctx))
-
-  (define real->precision
-    (match mode
-     ['fl (λ (x repr) (real->repr x repr))]
-     ['ival (λ (x _) (ival (bf x)))]))
-
-  (define arg->precision
-    (match mode
-     ['fl (λ (x _) x)]
-     ['ival (λ (x repr)
-              (if (ival? x)
-                  x
-                  (ival ((representation-repr->bf repr) x))))]))
-
-  (define get-proc
-    (match mode
-      ['fl (λ (impl) (impl-info impl 'fl))]
-      ['ival (λ (impl) (operator-info (impl->operator impl) 'ival))]))
-
-  (define get-itypes
-    (match mode
-      ['fl (λ (impl) (impl-info impl 'itype))]
-      ['ival (λ (impl) (operator-info (impl->operator impl) 'itype))]))
 
   ;; Expression cache
   (define exprcache '())
@@ -158,29 +189,20 @@
   (define exprc 0)
   (define varc (length vars))
 
-  ;; Known representations
-  (define bool-repr (get-representation 'bool))
-
-  ;; 'if' operator
-  (define if-op
-    (match mode
-     ['fl (λ (c ift iff) (if c ift iff))]
-     ['ival ival-if]))
-
   (define (munge prog repr)
     (set! size (+ 1 size))
     (define expr
       (match prog
-       [(? number?) (list (const (real->precision prog repr)))]
+       [(? number?) (list (const (real->repr prog repr)))]
        [(? variable?) prog]
        [`(if ,c ,t ,f)
-        (list if-op
-              (munge c bool-repr)
+        (list (λ (c ift iff) (if c ift iff))
+              (munge c (get-representation 'bool))
               (munge t repr)
               (munge f repr))]
        [(list op args ...)
-        (define fn (get-proc op))
-        (define atypes (get-itypes op))
+        (define fn (impl-info op 'fl))
+        (define atypes (impl-info op 'itype))
         (cons fn (map munge args atypes))]
        [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
     (hash-ref! exprhash expr
@@ -194,18 +216,8 @@
 
   (timeline-push! 'compiler (+ varc size) lt)
   (define exprvec (list->vector (reverse exprcache)))
-  (define (f . args)
-    (define v (make-vector lt))
-    (for ([arg (in-list args)] [n (in-naturals)] [repr (in-list var-reprs)])
-      (vector-set! v n (arg->precision arg repr)))
-    (for ([expr (in-vector exprvec)] [n (in-naturals varc)])
-      (define tl
-        (for/list ([arg (in-list (cdr expr))])
-          (vector-ref v arg)))
-      (vector-set! v n (apply (car expr) tl)))
-    (for/list ([n (in-list names)])
-      (vector-ref v n)))
-  (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
+  (define interpret (make-progs-interpreter vars exprvec names))
+  (procedure-rename interpret (string->symbol "<eval-prog-fl>")))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
