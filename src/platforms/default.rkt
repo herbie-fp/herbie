@@ -7,10 +7,11 @@
 
 ; universal boolean opertaions
 (define boolean-platform
-  (platform ()
-    (bool #:const [TRUE FALSE]
-          #:1ary [not]
-          #:2ary [and or])))
+  (platform
+    (bool
+      #:const [TRUE FALSE]
+      #:1ary [not]
+      #:2ary [and or])))
 
 ; machine floating-point operations
 (define machine-platform
@@ -20,7 +21,8 @@
       #:type bool [bool]
       #:operators [PI E INFINITY NAN neg + - * /]
       #:operators [== != > < >= <=])
-    (platform ([binary64 binary32])
+    (platform
+      #:conversions ([binary64 binary32])
       (binary64)
       (binary32))))
 
@@ -34,15 +36,19 @@
                  fmod pow remainder]
     #:operators [expm1 log1p atan2 hypot fma]))
 
-; Registers all three
+; compose platforms
 
-(register-platform! 'boolean boolean-platform)
-
-(register-platform! 'hardware
+(define hardware-platform
   (platform-union boolean-platform
                   machine-platform))
 
-(register-platform! 'default
+(define default-platform
   (platform-union boolean-platform
                   machine-platform
                   libm-platform))
+
+; Register all three
+
+(register-platform! 'boolean boolean-platform)
+(register-platform! 'hardware hardware-platform)
+(register-platform! 'default default-platform)
