@@ -2,8 +2,11 @@
 
 ;; Single-precision common math operators
 
-(require math/bigfloat math/flonum)
-(require "runtime/float32.rkt" "runtime/utils.rkt"
+(require math/bigfloat)
+(require "runtime/float32.rkt"
+         "runtime/utils.rkt"
+         "bool.rkt"     ;; required for raco test
+         "binary64.rkt"  ;; required for raco test
          (only-in "runtime/libm.rkt"
            [define-binary32-impls/libm define-libm-operators]))
 

@@ -8,7 +8,9 @@
          "../syntax/types.rkt" "../common.rkt" "../errors.rkt"
          "../programs.rkt" "../timeline.rkt" "../platform.rkt")
 
-(module+ test (require rackunit))
+(module+ test
+  (require rackunit)
+  (load-herbie-builtins))
 
 (provide (struct-out egraph-query) make-egg-query run-egg
          expand-rules get-canon-rule-name remove-rewrites)

@@ -1,9 +1,8 @@
 #lang racket
 (require setup/getinfo racket/runtime-path)
-(require "config.rkt" "platform.rkt" "syntax/types.rkt"
-         (submod "syntax/types.rkt" internals))
+(require "config.rkt" "platform.rkt" "syntax/types.rkt")
 
-(provide load-herbie-plugins load-herbie-builtins make-debug-context)
+(provide load-herbie-builtins load-herbie-plugins make-debug-context)
 
 ;; Builtin plugins
 (define-runtime-module-path bool-plugin     "reprs/bool.rkt")
@@ -15,27 +14,22 @@
 ;; Builtin platforms
 (define-runtime-module-path default-platform "platforms/default.rkt")
 
+; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
+  ;; Load in all the files
   ;; Warning: the order here is important!
   (dynamic-require bool-plugin #f)
   (dynamic-require binary64-plugin #f)
   (dynamic-require binary32-plugin #f)
   (dynamic-require fallback-plugin #f)
   (dynamic-require float-plugin #f)
-  (dynamic-require default-platform #f))
-
-;; loads builtin representations as needed
-;; usually if 'load-herbie-plugins' has not been called
-(define (generate-builtins name)
-  (match name
-   ['bool     (dynamic-require bool-plugin #f) #t]
-   ['binary64 (dynamic-require binary64-plugin #f) #t]
-   ['binary32 (dynamic-require binary32-plugin #f) #t]
-   ['racket   (dynamic-require fallback-plugin #f) #t]
-   [_ #f]))
+  (dynamic-require default-platform #f)
+  ;; activate the default platform
+  (*active-platform* (get-platform (*default-platform-name*)))
+  (activate-platform! (*active-platform*)))
 
 (define (load-herbie-plugins)
-  (load-herbie-builtins) ; automatically load default representations
+  (load-herbie-builtins)
   ; search packages for herbie plugins
   (for ([dir (find-relevant-directories '(herbie-plugin))])
     (define info
@@ -48,13 +42,9 @@
   ; load in "loose" plugins
   (for ([path (in-list (*loose-plugins*))]) 
     (dynamic-require path #f))
-  ; activate the platform now
-  (*active-platform* (get-platform (*default-platform-name*)))
+  ; activate the actual requred platform
+  (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
-
-;; requiring "load-plugin.rkt" automatically registers
-;; all built-in representation but does not load them
-(register-generator! generate-builtins)
 
 (define (make-debug-context vars)
   (load-herbie-builtins)

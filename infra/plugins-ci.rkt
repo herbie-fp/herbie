@@ -33,4 +33,7 @@
        [fdp quire32 posit32 posit32 quire32]
        [fdm quire32 posit32 posit32 quire32]))))
 
-(register-platform! 'softposit (platform-union default-platform softposit-platform))  
+(register-platform! 'softposit (platform-union default-platform softposit-platform))
+
+;; Do not run this file during testing
+(module test racket/base)

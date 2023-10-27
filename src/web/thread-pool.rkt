@@ -50,7 +50,7 @@
 (define (make-worker seed profile? dir)
   (place/context* ch
     #:parameters (*flags* *num-iterations* *num-points* *timeout* *reeval-pts* *node-limit*
-                  *max-find-range-depth* *pareto-mode* *default-platform-name* *loose-plugins*)
+                  *max-find-range-depth* *pareto-mode* *platform-name* *loose-plugins*)
     (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
       (load-herbie-plugins))
     (for ([_ (in-naturals)])

@@ -211,7 +211,7 @@
   (check-types <b64> <b64> #'x #:env `((x . ,<b64>)))
   (check-types <b64> <b64> #'(acos x) #:env `((x . ,<b64>)))
   (check-fails <b64> #'(acos x) #:env `((x . ,<bool>)))
-  (check-types <b64> <bool> #'(and a b c) #:env `((a . ,<bool>) (b . ,<bool>) (c . ,<bool>)))
+  (check-types <b64> <bool> #'(and a b) #:env `((a . ,<bool>) (b . ,<bool>)))
   (check-types <b64> <b64> #'(if (== a 1) 1 0) #:env `((a . ,<b64>)))
   (check-fails <b64> #'(if (== a 1) 1 0) #:env `((a . ,<bool>)))
   (check-types <b64> <bool> #'(let ([a 1]) TRUE))

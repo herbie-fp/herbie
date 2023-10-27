@@ -4,6 +4,7 @@
 
 (require math/bigfloat math/flonum)
 (require "runtime/utils.rkt"
+         "bool.rkt"  ;; required for raco test
          (only-in "runtime/libm.rkt"
            [define-binary64-impls/libm define-libm-operators]))
 

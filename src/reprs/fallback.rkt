@@ -3,7 +3,8 @@
 ;; Builtin fallback plugin (:precision racket)
 
 (require math/base math/bigfloat math/flonum math/special-functions)
-(require "runtime/utils.rkt")
+(require "runtime/utils.rkt"
+         "bool.rkt")  ;; required for raco test
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

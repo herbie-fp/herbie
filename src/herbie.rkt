@@ -83,8 +83,8 @@
       "[Default: default]"
     )
     ; first try looking for a matching file
-    (*default-platform-name* (string->symbol platform))
-    (*active-platform* (get-platform (*default-platform-name*)))
+    (*platform-name* (string->symbol platform))
+    (*active-platform* (get-platform (*platform-name*)))
     (activate-platform! (*active-platform*))]
    [("--num-iters") num
     (

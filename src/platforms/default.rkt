@@ -13,18 +13,13 @@
       #:1ary [not]
       #:2ary [and or])))
 
-; machine floating-point operations
+; machine floating-point operations (without conversions)
 (define machine-platform
-  (platform-union
-    (platform-product
-      #:type real [binary64 binary32]
-      #:type bool [bool]
-      #:operators [PI E INFINITY NAN neg + - * /]
-      #:operators [== != > < >= <=])
-    (platform
-      ; #:conversions ([binary64 binary32])
-      (binary64)
-      (binary32))))
+  (platform-product
+    #:type real [binary64 binary32]
+    #:type bool [bool]
+    #:operators [PI E INFINITY NAN neg + - * /]
+    #:operators [== != > < >= <=]))
 
 ; libm operations
 (define libm-platform
@@ -52,3 +47,6 @@
 (register-platform! 'boolean boolean-platform)
 (register-platform! 'hardware hardware-platform)
 (register-platform! 'default default-platform)
+
+;; Do not run this file during testing
+(module test racket/base)
