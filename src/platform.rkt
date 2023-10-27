@@ -24,7 +24,7 @@
 
 (module+ internals
   (provide platform make-platform register-platform!
-           platform-product make-platform-product
+           platform-product make-platform-product get-platform
            platform-union platform-intersect platform-subtract))
 
 ;;; Platforms describe a set of representations, operator, and constants
@@ -125,7 +125,7 @@
          ; special case: constants
          (define orepr (get-representation otype))
          (get-parametric-constant name orepr #:all? #t)]
-        [(list name _ itypes ...)
+        [(list name itypes ... _)
          (define ireprs (map get-representation itypes))
          (apply get-parametric-operator name ireprs #:all? #t)])))
   ; make the platform
@@ -195,16 +195,16 @@
                             (loop #'(#:4ary name [ops ...] rest ...) done)]
                            [(#:1ary itype [ops ...] rest ...)
                             (with-syntax ([(itypes ...) (build-list 1 (λ (_) #'itype))])
-                              (loop #'(rest ...) (append (syntax->list #'((ops name itypes ...) ...)) done)))]
+                              (loop #'(rest ...) (append (syntax->list #'((ops itypes ... name) ...)) done)))]
                            [(#:2ary itype [ops ...] rest ...)
                             (with-syntax ([(itypes ...) (build-list 2 (λ (_) #'itype))])
-                              (loop #'(rest ...) (append (syntax->list #'((ops name itypes ...) ...)) done)))]
+                              (loop #'(rest ...) (append (syntax->list #'((ops itypes ... name) ...)) done)))]
                            [(#:3ary itype [ops ...] rest ...)
                             (with-syntax ([(itypes ...) (build-list 3 (λ (_) #'itype))])
-                              (loop #'(rest ...) (append (syntax->list #'((ops name itypes ...) ...)) done)))]
+                              (loop #'(rest ...) (append (syntax->list #'((ops itypes ... name) ...)) done)))]
                            [(#:4ary itype [ops ...] rest ...)
                             (with-syntax ([(itypes ...) (build-list 4 (λ (_) #'itype))])
-                              (loop #'(rest ...) (append (syntax->list #'((ops name itypes ...) ...)) done)))]
+                              (loop #'(rest ...) (append (syntax->list #'((ops itypes ... name) ...)) done)))]
                            [([op itypes ...] rest ...)
                             (loop #'(rest ...) (cons #'(op itypes ...) done))]
                            [_
@@ -321,7 +321,7 @@
       (for/fold ([impls impls]) ([assigns (type-combinations types type-dict)])
         (define orepr (dict-ref assigns otype))
         (define ireprs (map (curry dict-ref assigns) itypes))
-        (cons (list* op orepr ireprs) impls))))
+        (cons `(,op ,@ireprs ,orepr) impls))))
   (make-platform reprs '() impls))
 
 ;; Macro version of `make-platform-product`

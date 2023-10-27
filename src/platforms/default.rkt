@@ -22,7 +22,7 @@
       #:operators [PI E INFINITY NAN neg + - * /]
       #:operators [== != > < >= <=])
     (platform
-      #:conversions ([binary64 binary32])
+      ; #:conversions ([binary64 binary32])
       (binary64)
       (binary32))))
 

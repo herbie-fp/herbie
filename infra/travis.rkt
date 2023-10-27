@@ -2,7 +2,7 @@
 
 (require "../src/common.rkt" "../src/points.rkt" "../src/load-plugin.rkt"
          "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt"
-         "../src/syntax/types.rkt")
+         "../src/syntax/types.rkt" "../src/platform.rkt")
 
 (define *precision* (make-parameter #f))
 
@@ -86,10 +86,18 @@
 
   (command-line
    #:program "travis.rkt"
+   #:multi
+   [("--plugin") path "Which additional Herbie plugins to use"
+    (dynamic-require path #f)
+    (*loose-plugins* (cons path (*loose-plugins*)))]
    #:once-each
    [("--seed") rs "The random seed to use in point generation. If false (#f), a random seed is used'"
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
+   [("--platform") platform "Which platform to use for tests"
+    (*default-platform-name* (string->symbol platform))
+    (*active-platform* (get-platform (*default-platform-name*)))
+    (activate-platform! (*active-platform*))]
    [("--precision") prec "Which precision to use for tests"
     (*precision* (get-representation (string->symbol prec)))]
    [("--num-iters") num "The number of iterations to use for the main loop"

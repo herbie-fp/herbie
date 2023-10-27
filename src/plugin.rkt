@@ -14,5 +14,5 @@
          register-generator! register-operator!
          (struct-out representation) get-representation warn
          platform make-platform register-platform!
-         platform-product make-platform-product
+         platform-product make-platform-product get-platform
          platform-union platform-intersect platform-subtract)

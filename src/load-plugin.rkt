@@ -35,7 +35,8 @@
    [_ #f]))
 
 (define (load-herbie-plugins)
-  (load-herbie-builtins)    ; automatically load default representations
+  (load-herbie-builtins) ; automatically load default representations
+  ; search packages for herbie plugins
   (for ([dir (find-relevant-directories '(herbie-plugin))])
     (define info
       (with-handlers ([exn:fail:filesystem? (const false)])
@@ -44,6 +45,10 @@
     (when value
       (with-handlers ([exn:fail:filesystem:missing-module? void])
         (dynamic-require value #f))))
+  ; load in "loose" plugins
+  (for ([path (in-list (*loose-plugins*))]) 
+    (dynamic-require path #f))
+  ; activate the platform now
   (*active-platform* (get-platform (*default-platform-name*)))
   (activate-platform! (*active-platform*)))
 

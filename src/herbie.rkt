@@ -1,7 +1,8 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "errors.rkt" "load-plugin.rkt" "sandbox.rkt")
+(require "common.rkt" "multi-command-line.rkt" "errors.rkt"
+         "load-plugin.rkt" "platform.rkt" "sandbox.rkt")
 
 ;; Load all the plugins
 (load-herbie-plugins)
@@ -76,6 +77,15 @@
     )
     (define given-seed (read (open-input-string int)))
     (when given-seed (set-seed! given-seed))]
+   [("--platform") platform
+    (
+      "The platform to use during improvement"
+      "[Default: default]"
+    )
+    ; first try looking for a matching file
+    (*default-platform-name* (string->symbol platform))
+    (*active-platform* (get-platform (*default-platform-name*)))
+    (activate-platform! (*active-platform*))]
    [("--num-iters") num
     (
      "The number of iterations to use for the main loop. Herbie may find additional improvements
@@ -113,6 +123,13 @@
     )
     (*pareto-mode* #f)]
    #:multi
+   [("--plugin") path
+    (
+      "Path to a Herbie plugin."
+      "Allows for dynamic loading of \"loose\" plugins".
+    )
+    (dynamic-require path #f)
+    (*loose-plugins* (cons path (*loose-plugins*)))]
    [("-o" "--disable") flag
     (
      "Disable a search flag (formatted category:name)."
