@@ -126,7 +126,7 @@
    [("--plugin") path
     (
       "Path to a Herbie plugin."
-      "Allows for dynamic loading of \"loose\" plugins".
+      "Allows for dynamic loading of \"loose\" plugins."
     )
     (dynamic-require path #f)
     (*loose-plugins* (cons path (*loose-plugins*)))]
