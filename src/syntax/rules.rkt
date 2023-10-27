@@ -27,18 +27,16 @@
 ;; provided by plugins. Rules are applied regardless of which
 ;; operations are actually supported by a platform since rewrite
 ;; rules are intended to be mathematical.
-(define *rulesets* (make-parameter (make-hasheq)))
+(define *rulesets* (make-parameter '()))
 
 ;; Ruleset contract
 (define ruleset? (list/c (listof rule?) (listof symbol?) dict?))
 
 (define/contract (add-ruleset! name ruleset)
   (-> symbol? ruleset? void?)
-  (cond
-    [(hash-has-key? (*rulesets*) name)
-     (warn 'rulesets "Duplicate ruleset ~a, skipping" name)]
-    [else
-     (hash-set! (*rulesets*) name ruleset)]))
+  (when (dict-has-key? (*rulesets*) name)
+    (warn 'rulesets "Duplicate ruleset ~a, skipping" name))
+  (*rulesets* (dict-set (*rulesets*) name ruleset)))
 
 ;; Rules: fp-safe-simplify ⊂ simplify ⊂ all
 ;;
@@ -67,7 +65,7 @@
 
 (define (*rules*)
   (reap [sow]
-    (for ([(_ ruleset) (in-hash (*rulesets*))])
+    (for ([(_ ruleset) (in-dict (*rulesets*))])
       (match-define (list rules groups _) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
                  (filter rule-ops-supported? rules))
@@ -76,7 +74,7 @@
 
 (define (*simplify-rules*)
   (reap [sow]
-    (for ([(_ ruleset) (in-hash (*rulesets*))])
+    (for ([(_ ruleset) (in-dict (*rulesets*))])
       (match-define (list rules groups _) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
                  (set-member? groups 'simplify)
@@ -86,7 +84,7 @@
 
 (define (*fp-safe-simplify-rules*)
   (reap [sow]
-    (for ([(_ ruleset) (in-hash (*rulesets*))])
+    (for ([(_ ruleset) (in-dict (*rulesets*))])
       (match-define (list rules groups _) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
                  (set-member? groups 'simplify)

@@ -225,9 +225,12 @@
 ;; Real operators in a platform.
 (define (platform-operators pform)
   (define ops (mutable-set))
-  (for ([impl (in-list (platform-impls pform))])
-    (set-add! ops (impl->operator impl)))
-  (set->list ops))
+  (reap [sow]
+    (for ([impl (in-list (platform-impls pform))])
+      (define op (impl->operator impl))
+      (unless (set-member? ops op)
+        (set-add! ops op)
+        (sow op)))))
 
 ;; Representation conversions in a platform.
 (define (platform-conversions pform)
@@ -238,61 +241,79 @@
 
 ;; The "precision change" rules valid for a platform
 (define (platform-reprchange-rules pform)
-  ; by directionality
-  (define unidir (mutable-set))
-  (define bidir (mutable-set))
+  ; sort by representation index
+  (define reprs (platform-reprs pform))
 
   ; conversion signatures
-  (for ([impl (platform-conversions pform)])
-    (match-define (list irepr) (operator-info impl 'itype))
-    (define orepr (operator-info impl 'otype))
-    (define sig (cons irepr orepr))
-    (set-add! unidir sig)
-    
-    (define rev-sig (cons orepr irepr))
-    (when (set-member? unidir rev-sig)
-      (set-add! bidir rev-sig)))
+  (define as-set (mutable-set))
+  (define convs
+    (reap [sow]
+      (for ([impl (platform-conversions pform)])
+        (match-define (list irepr) (operator-info impl 'itype))
+        (define orepr (operator-info impl 'otype))
+        (unless (or (set-member? as-set (cons irepr orepr))
+                     (set-member? as-set (cons orepr irepr)))
+          (set-add! as-set (cons irepr orepr))
+          (sow (cons irepr orepr))))))
 
-  ; for each conversion, enable a rewrite
-  (define rules
-    (for/list ([(irepr orepr) (in-dict (set->list unidir))])
-      ; names
-      (define irepr-sym (repr->symbol irepr))
-      (define orepr-sym (repr->symbol orepr))
-      (define conv (sym-append irepr-sym '-> orepr-sym))
-      (define change (sym-append '<- irepr-sym))
-      (define rewrite-name (sym-append 'rewrite- orepr-sym '/ irepr-sym))
-      ; rules
-      (rule rewrite-name 'a `(,conv (,change a)) `((a . ,irepr)) orepr)))
-
-  ; for each bidirectional conversion, enable a pair of simplification rewrites
-  (for/fold ([rules rules]) ([(irepr orepr) (in-dict (set->list unidir))])
-    ; names
+  ; precision rule generator
+  (define (make-precision-rewrite irepr orepr)
     (define irepr-sym (repr->symbol irepr))
     (define orepr-sym (repr->symbol orepr))
-    (define conv1 (sym-append irepr-sym '-> orepr-sym))
-    (define conv2 (sym-append orepr-sym '-> irepr-sym))
-    (define rw-name1 (sym-append 'rewrite- orepr-sym '/ irepr-sym '-simplify))
-    (define rw-name2 (sym-append 'rewrite- irepr-sym '/ orepr-sym '-simplify))
-    ; rules
-    (define simplify1 (rule rw-name1 'a `(,conv1 (,conv2 a)) `((a . ,orepr)) orepr))
-    (define simplify2 (rule rw-name2 'a `(,conv2 (,conv1 a)) `((a . ,irepr)) irepr))
-    (append (list simplify1 simplify2) rules)))
+    (define conv (sym-append irepr-sym '-> orepr-sym))
+    (define change (sym-append '<- irepr-sym))
+    (define rewrite-name (sym-append 'rewrite- orepr-sym '/ irepr-sym))
+    (rule rewrite-name 'a `(,conv (,change a)) `((a . ,irepr)) orepr))
 
-;; Applier for set operations on platforms
-(define ((make-set-applier set-fn) p1 . ps)
-  (define (combine accessor)
-    (apply set-fn
-      (for/list ([p (in-list (cons p1 ps))])
-        (list->set (accessor p)))))
-  (create-platform #f
-                   (set->list (combine platform-reprs))
-                   (set->list (combine platform-impls))))
-  
+  ; for each conversion, enable precision rewrite
+  (define prec-rules
+    (for/fold ([rules '()]) ([(irepr orepr) (in-dict convs)])
+      (list* (make-precision-rewrite irepr orepr)
+             (make-precision-rewrite orepr irepr)
+             rules)))
+
+  ; for each conversion, enable a precision simplification
+  (define prec-simplifiers
+    (for/fold ([rules '()]) ([(irepr orepr) (in-dict convs)])
+      (define irepr-sym (repr->symbol irepr))
+      (define orepr-sym (repr->symbol orepr))
+      (define conv1 (sym-append irepr-sym '-> orepr-sym))
+      (define conv2 (sym-append orepr-sym '-> irepr-sym))
+      (define rw-name1 (sym-append 'rewrite- orepr-sym '/ irepr-sym '-simplify))
+      (define rw-name2 (sym-append 'rewrite- irepr-sym '/ orepr-sym '-simplify))
+      ; rules
+      (define simplify1 (rule rw-name1 'a `(,conv1 (,conv2 a)) `((a . ,orepr)) orepr))
+      (define simplify2 (rule rw-name2 'a `(,conv2 (,conv1 a)) `((a . ,irepr)) irepr))
+      (list* simplify1 simplify2 rules)))
+
+  (append prec-rules prec-simplifiers))
+
 ;; Set operations on platforms
-(define platform-union (make-set-applier set-union))
-(define platform-intersect (make-set-applier set-intersect))
-(define platform-subtract (make-set-applier set-subtract))
+(define ((make-set-operation merge) p1 . ps)
+  (define (combine accessor)
+    (for/fold ([s (accessor p1)]) ([p (in-list ps)])
+      (merge s (accessor p))))
+  (create-platform #f
+                   (combine platform-reprs)
+                   (combine platform-impls)))
+
+;; Set union for platforms.
+;; Use list operations for deterministic ordering.
+(define platform-union
+  (make-set-operation
+    (λ (s1 s2) (remove-duplicates (append s1 s2)))))
+
+;; Set intersection for platforms.
+;; Use list operations for deterministic ordering.
+(define platform-intersect
+  (make-set-operation
+    (λ (s1 s2) (filter (curry set-member? (list->set s2)) s1))))
+
+;; Set subtract for platforms.
+;; Use list operations for deterministic ordering.       
+(define platform-subtract
+  (make-set-operation
+    (λ (s1 s2) (filter-not (curry set-member? (list->set s2)) s1))))
 
 ;; Coarse-grained filters on platforms.
 (define (make-platform-filter invert? reprs ops)
@@ -304,11 +325,11 @@
     (define impls*
       (filter-fn
         (λ (impl)
-          (define op (impl->operator impl))
-          (and (op-in-filter? op)
-               (repr-in-filter? (real-operator-info op 'otype))
-               (andmap repr-in-filter? (real-operator-info 'itype))))
-        (platform-impls pform)))
+          (and (repr-in-filter? (operator-info impl 'otype))
+               (andmap repr-in-filter? (operator-info impl 'itype))))
+        (filter-fn
+          (λ (impl) (op-in-filter? (impl->operator impl)))
+          (platform-impls pform))))
     (create-platform #f reprs* impls*)))
 
 ;; Macro version of `make-platform-filter`.

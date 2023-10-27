@@ -610,10 +610,10 @@
 ; them previously
 (define (expand-rules rules)
   ; TODO: reversing the rules causes CI to pass, why?
-  (define reprs (platform-reprs (*active-platform*)))
+  (define platform (*active-platform*))
   (for/fold ([rules* '()] #:result (reverse rules*)) ([rule (in-list rules)])
     (append
-      (hash-ref! (*ffi-rules*) (cons rule reprs)
+      (hash-ref! (*ffi-rules*) (cons rule platform)
                  (λ ()
                    (define orig-name (rule-name rule))
                    (define egg-rules (rule->egg-rules rule))
