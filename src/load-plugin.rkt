@@ -43,6 +43,7 @@
   (for ([path (in-list (*loose-plugins*))]) 
     (dynamic-require path #f))
   ; activate the actual requred platform
+  ; (eprintf "activating platform `~a`\n" (*platform-name*))
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
 
