@@ -3,9 +3,10 @@
 (FPCore (a x)
  :name "expax (section 3.5)"
  ;:herbie-expected 14
+ :pre (and (< -710 (* a x)) (> 710 (* a x)))
+ ; Hamming suggests using Taylor expansion for ax small
+ ; We use expm1 as it specifically avoids cancellation for ax small
  :herbie-target
- (if (< (fabs (* a x)) 1/10)
-   (* (* a x) (+ 1 (+ (/ (* a x) 2) (/ (pow (* a x) 2) 6))))
-   (- (exp (* a x)) 1))
+ (expm1 (* a x))
 
  (- (exp (* a x)) 1))
