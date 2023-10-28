@@ -11,13 +11,14 @@
 (define (find-preprocessing initial specification context)
   ;; f(x) = f(-x)
   (define even-identities
-    (for/list ([variable (in-list (context-vars context))]
-               [representation (in-list (context-var-reprs context))])
-      (with-handlers ([exn:fail:user:herbie? (const #f)])
-        (define negate (get-parametric-operator 'neg representation))
-        ; Check if representation has an fabs operator
-        (define fabs (get-parametric-operator 'fabs representation))
-        (replace-vars (list (cons variable (list negate variable))) specification))))
+    (reap [sow]
+      (for ([variable (in-list (context-vars context))]
+            [representation (in-list (context-var-reprs context))])
+        (with-handlers ([exn:fail:user:herbie? (const #f)])
+          (define negate (get-parametric-operator 'neg representation))
+          ; Check if representation has an fabs operator
+          (define fabs (get-parametric-operator 'fabs representation))
+          (sow (replace-vars (list (cons variable (list negate variable))) specification))))))
   ;; f(x) = -f(-x)
   (define odd-identities
     (with-handlers ([exn:fail:user:herbie? (const empty)])
