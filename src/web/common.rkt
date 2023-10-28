@@ -98,7 +98,7 @@
 (define (combine-fpcore-instruction i e c)
   (match i
     [(list 'abs x)
-     (define x* (string->symbol (string-append (symbol->string x) "_p")))
+     (define x* (string->symbol (string-append (symbol->string x) "_m")))
      (define e* (replace-vars (list (cons x x*)) e))
      (define p (index-of (context-vars c) x))
      (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
@@ -106,12 +106,16 @@
     [(list 'negabs x)
      (define x-string (symbol->string x))
      (define x-sign (string->symbol (string-append x-string "_s")))
-     (define x* (string->symbol (string-append x-string "_p")))
-     (define e* `(* ,x-sign ,(replace-vars (list (cons x x*)) e)))
+     (define x* (string->symbol (string-append x-string "_m")))
      (define p (index-of (context-vars c) x))
      (define r (list-ref (context-var-reprs c) p))
      (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
      (define c** (context-extend c* x-sign r))
+     (define e*
+       (list
+        (get-parametric-operator '* r (context-repr c))
+        x-sign
+        (replace-vars (list (cons x x*)) e)))
      (cons e* c**)]
     [_
      (cons e c)]))
@@ -130,22 +134,22 @@
       [_ (string-trim (second lines) #px"\\s+return\\s+")]))
   (match instruction
     [(list 'abs x)
-     (define x* (string->symbol (string-append (symbol->string x) "_p")))
+     (define x* (string->symbol (string-append (symbol->string x) "_m")))
      (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
      (define e (list (get-parametric-operator 'fabs r) x))
      (define c (context (list x*) r r))
      (format "~a = ~a" x* (converter* e c))]
     [(list 'negabs x)
      (define x-string (symbol->string x))
-     (define x* (string->symbol (string-append x-string "_p")))
+     (define x* (string->symbol (string-append x-string "_m")))
      (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
      (define e* (list (get-parametric-operator 'fabs r) x))
      (define x-sign (string->symbol (string-append x-string "_s")))
-     (define e-sign (list (get-parametric-operator 'copysign r) 1 x))
+     (define e-sign (list (get-parametric-operator 'copysign r r) 1 x))
      (define c (context (list x*) r r))
-     (format "~a = ~a\n~a = ~a"
-             x* (converter* e* c)
-             x-sign (converter* e-sign c))]
+     (list
+      (format "~a = ~a" x* (converter* e* c))
+      (format "~a = ~a" x-sign (converter* e-sign c)))]
     [(list 'sort vs ...)
      (define vs (context-vars ctx))
      (define vs* (context-vars ctx*))
@@ -218,8 +222,12 @@
           (define out (converter out-prog* name))
           (define prelude-lines
             (string-join
-             (map
-              (curryr format-prelude-instruction ctx ctx* lang converter)
+             (append-map
+              (lambda (instruction)
+                (let ([l (format-prelude-instruction
+                          instruction ctx ctx*
+                          lang converter)])
+                  (if (list? l) l (list l))))
               instructions)
              (if (equal? lang "TeX") "\\\\\n" "\n")
              #:after-last
