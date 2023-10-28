@@ -2,7 +2,7 @@
 
 (FPCore (x)
  :name "expq2 (section 3.11)"
- :pre (and (< -1 x) (> 715 x))
+ :pre (> 715 x)
  :herbie-target
  ; Hamming version was not accurated. Dealt with overflow/underflow but not cancellation.
  ; Used expm1 to deal with cancellation.
