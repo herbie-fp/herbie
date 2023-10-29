@@ -117,29 +117,6 @@
   (for/pcontext ([(x y) pcontext]) (preprocess x y)))
 
 (define (instruction->operator context instruction)
-  ;; TODO: Perhaps remove this
-  ;; Herbie is synthesizing a function f : A -> A that we want to range-reduce.
-  ;; Let B be a subset of A. To perform range-reduction, take a reduction
-  ;; function s : (A - B) -> B, a reconstruction function
-  ;; t : { f(x) : x in B } -> { f(x) : x in A }, and let f'(x) =
-  ;;
-  ;; if x in B:
-  ;;   f(x)
-  ;; else:
-  ;;   x' = s(x)
-  ;;   y' = f(x')
-  ;;   t(y')
-  ;;
-  ;; We don't have access to f here, but assuming t is invertible (t^-1), we can
-  ;; do this instead:
-  ;;
-  ;; t(f(s(x))) = y
-  ;; f(s(x)) = t^-1(y)
-  ;;
-  ;; if x in B:
-  ;;   (x, y)
-  ;; else:
-  ;;   (s(x), t^-1(y))
   (define variables (context-vars context))
   (define sort* (curryr sort (curryr </total (context-repr context))))
   (match instruction
