@@ -75,6 +75,9 @@
 
 (define (taylor-expr expr repr var f finv)
   (define expr* (resugar-program expr repr #:full #f))
+  ;; TODO resugar, then use rewrite once on patterns from the accelerator
+  ;; If this is a pain in the ass at all, just write own substituter
+  ;; Should be easy enough, non-recursive
   (define genexpr (approximate expr* var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
