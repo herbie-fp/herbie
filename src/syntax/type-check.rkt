@@ -50,7 +50,7 @@
     [#`,(? constant-operator? x)
      (let/ec k
        (for/list ([name (operator-all-impls x)])
-         (define rtype (operator-info name 'otype))
+         (define rtype (impl-info name 'otype))
          (when (or (equal? rtype type) (repr-has-type? rtype 'bool))
            (k rtype)))
        (error! stx "Could not find implementation of ~a for ~a" x type)
@@ -99,12 +99,12 @@
        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
          (get-parametric-operator 'neg actual-type)))
      (if op*
-         (operator-info op* 'otype)
+         (impl-info op* 'otype)
          (begin
           (error! stx "Invalid arguments to -; expects ~a but got (- <~a>)"
                   (string-join
                    (for/list ([sig (operator-all-impls 'neg)])
-                     (define atypes (operator-info sig 'itype))
+                     (define atypes (impl-info sig 'itype))
                      (format "(- ~a)" (string-join
                                        (for/list ([atype atypes])
                                          (format "<~a>" atype))
@@ -146,12 +146,12 @@
        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
          (apply get-parametric-operator op actual-types)))
      (if op*
-         (operator-info op* 'otype)
+         (impl-info op* 'otype)
          (begin
           (error! stx "Invalid arguments to ~a; expects ~a but got ~a" op
                   (string-join
                     (for/list ([sig (operator-all-impls op)])
-                      (application->string op (operator-info sig 'itype)))
+                      (application->string op (impl-info sig 'itype)))
                     " or ")
                   (application->string op actual-types))
           type))]

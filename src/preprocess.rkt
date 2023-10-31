@@ -114,7 +114,7 @@
          (list-set* points indices sorted)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
-     (define abs (operator-info
+     (define abs (impl-info
                   (get-parametric-operator
                    'fabs
                    (list-ref (context-var-reprs context) index))

@@ -90,15 +90,15 @@
         [(list (or 'neg '-) arg) ; unary minus
          (define-values (arg* atype) (loop arg repr))
          (define op* (get-parametric-operator 'neg atype))
-         (values (list op* arg*) (operator-info op* 'otype))]
+         (values (list op* arg*) (impl-info op* 'otype))]
         [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-         (define irepr (first (operator-info op 'itype)))
-         (define orepr (operator-info op 'otype))
+         (define irepr (first (impl-info op 'itype)))
+         (define orepr (impl-info op 'otype))
          (define-values (body* rtype) (loop body irepr))
          (values (list op body*) orepr)]
         [(or (? constant-operator? x) (list x)) ; constant
          (define cnst (get-parametric-constant x repr))
-         (define rtype (operator-info cnst 'otype))
+         (define rtype (impl-info cnst 'otype))
          (values (list cnst) rtype)]
         [(list op args ...)
          (define-values (args* atypes)
@@ -106,7 +106,7 @@
              (loop arg repr)))
          ;; Match guaranteed to succeed because we ran type-check first
          (define op* (apply get-parametric-operator op atypes))
-         (values (cons op* args*) (operator-info op* 'otype))]
+         (values (cons op* args*) (impl-info op* 'otype))]
         [(? number?) 
          (values
            (match expr
@@ -138,7 +138,7 @@
      (define iff* (expand-parametric-reverse iff repr full?))
      (list 'if cond* ift* iff*)]
     [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-     (define repr* (first (operator-info op 'itype)))
+     (define repr* (first (impl-info op 'itype)))
      (define body* (expand-parametric-reverse body repr* full?))
      (cond
       [(not full?) `(,op ,body*)]
@@ -150,7 +150,7 @@
     [(list op args ...)
      (define op* (impl->operator op))
      (define args*
-       (for/list ([arg args] [repr (operator-info op 'itype)])
+       (for/list ([arg args] [repr (impl-info op 'itype)])
          (expand-parametric-reverse arg repr full?)))
      (if (and full? (equal? op* 'neg) (= (length args) 1)) ; if only unparameterizing, leave 'neg' alone
          (cons '- args*)

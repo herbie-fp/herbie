@@ -80,7 +80,7 @@
   (raise e))
 
 (define (batch-errors exprs pcontext ctx)
-  (define fn (compile-progs exprs 'fl ctx))
+  (define fn (compile-progs exprs ctx))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (batch-errors-handler exprs point)])
       (for/list ([out (in-list (apply fn point))])

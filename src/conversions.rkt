@@ -130,8 +130,8 @@
   (let loop ([expr expr] [repr #f])
     (match expr
      [(list (? repr-conv? op) body)
-      (define irepr (first (operator-info op 'itype)))
-      (define orepr (operator-info op 'otype))
+      (define irepr (first (impl-info op 'itype)))
+      (define orepr (impl-info op 'otype))
       (define repr* (or repr orepr))
       (define body* (loop body irepr))
       (cond
@@ -143,8 +143,8 @@
             (let ([second-conv (get-repr-conv orepr repr*)]) ; try a two-step conversion
               (and second-conv (list second-conv (list op body*)))))])]
      [(list (? rewrite-repr-op? rr) (list (? repr-conv? op) body))  ; repr change on a conversion
-      (define irepr (first (operator-info op 'itype)))
-      (define repr* (operator-info rr 'otype))
+      (define irepr (first (impl-info op 'itype)))
+      (define repr* (impl-info rr 'otype))
       (if (equal? repr* irepr)
           (if repr
               (loop body irepr) ; if the conversions are inverses and not the top
@@ -155,7 +155,7 @@
                      [body* (loop body repr*)])
                 (and conv body* (list conv body*)))))]
      [(list (? rewrite-repr-op? op) body)
-      (define irepr (operator-info op 'otype))
+      (define irepr (impl-info op 'otype))
       (define orepr (or repr (context-repr ctx)))
       (cond
        [(equal? irepr orepr)
@@ -174,7 +174,7 @@
            [else
             (match-define (list op args ...) con)
             (define args*
-              (for/list ([arg args] [atype (operator-info op 'itype)])
+              (for/list ([arg args] [atype (impl-info op 'itype)])
                 (if (equal? (representation-type atype) 'bool)
                     (loop2 arg)
                     (loop arg atype))))
@@ -183,10 +183,10 @@
       (define iff* (loop iff repr*))
       (and ift* iff* `(if ,con* ,ift* ,iff*))]
      [(list (? operator? op) args ...) 
-      (define orepr (operator-info op 'otype))
+      (define orepr (impl-info op 'otype))
       (define repr* (or repr orepr))
       (if (equal? orepr repr*)
-          (let ([args* (map loop args (operator-info op 'itype))])
+          (let ([args* (map loop args (impl-info op 'itype))])
             (and (andmap identity args*) (cons op args*)))
           (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
             (let ([op* (apply get-parametric-operator
