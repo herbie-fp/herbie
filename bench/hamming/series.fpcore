@@ -40,9 +40,11 @@
 
 (FPCore (a b eps)
  :name "expq3 (problem 3.4.2)"
- :pre (and (< -1 eps) (< eps 1))
+ :pre (and (< (fabs eps) (fabs (/ (+ a b) 1e5))) (<  (fabs a) 710) (< (fabs b) 710))
+ ; We want epsilon small compared to a and b according to Hamming. Bound by 710 to avoid sampling infinite values.
  :herbie-target
- (/ (+ a b) (* a b))
+ ; Hammings' rewrite
+ (+ (/ 1 a) (/ 1 b))
 
  (/
   (* eps (- (exp (* (+ a b) eps)) 1))

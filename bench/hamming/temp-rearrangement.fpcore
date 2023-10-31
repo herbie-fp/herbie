@@ -1,0 +1,23 @@
+; -*- mode: scheme -*-
+
+(FPCore (x)
+ :name "2sqrt (example 3.1)"
+ :herbie-target
+ (/ 1 (+ (sqrt (+ x 1.0)) (sqrt x)))
+
+ (- (sqrt (+ x 1)) (sqrt x)))
+
+(FPCore (x eps)
+ :name "2sin (example 3.3)"
+ :herbie-target
+ (fma (cos x) (sin eps) (* (sin x) (- (cos eps) 1))) ; Goes from 76.6 to 99.2 (fma (sin x) (- (cos eps) 1) (* (sin eps) (cos x)))
+ 
+ (- (sin (+ x eps)) (sin x)))
+
+ (FPCore (x)
+  :name "tanhf (example 3.4)"
+  ;:herbie-expected 2
+  :herbie-target
+  (tan (/ x 2)) ; As good as it gets by Odyssey, Herbie graohs
+ 
+  (/ (- 1 (cos x)) (sin x)))
