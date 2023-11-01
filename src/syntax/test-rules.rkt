@@ -79,13 +79,13 @@
 (module+ test
   (define _ (*simplify-rules*))  ; force an update
 
-  (for* ([(_ test-ruleset) (in-hash (*rulesets*))]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
          [test-rule* (rule->impl-rules test-rule)])
     (test-case (~a (rule-name test-rule*))
       (check-rule-correct test-rule*)))
 
-  (for* ([(_ test-ruleset) (in-hash (*rulesets*))]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
          [test-rule* (rule->impl-rules test-rule)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule*))

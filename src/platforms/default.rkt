@@ -8,28 +8,34 @@
 ; universal boolean opertaions
 (define boolean-platform
   (platform
-    (bool
-      #:const [TRUE FALSE]
-      #:1ary [not]
-      #:2ary [and or])))
+    [(bool) (TRUE FALSE)]
+    [(bool bool) (not)]
+    [(bool bool bool) (and or)]))
 
 ; machine floating-point operations (without conversions)
 (define machine-platform
   (platform-product
-    #:type real [binary64 binary32]
-    #:type bool [bool]
-    #:operators [PI E INFINITY NAN neg + - * /]
-    #:operators [== != > < >= <=]))
+    [real (binary64 binary32)]
+    [bool (bool)]
+    (operator-set
+      [(real) (PI E INFINITY NAN)]
+      [(real real) (neg)]
+      [(real real real) (+ - * /)]
+      [(real real bool) (== != > < >= <=)])))
 
 ; libm operations
 (define libm-platform
   (platform-product
-    #:type real [binary64 binary32]
-    #:operators [acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
-                 exp exp2 fabs floor lgamma log log10 log2 logb rint round
-                 sin sinh sqrt tan tanh tgamma trunc copysign fdim fmax fmin
-                 fmod pow remainder]
-    #:operators [expm1 log1p atan2 hypot fma]))
+    [real (binary64 binary32)]
+    (operator-set
+      [(real real)
+       (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
+        exp exp2 expm1 fabs floor lgamma log log10 log2 log1p logb
+        rint round sin sinh sqrt tan tanh tgamma trunc)]
+      [(real real real)
+       (atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
+      [(real real real real)
+       (fma)])))
 
 ; compose platforms
 
