@@ -39,7 +39,7 @@ NOTE: This is not the correct definition of exactness. We need to also
  
 ;; NOTE: Current implementation works, look at Python's math.isclose later
 ;; NOT SURE IF THIS IS CORRECT ANYMORE
-;; For example: very-close? 0 0.0000001
+;; For example: very-close? 0 0.0000001 -> very-close? 1 1.0000001 :>
 (define (very-close? a b)
   (define x (min a b))
   (define y (max a b))
@@ -142,6 +142,7 @@ NOTE: This is not the correct definition of exactness. We need to also
          (define arg-val (hash-ref exacts-hash arg))
          (and (or (hash-ref uflow-hash arg)
                   (hash-ref oflow-hash arg))
+              (not (fl= subexpr-val arg-val))
               (mark-erroneous! subexpr pt))]
         #|
         TODO: remaining cases for which rescuing underflow/overflow can occur
@@ -163,9 +164,6 @@ NOTE: This is not the correct definition of exactness. We need to also
            [(and (fl< larg-val 1e-150) rarg-uflow?) (mark-erroneous! subexpr pt)]
            [else #f])]
  
-        #|
-        TODO: log is very good at rescuing underflow/overflows
-        |#
         [(list 'log.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val (hash-ref exacts-hash arg))
@@ -184,17 +182,26 @@ NOTE: This is not the correct definition of exactness. We need to also
          #:when (is-inexact? arg)
          (define arg-val (flabs (hash-ref exacts-hash arg)))
          (and (fl> arg-val 1e308) (mark-erroneous! subexpr pt))]
-        
-        #|
-        TODO:
-        - Need to figure out the exact error conditions for pow. Lot of things
-        can happen. It can have high condition number, it can also rescue
-        underflows and overflows. This gets even more complicated with a
-        variable exponent
-        - We know for a fact exp errors for high inputs. But high inputs for exp
-        also overflow. At what limit does exp not overflow and still error?
-        - Multiplication definitely can rescue oflows/uflows
-        |#
+
+        [(list 'pow.f64 base expn)
+         #:when (or (is-inexact? larg) (is-inexact? rarg))
+         (define base-val (flabs (hash-ref exacts-hash base)))
+         (define base-oflow? (hash-ref oflow-hash base))
+         (define base-uflow? (hash-ref uflow-hash base))
+
+         (cond
+           [(and (or (hash-ref uflow-hash arg)
+                     (hash-ref oflow-hash arg))
+                 (not (fl= subexpr-val arg-val)))
+            (mark-erroneous! subexpr pt)]
+           ;; atomic condition w.r.t. y -> y
+           ;; atomic condition w.r.t. x -> ylog(x)
+           ;; possible only check if ylog(x) is very large
+           ;; how large?
+           )
+         ]
+
+        ;; TODO: Multiplication definitely can rescue oflow/uflow
         
         [_ #f])))
       (hash-update! error-count-hash #f (lambda (x) (set-add x pt)))))
