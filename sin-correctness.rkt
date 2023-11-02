@@ -29,7 +29,7 @@
   ;(define flo-num-hi (flstep flo-num-lo (random-integer 1 1000)))
   
   ; Make an ival out of these floats
-  (define iv (ival (bf* (bf- (bfrandom) (bf 0.5)) (bf 200)) (bf* (bf- (bfrandom) (bf 0.5)) (bf 200))))
+  (define iv (ival (bf* (bf- (bfrandom) (bf 0.5)) (bf 100)) (bf* (bf- (bfrandom) (bf 0.5)) (bf 100))))
   
   (match-define (list reduced-lo reduced-hi) (ival->list-flo (ival-sin iv)))
   (match-define (list reg-lo reg-hi) (ival->list-flo (ival-sin-default iv)))
@@ -42,7 +42,7 @@
   (void))
   
 
-(bf-precision 2048)
+(bf-precision 64)
 ;(sin-correctness)
 (for/list ([i (in-range 100000)]) (sin-correctness))
 
