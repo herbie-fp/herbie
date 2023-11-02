@@ -589,8 +589,11 @@
       (if (<= hi* 0)
           ;; (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
           ;; -9223372036854775807 is an exponent code for infinity in math/bigfloat
-          ;; Also exponent code for +nan.0 can be -9223372036854777854
-          (if (or (> -9220000000000000000 lo*) (> -9220000000000000000 hi*))
+          ;; Also exponent code for (bf +nan.0) can be -9223372036854777854
+          ;;                                           -9223372036854775809 is a code for 0.bf
+          ;;                                           -9223372036854775808 is a code for +nan.bf
+          (if (or (and (> -9220000000000000000 lo*) (not (equal? -9223372036854775807 lo*)))
+                  (and (> -9220000000000000000 hi*) (not (equal? -9223372036854775807 hi*))))
               (ival-then x (mk-big-ival -1.bf 1.bf))
               ((monotonic bfsin) x))
           (if (>= hi* 4)
