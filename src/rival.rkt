@@ -68,7 +68,7 @@
           [ival-pow (-> ival? ival? ival?)]
           ;[ival-sin-modified (-> ival? ival?)]
           [ival-sin (-> ival? ival?)]
-          [ival-sin-reduced (-> ival? ival?)]
+          ;[ival-sin-reduced (-> ival? ival?)]
           [ival-sin-default (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
           [ival-tan (-> ival? ival?)]
@@ -561,8 +561,7 @@
 
 (define (ival-sin-default x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-    (parameterize ([bf-precision (bigfloat-precision (ival-lo-val x))])
-      (ival-round (ival-div x (ival-pi)))))
+    (ival-round (ival-div x (ival-pi))))
   (cond
     [(and (bf=? a b) (bfodd? a))
      ((comonotonic bfsin) x)]
@@ -581,80 +580,39 @@
     [else
      (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
-;; Assumes that ival-lo-val and ival-hi-val are in the same precisions
 (define (ival-sin x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
-  (define lo-exp (bigfloat-exponent xlo))
-  (define hi-exp (bigfloat-exponent xhi))
-  (define prec (bigfloat-precision xlo))
+  (define lo* (+ (bigfloat-exponent xlo) (bigfloat-precision xlo)))
+  (define hi* (+ (bigfloat-exponent xhi) (bigfloat-precision xhi)))
   
-  (if (<= lo-exp (- prec))
-      (if (<= hi-exp (- prec))
-          ;; If hi-val and lo-val are inside (-1, 1), but also lo or val can be +0.nan here,
-          ;; since (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
+  (if (<= lo* 0)
+      (if (<= hi* 0)
+          ;; (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
           ;; -9223372036854775807 is an exponent code for infinity in math/bigfloat
           ;; Also exponent code for +nan.0 can be -9223372036854777854
-          (if (or (> -9223372036854770000 lo-exp) (> -9223372036854770000 hi-exp))
+          (if (or (> -9220000000000000000 lo*) (> -9220000000000000000 hi*))
               (ival-then x (mk-big-ival -1.bf 1.bf))
               ((monotonic bfsin) x))
-          (if (>= hi-exp (- (- prec 4)))
-              ;; case where: lo-val is inside (-1, 1) but hi-val is inside (-inf, -8] U [8, +inf)
-              ;; then the distance between them is at least 2pi -> return [-1, 1] 
+          (if (>= hi* 4)
               (ival-then x (mk-big-ival -1.bf 1.bf))
-              ;; case where: lo-val is inside (-1, 1) and hi-val is inside (-8, -1] U [1, 8)
-              ;; then we need a 'range reduction' definitely
               (ival-sin-default x)))
-      (if (<= lo-exp (- (- prec 1)))
-          (if (>= hi-exp (- (- prec 5)))
-              ;; case where lo-val is inside (-2, -1] U [1, 2) and hi-val is inside (-inf, -16] U [16, inf)
-              ;; then the distance > 2pi
+      (if (<= lo* 1)
+          (if (>= hi* 5)
               (ival-then x (mk-big-ival -1.bf 1.bf))
-              ;; case where lo-val is inside (-2, -1] U [1, 2) and hi-val is inside (-16, -1] U [1, 16) (assuming that lo<hi)
-              ;; then the distance is not that clear, range reduction is needed
               (ival-sin-default x))
-          (if (<= lo-exp (- (- prec 2)))
-              (if (>= hi-exp (- (- prec 5)))
-                  ;; case where lo-val is inside (-4, -2] U [2, 4) and hi-val is inside (-inf, -16] U [16, +inf)
+          (if (<= lo* 2)
+              (if (>= hi* 5)
                   (ival-then x (mk-big-ival -1.bf 1.bf))
-                  ;; case where lo-val is inside (-4, -2] U [2, 4) and hi-val is inside (-16, 16)
                   (ival-sin-default x))
-              (if (>= lo-exp (- (- prec 3)))
-                  (if (>= hi-exp (- (- prec 3)))
-                      (if (> (- hi-exp lo-exp) 1)
-                          ;; if the lo-val and hi-val are in range (-inf, -4] U [4, inf) and exponent difference is more than 1
-                          ;; then the distance can be at least 12, which is already greater than 2pi
+              (if (>= lo* 3)
+                  (if (>= hi* 3)
+                      (if (> (- hi* lo*) 1)
                           (ival-then x (mk-big-ival -1.bf 1.bf))
-                          ;; else, values are inside (-inf, -4] U [4, inf) and the points can be possibly closer than 2pi
                           (if (equal? (bigfloat-signbit xlo) (bigfloat-signbit xhi))
                               (ival-sin-default x)
                               (ival-then x (mk-big-ival -1.bf 1.bf))))
                       (ival-sin-default x))
                   (ival-sin-default x))))))
-
-(define (ival-sin-reduced x)
-  ;; Function 
-  (match-define (ival (endpoint a _) (endpoint b _) _ _)
-    (ival-round
-     (parameterize ([bf-precision 2048])
-       (ival-div x (ival-pi)))))
-  
-  (cond
-    [(and (bf=? a b) (bfodd? a))
-     ((comonotonic bfsin) x)]
-    [(and (bf=? a b) (bfeven? a))
-     ((monotonic bfsin) x)]
-    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-     (ival (endpoint -1.bf #f)
-           (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
-           (ival-err? x)
-           (ival-err x))]
-    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-     (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
-           (endpoint 1.bf #f)
-           (ival-err? x)
-           (ival-err x))]
-    [else
-     (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
 (define (ival-sin-mixed x)
   ;; Function takes a division result over pi and calculate a remainder of this operation with
