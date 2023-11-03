@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
+(require "syntax/syntax.rkt" "syntax/types.rkt" "common.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
 
 (provide expr? expr-contains? expr<?
          type-of repr-of
@@ -139,8 +139,8 @@
     (for/list ([root (in-list roots)])
       (vector-ref vregs root))))
 
-(define (make-compiler arg->precision operator-handler operator-type-handler
-                       if-handler if-type interpreter-name)
+(define (make-compiler arg->precision operator-proc operator-itypes
+                       if-proc cond-type interpreter-name)
   (lambda (exprs vars type)
     ;; Instruction cache
     (define icache '())
@@ -162,9 +162,9 @@
           [(? number?) (list (const (arg->precision prog type)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list if-handler (munge c if-type) (munge t type) (munge f type))]
+           (list if-proc (munge c cond-type) (munge t type) (munge f type))]
           [(list op args ...)
-           (cons (operator-handler op) (map munge args (operator-type-handler op)))]
+           (cons (operator-proc op) (map munge args (operator-itypes op)))]
           ;; (cons (operator-info op 'ival) (map munge args))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
@@ -177,7 +177,7 @@
     (timeline-push! 'compiler (+ varc size) (+ exprc varc))
     (define ivec (list->vector (reverse icache)))
     (define interpret (make-progs-interpreter vars ivec names))
-    (procedure-rename interpret (string->symbol (format "<eval-prog-~a>" interpreter-name)))))
+    (procedure-rename interpret (sym-append 'eval-prog '- interpreter-name))))
 
 (define (compile-spec spec vars)
   (compose first (compile-specs (list spec) vars)))
@@ -193,7 +193,7 @@
     (lambda (prog _) (ival (bf prog)))
     (curryr operator-info 'ival) (curryr operator-info 'itype)
     ival-if 'bool
-    "ival")
+    'ival)
    specs vars 'real))
 
 ;; Compiles a program of operator implementations into a procedure
@@ -204,7 +204,7 @@
     real->repr
     (curryr impl-info 'fl) (curryr impl-info 'itype)
     (λ (c ift iff) (if c ift iff)) (get-representation 'bool)
-    "fl")
+    'fl)
    exprs (context-vars ctx) (context-repr ctx)))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
