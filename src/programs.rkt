@@ -192,7 +192,22 @@
       (define tl
         (for/list ([arg (in-list (cdr expr))])
           (vector-ref v arg)))
-      (vector-set! v n (apply (car expr) tl)))
+      (cond
+        [(empty? tl) ; procedure:const
+         (vector-set! v n (apply (car expr) tl))]
+        [(ival? (car tl)) ; some operation in rival
+         (let ([add-prec (abs (apply max
+                                     (map
+                                      (lambda (iv)
+                                        (bigfloat-exponent (ival-lo iv)))
+                                      tl)))])
+           (printf "add-prec=~a\n" add-prec)
+           (printf "tl=~a\n" tl)
+           (printf "op=~a\n\n" (car expr))
+           (parameterize ([bf-precision (+ 63 (if (< 8192 add-prec) 8192 add-prec))])
+             (vector-set! v n (apply (car expr) tl))))]
+        [else
+         (vector-set! v n (apply (car expr) tl))]))
     (for/list ([n (in-list names)])
       (vector-ref v n)))
   (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))

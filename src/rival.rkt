@@ -66,10 +66,8 @@
           [ival-log1p (-> ival? ival?)]
           [ival-logb (-> ival? ival?)]
           [ival-pow (-> ival? ival? ival?)]
-          ;[ival-sin-modified (-> ival? ival?)]
           [ival-sin (-> ival? ival?)]
-          ;[ival-sin-reduced (-> ival? ival?)]
-          [ival-sin-default (-> ival? ival?)]
+          ;[ival-sin-default (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
           [ival-tan (-> ival? ival?)]
           [ival-asin (-> ival? ival?)]
@@ -116,7 +114,7 @@
           [ival-then (->* (ival?) #:rest (listof ival?) ival?)])
          close-enough->ival
          ; Deprecated
-         ival-lo-fixed? ival-hi-fixed? ival-err? ival-err mk-ival make-exact-ival
+         ival-lo-fixed? ival-hi-fixed? ival-err? ival-err mk-ival
          )
 
 (define -inf.bf (bf -inf.0))
@@ -128,10 +126,6 @@
 (define 3.bf (bf 3))
 (define +inf.bf (bf +inf.0))
 (define +nan.bf (bf +nan.0))
-
-(define (make-exact-ival x y err err?)
-  (define fix? (bf=? x y))
-  (ival (endpoint x fix?) (endpoint y fix?) err err?))
 
 (define (mk-big-ival x y)
   (cond
@@ -542,8 +536,7 @@
 
 (define (ival-cos x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-    (parameterize ([bf-precision (bigfloat-precision (ival-lo-val x))])
-      (ival-floor (ival-div x (ival-pi)))))
+                (ival-floor (ival-div x (ival-pi))))
   (cond
    [(and (bf=? a b) (bfeven? a))
     ((comonotonic bfcos) x)]
@@ -559,9 +552,9 @@
    [else
     (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
-(define (ival-sin-default x)
+(define (ival-sin x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-    (ival-round (ival-div x (ival-pi))))
+      (ival-round (ival-div x (ival-pi))))
   (cond
     [(and (bf=? a b) (bfodd? a))
      ((comonotonic bfsin) x)]
@@ -580,7 +573,7 @@
     [else
      (ival-then x (mk-big-ival -1.bf 1.bf))]))
 
-(define (ival-sin x)
+#;(define (ival-sin x)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (define lo* (+ (bigfloat-exponent xlo) (bigfloat-precision xlo)))
   (define hi* (+ (bigfloat-exponent xhi) (bigfloat-precision xhi)))
@@ -598,79 +591,28 @@
               ((monotonic bfsin) x))
           (if (>= hi* 4)
               (ival-then x (mk-big-ival -1.bf 1.bf))
-              (ival-sin-default x)))
+              (ival-sin-default x (abs (- lo* hi*)))))
       (if (<= lo* 1)
           (if (>= hi* 5)
               (ival-then x (mk-big-ival -1.bf 1.bf))
-              (ival-sin-default x))
+              (ival-sin-default x (abs (- lo* hi*))))
           (if (<= lo* 2)
               (if (>= hi* 5)
                   (ival-then x (mk-big-ival -1.bf 1.bf))
-                  (if (and (equal? hi* 2) (equal? (bigfloat-signbit xlo) (bigfloat-signbit xhi)))
-                      ((comonotonic bfsin) x)
-                      (ival-sin-default x)))
+                  (ival-sin-default x (abs (- lo* hi*))))
               (if (>= lo* 3)
                   (if (>= hi* 3)
                       (if (> (- hi* lo*) 1)
                           (ival-then x (mk-big-ival -1.bf 1.bf))
                           (if (equal? (bigfloat-signbit xlo) (bigfloat-signbit xhi))
-                              (ival-sin-default x)
+                              (ival-sin-default x (abs (- lo* hi*)))
                               (ival-then x (mk-big-ival -1.bf 1.bf))))
-                      (ival-sin-default x))
-                  (ival-sin-default x))))))
-
-(define (ival-sin-mixed x)
-  ;; Function takes a division result over pi and calculate a remainder of this operation with
-  ;;   proper signs to be put into bfsin function. At this point we don't care about order of lo and hi
-  ;;   endpoints, here are cases when hi is negative, lo is positive. The further logic of ival-sin will
-  ;;   solve this ordering problem without our participation, we need only signs of lo and hi to be correct.
-  (define pi (ival-pi))
-  (define (sin-fraction x)
-    (define remainder (ival-mult ((monotonic bffrac) x) pi))
-    (match-define (ival (endpoint a* _) (endpoint b* _) _ _)
-      (ival-floor x))
-    
-    (define flag-a (bfeven? a*))
-    (define flag-b (bfeven? b*))
-    (cond
-      [(and flag-a flag-b)
-       ((monotonic bfabs) remainder)]
-      [(and (not flag-a) flag-b)
-       (mk-big-ival (bfneg (bfabs (ival-lo-val remainder))) (bfabs (ival-hi-val remainder)))]
-      [(and flag-a (not flag-b))
-       (mk-big-ival (bfabs (ival-lo-val remainder)) (bfneg (bfabs (ival-hi-val remainder))))]
-      [else
-       ((monotonic bfneg) ((monotonic bfabs) remainder))]))
-  
-  (define intermediate (ival-div x pi))
-  
-  (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-round intermediate))
-  
-  (define remainder (sin-fraction intermediate))
-  (parameterize ([bf-precision 64])
-    (cond
-      [(and (bf=? a b) (bfodd? a))
-       ((comonotonic bfsin) remainder)]
-      [(and (bf=? a b) (bfeven? a))
-       ((monotonic bfsin) remainder)]
-      [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-       (ival (endpoint -1.bf #f)
-             (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder)))
-             (ival-err? x)
-             (ival-err x))]
-      [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-       (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo remainder)) (epfn bfsin (ival-hi remainder)))
-             (endpoint 1.bf #f)
-             (ival-err? x)
-             (ival-err x))]
-      [else
-       (ival-then x (mk-big-ival -1.bf 1.bf))])))
+                      (ival-sin-default x (abs (- lo* hi*))))
+                  (ival-sin-default x (abs (- lo* hi*))))))))
 
 (define (ival-tan x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-    (parameterize ([bf-precision (bigfloat-precision (ival-lo-val x))])
-      (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf)))))
+                (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf))))
   (if (bf=? a b) ; Same period
       ((monotonic bftan) x)
       (ival-then x (ival-assert (mk-big-ival #f #t) 'ival-tan) (mk-big-ival -inf.bf +inf.bf))))
@@ -1038,4 +980,3 @@
   (define lo! (andmap (lambda (iv) (ival-lo-fixed? iv)) ivs))
   (for/list ([u upper] [l lower])
             (ival (endpoint l lo!) (endpoint u hi!) err? err)))
-
