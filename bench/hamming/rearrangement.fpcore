@@ -72,6 +72,9 @@
 (FPCore (x)
  :name "exp2 (problem 3.3.7)"
  ;:herbie-expected 1.5 ; Fails in single-precision due to regimes threshold
+ :pre (<= (fabs x) 710)
+ ; Bounded x on the extremes  by +/- 710 to avoid sampling infinite outputs
+ ; Target comes from Hamming's textbook, page 46
  :herbie-target
  (* 4 (pow (sinh (/ x 2)) 2))
 
