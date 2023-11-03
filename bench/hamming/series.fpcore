@@ -38,6 +38,14 @@
  :name "cos2 (problem 3.4.1)"
  (/ (- 1 (cos x)) (* x x)))
 
+; 0 <= a <= b <= 1
+; -1 <= a, b <= 1 and  (fabs a) < (fabs b)
+; -710 <= a, b <= 710 and  (fabs a) < (fabs b)
+
+; eps
+; (* 1e-16 (fabs a)) <= eps < (fabs a)
+; (* 1e-16 (fabs a)) <= eps < (* 1e-5 (fabs a))
+
 (FPCore (a b eps)
  :name "expq3 (problem 3.4.2)"
  :pre (and (< (fabs eps) (fabs (/ (+ a b) 1e5))) (<  (fabs a) 710) (< (fabs b) 710))
