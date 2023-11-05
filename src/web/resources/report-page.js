@@ -306,10 +306,6 @@ function tableBody(jsonData) {
     var rows = []
     for (let test of jsonData.tests) {
         if (filterTest(test)) {
-            // TODO merge tableRowDiff and tableRow so we only have one code path
-            /* 
-            This should be possible now that tableRowDiff without any diff options checked displays the same view as tableRow
-            */
             if (diffAgainstFields[test.name] && radioStates[radioStatesIndex] != "noComparison") {
                 const row = tableRowDiff(test)
                 if (!row.equal) {
@@ -751,14 +747,28 @@ function buildCompareForm(jsonData) {
 // -------------------------------------------------
 
 function update(jsonData) {
+    /*
+    - Probably the first step of update should be taking the internal state and turning it into a filter function plus maybe a diff function or something like that.
+    - Make each take both rows (baseline and diff)
+    */
+    makeFilterFunction()
+    // TODO make diff function
     const newBody = Element("body", {}, buildBody(jsonData))
     htmlNode.replaceChild(newBody, bodyNode)
     bodyNode = newBody
 }
 
+function makeFilterFunction() {
+    
+    // TODO collect internal state into a filter function
+    return function filterFunction(baselineRow,diffRow) {
+
+    }
+}
+
 async function fetchAndUpdate(jsonData, url) {
     if (url.length > 0) {
-        // TODO url verifying if needed
+        // FIXME url verifying if needed
         compareAgainstURL = url
         // Could also split string on / and check if the last component = "results.json"
         let lastChar = url.slice(url.length - 1, url.length)
