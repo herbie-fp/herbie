@@ -151,18 +151,6 @@ function plotPareto(jsonData) {
 // ------ Setup and Data fetching helpers ----------
 // -------------------------------------------------
 
-// State for Forum radio buttons
-// Why no some Types :(
-var radioStatesIndex = -1
-var radioStates = [
-    "output",
-    "startAccuracy",
-    "resultAccuracy",
-    "targetAccuracy",
-    "time"
-]
-var filterTolerance = 1
-
 const renames = {
     "imp-start": "Improved start",
     "apx-start": "Approximate start",
@@ -178,6 +166,18 @@ const renames = {
     "timeout": "Timeout",
     "crash": "Crash",
 }
+
+// State for Forum radio buttons
+// Why no some Types :(
+var radioStatesIndex = -1
+var radioStates = [
+    "output",
+    "startAccuracy",
+    "resultAccuracy",
+    "targetAccuracy",
+    "time"
+]
+var filterTolerance = 1
 
 var filterDetailsState = false
 
@@ -205,14 +205,19 @@ var filterState = {
     "error": true,
 }
 
-function update(jsonData) {
+function buildBody(jsonData,otherJsonData,filterFunction) {
+    // Maybe reuse current build body as the part that currently sucks is the tableBody and the filter logic
+    return "Zane was here"
+}
+
+function update(jsonData,otherJsonData) {
     /*
     - Probably the first step of update should be taking the internal state and turning it into a filter function plus maybe a diff function or something like that.
     - Make each take both rows (baseline and diff)
     */
     const currentFilterFunction = makeFilterFunction()
-    // TODO make diff function
-    const newBody = Element("body", {}, "Zane was here")
+
+    const newBody = Element("body", {}, buildBody(jsonData,otherJsonData,currentFilterFunction))
     htmlNode.replaceChild(newBody, bodyNode)
     bodyNode = newBody
 }
@@ -287,4 +292,4 @@ var otherJsonData = null
 var resultsJsonData = null
 
 await getResultsJson()
-update(resultsJsonData)
+update(resultsJsonData,otherJsonData)
