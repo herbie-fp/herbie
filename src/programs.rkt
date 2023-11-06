@@ -201,9 +201,6 @@
                                  (lambda (iv)
                                    (abs (bigfloat-exponent (ival-lo iv))))
                                  tl))])
-           ;(printf "add-prec=~a\n" add-prec)
-           ;(printf "tl=~a\n" tl)
-           ;(printf "op=~a\n\n" (car expr))
            (parameterize ([bf-precision (+ 63 (if (< 8192 add-prec) 8192 add-prec))])
              (vector-set! v n (apply (car expr) tl))))]
         [else
