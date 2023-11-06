@@ -1,23 +1,120 @@
 ; -*- mode: scheme -*-
 
-(FPCore (x)
- :name "2sqrt (example 3.1)"
- :herbie-target
- (/ 1 (+ (sqrt (+ x 1.0)) (sqrt x)))
+; -pi <= x <= PI
+; 0 <= x <= 2pi
+; 0 <= x <= 1000
+; -1000 <= x <= 1000
 
- (- (sqrt (+ x 1)) (sqrt x)))
+; 1e-16 * (abs x) < eps < (abs x) 
+; 1e-16 * (abs x) < eps < 1e-5 (abs x)
 
-(FPCore (x eps)
+
+ ; 1
+ ; -pi <= x <= PI and 1e-16 * (abs x) < eps < (abs x) 
+ (FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= (* -1 PI) x) (<= x PI) (< (* 1e-16 (fabs x)) eps) (< eps (fabs x)))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+ ; 2
+ ; -pi <= x <= PI and 1e-16 * (abs x) < eps < 1e-5 (abs x)
+ (FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= (* -1 PI) x) (<= x PI) (< (* 1e-16 (fabs x)) eps) (< eps (* 1e-5 (fabs x))))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+ ; 3
+ ; 0 <= x <= 2pi and 1e-16 * (abs x) < eps < (abs x)  
+ (FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= 0 x) (<= x (* 2 PI)) (< (* 1e-16 (fabs x)) eps) (< eps (fabs x)))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+ ; 4
+ ; 0 <= x <= 2pi and 1e-16 * (abs x) < eps < 1e-5 (abs x)
+ (FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= 0 x) (<= x (* 2 PI)) (< (* 1e-16 (fabs x)) eps) (< eps (* 1e-5 (fabs x))))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+ ; 5
+ ; 0 <= x <= 1000 and 1e-16 * (abs x) < eps < (abs x) 
+ (FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= 0 x) (<= x 1000) (< (* 1e-16 (fabs x)) eps) (< eps (fabs x)))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+ ; 6
+ ; 0 <= x <= 1000 and 1e-16 * (abs x) < eps < 1e-5 (abs x)
+ (FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= 0 x) (<= x 1000) (< (* 1e-16 (fabs x)) eps) (< eps (* 1e-5 (fabs x))))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+
+ ; 7
+ ; -1000 <= x <= 1000 and 1e-16 * (abs x) < eps < (abs x) 
+ (FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= -1000 x) (<= x 1000) (< (* 1e-16 (fabs x)) eps) (< eps (fabs x)))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+ ; 8
+ ; -1000 <= x <= 1000 and 1e-16 * (abs x) < eps < 1e-5 (abs x)
+ (FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= -1000 x) (<= x 1000) (< (* 1e-16 (fabs x)) eps) (< eps (* 1e-5 (fabs x))))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+
+ ; 9
+ ; Original one
+ (FPCore (x eps)
  :name "2sin (example 3.3)"
+ :pre (and (> (fabs x) (fabs eps)) (> (fabs eps) (* (pow 10 -16) (fabs x))) (< 1 x) (< x 1000))
  :herbie-target
- (fma (cos x) (sin eps) (* (sin x) (- (cos eps) 1))) ; Goes from 76.6 to 99.2 (fma (sin x) (- (cos eps) 1) (* (sin eps) (cos x)))
+ (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
  
  (- (sin (+ x eps)) (sin x)))
 
- (FPCore (x)
-  :name "tanhf (example 3.4)"
-  ;:herbie-expected 2
-  :herbie-target
-  (tan (/ x 2)) ; As good as it gets by Odyssey, Herbie graohs
+
+
+;(FPCore (x eps)
+ ;:name "2sin (example 3.3)"
+ ;:pre (and (> (fabs x) (fabs eps)) (> (fabs eps) (* (pow 10 -16) (fabs x))) (< 1000 x) (< x 1e308))
+ ;:herbie-target
+ ;(fma (cos x) (sin eps) (* (sin x) (- (cos eps) 1)))
  
-  (/ (- 1 (cos x)) (sin x)))
+ ;(- (sin (+ x eps)) (sin x)))
+
+
+ ;herbie-target
+ ;(fma (cos x) (sin eps) (* (sin x) (- (cos eps) 1))) ; Goes from 76.6 to 99.2 
+ ;herbie-target
+ ;(fma (sin x) (- (cos eps) 1) (* (sin eps) (cos x)))
+ ;herbie-target
+ ;(* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
