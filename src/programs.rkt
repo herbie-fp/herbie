@@ -196,7 +196,7 @@
         [(empty? tl) ; procedure:const
          (vector-set! v n (apply (car expr) tl))]
         [(ival? (car tl)) ; some operation in rival
-         (if (boolean? (car tl))
+         (if (boolean? (ival-lo (car tl)))
              (vector-set! v n (apply (car expr) tl))
              (let ([add-prec (apply max
                                     (map
