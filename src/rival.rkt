@@ -612,7 +612,7 @@
 
 (define (ival-tan x)
   (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-floor (ival-sub (ival-div x (ival-pi)) (mk-big-ival half.bf half.bf))))
+    (ival-round (ival-div x (ival-pi))))
   (if (bf=? a b) ; Same period
       ((monotonic bftan) x)
       (ival-then x (ival-assert (mk-big-ival #f #t) 'ival-tan) (mk-big-ival -inf.bf +inf.bf))))

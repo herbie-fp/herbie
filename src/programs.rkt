@@ -196,13 +196,15 @@
         [(empty? tl) ; procedure:const
          (vector-set! v n (apply (car expr) tl))]
         [(ival? (car tl)) ; some operation in rival
-         (let ([add-prec (apply max
-                                (map
-                                 (lambda (iv)
-                                   (abs (bigfloat-exponent (ival-lo iv))))
-                                 tl))])
-           (parameterize ([bf-precision (+ 63 (if (< 8192 add-prec) 8192 add-prec))])
-             (vector-set! v n (apply (car expr) tl))))]
+         (if (boolean? (car tl))
+             (vector-set! v n (apply (car expr) tl))
+             (let ([add-prec (apply max
+                                    (map
+                                     (lambda (iv)
+                                       (abs (bigfloat-exponent (ival-lo iv))))
+                                     tl))])
+               (parameterize ([bf-precision (+ (bf-precision) (if (< 8192 add-prec) 8192 add-prec))])
+                 (vector-set! v n (apply (car expr) tl)))))]
         [else
          (vector-set! v n (apply (car expr) tl))]))
     (for/list ([n (in-list names)])
