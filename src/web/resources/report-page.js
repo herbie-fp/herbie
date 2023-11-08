@@ -148,7 +148,7 @@ function plotPareto(jsonData) {
 }
 
 // -------------------------------------------------
-// ------ Setup and Data fetching helpers ----------
+// ------ Global State Start ----------
 // -------------------------------------------------
 
 const renames = {
@@ -203,6 +203,128 @@ var filterState = {
     "timeout": true,
     "crash": true,
     "error": true,
+}
+var hideShowCompareDetails = false
+
+// -------------------------------------------------
+// ------ Global State End ----------
+// -------------------------------------------------
+
+function buildCheckboxLabel(classes, text, boolState) {
+    return Element("label", { classList: classes }, [
+        Element("input", { type: "checkbox", checked: boolState }, []),
+        text])
+}
+
+function showTolerance(jsonData, show) {
+    const toleranceInputField = Element("input", {
+        id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
+    }, [])
+    const hidingText = Element("text", {}, [" Hiding: ±"])
+    var unitText
+    if (radioStates[radioStatesIndex] == "time") {
+        unitText = Element("text", {}, ["s"])
+    } else {
+        unitText = Element("text", {}, ["%"])
+    }
+    toleranceInputField.addEventListener("keyup", async (e) => {
+        e.preventDefault()
+        if (e.keyCode === 13) {
+            filterTolerance = e.target.value
+            await fetchAndUpdate(jsonData, compareAgainstURL)
+        }
+    })
+    toleranceInputField.style.display = show ? "inline" : "none"
+    hidingText.style.display = show ? "inline" : "none"
+    unitText.style.display = show ? "inline" : "none"
+    return [hidingText, toleranceInputField, unitText]
+}
+
+
+function buildCompareForm(jsonData) {
+
+    const formName = "compare-form"
+
+    const output = Element("input", {
+        id: "compare-output", type: "radio", checked: radioStates[radioStatesIndex] == "output",
+        name: formName
+    }, [])
+    output.addEventListener("click", async (e) => {
+        radioStatesIndex = 0
+        await fetchAndUpdate(jsonData, compareAgainstURL)
+    })
+
+    const startAccuracy = Element("input", {
+        id: "compare-startAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "startAccuracy",
+        name: formName
+    }, [])
+    startAccuracy.addEventListener("click", async (e) => {
+        radioStatesIndex = 1
+        await fetchAndUpdate(jsonData, compareAgainstURL)
+    })
+
+    const resultAccuracy = Element("input", {
+        id: "compare-resultAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "resultAccuracy",
+        name: formName
+    }, [])
+    resultAccuracy.addEventListener("click", async (e) => {
+        radioStatesIndex = 2
+        await fetchAndUpdate(jsonData, compareAgainstURL)
+    })
+
+    const targetAccuracy = Element("input", {
+        id: "compare-targetAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "targetAccuracy",
+        name: formName
+    }, [])
+    targetAccuracy.addEventListener("click", async (e) => {
+        radioStatesIndex = 3
+        await fetchAndUpdate(jsonData, compareAgainstURL)
+    })
+
+    const time = Element("input", {
+        id: "compare-time", type: "radio", checked: radioStates[radioStatesIndex] == "time",
+        name: formName
+    }, [])
+    time.addEventListener("click", async (e) => {
+        radioStatesIndex = 4
+        await fetchAndUpdate(jsonData, compareAgainstURL)
+    })
+
+    const input = Element("input", {
+        id: "compare-input", value: compareAgainstURL,
+        placeholder: "current report against"
+    }, [])
+
+    input.addEventListener("keyup", async (e) => {
+        e.preventDefault();
+        compareAgainstURL = form.parentNode.querySelector("#compare-input").value
+    })
+
+    var showToleranceBool = false
+    if (radioStates[radioStatesIndex] == "time" ||
+        radioStates[radioStatesIndex] == "targetAccuracy" ||
+        radioStates[radioStatesIndex] == "resultAccuracy" ||
+        radioStates[radioStatesIndex] == "startAccuracy") {
+        showToleranceBool = true
+    }
+
+    var toggles = []
+    const toleranceInputField = showTolerance(jsonData, showToleranceBool)
+    // TODO visually group these
+    if (input.value.length > 0) {
+        toggles = [output, "Output", startAccuracy, "Start Accuracy",
+            resultAccuracy, "Result Accuracy", targetAccuracy,
+            "Target Accuracy",
+            time, "Time", " ", toleranceInputField]
+    }
+    const form = Element("form", {}, [
+        toggles,
+    ])
+    // disable enter key so we can handle the event elsewhere
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault()
+    })
+    return form
 }
 
 function buildBody(jsonData, otherJsonData, filterFunction) {
@@ -272,10 +394,10 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
             Element("figcaption", {}, [tempPareto_B])
         ])
     ])
-    return [header, stats, figureRow, tableBody(jsonData, otherJsonData, filterFunction)]
+    return [header, stats, figureRow, buildControls(jsonData, 69), buildTableContents(jsonData, otherJsonData, filterFunction),]
 }
 
-function tableBody(jsonData, otherJsonData, filterFunction) {
+function buildTableContents(jsonData, otherJsonData, filterFunction) {
     var rows = []
     for (let test of jsonData.tests) {
         let other = diffAgainstFields[test.name]
@@ -430,6 +552,151 @@ function buildRow(test, other) {
         })
     )
     return row
+}
+
+function buildControls(jsonData, diffCount) {
+    const showing = diffCount
+    const outOf = jsonData.tests.length
+    var otherBranch = ""
+    if (otherJsonData != null) {
+        otherBranch = ` vs ${otherJsonData.branch}`
+    }
+    // TODO if branches, or seeds are different
+    let resultsDate = new Date(resultsJsonData.date * 1000)
+    const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
+    let branchName = `${resultsJsonData.branch}`
+    var displayingDiv = Element("text", {}, [`Displaying ${showing}/${outOf} benchmarks on ${branchName}${otherBranch}`])
+
+    const input = Element("input", {
+        id: "compare-input", value: compareAgainstURL,
+        placeholder: "current report against"
+    }, [])
+    const submitButton = Element("input", { type: "submit", value: "Compare" }, [])
+    submitButton.addEventListener("click", async (e) => {
+        e.preventDefault();
+        compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
+        hideShowCompareDetails = true
+        radioStatesIndex = 2
+        fetchAndUpdate(jsonData, compareAgainstURL)
+    })
+    var summary = Element("details", { open: hideShowCompareDetails }, [
+        Element("summary", {}, [
+            Element("h2", {}, ["Compare"]),
+            input,
+            submitButton
+        ]),
+        Element("div", {}, [
+            buildCompareForm(jsonData),
+        ]),
+    ])
+    // GRR this events are annoying
+    summary.addEventListener("click", async (e) => {
+        if (e.target.nodeName == "SUMMARY") {
+            hideShowCompareDetails = !hideShowCompareDetails
+            fetchAndUpdate(jsonData, compareAgainstURL)
+        }
+    })
+
+    return Element("div", { classList: "report-details" }, [
+        displayingDiv,
+        summary,
+        buildFiltersElement(jsonData)
+    ])
+}
+
+function buildFiltersElement(jsonData) {
+    var testTypeCounts = {}
+    for (let test of jsonData.tests) {
+        testTypeCounts[test.status] == null ?
+            testTypeCounts[test.status] = 1 :
+            testTypeCounts[test.status] += 1
+    }
+
+    var filterButtons = []
+    for (let f in filterState) {
+        const name = `${renames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
+        const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
+        button.addEventListener("click", () => {
+            filterState[f] = button.querySelector("input").checked
+            filterDetailsState = true
+            update(resultsJsonData)
+        })
+        filterButtons.push(button)
+    }
+
+    var dropDownElements = []
+    const defaultName = "All Benchmarks"
+    if (selectedBenchmarkIndex == -1) {
+        dropDownElements = [Element("option", { selected: true }, [defaultName])]
+        for (let i in benchMarks) {
+            const name = toTitleCase(benchMarks[i])
+            dropDownElements.push(Element("option", {}, [name]))
+        }
+    } else {
+        dropDownElements = [Element("option", {}, [defaultName])]
+        for (let i in benchMarks) {
+            const name = toTitleCase(benchMarks[i])
+            if (selectedBenchmarkIndex == i) {
+                dropDownElements.push(Element("option", { selected: true }, [name]))
+            } else {
+                dropDownElements.push(Element("option", {}, [name]))
+            }
+        }
+    }
+
+    const dropDown = Element("select", { id: "dropdown" }, dropDownElements)
+
+    dropDown.addEventListener("click", (e) => {
+        for (let i in benchMarks) {
+            if (e.target.label != undefined && benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
+                selectedBenchmarkIndex = i
+                update(resultsJsonData)
+                return
+            }
+        }
+        selectedBenchmarkIndex = -1
+        update(resultsJsonData)
+    })
+
+    function setupGroup(name, childStateNames, parent) {
+        parent.addEventListener("click", (e) => {
+            if (e.target.nodeName == "INPUT") {
+                groupState[name] = e.target.checked
+                for (let i in childStateNames) {
+                    filterState[childStateNames[i]] = e.target.checked
+                }
+                update(jsonData)
+            }
+        })
+    }
+
+    const regressedTags = ["uni-start", "lt-target", "lt-start",
+        "apx-start", "timeout", "crash", "error"]
+    const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
+        "gt-target", "gt-start"]
+
+    const improvedButton = buildCheckboxLabel("improved", "Improved", groupState["improved"])
+    const regressedButton = buildCheckboxLabel("regressed", "Regressed", groupState["regressed"])
+
+    setupGroup("improved", improvedTags, improvedButton)
+    setupGroup("regressed", regressedTags, regressedButton)
+
+    const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", false)
+    preProcessed.addEventListener("click", (e) => {
+        console.log("Coming soon...")
+        update(jsonData)
+    })
+
+    const filters = Element("details", { id: "filters", open: filterDetailsState }, [
+        Element("summary", {}, [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown]), [
+            filterButtons]])
+    filters.addEventListener("click", (e) => {
+        if (e.target.nodeName == "SUMMARY") {
+            filterDetailsState = !filterDetailsState
+        }
+    })
+    return filters
 }
 
 function eitherOr(baselineRow, diffRow, singleFunction, pairFunctions) {
