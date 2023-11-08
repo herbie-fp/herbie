@@ -231,7 +231,7 @@ function showTolerance(jsonData, show) {
         e.preventDefault()
         if (e.keyCode === 13) {
             filterTolerance = e.target.value
-            await fetchAndUpdate(jsonData, compareAgainstURL)
+            await fetchAndUpdate(jsonData)
         }
     })
     toleranceInputField.style.display = show ? "inline" : "none"
@@ -239,7 +239,6 @@ function showTolerance(jsonData, show) {
     unitText.style.display = show ? "inline" : "none"
     return [hidingText, toleranceInputField, unitText]
 }
-
 
 function buildCompareForm(jsonData) {
 
@@ -251,7 +250,7 @@ function buildCompareForm(jsonData) {
     }, [])
     output.addEventListener("click", async (e) => {
         radioStatesIndex = 0
-        await fetchAndUpdate(jsonData, compareAgainstURL)
+        await fetchAndUpdate(jsonData)
     })
 
     const startAccuracy = Element("input", {
@@ -260,7 +259,7 @@ function buildCompareForm(jsonData) {
     }, [])
     startAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 1
-        await fetchAndUpdate(jsonData, compareAgainstURL)
+        await fetchAndUpdate(jsonData)
     })
 
     const resultAccuracy = Element("input", {
@@ -269,7 +268,7 @@ function buildCompareForm(jsonData) {
     }, [])
     resultAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 2
-        await fetchAndUpdate(jsonData, compareAgainstURL)
+        await fetchAndUpdate(jsonData)
     })
 
     const targetAccuracy = Element("input", {
@@ -278,7 +277,7 @@ function buildCompareForm(jsonData) {
     }, [])
     targetAccuracy.addEventListener("click", async (e) => {
         radioStatesIndex = 3
-        await fetchAndUpdate(jsonData, compareAgainstURL)
+        await fetchAndUpdate(jsonData)
     })
 
     const time = Element("input", {
@@ -287,7 +286,7 @@ function buildCompareForm(jsonData) {
     }, [])
     time.addEventListener("click", async (e) => {
         radioStatesIndex = 4
-        await fetchAndUpdate(jsonData, compareAgainstURL)
+        await fetchAndUpdate(jsonData)
     })
 
     const input = Element("input", {
@@ -409,7 +408,7 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
     return rows
 }
 
-// TODO I kinda hate this, but future Zane problem
+// TODO I kinda hate this split lambda function, but future Zane problem
 function buildRow(test, other) {
     var row
     eitherOr(test, other,
@@ -569,19 +568,20 @@ function buildControls(jsonData, diffCount) {
 
     const input = Element("input", {
         id: "compare-input", value: compareAgainstURL,
-        placeholder: "current report against"
+        placeholder: "URL to other json file"
     }, [])
-    const submitButton = Element("input", { type: "submit", value: "Compare" }, [])
+    const submitButton = Element("input", { type: "submit", value: "Diff" }, [])
     submitButton.addEventListener("click", async (e) => {
+        console.log("Zane was here")
         e.preventDefault();
         compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
         hideShowCompareDetails = true
         radioStatesIndex = 2
-        fetchAndUpdate(jsonData, compareAgainstURL)
+        fetchAndUpdate(jsonData)
     })
     var summary = Element("details", { open: hideShowCompareDetails }, [
         Element("summary", {}, [
-            Element("h2", {}, ["Compare"]),
+            Element("h2", {}, ["Diff"]),
             input,
             submitButton
         ]),
@@ -713,44 +713,43 @@ function update(jsonData, otherJsonData) {
     - Probably the first step of update should be taking the internal state and turning it into a filter function plus maybe a diff function or something like that.
     - Make each take both rows (baseline and diff)
     */
+
+    // capture current global filter state 🤞
     const currentFilterFunction = makeFilterFunction()
 
     const newBody = Element("body", {}, buildBody(jsonData, otherJsonData, currentFilterFunction))
+    newBody.addEventListener("click", (e) => {
+        // TODO handle events
+        console.log(e)
+        fetchAndUpdate(jsonData)
+    })
     htmlNode.replaceChild(newBody, bodyNode)
     bodyNode = newBody
 }
 
 function makeFilterFunction() {
     return function filterFunction(baselineRow, diffRow) {
-        // const hideRow = (radioSelected == "output" && outputEqual) ||
-        //     (radioSelected == "startAccuracy" && startAccuracy.equal) ||
-        //     (radioSelected == "resultAccuracy" && resultAccuracy.equal) ||
-        //     (radioSelected == "targetAccuracy" && targetAccuracy.equal) ||
-        //     (radioSelected == "time" && time.equal)
-
-        const currentSelectedBenchmarkIndex = selectedBenchmarkIndex
-        const startAccuracyChecked = radioStates[radioStatesIndex] == "startAccuracy"
-        const currentFilterState = filterState
         // TODO collect internal state into a filter function
         // TODO actually filter based on global state. ugh access control
-        eitherOr(baselineRow, diffRow,
-            (function () {
-                console.log("filter normal")
-            })
-            , (function () {
-                console.log(`baselineRow: ${baselineRow}`)
-                console.log(`diffRow: ${diffRow}`)
-            }))
-        return true
+        // TODO fix this garbage if statement
+        // TODO filter pre processing
+        const linkComponents = baselineRow.link.split("/")
+        if (selectedBenchmarkIndex == -1 && filterState[baselineRow.status]) {
+            return true
+        } else if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
+            if (benchMarks[selectedBenchmarkIndex].toLowerCase() == linkComponents[0] && filterState[baselineRow.status]) {
+                return true
+            }
+        } else {
+            return false
+        }
     }
 }
 
-async function fetchAndUpdate(jsonData, url) {
-    if (url.length > 0) {
-        // FIXME url verifying if needed
-        compareAgainstURL = url
+async function fetchAndUpdate(jsonData) {
+    if (compareAgainstURL.length > 0) {
         // Could also split string on / and check if the last component = "results.json"
-        let lastChar = url.slice(url.length - 1, url.length)
+        let lastChar = compareAgainstURL.slice(url.length - 1, url.length)
         if (lastChar == "/") {
             url = url + "results.json"
         }
@@ -760,6 +759,10 @@ async function fetchAndUpdate(jsonData, url) {
             mode: "cors",
         })
         const json = await response.json()
+        if (json.error) {
+            otherJsonData = null
+            update(jsonData)
+        }
         for (let test of json.tests) {
             diffAgainstFields[`${test.name}`] = test
         }
