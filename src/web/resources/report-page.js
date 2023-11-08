@@ -272,7 +272,32 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
             Element("figcaption", {}, [tempPareto_B])
         ])
     ])
-    return [header, stats, figureRow]
+    return [header, stats, figureRow, tableBody(jsonData, otherJsonData, filterFunction)]
+}
+
+function tableBody(jsonData, otherJsonData, filterFunction) {
+    for (let test of jsonData.tests) {
+        let other = diffAgainstFields[test.name]
+        if (filterFunction(test, other)) {
+            eitherOr(test, other,
+                (function () {
+                    console.log("only normal")
+                })
+                , (function () {
+                    console.log("pair")
+                }))
+        }
+    }
+}
+
+
+function eitherOr(baselineRow, diffRow, singleFunction, pairFunctions) {
+    // Pulled out into a function so if testing for diffRow needs to change only have to update here
+    if (diffRow == undefined) {
+        singleFunction()
+    } else {
+        pairFunctions()
+    }
 }
 
 function update(jsonData, otherJsonData) {
@@ -294,6 +319,14 @@ function makeFilterFunction() {
         const currentFilterState = filterState
         // TODO collect internal state into a filter function
         // TODO actually filter
+        eitherOr(baselineRow, diffRow,
+            (function () {
+                console.log("filter normal")
+            })
+            , (function () {
+                console.log(`baselineRow: ${baselineRow}`)
+                console.log(`diffRow: ${diffRow}`)
+            }))
         return true
     }
 }
