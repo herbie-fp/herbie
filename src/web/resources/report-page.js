@@ -93,10 +93,10 @@ function on(mark, listeners = {}) {
     return mark
 }
 
-function plotXY(testsData) {
+function plotXY(testsData, filterFunction) {
     var filteredTests = []
     testsData.forEach((test) => {
-        if (filterTest(test)) {
+        if (filterFunction(test)) {
             filteredTests.push(test)
         }
     })
@@ -205,30 +205,96 @@ var filterState = {
     "error": true,
 }
 
-function buildBody(jsonData,otherJsonData,filterFunction) {
+function buildBody(jsonData, otherJsonData, filterFunction) {
     // Maybe reuse current build body as the part that currently sucks is the tableBody and the filter logic
-    return "Zane was here"
+
+    function hasNote(note) {
+        return (note ? toTitleCase(note) + " " : "") + "Results"
+    }
+
+    var total_start = 0
+    var total_result = 0
+    var maximum_accuracy = 0
+    var total_time = 0
+    var total_crash_timeout = 0
+    jsonData.tests.forEach((test) => {
+        total_start += test.start
+        total_result += test.end
+        maximum_accuracy += test.bits
+        total_time += test.time
+        if (test.status == "timeout" || test.status == "crash") {
+            total_crash_timeout += 1
+        }
+    })
+
+    const stats = Element("div", { id: "large" }, [
+        Element("div", {}, [
+            "Average Percentage Accurate: ",
+            Element("span", { classList: "number" }, [
+                formatAccuracy(total_start / maximum_accuracy),
+                Element("span", { classList: "unit" }, [" → ",]),
+                formatAccuracy(total_result / maximum_accuracy),]),
+        ]),
+        Element("div", {}, [
+            "Time:",
+            Element("span", { classList: "number" }, [formatTime(total_time)])
+        ]),
+        Element("div", {}, [
+            "Bad Runs:",
+            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [`${total_crash_timeout}/${jsonData.tests.length}`])
+        ]),
+        Element("div", {}, [
+            "Speedup:",
+            Element("span", {
+                classList: "number",
+                title: "Aggregate speedup of fastest alternative that improves accuracy."
+            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
+        ]),
+    ])
+
+    const header = Element("header", {}, [
+        Element("h1", {}, hasNote(jsonData.note)),
+        Element("img", { src: "logo-car.png" }, []),
+        Element("nav", {}, [
+            Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
+        ]),
+    ])
+
+    const figureRow = Element("div", { classList: "figure-row" }, [
+        Element("figure", { id: "xy" }, [
+            Element("h2", {}, [tempXY_A]),
+            plotXY(jsonData.tests, filterFunction),
+            Element("figcaption", {}, [tempXY_B])
+        ]),
+        Element("figure", { id: "pareto" }, [
+            Element("h2", {}, [tempPareto_A]),
+            plotPareto(jsonData),
+            Element("figcaption", {}, [tempPareto_B])
+        ])
+    ])
+    return [header, stats, figureRow]
 }
 
-function update(jsonData,otherJsonData) {
+function update(jsonData, otherJsonData) {
     /*
     - Probably the first step of update should be taking the internal state and turning it into a filter function plus maybe a diff function or something like that.
     - Make each take both rows (baseline and diff)
     */
     const currentFilterFunction = makeFilterFunction()
 
-    const newBody = Element("body", {}, buildBody(jsonData,otherJsonData,currentFilterFunction))
+    const newBody = Element("body", {}, buildBody(jsonData, otherJsonData, currentFilterFunction))
     htmlNode.replaceChild(newBody, bodyNode)
     bodyNode = newBody
 }
 
 function makeFilterFunction() {
-    // TODO collect internal state into a filter function
-    return function filterFunction(baselineRow,diffRow) {
+    return function filterFunction(baselineRow, diffRow) {
         const currentSelectedBenchmarkIndex = selectedBenchmarkIndex
         const startAccuracyChecked = radioStates[radioStatesIndex] == "startAccuracy"
         const currentFilterState = filterState
-
+        // TODO collect internal state into a filter function
+        // TODO actually filter
+        return true
     }
 }
 
@@ -292,4 +358,4 @@ var otherJsonData = null
 var resultsJsonData = null
 
 await getResultsJson()
-update(resultsJsonData,otherJsonData)
+update(resultsJsonData, otherJsonData)
