@@ -276,20 +276,161 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
 }
 
 function tableBody(jsonData, otherJsonData, filterFunction) {
+    var rows = []
     for (let test of jsonData.tests) {
         let other = diffAgainstFields[test.name]
         if (filterFunction(test, other)) {
-            eitherOr(test, other,
-                (function () {
-                    console.log("only normal")
-                })
-                , (function () {
-                    console.log("pair")
-                }))
+            let row = buildRow(test, other)
+            rows.push(row)
         }
     }
+    return rows
 }
 
+// TODO I kinda hate this, but future Zane problem
+function buildRow(test, other) {
+    var row
+    eitherOr(test, other,
+        (function () {
+            var startAccuracy = formatAccuracy(test.start / test.bits)
+            var resultAccuracy = formatAccuracy(test.end / test.bits)
+            var targetAccuracy = formatAccuracy(test.target / test.bits)
+            if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
+                targetAccuracy = ""
+            }
+            if (test.status == "timeout" || test.status == "error") {
+                startAccuracy = ""
+                resultAccuracy = ""
+                targetAccuracy = ""
+            }
+            const tr = Element("tr", { classList: test.status }, [
+                Element("td", {}, [test.name]),
+                Element("td", {}, [startAccuracy]),
+                Element("td", {}, [resultAccuracy]),
+                Element("td", {}, [targetAccuracy]),
+                Element("td", {}, [formatTime(test.time)]),
+                Element("td", {}, [
+                    Element("a", {
+                        href: `${test.link}/graph.html`
+                    }, ["»"])]),
+            ])
+            tr.addEventListener("click", () => tr.querySelector("a").click())
+            row = tr
+        })
+        , (function () {
+            function timeTD(test) {
+                var timeDiff = test.time - diffAgainstFields[test.name].time
+                var color = "diff-time-red"
+                var text
+                var titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
+                // Dirty equal less then 1 second
+                var areEqual = false
+                if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
+                    areEqual = true
+                    color = "diff-time-gray"
+                    text = "~"
+                } else if (timeDiff < 0) {
+                    color = "diff-time-green"
+                    text = "+ " + `${formatTime(Math.abs(timeDiff))}`
+                } else {
+                    text = "-" + `${formatTime(timeDiff)}`
+                }
+                return { td: Element("td", { classList: color, title: titleText }, [text]), equal: areEqual }
+            }
+
+            function buildTDfor(o, t) {
+                const op = calculatePercent(o)
+                const tp = calculatePercent(t)
+                var color = "diff-time-red"
+                var diff = op - tp
+                var areEqual = false
+                var titleText = `Original: ${op} vs ${tp}`
+                var tdText = `- ${(diff).toFixed(1)}%`
+                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                    color = "diff-time-gray"
+                    areEqual = true
+                    tdText = "~"
+                } else if (diff < 0) {
+                    diff = Math.abs(diff)
+                    color = "diff-time-green"
+                    tdText = `+ ${(diff).toFixed(1)}%`
+                }
+                return { td: Element("td", { classList: color, title: titleText }, [tdText]), equal: areEqual }
+            }
+
+            function startAccuracyTD(test) {
+                const t = test.start / test.bits
+                const o = diffAgainstFields[test.name].start / diffAgainstFields[test.name].bits
+                return buildTDfor(o, t)
+            }
+
+            function resultAccuracyTD(test) {
+                const t = test.end / test.bits
+                const o = diffAgainstFields[test.name].end / diffAgainstFields[test.name].bits
+                return buildTDfor(o, t)
+            }
+
+            function targetAccuracyTD(test) {
+                const t = test.target / test.bits
+                const o = diffAgainstFields[test.name].target / diffAgainstFields[test.name].bits
+                return buildTDfor(o, t)
+            }
+
+            var classList = [test.status]
+            const startAccuracy = startAccuracyTD(test)
+            const resultAccuracy = resultAccuracyTD(test)
+            const targetAccuracy = targetAccuracyTD(test)
+            const time = timeTD(test)
+
+            var tdStartAccuracy = radioStates[radioStatesIndex] == "startAccuracy" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
+            var tdResultAccuracy = radioStates[radioStatesIndex] == "resultAccuracy" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
+            var tdTargetAccuracy = radioStates[radioStatesIndex] == "targetAccuracy" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
+            const tdTime = radioStates[radioStatesIndex] == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
+
+            var testTile = ""
+            var outputEqual = true
+            if (radioStates[radioStatesIndex] == "output") {
+                outputEqual = false
+            }
+            if (test.output != diffAgainstFields[test.name].output) {
+                // TODO steal Latex formatting from Odyssey
+                testTile += `Current output:\n${test.output} \n \n Comparing to:\n ${diffAgainstFields[test.name].output}`
+            }
+            if (test.status == "imp-start" ||
+                test.status == "ex-start" ||
+                test.status == "apx-start") {
+                tdTargetAccuracy = Element("td", {}, [])
+            }
+            if (test.status == "timeout" || test.status == "error") {
+                tdStartAccuracy = Element("td", {}, [])
+                tdResultAccuracy = Element("td", {}, [])
+                tdTargetAccuracy = Element("td", {}, [])
+            }
+
+            const radioSelected = radioStates[radioStatesIndex]
+
+            var nameTD = Element("td", {}, [test.name])
+            if (testTile != "") {
+                nameTD = Element("td", { title: testTile }, [test.name])
+            }
+
+            const tr = Element("tr", { classList: classList.join(" ") }, [
+                nameTD,
+                tdStartAccuracy,
+                tdResultAccuracy,
+                tdTargetAccuracy,
+                tdTime,
+                Element("td", {}, [
+                    Element("a", {
+                        href: `${test.link}/graph.html`
+                    }, ["»"])]),
+            ])
+            tr.addEventListener("click", () => tr.querySelector("a").click())
+            row = tr
+        })
+    )
+    return row
+}
 
 function eitherOr(baselineRow, diffRow, singleFunction, pairFunctions) {
     // Pulled out into a function so if testing for diffRow needs to change only have to update here
@@ -314,11 +455,17 @@ function update(jsonData, otherJsonData) {
 
 function makeFilterFunction() {
     return function filterFunction(baselineRow, diffRow) {
+        // const hideRow = (radioSelected == "output" && outputEqual) ||
+        //     (radioSelected == "startAccuracy" && startAccuracy.equal) ||
+        //     (radioSelected == "resultAccuracy" && resultAccuracy.equal) ||
+        //     (radioSelected == "targetAccuracy" && targetAccuracy.equal) ||
+        //     (radioSelected == "time" && time.equal)
+
         const currentSelectedBenchmarkIndex = selectedBenchmarkIndex
         const startAccuracyChecked = radioStates[radioStatesIndex] == "startAccuracy"
         const currentFilterState = filterState
         // TODO collect internal state into a filter function
-        // TODO actually filter
+        // TODO actually filter based on global state. ugh access control
         eitherOr(baselineRow, diffRow,
             (function () {
                 console.log("filter normal")
