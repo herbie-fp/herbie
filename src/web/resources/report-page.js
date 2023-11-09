@@ -445,6 +445,10 @@ function buildRow(test, other) {
                     Element("a", {
                         href: `${test.link}/graph.html`
                     }, ["»"])]),
+                Element("td", {}, [
+                    Element("a", {
+                        href: `${test.link}/timeline.html`
+                    }, ["📊"])]),
             ])
             // TODO fix bug with cmd/ctrl click.
             tr.addEventListener("click", () => tr.querySelector("a").click())
@@ -557,6 +561,10 @@ function buildRow(test, other) {
                     Element("a", {
                         href: `${test.link}/graph.html`
                     }, ["»"])]),
+                Element("td", {}, [
+                    Element("a", {
+                        href: `${test.link}/timeline.html`
+                    }, ["📊"])]),
             ])
             tr.addEventListener("click", () => tr.querySelector("a").click())
             row = tr
