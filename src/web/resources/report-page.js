@@ -186,9 +186,10 @@ var filterTolerance = 1
 
 var filterDetailsState = false
 
-var groupState = {
+var topLevelState = {
     "improved": true,
-    "regressed": true
+    "regressed": true,
+    "pre-processed": true
 }
 
 var selectedBenchmarkIndex = -1
@@ -680,7 +681,7 @@ function buildFiltersElement(jsonData) {
     function setupGroup(name, childStateNames, parent) {
         parent.addEventListener("click", (e) => {
             if (e.target.nodeName == "INPUT") {
-                groupState[name] = e.target.checked
+                topLevelState[name] = e.target.checked
                 for (let i in childStateNames) {
                     filterState[childStateNames[i]] = e.target.checked
                 }
@@ -694,21 +695,21 @@ function buildFiltersElement(jsonData) {
     const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
         "gt-target", "gt-start"]
 
-    const improvedButton = buildCheckboxLabel("improved", "Improved", groupState["improved"])
-    const regressedButton = buildCheckboxLabel("regressed", "Regressed", groupState["regressed"])
+    const improvedButton = buildCheckboxLabel("improved", "Improved", topLevelState["improved"])
+    const regressedButton = buildCheckboxLabel("regressed", "Regressed", topLevelState["regressed"])
 
     setupGroup("improved", improvedTags, improvedButton)
     setupGroup("regressed", regressedTags, regressedButton)
 
-    const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", false)
-    preProcessed.addEventListener("click", (e) => {
-        console.log("Coming soon...")
-        update(jsonData)
-    })
+    // const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", topLevelState["pre-processed"])
+    // preProcessed.addEventListener("click", (e) => {
+    //     topLevelState["pre-processed"] = !topLevelState["pre-processed"]
+    //     update(jsonData)
+    // })
 
     const filters = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown]), [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, /* preProcessed, */ dropDown]), [
             filterButtons]])
     filters.addEventListener("click", (e) => {
         if (e.target.nodeName == "SUMMARY") {
