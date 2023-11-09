@@ -384,7 +384,22 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
             Element("figcaption", {}, [tempPareto_B])
         ])
     ])
-    return [header, stats, figureRow, buildControls(jsonData, 69), buildTableContents(jsonData, otherJsonData, filterFunction),]
+    const rows = buildTableContents(jsonData, otherJsonData, filterFunction)
+    const resultsTable = Element("table", { id: "results" }, [
+        Element("thead", {}, [
+            Element("tr", {}, [
+                Element("th", {}, ["Test"]),
+                Element("th", {}, ["Start"]),
+                Element("th", {}, ["Result",
+                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
+                Element("th", {}, ["Target",
+                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
+                Element("th", {}, ["Time"]),
+            ])
+        ]),
+        rows
+    ])
+    return [header, stats, figureRow, buildControls(jsonData, rows.length), resultsTable]
 }
 
 function buildTableContents(jsonData, otherJsonData, filterFunction) {
@@ -715,20 +730,35 @@ function update(jsonData, otherJsonData) {
 
 function makeFilterFunction() {
     return function filterFunction(baselineRow, diffRow) {
+        var returnValue = true
+        eitherOr(baselineRow, diffRow,
+            (function () {
+                // no row to diff against
+            }),
+            (function () {
+                if (radioStatesIndex == 4) {
+                    var timeDiff = baselineRow.time - diffRow.time
+                    console.log(timeDiff)
+                    if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
+                        returnValue = returnValue && false
+                    }
+                }
+            }))
         // TODO collect internal state into a filter function
         // TODO actually filter based on global state. ugh access control
         // TODO fix this garbage if statement
         // TODO filter pre processing
         const linkComponents = baselineRow.link.split("/")
         if (selectedBenchmarkIndex == -1 && filterState[baselineRow.status]) {
-            return true
+            returnValue = returnValue && true
         } else if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
             if (benchMarks[selectedBenchmarkIndex].toLowerCase() == linkComponents[0] && filterState[baselineRow.status]) {
-                return true
+                returnValue = returnValue && true
             }
         } else {
-            return false
+            returnValue = returnValue && false
         }
+        return returnValue
     }
 }
 
