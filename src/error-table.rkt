@@ -24,7 +24,7 @@ NOTE: This is not the correct definition of exactness. We need to also
     (foldr append '() (for/list ([pt-errors (in-list pt-errorss)]
                                  [(pt _) (in-pcontext pcontext)])
                         (define sub-error (map cons subexprs pt-errors))
-                        (define filtered-sub-error (filter (lambda (p) (> (cdr p) 2)) sub-error))
+                        (define filtered-sub-error (filter (lambda (p) (> (cdr p) 16)) sub-error))
                         (define mapped-sub-error (map (lambda (p) (cons (car p) pt)) filtered-sub-error))
                         (if (empty? mapped-sub-error) (list (cons #f pt)) mapped-sub-error))))
 
@@ -109,8 +109,10 @@ NOTE: This is not the correct definition of exactness. We need to also
          (define larg-val (hash-ref exacts-hash larg))
          (define rarg-val (hash-ref exacts-hash rarg))
          (cond
-           [(fl= subexpr-val 0.0) #f #;(mark-erroneous! subexpr)]
-           [(very-close? larg-val rarg-val)
+           [(and (fl= (fl- larg-val rarg-val) 0.0)
+                 (not (fl= subexpr-val 0.0)))
+            (mark-erroneous! subexpr pt)]
+           #;[(very-close? larg-val rarg-val)
             (mark-erroneous! subexpr pt)]
            [else #f])]
  
@@ -184,15 +186,15 @@ NOTE: This is not the correct definition of exactness. We need to also
          (and (fl> arg-val 1e308) (mark-erroneous! subexpr pt))]
 
         [(list 'pow.f64 base expn)
-         #:when (or (is-inexact? larg) (is-inexact? rarg))
+         #:when (or (is-inexact? base) (is-inexact? expn))
          (define base-val (flabs (hash-ref exacts-hash base)))
          (define base-oflow? (hash-ref oflow-hash base))
          (define base-uflow? (hash-ref uflow-hash base))
 
          (cond
-           [(and (or (hash-ref uflow-hash arg)
-                     (hash-ref oflow-hash arg))
-                 (not (fl= subexpr-val arg-val)))
+           [(and (or (hash-ref uflow-hash base)
+                     (hash-ref oflow-hash base))
+                 (not (fl= subexpr-val base-val)))
             (mark-erroneous! subexpr pt)]
            ;; atomic condition w.r.t. y -> y
            ;; atomic condition w.r.t. x -> ylog(x)
