@@ -212,6 +212,16 @@ var filterState = {
 }
 var hideShowCompareDetails = false
 
+var sortState = {
+    "test": true,
+    "start": false,
+    "result": false,
+    "target": false,
+    "time": false
+}
+
+var sortDescending = true
+
 // -------------------------------------------------
 // ------ Global State End ----------
 // -------------------------------------------------
@@ -408,9 +418,17 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
     return [header, stats, figureRow, buildControls(jsonData, rows.length), resultsTable]
 }
 
+function sort(test) {
+    function compareFunction(l, r) {
+        return l.name.localeCompare(r.name)
+    }
+    return test.sort(compareFunction)
+}
+
 function buildTableContents(jsonData, otherJsonData, filterFunction) {
     var rows = []
-    for (let test of jsonData.tests) {
+    const jsonTest = sort(jsonData.tests)
+    for (let test of jsonTest) {
         let other = diffAgainstFields[test.name]
         if (filterFunction(test, other)) {
             let row = buildRow(test, other)
