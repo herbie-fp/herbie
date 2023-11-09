@@ -167,6 +167,9 @@ const renames = {
     "crash": "Crash",
 }
 
+// Flag for filtering if out diffs that are under the tolerance
+var hideDirtyEqual = true
+
 // State for Forum radio buttons
 // Why no some Types :(
 var radioStatesIndex = -1
@@ -227,11 +230,10 @@ function showTolerance(jsonData, show) {
     } else {
         unitText = Element("text", {}, ["%"])
     }
-    const submitButton = Element("input", { type: "submit", value: "Update Tolerance" }, [])
+    const submitButton = Element("input", { type: "submit", value: "Update" }, [])
     submitButton.addEventListener("click", async (e) => {
         e.preventDefault()
         filterTolerance = toleranceInputField.value
-        radioStatesIndex = 2
         fetchAndUpdate(jsonData)
     })
     toleranceInputField.style.display = show ? "inline" : "none"
@@ -384,6 +386,7 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
             Element("figcaption", {}, [tempPareto_B])
         ])
     ])
+
     const rows = buildTableContents(jsonData, otherJsonData, filterFunction)
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
@@ -729,18 +732,68 @@ function update(jsonData, otherJsonData) {
 }
 
 function makeFilterFunction() {
-    return function filterFunction(baselineRow, diffRow) {
+    return function filterFunction(baseData, diffData) {
         var returnValue = true
-        eitherOr(baselineRow, diffRow,
+        eitherOr(baseData, diffData,
             (function () {
                 // no row to diff against
             }),
             (function () {
-                if (radioStatesIndex == 4) {
-                    var timeDiff = baselineRow.time - diffRow.time
-                    console.log(timeDiff)
-                    if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
-                        returnValue = returnValue && false
+                // Section to hide diffs that are below the provided tolerance
+                if (hideDirtyEqual) {
+                    // Diff Start Accuracy
+                    if (radioStatesIndex == 1) {
+                        const t = baseData.start / baseData.bits
+                        const o = diffData.start / diffData.bits
+                        const op = calculatePercent(o)
+                        const tp = calculatePercent(t)
+                        var diff = op - tp
+                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                            returnValue = returnValue && false
+                        }
+                    }
+                    // Diff Start Accuracy
+                    if (radioStatesIndex == 1) {
+                        const t = baseData.start / baseData.bits
+                        const o = diffData.start / diffData.bits
+                        const op = calculatePercent(o)
+                        const tp = calculatePercent(t)
+                        var diff = op - tp
+                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                            returnValue = returnValue && false
+                        }
+                    }
+
+                    // Diff Result Accuracy
+                    if (radioStatesIndex == 2) {
+                        const t = baseData.end / baseData.bits
+                        const o = diffData.end / diffData.bits
+                        const op = calculatePercent(o)
+                        const tp = calculatePercent(t)
+                        var diff = op - tp
+                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                            returnValue = returnValue && false
+                        }
+                    }
+
+                    // Diff Target Accuracy
+                    if (radioStatesIndex == 3) {
+                        const t = baseData.target / baseData.bits
+                        const o = diffData.target / diffData.bits
+                        const op = calculatePercent(o)
+                        const tp = calculatePercent(t)
+                        var diff = op - tp
+                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                            returnValue = returnValue && false
+                        }
+                    }
+
+                    // Diff Time
+                    if (radioStatesIndex == 4) {
+                        var timeDiff = baseData.time - diffData.time
+                        if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
+                            returnValue = returnValue && false
+                        }
                     }
                 }
             }))
@@ -748,15 +801,22 @@ function makeFilterFunction() {
         // TODO actually filter based on global state. ugh access control
         // TODO fix this garbage if statement
         // TODO filter pre processing
-        const linkComponents = baselineRow.link.split("/")
-        if (selectedBenchmarkIndex == -1 && filterState[baselineRow.status]) {
-            returnValue = returnValue && true
-        } else if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
-            if (benchMarks[selectedBenchmarkIndex].toLowerCase() == linkComponents[0] && filterState[baselineRow.status]) {
+        const linkComponents = baseData.link.split("/")
+        // guard statement
+        if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
+            // defensive lowerCase
+            const left = benchMarks[selectedBenchmarkIndex].toLowerCase()
+            const right = linkComponents[0].toLowerCase()
+            if (left == right) {
                 returnValue = returnValue && true
+            } else {
+                return false
             }
+        }
+        if (filterState[baseData.status]) {
+            returnValue = returnValue && true
         } else {
-            returnValue = returnValue && false
+            return false
         }
         return returnValue
     }
