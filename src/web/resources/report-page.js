@@ -227,17 +227,17 @@ function showTolerance(jsonData, show) {
     } else {
         unitText = Element("text", {}, ["%"])
     }
-    toleranceInputField.addEventListener("keyup", async (e) => {
+    const submitButton = Element("input", { type: "submit", value: "Update Tolerance" }, [])
+    submitButton.addEventListener("click", async (e) => {
         e.preventDefault()
-        if (e.keyCode === 13) {
-            filterTolerance = e.target.value
-            await fetchAndUpdate(jsonData)
-        }
+        filterTolerance = toleranceInputField.value
+        radioStatesIndex = 2
+        fetchAndUpdate(jsonData)
     })
     toleranceInputField.style.display = show ? "inline" : "none"
     hidingText.style.display = show ? "inline" : "none"
     unitText.style.display = show ? "inline" : "none"
-    return [hidingText, toleranceInputField, unitText]
+    return [hidingText, toleranceInputField, unitText, submitButton]
 }
 
 function buildCompareForm(jsonData) {
@@ -294,11 +294,6 @@ function buildCompareForm(jsonData) {
         placeholder: "current report against"
     }, [])
 
-    input.addEventListener("keyup", async (e) => {
-        e.preventDefault();
-        compareAgainstURL = form.parentNode.querySelector("#compare-input").value
-    })
-
     var showToleranceBool = false
     if (radioStates[radioStatesIndex] == "time" ||
         radioStates[radioStatesIndex] == "targetAccuracy" ||
@@ -319,10 +314,6 @@ function buildCompareForm(jsonData) {
     const form = Element("form", {}, [
         toggles,
     ])
-    // disable enter key so we can handle the event elsewhere
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault()
-    })
     return form
 }
 
@@ -435,6 +426,7 @@ function buildRow(test, other) {
                         href: `${test.link}/graph.html`
                     }, ["»"])]),
             ])
+            // TODO fix bug with cmd/ctrl click.
             tr.addEventListener("click", () => tr.querySelector("a").click())
             row = tr
         })
@@ -572,7 +564,6 @@ function buildControls(jsonData, diffCount) {
     }, [])
     const submitButton = Element("input", { type: "submit", value: "Diff" }, [])
     submitButton.addEventListener("click", async (e) => {
-        console.log("Zane was here")
         e.preventDefault();
         compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
         hideShowCompareDetails = true
@@ -718,11 +709,6 @@ function update(jsonData, otherJsonData) {
     const currentFilterFunction = makeFilterFunction()
 
     const newBody = Element("body", {}, buildBody(jsonData, otherJsonData, currentFilterFunction))
-    newBody.addEventListener("click", (e) => {
-        // TODO handle events
-        console.log(e)
-        fetchAndUpdate(jsonData)
-    })
     htmlNode.replaceChild(newBody, bodyNode)
     bodyNode = newBody
 }
@@ -749,6 +735,7 @@ function makeFilterFunction() {
 async function fetchAndUpdate(jsonData) {
     if (compareAgainstURL.length > 0) {
         // Could also split string on / and check if the last component = "results.json"
+        var url = compareAgainstURL
         let lastChar = compareAgainstURL.slice(url.length - 1, url.length)
         if (lastChar == "/") {
             url = url + "results.json"
@@ -762,6 +749,7 @@ async function fetchAndUpdate(jsonData) {
         if (json.error) {
             otherJsonData = null
             update(jsonData)
+            return
         }
         for (let test of json.tests) {
             diffAgainstFields[`${test.name}`] = test
