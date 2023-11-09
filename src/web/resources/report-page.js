@@ -95,8 +95,10 @@ function on(mark, listeners = {}) {
 
 function plotXY(testsData, filterFunction) {
     var filteredTests = []
-    testsData.forEach((test) => {
-        if (filterFunction(test)) {
+    testsData.tests.forEach((test) => {
+        // Ugh global scope 
+        let other = diffAgainstFields[test.name]
+        if (filterFunction(test, other)) {
             filteredTests.push(test)
         }
     })
@@ -377,7 +379,7 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
     const figureRow = Element("div", { classList: "figure-row" }, [
         Element("figure", { id: "xy" }, [
             Element("h2", {}, [tempXY_A]),
-            plotXY(jsonData.tests, filterFunction),
+            plotXY(jsonData, filterFunction),
             Element("figcaption", {}, [tempXY_B])
         ]),
         Element("figure", { id: "pareto" }, [
