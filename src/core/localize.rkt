@@ -3,7 +3,7 @@
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
 
-(provide batch-localize-error local-error-as-tree)
+(provide batch-localize-error local-error-as-tree compute-local-errors)
 
 (define (all-subexpressions expr repr)
   (remove-duplicates
@@ -28,10 +28,12 @@
     (if (null? exprs) empty (compute-local-errors exprs ctx)))
   (for/list ([expr (in-list exprs)] [errs (in-list errss)])
     (sort
-     (reap [sow]
-       (for ([(expr err) (in-hash errs)])
-         (unless (andmap (curry = 1) err)
-           (sow (cons err expr)))))
+     (sort
+      (reap [sow]
+        (for ([(expr err) (in-hash errs)])
+          (unless (andmap (curry = 1) err)
+            (sow (cons err expr)))))
+      expr<? #:key cdr)
      > #:key (compose errors-score car))))
 
 ; Compute local error or each sampled point at each node in `prog`.
