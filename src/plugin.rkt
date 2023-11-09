@@ -15,4 +15,4 @@
          (struct-out representation) get-representation warn
          platform get-platform register-platform!
          platform-product platform-union platform-intersect
-         platform-subtract platform-filter operator-set)
+         platform-subtract platform-filter operator-set platform-operator-set)

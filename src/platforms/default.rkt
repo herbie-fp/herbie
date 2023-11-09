@@ -26,6 +26,7 @@
 ; libm operations
 (define libm-platform
   (platform-product
+    #:optional
     [real (binary64 binary32)]
     (operator-set
       [(real real)

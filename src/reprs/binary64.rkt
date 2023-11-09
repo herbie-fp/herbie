@@ -40,10 +40,10 @@
    sin sinh sqrt tan tanh tgamma trunc]
   [copysign fdim fmax fmin fmod pow remainder])
 
-(define-libm-operators
-  [expm1 log1p]
-  [atan2 hypot]
-  [fma])
+; (define-libm-operators
+;   [expm1 log1p]
+;   [atan2 hypot]
+;   [fma])
 
 (define-comparator-impls binary64
   [== ==.f64 =]

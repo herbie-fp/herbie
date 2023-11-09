@@ -6,27 +6,28 @@
          (submod "syntax/syntax.rkt" internals))
 
 (provide
-  platform get-platform *active-platform*
-  activate-platform! operator-set operator-set?
-  ;;; Platform API
+  platform get-platform *active-platform* activate-platform!
+  ;; Platform API
   (contract-out
+    ;; Operator sets
+    [operator-set? (-> any/c boolean?)]
+    [operator-set-operators (-> operator-set? (listof symbol?))]
+    ;; Platforms
     [platform? (-> any/c boolean?)]
     [platform-reprs (-> platform? (listof representation?))]
-    [platform-operators (-> platform? (listof symbol?))]
-    [rename platform-impls platform-operator-impls (-> platform? (listof symbol?))]
+    [platform-impls (-> platform? (listof symbol?))]
     [platform-conversions (-> platform? (listof symbol?))]
     [platform-reprchange-rules (-> platform? (listof rule?))]
     [platform-union (-> platform? platform? ... platform?)]
     [platform-intersect (-> platform? platform? ... platform?)]
     [platform-subtract (-> platform? platform? ... platform?)]
-    [make-platform-product (-> (listof (cons/c symbol? representation?))
-                           operator-set?
-                           platform?)]))
+    [platform-operator-set (-> platform? operator-set?)]))
 
 (module+ internals
   (provide platform get-platform register-platform!
            platform-product platform-union platform-intersect
-           platform-subtract platform-filter operator-set))
+           platform-subtract platform-filter operator-set
+           platform-operator-set))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -101,33 +102,62 @@
     (set! rw-impl (get-rewrite-operator orepr #:all? #t)))
   (list impl rw-impl))
 
+(define-syntax-rule (with-cond-handlers optional? ([pred handle] ...) body ...)
+  (if optional?
+      (with-handlers ([pred handle] ...) body ...)
+      (begin body ...)))
+
 ;; Constructor procedure for platforms.
 ;; Verifies that a platform is well-formed and
 ;; the platform will be supported by Herbie's runtime.
-(define (make-platform repr-names convs-dict ops-data)
+(define (make-platform repr-names convs-dict ops-data #:optional? [opt? #f])
   ; load the representations
   (define reprs
     (for/list ([repr-name (in-list repr-names)])
       (get-representation repr-name)))
   ; load the conversions
+  (define missing (mutable-set))
   (define convs
     (for/fold ([convs '()]) ([(in out) (in-dict convs-dict)])
       (define irepr (get-representation in))
       (define orepr (get-representation out))
-      (append (get-conversion-impls irepr orepr)
-              (get-conversion-impls orepr irepr)
-              convs)))
+      (with-cond-handlers opt? ([exn:fail:user:herbie:missing?
+                                 (λ (e)
+                                   (set-add! missing (list 'conv in out))
+                                   convs)])
+        (append (get-conversion-impls irepr orepr)
+                (get-conversion-impls orepr irepr)
+                convs))))
   ; load the operators
   (define ops
-    (for/list ([op-data (in-list ops-data)])
-      (match op-data
-        [(list name otype)
-         ; special case: constants
-         (define orepr (get-representation otype))
-         (get-parametric-constant name orepr #:all? #t)]
-        [(list name itypes ... _)
-         (define ireprs (map get-representation itypes))
-         (apply get-parametric-operator name ireprs #:all? #t)])))
+    (filter identity
+      (for/list ([op-data (in-list ops-data)])
+        (match op-data
+          [(list name otype)
+           ; special case: constants
+           (define orepr (get-representation otype))
+           (with-cond-handlers opt? ([exn:fail:user:herbie:missing?
+                                      (λ (e)
+                                        (set-add! missing (list 'op name otype))
+                                        #f)])
+             (get-parametric-constant name orepr #:all? #t))]
+          [(list name itypes ... otype)
+           (define ireprs (map get-representation itypes))
+           (with-cond-handlers opt? ([exn:fail:user:herbie:missing?
+                                      (λ (e)
+                                        (set-add! missing `(op ,name ,@itypes , otype))
+                                        #f)])
+             (apply get-parametric-operator name ireprs #:all? #t))]))))
+  ; emit warnings if need be
+  (unless (set-empty? missing)
+    (warn 'platform
+          "platform has missing optional implementations: ~a"
+          (string-join
+            (for/list ([m (in-set missing)])
+              (match m
+                [(list 'conv in out) (format "~a<=>~a)" in out)]
+                [(list 'op name itypes ... otype) (format "(~a ~a)" name `(,@itypes ,otype))]))
+            " ")))
   ; make the platform
   (create-platform #f reprs (append convs ops)))
 
@@ -151,61 +181,56 @@
     (if sub-stx
         (raise-syntax-error 'platform why stx sub-stx)
         (raise-syntax-error 'platform why stx)))
+  (define (go cs es #:optional? [optional? #f])
+    ;; iterate over `cs ...` to get conversions
+    (define convs
+      (let loop ([clauses cs] [convs '()])
+        (match clauses
+          [(list) convs]
+          [(list entry rest ...)
+           (syntax-case entry ()
+             [(in out) (loop rest (cons (cons #'in #'out) convs))]
+             [_ (oops! "malformed conversion clause" entry)])])))
+    ;; iterate over `es ...` to get operators
+    (define-values (reprs ops)
+      (let loop ([clauses es] [reprs '()] [ops '()])
+        (cond
+          [(null? clauses) (values reprs ops)]
+          [else
+           (syntax-case (car clauses) ()
+             [((itype ... otype) (op ...))
+              (begin
+                (define tsig (syntax->datum #'(itype ... otype)))
+                (define ops* (syntax->datum #'(op ...)))
+                (unless (andmap symbol? ops*)
+                  (oops! "expected a list of identifiers" #'(op ...)))
+                (loop (cdr clauses)
+                      (remove-duplicates (append tsig reprs))
+                      (append (map (λ (o) (cons o tsig)) ops*) ops)))]
+             [((itype ... otype) bad)
+              (oops! "expected a list of operators" #'bad)]
+             [(bad (op ...))
+              (oops! "expected a type signature" #'bad)]
+             [(_ _)
+              (oops! "malformed entry" (car clauses))]
+             [_
+              (oops! "expected [<signature> <ops>]" (car clauses))])])))
+    ;; compose everything into a `make-platform` call
+    (with-syntax ([(repr-names ...) reprs]   
+                  [(convs ...) convs]
+                  [(ops ...) ops])
+      (if optional?
+          #'(make-platform '(repr-names ...) '(convs ...) '(ops ...))
+          #'(make-platform '(repr-names ...) '(convs ...) '(ops ...) #:optional? #t))))
   (syntax-case stx ()
-    [(_ #:conversions (cs ...) e1 es ...)
-     (begin
-       ;; iterate over `cs ...` to get conversions
-       (define convs
-         (let loop ([clauses (syntax->list #'(cs ...))] [convs '()])
-           (match clauses
-             [(list) convs]
-             [(list entry rest ...)
-              (syntax-case entry ()
-                [(in out) (loop rest (cons (cons #'in #'out) convs))]
-                [_ (oops! "malformed conversion clause" entry)])])))
-       ;; iterate over `e1 es ...` to get operators
-       (define-values (reprs ops)
-         (let loop ([clauses (syntax->list #'(e1 es ...))] [reprs '()] [ops '()])
-           (cond
-             [(null? clauses) (values reprs ops)]
-             [else
-              (syntax-case (car clauses) ()
-                [((itype ... otype) (op ...))
-                 (begin
-                   (define tsig (syntax->datum #'(itype ... otype)))
-                   (define ops* (syntax->datum #'(op ...)))
-                   (unless (andmap symbol? ops*)
-                     (oops! "expected a list of identifiers" #'(op ...)))
-                   (loop (cdr clauses)
-                         (remove-duplicates (append tsig reprs))
-                         (append (map (λ (o) (cons o tsig)) ops*) ops)))]
-                [((itype ... otype) bad)
-                 (oops! "expected a list of operators" #'bad)]
-                [(bad (op ...))
-                 (oops! "expected a type signature" #'bad)]
-                [(_ _)
-                 (oops! "malformed entry" (car clauses))]
-                [_
-                 (oops! "expected [<signature> <ops>]" (car clauses))])])))
-       ;; compose everything into a `make-platform` call
-       (with-syntax ([(repr-names ...) reprs]   
-                     [(convs ...) convs]
-                     [(ops ...) ops])
-         #'(make-platform '(repr-names ...) '(convs ...) '(ops ...))))]
-    [(_ e1 es ...)
-     #'(platform #:conversions () e1 es ...)]
+    [(_ #:optional #:conversions (cs ...) es ...)
+     (go (syntax->list #'(cs ...)) (syntax->list #'(es ...)) #:optional? #t)]
+    [(_ #:conversions (cs ...) es ...)
+     (go (syntax->list #'(cs ...)) (syntax->list #'(es ...)))]
+    [(_ es ...)
+     #'(platform #:conversions () es ...)]
     [_
      (oops! "bad syntax")]))
-
-;; Real operators in a platform.
-(define (platform-operators pform)
-  (define ops (mutable-set))
-  (reap [sow]
-    (for ([impl (in-list (platform-impls pform))])
-      (define op (impl->operator impl))
-      (unless (set-member? ops op)
-        (set-add! ops op)
-        (sow op)))))
 
 ;; Representation conversions in a platform.
 (define (platform-conversions pform)
@@ -400,6 +425,27 @@
     [_
      (oops! "bad syntax" stx)]))
 
+;; Projection of a platform to an operator set.
+(define (platform-operator-set pform)
+  (define unique (mutable-set))
+  (make-operator-set
+    (for/fold ([ops '()]) ([impl (platform-impls pform)])
+      (define op (impl->operator impl))
+      (cond
+        [(set-member? unique op)
+         ops]
+        [else
+         (define itypes (real-operator-info op 'itype))
+         (define otype (real-operator-info op 'otype))
+         (set-add! unique op)
+         (cons `(,op ,@itypes ,otype) ops)]))))
+
+;; List of operator names in an operator set.
+(define (operator-set-operators oset)
+  (for/list ([op (operator-set-ops oset)])
+    (match-define (list name _ ...) op)
+    name))
+
 ;; Also in <herbie>/core/egg-herbie.rkt
 (define (type-combinations types type-dict)
   (reap [sow]
@@ -413,7 +459,7 @@
 ;; Specialized "product" construction of a platform.
 ;; Given a map from type to representations, instantiate an operator implementation
 ;; for each valid assignment of representations.
-(define (make-platform-product type-dict op-set)
+(define (make-platform-product type-dict op-set #:optional? [optional? #f])
   (define reprs
     (for/fold ([reprs* '()]) ([(_ reprs) (in-dict type-dict)])
       (append reprs reprs*)))
@@ -425,7 +471,7 @@
         (define orepr (dict-ref assigns otype))
         (define ireprs (map (curry dict-ref assigns) itypes))
         (cons `(,op ,@ireprs ,orepr) impls))))
-  (make-platform reprs '() impls))
+  (make-platform reprs '() impls #:optional? optional?))
 
 ;; Macro version of `make-platform-product`
 (define-syntax (platform-product stx)
@@ -433,13 +479,14 @@
     (if sub-stx
         (raise-syntax-error 'platform-product why stx sub-stx)
         (raise-syntax-error 'platform-product why stx)))
-  (syntax-case stx ()
-    [(_ cs ... os)
-     (let loop ([clauses (syntax->list #'(cs ...))] [type-dict '()])
+  (define (go cs os #:optional? [optional? #f])
+    (let loop ([clauses cs] [type-dict '()])
       (cond
         [(null? clauses)
-         (with-syntax ([type-dict type-dict])
-           #'(make-platform-product 'type-dict os))]
+         (with-syntax ([type-dict type-dict] [os os])
+           (if optional?
+               #'(make-platform-product 'type-dict os #:optional? #t)
+               #'(make-platform-product 'type-dict os)))]
         [else
          (syntax-case (car clauses) ()
            [(type (repr-names ...))
@@ -449,4 +496,9 @@
            [(type _)
             (oops! "expected a list of representations" #'bad)]
            [_
-            (oops! "expected [<type> (<repr> ...)]" (car clauses))])]))]))
+            (oops! "expected [<type> (<repr> ...)]" (car clauses))])])))
+  (syntax-case stx ()
+    [(_ #:optional cs ... os)
+     (go (syntax->list #'(cs ...)) #'os #:optional? #t)]
+    [(_ cs ... os)
+     (go (syntax->list #'(cs ...)) #'os)]))
