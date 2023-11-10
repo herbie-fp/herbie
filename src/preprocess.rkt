@@ -14,14 +14,14 @@
     (reap [sow]
       (for ([variable (in-list (context-vars context))]
             [representation (in-list (context-var-reprs context))])
-        (with-handlers ([exn:fail:user:herbie? (const #f)])
+        (with-handlers ([exn:fail:user:herbie? void])
           (define negate (get-parametric-operator 'neg representation))
           ; Check if representation has an fabs operator
           (define fabs (get-parametric-operator 'fabs representation))
           (sow (replace-vars (list (cons variable (list negate variable))) specification))))))
   ;; f(x) = -f(-x)
   (define odd-identities
-    (with-handlers ([exn:fail:user:herbie? (const empty)])
+    (with-handlers ([exn:fail:user:herbie? void])
       (define negate (get-parametric-operator 'neg (context-repr context)))
       ; Check if representation has an fabs operator
       (define fabs (get-parametric-operator 'fabs (context-repr context)))
@@ -39,6 +39,7 @@
       specification
       (append even-identities odd-identities swap-identities))
      (*simplify-rules*)))
+  ;; TODO: This is clearly bad and should be changed to something more general.
   (define (split-others others)
     (define-values (evens others*) (split-at others (length even-identities)))
     (define-values (odds swaps) (split-at others* (length odd-identities)))
