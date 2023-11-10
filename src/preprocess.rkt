@@ -21,7 +21,7 @@
           (sow (replace-vars (list (cons variable (list negate variable))) specification))))))
   ;; f(x) = -f(-x)
   (define odd-identities
-    (with-handlers ([exn:fail:user:herbie? void])
+    (with-handlers ([exn:fail:user:herbie? (const empty)])
       (define negate (get-parametric-operator 'neg (context-repr context)))
       ; Check if representation has an fabs operator
       (define fabs (get-parametric-operator 'fabs (context-repr context)))
