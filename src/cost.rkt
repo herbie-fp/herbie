@@ -11,6 +11,7 @@
        [(or '== '!= '< '> '<= '>=) 3]
        ['if 3]
        [(? repr-conv?) 2]
+       ;; TODO: reciprocal cost here
        [_ 100])))
 
 (define (expr-cost expr repr)

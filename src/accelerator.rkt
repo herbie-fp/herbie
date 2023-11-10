@@ -1,8 +1,13 @@
 #lang racket
 
 (require
- "./programs.rkt"
- (submod "syntax/syntax.rkt" internals) "./syntax/types.rkt")
+ "common.rkt"
+ "programs.rkt"
+ "ground-truth.rkt"
+ "core/matcher.rkt"
+ (submod "syntax/syntax.rkt" internals)
+ (submod "syntax/rules.rkt" internals)
+ "syntax/types.rkt")
 
 ;; Conceptually, accelerators are strictly implementations of operator ASTs (compositions of real
 ;; operators): we're describing fast versions of e.g. reciprocal square root, not introducing
@@ -19,7 +24,7 @@
 ;; - Is the type just a symbol or is it bound to something? (I've looked at types but I'm confused) How do you import it?
 
 ;; TODOs
-;; - Handle taylor after desugar in taylor code inpatch.rkt
+;; - Handle taylor after desugar in taylor code in patch.rkt
 ;; - Remove any old accelerator stuff in taylor*
 ;; - Write simple macros, copy define-operator
 ;; - Add def accel declarations to syntax/syntax.rkt
@@ -30,10 +35,10 @@
          name definition variables
          [itypes (make-list (length variables) 'real)] [otype 'real])
   (define define-name (sym-append name '- 'define))
-  (define define-name (sym-append name '- 'undefine))
+  (define undefine-name (sym-append name '- 'undefine))
   (hash-set! accelerator-operators
              name
-             (accelerator-operator variables definition itypes otype))
+             (accelerator-operator definition variables itypes otype))
   (register-operator!
    name
    itypes otype
@@ -52,7 +57,7 @@
 
 (define (register-accelerator-implementation! operator name variables
                                               itypes otype [implementation null])
-  (match-definition (accelerator-operator definition _ _ _)
+  (match-define (accelerator-operator definition _ _ _)
                     (accelerator-operators operator))
   (register-operator-impl!
    operator
@@ -65,3 +70,24 @@
      (or
       implementation
       (eval-progs-real (list definition) (context variables otype itypes)))))))
+
+(define (desugar-accelerators rules expression)
+  (match expression
+    [(list operator operands ...)
+     (define expression* (cons operator (map (curry desugar-accelerators rules) operands)))
+     ;; No reason to get this list each recursion
+     (define undefine-rules
+       (filter
+        (lambda (rule)
+          (set-member?
+           (map
+            (curryr sym-append '- 'undefine)
+            (dict-keys accelerator-operators))
+           (rule-name rule)))
+        rules))
+     ;; Apply the first rule that matches, there will only be one
+     (or
+      (let ([match (ormap (curryr rule-apply expression*) undefine-rules)])
+        (and match (car match)))
+      expression*)]
+    [_ expression]))

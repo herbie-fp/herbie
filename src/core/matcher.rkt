@@ -4,7 +4,7 @@
 (require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
          "../timeline.rkt")
 
-(provide pattern-match rewrite-expressions)
+(provide pattern-match rewrite-expressions rule-apply)
 
 ;;; Our own pattern matcher.
 ;;
