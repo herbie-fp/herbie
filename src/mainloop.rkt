@@ -80,9 +80,8 @@
   (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
 
 ; Pareto mode alt picking
-(define (choose-mult-alts from)
+(define (choose-mult-alts altns)
   (define repr (context-repr (*context*)))
-  (define altns (filter (compose list? alt-expr) from))
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
@@ -99,7 +98,7 @@
 (define (choose-alts!)
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define alts (choose-mult-alts fresh-alts))
-  (unless (*pareto-mode*) (set! alts (take 1 alts)))
+  (unless (*pareto-mode*) (set! alts (take alts 1)))
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts
@@ -350,12 +349,9 @@
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
            (equal? (representation-type repr) 'real)
            (not (null? (context-vars ctx))))
-      (cond
-       [(*pareto-mode*)
-        (map (curryr combine-alts ctx) (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))]
-       [else
-        (define-values (option _) (infer-splitpoints all-alts ctx))
-        (list (combine-alts option ctx))])]
+      (define opts (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))
+      (for/list ([opt (in-list opts)])
+        (combine-alts opt ctx))]
      [else
       (list (argmin score-alt all-alts))]))
 

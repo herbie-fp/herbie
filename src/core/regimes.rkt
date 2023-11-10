@@ -4,7 +4,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
-(provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si))
+(provide pareto-regimes (struct-out option) (struct-out si))
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -27,6 +27,9 @@
   (let loop ([alts sorted] [errs (hash)] [err-lsts err-lsts])
     (cond
      [(null? alts) '()]
+     ; Only return one option if not pareto mode
+     [(and (not (*pareto-mode*)) (not (equal? alts sorted)))
+      '()]
      [else
       (define-values (opt new-errs) 
         (infer-splitpoints alts err-lsts #:errs errs ctx))
