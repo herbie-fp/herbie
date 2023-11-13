@@ -1,6 +1,6 @@
 #lang racket
 
-(require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
+(require "common.rkt" "compiler.rkt" "float.rkt" "syntax/types.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext-map
          pcontext? pcontext->lists json->pcontext pcontext->json

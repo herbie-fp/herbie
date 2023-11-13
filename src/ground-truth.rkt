@@ -1,8 +1,9 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "programs.rkt" "syntax/types.rkt" "syntax/sugar.rkt"
-         "sampling.rkt" "timeline.rkt" "errors.rkt" "common.rkt")
+(require "syntax/sugar.rkt" "syntax/types.rkt"
+         "common.rkt" "compiler.rkt" "sampling.rkt" "timeline.rkt"
+         "errors.rkt")
 
 (provide sample-points batch-prepare-points make-search-func eval-progs-real)
 

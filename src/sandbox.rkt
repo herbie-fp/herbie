@@ -1,11 +1,11 @@
 #lang racket
 
-(require profile math/bigfloat racket/engine json rival)
+(require profile racket/engine json)
 (require "syntax/read.rkt" "syntax/rules.rkt" "syntax/sugar.rkt"
          "syntax/types.rkt" "alternative.rkt" "common.rkt" "conversions.rkt"
          "cost.rkt" "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
-         "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
+         "compiler.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
          "core/localize.rkt" "ground-truth.rkt")
 
 (provide run-herbie get-table-data unparse-result *reeval-pts* *timeout*
