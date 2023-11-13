@@ -3,15 +3,7 @@
 ;; Builtin double-precision plugin (:precision binary64)
 
 (require math/flonum math/bigfloat)
-(require "../plugin.rkt" "bool.rkt")
-
-(define (shift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (fn (- x shift-val))))
-
-(define (unshift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (+ (fn x) shift-val)))
+(require "runtime/utils.rkt" "bool.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -25,17 +17,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-operator-impl (PI PI.f64) binary64
-  [fl (const pi)])
-
-(define-operator-impl (E E.f64) binary64
-  [fl (const (exp 1.0))])
-
-(define-operator-impl (INFINITY INFINITY.f64) binary64
-  [fl (const +inf.0)])
-
-(define-operator-impl (NAN NAN.f64) binary64
-  [fl (const +nan.0)])
+(define-constants binary64
+  [PI PI.f64 pi]
+  [E E.f64 (exp 1.0)]
+  [INFINITY INFINITY.f64 +inf.0]
+  [NAN NAN.f64 +nan.0])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -65,7 +51,6 @@
 
 (define-syntax-rule (define-2ary-libm-operators op ...)
   (begin (define-2ary-libm-operator op) ...))
-
 
 (define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
 (define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
@@ -120,20 +105,10 @@
 
 (define-libm-operator (fma real real real))
 
-(define-operator-impl (== ==.f64 binary64 binary64) bool
-  [fl =])
-
-(define-operator-impl (!= !=.f64 binary64 binary64) bool
-  [fl (negate =)])
-
-(define-operator-impl (< <.f64 binary64 binary64) bool
-  [fl <])
-
-(define-operator-impl (> >.f64 binary64 binary64) bool
-  [fl >])
-
-(define-operator-impl (<= <=.f64 binary64 binary64) bool
-  [fl <=])
-
-(define-operator-impl (>= >=.f64 binary64 binary64) bool
-  [fl >=])
+(define-comparator-impls binary64
+  [== ==.f64 =]
+  [!= !=.f64 (negate =)]
+  [< <.f64 <]
+  [> >.f64 >]
+  [<= <=.f64 <=]
+  [>= >=.f64 >=])
