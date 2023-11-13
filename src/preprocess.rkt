@@ -132,7 +132,7 @@
          (values (list-set* x indices sorted) y)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
-     (define abs (operator-info
+     (define abs (impl-info
                   (get-parametric-operator
                    'fabs
                    (list-ref (context-var-reprs context) index))
@@ -141,9 +141,9 @@
     [(list 'negabs variable)
      (define index (index-of variables variable))
      (define negate-variable
-       (operator-info (get-parametric-operator 'neg (list-ref (context-var-reprs context) index)) 'fl))
+       (impl-info (get-parametric-operator 'neg (list-ref (context-var-reprs context) index)) 'fl))
      (define negate-expression
-       (operator-info (get-parametric-operator 'neg (context-repr context)) 'fl))
+       (impl-info (get-parametric-operator 'neg (context-repr context)) 'fl))
      (lambda (x y)
        ;; Negation is involutive, i.e. it is its own inverse, so t^1(y') = -y'
        (if (negative? (list-ref x index))

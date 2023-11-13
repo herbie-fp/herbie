@@ -2,7 +2,7 @@
 
 (require math/bigfloat racket/random)
 (require "../common.rkt" "../alternative.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/types.rkt" "../syntax/syntax.rkt"
+         "../syntax/types.rkt" "../syntax/syntax.rkt" "../compiler.rkt"
          "../programs.rkt" "../points.rkt" "regimes.rkt" "../float.rkt"
          "../pretty-print.rkt" "../ground-truth.rkt")
 
@@ -91,7 +91,7 @@
 (define (sindices->spoints points expr alts sindices ctx)
   (define repr (repr-of expr ctx))
 
-  (define eval-expr (compile-prog expr 'fl ctx))
+  (define eval-expr (compile-prog expr ctx))
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
@@ -155,7 +155,7 @@
 
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
-  (define prog (compile-prog bexpr 'fl ctx*))
+  (define prog (compile-prog bexpr ctx*))
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
