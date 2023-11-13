@@ -44,7 +44,7 @@
 
 (FPCore (a b eps)
  :name "expq3 (problem 3.4.2)"
- :pre (and (<= -710 a) (<= a b) (<= b 710) (<= (* 1e-27 (fabs a)) eps) (<= eps (fabs a)))
+ :pre (and (<= -710 a b 710) (<= (* 1e-27 (fabs a)) eps (fabs a)))
  ; We want epsilon small compared to a and b according to Hamming. Bound by 710 to avoid sampling infinite values.
  ; Chose a multiplicative factor of 1e-27 compared to a in order to not sample epsilon to close to 0 which eliminates the exponent.
  :herbie-target
