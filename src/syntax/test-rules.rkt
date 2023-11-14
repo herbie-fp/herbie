@@ -1,7 +1,7 @@
 #lang racket
 
 (require rackunit)
-(require "../common.rkt" "../programs.rkt" "../float.rkt"
+(require "../common.rkt" "../compiler.rkt" "../float.rkt"
          "../ground-truth.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
          (submod "../core/egg-herbie.rkt" internals))

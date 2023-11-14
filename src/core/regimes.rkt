@@ -1,8 +1,8 @@
 #lang racket
 
-(require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
-         "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
+         "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt"
+         "../compiler.rkt")
 
 (provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si))
 
