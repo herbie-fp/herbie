@@ -1,0 +1,55 @@
+; -*- mode: scheme -*-
+
+; -10000 <= x <= 10000 and 1e-16 * (abs x) < eps < (abs x)
+
+
+
+; 2sin involves the difference of two sine functions. According to the sum-to-product trigonometric identity,
+; the target for this benchmark can apply the identity (- (sin x) (sin y)) = (* 2 (cos (/ (+ x y) 2)) (sin (/ (- x y) 2)))
+; As a result, the herbie target consists 
+
+; Subtraction of similar values cauases cancellation to rewrtitten to multi
+
+(FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= -10000 x) (<= x 10000) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+
+(FPCore (x eps)
+ :name "2cos (problem 3.3.5)"
+ :pre (and (<= -10000 x) (<= x 10000) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
+ :herbie-target
+ (* -2 (sin (+ x (/ eps 2))) (sin (/ eps 2)))
+
+ (- (cos (+ x eps)) (cos x)))
+
+
+(FPCore (x eps)
+ :name "2tan (problem 3.3.2)"
+ :pre (and (<= -10000 x) (<= x 10000) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
+ :herbie-target
+ (/ (sin eps) (* (cos x) (cos (+ x eps))))
+
+ (- (tan (+ x eps)) (tan x)))
+
+
+(FPCore (x)
+ :name "tanhf (example 3.4)"
+ ;:herbie-expected 2
+ :herbie-target
+ (tan (/ x 2))
+
+ (/ (- 1 (cos x)) (sin x)))
+
+
+(FPCore (N)
+ :name "2atan (example 3.5)"
+ :pre (and (> N 1) (< N 1e+200))
+ :herbie-target
+ (atan (/ 1 (+ 1 (* N (+ N 1)))))
+
+ (- (atan (+ N 1)) (atan N)))

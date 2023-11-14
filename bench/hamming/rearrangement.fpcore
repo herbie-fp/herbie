@@ -3,33 +3,9 @@
 (FPCore (x)
  :name "2sqrt (example 3.1)"
  :herbie-target
- (if (<= x 66000000.0)
-    (- (sqrt (+ 1.0 x)) (sqrt x))
-    (/ 1 (+ (sqrt (+ x 1.0)) (sqrt x))))
+ (/ 1 (+ (sqrt (+ x 1.0)) (sqrt x)))
 
  (- (sqrt (+ x 1)) (sqrt x)))
-
-(FPCore (x eps)
- :name "2sin (example 3.3)"
- :herbie-target
- (fma (sin x) (- (cos eps) 1) (* (sin eps) (cos x)))
- 
- (- (sin (+ x eps)) (sin x)))
-
-(FPCore (x)
- :name "tanhf (example 3.4)"
- ;:herbie-expected 2
- :herbie-target
- (tan (/ x 2))
-
- (/ (- 1 (cos x)) (sin x)))
-
-(FPCore (N)
- :name "2atan (example 3.5)"
- :herbie-target
- (atan (/ 1 (+ 1 (* N (+ N 1)))))
-
- (- (atan (+ N 1)) (atan N)))
 
 (FPCore (x)
  :name "2isqrt (example 3.6)"
@@ -43,13 +19,6 @@
 
  (- (/ 1 (+ x 1)) (/ 1 x)))
 
-(FPCore (x eps)
- :name "2tan (problem 3.3.2)"
- :herbie-target
- (/ (sin eps) (* (cos x) (cos (+ x eps))))
-
- (- (tan (+ x eps)) (tan x)))
-
 (FPCore (x)
  :name "3frac (problem 3.3.3)"
  :herbie-target
@@ -61,12 +30,12 @@
  :name "2cbrt (problem 3.3.4)"
  (- (cbrt (+ x 1)) (cbrt x)))
 
-(FPCore (x eps)
- :name "2cos (problem 3.3.5)"
- (- (cos (+ x eps)) (cos x)))
-
 (FPCore (N)
  :name "2log (problem 3.3.6)"
+ :pre (and (> N 1) (< N 1e+40))
+ :herbie-target
+ (+ (/ 1 N) (/ -1 (* 2 (pow N 2))) (/ 1 (* 3 (pow N 3))) (/ -1 (* 4 (pow N 4))) (/ 1 (* 5 (pow N 5))) (/ -1 (* 6 (pow N 6))))
+    
  (- (log (+ N 1)) (log N)))
 
 (FPCore (x)
