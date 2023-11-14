@@ -1,6 +1,6 @@
 #lang racket
 
-(require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
+(require "common.rkt" "compiler.rkt" "float.rkt" "syntax/types.rkt")
 
 (provide *pcontext* in-pcontext mk-pcontext for/pcontext
          pcontext? pcontext->lists json->pcontext pcontext->json
@@ -75,7 +75,7 @@
   (raise e))
 
 (define (batch-errors exprs pcontext ctx)
-  (define fn (compile-progs exprs 'fl ctx))
+  (define fn (compile-progs exprs ctx))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (batch-errors-handler exprs point)])
       (for/list ([out (in-list (apply fn point))])
