@@ -435,8 +435,8 @@
         [(set-member? unique op)
          ops]
         [else
-         (define itypes (real-operator-info op 'itype))
-         (define otype (real-operator-info op 'otype))
+         (define itypes (operator-info op 'itype))
+         (define otype (operator-info op 'otype))
          (set-add! unique op)
          (cons `(,op ,@itypes ,otype) ops)]))))
 

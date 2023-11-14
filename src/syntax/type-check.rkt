@@ -101,7 +101,7 @@
                      x
                      (string-join
                        (for/list ([impl all-impls])
-                         (format "<~a>" (representation-name (operator-info impl 'otype))))
+                         (format "<~a>" (representation-name (impl-info impl 'otype))))
                        " or "))])]
           [else
            ; active implementations were found
@@ -157,7 +157,7 @@
        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
          (get-parametric-operator 'neg actual-type)))
      (cond
-       [op* (operator-info op* 'otype)]
+       [op* (impl-info op* 'otype)]
        [else
         (resolve-missing-op! stx '- (list actual-type) error!)
         #f])]
@@ -169,7 +169,7 @@
        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
          (apply get-parametric-operator op actual-types)))
      (cond
-       [op* (operator-info op* 'otype)]
+       [op* (impl-info op* 'otype)]
        [else
         ; implementation not supported so try to report a useful error
         (resolve-missing-op! stx op actual-types error!)

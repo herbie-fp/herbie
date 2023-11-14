@@ -111,9 +111,8 @@
       [(_ _) (error name "could not compute type of rule ~a => ~a"
                     input output)])))
 
-(define type-of-rule (type/repr-of-rule real-operator-info 'type-of-rule))
-(define repr-of-rule (type/repr-of-rule operator-info 'repr-of-rule))
-
+(define type-of-rule (type/repr-of-rule operator-info 'type-of-rule))
+(define repr-of-rule (type/repr-of-rule impl-info 'repr-of-rule))
 
 ;; Rulesets defined by reprs. These rulesets are unique
 (define (register-ruleset! name groups var-ctx rules)

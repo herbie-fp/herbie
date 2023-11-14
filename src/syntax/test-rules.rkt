@@ -1,7 +1,7 @@
 #lang racket
 
 (require rackunit)
-(require "../common.rkt" "../programs.rkt" "../float.rkt"
+(require "../common.rkt" "../compiler.rkt" "../float.rkt"
          "../ground-truth.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
          (submod "../core/egg-herbie.rkt" internals))
@@ -53,8 +53,8 @@
     (for/list ([v (in-list fv)])
       (random-generate (dict-ref itypes v))))
   (define points (build-list (num-test-points) make-point))
-  (define prog1 (compile-prog p1 'fl ctx))
-  (define prog2 (compile-prog p2 'fl ctx))
+  (define prog1 (compile-prog p1 ctx))
+  (define prog2 (compile-prog p2 ctx))
   (define ex1 (map (curry apply prog1) points))
   (define ex2 (map (curry apply prog2) points))
   (for ([pt points])
