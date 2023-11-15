@@ -8,38 +8,33 @@
 
 ;- Error Listing ---------------------------------------------------------------
 
-#|
-NOTE: This is not the correct definition of exactness. We need to also
-      include the notion of introduced error as well. Some time later
-      will need to calculate subepxrs to some arb precision, to
-      compare to the correctly rounded floating point value.
-|#
-
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
     (flip-lists
      (hash->list (car (compute-local-errors (list expr) (*context*))))))
   
   (define pt-worst-subexprs
-    (foldr append '() (for/list ([pt-errors (in-list pt-errorss)]
-                                 [(pt _) (in-pcontext pcontext)])
-                        (define sub-error (map cons subexprs pt-errors))
-                        (define filtered-sub-error (filter (lambda (p) (> (cdr p) 16)) sub-error))
-                        (define mapped-sub-error (map (lambda (p) (cons (car p) pt)) filtered-sub-error))
-                        (if (empty? mapped-sub-error) (list (cons #f pt)) mapped-sub-error))))
+    (foldr append
+           '()
+           (for/list ([pt-errors (in-list pt-errorss)]
+                      [(pt _) (in-pcontext pcontext)])
+             (define sub-error (map cons subexprs pt-errors))
+             (define filtered-sub-error (filter (lambda (p) (> (cdr p) 16))
+                                                sub-error))
+             (define mapped-sub-error (map (lambda (p) (cons (car p) pt))
+                                           filtered-sub-error))
+             (if (empty? mapped-sub-error)
+                 (list (cons #f pt))
+                 mapped-sub-error))))
 
   (for/hash ([group (in-list (group-by car pt-worst-subexprs))])
     (let ([key (caar group)])
       (values key (map cdr group)))))
 
 
-(define (is-exact? expr) (compose list? not))
+#; (define (is-exact? expr) (compose list? not))
 (define is-inexact? list?)
- 
- 
-;; NOTE: Current implementation works, look at Python's math.isclose later
-;; NOT SURE IF THIS IS CORRECT ANYMORE
-;; For example: very-close? 0 0.0000001 -> very-close? 1 1.0000001 :>
+
 (define (very-close? a b)
   (define x (min a b))
   (define y (max a b))
@@ -53,11 +48,7 @@ NOTE: This is not the correct definition of exactness. We need to also
 (define (predicted-errors expr ctx pctx)
   (define subexprs
     (all-subexpressions-rev expr (context-repr ctx)))
-
-  ;; map car subexprs
-  (define subexprs-list (map car subexprs)
-    #;(for/list ([subexpr (in-list subexprs)])
-      (car subexpr)))
+  (define subexprs-list (map car subexprs))
  
   (define ctx-list
     (for/list ([subexpr (in-list subexprs)])
@@ -77,30 +68,32 @@ NOTE: This is not the correct definition of exactness. We need to also
       (make-immutable-hash (map cons subexprs-list exacts)))
  
     (define uflow-hash (make-hash (map (lambda (x) (cons x #f)) subexprs-list)))
+    (define (underflow? subexpr) (hash-ref uflow-hash subexpr))
     (define oflow-hash (make-hash (map (lambda (x) (cons x #f)) subexprs-list)))
+    (define (overflow? subexpr) (hash-ref oflow-hash subexpr))
  
     (unless (ormap identity (for/list ([subexpr subexprs-list])
-      (define subexpr-val (flabs (hash-ref exacts-hash subexpr)))
+      (define subexpr-val (hash-ref exacts-hash subexpr))
  
       (cond
-        ;; NOTE: This is wrong, we are not differentiating between exact and
-        ;;       inexact 0.0
+        ;; NOTE: need better way to see if a calculation underflowed
         [(fl= subexpr-val 0.0)
          (hash-set! uflow-hash subexpr #t)]
-        [(fl= subexpr-val +inf.0)
+        [(fl= (flabs subexpr-val) +inf.0)
          (hash-set! oflow-hash subexpr #t)])
  
       (match subexpr
-        #|
-        TODO: -/+ suffers pretty badly because of are bad definition of exactness
-        |#
         [(list '+.f64 larg rarg)
          #:when (or (is-inexact? larg) (is-inexact? rarg))
          (define larg-val (hash-ref exacts-hash larg))
          (define rarg-val (hash-ref exacts-hash rarg))
+         (define x+y (+ larg-val rarg-val))
+         (define cond-x (abs (/ larg-val x+y)))
+         (define cond-y (abs (/ rarg-val x+y)))
          (cond
-           [(fl= subexpr-val 0.0) #f #;(mark-erroneous! subexpr)]
-           [(very-close? larg-val (fl* -1.0 rarg-val))
+           ;; If R(x - y) underflows and R(x) - R(y) underflows, then skip
+           [(and (= x+y 0.0) (underflow? subexpr)) #f]
+           [(or (> cond-x 1e2) (> cond-y 1e2))
             (mark-erroneous! subexpr pt)]
            [else #f])]
          
@@ -108,11 +101,15 @@ NOTE: This is not the correct definition of exactness. We need to also
          #:when (or (is-inexact? larg) (is-inexact? rarg))
          (define larg-val (hash-ref exacts-hash larg))
          (define rarg-val (hash-ref exacts-hash rarg))
+         (define x-y (- larg-val rarg-val))
+         (define cond-x (abs (/ larg-val x-y)))
+         (define cond-y (abs (/ rarg-val x-y)))
          (cond
-           [(and (fl= (fl- larg-val rarg-val) 0.0)
-                 (not (fl= subexpr-val 0.0)))
-            (mark-erroneous! subexpr pt)]
-           #;[(very-close? larg-val rarg-val)
+           ;; If R(x - y) underflows and R(x) - R(y) underflows, then skip
+           [(and (= x-y 0.0)
+                 (underflow? subexpr))
+            #f]
+           [(or (> cond-x 1e2) (> cond-y 1e2))
             (mark-erroneous! subexpr pt)]
            [else #f])]
  
@@ -123,85 +120,91 @@ NOTE: This is not the correct definition of exactness. We need to also
         [(list 'sin.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val  (flabs (hash-ref exacts-hash arg)))
-         (and (fl> arg-val 1e30) (mark-erroneous! subexpr pt))]
+         (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
  
         [(list 'cos.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val  (flabs (hash-ref exacts-hash arg)))
-         (and (fl> arg-val 1e30) (mark-erroneous! subexpr pt))]
+         (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
  
         [(list 'tan.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val (flabs (hash-ref exacts-hash arg)))
-         (and (fl> arg-val 1e30) (mark-erroneous! subexpr pt))]
+         (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
  
-        #|
-        TODO: refine understanding of when an overflow/underflow can be rescued
-        surely, something thats larger than 1e600 cannot be rescued
-        |#
         [(list 'sqrt.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val (hash-ref exacts-hash arg))
-         (and (or (hash-ref uflow-hash arg)
-                  (hash-ref oflow-hash arg))
-              (not (fl= subexpr-val arg-val))
+         (and (or (underflow? arg)
+                  (overflow? arg))
+              (not (= subexpr-val arg-val))
               (mark-erroneous! subexpr pt))]
         #|
         TODO: remaining cases for which rescuing underflow/overflow can occur
         a / b
         - a overflows and b is large
-        - a is small and b underflows
-        - a is large and b overflows
         |#
-        [(list '/.f64 larg rarg)
-         #:when (or (is-inexact? larg) (is-inexact? rarg))
-         (define larg-val (flabs (hash-ref exacts-hash larg)))
-         (define rarg-val (flabs (hash-ref exacts-hash rarg)))
-         (define larg-uflow? (hash-ref uflow-hash larg))
-         (define larg-oflow? (hash-ref oflow-hash larg))
-         (define rarg-uflow? (hash-ref uflow-hash rarg))
-         (define rarg-oflow? (hash-ref oflow-hash rarg))
+        [(list '/.f64 x-ex y-ex)
+         #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
+         (define x (hash-ref exacts-hash x-ex))
+         (define y (hash-ref exacts-hash y-ex))
+         (define x/y (/ x y))
+         ;;(define x-oflow? (overflow? x-ex))
+         (define y-oflow? (overflow? y-ex))
+         (define x-uflow? (underflow? x-ex))
+         (define y-uflow? (underflow? y-ex))
+
          (cond
-           [(and larg-uflow? (fl< rarg-val 1e-150)) (mark-erroneous! subexpr pt)]
-           [(and (fl< larg-val 1e-150) rarg-uflow?) (mark-erroneous! subexpr pt)]
+           [(and (= x/y 0.0) (underflow? subexpr)) #f]
+           [(and (= (abs x/y) +inf.0) (overflow? subexpr)) #f]
+           [(and x-uflow? (not (= subexpr-val x)))
+            (mark-erroneous! subexpr pt)]
+           [(and y-uflow? (not (= (abs subexpr-val) +nan.0)))
+            (mark-erroneous! subexpr pt)]
+           [(and y-oflow? (not (= (abs subexpr-val) +0.0)))
+            (mark-erroneous! subexpr pt)]
            [else #f])]
  
         [(list 'log.f64 arg)
          #:when (is-inexact? arg)
          (define arg-val (hash-ref exacts-hash arg))
-         (define arg-oflow? (hash-ref oflow-hash arg))
-         (define arg-uflow? (hash-ref uflow-hash arg))
+         (define cond-num (abs (/ 1 (log arg-val))))
+         (define arg-oflow? (overflow? arg))
+         (define arg-uflow? (underflow? arg))
          (cond
            [arg-oflow? (mark-erroneous! subexpr)]
            [arg-uflow? (mark-erroneous! subexpr)]
-           [(very-close? arg-val 1.0) (mark-erroneous! subexpr pt)]
+           [(> cond-num 1e2) (mark-erroneous! subexpr pt)]
+           #;[(very-close? arg-val 1.0) (mark-erroneous! subexpr pt)]
            [else #f])]
 
-        #|
-        TODO: I'm not sure of the limit
-        |#
         [(list 'exp.f64 arg)
          #:when (is-inexact? arg)
-         (define arg-val (flabs (hash-ref exacts-hash arg)))
-         (and (fl> arg-val 1e308) (mark-erroneous! subexpr pt))]
-
-        [(list 'pow.f64 base expn)
-         #:when (or (is-inexact? base) (is-inexact? expn))
-         (define base-val (flabs (hash-ref exacts-hash base)))
-         (define base-oflow? (hash-ref oflow-hash base))
-         (define base-uflow? (hash-ref uflow-hash base))
-
+         (define arg-val (hash-ref exacts-hash arg))
          (cond
-           [(and (or (hash-ref uflow-hash base)
-                     (hash-ref oflow-hash base))
-                 (not (fl= subexpr-val base-val)))
+           ;; if R(exp(x)) overflows and exp(R(x)) overflows then just skip
+           [(and (overflow? subexpr) (= (exp arg-val) +inf.0))
+            #f]
+           [(> (exp arg-val) 1e2) (mark-erroneous! subexpr pt)]
+           [else #f])]
+
+        [(list 'pow.f64 x-ex y-ex)
+         #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
+         (define x (hash-ref exacts-hash x-ex))
+         (define y (hash-ref exacts-hash y-ex))
+         (define x^y (expt x y))
+         (define cond-x (abs y))
+         (define cond-y (abs (* y (log x))))
+         
+         (cond
+           [(and (= x 1.0) (= subexpr-val 1.0)) #f]
+           [(and (overflow? subexpr) (= (abs x^y) +inf.0))
+            #f]
+           [(and (underflow? subexpr) (= (abs x^y) +0.0))
+            #f]
+           [(or (> cond-x 1e2) (> cond-y 1e2))
             (mark-erroneous! subexpr pt)]
-           ;; atomic condition w.r.t. y -> y
-           ;; atomic condition w.r.t. x -> ylog(x)
-           ;; possible only check if ylog(x) is very large
-           ;; how large?
-           )
-         ]
+           [else #f])]
 
         ;; TODO: Multiplication definitely can rescue oflow/uflow
         
