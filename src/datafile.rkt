@@ -181,7 +181,7 @@
                                 (parse-string (hash-ref test 'identifier "#f"))
                                 (get 'status)
                                 (parse-string (hash-ref test 'pre "TRUE"))
-                                (parse-string (hash-ref test 'herbie-preprocess "()"))
+                                (parse-string (hash-ref test 'preprocess "()"))
                                 (parse-string (hash-ref test 'prec "binary64"))
                                 (let ([cs (hash-ref test 'conversions "()")])
                                   (if (string? cs)
