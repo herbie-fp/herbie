@@ -28,7 +28,7 @@
 
       ,(render-warnings warnings)
 
-      ,(let-values ([(dropdown body) (render-program (test-spec test) (test-context test) #:pre (test-pre test) #:ident (test-identifier test))])
+      ,(let-values ([(dropdown body) (render-program '() (test-spec test) (test-context test) #:pre (test-pre test) #:ident (test-identifier test))])
          `(section
            (details ([id "specification"] [class "programs"])
                     (summary (h2 "Specification")

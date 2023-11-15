@@ -9,24 +9,16 @@
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing initial specification context)
-  ;; f(x) = f(-x)
   (define even-identities
     (reap [sow]
       (for ([variable (in-list (context-vars context))]
             [representation (in-list (context-var-reprs context))])
-        (with-handlers ([exn:fail:user:herbie? void])
+        (with-handlers ([exn:fail:user:herbie? (const (void))])
+          ; TODO: Handle case where neg isn't supported for this representation
           (define negate (get-parametric-operator 'neg representation))
           ; Check if representation has an fabs operator
           (define fabs (get-parametric-operator 'fabs representation))
           (sow (replace-vars (list (cons variable (list negate variable))) specification))))))
-  ;; f(x) = -f(-x)
-  (define odd-identities
-    (with-handlers ([exn:fail:user:herbie? (const empty)])
-      (define negate (get-parametric-operator 'neg (context-repr context)))
-      ; Check if representation has an fabs operator
-      (define fabs (get-parametric-operator 'fabs (context-repr context)))
-      (map (lambda (expression) (list negate expression)) even-identities)))
-  ;; f(a, b) = f(b, a)
   (define pairs (combinations (context-vars context) 2))
   (define swap-identities
     (for/list ([pair (in-list pairs)])
@@ -37,13 +29,8 @@
      (list*
       initial
       specification
-      (append even-identities odd-identities swap-identities))
+      (append even-identities swap-identities))
      (*simplify-rules*)))
-  ;; TODO: This is clearly bad and should be changed to something more general.
-  (define (split-others others)
-    (define-values (evens others*) (split-at others (length even-identities)))
-    (define-values (odds swaps) (split-at others* (length odd-identities)))
-    (values evens odds swaps))
   (match-define
     (cons
      ;; The first element of the list returned by `simplify-batch` will be a list
@@ -55,7 +42,7 @@
      (app (curry map last)
           (cons
            specification*
-           (app split-others evens odds swaps))))
+           (app (curryr split-at (length even-identities)) evens* swaps*))))
     (simplify-batch query))
   (define alternative (make-alt initial))
   (define simplified
@@ -74,19 +61,14 @@
     (connected-components
      (context-vars context)
      (filter-map
-      (lambda (pair swap) (and (equal? specification* swap) pair))
+      (lambda (pair swap*) (and (equal? specification* swap*) pair))
       pairs
-      swaps)))
+      swaps*)))
   (define abs-instructions
     (for/list ([variable (in-list (context-vars context))]
-               [even (in-list evens)]
-               #:when (equal? specification* even))
+               [even* (in-list evens*)]
+               #:when (equal? specification* even*))
       (list 'abs variable)))
-  (define negabs-instructions
-    (for/list ([variable (in-list (context-vars context))]
-               [odd (in-list odds)]
-               #:when (equal? specification* odd))
-      (list 'negabs variable)))
   (define sort-instructions
     (for/list ([component (in-list components)]
                #:when (> (length component) 1))
@@ -96,7 +78,7 @@
        simplified
        (list (make-alt initial)))
    ;; Absolute value should happen before sorting
-   (append abs-instructions negabs-instructions sort-instructions)))
+   (append abs-instructions sort-instructions)))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))
@@ -115,7 +97,7 @@
                     (curry instruction->operator context)
                     ;; Function composition applies the rightmost function first
                     (reverse preprocessing))))
-  (for/pcontext ([(x y) pcontext]) (preprocess x y)))
+  (pcontext-map preprocess pcontext))
 
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
@@ -126,31 +108,18 @@
        (error 'instruction->operator
               "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
-     (lambda (x y)
-       (let* ([subsequence (map (curry list-ref x) indices)]
+     (lambda (points)
+       (let* ([subsequence (map (curry list-ref points) indices)]
               [sorted (sort* subsequence)])
-         (values (list-set* x indices sorted) y)))]
+         (list-set* points indices sorted)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
-     (define abs (impl-info
+     (define abs (operator-info
                   (get-parametric-operator
                    'fabs
                    (list-ref (context-var-reprs context) index))
                   'fl))
-     (lambda (x y) (values (list-update x index abs) y))]
-    [(list 'negabs variable)
-     (define index (index-of variables variable))
-     (define negate-variable
-       (impl-info (get-parametric-operator 'neg (list-ref (context-var-reprs context) index)) 'fl))
-     (define negate-expression
-       (impl-info (get-parametric-operator 'neg (context-repr context)) 'fl))
-     (lambda (x y)
-       ;; Negation is involutive, i.e. it is its own inverse, so t^1(y') = -y'
-       (if (negative? (list-ref x index))
-           (values
-            (list-update x index negate-variable)
-            (negate-expression y))
-           (values x y)))]))
+     (curryr list-update index abs)]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
 (define (remove-unnecessary-preprocessing expression context pcontext preprocessing #:removed [removed empty])

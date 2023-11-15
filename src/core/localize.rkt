@@ -18,7 +18,7 @@
                (loop t repr)
                (loop f repr)]
               [(list op args ...)
-               (define atypes (impl-info op 'itype))
+               (define atypes (operator-info op 'itype))
                (for ([arg args] [atype atypes])
                  (loop arg atype))])))))
 
@@ -84,13 +84,13 @@
           [(? variable?) 1]
           [`(if ,c ,ift ,iff) 1]
           [(list f args ...)
-           (define repr (impl-info f 'otype))
+           (define repr (operator-info f 'otype))
            (define argapprox
              (for/list ([arg (in-list args)]
-                        [repr (in-list (impl-info f 'itype))])
+                        [repr (in-list (operator-info f 'itype))])
                (hash-ref exacts-hash
                          (cons arg repr))))
-           (define approx (apply (impl-info f 'fl) argapprox))
+           (define approx (apply (operator-info f 'fl) argapprox))
            (ulp-difference (hash-ref exacts-hash expr) approx repr)]))
       (hash-update! errs (car expr) (curry cons err))))
 

@@ -52,7 +52,7 @@
       (define f (syntax->datum f-syntax))
       (cond
        [(operator-exists? f)
-        (define arity (length (operator-info f 'itype)))
+        (define arity (length (real-operator-info f 'itype)))
         (unless (= arity (length args))
           (error! stx "Operator ~a given ~a arguments (expects ~a)"
                   f (length args) arity))

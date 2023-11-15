@@ -1,8 +1,8 @@
 #lang racket
 
-(require "common.rkt" "compiler.rkt" "float.rkt" "syntax/types.rkt")
+(require "config.rkt" "common.rkt" "float.rkt" "syntax/types.rkt" "programs.rkt")
 
-(provide *pcontext* in-pcontext mk-pcontext for/pcontext
+(provide *pcontext* in-pcontext mk-pcontext for/pcontext pcontext-map
          pcontext? pcontext->lists json->pcontext pcontext->json
          split-pcontext join-pcontext pcontext-length
          errors batch-errors errors-score)
@@ -29,6 +29,11 @@
                 (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...)
                   body ...)])
     (mk-pcontext pts* exs*)))
+
+(define (pcontext-map procedure context)
+  (pcontext
+   (vector-map procedure (pcontext-points context))
+   (pcontext-exacts context)))
 
 (define (pcontext->lists context)
   (for/lists (pts exs) ([(pt ex) (in-pcontext context)])
@@ -75,7 +80,7 @@
   (raise e))
 
 (define (batch-errors exprs pcontext ctx)
-  (define fn (compile-progs exprs ctx))
+  (define fn (compile-progs exprs 'fl ctx))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (batch-errors-handler exprs point)])
       (for/list ([out (in-list (apply fn point))])

@@ -1,8 +1,8 @@
 #lang racket
 
+(require math/bigfloat)
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
-         "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt"
-         "../compiler.rkt")
+         "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt")
 
 (provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si))
 
@@ -109,7 +109,7 @@
 
   (define vars (context-vars ctx))
   (define pts (for/list ([(pt ex) (in-pcontext (*pcontext*))]) pt))
-  (define fn (compile-prog expr ctx))
+  (define fn (compile-prog expr 'fl ctx))
   (define splitvals (for/list ([pt pts]) (apply fn pt)))
   (define big-table ; val and errors for each alt, per point
     (for/list ([(pt ex) (in-pcontext (*pcontext*))] [err-lst err-lsts])

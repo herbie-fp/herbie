@@ -88,8 +88,8 @@
   (cond
     [(impl-exists? op-or-impl)
      (define op (impl->operator op-or-impl))
-     (define itypes (map representation-name (impl-info op-or-impl 'itype)))
-     (define otype (representation-name (impl-info op-or-impl 'otype)))
+     (define itypes (map representation-name (operator-info op-or-impl 'itype)))
+     (define otype (representation-name (operator-info op-or-impl 'otype)))
      (values op (cons '$Type (cons otype itypes)))]
     [else
      (values op-or-impl 'real)]))
@@ -229,8 +229,8 @@
      [(list 'if cond ift iff)
       (loop cond) (loop ift) (loop iff)]
      [(list op args ...)
-      (set-add! reprs (impl-info op 'otype))
-      (for ([itype (impl-info op 'itype)])
+      (set-add! reprs (operator-info op 'otype))
+      (for ([itype (operator-info op 'itype)])
         (set-add! reprs itype))
       (for-each loop args)]
      [_ (void)]))
@@ -294,8 +294,8 @@
      ; the form: `(app e ...) => f((app e ...))`
      (define op-rules
        (for/fold ([rules '()]) ([op (all-operators)] #:unless (eq? op 'cast))
-         (define itypes (operator-info op 'itype))
-         (define otype (operator-info op 'otype))
+         (define itypes (real-operator-info op 'itype))
+         (define otype (real-operator-info op 'otype))
          (define vars (build-list (length itypes) (λ (i) (string->symbol (format "$T~a" i)))))
  
          (define name* (sym-append name '- op))
