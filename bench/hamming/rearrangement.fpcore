@@ -52,6 +52,9 @@
 
 (FPCore (x)
  :name "3frac (problem 3.3.3)"
+ ; Rewrite comes from Hammings textbook. Hamming says to sample large x
+ ; Upper bound the value x otherwise ground truth value is too close to 0
+ :pre (and (> (fabs x) 1) (< (fabs x) 1e100))
  :herbie-target
  (/ 2 (* x (- (* x x) 1)))
 
