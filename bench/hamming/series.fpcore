@@ -57,8 +57,8 @@
 
 (FPCore (eps)
  :name "logq (problem 3.4.3)"
- ; Using previous notions of small epsilon, simply < +/- 1
- :pre (< (fabs eps) 1)
+ ; Using previous notions of small epsilon, simply < +/- 1/2
+ :pre (< (fabs eps) (/ 1 2))
  ; Hamming suggests using Taylor expansion but FPCore has libm
  :herbie-target
  (- (log1p (- eps)) (log1p eps))
