@@ -1,15 +1,19 @@
 ; -*- mode: scheme -*-
 
-; -10000 <= x <= 10000 and 1e-16 * (abs x) < eps < (abs x)
+; All the below function are subsets of the rearrangement functions but as per its name, it specifically deals with
+; trigonometric functions. It specifically deals with those functions that involve a subtraction of two functions
+; that at a very large value cause cancellation and need to be rewritten to ensure floating point accuracy based on
+; their nature of expression (more in specific detail below).
 
+; Almost all expressions follow this precondition : -10000 <= x <= 10000 and 1e-16 * (abs x) < eps < (abs x)
+; Our reasoning for this stems from Hamming's explanation that eps is small with respect to x, hence for 
+; getting the highest accuracy we are bounding it's lowest value to be 1e-16 times (abs x). We don't
+; query anything below because we don't want (x+eps) ~ x. And we also want relevant values of x that would be usable
+; for most trigonometric queries
 
 
 ; 2sin involves the difference of two sine functions. According to the sum-to-product trigonometric identity,
 ; the target for this benchmark can apply the identity (- (sin x) (sin y)) = (* 2 (cos (/ (+ x y) 2)) (sin (/ (- x y) 2)))
-; As a result, the herbie target consists 
-
-; Subtraction of similar values cauases cancellation to rewrtitten to multi
-
 (FPCore (x eps)
   :name "2sin (example 3.3)"
   :pre (and (<= -10000 x) (<= x 10000) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
@@ -39,7 +43,7 @@
 
 (FPCore (x)
  :name "tanhf (example 3.4)"
- ;:herbie-expected 2
+ :pre (and (<= (- INFINITY) x) (<= x INFINITY))
  :herbie-target
  (tan (/ x 2))
 
@@ -48,7 +52,7 @@
 
 (FPCore (N)
  :name "2atan (example 3.5)"
- :pre (and (> N 1) (< N 1e+200))
+ :pre (and (> N 1) (< N 1e+100))
  :herbie-target
  (atan (/ 1 (+ 1 (* N (+ N 1)))))
 

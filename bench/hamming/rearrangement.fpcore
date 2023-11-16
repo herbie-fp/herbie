@@ -2,6 +2,7 @@
 
 (FPCore (x)
  :name "2sqrt (example 3.1)"
+ :pre (and (> x 1) (< x 1e+100))
  :herbie-target
  (/ 1 (+ (sqrt (+ x 1.0)) (sqrt x)))
 
@@ -9,6 +10,7 @@
 
 (FPCore (x)
  :name "2isqrt (example 3.6)"
+ :pre (and (> x 1) (< x 1e+100))
  :herbie-target
  (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1)))))
 
@@ -34,8 +36,10 @@
  :name "2log (problem 3.3.6)"
  :pre (and (> N 1) (< N 1e+40))
  :herbie-target
- (+ (/ 1 N) (/ -1 (* 2 (pow N 2))) (/ 1 (* 3 (pow N 3))) (/ -1 (* 4 (pow N 4))) (/ 1 (* 5 (pow N 5))) (/ -1 (* 6 (pow N 6))))
-    
+ (if (>= N 1e+3)
+    (+ (/ 1 N) (/ -1 (* 2 (pow N 2))) (/ 1 (* 3 (pow N 3))) (/ -1 (* 4 (pow N 4))))
+    (log (+ 1 (/ 1 N))))
+ 
  (- (log (+ N 1)) (log N)))
 
 (FPCore (x)
