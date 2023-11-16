@@ -1,12 +1,10 @@
 #lang racket
 
 (require racket/flonum racket/set)
-(require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "timeline.rkt"
-         "common.rkt" "ground-truth.rkt")
+(require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
+         "ground-truth.rkt")
 
 (provide actual-errors predicted-errors)
-
-;- Error Listing ---------------------------------------------------------------
 
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
@@ -32,17 +30,6 @@
       (values key (map cdr group)))))
 
 (define is-inexact? list?)
-
-; Not used right now
-#;(define (very-close? a b)
-  (define x (min a b))
-  (define y (max a b))
-  (cond
-    [(and (fl< x 0.0) (fl> y 0.0))
-     #f]
-    [else
-     (and (fl< (flabs a) (fl* (flabs b) 2.0))
-          (fl> (flabs a) (fl/ (flabs b) 2.0)))]))
  
 (define (predicted-errors expr ctx pctx)
   (define subexprs
@@ -106,17 +93,15 @@
                     (define cond-x (abs (/ larg-val x-y)))
                     (define cond-y (abs (/ rarg-val x-y)))
                     (cond
-                      ;; If R(x - y) underflows and R(x) - R(y) underflows, then skip
-                      [(and (= x-y 0.0)
-                            (underflow? subexpr))
-                       #f]
+                      ;; if R(x - y) underflows and R(x) - R(y) underflows:
+                      ;;     then skip
+                      [(and (= x-y 0.0) (underflow? subexpr)) #f]
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
                    #|
-                   TODO: We are not looking at the cases where for sin/cos/tan x
-                   x is very close to nPI or nPI + PI/2 or nPI/2
+                   TODO: Make this actually work
                    |#
                    [(list 'sin.f64 arg)
                     #:when (is-inexact? arg)
@@ -176,7 +161,6 @@
                       [arg-oflow? (mark-erroneous! subexpr)]
                       [arg-uflow? (mark-erroneous! subexpr)]
                       [(> cond-num 1e2) (mark-erroneous! subexpr pt)]
-                      #;[(very-close? arg-val 1.0) (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
                    [(list 'exp.f64 arg)
@@ -206,9 +190,6 @@
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
-                   
-                   ;; TODO: Multiplication definitely can rescue oflow/uflow
-                   
                    [_ #f])))
       (hash-update! error-count-hash #f (lambda (x) (set-add x pt)))))
   error-count-hash)
