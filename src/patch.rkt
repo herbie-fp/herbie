@@ -73,22 +73,21 @@
 ;;      external desugaring fails because of an unsupported/mismatched
 ;;      operator
 
-(define (taylor-expr expr repr var f finv)
-  (define expr* (resugar-program expr repr #:full #f))
+(define (taylor-expr expr var f finv)
+  (define expr* (prog->legacy expr))
   (define genexpr (approximate expr* var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (desugar-program (genexpr) (*context*) #:full #f))))
+      (legacy->prog (genexpr) (*context*)))))
 
 (define (taylor-alt altn)
   (define expr (alt-expr altn))
-  (define repr (repr-of expr (*context*)))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-      (define genexpr (taylor-expr expr repr var f finv))
-      (for ([i (in-range 4)])
+      (define genexpr (taylor-expr expr var f finv))
+      (for ([_ (in-range 4)])
         (define replace (genexpr))
         (when replace
           (sow (alt replace `(taylor () ,name ,var) (list altn)))))

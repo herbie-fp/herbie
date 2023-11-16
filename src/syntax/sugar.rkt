@@ -1,14 +1,15 @@
 #lang racket
 
 (require "../errors.rkt" "types.rkt" "syntax.rkt")
-(provide desugar-program resugar-program)
+(provide fpcore->prog prog->fpcore prog->legacy legacy->prog
+         fpcore->spec prog->spec)
 
 ;; Herbie uses various IRs.
 ;; All IRs are S-expressions with symbolic operators, variables and numbers.
 ;; 
 ;; ## FPCore (with a couple modifications) ##
 ;;
-;; - input language, loopless, bindings, lightly annotated
+;; - input language, loopless, with bindings, lightly annotated
 ;; - operators denote real computations
 ;; - rounding context (in addition to variable context) decides format at node
 ;;
@@ -57,6 +58,15 @@
 ;; This is essentially just FPCore with let expressions inlined and
 ;; rounding annotations stripped. Conversion to this IR is irreversible.
 ;;
+;; ## LegacyProg ##
+;;
+;; - almost like the Spec IR except:
+;;  (i) unary negation is `neg`
+;;  (ii) casts are left as-is
+;;
+;; Clearly by its name, this IR exists for historical reasons and
+;; should be removed from Herbie. Unfortunately, removing it
+;; will require refactoring core algorithms.
 
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.
@@ -120,6 +130,17 @@
       ; other
       [_ expr])))
 
+;; Prop list to dict
+(define (props->dict props)
+  (let loop ([props props] [dict '()])
+    (match props
+      [(list key val rest ...)
+       (loop rest (dict-set dict key val))]
+      [(list key)
+       (error 'props->dict "unmatched key" key)]
+      [(list)
+       dict])))
+
 ;; Translates an FPCore to a specification.
 (define (fpcore->spec expr)
   (let loop ([expr (expand-expr expr)])
@@ -137,9 +158,9 @@
       [_ expr])))
 
 ;; Translates an FPCore to an ImplProg.
-(define (fpcore->prog expr ctx)
+(define (fpcore->prog prog ctx)
   (define-values (expr* _)
-    (let loop ([expr (expand-expr expr)] [ctx ctx])
+    (let loop ([expr (expand-expr prog)] [ctx ctx])
       (match expr
         [`(FPCore ,name (,vars ...) ,props ... ,body)
          (define-values (body* repr*) (loop body ctx))
@@ -154,9 +175,9 @@
          (values `(if ,cond* ,ift* ,iff*) ift-repr)]
         [`(! ,props ... ,body)
          (define ctx*
-           (match (dict-ref props ':props)
-             [prec (struct-copy context ctx [repr (get-representation prec)])]
-             [#f ctx]))
+           (match (dict-ref (props->dict props) ':props #f)
+             [#f ctx]
+             [prec (struct-copy context ctx [repr (get-representation prec)])]))
          (loop body ctx*)]
         [`(cast ,body)
          (define repr (context-repr ctx))
@@ -215,14 +236,12 @@
       [`(,(? repr-conv? impl) ,body)
        (match-define (list irepr) (impl-info impl 'itype))
        (define body* (prog->fpcore body irepr))
-       `(cast (! :precision ,(representation-name irepr)) ,body*)]
+       `(cast (! :precision ,(representation-name irepr) ,body*))]
       [`(,impl)
        (impl->operator impl)]
       [`(,impl ,args ...)
        (define op (impl->operator impl))
-       (define args*
-         (for/list ([arg (in-list args)] [irepr (impl-info impl 'itype)])
-           (prog->fpcore arg irepr)))
+       (define args* (map prog->fpcore args (impl-info impl 'itype)))
        (match (cons op args*)
          [`(neg ,arg) `(- ,arg)]
          [expr expr])]
@@ -236,130 +255,44 @@
                 (exact->inexact expr)
                 expr)])])))
        
-;; Translates an ImplProg to an FPCore
+;; Translates an ImplProg to an FPCore.
 (define (prog->spec prog)
   (fpcore->spec (prog->fpcore prog)))
 
-;; TODO(interface): This needs to be changed once the syntax checker is updated
-;; and supports multiple precisions
-(define (expand-parametric expr repr var-reprs full?)
-  (define-values (expr* prec)
-    (let loop ([expr expr] [repr repr]) ; easier to work with repr names
-      ;; Run after unfold-let, so no need to track lets
-      (match expr
-        [(list 'if cond ift iff)
-         (define-values (cond* _a) (loop cond repr))
-         (define-values (ift* rtype) (loop ift repr))
-         (define-values (iff* _b) (loop iff repr))
-         (values (list 'if cond* ift* iff*) rtype)]
-        [(list '! props ... body)
-         (define props* (apply hash-set* (hash) props))
-         (cond
-           [(hash-has-key? props* ':precision)
-            ; need to insert a cast
-            (loop (list 'cast expr) repr)]
-           [else (loop body repr)])]
-        [(list 'cast (list '! ':precision iprec iexpr))
-         (define irepr (get-representation iprec))
-         (cond
-          [(equal? repr irepr)  ; ignore
-           (loop iexpr repr)]
-          [else
-           (define conv (get-repr-conv irepr repr))
-           (define-values (iexpr* _) (loop iexpr irepr))
-           (values (list conv iexpr*) repr)])]
-        [(list 'cast body)    ; no-op cast (ignore)
-         (loop body repr)]
-        [(list (or 'neg '-) arg) ; unary minus
-         (define-values (arg* atype) (loop arg repr))
-         (define op* (get-parametric-operator 'neg atype))
-         (values (list op* arg*) (impl-info op* 'otype))]
-        [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-         (define irepr (first (impl-info op 'itype)))
-         (define orepr (impl-info op 'otype))
-         (define-values (body* rtype) (loop body irepr))
-         (values (list op body*) orepr)]
-        [(or (? constant-operator? x) (list x)) ; constant
-         (define cnst (get-parametric-constant x repr))
-         (define rtype (impl-info cnst 'otype))
-         (values (list cnst) rtype)]
-        [(list op args ...)
-         (define-values (args* atypes)
-           (for/lists (args* atypes) ([arg args])
-             (loop arg repr)))
-         ;; Match guaranteed to succeed because we ran type-check first
-         (define op* (apply get-parametric-operator op atypes))
-         (values (cons op* args*) (impl-info op* 'otype))]
-        [(? number?) 
-         (values
-           (match expr
-             [(or +inf.0 -inf.0 +nan.0) expr]
-             [(? exact?) expr]
-             [_ (inexact->exact expr)])
-           repr)]
-        [(? boolean?) (values expr (get-representation 'bool))]
-        [(? variable?)
-         (define vrepr (dict-ref var-reprs expr))
-         (cond
-          [(equal? (representation-type vrepr) 'bool) (values expr vrepr)]
-          [(equal? vrepr repr) (values expr repr)]
-          [else
-           (define conv (get-repr-conv vrepr repr))
-           (unless conv
-             (raise-herbie-missing-error "Conversion does not exist: ~a -> ~a"
-                (representation-name vrepr) (representation-name repr)))
-           (values (list conv expr) repr)])]))) 
-  expr*)
-
-;; TODO(interface): This needs to be changed once the syntax checker is updated
-;; and supports multiple precisions
-(define (expand-parametric-reverse expr repr full?)
+;; Translates an ImplProg to a LegacyProg.
+(define (prog->legacy expr)
   (match expr
-    [(list 'if cond ift iff)
-     (define cond* (expand-parametric-reverse cond repr full?))
-     (define ift* (expand-parametric-reverse ift repr full?))
-     (define iff* (expand-parametric-reverse iff repr full?))
-     (list 'if cond* ift* iff*)]
-    [(list (? repr-conv? op) body) ; conversion (e.g. posit16->f64)
-     (define repr* (first (impl-info op 'itype)))
-     (define body* (expand-parametric-reverse body repr* full?))
-     (cond
-      [(not full?) `(,op ,body*)]
-      [(list? body*) `(cast (! :precision ,(representation-name repr*) ,body*))]
-      [else body*])] ; constants and variables should not have casts and precision changes
-    [(list op)
-     (define op* (impl->operator op))
-     (if full? op* (list op*))]
-    [(list op args ...)
-     (define op* (impl->operator op))
-     (define args*
-       (for/list ([arg args] [repr (impl-info op 'itype)])
-         (expand-parametric-reverse arg repr full?)))
-     (if (and full? (equal? op* 'neg) (= (length args) 1)) ; if only unparameterizing, leave 'neg' alone
-         (cons '- args*)
-         (cons op* args*))]
+    [`(if ,cond ,ift ,iff)
+     `(if ,(prog->legacy cond) ,(prog->legacy ift) ,(prog->legacy iff))]
+    [`(,(? repr-conv? impl) ,body)
+     `(,impl ,(prog->legacy body))]
+    [`(,impl ,args ...)
+     (define op (impl->operator impl))
+     (define args* (map prog->legacy args))
+     `(,op ,@args*)]
+    [(? variable?) expr]
     [(? number?)
-     (if full?
-         (match expr
-           [-inf.0 (if full? '(- INFINITY) '(neg INFINITY))] ; not '(neg INFINITY) because this is post-resugaring
-           [+inf.0 'INFINITY]
-           [+nan.0 'NAN]
-           [x
-            ;; TODO: Why is this here?
-            (if (set-member? '(binary64 binary32) (representation-name repr))
-                 (exact->inexact x) ; convert to flonum if binary64 or binary32
-                 x)])
-         expr)]
-    [(? variable?) expr]))
+     (match expr
+       [-inf.0 '(neg INFINITY)]
+       [+inf.0 'INFINITY]
+       [+nan.0 'NAN]
+       [_ expr])]))
 
-(define (desugar-program prog ctx #:full [full? #t])
-  (define repr (context-repr ctx))
-  (define var-reprs (map cons (context-vars ctx) (context-var-reprs ctx)))
-  (if full?
-      (fpcore->prog prog ctx)
-      (expand-parametric prog repr var-reprs full?)))
+;; Translates a LegacyProg to an FPCore.
+(define (legacy->fpcore expr)
+  (match expr
+    [`(if ,cond ,ift ,iff)
+     `(if ,(legacy->fpcore cond) ,(legacy->fpcore ift) ,(legacy->fpcore iff))]
+    [`(,(? repr-conv? impl) ,body)
+     (match-define (list irepr) (impl-info impl 'itype))
+     (define body* (legacy->fpcore body))
+     `(cast (! :precision ,(representation-name irepr) ,body*))]
+    [`(neg ,arg)
+     `(- ,(legacy->fpcore arg))]
+    [`(,op ,args ...)
+     `(,op ,@(map legacy->fpcore args))]
+    [_ expr]))
 
-(define (resugar-program prog repr #:full [full? #t])
-  (if full?
-      (prog->fpcore prog repr)
-      (expand-parametric-reverse prog repr full?)))
+;; Translates a LegacyProg to an ImplProg
+(define (legacy->prog prog ctx)
+  (fpcore->prog (legacy->fpcore prog) ctx))
