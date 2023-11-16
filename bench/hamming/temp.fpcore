@@ -1,7 +1,7 @@
 
 (FPCore (x)
  :name "2isqrt (example 3.6)"
- :pre (and (> N 1) (< N 1e+100))
+ :pre (and (> x 1) (< x 1e+100))
  :herbie-target
  (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1)))))
 
