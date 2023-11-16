@@ -3,7 +3,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt"
          "../compiler.rkt")
-
+(require racket/trace)
 (provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si))
 
 (module+ test
@@ -122,7 +122,9 @@
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals*)] [prev splitvals*])
                                (</total prev val repr))))
+  (trace err-lsts->split-indices)
   (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
+  (eprintf "~a\n" split-indices)
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) (~a (representation-name repr)))
