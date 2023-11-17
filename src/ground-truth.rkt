@@ -1,8 +1,9 @@
 #lang racket
 
 (require math/bigfloat "rival.rkt")
-(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt" "common.rkt")
-
+(require "syntax/sugar.rkt" "syntax/types.rkt"
+         "common.rkt" "compiler.rkt" "sampling.rkt" "timeline.rkt"
+         "errors.rkt")
 (provide sample-points batch-prepare-points make-search-func eval-progs-real)
 
 (define (is-samplable-interval repr interval)
@@ -14,16 +15,26 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
+(define (prog->spec prog ctx)
+  (resugar-program prog ctx #:full #f))
+
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func pre exprs ctxs)
-  ;(eprintf "pre ~a, expers ~a, ctxs ~a\n" pre exprs ctxs)
-  (define fns (compile-progs (cons pre exprs) 'ival (car ctxs)))
+  ; (eprintf "pre ~a, expers ~a, ctxs ~a\n" pre exprs ctxs)
+  (define specs
+    (for/list ([spec (cons pre exprs)])
+      (prog->spec spec (car ctxs))))
+  (define fns (compile-specs specs (context-vars (car ctxs))))
+  ; inputs can either be intervals or representation values
   (λ inputs
-    (define out (apply fns inputs))
-    (match-define (list ival-pre ival-bodies ...) out)
-    (for/list ([y ival-bodies][ctx ctxs])
+    (define inputs*
+      (for/list ([input (in-list inputs)]
+                 [repr (context-var-reprs (car ctxs))])
+        (if (ival? input) input (ival ((representation-repr->bf repr) input)))))
+    (match-define (list ival-pre ival-bodies ...) (apply fns inputs*))
+    (for/list ([y ival-bodies] [ctx ctxs])
       (define repr (context-repr ctx))
       (ival-then
        ; The two `invalid` ones have to go first, because later checks

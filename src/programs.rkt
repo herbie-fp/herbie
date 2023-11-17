@@ -1,12 +1,16 @@
 #lang racket
 
+<<<<<<< HEAD
 (require math/bigfloat "rival.rkt")
 (require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
+=======
+(require "syntax/syntax.rkt" "syntax/types.rkt")
+>>>>>>> main
 
 (provide expr? expr-contains? expr<?
          type-of repr-of
          location-do location-get
-         compile-progs compile-prog eval-application
+         eval-application
          free-variables replace-expression replace-vars)
 
 (module+ test
@@ -24,7 +28,7 @@
    [(? number?) 'real]
    [(? variable?) (representation-type (context-lookup ctx expr))]
    [(list 'if cond ift iff) (type-of ift ctx)]
-   [(list op args ...) (representation-type (operator-info op 'otype))]))
+   [(list op args ...) (representation-type (impl-info op 'otype))]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
@@ -33,7 +37,7 @@
    [(? number?) (context-repr ctx)]
    [(? variable?) (context-lookup ctx expr)]
    [(list 'if cond ift iff) (repr-of ift ctx)]
-   [(list op args ...) (operator-info op 'otype)]))
+   [(list op args ...) (impl-info op 'otype)]))
 
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
@@ -114,102 +118,6 @@
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))
-
-(define (compile-prog expr mode ctx)
-  (compose first (compile-progs (list expr) mode ctx)))
-
-(define (compile-progs exprs mode ctx)
-  (define repr (context-repr ctx))
-  (define vars (context-vars ctx))
-  (define var-reprs (context-var-reprs ctx))
-
-  (define real->precision
-    (match mode
-     ['fl (λ (x repr) (real->repr x repr))]
-     ['ival (λ (x _) (ival (bf x)))]))
-
-  (define arg->precision
-    (match mode
-     ['fl (λ (x _) x)]
-     ['ival (λ (x repr)
-              (if (ival? x)
-                  x
-                  (ival ((representation-repr->bf repr) x))))]))
-
-  ;; Expression cache
-  (define exprcache '())
-  (define exprhash
-    (make-hash
-     (for/list ([var vars] [i (in-naturals)])
-       (cons var i))))
-
-  ; Counts
-  (define size 0)
-  (define exprc 0)
-  (define varc (length vars))
-
-  ;; Known representations
-  (define bool-repr (get-representation 'bool))
-
-  ;; 'if' operator
-  (define if-op
-    (match mode
-     ['fl (λ (c ift iff) (if c ift iff))]
-     ['ival ival-if]))
-
-  (define (munge prog repr)
-    (set! size (+ 1 size))
-    (define expr
-      (match prog
-       [(? number?) (list (const (real->precision prog repr)))]
-       [(? variable?) prog]
-       [`(if ,c ,t ,f)
-        (list if-op
-              (munge c bool-repr)
-              (munge t repr)
-              (munge f repr))]
-       [(list op args ...)
-        (define fn (operator-info op mode))
-        (define atypes (operator-info op 'itype))
-        (cons fn (map munge args atypes))]
-       [_ (raise-argument-error 'eval-prog "Not a valid expression!" prog)]))
-    (hash-ref! exprhash expr
-              (λ ()
-                (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                  (set! exprc (+ 1 exprc))
-                  (set! exprcache (cons expr exprcache))))))
-
-  (define names (for/list ([expr exprs]) (munge expr repr)))
-  (define lt (+ exprc varc))
-
-  (timeline-push! 'compiler (+ varc size) lt)
-  (define exprvec (list->vector (reverse exprcache)))
-  (define (f . args)
-    (define v (make-vector lt))
-    (for ([arg (in-list args)] [n (in-naturals)] [repr (in-list var-reprs)])
-      (vector-set! v n (arg->precision arg repr)))
-    (for ([expr (in-vector exprvec)] [n (in-naturals varc)])
-      (define tl
-        (for/list ([arg (in-list (cdr expr))])
-          (vector-ref v arg)))
-      (cond
-        [(empty? tl) ; procedure:const
-         (vector-set! v n (apply (car expr) tl))]
-        [(ival? (car tl)) ; some operation in rival
-         (if (boolean? (ival-lo (car tl)))
-             (vector-set! v n (apply (car expr) tl))
-             (let ([add-prec (apply max
-                                    (map
-                                     (lambda (iv)
-                                       (abs (bigfloat-exponent (ival-lo iv))))
-                                     tl))])
-               (parameterize ([bf-precision (+ (bf-precision) (if (< 8192 add-prec) 8192 add-prec))])
-                 (vector-set! v n (apply (car expr) tl)))))]
-        [else
-         (vector-set! v n (apply (car expr) tl))]))
-    (for/list ([n (in-list names)])
-      (vector-ref v n)))
-  (procedure-rename f (string->symbol (format "<eval-prog-~a>" mode))))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
