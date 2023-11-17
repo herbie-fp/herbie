@@ -235,8 +235,10 @@ function showTolerance(jsonData, show) {
     }
     const submitButton = Element("input", { type: "submit", value: "Update" }, [])
     submitButton.addEventListener("click", async (e) => {
-        e.preventDefault()
+        e.preventDefault();
+        compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
         filterTolerance = toleranceInputField.value
+        radioStatesIndex = 2
         fetchAndUpdate(jsonData)
     })
     toleranceInputField.style.display = show ? "inline" : "none"
@@ -299,23 +301,10 @@ function buildCompareForm(jsonData) {
         placeholder: "current report against"
     }, [])
 
-    var showToleranceBool = false
-    if (radioStates[radioStatesIndex] == "time" ||
-        radioStates[radioStatesIndex] == "targetAccuracy" ||
-        radioStates[radioStatesIndex] == "resultAccuracy" ||
-        radioStates[radioStatesIndex] == "startAccuracy") {
-        showToleranceBool = true
-    }
-
-    var toggles = []
-    const toleranceInputField = showTolerance(jsonData, showToleranceBool)
-    // TODO visually group these
-    if (input.value.length > 0) {
-        toggles = [output, "Output", startAccuracy, "Start Accuracy",
-            resultAccuracy, "Result Accuracy", targetAccuracy,
-            "Target Accuracy",
-            time, "Time", " ", toleranceInputField]
-    }
+    var toggles = [output, "Output", startAccuracy, "Start Accuracy",
+        resultAccuracy, "Result Accuracy", targetAccuracy,
+        "Target Accuracy",
+        time, "Time", " "]
     const form = Element("form", {}, [
         toggles,
     ])
@@ -590,19 +579,21 @@ function buildControls(jsonData, diffCount) {
         id: "compare-input", value: compareAgainstURL,
         placeholder: "URL to other json file"
     }, [])
-    const submitButton = Element("input", { type: "submit", value: "Diff" }, [])
-    submitButton.addEventListener("click", async (e) => {
-        e.preventDefault();
-        compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
-        hideShowCompareDetails = true
-        radioStatesIndex = 2
-        fetchAndUpdate(jsonData)
-    })
+
+    var showToleranceBool = false
+    if (radioStates[radioStatesIndex] == "time" ||
+        radioStates[radioStatesIndex] == "targetAccuracy" ||
+        radioStates[radioStatesIndex] == "resultAccuracy" ||
+        radioStates[radioStatesIndex] == "startAccuracy") {
+        showToleranceBool = true
+    }
+
+    const toleranceInputField = showTolerance(jsonData, showToleranceBool)
     var summary = Element("details", { open: hideShowCompareDetails }, [
         Element("summary", {}, [
             Element("h2", {}, ["Diff"]),
             input,
-            submitButton
+            toleranceInputField,
         ]),
         Element("div", {}, [
             buildCompareForm(jsonData),
@@ -738,7 +729,6 @@ function update(jsonData, otherJsonData) {
 function filterPreProcess(baseData) {
     if (topLevelState["pre-processed"]) {
         if (baseData.preprocess.length > 2) {
-            console.log(baseData.preprocess)
             return true
         } else {
             return false
