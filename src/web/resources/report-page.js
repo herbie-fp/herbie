@@ -189,7 +189,7 @@ var filterDetailsState = false
 var topLevelState = {
     "improved": true,
     "regressed": true,
-    "pre-processed": true
+    "pre-processed": false
 }
 
 var selectedBenchmarkIndex = -1
@@ -245,8 +245,10 @@ function showTolerance(jsonData, show) {
     }
     const submitButton = Element("input", { type: "submit", value: "Update" }, [])
     submitButton.addEventListener("click", async (e) => {
-        e.preventDefault()
+        e.preventDefault();
+        compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
         filterTolerance = toleranceInputField.value
+        radioStatesIndex = 2
         fetchAndUpdate(jsonData)
     })
     toleranceInputField.style.display = show ? "inline" : "none"
@@ -309,23 +311,10 @@ function buildCompareForm(jsonData) {
         placeholder: "current report against"
     }, [])
 
-    var showToleranceBool = false
-    if (radioStates[radioStatesIndex] == "time" ||
-        radioStates[radioStatesIndex] == "targetAccuracy" ||
-        radioStates[radioStatesIndex] == "resultAccuracy" ||
-        radioStates[radioStatesIndex] == "startAccuracy") {
-        showToleranceBool = true
-    }
-
-    var toggles = []
-    const toleranceInputField = showTolerance(jsonData, showToleranceBool)
-    // TODO visually group these
-    if (input.value.length > 0) {
-        toggles = [output, "Output", startAccuracy, "Start Accuracy",
-            resultAccuracy, "Result Accuracy", targetAccuracy,
-            "Target Accuracy",
-            time, "Time", " ", toleranceInputField]
-    }
+    var toggles = [output, "Output", startAccuracy, "Start Accuracy",
+        resultAccuracy, "Result Accuracy", targetAccuracy,
+        "Target Accuracy",
+        time, "Time", " "]
     const form = Element("form", {}, [
         toggles,
     ])
@@ -333,7 +322,6 @@ function buildCompareForm(jsonData) {
 }
 
 function buildBody(jsonData, otherJsonData, filterFunction) {
-    // Maybe reuse current build body as the part that currently sucks is the tableBody and the filter logic
 
     function hasNote(note) {
         return (note ? toTitleCase(note) + " " : "") + "Results"
@@ -438,7 +426,7 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
     return rows
 }
 
-// TODO I kinda hate this split lambda function, but future Zane problem
+// HACK I kinda hate this split lambda function, Zane
 function buildRow(test, other) {
     var row
     eitherOr(test, other,
@@ -609,19 +597,21 @@ function buildControls(jsonData, diffCount) {
         id: "compare-input", value: compareAgainstURL,
         placeholder: "URL to other json file"
     }, [])
-    const submitButton = Element("input", { type: "submit", value: "Diff" }, [])
-    submitButton.addEventListener("click", async (e) => {
-        e.preventDefault();
-        compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
-        hideShowCompareDetails = true
-        radioStatesIndex = 2
-        fetchAndUpdate(jsonData)
-    })
+
+    var showToleranceBool = false
+    if (radioStates[radioStatesIndex] == "time" ||
+        radioStates[radioStatesIndex] == "targetAccuracy" ||
+        radioStates[radioStatesIndex] == "resultAccuracy" ||
+        radioStates[radioStatesIndex] == "startAccuracy") {
+        showToleranceBool = true
+    }
+
+    const toleranceInputField = showTolerance(jsonData, showToleranceBool)
     var summary = Element("details", { open: hideShowCompareDetails }, [
         Element("summary", {}, [
             Element("h2", {}, ["Diff"]),
             input,
-            submitButton
+            toleranceInputField,
         ]),
         Element("div", {}, [
             buildCompareForm(jsonData),
@@ -683,16 +673,15 @@ function buildFiltersElement(jsonData) {
     }
 
     const dropDown = Element("select", { id: "dropdown" }, dropDownElements)
-
-    dropDown.addEventListener("click", (e) => {
+    dropDown.addEventListener("input", (e) => {
+        const selected = e.target.selectedOptions[0].value
         for (let i in benchMarks) {
-            if (e.target.label != undefined && benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
-                selectedBenchmarkIndex = i
-                update(resultsJsonData)
-                return
+            if (selected != undefined) {
+                if (benchMarks[i].toLowerCase() == selected.toLowerCase()) {
+                    selectedBenchmarkIndex = i
+                }
             }
         }
-        selectedBenchmarkIndex = -1
         update(resultsJsonData)
     })
 
@@ -719,15 +708,15 @@ function buildFiltersElement(jsonData) {
     setupGroup("improved", improvedTags, improvedButton)
     setupGroup("regressed", regressedTags, regressedButton)
 
-    // const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", topLevelState["pre-processed"])
-    // preProcessed.addEventListener("click", (e) => {
-    //     topLevelState["pre-processed"] = !topLevelState["pre-processed"]
-    //     update(jsonData)
-    // })
+    const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", topLevelState["pre-processed"])
+    preProcessed.addEventListener("click", (e) => {
+        topLevelState["pre-processed"] = !topLevelState["pre-processed"]
+        update(jsonData)
+    })
 
     const filters = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, /* preProcessed, */ dropDown]), [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown]), [
             filterButtons]])
     filters.addEventListener("click", (e) => {
         if (e.target.nodeName == "SUMMARY") {
@@ -747,12 +736,7 @@ function eitherOr(baselineRow, diffRow, singleFunction, pairFunctions) {
 }
 
 function update(jsonData, otherJsonData) {
-    /*
-    - Probably the first step of update should be taking the internal state and turning it into a filter function plus maybe a diff function or something like that.
-    - Make each take both rows (baseline and diff)
-    */
-
-    // capture current global filter state 🤞
+    // capture current global filter state
     const currentFilterFunction = makeFilterFunction()
 
     const newBody = Element("body", {}, buildBody(jsonData, otherJsonData, currentFilterFunction))
@@ -760,14 +744,27 @@ function update(jsonData, otherJsonData) {
     bodyNode = newBody
 }
 
+function filterPreProcess(baseData) {
+    if (topLevelState["pre-processed"]) {
+        if (baseData.preprocess.length > 2) {
+            return true
+        } else {
+            return false
+        }
+    } else {
+        return true
+    }
+}
+
 function makeFilterFunction() {
     return function filterFunction(baseData, diffData) {
         var returnValue = true
         eitherOr(baseData, diffData,
             (function () {
-                // no row to diff against
+                returnValue = returnValue && filterPreProcess(baseData)
             }),
             (function () {
+                returnValue = returnValue && filterPreProcess(baseData)
                 // Section to hide diffs that are below the provided tolerance
                 if (hideDirtyEqual) {
                     // Diff Start Accuracy
@@ -826,10 +823,6 @@ function makeFilterFunction() {
                     }
                 }
             }))
-        // TODO collect internal state into a filter function
-        // TODO actually filter based on global state. ugh access control
-        // TODO fix this garbage if statement
-        // TODO filter pre processing
         const linkComponents = baseData.link.split("/")
         // guard statement
         if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
