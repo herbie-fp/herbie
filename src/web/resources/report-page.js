@@ -408,7 +408,11 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
 
 function sort(test) {
     function compareFunction(l, r) {
-        return l.name.localeCompare(r.name)
+        if (sortDescending) {
+            return l.name.localeCompare(r.name)
+        } else {
+            return r.name.localeCompare(l.name)
+        }
     }
     return test.sort(compareFunction)
 }
@@ -713,10 +717,15 @@ function buildFiltersElement(jsonData) {
         topLevelState["pre-processed"] = !topLevelState["pre-processed"]
         update(jsonData)
     })
+    const sort = buildCheckboxLabel("sort", "sort", sortDescending)
+    sort.addEventListener("click", (e) => {
+        sortDescending = !sortDescending
+        update(jsonData)
+    })
 
     const filters = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown]), [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown, sort]), [
             filterButtons]])
     filters.addEventListener("click", (e) => {
         if (e.target.nodeName == "SUMMARY") {
