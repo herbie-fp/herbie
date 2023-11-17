@@ -738,7 +738,6 @@ function update(jsonData, otherJsonData) {
 function filterPreProcess(baseData) {
     if (topLevelState["pre-processed"]) {
         if (baseData.preprocess.length > 2) {
-            console.log(baseData.preprocess)
             return true
         } else {
             return false
