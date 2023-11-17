@@ -301,11 +301,7 @@ function showTolerance(jsonData, show) {
         id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
     }, [])
     const hidingText = Element("text", {}, [" Hiding: ±"])
-    const showEqual = buildCheckboxLabel("show-equal", "show equal", !hideDirtyEqual)
-    showEqual.addEventListener("click", (e) => {
-        hideDirtyEqual = !hideDirtyEqual
-        update(jsonData)
-    })
+    
     var unitText
     if (radioStates[radioStatesIndex] == "time") {
         unitText = Element("text", {}, ["s"])
@@ -322,9 +318,8 @@ function showTolerance(jsonData, show) {
     })
     toleranceInputField.style.display = show ? "inline" : "none"
     hidingText.style.display = show ? "inline" : "none"
-    showEqual.style.display = show ? "inline" : "none"
     unitText.style.display = show ? "inline" : "none"
-    return [showEqual, hidingText, toleranceInputField, unitText, submitButton]
+    return [ hidingText, toleranceInputField, unitText, submitButton]
 }
 
 function buildCompareForm(jsonData) {
@@ -376,16 +371,17 @@ function buildCompareForm(jsonData) {
         await fetchAndUpdate(jsonData)
     })
 
-    const input = Element("input", {
-        id: "compare-input", value: compareAgainstURL,
-        placeholder: "current report against"
-    }, [])
+    const showEqual = buildCheckboxLabel("show-equal", "show equal", !hideDirtyEqual)
+    showEqual.addEventListener("click", (e) => {
+        hideDirtyEqual = !hideDirtyEqual
+        update(jsonData)
+    })
 
     const form = Element("form", {},
         [output, "Output", startAccuracy, "Start Accuracy",
             resultAccuracy, "Result Accuracy", targetAccuracy,
             "Target Accuracy",
-            time, "Time", " "])
+            time, "Time", " ", showEqual])
     return form
 }
 
