@@ -323,7 +323,6 @@ function buildCompareForm(jsonData) {
 }
 
 function buildBody(jsonData, otherJsonData, filterFunction) {
-    // Maybe reuse current build body as the part that currently sucks is the tableBody and the filter logic
 
     function hasNote(note) {
         return (note ? toTitleCase(note) + " " : "") + "Results"
@@ -420,7 +419,7 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
     return rows
 }
 
-// TODO I kinda hate this split lambda function, but future Zane problem
+// HACK I kinda hate this split lambda function, Zane
 function buildRow(test, other) {
     var row
     eitherOr(test, other,
@@ -728,12 +727,7 @@ function eitherOr(baselineRow, diffRow, singleFunction, pairFunctions) {
 }
 
 function update(jsonData, otherJsonData) {
-    /*
-    - Probably the first step of update should be taking the internal state and turning it into a filter function plus maybe a diff function or something like that.
-    - Make each take both rows (baseline and diff)
-    */
-
-    // capture current global filter state 🤞
+    // capture current global filter state
     const currentFilterFunction = makeFilterFunction()
 
     const newBody = Element("body", {}, buildBody(jsonData, otherJsonData, currentFilterFunction))
@@ -821,10 +815,6 @@ function makeFilterFunction() {
                     }
                 }
             }))
-        // TODO collect internal state into a filter function
-        // TODO actually filter based on global state. ugh access control
-        // TODO fix this garbage if statement
-        // TODO filter pre processing
         const linkComponents = baseData.link.split("/")
         // guard statement
         if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
