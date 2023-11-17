@@ -4,6 +4,8 @@
 (require (for-syntax racket/base))
 (module+ test (require rackunit))
 
+(define *rival-precision* (make-parameter 8192))
+
 (define-match-expander ival-expander
   (λ (stx)
     (syntax-case stx ()
@@ -67,7 +69,6 @@
           [ival-logb (-> ival? ival?)]
           [ival-pow (-> ival? ival? ival?)]
           [ival-sin (-> ival? ival?)]
-          ;[ival-sin-default (-> ival? ival?)]
           [ival-cos (-> ival? ival?)]
           [ival-tan (-> ival? ival?)]
           [ival-asin (-> ival? ival?)]
@@ -534,88 +535,146 @@
         (ival-err? x)
         (ival-err x)))
 
-(define (ival-cos x)
-  (match-define (ival (endpoint a _) (endpoint b _) _ _)
-                (ival-floor (ival-div x (ival-pi))))
-  (cond
-   [(and (bf=? a b) (bfeven? a))
-    ((comonotonic bfcos) x)]
-   [(and (bf=? a b) (bfodd? a))
-    ((monotonic bfcos) x)]
-   [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-    (ival (endpoint -1.bf #f)
-          (rnd 'up epfn bfmax2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
-          (ival-err? x) (ival-err x))]
-   [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-    (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
-          (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
-   [else
-    (ival-then x (mk-big-ival -1.bf 1.bf))]))
-
-(define (ival-sin x)
-  (match-define (ival (endpoint a _) (endpoint b _) _ _)
-      (ival-round (ival-div x (ival-pi))))
-  (cond
-    [(and (bf=? a b) (bfodd? a))
-     ((comonotonic bfsin) x)]
-    [(and (bf=? a b) (bfeven? a))
-     ((monotonic bfsin) x)]
-    [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
-     (ival (endpoint -1.bf #f)
-           (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
-           (ival-err? x)
-           (ival-err x))]
-    [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
-     (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
-           (endpoint 1.bf #f)
-           (ival-err? x)
-           (ival-err x))]
-    [else
-     (ival-then x (mk-big-ival -1.bf 1.bf))]))
-
-#;(define (ival-sin x)
+(define (classify-ival-periodic x period)
   (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
   (define lo* (+ (bigfloat-exponent xlo) (bigfloat-precision xlo)))
   (define hi* (+ (bigfloat-exponent xhi) (bigfloat-precision xhi)))
-  
-  (if (<= lo* 0)
-      (if (<= hi* 0)
-          ;; (bigfloat-exponent (bf +0.nan) = -9223372036854775934)
-          ;; -9223372036854775807 is an exponent code for infinity in math/bigfloat
-          ;; Also exponent code for (bf +nan.0) can be -9223372036854777854
-          ;;                                           -9223372036854775809 is a code for 0.bf
-          ;;                                           -9223372036854775808 is a code for +nan.bf
+
+  (if (<= lo* 0)    ; if lo* belongs to (-1, 1)
+      (if (<= hi* 0)    ; if hi* belongs to (-1, 1)
+                        ; -9223372036854775807 is a code for 0.bf, otherwise -9220000000000000000 and lower is a nan/inf
           (if (or (and (> -9220000000000000000 lo*) (not (equal? -9223372036854775807 lo*)))
                   (and (> -9220000000000000000 hi*) (not (equal? -9223372036854775807 hi*))))
-              (ival-then x (mk-big-ival -1.bf 1.bf))
-              ((monotonic bfsin) x))
-          (if (>= hi* 4)
-              (ival-then x (mk-big-ival -1.bf 1.bf))
-              (ival-sin-default x (abs (- lo* hi*)))))
-      (if (<= lo* 1)
-          (if (>= hi* 5)
-              (ival-then x (mk-big-ival -1.bf 1.bf))
-              (ival-sin-default x (abs (- lo* hi*))))
-          (if (<= lo* 2)
-              (if (>= hi* 5)
-                  (ival-then x (mk-big-ival -1.bf 1.bf))
-                  (ival-sin-default x (abs (- lo* hi*))))
-              (if (>= lo* 3)
-                  (if (>= hi* 3)
-                      (if (> (- hi* lo*) 1)
-                          (ival-then x (mk-big-ival -1.bf 1.bf))
+              'too-wide    ; interval includes inf/nan
+              'near-0) 
+          (cond
+            [(equal? period 'pi)
+             (if (>= hi* 2)    ; if hi* belongs to (-inf, -2] U [2, +inf)
+                 'too-wide
+                 'range-reduce)]
+            [(equal? period '2pi)
+             (if (>= hi* 4)    ; if hi* belongs to (-inf, -8] U [8, +inf)
+                 'too-wide
+                 'range-reduce)]))
+      (if (<= lo* 1)    ; if lo* belongs to (-2, 2)
+          (cond
+            [(equal? period 'pi)
+             (if (>= hi* 4)    ; if hi* belongs to (-inf, -8] U [8, +inf)
+                 'too-wide
+                 'range-reduce)]
+            [(equal? period '2pi)
+             (if (>= hi* 5)    ; if hi* belongs to (-inf, -16] U [16, +inf)
+                 'too-wide
+                 'range-reduce)])
+          (if (<= lo* 2)  ; if lo* belongs to (-4, 4)
+              (cond
+                [(equal? period 'pi)
+                 (if (>= hi* 4)    ; if hi* belongs to (-inf, -8] U [8, +inf)
+                     'too-wide
+                     'range-reduce)]
+                [(equal? period '2pi)
+                 (if (>= hi* 5)    ; if hi* belongs to (-inf, -16] U [16, +inf)
+                     'too-wide
+                     'range-reduce)])
+              (if (>= lo* 3)  ; if lo* belongs to (-inf, -4] U [4, +inf)
+                  (if (>= hi* 3)  ; if hi* belongs to (-inf, -4] U [4, +inf)
+                      (if (> (abs (- hi* lo*)) 1)
+                          'too-wide
                           (if (equal? (bigfloat-signbit xlo) (bigfloat-signbit xhi))
-                              (ival-sin-default x (abs (- lo* hi*)))
-                              (ival-then x (mk-big-ival -1.bf 1.bf))))
-                      (ival-sin-default x (abs (- lo* hi*))))
-                  (ival-sin-default x (abs (- lo* hi*))))))))
+                              'range-reduce
+                              'too-wide))
+                      'range-reduce)
+                  'range-reduce)))))
+
+(define (ival-cos x)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  
+  (match (classify-ival-periodic x '2pi)
+    ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
+    ['near-0
+     (if (equal? (bigfloat-signbit xlo)
+                 (bigfloat-signbit xhi))
+         (if (> (bigfloat-signbit xlo) 0)
+             ((monotonic bfcos) x)    ; negative
+             ((comonotonic bfcos) x)) ; positive
+         (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+               (endpoint 1.bf #f) (ival-err? x) (ival-err x)))]
+    ['range-reduce
+     (let ([prec (min (*rival-precision*)
+                      (max (bf-precision)
+                           (+ 10 (max
+                                  (+ (bigfloat-exponent xlo) (bigfloat-precision xlo))
+                                  (+ (bigfloat-exponent xhi) (bigfloat-precision xhi))))))])
+       (match-define (ival (endpoint a _) (endpoint b _) _ _)
+         (parameterize ([bf-precision prec])
+           (ival-floor (ival-div x (ival-pi)))))
+       (cond
+         [(and (bf=? a b) (bfeven? a))
+          ((comonotonic bfcos) x)]
+         [(and (bf=? a b) (bfodd? a))
+          ((monotonic bfcos) x)]
+         [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+          (ival (endpoint -1.bf #f)
+                (rnd 'up epfn bfmax2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+                (ival-err? x) (ival-err x))]
+         [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+          (ival (rnd 'down epfn bfmin2 (epfn bfcos (ival-lo x)) (epfn bfcos (ival-hi x)))
+                (endpoint 1.bf #f) (ival-err? x) (ival-err x))]
+         [else
+          (ival-then x (mk-big-ival -1.bf 1.bf))]))]))
+
+(define (ival-sin x)
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  
+  (match (classify-ival-periodic x '2pi)
+    ['too-wide (ival-then x (mk-big-ival -1.bf 1.bf))]
+    ['near-0 ((monotonic bfsin) x)]
+    ['range-reduce
+     (let ([prec (min (*rival-precision*)
+                      (max (bf-precision)
+                           (+ 10 (max
+                                  (+ (bigfloat-exponent xlo) (bigfloat-precision xlo))
+                                  (+ (bigfloat-exponent xhi) (bigfloat-precision xhi))))))])
+       (match-define (ival (endpoint a _) (endpoint b _) _ _)
+         (parameterize ([bf-precision prec])
+           (ival-round (ival-div x (ival-pi)))))
+       (cond
+         [(and (bf=? a b) (bfodd? a))
+          ((comonotonic bfsin) x)]
+         [(and (bf=? a b) (bfeven? a))
+          ((monotonic bfsin) x)]
+         [(and (bf=? (bfsub b a) 1.bf) (bfodd? a))
+          (ival (endpoint -1.bf #f)
+                (rnd 'up epfn bfmax2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+                (ival-err? x)
+                (ival-err x))]
+         [(and (bf=? (bfsub b a) 1.bf) (bfeven? a))
+          (ival (rnd 'down epfn bfmin2 (epfn bfsin (ival-lo x)) (epfn bfsin (ival-hi x)))
+                (endpoint 1.bf #f)
+                (ival-err? x)
+                (ival-err x))]
+         [else
+          (ival-then x (mk-big-ival -1.bf 1.bf))]))]))
 
 (define (ival-tan x)
-  (match-define (ival (endpoint a _) (endpoint b _) _ _)
-    (ival-round (ival-div x (ival-pi))))
-  (if (bf=? a b) ; Same period
-      ((monotonic bftan) x)
-      (ival-then x (ival-assert (mk-big-ival #f #t) 'ival-tan) (mk-big-ival -inf.bf +inf.bf))))
+  (match-define (ival (endpoint xlo xlo!) (endpoint xhi xhi!) xerr? xerr) x)
+  
+  (match (classify-ival-periodic x 'pi)
+    ['too-wide (ival-then x (ival-assert (mk-big-ival #f #t) 'ival-tan) (mk-big-ival -inf.bf +inf.bf))]
+    ['near-0 ((monotonic bftan) x)]
+    ['range-reduce
+     (let ([prec (min (*rival-precision*)
+                      (max (bf-precision)
+                           (+ 10 (max
+                                  (+ (bigfloat-exponent xlo) (bigfloat-precision xlo))
+                                  (+ (bigfloat-exponent xhi) (bigfloat-precision xhi))))))])
+       (match-define (ival (endpoint a _) (endpoint b _) _ _)
+         (parameterize ([bf-precision prec])
+           (ival-round (ival-div x (ival-pi)))))
+  
+       (if (bf=? a b) ; Same period
+           ((monotonic bftan) x)
+           (ival-then x (ival-assert (mk-big-ival #f #t) 'ival-tan) (mk-big-ival -inf.bf +inf.bf))))]))
 
 (define* ival-asin (compose (monotonic bfasin) (clamp -1.bf 1.bf)))
 (define* ival-acos (compose (comonotonic bfacos) (clamp -1.bf 1.bf)))

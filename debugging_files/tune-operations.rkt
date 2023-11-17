@@ -3,52 +3,79 @@
 (require math/bigfloat)
 (require racket/list math/flonum)
 (require (only-in math/base random-bits))
+(require math/base)
 
-(define (define-prec x y)
-  (define true-res (parameterize ([bf-precision 8192]) (bf+ x y)))
+(define (bf->current-prec-bf x)
+  (bf+ x 0.bf))
+
+(define (random-number prec)
+  (parameterize ([bf-precision prec])
+    (bf/
+     (bf- (bfrandom) (bf 0.5))
+     (bf (random-bits (random-integer 1 1000))))
+    #;(bf (random-bits prec) (random
+                            -2000
+                            -1200)))) ;-1200
+
+
+(define (define-prec x y op [output-prec 256])
+  (define true-res (parameterize ([bf-precision 16384]) (op x y)))
   (define target-prec (for/list ([i (in-range 24 8192 1)]
                                  #:break
-                                 (parameterize ([bf-precision 8192])
+                                 (parameterize ([bf-precision output-prec])
                                    (bf=
-                                    (parameterize ([bf-precision i])
-                                      (bf+ x y))
-                                    true-res)))
+                                    (bf->current-prec-bf (parameterize ([bf-precision i])
+                                           (parameterize ([bf-rounding-mode 'up])
+                                             (op x y))))
+                                    (bf->current-prec-bf (parameterize ([bf-precision i])
+                                            (parameterize ([bf-rounding-mode 'down])
+                                              (op x y))))
+                                    (bf->current-prec-bf true-res))))
                         i))
   (cond
     [(empty? target-prec) 24]
     [else (+ (last target-prec) 1)]))
 
 (define (spinner prec)
-  (parameterize ([bf-precision prec])
-    (define x (bf (random-bits prec) (random -12000 12000)))
+  (parameterize ([bf-precision (random 10 512)])
+    (define x (random-number (bf-precision)))
     (define x-exp (bigfloat-exponent x))
-    
-    (define y (bf (random-bits prec) (random -12000 12000)))
-    ;(define y (bfprev x))
-    (define y-exp (bigfloat-exponent y))
-    
-    (define target-prec (define-prec x y))
-    (define abs-diff (- target-prec x-exp))
-    (define prediction (if (< 8192 (abs (- x-exp y-exp)))
-                           prec
-                           (min 8192 (+ 10 (abs (- x-exp y-exp)) prec))))
-    ;(printf "x-exp=~a\ny-exp=~a\ntarget-prec=~a\npred=~a\n\n" x-exp y-exp target-prec prediction)
-    (cond
-      [(> target-prec prediction)
-       (printf "x-exp=~a\ny-exp=~a\ntarget-prec=~a\npred=~a\nabs-diff=~a\n\n"
-               x-exp
-               y-exp
-               target-prec
-               prediction
-               (abs (- x-exp y-exp)))]
-      [(< 50 (abs (- target-prec prediction)))
-       (printf "x-exp=~a\ny-exp=~a\ntarget-prec=~a\npred=~a\nabs-diff=~a\n\n"
-               x-exp
-               y-exp
-               target-prec
-               prediction
-               (abs (- x-exp y-exp)))])
-  ))
+    (println x)
 
-(define prec 512)
-(for/list ([i (in-range 100000)]) (spinner prec))
+    (parameterize ([bf-precision (+ 10 (bf-precision))])
+      (define y (random-number (bf-precision)))
+      (define y-exp (bigfloat-exponent y))
+
+      (define op bf-)
+      (define output-prec 53)
+      (define target-prec (define-prec x (bfsin x) op output-prec))
+    
+      (define abs-diff (- target-prec x-exp))
+      (define prediction (+ 20 output-prec))
+      (printf "x-exp=~a\nx-prec=~a\ny-exp=~a\ny-prec=~a\ntarget-prec=~a\npred=~a\nabs-diff=~a\n\n"
+              x-exp
+              (bigfloat-precision x)
+              y-exp
+              (bigfloat-precision y)
+              target-prec
+              prediction
+              (abs (- x-exp y-exp)))
+      #;(cond
+          [(> target-prec prediction)
+           (printf "x-exp=~a\ny-exp=~a\ntarget-prec=~a\npred=~a\nabs-diff=~a\n\n"
+                   x-exp
+                   y-exp
+                   target-prec
+                   prediction
+                   (abs (- x-exp y-exp)))]
+          [(< 20 (abs (- target-prec prediction)))
+           (printf "x-exp=~a\ny-exp=~a\ntarget-prec=~a\npred=~a\nabs-diff=~a\n\n"
+                   x-exp
+                   y-exp
+                   target-prec
+                   prediction
+                   (abs (- x-exp y-exp)))])
+  )))
+
+(define prec 256)
+(for/list ([i (in-range 10)]) (spinner prec))
