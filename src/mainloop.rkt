@@ -287,9 +287,6 @@
         (atab-pick-alt table #:picking-func picking-func #:only-fresh #t))
       table*))
   (localize!)
-
- 
-
   (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!))
   
@@ -329,8 +326,7 @@
 (define (run-improve! initial specification context pcontext)
   (timeline-event! 'preprocess)
   (define-values (simplified preprocessing)
-    (find-preprocessing initial specification context)) ;; Eventually we can remove the preprocessing return here, but that requires fixing 
-                                                        ;; calls here & the sandbox call & subsequent usage that still require it
+    (find-preprocessing initial specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (match-define (and alternatives (cons (alt best _ _ _) _))
@@ -339,7 +335,7 @@
   (timeline-event! 'preprocess)
   (define final-alts
     (for/list ([altern alternatives])
-      (make-alt-preprocessing (alt-expr altern) (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
+      (add-alt-preprocessing altern (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
 
 
   (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing))) 
