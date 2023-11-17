@@ -189,7 +189,7 @@ var filterDetailsState = false
 var topLevelState = {
     "improved": true,
     "regressed": true,
-    "pre-processed": true
+    "pre-processed": false
 }
 
 var selectedBenchmarkIndex = -1
@@ -700,15 +700,15 @@ function buildFiltersElement(jsonData) {
     setupGroup("improved", improvedTags, improvedButton)
     setupGroup("regressed", regressedTags, regressedButton)
 
-    // const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", topLevelState["pre-processed"])
-    // preProcessed.addEventListener("click", (e) => {
-    //     topLevelState["pre-processed"] = !topLevelState["pre-processed"]
-    //     update(jsonData)
-    // })
+    const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", topLevelState["pre-processed"])
+    preProcessed.addEventListener("click", (e) => {
+        topLevelState["pre-processed"] = !topLevelState["pre-processed"]
+        update(jsonData)
+    })
 
     const filters = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, /* preProcessed, */ dropDown]), [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown]), [
             filterButtons]])
     filters.addEventListener("click", (e) => {
         if (e.target.nodeName == "SUMMARY") {
@@ -741,14 +741,28 @@ function update(jsonData, otherJsonData) {
     bodyNode = newBody
 }
 
+function filterPreProcess(baseData) {
+    if (topLevelState["pre-processed"]) {
+        if (baseData.preprocess.length > 2) {
+            console.log(baseData.preprocess)
+            return true
+        } else {
+            return false
+        }
+    } else {
+        return true
+    }
+}
+
 function makeFilterFunction() {
     return function filterFunction(baseData, diffData) {
         var returnValue = true
         eitherOr(baseData, diffData,
             (function () {
-                // no row to diff against
+                returnValue = returnValue && filterPreProcess(baseData)
             }),
             (function () {
+                returnValue = returnValue && filterPreProcess(baseData)
                 // Section to hide diffs that are below the provided tolerance
                 if (hideDirtyEqual) {
                     // Diff Start Accuracy
