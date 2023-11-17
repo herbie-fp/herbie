@@ -1,11 +1,6 @@
 #lang racket
 
-<<<<<<< HEAD
-(require math/bigfloat "rival.rkt")
-(require "syntax/syntax.rkt" "syntax/types.rkt" "timeline.rkt" "float.rkt" "errors.rkt")
-=======
 (require "syntax/syntax.rkt" "syntax/types.rkt")
->>>>>>> main
 
 (provide expr? expr-contains? expr<?
          type-of repr-of
