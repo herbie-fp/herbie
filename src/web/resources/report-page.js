@@ -665,16 +665,15 @@ function buildFiltersElement(jsonData) {
     }
 
     const dropDown = Element("select", { id: "dropdown" }, dropDownElements)
-
-    dropDown.addEventListener("click", (e) => {
+    dropDown.addEventListener("input", (e) => {
+        const selected = e.target.selectedOptions[0].value
         for (let i in benchMarks) {
-            if (e.target.label != undefined && benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
-                selectedBenchmarkIndex = i
-                update(resultsJsonData)
-                return
+            if (selected != undefined) {
+                if (benchMarks[i].toLowerCase() == selected.toLowerCase()) {
+                    selectedBenchmarkIndex = i
+                }
             }
         }
-        selectedBenchmarkIndex = -1
         update(resultsJsonData)
     })
 
