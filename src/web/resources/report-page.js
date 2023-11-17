@@ -212,13 +212,77 @@ var filterState = {
 }
 var hideShowCompareDetails = false
 
+// true = ascending, false = descending
 var sortState = {
-    "test": true,
+    "test": false,
     "start": false,
     "result": false,
     "target": false,
     "time": false
 }
+
+// if the state changed return true
+function setSort(inputSelection) {
+    if (inputSelection == "test") {
+        if (sortState["test"]) {
+            return false
+        } else {
+            sortState["test"] = true
+            sortState["start"] = false
+            sortState["result"] = false
+            sortState["target"] = false
+            sortState["time"] = false
+            return true
+        }
+    } else if (inputSelection == "start") {
+        if (sortState["start"]) {
+            return false
+        } else {
+            sortState["test"] = false
+            sortState["start"] = true
+            sortState["result"] = false
+            sortState["target"] = false
+            sortState["time"] = false
+            return true
+        }
+    } else if (inputSelection == "result") {
+        if (sortState["result"]) {
+            return false
+        } else {
+            sortState["test"] = false
+            sortState["start"] = false
+            sortState["result"] = true
+            sortState["target"] = false
+            sortState["time"] = false
+            return true
+        }
+    } else if (inputSelection == "target") {
+        if (sortState["target"]) {
+            return false
+        } else {
+            sortState["test"] = false
+            sortState["start"] = false
+            sortState["result"] = false
+            sortState["target"] = true
+            sortState["time"] = false
+            return true
+        }
+    } else if (inputSelection == "time") {
+        if (sortState["time"]) {
+            return false
+        } else {
+            sortState["test"] = false
+            sortState["start"] = false
+            sortState["result"] = false
+            sortState["target"] = false
+            sortState["time"] = true
+            return true
+        }
+    } else {
+        return false
+    }
+}
+
 
 var sortDescending = true
 
@@ -388,17 +452,29 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
         ])
     ])
 
+    function buildSortableTextElement(stringName, nestedArray) {
+        const nestedElements = [sortState[stringName] ? `${toTitleCase(stringName)} ` + `${sortDescending ? "⏶" : "⏷"}` : `${toTitleCase(stringName)} –`, nestedArray]
+        const textElement = Element("th", {}, nestedElements)
+        textElement.addEventListener("click", (e) => {
+            if (!setSort(stringName)) {
+                sortDescending = !sortDescending
+            }
+            update(jsonData)
+        })
+        return textElement
+    }
+
     const rows = buildTableContents(jsonData, otherJsonData, filterFunction)
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
-                Element("th", {}, ["Test"]),
-                Element("th", {}, ["Start"]),
-                Element("th", {}, ["Result",
+                buildSortableTextElement("test", []),
+                buildSortableTextElement("start", []),
+                buildSortableTextElement("result", [
                     Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
-                Element("th", {}, ["Target",
+                buildSortableTextElement("target", [
                     Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
-                Element("th", {}, ["Time"]),
+                buildSortableTextElement("time"),
             ])
         ]),
         rows
@@ -408,11 +484,42 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
 
 function sort(test) {
     function compareFunction(l, r) {
-        if (sortDescending) {
-            return l.name.localeCompare(r.name)
-        } else {
-            return r.name.localeCompare(l.name)
+        var result = true
+        if (sortState["test"]) {
+            if (sortDescending) {
+                result = l.name.localeCompare(r.name)
+            } else {
+                result = r.name.localeCompare(l.name)
+            }
+        } else if (sortState["start"]) {
+            if (sortDescending) {
+                result = l.start < r.start
+            } else {
+                result = l.start > r.start
+            }
         }
+        else if (sortState["result"]) {
+            if (sortDescending) {
+                result = l.end < r.end
+            } else {
+                result = l.end > r.end
+            }
+        }
+        else if (sortState["target"]) {
+            if (sortDescending) {
+                result = l.target < r.target
+            } else {
+                result = l.target > r.target
+            }
+        }
+        else if (sortState["time"]) {
+            if (sortDescending) {
+                result = l.time < r.time
+            } else {
+                result = l.time > r.time
+            }
+        }
+        return result
     }
     return test.sort(compareFunction)
 }
@@ -717,15 +824,10 @@ function buildFiltersElement(jsonData) {
         topLevelState["pre-processed"] = !topLevelState["pre-processed"]
         update(jsonData)
     })
-    const sort = buildCheckboxLabel("sort", "sort", sortDescending)
-    sort.addEventListener("click", (e) => {
-        sortDescending = !sortDescending
-        update(jsonData)
-    })
 
     const filters = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown, sort]), [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown]), [
             filterButtons]])
     filters.addEventListener("click", (e) => {
         if (e.target.nodeName == "SUMMARY") {
