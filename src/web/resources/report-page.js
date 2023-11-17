@@ -301,7 +301,7 @@ function showTolerance(jsonData, show) {
         id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
     }, [])
     const hidingText = Element("text", {}, [" Hiding: ±"])
-    
+
     var unitText
     if (radioStates[radioStatesIndex] == "time") {
         unitText = Element("text", {}, ["s"])
@@ -319,7 +319,7 @@ function showTolerance(jsonData, show) {
     toleranceInputField.style.display = show ? "inline" : "none"
     hidingText.style.display = show ? "inline" : "none"
     unitText.style.display = show ? "inline" : "none"
-    return [ hidingText, toleranceInputField, unitText, submitButton]
+    return [hidingText, toleranceInputField, unitText, submitButton]
 }
 
 function buildCompareForm(jsonData) {
