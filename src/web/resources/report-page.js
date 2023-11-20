@@ -60,11 +60,245 @@ function toTitleCase(str) {
     )
 }
 
-function update(jsonData) {
+// Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
+// However, simplified because we don't need hit box data
+function on(mark, listeners = {}) {
+    const render = mark.render
+    mark.render = function (facet, { x, y }, channels) {
+        const data = this.data
+        const g = render.apply(this, arguments)
+        const r = d3.select(g).selectChildren()
+        for (const [type, callback] of Object.entries(listeners)) {
+            r.on(type, function (event, i) {
+                return callback(event, data[i])
+            })
+        }
+        return g
+    }
+    return mark
+}
+
+function plotXY(testsData, filterFunction) {
+    var filteredTests = []
+    testsData.tests.forEach((test) => {
+        // Ugh global scope 
+        let other = diffAgainstFields[test.name]
+        if (filterFunction(test, other)) {
+            filteredTests.push(test)
+        }
+    })
+    const out = Plot.plot({
+        marks: [
+            Plot.line([[0, 0], [1, 1]], { stroke: '#ddd' }),
+            on(Plot.dot(filteredTests, {
+                x: d => 1 - d.start / 64, y: d => 1 - d.end / 64,
+                fill: "#00a", strokeWidth: 2,
+            }), {
+                click: (e, d) => { window.location = d.link + "/graph.html"; },
+            }),
+        ],
+        className: "clickable",
+        marginBottom: 0,
+        marginRight: 0,
+        width: '400',
+        height: '400',
+        x: { nice: true, line: true, tickFormat: "%", },
+        y: { nice: true, line: true, tickFormat: "%", },
+    })
+    out.setAttribute('viewBox', '0 0 420 420')
+    return out;
+}
+
+function plotPareto(jsonData) {
+    const [initial, frontier] = jsonData["merged-cost-accuracy"];
+    const out = Plot.plot({
+        marks: [
+            Plot.dot([initial], {
+                stroke: "#d00",
+                symbol: "square",
+                strokeWidth: 2
+            }),
+            Plot.line(frontier, {
+                stroke: "#00a",
+                strokeWidth: 2,
+            }),
+        ],
+        width: '400',
+        height: '400',
+        x: { line: true, nice: true, tickFormat: c => c + "×" },
+        y: { line: true, nice: true, domain: [0, 1], tickFormat: "%", },
+        marginBottom: 0,
+        marginRight: 0,
+    })
+    out.setAttribute('viewBox', '0 0 420 420')
+    return out;
+}
+
+// -------------------------------------------------
+// ------ Global State Start ----------
+// -------------------------------------------------
+
+const renames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-target": "Greater than target",
+    "gt-start": "Greater than start",
+    "eq-target": "Equal to target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
+}
+
+// Flag for filtering if out diffs that are under the tolerance
+var hideDirtyEqual = true
+
+// State for Forum radio buttons
+// Why no some Types :(
+var radioStatesIndex = -1
+var radioStates = [
+    "output",
+    "startAccuracy",
+    "resultAccuracy",
+    "targetAccuracy",
+    "time"
+]
+var filterTolerance = 1
+
+var filterDetailsState = false
+
+var topLevelState = {
+    "improved": true,
+    "regressed": true,
+    "pre-processed": false
+}
+
+var selectedBenchmarkIndex = -1
+var benchMarks = []
+
+var filterState = {
+    "imp-start": true,
+    "ex-start": true,
+    "eq-start": true,
+    "eq-target": true,
+    "gt-target": true,
+    "gt-start": true,
+    "uni-start": true,
+    "lt-target": true,
+    "lt-start": true,
+    "apx-start": true,
+    "timeout": true,
+    "crash": true,
+    "error": true,
+}
+var hideShowCompareDetails = false
+
+// -------------------------------------------------
+// ------ Global State End ----------
+// -------------------------------------------------
+
+function buildCheckboxLabel(classes, text, boolState) {
+    return Element("label", { classList: classes }, [
+        Element("input", { type: "checkbox", checked: boolState }, []),
+        text])
+}
+
+function showTolerance(jsonData, show) {
+    const toleranceInputField = Element("input", {
+        id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
+    }, [])
+    const hidingText = Element("text", {}, [" Hiding: ±"])
+    var unitText
+    if (radioStates[radioStatesIndex] == "time") {
+        unitText = Element("text", {}, ["s"])
+    } else {
+        unitText = Element("text", {}, ["%"])
+    }
+    const submitButton = Element("input", { type: "submit", value: "Update" }, [])
+    submitButton.addEventListener("click", async (e) => {
+        e.preventDefault()
+        filterTolerance = toleranceInputField.value
+        fetchAndUpdate(jsonData)
+    })
+    toleranceInputField.style.display = show ? "inline" : "none"
+    hidingText.style.display = show ? "inline" : "none"
+    unitText.style.display = show ? "inline" : "none"
+    return [hidingText, toleranceInputField, unitText, submitButton]
+}
+
+function buildCompareForm(jsonData) {
+
+    const formName = "compare-form"
+
+    const output = Element("input", {
+        id: "compare-output", type: "radio", checked: radioStates[radioStatesIndex] == "output",
+        name: formName
+    }, [])
+    output.addEventListener("click", async (e) => {
+        radioStatesIndex = 0
+        await fetchAndUpdate(jsonData)
+    })
+
+    const startAccuracy = Element("input", {
+        id: "compare-startAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "startAccuracy",
+        name: formName
+    }, [])
+    startAccuracy.addEventListener("click", async (e) => {
+        radioStatesIndex = 1
+        await fetchAndUpdate(jsonData)
+    })
+
+    const resultAccuracy = Element("input", {
+        id: "compare-resultAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "resultAccuracy",
+        name: formName
+    }, [])
+    resultAccuracy.addEventListener("click", async (e) => {
+        radioStatesIndex = 2
+        await fetchAndUpdate(jsonData)
+    })
+
+    const targetAccuracy = Element("input", {
+        id: "compare-targetAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "targetAccuracy",
+        name: formName
+    }, [])
+    targetAccuracy.addEventListener("click", async (e) => {
+        radioStatesIndex = 3
+        await fetchAndUpdate(jsonData)
+    })
+
+    const time = Element("input", {
+        id: "compare-time", type: "radio", checked: radioStates[radioStatesIndex] == "time",
+        name: formName
+    }, [])
+    time.addEventListener("click", async (e) => {
+        radioStatesIndex = 4
+        await fetchAndUpdate(jsonData)
+    })
+
+    const input = Element("input", {
+        id: "compare-input", value: compareAgainstURL,
+        placeholder: "current report against"
+    }, [])
+
+    var showToleranceBool = false
+    if (radioStates[radioStatesIndex] == "time" ||
+        radioStates[radioStatesIndex] == "targetAccuracy" ||
+        radioStates[radioStatesIndex] == "resultAccuracy" ||
+        radioStates[radioStatesIndex] == "startAccuracy") {
+        showToleranceBool = true
+    }
 
     const navigation = Element("nav", {}, [
         Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
     ])
+    return form
+}
+
+function buildBody(jsonData, otherJsonData, filterFunction) {
 
     function hasNote(note) {
         return (note ? toTitleCase(note) + " " : "") + "Results"
@@ -176,7 +410,81 @@ function storeBenchmarks(tests) {
     }
 }
 
-var filterDetailsState = false
+// HACK I kinda hate this split lambda function, Zane
+function buildRow(test, other) {
+    var row
+    eitherOr(test, other,
+        (function () {
+            var startAccuracy = formatAccuracy(test.start / test.bits)
+            var resultAccuracy = formatAccuracy(test.end / test.bits)
+            var targetAccuracy = formatAccuracy(test.target / test.bits)
+            if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
+                targetAccuracy = ""
+            }
+            if (test.status == "timeout" || test.status == "error") {
+                startAccuracy = ""
+                resultAccuracy = ""
+                targetAccuracy = ""
+            }
+            const tr = Element("tr", { classList: test.status }, [
+                Element("td", {}, [test.name]),
+                Element("td", {}, [startAccuracy]),
+                Element("td", {}, [resultAccuracy]),
+                Element("td", {}, [targetAccuracy]),
+                Element("td", {}, [formatTime(test.time)]),
+                Element("td", {}, [
+                    Element("a", {
+                        href: `${test.link}/graph.html`
+                    }, ["»"])]),
+                Element("td", {}, [
+                    Element("a", {
+                        href: `${test.link}/timeline.html`
+                    }, ["📊"])]),
+            ])
+            // TODO fix bug with cmd/ctrl click.
+            tr.addEventListener("click", () => tr.querySelector("a").click())
+            row = tr
+        })
+        , (function () {
+            function timeTD(test) {
+                var timeDiff = test.time - diffAgainstFields[test.name].time
+                var color = "diff-time-red"
+                var text
+                var titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
+                // Dirty equal less then 1 second
+                var areEqual = false
+                if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
+                    areEqual = true
+                    color = "diff-time-gray"
+                    text = "~"
+                } else if (timeDiff < 0) {
+                    color = "diff-time-green"
+                    text = "+ " + `${formatTime(Math.abs(timeDiff))}`
+                } else {
+                    text = "-" + `${formatTime(timeDiff)}`
+                }
+                return { td: Element("td", { classList: color, title: titleText }, [text]), equal: areEqual }
+            }
+
+            function buildTDfor(o, t) {
+                const op = calculatePercent(o)
+                const tp = calculatePercent(t)
+                var color = "diff-time-red"
+                var diff = op - tp
+                var areEqual = false
+                var titleText = `Original: ${op} vs ${tp}`
+                var tdText = `- ${(diff).toFixed(1)}%`
+                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                    color = "diff-time-gray"
+                    areEqual = true
+                    tdText = "~"
+                } else if (diff < 0) {
+                    diff = Math.abs(diff)
+                    color = "diff-time-green"
+                    tdText = `+ ${(diff).toFixed(1)}%`
+                }
+                return { td: Element("td", { classList: color, title: titleText }, [tdText]), equal: areEqual }
+            }
 
 var compareAgainstURL = ""
 // State for Form radio buttons
@@ -295,22 +603,50 @@ function buildFilters(jsonTestData) {
     }
 
     const dropDown = Element("select", { id: "dropdown" }, dropDownElements)
-
-    dropDown.addEventListener("click", (e) => {
+    dropDown.addEventListener("input", (e) => {
+        const selected = e.target.selectedOptions[0].value
         for (let i in benchMarks) {
-            if (e.target.label != undefined && benchMarks[i].toLowerCase() == e.target.label.toLowerCase()) {
-                selectedBenchmarkIndex = i
-                update(resultsJsonData)
-                return
+            if (selected != undefined) {
+                if (benchMarks[i].toLowerCase() == selected.toLowerCase()) {
+                    selectedBenchmarkIndex = i
+                }
             }
         }
-        selectedBenchmarkIndex = -1
         update(resultsJsonData)
     })
 
-    const details = Element("details", { id: "filters", open: filterDetailsState, classList: "report-details" }, [
+    function setupGroup(name, childStateNames, parent) {
+        parent.addEventListener("click", (e) => {
+            if (e.target.nodeName == "INPUT") {
+                topLevelState[name] = e.target.checked
+                for (let i in childStateNames) {
+                    filterState[childStateNames[i]] = e.target.checked
+                }
+                update(jsonData)
+            }
+        })
+    }
+
+    const regressedTags = ["uni-start", "lt-target", "lt-start",
+        "apx-start", "timeout", "crash", "error"]
+    const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
+        "gt-target", "gt-start"]
+
+    const improvedButton = buildCheckboxLabel("improved", "Improved", topLevelState["improved"])
+    const regressedButton = buildCheckboxLabel("regressed", "Regressed", topLevelState["regressed"])
+
+    setupGroup("improved", improvedTags, improvedButton)
+    setupGroup("regressed", regressedTags, regressedButton)
+
+    const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", topLevelState["pre-processed"])
+    preProcessed.addEventListener("click", (e) => {
+        topLevelState["pre-processed"] = !topLevelState["pre-processed"]
+        update(jsonData)
+    })
+
+    const filters = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, dropDown]), [
+            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown]), [
             filterButtons]])
     details.addEventListener("click", (e) => {
         if (e.target.nodeName == "SUMMARY") {
@@ -326,59 +662,9 @@ function buildCheckboxLabel(classes, text, boolState) {
         text])
 }
 
-function plotXY(testsData) {
-    var filteredTests = []
-    testsData.forEach((test) => {
-        if (filterTest(test)) {
-            filteredTests.push(test)
-        }
-    })
-    const out = Plot.plot({
-        marks: [
-            Plot.line([[0, 0], [1, 1]], { stroke: '#ddd' }),
-            on(Plot.dot(filteredTests, {
-                x: d => 1 - d.start / 64, y: d => 1 - d.end / 64,
-                fill: "#00a", strokeWidth: 2,
-            }), {
-                click: (e, d) => { window.location = d.link + "/graph.html"; },
-            }),
-        ],
-        className: "clickable",
-        marginBottom: 0,
-        marginRight: 0,
-        width: '400',
-        height: '400',
-        x: { nice: true, line: true, tickFormat: "%", },
-        y: { nice: true, line: true, tickFormat: "%", },
-    })
-    out.setAttribute('viewBox', '0 0 420 420')
-    return out;
-}
-
-function plotPareto(jsonData) {
-    const [initial, frontier] = jsonData["merged-cost-accuracy"];
-    const out = Plot.plot({
-        marks: [
-            Plot.dot([initial], {
-                stroke: "#d00",
-                symbol: "square",
-                strokeWidth: 2
-            }),
-            Plot.line(frontier, {
-                stroke: "#00a",
-                strokeWidth: 2,
-            }),
-        ],
-        width: '400',
-        height: '400',
-        x: { line: true, nice: true, tickFormat: c => c + "×" },
-        y: { line: true, nice: true, domain: [0, 1], tickFormat: "%", },
-        marginBottom: 0,
-        marginRight: 0,
-    })
-    out.setAttribute('viewBox', '0 0 420 420')
-    return out;
-}
+function update(jsonData, otherJsonData) {
+    // capture current global filter state
+    const currentFilterFunction = makeFilterFunction()
 
 function filterTest(test) {
     const linkComponents = test.link.split("/")
@@ -393,19 +679,93 @@ function filterTest(test) {
     }
 }
 
-function tableBody(jsonData) {
-    var rows = []
-    for (let test of jsonData.tests) {
-        if (filterTest(test)) {
-            // TODO merge tableRowDiff and tableRow so we only have one code path
-            /* 
-            This should be possible now that tableRowDiff without any diff options checked displays the same view as tableRow
-            */
-            if (diffAgainstFields[test.name] && radioStates[radioStatesIndex] != "noComparison") {
-                const row = tableRowDiff(test)
-                if (!row.equal) {
-                    rows.push(row.tr)
+function filterPreProcess(baseData) {
+    if (topLevelState["pre-processed"]) {
+        if (baseData.preprocess.length > 2) {
+            return true
+        } else {
+            return false
+        }
+    } else {
+        return true
+    }
+}
+
+function makeFilterFunction() {
+    return function filterFunction(baseData, diffData) {
+        var returnValue = true
+        eitherOr(baseData, diffData,
+            (function () {
+                returnValue = returnValue && filterPreProcess(baseData)
+            }),
+            (function () {
+                returnValue = returnValue && filterPreProcess(baseData)
+                // Section to hide diffs that are below the provided tolerance
+                if (hideDirtyEqual) {
+                    // Diff Start Accuracy
+                    if (radioStatesIndex == 1) {
+                        const t = baseData.start / baseData.bits
+                        const o = diffData.start / diffData.bits
+                        const op = calculatePercent(o)
+                        const tp = calculatePercent(t)
+                        var diff = op - tp
+                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                            returnValue = returnValue && false
+                        }
+                    }
+                    // Diff Start Accuracy
+                    if (radioStatesIndex == 1) {
+                        const t = baseData.start / baseData.bits
+                        const o = diffData.start / diffData.bits
+                        const op = calculatePercent(o)
+                        const tp = calculatePercent(t)
+                        var diff = op - tp
+                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                            returnValue = returnValue && false
+                        }
+                    }
+
+                    // Diff Result Accuracy
+                    if (radioStatesIndex == 2) {
+                        const t = baseData.end / baseData.bits
+                        const o = diffData.end / diffData.bits
+                        const op = calculatePercent(o)
+                        const tp = calculatePercent(t)
+                        var diff = op - tp
+                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                            returnValue = returnValue && false
+                        }
+                    }
+
+                    // Diff Target Accuracy
+                    if (radioStatesIndex == 3) {
+                        const t = baseData.target / baseData.bits
+                        const o = diffData.target / diffData.bits
+                        const op = calculatePercent(o)
+                        const tp = calculatePercent(t)
+                        var diff = op - tp
+                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                            returnValue = returnValue && false
+                        }
+                    }
+
+                    // Diff Time
+                    if (radioStatesIndex == 4) {
+                        var timeDiff = baseData.time - diffData.time
+                        if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
+                            returnValue = returnValue && false
+                        }
+                    }
                 }
+            }))
+        const linkComponents = baseData.link.split("/")
+        // guard statement
+        if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
+            // defensive lowerCase
+            const left = benchMarks[selectedBenchmarkIndex].toLowerCase()
+            const right = linkComponents[0].toLowerCase()
+            if (left == right) {
+                returnValue = returnValue && true
             } else {
                 rows.push(tableRow(test))
             }
