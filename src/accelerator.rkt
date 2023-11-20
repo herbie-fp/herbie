@@ -2,12 +2,15 @@
 
 (require
  "common.rkt"
- "programs.rkt"
+ "compiler.rkt"
  "ground-truth.rkt"
  "core/matcher.rkt"
  (submod "syntax/syntax.rkt" internals)
  (submod "syntax/rules.rkt" internals)
  "syntax/types.rkt")
+
+(provide (struct-out accelerator-operator) accelerator-operators
+         register-accelerator-operator! register-accelerator-implementation! desugar-accelerators)
 
 ;; Conceptually, accelerators are strictly implementations of operator ASTs (compositions of real
 ;; operators): we're describing fast versions of e.g. reciprocal square root, not introducing
@@ -21,6 +24,8 @@
 (define accelerator-operators (make-hasheq))
 
 ;; Questions
+;; - What happens after Taylor? Do we need to resugar the accelerators?
+;; - We're going to need to transform the definition into an operator AST? Import problems?
 ;; - Is the type just a symbol or is it bound to something? (I've looked at types but I'm confused) How do you import it?
 
 ;; TODOs
@@ -30,7 +35,6 @@
 ;; - Add def accel declarations to syntax/syntax.rkt
 ;; - Add def accel impl declarations to files in repr/*.rkt
 
-;; TODO: Add the ability to specify extra rules and/or control rule groups?
 (define (register-accelerator-operator!
          name definition variables
          [itypes (make-list (length variables) 'real)] [otype 'real])
@@ -51,14 +55,16 @@
    (list (list define-name definition (list* name variables))))
   (register-ruleset*!
    name
+   ;; TODO: Add 'simplify group here too
    (list 'numerics)
    (map cons variables itypes)
    (list (list undefine-name (list* name variables) definition))))
 
-(define (register-accelerator-implementation! operator name variables
-                                              itypes otype [implementation null])
-  (match-define (accelerator-operator definition _ _ _)
-                    (accelerator-operators operator))
+(define (register-accelerator-implementation! operator name
+                                              itypes otype
+                                              [implementation #f])
+  (match-define (accelerator-operator definition variables _ _)
+                    (dict-ref accelerator-operators operator))
   (register-operator-impl!
    operator
    name
@@ -69,7 +75,9 @@
      'fl 
      (or
       implementation
-      (eval-progs-real (list definition) (context variables otype itypes)))))))
+      (eval-progs-real
+       (list definition)
+       (list (context variables otype itypes))))))))
 
 (define (desugar-accelerators rules expression)
   (match expression
@@ -91,3 +99,12 @@
         (and match (car match)))
       expression*)]
     [_ expression]))
+
+(register-accelerator-operator! 'reciprocal '(/ 1 x) '(x))
+(register-accelerator-implementation! 'reciprocal 'reciprocal.f64 (list (get-representation 'binary64)) (get-representation 'binary64)) 
+(register-accelerator-implementation! 'reciprocal 'reciprocal.f32 (list (get-representation 'binary32)) (get-representation 'binary32)) 
+
+;; 1. Test reciprocal, make sure it is used a lot
+;; 2. Test reciprocal square root, same
+;; 3. FFI actual implementation, check that it doesn't get used as much
+;; 4. Modify cost to make reciprocal cheap, check that it now gets used
