@@ -74,11 +74,10 @@
 ;;      operator
 
 (define (taylor-expr expr var f finv)
-  (define expr* (prog->legacy expr))
-  (define genexpr (approximate expr* var #:transform (cons f finv)))
+  (define genexpr (approximate (prog->spec expr) var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (legacy->prog (genexpr) (*context*)))))
+      (spec->prog (genexpr) (*context*)))))
 
 (define (taylor-alt altn)
   (define expr (alt-expr altn))

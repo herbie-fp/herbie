@@ -1,7 +1,7 @@
 #lang racket
 (require math/bigfloat rival math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
-(require "searchreals.rkt" "programs.rkt" "errors.rkt" "common.rkt"
+(require "searchreals.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
          "syntax/sugar.rkt")
 
@@ -11,7 +11,7 @@
 
 (define (precondition->hyperrects pre ctx)
   ;; FPBench needs unparameterized operators
-  (define range-table (condition->range-table (prog->legacy pre)))
+  (define range-table (condition->range-table (prog->spec pre)))
   (apply cartesian-product
          (for/list ([var-name (context-vars ctx)] [var-repr (context-var-reprs ctx)])
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))

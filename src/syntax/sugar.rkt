@@ -1,8 +1,7 @@
 #lang racket
 
 (require "../errors.rkt" "types.rkt" "syntax.rkt")
-(provide fpcore->prog prog->fpcore prog->legacy legacy->prog
-         fpcore->spec prog->spec)
+(provide fpcore->prog prog->fpcore prog->spec spec->prog)
 
 ;; Herbie uses various IRs.
 ;; All IRs are S-expressions with symbolic operators, variables and numbers.
@@ -43,10 +42,13 @@
 ;; number format. In practice, most operator implemenetations have uniform
 ;; precision with only casts being multi-precision.
 ;;
-;; ## SpecProg ##
+;; ## Spec ##
 ;;
-;; - internal language, real number programs
+;; - internal language, (almost) real-number programs
 ;; - let expressions are inlined
+;; - almost like FPCore exception
+;;   (i) unary negation is `neg`
+;;   (ii) casts are left as-is
 ;;
 ;; <expr> ::= (if <expr> <expr> <expr>)
 ;;        ::= (<op> <expr> ...)
@@ -54,18 +56,12 @@
 ;;        ::= <number>
 ;;
 ;; Every operator takes real numbers and produces a real number output.
-;; This is essentially just FPCore with let expressions inlined and
-;; rounding annotations stripped. Conversion to this IR is irreversible.
+;; Ideally, a specification would be an FPCore with its rounding
+;; annotations completely stripped, but this conversion would be irreversible
+;; for multi-precision expressions due to the removal of casts.
+;; These issues exist for historical reasons and should be removed from Herbie.
+;; Unfortunately, removing it will require refactoring core algorithms.
 ;;
-;; ## LegacyProg ##
-;;
-;; - almost like the Spec IR except:
-;;  (i) unary negation is `neg`
-;;  (ii) casts are left as-is
-;;
-;; Clearly by its name, this IR exists for historical reasons and
-;; should be removed from Herbie. Unfortunately, removing it
-;; will require refactoring core algorithms.
 
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.
@@ -255,28 +251,24 @@
          [_ (if (set-member? '(binary64 binary32) (representation-name repr))
                 (exact->inexact expr)
                 expr)])])))
-       
-;; Translates an ImplProg to an FPCore.
-(define (prog->spec prog)
-  (fpcore->spec (prog->fpcore prog)))
 
-;; Translates an ImplProg to a LegacyProg.
-(define (prog->legacy expr)
+;; Translates an ImplProg to a Spec.
+(define (prog->spec expr)
   (match expr
     [`(if ,cond ,ift ,iff)
-     `(if ,(prog->legacy cond) ,(prog->legacy ift) ,(prog->legacy iff))]
+     `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
     [`(,(? repr-conv? impl) ,body)
-     `(,impl ,(prog->legacy body))]
+     `(,impl ,(prog->spec body))]
     [`(,impl ,args ...)
      (define op (impl->operator impl))
-     (define args* (map prog->legacy args))
+     (define args* (map prog->spec args))
      `(,op ,@args*)]
     [(? variable?) expr]
     [(? number?) expr]))
 
-;; Translates a LegacyProg to an FPCore.
+;; Translates a Spec to an FPCore.
 ;; Most of this is a copy of fpcore->prog but it's slightly different.
-(define (legacy->prog expr ctx)
+(define (spec->prog expr ctx)
   (define-values (expr* _)
     (let loop ([expr (expand-expr expr)] [ctx ctx])
       (match expr

@@ -204,7 +204,7 @@
 
   (let ([egg-graph (make-egraph)])
     (for ([expr extended-expr-list])
-      (define expr* (legacy->prog expr (*context*)))
+      (define expr* (spec->prog expr (*context*)))
       (define egg-expr (expr->egg-expr expr* egg-graph (*context*)))
       (check-equal? (egg-expr->expr (~a egg-expr) egg-graph) expr*))))
 
@@ -274,8 +274,8 @@
            ;; in a given representation is to just try to desguar
            ;; the expression and catch any errors.
            (define name* (sym-append name '_ (representation-name sugar-otype)))
-           (define input* (legacy->prog input sugar-ctx))
-           (define output* (legacy->prog output sugar-ctx))
+           (define input* (spec->prog input sugar-ctx))
+           (define output* (spec->prog output sugar-ctx))
            (when (and (andmap supported? (reprs-in-expr input*))
                       (andmap supported? (reprs-in-expr output*)))
              (sow (rule name* input* output* itypes* otype*))))))]))
