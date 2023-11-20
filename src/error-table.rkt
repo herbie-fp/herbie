@@ -79,7 +79,6 @@
                     (define cond-x (abs (/ larg-val x+y)))
                     (define cond-y (abs (/ rarg-val x+y)))
                     (cond
-                      ;; If R(x - y) underflows and R(x) - R(y) underflows, then skip
                       [(and (= x+y 0.0) (underflow? subexpr)) #f]
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
@@ -93,8 +92,6 @@
                     (define cond-x (abs (/ larg-val x-y)))
                     (define cond-y (abs (/ rarg-val x-y)))
                     (cond
-                      ;; if R(x - y) underflows and R(x) - R(y) underflows:
-                      ;;     then skip
                       [(and (= x-y 0.0) (underflow? subexpr)) #f]
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
@@ -126,8 +123,8 @@
                          (not (= subexpr-val arg-val))
                          (mark-erroneous! subexpr pt))]
                    #|
-                   TODO: remaining cases for which rescuing underflow/overflow can occur
-                   a / b
+                   TODO: remaining cases for which rescuing underflow/overflow
+                   can occur
                    - a overflows and b is large
                    |#
                    [(list '/.f64 x-ex y-ex)
@@ -167,10 +164,9 @@
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
                     (cond
-                      ;; if R(exp(x)) overflows and exp(R(x)) overflows then just skip
                       [(and (overflow? subexpr) (= (exp arg-val) +inf.0))
                        #f]
-                      [(> (exp arg-val) 1e2) (mark-erroneous! subexpr pt)]
+                      [(> arg-val 1e2) (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
                    [(list 'pow.f64 x-ex y-ex)
