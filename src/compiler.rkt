@@ -2,7 +2,7 @@
 
 (require math/bigfloat "rival.rkt")
 (require "syntax/syntax.rkt" "syntax/types.rkt"
-         "common.rkt" "timeline.rkt" "float.rkt")
+         "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
 (provide compile-specs compile-spec compile-progs compile-prog)
 
@@ -35,9 +35,10 @@
               (if (box? (cdar instr))
                   ; this operation has a precision to be calculated under
                   (parameterize ([bf-precision
-                                  (max
-                                   (+ 10 (bf-precision))
-                                   (+ (unbox (cdar instr)) (bf-precision) 10))])
+                                  (min (*max-mpfr-prec*)
+                                       (max
+                                        (+ 10 (bf-precision))
+                                        (+ (unbox (cdar instr)) (bf-precision) 10)))])
                     (vector-set! vregs n (apply (caar instr) srcs)))
                   ; this operation doesn't have a specific precision
                   (vector-set! vregs n (apply (caar instr) srcs)))
@@ -48,18 +49,19 @@
                   ; this trig function has a specific precision it should be computed under
                   ; this trig function is inside another trig function
                   (parameterize ([bf-precision
-                                  (max
-                                   (+ 10 (bf-precision))
-                                   (+ (unbox (second (car instr))) (bf-precision) 10))])
+                                  (min (*max-mpfr-prec*)
+                                       (max
+                                        (+ 10 (bf-precision))
+                                        (+ (unbox (second (car instr))) (bf-precision) 10)))])
                     (let ([result (apply (first (car instr)) srcs)]) ; calculate the result of trig function
-                      (set-box! (third (car instr))
+                      (set-box! (third (car instr)) ; set the exponent of the input to cos/sin/tan instruction
                                 (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
                                      (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))
                       (vector-set! vregs n result)))
 
                   ; this trig function doesn't have a specific precision
                   (let ([result (apply (first (car instr)) srcs)]) ; calculate the result of trig function
-                    (set-box! (third (car instr))
+                    (set-box! (third (car instr)) ; set the exponent of the input to cos/sin/tan instruction
                               (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
                                    (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))
                     (vector-set! vregs n result))))
@@ -107,11 +109,11 @@
           [(list op args ...)
            (if (set-member? '(sin cos tan) op)
                (let ([exponent (box #f)])
-                 (cons (list (op->proc op) prec exponent)
+                 (cons (list (op->proc op) prec exponent) ; we drag the exponent value of input to this op
                        (map munge
                             args
                             (op->itypes op)
-                            (make-list (length args) exponent))))
+                            (make-list (length args) exponent)))) ; and here, so that we can change it quickly using box everywhere
                (cons (list (op->proc op) prec)
                      (map munge
                           args
