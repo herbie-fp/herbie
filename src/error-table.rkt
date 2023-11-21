@@ -79,7 +79,9 @@
                     (define cond-x (abs (/ larg-val x+y)))
                     (define cond-y (abs (/ rarg-val x+y)))
                     (cond
+                      ;; When both underflow
                       [(and (= x+y 0.0) (underflow? subexpr)) #f]
+                      ;; Condition Number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
@@ -89,10 +91,18 @@
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x-y (- larg-val rarg-val))
+                    (eprintf "~a,~a,~a,~a,~a\n"
+                             (car pt)
+                             larg-val
+                             rarg-val
+                             x-y
+                             subexpr-val)
                     (define cond-x (abs (/ larg-val x-y)))
                     (define cond-y (abs (/ rarg-val x-y)))
                     (cond
+                      ;; Both underflow
                       [(and (= x-y 0.0) (underflow? subexpr)) #f]
+                      ;; Condition number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
@@ -138,12 +148,17 @@
                     (define y-uflow? (underflow? y-ex))
                     
                     (cond
+                      ; both underflow
                       [(and (= x/y 0.0) (underflow? subexpr)) #f]
+                      ; both overflow
                       [(and (= (abs x/y) +inf.0) (overflow? subexpr)) #f]
+                      ; x underflows and y rescues it
                       [(and x-uflow? (not (= subexpr-val x)))
                        (mark-erroneous! subexpr pt)]
+                      ; y underflows and x rescues it
                       [(and y-uflow? (not (= (abs subexpr-val) +nan.0)))
                        (mark-erroneous! subexpr pt)]
+                      ; y overflows and x rescues it
                       [(and y-oflow? (not (= (abs subexpr-val) +0.0)))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
@@ -155,7 +170,9 @@
                     (define arg-oflow? (overflow? arg))
                     (define arg-uflow? (underflow? arg))
                     (cond
+                      ; overflow rescue
                       [arg-oflow? (mark-erroneous! subexpr)]
+                      ; underflow rescue
                       [arg-uflow? (mark-erroneous! subexpr)]
                       [(> cond-num 1e2) (mark-erroneous! subexpr pt)]
                       [else #f])]
@@ -164,8 +181,10 @@
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
                     (cond
+                      ; if both overflow skip
                       [(and (overflow? subexpr) (= (exp arg-val) +inf.0))
                        #f]
+                      ; condition number
                       [(> arg-val 1e2) (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
@@ -178,11 +197,15 @@
                     (define cond-y (abs (* y (log x))))
                     
                     (cond
+                      ; skip if x is one
                       [(and (= x 1.0) (= subexpr-val 1.0)) #f]
+                      ; skip if both overflow
                       [(and (overflow? subexpr) (= (abs x^y) +inf.0))
                        #f]
+                      ; skip if both underflow
                       [(and (underflow? subexpr) (= (abs x^y) +0.0))
                        #f]
+                      ; condition number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
