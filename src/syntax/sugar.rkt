@@ -70,14 +70,16 @@
     (match expr
       ; empty let/let* expression
       [`(,(or 'let 'let*) () ,body)
-       (loop body)]
+       (loop body env)]
       ; let* expression
       [`(let* ([,var ,val] ,rest ...) ,body)
        (loop `(let ([,var ,val]) (let* ,rest ,body)) env)]
       ; let expression
       [`(let ([,vars ,vals] ...) ,body)
-       (loop body (for/fold ([env* env]) ([var (in-list vars)] [val (in-list vals)])
-                    (dict-set env* var (loop val env))))]
+       (define env*
+         (for/fold ([env* env]) ([var (in-list vars)] [val (in-list vals)])
+           (dict-set env* var (loop val env))))
+       (loop body env*)]
       ; nullary expressions
       ['(and) '(TRUE)]
       ['(or) '(FALSE)]
@@ -114,8 +116,10 @@
       ; function calls
       [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
        (match-define (list vars _ body) (hash-ref (*functions*) fname))
-       (loop body (for/fold ([env* '()]) ([var (in-list vars)] [arg (in-list args)])
-                    (dict-set env* var (loop arg env))))]
+       (define env*
+         (for/fold ([env* '()]) ([var (in-list vars)] [arg (in-list args)])
+           (dict-set env* var (loop arg env))))
+       (loop body env*)]
       ; applications
       [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
       ; constants
