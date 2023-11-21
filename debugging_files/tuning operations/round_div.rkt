@@ -8,22 +8,22 @@
 (define (random-number)
   (parameterize ([bf-precision 1024])
    (bfacos (bf/
-     (bf- (bfrandom) (bf 0.5))
-     (bf (random-bits (random-integer 1 1000)))))))
+            (bf- (bfrandom) (bf 0.5))
+            (bf (random-bits (random-integer 1 1000)))))))
 
 (define (bf->prec-bf prec x)
   (parameterize ([bf-precision prec] [bf-rounding-mode 'nearest])
     (bf+ x 0.bf)))
 
 (define (define-prec x)
-  (define true-res (parameterize ([bf-precision 100000]) (bfround (bf/ x pi.bf))))
-  (define target-prec (for/list ([i (in-range 53 16000 20)]
+  (define true-res (parameterize ([bf-precision 10000]) (bfround (bf/ x pi.bf))))
+  (define target-prec (for/list ([i (in-range 53 8192 20)]
                                  #:break
                                  (bf=
                                   (parameterize ([bf-precision i] [bf-rounding-mode 'up])
-                                    (bfround (bf/ (bf->prec-bf i x) pi.bf)))
+                                    (bfround (bf/ x pi.bf)))
                                   (parameterize ([bf-precision i] [bf-rounding-mode 'down])
-                                    (bfround (bf/ (bf->prec-bf i x) pi.bf)))
+                                    (bfround (bf/ x pi.bf)))
                                   true-res))
                         i))
   (cond
@@ -38,10 +38,14 @@
   
   (define target-prec (define-prec x))
   (define prediction (max 54 (+ x-exp 25)))
-  (printf "x-sign - pi-sign = ~a\n"
-          (- (bigfloat-significand x)
-             (parameterize ([bf-precision 1024]) (bigfloat-significand pi.bf))))
-  
+  (define diff (- (bigfloat-significand x)
+                  (parameterize ([bf-precision 1024]) (bigfloat-significand pi.bf))))
+  (printf "x-sign - pi-sign = ~a\n" diff)
+  (printf "you need ~a bits\n" (if (> diff 0)
+                                   (- 1024 (fllog2 (fl diff)))
+                                   54))
+          
+          
   ;(printf "x=~a\nx-exp=~a\ntarget-prec=~a\n\n" (bf->prec-bf 24 x) x-exp target-prec)
   (cond
     [(> target-prec prediction)
@@ -61,4 +65,4 @@
   )
 
 (define out-prec 53)
-(for/list ([i (in-range 10)]) (spinner out-prec))
+(for/list ([i (in-range 100)]) (spinner out-prec))

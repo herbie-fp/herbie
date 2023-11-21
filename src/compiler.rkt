@@ -21,10 +21,52 @@
     (for ([arg (in-list args)] [n (in-naturals)])
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
+      
+      ; tail
       (define srcs
         (for/list ([idx (in-list (cdr instr))])
           (vector-ref vregs idx)))
-      (vector-set! vregs n (apply (car instr) srcs)))
+      
+      ; current op
+      (if (list? (car instr))
+          ; it is some operation - not a constant
+          (if (equal? 2 (length (car instr)))
+              ; it is not a trig function
+              (if (box? (cdar instr))
+                  ; this operation has a precision to be calculated under
+                  (parameterize ([bf-precision
+                                  (max
+                                   (+ 10 (bf-precision))
+                                   (+ (unbox (cdar instr)) (bf-precision) 10))])
+                    (vector-set! vregs n (apply (caar instr) srcs)))
+                  ; this operation doesn't have a specific precision
+                  (vector-set! vregs n (apply (caar instr) srcs)))
+              
+              ; It is a trig function because only trig function has 3 arguments
+              ; (sin is-inside-trig-flag exponent-value-of-this-operation)
+              (if (box? (second (car instr)))
+                  ; this trig function has a specific precision it should be computed under
+                  ; this trig function is inside another trig function
+                  (parameterize ([bf-precision
+                                  (max
+                                   (+ 10 (bf-precision))
+                                   (+ (unbox (second (car instr))) (bf-precision) 10))])
+                    (let ([result (apply (first (car instr)) srcs)]) ; calculate the result of trig function
+                      (set-box! (third (car instr))
+                                (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
+                                     (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))
+                      (vector-set! vregs n result)))
+
+                  ; this trig function doesn't have a specific precision
+                  (let ([result (apply (first (car instr)) srcs)]) ; calculate the result of trig function
+                    (set-box! (third (car instr))
+                              (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
+                                   (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))
+                    (vector-set! vregs n result))))
+            
+          ; if it is just a single procedure const
+          (vector-set! vregs n (apply (car instr) srcs))))
+    
     (for/list ([root (in-list roots)])
       (vector-ref vregs root))))
 
@@ -50,18 +92,33 @@
     (define varc (length vars))
 
     ; Translates programs into an instruction sequence
-    (define (munge prog type)
+    (define (munge prog type [prec #f])
       (set! size (+ 1 size))
+      ;(printf "prog=~a\n" prog)
       (define expr
         (match prog
           [(? number?) (list (const (input->value prog type)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list if-proc (munge c cond-type) (munge t type) (munge f type))]
+           (list (list if-proc prec)
+                 (munge c cond-type)
+                 (munge t type)
+                 (munge f type))]
           [(list op args ...)
-           (cons (op->proc op) (map munge args (op->itypes op)))]
-          ;; (cons (operator-info op 'ival) (map munge args))]
+           (if (set-member? '(sin cos tan) op)
+               (let ([exponent (box #f)])
+                 (cons (list (op->proc op) prec exponent)
+                       (map munge
+                            args
+                            (op->itypes op)
+                            (make-list (length args) exponent))))
+               (cons (list (op->proc op) prec)
+                     (map munge
+                          args
+                          (op->itypes op)
+                          (make-list (length args) prec))))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
+      ;(printf "expr=~a\n\n" expr)
       (hash-ref! exprhash expr
                  (λ ()
                    (begin0 (+ exprc varc) ; store in cache, update exprs, exprc

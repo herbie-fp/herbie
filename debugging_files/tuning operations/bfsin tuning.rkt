@@ -51,17 +51,25 @@
     [(empty? target-prec) 24]
     [else (+ (last target-prec) 1)]))
 
-(define (spinner op output-prec)
+(define (spinner output-prec)
   (define x (random-number))
 
   ; x-exp = ((precision x)+(exponent x))
   (define x-exp (+ (bigfloat-exponent x) 8192)) ; here x has precision 8192.
 
-  (define target-prec (define-prec x op output-prec))
+  (define target-prec-sin (define-prec x bfsin output-prec))
+
+  (define (reduce x) (bfround (bf/ x pi.bf)))
+  (define target-prec-reduce (define-prec x reduce output-prec))
   
   (define prediction (max (+ 10 output-prec) (+ x-exp output-prec 10)))
-  
-  (cond
+  (printf "x-exp=~a\ntarget-prec-sin=~a\ntarget-prec-reduction=~a\npred=~a\nabs-diff=~a\n\n"
+             x-exp
+             target-prec-sin
+             target-prec-reduce
+             prediction
+             (abs (- (max target-prec-reduce target-prec-sin) prediction)))
+  #;(cond
     [(> target-prec prediction)
      (printf "x-exp=~a\ntarget-prec=~a\npred=~a\nabs-diff=~a\n\n"
              x-exp
@@ -76,6 +84,6 @@
              (abs (- target-prec prediction)))])
   )
 
-(define (op x) (bfsin x))
-(define output-prec 256)
-(for/list ([i (in-range 100)]) (spinner op output-prec))
+
+(define output-prec 53)
+(for/list ([i (in-range 100)]) (spinner output-prec))
