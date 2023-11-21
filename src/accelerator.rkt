@@ -10,7 +10,7 @@
  "syntax/types.rkt")
 
 (provide (struct-out accelerator-operator) accelerator-operators
-         register-accelerator-operator! register-accelerator-implementation! desugar-accelerators)
+         register-accelerator-operator! register-accelerator-implementation! remove-accelerators)
 
 ;; Conceptually, accelerators are strictly implementations of operator ASTs (compositions of real
 ;; operators): we're describing fast versions of e.g. reciprocal square root, not introducing
@@ -24,9 +24,7 @@
 (define accelerator-operators (make-hasheq))
 
 ;; Questions
-;; - What happens after Taylor? Do we need to resugar the accelerators?
-;; - We're going to need to transform the definition into an operator AST? Import problems?
-;; - Is the type just a symbol or is it bound to something? (I've looked at types but I'm confused) How do you import it?
+;; - When does module code get run? 
 
 ;; TODOs
 ;; - Handle taylor after desugar in taylor code in patch.rkt
@@ -75,14 +73,16 @@
      'fl 
      (or
       implementation
-      (eval-progs-real
-       (list definition)
-       (list (context variables otype itypes))))))))
+      (compose
+       first
+       (eval-progs-real
+        (list definition)
+        (list (context variables otype itypes)))))))))
 
-(define (desugar-accelerators rules expression)
+(define (remove-accelerators rules expression)
   (match expression
     [(list operator operands ...)
-     (define expression* (cons operator (map (curry desugar-accelerators rules) operands)))
+     (define expression* (cons operator (map (curry remove-accelerators rules) operands)))
      ;; No reason to get this list each recursion
      (define undefine-rules
        (filter

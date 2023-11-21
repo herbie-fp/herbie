@@ -67,7 +67,7 @@
   (map first (batch-errors (list expr) pcontext ctx)))
 
 (define ((batch-errors-handler exprs point) e)
-  (raise e)
+  ;; (raise e)
   (eprintf "Error during batch-errors with exprs:\n")
   (for ([expr (in-list exprs)])
     (eprintf "  ~a\n" expr))

@@ -1,7 +1,7 @@
 #lang racket
 
 (require "common.rkt" "errors.rkt" "alternative.rkt" "timeline.rkt"
-         "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt"
+         "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt"
          "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
          "ground-truth.rkt" "preprocess.rkt" "core/alt-table.rkt"
          "core/localize.rkt" "core/simplify.rkt" "core/regimes.rkt"
@@ -320,7 +320,7 @@
   (rollback-improve!)
   (define repr (get-representation precision))
 
-  (define original-points (setup-context! vars (or specification prog) precondition repr))
+  (define original-points (setup-context! vars (prog->spec (or specification prog)) (prog->spec precondition) repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
 (define (run-improve! initial specification context pcontext)

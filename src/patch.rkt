@@ -1,7 +1,8 @@
 #lang racket
 
 (require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
-(require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
+(require "accelerator.rkt" "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
+;; (require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
 (require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "core/egg-herbie.rkt")
 
 (provide
@@ -74,7 +75,8 @@
 ;;      operator
 
 (define (taylor-expr expr var f finv)
-  (define genexpr (approximate (prog->spec expr) var #:transform (cons f finv)))
+  ;; (define genexpr (approximate (prog->spec expr) var #:transform (cons f finv)))
+  (define genexpr (approximate (prog->spec (remove-accelerators (*rules*) expr)) var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
       (spec->prog (genexpr) (*context*)))))

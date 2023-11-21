@@ -11,7 +11,7 @@
 
 (define (precondition->hyperrects pre ctx)
   ;; FPBench needs unparameterized operators
-  (define range-table (condition->range-table (prog->spec pre)))
+  (define range-table (condition->range-table pre))
   (apply cartesian-product
          (for/list ([var-name (context-vars ctx)] [var-repr (context-var-reprs ctx)])
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))

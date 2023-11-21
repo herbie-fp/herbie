@@ -19,6 +19,8 @@
   (define vregs (make-vector vreg-count))
   (λ args
     (for ([arg (in-list args)] [n (in-naturals)])
+      (when (list? arg)
+        (printf "arg ~a is a list, wtf\n" arg))
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
       (define srcs
