@@ -104,6 +104,10 @@
 (register-accelerator-implementation! 'reciprocal 'reciprocal.f64 (list (get-representation 'binary64)) (get-representation 'binary64)) 
 (register-accelerator-implementation! 'reciprocal 'reciprocal.f32 (list (get-representation 'binary32)) (get-representation 'binary32)) 
 
+(register-accelerator-operator! 'reciprocal-sqrt '(/ 1 (sqrt x)) '(x))
+(register-accelerator-implementation! 'reciprocal-sqrt 'reciprocal-sqrt.f64 (list (get-representation 'binary64)) (get-representation 'binary64)) 
+(register-accelerator-implementation! 'reciprocal-sqrt 'reciprocal-sqrt.f32 (list (get-representation 'binary32)) (get-representation 'binary32)) 
+
 ;; 1. Test reciprocal, make sure it is used a lot
 ;; 2. Test reciprocal square root, same
 ;; 3. FFI actual implementation, check that it doesn't get used as much
