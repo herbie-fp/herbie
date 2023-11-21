@@ -91,7 +91,7 @@
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x-y (- larg-val rarg-val))
-                    (eprintf "~a,~a,~a,~a,~a\n"
+                    #;(eprintf "~a,~a,~a,~a,~a\n"
                              (car pt)
                              larg-val
                              rarg-val
@@ -102,6 +102,40 @@
                     (cond
                       ;; Both underflow
                       [(and (= x-y 0.0) (underflow? subexpr)) #f]
+                      #|
+                      NOTE need to specialize this
+
+                      +inf.0 - positive value can only do rescue
+                      -inf.0 - negative value can only do rescue
+                      |#
+                      [(and (= larg-val +inf.0)
+                            (positive? rarg-val)
+                            (not (overflow? subexpr)))
+                       (mark-erroneous! subexpr pt)]
+                      [(and (= larg-val -inf.0)
+                            (negative? rarg-val)
+                            (not (overflow? subexpr)))
+                       (mark-erroneous! subexpr pt)]
+
+                      #|
+                      positive - inf.0 can rescue
+                      negative - -inf.0 can rescue
+                      |#
+                      [(and (= rarg-val +inf.0)
+                            (positive? larg-val)
+                            (not (overflow? subexpr)))
+                       (mark-erroneous! subexpr pt)]
+                      [(and (= rarg-val -inf.0)
+                            (negative? larg-val)
+                            (not (overflow? subexpr)))
+                       (mark-erroneous! subexpr pt)]
+                      
+                      ; y rescues x
+                      #;[(and (overflow? larg) (not (overflow? subexpr)))
+                       (mark-erroneous! subexpr pt)]
+                      ; x rescues y
+                      #;[(and (overflow? rarg) (not (overflow? subexpr)))
+                       (mark-erroneous! subexpr pt)]
                       ;; Condition number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
