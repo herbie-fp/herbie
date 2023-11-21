@@ -21,7 +21,6 @@
     (for ([arg (in-list args)] [n (in-naturals)])
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-      
       ; tail
       (define srcs
         (for/list ([idx (in-list (cdr instr))])
@@ -38,7 +37,7 @@
                                   (min (*max-mpfr-prec*)
                                        (max
                                         (+ 10 (bf-precision))
-                                        (+ (unbox (cdar instr)) (bf-precision) 10)))])
+                                        (+ (if (unbox (cdar instr)) (unbox (cdar instr)) 0) (bf-precision) 10)))])
                     (vector-set! vregs n (apply (caar instr) srcs)))
                   ; this operation doesn't have a specific precision
                   (vector-set! vregs n (apply (caar instr) srcs)))
@@ -52,7 +51,7 @@
                                   (min (*max-mpfr-prec*)
                                        (max
                                         (+ 10 (bf-precision))
-                                        (+ (unbox (second (car instr))) (bf-precision) 10)))])
+                                        (+ (if (unbox (second (car instr))) (unbox (second (car instr))) 0) (bf-precision) 10)))])
                     (let ([result (apply (first (car instr)) srcs)]) ; calculate the result of trig function
                       (set-box! (third (car instr)) ; set the exponent of the input to cos/sin/tan instruction
                                 (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
