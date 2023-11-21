@@ -25,19 +25,20 @@
       (define srcs
         (for/list ([idx (in-list (cdr instr))])
           (vector-ref vregs idx)))
-      
+
+      ;(println instr)
       ; current op
       (if (list? (car instr))
           ; it is some operation - not a constant
           (if (equal? 2 (length (car instr)))
               ; it is not a trig function
-              (if (box? (cdar instr))
+              (if (box? (first (cdar instr)))
                   ; this operation has a precision to be calculated under
                   (parameterize ([bf-precision
                                   (min (*max-mpfr-prec*)
                                        (max
                                         (+ 10 (bf-precision))
-                                        (+ (if (unbox (cdar instr)) (unbox (cdar instr)) 0) (bf-precision) 10)))])
+                                        (+ (if (unbox (first (cdar instr))) (unbox (first (cdar instr))) 0) (bf-precision) 10)))])
                     (vector-set! vregs n (apply (caar instr) srcs)))
                   ; this operation doesn't have a specific precision
                   (vector-set! vregs n (apply (caar instr) srcs)))
@@ -47,6 +48,14 @@
               (if (box? (second (car instr)))
                   ; this trig function has a specific precision it should be computed under
                   ; this trig function is inside another trig function
+                  
+                  ;((cond
+                  ;  [(< (+ 10 (bf-precision))
+                  ;      (+ (if (unbox (first (second (car instr)))) (unbox (first (second (car instr)))) 0) (bf-precision) 10))
+                  ;   (printf "this instruction ~a was tuned to be in ~a bits of prec instead of ~a"
+                  ;           instr
+                  ;           (+ (if (unbox (first (second (car instr)))) (unbox (first (second (car instr)))) 0) (bf-precision) 10)
+                  ;           (bf-precision))])
                   (parameterize ([bf-precision
                                   (min (*max-mpfr-prec*)
                                        (max
