@@ -50,7 +50,7 @@
 (define/contract (operator-info op field)
   (-> symbol? (or/c 'itype 'otype 'fl 'ival) any/c)
   (unless (hash-has-key? operators op)
-    (raise-herbie-missing-error "Unknown operator ~a" op))
+    (error 'operator-info "Unknown operator ~a" op))
   (define accessor
     (match field
       ['itype operator-itype]
@@ -62,7 +62,7 @@
 ;; Panics if the operator is not found.
 (define (operator-all-impls op)
   (unless (hash-has-key? operators op)
-    (raise-herbie-missing-error "Unknown operator ~a" op))
+    (error 'operator-info "Unknown operator ~a" op))
   (hash-ref operators-to-impls op))
 
 ;; Registers an operator with an attribute mapping.
@@ -231,8 +231,7 @@
 (define/contract (impl-info operator field)
   (-> symbol? (or/c 'itype 'otype 'fl) any/c)
   (unless (hash-has-key? operator-impls operator)
-    (error 'impl-info "Unknown operator ~a" operator))
-    ; (raise-herbie-missing-error "Unknown operator ~a" operator))
+    (error 'impl-info "Unknown operator implementation ~a" operator))
   (define accessor
     (match field
       ['itype operator-impl-itype]
@@ -248,7 +247,7 @@
 ;; Panics if the operator is not found.
 (define (impl->operator name)
   (unless (hash-has-key? operator-impls name)
-    (raise-herbie-missing-error "Unknown operator ~a" name))
+    (raise-herbie-missing-error "Unknown operator implementation ~a" name))
   (define impl (hash-ref operator-impls name))
   (operator-name (operator-impl-op impl)))
 
@@ -256,7 +255,7 @@
 ;; Panics if the operator is not found.
 (define (activate-operator-impl! name)
   (unless (hash-has-key? operator-impls name)
-    (raise-herbie-missing-error "Unknown operator ~a" name))
+    (raise-herbie-missing-error "Unknown operator implementation ~a" name))
   (define impl (hash-ref operator-impls name))
   (hash-set! active-operator-impls name impl))
 

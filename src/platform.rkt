@@ -241,16 +241,13 @@
 
 ;; The "precision change" rules valid for a platform
 (define (platform-reprchange-rules pform)
-  ; sort by representation index
-  (define reprs (platform-reprs pform))
-
   ; conversion signatures
   (define as-set (mutable-set))
   (define convs
     (reap [sow]
       (for ([impl (platform-conversions pform)])
-        (match-define (list irepr) (operator-info impl 'itype))
-        (define orepr (operator-info impl 'otype))
+        (match-define (list irepr) (impl-info impl 'itype))
+        (define orepr (impl-info impl 'otype))
         (unless (or (set-member? as-set (cons irepr orepr))
                      (set-member? as-set (cons orepr irepr)))
           (set-add! as-set (cons irepr orepr))
@@ -322,8 +319,8 @@
     (filter
       (λ (impl)
         (and (op-supported? (impl->operator impl))
-             (repr-supported? (operator-info impl 'otype))
-             (andmap repr-supported? (operator-info impl 'itype))))
+             (repr-supported? (impl-info impl 'otype))
+             (andmap repr-supported? (impl-info impl 'itype))))
       (platform-impls pform)))
   (create-platform #f reprs* impls*))
 

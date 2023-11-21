@@ -47,9 +47,9 @@
   (define starting-exprs
     (reap [sow]
       (for ([conv (platform-conversions (*active-platform*))])
-        (match-define (list itype) (operator-info conv 'itype))
+        (match-define (list itype) (impl-info conv 'itype))
         (when (equal? itype (context-repr ctx))
-          (define otype (operator-info conv 'otype))
+          (define otype (impl-info conv 'otype))
           (define expr* (list (get-rewrite-operator otype) (alt-expr altn)))
           (define body* (apply-repr-change-expr expr* ctx))
           (when body* (sow body*))))))

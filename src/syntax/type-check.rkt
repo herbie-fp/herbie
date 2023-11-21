@@ -61,14 +61,14 @@
                op
                (string-join
                  (for/list ([impl all-impls])
-                   (application->string op (operator-info impl 'itype)))
+                   (application->string op (impl-info impl 'itype)))
                  " or "))])]
     [else
      ; active implementations were found
      (error! stx "Invalid arguments to ~a; found ~a, but got ~a" op
              (string-join
                (for/list ([impl active-impls])
-                 (application->string op (operator-info impl 'itype)))
+                 (application->string op (impl-info impl 'itype)))
                " or ")
              (application->string op actual-types))]))
 
@@ -80,7 +80,7 @@
        (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
          (get-parametric-constant x type)))
      (cond
-       [cnst* (operator-info cnst* 'otype)]
+       [cnst* (impl-info cnst* 'otype)]
        [else
         ; implementation not supported so try to report a useful error
         (define active-impls (operator-active-impls x))
@@ -109,7 +109,7 @@
                    x (format "<~a>" (representation-name type))
                    (string-join
                      (for/list ([impl active-impls])
-                       (format "<~a>" (representation-name (operator-info impl 'otype))))
+                       (format "<~a>" (representation-name (impl-info impl 'otype))))
                      " or "))])
         type])]
     [#`,(? variable? x)
