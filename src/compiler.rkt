@@ -37,8 +37,12 @@
                   (parameterize ([bf-precision
                                   (min (*max-mpfr-prec*)
                                        (max
-                                        (+ 10 (bf-precision))
-                                        (+ (if (unbox (first (cdar instr))) (unbox (first (cdar instr))) 0) (bf-precision) 10)))])
+                                        (bf-precision)
+                                        (+ (if (unbox (first (cdar instr)))
+                                               (+ (unbox (first (cdar instr))) (*extra-bits*))
+                                               0)
+                                           (bf-precision))))])
+                    
                     (vector-set! vregs n (apply (caar instr) srcs)))
                   ; this operation doesn't have a specific precision
                   (vector-set! vregs n (apply (caar instr) srcs)))
@@ -59,8 +63,12 @@
                   (parameterize ([bf-precision
                                   (min (*max-mpfr-prec*)
                                        (max
-                                        (+ 10 (bf-precision))
-                                        (+ (if (unbox (second (car instr))) (unbox (second (car instr))) 0) (bf-precision) 10)))])
+                                        (bf-precision)
+                                        (+ (if (unbox (second (car instr)))
+                                               (+ (unbox (second (car instr))) (*extra-bits*))
+                                               0)
+                                           (bf-precision))))])
+                    
                     (let ([result (apply (first (car instr)) srcs)]) ; calculate the result of trig function
                       (set-box! (third (car instr)) ; set the exponent of the input to cos/sin/tan instruction
                                 (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
