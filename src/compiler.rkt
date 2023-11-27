@@ -30,7 +30,6 @@
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
       ; tail
-      
       (define srcs
         (for/list ([idx (in-list (cdr instr))])
           (vector-ref vregs idx)))
@@ -41,7 +40,7 @@
           (if (equal? 2 (length (car instr)))
               ; it is not a trig function
               (if (box? (first (cdar instr)))
-                  ; this operation has a precision to be calculated under
+                  ; this operation has a precision to be calculated under some precision
                   (parameterize ([bf-precision
                                   (min (*max-mpfr-prec*)
                                        (max
@@ -60,14 +59,6 @@
               (if (box? (second (car instr)))
                   ; this trig function has a specific precision it should be computed under
                   ; this trig function is inside another trig function
-                  
-                  ;((cond
-                  ;  [(< (+ 10 (bf-precision))
-                  ;      (+ (if (unbox (first (second (car instr)))) (unbox (first (second (car instr)))) 0) (bf-precision) 10))
-                  ;   (printf "this instruction ~a was tuned to be in ~a bits of prec instead of ~a"
-                  ;           instr
-                  ;           (+ (if (unbox (first (second (car instr)))) (unbox (first (second (car instr)))) 0) (bf-precision) 10)
-                  ;           (bf-precision))])
                   (parameterize ([bf-precision
                                   (min (*max-mpfr-prec*)
                                        (max
@@ -144,7 +135,6 @@
                           (op->itypes op)
                           (make-list (length args) prec))))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
-      ;(printf "expr=~a\n\n" expr)
       (hash-ref! exprhash expr
                  (λ ()
                    (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
