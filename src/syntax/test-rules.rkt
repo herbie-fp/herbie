@@ -3,7 +3,7 @@
 (require rackunit)
 (require "../common.rkt" "../compiler.rkt" "../float.rkt"
          "../ground-truth.rkt" "types.rkt" "../load-plugin.rkt"
-         "rules.rkt" (submod "rules.rkt" internals)
+         "rules.rkt" (submod "rules.rkt" internals) "sugar.rkt"
          (submod "../core/egg-herbie.rkt" internals))
 
 (load-herbie-builtins)

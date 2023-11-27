@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "common.rkt" "multi-command-line.rkt" "errors.rkt" "load-plugin.rkt" "sandbox.rkt")
+(require "accelerator.rkt" "common.rkt" "multi-command-line.rkt" "errors.rkt" "load-plugin.rkt" "sandbox.rkt" "./syntax/types.rkt")
 
 ;; Load all the plugins
 (load-herbie-plugins)
@@ -11,6 +11,10 @@
  ["web/run.rkt" (make-report rerun-report diff-report)]
  ["shell.rkt" (run-shell)]
  ["improve.rkt" (run-improve)])
+
+(register-accelerator-operator! 'reciprocal '(/ 1 x) '(x))
+(register-accelerator-implementation! 'reciprocal 'reciprocal.f64 (list (get-representation 'binary64)) (get-representation 'binary64)) 
+(register-accelerator-implementation! 'reciprocal 'reciprocal.f32 (list (get-representation 'binary32)) (get-representation 'binary32)) 
 
 (define (string->thread-count th)
   (match th
