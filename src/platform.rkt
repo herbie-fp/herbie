@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/hash (for-syntax racket/list racket/match))
+(require racket/hash (for-syntax racket/match))
 (require "common.rkt" "errors.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
          (submod "syntax/syntax.rkt" internals))
@@ -563,8 +563,9 @@
 
 ; Cost model parameterized by a platform
 (define (platform-cost-proc pform)
+  (define costs (platform-costs pform))
   (define (impl-cost impl)
-    (hash-ref pform impl
+    (hash-ref costs impl
               (lambda ()
                 (error 'platform-cost-proc "no cost for ~a" impl))))
   (λ (expr)
@@ -574,4 +575,4 @@
          (+ 1 (loop cond) (max (loop ift) (loop iff)))]
         [(list impl args ...)
          (apply + (impl-cost impl) (map loop args))]
-        [_ 0]))))
+        [_ 1]))))
