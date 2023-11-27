@@ -192,8 +192,9 @@
 ;; Example usage:
 ;; ```
 ;; (define default
-;    (platform
+;;   (platform
 ;;     #:conversions ([binary64 binary32] ...)  ; conversions
+;;     #:default-cost 1                         ; default cost per impl
 ;;     [(bool) (TRUE FALSE)]                    ; constant (0-ary functions)
 ;;     [(bool bool) (not)]                      ; 1-ary function: bool -> bool
 ;;     [(bool bool bool) (and or)]              ; 2-ary function: bool -> bool -> bool
@@ -204,10 +205,8 @@
 ;; ```
 (define-syntax (platform stx)
   (define (oops! why [sub-stx #f])
-    (if sub-stx
-        (raise-syntax-error 'platform why stx sub-stx)
-        (raise-syntax-error 'platform why stx)))
-  (define (go cs es #:optional? [optional? #f])
+    (raise-syntax-error 'platform why stx sub-stx))
+  (define (go cs es optional? default-cost)
     ;; iterate over `cs ...` to get conversion signatures
     (define convs-sigs
       (let loop ([clauses cs] [convs '()])
@@ -218,12 +217,13 @@
              [(in out)
               (let ([in* (syntax->datum #'in)]
                     [out* (syntax->datum #'out)])
+                (unless default-cost
+                  (oops! "#:default-cost required with #:conversions" cs))
                 (loop rest
-                      (list* `(cast (,in* ,out*) 1)
-                             `(cast (,out* ,in*) 1)
+                      (list* (list 'cast (list in* out*) default-cost)
+                             (list 'cast (list out* in*) default-cost)
                              convs)))]
              [_ (oops! "malformed conversion clause" entry)])])))
-
     ;; iterate over `es ...` to get implementation signatures
     (define impl-sigs
       (let loop ([clauses es] [impl-sigs '()])
@@ -231,15 +231,33 @@
           [(null? clauses) impl-sigs]
           [else
            (syntax-case (car clauses) ()
-             [((itype ... otype) (op ...))
-              (begin
-                (define tsig (syntax->datum #'(itype ... otype)))
-                (define ops* (syntax->list #'(op ...)))
+             [((itype ... otype) (op ...) cost)
+              ; multiple implementations with same type sig and cost
+              (let ([tsig (syntax->datum #'(itype ... otype))]
+                    [ops* (syntax->list #'(op ...))])
                 (unless (andmap identifier? ops*)
                   (oops! "expected a list of identifiers" #'(op ...)))
                 (loop (cdr clauses)
                       (for/fold ([impl-sigs impl-sigs]) ([name (in-list ops*)])
-                        (cons (list name tsig 1) impl-sigs))))]
+                        (cons (list name tsig #'cost) impl-sigs))))]
+             [((itype ... otype) (op ...))
+              ; multiple implementations with same type sig and default cost
+              (with-syntax ([cost default-cost])
+                (unless default-cost
+                  (oops! "#:default-cost required" (car clauses)))
+                (loop (cons #'((itype ... otype) (op ...) cost) (cdr clauses)) impl-sigs))]
+             [((itype ... otype) op cost)
+              ; single implementation with cost
+              (let ([tsig (syntax->datum #'(itype ... otype))])
+                (unless (identifier? #'op)
+                  (oops! "expected a list of identifiers" #'op))
+                (loop (cdr clauses) (cons (list #'op tsig #'cost) impl-sigs)))]
+             [((itype ... otype) op)
+              ; single implementation with default cost
+              (with-syntax ([cost default-cost])
+                (unless default-cost
+                  (oops! "#:default-cost required" (car clauses)))
+                (loop (cons #'((itype ... otype) op cost) (cdr clauses)) impl-sigs))]
              [((_ ... _) bad)
               (oops! "expected a list of operators" #'bad)]
              [(bad (_ ...))
@@ -252,14 +270,33 @@
                   [optional? optional?])
       #'(make-platform '(impl-sigs ...) #:optional? optional?)))
   (syntax-case stx ()
-    [(_ #:optional #:conversions (cs ...) es ...)
-     (go (syntax->list #'(cs ...)) (syntax->list #'(es ...)) #:optional? #t)]
-    [(_ #:conversions (cs ...) es ...)
-     (go (syntax->list #'(cs ...)) (syntax->list #'(es ...)))]
-    [(_ es ...)
-     #'(platform #:conversions () es ...)]
-    [_
-     (oops! "bad syntax")]))
+    [(_ cs ...)
+     (begin
+       (define default-cost #f)
+       (define optional? #f)
+       (define conv-sigs '())
+       (define impl-sigs '())
+       (let loop ([clauses #'(cs ...)])
+         (syntax-case clauses ()
+           [(#:optional rest ...)
+            (set! optional? #t)
+            (loop #'(rest ...))]
+           [(#:default-cost cost rest ...)
+            (set! default-cost (syntax->datum #'cost))
+            (loop #'(rest ...))]
+           [(#:default-cost)
+            (oops! "expected cost after keyword" clauses)]
+           [(#:conversions (cs ...) rest ...)
+            (set! conv-sigs (append (syntax->list #'(cs ...)) conv-sigs))
+            (loop #'(rest ...))]
+           [(#:conversions)
+            (oops! "expected conversions after keyword" clauses)]
+           [(sig rest ...)
+            (set! impl-sigs (cons #'sig impl-sigs))
+            (loop #'(rest ...))]
+           [()
+            (go conv-sigs impl-sigs optional? default-cost)])))]
+    [_ (oops! "bad syntax")]))
 
 ;; Representation conversions in a platform.
 (define (platform-conversions pform)
@@ -391,9 +428,7 @@
 ;; Macro version of `make-platform-filter`.
 (define-syntax (platform-filter stx)
   (define (oops! why [sub-stx #f])
-    (if sub-stx
-        (raise-syntax-error 'platform why stx sub-stx)
-        (raise-syntax-error 'platform why stx)))
+    (raise-syntax-error 'platform why stx sub-stx))
   (syntax-case stx ()
     [(_ cs ... pform)
      (let loop ([clauses (syntax->list #'(cs ...))]
@@ -448,41 +483,65 @@
 
 ;; Set of operators: operators are just names with a type signature.
 ;; Platforms may be instantiated from operator sets using `platform-product`.
-(struct operator-set (ops)
+(struct operator-set (ops costs)
         #:name $operator-set
         #:constructor-name make-operator-set)
 
 ;; Constructs an operator set.
 (define-syntax (operator-set stx)
   (define (oops! why [sub-stx #f])
-    (if sub-stx
-        (raise-syntax-error 'operator-set why stx sub-stx)
-        (raise-syntax-error 'operator-set why stx)))
+    (raise-syntax-error 'operator-set why stx sub-stx))
+  (define (go clauses default-cost)
+    (define costs (make-hash))
+    (let loop ([clauses clauses] [op-data '()])
+      (cond
+        [(null? clauses)
+         (with-syntax ([op-data op-data] [costs costs])
+           #'(make-operator-set 'op-data costs))]
+        [else
+         (syntax-case (car clauses) ()
+           [((itype ... otype) (op ...) cost)
+            ; multiple operators with same type signature
+            (let ([tsig (syntax->datum #'(itype ... otype))]
+                  [ops* (syntax->datum #'(op ...))])
+              (unless (andmap symbol? ops*)
+                (oops! "expected a list of identifiers" #'(op ...)))
+              (loop (cdr clauses)
+                    (for/fold ([op-data op-data]) ([o (in-list ops*)])
+                      (hash-set! costs o (syntax->datum #'cost))
+                      (cons (cons o tsig) op-data))))]
+           [((itype ... otype) (op ...))
+            ; multiple operators with same type signature and default cost
+            (with-syntax ([cost default-cost])
+               (unless default-cost
+                 (oops! "#:default-cost required" (car clauses)))
+               (loop (cons #'((itype ... otype) (op ...) cost) (cdr clauses)) op-data))]
+           [((itype ... otype) op cost)
+            ; single operator with cost
+            (let ([tsig (syntax->datum #'(itype ... otype))])
+              (unless (identifier? #'op)
+                (oops! "expected a list of identifiers" #'op))
+              (hash-set! costs (syntax->datum #'op) (syntax->datum #'cost))
+              (loop (cdr clauses) (cons (cons #'op tsig) op-data)))]
+           [((itype ... otype) op)
+            ; single implementation with default cost
+            (with-syntax ([cost default-cost])
+              (unless default-cost
+                (oops! "#:default-cost required" (car clauses)))
+              (loop (cons #'((itype ... otype) op cost) (cdr clauses)) op-data))]
+           [((_ ... _) bad)
+            (oops! "expected a list of operators" #'bad)]
+           [(bad (_ ...))
+            (oops! "expected a type signature" #'bad)]
+           [(_ _)
+            (oops! "malformed entry" (car clauses))]
+           [_
+            (oops! "expected [<signature> <ops>]" (car clauses))])])))
   (syntax-case stx ()
+    [(_ #:default-cost cost es ...)
+     (go (syntax->list #'(es ...)) (syntax->datum #'cost))]
     [(_ es ...)
-     (let loop ([clauses (syntax->list #'(es ...))] [op-data '()])
-       (cond
-         [(null? clauses)
-          (with-syntax ([op-data op-data])
-            #'(make-operator-set 'op-data))]
-         [else
-          (syntax-case (car clauses) ()
-            [((itype ... otype) (op ...))
-             (let ([tsig (syntax->datum #'(itype ... otype))]
-                   [ops* (syntax->datum #'(op ...))])
-               (unless (andmap symbol? ops*)
-                 (oops! "expected a list of identifiers" #'(op ...)))
-               (loop (cdr clauses)
-                     (for/fold ([op-data op-data]) ([o (in-list ops*)])
-                       (cons (cons o tsig) op-data))))]
-            [((itype ... otype) bad)
-             (oops! "expected a list of operators" #'bad)]
-            [(bad (op ...))
-             (oops! "expected a type signature" #'bad)]
-            [(_ _)
-             (oops! "malformed entry" (car clauses))]
-            [_
-             (oops! "expected [<signature> <ops>]" (car clauses))])]))]
+     (go (syntax->list #'(es ...)) #f)]
     [_
      (oops! "bad syntax" stx)]))
 
@@ -534,9 +593,7 @@
 ;; Macro version of `make-platform-product`
 (define-syntax (platform-product stx)
   (define (oops! why [sub-stx #f])
-    (if sub-stx
-        (raise-syntax-error 'platform-product why stx sub-stx)
-        (raise-syntax-error 'platform-product why stx)))
+    (raise-syntax-error 'platform-product why stx sub-stx))
   (define (go cs os #:optional? [optional? #f])
     (let loop ([clauses cs] [type-dict '()])
       (cond
