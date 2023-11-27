@@ -8,6 +8,7 @@
 ; universal boolean opertaions
 (define boolean-platform
   (platform
+    #:conversions ([binary32 binary64])
     [(bool) (TRUE FALSE)]
     [(bool bool) (not)]
     [(bool bool bool) (and or)]))
