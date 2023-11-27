@@ -8,9 +8,9 @@
 ; universal boolean opertaions
 (define boolean-platform
   (platform
-    #:conversions ([binary32 binary64])
+    #:default-cost 1
     [(bool) (TRUE FALSE)]
-    [(bool bool) (not)]
+    [(bool bool) not]
     [(bool bool bool) (and or)]))
 
 ; machine floating-point operations (without conversions)
@@ -19,10 +19,10 @@
     [real (binary64 binary32)]
     [bool (bool)]
     (operator-set
-      [(real) (PI E INFINITY NAN)]
-      [(real real) (neg)]
-      [(real real real) (+ - * /)]
-      [(real real bool) (== != > < >= <=)])))
+      [(real) (PI E INFINITY NAN) 1]
+      [(real real) neg 1]
+      [(real real real) (+ - * /) 1]
+      [(real real bool) (== != > < >= <=) 3])))
 
 ; libm operations
 (define libm-platform
@@ -30,6 +30,7 @@
     #:optional
     [real (binary64 binary32)]
     (operator-set
+      #:default-cost 100
       [(real real)
        (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
         exp exp2 expm1 fabs floor lgamma log log10 log2 log1p logb
