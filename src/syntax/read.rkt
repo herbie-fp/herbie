@@ -146,10 +146,10 @@
         body))
 
   ;; inline and desugar
-  (define body* (desugar-program body ctx))
-  (define pre* (desugar-program (dict-ref prop-dict ':pre 'TRUE) ctx))
-  (define target (desugar-program (dict-ref prop-dict ':herbie-target #f) ctx))
-  (define spec (desugar-program (dict-ref prop-dict ':spec body) ctx))
+  (define body* (fpcore->prog body ctx))
+  (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
+  (define target (fpcore->prog (dict-ref prop-dict ':herbie-target #f) ctx))
+  (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
   (check-weird-variables arg-names)
 
@@ -240,18 +240,18 @@
   (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
   (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
   (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
-  (check-equal? (desugar-program quadp ctx)
+  (check-equal? (fpcore->prog quadp ctx)
                 '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
-  (check-equal? (desugar-program quadm ctx)
+  (check-equal? (fpcore->prog quadm ctx)
                 '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
 
   ;; x^5 = x^3 * x^2
   (register-function! 'sqr (list 'x) repr '(* x x))
   (register-function! 'cube (list 'x) repr '(* x x x))
   (define fifth '(* (cube a) (sqr a)))
-  (check-equal? (desugar-program fifth ctx)
+  (check-equal? (fpcore->prog fifth ctx)
                 '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
 
   ;; casting edge cases
-  (check-equal? (desugar-program `(cast x) ctx) 'x)
-  (check-equal? (desugar-program `(cast (! :precision binary64 x)) ctx) 'x))
+  (check-equal? (fpcore->prog `(cast x) ctx) 'x)
+  (check-equal? (fpcore->prog `(cast (! :precision binary64 x)) ctx) 'x))
