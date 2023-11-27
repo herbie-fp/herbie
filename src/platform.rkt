@@ -197,11 +197,27 @@
         (raise-syntax-error 'platform why stx sub-stx)
         (raise-syntax-error 'platform why stx)))
   (define (go cs es #:optional? [optional? #f])
+    ;; iterate over `cs ...` to get conversion signatures
+    (define convs-sigs
+      (let loop ([clauses cs] [convs '()])
+        (match clauses
+          [(list) convs]
+          [(list entry rest ...)
+           (syntax-case entry ()
+             [(in out)
+              (let ([in* (syntax->datum #'in)]
+                    [out* (syntax->datum #'out)])
+                (loop rest
+                      (list* `(cast (,in* ,out*) 1)
+                             `(cast (,out* ,in*) 1)
+                             convs)))]
+             [_ (oops! "malformed conversion clause" entry)])])))
+
     ;; iterate over `es ...` to get implementation signatures
-    (define sigs
-      (let loop ([clauses es] [sigs '()])
+    (define impl-sigs
+      (let loop ([clauses es] [impl-sigs '()])
         (cond
-          [(null? clauses) sigs]
+          [(null? clauses) impl-sigs]
           [else
            (syntax-case (car clauses) ()
              [((itype ... otype) (op ...))
@@ -211,8 +227,8 @@
                 (unless (andmap identifier? ops*)
                   (oops! "expected a list of identifiers" #'(op ...)))
                 (loop (cdr clauses)
-                      (for/fold ([sigs sigs]) ([name (in-list ops*)])
-                        (cons (list name tsig 1) sigs))))]
+                      (for/fold ([impl-sigs impl-sigs]) ([name (in-list ops*)])
+                        (cons (list name tsig 1) impl-sigs))))]
              [((_ ... _) bad)
               (oops! "expected a list of operators" #'bad)]
              [(bad (_ ...))
@@ -221,8 +237,9 @@
               (oops! "malformed entry" (car clauses))]
              [_
               (oops! "expected [<signature> <ops>]" (car clauses))])])))
-    (with-syntax ([(sigs ...) sigs] [optional? optional?])
-      #'(make-platform '(sigs ...) #:optional? optional?)))
+    (with-syntax ([(impl-sigs ...) (append convs-sigs impl-sigs)]
+                  [optional? optional?])
+      #'(make-platform '(impl-sigs ...) #:optional? optional?)))
   (syntax-case stx ()
     [(_ #:optional #:conversions (cs ...) es ...)
      (go (syntax->list #'(cs ...)) (syntax->list #'(es ...)) #:optional? #t)]
@@ -343,7 +360,7 @@
                                      (or op-filter (const #t)))
                 pform))]
          [(#:representations [reprs ...] rest ...)
-          (let ([reprs* (syntax->list #'(reprs ...))])
+          (begin
             (when repr-filter
               (oops! "cannot set both #:representations and #:not-representations"))
             (loop #'(rest ...)
@@ -352,7 +369,7 @@
                       (set-member? (list->set rs) r))
                   op-filter))]
          [(#:not-representations [reprs ...] rest ...)
-          (let ([reprs* (syntax->list #'(reprs ...))])
+          (begin
             (when repr-filter
               (oops! "cannot set both #:representations and #:not-representations"))
             (loop #'(rest ...)
@@ -361,7 +378,7 @@
                       (not (set-member? (list->set rs) r)))
                   op-filter))]
          [(#:operators [ops ...] rest ...)
-          (let ([ops* (syntax->list #'(ops ...))])
+          (begin
             (when op-filter
               (oops! "cannot set both #:operators and #:not-operators"))
             (loop #'(rest ...)
@@ -370,7 +387,7 @@
                       (define ops* '(ops ...))
                       (set-member? (list->set ops*) r))))]
          [(#:not-operators [ops ...] rest ...)
-          (let ([ops* (syntax->list #'(ops ...))])
+          (begin
             (when op-filter
               (oops! "cannot set both #:operators and #:not-operators"))
             (loop #'(rest ...)
