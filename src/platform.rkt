@@ -1,6 +1,6 @@
 #lang racket
 
-(require (for-syntax racket/list racket/match))
+(require racket/hash (for-syntax racket/list racket/match))
 (require "common.rkt" "errors.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
          (submod "syntax/syntax.rkt" internals))
@@ -21,7 +21,9 @@
     [platform-union (-> platform? platform? ... platform?)]
     [platform-intersect (-> platform? platform? ... platform?)]
     [platform-subtract (-> platform? platform? ... platform?)]
-    [platform-operator-set (-> platform? operator-set?)]))
+    [platform-operator-set (-> platform? operator-set?)]
+    ; Cost model
+    [platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
   (provide platform get-platform register-platform!
@@ -39,7 +41,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name reprs impls)
+(struct platform (name reprs impls costs)
         #:name $platform
         #:constructor-name create-platform
         #:methods gen:custom-write
@@ -105,7 +107,7 @@
 ;; Optional error handler based on a value `optional?`.
 (define-syntax-rule (with-cond-handlers optional? ([pred handle] ...) body ...)
   (if optional?
-      (with-handlers ([pred handle] ...) body ...)
+      (with-handlers ([pred handle] ...) (begin body ...))
       (begin body ...)))
 
 ;; Constructor procedure for platforms.
@@ -129,10 +131,11 @@
             (sow (get-representation repr-name)))))))
   ; load the conversions
   (define missing (mutable-set))
+  (define costs (make-hash))
   (define convs
     (reap [sow]
       (for ([impl-sig (in-list pform)])
-        (match-define (list op tsig _) impl-sig)
+        (match-define (list op tsig cost) impl-sig)
         (match* (op tsig)
           [('cast `(,itype ,otype))
            (define irepr (get-representation itype))
@@ -141,6 +144,7 @@
                                ([exn:fail:user:herbie:missing?
                                  (λ (_) (set-add! missing (list 'cast itype otype)))])
              (for ([impl (in-list (get-conversion-impls irepr orepr))])
+               (hash-set! costs impl cost)
                (sow impl)))]
           [('cast _)
            (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
@@ -149,7 +153,7 @@
   (define impls
     (reap [sow]
       (for ([impl-sig (in-list pform)])
-      (match-define (list name tsig _) impl-sig)
+      (match-define (list name tsig cost) impl-sig)
         (match* (name tsig)
           [('cast _) (void)] ; casts
           [(_ `(,otype)) ; constants
@@ -157,13 +161,17 @@
            (with-cond-handlers optional?
                                ([exn:fail:user:herbie:missing?
                                  (λ (_) (set-add! missing (list name otype)))])
-             (sow (get-parametric-constant name orepr #:all? #t)))]
+             (let ([impl (get-parametric-constant name orepr #:all? #t)])
+               (hash-set! costs impl cost)
+               (sow impl)))]
           [(_ `(,itypes ... ,otype)) ; operators
            (define ireprs (map get-representation itypes))
            (with-cond-handlers optional?
                                ([exn:fail:user:herbie:missing?
                                  (λ (_) (set-add! missing `(op ,name ,@itypes , otype)))])
-             (sow (apply get-parametric-operator name ireprs #:all? #t)))]))))
+             (let ([impl (apply get-parametric-operator name ireprs #:all? #t)])
+               (hash-set! costs impl cost)
+               (sow impl)))]))))
   ; emit warnings if need be
   (unless (set-empty? missing)
     (warn 'platform
@@ -174,7 +182,10 @@
               (format "(~a ~a)" name `(,@itypes ,otype)))
             " ")))
   ; make the platform
-  (create-platform #f reprs (append convs impls)))
+  (create-platform #f
+                   reprs
+                   (append convs impls)
+                   (make-immutable-hash (hash->list costs))))
 
 ;; Macro version of `make-platform`
 ;; 
@@ -304,31 +315,66 @@
   (append prec-rules prec-simplifiers))
 
 ;; Set operations on platforms
-(define ((make-set-operation merge) p1 . ps)
-  (define (combine accessor)
-    (for/fold ([s (accessor p1)]) ([p (in-list ps)])
-      (merge s (accessor p))))
-  (create-platform #f
-                   (combine platform-reprs)
-                   (combine platform-impls)))
+(define (make-set-operation merge-reprs
+                            merge-impls
+                            merge-costs)
+  (lambda (p1 . ps)
+    (define (combine accessor merger)
+      (apply merger (map accessor (cons p1 ps))))
+    (create-platform #f
+                     (combine platform-reprs merge-reprs)
+                     (combine platform-impls merge-impls)
+                     (combine platform-costs merge-costs))))
 
 ;; Set union for platforms.
 ;; Use list operations for deterministic ordering.
 (define platform-union
   (make-set-operation
-    (λ (s1 s2) (remove-duplicates (append s1 s2)))))
+    (λ (rs . rss) (remove-duplicates (apply append rs rss)))
+    (λ (is . iss) (remove-duplicates (apply append is iss)))
+    (λ (cs . css) (apply hash-union
+                         (cons cs css)
+                         #:combine/key (λ (k v1 v2)
+                                         (unless (= v1 v2)
+                                           (error 'platform-union
+                                                  "mismatch in cost model"
+                                                  k v1 v2))
+                                         v1)))))
 
 ;; Set intersection for platforms.
 ;; Use list operations for deterministic ordering.
 (define platform-intersect
   (make-set-operation
-    (λ (s1 s2) (filter (curry set-member? (list->set s2)) s1))))
+    (λ (rs . rss)
+      (for/fold ([rs rs]) ([rs0 (in-list rss)])
+        (filter (curry set-member? (list->set rs0)) rs)))
+    (λ (is . iss)
+      (for/fold ([is is]) ([is0 (in-list iss)])
+        (filter (curry set-member? (list->set is0)) is)))
+    (λ (cs . css)
+      (apply hash-intersect
+             (cons cs css)
+             #:combine/key (λ (k v1 v2)
+                             (unless (= v1 v2)
+                               (error 'platform-intersect
+                                      "mismatch in cost model"
+                                      k v1 v2))
+                             v1)))))
 
 ;; Set subtract for platforms.
 ;; Use list operations for deterministic ordering.       
 (define platform-subtract
   (make-set-operation
-    (λ (s1 s2) (filter-not (curry set-member? (list->set s2)) s1))))
+    (λ (rs . rss)
+      (for/fold ([rs rs]) ([rs0 (in-list rss)])
+        (filter-not (curry set-member? (list->set rs0)) rs)))
+    (λ (is . iss)
+      (for/fold ([is is]) ([is0 (in-list iss)])
+        (filter-not (curry set-member? (list->set is0)) is)))
+    (λ (cs . css)
+      (for/fold ([cs cs]) ([cs0 (in-list css)])
+        (for/hash ([(k v) (in-hash cs)] #:unless (hash-has-key? cs0 k))
+          (values k v))))))
 
 ;; Coarse-grained filters on platforms.
 (define ((make-platform-filter repr-supported? op-supported?) pform)
@@ -514,3 +560,18 @@
      (go (syntax->list #'(cs ...)) #'os #:optional? #t)]
     [(_ cs ... os)
      (go (syntax->list #'(cs ...)) #'os)]))
+
+; Cost model parameterized by a platform
+(define (platform-cost-proc pform)
+  (define (impl-cost impl)
+    (hash-ref pform impl
+              (lambda ()
+                (error 'platform-cost-proc "no cost for ~a" impl))))
+  (λ (expr)
+    (let loop ([expr expr])
+      (match expr
+        [(list 'if cond ift iff)
+         (+ 1 (loop cond) (max (loop ift) (loop iff)))]
+        [(list impl args ...)
+         (apply + (impl-cost impl) (map loop args))]
+        [_ 0]))))
