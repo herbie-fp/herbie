@@ -1,6 +1,6 @@
 #lang racket
 
-(require "cost.rkt" "programs.rkt")
+(require "platform.rkt")
 (provide (struct-out alt) make-alt alt? alt-expr
          alt-add-event *start-prog* *all-alts*
          alt-cost alt-equal? alt-map)
@@ -25,7 +25,7 @@
   (alt (alt-expr altn) event (list altn)))
 
 (define (alt-cost altn repr)
-  (expr-cost (alt-expr altn) repr))
+  ((platform-cost-proc (*active-platform*)) (alt-expr altn)))
 
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))

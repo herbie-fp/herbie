@@ -3,10 +3,10 @@
 (require profile racket/engine json)
 (require "syntax/read.rkt" "syntax/rules.rkt" "syntax/sugar.rkt"
          "syntax/types.rkt" "alternative.rkt" "common.rkt" "conversions.rkt"
-         "cost.rkt" "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
+         "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
          "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
          "compiler.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "core/localize.rkt" "ground-truth.rkt")
+         "core/localize.rkt" "ground-truth.rkt" "platform.rkt")
 
 (provide run-herbie get-table-data unparse-result *reeval-pts* *timeout*
          (struct-out job-result) (struct-out improve-result)
@@ -51,7 +51,7 @@
 
 ;; Given a test, computes the program cost of the input expression
 (define (get-cost test)
-  (expr-cost (test-input test) (test-output-repr test)))
+  ((platform-cost-proc (*active-platform*)) (test-input test)))
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
@@ -291,6 +291,7 @@
   (match status
     ['success
      (match-define (improve-result _ _ start target end _) backend)
+     (define expr-cost (platform-cost-proc (*active-platform*)))
      (define repr (test-output-repr test))
     
      ; starting expr analysis
@@ -298,7 +299,7 @@
      (define start-expr (alt-expr start-alt))
      (define start-train-score (errors-score start-train-errs))
      (define start-test-score (errors-score start-test-errs))
-     (define start-cost (expr-cost start-expr repr))
+     (define start-cost (expr-cost start-expr))
 
      ; target analysis for comparison
      (define target-score (and target (errors-score (alt-analysis-test-errors target))))
@@ -310,7 +311,7 @@
          (values (alt-expr alt)
                  (errors-score train-errors)
                  (errors-score test-errors)
-                 (expr-cost (alt-expr alt) repr))))
+                 (expr-cost (alt-expr alt)))))
 
      ; terribly formatted pareto-optimal frontier
      (define cost&accuracy
