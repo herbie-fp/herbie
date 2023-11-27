@@ -17,22 +17,24 @@
 (define (make-progs-interpreter vars ivec roots)
   (define vreg-count (+ (length vars) (vector-length ivec)))
   (define vregs (make-vector vreg-count))
-  (when (= (bf-precision) (*starting-prec*))
-    (for ([instr (in-vector ivec)])
-      (when (list? (car instr))
-        (when (equal? 3 (length (car instr)))
-          (when (box? (third (car instr)))
-            (set-box! (third (car instr)) #f))))))
+  
   (λ args
+    ;; remove all the exponent values we assigned previously when a new point comes
+    (when (equal? (bf-precision) (*starting-prec*))
+      (for ([instr (in-vector ivec)])
+        (when (list? (car instr))
+          (when (equal? 3 (length (car instr)))
+            (set-box! (third (car instr)) #f)))))
+    
     (for ([arg (in-list args)] [n (in-naturals)])
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
       ; tail
+      
       (define srcs
         (for/list ([idx (in-list (cdr instr))])
           (vector-ref vregs idx)))
 
-      ;(println instr)
       ; current op
       (if (list? (car instr))
           ; it is some operation - not a constant
