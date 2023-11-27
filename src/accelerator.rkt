@@ -23,11 +23,13 @@
 
 (define accelerator-operators (make-hasheq))
 
-;; Questions
-;; - When does module code get run? 
+;; Stages
+;; 1. Test reciprocal, make sure it is used a lot
+;; 2. Test reciprocal square root, same
+;; 3. FFI actual implementation, check that it doesn't get used as much
+;; 4. Modify cost to make reciprocal cheap, check that it now gets used
 
 ;; TODOs
-;; - Handle taylor after desugar in taylor code in patch.rkt
 ;; - Remove any old accelerator stuff in taylor*
 ;; - Write simple macros, copy define-operator
 ;; - Add def accel declarations to syntax/syntax.rkt
@@ -99,12 +101,3 @@
         (and match (car match)))
       expression*)]
     [_ expression]))
-
-(register-accelerator-operator! 'reciprocal '(/ 1 x) '(x))
-(register-accelerator-implementation! 'reciprocal 'reciprocal.f64 (list (get-representation 'binary64)) (get-representation 'binary64)) 
-(register-accelerator-implementation! 'reciprocal 'reciprocal.f32 (list (get-representation 'binary32)) (get-representation 'binary32)) 
-
-;; 1. Test reciprocal, make sure it is used a lot
-;; 2. Test reciprocal square root, same
-;; 3. FFI actual implementation, check that it doesn't get used as much
-;; 4. Modify cost to make reciprocal cheap, check that it now gets used
