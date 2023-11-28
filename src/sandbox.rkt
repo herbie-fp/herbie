@@ -299,7 +299,7 @@
      (define start-expr (alt-expr start-alt))
      (define start-train-score (errors-score start-train-errs))
      (define start-test-score (errors-score start-test-errs))
-     (define start-cost (expr-cost start-expr))
+     (define start-cost (expr-cost start-expr repr))
 
      ; target analysis for comparison
      (define target-score (and target (errors-score (alt-analysis-test-errors target))))
@@ -311,7 +311,7 @@
          (values (alt-expr alt)
                  (errors-score train-errors)
                  (errors-score test-errors)
-                 (expr-cost (alt-expr alt)))))
+                 (expr-cost (alt-expr alt) repr))))
 
      ; terribly formatted pareto-optimal frontier
      (define cost&accuracy
