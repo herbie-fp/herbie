@@ -25,7 +25,8 @@
   (alt (alt-expr altn) event (list altn)))
 
 (define (alt-cost altn repr)
-  ((platform-cost-proc (*active-platform*)) (alt-expr altn)))
+  (define expr-cost (platform-cost-proc (*active-platform*)))
+  (expr-cost (alt-expr altn) repr))
 
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
