@@ -52,6 +52,9 @@
 
 (FPCore (x)
  :name "3frac (problem 3.3.3)"
+ ; Rewrite comes from Hammings textbook. Hamming says to sample large x
+ ; Upper bound the value x otherwise ground truth value is too close to 0
+ :pre (and (> (fabs x) 1) (< (fabs x) 1e100))
  :herbie-target
  (/ 2 (* x (- (* x x) 1)))
 
@@ -72,6 +75,9 @@
 (FPCore (x)
  :name "exp2 (problem 3.3.7)"
  ;:herbie-expected 1.5 ; Fails in single-precision due to regimes threshold
+ :pre (<= (fabs x) 710)
+ ; Bounded x on the extremes  by +/- 710 to avoid sampling infinite outputs
+ ; Target comes from Hamming's textbook, page 46
  :herbie-target
  (* 4 (pow (sinh (/ x 2)) 2))
 
