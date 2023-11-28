@@ -30,6 +30,10 @@
 
 (FPCore (x)
  :name "2cbrt (problem 3.3.4)"
+ :pre (and (<= -1e5 x) (<= x 1e5))
+ :herbie-target
+ (- (cbrt (+ x 1)) (cbrt x))
+
  (- (cbrt (+ x 1)) (cbrt x)))
 
 (FPCore (N)

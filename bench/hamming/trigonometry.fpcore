@@ -57,3 +57,14 @@
  (atan (/ 1 (+ 1 (* N (+ N 1)))))
 
  (- (atan (+ N 1)) (atan N)))
+
+
+(FPCore (x)
+ :name "sintan (problem 3.4.5)"
+ :pre (and (<= -1e5 x) (<= x 1e5))
+ :herbie-target
+ (if (<= (fabs x) 1)
+   (+ -0.5 (/ (* 9 (pow x 2)) 40) (/ (* -27 (pow x 4)) 2800) (/ (* 27 (pow x 6)) 112000))
+   (/ (- x (sin x)) (- x (tan x))))
+ 
+ (/ (- x (sin x)) (- x (tan x))))
