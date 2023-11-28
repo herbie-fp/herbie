@@ -18,9 +18,8 @@
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func pre exprs ctxs)
-  (define specs (map prog->spec (cons pre exprs)))
-  (define fns (compile-specs specs (context-vars (car ctxs))))
-  ; inputs can either be intervals or representation values
+  ; (eprintf "pre ~a, expers ~a, ctxs ~a\n" pre exprs ctxs)
+  (define fns (compile-progs (cons pre exprs) 'ival (car ctxs)))
   (λ inputs
     (define out (apply fns inputs))
     (match-define (list ival-pre ival-bodies ...) out)
