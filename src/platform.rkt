@@ -364,32 +364,59 @@
 
   (append prec-rules prec-simplifiers))
 
-;; Set operations on platforms
-(define (make-set-operation merge-impls merge-costs)
-  (lambda (p1 . ps)
-    (define (combine accessor merger)
-      (apply merger (map accessor (cons p1 ps))))
-    (create-platform #f
-                     (combine platform-reprs merge-impls)
-                     (combine platform-impls merge-impls)
-                     (combine platform-impl-costs merge-costs)
-                     (combine platform-repr-costs merge-costs))))
+;; Merger for costs.
+(define (merge-cost pform-costs key #:optional? [optional? #f])
+  (define costs
+    (for/list ([pform-cost (in-list pform-costs)])
+      (hash-ref pform-cost key #f)))
+  (match (remove-duplicates (filter identity costs))
+    [(list c1 c2 cs ...)
+     (error 'merge-costs
+            "mismatch when combining cost model ~a ~a"
+            key (list* c1 c2 cs))]
+    [(list c1)
+     c1]
+    [(list)
+     (unless optional?
+       (error 'merge-costs
+              "cannot find cost for implementation ~a"
+              key))
+     #f]))
+
+;; Set operations on platforms.
+(define ((make-set-operation merge-impls) p1 . ps)
+  ; apply set operation on impls
+  (define impls (apply merge-impls (map platform-impls (cons p1 ps))))
+  ; valid representations are based on impls
+  (define reprs
+    (remove-duplicates
+      (for/fold ([reprs '()]) ([impl (in-list impls)])
+        (append (cons (impl-info impl 'otype)
+                      (impl-info impl 'itype))
+                reprs))))
+  ; impl costs are based on impls
+  (define pform-impl-costs (map platform-impl-costs (cons p1 ps)))
+  (define impl-costs
+    (for/hash ([impl (in-list impls)])
+      (values impl (merge-cost pform-impl-costs impl))))
+  ; special case for `if`
+  (define if-cost (merge-cost pform-impl-costs 'if #:optional? #t))
+  (when if-cost
+    (set! impl-costs (hash-set impl-costs 'if if-cost)))
+  ; repr costs are based on reprs (may be missing)
+  (define pform-repr-costs (map platform-repr-costs (cons p1 ps)))
+  (define repr-costs (hash))
+  (for/list ([repr (in-list reprs)])
+    (define repr-cost (merge-cost pform-repr-costs repr #:optional? #t))
+    (when repr-cost
+      (set! repr-costs (hash-set repr-costs repr repr-cost))))
+  (create-platform #f reprs impls impl-costs repr-costs))
 
 ;; Set union for platforms.
 ;; Use list operations for deterministic ordering.
 (define platform-union
   (make-set-operation
-    (λ (rs . rss)
-      (remove-duplicates (apply append rs rss)))
-    (λ (cs . css)
-      (apply hash-union
-             (cons cs css)
-             #:combine/key (λ (k v1 v2)
-                             (unless (= v1 v2)
-                               (error 'platform-union
-                                      "mismatch in cost model"
-                                      k v1 v2))
-                             v1)))))
+    (λ (rs . rss) (remove-duplicates (apply append rs rss)))))
 
 ;; Set intersection for platforms.
 ;; Use list operations for deterministic ordering.
@@ -397,16 +424,7 @@
   (make-set-operation
     (λ (rs . rss)
       (for/fold ([rs rs]) ([rs0 (in-list rss)])
-        (filter (curry set-member? (list->set rs0)) rs)))
-    (λ (cs . css)
-      (apply hash-intersect
-             (cons cs css)
-             #:combine/key (λ (k v1 v2)
-                             (unless (= v1 v2)
-                               (error 'platform-intersect
-                                      "mismatch in cost model"
-                                      k v1 v2))
-                             v1)))))
+        (filter (curry set-member? (list->set rs0)) rs)))))
 
 ;; Set subtract for platforms.
 ;; Use list operations for deterministic ordering.       
@@ -414,11 +432,7 @@
   (make-set-operation
     (λ (rs . rss)
       (for/fold ([rs rs]) ([rs0 (in-list rss)])
-        (filter-not (curry set-member? (list->set rs0)) rs)))
-    (λ (cs . css)
-      (for/fold ([cs cs]) ([cs0 (in-list css)])
-        (for/hash ([(k v) (in-hash cs)] #:unless (hash-has-key? cs0 k))
-          (values k v))))))
+        (filter-not (curry set-member? (list->set rs0)) rs)))))
 
 ;; Coarse-grained filters on platforms.
 (define ((make-platform-filter repr-supported? op-supported?) pform)
