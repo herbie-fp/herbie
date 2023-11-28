@@ -91,12 +91,16 @@
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x-y (- larg-val rarg-val))
-                    #;(eprintf "~a,~a,~a,~a,~a\n"
+                    #;(eprintf "~a,~a,~a,~a,~a,~a\n"
+                             subexpr
                              (car pt)
                              larg-val
                              rarg-val
                              x-y
                              subexpr-val)
+                    #;(eprintf "~a,~a\n"
+                             (nan? x-y)
+                             (not (nan? subexpr-val)))
                     (define cond-x (abs (/ larg-val x-y)))
                     (define cond-y (abs (/ rarg-val x-y)))
                     (cond
@@ -108,6 +112,17 @@
                       +inf.0 - positive value can only do rescue
                       -inf.0 - negative value can only do rescue
                       |#
+                      [(and (overflow? larg) (overflow? rarg)
+                            (nan? x-y)
+                            (not (nan? subexpr-val)))
+                       #;(eprintf "here~a,~a,~a,~a,~a,~a\n"
+                             subexpr
+                             (car pt)
+                             larg-val
+                             rarg-val
+                             x-y
+                             subexpr-val)
+                       (mark-erroneous! subexpr pt)]
                       [(and (= larg-val +inf.0)
                             (positive? rarg-val)
                             (not (overflow? subexpr)))
