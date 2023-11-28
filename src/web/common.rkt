@@ -16,7 +16,7 @@
          program->fpcore program->tex render-reproduction js-tex-include)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
-  (define body (resugar-program expr (context-repr ctx) #:full #t))
+  (define body (prog->fpcore expr (context-repr ctx)))
   (if ident
       (list 'FPCore ident (context-vars ctx) body)
       (list 'FPCore (context-vars ctx) body)))
@@ -208,7 +208,7 @@
            ""
            `(div ([id "precondition"])
                  (div ([class "program math"])
-                      "\\[" ,(expr->tex (resugar-program precondition output-repr)) "\\]")))
+                      "\\[" ,(expr->tex (prog->fpcore precondition output-repr)) "\\]")))
       (div ([class "implementation"] [data-language "Math"])
            (div ([class "program math"]) "\\[" ,math-out "\\]"))
       ,@(for/list ([(lang out) (in-dict versions)])
@@ -243,15 +243,15 @@
      (format "  :precision ~s" (representation-name (test-output-repr test)))
      (if (equal? (test-pre test) '(TRUE))
          #f
-         (format "  :pre ~a" (resugar-program (test-pre test) output-repr)))
+         (format "  :pre ~a" (prog->fpcore (test-pre test) output-repr)))
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
      (if (test-output test)
          ;; Extra newlines for clarity
-         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test) output-repr))
+         (format "\n  :herbie-target\n  ~a\n" (prog->fpcore (test-output test) output-repr))
          #f)
-     (format "  ~a)" (resugar-program (test-input test) output-repr))))
+     (format "  ~a)" (prog->fpcore (test-input test) output-repr))))
    "\n"))
 
 (define (format-percent num den)
