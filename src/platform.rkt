@@ -28,8 +28,9 @@
 (module+ internals
   (provide platform get-platform register-platform!
            platform-product platform-union platform-intersect
-           platform-subtract platform-filter operator-set
-           platform-operator-set with-terminal-cost))
+           platform-subtract platform-filter
+           operator-set platform-operator-set
+           with-terminal-cost cost-map))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -570,59 +571,152 @@
     (match-define (list name _ ...) op)
     name))
 
+;; Cost map for operators.
+(struct cost-map (costs default)
+        #:name $cost-map
+        #:constructor-name make-cost-map)
+
+;; Constructs a cost map.
+;; ```
+;; (cost-model
+;;   #:default-cost <cost> ; default value for ops not in the map
+;;   [(<op> ...) <cost>]   ; multiple ops with the same cost
+;;   [<op> <cost>])        ; single op with a cost
+;; ```
+(define-syntax (cost-map stx)
+  (define (oops! why [sub-stx #f])
+    (raise-syntax-error 'cost-map why stx sub-stx))
+  (define (go clauses default-cost)
+    (let loop ([clauses clauses] [costs (hash)])
+      (cond
+        [(null? clauses)
+         (with-syntax ([costs costs] [default-cost default-cost])
+           #'(make-cost-map costs default-cost))]
+        [else
+         (syntax-case (car clauses) ()
+           [((op ...) cost)
+            ; multiple ops with same cost
+            (loop (for/fold ([clauses (cdr clauses)]) ([o (syntax->list #'(op ...))])
+                    (cons (with-syntax ([o o]) #'(o cost)) clauses))
+                  costs)]
+           [(op cost)
+            ; single op with a cost
+            (loop (cdr clauses)
+                  (hash-set costs (syntax->datum #'op) (eval-syntax #'cost)))]
+           [_ (oops! "malformed clause" (car clauses))])])))
+  (syntax-case stx ()
+    [(_ #:default-cost cost cl ...)
+     (go (syntax->list #'(cl ...)) (eval-syntax #'cost))]
+    [(_ #:default-cost)
+     (oops! "missing cost after #:default-cost")]
+    [(_ cl ...)
+     (go (syntax->list #'(cl ...)) #f)]
+    [_
+     (oops! "bad syntax")]))
+
+;; Procedure layer for `platform-product` macro.
+;; Produces the actual platform.
+(define (make-platform-product assigns op-set #:optional? [optional? #f])
+  (define pforms
+    (for/list ([assign (in-list assigns)])
+      (match-define (list type-dict costs) assign)
+      (define op->cost (cost-map-costs costs))
+      (define impls
+        (for/list ([entry (in-list (operator-set-ops op-set))])
+          (match-define (list op itypes ... otype) entry)
+          (define ireprs (map (curry dict-ref type-dict) itypes))
+          (define orepr (dict-ref type-dict otype))
+          (define cost (or (hash-ref op->cost op #f)
+                           (cost-map-default costs)
+                           (error 'make-platform-product "unknown cost for `~a`" op)))
+          `(,op (,@ireprs ,orepr) ,cost)))
+      (make-platform impls #:optional? optional?)))
+  (apply platform-union pforms))
+
+;; Specialized "product" construction of a platform.
+;; Given an operator set, instantiate a set of platform implementations
+;; for each assignment of representations and cost model.
+;; ```
+;; (platform-product
+;;   [([<type> <repr>] ...) <cost-map>]
+;;   ...
+;;   <operator-set>)
+;; ```
+(define-syntax (platform-product stx)
+  (define (oops! why [sub-stx #f])
+    (raise-syntax-error 'platform-product why stx sub-stx))
+  (define (go clauses oset)
+    (let loop ([clauses clauses] [assigns '()])
+      (cond
+        [(null? clauses)
+         (with-syntax ([assigns assigns] [oset oset])
+           #'(make-platform-product `assigns oset))]
+        [else
+         (syntax-case (car clauses) ()
+           [(((type repr) ...) cost-map)
+            (loop (cdr clauses)
+                  (cons #'(((type . repr) ...) ,cost-map) assigns))]
+           [(bad _) (oops! "malformed type assignment" #'bad)]
+           [_ (oops! "malformed clause" (car clauses))])])))
+  (syntax-case stx ()
+    [(_ #:optional cl ... oset) (go (syntax->list #'(cl ...)) #'oset #t)]
+    [(_ cl ... oset) (go (syntax->list #'(cl ...)) #'oset)]
+    [(_) (oops! "missing operator set expression")]
+    [_ (oops! "bad syntax")]))
+
 ;; Also in <herbie>/core/egg-herbie.rkt
-(define (type-combinations types type-dict)
-  (reap [sow]
-    (let loop ([types types] [assigns '()])
-      (match types
-        [(list) (sow assigns)]
-        [(list type rest ...)
-         (for ([repr (dict-ref type-dict type)])
-           (loop rest (cons (cons type repr) assigns)))]))))
+; (define (type-combinations types type-dict)
+;   (reap [sow]
+;     (let loop ([types types] [assigns '()])
+;       (match types
+;         [(list) (sow assigns)]
+;         [(list type rest ...)
+;          (for ([repr (dict-ref type-dict type)])
+;            (loop rest (cons (cons type repr) assigns)))]))))
 
 ;; Specialized "product" construction of a platform.
 ;; Given a map from type to representations, instantiate an operator implementation
 ;; for each valid assignment of representations.
-(define (make-platform-product type-dict op-set #:optional? [optional? #f])
-  (define costs (operator-set-costs op-set))
-  (define impls
-    (for/fold ([impls '()]) ([entry (in-list (operator-set-ops op-set))])
-      (match-define (list op itypes ... otype) entry)
-      (define types (remove-duplicates (cons otype itypes)))
-      (for/fold ([impls impls]) ([assigns (type-combinations types type-dict)])
-        (define orepr (dict-ref assigns otype))
-        (define ireprs (map (curry dict-ref assigns) itypes))
-        (define cost (hash-ref costs op))
-        (cons `(,op (,@ireprs ,orepr) ,cost) impls))))
-  (make-platform impls #:optional? optional?))
+; (define (make-platform-product type-dict op-set #:optional? [optional? #f])
+;   (define costs (operator-set-costs op-set))
+;   (define impls
+;     (for/fold ([impls '()]) ([entry (in-list (operator-set-ops op-set))])
+;       (match-define (list op itypes ... otype) entry)
+;       (define types (remove-duplicates (cons otype itypes)))
+;       (for/fold ([impls impls]) ([assigns (type-combinations types type-dict)])
+;         (define orepr (dict-ref assigns otype))
+;         (define ireprs (map (curry dict-ref assigns) itypes))
+;         (define cost (hash-ref costs op))
+;         (cons `(,op (,@ireprs ,orepr) ,cost) impls))))
+;   (make-platform impls #:optional? optional?))
 
 ;; Macro version of `make-platform-product`
-(define-syntax (platform-product stx)
-  (define (oops! why [sub-stx #f])
-    (raise-syntax-error 'platform-product why stx sub-stx))
-  (define (go cs os #:optional? [optional? #f])
-    (let loop ([clauses cs] [type-dict '()])
-      (cond
-        [(null? clauses)
-         (with-syntax ([type-dict type-dict] [os os])
-           (if optional?
-               #'(make-platform-product 'type-dict os #:optional? #t)
-               #'(make-platform-product 'type-dict os)))]
-        [else
-         (syntax-case (car clauses) ()
-           [(type (repr-names ...))
-            (let ([ty (syntax->datum #'type)]
-                  [rn (syntax->datum #'(repr-names ...))])
-              (loop (cdr clauses) (cons (cons ty rn) type-dict)))]
-           [(_ _)
-            (oops! "expected a list of representations" #'bad)]
-           [_
-            (oops! "expected [<type> (<repr> ...)]" (car clauses))])])))
-  (syntax-case stx ()
-    [(_ #:optional cs ... os)
-     (go (syntax->list #'(cs ...)) #'os #:optional? #t)]
-    [(_ cs ... os)
-     (go (syntax->list #'(cs ...)) #'os)]))
+; (define-syntax (platform-product stx)
+;   (define (oops! why [sub-stx #f])
+;     (raise-syntax-error 'platform-product why stx sub-stx))
+;   (define (go cs os #:optional? [optional? #f])
+;     (let loop ([clauses cs] [type-dict '()])
+;       (cond
+;         [(null? clauses)
+;          (with-syntax ([type-dict type-dict] [os os])
+;            (if optional?
+;                #'(make-platform-product 'type-dict os #:optional? #t)
+;                #'(make-platform-product 'type-dict os)))]
+;         [else
+;          (syntax-case (car clauses) ()
+;            [(type (repr-names ...))
+;             (let ([ty (syntax->datum #'type)]
+;                   [rn (syntax->datum #'(repr-names ...))])
+;               (loop (cdr clauses) (cons (cons ty rn) type-dict)))]
+;            [(_ _)
+;             (oops! "expected a list of representations" #'bad)]
+;            [_
+;             (oops! "expected [<type> (<repr> ...)]" (car clauses))])])))
+;   (syntax-case stx ()
+;     [(_ #:optional cs ... os)
+;      (go (syntax->list #'(cs ...)) #'os #:optional? #t)]
+;     [(_ cs ... os)
+;      (go (syntax->list #'(cs ...)) #'os)]))
 
 ; Updates a cost for terminals.
 ; The cost of a terminal is based on the representation.
