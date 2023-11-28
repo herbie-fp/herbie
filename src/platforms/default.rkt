@@ -30,7 +30,6 @@
          [(neg + - * /) 32]
          [(== != > < >= <=) (* 3 32)])]
       (operator-set
-        #:default-cost 1
         [(real) (PI E INFINITY NAN)]
         [(real real) neg]
         [(real real real) (+ - * /)]
@@ -43,7 +42,6 @@
       [([real binary64]) (cost-map #:default-cost 6400)]
       [([real binary32]) (cost-map #:default-cost 3200)]
       (operator-set
-        #:default-cost 1
         [(real real)
          (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
           exp exp2 expm1 fabs floor lgamma log log10 log2 log1p logb
