@@ -62,7 +62,8 @@
         (ormap identity
                (for/list ([subexpr subexprs-list])
                  (define subexpr-val (hash-ref exacts-hash subexpr))
-                 
+
+                 ;; FIXME use infinite? instead
                  (cond
                    ;; NOTE: need better way to see if a calculation underflowed
                    [(fl= subexpr-val 0.0)
@@ -91,18 +92,9 @@
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x-y (- larg-val rarg-val))
-                    #;(eprintf "~a,~a,~a,~a,~a,~a\n"
-                             subexpr
-                             (car pt)
-                             larg-val
-                             rarg-val
-                             x-y
-                             subexpr-val)
-                    #;(eprintf "~a,~a\n"
-                             (nan? x-y)
-                             (not (nan? subexpr-val)))
                     (define cond-x (abs (/ larg-val x-y)))
                     (define cond-y (abs (/ rarg-val x-y)))
+                    
                     (cond
                       ;; Both underflow
                       [(and (= x-y 0.0) (underflow? subexpr)) #f]
@@ -115,21 +107,17 @@
                       [(and (overflow? larg) (overflow? rarg)
                             (nan? x-y)
                             (not (nan? subexpr-val)))
-                       #;(eprintf "here~a,~a,~a,~a,~a,~a\n"
-                             subexpr
-                             (car pt)
-                             larg-val
-                             rarg-val
-                             x-y
-                             subexpr-val)
+                       (eprintf "nan rescue\n")
                        (mark-erroneous! subexpr pt)]
                       [(and (= larg-val +inf.0)
                             (positive? rarg-val)
                             (not (overflow? subexpr)))
+                       (eprintf "inf +rescue\n")
                        (mark-erroneous! subexpr pt)]
                       [(and (= larg-val -inf.0)
                             (negative? rarg-val)
                             (not (overflow? subexpr)))
+                       (eprintf "-inf rescue\n")
                        (mark-erroneous! subexpr pt)]
 
                       #|
@@ -139,22 +127,19 @@
                       [(and (= rarg-val +inf.0)
                             (positive? larg-val)
                             (not (overflow? subexpr)))
+                       (eprintf "+inf lrescue\n")
                        (mark-erroneous! subexpr pt)]
                       [(and (= rarg-val -inf.0)
                             (negative? larg-val)
                             (not (overflow? subexpr)))
+                       (eprintf "-inf lrescue\n")
                        (mark-erroneous! subexpr pt)]
                       
-                      ; y rescues x
-                      #;[(and (overflow? larg) (not (overflow? subexpr)))
-                       (mark-erroneous! subexpr pt)]
-                      ; x rescues y
-                      #;[(and (overflow? rarg) (not (overflow? subexpr)))
-                       (mark-erroneous! subexpr pt)]
                       ;; Condition number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
+                       (eprintf "highcond\n")
                        (mark-erroneous! subexpr pt)]
-                      [else #f])]
+                      [else (eprintf "no\n")#f])]
                    
                    #|
                    TODO: Make this actually work
@@ -181,6 +166,8 @@
                              (overflow? arg))
                          (not (= subexpr-val arg-val))
                          (mark-erroneous! subexpr pt))]
+                   
+
                    #|
                    TODO: remaining cases for which rescuing underflow/overflow
                    can occur
@@ -194,7 +181,16 @@
                     ;;(define x-oflow? (overflow? x-ex))
                     (define y-oflow? (overflow? y-ex))
                     (define x-uflow? (underflow? x-ex))
+                    (define x-oflow? (overflow? x-ex))
                     (define y-uflow? (underflow? y-ex))
+
+                    (eprintf "~a,~a,~a,~a,~a,~a\n"
+                             subexpr
+                             (car pt)
+                             x
+                             y
+                             x/y
+                             subexpr-val)
                     
                     (cond
                       ; both underflow
@@ -205,10 +201,40 @@
                       [(and x-uflow? (not (= subexpr-val x)))
                        (mark-erroneous! subexpr pt)]
                       ; y underflows and x rescues it
-                      [(and y-uflow? (not (= (abs subexpr-val) +nan.0)))
+                      [(and y-uflow? (not (nan? subexpr-val)))
+                       (mark-erroneous! subexpr pt)]
+                      ; x overflows and y rescues it
+                      [(and x-oflow? (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
                       ; y overflows and x rescues it
                       [(and y-oflow? (not (= (abs subexpr-val) +0.0)))
+                       (mark-erroneous! subexpr pt)]
+                      [else #f])]
+
+                   [(list '*.f64 x-ex y-ex)
+                    #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
+                    (define y-oflow? (overflow? y-ex))
+                    (define x-uflow? (underflow? x-ex))
+                    (define x-oflow? (overflow? x-ex))
+                    (define y-uflow? (underflow? y-ex))
+                    (cond
+                      ; 0 * inf ~ nan, but if they rescue each other, them it should not be nan
+                      [(and x-uflow? y-oflow? (not (nan? subexpr-val)))
+                       (mark-erroneous! subexpr pt)]
+                      ; inf * 0 ~ nan, but if they rescue each other, then it should not be nan
+                      [(and x-oflow? y-uflow? (not (nan? subexpr-val)))
+                       (mark-erroneous! subexpr pt)]
+                      ; x underflows and y is normal, then if x != 0, then error
+                      [(and x-uflow? (not (= (abs subexpr-val) 0.0)))
+                       (mark-erroneous! subexpr pt)]
+                      ; x overflows and y is normal, then if x != inf, then error
+                      [(and x-oflow? (not (infinite? subexpr-val)))
+                       (mark-erroneous! subexpr pt)]
+                      ; x is normal and y underflows, then if x != 0, then error
+                      [(and y-uflow? (not (= (abs subexpr-val) 0.0)))
+                       (mark-erroneous! subexpr pt)]
+                      ; x is normal and y overflows, then if x != inf, then error
+                      [(and y-oflow? (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
