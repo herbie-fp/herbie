@@ -263,6 +263,8 @@
      `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
     [`(,(? repr-conv? impl) ,body)
      `(,impl ,(prog->spec body))]
+    [`(,(? rewrite-repr-op? impl) ,body)
+     `(,impl ,(prog->spec body))]
     [`(,impl ,args ...)
      (define op (impl->operator impl))
      (define args* (map prog->spec args))
@@ -309,6 +311,9 @@
          (match-define (list irepr) (impl-info impl 'itype))
          (define-values (body* _) (loop body (struct-copy context ctx [repr irepr])))
          (values `(,impl ,body*) (impl-info impl 'otype))]
+        [`(,(? rewrite-repr-op? impl) ,body)
+          (define-values (body* repr*) (loop body ctx))
+          (values `(,impl ,body*) repr*)]
         [`(,op ,args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])

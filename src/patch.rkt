@@ -130,8 +130,8 @@
     (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) (^queued^)))
 
     ;; partition the rules
-    (define (reprchange? r) (expr-contains? (rule-output r) rewrite-repr-op?))
-    (define-values (reprchange-rules normal-rules) (partition reprchange? (*rules*)))
+    (define normal-rules (*rules*))
+    (define reprchange-rules (platform-reprchange-rules (*active-platform*)))
 
     ;; get subexprs and locations
     (define real-exprs (map alt-expr real-alts))

@@ -13,7 +13,7 @@
   (load-herbie-builtins))
 
 (provide (struct-out egraph-query) make-egg-query run-egg
-         expand-rules get-canon-rule-name remove-rewrites)
+         rule->impl-rules get-canon-rule-name remove-rewrites)
 
 ;; Imported by `<herbie>/syntax/test-rules.rkt`
 (module+ internals
@@ -581,7 +581,8 @@
   (destroy_egraphiters ptr)
   iteration-data)
 
-;; Cache mapping (name, representations) -> (listof ffi-rules)
+;; Cache mapping (rule, platform) -> (listof expanded-rule)
+;; where expanded-rule is (pairof egg-rule ffi-rule)))
 ;; Rule expansion takes a significant amount of time, so we cache
 ;; Assumes the set of rules, representations, and operator implementations
 ;; are fixed throughout the improvement loop; rules are added and never
@@ -590,8 +591,8 @@
   (λ () (make-hash))
   (λ () (make-hash))
   (λ (cache)
-    (define ffi-rules/rule (hash-values cache))
-    (for ([ffi-rules (in-list ffi-rules/rule)])
+    (for ([(_ entry) (in-hash cache)])
+      (define ffi-rules (map cdr entry))
       (for-each free-ffi-rule ffi-rules))))
 
 ;; Cache mapping name to its canonical rule name
@@ -620,7 +621,7 @@
                    (for/list ([egg-rule (in-list egg-rules)])
                      (define name (rule-name egg-rule))
                      (hash-set! (*canon-names*) name orig-name)
-                     (cons name (make-ffi-rule egg-rule)))))
+                     (cons egg-rule (make-ffi-rule egg-rule)))))
       rules*)))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids const-folding? #:limit [iter-limit #f])
@@ -643,12 +644,11 @@
 
   ;; get rule statistics
   (define rule-apps (make-hash))
-  (for ([(name ffi-rule) (in-dict egg-rules)])
+  (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
     (define count (egraph-get-times-applied egg-graph ffi-rule))
-    (define canon-name (hash-ref (*canon-names*) name))
+    (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
     (hash-update! rule-apps canon-name (curry + count) count))
 
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
-
   iteration-data)
