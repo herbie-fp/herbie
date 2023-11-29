@@ -70,7 +70,9 @@
 (define (same-exponent-with-ulp-distance)
   (parameterize ([bf-precision (*max-prec*)])
     (define x (random-number-high-exponent))
-    (define y (bfstep x (expt 2 (random-integer 1 (*max-prec*)))))
+    (define y (if (zero? (random-integer 0 1))
+                  (bfstep x (expt 2 (random-integer 1 (*max-prec*))))       ; steps forward
+                  (bfstep x (- (expt 2 (random-integer 1 (*max-prec*))))))) ; steps backward
     (values x y)))
 
 ;; ------------------------------------- Precision Definitions ---------------------------------------
@@ -96,7 +98,6 @@
   (cond
     [(empty? target-prec) 24]
     [else (+ (last target-prec) 1)]))
-
 
 ; Function defines input precision of the arguments given output-precision and arguments
 (define (define-input-prec x y op output-prec)
@@ -125,19 +126,21 @@
 ;; -------------------------------------------- Fuzzing ----------------------------------------------
 
 (define (spinner op output-prec [verbose #f])
+  (define output-prec (random-integer 24 4096))  ; random output-precision
+
+  ; Generates two random points which can cause cancellation, but some cases do not cause on purpose
   (define-values (x y)
     (let ([choice (random-integer 1 6)])
       (match choice
-        [1 (one-exp-off-points)]
-        [2 (sin-cancellation-points)]
-        [3 (two-random-points-high-exponents)]
-        [4 (two-random-points-low-exponents)]
-        [5 (high-and-low-exponent-points)]
-        [6 (same-exponent-with-ulp-distance)])))
+        [1 (one-exp-off-points)]                 ; possible cancellation
+        [2 (sin-cancellation-points)]            ; possible cancellation
+        [3 (two-random-points-high-exponents)]   ; no cancellation
+        [4 (two-random-points-low-exponents)]    ; no cancellation
+        [5 (high-and-low-exponent-points)]       ; no cancellation
+        [6 (same-exponent-with-ulp-distance)]))) ; possible cancellation
     
   (define x-exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
   (define y-exp (+ (bigfloat-exponent y) (bigfloat-precision y)))
-
     
   ; Define precision for 'op' that would produce an interval that will be fixed
   (define op-prec (define-output-prec x y op output-prec))
@@ -145,7 +148,7 @@
   ; Define input precision so than the interval will be fixed in output-prec bits of precision
   (define input-prec (define-input-prec x y op output-prec))
     
-  (define op-prediction (+ 10 output-prec)) ; prediction of what the precision should be for op
+  (define op-prediction (+ 20 output-prec)) ; prediction of what the precision should be for op
     
   (define out-exp (parameterize ([bf-precision (*max-prec*)])
                     (abs (+ (bigfloat-exponent (bf- x y)) (*max-prec*)))))
@@ -154,8 +157,7 @@
                                 (+ 20         ; for that output-prec
                                    output-prec
                                    (if (and (>= 1 (abs (- x-exp y-exp)))
-                                            (> x-exp -9220000000000000000)
-                                            (< x-exp 10000000))
+                                            (> x-exp -9220000000000000000))
                                        (abs (+ x-exp out-exp))
                                        0))))
 
@@ -219,6 +221,5 @@
   )
 
 (define op bf-)
-(define output-prec 512) ; Set the output precision the we want the result to be fixed in
 (define verbose #f)
-(for/list ([i (in-range 1000)]) (spinner op output-prec verbose))
+(for/list ([i (in-range 10000)]) (spinner op verbose))
