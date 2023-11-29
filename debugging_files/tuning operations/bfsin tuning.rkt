@@ -85,5 +85,5 @@
   )
 
 
-(define output-prec 53)
+(define output-prec 256)
 (for/list ([i (in-range 100)]) (spinner output-prec))

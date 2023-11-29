@@ -26,6 +26,7 @@
           (when (equal? 3 (length (car instr)))
             (set-box! (third (car instr)) #f)))))
     
+    
     (for ([arg (in-list args)] [n (in-naturals)])
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
@@ -40,7 +41,7 @@
           (if (equal? 2 (length (car instr)))
               ; it is not a trig function
               (if (box? (first (cdar instr)))
-                  ; this operation has a precision to be calculated under some precision
+                  ; this operation has a precision to be calculated under
                   (parameterize ([bf-precision
                                   (min (*max-mpfr-prec*)
                                        (max
