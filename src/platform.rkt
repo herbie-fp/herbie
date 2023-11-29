@@ -642,12 +642,14 @@
 (define-syntax (platform-product stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'platform-product why stx sub-stx))
-  (define (go clauses oset)
+  (define (go clauses oset optional?)
     (let loop ([clauses clauses] [assigns '()])
       (cond
         [(null? clauses)
-         (with-syntax ([assigns assigns] [oset oset])
-           #'(make-platform-product `assigns oset))]
+         (with-syntax ([assigns assigns]
+                       [oset oset]
+                       [optional? optional?])
+           #'(make-platform-product `assigns oset #:optional? optional?))]
         [else
          (syntax-case (car clauses) ()
            [(((type repr) ...) cost-map)
@@ -657,7 +659,7 @@
            [_ (oops! "malformed clause" (car clauses))])])))
   (syntax-case stx ()
     [(_ #:optional cl ... oset) (go (syntax->list #'(cl ...)) #'oset #t)]
-    [(_ cl ... oset) (go (syntax->list #'(cl ...)) #'oset)]
+    [(_ cl ... oset) (go (syntax->list #'(cl ...)) #'oset #f)]
     [(_) (oops! "missing operator set expression")]
     [_ (oops! "bad syntax")]))
 

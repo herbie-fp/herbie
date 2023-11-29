@@ -39,6 +39,7 @@
 (define libm-platform
   (with-terminal-cost ([binary64 64] [binary32 32])
     (platform-product
+      #:optional
       [([real binary64]) (cost-map #:default-cost 6400)]
       [([real binary32]) (cost-map #:default-cost 3200)]
       (operator-set
