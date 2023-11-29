@@ -5,42 +5,52 @@
 ; that at a very large value cause cancellation and need to be rewritten to ensure floating point accuracy based on
 ; their nature of expression (more in specific detail below).
 
-; Almost all expressions follow this precondition : -10000 <= x <= 10000 and 1e-16 * (abs x) < eps < (abs x)
+; Almost all expressions follow this precondition : -1e4 <= x <= 1e4 and 1e-16 * (abs x) < eps < (abs x)
 ; Our reasoning for this stems from Hamming's explanation that eps is small with respect to x, hence for 
 ; getting the highest accuracy we are bounding it's lowest value to be 1e-16 times (abs x). We don't
-; query anything below because we don't want (x+eps) ~ x. And we also want relevant values of x that would be usable
-; for most trigonometric queries
+; query anything below because we don't want (x+eps) ~ x. And we also want values of x that would be usable
+; and relevant for most trigonometric queries as well as those that are the most sampled in HErbie
 
 
 ; 2sin involves the difference of two sine functions. According to the sum-to-product trigonometric identity,
 ; the target for this benchmark can apply the identity (- (sin x) (sin y)) = (* 2 (cos (/ (+ x y) 2)) (sin (/ (- x y) 2)))
 (FPCore (x eps)
   :name "2sin (example 3.3)"
-  :pre (and (<= -10000 x) (<= x 10000) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
+  :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
   :herbie-target
   (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
  
   (- (sin (+ x eps)) (sin x)))
 
 
+; 2cos involves the difference of two cos functions. According to the sum-to-product trigonometric identity,
+; the target for this benchmark can apply the identity (- (cos x) (cos y)) = (* 2 (sin (/ (+ x y) 2)) (sin (/ (- x y) 2)))
 (FPCore (x eps)
  :name "2cos (problem 3.3.5)"
- :pre (and (<= -10000 x) (<= x 10000) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
+ :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
  :herbie-target
  (* -2 (sin (+ x (/ eps 2))) (sin (/ eps 2)))
 
  (- (cos (+ x eps)) (cos x)))
 
 
+; 2tan involves the difference of two tan functions. A slightly more intuitive proof, this involves
+; converting the two tan into (- (/ (sin (+ x eps) (cos (+ x eps)))) (/ (sin x) (cos x))). After cross
+; multiplying we get the massive formula (/ (- (* (sin (+ x eps)) (cos x)) (* (sin x) (cos (+ x eps)))) (* (cos (+ x eps)) (cos x)))
+; Fortunately, the numerator is just an expansion of the identity sin(a-b) where a = x+eps and b = x.
+; Hence, we can simply use that identity to craft the numerator and leaving the denominator as is.
 (FPCore (x eps)
  :name "2tan (problem 3.3.2)"
- :pre (and (<= -10000 x) (<= x 10000) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
+ :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
  :herbie-target
  (/ (sin eps) (* (cos x) (cos (+ x eps))))
 
  (- (tan (+ x eps)) (tan x)))
 
-
+; This is directly taken from the Hamming textbook but this is a direct identity of the trig half identity
+; for tan, and we completely remove any trace of a subtraction using this, fulfilling our goal.
+; As a result, we can query any value of x from -infinity to +infinity as we eliminated any cause
+; of the error using this rewrite.
 (FPCore (x)
  :name "tanhf (example 3.4)"
  :pre (and (<= (- INFINITY) x) (<= x INFINITY))
@@ -50,6 +60,9 @@
  (/ (- 1 (cos x)) (sin x)))
 
 
+; Noting the difference in the variable name, N is actually a large N. Hence, we are changing our precondition
+; definition by including all values of N till 1e+100. 
+; For the rewrite, we use the trigonometric identity, (- (atan x) (atan y)) = (atan (/ (- x y) (+ 1 (* x y))))
 (FPCore (N)
  :name "2atan (example 3.5)"
  :pre (and (> N 1) (< N 1e+100))
@@ -59,6 +72,14 @@
  (- (atan (+ N 1)) (atan N)))
 
 
+; This is a slightly unique rewrite because it involves two different trigonometric functions that don't have
+; a direct rewrite. Moreover, Hamming gave this as an exercise with no real hint on how to approach this.
+; Hence, we resort to the Taylor series of this identity where the rewrite for all values for (<= (fabs x) 1)
+; rewrites to a Taylor series otherwise the general identity works great enough.
+; The reason for this is because when x is in the vicinity of 0, both the numerator and denominator have A
+; a lot of error according to the sampling, either possibly because of underflow and/or because x ~ (sin x) ~ (tan x).
+; Hence, the Taylor series until the 6-th power is chosen to not prevent too much of computation power while giving
+; the best answer for that range. For all other values, the orginal identity works well. 
 (FPCore (x)
  :name "sintan (problem 3.4.5)"
  :pre (and (<= -1e5 x) (<= x 1e5))

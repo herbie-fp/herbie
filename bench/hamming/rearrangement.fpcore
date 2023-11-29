@@ -36,6 +36,17 @@
 
  (- (cbrt (+ x 1)) (cbrt x)))
 
+; This is a slightly unique rewrite because it involves the use of Taylor series, as Hamming gave this as an
+; exercise with no real hint on how to approach this.
+; For the precondition we want large values of N as described by Hamming. Hence, we chose the range for reasonable
+; values for which this could be queried and have relevant sampling and still being described as a large enough N.
+; Talking about the else case first, thsi is simply a log-rewrite  which is (log(/ a b)) = (- (log a) (log b))
+; with N being cancelled in the numerator and denominator.
+; Now for the reason for the if-case and the 1e+3 value is because while on sampling in Herbie reports and Odyssey,
+; the sampled values for this equation is extremely inaccurate after this range. There could be a possible overflow or 
+; another reason but we have consistently noted that this exists. Hence, we chose the next best case
+; which is a Taylor series until the 4-th power, preventing too much of computation power while giving
+; the best answer for that range.
 (FPCore (N)
  :name "2log (problem 3.3.6)"
  :pre (and (> N 1) (< N 1e+40))
