@@ -696,14 +696,19 @@
               (lambda ()
                 (error 'platform-cost-proc "no cost for repr ~a" repr))))
   (λ (expr repr)
-    (let loop ([expr expr] [repr repr])
-      (match expr
-        [(list 'if cond ift iff)
-         (+ (impl->cost 'if)
-            (loop cond (get-representation 'bool))
-            (max (loop ift repr) (loop iff repr)))]
-        [(list impl args ...)
-         (define itypes (impl-info impl 'itype))
-         (apply + (impl->cost impl) (map loop args itypes))]
-        [_
-         (repr->cost repr)]))))
+    (define cost
+      (let loop ([expr expr] [repr repr])
+        (match expr
+          [(list 'if cond ift iff)
+           (+ (impl->cost 'if)
+              (loop cond (get-representation 'bool))
+              (max (loop ift repr) (loop iff repr)))]
+          [(list impl args ...)
+           (define itypes (impl-info impl 'itype))
+           (apply + (impl->cost impl) (map loop args itypes))]
+          [_
+           (repr->cost repr)])))
+    (match cost
+      [(? exact?) (exact->inexact cost)]
+      [_ cost])))
+  
