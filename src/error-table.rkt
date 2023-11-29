@@ -30,6 +30,9 @@
       (values key (map cdr group)))))
 
 (define is-inexact? list?)
+(define (same-sign? a b)
+  (or (and (positive? a) (positive? b))
+      (and (negative? a) (negative? b))))
  
 (define (predicted-errors expr ctx pctx)
   (define subexprs
@@ -61,7 +64,7 @@
     (unless
         (ormap identity
                (for/list ([subexpr subexprs-list])
-                 (define subexpr-val (hash-ref exacts-hash subexpr))
+			 (define subexpr-val (hash-ref exacts-hash subexpr))
 
                  ;; FIXME use infinite? instead
                  (cond
@@ -79,9 +82,54 @@
                     (define x+y (+ larg-val rarg-val))
                     (define cond-x (abs (/ larg-val x+y)))
                     (define cond-y (abs (/ rarg-val x+y)))
+                    
                     (cond
                       ;; When both underflow
                       [(and (= x+y 0.0) (underflow? subexpr)) #f]
+
+                      ; x and y both overflow, but the result should be inf not nan
+                      [(and (infinite? larg-val)
+                            (infinite? rarg-val)
+                            (not (same-sign? larg-val rarg-val))
+                            (not (nan? subexpr-val)))
+                       (mark-erroneous! subexpr pt)]
+
+                      #|
+                      NOTE: could collapse all of these 4 conditions into one
+                      |#
+                      [(and (or (infinite? larg-val)
+                                (infinite? rarg-val))
+                            (not (infinite? subexpr-val)))
+                       (mark-erroneous! subexpr pt)]
+                      #|
+                      ; inf + neg can rescue
+                      [(and (= larg-val +inf.0)
+                            (negative? rarg-val)
+                            (not (infinite? subexpr-val)))
+                       (eprintf "pin\n")
+                       (mark-erroneous! subexpr pt)]
+
+                      ; -inf + pos
+                      [(and (= larg-val -inf.0)
+                            (positive? rarg-val)
+                            (not (infinite? subexpr-val)))
+                       (eprintf "nip\n")
+                       (mark-erroneous! subexpr pt)]
+
+                      ; neg + inf
+                      [(and (= rarg-val +inf.0)
+                            (negative? larg-val)
+                            (not (infinite? subexpr-val)))
+                       (eprintf "npi\n")
+                       (mark-erroneous! subexpr pt)]
+
+                      ; pos + -inf
+                      [(and (= rarg-val -inf.0)
+                            (positive? larg-val)
+                            (not (infinite? subexpr-val)))
+                       (eprintf "pni\n")
+                       (mark-erroneous! subexpr pt)] |#
+                      
                       ;; Condition Number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
@@ -96,50 +144,49 @@
                     (define cond-y (abs (/ rarg-val x-y)))
                     
                     (cond
-                      ;; Both underflow
+                      ; Both underflow (I forgot why I am doing this ;-;)
                       [(and (= x-y 0.0) (underflow? subexpr)) #f]
-                      #|
-                      NOTE need to specialize this
 
-                      +inf.0 - positive value can only do rescue
-                      -inf.0 - negative value can only do rescue
-                      |#
-                      [(and (overflow? larg) (overflow? rarg)
-                            (nan? x-y)
+                      ; x and y both overflow, then I should get a inf not a nan
+                      [(and (overflow? larg)
+                            (overflow? rarg)
+			    (same-sign? larg-val rarg-val)
                             (not (nan? subexpr-val)))
-                       (eprintf "nan rescue\n")
                        (mark-erroneous! subexpr pt)]
+
+		      [(and (or (infinite? larg-val)
+                                (infinite? rarg-val))
+                            (not (infinite? subexpr-val)))
+                       (mark-erroneous! subexpr pt)]
+		      #|
+                      ; inf - pos can rescue infinity
                       [(and (= larg-val +inf.0)
                             (positive? rarg-val)
                             (not (overflow? subexpr)))
-                       (eprintf "inf +rescue\n")
                        (mark-erroneous! subexpr pt)]
+
+                      ; -inf - neg can rescue infinity
                       [(and (= larg-val -inf.0)
                             (negative? rarg-val)
                             (not (overflow? subexpr)))
-                       (eprintf "-inf rescue\n")
                        (mark-erroneous! subexpr pt)]
 
-                      #|
-                      positive - inf.0 can rescue
-                      negative - -inf.0 can rescue
-                      |#
+                      ; pos - +inf can rescue infinity
                       [(and (= rarg-val +inf.0)
                             (positive? larg-val)
                             (not (overflow? subexpr)))
-                       (eprintf "+inf lrescue\n")
                        (mark-erroneous! subexpr pt)]
+
+                      ; neg - -inf can rescue infinity
                       [(and (= rarg-val -inf.0)
                             (negative? larg-val)
                             (not (overflow? subexpr)))
-                       (eprintf "-inf lrescue\n")
-                       (mark-erroneous! subexpr pt)]
+                       (mark-erroneous! subexpr pt)] |#
                       
-                      ;; Condition number
+                      ; Condition number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
-                       (eprintf "highcond\n")
                        (mark-erroneous! subexpr pt)]
-                      [else (eprintf "no\n")#f])]
+                      [else #f])]
                    
                    #|
                    TODO: Make this actually work
@@ -183,14 +230,6 @@
                     (define x-uflow? (underflow? x-ex))
                     (define x-oflow? (overflow? x-ex))
                     (define y-uflow? (underflow? y-ex))
-
-                    (eprintf "~a,~a,~a,~a,~a,~a\n"
-                             subexpr
-                             (car pt)
-                             x
-                             y
-                             x/y
-                             subexpr-val)
                     
                     (cond
                       ; both underflow
