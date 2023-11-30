@@ -75,6 +75,23 @@
                   (bfstep x (- (expt 2 (random-integer 1 (*max-prec*))))))) ; steps backward
     (values x y)))
 
+; Creates two points with exponent distance from 2 up to 30 and a random mantissa shift
+(define (few-exponents-distance)
+  (parameterize ([bf-precision (*max-prec*)])
+    (define exponent (random-integer -1000 1000))
+    (define x (bfstep
+               (bfexpt 2.bf (bf exponent))
+               (- (expt 2 (random-integer 1 (*max-prec*))))))
+  
+    (define y (if (zero? (random-integer 0 1))
+                  (bfstep
+                   (bfexpt 2.bf (bf (+ exponent (random-integer 2 30))))  ; exponent shift forward
+                           (expt 2 (random-integer 1 (*max-prec*))))      ; random mantissa shift
+                  (bfstep
+                   (bfexpt 2.bf (bf (- exponent (random-integer 2 30))))  ; exponent shift backward
+                           (expt 2 (random-integer 1 (*max-prec*))))))    ; random mantissa shift
+    (values x y)))
+      
 ;; ------------------------------------- Precision Definitions ---------------------------------------
 ; Function defines precision for the operation so that the result will be fixed
 ;   Given operation and the output-precision in which the result should be fixed
@@ -130,14 +147,15 @@
 
   ; Generates two random points which can cause cancellation, but some cases do not cause on purpose
   (define-values (x y)
-    (let ([choice (random-integer 1 6)])
+    (let ([choice (random-integer 1 4)])
       (match choice
         [1 (one-exp-off-points)]                 ; possible cancellation
         [2 (sin-cancellation-points)]            ; possible cancellation
-        [3 (two-random-points-high-exponents)]   ; no cancellation
-        [4 (two-random-points-low-exponents)]    ; no cancellation
-        [5 (high-and-low-exponent-points)]       ; no cancellation
-        [6 (same-exponent-with-ulp-distance)]))) ; possible cancellation
+        ;[3 (two-random-points-high-exponents)]   ; no cancellation
+        ;[4 (two-random-points-low-exponents)]    ; no cancellation
+        ;[5 (high-and-low-exponent-points)]       ; no cancellation
+        [3 (same-exponent-with-ulp-distance)]    ; possible cancellation
+        [4 (few-exponents-distance)])))          ; weird case, some points crash the algorithm
     
   (define x-exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
   (define y-exp (+ (bigfloat-exponent y) (bigfloat-precision y)))
@@ -157,8 +175,8 @@
                                 (+ 20         ; for that output-prec
                                    output-prec
                                    (if (and (>= 1 (abs (- x-exp y-exp)))
-                                            (> x-exp -9220000000000000000))
-                                       (abs (+ x-exp out-exp))
+                                            (> x-exp -9220000000000000000))  ; 0.bf case to be added when modifying compiler.rkt
+                                       (abs (+ x-exp out-exp))  ; y-exp to be considered as well
                                        0))))
 
   (when verbose
@@ -222,4 +240,14 @@
 
 (define op bf-)
 (define verbose #f)
-(for/list ([i (in-range 10000)]) (spinner op verbose))
+(for/list ([i (in-range 1000)]) (spinner op verbose))
+
+#| Input precision misprediction for:
+	x-exponent=-562
+	x=(bf "5.856119881895219e-170")
+	y-exponent=-587
+	y=(bf "1.8414247483239091e-177")
+	true-input-prec=8192
+	predicted-input-precision=1554
+	output-exponent=562
+|#
