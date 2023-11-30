@@ -6,6 +6,18 @@
 
 (provide compile-specs compile-spec compile-progs compile-prog)
 
+;; Function calculates a precision for the operation
+;;    with respect to the given extra-precision (exponents from a previous run)
+;;    extra-precision :: box(#f or integer)
+(define (define-precision extra-precision)
+  (min (*max-mpfr-prec*)
+       (max
+        (bf-precision)
+        (+ (if (unbox extra-precision)
+               (+ (unbox extra-precision) (*extra-bits*))
+               0)
+           (bf-precision)))))
+
 ;; Interpreter taking a narrow IR
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
@@ -30,61 +42,42 @@
     (for ([arg (in-list args)] [n (in-naturals)])
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-      ; tail
+      ; Tail
       (define srcs
         (for/list ([idx (in-list (cdr instr))])
           (vector-ref vregs idx)))
 
-      ; current op
+      ; Current op
       (if (list? (car instr))
-          ; it is some operation - not a constant
-          (if (equal? 2 (length (car instr)))
-              ; it is not a trig function
-              (if (box? (first (cdar instr)))
-                  ; this operation has a precision to be calculated under
-                  (parameterize ([bf-precision
-                                  (min (*max-mpfr-prec*)
-                                       (max
-                                        (bf-precision)
-                                        (+ (if (unbox (first (cdar instr)))
-                                               (+ (unbox (first (cdar instr))) (*extra-bits*))
-                                               0)
-                                           (bf-precision))))])
-                    
-                    (vector-set! vregs n (apply (caar instr) srcs)))
-                  ; this operation doesn't have a specific precision
-                  (vector-set! vregs n (apply (caar instr) srcs)))
-              
-              ; It is a trig function because only trig function has 3 arguments
-              ; (sin is-inside-trig-flag exponent-value-of-this-operation)
-              (if (box? (second (car instr)))
-                  ; this trig function has a specific precision it should be computed under
-                  ; this trig function is inside another trig function
-                  (parameterize ([bf-precision
-                                  (min (*max-mpfr-prec*)
-                                       (max
-                                        (bf-precision)
-                                        (+ (if (unbox (second (car instr)))
-                                               (+ (unbox (second (car instr))) (*extra-bits*))
-                                               0)
-                                           (bf-precision))))])
-                    
-                    (let ([result (apply (first (car instr)) srcs)]) ; calculate the result of trig function
-                      (set-box! (third (car instr)) ; set the exponent of the input to cos/sin/tan instruction
-                                (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
-                                     (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))
-                      (vector-set! vregs n result)))
-
-                  ; this trig function doesn't have a specific precision
-                  (let ([result (apply (first (car instr)) srcs)]) ; calculate the result of trig function
-                    (set-box! (third (car instr)) ; set the exponent of the input to cos/sin/tan instruction
-                              (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
-                                   (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))
-                    (vector-set! vregs n result))))
-            
-          ; if it is just a single procedure const
+          ; Current op is an operation - not a constant
+          (let ([op (first (car instr))])
+            (cond
+              [(member op (list ival-sin ival-cos ival-tan))
+               (let ([extra-precision (second (car instr))]
+                     [exponents-checkpoint (third (car instr))])
+                 
+                 (if (box? extra-precision)
+                     ; The current op possibly has an extra-precision it should be computed under
+                     (parameterize ([bf-precision (define-precision extra-precision)])
+                       (vector-set! vregs n (apply op srcs)))
+                     
+                     ; Current trig function should be computed under (bf-precision)
+                     (vector-set! vregs n (apply op srcs)))
+                 
+                 (set-box! exponents-checkpoint ; Save exponents for the next run
+                           (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
+                                (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs)))))))]
+              [else
+               (let ([extra-precision (second (car instr))])
+                 (if (box? extra-precision)
+                     ; The current op possibly has an extra-precision it should be computed under
+                     (parameterize ([bf-precision (define-precision extra-precision)])
+                       (vector-set! vregs n (apply op srcs)))
+                     ; The current op should be computed under (bf-precision)
+                     (vector-set! vregs n (apply op srcs))))]))
+          ; This is a constant operation
           (vector-set! vregs n (apply (car instr) srcs))))
-    
+
     (for/list ([root (in-list roots)])
       (vector-ref vregs root))))
 
@@ -108,7 +101,7 @@
     (define size 0)
     (define exprc 0)
     (define varc (length vars))
-
+    
     ; Translates programs into an instruction sequence
     (define (munge prog type [prec #f])
       (set! size (+ 1 size))
@@ -123,18 +116,20 @@
                  (munge t type)
                  (munge f type))]
           [(list op args ...)
-           (if (set-member? '(sin cos tan) op)
-               (let ([exponent (box #f)])
-                 (cons (list (op->proc op) prec exponent) ; we drag the exponent value of input to this op
-                       (map munge
-                            args
-                            (op->itypes op)
-                            (make-list (length args) exponent)))) ; and here, so that we can change it quickly using box everywhere
-               (cons (list (op->proc op) prec)
-                     (map munge
-                          args
-                          (op->itypes op)
-                          (make-list (length args) prec))))]
+           (cond
+             [(set-member? '(sin cos tan) op)
+              (let ([exponent (box #f)])  ; This box will save exponent values for the next instructions
+                (cons (list (op->proc op) prec exponent) 
+                      (map munge
+                           args
+                           (op->itypes op)
+                           (make-list (length args) exponent))))]
+             [else
+              (cons (list (op->proc op) prec)
+                    (map munge
+                         args
+                         (op->itypes op)
+                         (make-list (length args) prec)))])]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
