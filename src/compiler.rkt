@@ -8,15 +8,11 @@
 
 ;; Function calculates a precision for the operation
 ;;    with respect to the given extra-precision (exponents from a previous run)
-;;    extra-precision :: box(#f or integer)
 (define (define-precision extra-precision)
   (min (*max-mpfr-prec*)
-       (max
-        (bf-precision)
-        (+ (if (unbox extra-precision)
-               (+ (unbox extra-precision) (*extra-bits*))
-               0)
-           (bf-precision)))))
+       (+ extra-precision
+          (*extra-bits*)
+          (bf-precision))))
 
 ;; Interpreter taking a narrow IR
 ;; ```
@@ -29,6 +25,19 @@
 (define (make-progs-interpreter vars ivec roots)
   (define vreg-count (+ (length vars) (vector-length ivec)))
   (define vregs (make-vector vreg-count))
+
+  ;; will return a number greater than zero if the box contains an integer
+  ;;                                                              and this integer is greater than 0
+  ;; x :: box(#f or integer)
+  (define (unbox-prec x)
+    (if (box? x)
+        (if (unbox x)
+            (if
+             (> (unbox x) 0)
+             (unbox x)
+             0)
+            0)
+        0))
   
   (λ args
     ;; remove all the exponent values we assigned previously when a new point comes
@@ -53,31 +62,33 @@
           (let ([op (first (car instr))])
             (cond
               [(member op (list ival-sin ival-cos ival-tan))
-               (let ([extra-precision (second (car instr))]
+               (let ([extra-precision (unbox-prec (second (car instr)))]
                      [exponents-checkpoint (third (car instr))])
                  
-                 (if (box? extra-precision)
-                     ; The current op possibly has an extra-precision it should be computed under
-                     (parameterize ([bf-precision (define-precision extra-precision)])
-                       (vector-set! vregs n (apply op srcs)))
-                     
+                 (if (zero? extra-precision)
                      ; Current trig function should be computed under (bf-precision)
-                     (vector-set! vregs n (apply op srcs)))
+                     (vector-set! vregs n (apply op srcs))
                  
-                 (set-box! exponents-checkpoint ; Save exponents for the next run
-                           (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
-                                (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs)))))))]
-              [else
-               (let ([extra-precision (second (car instr))])
-                 (if (box? extra-precision)
                      ; The current op possibly has an extra-precision it should be computed under
                      (parameterize ([bf-precision (define-precision extra-precision)])
-                       (vector-set! vregs n (apply op srcs)))
+                       (vector-set! vregs n (apply op srcs))))
+                     
+                 (set-box! exponents-checkpoint ; Save exponents for the next run
+                           (+ extra-precision
+                              (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
+                                   (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))))]
+              [else
+               (let ([extra-precision (unbox-prec (second (car instr)))])
+                 (if (zero? extra-precision)
                      ; The current op should be computed under (bf-precision)
-                     (vector-set! vregs n (apply op srcs))))]))
+                     (vector-set! vregs n (apply op srcs))
+                     
+                     ; The current op possibly has an extra-precision it should be computed under
+                     (parameterize ([bf-precision (define-precision extra-precision)])
+                       (vector-set! vregs n (apply op srcs)))))]))
           ; This is a constant operation
           (vector-set! vregs n (apply (car instr) srcs))))
-
+    
     (for/list ([root (in-list roots)])
       (vector-ref vregs root))))
 
