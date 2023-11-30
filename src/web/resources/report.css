@@ -114,6 +114,7 @@ label.timeout {accent-color: var(--result-timeout);}
 
 #results { border-collapse: collapse; width:100%; }
 #results th, #results td { border: 1px solid #ddd; padding: .5em; }
+tr > a { color: #666;}
 
 #results th { white-space: pre; color: #888; font-family: 'IBM Plex Serif', serif; }
 #results td { text-align: right; overflow: hidden; font-size: 15pt; font-family: 'Ruda', serif; font-weight: 500; }
