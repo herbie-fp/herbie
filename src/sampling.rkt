@@ -134,9 +134,6 @@
      [(not err?)
       (define infinite?
       (ival-lo (is-infinite-interval repr (apply ival-or exs))))
-      ;(cond
-      ;[(> precision 1000)
-      ; (printf "~a \n" pt)])
       (values (if infinite? 'infinite 'valid) precision exs)
      ]
      [(> precision* (*max-mpfr-prec*))
