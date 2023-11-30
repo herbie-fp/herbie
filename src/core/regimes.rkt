@@ -122,9 +122,8 @@
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals*)] [prev splitvals*])
                                (</total prev val repr))))
-  (trace err-lsts->split-indices)
+
   (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
-  (eprintf "~a\n" split-indices)
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) (~a (representation-name repr)))
@@ -167,6 +166,8 @@
 ;; cost = The total error in the region to the left of our rightmost splitpoint
 ;; indices = The si's we are considering in this candidate.
 (struct cse (cost indices) #:transparent)
+
+; (struct soa-cse ((vector cses) (vector best) (vector prev-k)) #:transparent)
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 (define (valid-splitindices? can-split? split-indices)
