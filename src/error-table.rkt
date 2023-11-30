@@ -64,7 +64,7 @@
     (unless
         (ormap identity
                (for/list ([subexpr subexprs-list])
-			 (define subexpr-val (hash-ref exacts-hash subexpr))
+                 (define subexpr-val (hash-ref exacts-hash subexpr))
 
                  ;; FIXME use infinite? instead
                  (cond
@@ -82,6 +82,16 @@
                     (define x+y (+ larg-val rarg-val))
                     (define cond-x (abs (/ larg-val x+y)))
                     (define cond-y (abs (/ rarg-val x+y)))
+
+		    #;(eprintf "~a,~a,~a,~a,~a,~a,~a,~a\n"
+			     subexpr
+			     (car pt)
+			     larg-val
+                             rarg-val
+                             cond-x
+                             cond-y
+                             x+y
+                             subexpr-val)
                     
                     (cond
                       ;; When both underflow
@@ -213,13 +223,15 @@
                              (overflow? arg))
                          (not (= subexpr-val arg-val))
                          (mark-erroneous! subexpr pt))]
-                   
 
-                   #|
-                   TODO: remaining cases for which rescuing underflow/overflow
-                   can occur
-                   - a overflows and b is large
-                   |#
+                   [(list 'cbrt.f64 arg)
+                    #:when (is-inexact? arg)
+                    (define arg-val (hash-ref exacts-hash arg))
+                    (and (or (underflow? arg)
+                             (overflow? arg))
+                         (not (= subexpr-val arg-val))
+                         (mark-erroneous! subexpr pt))]
+                   
                    [(list '/.f64 x-ex y-ex)
                     #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
                     (define x (hash-ref exacts-hash x-ex))
@@ -280,14 +292,15 @@
                    [(list 'log.f64 arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
-                    (define cond-num (abs (/ 1 (log arg-val))))
+                    (define cond-num (abs (/ 1 subexpr-val)))
                     (define arg-oflow? (overflow? arg))
                     (define arg-uflow? (underflow? arg))
                     (cond
+                      [(= arg-val 1.0) #f]
                       ; overflow rescue
-                      [arg-oflow? (mark-erroneous! subexpr)]
+                      [arg-oflow? (mark-erroneous! subexpr pt)]
                       ; underflow rescue
-                      [arg-uflow? (mark-erroneous! subexpr)]
+                      [arg-uflow? (mark-erroneous! subexpr pt)]
                       [(> cond-num 1e2) (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
@@ -313,16 +326,17 @@
                     (cond
                       ; skip if x is one
                       [(and (= x 1.0) (= subexpr-val 1.0)) #f]
+                      [(and (= y 1.0) (= subexpr-val x)) #f]
+                      [(and (= y 0.0) (= subexpr-val 0.0)) #f]
                       ; skip if both overflow
-                      [(and (overflow? subexpr) (= (abs x^y) +inf.0))
-                       #f]
-                      ; skip if both underflow
-                      [(and (underflow? subexpr) (= (abs x^y) +0.0))
-                       #f]
+                      [(and (or (overflow? x-ex)
+                                (underflow? x-ex))
+                            (not (= subexpr-val x)))
+                       (mark-erroneous! subexpr pt)]
                       ; condition number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
-                      [else #f])]
+                      [else (eprintf "none\n") #f])]
                    [_ #f])))
       (hash-update! error-count-hash #f (lambda (x) (set-add x pt)))))
   error-count-hash)
