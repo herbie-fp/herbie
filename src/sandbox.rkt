@@ -279,14 +279,14 @@
              (improve-result-preprocess (job-result-backend result))
              (test-preprocess test)))
   (table-row (test-name test) (test-identifier test) status
-             (resugar-program (test-pre test) repr)
+             (prog->fpcore (test-pre test) repr)
              preprocess
              (representation-name repr)
              (map (curry map representation-name) (test-conversions test))
              (test-vars test)
-             (resugar-program (test-input test) repr) #f
-             (resugar-program (test-spec test) repr)
-             (and (test-output test) (resugar-program (test-output test) repr))
+             (prog->fpcore (test-input test) repr) #f
+             (prog->fpcore (test-spec test) repr)
+             (and (test-output test) (prog->fpcore (test-output test) repr))
              #f #f #f #f #f (job-result-time result) link '()))
 
 (define (get-table-data result link)
