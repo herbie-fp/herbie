@@ -105,7 +105,6 @@
     ; Translates programs into an instruction sequence
     (define (munge prog type [prec #f])
       (set! size (+ 1 size))
-      ;(printf "prog=~a\n" prog)
       (define expr
         (match prog
           [(? number?) (list (const (input->value prog type)))]
@@ -117,7 +116,8 @@
                  (munge f type))]
           [(list op args ...)
            (cond
-             [(set-member? '(sin cos tan) op)
+             [(and (set-member? '(sin cos tan) op)
+                   (set-member? (op->itypes op) 'real)) ; ival function
               (let ([exponent (box #f)])  ; This box will save exponent values for the next instructions
                 (cons (list (op->proc op) prec exponent) 
                       (map munge
