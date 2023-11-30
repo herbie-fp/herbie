@@ -61,7 +61,7 @@
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
-         ,@(dict-call curr render-phase-problems 'problems)
+         ,@(dict-call curr render-phase-fperrors 'fperrors)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -271,15 +271,26 @@
               `(tr (td ,(~a count) "×")
                    (td (code ,(~a rule) " "))))))))
 
-(define (render-phase-problems problems)
-  `((dt "Problems")
-    (dd (table ([class "times"])
-               ,@(for/list ([rec (in-list (sort problems > #:key second))])
-                   (match-define (list expr count) rec)
-                   `(tr (td ,(~a count) "×")
-                        (td ,(if expr
-                                 `(code ,expr)
-                                 "No Errors"))))))))
+(define (render-phase-fperrors fperrors)
+  `((dt "FPErrors")
+    (dd (details
+         (summary "Click to see full error table")
+         (table ([class "times"])
+                (thead (tr (th "truth") (th "opred") (th "ex") (th "upred") (th "ex") (th "subexpr")))
+                ,@(for/list ([rec (in-list (sort fperrors > #:key second))])
+                    (match-define (list expr tcount opred oex upred uex) rec)
+                    `(tr (td ,(~a tcount))
+                         (td ,(~a opred))
+                         (td ,(if oex
+                                  (~a oex)
+                                  "-"))
+                         (td ,(~a upred))
+                         (td ,(if uex
+                                  (~a uex)
+                                  "-"))
+                         (td ,(if expr
+                                  `(code ,expr)
+                                  "No Errors")))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)

@@ -339,9 +339,18 @@
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
   
-  (for ([(subexpr num-of-errors) (in-dict (group-errors (alt-expr (car simplified)) pcontext))])
-    (unless (= 0 num-of-errors)
-      (timeline-push! 'problems (and subexpr (~a subexpr)) num-of-errors)))
+  (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
+  (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
+
+  (for ([(subexpr pset) (in-dict pcount-hash)])
+    (define tset (if (hash-has-key? tcount-hash subexpr) (hash-ref tcount-hash subexpr) '()))
+    (define opred (set-subtract pset tset))
+    (define upred (set-subtract tset pset))
+    (timeline-push! 'fperrors
+                    (~a subexpr)
+                    (length tset)
+                    (length opred) (and (not (empty? opred)) (first opred))
+                    (length upred) (and (not (empty? upred)) (first upred))))
 
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
