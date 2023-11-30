@@ -82,16 +82,6 @@
                     (define x+y (+ larg-val rarg-val))
                     (define cond-x (abs (/ larg-val x+y)))
                     (define cond-y (abs (/ rarg-val x+y)))
-
-		    #;(eprintf "~a,~a,~a,~a,~a,~a,~a,~a\n"
-			     subexpr
-			     (car pt)
-			     larg-val
-                             rarg-val
-                             cond-x
-                             cond-y
-                             x+y
-                             subexpr-val)
                     
                     (cond
                       ;; When both underflow
@@ -111,34 +101,6 @@
                                 (infinite? rarg-val))
                             (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
-                      #|
-                      ; inf + neg can rescue
-                      [(and (= larg-val +inf.0)
-                            (negative? rarg-val)
-                            (not (infinite? subexpr-val)))
-                       (eprintf "pin\n")
-                       (mark-erroneous! subexpr pt)]
-
-                      ; -inf + pos
-                      [(and (= larg-val -inf.0)
-                            (positive? rarg-val)
-                            (not (infinite? subexpr-val)))
-                       (eprintf "nip\n")
-                       (mark-erroneous! subexpr pt)]
-
-                      ; neg + inf
-                      [(and (= rarg-val +inf.0)
-                            (negative? larg-val)
-                            (not (infinite? subexpr-val)))
-                       (eprintf "npi\n")
-                       (mark-erroneous! subexpr pt)]
-
-                      ; pos + -inf
-                      [(and (= rarg-val -inf.0)
-                            (positive? larg-val)
-                            (not (infinite? subexpr-val)))
-                       (eprintf "pni\n")
-                       (mark-erroneous! subexpr pt)] |#
                       
                       ;; Condition Number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
@@ -168,31 +130,7 @@
                                 (infinite? rarg-val))
                             (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
-		      #|
-                      ; inf - pos can rescue infinity
-                      [(and (= larg-val +inf.0)
-                            (positive? rarg-val)
-                            (not (overflow? subexpr)))
-                       (mark-erroneous! subexpr pt)]
-
-                      ; -inf - neg can rescue infinity
-                      [(and (= larg-val -inf.0)
-                            (negative? rarg-val)
-                            (not (overflow? subexpr)))
-                       (mark-erroneous! subexpr pt)]
-
-                      ; pos - +inf can rescue infinity
-                      [(and (= rarg-val +inf.0)
-                            (positive? larg-val)
-                            (not (overflow? subexpr)))
-                       (mark-erroneous! subexpr pt)]
-
-                      ; neg - -inf can rescue infinity
-                      [(and (= rarg-val -inf.0)
-                            (negative? larg-val)
-                            (not (overflow? subexpr)))
-                       (mark-erroneous! subexpr pt)] |#
-                      
+		      
                       ; Condition number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
@@ -296,7 +234,7 @@
                     (define arg-oflow? (overflow? arg))
                     (define arg-uflow? (underflow? arg))
                     (cond
-                      [(= arg-val 1.0) #f]
+                      [(and (= arg-val 1.0) (= subexpr-val 0.0)) #f]
                       ; overflow rescue
                       [arg-oflow? (mark-erroneous! subexpr pt)]
                       ; underflow rescue
@@ -336,7 +274,7 @@
                       ; condition number
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
-                      [else (eprintf "none\n") #f])]
+                      [else  #f])]
                    [_ #f])))
       (hash-update! error-count-hash #f (lambda (x) (set-add x pt)))))
   error-count-hash)
