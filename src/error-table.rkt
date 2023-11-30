@@ -68,10 +68,10 @@
 
                  ;; FIXME use infinite? instead
                  (cond
-                   ;; NOTE: need better way to see if a calculation underflowed
+                   ;; NOTE need better way to see if a calculation underflowed
                    [(fl= subexpr-val 0.0)
                     (hash-set! uflow-hash subexpr #t)]
-                   [(fl= (flabs subexpr-val) +inf.0)
+                   [(infinite? subexpr-val)
                     (hash-set! oflow-hash subexpr #t)])
                  
                  (match subexpr
@@ -95,7 +95,7 @@
                        (mark-erroneous! subexpr pt)]
 
                       #|
-                      NOTE: could collapse all of these 4 conditions into one
+                      NOTE could collapse all of these 4 conditions into one
                       |#
                       [(and (or (infinite? larg-val)
                                 (infinite? rarg-val))
@@ -120,13 +120,13 @@
                       [(and (= x-y 0.0) (underflow? subexpr)) #f]
 
                       ; x and y both overflow, then I should get a inf not a nan
-                      [(and (overflow? larg)
-                            (overflow? rarg)
-			    (same-sign? larg-val rarg-val)
+                      [(and (infinite? larg-val)
+                            (infinite? rarg-val)
+			                      (same-sign? larg-val rarg-val)
                             (not (nan? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
 
-		      [(and (or (infinite? larg-val)
+		                  [(and (or (infinite? larg-val)
                                 (infinite? rarg-val))
                             (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
@@ -137,7 +137,7 @@
                       [else #f])]
                    
                    #|
-                   TODO: Make this actually work
+                   TODO Make this actually work
                    |#
                    [(list 'sin.f64 arg)
                     #:when (is-inexact? arg)
@@ -175,7 +175,6 @@
                     (define x (hash-ref exacts-hash x-ex))
                     (define y (hash-ref exacts-hash y-ex))
                     (define x/y (/ x y))
-                    ;;(define x-oflow? (overflow? x-ex))
                     (define y-oflow? (overflow? y-ex))
                     (define x-uflow? (underflow? x-ex))
                     (define x-oflow? (overflow? x-ex))
@@ -185,7 +184,7 @@
                       ; both underflow
                       [(and (= x/y 0.0) (underflow? subexpr)) #f]
                       ; both overflow
-                      [(and (= (abs x/y) +inf.0) (overflow? subexpr)) #f]
+                      [(and (infinite? x/y) (overflow? subexpr)) #f]
                       ; x underflows and y rescues it
                       [(and x-uflow? (not (= subexpr-val x)))
                        (mark-erroneous! subexpr pt)]
@@ -247,7 +246,7 @@
                     (define arg-val (hash-ref exacts-hash arg))
                     (cond
                       ; if both overflow skip
-                      [(and (overflow? subexpr) (= (exp arg-val) +inf.0))
+                      [(and (overflow? subexpr) (infinite? (exp arg-val)))
                        #f]
                       ; condition number
                       [(> arg-val 1e2) (mark-erroneous! subexpr pt)]
