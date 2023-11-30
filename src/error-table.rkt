@@ -66,7 +66,6 @@
                (for/list ([subexpr subexprs-list])
                  (define subexpr-val (hash-ref exacts-hash subexpr))
 
-                 ;; FIXME use infinite? instead
                  (cond
                    ;; NOTE need better way to see if a calculation underflowed
                    [(fl= subexpr-val 0.0)
@@ -84,7 +83,7 @@
                     (define cond-y (abs (/ rarg-val x+y)))
                     
                     (cond
-                      ;; When both underflow
+                      ; When both underflow
                       [(and (= x+y 0.0) (underflow? subexpr)) #f]
 
                       ; x and y both overflow, but the result should be inf not nan
@@ -126,7 +125,8 @@
                             (not (nan? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
 
-		                  [(and (or (infinite? larg-val)
+                      ; If x or y overflow and the other arg rescues it
+                      [(and (or (infinite? larg-val)
                                 (infinite? rarg-val))
                             (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
@@ -157,6 +157,7 @@
                    [(list 'sqrt.f64 arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
+                    ; Check if over/underflow is rescues
                     (and (or (underflow? arg)
                              (overflow? arg))
                          (not (= subexpr-val arg-val))
@@ -165,6 +166,7 @@
                    [(list 'cbrt.f64 arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
+                    ; see sqrt
                     (and (or (underflow? arg)
                              (overflow? arg))
                          (not (= subexpr-val arg-val))
@@ -251,7 +253,8 @@
                       ; condition number
                       [(> arg-val 1e2) (mark-erroneous! subexpr pt)]
                       [else #f])]
-                   
+
+                   ; FIXME need to rework from scratch
                    [(list 'pow.f64 x-ex y-ex)
                     #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
                     (define x (hash-ref exacts-hash x-ex))
