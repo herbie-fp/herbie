@@ -197,6 +197,80 @@ var filterState = {
 }
 var hideShowCompareDetails = false
 
+// true = ascending, false = descending
+var sortState = {
+    "test": true,
+    "start": false,
+    "result": false,
+    "target": false,
+    "time": false
+}
+
+// if the state changed return true
+function setSort(inputSelection) {
+    if (inputSelection == "test") {
+        if (sortState["test"]) {
+            return false
+        } else {
+            sortState["test"] = true
+            sortState["start"] = false
+            sortState["result"] = false
+            sortState["target"] = false
+            sortState["time"] = false
+            return true
+        }
+    } else if (inputSelection == "start") {
+        if (sortState["start"]) {
+            return false
+        } else {
+            sortState["test"] = false
+            sortState["start"] = true
+            sortState["result"] = false
+            sortState["target"] = false
+            sortState["time"] = false
+            return true
+        }
+    } else if (inputSelection == "result") {
+        if (sortState["result"]) {
+            return false
+        } else {
+            sortState["test"] = false
+            sortState["start"] = false
+            sortState["result"] = true
+            sortState["target"] = false
+            sortState["time"] = false
+            return true
+        }
+    } else if (inputSelection == "target") {
+        if (sortState["target"]) {
+            return false
+        } else {
+            sortState["test"] = false
+            sortState["start"] = false
+            sortState["result"] = false
+            sortState["target"] = true
+            sortState["time"] = false
+            return true
+        }
+    } else if (inputSelection == "time") {
+        if (sortState["time"]) {
+            return false
+        } else {
+            sortState["test"] = false
+            sortState["start"] = false
+            sortState["result"] = false
+            sortState["target"] = false
+            sortState["time"] = true
+            return true
+        }
+    } else {
+        return false
+    }
+}
+
+
+var sortDescending = true
+
 // -------------------------------------------------
 // ------ Global State End ----------
 // -------------------------------------------------
@@ -212,6 +286,7 @@ function showTolerance(jsonData, show) {
         id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
     }, [])
     const hidingText = Element("text", {}, [" Hiding: ±"])
+
     var unitText
     if (radioStates[radioStatesIndex] == "time") {
         unitText = Element("text", {}, ["s"])
@@ -220,8 +295,10 @@ function showTolerance(jsonData, show) {
     }
     const submitButton = Element("input", { type: "submit", value: "Update" }, [])
     submitButton.addEventListener("click", async (e) => {
-        e.preventDefault()
+        e.preventDefault();
+        compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
         filterTolerance = toleranceInputField.value
+        radioStatesIndex = 2
         fetchAndUpdate(jsonData)
     })
     toleranceInputField.style.display = show ? "inline" : "none"
@@ -279,22 +356,17 @@ function buildCompareForm(jsonData) {
         await fetchAndUpdate(jsonData)
     })
 
-    const input = Element("input", {
-        id: "compare-input", value: compareAgainstURL,
-        placeholder: "current report against"
-    }, [])
+    const showEqual = buildCheckboxLabel("show-equal", "show equal", !hideDirtyEqual)
+    showEqual.addEventListener("click", (e) => {
+        hideDirtyEqual = !hideDirtyEqual
+        update(jsonData)
+    })
 
-    var showToleranceBool = false
-    if (radioStates[radioStatesIndex] == "time" ||
-        radioStates[radioStatesIndex] == "targetAccuracy" ||
-        radioStates[radioStatesIndex] == "resultAccuracy" ||
-        radioStates[radioStatesIndex] == "startAccuracy") {
-        showToleranceBool = true
-    }
-
-    const navigation = Element("nav", {}, [
-        Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
-    ])
+    const form = Element("form", {},
+        [output, "Output", startAccuracy, "Start Accuracy",
+            resultAccuracy, "Result Accuracy", targetAccuracy,
+            "Target Accuracy",
+            time, "Time", " ", showEqual])
     return form
 }
 
@@ -363,18 +435,29 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
         ])
     ])
 
-    const tableData = tableBody(jsonData)
+    function buildSortableTextElement(stringName, nestedArray) {
+        const nestedElements = [sortState[stringName] ? `${toTitleCase(stringName)} ` + `${sortDescending ? "⏶" : "⏷"}` : `${toTitleCase(stringName)} –`, nestedArray]
+        const textElement = Element("th", {}, nestedElements)
+        textElement.addEventListener("click", (e) => {
+            if (!setSort(stringName)) {
+                sortDescending = !sortDescending
+            }
+            update(jsonData)
+        })
+        return textElement
+    }
 
+    const rows = buildTableContents(jsonData, otherJsonData, filterFunction)
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
-                Element("th", {}, ["Test"]),
-                Element("th", {}, ["Start"]),
-                Element("th", {}, ["Result",
+                buildSortableTextElement("test", []),
+                buildSortableTextElement("start", []),
+                buildSortableTextElement("result", [
                     Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
-                Element("th", {}, ["Target",
+                buildSortableTextElement("target", [
                     Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
-                Element("th", {}, ["Time"]),
+                buildSortableTextElement("time"),
             ])
         ]),
         tableData["tbody"]
@@ -397,12 +480,56 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
     bodyNode = newBody
 }
 
-function storeBenchmarks(tests) {
-    var tempDir = {}
-    for (let test of tests) {
-        const linkComponents = test.link.split("/")
-        if (linkComponents.length > 1) {
-            tempDir[linkComponents[0]] = linkComponents[0]
+function sort(test) {
+    function compareFunction(l, r) {
+        var result = true
+        if (sortState["test"]) {
+            if (sortDescending) {
+                result = l.name.localeCompare(r.name)
+            } else {
+                result = r.name.localeCompare(l.name)
+            }
+        } else if (sortState["start"]) {
+            if (sortDescending) {
+                result = l.start < r.start
+            } else {
+                result = l.start > r.start
+            }
+        }
+        else if (sortState["result"]) {
+            if (sortDescending) {
+                result = l.end < r.end
+            } else {
+                result = l.end > r.end
+            }
+        }
+        else if (sortState["target"]) {
+            if (sortDescending) {
+                result = l.target < r.target
+            } else {
+                result = l.target > r.target
+            }
+        }
+        else if (sortState["time"]) {
+            if (sortDescending) {
+                result = l.time < r.time
+            } else {
+                result = l.time > r.time
+            }
+        }
+        return result
+    }
+    return test.sort(compareFunction)
+}
+
+function buildTableContents(jsonData, otherJsonData, filterFunction) {
+    var rows = []
+    const jsonTest = sort(jsonData.tests)
+    for (let test of jsonTest) {
+        let other = diffAgainstFields[test.name]
+        if (filterFunction(test, other)) {
+            let row = buildRow(test, other)
+            rows.push(row)
         }
     }
     for (let b in tempDir) {
@@ -508,21 +635,37 @@ var groupState = {
 var selectedBenchmarkIndex = -1
 var benchMarks = []
 
-var filterState = {
-    "imp-start": true,
-    "ex-start": true,
-    "eq-start": true,
-    "eq-target": true,
-    "gt-target": true,
-    "gt-start": true,
-    "uni-start": true,
-    "lt-target": true,
-    "lt-start": true,
-    "apx-start": true,
-    "timeout": true,
-    "crash": true,
-    "error": true,
-}
+    const input = Element("input", {
+        id: "compare-input", value: compareAgainstURL,
+        placeholder: "URL to other json file"
+    }, [])
+
+    var showToleranceBool = false
+    if (radioStates[radioStatesIndex] == "time" ||
+        radioStates[radioStatesIndex] == "targetAccuracy" ||
+        radioStates[radioStatesIndex] == "resultAccuracy" ||
+        radioStates[radioStatesIndex] == "startAccuracy") {
+        showToleranceBool = true
+    }
+
+    const toleranceInputField = showTolerance(jsonData, showToleranceBool)
+    var summary = Element("details", { open: hideShowCompareDetails }, [
+        Element("summary", {}, [
+            Element("h2", {}, ["Diff"]),
+            input,
+            toleranceInputField,
+        ]),
+        Element("div", {}, [
+            buildCompareForm(jsonData),
+        ]),
+    ])
+    // GRR this events are annoying
+    summary.addEventListener("click", async (e) => {
+        if (e.target.nodeName == "SUMMARY") {
+            hideShowCompareDetails = !hideShowCompareDetails
+            fetchAndUpdate(jsonData, compareAgainstURL)
+        }
+    })
 
 const renames = {
     "imp-start": "Improved start",

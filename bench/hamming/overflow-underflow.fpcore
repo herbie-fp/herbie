@@ -4,8 +4,8 @@
  :name "expq2 (section 3.11)"
  :pre (> 715 x)
  :herbie-target
- ; Hamming version was not accurated. Dealt with overflow/underflow but not cancellation.
- ; Used expm1 to deal with cancellation.
+ ; Hamming version (1/1 - e^-x) was not accurate. Dealt with overflow/underflow but not cancellation.
+ ; Used expm1 from libm to deal with cancellation.
  (/ (- 1) (expm1 (- x)))
 
  (/ (exp x) (- (exp x) 1)))
