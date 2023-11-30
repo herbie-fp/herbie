@@ -214,7 +214,7 @@ var hideShowCompareDetails = false
 
 // true = ascending, false = descending
 var sortState = {
-    "test": false,
+    "test": true,
     "start": false,
     "result": false,
     "target": false,
@@ -301,6 +301,7 @@ function showTolerance(jsonData, show) {
         id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
     }, [])
     const hidingText = Element("text", {}, [" Hiding: ±"])
+
     var unitText
     if (radioStates[radioStatesIndex] == "time") {
         unitText = Element("text", {}, ["s"])
@@ -370,18 +371,17 @@ function buildCompareForm(jsonData) {
         await fetchAndUpdate(jsonData)
     })
 
-    const input = Element("input", {
-        id: "compare-input", value: compareAgainstURL,
-        placeholder: "current report against"
-    }, [])
+    const showEqual = buildCheckboxLabel("show-equal", "show equal", !hideDirtyEqual)
+    showEqual.addEventListener("click", (e) => {
+        hideDirtyEqual = !hideDirtyEqual
+        update(jsonData)
+    })
 
-    var toggles = [output, "Output", startAccuracy, "Start Accuracy",
-        resultAccuracy, "Result Accuracy", targetAccuracy,
-        "Target Accuracy",
-        time, "Time", " "]
-    const form = Element("form", {}, [
-        toggles,
-    ])
+    const form = Element("form", {},
+        [output, "Output", startAccuracy, "Start Accuracy",
+            resultAccuracy, "Result Accuracy", targetAccuracy,
+            "Target Accuracy",
+            time, "Time", " ", showEqual])
     return form
 }
 
