@@ -554,21 +554,18 @@ function buildRow(test, other) {
                 targetAccuracy = ""
             }
             const tr = Element("tr", { classList: test.status }, [
-                Element("td", {}, [test.name]),
-                Element("td", {}, [startAccuracy]),
-                Element("td", {}, [resultAccuracy]),
-                Element("td", {}, [targetAccuracy]),
-                Element("td", {}, [formatTime(test.time)]),
-                Element("td", {}, [
-                    Element("a", {
-                        href: `${test.link}/graph.html`
-                    }, ["»"])]),
-                Element("td", {}, [
-                    Element("a", {
-                        href: `${test.link}/timeline.html`
-                    }, ["📊"])]),
+                Element("a", { href: `${test.link}/graph.html` }, [
+                    Element("td", {}, [test.name]),
+                    Element("td", {}, [startAccuracy]),
+                    Element("td", {}, [resultAccuracy]),
+                    Element("td", {}, [targetAccuracy]),
+                    Element("td", {}, [formatTime(test.time)]),
+                ]),
+                Element("a", { href: `${test.link}/graph.html` }, [
+                    Element("td", {}, ["»"])]),
+                Element("a", { href: `${test.link}/timeline.html` }, [
+                    Element("td", {}, ["📊"])]),
             ])
-            // TODO fix bug with cmd/ctrl click.
             tr.addEventListener("click", () => tr.querySelector("a").click())
             row = tr
         })
