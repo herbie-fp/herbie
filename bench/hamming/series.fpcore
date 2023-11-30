@@ -2,11 +2,9 @@
 
 (FPCore (x)
  :name "expm1 (example 3.7)"
- ; We want to sample around 0 according to Hamming. We can sample more inputs closer to zero by shrinking the range to +/- 1
- :pre (<= (fabs x) 1)
+ :pre (< -0.00017 x)
  :herbie-target
- ; Hamming suggests taylor series expansion but we have libm functions in FPCore
- (expm1 x)
+ (* x (+ 1 (/ x 2) (/ (* x x) 6)))
 
  (- (exp x) 1))
 
@@ -30,11 +28,9 @@
 
 (FPCore (x)
  :name "qlog (example 3.10)"
- ; We want to sample small x according to Hamming. We can sample more inputs closer to zero by shrinking the range to +/- 1
- :pre (<= (fabs x) 1)
- ; Hamming suggests using Taylor expansion but until we have platforms, we will use FPCore's access to libm functions
+ :pre (and (< -1 x) (< x 1))
  :herbie-target
- (/ (log1p (- x)) (log1p x))
+ (- (+ 1 x (/ (* x x) 2) (* 5/12 (pow x 3))))
 
  (/ (log (- 1 x)) (log (+ 1 x))))
 
@@ -44,11 +40,10 @@
 
 (FPCore (a b eps)
  :name "expq3 (problem 3.4.2)"
- :pre (and (<= -710 a b 710) (<= (* 1e-27 (fabs a)) eps (fabs a)))
+ :pre (and (< (fabs eps) (fabs (/ (+ a b) 1e5))) (<  (fabs a) 710) (< (fabs b) 710))
  ; We want epsilon small compared to a and b according to Hamming. Bound by 710 to avoid sampling infinite values.
- ; Chose a multiplicative factor of 1e-27 compared to a in order to not sample epsilon to close to 0 which eliminates the exponent.
  :herbie-target
- ; Hammings' rewrite, page 48
+ ; Hammings' rewrite
  (+ (/ 1 a) (/ 1 b))
 
  (/
@@ -57,11 +52,8 @@
 
 (FPCore (eps)
  :name "logq (problem 3.4.3)"
- ; Using previous notions of small epsilon, simply < +/- 1
- :pre (< (fabs eps) 1)
- ; Hamming suggests using Taylor expansion but FPCore has libm
  :herbie-target
- (- (log1p (- eps)) (log1p eps))
+ (* -2 (+ eps (/ (pow eps 3) 3) (/ (pow eps 5) 5)))
 
  (log (/ (- 1 eps) (+ 1 eps))))
 
