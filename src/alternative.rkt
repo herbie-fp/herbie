@@ -29,7 +29,7 @@
   (alt (alt-expr altn) event (list altn) (alt-preprocessing altn)))  
 
 (define (alt-add-preprocessing altn preprocessing)
-  (alt (alt-expr altn) (alt-event altn) (list altn) preprocessing))
+  (alt (alt-expr altn) 'add-preprocessing (list altn) preprocessing))
 
 (define (alt-cost altn repr)
   (expr-cost (alt-expr altn) repr))
