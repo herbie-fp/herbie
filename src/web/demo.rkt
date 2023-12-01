@@ -441,7 +441,7 @@
       (eprintf "Local error job started on ~a..." formula)
 
       (define test (parse-test formula))
-      (define expr (resugar-program (test-input test) (test-output-repr test)))
+      (define expr (prog->fpcore (test-input test) (test-output-repr test)))
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'local-error test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:timeline-disabled? #t))

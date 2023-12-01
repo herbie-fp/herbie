@@ -87,10 +87,10 @@
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
-    (define best (argmin score-alt altns))    ; where we creat the best_alt we do remove preproc on
-    (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost repr)))  ; other alts? idk
+    (define best (argmin score-alt altns))
+    (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost repr)))
     (define simplest (car altns*))
-    (define altns** (cdr altns*))                                                                     ; again; ?
+    (define altns** (cdr altns*))
     (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
     (append
       (list best simplest)
@@ -331,13 +331,10 @@
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (match-define (and alternatives (cons (alt best _ _ _) _))
     (mutate! simplified context pcontext* (*num-iterations*)))
-    
   (timeline-event! 'preprocess)
   (define final-alts
     (for/list ([altern alternatives])
-      (add-alt-preprocessing altern (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
-
-
+      (alt-add-preprocessing altern (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
   (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing))) 
 
 (define (mutate! simplified context pcontext iterations)

@@ -1,10 +1,10 @@
 #lang racket
 
 (require rackunit)
-(require "../common.rkt" "../programs.rkt" "../float.rkt"
+(require "../common.rkt" "../compiler.rkt" "../float.rkt"
          "../ground-truth.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
-         "../core/egg-herbie.rkt")
+         (submod "../core/egg-herbie.rkt" internals))
 
 (load-herbie-builtins)
 
@@ -53,8 +53,8 @@
     (for/list ([v (in-list fv)])
       (random-generate (dict-ref itypes v))))
   (define points (build-list (num-test-points) make-point))
-  (define prog1 (compile-prog p1 'fl ctx))
-  (define prog2 (compile-prog p2 'fl ctx))
+  (define prog1 (compile-prog p1 ctx))
+  (define prog2 (compile-prog p2 ctx))
   (define ex1 (map (curry apply prog1) points))
   (define ex2 (map (curry apply prog2) points))
   (for ([pt points])
@@ -72,7 +72,7 @@
    (for ([name names])
      (eprintf "Checking ~a...\n" name)
      (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
-     (for ([rule* (rule->egg-rules rule)])
+     (for ([rule* (rule->impl-rules rule)])
       (check-rule-correct rule*)
       (when (set-member? (*fp-safe-simplify-rules*) rule*)
         (check-rule-fp-safe rule*))))))
@@ -83,13 +83,13 @@
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
-         [test-rule* (rule->egg-rules test-rule)])
+         [test-rule* (rule->impl-rules test-rule)])
     (test-case (~a (rule-name test-rule*))
       (check-rule-correct test-rule*)))
 
   (for* ([test-ruleset (*rulesets*)]
          [test-rule (first test-ruleset)]
-         [test-rule* (rule->egg-rules test-rule)]
+         [test-rule* (rule->impl-rules test-rule)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule*))
     (test-case (~a (rule-name test-rule*))
       (check-rule-fp-safe test-rule*))))

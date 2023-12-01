@@ -75,6 +75,11 @@
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
+    [(alt prog 'add-preprocessing _ _)
+      ;; TODO message to user is? proof later
+      '(,@(render-history prev pcontext pcontext2 ctx)
+        (li "Add Preprocessing"))]	
+
     [(alt _ `(regimes ,splitpoints) prevs _)
      (define intervals
        (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])

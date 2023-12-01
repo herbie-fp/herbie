@@ -73,22 +73,20 @@
 ;;      external desugaring fails because of an unsupported/mismatched
 ;;      operator
 
-(define (taylor-expr expr repr var f finv)
-  (define expr* (resugar-program expr repr #:full #f))
-  (define genexpr (approximate expr* var #:transform (cons f finv)))
+(define (taylor-expr expr var f finv)
+  (define genexpr (approximate (prog->spec expr) var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (desugar-program (genexpr) (*context*) #:full #f))))
+      (spec->prog (genexpr) (*context*)))))
 
 (define (taylor-alt altn)
   (define expr (alt-expr altn))
-  (define repr (repr-of expr (*context*)))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-      (define genexpr (taylor-expr expr repr var f finv))
-      (for ([i (in-range 4)])
+      (define genexpr (taylor-expr expr var f finv))
+      (for ([_ (in-range 4)])
         (define replace (genexpr))
         (when replace
           (sow (alt replace `(taylor () ,name ,var) (list altn) '()))))
@@ -118,18 +116,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Splits rules into three categories
-;  - reprchange: rules that change precision
-;  - expansive: rules of the form `x -> f(x)` that are not reprchange
-;  - normal: everything else
-(define (partition-rules rules)
-  (define-values (expansive-or-repr-change normal)
-    (partition (compose variable? rule-input) rules))
-  (define-values (reprchange expansive*)
-    (partition (λ (r) (expr-contains? (rule-output r) rewrite-repr-op?))
-               expansive-or-repr-change))
-  (values reprchange expansive* normal))
-
 (define (merge-changelists . lsts)
   (map (curry apply append) (flip-lists lsts)))
 
@@ -143,46 +129,37 @@
     (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) (^queued^)))
 
     ;; partition the rules
-    (define-values (reprchange-rules expansive-rules normal-rules) (partition-rules (*rules*)))
+    (define (reprchange? r) (expr-contains? (rule-output r) rewrite-repr-op?))
+    (define-values (reprchange-rules normal-rules) (partition reprchange? (*rules*)))
 
     ;; get subexprs and locations
     (define real-exprs (map alt-expr real-alts))
     (define lowexprs (map alt-expr (^queuedlow^)))
 
-    ;; HACK:
-    ;; - check loaded representations
-    ;; - if there is only one real representation, allow expansive rules to be run in egg
-    ;; This is just a workaround and should definitely be fixed
-    (define one-real-repr? (= (count (λ (r) (equal? (representation-type r) 'real)) (*needed-reprs*)) 1))
-
     ;; rewrite high-error locations
     (define changelists
-      (if one-real-repr?
-          (merge-changelists
-            (rewrite-expressions real-exprs (*context*) #:rules (append expansive-rules normal-rules))
-            (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t))
-          (merge-changelists
-            (rewrite-expressions real-exprs (*context*) #:rules normal-rules)
-            (rewrite-expressions real-exprs (*context*) #:rules expansive-rules #:once? #t)
-            (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t))))
+      (merge-changelists
+        (rewrite-expressions real-exprs (*context*) #:rules normal-rules)
+        (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t)))
 
     ;; rewrite low-error locations (only precision changes allowed)
     (define changelists-low-locs
-      (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
+      (rewrite-expressions lowexprs (*context*)
+                           #:rules reprchange-rules #:once? #t))
 
     (define comb-changelists (append changelists changelists-low-locs))
     (define altns (append real-alts (^queuedlow^)))
     
     (define rewritten
-      (for/fold ([done '()] #:result (reverse done))
-                ([cls comb-changelists] [altn altns]
-                #:when true [cl cls])
-          (match-define (list subexp input) cl)
+      (reap [sow]
+        (for ([changelists comb-changelists] [altn altns])
+          (for ([cl changelists])
+            (match-define (list subexp input) cl)
             (define body* (apply-repr-change-expr subexp (*context*)))
-            (if body*
-              ; We need to pass '() here so it can get overwritten on patch-fix
-              (cons (alt body* (list 'rr '() input #f #f) (list altn) '()) done)
-              done)))
+            (when body*
+              ; apply-repr-change-expr is partial
+              ; we need to pass '() here so it can get overwritten on patch-fix
+              (sow (alt body* (list 'rr '() input #f #f) (list altn) '())))))))
 
     (timeline-push! 'count (length (^queued^)) (length rewritten))
     ; TODO: accuracy stats for timeline
