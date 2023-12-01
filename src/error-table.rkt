@@ -86,22 +86,22 @@
                       ; When both underflow
                       [(and (= x+y 0.0) (underflow? subexpr)) #f]
 
-                      ; x and y both overflow, but the result should be inf not nan
+                      ; inf + inf should give an inf not a nan when they have
+                      ; different signs
                       [(and (infinite? larg-val)
                             (infinite? rarg-val)
                             (not (same-sign? larg-val rarg-val))
                             (not (nan? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
 
-                      #|
-                      NOTE could collapse all of these 4 conditions into one
-                      |#
+                      ; if either arg is inf, and the answer is not, then inf was
+                      ; rescued
                       [(and (or (infinite? larg-val)
                                 (infinite? rarg-val))
                             (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
                       
-                      ;; Condition Number
+                      ; CN(+, x, y) = x / x + y 
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
@@ -118,10 +118,10 @@
                       ; Both underflow (I forgot why I am doing this ;-;)
                       [(and (= x-y 0.0) (underflow? subexpr)) #f]
 
-                      ; x and y both overflow, then I should get a inf not a nan
+                      ; inf - inf or -inf - -inf should give an inf not a nan
                       [(and (infinite? larg-val)
                             (infinite? rarg-val)
-			                      (same-sign? larg-val rarg-val)
+                            (same-sign? larg-val rarg-val)
                             (not (nan? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
 
@@ -131,7 +131,7 @@
                             (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
 		      
-                      ; Condition number
+                      ; CN(+, x, y) = x / x - y
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
@@ -157,7 +157,7 @@
                    [(list 'sqrt.f64 arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
-                    ; Check if over/underflow is rescues
+                    ; Check if over/underflow is rescued
                     (and (or (underflow? arg)
                              (overflow? arg))
                          (not (= subexpr-val arg-val))
@@ -240,6 +240,7 @@
                       [arg-oflow? (mark-erroneous! subexpr pt)]
                       ; underflow rescue
                       [arg-uflow? (mark-erroneous! subexpr pt)]
+                      ; CN(log, x, y) = 1 / log(x)
                       [(> cond-num 1e2) (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
@@ -262,9 +263,9 @@
                     (define x^y (expt x y))
                     (define cond-x (abs y))
                     (define cond-y (abs (* y (log x))))
-                    
+
+                    ; pow has a lot of problems
                     (cond
-                      ; skip if x is one
                       [(and (= x 1.0) (= subexpr-val 1.0)) #f]
                       [(and (= y 1.0) (= subexpr-val x)) #f]
                       [(and (= y 0.0) (= subexpr-val 0.0)) #f]
@@ -273,7 +274,8 @@
                                 (underflow? x-ex))
                             (not (= subexpr-val x)))
                        (mark-erroneous! subexpr pt)]
-                      ; condition number
+                      ; CN_x(pow, x, y) = y
+                      ; CN_y(pow, x, y) = ylog(x)
                       [(or (> cond-x 1e2) (> cond-y 1e2))
                        (mark-erroneous! subexpr pt)]
                       [else  #f])]
