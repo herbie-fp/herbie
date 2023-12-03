@@ -167,7 +167,7 @@
 ;; indices = The si's we are considering in this candidate.
 (struct cse (cost indices) #:transparent)
 
-; (struct soa-cse ((vector cses) (vector best) (vector prev-k)) #:transparent)
+(struct soa-cse (cses bests prev-k) #:transparent)
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 (define (valid-splitindices? can-split? split-indices)
@@ -176,16 +176,31 @@
      (and (> pidx 0)) (list-ref can-split? pidx))
    (= (si-pidx (last split-indices)) (length can-split?))))
 
-(define/contract (err-lsts->split-indices err-lsts can-split-lst)
+;; TODO don't need alts we can recompute them
+;; TODO not really sure what the actual return type is gonna be other then
+;; TODO return 3 vectors
+
+
+;; alts-err-lsts is a list of lists [[]]
+;; which holds the error of each alt on each sampled point
+;; can-split-lst is a list []
+(define/contract (err-lsts->split-indices alts-err-lsts can-split-lst)
   (->i ([e (listof list)] [cs (listof boolean?)]) [result (cs) (curry valid-splitindices? cs)])
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
-  (define num-candidates (length err-lsts))
-  (define num-points (length (car err-lsts)))
-  (define min-weight num-points)
+  ;; ??? What regions?
 
-  (define psums (map (compose partial-sums list->vector) err-lsts))
+  ;; alts-err-lsts = candidates
+  ;; candidates = alts
+  (define number-of-alts (length alts-err-lsts))
+  ;; an alt is a list of errors
+  (define num-points (length (car alts-err-lsts)))
+  (define min-weight num-points)
+  ;; 
+  (define cost-of-regions (map (compose partial-sums list->vector) alts-err-lsts))
+  ;; (printf "~a" (first psums))
   (define can-split? (curry vector-ref (list->vector can-split-lst)))
+  ;; only need AST with 3 nodes?
 
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
@@ -201,9 +216,9 @@
               #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
-            (for ([cidx (in-naturals)] [psum (in-list psums)])
-              (let ([cost (- (vector-ref psum point-idx)
-                             (vector-ref psum prev-split-idx))])
+            (for ([cidx (in-naturals)] [cost-of-region (in-list cost-of-regions)])
+              (let ([cost (- (vector-ref cost-of-region point-idx)
+                             (vector-ref cost-of-region prev-split-idx))])
                 (when (or (not best) (< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
@@ -223,8 +238,8 @@
               (map (λ (cand-idx cand-psums)
                       (let ([cost (vector-ref cand-psums point-idx)])
                         (cse cost (list (si cand-idx (+ point-idx 1))))))
-                   (range num-candidates)
-                   psums))))
+                   (range number-of-alts)
+                   cost-of-regions))))
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final

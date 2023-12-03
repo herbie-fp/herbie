@@ -71,13 +71,13 @@
   (check-equal? (flip-lists '((1 2 3) (4 5 6) (7 8 9)))
                 '((1 4 7) (2 5 8) (3 6 9))))
 
-(define (partial-sums vec)
-  (define res (make-vector (vector-length vec)))
-  (for/fold ([cur-psum 0]) ([(el idx) (in-indexed (in-vector vec))])
+(define (partial-sums input-vector)
+  (define result-vector (make-vector (vector-length input-vector)))
+  (for/fold ([cur-psum 0]) ([(el idx) (in-indexed (in-vector input-vector))])
     (let ([new-psum (+ cur-psum el)])
-      (vector-set! res idx new-psum)
+      (vector-set! result-vector idx new-psum)
       new-psum))
-  res)
+  result-vector)
 
 (module+ test
   (check-equal? (partial-sums #(1 4 6 3 8)) #(1 5 11 14 22)))
