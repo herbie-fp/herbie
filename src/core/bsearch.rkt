@@ -19,7 +19,7 @@
 (define (combine-alts best-option ctx)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
-   [(list (si cidx _)) (list-ref alts cidx)]
+   [(list (split-index cidx _)) (list-ref alts cidx)]
    [_
     (timeline-event! 'bsearch)
     (define splitpoints (sindices->spoints pts expr alts splitindices ctx))
@@ -129,11 +129,11 @@
 
   (append
    (for/list ([si1 sindices] [si2 (cdr sindices)])
-     (define prog1 (list-ref progs (si-cidx si1)))
-     (define prog2 (list-ref progs (si-cidx si2)))
+     (define prog1 (list-ref progs (split-index-cidx si1)))
+     (define prog2 (list-ref progs (split-index-cidx si2)))
 
-     (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
-     (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
+     (define p1 (apply eval-expr (list-ref points (sub1 (split-index-pidx si1)))))
+     (define p2 (apply eval-expr (list-ref points (split-index-pidx si1))))
 
      (define timeline-stop! (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
      (define split-at
@@ -143,8 +143,8 @@
      (timeline-stop!)
 
      (timeline-push! 'method (if use-binary "binary-search" "left-value"))
-     (sp (si-cidx si1) expr split-at))
-   (list (sp (si-cidx (last sindices)) expr +nan.0))))
+     (sp (split-index-cidx si1) expr split-at))
+   (list (sp (split-index-cidx (last sindices)) expr +nan.0))))
 
 (define (valid-splitpoints? splitpoints)
   (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1)

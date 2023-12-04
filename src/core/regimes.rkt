@@ -4,7 +4,7 @@
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt"
          "../compiler.rkt")
 (require racket/trace)
-(provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si))
+(provide pareto-regimes infer-splitpoints (struct-out option) (struct-out split-index))
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -20,7 +20,8 @@
 ;; Struct representing a splitindex
 ;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
 ;; pidx = Point index: The index of the point to the left of which we should split.
-(struct si (cidx pidx) #:prefab)
+; (struct si (cidx pidx) #:prefab)
+(struct split-index (cidx pidx) #:prefab)
 
 (define (pareto-regimes sorted ctx)
   (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
@@ -30,7 +31,7 @@
      [else
       (define-values (opt new-errs) 
         (infer-splitpoints alts #:errs errs ctx))
-      (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
+      (define high (split-index-cidx (argmax (λ (x) (split-index-cidx x)) (option-split-indices opt))))
       (cons opt (loop (take alts high) new-errs))])))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
@@ -64,7 +65,7 @@
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
                   (for/list ([sidx (option-split-indices best)])
-                    (~a (alt-expr (list-ref alts (si-cidx sidx))))))
+                    (~a (alt-expr (list-ref alts (split-index-cidx sidx))))))
   (define err-lsts* (flip-lists err-lsts))
   (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
   (timeline-push! 'accuracy (errors-score (option-errors best)))
@@ -130,14 +131,14 @@
   out)
 
 (define/contract (pick-errors split-indices pts err-lsts repr)
-  (->i ([sis (listof si?)] 
+  (->i ([sis (listof split-index?)] 
         [vss (r) (listof (listof (representation-repr? r)))]
         [errss (listof (listof real?))]
         [r representation?])
        [idxs (listof nonnegative-integer?)])
   (for/list ([i (in-naturals)] [pt pts] [errs (flip-lists err-lsts)])
-    (for/first ([si split-indices] #:when (< i (si-pidx si)))
-      (list-ref errs (si-cidx si)))))
+    (for/first ([split-index split-indices] #:when (< i (split-index-pidx split-index)))
+      (list-ref errs (split-index-cidx split-index)))))
 
 (module+ test
   (define ctx (make-debug-context '(x)))
@@ -147,45 +148,52 @@
     (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
     ;; This is a basic sanity test
-    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
+    (check (λ (x y) (equal? (map split-index-cidx (option-split-indices x)) y))
            (option-on-expr alts err-lsts 'x ctx)
            '(1 0))
 
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
-    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
+    (check (λ (x y) (equal? (map split-index-cidx (option-split-indices x)) y))
            (option-on-expr alts err-lsts '1 ctx)
            '(0))
 
-    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
+    (check (λ (x y) (equal? (map split-index-cidx (option-split-indices x)) y))
            (option-on-expr alts err-lsts '(if (==.f64 x 0.5) 1 +nan.0) ctx)
            '(1 0))))
 
-;; Struct representing a candidate set of splitpoints that we are considering.
-;; cost = The total error in the region to the left of our rightmost splitpoint
-;; indices = The si's we are considering in this candidate.
-(struct cse (cost indices) #:transparent)
+;; Struct representing an alternatives set of splitpoints that we are 
+;; considering.
+;; region-cost = The total error in the region to the left of our rightmost 
+;; splitpoint
+;; split-indexs = The split-indexs we are considering in this candidate.
+(struct cse (region-cost split-indexs) #:transparent)
 
+;; zane's weird output struct
 (struct soa-cse (cses bests prev-k) #:transparent)
 
-;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
-(define (valid-splitindices? can-split? split-indices)
+;; Given error-lsts, returns a list of sp objects representing where the 
+;; optimal splitpoints are.
+(define (valid-splitindices? can-split? split-indexs)
   (and
-   (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
+   (for/and ([pidx (map split-index-pidx (drop-right split-indexs 1))])
      (and (> pidx 0)) (list-ref can-split? pidx))
-   (= (si-pidx (last split-indices)) (length can-split?))))
+   (= (split-index-pidx (last split-indexs)) (length can-split?))))
 
 ;; TODO don't need alts we can recompute them
 ;; TODO not really sure what the actual return type is gonna be other then
 ;; TODO return 3 vectors
+;; ???  only need AST with 3 nodes, don't remember why this matters and something about 5
 
 
 ;; alts-err-lsts is a list of lists [[]]
 ;; which holds the error of each alt on each sampled point
 ;; can-split-lst is a list []
-(define/contract (err-lsts->split-indices alts-err-lsts can-split-lst)
-  (->i ([e (listof list)] [cs (listof boolean?)]) [result (cs) (curry valid-splitindices? cs)])
+;; TODO worry about contracts later..
+; (define/contract (err-lsts->split-indices alts-err-lsts can-split-lst)
+;   (->i ([e (listof list)] [cs (listof boolean?)]) [result (cs) (curry valid-splitindices? cs)])
+(define (err-lsts->split-indices alts-err-lsts can-split-lst)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   ;; ??? What regions?
@@ -196,11 +204,15 @@
   ;; an alt is a list of errors
   (define num-points (length (car alts-err-lsts)))
   (define min-weight num-points)
-  ;; 
   (define cost-of-regions (map (compose partial-sums list->vector) alts-err-lsts))
-  ;; (printf "~a" (first psums))
+
   (define can-split? (curry vector-ref (list->vector can-split-lst)))
-  ;; only need AST with 3 nodes?
+
+  (define result-soa 
+    (soa-cse 
+      (make-vector num-points)
+      (make-vector num-points)
+      (make-vector num-points)))
 
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
@@ -211,9 +223,9 @@
     (for/vector #:length num-points ([point-idx (in-naturals)] [point-entry (in-vector sp-prev)])
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
+      (let ([acost (- (cse-region-cost point-entry) min-weight)] [aest point-entry])
         (for ([prev-split-idx (in-range 0 point-idx)] [prev-entry (in-vector sp-prev)]
-              #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
+              #:when (can-split? (split-index-pidx (car (cse-split-indexs prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [cost-of-region (in-list cost-of-regions)])
@@ -222,25 +234,28 @@
                 (when (or (not best) (< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
-            (when (and (< (+ (cse-cost prev-entry) bcost) acost))
-              (set! acost (+ (cse-cost prev-entry) bcost))
-              (set! aest (cse acost (cons (si best (+ point-idx 1))
-                                          (cse-indices prev-entry)))))))
+            (when (and (< (+ (cse-region-cost prev-entry) bcost) acost))
+              (set! acost (+ (cse-region-cost prev-entry) bcost))
+              (set! aest (cse acost (cons (split-index best (+ point-idx 1))
+                                          (cse-split-indexs prev-entry)))))))
         aest)))
 
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
   (define initial
+    ;; our vector of structs. So this will need to be struct of 3 vectors.
     (for/vector #:length num-points ([point-idx (in-range num-points)])
-      (argmin cse-cost
+      (argmin cse-region-cost
               ;; Consider all the candidates we could put in this region
               (map (λ (cand-idx cand-psums)
                       (let ([cost (vector-ref cand-psums point-idx)])
-                        (cse cost (list (si cand-idx (+ point-idx 1))))))
+                        (cse cost (list (split-index cand-idx (+ point-idx 1))))))
                    (range number-of-alts)
                    cost-of-regions))))
-
+  (printf "ZANE\n")             
+  (printf "~a\n" (vector-ref initial 0))
+  (printf "ZANE\n") 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
     (let loop ([prev initial])
@@ -249,6 +264,8 @@
             next
             (loop next)))))
 
-  ;; Extract the splitpoints from our data structure, and reverse it.
-  (reverse (cse-indices (vector-ref final (- num-points 1)))))
+  ;; Extract the splitpoints from our data structure (DAG?), and reverse it.
+  (reverse (cse-split-indexs (vector-ref final (- num-points 1))))
+  ;TODO return result-soa filled with values
+  )
 
