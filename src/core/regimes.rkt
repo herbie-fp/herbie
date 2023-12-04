@@ -253,9 +253,10 @@
                         (cse cost (list (split-index cand-idx (+ point-idx 1))))))
                    (range number-of-alts)
                    cost-of-regions))))
-  (printf "ZANE\n")             
-  (printf "~a\n" (vector-ref initial 0))
-  (printf "ZANE\n") 
+  ; (printf "ZANE\n")     
+  ; (printf "~a\n" (vector-length initial))        
+  ; (printf "~a\n" initial)
+  ; (printf "ZANE\n") 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
     (let loop ([prev initial])
@@ -263,9 +264,15 @@
         (if (equal? prev next)
             next
             (loop next)))))
+  ; (printf "ZANE\n")     
+  ; (printf "~a\n" (vector-length final))        
+  ; (printf "~a\n" final)
+  ; (printf "ZANE\n") 
 
   ;; Extract the splitpoints from our data structure (DAG?), and reverse it.
-  (reverse (cse-split-indexs (vector-ref final (- num-points 1))))
+  (define output-list (cse-split-indexs (vector-ref final (- num-points 1))))
+  ; (printf "~a\n" output-list)
+  (reverse output-list)
   ;TODO return result-soa filled with values
   )
 
