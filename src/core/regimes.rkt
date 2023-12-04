@@ -217,10 +217,12 @@
 
   ;; maybe new return type instead 
   ;; TODO better names
-  (define best-costs (make-vector num-points)) ;; floating point number?
+  ;; TODO how long should these be?
+  (define vector-size (+ num-points 1))
+  (define best-costs (make-vector vector-size)) ;; floating point number?
   ;; best-alt-index?
-  (define best-cost-indexs (make-vector num-points)) ;; integer 
-  (define prev-ks (make-vector num-points)) ;; integer
+  (define best-cost-indexs (make-vector vector-size)) ;; integer 
+  (define prev-ks (make-vector vector-size)) ;; integer
   (define output-vector-index 0) 
 
   ;; Our intermediary data is a list of cse's,
@@ -264,7 +266,10 @@
               (vector-set! best-costs output-vector-index best-cost) ;; TODO count counter
               (vector-set! best-cost-indexs output-vector-index best-index)
               (vector-set! prev-ks output-vector-index current-point-idx-k)
-              ; (set! output-vector-index (add1 output-vector-index))
+
+              (if (< output-vector-index num-points)
+                (set! output-vector-index (add1 output-vector-index))
+                empty)
               ;; cons current best to previous ones?
               (set! aest (cse acost (cons current-split-point
                                           current-alt))))))
