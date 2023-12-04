@@ -125,6 +125,7 @@
                                (</total prev val repr))))
 
   (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
+  ;; TODO split-indices will be sturct of 3 arrays
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) (~a (representation-name repr)))
@@ -140,6 +141,7 @@
     (for/first ([split-index split-indices] #:when (< i (split-index-pidx split-index)))
       (list-ref errs (split-index-cidx split-index)))))
 
+;; TODO Zane will need to update this
 (module+ test
   (define ctx (make-debug-context '(x)))
   (parameterize ([*start-prog* 1]
@@ -204,15 +206,22 @@
   ;; an alt is a list of errors
   (define num-points (length (car alts-err-lsts)))
   (define min-weight num-points)
-  (define cost-of-regions (map (compose partial-sums list->vector) alts-err-lsts))
+  ; (printf "~a\n" alts-err-lsts)
+
+  ;; cost-of-regions is a list of vectors?
+  (define cost-of-regions 
+    (map (compose partial-sums list->vector) alts-err-lsts))
+  ; (printf "~a\n" (vector? (first cost-of-regions)))
 
   (define can-split? (curry vector-ref (list->vector can-split-lst)))
 
-  (define result-soa 
-    (soa-cse 
-      (make-vector num-points)
-      (make-vector num-points)
-      (make-vector num-points)))
+  ;; maybe new return type instead 
+  ;; TODO better names
+  (define best-costs (make-vector num-points)) ;; floating point number?
+  ;; best-alt-index?
+  (define best-cost-indexs (make-vector num-points)) ;; integer 
+  (define prev-ks (make-vector num-points)) ;; integer
+  (define output-vector-index 0) 
 
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
@@ -220,24 +229,45 @@
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint sp-prev)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
-    (for/vector #:length num-points ([point-idx (in-naturals)] [point-entry (in-vector sp-prev)])
+    (for/vector #:length num-points 
+      ([current-point-idx-k (in-naturals)] [point-entry (in-vector sp-prev)])
+      ; (printf "~a\n" (vector? sp-prev)) ;; DAG data structure
+      ; (printf "~a\n" (struct? point-entry))
+      ; (printf "~a\n" current-point-idx-k)
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (- (cse-region-cost point-entry) min-weight)] [aest point-entry])
-        (for ([prev-split-idx (in-range 0 point-idx)] [prev-entry (in-vector sp-prev)]
-              #:when (can-split? (split-index-pidx (car (cse-split-indexs prev-entry)))))
+      (let ([acost (- (cse-region-cost point-entry) min-weight)] 
+            [aest point-entry])
+        ; (printf "~a\n" aest) ;; what should I name this?
+        (for ([prev-split-idx-l (in-range 0 current-point-idx-k)] 
+              [prev-entry (in-vector sp-prev)]
+              #:when (can-split? 
+                      (split-index-pidx (car (cse-split-indexs prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
-          (let ([best #f] [bcost #f])
-            (for ([cidx (in-naturals)] [cost-of-region (in-list cost-of-regions)])
-              (let ([cost (- (vector-ref cost-of-region point-idx)
-                             (vector-ref cost-of-region prev-split-idx))])
-                (when (or (not best) (< cost bcost))
-                  (set! bcost cost)
-                  (set! best cidx))))
-            (when (and (< (+ (cse-region-cost prev-entry) bcost) acost))
-              (set! acost (+ (cse-region-cost prev-entry) bcost))
-              (set! aest (cse acost (cons (split-index best (+ point-idx 1))
-                                          (cse-split-indexs prev-entry)))))))
+          (let ([best-index #f] [best-cost #f]) ;; Understand these conditions?
+            (for ([current-index (in-naturals)] 
+                  [cost-of-region (in-list cost-of-regions)])
+              (let ([cost (- (vector-ref cost-of-region current-point-idx-k)
+                             (vector-ref cost-of-region prev-split-idx-l))])
+                (when (or (not best-index) (< cost best-cost))
+                  (set! best-cost cost)
+                  (set! best-index current-index))))
+            (when (and (< (+ (cse-region-cost prev-entry) best-cost) acost))
+              (set! acost (+ (cse-region-cost prev-entry) best-cost))
+              (define next-k (+ current-point-idx-k 1))
+              (define current-split-point (split-index best-index next-k))
+              ;; don't need this as we can recompute using split points
+              (define current-alt (cse-split-indexs prev-entry))
+               ;; TODO vector of cost?, acost?
+              ;; so I think we need to save
+              ;; best-cost, best-index, current-point-idx-k
+              (vector-set! best-costs output-vector-index best-cost) ;; TODO count counter
+              (vector-set! best-cost-indexs output-vector-index best-index)
+              (vector-set! prev-ks output-vector-index current-point-idx-k)
+              ; (set! output-vector-index (add1 output-vector-index))
+              ;; cons current best to previous ones?
+              (set! aest (cse acost (cons current-split-point
+                                          current-alt))))))
         aest)))
 
   ;; We get the initial set of cse's by, at every point-index,
@@ -253,25 +283,21 @@
                         (cse cost (list (split-index cand-idx (+ point-idx 1))))))
                    (range number-of-alts)
                    cost-of-regions))))
-  ; (printf "ZANE\n")     
-  ; (printf "~a\n" (vector-length initial))        
-  ; (printf "~a\n" initial)
-  ; (printf "ZANE\n") 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
     (let loop ([prev initial])
       (let ([next (add-splitpoint prev)])
         (if (equal? prev next)
             next
+            ;; when loop is "called" `next` gets set to `prev`
             (loop next)))))
-  ; (printf "ZANE\n")     
-  ; (printf "~a\n" (vector-length final))        
-  ; (printf "~a\n" final)
-  ; (printf "ZANE\n") 
+
+  (define result-soa (soa-cse best-costs best-cost-indexs prev-ks))
+  ; (printf "~a\n" result-soa)
 
   ;; Extract the splitpoints from our data structure (DAG?), and reverse it.
   (define output-list (cse-split-indexs (vector-ref final (- num-points 1))))
-  ; (printf "~a\n" output-list)
+  ; (printf "~a\n" (first output-list))
   (reverse output-list)
   ;TODO return result-soa filled with values
   )
