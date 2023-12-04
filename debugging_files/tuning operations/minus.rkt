@@ -6,6 +6,7 @@
 (require math/base racket/match)
 
 (define *max-prec* (make-parameter 8192))
+(define *extra-prec* (make-parameter 20))
 
 ; Casts x to 'prec' precision
 (define (bf->prec-bf prec x)
@@ -60,6 +61,8 @@
   (define x (random-number-low-exponent))
   (define y (random-number-low-exponent))
   (values x y))
+
+
 
 (define (high-and-low-exponent-points)
   (define x (random-number-low-exponent))
@@ -123,7 +126,7 @@
                                   (op x y))))
   (define target-prec (for/list ([i (in-range 24 (*max-prec*) 1)]
                                  #:break
-                                 (parameterize ([bf-precision (+ 10 output-prec)])
+                                 (parameterize ([bf-precision (+ (*extra-prec*) output-prec)])
                                    (bf=
                                     (bf->prec-bf output-prec             ; cast to output-prec precision
                                                  (parameterize ([bf-rounding-mode 'up])
@@ -142,20 +145,30 @@
 
 ;; -------------------------------------------- Fuzzing ----------------------------------------------
 
-(define (spinner op output-prec [verbose #f])
+(define (spinner op verbose)
   (define output-prec (random-integer 24 4096))  ; random output-precision
 
   ; Generates two random points which can cause cancellation, but some cases do not cause on purpose
-  (define-values (x y)
-    (let ([choice (random-integer 1 4)])
+  (define-values (x* y*)
+    (let ([choice (random-integer 0 6)])
       (match choice
-        [1 (one-exp-off-points)]                 ; possible cancellation
-        [2 (sin-cancellation-points)]            ; possible cancellation
-        ;[3 (two-random-points-high-exponents)]   ; no cancellation
-        ;[4 (two-random-points-low-exponents)]    ; no cancellation
-        ;[5 (high-and-low-exponent-points)]       ; no cancellation
-        [3 (same-exponent-with-ulp-distance)]    ; possible cancellation
-        [4 (few-exponents-distance)])))          ; weird case, some points crash the algorithm
+        [0 (one-exp-off-points)]                 ; possible cancellation
+        [1 (sin-cancellation-points)]            ; possible cancellation
+        [2 (two-random-points-high-exponents)]   ; no cancellation
+        [3 (two-random-points-low-exponents)]    ; no cancellation
+        [4 (high-and-low-exponent-points)]       ; no cancellation
+        [5 (same-exponent-with-ulp-distance)]    ; possible cancellation
+        [6 (few-exponents-distance)])))          ; weird case, some points crash the algorithm
+
+
+  
+  (define-values (x y)
+    (parameterize ([bf-precision (*max-prec*)])
+      (match (random-integer 0 3)
+        [0 (values x* y*)]
+        [1 (values (bf* x* -1.bf) y*)]
+        [2 (values x* (bf* y* -1.bf))]
+        [3 (values (bf* x* -1.bf) (bf* y* -1.bf))])))
     
   (define x-exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
   (define y-exp (+ (bigfloat-exponent y) (bigfloat-precision y)))
@@ -166,27 +179,35 @@
   ; Define input precision so than the interval will be fixed in output-prec bits of precision
   (define input-prec (define-input-prec x y op output-prec))
     
-  (define op-prediction (+ 20 output-prec)) ; prediction of what the precision should be for op
+  (define op-prediction (+ (*extra-prec*) output-prec)) ; prediction of what the precision should be for op
     
   (define out-exp (parameterize ([bf-precision (*max-prec*)])
-                    (abs (+ (bigfloat-exponent (bf- x y)) (*max-prec*)))))
+                    (+ (bigfloat-exponent (bf- x y)) (*max-prec*))))
     
-  (define input-prediction (min (*max-prec*)  ; prediction of what the input precision should be
+  #;(define input-prediction (min (*max-prec*)  ; prediction of what the input precision should be
                                 (+ 20         ; for that output-prec
                                    output-prec
                                    (if (and (>= 1 (abs (- x-exp y-exp)))
                                             (> x-exp -9220000000000000000))  ; 0.bf case to be added when modifying compiler.rkt
                                        (abs (+ x-exp out-exp))  ; y-exp to be considered as well
                                        0))))
-
+  (define input-prediction (+ (*extra-prec*) (if (and 
+                                                  (> (- x-exp out-exp) 0)
+                                                  (or (< -9220000000000000000 x-exp)
+                                                      (equal? x-exp -9223372036854775807)))
+                                     (- x-exp out-exp)
+                                     0)
+                              output-prec))
+  
   (when verbose
-    (printf "x-exp=~a\nx=~a\ny-exp=~a\ny=~a\ntarget-prec=~a\npred=~a\nout-exp=~a\n\n"
+    (printf "x-exp=~a\nx=~a\ny-exp=~a\ny=~a\ntarget-prec=~a\npred=~a\nout-prec=~a\nout-exp=~a\n\n"
              x-exp
              (bf->prec-bf 53 x)
              y-exp
              (bf->prec-bf 53 y)
              input-prec
              input-prediction
+             output-prec
              out-exp))
 
   ; Check prediction for operation precision
@@ -217,26 +238,28 @@
   (cond
     [(> input-prec input-prediction)
      (printf "Input precision misprediction for:
-\tx-exponent=~a\n\tx=~a\n\ty-exponent=~a\n\ty=~a\n\ttrue-input-prec=~a\n\tpredicted-input-precision=~a\n\toutput-exponent=~a\n\n"
+\tx-exponent=~a\n\tx=~a\n\ty-exponent=~a\n\ty=~a\n\ttrue-input-prec=~a\n\tpredicted-input-precision=~a\n\tout-prec=~a\n\toutput-exponent=~a\n\n"
             x-exp
             (bf->prec-bf 53 x)
             y-exp
             (bf->prec-bf 53 y)
             input-prec
             input-prediction
+            output-prec
             out-exp)]
-    #;[(< 30 (abs (- input-prec input-prediction)))
-     (printf "Input precision prediction for these points is correct but with a large margin (~a):
-\tx-exponent=~a\n\tx=~a\n\ty-exponent=~a\n\ty=~a\n\ttrue-input-prec=~a\n\tpredicted-input-precision=~a\n\toutput-exponent=~a\n\n"
-            (abs (- input-prec input-prediction))
+    [(and (< 1 (abs (- input-prec input-prediction))) (> (- input-prediction output-prec) (*extra-prec*)))
+     (printf "Input precision is too off for:
+\tx-exponent=~a\n\tx=~a\n\ty-exponent=~a\n\ty=~a\n\ttrue-input-prec=~a
+\tpredicted-input-precision=~a\n\tout-prec=~a\n\toutput-exponent=~a\n\tabs-diff=~a\n\n"
             x-exp
-            (bf->prec-bf 24 x)
+            (bf->prec-bf 53 x)
             y-exp
-            (bf->prec-bf 24 y)
+            (bf->prec-bf 53 y)
             input-prec
             input-prediction
-            out-exp)])
-  )
+            output-prec
+            out-exp
+            (- input-prediction input-prec))]))
 
 (define op bf-)
 (define verbose #f)
