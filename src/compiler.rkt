@@ -35,12 +35,11 @@
         (unbox x)
         0))
 
-  (define list-of-trig (list ival-sin ival-cos ival-tan))
   (define (tuning-filter instr)
     (if (vector? (car instr))
         (if (member
              (vector-ref (car instr) 0)
-             list-of-trig)
+             (list ival-sin ival-cos ival-tan))
             #t
             #f)
         #f))
@@ -60,44 +59,31 @@
       (for ([arg (in-list args)] [n (in-naturals)])
         (vector-set! vregs n arg))
       (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-        ; Tail
         (define srcs
           (for/list ([idx (in-list (cdr instr))])
             (vector-ref vregs idx)))
 
-        ; Current op
-        (if (vector? (car instr))
-            ; Current op is an operation - not a constant
-            (let ([op (vector-ref (car instr) 0)])
-              (cond
-                [(member op list-of-trig)
-                 (let ([extra-precision (unbox-prec (vector-ref (car instr) 1))]
-                       [exponents-checkpoint (vector-ref (car instr) 2)])
-                 
-                   (if (zero? extra-precision)
-                       ; Current trig function should be computed under (bf-precision)
-                       (vector-set! vregs n (apply op srcs))
-                 
-                       ; The current op possibly has an extra-precision it should be computed under
-                       (parameterize ([bf-precision (define-precision extra-precision)])
-                         (vector-set! vregs n (apply op srcs))))
-                   
-                   (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                             (max 0
-                                  (+ extra-precision
-                                     (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
-                                          (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs)))))))))]
-                [else
-                 (let ([extra-precision (unbox-prec (vector-ref (car instr) 1))])
-                   (if (zero? extra-precision)
-                       ; The current op should be computed under (bf-precision)
-                       (vector-set! vregs n (apply op srcs))
-                     
-                       ; The current op possibly has an extra-precision it should be computed under
-                       (parameterize ([bf-precision (define-precision extra-precision)])
-                         (vector-set! vregs n (apply op srcs)))))]))
-            ; This is a constant operation
-            (vector-set! vregs n (apply (car instr) srcs))))
+        (match (car instr)
+          [(vector op extra-precision)
+           (set! extra-precision (unbox-prec extra-precision))
+           (if (zero? extra-precision)
+               (vector-set! vregs n (apply op srcs))
+               (parameterize ([bf-precision (define-precision extra-precision)])
+                 (vector-set! vregs n (apply op srcs))))]
+          
+          [(vector op extra-precision exponents-checkpoint)  ; current op is sin/cos/tan
+           (set! extra-precision (unbox-prec extra-precision))
+           (if (zero? extra-precision)
+               (vector-set! vregs n (apply op srcs))
+               (parameterize ([bf-precision (define-precision extra-precision)])
+                 (vector-set! vregs n (apply op srcs))))
+           (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+                     (max 0
+                          (+ extra-precision
+                             (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
+                                  (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))))]
+          [op
+           (vector-set! vregs n (apply op srcs))]))
     
       (for/list ([root (in-list roots)])
         (vector-ref vregs root)))
@@ -111,13 +97,14 @@
         (define srcs
           (for/list ([idx (in-list (cdr instr))])
             (vector-ref vregs idx)))
-        (if (vector? (car instr))
-            (vector-set! vregs n (apply (vector-ref (car instr) 0) srcs))
-            (vector-set! vregs n (apply (car instr) srcs))))
+        (match (car instr)
+          [(vector op _)
+            (vector-set! vregs n (apply op srcs))]
+          [op
+            (vector-set! vregs n (apply op srcs))]))
     
       (for/list ([root (in-list roots)])
-        (vector-ref vregs root))))
-  )
+        (vector-ref vregs root)))))
 
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
@@ -154,8 +141,8 @@
                  (munge t type prec)
                  (munge f type prec))]
           [(list op args ...)
-           #:when (and (set-member? '(sin cos tan) op)
-                       (equal? name 'ival))
+           #:when (and (equal? name 'ival)
+                       (set-member? '(sin cos tan) op))
            (let ([exponent (box 0)])
              (cons (vector (op->proc op) prec exponent)
                    (map (curryr munge exponent)
