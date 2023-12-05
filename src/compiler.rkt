@@ -14,6 +14,9 @@
           (*extra-bits*)
           (bf-precision))))
 
+(define (true-exponent x)
+  (+ (bigfloat-exponent x) (bigfloat-precision x)))
+
 ;; Interpreter taking a narrow IR
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
@@ -35,6 +38,7 @@
         (unbox x)
         0))
 
+  (define list-of-trig (list ival-sin ival-cos ival-tan))
   (define (tuning-filter instr)
     (if (vector? (car instr))
         (if (member
@@ -62,38 +66,59 @@
         (define srcs
           (for/list ([idx (in-list (cdr instr))])
             (vector-ref vregs idx)))
-
         (match (car instr)
           [(vector op extra-precision)
-           (set! extra-precision (unbox-prec extra-precision))
-           (if (zero? extra-precision)
+           (define extra-prec (unbox-prec extra-precision))
+           (if (zero? extra-prec)
                (vector-set! vregs n (apply op srcs))
-               (parameterize ([bf-precision (define-precision extra-precision)])
+               (parameterize ([bf-precision (define-precision extra-prec)])
                  (vector-set! vregs n (apply op srcs))))]
           
+          [(vector op extra-precision exponents-checkpoint)  ; current op is ival-sub
+           #:when (equal? op ival-sub)
+           (define extra-prec (unbox-prec extra-precision))
+           (define output
+             (if (zero? extra-prec)
+                 (apply op srcs)
+                 (parameterize ([bf-precision (define-precision extra-prec)])
+                   (apply op srcs))))
+           (vector-set! vregs n output)
+           
+           (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
+           (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
+           
+           (set-box! exponents-checkpoint
+                     (max 0
+                          (+ extra-prec
+                             (if (or (>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
+                                     (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
+                                 (- (max (ival-hi x-exponents) (ival-hi y-exponents))
+                                    (true-exponent (ival-lo output)))
+                                 0))))]
+          
           [(vector op extra-precision exponents-checkpoint)  ; current op is sin/cos/tan
-           (set! extra-precision (unbox-prec extra-precision))
-           (if (zero? extra-precision)
+           #:when (list? (member op list-of-trig))
+           (define extra-prec (unbox-prec extra-precision))
+           (if (zero? extra-prec)
                (vector-set! vregs n (apply op srcs))
-               (parameterize ([bf-precision (define-precision extra-precision)])
+               (parameterize ([bf-precision (define-precision extra-prec)])
                  (vector-set! vregs n (apply op srcs))))
            (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
                      (max 0
-                          (+ extra-precision
-                             (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
-                                  (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))))]
+                          (+ extra-prec
+                             (max (true-exponent (ival-lo (car srcs)))
+                                  (true-exponent (ival-hi (car srcs)))))))]
           [op
            (vector-set! vregs n (apply op srcs))]))
     
       (for/list ([root (in-list roots)])
         (vector-ref vregs root)))
     
-    ; name == 'fl
+    ; name is 'fl
     (λ args
       (for ([arg (in-list args)] [n (in-naturals)])
         (vector-set! vregs n arg))
       (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-        ; Tail
         (define srcs
           (for/list ([idx (in-list (cdr instr))])
             (vector-ref vregs idx)))
@@ -142,7 +167,7 @@
                  (munge f type prec))]
           [(list op args ...)
            #:when (and (equal? name 'ival)
-                       (set-member? '(sin cos tan) op))
+                       (set-member? '(sin cos tan -) op))
            (let ([exponent (box 0)])
              (cons (vector (op->proc op) prec exponent)
                    (map (curryr munge exponent)
