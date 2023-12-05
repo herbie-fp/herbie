@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat "../rival.rkt")
+(require math/bigfloat rival)
 (require "../errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])

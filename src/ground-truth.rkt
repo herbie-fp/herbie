@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat "rival.rkt")
+(require math/bigfloat rival)
 (require "syntax/sugar.rkt" "syntax/types.rkt"
          "common.rkt" "compiler.rkt" "sampling.rkt" "timeline.rkt"
          "errors.rkt")
