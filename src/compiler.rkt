@@ -65,21 +65,21 @@
 
         (match (car instr)
           [(vector op extra-precision)
-           (set! extra-precision (unbox-prec extra-precision))
-           (if (zero? extra-precision)
+           (define extra-prec (unbox-prec extra-precision))
+           (if (zero? extra-prec)
                (vector-set! vregs n (apply op srcs))
-               (parameterize ([bf-precision (define-precision extra-precision)])
+               (parameterize ([bf-precision (define-precision extra-prec)])
                  (vector-set! vregs n (apply op srcs))))]
           
           [(vector op extra-precision exponents-checkpoint)  ; current op is sin/cos/tan
-           (set! extra-precision (unbox-prec extra-precision))
-           (if (zero? extra-precision)
+           (define extra-prec (unbox-prec extra-precision))
+           (if (zero? extra-prec)
                (vector-set! vregs n (apply op srcs))
-               (parameterize ([bf-precision (define-precision extra-precision)])
+               (parameterize ([bf-precision (define-precision extra-prec)])
                  (vector-set! vregs n (apply op srcs))))
            (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
                      (max 0
-                          (+ extra-precision
+                          (+ extra-prec
                              (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
                                   (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))))]
           [op
