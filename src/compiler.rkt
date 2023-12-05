@@ -83,18 +83,22 @@
                    (parameterize ([bf-precision (define-precision extra-prec)])
                      (apply op srcs))))
              (vector-set! vregs n output)
-           
+
              (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
              (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
+             (define output-exponents ((monotonic->ival true-exponent) output))
            
              (set-box! exponents-checkpoint
                        (max 0
                             (+ extra-prec
-                               (if (or (>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
-                                       (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
-                                   (- (max (ival-hi x-exponents) (ival-hi y-exponents))
-                                      (true-exponent (ival-lo output)))
-                                   0)))))]
+                               (match* ((>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
+                                        (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
+                                 [(#f #f) 0] ; no extra precision
+                                 [(#t #t) (-
+                                           (max (ival-lo x-exponents) (ival-hi x-exponents))
+                                           (min (ival-lo output-exponents) (ival-hi output-exponents)))]
+                                 [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]
+                                 [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))))]
           
           [(vector op extra-precision exponents-checkpoint)  ; sin/cos/tan
            #:when (list? (member op list-of-trig))
@@ -108,7 +112,7 @@
                             (+ extra-prec
                                (max (true-exponent (ival-lo (car srcs)))
                                     (true-exponent (ival-hi (car srcs))))))))]
-          [op ; const
+          [op  ; const
            (vector-set! vregs n (apply op srcs))]))
     
       (for/list ([root (in-list roots)])
