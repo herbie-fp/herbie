@@ -68,7 +68,8 @@
         (alt
          expression
          (list 'simplify null query #f #f)
-         (list alternative)))
+         (list alternative)
+         '()))
       alt-equal?)))
   (define components
     (connected-components
@@ -93,8 +94,9 @@
       (cons 'sort component)))
   (values
    (if (flag-set? 'setup 'simplify)
-       simplified
-       (list (make-alt initial)))
+       (for/list ([alt simplified])
+        (alt-add-preprocessing alt (append abs-instructions negabs-instructions sort-instructions)))
+       (list (make-alt-preprocessing initial (append abs-instructions negabs-instructions sort-instructions))))
    ;; Absolute value should happen before sorting
    (append abs-instructions negabs-instructions sort-instructions)))
 
