@@ -65,23 +65,23 @@
 
         (match (car instr)
           [(vector op extra-precision)
-           (define extra-prec (unbox-prec extra-precision))
-           (if (zero? extra-prec)
-               (vector-set! vregs n (apply op srcs))
-               (parameterize ([bf-precision (define-precision extra-prec)])
-                 (vector-set! vregs n (apply op srcs))))]
+           (let ([extra-prec (unbox-prec extra-precision)])
+             (if (zero? extra-prec)
+                 (vector-set! vregs n (apply op srcs))
+                 (parameterize ([bf-precision (define-precision extra-prec)])
+                   (vector-set! vregs n (apply op srcs)))))]
           
           [(vector op extra-precision exponents-checkpoint)  ; current op is sin/cos/tan
-           (define extra-prec (unbox-prec extra-precision))
-           (if (zero? extra-prec)
-               (vector-set! vregs n (apply op srcs))
-               (parameterize ([bf-precision (define-precision extra-prec)])
-                 (vector-set! vregs n (apply op srcs))))
-           (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                     (max 0
-                          (+ extra-prec
-                             (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
-                                  (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs))))))))]
+           (let ([extra-prec (unbox-prec extra-precision)])
+             (if (zero? extra-prec)
+                 (vector-set! vregs n (apply op srcs))
+                 (parameterize ([bf-precision (define-precision extra-prec)])
+                   (vector-set! vregs n (apply op srcs))))
+             (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+                       (max 0
+                            (+ extra-prec
+                               (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
+                                    (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs)))))))))]
           [op
            (vector-set! vregs n (apply op srcs))]))
     
@@ -93,16 +93,10 @@
       (for ([arg (in-list args)] [n (in-naturals)])
         (vector-set! vregs n arg))
       (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-        ; Tail
         (define srcs
           (for/list ([idx (in-list (cdr instr))])
             (vector-ref vregs idx)))
-        (match (car instr)
-          [(vector op _)
-            (vector-set! vregs n (apply op srcs))]
-          [op
-            (vector-set! vregs n (apply op srcs))]))
-    
+        (vector-set! vregs n (apply (car instr) srcs)))
       (for/list ([root (in-list roots)])
         (vector-ref vregs root)))))
 
@@ -128,7 +122,7 @@
     (define varc (length vars))
     
     ; Translates programs into an instruction sequence
-    (define (munge prog type [prec 0])
+    (define (munge-ival prog type [prec 0])
       (set! size (+ 1 size))
       
       (define expr
@@ -137,22 +131,38 @@
           [(? variable?) prog]
           [`(if ,c ,t ,f)
            (list (vector if-proc prec)
-                 (munge c cond-type prec)
-                 (munge t type prec)
-                 (munge f type prec))]
+                 (munge-ival c cond-type prec)
+                 (munge-ival t type prec)
+                 (munge-ival f type prec))]
           [(list op args ...)
-           #:when (and (equal? name 'ival)
-                       (set-member? '(sin cos tan) op))
+           #:when (set-member? '(sin cos tan) op)
            (let ([exponent (box 0)])
              (cons (vector (op->proc op) prec exponent)
-                   (map (curryr munge exponent)
+                   (map (curryr munge-ival exponent)
                         args
                         (op->itypes op))))]
           [(list op args ...)
            (cons (vector (op->proc op) prec)
-                    (map (curryr munge prec)
+                    (map (curryr munge-ival prec)
                          args
                          (op->itypes op)))]
+          [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
+      (hash-ref! exprhash expr
+                 (λ ()
+                   (begin0 (+ exprc varc)
+                     (set! exprc (+ 1 exprc))
+                     (set! icache (cons expr icache))))))
+    
+    (define (munge-fl prog type)
+      (set! size (+ 1 size))
+      (define expr
+        (match prog
+          [(? number?) (list (const (input->value prog type)))]
+          [(? variable?) prog]
+          [`(if ,c ,t ,f)
+           (list if-proc (munge-fl c cond-type) (munge-fl t type) (munge-fl f type))]
+          [(list op args ...)
+           (cons (op->proc op) (map munge-fl args (op->itypes op)))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
@@ -160,7 +170,7 @@
                      (set! exprc (+ 1 exprc))
                      (set! icache (cons expr icache))))))
 
-    (define names (map (curryr munge type) exprs))
+    (define names (map (curryr (if (equal? name 'fl) munge-fl munge-ival) type) exprs))
     (timeline-push! 'compiler (+ varc size) (+ exprc varc))
     (define ivec (list->vector (reverse icache)))
     (define interpret (make-progs-interpreter name vars ivec names))
