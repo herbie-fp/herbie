@@ -48,7 +48,7 @@
             #f)
         #f))
   
-  (define tuning-ivec
+  (define tuning-ivec  ; instructions where the flags are to be erased
     (if (equal? name 'ival)
         (vector-filter tuning-filter ivec)
         '()))
@@ -59,6 +59,7 @@
       (when (equal? (bf-precision) (*starting-prec*))
         (for ([instr (in-vector tuning-ivec)])
           (set-box! (vector-ref (car instr) 2) 0)))
+      (println ivec)
     
       (for ([arg (in-list args)] [n (in-naturals)])
         (vector-set! vregs n arg))
@@ -94,9 +95,8 @@
                                (match* ((>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
                                         (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
                                  [(#f #f) 0] ; no extra precision
-                                 [(#t #t) (-
-                                           (max (ival-lo x-exponents) (ival-hi x-exponents))
-                                           (min (ival-lo output-exponents) (ival-hi output-exponents)))]
+                                 [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
+                                               (- (ival-hi x-exponents) (ival-hi output-exponents)))]
                                  [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]
                                  [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))))]
           
