@@ -59,8 +59,7 @@
       (when (equal? (bf-precision) (*starting-prec*))
         (for ([instr (in-vector tuning-ivec)])
           (set-box! (vector-ref (car instr) 2) 0)))
-      (println ivec)
-    
+      
       (for ([arg (in-list args)] [n (in-naturals)])
         (vector-set! vregs n arg))
       (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
