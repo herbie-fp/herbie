@@ -191,10 +191,7 @@
 
 ;; alts-err-lsts is a list of lists [[]]
 ;; which holds the error of each alt on each sampled point
-;; can-split-lst is a list []
-;; TODO worry about contracts later..
-; (define/contract (err-lsts->split-indices alts-err-lsts can-split-lst)
-;   (->i ([e (listof list)] [cs (listof boolean?)]) [result (cs) (curry valid-splitindices? cs)])
+;; can-split-lst is a list [Bool]
 (define (err-lsts->split-indices alts-err-lsts can-split-lst)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
@@ -246,14 +243,20 @@
               #:when (can-split? 
                       (split-index-pidx (car (cse-split-indexs prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
-          (let ([best-index #f] [best-cost #f]) ;; Understand these conditions?
+          (define first-diff
+            (- (vector-ref (first cost-of-regions) current-point-idx-k)
+               (vector-ref (first cost-of-regions) prev-split-idx-l)))
+          (let ([best-index 0] [best-cost first-diff])
+            ;; finds best cost/alt?
             (for ([current-index (in-naturals)] 
                   [cost-of-region (in-list cost-of-regions)])
-              (let ([cost (- (vector-ref cost-of-region current-point-idx-k)
-                             (vector-ref cost-of-region prev-split-idx-l))])
-                (when (or (not best-index) (< cost best-cost))
+              (define k-cost (vector-ref cost-of-region current-point-idx-k))
+              (define l-cost (vector-ref cost-of-region prev-split-idx-l))
+              (let ([cost (- k-cost l-cost)]) ; k - l
+                (when (< cost best-cost)
                   (set! best-cost cost)
                   (set! best-index current-index))))
+            ;; 
             (when (and (< (+ (cse-region-cost prev-entry) best-cost) acost))
               (set! acost (+ (cse-region-cost prev-entry) best-cost))
               (define next-k (+ current-point-idx-k 1))
@@ -263,13 +266,13 @@
                ;; TODO vector of cost?, acost?
               ;; so I think we need to save
               ;; best-cost, best-index, current-point-idx-k
-              (vector-set! best-costs output-vector-index best-cost) ;; TODO count counter
+              (vector-set! best-costs output-vector-index best-cost)
               (vector-set! best-cost-indexs output-vector-index best-index)
               (vector-set! prev-ks output-vector-index current-point-idx-k)
-
               (if (< output-vector-index num-points)
                 (set! output-vector-index (add1 output-vector-index))
                 empty)
+
               ;; cons current best to previous ones?
               (set! aest (cse acost (cons current-split-point
                                           current-alt))))))
