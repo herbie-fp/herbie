@@ -252,10 +252,10 @@
                   [cost-of-region (in-list cost-of-regions)])
               (define k-cost (vector-ref cost-of-region current-point-idx-k))
               (define l-cost (vector-ref cost-of-region prev-split-idx-l))
-              (let ([cost (- k-cost l-cost)]) ; k - l
+              (define cost (- k-cost l-cost))
                 (when (< cost best-cost)
                   (set! best-cost cost)
-                  (set! best-index current-index))))
+                  (set! best-index current-index)))
             ;; 
             (when (and (< (+ (cse-region-cost prev-entry) best-cost) acost))
               (set! acost (+ (cse-region-cost prev-entry) best-cost))
