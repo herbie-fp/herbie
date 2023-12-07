@@ -1,7 +1,12 @@
 #![allow(clippy::missing_safety_doc)]
+#![feature(stdsimd, portable_simd)]
 
 pub mod math;
 pub mod rules;
+pub mod accelerator;
+
+pub use accelerator::reciprocal;
+// pub use accelerator::reciprocal_square_root;
 
 use egg::{Extractor, Id, Language, StopReason, Symbol};
 use indexmap::IndexMap;

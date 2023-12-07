@@ -9,7 +9,7 @@ egg = "0.9.5"
 # egg = { git="https://github.com/egraphs-good/egg", rev="f7e9fd6cb87136d48f5275c8f60d98173ffc170a" }
 
 log = "0.4"
-indexmap = "1"
+indexmap = "2.1"
 libc = "0.2.125"
 
 num-bigint = "0.4.3"
@@ -30,3 +30,9 @@ opt-level = 1
 debug = true
 lto = "fat"
 codegen-units = 1
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-Ctarget-cpu=native"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-Ctarget-cpu=native"]
