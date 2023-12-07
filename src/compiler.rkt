@@ -52,7 +52,11 @@
     (if (equal? name 'ival)
         (vector-filter tuning-filter ivec)
         '()))
-  
+  #;(timeline-push! 'fperrors
+                    (~a subexpr)
+                    (length tset)
+                    (length opred) (and (not (empty? opred)) (first opred))
+                    (length upred) (and (not (empty? upred)) (first upred))))
   (if (equal? name 'ival)
     (λ args
       ;; remove all the exponent values we assigned previously when a new point comes

@@ -76,6 +76,7 @@
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-compiler 'compiler)
+         ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
          ,@(dict-call curr render-phase-bogosity 'bogosity)
          )))
 
@@ -270,6 +271,27 @@
               (match-define (list rule count) rec)
               `(tr (td ,(~a count) "×")
                    (td (code ,(~a rule) " "))))))))
+                   
+(define (render-phase-mix-sampling mixsample)
+  `((dt "Mixed Sampling")
+    (dd (details
+         (summary "Click to see full mixed sampling table")
+         (table ([class "times"])
+                (thead (tr (th "truth") (th "opred") (th "ex") (th "upred") (th "ex") (th "subexpr")))
+                ,@(for/list ([rec (in-list (sort mixsample > #:key first))])
+                    (match-define (list operation precision time count) rec)
+                    `(tr (td ,(~a tcount))
+                         (td ,(~a opred))
+                         (td ,(if oex
+                                  (~a oex)
+                                  "-"))
+                         (td ,(~a upred))
+                         (td ,(if uex
+                                  (~a uex)
+                                  "-"))
+                         (td ,(if expr
+                                  `(code ,expr)
+                                  "No Errors")))))))))
 
 (define (render-phase-problems problems)
   `((dt "Problems")
