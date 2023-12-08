@@ -32,6 +32,12 @@
            operator-set platform-operator-set
            with-terminal-cost cost-map))
 
+;; Platform table, mapping name to platform
+(define platforms (make-hash))
+
+;; Active platform
+(define *active-platform* (make-parameter #f))
+
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
 ;;; a "type signature" - they provide no implementations of floating-point
@@ -50,35 +56,6 @@
            (if (platform-name p)
                (fprintf port "#<platform:~a>" (platform-name p))
                (fprintf port "#<platform>")))])
-
-;; Platform table, mapping name to platform
-(define platforms (make-hash))
-
-;; Active platform
-(define *active-platform* (make-parameter #f))
-
-;; Looks up a platform by identifier.
-;; Panics if no platform is found.
-(define (get-platform name)
-  (or (hash-ref platforms name #f)
-      (raise-herbie-error "unknown platform `~a`, found (~a)" name
-                          (string-join (map ~a (hash-keys platforms)) ", "))))
-
-;; Loads a platform.
-(define (activate-platform! pform)
-  ; replace the active operator table
-  (clear-active-operator-impls!)
-  (for ([impl (in-list (platform-impls pform))])
-    (activate-operator-impl! impl)))
-
-;; Registers a platform under identifier `name`.
-(define (register-platform! name pform)
-  (when (hash-has-key? platforms name)
-    (error 'register-platform!
-           "platform already registered ~a"
-           name))
-  (hash-set! platforms name
-            (struct-copy $platform pform [name name])))
 
 ;; Representation name sanitizer
 (define (repr->symbol repr)
@@ -193,6 +170,17 @@
                    (make-immutable-hash (hash->list costs))
                    (hash)))
 
+(begin-for-syntax
+
+;; Translates implementation cost syntax
+(define (expand-impl-cost stx)
+  (syntax-case stx (sum max)
+    [(sum c) #'`(sum ,c)]
+    [(max c) #'`(max ,c)]
+    [c #'`(max ,c)]))
+
+)
+
 ;; Macro version of `make-platform`
 ;; 
 ;; Example usage:
@@ -221,14 +209,13 @@
           [(list entry rest ...)
            (syntax-case entry ()
              [(in out)
-              (let ([in* (syntax->datum #'in)]
-                    [out* (syntax->datum #'out)])
+              (begin
                 (unless default-cost
                   (oops! "#:default-cost required with #:conversions" cs))
-                (loop rest
-                      (list* (list 'cast (list in* out*) default-cost)
-                             (list 'cast (list out* in*) default-cost)
-                             convs)))]
+                (with-syntax ([cost (expand-impl-cost #'cost)])
+                  (loop rest (list* #'(cast (in out) cost)
+                                    #'(cast (out in) cost)
+                                    convs))))]
              [_ (oops! "malformed conversion clause" entry)])])))
     ;; iterate over `es ...` to get implementation signatures
     (define impl-sigs
@@ -242,8 +229,9 @@
               ; multiple implementations with same type sig and cost
               (loop (for/fold ([clauses (cdr clauses)])
                               ([o (in-list (syntax->datum #'(op ...)))])
-                      (define cl (with-syntax ([op o]) #'((itype ... otype) op cost)))
-                      (cons cl clauses))
+                      (cons (with-syntax ([op o])
+                              #'((itype ... otype) op cost))
+                            clauses))
                     impl-sigs)]
              [((itype ... otype) (op ...))
               ; multiple implementations with same type sig and default cost
@@ -257,7 +245,10 @@
               (begin
                 (unless (identifier? #'op)
                   (oops! "expected an identifier" #'op))
-                (loop (cdr clauses) (cons #'(op (itype ... otype) (unquote cost)) impl-sigs)))]
+                (loop (cdr clauses)
+                      (cons (with-syntax ([cost (expand-impl-cost #'cost)])
+                              #'(op (itype ... otype) (unquote cost)))
+                            impl-sigs)))]
              [((itype ... otype) op)
               ; single implementation with default cost
               (with-syntax ([cost default-cost])
@@ -274,7 +265,7 @@
               (oops! "expected [<signature> <ops>]" (car clauses))])])))
     (with-syntax ([(impl-sigs ...) (append convs-sigs impl-sigs)]
                   [optional? optional?]
-                  [if-cost if-cost])
+                  [if-cost (if if-cost (expand-impl-cost if-cost) #f)])
       #'(make-platform `(impl-sigs ...) #:optional? optional? #:if-cost if-cost)))
   (syntax-case stx ()
     [(_ cs ...)
@@ -290,12 +281,12 @@
             (set! optional? #t)
             (loop #'(rest ...))]
            [(#:default-cost cost rest ...)
-            (set! default-cost (eval-syntax #'cost))
+            (set! default-cost #'cost)
             (loop #'(rest ...))]
            [(#:default-cost)
             (oops! "expected cost after keyword" clauses)]
            [(#:if-cost cost rest ...)
-            (set! if-cost (eval-syntax #'cost))
+            (set! if-cost #'cost)
             (loop #'(rest ...))]
            [(#:if-cost)
             (oops! "expected cost after keyword" clauses)]
@@ -310,6 +301,29 @@
            [()
             (go conv-sigs impl-sigs optional? default-cost if-cost)])))]
     [_ (oops! "bad syntax")]))
+
+;; Looks up a platform by identifier.
+;; Panics if no platform is found.
+(define (get-platform name)
+  (or (hash-ref platforms name #f)
+      (raise-herbie-error "unknown platform `~a`, found (~a)" name
+                          (string-join (map ~a (hash-keys platforms)) ", "))))
+
+;; Loads a platform.
+(define (activate-platform! pform)
+  ; replace the active operator table
+  (clear-active-operator-impls!)
+  (for ([impl (in-list (platform-impls pform))])
+    (activate-operator-impl! impl)))
+
+;; Registers a platform under identifier `name`.
+(define (register-platform! name pform)
+  (when (hash-has-key? platforms name)
+    (error 'register-platform!
+           "platform already registered ~a"
+           name))
+  (hash-set! platforms name
+            (struct-copy $platform pform [name name])))
 
 ;; Representation conversions in a platform.
 (define (platform-conversions pform)
@@ -587,7 +601,7 @@
     (let loop ([clauses clauses] [costs (hash)])
       (cond
         [(null? clauses)
-         (with-syntax ([costs costs] [default-cost default-cost])
+         (with-syntax ([costs costs] [default-cost (expand-impl-cost default-cost)])
            #'(make-cost-map costs default-cost))]
         [else
          (syntax-case (car clauses) ()
@@ -599,11 +613,12 @@
            [(op cost)
             ; single op with a cost
             (loop (cdr clauses)
-                  (hash-set costs (syntax->datum #'op) (eval-syntax #'cost)))]
+                  (hash-set costs (syntax->datum #'op)
+                            (eval-syntax (expand-impl-cost #'cost))))]
            [_ (oops! "malformed clause" (car clauses))])])))
   (syntax-case stx ()
     [(_ #:default-cost cost cl ...)
-     (go (syntax->list #'(cl ...)) (eval-syntax #'cost))]
+     (go (syntax->list #'(cl ...)) #'cost)]
     [(_ #:default-cost)
      (oops! "missing cost after #:default-cost")]
     [(_ cl ...)
@@ -700,12 +715,20 @@
       (let loop ([expr expr] [repr repr])
         (match expr
           [(list 'if cond ift iff)
-           (+ (impl->cost 'if)
-              (loop cond (get-representation 'bool))
-              (max (loop ift repr) (loop iff repr)))]
+           (define cond-cost (loop cond (get-representation 'bool)))
+           (define ift-cost (loop ift repr))
+           (define iff-cost (loop iff repr))
+           (match (impl->cost 'if)
+             [(list 'max c) (+ c cond-cost (max ift-cost iff-cost))]
+             [(list 'sum c) (+ c cond-cost ift-cost iff-cost)]
+             [other (error 'platform-cost-proc "unknown cost ~a" other)])]
           [(list impl args ...)
            (define itypes (impl-info impl 'itype))
-           (apply + (impl->cost impl) (map loop args itypes))]
+           (define arg-costs (map loop args itypes))
+           (match (impl->cost impl)
+             [(list 'max c) (+ c (if (null? args) 0 (apply max arg-costs)))]
+             [(list 'sum c) (apply + c arg-costs)]
+             [other (error 'platform-cost-proc "unknown cost ~a" other)])]
           [_
            (repr->cost repr)])))
     (match cost
