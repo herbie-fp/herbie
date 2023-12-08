@@ -272,26 +272,42 @@
               `(tr (td ,(~a count) "×")
                    (td (code ,(~a rule) " "))))))))
                    
-(define (render-phase-mix-sampling mixsample)
+(define (render-phase-mixed-sampling mixsample)
+  (define counter 0)
+  (define prev-precision -1)
+  (define new_table '())
+  (define current-op '())
+  
+  (for/list ([rec (in-list (sort mixsample string<? #:key (lambda (e) (string-append (first e) " " (~a (second e))))))])
+    (match-define (list operation precision) rec)
+    (cond
+      [(equal? current-op '())
+       (set! current-op operation)
+       (set! prev-precision precision)
+       (set! counter 1)]
+      [(not (equal? current-op operation))
+       (set! new_table (cons (list current-op prev-precision counter) new_table))
+       (set! prev-precision precision)
+       (set! counter 1)
+       (set! current-op operation)]
+      [(equal? precision prev-precision)
+       (set! counter (+ 1 counter))]
+      [(not (equal? precision prev-precision))
+       (set! new_table (cons (list operation prev-precision counter) new_table))
+       (set! prev-precision precision)
+       (set! counter 1)]))
+  (set! new_table (cons (list current-op prev-precision counter) new_table))
+  
   `((dt "Mixed Sampling")
     (dd (details
          (summary "Click to see full mixed sampling table")
          (table ([class "times"])
-                (thead (tr (th "truth") (th "opred") (th "ex") (th "upred") (th "ex") (th "subexpr")))
-                ,@(for/list ([rec (in-list (sort mixsample > #:key first))])
-                    (match-define (list operation precision time count) rec)
-                    `(tr (td ,(~a tcount))
-                         (td ,(~a opred))
-                         (td ,(if oex
-                                  (~a oex)
-                                  "-"))
-                         (td ,(~a upred))
-                         (td ,(if uex
-                                  (~a uex)
-                                  "-"))
-                         (td ,(if expr
-                                  `(code ,expr)
-                                  "No Errors")))))))))
+                (thead (tr (th "op") (th "prec") (th "x")))
+                ,@(for/list ([rec (in-list (sort new_table string<? #:key first))])
+                    (match-define (list operation precision number-of-occurances) rec)
+                    `(tr (td ,operation)
+                         (td ,(~a precision))
+                         (td ,(~a number-of-occurances)))))))))
 
 (define (render-phase-problems problems)
   `((dt "Problems")

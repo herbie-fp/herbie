@@ -52,11 +52,7 @@
     (if (equal? name 'ival)
         (vector-filter tuning-filter ivec)
         '()))
-  #;(timeline-push! 'fperrors
-                    (~a subexpr)
-                    (length tset)
-                    (length opred) (and (not (empty? opred)) (first opred))
-                    (length upred) (and (not (empty? upred)) (first upred))))
+  
   (if (equal? name 'ival)
     (λ args
       ;; remove all the exponent values we assigned previously when a new point comes
@@ -76,9 +72,14 @@
              (if (zero? extra-prec)
                  (vector-set! vregs n (apply op srcs))
                  (parameterize ([bf-precision (define-precision extra-prec)])
-                   (vector-set! vregs n (apply op srcs)))))]
+                   (vector-set! vregs n (apply op srcs))))
+             (timeline-push! 'mixsample
+                             (symbol->string (object-name op))
+                             (if (zero? extra-prec)
+                                 (bf-precision)
+                                 (define-precision extra-prec))))]
           
-          [(vector op extra-precision exponents-checkpoint)  ; ival-sub
+          [(vector op extra-precision exponents-checkpoint) ; ival-sub
            #:when (equal? op ival-sub)
            (let ([extra-prec (unbox-prec extra-precision)])
              (define output
@@ -87,6 +88,12 @@
                    (parameterize ([bf-precision (define-precision extra-prec)])
                      (apply op srcs))))
              (vector-set! vregs n output)
+             
+             (timeline-push! 'mixsample
+                             (symbol->string (object-name op))
+                             (if (zero? extra-prec)
+                                 (bf-precision)
+                                 (define-precision extra-prec)))
 
              (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
              (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
@@ -103,13 +110,20 @@
                                  [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]
                                  [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))))]
           
-          [(vector op extra-precision exponents-checkpoint)  ; sin/cos/tan
+          [(vector op extra-precision exponents-checkpoint) ; sin/cos/tan
            #:when (list? (member op list-of-trig))
            (let ([extra-prec (unbox-prec extra-precision)])
              (if (zero? extra-prec)
                  (vector-set! vregs n (apply op srcs))
                  (parameterize ([bf-precision (define-precision extra-prec)])
                    (vector-set! vregs n (apply op srcs))))
+             
+             (timeline-push! 'mixsample
+                             (symbol->string (object-name op))
+                             (if (zero? extra-prec)
+                                 (bf-precision)
+                                 (define-precision extra-prec)))
+             
              (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
                        (max 0
                             (+ extra-prec
@@ -168,8 +182,7 @@
                  (munge-ival t type prec)
                  (munge-ival f type prec))]
           [(list op args ...)
-           #:when (and (equal? name 'ival)
-                       (set-member? '(sin cos tan -) op))
+           #:when (set-member? '(sin cos tan -) op)
            (let ([exponent (box 0)])
              (cons (vector (op->proc op) prec exponent)
                    (map (curryr munge-ival exponent)
