@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/hash (for-syntax racket/match))
+(require (for-syntax racket/match))
 (require "common.rkt" "errors.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
          (submod "syntax/syntax.rkt" internals))
@@ -735,3 +735,174 @@
       [(? exact?) (exact->inexact cost)]
       [_ cost])))
   
+  (module+ test
+  (require rackunit)
+  ; this is awful but need to avoid cycles
+  (dynamic-require "reprs/binary64.rkt" #f)
+  (dynamic-require "reprs/binary32.rkt" #f))
+
+; Operator set tests
+(module+ test
+  (define os
+    (operator-set
+      [(real real) (neg)]
+      [(real real real) (+ - * /)]
+      [(real real bool) (== > < >= <=)]))
+
+  (check-true (operator-set? os) (format "operator-set? ~a" os))
+  (check-equal? (list->set (operator-set-operators os))
+                (list->set '(neg + - * / == > < >= <=)))
+)
+
+
+;; Platform tests
+(module+ test
+  ; platform with fully expanded syntax
+  (define p1
+    (platform
+      #:default-cost 1
+      [(binary64 binary64) neg]
+      [(binary64 binary64 binary64) +]
+      [(binary64 binary64 binary64) -]
+      [(binary64 binary64 binary64) *]
+      [(binary64 binary64 binary64) /]
+      [(binary64 binary64 bool) ==]
+      [(binary64 binary64 bool) >]
+      [(binary64 binary64 bool) <]
+      [(binary64 binary64 bool) >=]
+      [(binary64 binary64 bool) <=]))
+  
+  (define o1 (platform-operator-set p1))
+
+  (check-equal? (list->set (platform-reprs p1))
+                (list->set (map get-representation '(binary64 bool))))
+  (check-equal? (list->set (operator-set-operators o1))
+                (list->set '(neg + - * / == > < >= <=)))
+  (check-equal? (list->set (platform-impls p1))
+                (list->set '(neg.f64 +.f64 -.f64 *.f64 /.f64
+                             ==.f64 >.f64 <.f64 >=.f64 <=.f64)))
+  (check-equal? (platform-conversions p1) '())
+  (check-equal?
+    (for/set ([(i c) (in-hash (platform-impl-costs p1))])
+      (cons i c))
+    (list->set
+      '((neg.f64 . (max 1))
+        (+.f64 . (max 1)) (-.f64 . (max 1)) (*.f64 . (max 1)) (/.f64 . (max 1))
+        (==.f64 . (max 1)) (>.f64 . (max 1)) (<.f64 . (max 1))
+        (>=.f64 . (max 1)) (<=.f64 . (max 1)))))
+
+  ; platform with simplified syntax
+  (define p2
+    (platform
+      #:default-cost 1
+      [(binary64 binary64) neg]
+      [(binary64 binary64 binary64) (+ - * /)]
+      [(binary64 binary64 bool) (== > < >= <=)]))
+
+  (define o2 (platform-operator-set p2))
+
+  (check-equal? (list->set (platform-reprs p2))
+                (list->set (map get-representation '(binary64 bool))))
+  (check-equal? (list->set (operator-set-operators o2))
+                (list->set '(neg + - * / == > < >= <=)))
+  (check-equal? (list->set (platform-impls p2))
+                (list->set '(neg.f64 +.f64 -.f64 *.f64 /.f64
+                             ==.f64 >.f64 <.f64 >=.f64 <=.f64)))
+  (check-equal? (platform-conversions p2) '())
+  (check-equal?
+    (for/set ([(i c) (in-hash (platform-impl-costs p2))])
+      (cons i c))
+    (list->set
+      '((neg.f64 . (max 1))
+        (+.f64 . (max 1)) (-.f64 . (max 1)) (*.f64 . (max 1)) (/.f64 . (max 1))
+        (==.f64 . (max 1)) (>.f64 . (max 1)) (<.f64 . (max 1))
+        (>=.f64 . (max 1)) (<=.f64 . (max 1)))))
+
+  ; platform with cost syntax
+  (define p3
+    (platform
+      [(binary64 binary64) neg 1]
+      [(binary64 binary64 binary64) (+ - * /) 2]
+      [(binary64 binary64 bool) (== > < >= <=) 3]))
+
+  (check-equal?
+    (for/set ([(i c) (in-hash (platform-impl-costs p3))])
+      (cons i c))
+    (list->set
+      '((neg.f64 . (max 1))
+        (+.f64 . (max 2)) (-.f64 . (max 2)) (*.f64 . (max 2)) (/.f64 . (max 2))
+        (==.f64 . (max 3)) (>.f64 . (max 3)) (<.f64 . (max 3))
+        (>=.f64 . (max 3)) (<=.f64 . (max 3)))))
+
+  ; terminal cost
+  (define p4
+    (with-terminal-cost ([bool 1] [binary64 1])
+      p3))
+
+  (check-equal?
+    (for/set ([(r c) (in-hash (platform-repr-costs p4))])
+      (cons r c))
+    (list->set
+      (list (cons (get-representation 'binary64) 1)
+            (cons (get-representation 'bool) 1))))
+
+  ; platform product
+  (define p5
+    (platform-product
+      [([real binary64] [bool bool])
+       (cost-map [(+ *) 4]
+                 [(==) 8])]
+      [([real binary32] [bool bool])
+       (cost-map [(+ *) 2]
+                 [(==) 4])]
+      (operator-set
+        [(real real real) (+ *)]
+        [(real real bool) ==])))
+
+  (define o5 (platform-operator-set p5))
+
+  (check-equal? (list->set (platform-reprs p5))
+                (list->set (map get-representation '(binary64 binary32 bool))))
+  (check-equal? (list->set (operator-set-operators o5))
+                (list->set '(+ * ==)))
+  (check-equal? (list->set (platform-impls p5))
+                (list->set '(+.f64 *.f64 ==.f64 +.f32 *.f32 ==.f32)))
+  (check-equal? (platform-conversions p5) '())
+  (check-equal?
+    (for/set ([(i c) (in-hash (platform-impl-costs p5))])
+      (cons i c))
+    (list->set
+      '((+.f64 . (max 4)) (*.f64 . (max 4)) (==.f64 . (max 8))
+        (+.f32 . (max 2)) (*.f32 . (max 2)) (==.f32 . (max 4)))))
+
+  (define p6
+    (platform-union
+      (platform #:default-cost 1
+                [(binary64 binary64 binary64) (+ *)])
+      (platform #:default-cost 1
+                [(binary64 binary64 binary64) (- /)])))
+
+  (check-equal? (list->set (platform-impls p6))
+                (list->set '(+.f64 -.f64 *.f64 /.f64)))
+
+  (define p7
+    (platform-intersect
+      (platform #:default-cost 1
+                [(binary64 binary64 binary64) (+ - * /)])
+      (platform #:default-cost 1
+                [(binary64 binary64 binary64) (+ *)])))
+
+  (check-equal? (list->set (platform-impls p7))
+                (list->set '(+.f64 *.f64)))
+
+  (define p8
+    (platform-subtract
+      (platform #:default-cost 1
+                [(binary64 binary64 binary64) (+ - * /)])
+      (platform #:default-cost 1
+                [(binary64 binary64 binary64) (+ *)])))
+
+  (check-equal? (list->set (platform-impls p8))
+                (list->set '(-.f64 /.f64)))
+
+)
