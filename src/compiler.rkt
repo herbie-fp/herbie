@@ -14,6 +14,9 @@
           (*extra-bits*)
           (bf-precision))))
 
+(define (true-exponent x)
+  (+ (bigfloat-exponent x) (bigfloat-precision x)))
+
 ;; Interpreter taking a narrow IR
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
@@ -80,8 +83,8 @@
              (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
                        (max 0
                             (+ extra-prec
-                               (max (+ (bigfloat-exponent (ival-lo (car srcs))) (bigfloat-precision (ival-lo (car srcs))))
-                                    (+ (bigfloat-exponent (ival-hi (car srcs))) (bigfloat-precision (ival-hi (car srcs)))))))))]
+                               (max (true-exponent (ival-lo (car srcs)))
+                                    (true-exponent (ival-hi (car srcs))))))))]
           [op
            (vector-set! vregs n (apply op srcs))]))
     
