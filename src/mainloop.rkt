@@ -184,7 +184,7 @@
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
-      (match-define (alt _ event prevs) altn)
+      (match-define (alt _ event prevs _) altn)
       (cond
        [(equal? event '(patch)) orig]
        [else
@@ -200,11 +200,11 @@
            [(list 'simplify '() input proof soundiness)
             (list 'simplify loc0 input proof soundiness)]))
         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
-        (alt expr* event* (list (loop (first prevs))))])))
+        (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
   
   (^patched^
    (reap [sow]
-     (for ([altn (in-list alts)])
+     (for ([altn (in-list alts)]) ;; does not have preproc
        (define expr0 (get-starting-expr altn))
        (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
            (for* ([alt0 (in-list (^next-alts^))]
@@ -327,12 +327,13 @@
     (find-preprocessing initial specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (match-define (and alternatives (cons (alt best _ _) _))
+  (match-define (and alternatives (cons (alt best _ _ _) _))
     (mutate! simplified context pcontext* (*num-iterations*)))
   (timeline-event! 'preprocess)
-  (define preprocessing*
-    (remove-unnecessary-preprocessing best context pcontext preprocessing))
-  (values alternatives preprocessing*))
+  (define final-alts
+    (for/list ([altern alternatives])
+      (alt-add-preprocessing altern (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
+  (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing))) 
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
@@ -351,7 +352,7 @@
   (define repr (context-repr ctx))
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* (atab-active-alts (^table^)))
-
+  
   (define ndone-alts (atab-not-done-alts (^table^)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts (~a (alt-expr alt))
@@ -370,7 +371,6 @@
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
-
   (define cleaned-alts
     (cond
       [(flag-set? 'generate 'simplify)
@@ -381,7 +381,7 @@
        (define simplified (simplify-batch egg-query))
 
        (for/list ([altn joined-alts] [progs simplified])
-         (alt (last progs) 'final-simplify (list altn)))]
+         (alt (last progs) 'final-simplify (list altn) (alt-preprocessing altn)))]
       [else
        joined-alts]))
         
