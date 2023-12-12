@@ -8,14 +8,19 @@
 
 ;; Function calculates a precision for the operation
 ;;    with respect to the given extra-precision (exponents from a previous run)
-(define (define-precision extra-precision)
+(define (operator-precision extra-precision)
   (min (*max-mpfr-prec*)
        (+ extra-precision
-          (*extra-bits*)
+          (*ground-truth-extra-bits*)
           (bf-precision))))
 
 (define (true-exponent x)
   (+ (bigfloat-exponent x) (bigfloat-precision x)))
+
+(define (unbox-prec x)
+    (if (box? x)
+        (unbox x)
+        0))
 
 ;; Interpreter taking a narrow IR
 ;; ```
@@ -33,11 +38,7 @@
   (define vreg-count (+ (length vars) (vector-length ivec)))
   (define vregs (make-vector vreg-count))
 
-  (define (unbox-prec x)
-    (if (box? x)
-        (unbox x)
-        0))
-
+  
   (define (tuning-filter instr)
     (if (vector? (car instr))
         (if (member
@@ -69,22 +70,18 @@
         (match (car instr)
           [(vector op extra-precision)
            (let ([extra-prec (unbox-prec extra-precision)])
-             (if (zero? extra-prec)
-                 (vector-set! vregs n (apply op srcs))
-                 (parameterize ([bf-precision (define-precision extra-prec)])
-                   (vector-set! vregs n (apply op srcs)))))]
+             (parameterize ([bf-precision (operator-precision extra-prec)])
+               (vector-set! vregs n (apply op srcs))))]
           
           [(vector op extra-precision exponents-checkpoint)  ; current op is sin/cos/tan
            (let ([extra-prec (unbox-prec extra-precision)])
-             (if (zero? extra-prec)
-                 (vector-set! vregs n (apply op srcs))
-                 (parameterize ([bf-precision (define-precision extra-prec)])
-                   (vector-set! vregs n (apply op srcs))))
+             (parameterize ([bf-precision (operator-precision extra-prec)])
+               (vector-set! vregs n (apply op srcs)))
              (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                       (max 0
-                            (+ extra-prec
-                               (max (true-exponent (ival-lo (car srcs)))
-                                    (true-exponent (ival-hi (car srcs))))))))]
+                       (+ extra-prec
+                          (max 0
+                               (true-exponent (ival-lo (car srcs)))
+                               (true-exponent (ival-hi (car srcs)))))))]
           [op
            (vector-set! vregs n (apply op srcs))]))
     
@@ -137,8 +134,7 @@
                  (munge-ival c cond-type prec)
                  (munge-ival t type prec)
                  (munge-ival f type prec))]
-          [(list op args ...)
-           #:when (set-member? '(sin cos tan) op)
+          [(list (and (or 'sin 'cos 'tan) op) args ...)
            (let ([exponent (box 0)])
              (cons (vector (op->proc op) prec exponent)
                    (map (curryr munge-ival exponent)
