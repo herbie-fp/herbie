@@ -1,16 +1,26 @@
 ; -*- mode: scheme -*-
 
+; The precondition for this expression is labelled as for large x hence we choose this
+; range that contains all the relevant values that are sampled. The proof that they
+; are equivalent is by rationalizing the denominator by multiplying both the
+; numerator and denominator by the conjugate of the denominator and simplifying using 
+; the identity a^2-b^2 = (a+b)(a-b) and cancellation.
 (FPCore (x)
  :name "2sqrt (example 3.1)"
- :pre (and (> x 1) (< x 1e+100))
+ :pre (and (> x 1) (< x 1e+308))
  :herbie-target
- (/ 1 (+ (sqrt (+ x 1.0)) (sqrt x)))
+ (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))
 
  (- (sqrt (+ x 1)) (sqrt x)))
 
+; The precondition for this expression is labelled as for large x hence we choose this
+; range that contains all the relevant values that are sampled. The proof that they
+; are equivalent is by rationalizing the denominator by multiplying both the
+; numerator and denominator by the conjugate of the denominator and simplifying using 
+; the identity a^2-b^2 = (a+b)(a-b) and cancellation.
 (FPCore (x)
  :name "2isqrt (example 3.6)"
- :pre (and (> x 1) (< x 1e+100))
+ :pre (and (> x 1) (< x 1e+308))
  :herbie-target
  (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1)))))
 
@@ -28,12 +38,17 @@
 
  (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
 
+; The precondition for this expression is labelled as for large x hence we choose this
+; range that contains all the relevant values that are sampled. The proof that they
+; are equivalent is by rewriting the two terms as a = (cbrt (+ x 1)) and b = (cbrt x)
+; and then using the trigonometric identity for a^3-b^3 where (a-b) is the term we
+; equate to (/ (- (pow a 3) (pow b 3)) (+ (pow a 2) (* a b) (pow b 2))), and then cancel values.
 (FPCore (x)
  :name "2cbrt (problem 3.3.4)"
- :pre (and (<= -1e5 x) (<= x 1e5))
+ :pre (and (> x 1) (< x 1e+308))
  :herbie-target
- (- (cbrt (+ x 1)) (cbrt x))
-
+ (/ 1 (+ (pow (cbrt (+ x 1)) 2) (* (cbrt x) (cbrt (+ x 1))) (pow (cbrt x) 2)))
+ 
  (- (cbrt (+ x 1)) (cbrt x)))
 
 ; This is a slightly unique rewrite because it involves the use of Taylor series, as Hamming gave this as an

@@ -79,13 +79,11 @@
 ; The reason for this is because when x is in the vicinity of 0, both the numerator and denominator have A
 ; a lot of error according to the sampling, either possibly because of underflow and/or because x ~ (sin x) ~ (tan x).
 ; Hence, the Taylor series until the 6-th power is chosen to not prevent too much of computation power while giving
-; the best answer for that range. For all other values, the orginal identity works well. 
-(FPCore (x)
+; the best answer for that range.
+(FPCore (eps)
  :name "sintan (problem 3.4.5)"
- :pre (and (<= -1e5 x) (<= x 1e5))
+ :pre (and (<= -1 eps) (<= eps 1))
  :herbie-target
- (if (<= (fabs x) 1)
-   (+ -0.5 (/ (* 9 (pow x 2)) 40) (/ (* -27 (pow x 4)) 2800) (/ (* 27 (pow x 6)) 112000))
-   (/ (- x (sin x)) (- x (tan x))))
+ (+ -0.5 (/ (* 9 (pow eps 2)) 40) (/ (* -27 (pow eps 4)) 2800) (/ (* 27 (pow eps 6)) 112000))
  
- (/ (- x (sin x)) (- x (tan x))))
+ (/ (- eps (sin eps)) (- eps (tan eps))))
