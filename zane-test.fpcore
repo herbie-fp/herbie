@@ -1,0 +1,5 @@
+(FPCore (x)
+ :name "2cbrt (problem 3.3.4)"
+ (- (cbrt (+ x 1)) (cbrt x)))
+
+
