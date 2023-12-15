@@ -69,31 +69,37 @@
         (match (car instr)
           [(vector op extra-precision)
            (let ([extra-prec (unbox-prec extra-precision)])
-             (if (zero? extra-prec)
-                 (vector-set! vregs n (apply op srcs))
-                 (parameterize ([bf-precision (define-precision extra-prec)])
-                   (vector-set! vregs n (apply op srcs))))
+
+             (define init-time (current-inexact-milliseconds))
+             (parameterize ([bf-precision (define-precision extra-prec)])
+               (vector-set! vregs n (apply op srcs)))
+             (define total-time (- (current-inexact-milliseconds) init-time))
+             
              (timeline-push! 'mixsample
                              (symbol->string (object-name op))
                              (if (zero? extra-prec)
                                  (bf-precision)
-                                 (define-precision extra-prec))))]
+                                 (define-precision extra-prec))
+                             total-time))]
           
           [(vector op extra-precision exponents-checkpoint) ; ival-sub
            #:when (equal? op ival-sub)
            (let ([extra-prec (unbox-prec extra-precision)])
+
+             (define init-time (current-inexact-milliseconds))
              (define output
-               (if (zero? extra-prec)
-                   (apply op srcs)
-                   (parameterize ([bf-precision (define-precision extra-prec)])
-                     (apply op srcs))))
+               (parameterize ([bf-precision (define-precision extra-prec)])
+                 (apply op srcs)))
+             (define total-time (- (current-inexact-milliseconds) init-time))
+             
              (vector-set! vregs n output)
              
              (timeline-push! 'mixsample
                              (symbol->string (object-name op))
                              (if (zero? extra-prec)
                                  (bf-precision)
-                                 (define-precision extra-prec)))
+                                 (define-precision extra-prec))
+                             total-time)
 
              (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
              (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
@@ -113,16 +119,18 @@
           [(vector op extra-precision exponents-checkpoint) ; sin/cos/tan
            #:when (list? (member op list-of-trig))
            (let ([extra-prec (unbox-prec extra-precision)])
-             (if (zero? extra-prec)
-                 (vector-set! vregs n (apply op srcs))
-                 (parameterize ([bf-precision (define-precision extra-prec)])
-                   (vector-set! vregs n (apply op srcs))))
+
+             (define init-time (current-inexact-milliseconds))
+             (parameterize ([bf-precision (define-precision extra-prec)])
+               (vector-set! vregs n (apply op srcs)))
+             (define total-time (- (current-inexact-milliseconds) init-time))
              
              (timeline-push! 'mixsample
                              (symbol->string (object-name op))
                              (if (zero? extra-prec)
                                  (bf-precision)
-                                 (define-precision extra-prec)))
+                                 (define-precision extra-prec))
+                             total-time)
              
              (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
                        (max 0

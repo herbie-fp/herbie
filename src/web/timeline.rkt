@@ -1,6 +1,7 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
 (require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt")
+(require math/base)
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -92,7 +93,9 @@
   `((dt "Algorithm")
     (dd (table ([class "times"])
                ,@(for/list ([alg (group-by identity algorithm)])
-                   `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
+                   `(tr
+                     (td ,(~a (length alg)) "×")
+                     (td ,(~a (car alg)))))))))
 
 (define (render-phase-bogosity bogosity)
   (match-define (list domain-info) bogosity)
@@ -277,37 +280,83 @@
   (define prev-precision -1)
   (define new_table '())
   (define current-op '())
+  (define current-time 0)
   
-  (for/list ([rec (in-list (sort mixsample string<? #:key (lambda (e) (string-append (first e) " " (~a (second e))))))])
-    (match-define (list operation precision) rec)
+  (for/list ([rec (in-list (sort mixsample string<? #:key (lambda (e) (string-append (first e) " "
+                                                                                     (if (> (second e) 9999)
+                                                                                         (~a (second e))
+                                                                                         (if (> (second e) 999)
+                                                                                             (string-append "0" (~a (second e)))
+                                                                                             (string-append "00" (~a (second e)))))))))])
+    (match-define (list operation precision milliseconds) rec)
     (cond
       [(equal? current-op '())
        (set! current-op operation)
        (set! prev-precision precision)
-       (set! counter 1)]
+       (set! counter 1)
+       (set! current-time milliseconds)]
       [(not (equal? current-op operation))
-       (set! new_table (cons (list current-op prev-precision counter) new_table))
+       (set! new_table (cons (list current-op prev-precision counter current-time) new_table))
        (set! prev-precision precision)
        (set! counter 1)
-       (set! current-op operation)]
+       (set! current-op operation)
+       (set! current-time milliseconds)]
       [(equal? precision prev-precision)
-       (set! counter (+ 1 counter))]
+       (set! counter (+ 1 counter))
+       (set! current-time (+ current-time milliseconds))]
       [(not (equal? precision prev-precision))
-       (set! new_table (cons (list operation prev-precision counter) new_table))
-       (set! prev-precision precision)
-       (set! counter 1)]))
-  (set! new_table (cons (list current-op prev-precision counter) new_table))
+       (cond
+         [(equal? 10000 prev-precision)
+          (set! new_table (cons (list operation prev-precision counter current-time) new_table))
+          (set! prev-precision precision)
+          (set! counter 1)
+          (set! current-time milliseconds)]
+         [(power-of-two? prev-precision)
+          (set! new_table (cons (list operation prev-precision counter current-time) new_table))
+          (set! prev-precision precision)
+          (set! counter 1)
+          (set! current-time milliseconds)]
+         [(power-of-two? precision)
+          (set! new_table (cons (list operation
+                                      (string-append (~a (* (floor (/ prev-precision 100)) 100)) "-" (~a (* (+ (floor (/ prev-precision 100)) 1) 100)))
+                                      counter current-time) new_table))
+          (set! prev-precision precision)
+          (set! counter 1)
+          (set! current-time milliseconds)]
+         [(equal? (floor (/ precision 100)) (floor (/ prev-precision 100)))
+          (set! counter (+ 1 counter))
+          (set! prev-precision precision)
+          (set! current-time (+ current-time milliseconds))]
+         [(not (equal? (floor (/ precision 100)) (floor (/ prev-precision 100))))
+          (set! new_table (cons
+                           (list operation
+                                 (string-append (~a (* (floor (/ prev-precision 100)) 100)) "-" (~a (* (+ (floor (/ prev-precision 100)) 1) 100)))
+                                 counter current-time) new_table))
+          (set! prev-precision precision)
+          (set! counter 1)
+          (set! current-time milliseconds)])]))
+       
+       ;(set! new_table (cons (list operation prev-precision counter) new_table))
+       ;(set! prev-precision precision)
+       ;(set! counter 1)]))
+      (set! new_table (cons (list current-op (if (equal? prev-precision 10000)
+                                                 10000
+                                                 (if (power-of-two? prev-precision)
+                                                     prev-precision
+                                                     (string-append (~a (* (floor (/ prev-precision 100)) 100)) "-" (~a prev-precision))))
+                                  counter current-time) new_table))
   
   `((dt "Mixed Sampling")
     (dd (details
          (summary "Click to see full mixed sampling table")
          (table ([class "times"])
-                (thead (tr (th "op") (th "prec") (th "x")))
+                (thead (tr (th "op") (th "prec") (th "x") (th "time")))
                 ,@(for/list ([rec (in-list (sort new_table string<? #:key first))])
-                    (match-define (list operation precision number-of-occurances) rec)
+                    (match-define (list operation precision number-of-occurances time) rec)
                     `(tr (td ,operation)
                          (td ,(~a precision))
-                         (td ,(~a number-of-occurances)))))))))
+                         (td ,(~a number-of-occurances))
+                         (td ,(format-time time)))))))))
 
 (define (render-phase-problems problems)
   `((dt "Problems")
@@ -386,8 +435,11 @@
     (dd (table ([class "times"])
          ,@(for/list ([rec (in-list (sort outcomes > #:key fourth))])
              (match-define (list prog precision category time count) rec)
-             `(tr (td ,(format-time time)) (td ,(~a count) "×") (td ,(~a prog))
-                  (td ,(~a precision)) (td ,(~a category))))))))
+             `(tr (td ,(format-time time))
+                  (td ,(~a count) "×")
+                  (td ,(~a prog))
+                  (td ,(~a precision))
+                  (td ,(~a category))))))))
 
 (define (render-phase-inputs inputs outputs)
   `((dt "Calls")
