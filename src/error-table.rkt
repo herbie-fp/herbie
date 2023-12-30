@@ -274,13 +274,6 @@
                    [(list 'exp.f64 arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
-
-                    (eprintf "~a,~a,~a,~a,~a\n"
-                             (car pt)
-                             subexpr
-                             arg-val
-                             (exp arg-val)
-                             subexpr-val)
                     
                     (cond
                       ; Condition Number Hallucination:
