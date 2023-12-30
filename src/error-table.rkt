@@ -274,10 +274,25 @@
                    [(list 'exp.f64 arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
+
+                    (eprintf "~a,~a,~a,~a,~a\n"
+                             (car pt)
+                             subexpr
+                             arg-val
+                             (exp arg-val)
+                             subexpr-val)
                     
                     (cond
-                      ; if both overflow skip (why?)
-                      [(and (overflow? subexpr) (infinite? (exp arg-val)))
+                      ; Condition Number Hallucination:
+                      ; When x is large enough that exp(x) overflows, condition
+                      ; number is also high.
+                      [(and (infinite? subexpr-val) (infinite? (exp arg-val)))
+                       #f]
+
+                      ; Condition Number Hallucination:
+                      ; When x is larg enough (negative) that exp(x) underflows,
+                      ; condition number is also high
+                      [(and (=  (exp arg-val) 0.0) (= subexpr-val 0.0))
                        #f]
 
                       ; High Condition Number:
