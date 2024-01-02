@@ -73,25 +73,23 @@
 ;;      external desugaring fails because of an unsupported/mismatched
 ;;      operator
 
-(define (taylor-expr expr repr var f finv)
-  (define expr* (resugar-program expr repr #:full #f))
-  (define genexpr (approximate expr* var #:transform (cons f finv)))
+(define (taylor-expr expr var f finv)
+  (define genexpr (approximate (prog->spec expr) var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (desugar-program (genexpr) (*context*) #:full #f))))
+      (spec->prog (genexpr) (*context*)))))
 
 (define (taylor-alt altn)
   (define expr (alt-expr altn))
-  (define repr (repr-of expr (*context*)))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-      (define genexpr (taylor-expr expr repr var f finv))
-      (for ([i (in-range 4)])
+      (define genexpr (taylor-expr expr var f finv))
+      (for ([_ (in-range 4)])
         (define replace (genexpr))
         (when replace
-          (sow (alt replace `(taylor () ,name ,var) (list altn)))))
+          (sow (alt replace `(taylor () ,name ,var) (list altn) '()))))
       (timeline-stop!))))
 
 (define (gen-series!)
@@ -161,7 +159,7 @@
             (when body*
               ; apply-repr-change-expr is partial
               ; we need to pass '() here so it can get overwritten on patch-fix
-              (sow (alt body* (list 'rr '() input #f #f) (list altn))))))))
+              (sow (alt body* (list 'rr '() input #f #f) (list altn) '())))))))
 
     (timeline-push! 'count (length (^queued^)) (length rewritten))
     ; TODO: accuracy stats for timeline
@@ -198,7 +196,7 @@
                   [output outputs])
          (if (equal? input output)
              child
-             (alt output `(simplify () ,egg-query #f #f) (list child))))
+             (alt output `(simplify () ,egg-query #f #f) (list child) '())))
        alt-equal?))
 
     ; dedup for cache
@@ -230,7 +228,7 @@
     (raise-user-error 'patch-table-add!
       "attempting to add previously patched expression: ~a"
       expr))
-  (define altn* (alt expr `(patch) '()))
+  (define altn* (alt expr `(patch) '() '()))
   (if down?
       (^queuedlow^ (cons altn* (^queuedlow^)))
       (^queued^ (cons altn* (^queued^))))
@@ -249,11 +247,11 @@
               ([expr (in-list locs)])
       (if (patch-table-has-expr? expr)
           (values qed (cons expr ced))
-          (let ([altn* (alt expr `(patch) '())])
+          (let ([altn* (alt expr `(patch) '() '())])
             (values (cons altn* qed) ced)))))
   (^queuedlow^
     (for/list ([expr (in-list lowlocs)])
-      (alt expr `(patch) '())))
+      (alt expr `(patch) '() '())))
   (cond
    [(and (null? (^queued^))       ; only fetch cache
          (null? (^queuedlow^)))

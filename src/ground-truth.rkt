@@ -16,17 +16,11 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (prog->spec prog ctx)
-  (resugar-program prog ctx #:full #f))
-
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func pre exprs ctxs)
-  ; (eprintf "pre ~a, expers ~a, ctxs ~a\n" pre exprs ctxs)
-  (define specs
-    (for/list ([spec (cons pre exprs)])
-      (prog->spec spec (car ctxs))))
+  (define specs (map prog->spec (cons pre exprs)))
   (define fns (compile-specs specs (context-vars (car ctxs))))
   ; inputs can either be intervals or representation values
   (λ inputs
