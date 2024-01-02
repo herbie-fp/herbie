@@ -2,9 +2,11 @@
 
 ;; Builtin single-precision plugin (:precision binary32)
 
-(require math/flonum math/bigfloat)
+(require math/bigfloat)
 (require "runtime/float32.rkt" "runtime/utils.rkt" "runtime/libm.rkt")
-(require "binary64.rkt") ; for raco test
+
+;; Do not run this file with `raco test`
+(module test racket/base)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
