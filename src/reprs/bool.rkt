@@ -4,6 +4,9 @@
 
 (require "runtime/utils.rkt")
 
+;; Do not run this file with `raco test`
+(module test racket/base)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (bool bool boolean?)
