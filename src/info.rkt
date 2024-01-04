@@ -25,7 +25,6 @@
 (define deps
   '(("base" #:version "8.0")
     "math-lib"
-    "generic-flonum"
     "profile-lib"
     "rackunit-lib"
     "web-server-lib"
