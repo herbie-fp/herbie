@@ -1,12 +1,26 @@
 #lang racket
 
-(require "common.rkt" "errors.rkt" "alternative.rkt" "timeline.rkt"
-         "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt"
-         "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
-         "ground-truth.rkt" "preprocess.rkt" "core/alt-table.rkt"
-         "core/localize.rkt" "core/simplify.rkt" "core/regimes.rkt"
-         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt"
-         "error-table.rkt" "platform.rkt")
+(require "syntax/rules.rkt"
+         "syntax/syntax.rkt"
+         "syntax/types.rkt"
+         "core/alt-table.rkt"
+         "core/bsearch.rkt"
+         "core/egg-herbie.rkt"
+         "core/localize.rkt"
+         "core/regimes.rkt"
+         "core/simplify.rkt"
+         "alternative.rkt"
+         "common.rkt"
+         "conversions.rkt"
+         "error-table.rkt"
+         "ground-truth.rkt"     
+         "patch.rkt"
+         "platform.rkt"
+         "points.rkt"
+         "preprocess.rkt"
+         "programs.rkt"     
+         "timeline.rkt"
+         "soundiness.rkt")
 
 (provide (all-defined-out))
 

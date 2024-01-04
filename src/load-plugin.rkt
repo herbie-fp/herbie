@@ -9,7 +9,6 @@
 (define-runtime-module-path binary32-plugin "reprs/binary32.rkt")
 (define-runtime-module-path binary64-plugin "reprs/binary64.rkt")
 (define-runtime-module-path fallback-plugin "reprs/fallback.rkt")
-(define-runtime-module-path float-plugin    "reprs/float.rkt")
 
 ;; Builtin platforms
 (define-runtime-module-path default-platform "platforms/default.rkt")
@@ -22,7 +21,6 @@
   (dynamic-require binary64-plugin #f)
   (dynamic-require binary32-plugin #f)
   (dynamic-require fallback-plugin #f)
-  (dynamic-require float-plugin #f)
   (dynamic-require default-platform #f)
   ;; activate the default platform
   (*active-platform* (get-platform (*default-platform-name*)))

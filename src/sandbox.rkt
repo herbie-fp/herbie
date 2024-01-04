@@ -1,15 +1,35 @@
 #lang racket
 
-(require profile racket/engine json)
-(require "syntax/read.rkt" "syntax/rules.rkt" "syntax/sugar.rkt"
-         "syntax/types.rkt" "alternative.rkt" "common.rkt" "conversions.rkt"
-         "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
-         "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
-         "compiler.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "core/localize.rkt" "ground-truth.rkt" "platform.rkt")
+(require profile
+         racket/engine
+         json)
 
-(provide run-herbie get-table-data unparse-result *reeval-pts* *timeout*
-         (struct-out job-result) (struct-out improve-result)
+(require "syntax/read.rkt"
+         "syntax/sugar.rkt"
+         "syntax/types.rkt"
+         "core/localize.rkt"
+         "alternative.rkt"
+         "compiler.rkt"
+         "common.rkt"
+         "datafile.rkt"
+         "errors.rkt"
+         "float.rkt"
+         "ground-truth.rkt"
+         "mainloop.rkt"
+         "platform.rkt"
+         "points.rkt"
+         "preprocess.rkt"
+         "profile.rkt"
+         "timeline.rkt"
+         (submod "timeline.rkt" debug))
+
+(provide run-herbie
+         get-table-data
+         unparse-result
+         *reeval-pts*
+         *timeout*
+         (struct-out job-result)
+         (struct-out improve-result)
          (struct-out alt-analysis))
 
 (struct job-result (test status time timeline warnings backend))

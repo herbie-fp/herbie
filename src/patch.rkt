@@ -1,9 +1,20 @@
 #lang racket
 
-(require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt"
-         "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "core/egg-herbie.rkt"
-         "alternative.rkt" "common.rkt" "conversions.rkt" "errors.rkt"
-         "platform.rkt" "programs.rkt" "timeline.rkt")
+(require "syntax/rules.rkt"
+         "syntax/sugar.rkt"
+         "syntax/syntax.rkt"
+         "syntax/types.rkt"
+         "core/egg-herbie.rkt"
+         "core/matcher.rkt"
+         "core/simplify.rkt"
+         "core/taylor.rkt"
+         "alternative.rkt"
+         "common.rkt"
+         "conversions.rkt"
+         "errors.rkt"
+         "platform.rkt"
+         "programs.rkt"
+         "timeline.rkt")
 
 (provide
   (contract-out

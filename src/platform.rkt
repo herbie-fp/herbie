@@ -1,8 +1,12 @@
 #lang racket
 
-(require racket/hash (for-syntax racket/match))
-(require "common.rkt" "errors.rkt"
-         "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
+(require (for-syntax racket/match))
+
+(require "common.rkt"
+         "errors.rkt"
+         "syntax/rules.rkt"
+         "syntax/syntax.rkt"
+         "syntax/types.rkt"
          (submod "syntax/syntax.rkt" internals))
 
 (provide
@@ -667,43 +671,46 @@
 ; The cost of a terminal is based on the representation.
 (define-syntax with-terminal-cost
   (syntax-rules ()
-    [(_ ([repr cost] ...) pform-expr)
-     (let loop ([pform pform-expr]
-                [reprs '(repr ...)]
-                [costs '(cost ...)])
-       (cond
-         [(null? reprs) pform]
-         [else
-          (define repr* (car reprs))
-          (define cost* (car costs))
-          (unless (set-member? (map representation-name (platform-reprs pform)) repr*)
-            (error 'with-terminal-cost "repr ~a not found in platform ~a" repr* pform))
-          (loop (struct-copy $platform pform
-                  [repr-costs (hash-set (platform-repr-costs pform)
-                                        (get-representation repr*)
-                                        cost*)])
-                (cdr reprs)
-                (cdr costs))]))]))
+    [(_ ([reprs costs] ...) pform-expr)
+     (for/fold ([pform pform-expr])
+               ([repr '(reprs ...)]
+                [cost '(costs ...)])
+       (define pform-reprs (map representation-name (platform-reprs pform)))
+       (unless (set-member? pform-reprs repr)
+         (error 'with-terminal-cost
+                "repr ~a not found in platform ~a"
+                repr
+                pform))
+       (struct-copy $platform pform
+         [repr-costs (hash-set (platform-repr-costs pform)
+                               (get-representation repr)
+                               cost)]))]))
+
+; Implementation cost in a platform.
+(define (impl->cost pform impl)
+  (hash-ref (platform-impl-costs pform)
+            impl
+            (lambda ()
+              (error 'impl->cost "no cost for impl '~a" impl))))
+
+; Representation (terminal) cost in a platform.
+(define (repr->cost pform repr)
+  (hash-ref (platform-repr-costs pform)
+            repr
+            (lambda ()
+              (error 'repr->cost "no cost for repr ~a" repr))))
 
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc pform)
-  (define (impl->cost impl)
-    (hash-ref (platform-impl-costs pform) impl
-              (lambda ()
-                (error 'platform-cost-proc "no cost for impl '~a" impl))))
-  (define (repr->cost repr)
-    (hash-ref (platform-repr-costs pform) repr
-              (lambda ()
-                (error 'platform-cost-proc "no cost for repr ~a" repr))))
   (λ (expr repr)
     (let loop ([expr expr] [repr repr])
       (match expr
         [(list 'if cond ift iff)
-         (+ (impl->cost 'if)
+         (+ (impl->cost pform 'if)
             (loop cond (get-representation 'bool))
             (max (loop ift repr) (loop iff repr)))]
         [(list impl args ...)
          (define itypes (impl-info impl 'itype))
-         (apply + (impl->cost impl) (map loop args itypes))]
+         (apply + (impl->cost pform impl) (map loop args itypes))]
         [_
          (repr->cost repr)]))))
