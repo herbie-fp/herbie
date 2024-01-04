@@ -16,7 +16,6 @@
   (parameterize ([gfl-exponent es] [gfl-bits nbits])
     (lambda args (apply fn args))))
 
-
 ; generator for floating-point formats
 (define (register-floating-point-impl! es nbits)
   (define name (list 'float es nbits))
@@ -31,8 +30,7 @@
 
   (define-syntax register-ops!
     (syntax-rules ()
-      [(_ argc)
-       (void)]
+      [(_ argc) (void)]
       [(_ argc [name impl-fn] rest ...)
        (begin
          (register-op! 'name argc impl-fn)
@@ -44,71 +42,71 @@
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (register-representation! name 'real gfl?
-    (with-context bigfloat->gfl)
-    gfl->bigfloat
-    (with-context ordinal->gfl)
-    (with-context gfl->ordinal)
-    nbits
-    (disjoin gflinfinite? gflnan?))
+  (register-representation! name
+                            'real
+                            gfl?
+                            (with-context bigfloat->gfl)
+                            gfl->bigfloat
+                            (with-context ordinal->gfl)
+                            (with-context gfl->ordinal)
+                            nbits
+                            (disjoin gflinfinite? gflnan?))
 
   (define repr (get-representation name))
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   (register-ops! 0
-    [PI (const pi.gfl)]
-    [E (const (gflexp 1.gfl))]
-    [INFINITY (const +inf.gfl)]
-    [NAN (const +nan.gfl)])
+                 [PI (const pi.gfl)]
+                 [E (const (gflexp 1.gfl))]
+                 [INFINITY (const +inf.gfl)]
+                 [NAN (const +nan.gfl)])
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   (register-ops! 1
-    [neg gfl-]
-    [sqrt gflsqrt]
-    [cbrt gflcbrt]
-    [fabs gflabs]
-    [log gfllog]
-    [log2 gfllog2]
-    [log10 gfllog10]
-    [log1p gfllog1p]
-    [exp gflexp]
-    [exp2 gflexp2]
-    [expm1 gflexpm1]
-    [sin gflsin]
-    [cos gflcos]
-    [tan gfltan]
-    [asin gflatan]
-    [acos gflacos]
-    [atan gflatan]
-    [sinh gflsinh]
-    [cosh gflcosh]
-    [tanh gfltanh])
+                 [neg gfl-]
+                 [sqrt gflsqrt]
+                 [cbrt gflcbrt]
+                 [fabs gflabs]
+                 [log gfllog]
+                 [log2 gfllog2]
+                 [log10 gfllog10]
+                 [log1p gfllog1p]
+                 [exp gflexp]
+                 [exp2 gflexp2]
+                 [expm1 gflexpm1]
+                 [sin gflsin]
+                 [cos gflcos]
+                 [tan gfltan]
+                 [asin gflatan]
+                 [acos gflacos]
+                 [atan gflatan]
+                 [sinh gflsinh]
+                 [cosh gflcosh]
+                 [tanh gfltanh])
 
   (register-ops! 2
-    [+ gfl+]
-    [- gfl-]
-    [* gfl*]
-    [/ gfl/]
-    [pow gflexpt]
-    [atan2 gflatan2]
-    [hypot gflhypot]
-    [remainder gflremainder])
+                 [+ gfl+]
+                 [- gfl-]
+                 [* gfl*]
+                 [/ gfl/]
+                 [pow gflexpt]
+                 [atan2 gflatan2]
+                 [hypot gflhypot]
+                 [remainder gflremainder])
 
-  (register-ops! 3
-    [fma gflfma])
+  (register-ops! 3 [fma gflfma])
 
   (register-ops! 2
-    [== gfl= bool]
-    [!= (negate gfl=) bool]
-    [< gfl< bool]
-    [> gfl> bool]
-    [<= gfl<= bool]
-    [>= gfl>= bool])
+                 [== gfl= bool]
+                 [!= (negate gfl=) bool]
+                 [< gfl< bool]
+                 [> gfl> bool]
+                 [<= gfl<= bool]
+                 [>= gfl>= bool])
 
   (void))
-
 
 (define (generate-float-format name)
   (match name
