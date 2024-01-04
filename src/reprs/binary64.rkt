@@ -3,15 +3,10 @@
 ;; Builtin double-precision plugin (:precision binary64)
 
 (require math/flonum math/bigfloat)
-(require "../plugin.rkt" "bool.rkt")
+(require "runtime/utils.rkt" "runtime/libm.rkt")
 
-(define (shift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (fn (- x shift-val))))
-
-(define (unshift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (+ (fn x) shift-val)))
+;; Do not run this file with `raco test`
+(module test racket/base)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -25,47 +20,25 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-operator-impl (PI PI.f64) binary64
-  [fl (const pi)])
-
-(define-operator-impl (E E.f64) binary64
-  [fl (const (exp 1.0))])
-
-(define-operator-impl (INFINITY INFINITY.f64) binary64
-  [fl (const +inf.0)])
-
-(define-operator-impl (NAN NAN.f64) binary64
-  [fl (const +nan.0)])
+(define-constants binary64
+  [PI PI.f64 pi]
+  [E E.f64 (exp 1.0)]
+  [INFINITY INFINITY.f64 +inf.0]
+  [NAN NAN.f64 +nan.0])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(require ffi/unsafe)
-(define-syntax (define-libm-operator stx)
+(define-syntax (define-libm-impl/binary64 stx)
   (syntax-case stx (real)
-    [(_ (op real ...) [key value] ...)
-     (let* ([num-args (length (cdr (syntax-e (cadr (syntax-e stx)))))]
-            [sym2-append (λ (x y) (string->symbol (string-append (symbol->string x) (symbol->string y))))]
-            [name (sym2-append (syntax-e (car (syntax-e (cadr (syntax-e stx))))) '.f64)])
-       #`(begin
-          (define fl-proc
-            (get-ffi-obj 'op #f (_fun #,@(build-list num-args (λ (_) #'_double)) -> _double)
-                          (λ () #f)))
-           (when fl-proc
-            (define-operator-impl (op #,name #,@(build-list num-args (λ (_) #'binary64))) binary64
-              [fl fl-proc] [key value] ...))))]))
+    [(_ op (itype ...) otype [key value] ...)
+     (with-syntax ([impl (string->symbol (format "~a.f64" (syntax->datum #'op)))])
+       #'(define-libm-impl op (op impl itype ...) otype [key value] ...))]))
 
-(define-syntax-rule (define-1ary-libm-operator op)
-  (define-libm-operator (op real)))
+(define-syntax-rule (define-libm-impls/binary64* (itype ... otype) name ...)
+  (begin (define-libm-impl/binary64 name (itype ...) otype) ...))
 
-(define-syntax-rule (define-2ary-libm-operator op)
-  (define-libm-operator (op real real)))
-
-(define-syntax-rule (define-1ary-libm-operators op ...)
-  (begin (define-1ary-libm-operator op) ...))
-
-(define-syntax-rule (define-2ary-libm-operators op ...)
-  (begin (define-2ary-libm-operator op) ...))
-
+(define-syntax-rule (define-libm-impls/binary64 [(itype ... otype) (name ...)] ...)
+  (begin (define-libm-impls/binary64* (itype ... otype) name ...) ...))
 
 (define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
 (define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
@@ -73,67 +46,20 @@
 (define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
 (define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
 
-(define-1ary-libm-operators
- acos
- acosh
- asin
- asinh
- atan
- atanh
- cbrt
- ceil
- cos
- cosh
- erf
- erfc
- exp
- exp2
- expm1
- fabs
- floor
- lgamma
- log
- log10
- log1p
- log2
- logb
- rint
- round
- sin
- sinh
- sqrt
- tan
- tanh
- tgamma
- trunc)
+(define-libm-impls/binary64
+  [(binary64 binary64)
+   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
+    exp exp2 expm1 fabs floor lgamma log log10 log1p log2 logb
+    rint round sin sinh sqrt tan tanh tgamma trunc)]
+  [(binary64 binary64 binary64)
+   (atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
+  [(binary64 binary64 binary64 binary64)
+   (fma)])
 
-(define-2ary-libm-operators
- atan2
- copysign
- fdim
- fmax
- fmin
- fmod
- hypot
- pow
- remainder)
-
-(define-libm-operator (fma real real real))
-
-(define-operator-impl (== ==.f64 binary64 binary64) bool
-  [fl =])
-
-(define-operator-impl (!= !=.f64 binary64 binary64) bool
-  [fl (negate =)])
-
-(define-operator-impl (< <.f64 binary64 binary64) bool
-  [fl <])
-
-(define-operator-impl (> >.f64 binary64 binary64) bool
-  [fl >])
-
-(define-operator-impl (<= <=.f64 binary64 binary64) bool
-  [fl <=])
-
-(define-operator-impl (>= >=.f64 binary64 binary64) bool
-  [fl >=])
+(define-comparator-impls binary64
+  [== ==.f64 =]
+  [!= !=.f64 (negate =)]
+  [< <.f64 <]
+  [> >.f64 >]
+  [<= <=.f64 <=]
+  [>= >=.f64 >=])
