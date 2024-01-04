@@ -10,6 +10,7 @@
 
 (module+ test
   (require rackunit)
+  (require "../load-plugin.rkt")
   (load-herbie-builtins))
 
 (provide (struct-out egraph-query) make-egg-query run-egg
@@ -139,7 +140,6 @@
        (list '$Var prec replacement)])))
 
 (module+ test
-  (require "../load-plugin.rkt")
   (define repr (get-representation 'binary64))
   (*context* (make-debug-context '()))
   (*context* (context-extend (*context*) 'x repr))

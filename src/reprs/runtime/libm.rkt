@@ -1,81 +1,66 @@
 #lang racket
 
 ;; libm runtime support
-;; The builtin plugins prefer to use the underlying libm
-;; rather than Racket's implementations
+;; The builtin plugins prefer to use the underlying libm rather
+;; than Racket's implementations
 
-(require ffi/unsafe (for-syntax racket/match))
-(require "utils.rkt" (for-syntax "utils.rkt"))
+(require ffi/unsafe)
+(require "utils.rkt")
 
-(provide define/libm
-         define-binary64-impl/libm
-         define-binary32-impl/libm
-         define-binary64-impls/libm
-         define-binary32-impls/libm)
+(provide define-libm define-libm-impl)
 
-;; Binds `id` to a libm floating-point operator
-(define-syntax (define/libm stx)
+;; Looks up a function `name` with type signature `itype -> ... -> otype`
+;; in the system libm and binds to `id` the FFI function or `#f` if
+;; the procedure cannot be found.
+;; ```
+;; (define-libm <id> (<name> <itype> ... <otype))
+;; ```
+(define-syntax (define-libm stx)
+  (define (oops! why [sub-stx #f])
+    (raise-syntax-error 'define-libm why stx sub-stx))
+  (define (ctype->ffi type)
+    (syntax-case type (double float integer)
+      [double #'_double]
+      [float #'_float]
+      [integer #'_int]
+      [_ (oops! "unknown type" type)]))
   (syntax-case stx ()
-    [(_ id name type argc)
+    [(_ id (name itype ... otype))
      (begin
        (unless (identifier? #'id)
-         (raise-syntax-error 'define/libm "expected identifier" stx #'id))
-       (define-values (cname ctype) 
-         (match (syntax->datum #'type)
-           ['double (values (syntax->datum #'name) '_double)]
-           ['float  (values (sym-append (syntax->datum #'name) 'f) '_float)]
-           [_ (raise-syntax-error 'define/libm
-                                  "expected either 'double or 'single"
-                                  stx #'type)]))
-       (with-syntax ([(args ...) (build-list (syntax->datum #'argc) (λ (_) ctype))]
-                     [cname cname]
-                     [ctype ctype])
-         #`(define id (get-ffi-obj 'cname #f (_fun args ... -> ctype) (λ () #f)))))]))
+         (oops! "expected identifier" #'id))
+       (unless (identifier? #'name)
+         (oops! "expected identifier" #'name))
+       (with-syntax ([(itype ...) (map ctype->ffi (syntax->list #'(itype ...)))]
+                     [otype (ctype->ffi #'otype)])
+         #'(define id (get-ffi-obj 'name #f (_fun itype ... -> otype) (const #f)))))]))
 
-(define-syntaxes (define-binary64-impl/libm define-binary32-impl/libm)
-  (let ([make-definer
-        (lambda (repr-name)
-          (lambda (stx)
-            (syntax-case stx (real)
-              [(_ (op real ...) [key value] ...)
-               (begin
-                 (define name (syntax->datum #'op))
-                 (define argc (length (cdr (syntax->list (cadr (syntax-e stx))))))
-                 (define-values (suffix ctype)
-                   (match repr-name
-                     ['binary64 (values '.f64 'double)]
-                     ['binary32 (values '.f32 'float)]
-                     [_         (error 'go "unknown representation ~a" repr-name)]))
-                 (define impl-name (sym-append name suffix))
-                 (with-syntax ([(args ...) (build-list argc (λ (_) repr-name))])
-                   #`(begin
-                       (define/libm fl-proc op #,ctype #,argc)
-                       (when fl-proc
-                         (define-operator-impl (op #,impl-name args ...) #,repr-name
-                           [fl fl-proc] [key value] ...)))))])))])
-      (values (make-definer 'binary64)
-              (make-definer 'binary32))))
-
-(define-syntaxes (define-binary64-impls/libm define-binary32-impls/libm)
-  (let ([make-multi-definer
-         (lambda (definer)
-           (lambda (stx)
-             (syntax-case stx ()
-               [(_ [ops ...] ...)
-                (let loop ([ops (syntax->list #'((ops ...) ...))] [exprs '()] [arity 1])
-                  (cond
-                    [(null? ops)
-                     (datum->syntax stx (cons #'begin exprs))]
-                    [else
-                     (define ops-at-arity (car ops))
-                     (define args (build-list arity (λ (_) #'real)))
-                     (loop (cdr ops)
-                           (for/fold ([exprs exprs]) ([op (syntax->list ops-at-arity)])
-                             (cons
-                               (datum->syntax ops-at-arity
-                                 (list definer (cons op args)))
-                               exprs))
-                           (+ arity 1))]))])))])
-
-    (values (make-multi-definer 'define-binary64-impl/libm)
-            (make-multi-definer 'define-binary32-impl/libm))))
+;; Define a Herbie operator implementation whose underlying
+;; procedure is a libm function.
+;; ```
+;; (define-libm-impl <libm-name> (<op> <impl> <itype> ...) <otype> <attrib> ...)
+;; ```
+(define-syntax (define-libm-impl stx)
+  (define (oops! why [sub-stx #f])
+    (raise-syntax-error 'define-libm-impl why stx sub-stx))
+  (define (repr->type repr)
+    (syntax-case repr (binary64 binary32 integer)
+      [binary64 #'double]
+      [binary32 #'float]
+      [integer #'integer]
+      [_ (oops! "unknown type" repr)]))
+  (syntax-case stx ()
+    [(_  cname (id name itype ...) otype attrib ...)
+     (begin
+       (unless (identifier? #'cname)
+         (oops! "expected identifier" #'cname))
+       (unless (identifier? #'id)
+         (oops! "expected identifier" #'id))
+       (unless (identifier? #'name)
+         (oops! "expected identifier" #'name))
+       (with-syntax ([(citype ...) (map repr->type (syntax->list #'(itype ...)))]
+                     [cotype (repr->type #'otype)])
+         #'(begin
+             (define-libm proc (cname citype ... cotype))
+             (when proc (define-operator-impl (id name itype ...) otype
+                [fl proc] attrib ...)))))]))

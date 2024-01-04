@@ -2,11 +2,11 @@
 
 ;; Double-precision common math operators
 
-(require math/bigfloat math/flonum)
-(require "runtime/utils.rkt"
-         "bool.rkt"  ;; required for raco test
-         (only-in "runtime/libm.rkt"
-           [define-binary64-impls/libm define-libm-operators]))
+(require math/flonum math/bigfloat)
+(require "runtime/utils.rkt" "runtime/libm.rkt")
+
+;; Do not run this file with `raco test`
+(module test racket/base)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -28,22 +28,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-syntax (define-libm-impl/binary64 stx)
+  (syntax-case stx (real)
+    [(_ op (itype ...) otype [key value] ...)
+     (with-syntax ([impl (string->symbol (format "~a.f64" (syntax->datum #'op)))])
+       #'(define-libm-impl op (op impl itype ...) otype [key value] ...))]))
+
+(define-syntax-rule (define-libm-impls/binary64* (itype ... otype) name ...)
+  (begin (define-libm-impl/binary64 name (itype ...) otype) ...))
+
+(define-syntax-rule (define-libm-impls/binary64 [(itype ... otype) (name ...)] ...)
+  (begin (define-libm-impls/binary64* (itype ... otype) name ...) ...))
+
 (define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
 (define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
 (define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
 (define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
 (define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
 
-(define-libm-operators
-  [acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
-   exp exp2 fabs floor lgamma log log10 log2 logb rint round
-   sin sinh sqrt tan tanh tgamma trunc]
-  [copysign fdim fmax fmin fmod pow remainder])
-
-(define-libm-operators
-  [expm1 log1p]
-  [atan2 hypot]
-  [fma])
+(define-libm-impls/binary64
+  [(binary64 binary64)
+   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
+    exp exp2 expm1 fabs floor lgamma log log10 log1p log2 logb
+    rint round sin sinh sqrt tan tanh tgamma trunc)]
+  [(binary64 binary64 binary64)
+   (atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
+  [(binary64 binary64 binary64 binary64)
+   (fma)])
 
 (define-comparator-impls binary64
   [== ==.f64 =]

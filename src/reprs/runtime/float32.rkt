@@ -5,9 +5,8 @@
 ;; single-precision rounding, so we need to provide some additional emulation
 
 (require math/flonum math/bigfloat)
-(provide float32? ->float32
+(provide float32? ->float32 bigfloat->float32
          float32->ordinal ordinal->float32
-         bigfloat->float32
          fl32+ fl32- fl32* fl32/)
 
 (module+ test (require rackunit))
@@ -48,17 +47,10 @@
                 (if (bf< x2 x) (float32-step y 1) y)
                 (if (bf> x2 x) (float32-step y -1) y))]))
 
-(define-syntax-rule (float32-fun name op)
-  (define name (compose ->float32 op)))
-
-(define-syntax-rule (float32-funs [name op] ...)
-  (begin (float32-fun name op) ...))
-
-(float32-funs
-  [fl32+  +]
-  [fl32-  -]
-  [fl32*  *]
-  [fl32/  /])
+(define fl32+ (compose ->float32 +))
+(define fl32- (compose ->float32 -))
+(define fl32* (compose ->float32 *))
+(define fl32/ (compose ->float32 /))
     
 (module+ test
   (check-equal? (fl32+ 1.0 2.0) (->float32 3.0))
