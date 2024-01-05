@@ -47,13 +47,13 @@
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
 (struct platform (name reprs impls impl-costs repr-costs)
-        #:name $platform
-        #:constructor-name create-platform
-        #:methods gen:custom-write
-        [(define (write-proc p port mode)
-           (if (platform-name p)
-               (fprintf port "#<platform:~a>" (platform-name p))
-               (fprintf port "#<platform>")))])
+  #:name $platform
+  #:constructor-name create-platform
+  #:methods gen:custom-write
+  [(define (write-proc p port mode)
+     (if (platform-name p)
+         (fprintf port "#<platform:~a>" (platform-name p))
+         (fprintf port "#<platform>")))])
 
 ;; Platform table, mapping name to platform
 (define platforms (make-hash))
@@ -78,11 +78,8 @@
 ;; Registers a platform under identifier `name`.
 (define (register-platform! name pform)
   (when (hash-has-key? platforms name)
-    (error 'register-platform!
-           "platform already registered ~a"
-           name))
-  (hash-set! platforms name
-            (struct-copy $platform pform [name name])))
+    (error 'register-platform! "platform already registered ~a" name))
+  (hash-set! platforms name (struct-copy $platform pform [name name])))
 
 ;; Representation name sanitizer
 (define (repr->symbol repr)
@@ -96,7 +93,8 @@
     (or (get-repr-conv irepr orepr #:all? #t)
         (generate-conversion-impl irepr orepr)))
   (unless impl
-    (error 'load-conversion-impls! "could not generate conversion ~a => ~a"
+    (error 'load-conversion-impls!
+           "could not generate conversion ~a => ~a"
            (format "<~a>" (representation-name irepr))
            (format "<~a>" (representation-name orepr))))
   (define rw-impl (get-rewrite-operator orepr #:all? #t))
@@ -104,8 +102,11 @@
     ; need to make a "precision rewrite" operator
     ; (only if we did not generate it before)
     (define rewrite-name (sym-append '<- (repr->symbol orepr)))
-    (register-operator-impl! 'convert rewrite-name
-      (list orepr) orepr (list (cons 'fl identity)))
+    (register-operator-impl! 'convert
+                             rewrite-name
+                             (list orepr) 
+                             orepr
+                             (list (cons 'fl identity)))
     (set! rw-impl (get-rewrite-operator orepr #:all? #t)))
   (list impl rw-impl))
 
@@ -332,7 +333,7 @@
         (match-define (list irepr) (impl-info impl 'itype))
         (define orepr (impl-info impl 'otype))
         (unless (or (set-member? as-set (cons irepr orepr))
-                     (set-member? as-set (cons orepr irepr)))
+                    (set-member? as-set (cons orepr irepr)))
           (set-add! as-set (cons irepr orepr))
           (sow (cons irepr orepr))))))
 
@@ -420,7 +421,8 @@
 ;; Use list operations for deterministic ordering.
 (define platform-union
   (make-set-operation
-    (λ (rs . rss) (remove-duplicates (apply append rs rss)))))
+    (λ (rs . rss)
+      (remove-duplicates (apply append rs rss)))))
 
 ;; Set intersection for platforms.
 ;; Use list operations for deterministic ordering.
@@ -464,7 +466,7 @@
           (with-syntax ([repr-filter repr-filter] [op-filter op-filter])
             #'((make-platform-filter (or repr-filter (const #t))
                                      (or op-filter (const #t)))
-                pform))]
+                                     pform))]
          [(#:representations [reprs ...] rest ...)
           (begin
             (when repr-filter
@@ -509,8 +511,8 @@
 ;; Set of operators: operators are just names with a type signature.
 ;; Platforms may be instantiated from operator sets using `platform-product`.
 (struct operator-set (ops)
-        #:name $operator-set
-        #:constructor-name make-operator-set)
+  #:name $operator-set
+  #:constructor-name make-operator-set)
 
 ;; Constructs an operator set.
 (define-syntax (operator-set stx)
@@ -574,8 +576,8 @@
 
 ;; Cost map for operators.
 (struct cost-map (costs default)
-        #:name $cost-map
-        #:constructor-name make-cost-map)
+  #:name $cost-map
+  #:constructor-name make-cost-map)
 
 ;; Constructs a cost map.
 ;; ```
@@ -597,7 +599,8 @@
          (syntax-case (car clauses) ()
            [((op ...) cost)
             ; multiple ops with same cost
-            (loop (for/fold ([clauses (cdr clauses)]) ([o (syntax->list #'(op ...))])
+            (loop (for/fold ([clauses (cdr clauses)])
+                            ([o (syntax->list #'(op ...))])
                     (cons (with-syntax ([o o]) #'(o cost)) clauses))
                   costs)]
            [(op cost)
@@ -713,4 +716,4 @@
          (define itypes (impl-info impl 'itype))
          (apply + (impl->cost pform impl) (map loop args itypes))]
         [_
-         (repr->cost repr)]))))
+         (repr->cost pform repr)]))))
