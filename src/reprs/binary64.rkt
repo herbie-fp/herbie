@@ -4,9 +4,7 @@
 
 (require math/flonum math/bigfloat)
 (require "runtime/utils.rkt" "runtime/libm.rkt")
-
-;; Do not run this file with `raco test`
-(module test racket/base)
+(require "bool.rkt") ; for raco test
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
