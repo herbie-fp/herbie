@@ -124,3 +124,21 @@
 
     (timeline-push! 'outputs (map ~a (apply append variantss)))
     out]))
+
+(module+ test
+  (require rackunit)
+  (require "../syntax/types.rkt" "../load-plugin.rkt")
+  (load-herbie-builtins)
+
+  (define repr (get-representation 'binary64))
+  (*context* (make-debug-context '()))
+  (*context* (context-extend (*context*) 'x repr))
+  (*needed-reprs* (list repr))
+
+  (let ([chngs (rewrite-once '(+.f64 x x) (*context*) #:rules (*rules*))])
+    (check-equal? (length chngs) 13 (format "rewrites ~a" chngs)))
+
+  (let ([chngs (rewrite-once '(*.f64 x x) (*context*) #:rules (*rules*))])
+    (check-equal? (length chngs) 11 (format "rewrites ~a" chngs)))
+
+  (void))
