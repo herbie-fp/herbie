@@ -8,10 +8,7 @@
          "../syntax/types.rkt" "../common.rkt" "../errors.rkt"
          "../programs.rkt" "../timeline.rkt")
 
-(module+ test
-  (require rackunit)
-  (require "../load-plugin.rkt")
-  (load-herbie-builtins))
+(module+ test (require rackunit))
 
 (provide (struct-out egraph-query) make-egg-query run-egg
          expand-rules get-canon-rule-name remove-rewrites)
@@ -140,6 +137,7 @@
        (list '$Var prec replacement)])))
 
 (module+ test
+  (require "../load-plugin.rkt")
   (define repr (get-representation 'binary64))
   (*context* (make-debug-context '()))
   (*context* (context-extend (*context*) 'x repr))
