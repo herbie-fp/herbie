@@ -60,7 +60,6 @@
            (list if-proc (munge c cond-type) (munge t type) (munge f type))]
           [(list op args ...)
            (cons (op->proc op) (map munge args (op->itypes op)))]
-          ;; (cons (operator-info op 'ival) (map munge args))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
@@ -81,8 +80,18 @@
   (define compile
     (make-compiler 'ival
                    #:input->value (lambda (prog _) (ival (bf prog)))
-                   #:op->procedure (lambda (op) (operator-info op 'ival))
-                   #:op->itypes (lambda (op) (operator-info op 'itype))
+                   #:op->procedure (lambda (op)
+                                    (match op
+                                      [(? repr-conv? impl) ; strangeness with specs
+                                       (operator-info (impl->operator impl) 'ival)]
+                                      [_
+                                       (operator-info op 'ival)]))
+                   #:op->itypes (lambda (op)
+                                  (match op
+                                    [(? repr-conv? impl) ; strangeness with specs
+                                     (operator-info (impl->operator impl) 'itype)]
+                                    [_
+                                     (operator-info op 'itype)]))
                    #:if-procedure ival-if
                    #:cond-type 'bool))
   (compile specs vars 'real))
