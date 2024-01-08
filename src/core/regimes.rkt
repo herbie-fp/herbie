@@ -190,6 +190,7 @@
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint sp-prev)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
+    (define result (make-vector (+ num-points)))
     (for/vector #:length num-points ([point-idx (in-naturals)] [point-entry (in-vector sp-prev)])
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
@@ -208,7 +209,9 @@
               (set! acost (+ (cse-cost prev-entry) bcost))
               (set! aest (cse acost (cons (si best (+ point-idx 1))
                                           (cse-indices prev-entry)))))))
-        aest)))
+        (vector-set! result point-idx aest)
+        aest))
+    result)
 
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
