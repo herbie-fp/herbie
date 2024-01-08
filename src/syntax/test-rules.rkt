@@ -81,13 +81,13 @@
   (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
 
-  (for* ([test-ruleset (*rulesets*)]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
          [test-rule* (rule->impl-rules test-rule)])
     (test-case (~a (rule-name test-rule*))
       (check-rule-correct test-rule*)))
 
-  (for* ([test-ruleset (*rulesets*)]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
          [test-rule* (rule->impl-rules test-rule)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule*))

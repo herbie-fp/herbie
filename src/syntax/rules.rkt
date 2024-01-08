@@ -2,39 +2,82 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt" "sugar.rkt")
+(require "../common.rkt"
+         "../errors.rkt"
+         "sugar.rkt"
+         "syntax.rkt"
+         "types.rkt")
 
-(provide *rules* *simplify-rules* *fp-safe-simplify-rules* (struct-out rule))
+(provide *rules*
+         *simplify-rules*
+         *fp-safe-simplify-rules*
+         (struct-out rule))
 
 (module+ internals
-  (provide define-ruleset define-ruleset* register-ruleset! *rulesets*))
+  (provide define-ruleset
+           define-ruleset*
+           register-ruleset!
+           *rulesets*))
 
-;; Rulesets
+;; A rule represents a "find-and-replace" pattern where `input` and `output`
+;; are patterns, `itypes` is a mapping from variable name to type
+;; (or representation) and `otype` is a type (or representation).
+(struct rule (name input output itypes otype)
+        #:methods gen:custom-write
+        [(define (write-proc rule port mode)
+           (fprintf port "#<rule ~a>" (rule-name rule)))])
+
+;; A ruleset is a collection of rewrite rules sharing
+;;  - a type signature (variables have a type or representation)
+;;  - rule tags (support for certain tags may be toggled on or off)
+;; Beyond these restrictions, the grouping of rules is arbitrary.
+;; In practice, rules with the same theme are grouped into a ruleset.
+;;
+;; Herbie will apply all the rules listed below as well as those
+;; provided by plugins. Rules are applied regardless of which
+;; operations are actually supported by a platform since rewrite
+;; rules are intended to be mathematical.
 (define *rulesets* (make-parameter '()))
 
-(define (rule-ops-supported? rule)
-  (define (ops-in-expr expr)
-    (cond
-      [(list? expr)
-       (and (impl-exists? (car expr))
-            (for/and ([subexpr (cdr expr)])
-              (ops-in-expr subexpr)))]
-      [else true]))
-  (ops-in-expr (rule-output rule)))
+;; Ruleset contract
+(define ruleset? (list/c (listof rule?) (listof symbol?) dict?))
 
+;; Updates the `*ruleset* parameter
+(define/contract (add-ruleset! name ruleset)
+  (-> symbol? ruleset? void?)
+  (when (dict-has-key? (*rulesets*) name)
+    (warn 'rulesets "Duplicate ruleset ~a, skipping" name))
+  (*rulesets* (dict-set (*rulesets*) name ruleset)))
+
+;; Rules: fp-safe-simplify ⊂ simplify ⊂ all
 ;;
-;; Rules
-;; fp-safe-simplify ⊂ simplify ⊂ all
-;;
-;; all                    requires at least one tag of an active group of rules
-;; simplify               same req. as all + 'simplify' tag
-;; fp-safe-simplify       same req. as simplify + 'fp-safe' tag ('fp-safe' does not imply 'simplify')
-;;
+;; all - at least one tag of an active group of rules
+;; simplify - subset of `all` that has the `simplify` tag
+;; fp-safe-simplify - subset of `simplify` that has `fp-safe` tag
+
+(define (ops-in-expr expr)
+  (define ops (mutable-set))
+  (let loop ([expr expr])
+    (match expr
+      [(list 'if cond ift iff)
+       (loop cond)
+       (loop ift)
+       (loop iff)]
+      [(list op args ...)
+       (set-add! ops op)
+       (for-each loop args)]
+      [_ (void)]))
+  (set->list ops))
+
+;; TODO: rewrite should ideally be mathematical,
+;; why are we using implementations?
+(define (rule-ops-supported? rule)
+  (andmap impl-exists? (ops-in-expr (rule-output rule))))
 
 (define (*rules*)
   (reap [sow]
-    (for ([ruleset (*rulesets*)])
-      (match-define (list rules groups types) ruleset)
+    (for ([(_ ruleset) (in-dict (*rulesets*))])
+      (match-define (list rules groups _) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
                  (filter rule-ops-supported? rules))
         (for ([rule (in-list rules)])
@@ -42,8 +85,8 @@
 
 (define (*simplify-rules*)
   (reap [sow]
-    (for ([ruleset (*rulesets*)])
-      (match-define (list rules groups types) ruleset)
+    (for ([(_ ruleset) (in-dict (*rulesets*))])
+      (match-define (list rules groups _) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
                  (set-member? groups 'simplify)
                  (filter rule-ops-supported? rules))
@@ -52,8 +95,8 @@
 
 (define (*fp-safe-simplify-rules*)
   (reap [sow]
-    (for ([ruleset (*rulesets*)])
-      (match-define (list rules groups types) ruleset)
+    (for ([(_ ruleset) (in-dict (*rulesets*))])
+      (match-define (list rules groups _) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
                  (set-member? groups 'simplify)
                  (set-member? groups 'fp-safe)
@@ -61,41 +104,26 @@
         (for ([rule (in-list rules)])
           (sow rule))))))
 
-;; Rule struct
-
-(struct rule (name input output itypes otype)
-        ;; Input and output are patterns
-        ;; itypes is a mapping, variable name -> representation
-        ;; otype is a representation
-        #:methods gen:custom-write
-        [(define (write-proc rule port mode)
-           (fprintf port "#<rule ~a>" (rule-name rule)))])
-
 ;;
 ;;  Rule loading
 ;;
 
-(define-values (type-of-rule repr-of-rule)
-  (let () ; `let` not `begin` since these are expanded in different phases
-    (define ((type/repr-of-rule get-info name) input output ctx)
-      (let loop ([input input] [output output])
-        (cond [(list? input)    (if (equal? (car input) 'if)
-                                    ; special case for 'if'
-                                    ; return the 'type/repr-of-rule' of the ift branch
-                                    (loop (caddr input) output)
-                                    (get-info (car input) 'otype))]
-              [(list? output)   (if (equal? (car output) 'if)
-                                    ; special case for 'if'
-                                    ; return the 'type/repr-of-rule' of the ift branch
-                                    (loop input (caddr output))
-                                    (get-info (car output) 'otype))]
-              ;; fallback: if symbol, check the ctx for the type
-              [(symbol? input)  (dict-ref ctx input)]
-              [(symbol? output) (dict-ref ctx output)]
-              [else             (error name "could not compute type of rule ~a -> ~a"
-                                            input output)])))
-    (values (type/repr-of-rule operator-info 'type-of-rule)
-            (type/repr-of-rule impl-info 'repr-of-rule))))
+(define ((type/repr-of-rule op-info name) input output ctx)
+  (let loop ([input input] [output output])
+    (match* (input output)
+      ; first, try the input expression
+      ; special case for `if` expressions
+      [((list 'if _ ift _) _) (loop ift output)]
+      [((list op _ ...) _) (op-info op 'otype)]
+      [(_ (list 'if _ ift _)) (loop input ift)]
+      [(_ (list op _ ...)) (op-info op 'otype)]
+      [((? symbol?) _) (dict-ref ctx input)]
+      [(_ (? symbol?)) (dict-ref ctx output)]
+      [(_ _) (error name "could not compute type of rule ~a => ~a"
+                    input output)])))
+
+(define type-of-rule (type/repr-of-rule operator-info 'type-of-rule))
+(define repr-of-rule (type/repr-of-rule impl-info 'repr-of-rule))
 
 ;; Rulesets defined by reprs. These rulesets are unique
 (define (register-ruleset! name groups var-ctx rules)
@@ -104,7 +132,7 @@
       (match-define (list rname input output) r)
       (rule rname input output var-ctx
             (repr-of-rule input output var-ctx))))
-  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
+  (add-ruleset! name (list rules* groups var-ctx)))
       
 (define-syntax define-ruleset
   (syntax-rules ()
@@ -120,7 +148,7 @@
       (match-define (list rname input output) ru)
       (rule rname input output var-ctx
             (type-of-rule input output var-ctx))))
-  (*rulesets* (cons (list rules* groups var-ctx) (*rulesets*))))
+  (add-ruleset! name (list rules* groups var-ctx)))
   
 (define-syntax define-ruleset*
   (syntax-rules ()
