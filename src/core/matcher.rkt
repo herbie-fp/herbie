@@ -60,17 +60,23 @@
 
 (define (rewrite-once expr ctx #:rules rules)
   ;; we want rules over representations
-  (match-define (list rules* _ canon-names) (expand-rules rules))
-  (define rule-apps (make-hash))
+  (define canon (make-hash))
+  (define rules*
+    (for/fold ([rules* '()]) ([r (in-list rules)])
+      (define impl-rules (rule->impl-rules r))
+      (for ([r* (in-list impl-rules)])
+        (hash-set! canon (rule-name r*) (rule-name r)))
+      (append impl-rules rules*)))
   ;; actually match
+  (define rule-apps (make-hash))
   (define expr-repr (repr-of expr ctx))
   (define changelists
     (reap [sow]
       (for ([rule rules*] #:when (equal? expr-repr (rule-otype rule)))
         (let* ([result (rule-apply rule expr)])
           (when result
-            (define canon-name (hash-ref canon-names (rule-name rule)))
-            (hash-update! rule-apps canon-name (curry + 1) 1)
+            (define canon-name (hash-ref canon (rule-name rule)))
+            (hash-update! rule-apps canon-name add1 1)
             (sow (list (car result) rule)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])

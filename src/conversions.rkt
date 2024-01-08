@@ -9,14 +9,6 @@
 
 (define *conversions* (make-parameter (hash)))
 
-(define/contract (string-replace* str changes)
-  (-> string? (listof (cons/c string? string?)) string?)
-  (let loop ([str str] [changes changes])
-    (match changes
-      [(? null?) str]
-      [_ (let ([change (car changes)])
-           (loop (string-replace str (car change) (cdr change)) (cdr changes)))])))
-
 (define (repr->symbol repr)
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (string->symbol (string-replace* (~a (representation-name repr)) replace-table)))
