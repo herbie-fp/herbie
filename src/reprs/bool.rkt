@@ -2,7 +2,7 @@
 
 ;; Builtin boolean plugin
 
-(require "runtime/utils.rkt")
+(require "../plugin.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -16,9 +16,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constants bool
-  [TRUE TRUE (const true)]
-  [FALSE FALSE (const false)])
+(define-operator-impl (TRUE TRUE) bool
+  [fl (const true)])
+
+(define-operator-impl (FALSE FALSE) bool
+  [fl (const false)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

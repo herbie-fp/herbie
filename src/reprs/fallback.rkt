@@ -3,7 +3,15 @@
 ;; Builtin fallback plugin (:precision racket)
 
 (require math/base math/bigfloat math/flonum math/special-functions)
-(require "runtime/utils.rkt" "bool.rkt")
+(require "../plugin.rkt" "bool.rkt")
+
+(define (shift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (fn (- x shift-val))))
+
+(define (unshift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (+ (fn x) shift-val)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -17,11 +25,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constants racket
-  [PI PI.rkt pi]
-  [E E.rkt (exp 1.0)]
-  [INFINITY INFINITY.rkt +inf.0]
-  [NAN NAN.rkt +nan.0])
+(define-operator-impl (PI PI.rkt) racket
+  [fl (const pi)])
+
+(define-operator-impl (E E.rkt) racket
+  [fl (const (exp 1.0))])
+
+(define-operator-impl (INFINITY INFINITY.rkt) racket
+  [fl (const +inf.0)])
+
+(define-operator-impl (NAN NAN.rkt) racket
+  [fl (const +nan.0)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -114,10 +128,21 @@
 (define-fallback-operator (fma real real real)
  [fl (from-bigfloat bffma)])
 
-(define-comparator-impls racket
-  [== ==.rkt =]
-  [!= !=.rkt (negate =)]
-  [< <.rkt <]
-  [> >.rkt >]
-  [<= <=.rkt <=]
-  [>= >=.rkt >=])
+(define-operator-impl (== ==.rkt racket racket) bool
+  [fl =])
+
+(define-operator-impl (!= !=.rkt racket racket) bool
+  [fl (negate =)])
+
+(define-operator-impl (< <.rkt racket racket) bool
+  [fl <])
+
+(define-operator-impl (> >.rkt racket racket) bool
+  [fl >])
+
+(define-operator-impl (<= <=.rkt racket racket) bool
+  [fl <=])
+
+(define-operator-impl (>= >=.rkt racket racket) bool
+  [fl >=])
+
