@@ -1,8 +1,8 @@
 #lang racket
 
 (require racket/flonum racket/set)
-(require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
-         "ground-truth.rkt")
+(require "points.rkt" "syntax/types.rkt" "core/localize.rkt"
+         "common.rkt" "ground-truth.rkt")
 
 (provide actual-errors predicted-errors)
 
@@ -35,6 +35,7 @@
       (and (negative? a) (negative? b))))
  
 (define (predicted-errors expr ctx pctx)
+  
   (define subexprs
     (all-subexpressions-rev expr (context-repr ctx)))
   (define subexprs-list (map car subexprs))
@@ -74,15 +75,16 @@
                     (hash-set! oflow-hash subexpr #t)])
                  
                  (match subexpr
-                   [(list '+.f64 larg rarg)
+                   [(list (or '+.f64 '+.f32) larg rarg)
                     #:when (or (is-inexact? larg) (is-inexact? rarg))
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x+y (+ larg-val rarg-val))
-                    (define cond-x (abs (/ larg-val x+y)))
-                    (define cond-y (abs (/ rarg-val x+y)))
+                    (define cond-x (abs (/ larg-val subexpr-val)))
+                    (define cond-y (abs (/ rarg-val subexpr-val)))
                     
                     (cond
+                      ; Condition number hallucination
                       ; Both R(x + y) and R(x) + R(y) underflow
                       ; This causes the condition number to jump up, with no real error
                       [(and (= x+y 0.0) (underflow? subexpr)) #f]
@@ -108,16 +110,16 @@
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
-                   [(list '-.f64 larg rarg)
+                   [(list (or '-.f64 '-.f32) larg rarg)
                     #:when (or (is-inexact? larg) (is-inexact? rarg))
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x-y (- larg-val rarg-val))
-                    (define cond-x (abs (/ larg-val x-y)))
-                    (define cond-y (abs (/ rarg-val x-y)))
+                    (define cond-x (abs (/ larg-val subexpr-val)))
+                    (define cond-y (abs (/ rarg-val subexpr-val)))
                     
                     (cond
-                      ; Undeflow sanity check:
+                      ; Condition number hallucination:
                       ; When x - y correctly underflows, CN is high even though
                       ; the answer is correct
                       [(and (= x-y 0.0) (underflow? subexpr)) #f]
@@ -146,22 +148,22 @@
                    #|
                    TODO Make this actually work
                    |#
-                   [(list 'sin.f64 arg)
+                   [(list (or 'sin.f64 'sin.f32) arg)
                     #:when (is-inexact? arg)
                     (define arg-val  (flabs (hash-ref exacts-hash arg)))
                     (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
                    
-                   [(list 'cos.f64 arg)
+                   [(list (or 'cos.f64 'cos.f32) arg)
                     #:when (is-inexact? arg)
                     (define arg-val  (flabs (hash-ref exacts-hash arg)))
                     (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
                    
-                   [(list 'tan.f64 arg)
+                   [(list (or 'tan.f64 'tan.f32) arg)
                     #:when (is-inexact? arg)
                     (define arg-val (flabs (hash-ref exacts-hash arg)))
                     (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
                    
-                   [(list 'sqrt.f64 arg)
+                   [(list (or 'sqrt.f64 'sqrt.f32) arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
 
@@ -171,7 +173,7 @@
                          (not (= subexpr-val arg-val))
                          (mark-erroneous! subexpr pt))]
 
-                   [(list 'cbrt.f64 arg)
+                   [(list (or 'cbrt.f64 'cbrt.f32) arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
                     
@@ -181,7 +183,7 @@
                          (not (= subexpr-val arg-val))
                          (mark-erroneous! subexpr pt))]
                    
-                   [(list '/.f64 x-ex y-ex)
+                   [(list (or '/.f64 '/.f32) x-ex y-ex)
                     #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
                     (define x (hash-ref exacts-hash x-ex))
                     (define y (hash-ref exacts-hash y-ex))
@@ -216,7 +218,7 @@
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
 
-                   [(list '*.f64 x-ex y-ex)
+                   [(list (or '*.f64 '*.f32) x-ex y-ex)
                     #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
                     (define y-oflow? (overflow? y-ex))
                     (define x-uflow? (underflow? x-ex))
@@ -248,7 +250,7 @@
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
-                   [(list 'log.f64 arg)
+                   [(list (or 'log.f64 'log.f32) arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
                     (define cond-num (abs (/ 1 subexpr-val)))
@@ -271,7 +273,7 @@
                       [(> cond-num 1e2) (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
-                   [(list 'exp.f64 arg)
+                   [(list (or 'exp.f64 'exp.f32) arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
                     
@@ -279,11 +281,11 @@
                       ; Condition Number Hallucination:
                       ; When x is large enough that exp(x) overflows, condition
                       ; number is also high.
-                      [(and (infinite? subexpr-val) (infinite? (exp arg-val)))
+                      [(and (infinite? (exp arg-val)) (infinite? subexpr-val))
                        #f]
 
                       ; Condition Number Hallucination:
-                      ; When x is larg enough (negative) that exp(x) underflows,
+                      ; When x is large enough (negative) that exp(x) underflows,
                       ; condition number is also high
                       [(and (=  (exp arg-val) 0.0) (= subexpr-val 0.0))
                        #f]
@@ -294,11 +296,10 @@
                       [else #f])]
 
                    ; FIXME need to rework from scratch
-                   [(list 'pow.f64 x-ex y-ex)
+                   [(list (or 'pow.f64 'pow.f32) x-ex y-ex)
                     #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
                     (define x (hash-ref exacts-hash x-ex))
                     (define y (hash-ref exacts-hash y-ex))
-                    (define x^y (expt x y))
                     (define cond-x (abs y))
                     (define cond-y (abs (* y (log x))))
 
@@ -318,7 +319,7 @@
                        (mark-erroneous! subexpr pt)]
                       [else  #f])]
                    
-                   [(list 'acos.f64 x-ex)
+                   [(list (or 'acos.f64 'acos.f32) x-ex)
                     #:when (is-inexact? x-ex)
                     (define x (hash-ref exacts-hash x-ex))
                     (define cond_x (abs (/ x
@@ -338,7 +339,7 @@
                       [(> cond_x 100) (mark-erroneous! subexpr pt)]
                       [else #f])]
 
-                   [(list 'asin.f64 x-ex)
+                   [(list (or 'asin.f64 'asin.f32) x-ex)
                     #:when (is-inexact? x-ex)
                     (define x (hash-ref exacts-hash x-ex))
                     (define cond_x (abs (/ x
