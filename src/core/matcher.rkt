@@ -1,10 +1,14 @@
 #lang racket
 
-(require "../syntax/types.rkt" "../syntax/syntax.rkt" "../syntax/rules.rkt")
-(require "../common.rkt" "../programs.rkt" "../alternative.rkt" "egg-herbie.rkt"
-         "../timeline.rkt")
+(require "../syntax/syntax.rkt"
+         "../syntax/rules.rkt"
+         "../common.rkt"
+         "../programs.rkt"
+         "../timeline.rkt"
+         "egg-herbie.rkt")
 
-(provide pattern-match rewrite-expressions)
+(provide pattern-match
+         rewrite-expressions)
 
 ;;; Our own pattern matcher.
 ;;
@@ -114,7 +118,7 @@
     (match-define (cons variantss _) (run-egg e-input #t))
 
     (define out
-      (for/list ([expr exprs] [variants variantss])
+      (for/list ([variants variantss])
         (for/list ([variant (remove-duplicates variants)])
             (list variant e-input))))
 
