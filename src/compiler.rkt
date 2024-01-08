@@ -52,7 +52,7 @@
     (if (equal? name 'ival)
         (vector-filter tuning-filter ivec)
         '()))
-  
+
   (if (equal? name 'ival)
     (λ args
       ;; remove all the exponent values we assigned previously when a new point comes
@@ -66,24 +66,19 @@
         (define srcs
           (for/list ([idx (in-list (cdr instr))])
             (vector-ref vregs idx)))
-
+        
         (match (car instr)
-          [(vector op extra-precision)
-           (let ([extra-prec (unbox-prec extra-precision)])
-             (parameterize ([bf-precision (operator-precision extra-prec)])
-               (vector-set! vregs n (apply op srcs))))]
-          
           [(vector op extra-precision exponents-checkpoint)  ; current op is sin/cos/tan
            (let ([extra-prec (unbox-prec extra-precision)])
              (parameterize ([bf-precision (operator-precision extra-prec)])
                (vector-set! vregs n (apply op srcs)))
-             (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                       (+ extra-prec
-                          (max 0
-                               (true-exponent (ival-lo (car srcs)))
-                               (true-exponent (ival-hi (car srcs)))))))]
-          [op
-           (vector-set! vregs n (apply op srcs))]))
+             (when
+                 (member op (list ival-sin ival-cos ival-tan))
+               (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+                         (+ extra-prec
+                            (max 0
+                                 (true-exponent (ival-lo (car srcs)))
+                                 (true-exponent (ival-hi (car srcs))))))))]))
     
       (for/list ([root (in-list roots)])
         (vector-ref vregs root)))
@@ -124,10 +119,10 @@
     ; Translates programs into an instruction sequence
     (define (munge-ival prog type [prec 0])
       (set! size (+ 1 size))
-      
+
       (define expr
         (match prog
-          [(? number?) (list (const (input->value prog type)))]
+          [(? number?) (list (vector (const (input->value prog type)) (box 0) (box 0)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
            (list (vector if-proc prec)
@@ -141,7 +136,7 @@
                         args
                         (op->itypes op))))]
           [(list op args ...)
-           (cons (vector (op->proc op) prec)
+           (cons (vector (op->proc op) prec prec)
                     (map (curryr munge-ival prec)
                          args
                          (op->itypes op)))]
