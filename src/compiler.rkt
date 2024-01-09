@@ -17,10 +17,6 @@
 (define (true-exponent x)
   (+ (bigfloat-exponent x) (bigfloat-precision x)))
 
-(define (unbox-prec x)
-  (if (box? x)
-      (unbox x)
-      0))
 ;; Interpreter taking a narrow IR
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
@@ -32,93 +28,96 @@
 ;; as well as the indices of the roots to extract.
 ;; name ::= 'fl or 'ival
 (define (make-progs-interpreter name vars ivec roots)
-  (define vreg-count (+ (length vars) (vector-length ivec)))
+  (define varc (length vars))
+  (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
   
-  (define (tuning-filter instr)
-    (if (member
-         (vector-ref (car instr) 0)
-         (list ival-sin ival-cos ival-tan ival-sub))
-        #t
-        #f))
-  
-  (define tuning-ivec  ; instructions where the flags are to be erased
-    (if (equal? name 'ival)
-        (vector-filter tuning-filter ivec)
-        '()))
-  
   (if (equal? name 'ival)
-    (λ args
-      ;; remove all the exponent values we assigned previously when a new point comes
-      (when (equal? (bf-precision) (*starting-prec*))
-        (for ([instr (in-vector tuning-ivec)])
-          (set-box! (vector-ref (car instr) 2) 0)))
+      (λ args
+        (if (equal? (bf-precision) (*starting-prec*))
+            ;; remove all the exponent values we assigned previously when a new point comes
+            (for ([instr (in-vector ivec)])
+              (set-box! (vector-ref (car instr) 2) 0)
+              (set-box! (vector-ref (car instr) 1) 0))
+            ;; backward pass
+            (backward-pass ivec varc))
       
-      (for ([arg (in-list args)] [n (in-naturals)])
-        (vector-set! vregs n arg))
-      (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-        (define srcs
-          (for/list ([idx (in-list (cdr instr))])
-            (vector-ref vregs idx)))
+        (for ([arg (in-list args)] [n (in-naturals)])
+          (vector-set! vregs n arg))
+        (for ([instr (in-vector ivec)] [n (in-naturals varc)])
+          (define srcs
+            (for/list ([idx (in-list (cdr instr))])
+              (vector-ref vregs idx)))
 
-        (match-define (vector op extra-precision exponents-checkpoint) (car instr))
-        (let ([extra-prec (unbox-prec extra-precision)])
+          (match-define (vector op extra-precision exponents-checkpoint) (car instr))
+          (let ([extra-prec (unbox extra-precision)])
           
-          (define init-time (current-inexact-milliseconds))
+            (define init-time (current-inexact-milliseconds))
           
-          (define output
-            (parameterize ([bf-precision (operator-precision extra-prec)])
-              (apply op srcs)))
-          (vector-set! vregs n output)
-          
-          (define total-time (- (current-inexact-milliseconds) init-time))
-          (timeline-push! 'mixsample
-                          (symbol->string (object-name op))
-                          (if (zero? extra-prec)
-                              (bf-precision)
-                              (operator-precision extra-prec))
-                          total-time)
+            (define output
+              (parameterize ([bf-precision (operator-precision extra-prec)])
+                (apply op srcs)))
+            (vector-set! vregs n output)
+            
+            (define total-time (- (current-inexact-milliseconds) init-time))
+            (timeline-push! 'mixsample
+                            (symbol->string (object-name op))
+                            (if (zero? extra-prec)
+                                (bf-precision)
+                                (operator-precision extra-prec))
+                            total-time)
 
-          (when
-              (equal? op ival-sub)
-            (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
-            (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
-            (define output-exponents ((monotonic->ival true-exponent) output))
+            (cond
+              [(equal? op ival-sub)
+               (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
+               (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
+               (define output-exponents ((monotonic->ival true-exponent) output))
            
-            (set-box! exponents-checkpoint
-                      (max 0
-                           (+ extra-prec
+               (set-box! exponents-checkpoint
+                         (max 0
                               (match* ((>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
                                        (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
                                 [(#f #f) 0] ; no extra precision
                                 [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
                                               (- (ival-hi x-exponents) (ival-hi output-exponents)))]
                                 [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]
-                                [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))))
+                                [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]
           
-          (when
-              (member op (list ival-sin ival-cos ival-tan))
-            (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                      (+ extra-prec
+              [(member op (list ival-sin ival-cos ival-tan))
+               (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
                          (max 0
                               (true-exponent (ival-lo (car srcs)))
-                              (true-exponent (ival-hi (car srcs)))))))))
-    
-      (for/list ([root (in-list roots)])
-        (vector-ref vregs root)))
-    
-    ; name is 'fl
-    (λ args
-      (for ([arg (in-list args)] [n (in-naturals)])
-        (vector-set! vregs n arg))
-      (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-        (define srcs
-          (for/list ([idx (in-list (cdr instr))])
-            (vector-ref vregs idx)))
-        (vector-set! vregs n (apply (car instr) srcs)))
-      (for/list ([root (in-list roots)])
-        (vector-ref vregs root)))))
+                              (true-exponent (ival-hi (car srcs)))))])))
 
+        (for/list ([root (in-list roots)])
+          (vector-ref vregs root)))
+    
+      ; name is 'fl
+      (λ args
+        (for ([arg (in-list args)] [n (in-naturals)])
+          (vector-set! vregs n arg))
+        (for ([instr (in-vector ivec)] [n (in-naturals varc)])
+          (define srcs
+            (for/list ([idx (in-list (cdr instr))])
+              (vector-ref vregs idx)))
+          (vector-set! vregs n (apply (car instr) srcs)))
+        (for/list ([root (in-list roots)])
+          (vector-ref vregs root)))))
+
+;; Function does backward-pass
+;; It sets extra-precision of every operation (and only operation) as formula:
+;; (+ 'extra-precision required for the parent' 'exponent-checkpoint value of the parent')
+(define (backward-pass ivec varc)
+  (for ([instr (in-vector ivec (- (vector-length ivec) 1) 0 -1)]) ; go over operations top-down
+    (define tail-registers (rest instr))
+    (for ([idx (in-list tail-registers)])                         
+      (let ([tail-index (- idx varc)]) ; index of the op's child
+        (when (> tail-index 0)         ; if the child is not a constant
+          (match-define (vector op extra-prec exponents) (car instr))
+          (vector-set!                        ; set extra-precision that is needed
+           (car (vector-ref ivec tail-index)) ; child instruction
+           1                                  ; extra-precision position within the child instruction
+           (box (+ (unbox extra-prec) (unbox exponents)))))))))
 
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
@@ -142,7 +141,7 @@
     (define varc (length vars))
     
     ; Translates programs into an instruction sequence of ival operations
-    (define (munge-ival prog type [prec 0])
+    (define (munge-ival prog type)
       (set! size (+ 1 size))
 
       (define expr
@@ -150,19 +149,19 @@
           [(? number?) (list (vector (const (input->value prog type)) (box 0) (box 0)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list (vector if-proc prec prec)
-                 (munge-ival c cond-type prec)
-                 (munge-ival t type prec)
-                 (munge-ival f type prec))]
-          [(list (and (or 'sin 'cos 'tan '-) op) args ...)
+           (list (vector if-proc (box 0) (box 0))
+                 (munge-ival c cond-type)
+                 (munge-ival t type)
+                 (munge-ival f type))]
+          #;[(list (and (or 'sin 'cos 'tan '-) op) args ...)
            (let ([exponent (box 0)])
              (cons (vector (op->proc op) prec exponent)
                    (map (curryr munge-ival exponent)
                         args
                         (op->itypes op))))]
           [(list op args ...)
-           (cons (vector (op->proc op) prec prec)
-                    (map (curryr munge-ival prec)
+           (cons (vector (op->proc op) (box 0) (box 0))
+                    (map munge-ival
                          args
                          (op->itypes op)))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
