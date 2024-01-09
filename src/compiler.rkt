@@ -125,7 +125,7 @@
           [(? number?) (list (vector (const (input->value prog type)) (box 0) (box 0)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list (vector if-proc prec)
+           (list (vector if-proc prec prec)
                  (munge-ival c cond-type prec)
                  (munge-ival t type prec)
                  (munge-ival f type prec))]
