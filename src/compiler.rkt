@@ -26,9 +26,7 @@
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
 ;; <instr> ::= '(<op-procedure> <index> ...)
-;; <op-procedure> ::= | #(<operation> <extra-precision> <exponents-checkpoint>) - tuned op
-;;                    | #(<operation> <extra-precision>) - regular op
-;;                    | <operation> - const
+;; <op-procedure> ::= #(<operation> <extra-precision> <exponents-checkpoint>)
 ;; ```
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
@@ -38,21 +36,18 @@
   (define vreg-count (+ (length vars) (vector-length ivec)))
   (define vregs (make-vector vreg-count))
 
-  
   (define (tuning-filter instr)
-    (if (vector? (car instr))
-        (if (member
-             (vector-ref (car instr) 0)
-             (list ival-sin ival-cos ival-tan))
-            #t
-            #f)
+    (if (member
+         (vector-ref (car instr) 0)
+         (list ival-sin ival-cos ival-tan))
+        #t
         #f))
   
   (define tuning-ivec
     (if (equal? name 'ival)
         (vector-filter tuning-filter ivec)
         '()))
-
+  
   (if (equal? name 'ival)
     (λ args
       ;; remove all the exponent values we assigned previously when a new point comes
@@ -66,19 +61,18 @@
         (define srcs
           (for/list ([idx (in-list (cdr instr))])
             (vector-ref vregs idx)))
-        
-        (match (car instr)
-          [(vector op extra-precision exponents-checkpoint)  ; current op is sin/cos/tan
-           (let ([extra-prec (unbox-prec extra-precision)])
-             (parameterize ([bf-precision (operator-precision extra-prec)])
-               (vector-set! vregs n (apply op srcs)))
-             (when
-                 (member op (list ival-sin ival-cos ival-tan))
-               (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                         (+ extra-prec
-                            (max 0
-                                 (true-exponent (ival-lo (car srcs)))
-                                 (true-exponent (ival-hi (car srcs))))))))]))
+
+        (match-define (vector op extra-precision exponents-checkpoint) (car instr))
+        (let ([extra-prec (unbox-prec extra-precision)])
+          (parameterize ([bf-precision (operator-precision extra-prec)])
+            (vector-set! vregs n (apply op srcs)))
+          (when
+              (member op (list ival-sin ival-cos ival-tan))
+            (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+                      (+ extra-prec
+                         (max 0
+                              (true-exponent (ival-lo (car srcs)))
+                              (true-exponent (ival-hi (car srcs)))))))))
     
       (for/list ([root (in-list roots)])
         (vector-ref vregs root)))
@@ -116,7 +110,7 @@
     (define exprc 0)
     (define varc (length vars))
     
-    ; Translates programs into an instruction sequence
+    ; Translates programs into an instruction sequence of ival operations
     (define (munge-ival prog type [prec 0])
       (set! size (+ 1 size))
 
@@ -146,7 +140,8 @@
                    (begin0 (+ exprc varc)
                      (set! exprc (+ 1 exprc))
                      (set! icache (cons expr icache))))))
-    
+
+    ; Translates programs into an instruction sequence of flonum operations
     (define (munge-fl prog type)
       (set! size (+ 1 size))
       (define expr
