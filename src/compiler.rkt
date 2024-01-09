@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat "rival.rkt")
+(require math/bigfloat rival)
 (require "syntax/syntax.rkt" "syntax/types.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
@@ -8,22 +8,24 @@
 
 ;; Function calculates a precision for the operation
 ;;    with respect to the given extra-precision (exponents from a previous run)
-(define (define-precision extra-precision)
+(define (operator-precision extra-precision)
   (min (*max-mpfr-prec*)
        (+ extra-precision
-          (*extra-bits*)
+          (*ground-truth-extra-bits*)
           (bf-precision))))
 
 (define (true-exponent x)
   (+ (bigfloat-exponent x) (bigfloat-precision x)))
 
+(define (unbox-prec x)
+  (if (box? x)
+      (unbox x)
+      0))
 ;; Interpreter taking a narrow IR
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
 ;; <instr> ::= '(<op-procedure> <index> ...)
-;; <op-procedure> ::= | #(<operation> <extra-precision> <exponents-checkpoint>) - tuned op
-;;                    | #(<operation> <extra-precision>) - regular op
-;;                    | <operation> - const
+;; <op-procedure> ::= #(<operation> <extra-precision> <exponents-checkpoint>)
 ;; ```
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
@@ -32,20 +34,12 @@
 (define (make-progs-interpreter name vars ivec roots)
   (define vreg-count (+ (length vars) (vector-length ivec)))
   (define vregs (make-vector vreg-count))
-
-  (define (unbox-prec x)
-    (if (box? x)
-        (unbox x)
-        0))
-
-  (define list-of-trig (list ival-sin ival-cos ival-tan))
+  
   (define (tuning-filter instr)
-    (if (vector? (car instr))
-        (if (member
-             (vector-ref (car instr) 0)
-             (cons ival-sub list-of-trig))
-            #t
-            #f)
+    (if (member
+         (vector-ref (car instr) 0)
+         (list ival-sin ival-cos ival-tan ival-sub))
+        #t
         #f))
   
   (define tuning-ivec  ; instructions where the flags are to be erased
@@ -66,79 +60,49 @@
         (define srcs
           (for/list ([idx (in-list (cdr instr))])
             (vector-ref vregs idx)))
-        (match (car instr)
-          [(vector op extra-precision)
-           (let ([extra-prec (unbox-prec extra-precision)])
 
-             (define init-time (current-inexact-milliseconds))
-             (parameterize ([bf-precision (define-precision extra-prec)])
-               (vector-set! vregs n (apply op srcs)))
-             (define total-time (- (current-inexact-milliseconds) init-time))
-             
-             (timeline-push! 'mixsample
-                             (symbol->string (object-name op))
-                             (if (zero? extra-prec)
-                                 (bf-precision)
-                                 (define-precision extra-prec))
-                             total-time))]
+        (match-define (vector op extra-precision exponents-checkpoint) (car instr))
+        (let ([extra-prec (unbox-prec extra-precision)])
           
-          [(vector op extra-precision exponents-checkpoint) ; ival-sub
-           #:when (equal? op ival-sub)
-           (let ([extra-prec (unbox-prec extra-precision)])
+          (define init-time (current-inexact-milliseconds))
+          
+          (define output
+            (parameterize ([bf-precision (operator-precision extra-prec)])
+              (apply op srcs)))
+          (vector-set! vregs n output)
+          
+          (define total-time (- (current-inexact-milliseconds) init-time))
+          (timeline-push! 'mixsample
+                          (symbol->string (object-name op))
+                          (if (zero? extra-prec)
+                              (bf-precision)
+                              (operator-precision extra-prec))
+                          total-time)
 
-             (define init-time (current-inexact-milliseconds))
-             (define output
-               (parameterize ([bf-precision (define-precision extra-prec)])
-                 (apply op srcs)))
-             (define total-time (- (current-inexact-milliseconds) init-time))
-             
-             (vector-set! vregs n output)
-             
-             (timeline-push! 'mixsample
-                             (symbol->string (object-name op))
-                             (if (zero? extra-prec)
-                                 (bf-precision)
-                                 (define-precision extra-prec))
-                             total-time)
-
-             (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
-             (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
-             (define output-exponents ((monotonic->ival true-exponent) output))
+          (when
+              (equal? op ival-sub)
+            (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
+            (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
+            (define output-exponents ((monotonic->ival true-exponent) output))
            
-             (set-box! exponents-checkpoint
-                       (max 0
-                            (+ extra-prec
-                               (match* ((>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
-                                        (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
-                                 [(#f #f) 0] ; no extra precision
-                                 [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
-                                               (- (ival-hi x-exponents) (ival-hi output-exponents)))]
-                                 [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]
-                                 [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))))]
+            (set-box! exponents-checkpoint
+                      (max 0
+                           (+ extra-prec
+                              (match* ((>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
+                                       (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
+                                [(#f #f) 0] ; no extra precision
+                                [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
+                                              (- (ival-hi x-exponents) (ival-hi output-exponents)))]
+                                [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]
+                                [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))))
           
-          [(vector op extra-precision exponents-checkpoint) ; sin/cos/tan
-           #:when (list? (member op list-of-trig))
-           (let ([extra-prec (unbox-prec extra-precision)])
-
-             (define init-time (current-inexact-milliseconds))
-             (parameterize ([bf-precision (define-precision extra-prec)])
-               (vector-set! vregs n (apply op srcs)))
-             (define total-time (- (current-inexact-milliseconds) init-time))
-             
-             (timeline-push! 'mixsample
-                             (symbol->string (object-name op))
-                             (if (zero? extra-prec)
-                                 (bf-precision)
-                                 (define-precision extra-prec))
-                             total-time)
-             
-             (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                       (max 0
-                            (+ extra-prec
-                               (max (true-exponent (ival-lo (car srcs)))
-                                    (true-exponent (ival-hi (car srcs))))))))]
-          [op  ; const
-           (vector-set! vregs n (apply op srcs))]))
+          (when
+              (member op (list ival-sin ival-cos ival-tan))
+            (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+                      (+ extra-prec
+                         (max 0
+                              (true-exponent (ival-lo (car srcs)))
+                              (true-exponent (ival-hi (car srcs)))))))))
     
       (for/list ([root (in-list roots)])
         (vector-ref vregs root)))
@@ -177,37 +141,38 @@
     (define exprc 0)
     (define varc (length vars))
     
-    ; Translates programs into an instruction sequence
+    ; Translates programs into an instruction sequence of ival operations
     (define (munge-ival prog type [prec 0])
       (set! size (+ 1 size))
+
       (define expr
         (match prog
-          [(? number?) (list (const (input->value prog type)))]
+          [(? number?) (list (vector (const (input->value prog type)) (box 0) (box 0)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list (vector if-proc prec)
+           (list (vector if-proc prec prec)
                  (munge-ival c cond-type prec)
                  (munge-ival t type prec)
                  (munge-ival f type prec))]
-          [(list op args ...)
-           #:when (set-member? '(sin cos tan -) op)
+          [(list (and (or 'sin 'cos 'tan '-) op) args ...)
            (let ([exponent (box 0)])
              (cons (vector (op->proc op) prec exponent)
                    (map (curryr munge-ival exponent)
                         args
                         (op->itypes op))))]
           [(list op args ...)
-           (cons (vector (op->proc op) prec)
+           (cons (vector (op->proc op) prec prec)
                     (map (curryr munge-ival prec)
                          args
                          (op->itypes op)))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
-                   (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
+                   (begin0 (+ exprc varc)
                      (set! exprc (+ 1 exprc))
                      (set! icache (cons expr icache))))))
 
+    ; Translates programs into an instruction sequence of flonum operations
     (define (munge-fl prog type)
       (set! size (+ 1 size))
       (define expr
@@ -222,9 +187,9 @@
       (hash-ref! exprhash expr
                  (λ ()
                    (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                     (set! exprc (+ 1 exprc))
-                     (set! icache (cons expr icache))))))
-
+                           (set! exprc (+ 1 exprc))
+                           (set! icache (cons expr icache))))))
+    
     (define names (map (curryr (if (equal? name 'fl) munge-fl munge-ival) type) exprs))
     (timeline-push! 'compiler (+ varc size) (+ exprc varc))
     (define ivec (list->vector (reverse icache)))
