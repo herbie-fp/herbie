@@ -46,7 +46,7 @@
   (-> symbol? ruleset? void?)
   (when (dict-has-key? (*rulesets*) name)
     (warn 'rulesets "Duplicate ruleset ~a, skipping" name))
-  (*rulesets* (dict-set (*rulesets*) name ruleset)))
+  (*rulesets* (cons (cons name ruleset) (*rulesets*))))
 
 ;; Rules: fp-safe-simplify ⊂ simplify ⊂ all
 ;;
