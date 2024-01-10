@@ -2,31 +2,92 @@
 
 (require math/bigfloat rival)
 (require "syntax/syntax.rkt" "syntax/types.rkt"
-         "common.rkt" "timeline.rkt" "float.rkt")
+         "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
 (provide compile-specs compile-spec compile-progs compile-prog)
+
+;; Function calculates a precision for the operation
+;;    with respect to the given extra-precision (exponents from a previous run)
+(define (operator-precision extra-precision)
+  (min (*max-mpfr-prec*)
+       (+ extra-precision
+          (*ground-truth-extra-bits*)
+          (bf-precision))))
+
+(define (true-exponent x)
+  (+ (bigfloat-exponent x) (bigfloat-precision x)))
+
+(define (unbox-prec x)
+    (if (box? x)
+        (unbox x)
+        0))
 
 ;; Interpreter taking a narrow IR
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
 ;; <instr> ::= '(<op-procedure> <index> ...)
+;; <op-procedure> ::= #(<operation> <extra-precision> <exponents-checkpoint>)
 ;; ```
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
 ;; as well as the indices of the roots to extract.
-(define (make-progs-interpreter vars ivec roots)
+;; name ::= 'fl or 'ival
+(define (make-progs-interpreter name vars ivec roots)
   (define vreg-count (+ (length vars) (vector-length ivec)))
   (define vregs (make-vector vreg-count))
-  (λ args
-    (for ([arg (in-list args)] [n (in-naturals)])
-      (vector-set! vregs n arg))
-    (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-      (define srcs
-        (for/list ([idx (in-list (cdr instr))])
-          (vector-ref vregs idx)))
-      (vector-set! vregs n (apply (car instr) srcs)))
-    (for/list ([root (in-list roots)])
-      (vector-ref vregs root))))
+
+  (define (tuning-filter instr)
+    (if (member
+         (vector-ref (car instr) 0)
+         (list ival-sin ival-cos ival-tan))
+        #t
+        #f))
+  
+  (define tuning-ivec
+    (if (equal? name 'ival)
+        (vector-filter tuning-filter ivec)
+        '()))
+  
+  (if (equal? name 'ival)
+    (λ args
+      ;; remove all the exponent values we assigned previously when a new point comes
+      (when (equal? (bf-precision) (*starting-prec*))
+        (for ([instr (in-vector tuning-ivec)])
+          (set-box! (vector-ref (car instr) 2) 0)))
+    
+      (for ([arg (in-list args)] [n (in-naturals)])
+        (vector-set! vregs n arg))
+      (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
+        (define srcs
+          (for/list ([idx (in-list (cdr instr))])
+            (vector-ref vregs idx)))
+
+        (match-define (vector op extra-precision exponents-checkpoint) (car instr))
+        (let ([extra-prec (unbox-prec extra-precision)])
+          (parameterize ([bf-precision (operator-precision extra-prec)])
+            (vector-set! vregs n (apply op srcs)))
+          (when
+              (member op (list ival-sin ival-cos ival-tan))
+            (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+                      (+ extra-prec
+                         (max 0
+                              (true-exponent (ival-lo (car srcs)))
+                              (true-exponent (ival-hi (car srcs)))))))))
+    
+      (for/list ([root (in-list roots)])
+        (vector-ref vregs root)))
+    
+    ; name == 'fl
+    (λ args
+      (for ([arg (in-list args)] [n (in-naturals)])
+        (vector-set! vregs n arg))
+      (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
+        (define srcs
+          (for/list ([idx (in-list (cdr instr))])
+            (vector-ref vregs idx)))
+        (vector-set! vregs n (apply (car instr) srcs)))
+      (for/list ([root (in-list roots)])
+        (vector-ref vregs root)))))
 
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
@@ -48,18 +109,49 @@
     (define size 0)
     (define exprc 0)
     (define varc (length vars))
+    
+    ; Translates programs into an instruction sequence of ival operations
+    (define (munge-ival prog type [prec 0])
+      (set! size (+ 1 size))
 
-    ; Translates programs into an instruction sequence
-    (define (munge prog type)
+      (define expr
+        (match prog
+          [(? number?) (list (vector (const (input->value prog type)) (box 0) (box 0)))]
+          [(? variable?) prog]
+          [`(if ,c ,t ,f)
+           (list (vector if-proc prec prec)
+                 (munge-ival c cond-type prec)
+                 (munge-ival t type prec)
+                 (munge-ival f type prec))]
+          [(list (and (or 'sin 'cos 'tan) op) args ...)
+           (let ([exponent (box 0)])
+             (cons (vector (op->proc op) prec exponent)
+                   (map (curryr munge-ival exponent)
+                        args
+                        (op->itypes op))))]
+          [(list op args ...)
+           (cons (vector (op->proc op) prec prec)
+                    (map (curryr munge-ival prec)
+                         args
+                         (op->itypes op)))]
+          [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
+      (hash-ref! exprhash expr
+                 (λ ()
+                   (begin0 (+ exprc varc)
+                     (set! exprc (+ 1 exprc))
+                     (set! icache (cons expr icache))))))
+
+    ; Translates programs into an instruction sequence of flonum operations
+    (define (munge-fl prog type)
       (set! size (+ 1 size))
       (define expr
         (match prog
           [(? number?) (list (const (input->value prog type)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list if-proc (munge c cond-type) (munge t type) (munge f type))]
+           (list if-proc (munge-fl c cond-type) (munge-fl t type) (munge-fl f type))]
           [(list op args ...)
-           (cons (op->proc op) (map munge args (op->itypes op)))]
+           (cons (op->proc op) (map munge-fl args (op->itypes op)))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
@@ -67,10 +159,10 @@
                      (set! exprc (+ 1 exprc))
                      (set! icache (cons expr icache))))))
 
-    (define names (map (curryr munge type) exprs))
+    (define names (map (curryr (if (equal? name 'fl) munge-fl munge-ival) type) exprs))
     (timeline-push! 'compiler (+ varc size) (+ exprc varc))
     (define ivec (list->vector (reverse icache)))
-    (define interpret (make-progs-interpreter vars ivec names))
+    (define interpret (make-progs-interpreter name vars ivec names))
     (procedure-rename interpret (sym-append 'eval-prog '- name))))
 
 ;; Compiles a program of operators into a procedure
