@@ -34,7 +34,7 @@
            platform-product platform-union platform-intersect
            platform-subtract platform-filter
            operator-set platform-operator-set
-           with-terminal-cost cost-map))
+           with-terminal-cost cost-map cost-map-scale))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -617,6 +617,13 @@
      (go (syntax->list #'(cl ...)) #f)]
     [_
      (oops! "bad syntax")]))
+
+;; Scales all entries in a cost map by a factor.
+(define (cost-map-scale s cm)
+  (make-cost-map (for/hash ([(id c) (in-hash (cost-map-costs cm))])
+                   (values id (* s c)))
+                 (and (cost-map-default cm)
+                      (* s (cost-map-default cm)))))
 
 ;; Procedure layer for `platform-product` macro.
 ;; Produces the actual platform.
