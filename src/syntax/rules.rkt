@@ -7,7 +7,9 @@
 (provide *rules* *simplify-rules* *fp-safe-simplify-rules* (struct-out rule))
 
 (module+ internals
-  (provide define-ruleset define-ruleset* register-ruleset! *rulesets*))
+  (provide define-ruleset define-ruleset*
+           register-ruleset! register-ruleset*!
+           *rulesets*))
 
 ;; Rulesets
 (define *rulesets* (make-parameter '()))
