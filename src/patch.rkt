@@ -163,6 +163,9 @@
               ; we need to pass '() here so it can get overwritten on patch-fix
               (sow (alt body* (list 'rr '() input #f #f) (list altn))))))))
 
+    ;; TODO: If recip doesn't show up here something is bad (maybe with egg)
+    ;; (printf "~a\n" rewritten)
+
     (timeline-push! 'count (length (^queued^)) (length rewritten))
     ; TODO: accuracy stats for timeline
     (^rewrites^ rewritten))

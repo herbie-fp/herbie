@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
+(require math/bigfloat)
 (require "accelerator.rkt" "common.rkt" "multi-command-line.rkt" "errors.rkt" "load-plugin.rkt" "sandbox.rkt" "./syntax/types.rkt")
 
 ;; Load all the plugins
@@ -13,8 +14,25 @@
  ["improve.rkt" (run-improve)])
 
 (register-accelerator-operator! 'reciprocal '(/ 1 x) '(x))
-(register-accelerator-implementation! 'reciprocal 'reciprocal.f64 (list (get-representation 'binary64)) (get-representation 'binary64)) 
-(register-accelerator-implementation! 'reciprocal 'reciprocal.f32 (list (get-representation 'binary32)) (get-representation 'binary32)) 
+(register-accelerator-implementation! 'reciprocal 'reciprocal.f64 (list (get-representation 'binary64)) (get-representation 'binary64)
+                                      (lambda (x)
+                                        (define x* (bf x))
+                                        (define y* (parameterize ([bf-precision 12])
+                                                     (bf/ 1.bf x*)))
+                                        (bigfloat->flonum y*)))
+(register-accelerator-implementation! 'reciprocal 'reciprocal.f64 (list (get-representation 'binary32)) (get-representation 'binary32)
+                                      (lambda (x)
+                                        (define x* (bf x))
+                                        (define y* (parameterize ([bf-precision 12])
+                                                     (bf/ 1.bf x*)))
+                                        (bigfloat->flonum y*)))
+;; (register-accelerator-implementation! 'reciprocal 'reciprocal.f32 (list (get-representation 'binary32)) (get-representation 'binary32)
+                                      ;; (compose
+                                       ;; (lambda (x) (- x 2e-14))
+                                       ;; first
+                                       ;; (eval-progs-real
+                                        ;; (list definition)
+                                        ;; (list (context variables otype itypes))))) 
 
 (define (string->thread-count th)
   (match th

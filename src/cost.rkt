@@ -6,12 +6,13 @@
 (define (operator-cost op)
   (* (representation-total-bits (impl-info op 'otype))
      (match (impl->operator op)
-       [(or '+ '- 'neg '* '/ 'abs) 1]
+       [(or '+ '- 'neg '* 'abs) 1]
+       ['/ 5] ;; 3? 10? look at rcp in fogner tables
+       ['reciprocal 1]
        [(or 'not 'and 'or) 1]
        [(or '== '!= '< '> '<= '>=) 3]
        ['if 3]
        [(? repr-conv?) 2]
-       ;; TODO: reciprocal cost here
        [_ 100])))
 
 (define (expr-cost expr repr)
