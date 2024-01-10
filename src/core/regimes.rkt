@@ -191,7 +191,7 @@
   (define (add-splitpoint sp-prev)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (define result (make-vector (+ num-points)))
-    (for/vector #:length num-points ([point-idx (in-naturals)] [point-entry (in-vector sp-prev)])
+    (for ([point-idx (in-naturals)] [point-entry (in-vector sp-prev)])
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
