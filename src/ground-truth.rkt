@@ -4,7 +4,6 @@
 (require "syntax/sugar.rkt" "syntax/types.rkt"
          "common.rkt" "compiler.rkt" "sampling.rkt" "timeline.rkt"
          "errors.rkt")
-
 (provide sample-points batch-prepare-points make-search-func eval-progs-real)
 
 (define (is-samplable-interval repr interval)

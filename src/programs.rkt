@@ -178,4 +178,3 @@
     'cos
     '(/ 1 cos))
    '(/ (cos (* 2 x)) (* (pow (/ 1 cos) 2) (* (fabs (* sin x)) (fabs (* sin x)))))))
-

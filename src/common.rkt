@@ -273,9 +273,6 @@
 
 (define/contract (string-replace* str changes)
   (-> string? (listof (cons/c string? string?)) string?)
-  (let loop ([str str] [changes changes])
-    (match changes
-      [(? null?) str]
-      [(list change rest ...)
-       (match-define (cons find replace) change)
-       (loop (string-replace str find replace) rest)])))
+  (for/fold ([str str]) ([change changes])
+    (match-define (cons from to) change)
+    (string-replace str from to)))

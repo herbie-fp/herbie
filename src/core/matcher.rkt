@@ -1,9 +1,14 @@
 #lang racket
 
-(require "../syntax/syntax.rkt" "../syntax/rules.rkt"
-         "../common.rkt" "../programs.rkt" "egg-herbie.rkt" "../timeline.rkt")
+(require "../syntax/syntax.rkt"
+         "../syntax/rules.rkt"
+         "../common.rkt"
+         "../programs.rkt"
+         "../timeline.rkt"
+         "egg-herbie.rkt")
 
-(provide pattern-match rewrite-expressions)
+(provide pattern-match
+         rewrite-expressions)
 
 ;;; Our own pattern matcher.
 ;;
@@ -112,9 +117,26 @@
     (match-define (cons variantss _) (run-egg e-input #t))
 
     (define out
-      (for/list ([expr exprs] [variants variantss])
+      (for/list ([variants variantss])
         (for/list ([variant (remove-duplicates variants)])
             (list variant e-input))))
 
     (timeline-push! 'outputs (map ~a (apply append variantss)))
     out]))
+
+(module+ test
+  (require rackunit)
+  (require "../syntax/types.rkt" "../load-plugin.rkt")
+  (load-herbie-builtins)
+
+  (define repr (get-representation 'binary64))
+  (*context* (make-debug-context '()))
+  (*context* (context-extend (*context*) 'x repr))
+
+  (let ([chngs (rewrite-once '(+.f64 x x) (*context*) #:rules (*rules*))])
+    (check-equal? (length chngs) 13 (format "rewrites ~a" chngs)))
+
+  (let ([chngs (rewrite-once '(*.f64 x x) (*context*) #:rules (*rules*))])
+    (check-equal? (length chngs) 11 (format "rewrites ~a" chngs)))
+
+  (void))

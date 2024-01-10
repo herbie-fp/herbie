@@ -16,10 +16,6 @@
 (provide (struct-out egraph-query) make-egg-query run-egg
          rule->impl-rules get-canon-rule-name remove-rewrites)
 
-;; Imported by `<herbie>/syntax/test-rules.rkt`
-(module+ internals
-  (provide rule->impl-rules))
-
 ;; Unfortunately Herbie expressions can't be placed directly into egg,
 ;; so we need an IR to represent both expressions and patterns.
 ;; The egg IR is similar to Herbie's IR:

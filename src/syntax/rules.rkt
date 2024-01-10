@@ -2,12 +2,21 @@
 
 ;; Arithmetic identities for rewriting programs.
 
-(require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt")
+(require "../common.rkt"
+         "../errors.rkt"
+         "syntax.rkt"
+         "types.rkt")
 
-(provide *rules* *simplify-rules* *fp-safe-simplify-rules* (struct-out rule))
+(provide *rules*
+         *simplify-rules*
+         *fp-safe-simplify-rules*
+         (struct-out rule))
 
 (module+ internals
-  (provide define-ruleset define-ruleset* register-ruleset! *rulesets*))
+  (provide define-ruleset
+           define-ruleset*
+           register-ruleset!
+           *rulesets*))
 
 ;; A rule represents a "find-and-replace" pattern where `input` and `output`
 ;; are patterns, `itypes` is a mapping from variable name to type
@@ -32,11 +41,12 @@
 ;; Ruleset contract
 (define ruleset? (list/c (listof rule?) (listof symbol?) dict?))
 
+;; Updates the `*ruleset* parameter
 (define/contract (add-ruleset! name ruleset)
   (-> symbol? ruleset? void?)
   (when (dict-has-key? (*rulesets*) name)
     (warn 'rulesets "Duplicate ruleset ~a, skipping" name))
-  (*rulesets* (dict-set (*rulesets*) name ruleset)))
+  (*rulesets* (cons (cons name ruleset) (*rulesets*))))
 
 ;; Rules: fp-safe-simplify ⊂ simplify ⊂ all
 ;;
@@ -44,19 +54,26 @@
 ;; simplify - subset of `all` that has the `simplify` tag
 ;; fp-safe-simplify - subset of `simplify` that has `fp-safe` tag
 
+;; Extracts all subexpressions of the form `(op args ...)`
+;; excluding any `if` expressions.
+(define (all-subexpressions expr)
+  (remove-duplicates
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
+              [(? number?) (void)]
+              [(? variable?) (void)]
+              [(list 'if cond ift iff)
+               (loop cond)
+               (loop ift)
+               (loop iff)]
+              [(list _ args ...)
+               (sow expr)
+               (for-each loop args)])))))
+
+;; Extracts all operations in an expression.
 (define (ops-in-expr expr)
-  (define ops (mutable-set))
-  (let loop ([expr expr])
-    (match expr
-      [(list 'if cond ift iff)
-       (loop cond)
-       (loop ift)
-       (loop iff)]
-      [(list op args ...)
-       (set-add! ops op)
-       (for-each loop args)]
-      [_ (void)]))
-  (set->list ops))
+  (remove-duplicates (map first (all-subexpressions expr))))
 
 ;; TODO: rewrite should ideally be mathematical,
 ;; why are we using implementations?

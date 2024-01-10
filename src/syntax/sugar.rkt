@@ -312,8 +312,8 @@
          (define-values (body* _) (loop body (struct-copy context ctx [repr irepr])))
          (values `(,impl ,body*) (impl-info impl 'otype))]
         [`(,(? rewrite-repr-op? impl) ,body)
-          (define-values (body* repr*) (loop body ctx))
-          (values `(,impl ,body*) repr*)]
+         (define-values (body* repr*) (loop body ctx))
+         (values `(,impl ,body*) repr*)]
         [`(,op ,args ...)
          (define-values (args* atypes)
            (for/lists (args* atypes) ([arg args])

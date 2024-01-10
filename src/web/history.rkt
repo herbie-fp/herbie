@@ -75,9 +75,9 @@
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
-    [(alt prog 'add-preprocessing _ _)
+    [(alt prog 'add-preprocessing `(,prev) _)
       ;; TODO message to user is? proof later
-      '(,@(render-history prev pcontext pcontext2 ctx)
+      `(,@(render-history prev pcontext pcontext2 ctx)
         (li "Add Preprocessing"))]	
 
     [(alt _ `(regimes ,splitpoints) prevs _)
