@@ -4,7 +4,6 @@
 
 (require "../common.rkt"
          "../errors.rkt"
-         "sugar.rkt"
          "syntax.rkt"
          "types.rkt")
 
@@ -55,19 +54,26 @@
 ;; simplify - subset of `all` that has the `simplify` tag
 ;; fp-safe-simplify - subset of `simplify` that has `fp-safe` tag
 
+;; Extracts all subexpressions of the form `(op args ...)`
+;; excluding any `if` expressions.
+(define (all-subexpressions expr)
+  (remove-duplicates
+    (reap [sow]
+          (let loop ([expr expr])
+            (match expr
+              [(? number?) (void)]
+              [(? variable?) (void)]
+              [(list 'if cond ift iff)
+               (loop cond)
+               (loop ift)
+               (loop iff)]
+              [(list _ args ...)
+               (sow expr)
+               (for-each loop args)])))))
+
+;; Extracts all operations in an expression.
 (define (ops-in-expr expr)
-  (define ops (mutable-set))
-  (let loop ([expr expr])
-    (match expr
-      [(list 'if cond ift iff)
-       (loop cond)
-       (loop ift)
-       (loop iff)]
-      [(list op args ...)
-       (set-add! ops op)
-       (for-each loop args)]
-      [_ (void)]))
-  (set->list ops))
+  (remove-duplicates (map first (all-subexpressions expr))))
 
 ;; TODO: rewrite should ideally be mathematical,
 ;; why are we using implementations?
