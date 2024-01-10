@@ -146,10 +146,8 @@
       (set! size (+ 1 size))
       (define expr
         (match prog
-          [(? number?)
-           (list (const (input->value prog type)))]
-          [(? variable?)
-           prog]
+          [(? number?) (list (const (input->value prog type)))]
+          [(? variable?) prog]
           [`(if ,c ,t ,f)
            (list if-proc (munge-fl c cond-type) (munge-fl t type) (munge-fl f type))]
           [(list op args ...)

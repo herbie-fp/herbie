@@ -1,6 +1,6 @@
 #lang racket
 
-;; Double-precision common math operators
+;; Builtin double-precision plugin (:precision binary64)
 
 (require math/flonum math/bigfloat)
 (require "runtime/utils.rkt" "runtime/libm.rkt")

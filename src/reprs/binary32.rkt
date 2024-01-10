@@ -1,6 +1,6 @@
 #lang racket
 
-;; Single-precision common math operators
+;; Builtin single-precision plugin (:precision binary32)
 
 (require math/bigfloat)
 (require "runtime/float32.rkt" "runtime/utils.rkt" "runtime/libm.rkt")
