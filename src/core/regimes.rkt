@@ -189,13 +189,15 @@
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint sp-prev)
+    (struct idk (cidx pidx) #:transparent)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (define result (make-vector (+ num-points)))
     (for ([point-idx (in-naturals)] [point-entry (in-vector sp-prev)])
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
-        (for ([prev-split-idx (in-range 0 point-idx)] [prev-entry (in-vector sp-prev)]
+        (for ([prev-split-idx (in-range 0 point-idx)] 
+              [prev-entry (in-vector sp-prev)]
               #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
