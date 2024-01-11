@@ -33,10 +33,11 @@
   (define varc (length vars))
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
-  
   (if (equal? name 'ival)
       (λ args
-        (if (equal? (bf-precision) (*starting-prec*))
+        (if (or
+             (equal? (bf-precision) (*starting-prec*))
+             (equal? (bf-precision) (*analyze-prec*)))
             ;; remove all the exponent values we assigned previously when a new point comes
             (for ([instr (in-vector ivec)])
               (set-box! (vector-ref (car instr) 2) 0)
@@ -113,8 +114,8 @@
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) 0 -1)]) ; go over operations top-down
     (define tail-registers (rest instr))
     (for ([idx (in-list tail-registers)])                         
-      (let ([tail-index (- idx varc)]) ; index of the op's child
-        (when (> tail-index 0)         ; if the child is not a constant
+      (let ([tail-index (- idx varc)]) ; index of the op's child within ivec
+        (when (> tail-index 0)         ; if the child is not a variable
           (match-define (vector op extra-prec exponents) (car instr))
           (vector-set!                        ; set extra-precision that is needed
            (car (vector-ref ivec tail-index)) ; child instruction
@@ -155,12 +156,6 @@
                  (munge-ival c cond-type)
                  (munge-ival t type)
                  (munge-ival f type))]
-          #;[(list (and (or 'sin 'cos 'tan '-) op) args ...)
-           (let ([exponent (box 0)])
-             (cons (vector (op->proc op) prec exponent)
-                   (map (curryr munge-ival exponent)
-                        args
-                        (op->itypes op))))]
           [(list op args ...)
            (cons (vector (op->proc op) (box 0) (box 0))
                     (map munge-ival
