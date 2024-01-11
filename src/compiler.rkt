@@ -14,10 +14,13 @@
           (*ground-truth-extra-bits*)
           (bf-precision))))
 
-; TODO: what if exponent show that the input is +max.bf? (1073741695)
 (define (true-exponent x)
   (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
-  (if (equal? -9223372036854775807 exp) 0 exp)) ; -9223372036854775807 is an exponent for 0.bf
+  (if (or
+       (equal? -9223372036854775807 exp) ; 0.bf
+       (< 1000000000 exp))               ; overflow
+       0
+       exp))
 
 ;; Interpreter taking a narrow IR
 ;; ```
