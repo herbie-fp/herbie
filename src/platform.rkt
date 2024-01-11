@@ -18,6 +18,7 @@
     [operator-set-operators (-> operator-set? (listof symbol?))]
     ;; Platforms
     [platform? (-> any/c boolean?)]
+    [platform-name (-> platform? any/c)]
     [platform-reprs (-> platform? (listof representation?))]
     [platform-impls (-> platform? (listof symbol?))]
     [platform-conversions (-> platform? (listof symbol?))]
@@ -72,8 +73,7 @@
 (define (activate-platform! pform)
   ; replace the active operator table
   (clear-active-operator-impls!)
-  (for ([impl (in-list (platform-impls pform))])
-    (activate-operator-impl! impl)))
+  (for-each activate-operator-impl! (platform-impls pform)))
 
 ;; Registers a platform under identifier `name`.
 (define (register-platform! name pform)
@@ -685,12 +685,6 @@
      (for/fold ([pform pform-expr])
                ([repr '(reprs ...)]
                 [cost '(costs ...)])
-       (define pform-reprs (map representation-name (platform-reprs pform)))
-       (unless (set-member? pform-reprs repr)
-         (error 'with-terminal-cost
-                "repr ~a not found in platform ~a"
-                repr
-                pform))
        (struct-copy $platform pform
          [repr-costs (hash-set (platform-repr-costs pform)
                                (get-representation repr)

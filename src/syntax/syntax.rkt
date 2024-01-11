@@ -187,8 +187,6 @@
 (define-operator (E) real
   [ival ival-e])
 
-;; constants ;;
-
 (define-operator (INFINITY) real
   [ival (λ () (ival +inf.bf))])
 
@@ -201,7 +199,7 @@
 (define-operator (FALSE) bool
   [ival (const (ival-bool false))])
 
-;; conversions
+;; Conversions
 
 (define-operator (convert real) real
   [ival identity])
@@ -221,10 +219,10 @@
 ;; Tracks implementations that are loaded into Racket's runtime
 (define operator-impls (make-hasheq))
 
-;; "Active" operator implementation table
+;; "Active" operator set
 ;; Tracks implementations that will be used by Herbie during the improvement loop.
 ;; Guaranteed to be a subset of the `operator-impls` table.
-(define active-operator-impls (make-hasheq))
+(define active-operator-impls (mutable-set))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
@@ -241,7 +239,8 @@
 
 ;; Like `operator-all-impls`, but filters for only active implementations.
 (define (operator-active-impls name)
-  (filter (curry hash-has-key? active-operator-impls) (operator-all-impls name)))
+  (filter (curry set-member? active-operator-impls)
+          (operator-all-impls name)))
 
 ;; Looks up the name of an operator corresponding to an implementation `name`.
 ;; Panics if the operator is not found.
@@ -256,12 +255,11 @@
 (define (activate-operator-impl! name)
   (unless (hash-has-key? operator-impls name)
     (raise-herbie-missing-error "Unknown operator implementation ~a" name))
-  (define impl (hash-ref operator-impls name))
-  (hash-set! active-operator-impls name impl))
+  (set-add! active-operator-impls name))
 
 ;; Clears the table of active implementations.
 (define (clear-active-operator-impls!)
-  (hash-clear! active-operator-impls))
+  (set-clear! active-operator-impls))
 
 ;; Registers an operator implementation `name` or real operator `op`.
 ;; The input and output representations must satisfy the types
@@ -318,7 +316,7 @@
       "Could not find constant implementation for ~a with ~a"
       name (format "<~a>" (representation-name repr)))))
 
-;; Miscellaneous operators ;;
+;; Casts and precision changes
 
 (define (repr-conv? expr)
   (and (symbol? expr) (set-member? (operator-all-impls 'cast) expr)))

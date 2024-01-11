@@ -8,18 +8,20 @@
 ; universal boolean opertaions
 (define boolean-platform
   (with-terminal-cost ([bool 1])
-    (platform #:default-cost 1
-              #:if-cost 1
-              [(bool) (TRUE FALSE)]
-              [(bool bool) not]
-              [(bool bool bool) (and or)])))
+    (platform
+      #:default-cost 1
+      #:if-cost 1
+      [(bool) (TRUE FALSE)]
+      [(bool bool) not]
+      [(bool bool bool) (and or)])))
 
 ; machine floating-point operations (without conversions)
 (define machine-platform
   (with-terminal-cost ([binary64 64] [binary32 32])
-    (let ([rel-costs (cost-map [(PI E INFINITY NAN) 1]
-                               [(neg + - * /) 3]
-                               [(== != > < >= <=) 3])])
+    (let ([rel-costs (cost-map
+                        [(PI E INFINITY NAN) 1]
+                        [(neg + - * /) 1]
+                        [(== != > < >= <=) 3])])
       (platform-product
         [([real binary64] [bool bool]) (cost-map-scale 64 rel-costs)]
         [([real binary32] [bool bool]) (cost-map-scale 32 rel-costs)]

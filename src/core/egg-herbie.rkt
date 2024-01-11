@@ -606,19 +606,19 @@
 ;; (see `rule->egg-rules` for details); checks the cache in case we used
 ; them previously
 (define (expand-rules rules)
-  ; TODO: reversing the rules causes CI to pass, why?
-  (define platform (*active-platform*))
-  (for/fold ([rules* '()] #:result (reverse rules*)) ([rule (in-list rules)])
-    (append
-      (hash-ref! (*ffi-rules*) (cons rule platform)
-                 (λ ()
+  (define pform (*active-platform*))
+  (for/fold ([rules* '()] #:result (reverse rules*))
+            ([rule (in-list rules)])
+    (define egg&ffi
+      (hash-ref! (*ffi-rules*) ; cache
+                 (cons rule (platform-name pform)) ; key
+                 (λ () ; generate
                    (define orig-name (rule-name rule))
-                   (define egg-rules (rule->egg-rules rule))
-                   (for/list ([egg-rule (in-list egg-rules)])
+                   (for/list ([egg-rule (in-list (rule->egg-rules rule))])
                      (define name (rule-name egg-rule))
                      (hash-set! (*canon-names*) name orig-name)
-                     (cons egg-rule (make-ffi-rule egg-rule)))))
-      rules*)))
+                     (cons egg-rule (make-ffi-rule egg-rule))))))
+    (append (reverse egg&ffi) rules*)))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids const-folding? #:limit [iter-limit #f])
   ;; expand rules (may possibly be cached)
