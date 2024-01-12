@@ -85,7 +85,6 @@
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
-
   changelists)
 
 ;;
@@ -133,7 +132,6 @@
   (define repr (get-representation 'binary64))
   (*context* (make-debug-context '()))
   (*context* (context-extend (*context*) 'x repr))
-  (*needed-reprs* (list repr))
 
   (let ([chngs (rewrite-once '(+.f64 x x) (*context*) #:rules (*rules*))])
     (check-equal? (length chngs) 13 (format "rewrites ~a" chngs)))

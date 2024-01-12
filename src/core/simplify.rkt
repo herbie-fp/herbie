@@ -31,8 +31,6 @@
   ;; set parameters
   (define vars '(x a b c))
   (*context* (make-debug-context vars))
-  (*needed-reprs* (list (get-representation 'binary64)
-                        (get-representation 'binary32)))
   (define all-simplify-rules (*simplify-rules*))
 
   ;; check that no rules in simplify match on bare variables

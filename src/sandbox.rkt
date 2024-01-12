@@ -1,16 +1,35 @@
 #lang racket
 
-(require profile racket/engine json)
+(require profile
+         racket/engine
+         json)
 
-(require "syntax/read.rkt" "syntax/rules.rkt" "syntax/sugar.rkt"
-         "syntax/types.rkt" "alternative.rkt" "common.rkt" "conversions.rkt"
-         "cost.rkt" "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
-         "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
-         "compiler.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "core/localize.rkt" "ground-truth.rkt")
+(require "syntax/read.rkt"
+         "syntax/sugar.rkt"
+         "syntax/types.rkt"
+         "core/localize.rkt"
+         "alternative.rkt"
+         "compiler.rkt"
+         "common.rkt"
+         "datafile.rkt"
+         "errors.rkt"
+         "float.rkt"
+         "ground-truth.rkt"
+         "mainloop.rkt"
+         "platform.rkt"
+         "points.rkt"
+         "preprocess.rkt"
+         "profile.rkt"
+         "timeline.rkt"
+         (submod "timeline.rkt" debug))
 
-(provide run-herbie get-table-data unparse-result *reeval-pts* *timeout*
-         (struct-out job-result) (struct-out improve-result)
+(provide run-herbie
+         get-table-data
+         unparse-result
+         *reeval-pts*
+         *timeout*
+         (struct-out job-result)
+         (struct-out improve-result)
          (struct-out alt-analysis))
 
 (struct job-result (test status time timeline warnings backend))
@@ -52,7 +71,7 @@
 
 ;; Given a test, computes the program cost of the input expression
 (define (get-cost test)
-  (expr-cost (test-input test) (test-output-repr test)))
+  ((platform-cost-proc (*active-platform*)) (test-input test)))
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
@@ -236,11 +255,8 @@
     (parameterize ([*timeline-disabled* timeline-disabled?]
                    [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
-      (define repr (test-output-repr test))
       (rollback-improve!)
       (*context* (test-context test))
-      (*needed-reprs* (list repr (get-representation 'bool)))
-      (generate-prec-rewrites (test-conversions test))
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
@@ -295,6 +311,7 @@
   (match status
     ['success
      (match-define (improve-result _ _ start target end _) backend)
+     (define expr-cost (platform-cost-proc (*active-platform*)))
      (define repr (test-output-repr test))
     
      ; starting expr analysis

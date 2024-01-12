@@ -64,7 +64,6 @@
       (check-equal? v1 v2))))
 
 (module+ main
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
   (num-test-points (* 100 (num-test-points)))
   (command-line
@@ -78,7 +77,6 @@
         (check-rule-fp-safe rule*))))))
 
 (module+ test
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
 
   (for* ([(_ test-ruleset) (in-dict (*rulesets*))]

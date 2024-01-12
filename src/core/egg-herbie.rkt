@@ -6,7 +6,7 @@
           _byte _pointer _string/utf-8))
 (require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
          "../syntax/types.rkt" "../common.rkt" "../errors.rkt"
-         "../programs.rkt" "../timeline.rkt")
+         "../programs.rkt" "../timeline.rkt" "../platform.rkt")
 
 (module+ test
   (require rackunit)
@@ -210,7 +210,7 @@
 ;; Given a list of types, computes the product of all possible
 ;; representation assignments where each element
 ;; is a dictionary mapping type to representation
-(define (type-combinations types [reprs (*needed-reprs*)])
+(define (type-combinations types [reprs (platform-reprs (*active-platform*))])
   (reap [sow]
     (let loop ([types types] [assigns '()])
       (match types
@@ -234,7 +234,7 @@
      [_ (void)]))
   (set->list reprs))
 
-;; Representation name sanitizer
+;; Representation name sanitizer (also in <herbie>/platform.rkt)
 (define (repr->symbol repr)
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (define repr-name (representation-name repr))
@@ -245,7 +245,8 @@
 ;; valid assignment of representations.
 (define (rule->impl-rules r)
   (match-define (rule name input output itypes otype) r)
-  (define supported? (curry set-member? (*needed-reprs*)))
+  (define active-reprs (platform-reprs (*active-platform*)))
+  (define supported? (curry set-member? active-reprs))
   (cond
     [(andmap representation? (cons otype (map cdr itypes)))
      ; rule over representation: just return the rule
@@ -334,9 +335,8 @@
     
 
 (module+ test
-  ;; Make sure all built-in rules are valid in some
-  ;; configuration of representations
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
+  ;; Make sure all built-in rules are valid in
+  ;; some configuration of representations
   (for ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
                (check-true (> (length (rule->egg-rules rule)) 0))))
@@ -606,18 +606,19 @@
 ;; (see `rule->egg-rules` for details); checks the cache in case we used
 ; them previously
 (define (expand-rules rules)
-  ; TODO: reversing the rules causes CI to pass, why?
-  (for/fold ([rules* '()] #:result (reverse rules*)) ([rule (in-list rules)])
-    (append
-      (hash-ref! (*ffi-rules*) (cons rule (*needed-reprs*))
-                 (λ ()
+  (define pform (*active-platform*))
+  (for/fold ([rules* '()] #:result (reverse rules*))
+            ([rule (in-list rules)])
+    (define egg&ffi
+      (hash-ref! (*ffi-rules*) ; cache
+                 (cons rule (platform-name pform)) ; key
+                 (λ () ; generate
                    (define orig-name (rule-name rule))
-                   (define egg-rules (rule->egg-rules rule))
-                   (for/list ([egg-rule (in-list egg-rules)])
+                   (for/list ([egg-rule (in-list (rule->egg-rules rule))])
                      (define name (rule-name egg-rule))
                      (hash-set! (*canon-names*) name orig-name)
-                     (cons egg-rule (make-ffi-rule egg-rule)))))
-      rules*)))
+                     (cons egg-rule (make-ffi-rule egg-rule))))))
+    (append (reverse egg&ffi) rules*)))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids const-folding? #:limit [iter-limit #f])
   ;; expand rules (may possibly be cached)
@@ -646,5 +647,4 @@
 
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
-
   iteration-data)
