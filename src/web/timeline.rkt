@@ -274,89 +274,7 @@
               (match-define (list rule count) rec)
               `(tr (td ,(~a count) "×")
                    (td (code ,(~a rule) " "))))))))
-                   
-(define (render-phase-mixed-sampling mixsample)
-  (define counter 0)
-  (define prev-precision -1)
-  (define new_table '())
-  (define current-op '())
-  (define current-time 0)
-  
-  (for/list ([rec (in-list (sort mixsample string<? #:key (lambda (e) (string-append (first e) " "
-                                                                                     (if (> (second e) 9999)
-                                                                                         (~a (second e))
-                                                                                         (if (> (second e) 999)
-                                                                                             (string-append "0" (~a (second e)))
-                                                                                             (string-append "00" (~a (second e)))))))))])
-    (match-define (list operation precision milliseconds) rec)
-    (cond
-      [(equal? current-op '())
-       (set! current-op operation)
-       (set! prev-precision precision)
-       (set! counter 1)
-       (set! current-time milliseconds)]
-      [(not (equal? current-op operation))
-       (set! new_table (cons (list current-op prev-precision counter current-time) new_table))
-       (set! prev-precision precision)
-       (set! counter 1)
-       (set! current-op operation)
-       (set! current-time milliseconds)]
-      [(equal? precision prev-precision)
-       (set! counter (+ 1 counter))
-       (set! current-time (+ current-time milliseconds))]
-      [(not (equal? precision prev-precision))
-       (cond
-         [(equal? 10000 prev-precision)
-          (set! new_table (cons (list operation prev-precision counter current-time) new_table))
-          (set! prev-precision precision)
-          (set! counter 1)
-          (set! current-time milliseconds)]
-         [(power-of-two? prev-precision)
-          (set! new_table (cons (list operation prev-precision counter current-time) new_table))
-          (set! prev-precision precision)
-          (set! counter 1)
-          (set! current-time milliseconds)]
-         [(power-of-two? precision)
-          (set! new_table (cons (list operation
-                                      (string-append (~a (* (floor (/ prev-precision 100)) 100)) "-" (~a (* (+ (floor (/ prev-precision 100)) 1) 100)))
-                                      counter current-time) new_table))
-          (set! prev-precision precision)
-          (set! counter 1)
-          (set! current-time milliseconds)]
-         [(equal? (floor (/ precision 100)) (floor (/ prev-precision 100)))
-          (set! counter (+ 1 counter))
-          (set! prev-precision precision)
-          (set! current-time (+ current-time milliseconds))]
-         [(not (equal? (floor (/ precision 100)) (floor (/ prev-precision 100))))
-          (set! new_table (cons
-                           (list operation
-                                 (string-append (~a (* (floor (/ prev-precision 100)) 100)) "-" (~a (* (+ (floor (/ prev-precision 100)) 1) 100)))
-                                 counter current-time) new_table))
-          (set! prev-precision precision)
-          (set! counter 1)
-          (set! current-time milliseconds)])]))
        
-       ;(set! new_table (cons (list operation prev-precision counter) new_table))
-       ;(set! prev-precision precision)
-       ;(set! counter 1)]))
-      (set! new_table (cons (list current-op (if (equal? prev-precision 10000)
-                                                 10000
-                                                 (if (power-of-two? prev-precision)
-                                                     prev-precision
-                                                     (string-append (~a (* (floor (/ prev-precision 100)) 100)) "-" (~a prev-precision))))
-                                  counter current-time) new_table))
-  
-  `((dt "Mixed Sampling")
-    (dd (details
-         (summary "Click to see full mixed sampling table")
-         (table ([class "times"])
-                (thead (tr (th "op") (th "prec") (th "x") (th "time")))
-                ,@(for/list ([rec (in-list (sort new_table string<? #:key first))])
-                    (match-define (list operation precision number-of-occurances time) rec)
-                    `(tr (td ,operation)
-                         (td ,(~a precision))
-                         (td ,(~a number-of-occurances))
-                         (td ,(format-time time)))))))))
 
 (define (render-phase-problems problems)
   `((dt "Problems")
@@ -398,6 +316,37 @@
                ,@(for/list ([rec (in-list (sort times > #:key second))] [_ (in-range 5)])
                    (match-define (list expr time) rec)
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
+
+(define (render-phase-mixed-sampling mixsample)
+  (define current-op '())
+  (define precisions '())
+  (define final-list '())
+  
+  (for/list ([rec (in-list (sort mixsample string<? #:key first))])
+    (match-define (list operation precision milliseconds) rec)
+    (cond
+      [(equal? operation current-op)
+       (set! precisions (cons precision precisions))]
+      [(equal? current-op '())
+       (set! current-op operation)
+       (set! precisions (cons precision precisions))]
+      [else
+       (set! final-list (cons (list current-op precisions) final-list))
+       (set! current-op operation)
+       (set! precisions '())
+       (set! precisions (cons precision precisions))]))
+  (set! final-list (cons (list current-op precisions) final-list))
+  
+  `((dt "Operations")
+    ,@(for/list ([rec (in-list final-list)])
+        (define n (random 100000))
+        (match-define (list op precs) rec)
+        `(dd
+          (details
+           (summary "Operation " ,(~a op))
+           (canvas ([id ,(format "calls-~a" n)]
+                    [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+           (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string precs) ")"))))))
 
 (define (render-phase-series n times)
   `((dt "Calls")
