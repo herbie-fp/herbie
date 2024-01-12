@@ -209,7 +209,7 @@
                   (set! best cidx))))
             (when (and (< (+ (cse-cost prev-entry) bcost) acost))
               (set! acost (+ (cse-cost prev-entry) bcost))
-              (set! aest (cse acost (cons (si best (+ point-idx 1))
+              (set! aest (cse acost (vector (si best (+ point-idx 1))
                                           (cse-indices prev-entry)))))))
         (vector-set! result point-idx aest)
         aest))
