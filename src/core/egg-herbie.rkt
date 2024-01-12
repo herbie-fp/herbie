@@ -6,7 +6,7 @@
           _byte _pointer _string/utf-8))
 (require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
          "../syntax/types.rkt" "../common.rkt" "../errors.rkt"
-         "../programs.rkt" "../timeline.rkt")
+         "../programs.rkt" "../timeline.rkt" "../platform.rkt")
 
 (module+ test
   (require rackunit)
@@ -14,11 +14,7 @@
   (load-herbie-builtins))
 
 (provide (struct-out egraph-query) make-egg-query run-egg
-         expand-rules get-canon-rule-name remove-rewrites)
-
-;; Imported by `<herbie>/syntax/test-rules.rkt`
-(module+ internals
-  (provide rule->impl-rules))
+         rule->impl-rules get-canon-rule-name remove-rewrites)
 
 ;; Unfortunately Herbie expressions can't be placed directly into egg,
 ;; so we need an IR to represent both expressions and patterns.
@@ -214,7 +210,7 @@
 ;; Given a list of types, computes the product of all possible
 ;; representation assignments where each element
 ;; is a dictionary mapping type to representation
-(define (type-combinations types [reprs (*needed-reprs*)])
+(define (type-combinations types [reprs (platform-reprs (*active-platform*))])
   (reap [sow]
     (let loop ([types types] [assigns '()])
       (match types
@@ -238,12 +234,19 @@
      [_ (void)]))
   (set->list reprs))
 
+;; Representation name sanitizer (also in <herbie>/platform.rkt)
+(define (repr->symbol repr)
+  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
+  (define repr-name (representation-name repr))
+  (string->symbol (string-replace* (~a repr-name) replace-table)))
+
 ;; Translates a rewrite rule into potentially many rules.
 ;; If the rule is over types, the rule is duplicated for every
 ;; valid assignment of representations.
 (define (rule->impl-rules r)
   (match-define (rule name input output itypes otype) r)
-  (define supported? (curry set-member? (*needed-reprs*)))
+  (define active-reprs (platform-reprs (*active-platform*)))
+  (define supported? (curry set-member? active-reprs))
   (cond
     [(andmap representation? (cons otype (map cdr itypes)))
      ; rule over representation: just return the rule
@@ -275,7 +278,7 @@
            ;; The easier way to tell if every operator is supported
            ;; in a given representation is to just try to desguar
            ;; the expression and catch any errors.
-           (define name* (sym-append name '_ (representation-name sugar-otype)))
+           (define name* (sym-append name '_ (repr->symbol sugar-otype)))
            (define input* (spec->prog input sugar-ctx))
            (define output* (spec->prog output sugar-ctx))
            (when (and (andmap supported? (reprs-in-expr input*))
@@ -332,9 +335,8 @@
     
 
 (module+ test
-  ;; Make sure all built-in rules are valid in some
-  ;; configuration of representations
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
+  ;; Make sure all built-in rules are valid in
+  ;; some configuration of representations
   (for ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
                (check-true (> (length (rule->egg-rules rule)) 0))))
@@ -575,7 +577,8 @@
   (destroy_egraphiters ptr)
   iteration-data)
 
-;; Cache mapping (name, representations) -> (listof ffi-rules)
+;; Cache mapping (rule, platform) -> (listof expanded-rule)
+;; where expanded-rule is (pairof egg-rule ffi-rule)))
 ;; Rule expansion takes a significant amount of time, so we cache
 ;; Assumes the set of rules, representations, and operator implementations
 ;; are fixed throughout the improvement loop; rules are added and never
@@ -584,8 +587,8 @@
   (λ () (make-hash))
   (λ () (make-hash))
   (λ (cache)
-    (define ffi-rules/rule (hash-values cache))
-    (for ([ffi-rules (in-list ffi-rules/rule)])
+    (for ([(_ entry) (in-hash cache)])
+      (define ffi-rules (map cdr entry))
       (for-each free-ffi-rule ffi-rules))))
 
 ;; Cache mapping name to its canonical rule name
@@ -603,18 +606,19 @@
 ;; (see `rule->egg-rules` for details); checks the cache in case we used
 ; them previously
 (define (expand-rules rules)
-  ; TODO: reversing the rules causes CI to pass, why?
-  (for/fold ([rules* '()] #:result (reverse rules*)) ([rule (in-list rules)])
-    (append
-      (hash-ref! (*ffi-rules*) (cons rule (*needed-reprs*))
-                 (λ ()
+  (define pform (*active-platform*))
+  (for/fold ([rules* '()] #:result (reverse rules*))
+            ([rule (in-list rules)])
+    (define egg&ffi
+      (hash-ref! (*ffi-rules*) ; cache
+                 (cons rule (platform-name pform)) ; key
+                 (λ () ; generate
                    (define orig-name (rule-name rule))
-                   (define egg-rules (rule->egg-rules rule))
-                   (for/list ([egg-rule (in-list egg-rules)])
+                   (for/list ([egg-rule (in-list (rule->egg-rules rule))])
                      (define name (rule-name egg-rule))
                      (hash-set! (*canon-names*) name orig-name)
-                     (cons name (make-ffi-rule egg-rule)))))
-      rules*)))
+                     (cons egg-rule (make-ffi-rule egg-rule))))))
+    (append (reverse egg&ffi) rules*)))
 
 (define (egraph-run-rules egg-graph node-limit rules node-ids const-folding? #:limit [iter-limit #f])
   ;; expand rules (may possibly be cached)
@@ -636,12 +640,11 @@
 
   ;; get rule statistics
   (define rule-apps (make-hash))
-  (for ([(name ffi-rule) (in-dict egg-rules)])
+  (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
     (define count (egraph-get-times-applied egg-graph ffi-rule))
-    (define canon-name (hash-ref (*canon-names*) name))
+    (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
     (hash-update! rule-apps canon-name (curry + count) count))
 
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
-
   iteration-data)

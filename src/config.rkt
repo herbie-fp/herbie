@@ -87,6 +87,7 @@
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
+(define *ground-truth-extra-bits* (make-parameter 20))
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
@@ -108,6 +109,10 @@
 (define *use-improve-cache* (make-parameter #t))
 
 (define *default-precision* (make-parameter 'binary64))
+(define *default-platform-name* (make-parameter 'default))
+
+(define *platform-name* (make-parameter (*default-platform-name*)))
+(define *loose-plugins* (make-parameter '()))
 
 ;;; About Herbie:
 

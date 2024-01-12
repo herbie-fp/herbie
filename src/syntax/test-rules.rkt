@@ -4,7 +4,7 @@
 (require "../common.rkt" "../compiler.rkt" "../float.rkt"
          "../ground-truth.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
-         (submod "../core/egg-herbie.rkt" internals))
+         "../core/egg-herbie.rkt")
 
 (load-herbie-builtins)
 
@@ -64,7 +64,6 @@
       (check-equal? v1 v2))))
 
 (module+ main
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
   (num-test-points (* 100 (num-test-points)))
   (command-line
@@ -78,16 +77,15 @@
         (check-rule-fp-safe rule*))))))
 
 (module+ test
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
 
-  (for* ([test-ruleset (*rulesets*)]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
          [test-rule* (rule->impl-rules test-rule)])
     (test-case (~a (rule-name test-rule*))
       (check-rule-correct test-rule*)))
 
-  (for* ([test-ruleset (*rulesets*)]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
          [test-rule* (rule->impl-rules test-rule)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule*))

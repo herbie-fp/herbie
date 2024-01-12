@@ -2,9 +2,9 @@
 
 (require (only-in xml write-xexpr xexpr?)
          (only-in fpbench core->tex supported-by-lang?))
-(require "../points.rkt" "../float.rkt" "../alternative.rkt" "../syntax/types.rkt"
-         "../syntax/rules.rkt" "../core/bsearch.rkt" "../common.rkt"
-         "common.rkt" "../syntax/sugar.rkt" "../programs.rkt")
+(require "../syntax/types.rkt" "../syntax/rules.rkt" "../core/bsearch.rkt" 
+         "../alternative.rkt" "../common.rkt" "../float.rkt" "../points.rkt" 
+         "../programs.rkt" "common.rkt")
 (provide render-history)
 
 (define (split-pcontext pcontext splitpoints alts ctx)
@@ -75,9 +75,9 @@
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
 
-    [(alt prog 'add-preprocessing _ _)
+    [(alt prog 'add-preprocessing `(,prev) _)
       ;; TODO message to user is? proof later
-      '(,@(render-history prev pcontext pcontext2 ctx)
+      `(,@(render-history prev pcontext pcontext2 ctx)
         (li "Add Preprocessing"))]	
 
     [(alt _ `(regimes ,splitpoints) prevs _)
