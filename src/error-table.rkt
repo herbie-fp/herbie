@@ -31,7 +31,6 @@
     (let ([key (caar group)])
       (values key (map cdr group)))))
 
-(define is-inexact? list?)
 (define (same-sign? a b)
   (or (and (positive? a) (positive? b))
       (and (negative? a) (negative? b))))
@@ -86,7 +85,7 @@
                  
                  (match subexpr
                    [(list (or '+.f64 '+.f32) larg rarg)
-                    #:when (or (is-inexact? larg) (is-inexact? rarg))
+                    #:when (or (list? larg) (list? rarg))
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x+y (+ larg-val rarg-val))
@@ -126,7 +125,7 @@
                       [else #f])]
                    
                    [(list (or '-.f64 '-.f32) larg rarg)
-                    #:when (or (is-inexact? larg) (is-inexact? rarg))
+                    #:when (or (list? larg) (list? rarg))
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x-y (- larg-val rarg-val))
@@ -168,22 +167,22 @@
                    TODO Make this actually work
                    |#
                    [(list (or 'sin.f64 'sin.f32) arg)
-                    #:when (is-inexact? arg)
+                    #:when (list? arg)
                     (define arg-val (abs (hash-ref exacts-hash arg)))
                     (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
                    
                    [(list (or 'cos.f64 'cos.f32) arg)
-                    #:when (is-inexact? arg)
+                    #:when (list? arg)
                     (define arg-val (abs (hash-ref exacts-hash arg)))
                     (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
                    
                    [(list (or 'tan.f64 'tan.f32) arg)
-                    #:when (is-inexact? arg)
+                    #:when (list? arg)
                     (define arg-val (abs (hash-ref exacts-hash arg)))
                     (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
                    
                    [(list (or 'sqrt.f64 'sqrt.f32) arg)
-                    #:when (is-inexact? arg)
+                    #:when (list? arg)
                     (define arg-val (hash-ref exacts-hash arg))
 
                     ; Under/overflow rescue:
@@ -193,7 +192,7 @@
                          (mark-erroneous! subexpr pt))]
 
                    [(list (or 'cbrt.f64 'cbrt.f32) arg)
-                    #:when (is-inexact? arg)
+                    #:when (list? arg)
                     (define arg-val (hash-ref exacts-hash arg))
                     
                     ; Under/overflow rescue:
@@ -203,7 +202,7 @@
                          (mark-erroneous! subexpr pt))]
                    
                    [(list (or '/.f64 '/.f32) x-ex y-ex)
-                    #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
+                    #:when (or (list? x-ex) (list? y-ex))
                     (define x (hash-ref exacts-hash x-ex))
                     (define y (hash-ref exacts-hash y-ex))
                     (define x/y (/ x y))
@@ -238,7 +237,7 @@
                       [else #f])]
 
                    [(list (or '*.f64 '*.f32) x-ex y-ex)
-                    #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
+                    #:when (or (list? x-ex) [list? y-ex])
                     (define y-oflow? (overflow? y-ex))
                     (define x-uflow? (underflow? x-ex))
                     (define x-oflow? (overflow? x-ex))
@@ -280,7 +279,7 @@
                       [else #f])]
                    
                    [(list (or 'log.f64 'log.f32) arg)
-                    #:when (is-inexact? arg)
+                    #:when (list? arg)
                     (define arg-val (hash-ref exacts-hash arg))
                     (define cond-num (bfabs (bf/ 1.bf
                                                  (bf subexpr-val))))
@@ -307,7 +306,7 @@
                       [else #f])]
                    
                    [(list (or 'exp.f64 'exp.f32) arg)
-                    #:when (is-inexact? arg)
+                    #:when (list? arg)
                     (define arg-val (hash-ref exacts-hash arg))
                     
                     (cond
@@ -334,7 +333,7 @@
 
                    ; FIXME need to rework from scratch
                    [(list (or 'pow.f64 'pow.f32) x-ex y-ex)
-                    #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
+                    #:when (or (list? x-ex) (list? y-ex))
                     (define x (hash-ref exacts-hash x-ex))
                     (define y (hash-ref exacts-hash y-ex))
                     (define cond-x (abs y))
@@ -357,7 +356,7 @@
                       [else  #f])]
                    
                    [(list (or 'acos.f64 'acos.f32) x-ex)
-                    #:when (is-inexact? x-ex)
+                    #:when (list? x-ex)
                     (define x (hash-ref exacts-hash x-ex))
                     (define x.bf (bf x))
                     (define cond-x (bfabs
@@ -386,7 +385,7 @@
                       [else #f])]
 
                    [(list (or 'asin.f64 'asin.f32) x-ex)
-                    #:when (is-inexact? x-ex)
+                    #:when (list? x-ex)
                     (define x (hash-ref exacts-hash x-ex))
                     (define x.bf (bf x))
                     (define cond-x (bfabs
