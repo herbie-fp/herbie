@@ -47,7 +47,8 @@
   (define subexprs-fn (eval-progs-real subexprs-list ctx-list))
  
   (define error-count-hash
-    (make-hash (map (lambda (x) (cons x '())) (cons #f subexprs-list))))
+    (make-hash (map (lambda (x) (cons x '()))
+                    (cons #f subexprs-list))))
  
   (define (mark-erroneous! expr pt)
     (hash-update! error-count-hash expr (lambda (x) (set-add x pt))))
@@ -57,9 +58,11 @@
     (define exacts-hash
       (make-immutable-hash (map cons subexprs-list exacts)))
  
-    (define uflow-hash (make-hash (map (lambda (x) (cons x #f)) subexprs-list)))
+    (define uflow-hash (make-hash (map (lambda (x) (cons x #f))
+                                       subexprs-list)))
     (define (underflow? subexpr) (hash-ref uflow-hash subexpr))
-    (define oflow-hash (make-hash (map (lambda (x) (cons x #f)) subexprs-list)))
+    (define oflow-hash (make-hash (map (lambda (x) (cons x #f))
+                                       subexprs-list)))
     (define (overflow? subexpr) (hash-ref oflow-hash subexpr))
  
     (unless
@@ -68,7 +71,8 @@
                  (define subexpr-val (hash-ref exacts-hash subexpr))
 
                  (cond
-                   ; NOTE need better way to see if a calculation underflowed
+                   ; NOTE need better way to see if a calculation
+                   ; underflowed
                    [(fl= subexpr-val 0.0)
                     (hash-set! uflow-hash subexpr #t)]
                    [(infinite? subexpr-val)
@@ -86,11 +90,13 @@
                     (cond
                       ; Condition number hallucination
                       ; Both R(x + y) and R(x) + R(y) underflow
-                      ; This causes the condition number to jump up, with no real error
+                      ; This causes the condition number to jump up,
+                      ; with no real error
                       [(and (= x+y 0.0) (underflow? subexpr)) #f]
 
                       ; nan rescue:
-                      ; R(+-inf) + R(-+inf) = nan, but should actually get inf 
+                      ; R(+-inf) + R(-+inf) = nan, but should actually
+                      ; be inf 
                       [(and (infinite? larg-val)
                             (infinite? rarg-val)
                             (not (same-sign? larg-val rarg-val))
@@ -120,8 +126,8 @@
                     
                     (cond
                       ; Condition number hallucination:
-                      ; When x - y correctly underflows, CN is high even though
-                      ; the answer is correct
+                      ; When x - y correctly underflows, CN is high
+                      ; even though the answer is correct
                       [(and (= x-y 0.0) (underflow? subexpr)) #f]
 
                       ; nan rescue:
@@ -133,7 +139,8 @@
                        (mark-erroneous! subexpr pt)]
 
                       ; inf rescue
-                      ; If x or y overflow and the other arg rescues it
+                      ; If x or y overflow and the other arg rescues
+                      ; it
                       [(and (or (infinite? larg-val)
                                 (infinite? rarg-val))
                             (not (infinite? subexpr-val)))
@@ -188,9 +195,9 @@
                     (define x (hash-ref exacts-hash x-ex))
                     (define y (hash-ref exacts-hash y-ex))
                     (define x/y (/ x y))
-                    (define y-oflow? (overflow? y-ex))
+                    (define y-oflow? (infinite? y-ex))
                     (define x-uflow? (underflow? x-ex))
-                    (define x-oflow? (overflow? x-ex))
+                    (define x-oflow? (infinite? x-ex))
                     (define y-uflow? (underflow? y-ex))
                     
                     (cond
@@ -220,32 +227,42 @@
 
                    [(list (or '*.f64 '*.f32) x-ex y-ex)
                     #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
-                    (define y-oflow? (overflow? y-ex))
+                    (define y-oflow? (infinite? y-ex))
                     (define x-uflow? (underflow? x-ex))
-                    (define x-oflow? (overflow? x-ex))
+                    (define x-oflow? (infinite? x-ex))
                     (define y-uflow? (underflow? y-ex))
                     (cond
-                      ; 0 * inf ~ nan, but if they rescue each other, then it should not be nan
-                      [(and x-uflow? y-oflow? (not (nan? subexpr-val)))
+                      ; 0 * inf ~ nan, but if they rescue each other,
+                      ; then it should not be nan
+                      [(and x-uflow?
+                            y-oflow?
+                            (not (nan? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
                       
-                      ; inf * 0 ~ nan, but if they rescue each other, then it should not be nan
-                      [(and x-oflow? y-uflow? (not (nan? subexpr-val)))
+                      ; inf * 0 ~ nan, but if they rescue each other,
+                      ; then it should not be nan
+                      [(and x-oflow?
+                            y-uflow?
+                            (not (nan? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
                       
-                      ; x underflows and y is normal, then if x != 0, then error
+                      ; x underflows and y is normal, then if x != 0,
+                      ; then error
                       [(and x-uflow? (not (= (abs subexpr-val) 0.0)))
                        (mark-erroneous! subexpr pt)]
                       
-                      ; x overflows and y is normal, then if x != inf, then error
+                      ; x overflows and y is normal, then if x != inf,
+                      ; then error
                       [(and x-oflow? (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
                       
-                      ; x is normal and y underflows, then if x != 0, then error
+                      ; x is normal and y underflows, then if x != 0,
+                      ; then error
                       [(and y-uflow? (not (= (abs subexpr-val) 0.0)))
                        (mark-erroneous! subexpr pt)]
                       
-                      ; x is normal and y overflows, then if x != inf, then error
+                      ; x is normal and y overflows, then if x != inf,
+                      ; then error
                       [(and y-oflow? (not (infinite? subexpr-val)))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
@@ -279,20 +296,24 @@
                     
                     (cond
                       ; Condition Number Hallucination:
-                      ; When x is large enough that exp(x) overflows, condition
-                      ; number is also high.
-                      [(and (infinite? (exp arg-val)) (infinite? subexpr-val))
+                      ; When x is large enough that exp(x) overflows,
+                      ; condition number is also high.
+                      [(and (infinite? (exp arg-val))
+                            (infinite? subexpr-val))
                        #f]
 
                       ; Condition Number Hallucination:
-                      ; When x is large enough (negative) that exp(x) underflows,
-                      ; condition number is also high
-                      [(and (=  (exp arg-val) 0.0) (= subexpr-val 0.0))
+                      ; When x is large enough (negative) that exp(x)
+                      ; underflows, condition number is also high
+                      [(and (= (exp arg-val) 0.0)
+                            (= subexpr-val 0.0))
                        #f]
 
                       ; High Condition Number:
                       ; CN(exp, x) = |x|
-                      [(> (abs arg-val) 1e2) (mark-erroneous! subexpr pt)]
+                      [(> (abs arg-val) 1e2)
+                       (mark-erroneous! subexpr pt)]
+                      
                       [else #f])]
 
                    ; FIXME need to rework from scratch
@@ -352,7 +373,8 @@
                       [(and (= x 1.0) (= subexpr-val (/ pi 2.0))) #f]
 
                       ; asin(-1) == -pi/2
-                      [(and (= x -1.0) (= subexpr-val (/ (- pi) 2.0))) #f]
+                      [(and (= x -1.0)
+                            (= subexpr-val (/ (- pi) 2.0))) #f]
 
                       ; asin(0) == 0
                       [(and (= x 0.0) (= subexpr-val 0.0)) #f]
