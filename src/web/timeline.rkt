@@ -204,14 +204,14 @@
        (set! timings (cons milliseconds timings))]))
   (set! final-list (cons (list current-op precisions timings) final-list))
   
-  `((dt "Mix-prec")
+  `((dt "Precisions")
     (dd (details
          (summary "Click to see histograms")
          ,@(for/list ([rec (in-list final-list)])
              (define n (random 100000))
              (match-define (list op precs time) rec)
              `(details
-               (summary "Operation " ,(~a op))
+               (summary "Operation " ,(~a op) ", total time spent: " ,(~a (round (apply + time))) "ms")
                (canvas ([id ,(format "calls-~a" n)]
                         [title "Histogram of precisions of the used operation"]))
                (script "histogram2D(\""

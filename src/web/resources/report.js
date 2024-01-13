@@ -534,7 +534,7 @@ function histogram2D(id, xdata, ydata, options) {
     ctx.textAlign = "center";
     for (var i = 0; i < buckets.length; i++) {
         if (buckets[i] == 0) continue;
-        ctx.fillText(Math.round(buckets[i]) + "ms", margin + (i + .5)/buckets.length * width, labels + height*(1 - buckets[i]/yma));
+        ctx.fillText(Math.round(buckets[i]), margin + (i + .5)/buckets.length * width, labels + height*(1 - buckets[i]/yma));
     }
     
     ctx.textBaseline = "top";
