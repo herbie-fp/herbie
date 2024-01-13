@@ -195,9 +195,9 @@
                     (define x (hash-ref exacts-hash x-ex))
                     (define y (hash-ref exacts-hash y-ex))
                     (define x/y (/ x y))
-                    (define y-oflow? (infinite? y-ex))
+                    (define y-oflow? (overflow? y-ex))
                     (define x-uflow? (underflow? x-ex))
-                    (define x-oflow? (infinite? x-ex))
+                    (define x-oflow? (overflow? x-ex))
                     (define y-uflow? (underflow? y-ex))
                     
                     (cond
@@ -227,9 +227,9 @@
 
                    [(list (or '*.f64 '*.f32) x-ex y-ex)
                     #:when (or (is-inexact? x-ex) (is-inexact? y-ex))
-                    (define y-oflow? (infinite? y-ex))
+                    (define y-oflow? (overflow? y-ex))
                     (define x-uflow? (underflow? x-ex))
-                    (define x-oflow? (infinite? x-ex))
+                    (define x-oflow? (overflow? x-ex))
                     (define y-uflow? (underflow? y-ex))
                     (cond
                       ; 0 * inf ~ nan, but if they rescue each other,
