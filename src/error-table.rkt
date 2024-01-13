@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/flonum racket/set)
+(require racket/set math/bigfloat)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt"
          "common.rkt" "ground-truth.rkt")
 
@@ -9,7 +9,8 @@
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
     (flip-lists
-     (hash->list (car (compute-local-errors (list expr) (*context*))))))
+     (hash->list (car (compute-local-errors (list expr)
+                                            (*context*))))))
   
   (define pt-worst-subexprs
     (foldr append
@@ -17,10 +18,11 @@
            (for/list ([pt-errors (in-list pt-errorss)]
                       [(pt _) (in-pcontext pcontext)])
              (define sub-error (map cons subexprs pt-errors))
-             (define filtered-sub-error (filter (lambda (p) (> (cdr p) 16))
-                                                sub-error))
-             (define mapped-sub-error (map (lambda (p) (cons (car p) pt))
-                                           filtered-sub-error))
+             (define filtered-sub-error
+               (filter (lambda (p) (> (cdr p) 16)) sub-error))
+             (define mapped-sub-error
+               (map (lambda (p) (cons (car p) pt))
+                    filtered-sub-error))
              (if (empty? mapped-sub-error)
                  (list (cons #f pt))
                  mapped-sub-error))))
@@ -35,6 +37,10 @@
       (and (negative? a) (negative? b))))
  
 (define (predicted-errors expr ctx pctx)
+  
+  (define old-precision (bf-precision))
+  (bf-precision 1000)
+  (define cond-thres (bf 100))
   
   (define subexprs
     (all-subexpressions-rev expr (context-repr ctx)))
@@ -73,7 +79,7 @@
                  (cond
                    ; NOTE need better way to see if a calculation
                    ; underflowed
-                   [(fl= subexpr-val 0.0)
+                   [(= subexpr-val 0.0)
                     (hash-set! uflow-hash subexpr #t)]
                    [(infinite? subexpr-val)
                     (hash-set! oflow-hash subexpr #t)])
@@ -84,8 +90,10 @@
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x+y (+ larg-val rarg-val))
-                    (define cond-x (abs (/ larg-val subexpr-val)))
-                    (define cond-y (abs (/ rarg-val subexpr-val)))
+                    (define cond-x (bfabs (bf/ (bf larg-val)
+                                               (bf subexpr-val))))
+                    (define cond-y (bfabs (bf/ (bf rarg-val)
+                                               (bf subexpr-val))))
                     
                     (cond
                       ; Condition number hallucination
@@ -112,7 +120,8 @@
                       
                       ; High condition number:
                       ; CN(+, x, y) = |x / x + y| 
-                      [(or (> cond-x 1e2) (> cond-y 1e2))
+                      [(or (bf> cond-x cond-thres)
+                           (bf> cond-y cond-thres))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
@@ -121,8 +130,10 @@
                     (define larg-val (hash-ref exacts-hash larg))
                     (define rarg-val (hash-ref exacts-hash rarg))
                     (define x-y (- larg-val rarg-val))
-                    (define cond-x (abs (/ larg-val subexpr-val)))
-                    (define cond-y (abs (/ rarg-val subexpr-val)))
+                    (define cond-x (bfabs (bf/ (bf larg-val)
+                                               (bf subexpr-val))))
+                    (define cond-y (bfabs (bf/ (bf rarg-val)
+                                               (bf subexpr-val))))
                     
                     (cond
                       ; Condition number hallucination:
@@ -148,7 +159,8 @@
 
                       ; High condition number:
                       ; CN(+, x, y) = |x / x - y|
-                      [(or (> cond-x 1e2) (> cond-y 1e2))
+                      [(or (bf> cond-x cond-thres)
+                           (bf> cond-y cond-thres))
                        (mark-erroneous! subexpr pt)]
                       [else #f])]
                    
@@ -157,17 +169,17 @@
                    |#
                    [(list (or 'sin.f64 'sin.f32) arg)
                     #:when (is-inexact? arg)
-                    (define arg-val  (flabs (hash-ref exacts-hash arg)))
+                    (define arg-val (abs (hash-ref exacts-hash arg)))
                     (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
                    
                    [(list (or 'cos.f64 'cos.f32) arg)
                     #:when (is-inexact? arg)
-                    (define arg-val  (flabs (hash-ref exacts-hash arg)))
+                    (define arg-val (abs (hash-ref exacts-hash arg)))
                     (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
                    
                    [(list (or 'tan.f64 'tan.f32) arg)
                     #:when (is-inexact? arg)
-                    (define arg-val (flabs (hash-ref exacts-hash arg)))
+                    (define arg-val (abs (hash-ref exacts-hash arg)))
                     (and (> arg-val 1e30) (mark-erroneous! subexpr pt))]
                    
                    [(list (or 'sqrt.f64 'sqrt.f32) arg)
@@ -270,7 +282,9 @@
                    [(list (or 'log.f64 'log.f32) arg)
                     #:when (is-inexact? arg)
                     (define arg-val (hash-ref exacts-hash arg))
-                    (define cond-num (abs (/ 1 subexpr-val)))
+                    (define cond-num (bfabs (bf/ 1.bf
+                                                 (bf subexpr-val))))
+                    ;(define cond-num (abs (/ 1 subexpr-val)))
                     (define arg-oflow? (overflow? arg))
                     (define arg-uflow? (underflow? arg))
                     (cond
@@ -287,7 +301,9 @@
 
                       ; High Condition Number:
                       ; CN(log, x) = |1 / log(x)|
-                      [(> cond-num 1e2) (mark-erroneous! subexpr pt)]
+                      [(bf> cond-num cond-thres)
+                       (mark-erroneous! subexpr pt)]
+                      
                       [else #f])]
                    
                    [(list (or 'exp.f64 'exp.f32) arg)
@@ -311,7 +327,7 @@
 
                       ; High Condition Number:
                       ; CN(exp, x) = |x|
-                      [(> (abs arg-val) 1e2)
+                      [(> (abs arg-val) 100)
                        (mark-erroneous! subexpr pt)]
                       
                       [else #f])]
@@ -343,7 +359,14 @@
                    [(list (or 'acos.f64 'acos.f32) x-ex)
                     #:when (is-inexact? x-ex)
                     (define x (hash-ref exacts-hash x-ex))
-                    (define cond_x (abs (/ x
+                    (define x.bf (bf x))
+                    (define cond-x (bfabs
+                                    (bf/ x.bf
+                                         (bf* (bfsqrt
+                                               (bf- 1.bf
+                                                    (bf* x.bf x.bf)))
+                                              (bf subexpr-val)))))
+                    #;(define cond_x (abs (/ x
                                            (* (sqrt (- 1 (* x x)))
                                               subexpr-val))))
                     
@@ -357,13 +380,21 @@
                       
                       ; High Condition Number:
                       ; CN(acos, x) = |x / (√(1 - x^2)acos(x))|
-                      [(> cond_x 100) (mark-erroneous! subexpr pt)]
+                      [(bf> cond-x cond-thres)
+                       (mark-erroneous! subexpr pt)]
+                      
                       [else #f])]
 
                    [(list (or 'asin.f64 'asin.f32) x-ex)
                     #:when (is-inexact? x-ex)
                     (define x (hash-ref exacts-hash x-ex))
-                    (define cond_x (abs (/ x
+                    (define cond-x (bfabs
+                                    (bf/ x.bf
+                                         (bf* (bfsqrt
+                                               (bf- 1.bf
+                                                    (bf* x.bf x.bf)))
+                                              (bf subexpr-val)))))
+                    #;(define cond_x (abs (/ x
                                            (* (sqrt (- 1 (* x x)))
                                               subexpr-val))))
                     
@@ -385,4 +416,5 @@
                       [else #f])]
                    [_ #f])))
       (hash-update! error-count-hash #f (lambda (x) (set-add x pt)))))
+  (bf-precision old-precision)
   error-count-hash)
