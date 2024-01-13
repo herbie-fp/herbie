@@ -388,6 +388,7 @@
                    [(list (or 'asin.f64 'asin.f32) x-ex)
                     #:when (is-inexact? x-ex)
                     (define x (hash-ref exacts-hash x-ex))
+                    (define x.bf (bf x))
                     (define cond-x (bfabs
                                     (bf/ x.bf
                                          (bf* (bfsqrt
@@ -412,7 +413,7 @@
                       
                       ; High Condition Number:
                       ; CN(acos, x) = |x / (√(1 - x^2)asin(x))|
-                      [(> cond_x 100) (mark-erroneous! subexpr pt)]
+                      [(bf> cond-x cond-thres) (mark-erroneous! subexpr pt)]
                       [else #f])]
                    [_ #f])))
       (hash-update! error-count-hash #f (lambda (x) (set-add x pt)))))
