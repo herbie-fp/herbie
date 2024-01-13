@@ -76,6 +76,7 @@
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-compiler 'compiler)
+         ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
          ,@(dict-call curr render-phase-bogosity 'bogosity)
          )))
 
@@ -177,6 +178,38 @@
 
 (define (average . values)
   (/ (apply + values) (length values)))
+
+(define (render-phase-mixed-sampling mixsample)
+  (define current-op '())
+  (define precisions '())
+  (define final-list '())
+  
+  (for/list ([rec (in-list (sort mixsample string<? #:key first))])
+    (match-define (list operation precision milliseconds) rec)
+    (cond
+      [(equal? operation current-op)
+       (set! precisions (cons precision precisions))]
+      [(equal? current-op '())
+       (set! current-op operation)
+       (set! precisions (cons precision precisions))]
+      [else
+       (set! final-list (cons (list current-op precisions) final-list))
+       (set! current-op operation)
+       (set! precisions '())
+       (set! precisions (cons precision precisions))]))
+  (set! final-list (cons (list current-op precisions) final-list))
+  
+  `((dt "Operations")
+    (dd
+     ,@(for/list ([rec (in-list final-list)])
+         (define n (random 100000))
+         (match-define (list op precs) rec)
+         `(details
+           (summary "Operation " ,(~a op))
+           (canvas ([id ,(format "calls-~a" n)]
+                    [title "Histogram of precisions of the used operation"]))
+           (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string precs) ")"))))))
+
 
 (define (render-phase-sampling sampling)
   (define total (round (apply + (hash-values (cadr (car sampling))))))

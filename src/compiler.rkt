@@ -64,8 +64,19 @@
 
         (match-define (vector op extra-precision exponents-checkpoint) (car instr))
         (let ([extra-prec (unbox-prec extra-precision)])
-          (parameterize ([bf-precision (operator-precision extra-prec)])
-            (vector-set! vregs n (apply op srcs)))
+
+          (define init-time (current-inexact-milliseconds))
+          (define output
+            (parameterize ([bf-precision (operator-precision extra-prec)])
+              (apply op srcs)))
+          (vector-set! vregs n output)
+
+          (define total-time (- (current-inexact-milliseconds) init-time))
+          (timeline-push! 'mixsample
+                          (symbol->string (object-name op))
+                          (operator-precision extra-prec)
+                          total-time)
+          
           (when
               (member op (list ival-sin ival-cos ival-tan))
             (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
