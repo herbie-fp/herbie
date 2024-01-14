@@ -1,6 +1,6 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
-(require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt")
+(require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt" "../config.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -218,7 +218,7 @@
                        ,(format "calls-~a" n) "\", "
                        ,(jsexpr->string precs) ", "
                        ,(jsexpr->string time) ", "
-                       "{\"max\" : 10000})")))))))
+                       "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})")))))))
 
 
 (define (render-phase-sampling sampling)
