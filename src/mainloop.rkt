@@ -1,6 +1,7 @@
 #lang racket
 
 (require "syntax/rules.rkt"
+         "syntax/sugar.rkt"
          "syntax/syntax.rkt"
          "syntax/types.rkt"
          "core/alt-table.rkt"
@@ -332,7 +333,7 @@
   (rollback-improve!)
   (define repr (get-representation precision))
 
-  (define original-points (setup-context! vars (or specification prog) precondition repr))
+  (define original-points (setup-context! vars (prog->spec (or specification prog)) (prog->spec precondition) repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
 (define (run-improve! initial specification context pcontext)
