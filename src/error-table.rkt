@@ -283,7 +283,6 @@
          (define arg-val (hash-ref exacts-hash arg))
          (define cond-num (bfabs (bf/ 1.bf
                                       (bf subexpr-val))))
-         ;(define cond-num (abs (/ 1 subexpr-val)))
          (define arg-oflow? (overflow? arg))
          (define arg-uflow? (underflow? arg))
          (cond
@@ -307,7 +306,7 @@
         
         [(list (or 'exp.f64 'exp.f32) arg)
          #:when (list? arg)
-b         (define arg-val (hash-ref exacts-hash arg))
+         (define arg-val (hash-ref exacts-hash arg))
          
          (cond
            ; Condition Number Hallucination:
@@ -365,9 +364,6 @@ b         (define arg-val (hash-ref exacts-hash arg))
                                     (bf- 1.bf
                                          (bf* x.bf x.bf)))
                                    (bf subexpr-val)))))
-         #;(define cond_x (abs (/ x
-                                  (* (sqrt (- 1 (* x x)))
-                                     subexpr-val))))
          
          (cond
            ; Condition number hallucinations:
@@ -394,9 +390,6 @@ b         (define arg-val (hash-ref exacts-hash arg))
                                     (bf- 1.bf
                                          (bf* x.bf x.bf)))
                                    (bf subexpr-val)))))
-         #;(define cond_x (abs (/ x
-                                  (* (sqrt (- 1 (* x x)))
-                                     subexpr-val))))
          
          (cond
            ; Condition Number hallucinations:

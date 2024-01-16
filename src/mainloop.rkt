@@ -356,7 +356,7 @@
   (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
 
   (for ([(subexpr pset) (in-dict pcount-hash)])
-    (define tset (if (hash-has-key? tcount-hash subexpr) (hash-ref tcount-hash subexpr) '()))
+    (define tset (hash-ref tcount-hash subexpr '()))
     (define opred (set-subtract pset tset))
     (define upred (set-subtract tset pset))
     (timeline-push! 'fperrors
