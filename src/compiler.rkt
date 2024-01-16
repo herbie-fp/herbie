@@ -123,7 +123,8 @@
   (vector-set!      ; set working precision of the first operation
    (car (vector-ref ivec (- (vector-length ivec) 1)))
    1
-   (box (+ (*tuning-final-output-prec*) (* (- (*sampling-iteration*) 1) 256))))
+   (box (+ (*tuning-final-output-prec*) (* (- (* (*sampling-iteration*) 2) 1) 256)))) ; 1*256, 3*256, 5*256, 7*256
+  
 
   ;(printf "\niteration #~a\n" (*sampling-iteration*))
   ;(printf "working-prec=~a\n" (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1))

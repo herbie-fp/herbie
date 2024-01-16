@@ -131,7 +131,7 @@
     (define precision (if
                        (zero? iter)
                        (*starting-prec*)
-                       (+ (*tuning-final-output-prec*) (* (- iter 1) 256))))
+                       (+ (*tuning-final-output-prec*) (* (- (* (*sampling-iteration*) 2) 1) 256)))) ; 1*256, 3*256, 5*256, 7*256))
     (define iter* (+ 1 iter))
     (cond
      [err

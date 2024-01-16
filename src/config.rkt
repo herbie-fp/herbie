@@ -93,7 +93,7 @@
 (define *sampling-iteration* (make-parameter 0))
 (define *use-mixed-precision* (make-parameter #f))
 (define *tuning-final-output-prec* (make-parameter 53)) ; precision of the final output when tuning
-(define *max-sampling-iterations* (make-parameter 5))
+(define *max-sampling-iterations* (make-parameter 10))
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
