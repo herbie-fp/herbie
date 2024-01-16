@@ -8,11 +8,11 @@
 
 ;; Function calculates a precision for the operation
 ;;    with respect to the given extra-precision (exponents from a previous run)
-(define (operator-precision extra-precision)
+(define (operator-precision working-prec extra-precision)
   (min (*max-mpfr-prec*)
        (+ extra-precision
           (*ground-truth-extra-bits*)
-          (bf-precision))))
+          working-prec)))
 
 (define (true-exponent x)
   (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
@@ -38,15 +38,16 @@
   (define vregs (make-vector vreg-count))
   (if (equal? name 'ival)
       (λ args
-        (if (or
-             (equal? (bf-precision) (*starting-prec*))
-             (equal? (bf-precision) (*analyze-prec*)))
-            ;; remove all the exponent values we assigned previously when a new point comes
-            (for ([instr (in-vector ivec)])
-              (set-box! (vector-ref (car instr) 2) 0)
-              (set-box! (vector-ref (car instr) 1) 0))
-            ;; backward pass
-            (backward-pass ivec varc))
+        (when (*use-mixed-precision*)
+            ;; remove all the precision values we assigned previously when a new point comes
+            (if (equal? (*sampling-iteration*) 0)
+                (for ([instr (in-vector ivec)])
+                  (match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
+                  (set-box! working-precision (*starting-prec*))
+                  (set-box! extra-precision 0)
+                  (set-box! exponents-checkpoint 0))
+                ;; backward pass
+                (backward-pass ivec varc)))
       
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
@@ -55,45 +56,50 @@
             (for/list ([idx (in-list (cdr instr))])
               (vector-ref vregs idx)))
 
-          (match-define (vector op extra-precision exponents-checkpoint) (car instr))
-          (let ([extra-prec (unbox extra-precision)])
+          (match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
+          (let ([extra-prec (unbox extra-precision)]
+                [working-prec (unbox working-precision)])
           
             (define init-time (current-inexact-milliseconds))
           
             (define output
-              (parameterize ([bf-precision (operator-precision extra-prec)])
+              (parameterize ([bf-precision
+                              (if (*use-mixed-precision*)
+                                  (operator-precision working-prec extra-prec)
+                                  (bf-precision))])
                 (apply op srcs)))
             (vector-set! vregs n output)
             
             (define total-time (- (current-inexact-milliseconds) init-time))
             (timeline-push! 'mixsample
                             (symbol->string (object-name op))
-                            (if (zero? extra-prec)
-                                (bf-precision)
-                                (operator-precision extra-prec))
+                            (if (*use-mixed-precision*)
+                                (operator-precision working-prec extra-prec)
+                                (bf-precision))
                             total-time)
-
-            (cond
-              [(equal? op ival-sub)
-               (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
-               (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
-               (define output-exponents ((monotonic->ival true-exponent) output))
+            
+            (when (*use-mixed-precision*)
+              (cond
+                [(equal? op ival-sub)
+                 (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
+                 (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
+                 (define output-exponents ((monotonic->ival true-exponent) output))
            
-               (set-box! exponents-checkpoint
-                         (max 0
-                              (match* ((>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
-                                       (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
-                                [(#f #f) 0] ; no extra precision
-                                [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
-                                              (- (ival-hi x-exponents) (ival-hi output-exponents)))]
-                                [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]
-                                [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]
+                 (set-box! exponents-checkpoint
+                           (max 0
+                                (match* ((>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
+                                         (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
+                                  [(#f #f) 0] ; no extra precision
+                                  [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
+                                                (- (ival-hi x-exponents) (ival-hi output-exponents)))]
+                                  [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]
+                                  [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]
           
-              [(member op (list ival-sin ival-cos ival-tan))
-               (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                         (max 0
-                              (true-exponent (ival-lo (car srcs)))
-                              (true-exponent (ival-hi (car srcs)))))])))
+                [(member op (list ival-sin ival-cos ival-tan))
+                 (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+                           (max 0
+                                (true-exponent (ival-lo (car srcs)))
+                                (true-exponent (ival-hi (car srcs)))))]))))
 
         (for/list ([root (in-list roots)])
           (vector-ref vregs root)))
@@ -114,16 +120,29 @@
 ;; It sets extra-precision of every operation (and only operation) as formula:
 ;; (+ 'extra-precision required for the parent' 'exponent-checkpoint value of the parent')
 (define (backward-pass ivec varc)
+  (vector-set!      ; set working precision of the first operation
+   (car (vector-ref ivec (- (vector-length ivec) 1)))
+   1
+   (box (+ (*tuning-final-output-prec*) (* (- (*sampling-iteration*) 1) 256))))
+
+  ;(printf "\niteration #~a\n" (*sampling-iteration*))
+  ;(printf "working-prec=~a\n" (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1))
+  ;(printf "Before~a\n" ivec)
+  
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) 0 -1)]) ; go over operations top-down
     (define tail-registers (rest instr))
     (for ([idx (in-list tail-registers)])                         
       (let ([tail-index (- idx varc)]) ; index of the op's child within ivec
         (when (> tail-index 0)         ; if the child is not a variable
-          (match-define (vector op extra-prec exponents) (car instr))
-          (vector-set!                        ; set extra-precision that is needed
-           (car (vector-ref ivec tail-index)) ; child instruction
-           1                                  ; extra-precision position within the child instruction
-           (box (+ (unbox extra-prec) (unbox exponents)))))))))
+          ; parent
+          (match-define (vector op working-prec extra-prec exponents) (car instr))
+          ; child
+          (match-define (vector op* workig-prec* extra-prec* exponents*) (car (vector-ref ivec tail-index)))
+          (set-box! extra-prec* (+ (unbox extra-prec) (unbox exponents)))
+          
+          (set-box! workig-prec* (+ (unbox working-prec) (*ground-truth-extra-bits*)))))))
+  #;(printf "After~a\n" ivec))
+
 
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
@@ -152,15 +171,15 @@
 
       (define expr
         (match prog
-          [(? number?) (list (vector (const (input->value prog type)) (box 0) (box 0)))]
+          [(? number?) (list (vector (const (input->value prog type)) (box 0) (box 0) (box 0)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list (vector if-proc (box 0) (box 0))
+           (list (vector if-proc (box 0) (box 0) (box 0))
                  (munge-ival c cond-type)
                  (munge-ival t type)
                  (munge-ival f type))]
           [(list op args ...)
-           (cons (vector (op->proc op) (box 0) (box 0))
+           (cons (vector (op->proc op) (box 0) (box 0) (box 0))
                     (map munge-ival
                          args
                          (op->itypes op)))]

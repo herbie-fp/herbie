@@ -90,6 +90,11 @@
 (define *analyze-prec* (make-parameter 128))
 (define *ground-truth-extra-bits* (make-parameter 20))
 
+(define *sampling-iteration* (make-parameter 0))
+(define *use-mixed-precision* (make-parameter #f))
+(define *tuning-final-output-prec* (make-parameter 53)) ; precision of the final output when tuning
+(define *max-sampling-iterations* (make-parameter 5))
+
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
 (define *proof-max-length* (make-parameter 200))

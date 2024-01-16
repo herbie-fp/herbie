@@ -120,11 +120,18 @@
     (set! start now))
   log!)
 
-(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
-  (let loop ([precision precision])
-    (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
+(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)] [iter 0])
+  (let loop (#;[precision precision] [iter iter])
+    (define exs (parameterize (#;[bf-precision precision]
+                               [*use-mixed-precision* #t]
+                               [*sampling-iteration* iter]) (apply fn pt)))
     (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
-    (define precision* (exact-floor (* precision 2)))
+    ;(define precision* (exact-floor (* precision 2)))
+    (define precision (if
+                       (zero? iter)
+                       (*starting-prec*)
+                       (+ (*tuning-final-output-prec*) (* (- iter 1) 256))))
+    (define iter* (+ 1 iter))
     (cond
      [err
       (values err precision +nan.0)]
@@ -133,10 +140,12 @@
       (ival-lo (is-infinite-interval repr (apply ival-or exs))))
       (values (if infinite? 'infinite 'valid) precision exs)
      ]
-     [(> precision* (*max-mpfr-prec*))
+     #;[(> precision* (*max-mpfr-prec*))
+      (values 'exit precision +nan.0)]
+     [(> iter* (*max-sampling-iterations*))
       (values 'exit precision +nan.0)]
      [else
-      (loop precision*)])))
+      (loop #;precision* iter*)])))
 
 (define (is-infinite-interval repr interval)
   (define <-bf (representation-bf->repr repr))
