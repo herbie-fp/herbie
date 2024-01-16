@@ -1,6 +1,6 @@
 #lang racket
 
-(require "cost.rkt" "programs.rkt")
+(require "platform.rkt")
 (provide (struct-out alt) make-alt alt? alt-expr
          alt-add-event *start-prog* *all-alts*
          alt-cost alt-equal? alt-map alt-add-preprocessing
@@ -32,6 +32,7 @@
   (alt (alt-expr altn) 'add-preprocessing (list altn) preprocessing))
 
 (define (alt-cost altn repr)
+  (define expr-cost (platform-cost-proc (*active-platform*)))
   (expr-cost (alt-expr altn) repr))
 
 (define (alt-map f altn)

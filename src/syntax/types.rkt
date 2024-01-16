@@ -3,8 +3,8 @@
 (require "../errors.rkt")
 
 (provide type-name? (struct-out representation) get-representation
-         (struct-out context) *context* context-extend context-lookup
-         *needed-reprs*)
+         (struct-out context) *context* context-extend context-lookup)
+
 (module+ internals
   (provide define-type define-representation
            register-generator! register-representation! register-representation-alias!))
@@ -70,7 +70,8 @@
 (define (get-representation name)
   (or (hash-ref representations name #f)
       (and (generate-repr name) (hash-ref representations name #f))
-      (raise-herbie-error "Could not find support for ~a representation" name)))
+      (raise-herbie-error "Could not find support for ~a representation: ~a" name
+                          (string-join (map ~s (hash-keys representations)) ", "))))
 
 ;; Registers a representation that can be invoked with ':precision <name>'.
 ;; Creates a new representation with the given traits and associates it
@@ -98,8 +99,8 @@
 
 (struct context (vars repr var-reprs) #:transparent)
 
+;; Current context
 (define *context* (make-parameter #f))
-(define *needed-reprs* (make-parameter '()))
 
 (define (context-extend ctx var repr)
   (struct-copy context ctx

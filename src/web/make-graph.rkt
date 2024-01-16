@@ -5,7 +5,7 @@
                           [core-common-subexpr-elim core-cse]))
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../syntax/types.rkt" "../cost.rkt"
+         "../alternative.rkt" "../syntax/types.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
          "common.rkt" "history.rkt" "../syntax/sugar.rkt" "timeline.rkt")
 
