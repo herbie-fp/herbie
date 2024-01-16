@@ -120,6 +120,7 @@
 (define-timeline time #:custom +)
 
 (define-timeline method [method])
+(define-timeline mixsample [function false] [precision false] [time +])
 (define-timeline rules [rule false] [count +])
 (define-timeline times [input false] [time +])
 (define-timeline series [expr false] [var false] [transform false] [time +])

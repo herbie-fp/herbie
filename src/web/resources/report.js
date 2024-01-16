@@ -489,6 +489,77 @@ function makelabel(i, base, factor) {
     return num / den;
 }
 
+function histogram2D(id, xdata, ydata, options) {
+    var width = options?.width ?? 676;
+    var height = options?.height ?? 60;
+    var margin = 5;
+    var labels = 10;
+    var ticks = 5;
+    var bucketnum = options?.buckets ?? 25;
+    var bucketwidth = Math.round(width / bucketnum);
+
+    var proportional = options?.proportional ?? true;
+
+    var canvas = document.getElementById(id);
+    if (xdata.length == 0 || xdata.length != ydata.length) { return canvas.remove(); } // Early exit
+
+    canvas.setAttribute("width", margin + width + margin + "px");
+    canvas.setAttribute("height", labels + margin + height + ticks + margin + labels + "px");
+    var ctx = canvas.getContext("2d");
+      
+    ctx.beginPath();
+    ctx.strokeStyle = "black";
+    ctx.moveTo(margin, labels + margin + height);
+    ctx.lineTo(margin + width, labels + margin + height);
+    ctx.stroke();
+    
+    var xma = options?.max ?? Math.max.apply(null, xdata);
+      
+    var buckets = Array(bucketnum);
+    buckets.fill(0);
+    for (var i = 0; i < xdata.length; i++) {
+        var j = Math.floor(xdata[i] / xma * buckets.length);
+        var x = proportional ? xdata[i] : 1;
+        buckets[Math.min(j, buckets.length-1)] += ydata[i];
+    }
+    var yma = Math.max.apply(null, buckets);
+    
+    ctx.fillStyle = "rgba(0, 0, 0, .2)";
+    for (var i = 0; i < buckets.length; i++) {
+        ctx.fillRect(margin + i/buckets.length*width, labels + margin + height, width/buckets.length, -height*buckets[i]/yma);
+    }
+
+    ctx.fillStyle = "black";
+    ctx.textBaseline = "bottom";
+    ctx.textAlign = "center";
+    for (var i = 0; i < buckets.length; i++) {
+        if (buckets[i] == 0) continue;
+        ctx.fillText(Math.round(buckets[i]), margin + (i + .5)/buckets.length * width, labels + height*(1 - buckets[i]/yma));
+    }
+    
+    ctx.textBaseline = "top";
+    var base = Math.round(Math.log10(xma)) - 1
+    var step = Math.pow(10, base);
+
+    var factor;
+    if (xma / step > 20) factor = +1;
+    else if (xma / step < 10) factor = -1;
+    else factor = 0;
+
+    step *= Math.pow(2, factor);
+
+    for (var i = 0; i < 10 * Math.sqrt(10); i++) {
+        var pos = i * step;
+        if (pos > xma) break;
+        ctx.beginPath();
+        ctx.moveTo(pos / xma * width + margin, labels + margin + height);
+        ctx.lineTo(pos / xma * width + margin, labels + margin + height + ticks);
+        var label = makelabel(i, base, factor);
+        ctx.fillText(label, pos / xma * width + margin, labels + margin + height + ticks + margin);
+        ctx.stroke();
+    }
+}
+
 function histogram(id, data, options) {
     var width = options?.width ?? 676;
     var height = options?.height ?? 60;
