@@ -1,7 +1,8 @@
 #lang racket
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/syntax.rkt")
+         "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
+         "../syntax/syntax.rkt")
 
 (provide batch-localize-error local-error-as-tree compute-local-errors
          all-subexpressions-rev)
@@ -59,14 +60,14 @@
   (define subexprss
     (for/list ([expr (in-list exprs)])
       (all-subexpressions expr (context-repr ctx))))
-  (define prog-list
+  (define spec-list
     (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-      (car subexpr)))
+      (prog->spec (car subexpr))))
   (define ctx-list
     (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
       (struct-copy context ctx [repr (cdr subexpr)])))
 
-  (define subexprs-fn (eval-progs-real prog-list ctx-list))
+  (define subexprs-fn (eval-progs-real spec-list ctx-list))
 
   ; Mutable error hack, this is bad
   (define errs
