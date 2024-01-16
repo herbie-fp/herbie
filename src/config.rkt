@@ -95,6 +95,13 @@
 (define *tuning-final-output-prec* (make-parameter 53)) ; precision of the final output when tuning
 (define *max-sampling-iterations* (make-parameter 10))
 
+; iter 0: (*starting-prec*)
+; iter 1: (*tuning-final-output-prec*)
+; iter 2: (*tuning-final-output-prec*) + 512
+; iter 3: (*tuning-final-output-prec*) + 1024
+(define (*increment-precision*) (+ (*tuning-final-output-prec*) (* (- (*sampling-iteration*) 1) 512)))
+
+
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
 (define *proof-max-length* (make-parameter 200))

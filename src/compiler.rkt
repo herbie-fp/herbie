@@ -85,7 +85,7 @@
                  (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
                  (define output-exponents ((monotonic->ival true-exponent) output))
            
-                 (set-box! exponents-checkpoint
+                 (set-box! exponents-checkpoint ; maybe signbit should be also considered?
                            (max 0
                                 (match* ((>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
                                          (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents)))))
@@ -120,11 +120,8 @@
 ;; It sets extra-precision of every operation (and only operation) as formula:
 ;; (+ 'extra-precision required for the parent' 'exponent-checkpoint value of the parent')
 (define (backward-pass ivec varc)
-  (vector-set!      ; set working precision of the first operation
-   (car (vector-ref ivec (- (vector-length ivec) 1)))
-   1
-   (box (+ (*tuning-final-output-prec*) (* (- (* (*sampling-iteration*) 2) 1) 256)))) ; 1*256, 3*256, 5*256, 7*256
-  
+  (let ([root-working-prec (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1)])
+    (set-box! root-working-prec (*increment-precision*)))
 
   ;(printf "\niteration #~a\n" (*sampling-iteration*))
   ;(printf "working-prec=~a\n" (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1))
