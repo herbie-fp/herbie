@@ -1,13 +1,20 @@
 #lang racket
 
 (require
- "common.rkt"
+ ;; "common.rkt"
  "compiler.rkt"
  "ground-truth.rkt"
  "core/matcher.rkt"
  (submod "syntax/syntax.rkt" internals)
- submod "syntax/rules.rkt" internals)
+ (submod "syntax/rules.rkt" internals)
  "syntax/types.rkt")
+
+(module+ internals
+  (provide register-accelerator-operator!
+           register-accelerator-implementation!))
+
+(define (sym-append . args)
+  (string->symbol (apply string-append (map ~a args))))
 
 (struct accelerator-operator (body variables itypes otypes))
 
