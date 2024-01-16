@@ -2,7 +2,7 @@
 
 (require racket/set math/bigfloat)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt"
-         "common.rkt" "ground-truth.rkt")
+         "common.rkt" "ground-truth.rkt" "syntax/sugar.rkt")
 
 (provide actual-errors predicted-errors)
 
@@ -44,12 +44,15 @@
   (define subexprs
     (all-subexpressions-rev expr (context-repr ctx)))
   (define subexprs-list (map car subexprs))
+  (define spec-list (map prog->spec subexprs-list))
+
+  (eprintf "[subexprs-list] ~a\n" subexprs-list)
  
   (define ctx-list
     (for/list ([subexpr (in-list subexprs)])
       (struct-copy context ctx [repr (cdr subexpr)])))
  
-  (define subexprs-fn (eval-progs-real subexprs-list ctx-list))
+  (define subexprs-fn (eval-progs-real spec-list ctx-list))
  
   (define error-count-hash
     (make-hash (map (lambda (x) (cons x '()))
