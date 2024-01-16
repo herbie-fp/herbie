@@ -181,48 +181,6 @@
 (define (average . values)
   (/ (apply + values) (length values)))
 
-(define (render-phase-mixed-sampling mixsample)
-  (define current-op '())
-  (define precisions '())
-  (define timings '())
-  (define final-list '())
-  
-  (for/list ([rec (in-list (sort mixsample string<? #:key first))])
-    (match-define (list operation precision milliseconds) rec)
-    (cond
-      [(equal? operation current-op)
-       (set! precisions (cons precision precisions))
-       (set! timings (cons milliseconds timings))]
-      [(equal? current-op '())
-       (set! current-op operation)
-       (set! precisions (cons precision precisions))
-       (set! timings (cons milliseconds timings))]
-      [else
-       (set! final-list (cons (list current-op precisions timings) final-list))
-       (set! current-op operation)
-       (set! precisions '())
-       (set! precisions (cons precision precisions))
-       (set! timings '())
-       (set! timings (cons milliseconds timings))]))
-  (set! final-list (cons (list current-op precisions timings) final-list))
-  
-  `((dt "Precisions")
-    (dd (details
-         (summary "Click to see histograms")
-         ,@(for/list ([rec (in-list final-list)])
-             (define n (random 100000))
-             (match-define (list op precs time) rec)
-             `(details
-               (summary "Operation " ,(~a op) ", total time spent: " ,(~a (round (apply + time))) "ms")
-               (canvas ([id ,(format "calls-~a" n)]
-                        [title "Histogram of precisions of the used operation"]))
-               (script "histogram2D(\""
-                       ,(format "calls-~a" n) "\", "
-                       ,(jsexpr->string precs) ", "
-                       ,(jsexpr->string time) ", "
-                       "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})")))))))
-
-
 (define (render-phase-sampling sampling)
   (define total (round (apply + (hash-values (cadr (car sampling))))))
   (define fields
@@ -388,7 +346,7 @@
         (match-define (list op precs) rec)
         `(dd
           (details
-           (summary "Operation " ,(~a op))
+           (summary "" ,(~a op))
            (canvas ([id ,(format "calls-~a" n)]
                     [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
            (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string precs) ")"))))))
