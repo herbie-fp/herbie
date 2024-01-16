@@ -4,7 +4,7 @@
 (require "../common.rkt" "../compiler.rkt" "../float.rkt"
          "../ground-truth.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
-         (submod "../core/egg-herbie.rkt" internals))
+         "sugar.rkt" "../core/egg-herbie.rkt")
 
 (load-herbie-builtins)
 
@@ -37,7 +37,10 @@
   (define pre (dict-ref *conditions* name '(TRUE)))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
-      (cdr (sample-points pre (list p1 p2) (list ctx ctx)))))
+      (cdr (sample-points
+            (prog->spec pre)
+            (list (prog->spec p1) (prog->spec p2))
+            (list ctx ctx)))))
 
   (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
     (with-check-info* (map make-check-info fv pt)
@@ -64,7 +67,6 @@
       (check-equal? v1 v2))))
 
 (module+ main
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
   (num-test-points (* 100 (num-test-points)))
   (command-line
@@ -78,16 +80,15 @@
         (check-rule-fp-safe rule*))))))
 
 (module+ test
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
 
-  (for* ([test-ruleset (*rulesets*)]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
          [test-rule* (rule->impl-rules test-rule)])
     (test-case (~a (rule-name test-rule*))
       (check-rule-correct test-rule*)))
 
-  (for* ([test-ruleset (*rulesets*)]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
          [test-rule* (rule->impl-rules test-rule)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule*))

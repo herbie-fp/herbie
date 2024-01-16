@@ -218,11 +218,21 @@
 ;; that evaluates the program on a single input of intervals
 ;; returning intervals.
 (define (compile-specs specs vars)
+  ; strangeness with specs: need to check for `repr-conv?` operators
+  ; normally we'd call `repr-conv?` from `src/syntax/syntax.rkt`
+  ; but it will check the entire table of operators every call,
+  ; so greedily compute the set ahead of time
+  (define repr-convs (operator-all-impls 'cast))
+  (define (real-op op)
+    (if (member op repr-convs)
+        (impl->operator op)
+        op))
+
   (define compile
     (make-compiler 'ival
                    #:input->value (lambda (prog _) (ival (bf prog)))
-                   #:op->procedure (lambda (op) (operator-info op 'ival))
-                   #:op->itypes (lambda (op) (operator-info op 'itype))
+                   #:op->procedure (lambda (op) (operator-info (real-op op) 'ival))
+                   #:op->itypes (lambda (op) (operator-info (real-op op) 'itype))
                    #:if-procedure ival-if
                    #:cond-type 'bool))
   (compile specs vars 'real))

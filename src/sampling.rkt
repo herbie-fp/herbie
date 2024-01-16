@@ -11,7 +11,7 @@
 
 (define (precondition->hyperrects pre ctx)
   ;; FPBench needs unparameterized operators
-  (define range-table (condition->range-table (prog->spec pre)))
+  (define range-table (condition->range-table pre))
   (apply cartesian-product
          (for/list ([var-name (context-vars ctx)] [var-repr (context-var-reprs ctx)])
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))
@@ -29,8 +29,9 @@
 
   (define repr (get-representation 'binary64))
   (check-equal? (precondition->hyperrects
-                 '(and (and (<=.f64 0 a) (<=.f64 a 1))
-                       (and (<=.f64 0 b) (<=.f64 b 1)))
+                 (prog->spec
+                  '(and (and (<=.f64 0 a) (<=.f64 a 1))
+                        (and (<=.f64 0 b) (<=.f64 b 1))))
                  (context '(a b) repr (list repr repr)))
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
 

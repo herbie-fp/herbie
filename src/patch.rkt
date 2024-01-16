@@ -1,8 +1,20 @@
 #lang racket
 
-(require "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt" "syntax/sugar.rkt")
-(require "alternative.rkt" "common.rkt" "errors.rkt" "timeline.rkt")
-(require "programs.rkt" "conversions.rkt" "core/matcher.rkt" "core/taylor.rkt" "core/simplify.rkt" "core/egg-herbie.rkt")
+(require "syntax/rules.rkt"
+         "syntax/sugar.rkt"
+         "syntax/syntax.rkt"
+         "syntax/types.rkt"
+         "core/egg-herbie.rkt"
+         "core/matcher.rkt"
+         "core/simplify.rkt"
+         "core/taylor.rkt"
+         "alternative.rkt"
+         "common.rkt"
+         "conversions.rkt"
+         "errors.rkt"
+         "platform.rkt"
+         "programs.rkt"
+         "timeline.rkt")
 
 (provide
   (contract-out
@@ -129,8 +141,8 @@
     (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) (^queued^)))
 
     ;; partition the rules
-    (define (reprchange? r) (expr-contains? (rule-output r) rewrite-repr-op?))
-    (define-values (reprchange-rules normal-rules) (partition reprchange? (*rules*)))
+    (define normal-rules (*rules*))
+    (define reprchange-rules (platform-reprchange-rules (*active-platform*)))
 
     ;; get subexprs and locations
     (define real-exprs (map alt-expr real-alts))
