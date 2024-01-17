@@ -116,12 +116,21 @@
         (for/list ([root (in-list roots)])
           (vector-ref vregs root)))))
 
+
+(define (increment-precision)
+  (match (*sampling-iteration*)
+        [1 256]
+        [2 1024]
+        [3 1024]
+        [4 4096]
+        [5 8192]))
+
 ;; Function does backward-pass
 ;; It sets extra-precision of every operation (and only operation) as formula:
 ;; (+ 'extra-precision required for the parent' 'exponent-checkpoint value of the parent')
 (define (backward-pass ivec varc)
   (let ([root-working-prec (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1)])
-    (set-box! root-working-prec (*increment-precision*)))
+    (set-box! root-working-prec (increment-precision)))
 
   ;(printf "\niteration #~a\n" (*sampling-iteration*))
   ;(printf "working-prec=~a\n" (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1))
