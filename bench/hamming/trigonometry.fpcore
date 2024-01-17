@@ -1,15 +1,15 @@
 ; -*- mode: scheme -*-
 
-; All the below function are subsets of the rearrangement functions but as per its name, it specifically deals with
-; trigonometric functions. It specifically deals with those functions that involve a subtraction of two functions
-; that at a very large value cause cancellation and need to be rewritten to ensure floating point accuracy based on
+; Most of the below functions (except sintan) are subsets of the rearrangement functions. However, these
+; are specific to trigonometric functions as it deals with a subtraction of two trig functions that at
+; a very large value cause cancellation and need to be rewritten to ensure floating point accuracy based on
 ; their nature of expression (more in specific detail below).
 
 ; Almost all expressions follow this precondition : -1e4 <= x <= 1e4 and 1e-16 * (abs x) < eps < (abs x)
 ; Our reasoning for this stems from Hamming's explanation that eps is small with respect to x, hence for 
 ; getting the highest accuracy we are bounding it's lowest value to be 1e-16 times (abs x). We don't
 ; query anything below because we don't want (x+eps) ~ x. And we also want values of x that would be usable
-; and relevant for most trigonometric queries as well as those that are the most sampled in HErbie
+; and relevant for most trigonometric queries as well as those that are the most sampled in Herbie
 
 
 ; 2sin involves the difference of two sine functions. According to the sum-to-product trigonometric identity,
@@ -82,8 +82,8 @@
 ; the best answer for that range.
 (FPCore (eps)
  :name "sintan (problem 3.4.5)"
- :pre (and (<= -1 eps) (<= eps 1))
+ :pre (and (<= -0.4 eps) (<= eps 0.4))
  :herbie-target
- (+ -0.5 (/ (* 9 (pow eps 2)) 40) (/ (* -27 (pow eps 4)) 2800) (/ (* 27 (pow eps 6)) 112000))
+ (+ -0.5 (/ (* 9 (* eps eps)) 40) (/ (* -27 (* eps eps eps eps)) 2800) (/ (* 27 (* eps eps eps eps eps eps)) 112000))
  
  (/ (- eps (sin eps)) (- eps (tan eps))))

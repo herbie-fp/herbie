@@ -47,30 +47,42 @@
  :name "2cbrt (problem 3.3.4)"
  :pre (and (> x 1) (< x 1e+308))
  :herbie-target
- (/ 1 (+ (pow (cbrt (+ x 1)) 2) (* (cbrt x) (cbrt (+ x 1))) (pow (cbrt x) 2)))
+ (/ 1 (+ (* (cbrt (+ x 1)) (cbrt (+ x 1))) (* (cbrt x) (cbrt (+ x 1))) (* (cbrt x) (cbrt x))))
  
  (- (cbrt (+ x 1)) (cbrt x)))
 
-; This is a slightly unique rewrite because it involves the use of Taylor series, as Hamming gave this as an
-; exercise with no real hint on how to approach this.
+; This is a slightly unique rewrite because it involves the use of the libm function log1p 
+; as Hamming gave this as an exercise with no real hint on how to approach this.
 ; For the precondition we want large values of N as described by Hamming. Hence, we chose the range for reasonable
 ; values for which this could be queried and have relevant sampling and still being described as a large enough N.
-; Talking about the else case first, thsi is simply a log-rewrite  which is (log(/ a b)) = (- (log a) (log b))
+; log1p(x) simply returns log(1+x) but computed in a way that is accurate even when the value of number is close to zero.
+; Hence, after rearranging the expression using log-rewrite to get us (log (/ (+ N 1) N)) = (log (+ 1 (/ 1 N))), we can
+; find the term to be used in place of x to call log1p
+(FPCore (N)
+ :name "2log (problem 3.3.6)"
+ :pre (and (> N 1) (< N 1e+40))
+ :herbie-target
+ (log1p (/ 1 N))
+
+ (- (log (+ N 1)) (log N)))
+
+; Commented out explanation for platforms
+; Talking about the else case first, this is simply a log-rewrite which is (log(/ a b)) = (- (log a) (log b))
 ; with N being cancelled in the numerator and denominator.
 ; Now for the reason for the if-case and the 1e+3 value is because while on sampling in Herbie reports and Odyssey,
 ; the sampled values for this equation is extremely inaccurate after this range. There could be a possible overflow or 
 ; another reason but we have consistently noted that this exists. Hence, we chose the next best case
 ; which is a Taylor series until the 4-th power, preventing too much of computation power while giving
 ; the best answer for that range.
-(FPCore (N)
- :name "2log (problem 3.3.6)"
- :pre (and (> N 1) (< N 1e+40))
- :herbie-target
- (if (>= N 1e+3)
-    (+ (/ 1 N) (/ -1 (* 2 (pow N 2))) (/ 1 (* 3 (pow N 3))) (/ -1 (* 4 (pow N 4))))
-    (log (+ 1 (/ 1 N))))
- 
- (- (log (+ N 1)) (log N)))
+;(FPCore (N)
+; :name "2log (problem 3.3.6)"
+; :pre (and (> N 1) (< N 1e+40))
+; :herbie-target
+; (if (>= N 1e+3)
+;    (+ (/ 1 N) (/ -1 (* 2 (pow N 2))) (/ 1 (* 3 (pow N 3))) (/ -1 (* 4 (pow N 4))))
+;    (log (+ 1 (/ 1 N))))
+; (- (log (+ N 1)) (log N)))
+
 
 (FPCore (x)
  :name "exp2 (problem 3.3.7)"
@@ -79,6 +91,6 @@
  ; Bounded x on the extremes  by +/- 710 to avoid sampling infinite outputs
  ; Target comes from Hamming's textbook, page 46
  :herbie-target
- (* 4 (pow (sinh (/ x 2)) 2))
+ (* 4 (* (sinh (/ x 2)) (sinh (/ x 2))))
 
  (+ (- (exp x) 2) (exp (- x))))
