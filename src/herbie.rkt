@@ -55,7 +55,7 @@
 
   (define threads #f)
   (define report-note #f)
-  (define improve-lang #f)
+  (define improve-lang "fpcore")
   (define timeout-set? #f)
 
   (define seed (random 1 (expt 2 31)))

@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in fpbench core->c))
+(require (only-in fpbench core->c c-header))
 (require "syntax/read.rkt"
          "syntax/types.rkt"
          "web/common.rkt"
@@ -10,6 +10,14 @@
          "sandbox.rkt")
 
 (provide run-improve)
+
+(define ((write-header! lang) p)
+  (match lang
+    [(or "fpcore" #f)
+     (void)]
+    ["c"
+     (fprintf p (c-header))
+     (newline p)]))
 
 (define ((write-comment! lang) p fmt . args)
   (match lang
@@ -24,6 +32,10 @@
 
 (define ((write-test! lang) p test)
   (match lang
+    [(or "fpcore" #f)
+     (fprintf p "#|\n")
+     (fprintf p (render-fpcore test))
+     (fprintf p "\n|#\n")]
     ["c"
      (fprintf p "/*\n")
      (fprintf p (render-fpcore test))
@@ -34,21 +46,25 @@
     [(or "fpcore" #f)
      (write (unparse-result res) p)]
     ["c"
-     (define name (table-row-name res))
-     (define vars (table-row-vars res))
-     (define repr (get-representation (table-row-precision res)))
-     (define var-reprs (map (curryr cons repr) vars))
-     (define ctx (context vars repr (map (const repr) vars)))
-     (define core (program->fpcore (table-row-output res) ctx))
-     (fprintf p (core->c core name))]))
+     (when (table-row-output res)
+       (define name (table-row-name res))
+       (define vars (table-row-vars res))
+       (define repr (get-representation (table-row-precision res)))
+       (define ctx (context vars repr (map (const repr) vars)))
+       (define core (program->fpcore (table-row-output res) ctx))
+       (fprintf p (core->c core name)))]))
 
 (define (print-outputs tests results p
                        #:seed [seed #f]
                        #:lang [lang #f])
+  (define header! (write-header! lang))
   (define comment! (write-comment! lang))
   (define test! (write-test! lang))
   (define result! (write-result! lang))
+
   (when seed (comment! p "seed: ~a\n" seed))
+  (header! p)
+
   (for ([res results] [test tests] #:when res)
     (define name (table-row-name res))
     (match (table-row-status res)
