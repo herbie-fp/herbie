@@ -1,0 +1,40 @@
+; -*- mode: scheme -*-
+
+(FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
+  :herbie-target
+  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+
+;(- (six (+ x eps)) (sin x)) = (+ (* (sin x) (cos eps)) (* (cos x) (sin eps)) -(sin x))
+; On rearrangement, = (+ (* (cos x) (sin eps)) (* (sin x) (- (cos eps) 1))) 
+(FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= -1e308 x) (<= x INFINITY) (< -1e308 eps) (< eps INFINITY))
+  :herbie-target
+  (+ (* (sin eps) (cos x)) (* (sin x) (- (cos eps) 1.0)))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+
+; (sin(y) * cos(x)) + (sin(x) * (cos(y) + -1.0))
+
+(FPCore (x eps)
+ :name "2cos (problem 3.3.5)"
+ :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
+ :herbie-target
+ (* -2 (sin (+ x (/ eps 2))) (sin (/ eps 2)))
+
+ (- (cos (+ x eps)) (cos x)))
+
+
+(FPCore (x eps)
+  :name "2cos (example 3.3.5)"
+  :pre (and (<= -1e308 x) (<= x INFINITY) (< -1e308 eps) (< eps INFINITY))
+  :herbie-target
+  (- (* (cos x) (- (cos eps) 1.0)) (* (sin eps) (sin x)))
+ 
+  (- (cos (+ x eps)) (cos x)))
