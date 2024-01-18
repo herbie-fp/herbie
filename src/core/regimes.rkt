@@ -185,7 +185,6 @@
   (define (make-vec-psum lst) 
     (partial-sums (list->vector lst)))
   (define vec-psums (vector-map make-vec-psum err-lsts-vec))
-  (define psums (vector->list vec-psums))
   (define can-split? (curry vector-ref (list->vector can-split-lst)))
 
   ;; Our intermediary data is a list of cse's,
@@ -205,7 +204,7 @@
               #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
-            (for ([cidx (in-naturals)] [psum (in-list psums)])
+            (for ([cidx (in-naturals)] [psum (in-vector vec-psums)])
               (let ([cost (- (vector-ref psum point-idx)
                              (vector-ref psum prev-split-idx))])
                 (when (or (not best) (< cost bcost))
@@ -231,7 +230,8 @@
                       (let ([cost (vector-ref cand-psums point-idx)])
                         (cse cost (list (si cand-idx (+ point-idx 1))))))
                    (range num-candidates)
-                   psums)))
+                   ;; TODO needs to be a list for some reason
+                   (vector->list vec-psums))))
       ;; Not sure how to format this
         (vector-set! output point-idx o)
           o)
