@@ -16,9 +16,7 @@
 
 (define (true-exponent x)
   (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
-  (if (or
-       (equal? -9223372036854775807 exp) ; 0.bf
-       (< 1000000000 exp))               ; overflow
+  (if (< 1000000000 exp)               ; overflow
        0
        exp))
 
@@ -59,9 +57,9 @@
           (match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
           (let ([extra-prec (unbox extra-precision)]
                 [working-prec (unbox working-precision)])
-          
+            
             (define init-time (current-inexact-milliseconds))
-          
+            
             (define output
               (parameterize ([bf-precision
                               (if (*use-mixed-precision*)
@@ -84,7 +82,10 @@
                  (define x-exponents ((monotonic->ival true-exponent) (first srcs)))
                  (define y-exponents ((monotonic->ival true-exponent) (second srcs)))
                  (define output-exponents ((monotonic->ival true-exponent) output))
-           
+                 (set! output-exponents ((monotonic->ival
+                                          (lambda (x) (if (equal? x -9223372036854775807) -300 0)))
+                                         output-exponents))
+                 
                  (set-box! exponents-checkpoint ; maybe signbit should be also considered?
                            (max 0
                                 (match* ((>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents))))
@@ -117,24 +118,19 @@
           (vector-ref vregs root)))))
 
 
-(define (increment-precision)
+(define (get-slack)
   (match (*sampling-iteration*)
-        [1 256]
-        [2 1024]
-        [3 2048]
-        [4 4096]
-        [5 8192]))
+        [1 (*ground-truth-extra-bits*)]
+        [2 256]
+        [3 512]
+        [4 1024]
+        [5 2048]))
 
 ;; Function does backward-pass
-;; It sets extra-precision of every operation (and only operation) as formula:
-;; (+ 'extra-precision required for the parent' 'exponent-checkpoint value of the parent')
 (define (backward-pass ivec varc)
   (let ([root-working-prec (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1)])
-    (set-box! root-working-prec (increment-precision)))
-
-  ;(printf "\niteration #~a\n" (*sampling-iteration*))
-  ;(printf "working-prec=~a\n" (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1))
-  ;(printf "Before~a\n" ivec)
+    (set-box! root-working-prec (*tuning-final-output-prec*)))
+  (define slack (get-slack))
   
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) 0 -1)]) ; go over operations top-down
     (define tail-registers (rest instr))
@@ -146,9 +142,7 @@
           ; child
           (match-define (vector op* workig-prec* extra-prec* exponents*) (car (vector-ref ivec tail-index)))
           (set-box! extra-prec* (+ (unbox extra-prec) (unbox exponents)))
-          
-          (set-box! workig-prec* (+ (unbox working-prec) (*ground-truth-extra-bits*)))))))
-  #;(printf "After~a\n" ivec))
+          (set-box! workig-prec* (+ slack (unbox working-prec))))))))
 
 
 ;; Translates a Herbie IR into an interpretable IR.
