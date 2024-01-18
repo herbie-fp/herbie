@@ -33,13 +33,15 @@
 (define ((write-test! lang) p test)
   (match lang
     [(or "fpcore" #f)
-     (fprintf p "#|\n")
-     (fprintf p (render-fpcore test))
-     (fprintf p "\n|#\n")]
+     (for ([line (string-split (render-fpcore test) "\n")])
+       (fprintf p ";; ")
+       (fprintf p line)
+       (newline p))]
     ["c"
-     (fprintf p "/*\n")
-     (fprintf p (render-fpcore test))
-     (fprintf p "\n*/\n")]))
+     (for ([line (string-split (render-fpcore test) "\n")])
+       (fprintf p "// ")
+       (fprintf p line)
+       (newline p))]))
 
 (define ((write-result! lang) p res)
   (match lang
@@ -81,7 +83,14 @@
        (test! p test)
        (result! p res)]
       [(? string?)
+       (match-define (list (list start-cost start-err) (list best-cost best-err) _ ...)
+                     (table-row-cost-accuracy res))
        (test! p test)
+       (comment! p "")
+       (comment! p "start error: ~a" start-err)
+       (comment! p "start cost: ~a" start-cost)
+       (comment! p "best error: ~a" best-err)
+       (comment! p "best cost: ~a" best-cost)
        (result! p res)])
     (newline p)))
 
