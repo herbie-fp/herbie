@@ -190,6 +190,8 @@
   ;; where each cse represents the optimal splitindices after however many passes
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
+  (define (when-cond entry)
+    (can-split? (si-pidx (car (cse-indices entry)))))
   (define (add-splitpoint sp-prev)
     (struct idk (cidx pidx) #:transparent)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
@@ -200,7 +202,7 @@
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
         (for ([prev-split-idx (in-range 0 point-idx)] 
               [prev-entry (in-vector sp-prev)]
-              #:when (can-split? (si-pidx (car (cse-indices prev-entry)))))
+              #:when (when-cond prev-entry))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector vec-psums)])
@@ -211,7 +213,7 @@
                   (set! best cidx))))
             (when (and (< (+ (cse-cost prev-entry) bcost) acost))
               (set! acost (+ (cse-cost prev-entry) bcost))
-              (set! aest (cse acost (vector (si best (+ point-idx 1))
+              (set! aest (cse acost (cons (si best (+ point-idx 1))
                                           (cse-indices prev-entry)))))))
         (vector-set! result point-idx aest)
         aest))
@@ -223,14 +225,13 @@
   (define (initial idk)
     (define output (make-vector (+ num-points)))
     (for ([point-idx (in-range num-points)])
-      (define o (argmin cse-cost
+      (define o (vector-argmin cse-cost
               ;; Consider all the candidates we could put in this region
-              (map (λ (cand-idx cand-psums)
+              (vector-map (λ (cand-idx cand-psums)
                       (let ([cost (vector-ref cand-psums point-idx)])
                         (cse cost (list (si cand-idx (+ point-idx 1))))))
-                   (range num-candidates)
-                   ;; TODO needs to be a list for some reason
-                   (vector->list vec-psums))))
+                   (list->vector (range num-candidates))
+                   vec-psums)))
       ;; Not sure how to format this
         (vector-set! output point-idx o)
           o)
