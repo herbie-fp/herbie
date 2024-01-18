@@ -13,14 +13,14 @@
          "alternative.rkt"
          "common.rkt"
          "conversions.rkt"
-         "error-table.rkt"
-         "ground-truth.rkt"     
+         "error-table.rkt"    
          "patch.rkt"
          "platform.rkt"
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"     
          "timeline.rkt"
+         "sampling.rkt"
          "soundiness.rkt")
 
 (provide (all-defined-out))
