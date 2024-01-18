@@ -17,7 +17,8 @@
            define-ruleset*
            register-ruleset!
            register-ruleset*!
-           *rulesets*))
+           *rulesets*
+           (struct-out rule)))
 
 ;; A rule represents a "find-and-replace" pattern where `input` and `output`
 ;; are patterns, `itypes` is a mapping from variable name to type

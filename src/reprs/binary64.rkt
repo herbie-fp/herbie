@@ -63,3 +63,12 @@
   [> >.f64 >]
   [<= <=.f64 <=]
   [>= >=.f64 >=])
+
+(register-accelerator-implementation!
+ 'reciprocal 'reciprocal.f64
+ (list (get-representation 'binary64)) (get-representation 'binary64)
+ (lambda (x)
+   (define x* (bf x))
+   (define y* (parameterize ([bf-precision 12])
+                (bf/ 1.bf x*)))
+   (bigfloat->flonum y*)))

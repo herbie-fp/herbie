@@ -42,7 +42,8 @@
           [(real real)
            (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
            exp exp2 expm1 fabs floor lgamma log log10 log2 log1p logb
-           rint round sin sinh sqrt tan tanh tgamma trunc)]
+           rint round sin sinh sqrt tan tanh tgamma trunc
+           reciprocal)]
           [(real real real)
            (atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
           [(real real real real)

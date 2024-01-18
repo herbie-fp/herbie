@@ -19,7 +19,8 @@
            register-operator-impl!
            define-operator
            register-operator!
-           register-conversion-generator!))
+           register-conversion-generator!
+           variable?))
 
 ;; Real operator: a pure mathematical operator specified by
 ;;  - (unique) name

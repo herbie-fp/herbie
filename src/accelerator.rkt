@@ -1,18 +1,24 @@
 #lang racket
 
 (require
- ;; "common.rkt"
+ math/bigfloat
+
  "compiler.rkt"
  "ground-truth.rkt"
- "core/matcher.rkt"
  (submod "syntax/syntax.rkt" internals)
  (submod "syntax/rules.rkt" internals)
  "syntax/types.rkt")
+
+(provide
+ register-accelerator-operator!
+ register-accelerator-implementation!
+ expand-accelerators)
 
 (module+ internals
   (provide register-accelerator-operator!
            register-accelerator-implementation!))
 
+;; This might have to stay, it's from common.rkt
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~a args))))
 
@@ -23,37 +29,38 @@
 (define (register-accelerator-operator!
          name body variables
          [itypes (make-list (length variables) 'real)] [otype 'real])
+  (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
+  (printf "Registereted accelerator operatator ~a\n" name)
   (hash-set! accelerator-operators
              name
              (accelerator-operator body variables itypes otype))
   (register-operator! name
                       itypes otype
-                      (list ('ival . (compile-spec body variables))))
+                      (list (cons 'ival (compile-spec body variables))))
   ;; TODO: Are the groups right now?
-  (register-ruleset*! name
-                      (list 'numerics 'simplify)
-                      (map cons variables itypes)
-                      (list (list define-name body (list* name variables))))
-  (register-ruleset*! name
-                      (list 'numerics 'simplify)
-                      (map cons variables itypes)
-                      (list (list undefine-name (list* name variables) body))))
+  (register-ruleset*! ruleset-name
+                     '(numerics simplify)
+                     (map cons variables itypes)
+                     `((,define-name ,body (,name ,@variables))
+                       (,undefine-name (,name ,@variables) ,body))))
 
 (define (register-accelerator-implementation! operator name
                                               itypes otype
                                               [implementation #f])
+  (printf "Registereted accelerator implementation ~a ~a\n" operator name)
   (match-define (accelerator-operator body variables _ _) (dict-ref accelerator-operators operator))
   (register-operator-impl!
    operator name
    itypes otype
    (list
-    ('fl . (or 
-            implementation
-            (compose first (eval-progs-real 
-                            (list body)
-                            (list (context variables otype itypes)))))))))
+    (cons 'fl
+          (or 
+           implementation
+           (compose first (eval-progs-real 
+                           (list body)
+                           (list (context variables otype itypes)))))))))
 
 ;; This is macro expansion!
 ;; TODO: Hygiene issues?
@@ -63,7 +70,7 @@
   (define undefine-rules
     (filter
      (compose
-      (curry set-member? (map sym-append '- 'undefine) (dict-keys accelerator-operators))
+      (curry set-member? (map (curryr sym-append '- 'undefine) (dict-keys accelerator-operators)))
       rule-name)
      rules))
   ;; Apply the first rule that matches top down. We can only be sure we have
@@ -71,7 +78,48 @@
   ;; other syntactic extensions.
   (let rewrite ([expression* expression])
     (match (or
-            (ormap (curryr rule-apply expression*) undefine-rules)
+            (let ([expression** (ormap (curryr rule-apply expression*) undefine-rules)])
+              (and expression** (car expression**)))
             expression*)
       [(list operator operands ...) (cons operator (map rewrite operands))]
       [_ expression*])))
+
+;; Temporarily copied to avoid cycles
+
+(define (merge-bindings binding1 binding2)
+  (and binding1
+       binding2
+       (let/ec quit
+         (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
+           (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
+
+(define (pattern-match pattern expr)
+  (match pattern
+   [(? number?)
+    (and (equal? pattern expr) '())]
+   [(? variable?)
+    (list (cons pattern expr))]
+   [(list phead _ ...)
+    (and (list? expr)
+         (equal? (car expr) phead)
+         (= (length expr) (length pattern))
+         (for/fold ([bindings '()])
+             ([pat (cdr pattern)] [subterm (cdr expr)])
+           (merge-bindings bindings (pattern-match pat subterm))))]))
+
+(define (pattern-substitute pattern bindings)
+  ; pattern binding -> expr
+  (match pattern
+   [(? number?) pattern]
+   [(? variable?)
+    (dict-ref bindings pattern)]
+   [(list phead pargs ...)
+    (cons phead (map (curryr pattern-substitute bindings) pargs))]))
+
+(define (rule-apply rule expr)
+  (let ([bindings (pattern-match (rule-input rule) expr)])
+    (if bindings
+        (cons (pattern-substitute (rule-output rule) bindings) bindings)
+        #f)))
+
+(register-accelerator-operator! 'reciprocal '(/ 1 x) '(x))
