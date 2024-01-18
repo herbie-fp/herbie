@@ -122,7 +122,7 @@
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals*)] [prev splitvals*])
                                (</total prev val repr))))
-  (define split-indices (err-lsts->split-indices (list->vector bit-err-lsts*) can-split?))
+  (define split-indices (err-lsts->split-indices (list->vector bit-err-lsts*) (list->vector can-split?)))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) (~a (representation-name repr)))
@@ -173,7 +173,7 @@
      (and (> pidx 0)) (list-ref can-split? pidx))
    (= (si-pidx (last split-indices)) (length can-split?))))
 
-(define (err-lsts->split-indices err-lsts-vec can-split-lst)
+(define (err-lsts->split-indices err-lsts-vec can-split-vec)
   (define err-lsts (vector->list err-lsts-vec))
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
@@ -185,8 +185,7 @@
   (define (make-vec-psum lst) 
     (partial-sums (list->vector lst)))
   (define vec-psums (vector-map make-vec-psum err-lsts-vec))
-  (define can-split? (curry vector-ref (list->vector can-split-lst)))
-
+  (define can-split? (curry vector-ref can-split-vec))
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
   ;; if we only consider indices to the left of that cse's index.
