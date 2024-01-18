@@ -88,6 +88,7 @@
 (define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
 (define *ground-truth-extra-bits* (make-parameter 20))
+(define *use-mixed-sampling* (make-parameter #f))
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))

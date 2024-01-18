@@ -51,7 +51,8 @@
   (if (equal? name 'ival)
     (λ args
       ;; remove all the exponent values we assigned previously when a new point comes
-      (when (equal? (bf-precision) (*starting-prec*))
+      (when (and (*use-mixed-sampling*)
+                 (equal? (bf-precision) (*starting-prec*)))
         (for ([instr (in-vector tuning-ivec)])
           (set-box! (vector-ref (car instr) 2) 0)))
     
@@ -64,21 +65,23 @@
 
         (match-define (vector op extra-precision exponents-checkpoint) (car instr))
         (let ([extra-prec (unbox-prec extra-precision)])
-
+          (define precision (if (*use-mixed-sampling*)
+                                (operator-precision extra-prec)
+                                (bf-precision)))
           (define init-time (current-inexact-milliseconds))
           (define output
-            (parameterize ([bf-precision (operator-precision extra-prec)])
+            (parameterize ([bf-precision precision])
               (apply op srcs)))
           (vector-set! vregs n output)
-
           (define total-time (- (current-inexact-milliseconds) init-time))
           (timeline-push! 'mixsample
                           (symbol->string (object-name op))
-                          (operator-precision extra-prec)
+                          precision
                           total-time)
-          
           (when
-              (member op (list ival-sin ival-cos ival-tan))
+              (and
+               (*use-mixed-sampling*)
+               (member op (list ival-sin ival-cos ival-tan)))
             (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
                       (+ extra-prec
                          (max 0
