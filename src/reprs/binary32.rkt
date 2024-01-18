@@ -73,4 +73,10 @@
 
 (register-accelerator-implementation!
  'reciprocal 'reciprocal.f32
- (list (get-representation 'binary32)) (get-representation 'binary32))
+ (list (get-representation 'binary32)) (get-representation 'binary32)
+ (lambda (x)
+   (define x* (bf x))
+   ;; TODO: What does precision need to be here?
+   (define y* (parameterize ([bf-precision 12])
+                (bf/ 1.bf x*)))
+   (bigfloat->flonum y*)))
