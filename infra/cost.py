@@ -9,6 +9,7 @@ import argparse
 import matplotlib.pyplot as plt
 
 output_file = 'output.c'
+racket_file = 'cost.rkt'
 
 def bv64_to_double(i: int):
     if i < 0 or i >= 2 ** 64:
@@ -24,9 +25,9 @@ def double_to_c_str(f: float):
         return str(f)
 
 class Core(object):
-    def __init__(self, name, pre, cost, argc, type):
+    def __init__(self, name, core, cost, argc, type):
         self.name = name
-        self.pre = pre
+        self.core = core
         self.cost = cost
         self.argc = argc
         self.type = type
@@ -34,13 +35,14 @@ class Core(object):
     def __repr__(self):
         return 'Core(' + \
             'name=' + repr(self.name) + ', ' + \
-            'pre=' + repr(self.pre) + ', ' + \
+            'core=' + repr(self.core) + ', ' + \
             'cost=' + repr(self.cost) + ', ' + \
             'argc=' + repr(self.argc) + ', ' + \
             'type=' + repr(self.type) + \
             ')'
 
-pre_pat = re.compile('//   :pre (.*)')
+fpcore_pat = re.compile('// \(FPCore (.*)')
+comment_pat = re.compile('// ')
 cost_pat = re.compile('// best cost: ([0-9.]*)')
 fun_pat = re.compile('(double|float) ([a-zA-Z0-9_]+)\(([a-zA-Z0-9_ ,]*)\)')
 
@@ -49,10 +51,15 @@ def read_core(f: io.TextIOWrapper):
     core = None
     line = f.readline()
     while line != '':
-        pre = re.match(pre_pat, line)
-        if pre is not None:
-            # found a precondition
-            props['pre'] = pre.group(1)
+        fpcore = re.match(fpcore_pat, line)
+        if fpcore is not None:
+            # found an fpcore
+            lines = [line]
+            line = f.readline()
+            while line != '' and line != '// ---\n':
+                lines.append(line)
+                line = f.readline()
+            props['core'] = ''.join(map(lambda s : s.replace('//', '').replace('\n', ''), lines))
         else:
             cost = re.match(cost_pat, line)
             if cost is not None:
@@ -68,9 +75,9 @@ def read_core(f: io.TextIOWrapper):
                     # hacky argument counting
                     argc = 0 if len(arg_str) == 0 else len(arg_str.split(','))
                     # make core
-                    pre = props.get('pre')
-                    core = int(props.get('cost')) if 'cost' in props else None
-                    return Core(func_name, pre, core, argc, scalar_type)
+                    core = props.get('core')
+                    cost = int(props.get('cost')) if 'cost' in props else None
+                    return Core(func_name, core, cost, argc, scalar_type)
         line = f.readline()
     return core
 
@@ -100,11 +107,34 @@ def sample_repr(scalar_type, n):
         raise NotImplementedError('float sampling')
     else:
         raise ValueError('unrecognized representation', scalar_type)
+    
+def sample_core(core: Core, n: int):
+    script_path = os.path.abspath(__file__)
+    script_dir, _ = os.path.split(script_path)
+    sample_path = os.path.join(script_dir, racket_file)
+    core_str = core.core.replace('\"', '\\\"').strip()
+
+    p = subprocess.Popen(['racket', sample_path, 'sample', str(n), f'\"{core_str}\"'], stdout=subprocess.PIPE)
+    stdout, _ = p.communicate()
+    output = stdout.decode('utf-8')
+
+    inputs = []
+    for line in output.split('\n'):
+        if len(line) > 0:
+            inputs.append(list(map(float, line.split(' '))))
+
+    assert n == len(inputs)
+    return inputs
 
 def write_driver(driver_name: str, core: Core, num_runs: int):
+    by_vars = [list() for _ in range(core.argc)]
+    sample = sample_core(core, num_runs)
+    for input in sample:
+        for i, value in enumerate(input):
+            by_vars[i].append(value)
+
     with open(driver_name, 'a') as f:
-        for i in range(core.argc):
-            sample = sample_repr(core.type, num_runs)
+        for i, sample in enumerate(by_vars):
             print(f'const {core.type} x{i}[{num_runs}] = {{', file=f)
             print(',\n'.join(map(double_to_c_str, sample)), file=f)
             print('};', file=f)

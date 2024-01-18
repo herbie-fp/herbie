@@ -86,7 +86,7 @@
        (match-define (list (list start-cost start-err) (list best-cost best-err) _ ...)
                      (table-row-cost-accuracy res))
        (test! p test)
-       (comment! p "")
+       (comment! p "---")
        (comment! p "start error: ~a" start-err)
        (comment! p "start cost: ~a" start-cost)
        (comment! p "best error: ~a" best-err)
