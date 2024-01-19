@@ -163,14 +163,6 @@
                 (bf> cond-y cond-thres))
             (mark-erroneous! subexpr)]
            [else #f])]
-        
-        #|
-        TODO Make this actually work
-        |#
-        #;[(list (or 'sin.f64 'sin.f32) arg)
-         #:when (list? arg)
-         (define arg-val (abs (hash-ref exacts-hash arg)))
-         (and (> arg-val 1e30) (mark-erroneous! subexpr))]
 
         [(list (or 'sin.f64 'sin.f32) arg)
          #:when (list? arg)
@@ -204,7 +196,7 @@
             (mark-erroneous! subexpr)]
            [else #f])]
 
-        [(list (or 'sin.f64 'sin.f32) arg)
+        [(list (or 'tan.f64 'tan.f32) arg)
          #:when (list? arg)
          (define arg-val (hash-ref exacts-hash arg))
          (define x.bf (bf arg-val))
@@ -219,16 +211,6 @@
                  (bf> tot-x cond-thres))
             (mark-erroneous! subexpr)]
            [else #f])]
-        
-        #;[(list (or 'cos.f64 'cos.f32) arg)
-         #:when (list? arg)
-         (define arg-val (abs (hash-ref exacts-hash arg)))
-         (and (> arg-val 1e30) (mark-erroneous! subexpr))]
-        
-        #;[(list (or 'tan.f64 'tan.f32) arg)
-         #:when (list? arg)
-         (define arg-val (abs (hash-ref exacts-hash arg)))
-         (and (> arg-val 1e30) (mark-erroneous! subexpr))]
         
         [(list (or 'sqrt.f64 'sqrt.f32) arg)
          #:when (list? arg)
@@ -390,49 +372,37 @@
          (define cond-x (bfabs y.bf))
          (define cond-y (bfabs (bf* y.bf (bflog x.bf))))
 
-         #;(eprintf "~a,~a,~a,~a,~a,~a,~a,~a,"
-                  pt
-                  subexpr
-                  x
-                  y
-                  (bigfloat->flonum cond-x)
-                  (bigfloat->flonum cond-y)
-                  (expt x y)
-                  subexpr-val)
-
          (cond
            ;; Hallucination:
            ;; x has a large exponent and y is 1. The ylogx is large but there is
            ;; no error because the answer is exactly x
            [(and (= y 1.0)
-                 (= x subexpr-val)) #;(eprintf "1.0hal\n") #f]
+                 (= x subexpr-val)) #f]
            
            ;; Hallucination:
            ;; if x is large enough that x^y overflows, the condition number also
            ;; is very large, but the answer correctly overflows
            [(and (> y 1)
                  (infinite? x^y)
-                 (infinite? subexpr-val)) #;(eprintf "infhal\n") #f]
+                 (infinite? subexpr-val)) #f]
 
            ;; if x is small enough and y is large enough that x^y underflows,
            ;; the condition number also gets very large, but the answer
            ;; correctly underflows
            [(and (> y 1)
                  (zero? x^y)
-                 (zero? subexpr-val)) #;(eprintf "overhal\n") #f]
+                 (zero? subexpr-val)) #f]
 
            [(and (or (zero? x)
                      (infinite? x))
                  (not (= subexpr-val x^y)))
-            #;(eprintf "rescue\n")
             (mark-erroneous! subexpr)]
             
            [(or (bf> cond-x cond-thres)
                 (bf> cond-y cond-thres))
-            #;(eprintf "cond\n")
             (mark-erroneous! subexpr)]
            
-           [else #;(eprintf "noerror\n") #f])]
+           [else #f])]
         
         [(list (or 'acos.f64 'acos.f32) x-ex)
          #:when (list? x-ex)
