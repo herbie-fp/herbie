@@ -49,6 +49,11 @@
   (define ctx-list
     (for/list ([subexpr (in-list subexprs)])
       (struct-copy context ctx [repr (cdr subexpr)])))
+
+  (define repr-hash
+    (make-immutable-hash (map cons
+                              subexprs-list
+                              (map context-repr ctx-list))))
  
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
  
@@ -65,6 +70,11 @@
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
       (make-immutable-hash (map cons subexprs-list exacts)))
+    (define (exacts-ref subexpr)
+      (bigfloat->flonum ((representation-repr->bf (hash-ref repr-hash subexpr))
+                         (hash-ref exacts-hash subexpr))))
+    #;(define (exacts-ref subexpr)
+      (hash-ref exacts-hash subexpr))
  
     (define uflow-hash (make-hash (map (lambda (x) (cons x #f))
                                        subexprs-list)))
@@ -74,7 +84,7 @@
     (define (overflow? subexpr) (hash-ref oflow-hash subexpr))
  
     (for/list ([subexpr subexprs-list])
-      (define subexpr-val (hash-ref exacts-hash subexpr))
+      (define subexpr-val (exacts-ref subexpr))
       
       (cond
         ; NOTE need better way to see if a calculation
@@ -87,8 +97,8 @@
       (match subexpr
         [(list (or '+.f64 '+.f32) larg rarg)
          #:when (or (list? larg) (list? rarg))
-         (define larg-val (hash-ref exacts-hash larg))
-         (define rarg-val (hash-ref exacts-hash rarg))
+         (define larg-val (exacts-ref larg))
+         (define rarg-val (exacts-ref rarg))
          (define x+y (+ larg-val rarg-val))
          (define cond-x (bfabs (bf/ (bf larg-val)
                                     (bf subexpr-val))))
@@ -127,8 +137,8 @@
         
         [(list (or '-.f64 '-.f32) larg rarg)
          #:when (or (list? larg) (list? rarg))
-         (define larg-val (hash-ref exacts-hash larg))
-         (define rarg-val (hash-ref exacts-hash rarg))
+         (define larg-val (exacts-ref larg))
+         (define rarg-val (exacts-ref rarg))
          (define x-y (- larg-val rarg-val))
          (define cond-x (bfabs (bf/ (bf larg-val)
                                     (bf subexpr-val))))
@@ -166,7 +176,7 @@
 
         [(list (or 'sin.f64 'sin.f32) arg)
          #:when (list? arg)
-         (define arg-val (hash-ref exacts-hash arg))
+         (define arg-val (exacts-ref arg))
          (define x.bf (bf arg-val))
          (define cot-x (bfabs (bfcot x.bf)))
          (define cond-no (bf* (bfabs x.bf) cot-x))
@@ -182,7 +192,7 @@
 
         [(list (or 'cos.f64 'cos.f32) arg)
          #:when (list? arg)
-         (define arg-val (hash-ref exacts-hash arg))
+         (define arg-val (exacts-ref arg))
          (define x.bf (bf arg-val))
          (define tan-x (bfabs (bftan x.bf)))
          (define cond-no (bf* (bfabs x.bf) tan-x))
@@ -198,7 +208,7 @@
 
         [(list (or 'tan.f64 'tan.f32) arg)
          #:when (list? arg)
-         (define arg-val (hash-ref exacts-hash arg))
+         (define arg-val (exacts-ref arg))
          (define x.bf (bf arg-val))
          (define tot-x (bfabs (bf+ (bfcot x.bf) (bftan x.bf))))
          (define cond-no (bf* (bfabs x.bf) tot-x))
@@ -214,7 +224,7 @@
         
         [(list (or 'sqrt.f64 'sqrt.f32) arg)
          #:when (list? arg)
-         (define arg-val (hash-ref exacts-hash arg))
+         (define arg-val (exacts-ref arg))
 
          ; Under/overflow rescue:
          (and (or (underflow? arg)
@@ -224,7 +234,7 @@
 
         [(list (or 'cbrt.f64 'cbrt.f32) arg)
          #:when (list? arg)
-         (define arg-val (hash-ref exacts-hash arg))
+         (define arg-val (exacts-ref arg))
          
          ; Under/overflow rescue:
          (and (or (underflow? arg)
@@ -234,8 +244,8 @@
         
         [(list (or '/.f64 '/.f32) x-ex y-ex)
          #:when (or (list? x-ex) (list? y-ex))
-         (define x (hash-ref exacts-hash x-ex))
-         (define y (hash-ref exacts-hash y-ex))
+         (define x (exacts-ref x-ex))
+         (define y (exacts-ref y-ex))
          (define x/y (/ x y))
          (define y-oflow? (overflow? y-ex))
          (define x-uflow? (underflow? x-ex))
@@ -311,7 +321,7 @@
         
         [(list (or 'log.f64 'log.f32) arg)
          #:when (list? arg)
-         (define arg-val (hash-ref exacts-hash arg))
+         (define arg-val (exacts-ref arg))
          (define cond-num (bfabs (bf/ 1.bf
                                       (bf subexpr-val))))
          (define arg-oflow? (overflow? arg))
@@ -337,7 +347,7 @@
         
         [(list (or 'exp.f64 'exp.f32) arg)
          #:when (list? arg)
-         (define arg-val (hash-ref exacts-hash arg))
+         (define arg-val (exacts-ref arg))
          
          (cond
            ; Condition Number Hallucination:
@@ -364,8 +374,8 @@
         ; FIXME need to rework from scratch
         [(list (or 'pow.f64 'pow.f32) x-ex y-ex)
          #:when (or (list? x-ex) (list? y-ex))
-         (define x (hash-ref exacts-hash x-ex))
-         (define y (hash-ref exacts-hash y-ex))
+         (define x (exacts-ref x-ex))
+         (define y (exacts-ref y-ex))
          (define x.bf (bf x))
          (define y.bf (bf y))
          (define x^y (expt x y))
@@ -406,7 +416,7 @@
         
         [(list (or 'acos.f64 'acos.f32) x-ex)
          #:when (list? x-ex)
-         (define x (hash-ref exacts-hash x-ex))
+         (define x (exacts-ref x-ex))
          (define x.bf (bf x))
          (define cond-x (bfabs
                          (bf/ x.bf
@@ -432,7 +442,7 @@
 
         [(list (or 'asin.f64 'asin.f32) x-ex)
          #:when (list? x-ex)
-         (define x (hash-ref exacts-hash x-ex))
+         (define x (exacts-ref x-ex))
          (define x.bf (bf x))
          (define cond-x (bfabs
                          (bf/ x.bf
