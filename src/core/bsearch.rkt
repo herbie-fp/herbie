@@ -4,7 +4,8 @@
 (require "../common.rkt" "../alternative.rkt" "../timeline.rkt" "../errors.rkt"
          "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
          "../compiler.rkt" "../programs.rkt" "../points.rkt" "regimes.rkt"
-         "../float.rkt" "../pretty-print.rkt" "../ground-truth.rkt")
+         "../float.rkt" "../pretty-print.rkt" "../sampling.rkt" 
+         "../ground-truth.rkt")
 
 (provide combine-alts (struct-out sp) splitpoints->point-preds)
 
