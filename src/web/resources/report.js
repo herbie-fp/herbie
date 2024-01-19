@@ -516,11 +516,13 @@ function histogram2D(id, xdata, ydata, options) {
     var xma = options?.max ?? Math.max.apply(null, xdata);
       
     var buckets = Array(bucketnum);
+    var sum = 0;
     buckets.fill(0);
     for (var i = 0; i < xdata.length; i++) {
         var j = Math.floor(xdata[i] / xma * buckets.length);
         var x = proportional ? xdata[i] : 1;
         buckets[Math.min(j, buckets.length-1)] += ydata[i];
+        sum += ydata[i];
     }
     var yma = Math.max.apply(null, buckets);
     
@@ -534,7 +536,7 @@ function histogram2D(id, xdata, ydata, options) {
     ctx.textAlign = "center";
     for (var i = 0; i < buckets.length; i++) {
         if (buckets[i] == 0) continue;
-        ctx.fillText(Math.round(buckets[i]), margin + (i + .5)/buckets.length * width, labels + height*(1 - buckets[i]/yma));
+        ctx.fillText(Math.round(buckets[i] / sum * 100) + "%", margin + (i + .5)/buckets.length * width, labels + height*(1 - buckets[i]/yma));
     }
     
     ctx.textBaseline = "top";

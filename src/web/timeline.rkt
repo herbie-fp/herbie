@@ -180,25 +180,32 @@
   (/ (apply + values) (length values)))
 
 (define (render-phase-mixed-sampling mixsample)
+  (define total-time (apply + (map third mixsample)))
   `((dt "Precisions")
     (dd (details
-         (summary "Click to see histograms")
-         ,@(for/list ([rec (in-list (group-by first mixsample))])
-             
-             (define n (random 100000))
-             (let ([op (car (car rec))]
-                   [precisions (map second rec)]
-                   [times (map third rec)])
+         (summary "Click to see histograms. Total time spent on operations: " ,(format-time total-time))
+         ,@(map first
+                (sort
+                 (for/list ([rec (in-list (group-by first mixsample))])
+                   (define n (random 100000))
+                   (define op (car (car rec)))
+                   (define precisions (map second rec))
+                   (define times (map third rec))
+                   (define time-per-op (round (apply + times)))
                
-               `(details
-                 (summary "Operation " ,(~a op) ", total time spent: " ,(~a (round (apply + times))) "ms")
-                 (canvas ([id ,(format "calls-~a" n)]
-                          [title "Histogram of precisions of the used operation"]))
-                 (script "histogram2D(\""
-                         ,(format "calls-~a" n) "\", "
-                         ,(jsexpr->string precisions) ", "
-                         ,(jsexpr->string times) ", "
-                         "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})"))))))))
+                   (list `(details
+                           (summary "Operation " (code ,(~a op))
+                                    ", time spent: " ,(format-time time-per-op)
+                                    ", " ,(~a (round (* (/ time-per-op total-time) 100))) "% of total-time") 
+                           (canvas ([id ,(format "calls-~a" n)]
+                                    [title "Histogram of precisions of the used operation"]))
+                           (script "histogram2D(\""
+                                   ,(format "calls-~a" n) "\", "
+                                   ,(jsexpr->string precisions) ", "
+                                   ,(jsexpr->string times) ", "
+                                   "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})"))
+                         time-per-op))
+                 > #:key second))))))
 
 
 (define (render-phase-sampling sampling)
