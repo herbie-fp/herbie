@@ -191,7 +191,7 @@
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (when-cond entry)
-    (can-split? (si-pidx (car (cse-indices entry)))))
+    (can-split? (si-pidx (vector-ref (cse-indices entry)0))))
   (define (add-splitpoint sp-prev)
     (struct idk (cidx pidx) #:transparent)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
@@ -213,7 +213,9 @@
                   (set! best cidx))))
             (when (and (< (+ (cse-cost prev-entry) bcost) acost))
               (set! acost (+ (cse-cost prev-entry) bcost))
-              (set! aest (cse acost (cons (si best (+ point-idx 1))
+              (define idk (si best (+ point-idx 1)))
+              (cond ((struct? idk) (set! idk (vector idk))))
+              (set! aest (cse acost (vector-append idk 
                                           (cse-indices prev-entry)))))))
         (vector-set! result point-idx aest)
         aest))
@@ -229,7 +231,7 @@
               ;; Consider all the candidates we could put in this region
               (vector-map (λ (cand-idx cand-psums)
                       (let ([cost (vector-ref cand-psums point-idx)])
-                        (cse cost (list (si cand-idx (+ point-idx 1))))))
+                        (cse cost (vector (si cand-idx (+ point-idx 1))))))
                    (list->vector (range num-candidates))
                    vec-psums)))
       ;; Not sure how to format this
@@ -246,5 +248,5 @@
             (loop next)))))
 
   ;; Extract the splitpoints from our data structure, and reverse it.
-  (reverse (cse-indices (vector-ref final (- num-points 1)))))
+  (reverse (vector->list (cse-indices (vector-ref final (- num-points 1))))))
 

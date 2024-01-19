@@ -1,0 +1,1605 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for 2cos (problem 3.3.5)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="interactive.js"></script><script src="../report.js"></script></head><body><header><h1>2cos (problem 3.3.5)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 1.6% → 0.0%">38.6%<span class="unit"> → </span>99.0%</span></div><div>Time: <span class="number">10.7s</span></div><div>Alternatives: <span class="number">15</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">1.9×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#spec" target="_blank">?</a></summary><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\cos \left(x + \varepsilon\right) - \cos x
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (- (cos (+ x eps)) (cos x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return cos((x + eps)) - cos(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = cos((x + eps)) - cos(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return Math.cos((x + eps)) - Math.cos(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return math.cos((x + eps)) - math.cos(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(cos(Float64(x + eps)) - cos(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = cos((x + eps)) - cos(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[Cos[N[(x + eps), $MachinePrecision]], $MachinePrecision] - N[Cos[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\cos \left(x + \varepsilon\right) - \cos x
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.9990236759185791" title="valid (99.9%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0" title="infinite (0%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0" title="invalid (0%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.0009763240814208984" title="precondition (0.1%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="/doc/latest/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="2cos (problem 3.3.5)"><h2>Accuracy vs Speed<a class="help-button float" href="/doc/latest/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 15 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>38.6%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\cos \left(x + \varepsilon\right) - \cos x
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (- (cos (+ x eps)) (cos x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return cos((x + eps)) - cos(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = cos((x + eps)) - cos(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return Math.cos((x + eps)) - Math.cos(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return math.cos((x + eps)) - math.cos(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(cos(Float64(x + eps)) - cos(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = cos((x + eps)) - cos(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[Cos[N[(x + eps), $MachinePrecision]], $MachinePrecision] - N[Cos[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\cos \left(x + \varepsilon\right) - \cos x
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>99.0%</data> accurate, <data>0.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00017 \lor \neg \left(\varepsilon \leq 2.5 \cdot 10^{-5}\right):\\
+\;\;\;\;\mathsf{fma}\left(\cos x, \cos \varepsilon, -\mathsf{fma}\left(\sin x, \sin \varepsilon, \cos x\right)\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (or (&lt;= eps -0.00017) (not (&lt;= eps 2.5e-5)))
+   (fma (cos x) (cos eps) (- (fma (sin x) (sin eps) (cos x))))
+   (* (sin (* 0.5 (fma 2.0 x eps))) (* -2.0 (sin (* eps 0.5))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -0.00017) || !(eps &lt;= 2.5e-5)) {
+		tmp = fma(cos(x), cos(eps), -fma(sin(x), sin(eps), cos(x)));
+	} else {
+		tmp = sin((0.5 * fma(2.0, x, eps))) * (-2.0 * sin((eps * 0.5)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if ((eps &lt;= -0.00017) || !(eps &lt;= 2.5e-5))
+		tmp = fma(cos(x), cos(eps), Float64(-fma(sin(x), sin(eps), cos(x))));
+	else
+		tmp = Float64(sin(Float64(0.5 * fma(2.0, x, eps))) * Float64(-2.0 * sin(Float64(eps * 0.5))));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[Or[LessEqual[eps, -0.00017], N[Not[LessEqual[eps, 2.5e-5]], $MachinePrecision]], N[(N[Cos[x], $MachinePrecision] * N[Cos[eps], $MachinePrecision] + (-N[(N[Sin[x], $MachinePrecision] * N[Sin[eps], $MachinePrecision] + N[Cos[x], $MachinePrecision]), $MachinePrecision])), $MachinePrecision], N[(N[Sin[N[(0.5 * N[(2.0 * x + eps), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] * N[(-2.0 * N[Sin[N[(eps * 0.5), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00017 \lor \neg \left(\varepsilon \leq 2.5 \cdot 10^{-5}\right):\\
+\;\;\;\;\mathsf{fma}\left(\cos x, \cos \varepsilon, -\mathsf{fma}\left(\sin x, \sin \varepsilon, \cos x\right)\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -1.7e-4 or 2.50000000000000012e-5 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="53.1% on training set">49.5%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">cos-sum</code><span class="error" title=" ↑ 5 ↓ 0">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos x \cdot \cos \varepsilon - \sin x \cdot \sin \varepsilon\right)} - \cos x
+\]</div></li><li><p><code title="left to right">associate--l-</code><span class="error" title=" ↑ 0 ↓ 5">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\cos x \cdot \cos \varepsilon - \left(\sin x \cdot \sin \varepsilon + \cos x\right)}
+\]</div></li><li><p><code title="left to right">fma-neg</code><span class="error" title=" ↑ 1 ↓ 4">98.8%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\cos x, \cos \varepsilon, -\left(\sin x \cdot \sin \varepsilon + \cos x\right)\right)}
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 0 ↓ 2">98.9%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\cos x, \cos \varepsilon, -\color{blue}{\mathsf{fma}\left(\sin x, \sin \varepsilon, \cos x\right)}\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="98.7% on training set">98.9%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\cos x, \cos \varepsilon, -\mathsf{fma}\left(\sin x, \sin \varepsilon, \cos x\right)\right)}
+\]</div></li></ol><h2><code>if <span class="condition">-1.7e-4 &lt;  eps  &lt; 2.50000000000000012e-5</span></code></h2><ol><li><p>Initial program <span class="error" title="23.1% on training set">24.3%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">diff-cos</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 8 ↓ 1">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \color{blue}{\left(\left(\left(x + \varepsilon\right) - x\right) \cdot \frac{1}{2}\right)} \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\color{blue}{\left(x + \left(\varepsilon - x\right)\right)} \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot \color{blue}{0.5}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \color{blue}{\left(\left(\left(x + \varepsilon\right) + x\right) \cdot \frac{1}{2}\right)}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} + x\right) \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\color{blue}{\left(\varepsilon + \left(x + x\right)\right)} \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{0.5}\right)\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="41.2% on training set">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 20 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \sin \color{blue}{\left(0.5 \cdot \left(\varepsilon + \left(x + x\right)\right)\right)} \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 10 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\left(\left(x + x\right) + \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">count-2</code><span class="error" title=" ↑ 0 ↓ 20">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \left(\color{blue}{2 \cdot x} + \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\mathsf{fma}\left(2, x, \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(\varepsilon + \left(-x\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon + \color{blue}{-1 \cdot x}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 1">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(-1 \cdot x + \varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(\left(x + -1 \cdot x\right) + \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\left(x + \color{blue}{\left(-x\right)}\right) + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{\left(x - x\right)} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{0} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">remove-double-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \color{blue}{\left(-\left(-\varepsilon\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \left(-\color{blue}{-1 \cdot \varepsilon}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(0 - -1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(--1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(-\color{blue}{\left(-\varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">remove-double-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\varepsilon} \cdot 0.5\right)\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="99.3% on training set">99.8%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="99.0% on training set">99.3%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00017 \lor \neg \left(\varepsilon \leq 2.5 \cdot 10^{-5}\right):\\
+\;\;\;\;\mathsf{fma}\left(\cos x, \cos \varepsilon, -\mathsf{fma}\left(\sin x, \sin \varepsilon, \cos x\right)\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>99.0%</data> accurate, <data>0.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.000185 \lor \neg \left(\varepsilon \leq 1.85 \cdot 10^{-6}\right):\\
+\;\;\;\;\mathsf{fma}\left(\cos x, \cos \varepsilon, \sin \varepsilon \cdot \left(-\sin x\right)\right) - \cos x\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (or (&lt;= eps -0.000185) (not (&lt;= eps 1.85e-6)))
+   (- (fma (cos x) (cos eps) (* (sin eps) (- (sin x)))) (cos x))
+   (* (sin (* 0.5 (fma 2.0 x eps))) (* -2.0 (sin (* eps 0.5))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -0.000185) || !(eps &lt;= 1.85e-6)) {
+		tmp = fma(cos(x), cos(eps), (sin(eps) * -sin(x))) - cos(x);
+	} else {
+		tmp = sin((0.5 * fma(2.0, x, eps))) * (-2.0 * sin((eps * 0.5)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if ((eps &lt;= -0.000185) || !(eps &lt;= 1.85e-6))
+		tmp = Float64(fma(cos(x), cos(eps), Float64(sin(eps) * Float64(-sin(x)))) - cos(x));
+	else
+		tmp = Float64(sin(Float64(0.5 * fma(2.0, x, eps))) * Float64(-2.0 * sin(Float64(eps * 0.5))));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[Or[LessEqual[eps, -0.000185], N[Not[LessEqual[eps, 1.85e-6]], $MachinePrecision]], N[(N[(N[Cos[x], $MachinePrecision] * N[Cos[eps], $MachinePrecision] + N[(N[Sin[eps], $MachinePrecision] * (-N[Sin[x], $MachinePrecision])), $MachinePrecision]), $MachinePrecision] - N[Cos[x], $MachinePrecision]), $MachinePrecision], N[(N[Sin[N[(0.5 * N[(2.0 * x + eps), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] * N[(-2.0 * N[Sin[N[(eps * 0.5), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.000185 \lor \neg \left(\varepsilon \leq 1.85 \cdot 10^{-6}\right):\\
+\;\;\;\;\mathsf{fma}\left(\cos x, \cos \varepsilon, \sin \varepsilon \cdot \left(-\sin x\right)\right) - \cos x\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -1.85e-4 or 1.8500000000000001e-6 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="53.1% on training set">49.5%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">cos-sum</code><span class="error" title=" ↑ 4 ↓ 0">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos x \cdot \cos \varepsilon - \sin x \cdot \sin \varepsilon\right)} - \cos x
+\]</div></li><li><p><code title="left to right">cancel-sign-sub-inv</code><span class="error" title=" ↑ 0 ↓ 4">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos x \cdot \cos \varepsilon + \left(-\sin x\right) \cdot \sin \varepsilon\right)} - \cos x
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 1 ↓ 3">98.8%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\cos x, \cos \varepsilon, \left(-\sin x\right) \cdot \sin \varepsilon\right)} - \cos x
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="98.6% on training set">98.8%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\cos x, \cos \varepsilon, \left(-\sin x\right) \cdot \sin \varepsilon\right)} - \cos x
+\]</div></li></ol><h2><code>if <span class="condition">-1.85e-4 &lt;  eps  &lt; 1.8500000000000001e-6</span></code></h2><ol><li><p>Initial program <span class="error" title="23.1% on training set">24.3%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">diff-cos</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 8 ↓ 1">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \color{blue}{\left(\left(\left(x + \varepsilon\right) - x\right) \cdot \frac{1}{2}\right)} \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\color{blue}{\left(x + \left(\varepsilon - x\right)\right)} \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot \color{blue}{0.5}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \color{blue}{\left(\left(\left(x + \varepsilon\right) + x\right) \cdot \frac{1}{2}\right)}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} + x\right) \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\color{blue}{\left(\varepsilon + \left(x + x\right)\right)} \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{0.5}\right)\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="41.1% on training set">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 20 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \sin \color{blue}{\left(0.5 \cdot \left(\varepsilon + \left(x + x\right)\right)\right)} \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 10 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\left(\left(x + x\right) + \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">count-2</code><span class="error" title=" ↑ 0 ↓ 20">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \left(\color{blue}{2 \cdot x} + \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\mathsf{fma}\left(2, x, \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(\varepsilon + \left(-x\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon + \color{blue}{-1 \cdot x}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 1">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(-1 \cdot x + \varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(\left(x + -1 \cdot x\right) + \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\left(x + \color{blue}{\left(-x\right)}\right) + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{\left(x - x\right)} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{0} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">remove-double-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \color{blue}{\left(-\left(-\varepsilon\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \left(-\color{blue}{-1 \cdot \varepsilon}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(0 - -1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(--1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(-\color{blue}{\left(-\varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">remove-double-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\varepsilon} \cdot 0.5\right)\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="99.3% on training set">99.8%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="99.0% on training set">99.3%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.000185 \lor \neg \left(\varepsilon \leq 1.85 \cdot 10^{-6}\right):\\
+\;\;\;\;\mathsf{fma}\left(\cos x, \cos \varepsilon, \sin \varepsilon \cdot \left(-\sin x\right)\right) - \cos x\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>98.9%</data> accurate, <data>0.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -2.7 \cdot 10^{-5} \lor \neg \left(\varepsilon \leq 0.00028\right):\\
+\;\;\;\;\cos x \cdot \cos \varepsilon - \mathsf{fma}\left(\sin \varepsilon, \sin x, \cos x\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (or (&lt;= eps -2.7e-5) (not (&lt;= eps 0.00028)))
+   (- (* (cos x) (cos eps)) (fma (sin eps) (sin x) (cos x)))
+   (* (sin (* 0.5 (fma 2.0 x eps))) (* -2.0 (sin (* eps 0.5))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -2.7e-5) || !(eps &lt;= 0.00028)) {
+		tmp = (cos(x) * cos(eps)) - fma(sin(eps), sin(x), cos(x));
+	} else {
+		tmp = sin((0.5 * fma(2.0, x, eps))) * (-2.0 * sin((eps * 0.5)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if ((eps &lt;= -2.7e-5) || !(eps &lt;= 0.00028))
+		tmp = Float64(Float64(cos(x) * cos(eps)) - fma(sin(eps), sin(x), cos(x)));
+	else
+		tmp = Float64(sin(Float64(0.5 * fma(2.0, x, eps))) * Float64(-2.0 * sin(Float64(eps * 0.5))));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[Or[LessEqual[eps, -2.7e-5], N[Not[LessEqual[eps, 0.00028]], $MachinePrecision]], N[(N[(N[Cos[x], $MachinePrecision] * N[Cos[eps], $MachinePrecision]), $MachinePrecision] - N[(N[Sin[eps], $MachinePrecision] * N[Sin[x], $MachinePrecision] + N[Cos[x], $MachinePrecision]), $MachinePrecision]), $MachinePrecision], N[(N[Sin[N[(0.5 * N[(2.0 * x + eps), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] * N[(-2.0 * N[Sin[N[(eps * 0.5), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -2.7 \cdot 10^{-5} \lor \neg \left(\varepsilon \leq 0.00028\right):\\
+\;\;\;\;\cos x \cdot \cos \varepsilon - \mathsf{fma}\left(\sin \varepsilon, \sin x, \cos x\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -2.6999999999999999e-5 or 2.7999999999999998e-4 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="53.2% on training set">49.5%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 5 ↓ 0">49.5%</span></p><div class="math">\[\leadsto \color{blue}{\cos \left(x + \varepsilon\right) + \left(-\cos x\right)}
+\]</div></li><li><p><code title="left to right">cos-sum</code><span class="error" title=" ↑ 0 ↓ 5">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos x \cdot \cos \varepsilon - \sin x \cdot \sin \varepsilon\right)} + \left(-\cos x\right)
+\]</div></li><li><p><code title="left to right">associate-+l-</code><span class="error" title=" ↑ 2 ↓ 3">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\cos x \cdot \cos \varepsilon - \left(\sin x \cdot \sin \varepsilon - \left(-\cos x\right)\right)}
+\]</div></li><li><p><code title="left to right">fma-neg</code><span class="error" title=" ↑ 0 ↓ 3">98.8%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\cos x, \cos \varepsilon, -\left(\sin x \cdot \sin \varepsilon - \left(-\cos x\right)\right)\right)}
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="98.6% on training set">98.8%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\cos x, \cos \varepsilon, -\left(\sin x \cdot \sin \varepsilon - \left(-\cos x\right)\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">fma-neg</code><span class="error" title=" ↑ 6 ↓ 0">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\cos x \cdot \cos \varepsilon - \left(\sin x \cdot \sin \varepsilon - \left(-\cos x\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 0 ↓ 6">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon \cdot \cos x} - \left(\sin x \cdot \sin \varepsilon - \left(-\cos x\right)\right)
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 0 ↓ 6">98.7%</span></p><div class="math">\[\leadsto \cos \varepsilon \cdot \cos x - \left(\color{blue}{\sin \varepsilon \cdot \sin x} - \left(-\cos x\right)\right)
+\]</div></li><li><p><code title="left to right">fma-neg</code><span class="error" title=" ↑ 0 ↓ 0">98.8%</span></p><div class="math">\[\leadsto \cos \varepsilon \cdot \cos x - \color{blue}{\mathsf{fma}\left(\sin \varepsilon, \sin x, -\left(-\cos x\right)\right)}
+\]</div></li><li><p><code title="left to right">remove-double-neg</code><span class="error" title=" ↑ 6 ↓ 0">98.8%</span></p><div class="math">\[\leadsto \cos \varepsilon \cdot \cos x - \mathsf{fma}\left(\sin \varepsilon, \sin x, \color{blue}{\cos x}\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="98.6% on training set">98.8%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon \cdot \cos x - \mathsf{fma}\left(\sin \varepsilon, \sin x, \cos x\right)}
+\]</div></li></ol><h2><code>if <span class="condition">-2.6999999999999999e-5 &lt;  eps  &lt; 2.7999999999999998e-4</span></code></h2><ol><li><p>Initial program <span class="error" title="23.1% on training set">24.3%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">diff-cos</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 8 ↓ 1">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \color{blue}{\left(\left(\left(x + \varepsilon\right) - x\right) \cdot \frac{1}{2}\right)} \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\color{blue}{\left(x + \left(\varepsilon - x\right)\right)} \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot \color{blue}{0.5}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \color{blue}{\left(\left(\left(x + \varepsilon\right) + x\right) \cdot \frac{1}{2}\right)}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} + x\right) \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\color{blue}{\left(\varepsilon + \left(x + x\right)\right)} \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{0.5}\right)\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="41.1% on training set">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 20 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \sin \color{blue}{\left(0.5 \cdot \left(\varepsilon + \left(x + x\right)\right)\right)} \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 10 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\left(\left(x + x\right) + \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">count-2</code><span class="error" title=" ↑ 0 ↓ 20">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \left(\color{blue}{2 \cdot x} + \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\mathsf{fma}\left(2, x, \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(\varepsilon + \left(-x\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon + \color{blue}{-1 \cdot x}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 1">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(-1 \cdot x + \varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(\left(x + -1 \cdot x\right) + \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\left(x + \color{blue}{\left(-x\right)}\right) + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{\left(x - x\right)} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{0} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">remove-double-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \color{blue}{\left(-\left(-\varepsilon\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \left(-\color{blue}{-1 \cdot \varepsilon}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(0 - -1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(--1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(-\color{blue}{\left(-\varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">remove-double-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\varepsilon} \cdot 0.5\right)\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="99.3% on training set">99.8%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="98.9% on training set">99.3%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -2.7 \cdot 10^{-5} \lor \neg \left(\varepsilon \leq 0.00028\right):\\
+\;\;\;\;\cos x \cdot \cos \varepsilon - \mathsf{fma}\left(\sin \varepsilon, \sin x, \cos x\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>98.9%</data> accurate, <data>0.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00032 \lor \neg \left(\varepsilon \leq 0.00015\right):\\
+\;\;\;\;\cos x \cdot \cos \varepsilon - \left(\cos x + \sin x \cdot \sin \varepsilon\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (or (&lt;= eps -0.00032) (not (&lt;= eps 0.00015)))
+   (- (* (cos x) (cos eps)) (+ (cos x) (* (sin x) (sin eps))))
+   (* (sin (* 0.5 (fma 2.0 x eps))) (* -2.0 (sin (* eps 0.5))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -0.00032) || !(eps &lt;= 0.00015)) {
+		tmp = (cos(x) * cos(eps)) - (cos(x) + (sin(x) * sin(eps)));
+	} else {
+		tmp = sin((0.5 * fma(2.0, x, eps))) * (-2.0 * sin((eps * 0.5)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if ((eps &lt;= -0.00032) || !(eps &lt;= 0.00015))
+		tmp = Float64(Float64(cos(x) * cos(eps)) - Float64(cos(x) + Float64(sin(x) * sin(eps))));
+	else
+		tmp = Float64(sin(Float64(0.5 * fma(2.0, x, eps))) * Float64(-2.0 * sin(Float64(eps * 0.5))));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[Or[LessEqual[eps, -0.00032], N[Not[LessEqual[eps, 0.00015]], $MachinePrecision]], N[(N[(N[Cos[x], $MachinePrecision] * N[Cos[eps], $MachinePrecision]), $MachinePrecision] - N[(N[Cos[x], $MachinePrecision] + N[(N[Sin[x], $MachinePrecision] * N[Sin[eps], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]), $MachinePrecision], N[(N[Sin[N[(0.5 * N[(2.0 * x + eps), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] * N[(-2.0 * N[Sin[N[(eps * 0.5), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00032 \lor \neg \left(\varepsilon \leq 0.00015\right):\\
+\;\;\;\;\cos x \cdot \cos \varepsilon - \left(\cos x + \sin x \cdot \sin \varepsilon\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -3.20000000000000026e-4 or 1.49999999999999987e-4 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="53.2% on training set">49.5%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">log1p-expm1-u</code><span class="error" title=" ↑ 2 ↓ 0">49.3%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{log1p}\left(\mathsf{expm1}\left(\cos \left(x + \varepsilon\right) - \cos x\right)\right)}
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="52.9% on training set">49.3%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{log1p}\left(\mathsf{expm1}\left(\cos \left(x + \varepsilon\right) - \cos x\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">log1p-expm1-u</code><span class="error" title=" ↑ 5 ↓ 0">49.5%</span></p><div class="math">\[\leadsto \color{blue}{\cos \left(x + \varepsilon\right) - \cos x}
+\]</div></li><li><p><code title="left to right">cos-sum</code><span class="error" title=" ↑ 0 ↓ 5">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos x \cdot \cos \varepsilon - \sin x \cdot \sin \varepsilon\right)} - \cos x
+\]</div></li><li><p><code title="left to right">associate--l-</code><span class="error" title=" ↑ 2 ↓ 3">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\cos x \cdot \cos \varepsilon - \left(\sin x \cdot \sin \varepsilon + \cos x\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 0 ↓ 3">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon \cdot \cos x} - \left(\sin x \cdot \sin \varepsilon + \cos x\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="98.6% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon \cdot \cos x - \left(\sin x \cdot \sin \varepsilon + \cos x\right)}
+\]</div></li></ol><h2><code>if <span class="condition">-3.20000000000000026e-4 &lt;  eps  &lt; 1.49999999999999987e-4</span></code></h2><ol><li><p>Initial program <span class="error" title="23.2% on training set">24.3%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">diff-cos</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 8 ↓ 1">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \color{blue}{\left(\left(\left(x + \varepsilon\right) - x\right) \cdot \frac{1}{2}\right)} \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\color{blue}{\left(x + \left(\varepsilon - x\right)\right)} \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot \color{blue}{0.5}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \color{blue}{\left(\left(\left(x + \varepsilon\right) + x\right) \cdot \frac{1}{2}\right)}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} + x\right) \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\color{blue}{\left(\varepsilon + \left(x + x\right)\right)} \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{0.5}\right)\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="41.2% on training set">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 20 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \sin \color{blue}{\left(0.5 \cdot \left(\varepsilon + \left(x + x\right)\right)\right)} \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 10 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\left(\left(x + x\right) + \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">count-2</code><span class="error" title=" ↑ 0 ↓ 20">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \left(\color{blue}{2 \cdot x} + \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\mathsf{fma}\left(2, x, \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(\varepsilon + \left(-x\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon + \color{blue}{-1 \cdot x}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 1">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(-1 \cdot x + \varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(\left(x + -1 \cdot x\right) + \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\left(x + \color{blue}{\left(-x\right)}\right) + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{\left(x - x\right)} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{0} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">remove-double-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \color{blue}{\left(-\left(-\varepsilon\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \left(-\color{blue}{-1 \cdot \varepsilon}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(0 - -1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(--1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(-\color{blue}{\left(-\varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">remove-double-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\varepsilon} \cdot 0.5\right)\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="99.2% on training set">99.8%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="98.9% on training set">99.2%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00032 \lor \neg \left(\varepsilon \leq 0.00015\right):\\
+\;\;\;\;\cos x \cdot \cos \varepsilon - \left(\cos x + \sin x \cdot \sin \varepsilon\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>99.0%</data> accurate, <data>0.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00031 \lor \neg \left(\varepsilon \leq 5.2 \cdot 10^{-5}\right):\\
+\;\;\;\;\left(\cos x \cdot \cos \varepsilon - \sin x \cdot \sin \varepsilon\right) - \cos x\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (or (&lt;= eps -0.00031) (not (&lt;= eps 5.2e-5)))
+   (- (- (* (cos x) (cos eps)) (* (sin x) (sin eps))) (cos x))
+   (* (sin (* 0.5 (fma 2.0 x eps))) (* -2.0 (sin (* eps 0.5))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -0.00031) || !(eps &lt;= 5.2e-5)) {
+		tmp = ((cos(x) * cos(eps)) - (sin(x) * sin(eps))) - cos(x);
+	} else {
+		tmp = sin((0.5 * fma(2.0, x, eps))) * (-2.0 * sin((eps * 0.5)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if ((eps &lt;= -0.00031) || !(eps &lt;= 5.2e-5))
+		tmp = Float64(Float64(Float64(cos(x) * cos(eps)) - Float64(sin(x) * sin(eps))) - cos(x));
+	else
+		tmp = Float64(sin(Float64(0.5 * fma(2.0, x, eps))) * Float64(-2.0 * sin(Float64(eps * 0.5))));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[Or[LessEqual[eps, -0.00031], N[Not[LessEqual[eps, 5.2e-5]], $MachinePrecision]], N[(N[(N[(N[Cos[x], $MachinePrecision] * N[Cos[eps], $MachinePrecision]), $MachinePrecision] - N[(N[Sin[x], $MachinePrecision] * N[Sin[eps], $MachinePrecision]), $MachinePrecision]), $MachinePrecision] - N[Cos[x], $MachinePrecision]), $MachinePrecision], N[(N[Sin[N[(0.5 * N[(2.0 * x + eps), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] * N[(-2.0 * N[Sin[N[(eps * 0.5), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00031 \lor \neg \left(\varepsilon \leq 5.2 \cdot 10^{-5}\right):\\
+\;\;\;\;\left(\cos x \cdot \cos \varepsilon - \sin x \cdot \sin \varepsilon\right) - \cos x\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -3.1e-4 or 5.19999999999999968e-5 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="53.2% on training set">49.5%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">cos-sum</code><span class="error" title=" ↑ 2 ↓ 0">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos x \cdot \cos \varepsilon - \sin x \cdot \sin \varepsilon\right)} - \cos x
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="98.7% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos x \cdot \cos \varepsilon - \sin x \cdot \sin \varepsilon\right)} - \cos x
+\]</div></li></ol><h2><code>if <span class="condition">-3.1e-4 &lt;  eps  &lt; 5.19999999999999968e-5</span></code></h2><ol><li><p>Initial program <span class="error" title="23.1% on training set">24.3%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">diff-cos</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 8 ↓ 1">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \color{blue}{\left(\left(\left(x + \varepsilon\right) - x\right) \cdot \frac{1}{2}\right)} \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ 9 ↓ 0">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\color{blue}{\left(x + \left(\varepsilon - x\right)\right)} \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot \color{blue}{0.5}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \color{blue}{\left(\left(\left(x + \varepsilon\right) + x\right) \cdot \frac{1}{2}\right)}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} + x\right) \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\color{blue}{\left(\varepsilon + \left(x + x\right)\right)} \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">38.5%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{0.5}\right)\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="41.2% on training set">38.5%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 10 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 20 ↓ 0">38.5%</span></p><div class="math">\[\leadsto \sin \color{blue}{\left(0.5 \cdot \left(\varepsilon + \left(x + x\right)\right)\right)} \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 10 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\left(\left(x + x\right) + \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">count-2</code><span class="error" title=" ↑ 0 ↓ 20">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \left(\color{blue}{2 \cdot x} + \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\mathsf{fma}\left(2, x, \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(\varepsilon + \left(-x\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 10">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon + \color{blue}{-1 \cdot x}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 1">38.5%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(-1 \cdot x + \varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(\left(x + -1 \cdot x\right) + \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\left(x + \color{blue}{\left(-x\right)}\right) + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{\left(x - x\right)} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{0} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">remove-double-neg</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \color{blue}{\left(-\left(-\varepsilon\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 20">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \left(-\color{blue}{-1 \cdot \varepsilon}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(0 - -1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ 20 ↓ 0">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(--1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(-\color{blue}{\left(-\varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">remove-double-neg</code><span class="error" title=" ↑ 10 ↓ 10">99.8%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\varepsilon} \cdot 0.5\right)\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="99.3% on training set">99.8%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="99.0% on training set">99.2%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00031 \lor \neg \left(\varepsilon \leq 5.2 \cdot 10^{-5}\right):\\
+\;\;\;\;\left(\cos x \cdot \cos \varepsilon - \sin x \cdot \sin \varepsilon\right) - \cos x\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative6" class="programs"><h2>Alternative 6: <span class="subhead"><data>67.9%</data> accurate, <data>0.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\cos \left(\varepsilon + x\right) - \cos x \leq -1 \cdot 10^{-10}:\\
+\;\;\;\;\sin \varepsilon \cdot \tan \left(\frac{-\varepsilon}{2}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin x \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (&lt;= (- (cos (+ eps x)) (cos x)) -1e-10)
+   (* (sin eps) (tan (/ (- eps) 2.0)))
+   (* (sin x) (* -2.0 (sin (* eps 0.5))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((cos((eps + x)) - cos(x)) &lt;= -1e-10) {
+		tmp = sin(eps) * tan((-eps / 2.0));
+	} else {
+		tmp = sin(x) * (-2.0 * sin((eps * 0.5)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    real(8) :: tmp
+    if ((cos((eps + x)) - cos(x)) &lt;= (-1d-10)) then
+        tmp = sin(eps) * tan((-eps / 2.0d0))
+    else
+        tmp = sin(x) * ((-2.0d0) * sin((eps * 0.5d0)))
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	double tmp;
+	if ((Math.cos((eps + x)) - Math.cos(x)) &lt;= -1e-10) {
+		tmp = Math.sin(eps) * Math.tan((-eps / 2.0));
+	} else {
+		tmp = Math.sin(x) * (-2.0 * Math.sin((eps * 0.5)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	tmp = 0
+	if (math.cos((eps + x)) - math.cos(x)) &lt;= -1e-10:
+		tmp = math.sin(eps) * math.tan((-eps / 2.0))
+	else:
+		tmp = math.sin(x) * (-2.0 * math.sin((eps * 0.5)))
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if (Float64(cos(Float64(eps + x)) - cos(x)) &lt;= -1e-10)
+		tmp = Float64(sin(eps) * tan(Float64(Float64(-eps) / 2.0)));
+	else
+		tmp = Float64(sin(x) * Float64(-2.0 * sin(Float64(eps * 0.5))));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, eps)
+	tmp = 0.0;
+	if ((cos((eps + x)) - cos(x)) &lt;= -1e-10)
+		tmp = sin(eps) * tan((-eps / 2.0));
+	else
+		tmp = sin(x) * (-2.0 * sin((eps * 0.5)));
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[LessEqual[N[(N[Cos[N[(eps + x), $MachinePrecision]], $MachinePrecision] - N[Cos[x], $MachinePrecision]), $MachinePrecision], -1e-10], N[(N[Sin[eps], $MachinePrecision] * N[Tan[N[((-eps) / 2.0), $MachinePrecision]], $MachinePrecision]), $MachinePrecision], N[(N[Sin[x], $MachinePrecision] * N[(-2.0 * N[Sin[N[(eps * 0.5), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\cos \left(\varepsilon + x\right) - \cos x \leq -1 \cdot 10^{-10}:\\
+\;\;\;\;\sin \varepsilon \cdot \tan \left(\frac{-\varepsilon}{2}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin x \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (-.f64 (cos.f64 (+.f64 x eps)) (cos.f64 x))  &lt; -1.00000000000000004e-10</span></code></h2><ol><li><p>Initial program <span class="error" title="79.2% on training set">72.1%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0 <span class="error" title="79.1% on training set">72.0%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon - 1}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">flip--</code><span class="error" title=" ↑ 7 ↓ 0">71.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\cos \varepsilon \cdot \cos \varepsilon - 1 \cdot 1}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 7">71.2%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos \varepsilon \cdot \cos \varepsilon - 1 \cdot 1\right) \cdot \frac{1}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 7 ↓ 0">71.2%</span></p><div class="math">\[\leadsto \left(\cos \varepsilon \cdot \cos \varepsilon - \color{blue}{1}\right) \cdot \frac{1}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 7 ↓ 0">71.2%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos \varepsilon \cdot \cos \varepsilon + \left(-1\right)\right)} \cdot \frac{1}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">pow2</code><span class="error" title=" ↑ 0 ↓ 7">71.2%</span></p><div class="math">\[\leadsto \left(\color{blue}{{\cos \varepsilon}^{2}} + \left(-1\right)\right) \cdot \frac{1}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 7">71.2%</span></p><div class="math">\[\leadsto \left({\cos \varepsilon}^{2} + \color{blue}{-1}\right) \cdot \frac{1}{\cos \varepsilon + 1}
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="78.3% on training set">71.2%</span></p><div class="math">\[\leadsto \color{blue}{\left({\cos \varepsilon}^{2} + -1\right) \cdot \frac{1}{\cos \varepsilon + 1}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r/</code><span class="error" title=" ↑ 6 ↓ 0">71.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\left({\cos \varepsilon}^{2} + -1\right) \cdot 1}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="left to right">*-rgt-identity</code><span class="error" title=" ↑ 0 ↓ 6">71.3%</span></p><div class="math">\[\leadsto \frac{\color{blue}{{\cos \varepsilon}^{2} + -1}}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">unpow2</code><span class="error" title=" ↑ 6 ↓ 0">71.3%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\cos \varepsilon \cdot \cos \varepsilon} + -1}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">-1-add-cos</code><span class="error" title=" ↑ 6 ↓ 0">72.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-\sin \varepsilon \cdot \sin \varepsilon}}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="right to left">unpow2</code><span class="error" title=" ↑ 0 ↓ 6">72.0%</span></p><div class="math">\[\leadsto \frac{-\color{blue}{{\sin \varepsilon}^{2}}}{\cos \varepsilon + 1}
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="78.9% on training set">72.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-{\sin \varepsilon}^{2}}{\cos \varepsilon + 1}}
+\]</div></li><li><p>Taylor expanded in eps around inf <span class="error" title="78.9% on training set">72.0%</span></p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{{\sin \varepsilon}^{2}}{1 + \cos \varepsilon}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r/</code><span class="error" title=" ↑ 11 ↓ 0">72.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1 \cdot {\sin \varepsilon}^{2}}{1 + \cos \varepsilon}}
+\]</div></li><li><p><code title="right to left">neg-mul-1</code><span class="error" title=" ↑ 0 ↓ 11">72.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-{\sin \varepsilon}^{2}}}{1 + \cos \varepsilon}
+\]</div></li><li><p><code title="left to right">unpow2</code><span class="error" title=" ↑ 11 ↓ 0">72.0%</span></p><div class="math">\[\leadsto \frac{-\color{blue}{\sin \varepsilon \cdot \sin \varepsilon}}{1 + \cos \varepsilon}
+\]</div></li><li><p><code title="right to left">distribute-rgt-neg-out</code><span class="error" title=" ↑ 11 ↓ 0">72.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\sin \varepsilon \cdot \left(-\sin \varepsilon\right)}}{1 + \cos \varepsilon}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 11">72.0%</span></p><div class="math">\[\leadsto \frac{\sin \varepsilon \cdot \left(-\sin \varepsilon\right)}{\color{blue}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="right to left">*-lft-identity</code><span class="error" title=" ↑ 0 ↓ 11">72.0%</span></p><div class="math">\[\leadsto \frac{\sin \varepsilon \cdot \left(-\sin \varepsilon\right)}{\color{blue}{1 \cdot \left(\cos \varepsilon + 1\right)}}
+\]</div></li><li><p><code title="left to right">times-frac</code><span class="error" title=" ↑ 0 ↓ 11">72.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin \varepsilon}{1} \cdot \frac{-\sin \varepsilon}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="left to right">/-rgt-identity</code><span class="error" title=" ↑ 0 ↓ 11">72.0%</span></p><div class="math">\[\leadsto \color{blue}{\sin \varepsilon} \cdot \frac{-\sin \varepsilon}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="right to left">+-commutative</code><span class="error" title=" ↑ 0 ↓ 7">72.0%</span></p><div class="math">\[\leadsto \sin \varepsilon \cdot \frac{-\sin \varepsilon}{\color{blue}{1 + \cos \varepsilon}}
+\]</div></li><li><p><code title="left to right">hang-0m-tan</code><span class="error" title=" ↑ 0 ↓ 0">73.0%</span></p><div class="math">\[\leadsto \sin \varepsilon \cdot \color{blue}{\tan \left(\frac{-\varepsilon}{2}\right)}
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="79.9% on training set">73.0%</span></p><div class="math">\[\leadsto \color{blue}{\sin \varepsilon \cdot \tan \left(\frac{-\varepsilon}{2}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">-1.00000000000000004e-10 &lt;  (-.f64 (cos.f64 (+.f64 x eps)) (cos.f64 x)) </span></code></h2><ol><li><p>Initial program <span class="error" title="18.6% on training set">19.1%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">diff-cos</code><span class="error" title=" ↑ 9 ↓ 0">28.2%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 8 ↓ 1">28.2%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \color{blue}{\left(\left(\left(x + \varepsilon\right) - x\right) \cdot \frac{1}{2}\right)} \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ 9 ↓ 0">28.2%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\color{blue}{\left(x + \left(\varepsilon - x\right)\right)} \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">28.2%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot \color{blue}{0.5}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 9">28.2%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \color{blue}{\left(\left(\left(x + \varepsilon\right) + x\right) \cdot \frac{1}{2}\right)}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 9">28.2%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} + x\right) \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 0 ↓ 9">28.2%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\color{blue}{\left(\varepsilon + \left(x + x\right)\right)} \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">28.2%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{0.5}\right)\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="31.0% on training set">28.2%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ 10 ↓ 0">28.3%</span></p><div class="math">\[\leadsto \color{blue}{\left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 10 ↓ 0">28.3%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 20 ↓ 0">28.3%</span></p><div class="math">\[\leadsto \sin \color{blue}{\left(0.5 \cdot \left(\varepsilon + \left(x + x\right)\right)\right)} \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 10 ↓ 10">28.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\left(\left(x + x\right) + \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">count-2</code><span class="error" title=" ↑ 0 ↓ 20">28.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \left(\color{blue}{2 \cdot x} + \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 0 ↓ 10">28.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\mathsf{fma}\left(2, x, \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">28.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(\varepsilon + \left(-x\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 10">28.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon + \color{blue}{-1 \cdot x}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 1">28.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(-1 \cdot x + \varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 0 ↓ 0">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(\left(x + -1 \cdot x\right) + \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 0">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\left(x + \color{blue}{\left(-x\right)}\right) + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 20 ↓ 0">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{\left(x - x\right)} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 20">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{0} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">remove-double-neg</code><span class="error" title=" ↑ 20 ↓ 0">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \color{blue}{\left(-\left(-\varepsilon\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 20">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \left(-\color{blue}{-1 \cdot \varepsilon}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(0 - -1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ 20 ↓ 0">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(--1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 10 ↓ 10">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(-\color{blue}{\left(-\varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">remove-double-neg</code><span class="error" title=" ↑ 10 ↓ 10">73.6%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\varepsilon} \cdot 0.5\right)\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="74.5% on training set">73.6%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)}
+\]</div></li><li><p>Taylor expanded in eps around 0 <span class="error" title="62.0% on training set">64.2%</span></p><div class="math">\[\leadsto \color{blue}{\sin x} \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="67.9% on training set">67.3%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\cos \left(\varepsilon + x\right) - \cos x \leq -1 \cdot 10^{-10}:\\
+\;\;\;\;\sin \varepsilon \cdot \tan \left(\frac{-\varepsilon}{2}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\sin x \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative7" class="programs"><h2>Alternative 7: <span class="subhead"><data>76.3%</data> accurate, <data>0.7×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (* (sin (* 0.5 (fma 2.0 x eps))) (* -2.0 (sin (* eps 0.5)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return sin((0.5 * fma(2.0, x, eps))) * (-2.0 * sin((eps * 0.5)));
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(sin(Float64(0.5 * fma(2.0, x, eps))) * Float64(-2.0 * sin(Float64(eps * 0.5))))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[Sin[N[(0.5 * N[(2.0 * x + eps), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] * N[(-2.0 * N[Sin[N[(eps * 0.5), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="38.6% on training set">37.9%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">diff-cos</code><span class="error" title=" ↑ 9 ↓ 0">44.0%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 8 ↓ 1">44.0%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \color{blue}{\left(\left(\left(x + \varepsilon\right) - x\right) \cdot \frac{1}{2}\right)} \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ 9 ↓ 0">44.0%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\color{blue}{\left(x + \left(\varepsilon - x\right)\right)} \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">44.0%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot \color{blue}{0.5}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 9">44.0%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \color{blue}{\left(\left(\left(x + \varepsilon\right) + x\right) \cdot \frac{1}{2}\right)}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 9">44.0%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} + x\right) \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 0 ↓ 9">44.0%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\color{blue}{\left(\varepsilon + \left(x + x\right)\right)} \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">44.0%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{0.5}\right)\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="47.2% on training set">44.0%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ 10 ↓ 0">44.1%</span></p><div class="math">\[\leadsto \color{blue}{\left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 10 ↓ 0">44.1%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 20 ↓ 0">44.1%</span></p><div class="math">\[\leadsto \sin \color{blue}{\left(0.5 \cdot \left(\varepsilon + \left(x + x\right)\right)\right)} \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 10 ↓ 10">44.1%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\left(\left(x + x\right) + \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">count-2</code><span class="error" title=" ↑ 0 ↓ 20">44.1%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \left(\color{blue}{2 \cdot x} + \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 0 ↓ 10">44.1%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\mathsf{fma}\left(2, x, \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">44.1%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(\varepsilon + \left(-x\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 10">44.1%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon + \color{blue}{-1 \cdot x}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 1">44.1%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(-1 \cdot x + \varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 0 ↓ 0">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(\left(x + -1 \cdot x\right) + \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 0">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\left(x + \color{blue}{\left(-x\right)}\right) + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 20 ↓ 0">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{\left(x - x\right)} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 20">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{0} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">remove-double-neg</code><span class="error" title=" ↑ 20 ↓ 0">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \color{blue}{\left(-\left(-\varepsilon\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 20">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \left(-\color{blue}{-1 \cdot \varepsilon}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(0 - -1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ 20 ↓ 0">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(--1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 10 ↓ 10">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(-\color{blue}{\left(-\varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">remove-double-neg</code><span class="error" title=" ↑ 10 ↓ 10">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\varepsilon} \cdot 0.5\right)\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="76.3% on training set">73.3%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)}
+\]</div></li><li><p>Final simplification<span class="error" title="76.3% on training set">73.3%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative8" class="programs"><h2>Alternative 8: <span class="subhead"><data>76.3%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+-2 \cdot \left(\sin \left(\varepsilon \cdot 0.5\right) \cdot \sin \left(0.5 \cdot \left(\varepsilon - x \cdot -2\right)\right)\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (* -2.0 (* (sin (* eps 0.5)) (sin (* 0.5 (- eps (* x -2.0)))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return -2.0 * (sin((eps * 0.5)) * sin((0.5 * (eps - (x * -2.0)))));
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = (-2.0d0) * (sin((eps * 0.5d0)) * sin((0.5d0 * (eps - (x * (-2.0d0))))))
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return -2.0 * (Math.sin((eps * 0.5)) * Math.sin((0.5 * (eps - (x * -2.0)))));
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return -2.0 * (math.sin((eps * 0.5)) * math.sin((0.5 * (eps - (x * -2.0)))))
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(-2.0 * Float64(sin(Float64(eps * 0.5)) * sin(Float64(0.5 * Float64(eps - Float64(x * -2.0))))))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = -2.0 * (sin((eps * 0.5)) * sin((0.5 * (eps - (x * -2.0)))));
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(-2.0 * N[(N[Sin[N[(eps * 0.5), $MachinePrecision]], $MachinePrecision] * N[Sin[N[(0.5 * N[(eps - N[(x * -2.0), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+-2 \cdot \left(\sin \left(\varepsilon \cdot 0.5\right) \cdot \sin \left(0.5 \cdot \left(\varepsilon - x \cdot -2\right)\right)\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="38.6% on training set">37.9%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">log1p-expm1-u</code><span class="error" title=" ↑ 2 ↓ 0">37.8%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{log1p}\left(\mathsf{expm1}\left(\cos \left(x + \varepsilon\right) - \cos x\right)\right)}
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="38.5% on training set">37.8%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{log1p}\left(\mathsf{expm1}\left(\cos \left(x + \varepsilon\right) - \cos x\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">log1p-expm1-u</code><span class="error" title=" ↑ 10 ↓ 0">37.9%</span></p><div class="math">\[\leadsto \color{blue}{\cos \left(x + \varepsilon\right) - \cos x}
+\]</div></li><li><p><code title="left to right">diff-cos</code><span class="error" title=" ↑ 4 ↓ 6">44.0%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 12 ↓ 0">44.0%</span></p><div class="math">\[\leadsto \color{blue}{\left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right) \cdot -2}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 6 ↓ 6">44.0%</span></p><div class="math">\[\leadsto \left(\sin \color{blue}{\left(\left(\left(x + \varepsilon\right) - x\right) \cdot \frac{1}{2}\right)} \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right) \cdot -2
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 12">44.0%</span></p><div class="math">\[\leadsto \left(\sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} - x\right) \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right) \cdot -2
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ 0 ↓ 6">73.2%</span></p><div class="math">\[\leadsto \left(\sin \left(\color{blue}{\left(\varepsilon + \left(x - x\right)\right)} \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right) \cdot -2
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 6">73.2%</span></p><div class="math">\[\leadsto \left(\sin \left(\left(\varepsilon + \left(x - x\right)\right) \cdot \color{blue}{0.5}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right) \cdot -2
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 6 ↓ 6">73.2%</span></p><div class="math">\[\leadsto \left(\sin \left(\left(\varepsilon + \left(x - x\right)\right) \cdot 0.5\right) \cdot \sin \color{blue}{\left(\left(\left(x + \varepsilon\right) + x\right) \cdot \frac{1}{2}\right)}\right) \cdot -2
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 2 ↓ 10">73.2%</span></p><div class="math">\[\leadsto \left(\sin \left(\left(\varepsilon + \left(x - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} + x\right) \cdot \frac{1}{2}\right)\right) \cdot -2
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 0 ↓ 2">73.3%</span></p><div class="math">\[\leadsto \left(\sin \left(\left(\varepsilon + \left(x - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\color{blue}{\left(\varepsilon + \left(x + x\right)\right)} \cdot \frac{1}{2}\right)\right) \cdot -2
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 2 ↓ 0">73.3%</span></p><div class="math">\[\leadsto \left(\sin \left(\left(\varepsilon + \left(x - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{0.5}\right)\right) \cdot -2
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="76.3% on training set">73.3%</span></p><div class="math">\[\leadsto \color{blue}{\left(\sin \left(\left(\varepsilon + \left(x - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)\right) \cdot -2}
+\]</div></li><li><p>Taylor expanded in x around -inf <span class="error" title="76.3% on training set">73.3%</span></p><div class="math">\[\leadsto \color{blue}{\left(\sin \left(0.5 \cdot \varepsilon\right) \cdot \sin \left(0.5 \cdot \left(\varepsilon - -2 \cdot x\right)\right)\right)} \cdot -2
+\]</div></li><li><p>Final simplification<span class="error" title="76.3% on training set">73.3%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\varepsilon \cdot 0.5\right) \cdot \sin \left(0.5 \cdot \left(\varepsilon - x \cdot -2\right)\right)\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative9" class="programs"><h2>Alternative 9: <span class="subhead"><data>67.6%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -1.02 \cdot 10^{-20} \lor \neg \left(\varepsilon \leq 2.45 \cdot 10^{-11}\right):\\
+\;\;\;\;-2 \cdot {\sin \left(\varepsilon \cdot 0.5\right)}^{2}\\
+
+\mathbf{else}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (or (&lt;= eps -1.02e-20) (not (&lt;= eps 2.45e-11)))
+   (* -2.0 (pow (sin (* eps 0.5)) 2.0))
+   (- (* eps (sin x)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -1.02e-20) || !(eps &lt;= 2.45e-11)) {
+		tmp = -2.0 * pow(sin((eps * 0.5)), 2.0);
+	} else {
+		tmp = -(eps * sin(x));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    real(8) :: tmp
+    if ((eps &lt;= (-1.02d-20)) .or. (.not. (eps &lt;= 2.45d-11))) then
+        tmp = (-2.0d0) * (sin((eps * 0.5d0)) ** 2.0d0)
+    else
+        tmp = -(eps * sin(x))
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -1.02e-20) || !(eps &lt;= 2.45e-11)) {
+		tmp = -2.0 * Math.pow(Math.sin((eps * 0.5)), 2.0);
+	} else {
+		tmp = -(eps * Math.sin(x));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	tmp = 0
+	if (eps &lt;= -1.02e-20) or not (eps &lt;= 2.45e-11):
+		tmp = -2.0 * math.pow(math.sin((eps * 0.5)), 2.0)
+	else:
+		tmp = -(eps * math.sin(x))
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if ((eps &lt;= -1.02e-20) || !(eps &lt;= 2.45e-11))
+		tmp = Float64(-2.0 * (sin(Float64(eps * 0.5)) ^ 2.0));
+	else
+		tmp = Float64(-Float64(eps * sin(x)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, eps)
+	tmp = 0.0;
+	if ((eps &lt;= -1.02e-20) || ~((eps &lt;= 2.45e-11)))
+		tmp = -2.0 * (sin((eps * 0.5)) ^ 2.0);
+	else
+		tmp = -(eps * sin(x));
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[Or[LessEqual[eps, -1.02e-20], N[Not[LessEqual[eps, 2.45e-11]], $MachinePrecision]], N[(-2.0 * N[Power[N[Sin[N[(eps * 0.5), $MachinePrecision]], $MachinePrecision], 2.0], $MachinePrecision]), $MachinePrecision], (-N[(eps * N[Sin[x], $MachinePrecision]), $MachinePrecision])]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -1.02 \cdot 10^{-20} \lor \neg \left(\varepsilon \leq 2.45 \cdot 10^{-11}\right):\\
+\;\;\;\;-2 \cdot {\sin \left(\varepsilon \cdot 0.5\right)}^{2}\\
+
+\mathbf{else}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -1.02000000000000001e-20 or 2.4499999999999999e-11 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="51.8% on training set">48.6%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">diff-cos</code><span class="error" title=" ↑ 9 ↓ 0">50.1%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\frac{\left(x + \varepsilon\right) - x}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 8 ↓ 1">50.1%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \color{blue}{\left(\left(\left(x + \varepsilon\right) - x\right) \cdot \frac{1}{2}\right)} \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ 9 ↓ 0">50.1%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\color{blue}{\left(x + \left(\varepsilon - x\right)\right)} \cdot \frac{1}{2}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">50.1%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot \color{blue}{0.5}\right) \cdot \sin \left(\frac{\left(x + \varepsilon\right) + x}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 9">50.1%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \color{blue}{\left(\left(\left(x + \varepsilon\right) + x\right) \cdot \frac{1}{2}\right)}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 9">50.1%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\color{blue}{\left(\varepsilon + x\right)} + x\right) \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 0 ↓ 9">50.2%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\color{blue}{\left(\varepsilon + \left(x + x\right)\right)} \cdot \frac{1}{2}\right)\right)
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">50.2%</span></p><div class="math">\[\leadsto -2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{0.5}\right)\right)
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="52.9% on training set">50.2%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot \left(\sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ 10 ↓ 0">50.2%</span></p><div class="math">\[\leadsto \color{blue}{\left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right) \cdot \sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 10 ↓ 0">50.2%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(\left(\varepsilon + \left(x + x\right)\right) \cdot 0.5\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 20 ↓ 0">50.2%</span></p><div class="math">\[\leadsto \sin \color{blue}{\left(0.5 \cdot \left(\varepsilon + \left(x + x\right)\right)\right)} \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 10 ↓ 10">50.2%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\left(\left(x + x\right) + \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">count-2</code><span class="error" title=" ↑ 0 ↓ 20">50.2%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \left(\color{blue}{2 \cdot x} + \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">fma-def</code><span class="error" title=" ↑ 0 ↓ 10">50.2%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \color{blue}{\mathsf{fma}\left(2, x, \varepsilon\right)}\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon - x\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">50.2%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(\varepsilon + \left(-x\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 10">50.2%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \left(\varepsilon + \color{blue}{-1 \cdot x}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 1">50.2%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(x + \color{blue}{\left(-1 \cdot x + \varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 0 ↓ 0">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(\left(x + -1 \cdot x\right) + \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 0">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\left(x + \color{blue}{\left(-x\right)}\right) + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 20 ↓ 0">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{\left(x - x\right)} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 20">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(\color{blue}{0} + \varepsilon\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">remove-double-neg</code><span class="error" title=" ↑ 20 ↓ 0">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \color{blue}{\left(-\left(-\varepsilon\right)\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 20">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(0 + \left(-\color{blue}{-1 \cdot \varepsilon}\right)\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ 0 ↓ 10">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(0 - -1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ 20 ↓ 0">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\left(--1 \cdot \varepsilon\right)} \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 10 ↓ 10">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\left(-\color{blue}{\left(-\varepsilon\right)}\right) \cdot 0.5\right)\right)
+\]</div></li><li><p><code title="left to right">remove-double-neg</code><span class="error" title=" ↑ 10 ↓ 10">52.0%</span></p><div class="math">\[\leadsto \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\color{blue}{\varepsilon} \cdot 0.5\right)\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="55.8% on training set">52.0%</span></p><div class="math">\[\leadsto \color{blue}{\sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right) \cdot \left(-2 \cdot \sin \left(\varepsilon \cdot 0.5\right)\right)}
+\]</div></li><li><p>Taylor expanded in x around 0 <span class="error" title="54.1% on training set">51.8%</span></p><div class="math">\[\leadsto \color{blue}{-2 \cdot {\sin \left(0.5 \cdot \varepsilon\right)}^{2}}
+\]</div></li></ol><h2><code>if <span class="condition">-1.02000000000000001e-20 &lt;  eps  &lt; 2.4499999999999999e-11</span></code></h2><ol><li><p>Initial program <span class="error" title="23.5% on training set">24.6%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0 <span class="error" title="83.0% on training set">88.3%</span></p><div class="math">\[\leadsto \color{blue}{-1 \cdot \left(\varepsilon \cdot \sin x\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 4">88.3%</span></p><div class="math">\[\leadsto \color{blue}{-\varepsilon \cdot \sin x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 0 ↓ 4">88.3%</span></p><div class="math">\[\leadsto -\color{blue}{\sin x \cdot \varepsilon}
+\]</div></li><li><p><code title="left to right">distribute-rgt-neg-in</code><span class="error" title=" ↑ 4 ↓ 0">88.3%</span></p><div class="math">\[\leadsto \color{blue}{\sin x \cdot \left(-\varepsilon\right)}
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="83.0% on training set">88.3%</span></p><div class="math">\[\leadsto \color{blue}{\sin x \cdot \left(-\varepsilon\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="67.6% on training set">68.1%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -1.02 \cdot 10^{-20} \lor \neg \left(\varepsilon \leq 2.45 \cdot 10^{-11}\right):\\
+\;\;\;\;-2 \cdot {\sin \left(\varepsilon \cdot 0.5\right)}^{2}\\
+
+\mathbf{else}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative10" class="programs"><h2>Alternative 10: <span class="subhead"><data>67.6%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -8.5 \cdot 10^{-20} \lor \neg \left(\varepsilon \leq 1.35 \cdot 10^{-9}\right):\\
+\;\;\;\;\sin \varepsilon \cdot \tan \left(\frac{-\varepsilon}{2}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (or (&lt;= eps -8.5e-20) (not (&lt;= eps 1.35e-9)))
+   (* (sin eps) (tan (/ (- eps) 2.0)))
+   (- (* eps (sin x)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -8.5e-20) || !(eps &lt;= 1.35e-9)) {
+		tmp = sin(eps) * tan((-eps / 2.0));
+	} else {
+		tmp = -(eps * sin(x));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    real(8) :: tmp
+    if ((eps &lt;= (-8.5d-20)) .or. (.not. (eps &lt;= 1.35d-9))) then
+        tmp = sin(eps) * tan((-eps / 2.0d0))
+    else
+        tmp = -(eps * sin(x))
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -8.5e-20) || !(eps &lt;= 1.35e-9)) {
+		tmp = Math.sin(eps) * Math.tan((-eps / 2.0));
+	} else {
+		tmp = -(eps * Math.sin(x));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	tmp = 0
+	if (eps &lt;= -8.5e-20) or not (eps &lt;= 1.35e-9):
+		tmp = math.sin(eps) * math.tan((-eps / 2.0))
+	else:
+		tmp = -(eps * math.sin(x))
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if ((eps &lt;= -8.5e-20) || !(eps &lt;= 1.35e-9))
+		tmp = Float64(sin(eps) * tan(Float64(Float64(-eps) / 2.0)));
+	else
+		tmp = Float64(-Float64(eps * sin(x)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, eps)
+	tmp = 0.0;
+	if ((eps &lt;= -8.5e-20) || ~((eps &lt;= 1.35e-9)))
+		tmp = sin(eps) * tan((-eps / 2.0));
+	else
+		tmp = -(eps * sin(x));
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[Or[LessEqual[eps, -8.5e-20], N[Not[LessEqual[eps, 1.35e-9]], $MachinePrecision]], N[(N[Sin[eps], $MachinePrecision] * N[Tan[N[((-eps) / 2.0), $MachinePrecision]], $MachinePrecision]), $MachinePrecision], (-N[(eps * N[Sin[x], $MachinePrecision]), $MachinePrecision])]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -8.5 \cdot 10^{-20} \lor \neg \left(\varepsilon \leq 1.35 \cdot 10^{-9}\right):\\
+\;\;\;\;\sin \varepsilon \cdot \tan \left(\frac{-\varepsilon}{2}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -8.5000000000000005e-20 or 1.3500000000000001e-9 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="51.9% on training set">48.6%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0 <span class="error" title="52.5% on training set">49.4%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon - 1}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">flip--</code><span class="error" title=" ↑ 7 ↓ 0">48.9%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\cos \varepsilon \cdot \cos \varepsilon - 1 \cdot 1}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="left to right">div-inv</code><span class="error" title=" ↑ 0 ↓ 7">48.9%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos \varepsilon \cdot \cos \varepsilon - 1 \cdot 1\right) \cdot \frac{1}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 7 ↓ 0">48.9%</span></p><div class="math">\[\leadsto \left(\cos \varepsilon \cdot \cos \varepsilon - \color{blue}{1}\right) \cdot \frac{1}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ 7 ↓ 0">48.9%</span></p><div class="math">\[\leadsto \color{blue}{\left(\cos \varepsilon \cdot \cos \varepsilon + \left(-1\right)\right)} \cdot \frac{1}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">pow2</code><span class="error" title=" ↑ 0 ↓ 7">48.9%</span></p><div class="math">\[\leadsto \left(\color{blue}{{\cos \varepsilon}^{2}} + \left(-1\right)\right) \cdot \frac{1}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 7">48.9%</span></p><div class="math">\[\leadsto \left({\cos \varepsilon}^{2} + \color{blue}{-1}\right) \cdot \frac{1}{\cos \varepsilon + 1}
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="52.1% on training set">48.9%</span></p><div class="math">\[\leadsto \color{blue}{\left({\cos \varepsilon}^{2} + -1\right) \cdot \frac{1}{\cos \varepsilon + 1}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r/</code><span class="error" title=" ↑ 6 ↓ 0">48.9%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\left({\cos \varepsilon}^{2} + -1\right) \cdot 1}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="left to right">*-rgt-identity</code><span class="error" title=" ↑ 0 ↓ 6">48.9%</span></p><div class="math">\[\leadsto \frac{\color{blue}{{\cos \varepsilon}^{2} + -1}}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">unpow2</code><span class="error" title=" ↑ 6 ↓ 0">48.9%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\cos \varepsilon \cdot \cos \varepsilon} + -1}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="left to right">-1-add-cos</code><span class="error" title=" ↑ 6 ↓ 0">51.4%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-\sin \varepsilon \cdot \sin \varepsilon}}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="right to left">unpow2</code><span class="error" title=" ↑ 0 ↓ 6">51.4%</span></p><div class="math">\[\leadsto \frac{-\color{blue}{{\sin \varepsilon}^{2}}}{\cos \varepsilon + 1}
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="53.6% on training set">51.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-{\sin \varepsilon}^{2}}{\cos \varepsilon + 1}}
+\]</div></li><li><p>Taylor expanded in eps around inf <span class="error" title="53.6% on training set">51.4%</span></p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{{\sin \varepsilon}^{2}}{1 + \cos \varepsilon}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r/</code><span class="error" title=" ↑ 11 ↓ 0">51.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1 \cdot {\sin \varepsilon}^{2}}{1 + \cos \varepsilon}}
+\]</div></li><li><p><code title="right to left">neg-mul-1</code><span class="error" title=" ↑ 0 ↓ 11">51.4%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-{\sin \varepsilon}^{2}}}{1 + \cos \varepsilon}
+\]</div></li><li><p><code title="left to right">unpow2</code><span class="error" title=" ↑ 11 ↓ 0">51.4%</span></p><div class="math">\[\leadsto \frac{-\color{blue}{\sin \varepsilon \cdot \sin \varepsilon}}{1 + \cos \varepsilon}
+\]</div></li><li><p><code title="right to left">distribute-rgt-neg-out</code><span class="error" title=" ↑ 11 ↓ 0">51.4%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\sin \varepsilon \cdot \left(-\sin \varepsilon\right)}}{1 + \cos \varepsilon}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ 0 ↓ 11">51.4%</span></p><div class="math">\[\leadsto \frac{\sin \varepsilon \cdot \left(-\sin \varepsilon\right)}{\color{blue}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="right to left">*-lft-identity</code><span class="error" title=" ↑ 0 ↓ 11">51.4%</span></p><div class="math">\[\leadsto \frac{\sin \varepsilon \cdot \left(-\sin \varepsilon\right)}{\color{blue}{1 \cdot \left(\cos \varepsilon + 1\right)}}
+\]</div></li><li><p><code title="left to right">times-frac</code><span class="error" title=" ↑ 0 ↓ 11">51.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin \varepsilon}{1} \cdot \frac{-\sin \varepsilon}{\cos \varepsilon + 1}}
+\]</div></li><li><p><code title="left to right">/-rgt-identity</code><span class="error" title=" ↑ 0 ↓ 11">51.4%</span></p><div class="math">\[\leadsto \color{blue}{\sin \varepsilon} \cdot \frac{-\sin \varepsilon}{\cos \varepsilon + 1}
+\]</div></li><li><p><code title="right to left">+-commutative</code><span class="error" title=" ↑ 0 ↓ 7">51.4%</span></p><div class="math">\[\leadsto \sin \varepsilon \cdot \frac{-\sin \varepsilon}{\color{blue}{1 + \cos \varepsilon}}
+\]</div></li><li><p><code title="left to right">hang-0m-tan</code><span class="error" title=" ↑ 0 ↓ 0">52.0%</span></p><div class="math">\[\leadsto \sin \varepsilon \cdot \color{blue}{\tan \left(\frac{-\varepsilon}{2}\right)}
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="54.2% on training set">52.0%</span></p><div class="math">\[\leadsto \color{blue}{\sin \varepsilon \cdot \tan \left(\frac{-\varepsilon}{2}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">-8.5000000000000005e-20 &lt;  eps  &lt; 1.3500000000000001e-9</span></code></h2><ol><li><p>Initial program <span class="error" title="23.5% on training set">24.6%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0 <span class="error" title="82.8% on training set">88.3%</span></p><div class="math">\[\leadsto \color{blue}{-1 \cdot \left(\varepsilon \cdot \sin x\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 4">88.3%</span></p><div class="math">\[\leadsto \color{blue}{-\varepsilon \cdot \sin x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 0 ↓ 4">88.3%</span></p><div class="math">\[\leadsto -\color{blue}{\sin x \cdot \varepsilon}
+\]</div></li><li><p><code title="left to right">distribute-rgt-neg-in</code><span class="error" title=" ↑ 4 ↓ 0">88.3%</span></p><div class="math">\[\leadsto \color{blue}{\sin x \cdot \left(-\varepsilon\right)}
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="82.8% on training set">88.3%</span></p><div class="math">\[\leadsto \color{blue}{\sin x \cdot \left(-\varepsilon\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="67.6% on training set">68.2%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -8.5 \cdot 10^{-20} \lor \neg \left(\varepsilon \leq 1.35 \cdot 10^{-9}\right):\\
+\;\;\;\;\sin \varepsilon \cdot \tan \left(\frac{-\varepsilon}{2}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative11" class="programs"><h2>Alternative 11: <span class="subhead"><data>67.3%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -6.2 \cdot 10^{-16}:\\
+\;\;\;\;\cos \varepsilon - \cos x\\
+
+\mathbf{elif}\;\varepsilon \leq 2.8 \cdot 10^{-5}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+\mathbf{else}:\\
+\;\;\;\;\cos \varepsilon + -1\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (&lt;= eps -6.2e-16)
+   (- (cos eps) (cos x))
+   (if (&lt;= eps 2.8e-5) (- (* eps (sin x))) (+ (cos eps) -1.0))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if (eps &lt;= -6.2e-16) {
+		tmp = cos(eps) - cos(x);
+	} else if (eps &lt;= 2.8e-5) {
+		tmp = -(eps * sin(x));
+	} else {
+		tmp = cos(eps) + -1.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    real(8) :: tmp
+    if (eps &lt;= (-6.2d-16)) then
+        tmp = cos(eps) - cos(x)
+    else if (eps &lt;= 2.8d-5) then
+        tmp = -(eps * sin(x))
+    else
+        tmp = cos(eps) + (-1.0d0)
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	double tmp;
+	if (eps &lt;= -6.2e-16) {
+		tmp = Math.cos(eps) - Math.cos(x);
+	} else if (eps &lt;= 2.8e-5) {
+		tmp = -(eps * Math.sin(x));
+	} else {
+		tmp = Math.cos(eps) + -1.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	tmp = 0
+	if eps &lt;= -6.2e-16:
+		tmp = math.cos(eps) - math.cos(x)
+	elif eps &lt;= 2.8e-5:
+		tmp = -(eps * math.sin(x))
+	else:
+		tmp = math.cos(eps) + -1.0
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if (eps &lt;= -6.2e-16)
+		tmp = Float64(cos(eps) - cos(x));
+	elseif (eps &lt;= 2.8e-5)
+		tmp = Float64(-Float64(eps * sin(x)));
+	else
+		tmp = Float64(cos(eps) + -1.0);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, eps)
+	tmp = 0.0;
+	if (eps &lt;= -6.2e-16)
+		tmp = cos(eps) - cos(x);
+	elseif (eps &lt;= 2.8e-5)
+		tmp = -(eps * sin(x));
+	else
+		tmp = cos(eps) + -1.0;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[LessEqual[eps, -6.2e-16], N[(N[Cos[eps], $MachinePrecision] - N[Cos[x], $MachinePrecision]), $MachinePrecision], If[LessEqual[eps, 2.8e-5], (-N[(eps * N[Sin[x], $MachinePrecision]), $MachinePrecision]), N[(N[Cos[eps], $MachinePrecision] + -1.0), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -6.2 \cdot 10^{-16}:\\
+\;\;\;\;\cos \varepsilon - \cos x\\
+
+\mathbf{elif}\;\varepsilon \leq 2.8 \cdot 10^{-5}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+\mathbf{else}:\\
+\;\;\;\;\cos \varepsilon + -1\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -6.2000000000000002e-16</span></code></h2><ol><li><p>Initial program <span class="error" title="50.8% on training set">48.5%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0 <span class="error" title="52.6% on training set">50.3%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon} - \cos x
+\]</div></li></ol><h2><code>if <span class="condition">-6.2000000000000002e-16 &lt;  eps  &lt; 2.79999999999999996e-5</span></code></h2><ol><li><p>Initial program <span class="error" title="23.3% on training set">24.4%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0 <span class="error" title="82.4% on training set">87.6%</span></p><div class="math">\[\leadsto \color{blue}{-1 \cdot \left(\varepsilon \cdot \sin x\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 4">87.6%</span></p><div class="math">\[\leadsto \color{blue}{-\varepsilon \cdot \sin x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 0 ↓ 4">87.6%</span></p><div class="math">\[\leadsto -\color{blue}{\sin x \cdot \varepsilon}
+\]</div></li><li><p><code title="left to right">distribute-rgt-neg-in</code><span class="error" title=" ↑ 4 ↓ 0">87.6%</span></p><div class="math">\[\leadsto \color{blue}{\sin x \cdot \left(-\varepsilon\right)}
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="82.4% on training set">87.6%</span></p><div class="math">\[\leadsto \color{blue}{\sin x \cdot \left(-\varepsilon\right)}
+\]</div></li></ol><h2><code>if <span class="condition">2.79999999999999996e-5 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="54.0% on training set">49.5%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0 <span class="error" title="54.8% on training set">52.3%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon - 1}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="67.3% on training set">67.5%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -6.2 \cdot 10^{-16}:\\
+\;\;\;\;\cos \varepsilon - \cos x\\
+
+\mathbf{elif}\;\varepsilon \leq 2.8 \cdot 10^{-5}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+\mathbf{else}:\\
+\;\;\;\;\cos \varepsilon + -1\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative12" class="programs"><h2>Alternative 12: <span class="subhead"><data>67.0%</data> accurate, <data>1.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -6.2 \cdot 10^{-16} \lor \neg \left(\varepsilon \leq 0.00037\right):\\
+\;\;\;\;\cos \varepsilon + -1\\
+
+\mathbf{else}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (or (&lt;= eps -6.2e-16) (not (&lt;= eps 0.00037)))
+   (+ (cos eps) -1.0)
+   (- (* eps (sin x)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -6.2e-16) || !(eps &lt;= 0.00037)) {
+		tmp = cos(eps) + -1.0;
+	} else {
+		tmp = -(eps * sin(x));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    real(8) :: tmp
+    if ((eps &lt;= (-6.2d-16)) .or. (.not. (eps &lt;= 0.00037d0))) then
+        tmp = cos(eps) + (-1.0d0)
+    else
+        tmp = -(eps * sin(x))
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -6.2e-16) || !(eps &lt;= 0.00037)) {
+		tmp = Math.cos(eps) + -1.0;
+	} else {
+		tmp = -(eps * Math.sin(x));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	tmp = 0
+	if (eps &lt;= -6.2e-16) or not (eps &lt;= 0.00037):
+		tmp = math.cos(eps) + -1.0
+	else:
+		tmp = -(eps * math.sin(x))
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if ((eps &lt;= -6.2e-16) || !(eps &lt;= 0.00037))
+		tmp = Float64(cos(eps) + -1.0);
+	else
+		tmp = Float64(-Float64(eps * sin(x)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, eps)
+	tmp = 0.0;
+	if ((eps &lt;= -6.2e-16) || ~((eps &lt;= 0.00037)))
+		tmp = cos(eps) + -1.0;
+	else
+		tmp = -(eps * sin(x));
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[Or[LessEqual[eps, -6.2e-16], N[Not[LessEqual[eps, 0.00037]], $MachinePrecision]], N[(N[Cos[eps], $MachinePrecision] + -1.0), $MachinePrecision], (-N[(eps * N[Sin[x], $MachinePrecision]), $MachinePrecision])]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -6.2 \cdot 10^{-16} \lor \neg \left(\varepsilon \leq 0.00037\right):\\
+\;\;\;\;\cos \varepsilon + -1\\
+
+\mathbf{else}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -6.2000000000000002e-16 or 3.6999999999999999e-4 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="52.4% on training set">48.9%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0 <span class="error" title="53.1% on training set">49.7%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon - 1}
+\]</div></li></ol><h2><code>if <span class="condition">-6.2000000000000002e-16 &lt;  eps  &lt; 3.6999999999999999e-4</span></code></h2><ol><li><p>Initial program <span class="error" title="23.3% on training set">24.4%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0 <span class="error" title="82.3% on training set">87.6%</span></p><div class="math">\[\leadsto \color{blue}{-1 \cdot \left(\varepsilon \cdot \sin x\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ 0 ↓ 4">87.6%</span></p><div class="math">\[\leadsto \color{blue}{-\varepsilon \cdot \sin x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ 0 ↓ 4">87.6%</span></p><div class="math">\[\leadsto -\color{blue}{\sin x \cdot \varepsilon}
+\]</div></li><li><p><code title="left to right">distribute-rgt-neg-in</code><span class="error" title=" ↑ 4 ↓ 0">87.6%</span></p><div class="math">\[\leadsto \color{blue}{\sin x \cdot \left(-\varepsilon\right)}
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="82.3% on training set">87.6%</span></p><div class="math">\[\leadsto \color{blue}{\sin x \cdot \left(-\varepsilon\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="67.0% on training set">66.7%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -6.2 \cdot 10^{-16} \lor \neg \left(\varepsilon \leq 0.00037\right):\\
+\;\;\;\;\cos \varepsilon + -1\\
+
+\mathbf{else}:\\
+\;\;\;\;-\varepsilon \cdot \sin x\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative13" class="programs"><h2>Alternative 13: <span class="subhead"><data>52.8%</data> accurate, <data>1.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00012 \lor \neg \left(\varepsilon \leq 0.000215\right):\\
+\;\;\;\;\cos \varepsilon + -1\\
+
+\mathbf{else}:\\
+\;\;\;\;-0.5 \cdot \left(\varepsilon \cdot \left(\varepsilon + x\right) + \varepsilon \cdot x\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (if (or (&lt;= eps -0.00012) (not (&lt;= eps 0.000215)))
+   (+ (cos eps) -1.0)
+   (* -0.5 (+ (* eps (+ eps x)) (* eps x)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -0.00012) || !(eps &lt;= 0.000215)) {
+		tmp = cos(eps) + -1.0;
+	} else {
+		tmp = -0.5 * ((eps * (eps + x)) + (eps * x));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    real(8) :: tmp
+    if ((eps &lt;= (-0.00012d0)) .or. (.not. (eps &lt;= 0.000215d0))) then
+        tmp = cos(eps) + (-1.0d0)
+    else
+        tmp = (-0.5d0) * ((eps * (eps + x)) + (eps * x))
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	double tmp;
+	if ((eps &lt;= -0.00012) || !(eps &lt;= 0.000215)) {
+		tmp = Math.cos(eps) + -1.0;
+	} else {
+		tmp = -0.5 * ((eps * (eps + x)) + (eps * x));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	tmp = 0
+	if (eps &lt;= -0.00012) or not (eps &lt;= 0.000215):
+		tmp = math.cos(eps) + -1.0
+	else:
+		tmp = -0.5 * ((eps * (eps + x)) + (eps * x))
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	tmp = 0.0
+	if ((eps &lt;= -0.00012) || !(eps &lt;= 0.000215))
+		tmp = Float64(cos(eps) + -1.0);
+	else
+		tmp = Float64(-0.5 * Float64(Float64(eps * Float64(eps + x)) + Float64(eps * x)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, eps)
+	tmp = 0.0;
+	if ((eps &lt;= -0.00012) || ~((eps &lt;= 0.000215)))
+		tmp = cos(eps) + -1.0;
+	else
+		tmp = -0.5 * ((eps * (eps + x)) + (eps * x));
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := If[Or[LessEqual[eps, -0.00012], N[Not[LessEqual[eps, 0.000215]], $MachinePrecision]], N[(N[Cos[eps], $MachinePrecision] + -1.0), $MachinePrecision], N[(-0.5 * N[(N[(eps * N[(eps + x), $MachinePrecision]), $MachinePrecision] + N[(eps * x), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00012 \lor \neg \left(\varepsilon \leq 0.000215\right):\\
+\;\;\;\;\cos \varepsilon + -1\\
+
+\mathbf{else}:\\
+\;\;\;\;-0.5 \cdot \left(\varepsilon \cdot \left(\varepsilon + x\right) + \varepsilon \cdot x\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> eps  &lt; -1.20000000000000003e-4 or 2.14999999999999995e-4 &lt;  eps </span></code></h2><ol><li><p>Initial program <span class="error" title="53.2% on training set">49.5%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0 <span class="error" title="53.8% on training set">50.3%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon - 1}
+\]</div></li></ol><h2><code>if <span class="condition">-1.20000000000000003e-4 &lt;  eps  &lt; 2.14999999999999995e-4</span></code></h2><ol><li><p>Initial program <span class="error" title="23.2% on training set">24.3%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0 <span class="error" title="23.2% on training set">24.3%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon - 1}
+\]</div></li><li><p>Taylor expanded in eps around 0 <span class="error" title="39.9% on training set">37.2%</span></p><div class="math">\[\leadsto \color{blue}{-0.5 \cdot {\varepsilon}^{2}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">+-rgt-identity</code><span class="error" title=" ↑ 9 ↓ 0">37.2%</span></p><div class="math">\[\leadsto -0.5 \cdot {\color{blue}{\left(\varepsilon + 0\right)}}^{2}
+\]</div></li><li><p><code title="right to left">metadata-eval</code><span class="error" title=" ↑ 4 ↓ 5">37.2%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \color{blue}{\left(0 - 0\right)}\right)}^{2}
+\]</div></li><li><p><code title="right to left">+-inverses</code><span class="error" title=" ↑ 9 ↓ 0">37.2%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \left(\color{blue}{\left(x - x\right)} - 0\right)\right)}^{2}
+\]</div></li><li><p><code title="right to left">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">37.2%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \left(\left(x - x\right) - \color{blue}{\left(x - x\right)}\right)\right)}^{2}
+\]</div></li><li><p><code title="left to right">flip--</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \color{blue}{\frac{\left(x - x\right) \cdot \left(x - x\right) - \left(x - x\right) \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{\color{blue}{0} \cdot \left(x - x\right) - \left(x - x\right) \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 4 ↓ 5">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{0 \cdot \color{blue}{0} - \left(x - x\right) \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{\color{blue}{0} - \left(x - x\right) \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{0 - \color{blue}{0} \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{0 - 0 \cdot \color{blue}{0}}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{0 - \color{blue}{0}}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 9 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{\color{blue}{0}}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="right to left">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{\color{blue}{x \cdot x - x \cdot x}}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 9 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{x \cdot x - x \cdot x}{\color{blue}{0} + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{x \cdot x - x \cdot x}{0 + \color{blue}{0}}\right)}^{2}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{x \cdot x - x \cdot x}{\color{blue}{0}}\right)}^{2}
+\]</div></li><li><p><code title="right to left">+-inverses</code><span class="error" title=" ↑ 9 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{x \cdot x - x \cdot x}{\color{blue}{x - x}}\right)}^{2}
+\]</div></li><li><p><code title="right to left">flip-+</code><span class="error" title=" ↑ 9 ↓ 0">29.1%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \color{blue}{\left(x + x\right)}\right)}^{2}
+\]</div></li><li><p><code title="right to left">pow2</code><span class="error" title=" ↑ 5 ↓ 4">29.1%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\left(\varepsilon + \left(x + x\right)\right) \cdot \left(\varepsilon + \left(x + x\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 4 ↓ 5">29.1%</span></p><div class="math">\[\leadsto -0.5 \cdot \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{\left(\left(\varepsilon + x\right) + x\right)}\right)
+\]</div></li><li><p><code title="left to right">distribute-rgt-in</code><span class="error" title=" ↑ 0 ↓ 9">29.1%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\left(\varepsilon + x\right) \cdot \left(\varepsilon + \left(x + x\right)\right) + x \cdot \left(\varepsilon + \left(x + x\right)\right)\right)}
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="51.6% on training set">50.7%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\left(\varepsilon + x\right) \cdot \varepsilon + x \cdot \varepsilon\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="52.8% on training set">50.5%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;\varepsilon \leq -0.00012 \lor \neg \left(\varepsilon \leq 0.000215\right):\\
+\;\;\;\;\cos \varepsilon + -1\\
+
+\mathbf{else}:\\
+\;\;\;\;-0.5 \cdot \left(\varepsilon \cdot \left(\varepsilon + x\right) + \varepsilon \cdot x\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative14" class="programs"><h2>Alternative 14: <span class="subhead"><data>26.8%</data> accurate, <data>22.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+-0.5 \cdot \left(\varepsilon \cdot \left(\varepsilon + \left(x + x\right)\right)\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (* -0.5 (* eps (+ eps (+ x x)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return -0.5 * (eps * (eps + (x + x)));
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = (-0.5d0) * (eps * (eps + (x + x)))
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return -0.5 * (eps * (eps + (x + x)));
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return -0.5 * (eps * (eps + (x + x)))
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(-0.5 * Float64(eps * Float64(eps + Float64(x + x))))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = -0.5 * (eps * (eps + (x + x)));
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(-0.5 * N[(eps * N[(eps + N[(x + x), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+-0.5 \cdot \left(\varepsilon \cdot \left(\varepsilon + \left(x + x\right)\right)\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="38.6% on training set">37.9%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0 <span class="error" title="39.0% on training set">38.3%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon - 1}
+\]</div></li><li><p>Taylor expanded in eps around 0 <span class="error" title="21.2% on training set">19.0%</span></p><div class="math">\[\leadsto \color{blue}{-0.5 \cdot {\varepsilon}^{2}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">+-rgt-identity</code><span class="error" title=" ↑ 9 ↓ 0">19.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\color{blue}{\left(\varepsilon + 0\right)}}^{2}
+\]</div></li><li><p><code title="right to left">metadata-eval</code><span class="error" title=" ↑ 4 ↓ 5">19.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \color{blue}{\left(0 - 0\right)}\right)}^{2}
+\]</div></li><li><p><code title="right to left">+-inverses</code><span class="error" title=" ↑ 9 ↓ 0">19.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \left(\color{blue}{\left(x - x\right)} - 0\right)\right)}^{2}
+\]</div></li><li><p><code title="right to left">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">19.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \left(\left(x - x\right) - \color{blue}{\left(x - x\right)}\right)\right)}^{2}
+\]</div></li><li><p><code title="left to right">flip--</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \color{blue}{\frac{\left(x - x\right) \cdot \left(x - x\right) - \left(x - x\right) \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{\color{blue}{0} \cdot \left(x - x\right) - \left(x - x\right) \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 4 ↓ 5">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{0 \cdot \color{blue}{0} - \left(x - x\right) \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{\color{blue}{0} - \left(x - x\right) \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{0 - \color{blue}{0} \cdot \left(x - x\right)}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{0 - 0 \cdot \color{blue}{0}}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{0 - \color{blue}{0}}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 9 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{\color{blue}{0}}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="right to left">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{\color{blue}{x \cdot x - x \cdot x}}{\left(x - x\right) + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 9 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{x \cdot x - x \cdot x}{\color{blue}{0} + \left(x - x\right)}\right)}^{2}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{x \cdot x - x \cdot x}{0 + \color{blue}{0}}\right)}^{2}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ 0 ↓ 9">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{x \cdot x - x \cdot x}{\color{blue}{0}}\right)}^{2}
+\]</div></li><li><p><code title="right to left">+-inverses</code><span class="error" title=" ↑ 9 ↓ 0">0.0%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \frac{x \cdot x - x \cdot x}{\color{blue}{x - x}}\right)}^{2}
+\]</div></li><li><p><code title="right to left">flip-+</code><span class="error" title=" ↑ 9 ↓ 0">15.1%</span></p><div class="math">\[\leadsto -0.5 \cdot {\left(\varepsilon + \color{blue}{\left(x + x\right)}\right)}^{2}
+\]</div></li><li><p><code title="right to left">pow2</code><span class="error" title=" ↑ 5 ↓ 4">15.1%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\left(\varepsilon + \left(x + x\right)\right) \cdot \left(\varepsilon + \left(x + x\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ 4 ↓ 5">15.1%</span></p><div class="math">\[\leadsto -0.5 \cdot \left(\left(\varepsilon + \left(x + x\right)\right) \cdot \color{blue}{\left(\left(\varepsilon + x\right) + x\right)}\right)
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ 0 ↓ 9">15.0%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\left(\varepsilon + \left(x + x\right)\right) \cdot \left(\varepsilon + x\right) + \left(\varepsilon + \left(x + x\right)\right) \cdot x\right)}
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="26.8% on training set">25.0%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\varepsilon \cdot \left(\varepsilon + x\right) + \varepsilon \cdot x\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">distribute-lft-out</code><span class="error" title=" ↑ 1 ↓ 0">25.1%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\varepsilon \cdot \left(\left(\varepsilon + x\right) + x\right)\right)}
+\]</div></li><li><p><code title="left to right">associate-+l+</code><span class="error" title=" ↑ 3 ↓ 0">25.1%</span></p><div class="math">\[\leadsto -0.5 \cdot \left(\varepsilon \cdot \color{blue}{\left(\varepsilon + \left(x + x\right)\right)}\right)
+\]</div></li></ol></details></div></li><li><p>Simplified<span class="error" title="26.8% on training set">25.1%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\varepsilon \cdot \left(\varepsilon + \left(x + x\right)\right)\right)}
+\]</div></li><li><p>Final simplification<span class="error" title="26.8% on training set">25.1%</span></p><div class="math">\[\leadsto -0.5 \cdot \left(\varepsilon \cdot \left(\varepsilon + \left(x + x\right)\right)\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative15" class="programs"><h2>Alternative 15: <span class="subhead"><data>21.2%</data> accurate, <data>41.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="/doc/latest/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+-0.5 \cdot \left(\varepsilon \cdot \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (* -0.5 (* eps eps)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return -0.5 * (eps * eps);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = (-0.5d0) * (eps * eps)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return -0.5 * (eps * eps);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return -0.5 * (eps * eps)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(-0.5 * Float64(eps * eps))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = -0.5 * (eps * eps);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(-0.5 * N[(eps * eps), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+-0.5 \cdot \left(\varepsilon \cdot \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="38.6% on training set">37.9%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0 <span class="error" title="39.0% on training set">38.3%</span></p><div class="math">\[\leadsto \color{blue}{\cos \varepsilon - 1}
+\]</div></li><li><p>Taylor expanded in eps around 0 <span class="error" title="21.2% on training set">19.0%</span></p><div class="math">\[\leadsto \color{blue}{-0.5 \cdot {\varepsilon}^{2}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">unpow2</code><span class="error" title=" ↑ 2 ↓ 0">19.0%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\varepsilon \cdot \varepsilon\right)}
+\]</div></li></ol></details></div></li><li><p>Applied <span class="rule">egg-rr</span><span class="error" title="21.2% on training set">19.0%</span></p><div class="math">\[\leadsto -0.5 \cdot \color{blue}{\left(\varepsilon \cdot \varepsilon\right)}
+\]</div></li><li><p>Final simplification<span class="error" title="21.2% on training set">19.0%</span></p><div class="math">\[\leadsto -0.5 \cdot \left(\varepsilon \cdot \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="/doc/latest/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 0 
+(FPCore (x eps)
+  :name "2cos (problem 3.3.5)"
+  :precision binary64
+  (- (cos (+ x eps)) (cos x)))
+</code></pre></details></section></body></html>
