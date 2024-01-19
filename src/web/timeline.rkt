@@ -325,22 +325,24 @@
     (dd (details
          (summary "Click to see histograms")
          ,@(for/list ([rec (in-list (group-by first mixsample))])
+             (println rec)
              (define n (random 100000))
              (define op (car (car rec)))
-             (define precs-times (foldr (lambda (x l)
-                                          (list (cons (second x) (first l)) (cons (third x) (second l))))
-                                        (list '() '())
-                                        rec))
-             (define total-time (round (apply + (second precs-times))))
+             (define precs-times-total (foldr (lambda (x l)
+                                                (list (cons (second x) (first l))
+                                                      (cons (third x) (second l))
+                                                      (+ (third x) (third l))))
+                                              (list '() '() 0)
+                                              rec))
 
              `(details
-               (summary "Operation " ,(~a op) ", total time spent: " ,(~a total-time) "ms")
+               (summary "Operation " ,(~a op) ", total time spent: " ,(~a (round (third precs-times-total))) "ms")
                (canvas ([id ,(format "calls-~a" n)]
                         [title "Histogram of precisions of the used operation"]))
                (script "histogram2D(\""
                        ,(format "calls-~a" n) "\", "
-                       ,(jsexpr->string (first precs-times)) ", "
-                       ,(jsexpr->string (second precs-times)) ", "
+                       ,(jsexpr->string (first precs-times-total)) ", "
+                       ,(jsexpr->string (second precs-times-total)) ", "
                        "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})")))))))
 
 (define (render-phase-series n times)
