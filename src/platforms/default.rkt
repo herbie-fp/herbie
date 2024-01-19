@@ -42,12 +42,16 @@
           [(real real)
            (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
            exp exp2 expm1 fabs floor lgamma log log10 log2 log1p logb
-           rint round sin sinh sqrt tan tanh tgamma trunc
-           reciprocal)]
+           rint round sin sinh sqrt tan tanh tgamma trunc)]
           [(real real real)
            (atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
           [(real real real real)
            (fma)])))))
+
+(define accelerator-platform
+  (platform
+   [(binary64 binary64) reciprocal 48]
+   [(binary32 binary32) reciprocal 48]))
 
 ; compose platforms
 
@@ -58,7 +62,8 @@
 (define default-platform
   (platform-union boolean-platform
                   machine-platform
-                  libm-platform))
+                  libm-platform
+                  accelerator-platform))
 
 ; Register all three
 
