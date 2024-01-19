@@ -11,6 +11,16 @@
 
 (provide run-improve)
 
+(define (in-table-row tr)
+  (unless (table-row? tr)
+    (raise-argument-error 'in-table-row "table-row?" tr))
+  (match (table-row-status tr)
+    [(or "error" "crash" "timeout")
+     (raise-argument-error 'in-table-row "table row not valid result" tr)]
+    [_
+     (match-define (list _ (list best-cost best-err) other) (table-row-cost-accuracy tr))
+     (in-list (cons (list best-cost best-err (table-row-output tr)) other))]))
+
 (define ((write-header! lang) p)
   (match lang
     [(or "fpcore" #f)
@@ -43,17 +53,17 @@
        (fprintf p line)
        (newline p))]))
 
-(define ((write-result! lang) p res)
+(define ((write-result! lang) p res expr)
   (match lang
     [(or "fpcore" #f)
-     (write (unparse-result res) p)]
+     (pretty-print (unparse-result res #:expr expr) p 1)]
     ["c"
      (when (table-row-output res)
        (define name (table-row-name res))
        (define vars (table-row-vars res))
        (define repr (get-representation (table-row-precision res)))
        (define ctx (context vars repr (map (const repr) vars)))
-       (define core (program->fpcore (table-row-output res) ctx))
+       (define core (program->fpcore expr ctx))
        (fprintf p (core->c core name)))]))
 
 (define (print-outputs tests results p
@@ -73,25 +83,26 @@
       ["error"
        (comment! p "Error in ~a" name)
        (test! p test)
-       (result! p res)]
+       (result! p res #f)]
       ["crash"
        (comment! p "Crash in ~a" name)
        (test! p test)
-       (result! p res)]
+       (result! p res #f)]
       ["timeout"
        (comment! p "~a times out in ~as" (/ (*timeout*) 1000) name)
        (test! p test)
-       (result! p res)]
+       (result! p res #f)]
       [(? string?)
-       (match-define (list (list start-cost start-err) (list best-cost best-err) _ ...)
-                     (table-row-cost-accuracy res))
-       (test! p test)
-       (comment! p "---")
-       (comment! p "start error: ~a" start-err)
-       (comment! p "start cost: ~a" start-cost)
-       (comment! p "best error: ~a" best-err)
-       (comment! p "best cost: ~a" best-cost)
-       (result! p res)])
+       (for ([i (in-naturals 1)] [entry (in-table-row res)])
+         (match-define (list cost _ expr) entry)
+         (define res*
+           (struct-copy table-row res
+             [name (format "~a variant ~a" (table-row-name res) i)]))
+         (test! p test)
+         (comment! p "---")
+         (comment! p "cost: ~a" cost)
+         (result! p res* expr)
+         (newline p))])
     (newline p)))
 
 (define (run-improve input output

@@ -43,7 +43,7 @@ class Core(object):
 
 fpcore_pat = re.compile('// \(FPCore (.*)')
 comment_pat = re.compile('// ')
-cost_pat = re.compile('// best cost: ([0-9.]*)')
+cost_pat = re.compile('// cost: ([0-9.]*)')
 fun_pat = re.compile('(double|float) ([a-zA-Z0-9_]+)\(([a-zA-Z0-9_ ,]*)\)')
 
 def read_core(f: io.TextIOWrapper):

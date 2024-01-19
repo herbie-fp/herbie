@@ -7,11 +7,13 @@
 
 (load-herbie-builtins)
 
-(define default-seed 1)
-
 (module+ main
+  (define seed 1)
   (command-line
     #:program "cost"
+    #:once-each
+    [("--seed") _seed "Seed to use within Herbie"
+     (set! seed (string->number _seed))]
     #:args (subcommand . args)
     (match subcommand
       ["sample"
@@ -21,7 +23,7 @@
        (define test (parse-test stx))
        
        (*reeval-pts* (string->number n))
-       (define result (run-herbie 'sample test #:seed default-seed))
+       (define result (run-herbie 'sample test #:seed seed))
        (define pctx (job-result-backend result))
        (for ([(pt _) (in-pcontext pctx)])
          (printf "~a\n" (string-join (map ~s pt) " ")))])))

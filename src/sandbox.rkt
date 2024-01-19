@@ -370,8 +370,9 @@
     [_
      (error 'get-table-data "unknown result type ~a"status)]))
 
-(define (unparse-result row)
+(define (unparse-result row #:expr [expr #f])
   (define repr (get-representation (table-row-precision row)))
+  (define expr* (or expr (table-row-output row)))
   (define top
     (if (table-row-identifier row)
         (list (table-row-identifier row) (table-row-vars row))
@@ -394,4 +395,4 @@
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
      ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
-     ,(prog->fpcore (table-row-output row) repr)))
+     ,(prog->fpcore expr* repr)))
