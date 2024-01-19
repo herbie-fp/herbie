@@ -2,9 +2,9 @@
 
 (require (only-in xml write-xexpr xexpr?)
          (only-in fpbench core->tex supported-by-lang?))
-(require "../points.rkt" "../float.rkt" "../alternative.rkt" "../syntax/types.rkt"
-         "../syntax/rules.rkt" "../core/bsearch.rkt" "../common.rkt"
-         "common.rkt" "../syntax/sugar.rkt" "../programs.rkt")
+(require "../syntax/types.rkt" "../syntax/rules.rkt" "../core/bsearch.rkt" 
+         "../alternative.rkt" "../common.rkt" "../float.rkt" "../points.rkt" 
+         "../programs.rkt" "common.rkt")
 (provide render-history)
 
 (define (split-pcontext pcontext splitpoints alts ctx)

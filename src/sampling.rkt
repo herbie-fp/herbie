@@ -3,15 +3,18 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
-         "syntax/sugar.rkt")
+         "syntax/sugar.rkt" "ground-truth.rkt")
 
-(provide make-sampler batch-prepare-points ival-eval)
+(provide batch-prepare-points
+         ival-eval
+         make-sampler 
+         sample-points)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
 (define (precondition->hyperrects pre ctx)
   ;; FPBench needs unparameterized operators
-  (define range-table (condition->range-table (prog->spec pre)))
+  (define range-table (condition->range-table pre))
   (apply cartesian-product
          (for/list ([var-name (context-vars ctx)] [var-repr (context-var-reprs ctx)])
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))
@@ -29,8 +32,9 @@
 
   (define repr (get-representation 'binary64))
   (check-equal? (precondition->hyperrects
-                 '(and (and (<=.f64 0 a) (<=.f64 a 1))
-                       (and (<=.f64 0 b) (<=.f64 b 1)))
+                 (prog->spec
+                  '(and (and (<=.f64 0 a) (<=.f64 a 1))
+                        (and (<=.f64 0 b) (<=.f64 b 1))))
                  (context '(a b) repr (list repr repr)))
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
 
@@ -120,40 +124,6 @@
     (set! start now))
   log!)
 
-(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
-  (let loop ([precision precision])
-    (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
-    (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
-    (define precision* (exact-floor (* precision 2)))
-    (cond
-     [err
-      (values err precision +nan.0)]
-     [(not err?)
-      (define infinite?
-      (ival-lo (is-infinite-interval repr (apply ival-or exs))))
-      (values (if infinite? 'infinite 'valid) precision exs)
-     ]
-     [(> precision* (*max-mpfr-prec*))
-      (values 'exit precision +nan.0)]
-     [else
-      (loop precision*)])))
-
-(define (is-infinite-interval repr interval)
-  (define <-bf (representation-bf->repr repr))
-  (define ->bf (representation-repr->bf repr))
-  ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
-  ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
-  (define (positive-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
-  (define (negative-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
-  (define ival-positive-infinite (monotonic->ival positive-inf?))
-  (define ival-negative-infinite (comonotonic->ival negative-inf?))
-  (ival-or (ival-positive-infinite interval)
-           (ival-negative-infinite interval)))
-
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define repr (context-repr ctx))
@@ -185,3 +155,28 @@
         (loop sampled (+ 1 skipped) points exactss)])))
   (timeline-compact! 'outcomes)
   (cons outcomes (cons points (flip-lists exactss))))
+
+
+(define (combine-tables t1 t2)
+  (define t2-total (apply + (hash-values t2)))
+  (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
+  (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)])
+      ([(k v) (in-hash t2)])
+    (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
+
+(define (sample-points pre exprs ctxs)
+  (timeline-event! 'analyze)
+  (define fn (make-search-func pre exprs ctxs))
+  (match-define (cons sampler table)
+    (parameterize ([ground-truth-require-convergence #f])
+      ;; TODO: Should make-sampler allow multiple contexts?
+      (make-sampler (first ctxs) pre fn)))
+  (timeline-event! 'sample)
+  ;; TODO: should batch-prepare-points allow multiple contexts?
+  (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler))
+  (define total (apply + (hash-values table2)))
+  (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
+   (warn 'inf-points #:url "faq.html#inf-points"
+    "~a of points produce a very large (infinite) output. You may want to add a precondition." 
+    (format-accuracy (- total (hash-ref table2 'infinite)) total #:unit "%")))
+  (cons (combine-tables table table2) results))
