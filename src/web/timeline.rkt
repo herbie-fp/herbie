@@ -189,8 +189,11 @@
                  (for/list ([rec (in-list (group-by first mixsample))])
                    (define n (random 100000))
                    (define op (car (car rec)))
-                   (define precisions (map second rec))
-                   (define times (map third rec))
+                   (set! rec (group-by
+                              (lambda (x) (quotient (second x) (/ (*max-mpfr-prec*) 25)))
+                              rec))
+                   (define precisions (map (lambda (x) (second (first x))) rec))
+                   (define times (map (lambda (x) (apply + (map third x))) rec))
                    (define time-per-op (round (apply + times)))
                
                    (list `(details
