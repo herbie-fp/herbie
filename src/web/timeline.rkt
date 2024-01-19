@@ -186,23 +186,19 @@
          ,@(for/list ([rec (in-list (group-by first mixsample))])
              
              (define n (random 100000))
-             (define op (car (car rec)))
-             (define precs-times-total (foldr (lambda (x l)
-                                                (list (cons (second x) (first l))
-                                                      (cons (third x) (second l))
-                                                      (+ (third x) (third l))))
-                                              (list '() '() 0)
-                                              rec))
-             
-             `(details
-               (summary "Operation " ,(~a op) ", total time spent: " ,(~a (round (third precs-times-total))) "ms")
-               (canvas ([id ,(format "calls-~a" n)]
-                        [title "Histogram of precisions of the used operation"]))
-               (script "histogram2D(\""
-                       ,(format "calls-~a" n) "\", "
-                       ,(jsexpr->string (first precs-times-total)) ", "
-                       ,(jsexpr->string (second precs-times-total)) ", "
-                       "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})")))))))
+             (let ([op (car (car rec))]
+                   [precisions (map second rec)]
+                   [times (map third rec)])
+               
+               `(details
+                 (summary "Operation " ,(~a op) ", total time spent: " ,(~a (round (apply + times))) "ms")
+                 (canvas ([id ,(format "calls-~a" n)]
+                          [title "Histogram of precisions of the used operation"]))
+                 (script "histogram2D(\""
+                         ,(format "calls-~a" n) "\", "
+                         ,(jsexpr->string precisions) ", "
+                         ,(jsexpr->string times) ", "
+                         "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})"))))))))
 
 
 (define (render-phase-sampling sampling)
