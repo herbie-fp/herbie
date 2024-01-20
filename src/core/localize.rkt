@@ -5,7 +5,7 @@
          "../syntax/syntax.rkt")
 
 (provide batch-localize-error local-error-as-tree compute-local-errors
-         all-subexpressions-rev)
+         all-subexpressions)
 
 (define (all-subexpressions expr repr)
   (remove-duplicates
@@ -23,23 +23,6 @@
                (define atypes (impl-info op 'itype))
                (for ([arg args] [atype atypes])
                  (loop arg atype))])))))
-
-(define (all-subexpressions-rev expr repr)
-  (remove-duplicates (reverse
-    (reap [sow]
-          (let loop ([expr expr] [repr repr])
-            (sow (cons expr repr))
-            (match expr
-              [(? number?) (void)]
-              [(? variable?) (void)]
-              [`(if ,c ,t ,f)
-               (loop c (get-representation 'bool))
-               (loop t repr)
-               (loop f repr)]
-              [(list op args ...)
-               (define atypes (impl-info op 'itype))
-               (for ([arg args] [atype atypes])
-                 (loop arg atype))]))))))
 
 ;; Returns a list of expressions sorted by increasing local error
 (define (batch-localize-error exprs ctx)

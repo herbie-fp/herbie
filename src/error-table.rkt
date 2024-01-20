@@ -42,7 +42,7 @@
   (define cond-thres (bf 100))
   
   (define subexprs
-    (all-subexpressions-rev expr (context-repr ctx)))
+    (all-subexpressions expr (context-repr ctx)))
   (define subexprs-list (map car subexprs))
   (define spec-list (map prog->spec subexprs-list))
  
