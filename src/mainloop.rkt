@@ -363,8 +363,10 @@
     (timeline-push! 'fperrors
                     (~a subexpr)
                     (length tset)
-                    (length opred) (and (not (empty? opred)) (first opred))
-                    (length upred) (and (not (empty? upred)) (first upred))))
+                    (length opred)
+                    (and (not (empty? opred)) (value->json (first opred)))
+                    (length upred)
+                    (and (not (empty? upred)) (value->json (first upred)))))
 
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
