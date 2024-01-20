@@ -21,7 +21,8 @@
          "programs.rkt"     
          "timeline.rkt"
          "sampling.rkt"
-         "soundiness.rkt")
+         "soundiness.rkt"
+         "float.rkt")
 
 (provide (all-defined-out))
 
@@ -352,7 +353,10 @@
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
-  
+  (define expr (alt-expr (car simplified)))
+  (define repr (repr-of expr context))
+  (define (values->json vs repr)
+    (map (lambda (value) (value->json value repr)) vs))
   (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
   (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
 
@@ -364,9 +368,11 @@
                     (~a subexpr)
                     (length tset)
                     (length opred)
-                    (and (not (empty? opred)) (value->json (first opred)))
+                    (and (not (empty? opred)) (values->json (first opred)
+                                                            repr))
                     (length upred)
-                    (and (not (empty? upred)) (value->json (first upred)))))
+                    (and (not (empty? upred)) (values->json (first upred)
+                                                            repr))))
 
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
