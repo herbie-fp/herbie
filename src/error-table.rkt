@@ -71,28 +71,15 @@
     (define exacts-hash
       (make-immutable-hash (map cons subexprs-list exacts)))
     (define (exacts-ref subexpr)
-      (bigfloat->flonum ((representation-repr->bf (hash-ref repr-hash subexpr))
-                         (hash-ref exacts-hash subexpr))))
-    #;(define (exacts-ref subexpr)
-      (hash-ref exacts-hash subexpr))
- 
-    (define uflow-hash (make-hash (map (lambda (x) (cons x #f))
-                                       subexprs-list)))
-    (define (underflow? subexpr) (hash-ref uflow-hash subexpr))
-    (define oflow-hash (make-hash (map (lambda (x) (cons x #f))
-                                       subexprs-list)))
-    (define (overflow? subexpr) (hash-ref oflow-hash subexpr))
+      (define exacts-val (hash-ref exacts-hash subexpr))
+      (if (boolean? exacts-val)
+          exacts-val
+          (bigfloat->flonum ((representation-repr->bf
+                              (hash-ref repr-hash subexpr))
+                             exacts-val))))
  
     (for/list ([subexpr subexprs-list])
       (define subexpr-val (exacts-ref subexpr))
-      
-      (cond
-        ; NOTE need better way to see if a calculation
-        ; underflowed
-        [(= subexpr-val 0.0)
-         (hash-set! uflow-hash subexpr #t)]
-        [(infinite? subexpr-val)
-         (hash-set! oflow-hash subexpr #t)])
       
       (match subexpr
         [(list (or '+.f64 '+.f32) larg rarg)
@@ -110,7 +97,7 @@
            ; Both R(x + y) and R(x) + R(y) underflow
            ; This causes the condition number to jump up,
            ; with no real error
-           [(and (= x+y 0.0) (underflow? subexpr)) #f]
+           [(and (= x+y 0.0) (zero? subexpr-val)) #f]
            
            ; nan rescue:
            ; R(+-inf) + R(-+inf) = nan, but should actually
@@ -149,7 +136,7 @@
            ; Condition number hallucination:
            ; When x - y correctly underflows, CN is high
            ; even though the answer is correct
-           [(and (= x-y 0.0) (underflow? subexpr)) #f]
+           [(and (= x-y 0.0) (zero? subexpr-val)) #f]
 
            ; nan rescue:
            ; inf - inf = nan but should actually get an inf
@@ -227,8 +214,8 @@
          (define arg-val (exacts-ref arg))
 
          ; Under/overflow rescue:
-         (and (or (underflow? arg)
-                  (overflow? arg))
+         (and (or (zero? arg-val)
+                  (infinite? arg-val))
               (not (= subexpr-val arg-val))
               (mark-erroneous! subexpr))]
 
@@ -237,8 +224,8 @@
          (define arg-val (exacts-ref arg))
          
          ; Under/overflow rescue:
-         (and (or (underflow? arg)
-                  (overflow? arg))
+         (and (or (zero? arg-val)
+                  (infinite? arg-val))
               (not (= subexpr-val arg-val))
               (mark-erroneous! subexpr))]
 
@@ -325,8 +312,6 @@
          (define arg-val (exacts-ref arg))
          (define cond-num (bfabs (bf/ 1.bf
                                       (bf subexpr-val))))
-         (define arg-oflow? (overflow? arg))
-         (define arg-uflow? (underflow? arg))
          (cond
            ; Condition number hallucination:
            ; Condition number is high when x = 1,
@@ -334,10 +319,10 @@
            [(and (= arg-val 1.0) (= subexpr-val 0.0)) #f]
            
            ; overflow rescue:
-           [arg-oflow? (mark-erroneous! subexpr)]
+           [(infinite? arg-val) (mark-erroneous! subexpr)]
            
            ; underflow rescue:
-           [arg-uflow? (mark-erroneous! subexpr)]
+           [(zero? arg-val) (mark-erroneous! subexpr)]
 
            ; High Condition Number:
            ; CN(log, x) = |1 / log(x)|
