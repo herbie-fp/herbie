@@ -239,12 +239,10 @@
            ;; - underflows, nan could be rescued
            [(and (zero? x) (zero? y)
                  (not (nan? subexpr-val)))
-            (eprintf "u/u\n")
             (mark-erroneous! subexpr)]
            ;; - is small enough, 0 underflow could be rescued
            [(and (zero? x)
                  (not (zero? subexpr-val)))
-            (eprintf "u/n\n")
             (mark-erroneous! subexpr)]
            ;; - overflows, no rescue is possible
 
@@ -252,12 +250,10 @@
            ;; - overflows, nan could be rescued
            [(and (infinite? x) (infinite? y)
                  (not (nan? subexpr-val)))
-            (eprintf "o/o\n")
             (mark-erroneous! subexpr)]
            ;; - is large enough, inf overflow can be rescued
            [(and (infinite? x)
                  (not (infinite? subexpr-val)))
-            (eprintf "o/n\n")
             (mark-erroneous! subexpr)]
            ;; - underflow, no rescue is possible
 
@@ -265,15 +261,13 @@
            ;; - overflows, then a rescue is possible
            [(and (infinite? y)
                  (not (zero? subexpr-val)))
-            (eprintf "n/o\n")
             (mark-erroneous! subexpr)]
            ;; - underflows, then a rescue is possible
            [(and (zero? y)
                  (not (infinite? subexpr-val)))
-            (eprintf "n/u\n")
             (mark-erroneous! subexpr)]
            ;; - is normal, then no rescue is possible
-           [else  (eprintf "n/n\n") #f])]
+           [else #f])]
 
         [(list (or '*.f64 '*.f32) x-ex y-ex)
          #:when (or (list? x-ex) [list? y-ex])
