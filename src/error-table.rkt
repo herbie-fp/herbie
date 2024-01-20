@@ -1,8 +1,8 @@
 #lang racket
 
 (require racket/set math/bigfloat)
-(require "points.rkt" "syntax/types.rkt" "core/localize.rkt"
-         "common.rkt" "ground-truth.rkt" "syntax/sugar.rkt")
+(require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
+         "ground-truth.rkt" "syntax/sugar.rkt")
 
 (provide actual-errors predicted-errors)
 
@@ -246,13 +246,43 @@
          #:when (or (list? x-ex) (list? y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
-         (define x/y (/ x y))
-         (define y-oflow? (overflow? y-ex))
-         (define x-uflow? (underflow? x-ex))
-         (define x-oflow? (overflow? x-ex))
-         (define y-uflow? (underflow? y-ex))
          
          (cond
+           ;; if the numerator underflows and the denominator:
+           ;; - underflows, nan could be rescued
+           [(and (zero? x) (zero? y)
+                 (not (nan? subexpr-val)))
+            (mark-erroneous! subexpr)]
+           ;; - is small enough, 0 underflow could be rescued
+           [(and (zero? x)
+                 (not (zero? subexpr-val)))
+            (mark-erroneous! subexpr)]
+           ;; - overflows, no rescue is possible
+
+           ;; if the numerator overflows and the denominator:
+           ;; - overflows, nan could be rescued
+           [(and (infinite? x) (infinite? y)
+                 (not (nan? subexpr-val)))
+            (mark-erroneous! subexpr)]
+           ;; - is large enough, inf overflow can be rescued
+           [(and (infinite? x)
+                 (not (infinite? subexpr-val)))
+            (mark-erroneous! subexpr)]
+           ;; - underflow, no rescue is possible
+
+           ;; if the numerator is normal and the denominator:
+           ;; - overflows, then a rescue is possible
+           [(and (infinite? y)
+                 (not (zero? subexpr-val)))
+            (mark-erroneous! subexpr)]
+           ;; - underflows, then a rescue is possible
+           [(and (zero? y)
+                 (not (infinite? subexpr-val)))
+            (mark-erroneous! subexpr)]
+           ;; - is normal, then no rescue is possible
+           [else #f])
+                  
+         #;(cond
            
            ; Why am I doing this?
            [(and (= x/y 0.0) (underflow? subexpr)) #f]
@@ -279,11 +309,36 @@
 
         [(list (or '*.f64 '*.f32) x-ex y-ex)
          #:when (or (list? x-ex) [list? y-ex])
-         (define y-oflow? (overflow? y-ex))
-         (define x-uflow? (underflow? x-ex))
-         (define x-oflow? (overflow? x-ex))
-         (define y-uflow? (underflow? y-ex))
+         (define x (exacts-ref x-ex))
+         (define y (exacts-ref y-ex))
+         
          (cond
+           ;; if one operand underflows and the other overflows, then nan must
+           ;; be rescued.
+           [(and (infinite? x)
+                 (zero? y)
+                 (not (nan? subexpr-val)))
+            (mark-erroneous! subexpr)]
+           [(and (zero? x)
+                 (infinite? y)
+                 (not (nan? subexpr-val)))
+            (mark-erroneous! subexpr)]
+
+           ;; If one operand is normal and the other overflows then, inf rescue
+           ;; could occur
+           [(and (or (infinite? x)
+                     (infinite? y))
+                 (not (infinite? subexpr-val)))
+            (mark-erroneous! subexpr)]
+
+           [(and (or (zero? x)
+                     (zero? y))
+                 (not (zero? subexpr-val)))
+            (mark-erroneous! subexpr)]
+
+           ;; If both normal then no error
+           [else #f])
+         #;(cond
            ; 0 * inf ~ nan, but if they rescue each other,
            ; then it should not be nan
            [(and x-uflow?
