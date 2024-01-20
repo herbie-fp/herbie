@@ -241,7 +241,7 @@
                   (overflow? arg))
               (not (= subexpr-val arg-val))
               (mark-erroneous! subexpr))]
-        
+
         [(list (or '/.f64 '/.f32) x-ex y-ex)
          #:when (or (list? x-ex) (list? y-ex))
          (define x (exacts-ref x-ex))
@@ -252,10 +252,12 @@
            ;; - underflows, nan could be rescued
            [(and (zero? x) (zero? y)
                  (not (nan? subexpr-val)))
+            (eprintf "u/u\n")
             (mark-erroneous! subexpr)]
            ;; - is small enough, 0 underflow could be rescued
            [(and (zero? x)
                  (not (zero? subexpr-val)))
+            (eprintf "u/n\n")
             (mark-erroneous! subexpr)]
            ;; - overflows, no rescue is possible
 
@@ -263,10 +265,12 @@
            ;; - overflows, nan could be rescued
            [(and (infinite? x) (infinite? y)
                  (not (nan? subexpr-val)))
+            (eprintf "o/o\n")
             (mark-erroneous! subexpr)]
            ;; - is large enough, inf overflow can be rescued
            [(and (infinite? x)
                  (not (infinite? subexpr-val)))
+            (eprintf "o/n\n")
             (mark-erroneous! subexpr)]
            ;; - underflow, no rescue is possible
 
@@ -274,38 +278,15 @@
            ;; - overflows, then a rescue is possible
            [(and (infinite? y)
                  (not (zero? subexpr-val)))
+            (eprintf "n/o\n")
             (mark-erroneous! subexpr)]
            ;; - underflows, then a rescue is possible
            [(and (zero? y)
                  (not (infinite? subexpr-val)))
+            (eprintf "n/u\n")
             (mark-erroneous! subexpr)]
            ;; - is normal, then no rescue is possible
-           [else #f])
-                  
-         #;(cond
-           
-           ; Why am I doing this?
-           [(and (= x/y 0.0) (underflow? subexpr)) #f]
-           
-           ; Why am I doing this?
-           [(and (infinite? x/y) (overflow? subexpr)) #f]
-           
-           ; x underflows and y rescues it
-           [(and x-uflow? (not (= subexpr-val x)))
-            (mark-erroneous! subexpr)]
-           
-           ; y underflows and x rescues it
-           [(and y-uflow? (not (nan? subexpr-val)))
-            (mark-erroneous! subexpr)]
-           
-           ; x overflows and y rescues it
-           [(and x-oflow? (not (infinite? subexpr-val)))
-            (mark-erroneous! subexpr)]
-           
-           ; y overflows and x rescues it
-           [(and y-oflow? (not (= (abs subexpr-val) +0.0)))
-            (mark-erroneous! subexpr)]
-           [else #f])]
+           [else  (eprintf "n/n\n") #f])]
 
         [(list (or '*.f64 '*.f32) x-ex y-ex)
          #:when (or (list? x-ex) [list? y-ex])
@@ -337,41 +318,6 @@
             (mark-erroneous! subexpr)]
 
            ;; If both normal then no error
-           [else #f])
-         #;(cond
-           ; 0 * inf ~ nan, but if they rescue each other,
-           ; then it should not be nan
-           [(and x-uflow?
-                 y-oflow?
-                 (not (nan? subexpr-val)))
-            (mark-erroneous! subexpr)]
-           
-           ; inf * 0 ~ nan, but if they rescue each other,
-           ; then it should not be nan
-           [(and x-oflow?
-                 y-uflow?
-                 (not (nan? subexpr-val)))
-            (mark-erroneous! subexpr)]
-           
-           ; x underflows and y is normal, then if x != 0,
-           ; then error
-           [(and x-uflow? (not (= (abs subexpr-val) 0.0)))
-            (mark-erroneous! subexpr)]
-           
-           ; x overflows and y is normal, then if x != inf,
-           ; then error
-           [(and x-oflow? (not (infinite? subexpr-val)))
-            (mark-erroneous! subexpr)]
-           
-           ; x is normal and y underflows, then if x != 0,
-           ; then error
-           [(and y-uflow? (not (= (abs subexpr-val) 0.0)))
-            (mark-erroneous! subexpr)]
-           
-           ; x is normal and y overflows, then if x != inf,
-           ; then error
-           [(and y-oflow? (not (infinite? subexpr-val)))
-            (mark-erroneous! subexpr)]
            [else #f])]
         
         [(list (or 'log.f64 'log.f32) arg)
