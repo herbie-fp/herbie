@@ -409,7 +409,7 @@
                               (bf* (bfsqrt
                                     (bf- 1.bf
                                          (bf* x x)))
-                                   (bf subexpr-val)))))
+                                  subexpr-val))))
          
          (cond
            ; Condition number hallucinations:
@@ -434,7 +434,7 @@
                               (bf* (bfsqrt
                                     (bf- 1.bf
                                          (bf* x x)))
-                                   (bf subexpr-val)))))
+                                   subexpr-val))))
          
          (cond
            ; Condition Number hallucinations:
