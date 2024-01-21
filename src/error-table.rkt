@@ -29,7 +29,7 @@
 
   (define reap-sow-test
     (append* (reap [sow]
-                   (for/list ([pt-errors (in-list pt-errorss)]
+                   (for ([pt-errors (in-list pt-errorss)]
                               [(pt _) (in-pcontext pcontext)])
                      (define sub-error (map cons subexprs pt-errors))
                      (define filtered-sub-error
@@ -37,9 +37,9 @@
                      (define mapped-sub-error
                        (map (lambda (p) (cons (car p) pt))
                             filtered-sub-error))
-                     (sow (if (empty? mapped-sub-error)
-                              (list (cons #f pt))
-                              mapped-sub-error))))))
+                      (unless (empty? mapped-sub-error)
+                             
+                        (sow mapped-sub-error))))))
   
   (for/hash ([group (in-list (group-by car reap-sow-test))])
     (let ([key (caar group)])
@@ -69,14 +69,11 @@
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
  
   (define error-count-hash
-    (make-hash (map (lambda (x) (cons x '()))
-                    (cons #f subexprs-list))))
+    (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
   
   (for ([(pt _) (in-pcontext pctx)])
-    (define has-errored? #f)
     (define (mark-erroneous! expr)
-      (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
-      (set! has-errored? expr))
+      (hash-update! error-count-hash expr (lambda (x) (set-add x pt))))
     
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
@@ -456,6 +453,6 @@
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr)]
            [else #f])]
         [_ #f]))
-    (unless has-errored?
+    #;(unless has-errored?
       (mark-erroneous! #f)))
   error-count-hash)

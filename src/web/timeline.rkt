@@ -279,7 +279,7 @@
     (dd (details
          (summary "Click to see full error table")
          (table ([class "times"])
-                (thead (tr (th "truth") (th "opred") (th "ex") (th "upred") (th "ex") (th "subexpr")))
+                (thead (tr (th "Ground Truth") (th "Overpredictions") (th "Example") (th "Underpredictions") (th "Example") (th "Subexpression")))
                 ,@(for/list ([rec (in-list (sort fperrors > #:key second))])
                     (match-define (list expr tcount opred oex upred uex) rec)
                     `(tr (td ,(~a tcount))
