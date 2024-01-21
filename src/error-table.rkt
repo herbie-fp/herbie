@@ -27,7 +27,21 @@
                  (list (cons #f pt))
                  mapped-sub-error))))
 
-  (for/hash ([group (in-list (group-by car pt-worst-subexprs))])
+  (define reap-sow-test
+    (append* (reap [sow]
+                   (for/list ([pt-errors (in-list pt-errorss)]
+                              [(pt _) (in-pcontext pcontext)])
+                     (define sub-error (map cons subexprs pt-errors))
+                     (define filtered-sub-error
+                       (filter (lambda (p) (> (cdr p) 16)) sub-error))
+                     (define mapped-sub-error
+                       (map (lambda (p) (cons (car p) pt))
+                            filtered-sub-error))
+                     (sow (if (empty? mapped-sub-error)
+                              (list (cons #f pt))
+                              mapped-sub-error))))))
+  
+  (for/hash ([group (in-list (group-by car reap-sow-test))])
     (let ([key (caar group)])
       (values key (map cdr group)))))
 
@@ -36,9 +50,6 @@
       (and (negative? a) (negative? b))))
  
 (define (predicted-errors expr ctx pctx)
-  
-  (define old-precision (bf-precision))
-  (bf-precision 1000)
   (define cond-thres (bf 100))
   
   (define subexprs
@@ -450,5 +461,4 @@
         [_ #f]))
     (unless has-errored?
       (mark-erroneous! #f)))
-  (bf-precision old-precision)
   error-count-hash)
