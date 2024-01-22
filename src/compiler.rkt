@@ -57,24 +57,15 @@
           (match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
           (let ([extra-prec (unbox extra-precision)]
                 [working-prec (unbox working-precision)])
-            
-            (define init-time (current-inexact-milliseconds))
+
+            (define precision (if (*use-mixed-precision*)
+                                  (operator-precision working-prec extra-prec)
+                                  (bf-precision)))
+            (define timeline-stop! (timeline-start! 'mixsample (~a (object-name op)) precision))
             
             (define output
-              (parameterize ([bf-precision
-                              (if (*use-mixed-precision*)
-                                  (operator-precision working-prec extra-prec)
-                                  (bf-precision))])
-                (apply op srcs)))
+              (parameterize ([bf-precision precision]) (apply op srcs)))
             (vector-set! vregs n output)
-            
-            (define total-time (- (current-inexact-milliseconds) init-time))
-            (timeline-push! 'mixsample
-                            (symbol->string (object-name op))
-                            (if (*use-mixed-precision*)
-                                (operator-precision working-prec extra-prec)
-                                (bf-precision))
-                            total-time)
             
             (when (*use-mixed-precision*)
               (cond
@@ -100,11 +91,12 @@
                  (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
                            (max 0
                                 (true-exponent (ival-lo (car srcs)))
-                                (true-exponent (ival-hi (car srcs)))))]))))
+                                (true-exponent (ival-hi (car srcs)))))]))
+            (timeline-stop!)))
 
         (for/list ([root (in-list roots)])
           (vector-ref vregs root)))
-    
+   
       ; name is 'fl
       (λ args
         (for ([arg (in-list args)] [n (in-naturals)])

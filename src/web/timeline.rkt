@@ -181,6 +181,37 @@
 (define (average . values)
   (/ (apply + values) (length values)))
 
+(define (render-phase-mixed-sampling mixsample)
+  (define total-time (apply + (map third mixsample)))
+  `((dt "Precisions")
+    (dd (details
+         (summary "Click to see histograms. Total time spent on operations: " ,(format-time total-time))
+         ,@(map first
+                (sort
+                 (for/list ([rec (in-list (group-by first mixsample))])
+                   (define n (random 100000))
+                   (define op (car (car rec)))
+                   (set! rec (group-by
+                              (lambda (x) (quotient (second x) (/ (*max-mpfr-prec*) 25)))
+                              rec))
+                   (define precisions (map (lambda (x) (second (first x))) rec))
+                   (define times (map (lambda (x) (apply + (map third x))) rec))
+                   (define time-per-op (round (apply + times)))
+               
+                   (list `(details
+                           (summary "Operation " (code ,(~a op))
+                                    ", time spent: " ,(format-time time-per-op)
+                                    ", " ,(~a (round (* (/ time-per-op total-time) 100))) "% of total-time") 
+                           (canvas ([id ,(format "calls-~a" n)]
+                                    [title "Histogram of precisions of the used operation"]))
+                           (script "histogram2D(\""
+                                   ,(format "calls-~a" n) "\", "
+                                   ,(jsexpr->string precisions) ", "
+                                   ,(jsexpr->string times) ", "
+                                   "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})"))
+                         time-per-op))
+                 > #:key second))))))
+
 (define (render-phase-sampling sampling)
   (define total (round (apply + (hash-values (cadr (car sampling))))))
   (define fields
@@ -319,31 +350,6 @@
                ,@(for/list ([rec (in-list (sort times > #:key second))] [_ (in-range 5)])
                    (match-define (list expr time) rec)
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
-
-(define (render-phase-mixed-sampling mixsample)
-  `((dt "Precisions")
-    (dd (details
-         (summary "Click to see histograms")
-         ,@(for/list ([rec (in-list (group-by first mixsample))])
-             (println rec)
-             (define n (random 100000))
-             (define op (car (car rec)))
-             (define precs-times-total (foldr (lambda (x l)
-                                                (list (cons (second x) (first l))
-                                                      (cons (third x) (second l))
-                                                      (+ (third x) (third l))))
-                                              (list '() '() 0)
-                                              rec))
-
-             `(details
-               (summary "Operation " ,(~a op) ", total time spent: " ,(~a (round (third precs-times-total))) "ms")
-               (canvas ([id ,(format "calls-~a" n)]
-                        [title "Histogram of precisions of the used operation"]))
-               (script "histogram2D(\""
-                       ,(format "calls-~a" n) "\", "
-                       ,(jsexpr->string (first precs-times-total)) ", "
-                       ,(jsexpr->string (second precs-times-total)) ", "
-                       "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})")))))))
 
 (define (render-phase-series n times)
   `((dt "Calls")

@@ -39,8 +39,7 @@
       true)
     (void)))
 
-(define/contract (timeline-start! key . values)
-  (-> symbol? jsexpr? ... (-> void?))
+(define (timeline-start! key . values)
   (define tstart (current-inexact-milliseconds))
   (define (end!)
     (define tend (current-inexact-milliseconds))
