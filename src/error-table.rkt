@@ -11,23 +11,8 @@
     (flip-lists
      (hash->list (car (compute-local-errors (list expr)
                                             (*context*))))))
-  
-  (define pt-worst-subexprs
-    (foldr append
-           '()
-           (for/list ([pt-errors (in-list pt-errorss)]
-                      [(pt _) (in-pcontext pcontext)])
-             (define sub-error (map cons subexprs pt-errors))
-             (define filtered-sub-error
-               (filter (lambda (p) (> (cdr p) 16)) sub-error))
-             (define mapped-sub-error
-               (map (lambda (p) (cons (car p) pt))
-                    filtered-sub-error))
-             (if (empty? mapped-sub-error)
-                 (list (cons #f pt))
-                 mapped-sub-error))))
 
-  (define reap-sow-test
+  (define pt-worst-subexpr
     (append* (reap [sow]
                    (for ([pt-errors (in-list pt-errorss)]
                               [(pt _) (in-pcontext pcontext)])
@@ -38,10 +23,9 @@
                        (map (lambda (p) (cons (car p) pt))
                             filtered-sub-error))
                       (unless (empty? mapped-sub-error)
-                             
                         (sow mapped-sub-error))))))
   
-  (for/hash ([group (in-list (group-by car reap-sow-test))])
+  (for/hash ([group (in-list (group-by car pt-worst-subexpr))])
     (let ([key (caar group)])
       (values key (map cdr group)))))
 
@@ -452,7 +436,5 @@
            ; CN(acos, x) = |x / (√(1 - x^2)asin(x))|
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr)]
            [else #f])]
-        [_ #f]))
-    #;(unless has-errored?
-      (mark-erroneous! #f)))
+        [_ #f])))
   error-count-hash)
