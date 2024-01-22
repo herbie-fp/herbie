@@ -64,11 +64,6 @@
       (make-immutable-hash (map cons subexprs-list exacts)))
     (define (exacts-ref subexpr)
       (define exacts-val (hash-ref exacts-hash subexpr))
-      #;(if (boolean? exacts-val)
-          exacts-val
-          (bigfloat->flonum ((representation-repr->bf
-                              (hash-ref repr-hash subexpr))
-                             exacts-val)))
        ((representation-repr->bf
                               (hash-ref repr-hash subexpr))
                              exacts-val))
