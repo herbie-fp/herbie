@@ -21,7 +21,8 @@
          "programs.rkt"     
          "timeline.rkt"
          "sampling.rkt"
-         "soundiness.rkt")
+         "soundiness.rkt"
+         "float.rkt")
 
 (provide (all-defined-out))
 
@@ -352,10 +353,26 @@
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
-  
-  (for ([(subexpr num-of-errors) (in-dict (group-errors (alt-expr (car simplified)) pcontext))])
-    (unless (= 0 num-of-errors)
-      (timeline-push! 'problems (and subexpr (~a subexpr)) num-of-errors)))
+  (define expr (alt-expr (car simplified)))
+  (define repr (repr-of expr context))
+  (define (values->json vs repr)
+    (map (lambda (value) (value->json value repr)) vs))
+  (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
+  (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
+
+  (for ([(subexpr pset) (in-dict pcount-hash)])
+    (define tset (hash-ref tcount-hash subexpr '()))
+    (define opred (set-subtract pset tset))
+    (define upred (set-subtract tset pset))
+    (timeline-push! 'fperrors
+                    (~a subexpr)
+                    (length tset)
+                    (length opred)
+                    (and (not (empty? opred)) (values->json (first opred)
+                                                            repr))
+                    (length upred)
+                    (and (not (empty? upred)) (values->json (first upred)
+                                                            repr))))
 
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
