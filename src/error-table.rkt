@@ -40,7 +40,7 @@
     (all-subexpressions expr (context-repr ctx)))
   (define subexprs-list (map car subexprs))
   (define spec-list (map prog->spec subexprs-list))
- 
+  
   (define ctx-list
     (for/list ([subexpr (in-list subexprs)])
       (struct-copy context ctx [repr (cdr subexpr)])))
@@ -49,25 +49,29 @@
     (make-immutable-hash (map cons
                               subexprs-list
                               (map context-repr ctx-list))))
- 
+  
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
- 
+  
   (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
+
+  (define explanations-hash
+    (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
-    (define (mark-erroneous! expr)
-      (hash-update! error-count-hash expr (lambda (x) (set-add x pt))))
+    (define (mark-erroneous! expr [expl 'filler])
+      (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
+      (hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0))
     
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
       (make-immutable-hash (map cons subexprs-list exacts)))
     (define (exacts-ref subexpr)
       (define exacts-val (hash-ref exacts-hash subexpr))
-       ((representation-repr->bf
-                              (hash-ref repr-hash subexpr))
-                             exacts-val))
- 
+      ((representation-repr->bf
+        (hash-ref repr-hash subexpr))
+       exacts-val))
+    
     (for/list ([subexpr subexprs-list])
       (define subexpr-val (exacts-ref subexpr))
       
@@ -91,25 +95,25 @@
            
            ; nan rescue:
            ; R(+-inf) + R(-+inf) = nan, but should actually
-           ; be inf 
+           ; be inf
            [(and (bfinfinite? x)
                  (bfinfinite? y)
                  (not (same-sign? x y))
                  (not (bfnan? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'nan-rescue)]
            
            ; inf rescue:
            ; R(inf) + y = non inf value (inf rescue)
            [(and (or (bfinfinite? x)
                      (bfinfinite? y))
                  (not (bfinfinite? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'oflow-rescue)]
            
            ; High condition number:
-           ; CN(+, x, y) = |x / x + y| 
+           ; CN(+, x, y) = |x / x + y|
            [(or (bf> cond-x cond-thres)
                 (bf> cond-y cond-thres))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'cancellation)]
            [else #f])]
         
         [(list (or '-.f64 '-.f32) x-ex y-ex)
@@ -134,7 +138,7 @@
                  (bfinfinite? y)
                  (same-sign? x y)
                  (not (bfnan? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'nan-rescue)]
 
            ; inf rescue
            ; If x or y overflow and the other arg rescues
@@ -142,13 +146,13 @@
            [(and (or (bfinfinite? x)
                      (bfinfinite? y))
                  (not (bfinfinite? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'oflow-rescue)]
 
            ; High condition number:
            ; CN(+, x, y) = |x / x - y|
            [(or (bf> cond-x cond-thres)
                 (bf> cond-y cond-thres))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'cancellation)]
            [else #f])]
 
         [(list (or 'sin.f64 'sin.f32) x-ex)
@@ -160,10 +164,10 @@
          (cond
            [(and (bf> cond-no cond-thres)
                  (bf> (bfabs x) cond-thres))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'sensitivity)]
            [(and (bf> cond-no cond-thres)
                  (bf> cot-x cond-thres))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'cancellation)]
            [else #f])]
 
         [(list (or 'cos.f64 'cos.f32) x-ex)
@@ -175,10 +179,10 @@
          (cond
            [(and (bf> cond-no cond-thres)
                  (bf> (bfabs x) cond-thres))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'sensitivity)]
            [(and (bf> cond-no cond-thres)
                  (bf> tan-x cond-thres))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'cancellation)]
            [else #f])]
 
         [(list (or 'tan.f64 'tan.f32) x-ex)
@@ -190,9 +194,9 @@
          (cond
            [(and (bf> cond-no cond-thres)
                  (bf> (bfabs x) cond-thres))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'sensitivity)]
            [(and (bf> cond-no cond-thres)
-                 (bf> tot-x cond-thres))
+                 (bf> tot-x cond-thres 'cancellation))
             (mark-erroneous! subexpr)]
            [else #f])]
         
@@ -200,8 +204,19 @@
          #:when (list? x-ex)
          (define x (exacts-ref x-ex))
 
+         (cond
+           ;; Underflow rescue:
+           [(and (bfzero? x)
+                 (not (bf= subexpr-val x)))
+            (mark-erroneous! subexpr 'uflow-rescue)]
+
+           ;; Overflow rescue:
+           [(and (bfinfinite? x)
+                 (not (bf= subexpr-val x)))
+            (mark-erroneous! subexpr 'oflow-rescue)])
+
          ; Under/overflow rescue:
-         (and (or (bfzero? x)
+         #;(and (or (bfzero? x)
                   (bfinfinite? x))
               (not (bf= subexpr-val x))
               (mark-erroneous! subexpr))]
@@ -209,9 +224,20 @@
         [(list (or 'cbrt.f64 'cbrt.f32) x-ex)
          #:when (list? x-ex)
          (define x (exacts-ref x-ex))
+
+         (cond
+           ;; Underflow rescue:
+           [(and (bfzero? x)
+                 (not (bf= subexpr-val x)))
+            (mark-erroneous! subexpr 'uflow-rescue)]
+
+           ;; Overflow rescue:
+           [(and (bfinfinite? x)
+                 (not (bf= subexpr-val x)))
+            (mark-erroneous! subexpr 'oflow-rescue)])
          
          ; Under/overflow rescue:
-         (and (or (bfzero? x)
+         #;(and (or (bfzero? x)
                   (bfinfinite? x))
               (not (bf= subexpr-val x))
               (mark-erroneous! subexpr))]
@@ -226,33 +252,33 @@
            ;; - underflows, nan could be rescued
            [(and (bfzero? x) (bfzero? y)
                  (not (bfnan? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'u/u)]
            ;; - is small enough, 0 underflow could be rescued
            [(and (bfzero? x)
                  (not (bfzero? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'u/n)]
            ;; - overflows, no rescue is possible
 
            ;; if the numerator overflows and the denominator:
            ;; - overflows, nan could be rescued
            [(and (bfinfinite? x) (bfinfinite? y)
                  (not (bfnan? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'o/o)]
            ;; - is large enough, inf overflow can be rescued
            [(and (bfinfinite? x)
                  (not (bfinfinite? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'o/n)]
            ;; - underflow, no rescue is possible
 
            ;; if the numerator is normal and the denominator:
            ;; - overflows, then a rescue is possible
            [(and (bfinfinite? y)
                  (not (bfzero? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'n/o)]
            ;; - underflows, then a rescue is possible
            [(and (bfzero? y)
                  (not (bfinfinite? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'n/u)]
            ;; - is normal, then no rescue is possible
            [else #f])]
 
@@ -267,23 +293,23 @@
            [(and (bfinfinite? x)
                  (bfzero? y)
                  (not (bfnan? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'o*u)]
            [(and (bfzero? x)
                  (bfinfinite? y)
                  (not (bfnan? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'u*o)]
 
            ;; If one operand is normal and the other overflows then, inf rescue
            ;; could occur
            [(and (or (bfinfinite? x)
                      (bfinfinite? y))
                  (not (bfinfinite? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'n*o)]
 
            [(and (or (bfzero? x)
                      (bfzero? y))
                  (not (bfzero? subexpr-val)))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'n*u)]
 
            ;; If both normal then no error
            [else #f])]
@@ -300,15 +326,15 @@
            [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
            
            ; overflow rescue:
-           [(bfinfinite? x) (mark-erroneous! subexpr)]
+           [(bfinfinite? x) (mark-erroneous! subexpr 'oflow-rescue)]
            
            ; underflow rescue:
-           [(bfzero? x) (mark-erroneous! subexpr)]
+           [(bfzero? x) (mark-erroneous! subexpr 'uflow-rescue)]
 
            ; High Condition Number:
            ; CN(log, x) = |1 / log(x)|
            [(bf> cond-num cond-thres)
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'sensitivity)]
            
            [else #f])]
         
@@ -335,7 +361,7 @@
            ; High Condition Number:
            ; CN(exp, x) = |x|
            [(bf> (bfabs x) cond-thres)
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'sensitivity)]
            
            [else #f])]
 
@@ -371,12 +397,12 @@
 
            [(and (or (bfzero? x)
                      (bfinfinite? x))
-                 (not (= (bigfloat->flonum subexpr-val) x^y)))
-            (mark-erroneous! subexpr)]
-            
+                 (not (bf= subexpr-val x)))
+            (mark-erroneous! subexpr 'rescue)]
+           
            [(or (bf> cond-x cond-thres)
                 (bf> cond-y cond-thres))
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'sensitivity)]
            
            [else #f])]
         
@@ -388,7 +414,7 @@
                               (bf* (bfsqrt
                                     (bf- 1.bf
                                          (bf* x x)))
-                                  subexpr-val))))
+                                   subexpr-val))))
          
          (cond
            ; Condition number hallucinations:
@@ -401,7 +427,7 @@
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)acos(x))|
            [(bf> cond-x cond-thres)
-            (mark-erroneous! subexpr)]
+            (mark-erroneous! subexpr 'sensitivity)]
            
            [else #f])]
 
@@ -429,7 +455,7 @@
            
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)asin(x))|
-           [(bf> cond-x cond-thres) (mark-erroneous! subexpr)]
+           [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
            [else #f])]
         [_ #f])))
-  error-count-hash)
+  (cons error-count-hash explanations-hash))

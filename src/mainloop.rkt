@@ -358,7 +358,12 @@
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) vs))
   (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
-  (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
+  (match-define (cons pcount-hash explanations-table)
+    (predicted-errors (alt-expr (car simplified)) context pcontext))
+
+  (eprintf "[table] ~a\n" explanations-table)
+  
+  #;(define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
 
   (for ([(subexpr pset) (in-dict pcount-hash)])
     (define tset (hash-ref tcount-hash subexpr '()))
@@ -373,6 +378,13 @@
                     (length upred)
                     (and (not (empty? upred)) (values->json (first upred)
                                                             repr))))
+
+  (for ([(key cnt) (in-dict explanations-table)])
+    (timeline-push! 'explanations
+                    (~a (car (car key)))
+                    (~a (car key))
+                    (~a (cdr key))
+                    cnt))
 
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))

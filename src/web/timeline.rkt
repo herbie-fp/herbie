@@ -62,6 +62,7 @@
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
          ,@(dict-call curr render-phase-fperrors 'fperrors)
+         ,@(dict-call curr render-phase-explanations 'explanations)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -294,6 +295,19 @@
                          (td ,(if expr
                                   `(code ,expr)
                                   "No Errors")))))))))
+
+(define (render-phase-explanations explanations)
+  `((dt "Explanations")
+    (dd (details
+         (summary "Click to see full explanations table")
+         (table ([class "times"])
+                (thead (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count")))
+                ,@(for/list ([rec (in-list (sort explanations > #:key fourth))])
+                    (match-define (list op expr expl cnt) rec)
+                    `(tr (td (code ,(~a op)))
+                         (td (code ,(~a expr)))
+                         (td ,(~a expl))
+                         (td ,(~a cnt)))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
