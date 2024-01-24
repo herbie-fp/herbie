@@ -224,8 +224,8 @@
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
-  (define (initial idk)
-    (define output (make-vector (+ num-points)))
+  (define (initial)
+    (let ([output (make-vector (+ num-points))])
     (for ([point-idx (in-range num-points)])
       (define o (vector-argmin cse-cost
               ;; Consider all the candidates we could put in this region
@@ -237,16 +237,15 @@
       ;; Not sure how to format this
         (vector-set! output point-idx o)
           o)
-            output)
+            output))
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
-    (let loop ([prev (initial empty)])
+    (let loop ([prev (initial)])
       (let ([next (add-splitpoint prev)])
         (if (equal? prev next)
             next
             (loop next)))))
-
   ;; Extract the splitpoints from our data structure, and reverse it.
   (reverse (vector->list (cse-indices (vector-ref final (- num-points 1))))))
 

@@ -1,4 +1,0 @@
-(FPCore (x eps)
-  :name "2cos (problem 3.3.5)"
-  :precision binary64
-  (- (cos (+ x eps)) (cos x)))
