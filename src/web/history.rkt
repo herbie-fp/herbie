@@ -156,10 +156,8 @@
 
 (define (render-json altn pcontext pcontext2 ctx)
   (define repr (context-repr ctx))
-  (define err
-    (format-accuracy (errors-score (errors (alt-expr altn) pcontext ctx)) (representation-total-bits repr) #:unit "%"))
-  (define err2
-    (format-accuracy (errors-score (errors (alt-expr altn) pcontext2 ctx)) (representation-total-bits repr) #:unit "%"))
+  (define err (errors-score (errors (alt-expr altn) pcontext ctx)))
+  (define err2 (errors-score (errors (alt-expr altn) pcontext2 ctx)))
 
   (match altn
     [(alt prog 'start (list))
@@ -184,7 +182,7 @@
              (type . "regimes") 
              (conditions . ,(for/list ([entry prevs] [idx (in-naturals)]) 
                 (let ([entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals)]) (map (curryr interval->string repr) entry-ivals))))
-             (prev . ,(for/list ([entry prevs] 
+             (prevs . ,(for/list ([entry prevs] 
                       [new-pcontext (split-pcontext pcontext splitpoints prevs ctx)]
                       [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs ctx)])
                (render-json entry new-pcontext new-pcontext2 ctx)))
@@ -206,7 +204,7 @@
              (program . ,(fpcore->string (program->fpcore prog ctx))) 
              (type . "simplify") 
              (prev . ,(render-json prev pcontext pcontext2 ctx))
-             (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) ""))
+             (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
              (loc . ,loc)
              (error . ,err) 
              (training-error . ,err2))]
@@ -232,7 +230,7 @@
              (program . ,(fpcore->string (program->fpcore prog ctx))) 
              (type . "rr") 
              (prev . ,(render-json prev pcontext pcontext2 ctx))
-             (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) ""))
+             (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
              (rule . ,(if (rule? input) "rewrite-once" "egg-rr"))
              (loc . ,loc)
              (error . ,err) 
@@ -241,10 +239,7 @@
 (define (render-proof-json proof soundiness pcontext ctx)
       (for/list ([step proof] [sound soundiness])
           (define-values (dir rule loc expr) (splice-proof-step step))
-          (define err
-            (format-accuracy (errors-score (errors expr pcontext ctx))
-                             (representation-total-bits (context-repr ctx))
-                             #:unit "%"))
+          (define err (errors-score (errors expr pcontext ctx)))
 
           `#hash(
                   (error . ,err)
