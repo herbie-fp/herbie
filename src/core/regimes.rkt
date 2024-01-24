@@ -193,7 +193,7 @@
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (when-cond entry)
-    (can-split? (si-pidx (vector-ref (cse-indices entry)0))))
+    (can-split? (si-pidx (vector-ref (cse-indices entry) 0))))
   (define (add-splitpoint sp-prev)
     (struct idk (cidx pidx) #:transparent)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
@@ -227,15 +227,14 @@
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
   (define (initial)
-    (let ([output (make-vector (+ num-points))])
+   (let ([output (make-vector (+ num-points))])
     (for ([point-idx (in-range num-points)])
       (define o (vector-argmin cse-cost
-              ;; Consider all the candidates we could put in this region
-              (vector-map (λ (cand-idx cand-psums)
-                      (let ([cost (vector-ref cand-psums point-idx)])
-                        (cse cost (vector (si cand-idx (+ point-idx 1))))))
-                   (list->vector (range num-candidates))
-                   vec-psums)))
+        ;; Consider all the candidates we could put in this region
+        (for/vector #:length num-candidates
+          ([cand-idx (range num-candidates)] [cand-psums vec-psums])
+            (let ([cost (vector-ref cand-psums point-idx)])
+              (cse cost (vector (si cand-idx (+ point-idx 1))))))))
       ;; Not sure how to format this
         (vector-set! output point-idx o)
           o)
