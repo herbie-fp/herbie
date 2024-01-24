@@ -1,10 +1,10 @@
 #lang racket
 
 (require rackunit)
-(require "../common.rkt" "../programs.rkt" "../float.rkt"
-         "../ground-truth.rkt" "types.rkt" "../load-plugin.rkt"
+(require "../common.rkt" "../compiler.rkt" "../float.rkt"
+         "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
-         "../core/egg-herbie.rkt")
+         "sugar.rkt" "../core/egg-herbie.rkt")
 
 (load-herbie-builtins)
 
@@ -37,7 +37,10 @@
   (define pre (dict-ref *conditions* name '(TRUE)))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
-      (cdr (sample-points pre (list p1 p2) (list ctx ctx)))))
+      (cdr (sample-points
+            (prog->spec pre)
+            (list (prog->spec p1) (prog->spec p2))
+            (list ctx ctx)))))
 
   (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
     (with-check-info* (map make-check-info fv pt)
@@ -53,8 +56,8 @@
     (for/list ([v (in-list fv)])
       (random-generate (dict-ref itypes v))))
   (define points (build-list (num-test-points) make-point))
-  (define prog1 (compile-prog p1 'fl ctx))
-  (define prog2 (compile-prog p2 'fl ctx))
+  (define prog1 (compile-prog p1 ctx))
+  (define prog2 (compile-prog p2 ctx))
   (define ex1 (map (curry apply prog1) points))
   (define ex2 (map (curry apply prog2) points))
   (for ([pt points])
@@ -64,7 +67,6 @@
       (check-equal? v1 v2))))
 
 (module+ main
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
   (num-test-points (* 100 (num-test-points)))
   (command-line
@@ -72,24 +74,23 @@
    (for ([name names])
      (eprintf "Checking ~a...\n" name)
      (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
-     (for ([rule* (rule->egg-rules rule)])
+     (for ([rule* (rule->impl-rules rule)])
       (check-rule-correct rule*)
       (when (set-member? (*fp-safe-simplify-rules*) rule*)
         (check-rule-fp-safe rule*))))))
 
 (module+ test
-  (*needed-reprs* (map get-representation '(binary64 binary32 bool)))
   (define _ (*simplify-rules*))  ; force an update
 
-  (for* ([test-ruleset (*rulesets*)]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
-         [test-rule* (rule->egg-rules test-rule)])
+         [test-rule* (rule->impl-rules test-rule)])
     (test-case (~a (rule-name test-rule*))
       (check-rule-correct test-rule*)))
 
-  (for* ([test-ruleset (*rulesets*)]
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
-         [test-rule* (rule->egg-rules test-rule)]
+         [test-rule* (rule->impl-rules test-rule)]
          #:when (set-member? (*fp-safe-simplify-rules*) test-rule*))
     (test-case (~a (rule-name test-rule*))
       (check-rule-fp-safe test-rule*))))

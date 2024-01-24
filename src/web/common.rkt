@@ -4,11 +4,12 @@
                           core->c core->fortran core->java core->python
                           core->julia core->matlab core->wls core->tex
                           expr->tex
+                          compilers
                           [core-common-subexpr-elim core-cse]
                           *expr-cse-able?*))
 
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
-         "../syntax/types.rkt" "../syntax/sugar.rkt")
+         "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt")
 
 (provide render-menu render-warnings render-large render-comparison render-program
          render-bogosity render-help
@@ -17,7 +18,7 @@
          program->fpcore program->tex render-reproduction js-tex-include)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
-  (define body (resugar-program expr (context-repr ctx) #:full #t))
+  (define body (prog->fpcore expr (context-repr ctx)))
   (if ident
       (list 'FPCore ident (context-vars ctx) body)
       (list 'FPCore (context-vars ctx) body)))
@@ -78,85 +79,16 @@
 (define (render-comparison #:title [title #f] name a b )
   (render-large #:title title name a `(span ([class "unit"]) " → ") b))
 
-(define (format-less-than-condition variables)
-  (string-join
-   (for/list ([a (in-list variables)]
-              [b (in-list (cdr variables))])
-     (format "~a < ~a" a b))
-   " && "))
-
-(define (preprocess->c preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (format "assert(~a);" (format-less-than-condition variables))]
-    [(list 'abs x)
-     (format "~a = abs(~a);" x x)]))
-
-(define (preprocess->java preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (format "assert ~a;" (format-less-than-condition variables))]
-    [(list 'abs x)
-     (format "~a = Math.abs(~a);" x x)]))
-
-(define (preprocess->python preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (define comma-joined (string-join (map ~a variables) ", "))
-     (format "[~a] = sort([~a])" comma-joined comma-joined)]
-    [(list 'abs x)
-     (format "~a = abs(~a)" x x)]))
-
-(define (preprocess->julia preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-      (define comma-joined (string-join (map ~a variables) ", "))
-      (format "~a = sort([~a])" comma-joined comma-joined)]
-    [(list 'abs x)
-     (format "~a = abs(~a)" x x)]))
-
-(define (preprocess->matlab preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (define comma-joined (string-join (map ~a variables) ", "))
-     (format "~a = num2cell(sort([~a])){:}" comma-joined comma-joined)]
-    [(list 'abs x)
-     (format "~a = abs(~a)" x x)]))
-
-(define (preprocess->tex preprocess)
-  (match preprocess
-    [(list 'sort variables ...)
-     (define comma-joined (string-join (map ~a variables) ", "))
-     (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]
-    [(list 'abs x)
-     (format "~a = |~a|\\\\" x x)]))
-
-(define (preprocess->default preprocess)
-  (match preprocess
-    [(list 'sort a b)
-     (format sort-note (format "~a and ~a" a b))]
-    [(list 'sort variables ...)
-     (format
-      sort-note
-      (string-join (map ~a variables) ", " #:before-last ", and "))]
-    [(list 'abs x)
-     (format abs-note x)]))
-
-(define sort-note
-  "NOTE: ~a should be sorted in increasing order before calling this function.")
-
-(define abs-note "NOTE: ~a should be positive before calling this function")
-
 (define languages
-  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)) ,preprocess->default)
-    ("C" "c" ,core->c ,preprocess->c)
-    ("Fortran" "f03" ,core->fortran ,preprocess->default)
-    ("Java" "java" ,core->java ,preprocess->java)
-    ("Python" "py" ,core->python ,preprocess->python)
-    ("Julia" "jl" ,core->julia ,preprocess->julia)
-    ("MATLAB" "mat" ,core->matlab ,preprocess->matlab)
-    ("Wolfram" "wl" ,core->wls ,preprocess->default)
-    ("TeX" "tex" ,(λ (c i) (core->tex c)) ,preprocess->tex)))
+  `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c)))
+    ("C" "c" ,core->c)
+    ("Fortran" "f03" ,core->fortran)
+    ("Java" "java" ,core->java)
+    ("Python" "py" ,core->python)
+    ("Julia" "jl" ,core->julia)
+    ("MATLAB" "mat" ,core->matlab)
+    ("Wolfram" "wl" ,core->wls)
+    ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
 (define (program->tex prog ctx #:loc [loc #f])
   (define prog* (program->fpcore prog ctx))
@@ -164,15 +96,119 @@
       (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-(define (add-preprocessing-tex preprocess-lines output)
-  (format "\\begin{array}{l}\n~a\\\\\n~a\\end{array}\n"
-          preprocess-lines output))
+(define (combine-fpcore-instruction i e c)
+  (match i
+    [(list 'abs x)
+     (define x* (string->symbol (string-append (symbol->string x) "_m")))
+     (define e* (replace-vars (list (cons x x*)) e))
+     (define p (index-of (context-vars c) x))
+     (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
+     (cons e* c*)]
+    [(list 'negabs x)
+     (define x-string (symbol->string x))
+     (define x-sign (string->symbol (string-append x-string "_s")))
+     (define x* (string->symbol (string-append x-string "_m")))
+     (define p (index-of (context-vars c) x))
+     (define r (list-ref (context-var-reprs c) p))
+     (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
+     (define c** (context-extend c* x-sign r))
+     (define e*
+       (list
+        (get-parametric-operator '* r (context-repr c))
+        x-sign
+        (replace-vars (list (cons x x*)) e)))
+     (cons e* c**)]
+    [_
+     (cons e c)]))
 
-(define (render-program preprocesses expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
+(define (format-prelude-instruction instruction ctx ctx* language converter)
+  (define (converter* e c)
+    (define fpcore (program->fpcore e c))
+    (define output (converter fpcore "code"))
+    (define lines (string-split output "\n"))
+    (match language
+      ["FPCore" (pretty-format e #:mode 'display)]
+      ["Fortran" (string-trim (third lines) #px"\\s+code\\s+=\\s+")]
+      ["MATLAB" (string-trim (second lines) #px"\\s+tmp\\s+=\\s+")]
+      ["Wolfram" (string-trim (first lines) #px".*:=\\s+")]
+      ["TeX" output]
+      [_ (string-trim (second lines) #px"\\s+return\\s+")]))
+  (match instruction
+    [(list 'abs x)
+     (define x* (string->symbol (string-append (symbol->string x) "_m")))
+     (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
+     (define e (list (get-parametric-operator 'fabs r) x))
+     (define c (context (list x*) r r))
+     (format "~a = ~a" x* (converter* e c))]
+    [(list 'negabs x)
+     (define x-string (symbol->string x))
+     (define x* (string->symbol (string-append x-string "_m")))
+     (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
+     (define e* (list (get-parametric-operator 'fabs r) x))
+     (define x-sign (string->symbol (string-append x-string "_s")))
+     (define e-sign (list (get-parametric-operator 'copysign r r) 1 x))
+     (define c (context (list x*) r r))
+     (list
+      (format "~a = ~a" x* (converter* e* c))
+      (format "~a = ~a" x-sign (converter* e-sign c)))]
+    [(list 'sort vs ...)
+     (define vs (context-vars ctx))
+     (define vs* (context-vars ctx*))
+     (format-sort-instruction
+      ;; We added some sign-* variables to the front of the variable
+      ;; list in `ctx*`, we only want the originals here
+      (take-right vs* (length vs))
+      language)]))
+
+(define (format-sort-instruction vs l)
+  (match l
+    ["C" (format "assert(~a);" (format-less-than-condition vs))]
+    ["Java" (format "assert ~a;" (format-less-than-condition vs))]
+    ["Python"
+     (define comma-joined (comma-join vs))
+     (format "[~a] = sort([~a])" comma-joined comma-joined)]
+    ["Julia"
+      (define comma-joined (comma-join vs))
+      (format "~a = sort([~a])" comma-joined comma-joined)]
+    ["MATLAB"
+     (define comma-joined (comma-join vs))
+     (format "~a = num2cell(sort([~a])){:}" comma-joined comma-joined)]
+    ["TeX"
+     (define comma-joined (comma-join vs))
+     (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]
+    [_
+     (match vs
+       [(list x y) (format sort-note (format "~a and ~a" x y))]
+       [(list vs ...)
+        (format
+         sort-note
+         (string-join (map ~a vs) ", "
+                      ;; "Lil Jon, he always tells the truth"
+                      #:before-last ", and "))])]))
+
+(define (format-less-than-condition variables)
+  (string-join
+   (for/list ([a (in-list variables)]
+              [b (in-list (cdr variables))])
+     (format "~a < ~a" a b))
+   " && "))
+
+(define (comma-join vs)
+  (string-join (map ~a vs) ", "))
+
+(define sort-note
+  "NOTE: ~a should be sorted in increasing order before calling this function.")
+
+(define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)] #:instructions [instructions empty])
   (define output-repr (context-repr ctx))
+  (match-define (cons expr* ctx*)
+    (foldl
+     (match-lambda* [(list i (cons e c)) (combine-fpcore-instruction i e c)])
+     (cons expr ctx)
+     instructions))
   (define out-prog
     (parameterize ([*expr-cse-able?* at-least-two-ops?])
-      (core-cse (program->fpcore expr ctx #:ident identifier))))
+      (core-cse (program->fpcore expr* ctx* #:ident identifier))))
 
   (define output-prec (representation-name output-repr))
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
@@ -180,16 +216,29 @@
   (define versions
     (reap [sow]
       (for ([(lang record) (in-dict languages)])
-        (match-define (list ext converter preprocess) record)
+        (match-define (list ext converter) record)
         (when (and (fpcore? out-prog*)
                    (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
           (define name (if identifier (symbol->string identifier) "code"))
           (define out (converter out-prog* name))
-          (define preprocess-lines
-            (string-join (map preprocess preprocesses) "\n" #:after-last "\n"))
-          (define add-preprocessing
-            (if (equal? lang "TeX") add-preprocessing-tex string-append))
-          (sow (cons lang (add-preprocessing preprocess-lines out)))))))
+          (define prelude-lines
+            (string-join
+             (append-map
+              (lambda (instruction)
+                (let ([l (format-prelude-instruction
+                          instruction ctx ctx*
+                          lang converter)])
+                  (if (list? l) l (list l))))
+              instructions)
+             (if (equal? lang "TeX") "\\\\\n" "\n")
+             #:after-last
+             "\n"))
+          (sow
+           (cons lang
+                 ((if (equal? lang "TeX")
+                      (curry format "\\begin{array}{l}\n~a\\\\\n~a\\end{array}\n")
+                      string-append)
+                  prelude-lines out)))))))
 
   (define math-out
     (if (dict-has-key? versions "TeX")
@@ -209,7 +258,7 @@
            ""
            `(div ([id "precondition"])
                  (div ([class "program math"])
-                      "\\[" ,(expr->tex (resugar-program precondition output-repr)) "\\]")))
+                      "\\[" ,(expr->tex (prog->fpcore precondition output-repr)) "\\]")))
       (div ([class "implementation"] [data-language "Math"])
            (div ([class "program math"]) "\\[" ,math-out "\\]"))
       ,@(for/list ([(lang out) (in-dict versions)])
@@ -244,15 +293,15 @@
      (format "  :precision ~s" (representation-name (test-output-repr test)))
      (if (equal? (test-pre test) '(TRUE))
          #f
-         (format "  :pre ~a" (resugar-program (test-pre test) output-repr)))
+         (format "  :pre ~a" (prog->fpcore (test-pre test) output-repr)))
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
      (if (test-output test)
          ;; Extra newlines for clarity
-         (format "\n  :herbie-target\n  ~a\n" (resugar-program (test-output test) output-repr))
+         (format "\n  :herbie-target\n  ~a\n" (prog->fpcore (test-output test) output-repr))
          #f)
-     (format "  ~a)" (resugar-program (test-input test) output-repr))))
+     (format "  ~a)" (prog->fpcore (test-input test) output-repr))))
    "\n"))
 
 (define (format-percent num den)

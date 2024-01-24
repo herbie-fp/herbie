@@ -2,19 +2,16 @@
 
 (require "../src/common.rkt" "../src/points.rkt" "../src/load-plugin.rkt"
          "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt"
-         "../src/syntax/types.rkt")
+         "../src/syntax/types.rkt" "../src/platform.rkt")
 
 (define *precision* (make-parameter #f))
-(define *ignore-target* (make-parameter #f))
 
 (define (test-successful? test input-bits target-bits output-bits)
-  (if (*ignore-target*)
-      #t
-      (match* ((test-output test) (test-expected test))
-       [(_ #f) #t]
-       [(_ (? number? n)) (>= n output-bits)]
-       [(#f #t) (>= input-bits output-bits)]
-       [(_ #t) (>= target-bits (- output-bits 1))])))
+  (match* ((test-output test) (test-expected test))
+    [(_ #f) #t]
+    [(_ (? number? n)) (>= n output-bits)]
+    [(#f #t) (>= input-bits output-bits)]
+    [(_ #t) (>= target-bits (- output-bits 1))]))
 
 (define (override-test-precision the-test repr)
   (struct-copy test the-test
@@ -74,7 +71,8 @@
       ['failure
        (define exn backend)
        (printf "[  CRASH  ]\t\t~a\n" (test-name test))
-       ((error-display-handler) (exn-message exn) exn)]
+       ((error-display-handler) (exn-message exn) exn)
+       #f]
       ['timeout
        (printf "[  TIMEOUT]\t\t~a\n" (test-name test))
        #f])))
@@ -88,18 +86,21 @@
 
   (command-line
    #:program "travis.rkt"
+   #:multi
+   [("--plugin") path "Which additional Herbie plugins to use"
+    (dynamic-require path #f)
+    (*loose-plugins* (cons path (*loose-plugins*)))]
    #:once-each
    [("--seed") rs "The random seed to use in point generation. If false (#f), a random seed is used'"
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
+   [("--platform") platform "Which platform to use for tests"
+    (*platform-name* (string->symbol platform))
+    (*active-platform* (get-platform (*platform-name*)))
+    (activate-platform! (*active-platform*))]
    [("--precision") prec "Which precision to use for tests"
     (*precision* (get-representation (string->symbol prec)))]
    [("--num-iters") num "The number of iterations to use for the main loop"
     (*num-iterations* (string->number num))]
-   [("--pareto") "Enables Pherbie"
-    (*pareto-mode* #t)
-    (*ignore-target* #t)
-    (*timeout* (* 1000 60 10))
-    (disable-flag! 'rules 'numerics)] ; causes time to increase
    #:args bench-dir
    (exit (if (apply run-tests bench-dir) 0 1))))

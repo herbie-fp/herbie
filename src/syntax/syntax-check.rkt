@@ -1,10 +1,8 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../conversions.rkt" "../errors.rkt" "types.rkt" "syntax.rkt")
+(require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt")
 (provide assert-program!)
-
-
 
 (define (check-expression* stx vars error! deprecated-ops)
   (let loop ([stx stx] [vars vars])
@@ -45,6 +43,15 @@
      [#`(! #,props ... #,body)
       (check-properties* props '() body deprecated-ops)
       (loop body vars)]
+     [#`(,(? (curry set-member? '(+ * and or))) #,args ...)
+      ;; Variary (minimum 0 arguments)
+      (for ([arg args]) (loop arg vars))]
+     [#`(,(? (curry set-member? '(- / = != < > <= >=))))
+      ;; Variary (minimum 1 arg)
+      (error! stx "Variary operator expects at least one argument")]
+     [#`(,(? (curry set-member? '(- / = != < > <= >=))) #,args ...)
+      ;; Variary (minimum 1 arg)
+      (for ([arg args]) (loop arg vars))]
      [#`(,(? (curry set-member? '(+ - * / and or = != < > <= >=))) #,args ...)
       ;; These expand by associativity so we don't check the number of arguments
       (for ([arg args]) (loop arg vars))]
@@ -52,7 +59,7 @@
       (define f (syntax->datum f-syntax))
       (cond
        [(operator-exists? f)
-        (define arity (length (real-operator-info f 'itype)))
+        (define arity (length (operator-info f 'itype)))
         (unless (= arity (length args))
           (error! stx "Operator ~a given ~a arguments (expects ~a)"
                   f (length args) arity))
@@ -117,26 +124,8 @@
 
   (when (dict-has-key? prop-dict ':herbie-target)
     (check-expression* (dict-ref prop-dict ':herbie-target) vars error! deprecated-ops))
-    
-  (when (dict-has-key? prop-dict ':herbie-conversions)
-    (define conversion-stx (dict-ref prop-dict ':herbie-conversions))
-    (cond
-     [(list? (syntax-e conversion-stx))
-      (define conversions (syntax->datum conversion-stx))
-      (for ([conv conversions])
-        (match conv
-         [(list repr-name-1 repr-name2)
-          (define known-repr?
-            (with-handlers ([exn:fail:user:herbie? (const #f)])
-              (get-representation (first conv))
-              (get-representation (second conv))
-              #t))
-          (unless known-repr? (error! conversion-stx "Unknown precision in conversion ~a" conv))]
-         [_ (error! conversion-stx "Invalid conversion ~a; Valid example: (binary64 binary32)" conv)]))
-      (generate-conversions (map (curry map get-representation) conversions))]
-     [else
-      (error! conversion-stx "Invalid :herbie-conversions ~a; must be a list" conversion-stx)]))
-)
+  
+  (void))
 
 (define (check-program* stx vars props body error!)
   (unless (list? vars)

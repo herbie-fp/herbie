@@ -5,7 +5,7 @@
                           [core-common-subexpr-elim core-cse]))
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../alternative.rkt" "../syntax/types.rkt" "../cost.rkt"
+         "../alternative.rkt" "../syntax/types.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
          "common.rkt" "history.rkt" "../syntax/sugar.rkt" "timeline.rkt")
 
@@ -15,9 +15,9 @@
   (-> alt? (or/c (listof sp?) #f))
   (let loop ([altn altn])
     (match altn
-      [(alt _ `(regimes ,splitpoints) prevs) splitpoints]
-      [(alt _ _ (list)) #f]
-      [(alt _ _ (list prev _ ...)) (loop prev)])))
+      [(alt _ `(regimes ,splitpoints) prevs _) splitpoints]
+      [(alt _ _ (list) _) #f]
+      [(alt _ _ (list prev _ ...) _) (loop prev)])))
 
 (define/contract (render-interactive vars point)
   (-> (listof symbol?) (listof number?) xexpr?)
@@ -56,7 +56,7 @@
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
   (define identifier (test-identifier test))
-  (match-define (improve-result preprocess pctxs start target end bogosity) backend)
+  (match-define (improve-result preprocessing pctxs start target end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define start-cost (alt-cost start-alt repr))
@@ -120,7 +120,7 @@
 
       ,(render-warnings warnings)
 
-      ,(let-values ([(dropdown body) (render-program '() (test-spec test) ctx #:pre (test-pre test) #:ident identifier)])
+      ,(let-values ([(dropdown body) (render-program (test-spec test) ctx #:pre (test-pre test) #:ident identifier)])
          `(section
            (details ([id "specification"] [class "programs"])
                     (summary (h2 "Specification")
@@ -172,7 +172,7 @@
            "the initial program, and each blue circle shows an alternative."
            "The line shows the best available speed-accuracy tradeoffs."))
 
-      ,(let-values ([(dropdown body) (render-program '() (alt-expr start-alt) ctx #:ident identifier)])
+      ,(let-values ([(dropdown body) (render-program (alt-expr start-alt) ctx #:ident identifier)])
          `(section ([id "initial"] [class "programs"])
                    (h2 "Initial Program"
                        ": "
@@ -185,7 +185,7 @@
 
       ,@(for/list ([i (in-naturals 1)] [alt end-alts] [errs end-errors] [cost end-costs])
           (define-values (dropdown body)
-            (render-program preprocess (alt-expr alt) ctx #:ident identifier))
+            (render-program (alt-expr alt) ctx #:ident identifier #:instructions preprocessing))
           `(section ([id ,(format "alternative~a" i)] [class "programs"])
             (h2 "Alternative " ,(~a i)
                 ": "
@@ -201,7 +201,7 @@
                  ,@(render-history alt train-pctx test-pctx ctx)))))
 
       ,(if (test-output test)
-           (let-values ([(dropdown body) (render-program '() (test-output test) ctx #:ident identifier)])
+           (let-values ([(dropdown body) (render-program (test-output test) ctx #:ident identifier)])
              `(section ([id "target"] [class "programs"])
                        (h2 "Developer target"
                            ": "

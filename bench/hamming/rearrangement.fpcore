@@ -1,36 +1,26 @@
 ; -*- mode: scheme -*-
 
+; The precondition for this expression is labelled as for large x hence we choose this
+; range that contains all the relevant values that are sampled. The proof that they
+; are equivalent is by rationalizing the denominator by multiplying both the
+; numerator and denominator by the conjugate of the denominator and simplifying using 
+; the identity a^2-b^2 = (a+b)(a-b) and cancellation.
 (FPCore (x)
  :name "2sqrt (example 3.1)"
+ :pre (and (> x 1) (< x 1e+308))
  :herbie-target
  (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))
 
  (- (sqrt (+ x 1)) (sqrt x)))
 
-(FPCore (x eps)
- :name "2sin (example 3.3)"
- :herbie-target
- (* 2 (* (cos (+ x (/ eps 2))) (sin (/ eps 2))))
-
- (- (sin (+ x eps)) (sin x)))
-
-(FPCore (x)
- :name "tanhf (example 3.4)"
- ;:herbie-expected 2
- :herbie-target
- (tan (/ x 2))
-
- (/ (- 1 (cos x)) (sin x)))
-
-(FPCore (N)
- :name "2atan (example 3.5)"
- :herbie-target
- (atan (/ 1 (+ 1 (* N (+ N 1)))))
-
- (- (atan (+ N 1)) (atan N)))
-
+; The precondition for this expression is labelled as for large x hence we choose this
+; range that contains all the relevant values that are sampled. The proof that they
+; are equivalent is by rationalizing the denominator by multiplying both the
+; numerator and denominator by the conjugate of the denominator and simplifying using 
+; the identity a^2-b^2 = (a+b)(a-b) and cancellation.
 (FPCore (x)
  :name "2isqrt (example 3.6)"
+ :pre (and (> x 1) (< x 1e+308))
  :herbie-target
  (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1)))))
 
@@ -38,38 +28,71 @@
 
 (FPCore (x)
  :name "2frac (problem 3.3.1)"
+
  (- (/ 1 (+ x 1)) (/ 1 x)))
-
-(FPCore (x eps)
- :name "2tan (problem 3.3.2)"
- :herbie-target
- (/ (sin eps) (* (cos x) (cos (+ x eps))))
-
- (- (tan (+ x eps)) (tan x)))
 
 (FPCore (x)
  :name "3frac (problem 3.3.3)"
+ ; Rewrite comes from Hammings textbook on page 46. Hamming says to sample large x
+ ; Half of floating point numbers are > 1 so this will sample large enough x.
+ :pre (> (fabs x) 1)
  :herbie-target
  (/ 2 (* x (- (* x x) 1)))
 
  (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
 
+; The precondition for this expression is labelled as for large x hence we choose this
+; range that contains all the relevant values that are sampled. The proof that they
+; are equivalent is by rewriting the two terms as a = (cbrt (+ x 1)) and b = (cbrt x)
+; and then using the trigonometric identity for a^3-b^3 where (a-b) is the term we
+; equate to (/ (- (pow a 3) (pow b 3)) (+ (pow a 2) (* a b) (pow b 2))), and then cancel values.
 (FPCore (x)
  :name "2cbrt (problem 3.3.4)"
+ :pre (and (> x 1) (< x 1e+308))
+ :herbie-target
+ (/ 1 (+ (* (cbrt (+ x 1)) (cbrt (+ x 1))) (* (cbrt x) (cbrt (+ x 1))) (* (cbrt x) (cbrt x))))
+ 
  (- (cbrt (+ x 1)) (cbrt x)))
 
-(FPCore (x eps)
- :name "2cos (problem 3.3.5)"
- (- (cos (+ x eps)) (cos x)))
-
+; This is a slightly unique rewrite because it involves the use of the libm function log1p 
+; as Hamming gave this as an exercise with no real hint on how to approach this.
+; For the precondition we want large values of N as described by Hamming. Hence, we chose the range for reasonable
+; values for which this could be queried and have relevant sampling and still being described as a large enough N.
+; log1p(x) simply returns log(1+x) but computed in a way that is accurate even when the value of number is close to zero.
+; Hence, after rearranging the expression using log-rewrite to get us (log (/ (+ N 1) N)) = (log (+ 1 (/ 1 N))), we can
+; find the term to be used in place of x to call log1p
 (FPCore (N)
  :name "2log (problem 3.3.6)"
+ :pre (and (> N 1) (< N 1e+40))
+ :herbie-target
+ (log1p (/ 1 N))
+
  (- (log (+ N 1)) (log N)))
+
+; Commented out explanation for platforms
+; Talking about the else case first, this is simply a log-rewrite which is (log(/ a b)) = (- (log a) (log b))
+; with N being cancelled in the numerator and denominator.
+; Now for the reason for the if-case and the 1e+3 value is because while on sampling in Herbie reports and Odyssey,
+; the sampled values for this equation is extremely inaccurate after this range. There could be a possible overflow or 
+; another reason but we have consistently noted that this exists. Hence, we chose the next best case
+; which is a Taylor series until the 4-th power, preventing too much of computation power while giving
+; the best answer for that range.
+;(FPCore (N)
+; :name "2log (problem 3.3.6)"
+; :pre (and (> N 1) (< N 1e+40))
+; :herbie-target
+; (if (>= N 1e+3)
+;    (+ (/ 1 N) (/ -1 (* 2 (pow N 2))) (/ 1 (* 3 (pow N 3))) (/ -1 (* 4 (pow N 4))))
+;    (log (+ 1 (/ 1 N))))
+; (- (log (+ N 1)) (log N)))
+
 
 (FPCore (x)
  :name "exp2 (problem 3.3.7)"
- ;:herbie-expected 1.5 ; Fails in single-precision due to regimes threshold
+ :pre (<= (fabs x) 710)
+ ; Bounded x on the extremes  by +/- 710 to avoid sampling infinite outputs
+ ; Target comes from Hamming's textbook, page 46
  :herbie-target
- (* 4 (pow (sinh (/ x 2)) 2))
+ (* 4 (* (sinh (/ x 2)) (sinh (/ x 2))))
 
  (+ (- (exp x) 2) (exp (- x))))

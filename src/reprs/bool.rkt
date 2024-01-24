@@ -2,7 +2,10 @@
 
 ;; Builtin boolean plugin
 
-(require "../plugin.rkt")
+(require "runtime/utils.rkt")
+
+;; Do not run this file with `raco test`
+(module test racket/base)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -16,11 +19,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-operator-impl (TRUE TRUE) bool
-  [fl (const true)])
-
-(define-operator-impl (FALSE FALSE) bool
-  [fl (const false)])
+(define-constants bool
+  [TRUE TRUE (const true)]
+  [FALSE FALSE (const false)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

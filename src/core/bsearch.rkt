@@ -2,9 +2,10 @@
 
 (require math/bigfloat racket/random)
 (require "../common.rkt" "../alternative.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/types.rkt" "../syntax/syntax.rkt"
-         "../programs.rkt" "../points.rkt" "regimes.rkt" "../float.rkt"
-         "../pretty-print.rkt" "../ground-truth.rkt")
+         "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
+         "../compiler.rkt" "../programs.rkt" "../points.rkt" "regimes.rkt"
+         "../float.rkt" "../pretty-print.rkt" "../sampling.rkt" 
+         "../ground-truth.rkt")
 
 (provide combine-alts (struct-out sp) splitpoints->point-preds)
 
@@ -36,7 +37,7 @@
 
     ;; We don't want unused alts in our history!
     (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
-    (alt expr* (list 'regimes splitpoints*) alts*)]))
+    (alt expr* (list 'regimes splitpoints*) alts* '())]))
 
 (define (remove-unused-alts alts splitpoints)
   (for/fold ([alts* '()] [splitpoints* '()]) ([splitpoint splitpoints])
@@ -91,7 +92,7 @@
 (define (sindices->spoints points expr alts sindices ctx)
   (define repr (repr-of expr ctx))
 
-  (define eval-expr (compile-prog expr 'fl ctx))
+  (define eval-expr (compile-prog expr ctx))
 
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
@@ -101,7 +102,7 @@
   ; Not totally clear if this should actually use the precondition
   (define start-fn 
     (and start-prog 
-      (make-search-func '(TRUE) (list start-prog)  (cons ctx* `()))))
+      (make-search-func '(TRUE) (list (prog->spec start-prog)) (cons ctx* `()))))
 
   (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
@@ -155,7 +156,7 @@
 
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
-  (define prog (compile-prog bexpr 'fl ctx*))
+  (define prog (compile-prog bexpr ctx*))
 
   (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)

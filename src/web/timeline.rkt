@@ -61,6 +61,7 @@
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
+         ,@(dict-call curr render-phase-fperrors 'fperrors)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -110,15 +111,15 @@
                                (format-percent (hash-ref domain-info tag 0) total))])))))))
                                
 (define (render-phase-locations locations)
-  `((dt "Local Accuracy")
-    (dd (p "Found " ,(~a (length locations)) " expressions with local accuracy:")
+  `((dt "Localize:")
+    (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
         (table ([class "times"])
           (thead (tr (th "New") (th "Accuracy") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
-
-              (match-define (list expr err new? repr) rec)
+              (match-define (list expr err new? repr-name) rec)
+              (define repr (get-representation (read (open-input-string repr-name))))
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-accuracy err (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
+                  (td ,(format-accuracy err (representation-total-bits repr) #:unit "%") "")
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
@@ -128,7 +129,8 @@
    [(equal? (hash-ref v 'type) "real")
     (hash-ref v 'value)]
    [else
-    (define repr (get-representation (read (open-input-string (hash-ref v 'type)))))
+    (define repr-name (hash-ref v 'type))
+    (define repr (get-representation (read (open-input-string repr-name))))
     (value->string
      ((representation-ordinal->repr repr)
       (string->number (hash-ref v 'ordinal)))
@@ -206,7 +208,7 @@
     (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
   empty))
 
-(define (render-phase-accuracy accuracy oracle baseline name link repr)
+(define (render-phase-accuracy accuracy oracle baseline name link repr-name)
   (define rows
     (sort
      (for/list ([acc accuracy] [ora oracle] [bas baseline] [name name] [link link])
@@ -218,11 +220,12 @@
 
   (define bits (map first rows))
   (define total-remaining (apply + accuracy))
+  (define repr (get-representation (read (open-input-string (car repr-name)))))
 
   `((dt "Accuracy")
     (dd (p "Total " ,(format-bits (apply + bits) #:unit #t) " remaining"
             " (" ,(format-percent (apply + bits) total-remaining) ")"
-        (p "Threshold costs " ,(format-cost (apply + (filter (curry > 1) bits)) (get-representation (string->symbol (car repr)))) "b"
+        (p "Threshold costs " ,(format-cost (apply + (filter (curry > 1) bits)) repr) "b"
            " (" ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining) ")")
         ,@(if (> (length rows) 1)
               `((table ([class "times"])
@@ -258,9 +261,10 @@
               (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
 
 (define (render-phase-error min-error-table)
-  (match-define (list min-error repr) (car min-error-table))
-  `((dt "Accurracy")
-    (dd ,(format-accuracy min-error (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")))
+  (match-define (list min-error repr-name) (car min-error-table))
+  (define repr (get-representation (read (open-input-string repr-name))))
+  `((dt "Accuracy")
+    (dd ,(format-accuracy min-error (representation-total-bits repr) #:unit "%") "")))
 
 (define (render-phase-rules rules)
   `((dt "Rules")
@@ -269,6 +273,27 @@
               (match-define (list rule count) rec)
               `(tr (td ,(~a count) "×")
                    (td (code ,(~a rule) " "))))))))
+
+(define (render-phase-fperrors fperrors)
+  `((dt "FPErrors")
+    (dd (details
+         (summary "Click to see full error table")
+         (table ([class "times"])
+                (thead (tr (th "Ground Truth") (th "Overpredictions") (th "Example") (th "Underpredictions") (th "Example") (th "Subexpression")))
+                ,@(for/list ([rec (in-list (sort fperrors > #:key second))])
+                    (match-define (list expr tcount opred oex upred uex) rec)
+                    `(tr (td ,(~a tcount))
+                         (td ,(~a opred))
+                         (td ,(if oex
+                                  (~a oex)
+                                  "-"))
+                         (td ,(~a upred))
+                         (td ,(if uex
+                                  (~a uex)
+                                  "-"))
+                         (td ,(if expr
+                                  `(code ,expr)
+                                  "No Errors")))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
@@ -281,13 +306,14 @@
          (table ([class "times"])
                 (thead (tr (th "Status") (th "Accuracy") (th "Program")))
                 ,@(for/list ([rec (in-list alts)])
-                    (match-define (list expr status score repr) rec)
+                    (match-define (list expr status score repr-name) rec)
+                    (define repr (get-representation (read (open-input-string repr-name))))
                     `(tr
                       ,(match status
                          ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                          ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                          ["fresh" `(td)])
-                      (td ,(format-accuracy score (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
+                      (td ,(format-accuracy score (representation-total-bits repr) #:unit "%") "")
                       (td (pre ,expr)))))))))
 
 (define (render-phase-times n times)
@@ -327,8 +353,9 @@
     (dd (table ([class "times"])
                (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
          ,@(for/list ([rec (in-list branches)])
-             (match-define (list expr score splits repr) rec)
-             `(tr (td ,(format-accuracy score (representation-total-bits (get-representation (string->symbol repr))) #:unit "%") "")
+             (match-define (list expr score splits repr-name) rec)
+             (define repr (get-representation (read (open-input-string repr-name))))
+             `(tr (td ,(format-accuracy score (representation-total-bits repr) #:unit "%") "")
                   (td ,(~a splits))
                   (td (code ,expr))))))))
 

@@ -1,11 +1,28 @@
 #lang racket
 
-(require "common.rkt" "errors.rkt" "alternative.rkt" "timeline.rkt"
-         "syntax/types.rkt" "syntax/syntax.rkt" "syntax/rules.rkt"
-         "conversions.rkt" "patch.rkt" "points.rkt" "programs.rkt"
-         "ground-truth.rkt" "preprocess.rkt" "core/alt-table.rkt"
-         "core/localize.rkt" "core/simplify.rkt" "core/regimes.rkt"
-         "core/bsearch.rkt" "soundiness.rkt" "core/egg-herbie.rkt")
+(require "syntax/rules.rkt"
+         "syntax/sugar.rkt"
+         "syntax/syntax.rkt"
+         "syntax/types.rkt"
+         "core/alt-table.rkt"
+         "core/bsearch.rkt"
+         "core/egg-herbie.rkt"
+         "core/localize.rkt"
+         "core/regimes.rkt"
+         "core/simplify.rkt"
+         "alternative.rkt"
+         "common.rkt"
+         "conversions.rkt"
+         "error-table.rkt"    
+         "patch.rkt"
+         "platform.rkt"
+         "points.rkt"
+         "preprocess.rkt"
+         "programs.rkt"     
+         "timeline.rkt"
+         "sampling.rkt"
+         "soundiness.rkt"
+         "float.rkt")
 
 (provide (all-defined-out))
 
@@ -43,13 +60,16 @@
 
 ;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
 (define (starting-alts altn ctx)
-  (filter alt-expr
-    (for/list ([(k v) (in-hash (*conversions*))]
-              #:unless (equal? k (context-repr ctx))
-              #:when (set-member? v (context-repr ctx)))
-      (define rewrite (get-rewrite-operator k))
-      (define body* (apply-repr-change-expr (list rewrite (alt-expr altn)) ctx))
-      (make-alt body*))))
+  (define starting-exprs
+    (reap [sow]
+      (for ([conv (platform-conversions (*active-platform*))])
+        (match-define (list itype) (impl-info conv 'itype))
+        (when (equal? itype (context-repr ctx))
+          (define otype (impl-info conv 'otype))
+          (define expr* (list (get-rewrite-operator otype) (alt-expr altn)))
+          (define body* (apply-repr-change-expr expr* ctx))
+          (when body* (sow body*))))))
+  (map make-alt starting-exprs))
 
 ;; Information
 (define (list-alts)
@@ -136,12 +156,12 @@
                [(err expr) (in-dict loc-errs)]
                [i (in-range (*localize-expressions-limit*))])
       (timeline-push! 'locations (~a expr) (errors-score err)
-                      (not (patch-table-has-expr? expr)) (format "~a" (representation-name repr)))
+                      (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
       expr))
 
   ; low-error locations (Pherbie-only with multi-precision)
   (^lowlocs^
-    (if (and (*pareto-mode*) (not (hash-empty? (*conversions*))))
+    (if (and (*pareto-mode*) (not (null? (platform-conversions (*active-platform*)))))
         (for/list ([loc-errs (in-list loc-errss)]
                    #:when true
                    [(err expr) (in-dict (reverse loc-errs))]
@@ -180,7 +200,7 @@
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
-      (match-define (alt _ event prevs) altn)
+      (match-define (alt _ event prevs _) altn)
       (cond
        [(equal? event '(patch)) orig]
        [else
@@ -196,11 +216,11 @@
            [(list 'simplify '() input proof soundiness)
             (list 'simplify loc0 input proof soundiness)]))
         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
-        (alt expr* event* (list (loop (first prevs))))])))
+        (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
   
   (^patched^
    (reap [sow]
-     (for ([altn (in-list alts)])
+     (for ([altn (in-list alts)]) ;; does not have preproc
        (define expr0 (get-starting-expr altn))
        (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
            (for* ([alt0 (in-list (^next-alts^))]
@@ -291,32 +311,19 @@
   
 (define (setup-context! vars specification precondition repr)
   (*context* (context vars repr (map (const repr) vars)))
-  (when (empty? (*needed-reprs*)) ; if empty, probably debugging
-    (*needed-reprs* (list repr (get-representation 'bool))))
-
-  (match-define (cons domain pts+exs)
-                  (sample-points precondition 
-                    (list specification) 
-                    (list (*context*))))
+  (define sample (sample-points precondition (list specification) (list (*context*))))
+  (match-define (cons domain pts+exs) sample)
   (cons domain (apply mk-pcontext pts+exs)))
 
-(define (initialize-alt-table! prog pcontext ctx)
-  (define alt (make-alt prog))
-  (*start-prog* prog)
-  (define table (make-alt-table (*pcontext*) alt ctx))
-
-  ; Add starting alt in every precision
-  (^table^
-   (if (*pareto-mode*)
-       (let ([new-alts (starting-alts alt ctx)])
-         (define-values (errss costs) (atab-eval-altns table new-alts ctx))
-         (atab-add-altns table new-alts errss costs))
-       table))
-
-  (when (flag-set? 'setup 'simplify)
-      (reconstruct! (patch-table-run-simplify (atab-active-alts (^table^))))
-      (finalize-iter!)
-      (^next-alts^ #f)))
+(define (initialize-alt-table! alternatives context pcontext)
+  (match-define (cons initial simplified) alternatives)
+  (*start-prog* (alt-expr initial))
+  (define table (make-alt-table pcontext initial context))
+  (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
+  (timeline-event! 'eval)
+  (define-values (errss costs) (atab-eval-altns table simplified* context))
+  (timeline-event! 'prune)
+  (^table^ (atab-add-altns table simplified* errss costs)))
 
 ;; This is only here for interactive use; normal runs use run-improve!
 (define (run-improve vars prog iters
@@ -327,25 +334,48 @@
   (rollback-improve!)
   (define repr (get-representation precision))
 
-  (define original-points (setup-context! vars (or specification prog) precondition repr))
+  (define original-points (setup-context! vars (prog->spec (or specification prog)) (prog->spec precondition) repr))
   (run-improve! iters prog specification preprocess original-points repr))
 
-(define (run-improve! expression context pcontext rules iterations #:specification [specification #f])
+(define (run-improve! initial specification context pcontext)
   (timeline-event! 'preprocess)
-  (define preprocessing (find-preprocessing (or specification expression) context rules))
+  (define-values (simplified preprocessing)
+    (find-preprocessing initial specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (match-define (and alternatives (cons best _))
-    (mutate! expression iterations pcontext*))
+  (match-define (and alternatives (cons (alt best _ _ _) _))
+    (mutate! simplified context pcontext* (*num-iterations*)))
   (timeline-event! 'preprocess)
-  (define preprocessing*
-    (remove-unnecessary-preprocessing (alt-expr best) context pcontext preprocessing))
-  (values alternatives preprocessing*))
+  (define final-alts
+    (for/list ([altern alternatives])
+      (alt-add-preprocessing altern (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
+  (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing))) 
 
-(define (mutate! prog iters pcontext)
+(define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
-  (initialize-alt-table! prog (*pcontext*) (*context*))
-  (for ([iter (in-range iters)] #:break (atab-completed? (^table^)))
+  (define expr (alt-expr (car simplified)))
+  (define repr (repr-of expr context))
+  (define (values->json vs repr)
+    (map (lambda (value) (value->json value repr)) vs))
+  (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
+  (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
+
+  (for ([(subexpr pset) (in-dict pcount-hash)])
+    (define tset (hash-ref tcount-hash subexpr '()))
+    (define opred (set-subtract pset tset))
+    (define upred (set-subtract tset pset))
+    (timeline-push! 'fperrors
+                    (~a subexpr)
+                    (length tset)
+                    (length opred)
+                    (and (not (empty? opred)) (values->json (first opred)
+                                                            repr))
+                    (length upred)
+                    (and (not (empty? upred)) (values->json (first upred)
+                                                            repr))))
+
+  (initialize-alt-table! simplified context pcontext)
+  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))
   (extract!))
 
@@ -354,7 +384,7 @@
   (define repr (context-repr ctx))
   (define all-alts (atab-all-alts (^table^)))
   (*all-alts* (atab-active-alts (^table^)))
-
+  
   (define ndone-alts (atab-not-done-alts (^table^)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts (~a (alt-expr alt))
@@ -373,7 +403,6 @@
         (list (combine-alts option ctx))])]
      [else
       (list (argmin score-alt all-alts))]))
-
   (define cleaned-alts
     (cond
       [(flag-set? 'generate 'simplify)
@@ -384,7 +413,7 @@
        (define simplified (simplify-batch egg-query))
 
        (for/list ([altn joined-alts] [progs simplified])
-         (alt (last progs) 'final-simplify (list altn)))]
+         (alt (last progs) 'final-simplify (list altn) (alt-preprocessing altn)))]
       [else
        joined-alts]))
         

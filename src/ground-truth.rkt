@@ -1,9 +1,34 @@
 #lang racket
 
-(require math/bigfloat rival)
-(require "programs.rkt" "syntax/types.rkt" "sampling.rkt" "timeline.rkt" "errors.rkt" "common.rkt")
+(require math/bigfloat
+         rival)
 
-(provide sample-points batch-prepare-points make-search-func eval-progs-real)
+(require "syntax/types.rkt"
+         "common.rkt"
+         "compiler.rkt")
+
+(provide eval-progs-real
+         ground-truth-require-convergence 
+         ival-eval
+         make-search-func)
+
+(define ground-truth-require-convergence (make-parameter #t))
+
+(define (is-infinite-interval repr interval)
+  (define <-bf (representation-bf->repr repr))
+  (define ->bf (representation-repr->bf repr))
+  ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
+  ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
+  (define (positive-inf? x)
+    (parameterize ([bf-rounding-mode 'nearest])
+      (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
+  (define (negative-inf? x)
+    (parameterize ([bf-rounding-mode 'nearest])
+      (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
+  (define ival-positive-infinite (monotonic->ival positive-inf?))
+  (define ival-negative-infinite (comonotonic->ival negative-inf?))
+  (ival-or (ival-positive-infinite interval)
+           (ival-negative-infinite interval)))
 
 (define (is-samplable-interval repr interval)
   (define <-bf (representation-bf->repr repr))
@@ -12,18 +37,20 @@
       (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
   ((close-enough->ival close-enough?) interval))
 
-(define ground-truth-require-convergence (make-parameter #t))
 
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
-(define (make-search-func pre exprs ctxs)
-  ; (eprintf "pre ~a, expers ~a, ctxs ~a\n" pre exprs ctxs)
-  (define fns (compile-progs (cons pre exprs) 'ival (car ctxs)))
+(define (make-search-func pre specs ctxs)
+  (define fns (compile-specs (cons pre specs) (context-vars (car ctxs))))
+  ; inputs can either be intervals or representation values
   (λ inputs
-    (define out (apply fns inputs))
-    (match-define (list ival-pre ival-bodies ...) out)
-    (for/list ([y ival-bodies][ctx ctxs])
+    (define inputs*
+      (for/list ([input (in-list inputs)]
+                 [repr (context-var-reprs (car ctxs))])
+        (if (ival? input) input (ival ((representation-repr->bf repr) input)))))
+    (match-define (list ival-pre ival-bodies ...) (apply fns inputs*))
+    (for/list ([y ival-bodies] [ctx ctxs])
       (define repr (context-repr ctx))
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
@@ -38,6 +65,24 @@
             (ival (ival-hi (is-samplable-interval repr y))))
         'unsamplable)
        y))))
+
+(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
+  (let loop ([precision precision])
+    (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
+    (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
+    (define precision* (exact-floor (* precision 2)))
+    (cond
+     [err
+      (values err precision +nan.0)]
+     [(not err?)
+      (define infinite?
+      (ival-lo (is-infinite-interval repr (apply ival-or exs))))
+      (values (if infinite? 'infinite 'valid) precision exs)
+     ]
+     [(> precision* (*max-mpfr-prec*))
+      (values 'exit precision +nan.0)]
+     [else
+      (loop precision*)])))
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)
@@ -54,26 +99,3 @@
         ((representation-bf->repr (context-repr ctx*)) +nan.bf))]))
   (procedure-rename f '<eval-prog-real>))
 
-(define (combine-tables t1 t2)
-  (define t2-total (apply + (hash-values t2)))
-  (define t1-base (+ (hash-ref t1 'unknown 0) (hash-ref t1 'valid 0)))
-  (for/fold ([t1 (hash-remove (hash-remove t1 'unknown) 'valid)])
-      ([(k v) (in-hash t2)])
-    (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
-
-(define (sample-points pre exprs ctxs)
-  (timeline-event! 'analyze)
-  (define fn (make-search-func pre exprs ctxs))
-  (match-define (cons sampler table)
-    (parameterize ([ground-truth-require-convergence #f])
-      ;; TODO: Should make-sampler allow multiple contexts?
-      (make-sampler (first ctxs) pre fn)))
-  (timeline-event! 'sample)
-  ;; TODO: should batch-prepare-points allow multiple contexts?
-  (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler))
-  (define total (apply + (hash-values table2)))
-  (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
-   (warn 'inf-points #:url "faq.html#inf-points"
-    "~a of points produce a very large (infinite) output. You may want to add a precondition." 
-    (format-accuracy (- total (hash-ref table2 'infinite)) total #:unit "%")))
-  (cons (combine-tables table table2) results))

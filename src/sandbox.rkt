@@ -1,15 +1,35 @@
 #lang racket
 
-(require profile math/bigfloat racket/engine json rival)
-(require "syntax/read.rkt" "syntax/rules.rkt" "syntax/sugar.rkt"
-         "syntax/types.rkt" "alternative.rkt" "common.rkt" "conversions.rkt"
-         "cost.rkt" "datafile.rkt" "errors.rkt" "float.rkt" "sampling.rkt"
-         "mainloop.rkt" "preprocess.rkt" "points.rkt" "profile.rkt"
-         "programs.rkt" "timeline.rkt" (submod "timeline.rkt" debug)
-         "core/localize.rkt" "ground-truth.rkt")
+(require profile
+         racket/engine
+         json)
 
-(provide run-herbie get-table-data unparse-result *reeval-pts* *timeout*
-         (struct-out job-result) (struct-out improve-result)
+(require "syntax/read.rkt"
+         "syntax/sugar.rkt"
+         "syntax/types.rkt"
+         "core/localize.rkt"
+         "alternative.rkt"
+         "compiler.rkt"
+         "common.rkt"
+         "datafile.rkt"
+         "errors.rkt"
+         "float.rkt"
+         "ground-truth.rkt"
+         "mainloop.rkt"
+         "platform.rkt"
+         "points.rkt"
+         "preprocess.rkt"
+         "profile.rkt"
+         "timeline.rkt"
+         (submod "timeline.rkt" debug))
+
+(provide run-herbie
+         get-table-data
+         unparse-result
+         *reeval-pts*
+         *timeout*
+         (struct-out job-result)
+         (struct-out improve-result)
          (struct-out alt-analysis))
 
 (struct job-result (test status time timeline warnings backend))
@@ -51,7 +71,7 @@
 
 ;; Given a test, computes the program cost of the input expression
 (define (get-cost test)
-  (expr-cost (test-input test) (test-output-repr test)))
+  ((platform-cost-proc (*active-platform*)) (test-input test)))
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
@@ -59,8 +79,8 @@
   (match-define (cons _ joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (setup-context! (test-vars test)
-                      (or (test-spec test) (test-input test))
-                      (test-pre test)
+                      (prog->spec (or (test-spec test) (test-input test)))
+                      (prog->spec (test-pre test))
                       repr)))
 
   (define-values (_ test-pcontext)
@@ -93,7 +113,7 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
   (define fn (eval-progs-real 
-              (list (test-input test)) 
+              (list (prog->spec (test-input test)))
               (list (*context*))))
   (for/list ([pt pts])
     (list pt (car (apply fn pt)))))
@@ -107,7 +127,7 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
-  (define fn (compile-prog (test-input test) 'fl (test-context test)))
+  (define fn (compile-prog (test-input test) (test-context test)))
   (for/list ([pt pts])
     (list pt (apply fn pt))))
 
@@ -138,10 +158,7 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext context))
   ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (alternatives preprocessing)
-    (run-improve!
-     ;; If the specification is given, it is used for sampling points
-     (test-input test) (*context*) train-pcontext (*simplify-rules*)
-     (*num-iterations*) #:specification (test-spec test)))
+    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
   (define test-pcontext*
     (preprocess-pcontext (*context*) test-pcontext preprocessing))
   (when seed (set-seed! seed))
@@ -158,18 +175,15 @@
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (setup-context! (test-vars test)
-                      (or (test-spec test) (test-input test))
-                      (test-pre test)
+                      (prog->spec (or (test-spec test) (test-input test)))
+                      (prog->spec (test-pre test))
                       repr)))
   (timeline-push! 'bogosity domain-stats)
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
   ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (end-alts preprocessing)
-    (run-improve!
-     ;; If the specification is given, it is used for sampling points
-     (test-input test) ctx train-pcontext (*simplify-rules*) (*num-iterations*)
-     #:specification (test-spec test)))
+    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
   (define test-pcontext*
     (preprocess-pcontext ctx test-pcontext preprocessing))
   (when seed (set-seed! seed))
@@ -241,11 +255,8 @@
     (parameterize ([*timeline-disabled* timeline-disabled?]
                    [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
-      (define repr (test-output-repr test))
       (rollback-improve!)
       (*context* (test-context test))
-      (*needed-reprs* (list repr (get-representation 'bool)))
-      (generate-prec-rewrites (test-conversions test))
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
@@ -285,14 +296,14 @@
              (improve-result-preprocess (job-result-backend result))
              (test-preprocess test)))
   (table-row (test-name test) (test-identifier test) status
-             (resugar-program (test-pre test) repr)
+             (prog->fpcore (test-pre test) repr)
              preprocess
              (representation-name repr)
              (map (curry map representation-name) (test-conversions test))
              (test-vars test)
-             (resugar-program (test-input test) repr) #f
-             (resugar-program (test-spec test) repr)
-             (and (test-output test) (resugar-program (test-output test) repr))
+             (prog->fpcore (test-input test) repr) #f
+             (prog->fpcore (test-spec test) repr)
+             (and (test-output test) (prog->fpcore (test-output test) repr))
              #f #f #f #f #f (job-result-time result) link '()))
 
 (define (get-table-data result link)
@@ -300,6 +311,7 @@
   (match status
     ['success
      (match-define (improve-result _ _ start target end _) backend)
+     (define expr-cost (platform-cost-proc (*active-platform*)))
      (define repr (test-output-repr test))
     
      ; starting expr analysis

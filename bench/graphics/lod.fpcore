@@ -1,0 +1,238 @@
+; -*- mode: scheme -*-
+
+;
+; Level-of-Detail computation
+; Direct3D 11.3
+; Section 7.8.11
+;
+; Texture limits from Section 21:
+; Textures sizes are integer values between [1, 2^14].
+; Maximum ratio of anisotropy will be fixed at 16 since the algorithm
+; is only interesting when clamping is kept minimal.
+;
+; While the section mentions "reasonable" limits for derivatives,
+; unreasonable is still allowable, so any good algorithm should
+; be able to handle inputs in this space. The limits on derivatives
+; are conservative and handle inputs far outside the "reasonable" space
+; 
+;
+
+;
+;   Anisotropic
+;
+
+(FPCore (w h dX.u dX.v dY.u dY.v maxAniso)
+  :name "Anisotropic x16 LOD (LOD)"
+  :precision binary32
+  :pre (and (<= 1 w 16384)
+            (<= 1 h 16384)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
+            (== maxAniso 16))
+  
+  (let* ([w         (floor w)]
+         [h         (floor h)]
+         [maxAniso  (floor maxAniso)]
+
+         [dX.u (* w dX.u)]
+         [dX.v (* h dX.v)]
+         [dY.u (* w dY.u)]
+         [dY.v (* h dY.v)]
+    
+         [dX2  (+ (* dX.u dX.u) (* dX.v dX.v))]
+         [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
+         [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
+
+         [major2        (fmax dX2 dY2)]
+         [major         (sqrt major2)]
+         [normMajor     (/ 1 major)]
+         [ratioAniso0   (/ major2 det)]
+
+         ; first round of clamping
+         [minor         (if (> ratioAniso0 maxAniso)
+                            (/ major maxAniso)
+                            (/ det major))]
+         [ratioAniso1   (if (> ratioAniso0 maxAniso)
+                            maxAniso
+                            ratioAniso0)]
+
+         ; second round of clamping
+         [ratioAniso    (if (< minor 1.0)
+                            (fmax 1.0 (* ratioAniso1 minor))
+                            ratioAniso1)])
+
+    (log2 minor)))
+
+(FPCore (w h dX.u dX.v dY.u dY.v maxAniso)
+  :name "Anisotropic x16 LOD (ratio of anisotropy)"
+  :precision binary32
+  :pre (and (<= 1 w 16384)
+            (<= 1 h 16384)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
+            (== maxAniso 16))
+  
+  (let* ([w         (floor w)]
+         [h         (floor h)]
+         [maxAniso  (floor maxAniso)]
+
+         [dX.u (* w dX.u)]
+         [dX.v (* h dX.v)]
+         [dY.u (* w dY.u)]
+         [dY.v (* h dY.v)]
+    
+         [dX2  (+ (* dX.u dX.u) (* dX.v dX.v))]
+         [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
+         [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
+
+         [major2        (fmax dX2 dY2)]
+         [major         (sqrt major2)]
+         [normMajor     (/ 1 major)]
+         [ratioAniso0   (/ major2 det)]
+
+         ; first round of clamping
+         [minor         (if (> ratioAniso0 maxAniso)
+                            (/ major maxAniso)
+                            (/ det major))]
+         [ratioAniso1   (if (> ratioAniso0 maxAniso)
+                            maxAniso
+                            ratioAniso0)]
+
+         ; second round of clamping
+         [ratioAniso    (if (< minor 1.0)
+                            (fmax 1.0 (* ratioAniso1 minor))
+                            ratioAniso1)])
+
+    ratioAniso))
+
+(FPCore (w h dX.u dX.v dY.u dY.v maxAniso)
+  :name "Anisotropic x16 LOD (line direction, u)"
+  :precision binary32
+  :pre (and (<= 1 w 16384)
+            (<= 1 h 16384)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
+            (== maxAniso 16))
+  
+  (let* ([w         (floor w)]
+         [h         (floor h)]
+         [maxAniso  (floor maxAniso)]
+
+         [dX.u (* w dX.u)]
+         [dX.v (* h dX.v)]
+         [dY.u (* w dY.u)]
+         [dY.v (* h dY.v)]
+    
+         [dX2  (+ (* dX.u dX.u) (* dX.v dX.v))]
+         [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
+         [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
+
+         [major2        (fmax dX2 dY2)]
+         [major         (sqrt major2)]
+         [normMajor     (/ 1 major)]
+         [ratioAniso0   (/ major2 det)]
+
+         ; first round of clamping
+         [minor         (if (> ratioAniso0 maxAniso)
+                            (/ major maxAniso)
+                            (/ det major))]
+         [ratioAniso1   (if (> ratioAniso0 maxAniso)
+                            maxAniso
+                            ratioAniso0)]
+
+         ; second round of clamping
+         [ratioAniso    (if (< minor 1.0)
+                            (fmax 1.0 (* ratioAniso1 minor))
+                            ratioAniso1)])
+
+    (if (>= dX2 dY2)
+        (* normMajor dX.u)
+        (* normMajor dY.u))))
+
+(FPCore (w h dX.u dX.v dY.u dY.v maxAniso)
+  :name "Anisotropic x16 LOD (line direction, v)"
+  :precision binary32
+  :pre (and (<= 1 w 16384)
+            (<= 1 h 16384)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
+            (== maxAniso 16))
+  
+  (let* ([w         (floor w)]
+         [h         (floor h)]
+         [maxAniso  (floor maxAniso)]
+
+         [dX.u (* w dX.u)]
+         [dX.v (* h dX.v)]
+         [dY.u (* w dY.u)]
+         [dY.v (* h dY.v)]
+    
+         [dX2  (+ (* dX.u dX.u) (* dX.v dX.v))]
+         [dY2  (+ (* dY.u dY.u) (* dY.v dY.v))]
+         [det  (fabs (- (* dX.u dY.v) (* dX.v dY.u)))]
+
+         [major2        (fmax dX2 dY2)]
+         [major         (sqrt major2)]
+         [normMajor     (/ 1 major)]
+         [ratioAniso0   (/ major2 det)]
+
+         ; first round of clamping
+         [minor         (if (> ratioAniso0 maxAniso)
+                            (/ major maxAniso)
+                            (/ det major))]
+         [ratioAniso1   (if (> ratioAniso0 maxAniso)
+                            maxAniso
+                            ratioAniso0)]
+
+         ; second round of clamping
+         [ratioAniso    (if (< minor 1.0)
+                            (fmax 1.0 (* ratioAniso1 minor))
+                            ratioAniso1)])
+
+    (if (>= dX2 dY2)
+        (* normMajor dX.v)
+        (* normMajor dY.v))))
+
+;
+;   Isotropic (supports 3D as well)
+;
+
+(FPCore (w h d dX.u dX.v dX.w dY.u dY.v dY.w)
+  :name "Isotropic LOD (LOD)"
+  :precision binary32
+  :pre (and (<= 1 w 16384)
+            (<= 1 h 16384)
+            (<= 1 d 4096)
+            (<= 1e-20 (fabs dX.u) 1e+20)
+            (<= 1e-20 (fabs dX.v) 1e+20)
+            (<= 1e-20 (fabs dX.w) 1e+20)
+            (<= 1e-20 (fabs dY.u) 1e+20)
+            (<= 1e-20 (fabs dY.v) 1e+20)
+            (<= 1e-20 (fabs dY.w) 1e+20))
+  
+  (let* ([w         (floor w)]
+         [h         (floor h)]
+         [d         (floor d)]
+
+         [dX.u (* w dX.u)]
+         [dX.v (* h dX.v)]
+         [dX.w (* d dX.w)]
+         [dY.u (* w dY.u)]
+         [dY.v (* h dY.v)]
+         [dY.w (* d dY.w)]
+    
+         [dX2  (+ (+ (* dX.u dX.u) (* dX.v dX.v)) (* dX.w dX.w))]
+         [dY2  (+ (+ (* dY.u dY.u) (* dY.v dY.v)) (* dY.w dY.w))]
+
+         [major2        (fmax dX2 dY2)]
+         [major         (sqrt major2)])
+  
+    (log2 major)))
