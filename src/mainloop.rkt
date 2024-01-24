@@ -92,14 +92,14 @@
                       n (length (atab-active-alts (^table^)))))
   (define picked (list-ref (atab-active-alts (^table^)) n))
   (^next-alts^ (list picked))
-  (^table^ (atab-set-picked table (^next-alts^))
+  (^table^ (atab-set-picked (^table^) (^next-alts^)))
   (void))
 
 (define (score-alt alt)
   (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
 
 ; Pareto mode alt picking
-(define (choose-mult-alts alts)
+(define (choose-mult-alts altns)
   (define repr (context-repr (*context*)))
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
@@ -129,7 +129,7 @@
                     (score-alt alt)
                     (~a (representation-name repr))))
   (^next-alts^ alts)
-  (^table^ (atab-set-picked table alts))
+  (^table^ (atab-set-picked (^table^) alts))
   (void))
 
 ;; Invoke the subsystems individually

@@ -12,7 +12,7 @@
   (atab-not-done-alts (alt-table? . -> . (listof alt?)))
   (atab-eval-altns (alt-table? (listof alt?) context? . -> . (values any/c any/c)))
   (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
-  (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?)
+  (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-min-errors (alt-table? . -> . (listof real?)))
   (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
