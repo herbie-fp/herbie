@@ -34,16 +34,20 @@
   (define varc (length vars))
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
+  (define start-precision (*starting-prec*))
+  
   (if (equal? name 'ival)
       (λ args
         (when (*use-mixed-precision*)
             ;; remove all the precision values we assigned previously when a new point comes
             (if (equal? (*sampling-iteration*) 0)
                 (for ([instr (in-vector ivec)])
-                  (match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
-                  (set-box! working-precision (*starting-prec*))
-                  (set-box! extra-precision 0)
-                  (set-box! exponents-checkpoint 0))
+                  (vector-copy! (car instr) 1 (vector (box start-precision) (box 0) (box 0))))
+                  ;(match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
+                  ;(set-box! working-precision (*starting-prec*))
+                  ;(set-box! extra-precision 0)
+                  ;(set-box! exponents-checkpoint 0))
+                
                 ;; backward pass
                 (backward-pass ivec varc)))
       
@@ -55,75 +59,75 @@
               (vector-ref vregs idx)))
 
           (match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
-          (let ([extra-prec (unbox extra-precision)]
-                [working-prec (unbox working-precision)])
 
-            (define precision (if (*use-mixed-precision*)
-                                  (operator-precision working-prec extra-prec)
-                                  (bf-precision)))
-            (define timeline-stop! (timeline-start! 'mixsample (~a (object-name op)) precision))
+          (define precision (if (*use-mixed-precision*)
+                                (operator-precision
+                                 (unbox working-precision)
+                                 (unbox extra-precision))
+                                (bf-precision)))
+          (define timeline-stop! (timeline-start! 'mixsample (~a (object-name op)) precision))
             
-            (define output
-              (parameterize ([bf-precision precision]) (apply op srcs)))
-            (vector-set! vregs n output)
+          (define output
+            (parameterize ([bf-precision precision]) (apply op srcs)))
+          (vector-set! vregs n output)
             
-            (when (*use-mixed-precision*)
-              (cond
-                [(equal? op ival-add) ; x + y
-                 (define x (first srcs))
-                 (define y (second srcs))
-                 (define x-exponents ((monotonic->ival true-exponent) x))
-                 (define x-sings ((monotonic->ival bigfloat-signbit) x))
-                 (define y-exponents ((monotonic->ival true-exponent) y))
-                 (define y-sings ((monotonic->ival bigfloat-signbit) y))
-                 (define output-exponents ((monotonic->ival true-exponent) output))
-                 (set! output-exponents ((monotonic->ival ; if 0.bf was detected at the output then add 300bits just in case
-                                          (lambda (x) (if (equal? x -9223372036854775807) -300 x)))
-                                         output-exponents))
-                 (set-box! exponents-checkpoint
-                           (max 0
-                                (match* ((and (not (equal? (ival-lo x-sings) (ival-lo y-sings)))
-                                              (>= 1 (abs (- (ival-lo x-exponents) (ival-lo y-exponents)))))
-                                         (and (not (equal? (ival-hi x-sings) (ival-hi y-sings)))
-                                              (>= 1 (abs (- (ival-hi x-exponents) (ival-hi y-exponents))))))
-                                  [(#f #f) 0]                                                          ; no extra precision
-                                  [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
-                                                (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
-                                  [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
-                                  [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
-                [(equal? op ival-sub)
-                 (define x (first srcs)) ; x - y
-                 (define y (second srcs))
-                 (define x-exponents ((monotonic->ival true-exponent) x))
-                 (define x-sings ((monotonic->ival bigfloat-signbit) x))
-                 (define y-exponents ((monotonic->ival true-exponent) y))
-                 (define y-sings ((monotonic->ival bigfloat-signbit) y))
-                 (define output-exponents ((monotonic->ival true-exponent) output))
-                 (set! output-exponents ((monotonic->ival ; if 0.bf was detected at the output then add 300bits just in case
-                                          (lambda (x) (if (equal? x -9223372036854775807) -300 x)))
-                                         output-exponents))
+          (when (*use-mixed-precision*)
+            (cond
+              [(equal? op ival-add) ; x + y
+               (define x (first srcs))
+               (define y (second srcs))
+               (define x-exponents ((monotonic->ival true-exponent) x))
+               (define x-sings ((monotonic->ival bigfloat-signbit) x))
+               (define y-exponents ((monotonic->ival true-exponent) y))
+               (define y-sings ((monotonic->ival bigfloat-signbit) y))
+               (define output-exponents ((monotonic->ival true-exponent) output))
+               (set! output-exponents ((monotonic->ival ; if 0.bf was detected at the output then add 300bits just in case
+                                        (lambda (x) (if (equal? x -9223372036854775807) -300 x)))
+                                       output-exponents))
+               (set-box! exponents-checkpoint
+                         (max 0
+                              (match* ((and (not (equal? (ival-lo x-sings) (ival-lo y-sings)))
+                                            (>= 1 (abs (- (ival-lo x-exponents) (ival-lo y-exponents)))))
+                                       (and (not (equal? (ival-hi x-sings) (ival-hi y-sings)))
+                                            (>= 1 (abs (- (ival-hi x-exponents) (ival-hi y-exponents))))))
+                                [(#f #f) 0]                                                          ; no extra precision
+                                [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
+                                              (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
+                                [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
+                                [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
+              [(equal? op ival-sub)
+               (define x (first srcs)) ; x - y
+               (define y (second srcs))
+               (define x-exponents ((monotonic->ival true-exponent) x))
+               (define x-sings ((monotonic->ival bigfloat-signbit) x))
+               (define y-exponents ((monotonic->ival true-exponent) y))
+               (define y-sings ((monotonic->ival bigfloat-signbit) y))
+               (define output-exponents ((monotonic->ival true-exponent) output))
+               (set! output-exponents ((monotonic->ival ; if 0.bf was detected at the output then add 300bits just in case
+                                        (lambda (x) (if (equal? x -9223372036854775807) -300 x)))
+                                       output-exponents))
                  
-                 (set-box! exponents-checkpoint
-                           (max 0
-                                (match* ((and (equal? (ival-lo x-sings) (ival-hi y-sings))
-                                              (>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents)))))
-                                         (and (equal? (ival-hi x-sings) (ival-lo y-sings))
-                                              (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents))))))
-                                  [(#f #f) 0]                                                          ; no extra precision
-                                  [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
-                                                (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
-                                  [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
-                                  [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
+               (set-box! exponents-checkpoint
+                         (max 0
+                              (match* ((and (equal? (ival-lo x-sings) (ival-hi y-sings))
+                                            (>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents)))))
+                                       (and (equal? (ival-hi x-sings) (ival-lo y-sings))
+                                            (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents))))))
+                                [(#f #f) 0]                                                          ; no extra precision
+                                [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
+                                              (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
+                                [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
+                                [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
           
-                [(member op (list ival-sin ival-cos ival-tan))
-                 (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                           (max 0
-                                (true-exponent (ival-lo (car srcs)))
-                                (true-exponent (ival-hi (car srcs)))))]))
-            (timeline-stop!)))
+              [(member op (list ival-sin ival-cos ival-tan))
+               (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+                         (max 0
+                              (true-exponent (ival-lo (car srcs)))
+                              (true-exponent (ival-hi (car srcs)))))]))
+          (timeline-stop!))
 
-        (for/list ([root (in-list roots)])
-          (vector-ref vregs root)))
+      (for/list ([root (in-list roots)])
+        (vector-ref vregs root)))
    
       ; name is 'fl
       (λ args
