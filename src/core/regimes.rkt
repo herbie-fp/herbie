@@ -173,7 +173,8 @@
      (and (> pidx 0)) (list-ref can-split? pidx))
    (= (si-pidx (last split-indices)) (length can-split?))))
 
-(define (err-lsts->split-indices err-lsts can-split)
+(define/contract (err-lsts->split-indices err-lsts can-split)
+  (->i ([e (listof list)] [cs (listof boolean?)]) (vectorof (vectorof si?)))
   (define can-split-vec (list->vector can-split))
   (define err-lsts-vec (list->vector err-lsts))
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
