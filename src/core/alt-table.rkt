@@ -12,9 +12,7 @@
   (atab-not-done-alts (alt-table? . -> . (listof alt?)))
   (atab-eval-altns (alt-table? (listof alt?) context? . -> . (values any/c any/c)))
   (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
-  (atab-pick-alt (alt-table? #:picking-func ((listof alt?) . -> . alt?)
-                             #:only-fresh boolean?
-                             . -> . (values alt? alt-table?)))
+  (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?)
   (atab-completed? (alt-table? . -> . boolean?))
   (atab-min-errors (alt-table? . -> . (listof real?)))
   (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
@@ -49,13 +47,11 @@
              pcontext
              (list initial-alt)))
 
-(define (atab-pick-alt atab #:picking-func [pick car]
-           #:only-fresh [only-fresh? #t])
-  (define options (if only-fresh? (atab-not-done-alts atab) (atab-active-alts atab)))
-  (define picked (pick options))
-  (values picked
-          (struct-copy alt-table atab
-                       [alt->done? (hash-set (alt-table-alt->done? atab) picked #t)])))
+(define (atab-set-picked atab alts)
+  (define new-done-table
+    (for/fold ([table (alt-table-alt->done? atab)]) ([alt (in-list alts)])
+      (hash-set table alt #t)))
+  (struct-copy alt-table atab [alt->done? new-done-table]))
 
 (define (atab-completed? atab)
   (andmap (curry hash-ref (alt-table-alt->done? atab))
