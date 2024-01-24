@@ -122,7 +122,7 @@
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals*)] [prev splitvals*])
                                (</total prev val repr))))
-  (define split-indices (err-lsts->split-indices (list->vector bit-err-lsts*) (list->vector can-split?)))
+  (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) (~a (representation-name repr)))
@@ -173,8 +173,9 @@
      (and (> pidx 0)) (list-ref can-split? pidx))
    (= (si-pidx (last split-indices)) (length can-split?))))
 
-(define (err-lsts->split-indices err-lsts-vec can-split-vec)
-  (define err-lsts (vector->list err-lsts-vec))
+(define (err-lsts->split-indices err-lsts can-split)
+  (define can-split-vec (list->vector can-split))
+  (define err-lsts-vec (list->vector err-lsts))
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (define num-candidates (vector-length err-lsts-vec))
