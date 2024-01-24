@@ -24,7 +24,6 @@
     (*timeline*)))
 
 (define *timeline-disabled* (make-parameter true))
-(define *timeline-timers* (mutable-set))
 
 (define (timeline-event! type)
   (unless (*timeline-disabled*)
@@ -44,19 +43,31 @@
       true)
     (void)))
 
+(define *timeline-main-timer* #f)
+(define *timeline-timers* (mutable-set))
+
 (define (timeline-start! key . values)
   (define tstart (current-inexact-milliseconds))
-  (define (end!)
-    (define tend (current-inexact-milliseconds))
-    (apply timeline-push! key (- tend tstart) values)
-    (set-remove! *timeline-timers* end!))
-  (set-add! *timeline-timers* end!)
+  (cond
+    [*timeline-main-timer* ; Slow path, more than one timer at a time
+     (define (end!)
+       (define tend (current-inexact-milliseconds))
+       (apply timeline-push! key (- tend tstart) values)
+       (set-remove! *timeline-timers* end!))
+     (set-add! *timeline-timers* end!)]
+    [else ; Fast path, only timer
+     (define (end!)
+       (define tend (current-inexact-milliseconds))
+       (apply timeline-push! key (- tend tstart) values)
+       (set! *timeline-main-timer* #f))
+     (set! *timeline-main-timer* end!)])
   end!)
 
 (define (timeline-load! value)
   (*timeline* value))
 
 (define (timeline-extract)
+  (when *timeline-main-timer* (*timeline-main-timer*))
   (for ([end! (set->list *timeline-timers*)]) (end!))
   (define end (hasheq 'time (current-inexact-milliseconds)))
   (reverse
