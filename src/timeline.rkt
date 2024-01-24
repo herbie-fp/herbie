@@ -2,9 +2,16 @@
 
 (require json "config.rkt" racket/hash)
 
-(provide timeline-event! timeline-push! timeline-adjust!
-         timeline-load! timeline-extract timeline-compact! timeline-start!
-         timeline-merge timeline-relink *timeline-disabled*)
+(provide
+ (rename-out [timeline-push! timeline-push!/unsafe]
+             [timeline-start! timeline-start!/unsafe])
+ (contract-out
+  (timeline-event! (symbol? . -> . void?))
+  (timeline-push! (symbol? jsexpr? ... . -> . void?))
+  (timeline-adjust! (symbol? symbol? jsexpr ... . -> . void?))
+  (timeline-start! (symbol? jsexpr? ... . -> . (-> void?))))
+ timeline-load! timeline-extract timeline-compact!
+ timeline-merge timeline-relink *timeline-disabled*)
 (module+ debug (provide *timeline*))
 
 ;; This is a box so we can get a reference outside the engine, and so
@@ -25,22 +32,19 @@
                                  (cons 'time (current-inexact-milliseconds)))))
     (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
 
-(define/contract (timeline-push! key . values)
-  (-> symbol? jsexpr? ... void?)
+(define (timeline-push! key . values)
   (unless (*timeline-disabled*)
     (define val (if (= (length values) 1) (car values) values))
     (hash-update! (car (unbox (*timeline*))) key (curry cons val) '())))
 
-(define/contract (timeline-adjust! type key . values)
-  (-> symbol? symbol? jsexpr? ... void?)
+(define (timeline-adjust! type key . values)
   (unless (*timeline-disabled*)
     (for/first ([cell (unbox (*timeline*))] #:when (equal? (hash-ref cell 'type) (~a type)))
       (hash-set! cell key values)
       true)
     (void)))
 
-(define/contract (timeline-start! key . values)
-  (-> symbol? jsexpr? ... (-> void?))
+(define (timeline-start! key . values)
   (define tstart (current-inexact-milliseconds))
   (define (end!)
     (define tend (current-inexact-milliseconds))
