@@ -569,3 +569,25 @@ received 🏆&nbsp;awards.</p>
   and <a href="https://github.com/herbie-fp/rival">source code</a> is
   available.
 </p>
+
+<h2>POPL’24: MegaLibm <span class="badges">★ 🏆</span></h2>
+
+<details>
+  <summary>
+    <a href="https://dl.acm.org/doi/10.1145/3632874">
+      Implementation and Synthesis of Math Library Functions</a>
+    was published at <a href="https://popl24.sigplan.org/">POPL'24</a>.
+    This paper describes a DSL for implementing
+    library functions such as <code>sin</code> and <code>log</code>.
+  </summary>
+  <blockquote class="abstract">
+    <p>Achieving speed and accuracy for math library functions like exp, sin, and log is difficult. This is because low-level implementation languages like C do not help math library developers catch mathematical errors, build implementations incrementally, or separate high-level and low-level decision making. This ultimately puts development of such functions out of reach for all but the most experienced experts. To address this, we introduce MegaLibm, a domain-specific language for implementing, testing, and tuning math library implementations. MegaLibm is safe, modular, and tunable. Implementations in MegaLibm can automatically detect mathematical mistakes like sign flips via semantic well-formedness checks, and components like range reductions can be implemented in a modular, composable way, simplifying implementations. Once the high-level algorithm is done, tuning parameters like working precisions and evaluation schemes can be adjusted through orthogonal tuning parameters to achieve the desired speed and accuracy. MegaLibm also enables math library developers to work interactively, compiling, testing, and tuning their implementations and invoking tools like Sollya and type-directed synthesis to complete components and synthesize entire implementations. MegaLibm can express 8 state-of-the-art math library implementations with comparable speed and accuracy to the original C code, and can synthesize 5 variations and 3 from-scratch implementations with minimal guidance.</p>
+  </blockquote>
+</details>
+
+<p>
+  A <a href="https://arxiv.org/abs/2311.01515">preprint</a>,
+  <a href="https://www.youtube.com/live/ArzcDPauQGA?si=CKWP0Z6TYOFonG1h&t=5673">talk</a>,
+  <a href="https://github.com/IanBriggs/megalibm">source code</a> are
+  available.
+</p>
