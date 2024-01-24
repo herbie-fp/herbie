@@ -122,7 +122,7 @@
   (define can-split? (append (list #f)
                              (for/list ([val (cdr splitvals*)] [prev splitvals*])
                                (</total prev val repr))))
-  (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
+  (define split-indices (reverse (vector->list (err-lsts->split-indices bit-err-lsts* can-split?))))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) (~a (representation-name repr)))
@@ -248,5 +248,5 @@
             next
             (loop next)))))
   ;; Extract the splitpoints from our data structure, and reverse it.
-  (reverse (vector->list (cse-indices (vector-ref final (- num-points 1))))))
+  (cse-indices (vector-ref final (- num-points 1))))
 
