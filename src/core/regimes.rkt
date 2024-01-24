@@ -227,18 +227,13 @@
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
   (define (initial)
-   (let ([output (make-vector (+ num-points))])
-    (for ([point-idx (in-range num-points)])
-      (define o (vector-argmin cse-cost
+    (for/vector #:length num-points ([point-idx (in-range num-points)])
+      (vector-argmin cse-cost
         ;; Consider all the candidates we could put in this region
         (for/vector #:length num-candidates
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
-              (cse cost (vector (si cand-idx (+ point-idx 1))))))))
-      ;; Not sure how to format this
-        (vector-set! output point-idx o)
-          o)
-            output))
+              (cse cost (vector (si cand-idx (+ point-idx 1)))))))))
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
