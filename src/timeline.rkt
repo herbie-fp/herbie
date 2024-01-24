@@ -8,7 +8,7 @@
  (contract-out
   (timeline-event! (symbol? . -> . void?))
   (timeline-push! (symbol? jsexpr? ... . -> . void?))
-  (timeline-adjust! (symbol? symbol? jsexpr ... . -> . void?))
+  (timeline-adjust! (symbol? symbol? jsexpr? ... . -> . void?))
   (timeline-start! (symbol? jsexpr? ... . -> . (-> void?))))
  timeline-load! timeline-extract timeline-compact!
  timeline-merge timeline-relink *timeline-disabled*)
@@ -54,14 +54,15 @@
        (define tend (current-inexact-milliseconds))
        (apply timeline-push! key (- tend tstart) values)
        (set-remove! *timeline-timers* end!))
-     (set-add! *timeline-timers* end!)]
+     (set-add! *timeline-timers* end!)
+     end!]
     [else ; Fast path, only timer
      (define (end!)
        (define tend (current-inexact-milliseconds))
        (apply timeline-push! key (- tend tstart) values)
        (set! *timeline-main-timer* #f))
-     (set! *timeline-main-timer* end!)])
-  end!)
+     (set! *timeline-main-timer* end!)
+     end!]))
 
 (define (timeline-load! value)
   (*timeline* value))
