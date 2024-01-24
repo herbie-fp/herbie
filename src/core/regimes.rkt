@@ -192,8 +192,6 @@
   ;; where each cse represents the optimal splitindices after however many passes
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
-  (define (when-cond entry)
-    (can-split? (si-pidx (vector-ref (cse-indices entry) 0))))
   (define (add-splitpoint sp-prev)
     (struct idk (cidx pidx) #:transparent)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
@@ -204,7 +202,7 @@
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
         (for ([prev-split-idx (in-range 0 point-idx)] 
               [prev-entry (in-vector sp-prev)]
-              #:when (when-cond prev-entry))
+              #:when (can-split? (si-pidx (vector-ref (cse-indices prev-entry) 0))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector vec-psums)])
