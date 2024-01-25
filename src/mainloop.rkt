@@ -354,16 +354,16 @@
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
   (define expr (alt-expr (car simplified)))
+
+  (define true-error (errors expr pcontext context))
+  
   (define repr (repr-of expr context))
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) vs))
   (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
-  (match-define (cons pcount-hash explanations-table)
-    (predicted-errors (alt-expr (car simplified)) context pcontext))
-
-  (eprintf "[table] ~a\n" explanations-table)
+  (define-values (pcount-hash explanations-table predicted-error)
+    (predicted-errors expr context pcontext))
   
-  #;(define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
 
   (for ([(subexpr pset) (in-dict pcount-hash)])
     (define tset (hash-ref tcount-hash subexpr '()))
@@ -385,6 +385,25 @@
                     (~a (car key))
                     (~a (cdr key))
                     cnt))
+
+  (define true-pos 0)
+  (define true-neg 0)
+  (define false-pos 0)
+  (define false-neg 0)
+  (for ([(pt _) (in-pcontext pcontext)]
+        [error-actual? (in-list (map (lambda (p) (> p 16))true-error))])
+    (define error-predicted? (hash-ref predicted-error pt false))
+    (cond
+      [(and error-actual? error-predicted?)
+       (set! true-pos (+ true-pos 1))]
+      [(and error-actual? (not error-predicted?))
+       (set! false-neg (+ false-neg 1))]
+      [(and (not error-actual?) error-predicted?)
+       (set! false-pos (+ false-pos 1))]
+      [(and (not error-actual?) (not error-predicted?))
+       (set! true-neg (+ true-neg 1))]))
+
+  (timeline-push! 'total-error true-pos true-neg false-pos false-neg)
 
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))

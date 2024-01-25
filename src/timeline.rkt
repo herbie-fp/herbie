@@ -143,6 +143,8 @@
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
 (define-timeline branch #:unmergable)
+(define-timeline explanations [op false] [expr (const #f)] [expl false] [count +])
+(define-timeline total-error [true-pos +] [true-neg +] [false-pos +] [false-neg +])
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above

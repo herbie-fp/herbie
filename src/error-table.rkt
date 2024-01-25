@@ -57,11 +57,15 @@
 
   (define explanations-hash
     (make-hash))
+
+  (define point-error-hash
+    (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
     (define (mark-erroneous! expr [expl 'filler])
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
-      (hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0))
+      (hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
+      (hash-update! point-error-hash pt (lambda (x) (or true x)) #f))
     
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
@@ -246,6 +250,14 @@
          #:when (or (list? x-ex) (list? y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
+
+         #;(eprintf "~a,~a,~a,~a,~a,~a\n"
+                  pt
+                  subexpr
+                  (bigfloat->flonum x)
+                  (bigfloat->flonum y)
+                  (/ (bigfloat->flonum x) (bigfloat->flonum y))
+                  (bigfloat->flonum subexpr-val))
          
          (cond
            ;; if the numerator underflows and the denominator:
@@ -419,10 +431,10 @@
          (cond
            ; Condition number hallucinations:
            ; acos(1) == 0
-           [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
+           [(= (bigfloat->flonum x) 1.0) #f]
 
            ; acos(-1) == pi
-           [(and (bf= x -1.bf) (bf= subexpr-val pi.bf)) #f]
+           [(= (bigfloat->flonum x) -1.0) #f]
            
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)acos(x))|
@@ -444,11 +456,10 @@
          (cond
            ; Condition Number hallucinations:
            ; asin(1) == pi/2
-           [(and (bf= x 1.bf) (bf= subexpr-val (bf/ pi.bf 2.bf))) #f]
+           [(= (bigfloat->flonum x) 1.0) #f]
 
            ; asin(-1) == -pi/2
-           [(and (bf= x -1.bf)
-                 (bf= subexpr-val (bf/ (bf- pi.bf) 2.bf))) #f]
+           [(= (bigfloat->flonum x) -1.0) #f]
 
            ; asin(0) == 0
            [(and (bfzero? x) (bfzero? subexpr-val)) #f]
@@ -458,4 +469,4 @@
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
            [else #f])]
         [_ #f])))
-  (cons error-count-hash explanations-hash))
+  (values error-count-hash explanations-hash point-error-hash))
