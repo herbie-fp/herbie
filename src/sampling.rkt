@@ -110,7 +110,7 @@
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
-(define (point-logger name vars)
+(define (point-logger vars)
   (define start (current-inexact-milliseconds))
   (define (log! status precision pt)
     (define now (current-inexact-milliseconds))
@@ -120,7 +120,7 @@
                #:extra (for/list ([var vars] [val pt])
                          (format "~a = ~a" var val))))
     (define dt (- now start))
-    (timeline-push! 'outcomes (~a name) precision (~a status) dt 1)
+    (timeline-push! 'outcomes precision (~a status) dt 1)
     (set! start now))
   log!)
 
@@ -129,7 +129,7 @@
   (define repr (context-repr ctx))
   (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
-  (define logger (point-logger 'body (context-vars ctx)))
+  (define logger (point-logger (context-vars ctx)))
   (define outcomes (make-hash))
 
   (define-values (points exactss)

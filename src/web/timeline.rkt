@@ -377,8 +377,8 @@
   `((dt "Results")
     (dd (table ([class "times"])
          ,@(for/list ([rec (in-list (sort outcomes > #:key fourth))])
-             (match-define (list prog precision category time count) rec)
-             `(tr (td ,(format-time time)) (td ,(~a count) "×") (td ,(~a prog))
+             (match-define (list precision category time count) rec)
+             `(tr (td ,(format-time time)) (td ,(~a count) "×")
                   (td ,(~a precision)) (td ,(~a category))))))))
 
 (define (render-phase-inputs inputs outputs)
