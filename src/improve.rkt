@@ -19,7 +19,8 @@
      (raise-argument-error 'in-table-row "table row not valid result" tr)]
     [_
      (match-define (list _ (list best-cost best-err) other) (table-row-cost-accuracy tr))
-     (in-list (cons (list best-cost best-err (table-row-output tr)) other))]))
+     (define first (list best-cost best-err (table-row-output tr)))
+     (in-list (cons first other))]))
 
 (define ((write-header! lang) p)
   (match lang
