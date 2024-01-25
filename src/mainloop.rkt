@@ -381,12 +381,9 @@
      [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
            (equal? (representation-type repr) 'real)
            (not (null? (context-vars ctx))))
-      (cond
-       [(*pareto-mode*)
-        (map (curryr combine-alts ctx) (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))]
-       [else
-        (define-values (option _) (infer-splitpoints all-alts ctx))
-        (list (combine-alts option ctx))])]
+      (define opts (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))
+      (for/list ([opt (in-list opts)])
+        (combine-alts opt ctx))]
      [else
       (list (argmin score-alt all-alts))]))
   (define cleaned-alts
