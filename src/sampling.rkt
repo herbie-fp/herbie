@@ -128,12 +128,12 @@
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
               "could not determine a ground truth"
-              #:extra (for/list ([var (contenxt-vars ctx)] [val pt])
+              #:extra (for/list ([var (context-vars ctx)] [val pt])
                         (format "~a = ~a" var val))))
 
       (hash-update! outcomes status (curry + 1) 0)
-      (define dt (- (current-inexact-milliseconds) start))
-      (timeline-push!/unsafe 'outcomes precision (~a status) dt 1)
+      (define now (current-inexact-milliseconds))
+      (timeline-push!/unsafe 'outcomes precision (~a status) (- now start) 1)
       (set! start now)
 
       (cond
