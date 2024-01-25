@@ -143,7 +143,7 @@
     (dd (table
          (tr (th "Time") (th "Left") (th "Right"))
          ,@(for/list ([rec (in-list iters)])
-             (match-define (list v1 v2 time) rec)
+             (match-define (list time v1 v2) rec)
              `(tr (td ,(format-time time))
                   (td (pre ,(format-value v1)))
                   (td (pre ,(format-value v2)))))))))
@@ -349,8 +349,8 @@
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
         (table ([class "times"])
-               ,@(for/list ([rec (in-list (sort times > #:key second))] [_ (in-range 5)])
-                   (match-define (list expr time) rec)
+               ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
+                   (match-define (list time expr) rec)
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
 (define (render-phase-series n times)
@@ -361,8 +361,8 @@
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map fourth times)) ")")
         (table ([class "times"])
                (thead (tr (th "Time") (th "Variable") (th) (th "Point") (th "Expression")))
-               ,@(for/list ([rec (in-list (sort times > #:key fourth))] [_ (in-range 5)])
-                   (match-define (list expr var transform time) rec)
+               ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
+                   (match-define (list time expr var transform) rec)
                    `(tr (td ,(format-time time))
                         (td (pre ,var)) (td "@") (td ,transform) (td (pre ,expr))))))))
 
