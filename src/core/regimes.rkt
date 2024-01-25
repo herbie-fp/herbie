@@ -193,10 +193,8 @@
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint sp-prev)
-    (struct idk (cidx pidx) #:transparent)
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
-    (define result (make-vector (+ num-points)))
-    (for ([point-idx (in-naturals)] [point-entry (in-vector sp-prev)])
+    (for/vector #:length num-points ([point-idx (in-naturals)] [point-entry (in-vector sp-prev)])
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cse-cost point-entry) min-weight)] [aest point-entry])
@@ -217,14 +215,12 @@
               (cond ((struct? idk) (set! idk (vector idk))))
               (set! aest (cse acost (vector-append idk 
                                           (cse-indices prev-entry)))))))
-        (vector-set! result point-idx aest)
-        aest))
-    result)
+        aest)))
 
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
-  (define (initial)
+  (define initial
     (for/vector #:length num-points ([point-idx (in-range num-points)])
       (vector-argmin cse-cost
         ;; Consider all the candidates we could put in this region
@@ -235,7 +231,7 @@
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
-    (let loop ([prev (initial)])
+    (let loop ([prev initial])
       (let ([next (add-splitpoint prev)])
         (if (equal? prev next)
             next
