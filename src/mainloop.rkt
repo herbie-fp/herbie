@@ -90,19 +90,17 @@
   (unless (< n (length (atab-active-alts (^table^))))
     (raise-user-error 'choose-alt! "Couldn't select the ~ath alt of ~a (not enough alts)"
                       n (length (atab-active-alts (^table^)))))
-  (define-values (picked table*)
-    (atab-pick-alt (^table^) #:picking-func (curryr list-ref n) #:only-fresh #f))
+  (define picked (list-ref (atab-active-alts (^table^)) n))
   (^next-alts^ (list picked))
-  (^table^ table*)
+  (^table^ (atab-set-picked (^table^) (^next-alts^)))
   (void))
 
 (define (score-alt alt)
   (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
 
 ; Pareto mode alt picking
-(define (choose-mult-alts from)
+(define (choose-mult-alts altns)
   (define repr (context-repr (*context*)))
-  (define altns (filter (compose list? alt-expr) from))
   (cond
    [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
    [else
@@ -116,10 +114,10 @@
       (for/list ([i (in-range 1 (- (*pareto-pick-limit*) 1))])
         (list-ref altns** (- (* i div-size) 1))))]))
 
-(define (choose-alts)
+(define (choose-alts!)
   (define fresh-alts (atab-not-done-alts (^table^)))
-  (define select (if (*pareto-mode*) choose-mult-alts (compose list (curry argmin score-alt))))
-  (define alts (select fresh-alts))
+  (define alts (choose-mult-alts fresh-alts))
+  (unless (*pareto-mode*) (set! alts (take alts 1)))
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts
@@ -130,19 +128,14 @@
                      [else "done"])
                     (score-alt alt)
                     (~a (representation-name repr))))
-  alts)
-
-(define (choose-best-alt!)
-  (define-values (picked table*)
-    (atab-pick-alt (^table^) #:picking-func (curry argmin score-alt) #:only-fresh #t))
-  (^next-alts^ (list picked))
-  (^table^ table*)
+  (^next-alts^ alts)
+  (^table^ (atab-set-picked (^table^) alts))
   (void))
 
 ;; Invoke the subsystems individually
 (define (localize!)
   (unless (^next-alts^)
-    (raise-user-error 'localize! "No alt chosen. Run (choose-best-alt!) or (choose-alt! n) to choose one"))
+    (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
 
   (define loc-errss
@@ -272,7 +265,7 @@
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (void))
 (define (finish-iter!)
-  (unless (^next-alts^) (choose-best-alt!))
+  (unless (^next-alts^) (choose-alts!))
   (unless (^locs^) (localize!))
   (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!)
@@ -297,14 +290,7 @@
     (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
 
-  (^next-alts^ (choose-alts))
-  (^table^
-    (for/fold ([table (^table^)]) ([picked (choose-alts)] [i (in-naturals 1)])
-      (define (picking-func x)
-        (for/first ([v x] #:when (alt-equal? v picked)) v))
-      (define-values (_ table*)
-        (atab-pick-alt table #:picking-func picking-func #:only-fresh #t))
-      table*))
+  (choose-alts!)
   (localize!)
   (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!))
