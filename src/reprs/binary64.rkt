@@ -3,6 +3,7 @@
 ;; Builtin double-precision plugin (:precision binary64)
 
 (require math/flonum math/bigfloat)
+(require ffi/unsafe)
 (require "runtime/utils.rkt" "runtime/libm.rkt")
 
 ;; Do not run this file with `raco test`
@@ -48,9 +49,7 @@
 
 (define-libm-impls/binary64
   [(binary64 binary64)
-   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
-    exp exp2 expm1 fabs floor lgamma log log10 log1p log2 logb
-    rint round sin sinh sqrt tan tanh tgamma trunc)]
+   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc exp exp2 fabs floor lgamma log log10 log1p log2 logb rint round sin sinh sqrt tan tanh tgamma trunc)]
   [(binary64 binary64 binary64)
    (atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
   [(binary64 binary64 binary64 binary64)
@@ -65,10 +64,6 @@
   [>= >=.f64 >=])
 
 (register-accelerator-implementation!
- 'reciprocal 'reciprocal.f64
+ 'expm1 'expm1.f64
  (list (get-representation 'binary64)) (get-representation 'binary64)
- (lambda (x)
-   (define x* (bf x))
-   (define y* (parameterize ([bf-precision 12])
-                (bf/ 1.bf x*)))
-   (bigfloat->flonum y*)))
+ (get-ffi-obj 'expm1 #f (_fun _double -> _double) (const #f)))

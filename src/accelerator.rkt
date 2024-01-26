@@ -122,4 +122,4 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-(register-accelerator-operator! 'reciprocal '(/ 1 x) '(x))
+(register-accelerator-operator! 'expm1 '(- (exp x) 1) '(x))

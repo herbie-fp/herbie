@@ -40,14 +40,16 @@
         [([real binary32]) (cost-map-scale 32 rel-costs)] 
         (operator-set
           [(real real)
-           (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
-           exp exp2 expm1 fabs floor lgamma log log10 log2 log1p logb
-           rint round sin sinh sqrt tan tanh tgamma trunc
-           reciprocal)]
+           (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc exp exp2 fabs floor lgamma log log10 log2 log1p logb rint round sin sinh sqrt tan tanh tgamma trunc )]
           [(real real real)
            (atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
           [(real real real real)
            (fma)])))))
+
+(define accelerator-platform
+  (platform
+   [(binary64 binary64) expm1 64]
+   [(binary32 binary32) expm1 32]))
 
 ; compose platforms
 
@@ -58,7 +60,8 @@
 (define default-platform
   (platform-union boolean-platform
                   machine-platform
-                  libm-platform))
+                  libm-platform
+                  accelerator-platform))
 
 ; Register all three
 

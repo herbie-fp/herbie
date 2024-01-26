@@ -669,10 +669,7 @@
 ; Specialized numerical functions
 (define-ruleset* special-numerical-reduce (numerics simplify)
   #:type ([x real] [y real] [z real])
-  [expm1-def   (- (exp x) 1)              (expm1 x)]
   [log1p-def   (log (+ 1 x))              (log1p x)]
-  [log1p-expm1 (log1p (expm1 x))          x]
-  [expm1-log1p (expm1 (log1p x))          x]
   [hypot-def   (sqrt (+ (* x x) (* y y))) (hypot x y)]
   [hypot-1-def (sqrt (+ 1 (* y y)))       (hypot 1 y)]
   [fma-def     (+ (* x y) z)              (fma x y z)]
@@ -681,10 +678,7 @@
 
 (define-ruleset* special-numerical-expand (numerics)
   #:type ([x real] [y real])
-  [expm1-udef    (expm1 x)      (- (exp x) 1)]
   [log1p-udef    (log1p x)      (log (+ 1 x))]
-  [log1p-expm1-u x              (log1p (expm1 x))]
-  [expm1-log1p-u x              (expm1 (log1p x))]
   [hypot-udef    (hypot x y)    (sqrt (+ (* x x) (* y y)))])
 
 (define-ruleset* numerics-papers (numerics)

@@ -80,7 +80,6 @@
  [erfc erfc]
  [exp exp]
  [exp2 (no-complex (λ (x) (expt 2 x)))]
- [expm1 (from-bigfloat bfexpm1)]
  [fabs abs]
  [floor floor]
  [lgamma log-gamma]

@@ -169,7 +169,6 @@
      (taylor-cbrt (taylor var base))]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
-    [`(expm1 ,arg) (taylor var `(- (exp ,arg) 1))]
     [`(log1p ,arg) (taylor var `(log (+ 1 ,arg)))]
     [`(hypot ,a ,b)
      (define ta (taylor var a))

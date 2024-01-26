@@ -116,7 +116,6 @@
   [erfc ival-erfc]
   [exp ival-exp]
   [exp2 ival-exp2]
-  [expm1 ival-expm1]
   [fabs ival-fabs]
   [floor ival-floor]
   [lgamma ival-lgamma]
