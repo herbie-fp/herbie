@@ -32,7 +32,6 @@
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
-  (printf "Registereted accelerator operatator ~a\n" name)
   (hash-set! accelerator-operators
              name
              (accelerator-operator body variables itypes otype))
@@ -49,7 +48,6 @@
 (define (register-accelerator-implementation! operator name
                                               itypes otype
                                               [implementation #f])
-  (printf "Registereted accelerator implementation ~a ~a\n" operator name)
   (match-define (accelerator-operator body variables _ _) (dict-ref accelerator-operators operator))
   (register-operator-impl!
    operator name
