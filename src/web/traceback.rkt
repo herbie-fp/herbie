@@ -54,7 +54,7 @@
         [(? exn?)
          `(,@(render-reproduction test #:bug? #t)
            (section ([id "backtrace"])
-             (h1 "Backtrace")
+             (h2 "Backtrace")
              ,(render-traceback exn)))]
         [_ ""])))
    out))

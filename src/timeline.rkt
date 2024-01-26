@@ -2,9 +2,16 @@
 
 (require json "config.rkt" racket/hash)
 
-(provide timeline-event! timeline-push! timeline-adjust!
-         timeline-load! timeline-extract timeline-compact! timeline-start!
-         timeline-merge timeline-relink *timeline-disabled*)
+(provide
+ (rename-out [timeline-push! timeline-push!/unsafe]
+             [timeline-start! timeline-start!/unsafe])
+ (contract-out
+  (timeline-event! (symbol? . -> . void?))
+  (timeline-push! (symbol? jsexpr? ... . -> . void?))
+  (timeline-adjust! (symbol? symbol? jsexpr? ... . -> . void?))
+  (timeline-start! (symbol? jsexpr? ... . -> . (-> void?))))
+ timeline-load! timeline-extract timeline-compact!
+ timeline-merge timeline-relink *timeline-disabled*)
 (module+ debug (provide *timeline*))
 
 ;; This is a box so we can get a reference outside the engine, and so
@@ -17,7 +24,6 @@
     (*timeline*)))
 
 (define *timeline-disabled* (make-parameter true))
-(define *timeline-timers* (mutable-set))
 
 (define (timeline-event! type)
   (unless (*timeline-disabled*)
@@ -25,34 +31,44 @@
                                  (cons 'time (current-inexact-milliseconds)))))
     (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
 
-(define/contract (timeline-push! key . values)
-  (-> symbol? jsexpr? ... void?)
+(define (timeline-push! key . values)
   (unless (*timeline-disabled*)
     (define val (if (= (length values) 1) (car values) values))
     (hash-update! (car (unbox (*timeline*))) key (curry cons val) '())))
 
-(define/contract (timeline-adjust! type key . values)
-  (-> symbol? symbol? jsexpr? ... void?)
+(define (timeline-adjust! type key . values)
   (unless (*timeline-disabled*)
     (for/first ([cell (unbox (*timeline*))] #:when (equal? (hash-ref cell 'type) (~a type)))
       (hash-set! cell key values)
       true)
     (void)))
 
-(define/contract (timeline-start! key . values)
-  (-> symbol? jsexpr? ... (-> void?))
+(define *timeline-main-timer* #f)
+(define *timeline-timers* (mutable-set))
+
+(define (timeline-start! key . values)
   (define tstart (current-inexact-milliseconds))
-  (define (end!)
-    (define tend (current-inexact-milliseconds))
-    (apply timeline-push! key (append values (list (- tend tstart))))
-    (set-remove! *timeline-timers* end!))
-  (set-add! *timeline-timers* end!)
-  end!)
+  (cond
+    [*timeline-main-timer* ; Slow path, more than one timer at a time
+     (define (end!)
+       (define tend (current-inexact-milliseconds))
+       (apply timeline-push! key (- tend tstart) values)
+       (set-remove! *timeline-timers* end!))
+     (set-add! *timeline-timers* end!)
+     end!]
+    [else ; Fast path, only timer
+     (define (end!)
+       (define tend (current-inexact-milliseconds))
+       (apply timeline-push! key (- tend tstart) values)
+       (set! *timeline-main-timer* #f))
+     (set! *timeline-main-timer* end!)
+     end!]))
 
 (define (timeline-load! value)
   (*timeline* value))
 
 (define (timeline-extract)
+  (when *timeline-main-timer* (*timeline-main-timer*))
   (for ([end! (set->list *timeline-timers*)]) (end!))
   (define end (hasheq 'time (current-inexact-milliseconds)))
   (reverse
@@ -121,10 +137,10 @@
 
 (define-timeline method [method])
 (define-timeline rules [rule false] [count +])
-(define-timeline times [input false] [time +])
-(define-timeline series [expr false] [var false] [transform false] [time +])
+(define-timeline times [time +] [input false])
+(define-timeline series [time +] [expr false] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
-(define-timeline outcomes [name false] [prec false] [category false] [time +] [count +])
+(define-timeline outcomes [prec false] [category false] [time +] [count +])
 (define-timeline accuracy [accuracy])
 (define-timeline oracle [oracle])
 (define-timeline baseline [baseline])

@@ -71,10 +71,6 @@
  :name "sqrtexp (problem 3.4.4)"
  (sqrt (/ (- (exp (* 2 x)) 1) (- (exp x) 1))))
 
-(FPCore (x)
- :name "sintan (problem 3.4.5)"
- (/ (- x (sin x)) (- x (tan x))))
-
 (FPCore (x n)
  :name "2nthrt (problem 3.4.6)"
  (- (pow (+ x 1) (/ 1 n)) (pow x (/ 1 n))))
