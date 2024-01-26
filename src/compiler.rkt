@@ -66,7 +66,7 @@
         (let ([extra-prec (unbox-prec extra-precision)])
           
           (define precision (operator-precision extra-prec))
-          (define timeline-stop! (timeline-start! 'mixsample (~a (object-name op)) precision))
+          (define timeline-stop! (timeline-start!/unsafe 'mixsample (~a (object-name op)) precision))
           (define output
             (parameterize ([bf-precision precision])
               (apply op srcs)))
