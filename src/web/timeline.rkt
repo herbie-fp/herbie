@@ -180,20 +180,20 @@
   (/ (apply + values) (length values)))
 
 (define (render-phase-mixed-sampling mixsample)
-  (define total-time (apply + (map third mixsample)))
+  (define total-time (apply + (map first mixsample)))
   `((dt "Precisions")
     (dd (details
          (summary "Click to see histograms. Total time spent on operations: " ,(format-time total-time))
          ,@(map first
                 (sort
-                 (for/list ([rec (in-list (group-by first mixsample))])
+                 (for/list ([rec (in-list (group-by second mixsample))])
                    (define n (random 100000))
                    (define op (car (car rec)))
                    (set! rec (group-by
-                              (lambda (x) (quotient (second x) (/ (*max-mpfr-prec*) 25)))
+                              (lambda (x) (quotient (third x) (/ (*max-mpfr-prec*) 25)))
                               rec))
-                   (define precisions (map (lambda (x) (second (first x))) rec))
-                   (define times (map (lambda (x) (apply + (map third x))) rec))
+                   (define precisions (map (lambda (x) (third (first x))) rec))
+                   (define times (map (lambda (x) (apply + (map first x))) rec))
                    (define time-per-op (round (apply + times)))
                
                    (list `(details

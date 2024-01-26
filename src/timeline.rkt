@@ -43,6 +43,9 @@
       true)
     (void)))
 
+(define *timeline-main-timer* #f)
+(define *timeline-timers* (mutable-set))
+
 (define (timeline-start! key . values)
   (define tstart (current-inexact-milliseconds))
   (cond
@@ -133,7 +136,7 @@
 (define-timeline time #:custom +)
 
 (define-timeline method [method])
-(define-timeline mixsample [function false] [precision false] [time +])
+(define-timeline mixsample [time +] [function false] [precision false])
 (define-timeline rules [rule false] [count +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [expr false] [var false] [transform false])
