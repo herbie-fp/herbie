@@ -188,7 +188,7 @@
                 (sort
                  (for/list ([rec (in-list (group-by second mixsample))])
                    (define n (random 100000))
-                   (define op (car (car rec)))
+                   (define op (second (car rec)))
                    (set! rec (group-by
                               (lambda (x) (quotient (third x) (/ (*max-mpfr-prec*) 25)))
                               rec))
