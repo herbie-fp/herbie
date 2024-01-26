@@ -54,7 +54,7 @@
         [([real binary32]) (cost-map-scale 32 relative-costs)]
         (operator-set
          [(real real)
-          (erfc expm1 log1p hypot)]
+          (erfc expm1 log1p)]
          [(real real real)
           (hypot)]
          [(real real real real)
