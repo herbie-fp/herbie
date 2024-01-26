@@ -50,11 +50,9 @@
 
 (define-libm-impls/binary32
   [(binary32 binary32)
-   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc exp exp2 fabs floor lgamma log log10 log1p log2 logb rint round sin sinh sqrt tan tanh tgamma trunc)]
+   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2 fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt tan tanh tgamma trunc)]
   [(binary32 binary32 binary32)
-   (atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
-  [(binary32 binary32 binary32 binary32)
-   (fma)])
+   (atan2 copysign fdim fmax fmin fmod pow remainder)])
 
 (define-comparator-impls binary32
   [== ==.f32 =]
@@ -74,3 +72,19 @@
  'expm1 'expm1.f32
  (list (get-representation 'binary32)) (get-representation 'binary32)
  (get-ffi-obj 'expm1 #f (_fun _float -> _float) (const #f)))
+(register-accelerator-implementation!
+ 'log1p 'log1p.f32
+ (list (get-representation 'binary32)) (get-representation 'binary32)
+ (get-ffi-obj 'log1p #f (_fun _float -> _float) (const #f)))
+(register-accelerator-implementation!
+ 'hypot 'hypot.f32
+ (list (get-representation 'binary32) (get-representation 'binary32)) (get-representation 'binary32)
+ (get-ffi-obj 'hypot #f (_fun _float _float -> _float) (const #f)))
+(register-accelerator-implementation!
+ 'fma 'fma.f32
+ (list (get-representation 'binary32) (get-representation 'binary32) (get-representation 'binary32)) (get-representation 'binary32)
+ (get-ffi-obj 'fma #f (_fun _float _float _float -> _float) (const #f)))
+(register-accelerator-implementation!
+ 'erfc 'erfc.f32
+ (list (get-representation 'binary32)) (get-representation 'binary32)
+ (get-ffi-obj 'erfc #f (_fun _float -> _float) (const #f)))

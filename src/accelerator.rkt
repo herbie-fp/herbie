@@ -123,3 +123,7 @@
         #f)))
 
 (register-accelerator-operator! 'expm1 '(- (exp x) 1) '(x))
+(register-accelerator-operator! 'log1p '(log (+ 1 x)) '(x))
+(register-accelerator-operator! 'hypot '(sqrt (+ (* x x) (* y y))) '(x y))
+(register-accelerator-operator! 'fma '(+ (* x y) z) '(x y z))
+(register-accelerator-operator! 'erfc '(- 1 (erf x)) '(x))

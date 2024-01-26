@@ -113,7 +113,6 @@
   [cos ival-cos]
   [cosh ival-cosh]
   [erf ival-erf]
-  [erfc ival-erfc]
   [exp ival-exp]
   [exp2 ival-exp2]
   [fabs ival-fabs]
@@ -121,7 +120,6 @@
   [lgamma ival-lgamma]
   [log ival-log]
   [log10 ival-log10]
-  [log1p ival-log1p]
   [log2 ival-log2]
   [logb ival-logb]
   [rint ival-rint]
@@ -145,12 +143,8 @@
   [fmax ival-fmax]
   [fmin ival-fmin]
   [fmod ival-fmod]
-  [hypot ival-hypot]
   [pow ival-pow]
   [remainder ival-remainder])
-
-(define-operator (fma real real real) real
- [ival ival-fma])
 
 (define-operator (== real real) bool
   [ival ival-==])

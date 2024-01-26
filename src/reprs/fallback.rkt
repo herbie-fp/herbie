@@ -77,7 +77,6 @@
  [cos cos]
  [cosh cosh]
  [erf (no-complex erf)]
- [erfc erfc]
  [exp exp]
  [exp2 (no-complex (λ (x) (expt 2 x)))]
  [fabs abs]
@@ -85,7 +84,6 @@
  [lgamma log-gamma]
  [log (no-complex log)]
  [log10 (no-complex (λ (x) (log x 10)))]
- [log1p (from-bigfloat bflog1p)]
  [log2 (from-bigfloat bflog2)]
  [logb (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))]
  [rint round]
@@ -109,12 +107,8 @@
  [fmax (λ (x y) (cond [(nan? x) y] [(nan? y) x] [else (max x y)]))]
  [fmin (λ (x y) (cond [(nan? x) y] [(nan? y) x] [else (min x y)]))]
  [fmod (from-bigfloat bffmod)]
- [hypot (from-bigfloat bfhypot)]
  [pow (no-complex expt)]
  [remainder remainder])
-
-(define-fallback-operator (fma real real real)
- [fl (from-bigfloat bffma)])
 
 (define-comparator-impls racket
   [== ==.rkt =]
