@@ -103,10 +103,10 @@ def run(bench_dir, output_dir, args):
     output_name = os.path.join(output_dir, output_file)
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
+    os.mkdir(output_dir)
 
     # run Herbie to produce a C file
-    os.mkdir(output_dir)
-    subprocess.run(
+    p = subprocess.Popen(
         ['racket', '-y', 'src/herbie.rkt', 'improve', '--lang', 'c'] + 
         args + 
         [bench_dir, output_name]

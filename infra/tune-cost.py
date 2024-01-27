@@ -7,7 +7,7 @@ import multiprocessing as mp
 import re
 
 nullary_ops = ['baseline']
-unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
+unary_ops = ['recip', 'rsqrt', 'neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'hypot', 'pow', 'remainder']
 ternary_ops = ['fma']
 
@@ -72,6 +72,7 @@ def make_driver(output_dir: str, num_inputs: str, op: str, func: str, key: str, 
         print('#include <chrono>', file=f)
         print('#include <cmath>', file=f)
         print('#include <iostream>', file=f)
+        print('#include <immintrin.h>', file=f)
 
         if op != 'baseline':
             print(func, file=f)

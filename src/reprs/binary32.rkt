@@ -70,3 +70,14 @@
 
 (define-operator-impl (cast binary32->binary64 binary32) binary64
   [fl identity])
+
+
+(define-operator-impl (recip recip.f32 binary32) binary32
+  [fl (λ (x)
+        (parameterize ([bf-precision 12])
+          (bigfloat->flonum (bf/ 1.bf (bf x)))))])
+
+(define-operator-impl (rsqrt rsqrt.f32 binary32) binary32
+  [fl (λ (x)
+        (parameterize ([bf-precision 12])
+          (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])

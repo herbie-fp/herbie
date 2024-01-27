@@ -2,8 +2,13 @@
 
 ;; Builtin double-precision plugin (:precision binary64)
 
-(require math/flonum math/bigfloat)
-(require "runtime/utils.rkt" "runtime/libm.rkt")
+(require math/flonum
+         math/bigfloat
+         fpbench
+         rival)
+
+(require "runtime/utils.rkt"
+         "runtime/libm.rkt")
 
 ;; Do not run this file with `raco test`
 (module test racket/base)
@@ -63,3 +68,43 @@
   [> >.f64 >]
   [<= <=.f64 <=]
   [>= >=.f64 >=])
+
+(define-operator (recip real) real
+  [ival (λ (x) (ival-div (ival 1.bf) x))])
+
+(define-operator (rsqrt real) real
+  [ival (λ (x) (ival-div (ival 1.bf) (ival-sqrt x)))])
+
+(define-operator-impl (recip recip.f64 binary64) binary64
+  [fl (λ (x)
+        (parameterize ([bf-precision 12])
+          (bigfloat->flonum (bf/ 1.bf (bf x)))))])
+
+(define-operator-impl (rsqrt rsqrt.f64 binary64) binary64
+  [fl (λ (x)
+        (parameterize ([bf-precision 12])
+          (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])
+
+(define-ruleset* reciprocal (arithmetic simplify)
+  #:type ([a real])
+  [add-recip     (/ 1 a)        (recip a)]
+  [remove-recip  (recip a)      (/ 1 a)]
+  [add-rsqrt     (/ 1 (sqrt a)) (rsqrt a)]
+  [remove-rsqrt  (rsqrt a)      (/ 1 (sqrt a))])
+
+(set-unknown->c!
+  (λ (fallback)
+    (λ (ctx op args)
+      (define prec (ctx-lookup-prop ctx ':precision))
+      (match* ((cons op args) prec)
+        [((list 'recip arg) 'binary64)
+         (format "((double) _mm_rcp_ss(_mm_set1_ps(~a))[0])" arg)]
+        [((list 'rsqrt arg) 'binary64)
+         (format "((double) _mm_rsqrt_ss(_mm_set1_ps(~a))[0])" arg)]
+        [(_ _)
+         (fallback ctx op args)]))))
+
+(set-c-header!
+  (λ (old)
+    (const
+      (format "#include <immintrin.h>\n~a" (old)))))
