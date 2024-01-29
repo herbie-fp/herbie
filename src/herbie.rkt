@@ -4,7 +4,6 @@
 (require "common.rkt" "multi-command-line.rkt" "errors.rkt"
          "load-plugin.rkt" "platform.rkt" "sandbox.rkt")
 
-;(require errortrace)
 ;; Load all the plugins
 (load-herbie-plugins)
 
@@ -45,9 +44,6 @@
                              (if (flag-set? category flag) "\u2714" "")))))
 
 (module+ main
-  ;(profiling-enabled #t)
-  ;(profile-paths-enabled #t)
-  
   (define quiet? #f)
   (define demo-output #f)
   (define demo-log #f)
@@ -215,5 +211,4 @@
       (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
      [(cons tool _)
       (eprintf "Unknown Herbie tool `~a`. See a list of available tools with `herbie --help`.\n" tool)
-      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]))
-  #;(get-profile-results (current-thread)))
+      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)])))

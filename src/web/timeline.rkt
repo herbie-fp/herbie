@@ -197,7 +197,7 @@
                    (define time-per-op (round (apply + times)))
                
                    (list `(details
-                           (summary "Operation " (code ,(~a op))
+                           (summary "Operation " (code ,op)
                                     ", time spent: " ,(format-time time-per-op)
                                     ", " ,(~a (round (* (/ time-per-op total-time) 100))) "% of total-time") 
                            (canvas ([id ,(format "calls-~a" n)]
