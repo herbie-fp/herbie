@@ -106,7 +106,7 @@ def run(bench_dir, output_dir, args):
     os.mkdir(output_dir)
 
     # run Herbie to produce a C file
-    p = subprocess.Popen(
+    subprocess.run(
         ['racket', '-y', 'src/herbie.rkt', 'improve', '--lang', 'c'] + 
         args + 
         [bench_dir, output_name]
