@@ -26,7 +26,6 @@
 (define (register-accelerator-operator!
          name body variables
          [itypes (make-list (length variables) 'real)] [otype 'real])
-  (printf "registered ~a\n" name)
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
@@ -58,10 +57,6 @@
                            (list body)
                            (list (context variables otype itypes)))))))))
 
-;; This is macro expansion!
-;; TODO: Hygiene issues?
-;; TODO: Is there a way to do this with just racket?
-;; TODO: Test
 (define (expand-accelerators rules expression)
   (define undefine-rules
     (filter
@@ -69,9 +64,11 @@
       (curry set-member? (map (curryr sym-append '- 'undefine) (dict-keys accelerator-operators)))
       rule-name)
      rules))
-  ;; Apply the first rule that matches top down. We can only be sure we have
-  ;; a real match if the term does not occur in the syntactic scope of any
-  ;; other syntactic extensions.
+  ;; Apply the first rule that matches top down. We do this because we can only
+  ;; be sure we have a real match if the term does not occur in the syntactic
+  ;; scope of any other syntactic extensions.
+  ;;
+  ;; See https://dl.acm.org/doi/10.1145/319838.319859
   (let rewrite ([expression* expression])
     (match (or
             (let ([expression** (ormap (curryr rule-apply expression*) undefine-rules)])
@@ -80,7 +77,7 @@
       [(list operator operands ...) (cons operator (map rewrite operands))]
       [_ expression*])))
 
-;; Temporarily copied to avoid cycles
+;; TODO: Temporarily copied to avoid cycles. Is there a way to avoid this?
 
 (define (merge-bindings binding1 binding2)
   (and binding1
