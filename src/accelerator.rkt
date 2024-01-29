@@ -26,6 +26,7 @@
 (define (register-accelerator-operator!
          name body variables
          [itypes (make-list (length variables) 'real)] [otype 'real])
+  (printf "register accelerator operator: ~a\n" name)
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
@@ -45,6 +46,7 @@
 (define (register-accelerator-impl! operator name
                                     itypes otype
                                     [implementation #f])
+  (printf "register accelerator implementation: ~a\n" name)
   (match-define (accelerator-operator body variables _ _) (dict-ref accelerator-operators operator))
   (register-operator-impl!
    operator name
