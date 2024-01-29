@@ -68,23 +68,27 @@
 (define-operator-impl (cast binary32->binary64 binary32) binary64
   [fl identity])
 
-(register-accelerator-implementation!
- 'expm1 'expm1.f32
- (list (get-representation 'binary32)) (get-representation 'binary32)
- (get-ffi-obj 'expm1 #f (_fun _float -> _float) (const #f)))
-(register-accelerator-implementation!
- 'log1p 'log1p.f32
- (list (get-representation 'binary32)) (get-representation 'binary32)
- (get-ffi-obj 'log1p #f (_fun _float -> _float) (const #f)))
-(register-accelerator-implementation!
- 'hypot 'hypot.f32
- (list (get-representation 'binary32) (get-representation 'binary32)) (get-representation 'binary32)
- (get-ffi-obj 'hypot #f (_fun _float _float -> _float) (const #f)))
-(register-accelerator-implementation!
- 'fma 'fma.f32
- (list (get-representation 'binary32) (get-representation 'binary32) (get-representation 'binary32)) (get-representation 'binary32)
- (get-ffi-obj 'fma #f (_fun _float _float _float -> _float) (const #f)))
-(register-accelerator-implementation!
- 'erfc 'erfc.f32
- (list (get-representation 'binary32)) (get-representation 'binary32)
- (get-ffi-obj 'erfc #f (_fun _float -> _float) (const #f)))
+(define-libm expm1.f32 (expm1f float float))
+(when (register-accelerator-impl! 'expm1 'expm1.f32
+                                  (list (get-representation 'binary32)) (get-representation 'binary32)
+                                  expm1.f32))
+
+(define-libm log1p.f32 (log1pf float float))
+(when (register-accelerator-impl! 'log1p 'log1p.f32
+                                  (list (get-representation 'binary32)) (get-representation 'binary32)
+                                  log1p.f32))
+
+(define-libm hypot.f32 (hypotf float float float))
+(when (register-accelerator-impl! 'hypot 'hypot.f32
+                                  (list (get-representation 'binary32) (get-representation 'binary32)) (get-representation 'binary32)
+                                  hypot.f32))
+
+(define-libm fma.f32 (fmaf float float float float))
+(when (register-accelerator-impl! 'fma 'fma.f32
+                                  (list (get-representation 'binary32) (get-representation 'binary32) (get-representation 'binary32)) (get-representation 'binary32)
+                                  fma.f32))
+
+(define-libm erfc.f32 (erfcf float float))
+(when (register-accelerator-impl! 'erfc 'erfc.f32
+                                  (list (get-representation 'binary32)) (get-representation 'binary32)
+                                  (get-ffi-obj 'erfc #f (_fun _float -> _float) (const #f))))

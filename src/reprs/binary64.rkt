@@ -61,23 +61,31 @@
   [<= <=.f64 <=]
   [>= >=.f64 >=])
 
-(register-accelerator-implementation!
- 'expm1 'expm1.f64
- (list (get-representation 'binary64)) (get-representation 'binary64)
- (get-ffi-obj 'expm1 #f (_fun _double -> _double) (const #f)))
-(register-accelerator-implementation!
- 'log1p 'log1p.f64
- (list (get-representation 'binary64)) (get-representation 'binary64)
- (get-ffi-obj 'log1p #f (_fun _double -> _double) (const #f)))
-(register-accelerator-implementation!
- 'hypot 'hypot.f64
- (list (get-representation 'binary64) (get-representation 'binary64)) (get-representation 'binary64)
- (get-ffi-obj 'hypot #f (_fun _double _double -> _double) (const #f)))
-(register-accelerator-implementation!
- 'fma 'fma.f64
- (list (get-representation 'binary64) (get-representation 'binary64) (get-representation 'binary64)) (get-representation 'binary64)
- (get-ffi-obj 'fma #f (_fun _double _double _double -> _double) (const #f)))
-(register-accelerator-implementation!
- 'erfc 'erfc.f64
- (list (get-representation 'binary64)) (get-representation 'binary64)
- (get-ffi-obj 'erfc #f (_fun _double -> _double) (const #f)))
+(define-libm expm1.f64 (expm1 double double))
+(when expm1-impl
+  (register-accelerator-impl! 'expm1 'expm1.f64
+                              (list (get-representation 'binary64)) (get-representation 'binary64)
+                              expm1.f64))
+
+(define-libm log1p.f64 (log1p double double))
+(when (register-accelerator-impl! 'log1p 'log1p.f64
+                                  (list (get-representation 'binary64)) (get-representation 'binary64)
+                                  log1p.f64))
+
+(define-libm hypot.f64 (hypot double double double))
+(when (register-accelerator-impl! 'hypot 'hypot.f64
+                                  (list (get-representation 'binary64) (get-representation 'binary64)) (get-representation 'binary64)
+                                  hypot.f64))
+
+(define-libm fma.f64 (fma double double double double))
+(when (register-accelerator-impl! 'fma 'fma.f64
+                                  (list
+                                   (get-representation 'binary64)
+                                   (get-representation 'binary64)
+                                   (get-representation 'binary64)) (get-representation 'binary64)
+                                  fma.f64))
+
+(define-libm erfc.f64 (erfc double double))
+(when (register-accelerator-impl! 'erfc 'erfc.f64
+                                  (list (get-representation 'binary64)) (get-representation 'binary64)
+                                  erfc.f64))

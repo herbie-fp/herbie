@@ -3,6 +3,7 @@
 (require
  math/bigfloat
 
+ "common.rkt"
  "compiler.rkt"
  "ground-truth.rkt"
  (submod "syntax/syntax.rkt" internals)
@@ -11,16 +12,12 @@
 
 (provide
  register-accelerator-operator!
- register-accelerator-implementation!
+ register-accelerator-impl!
  expand-accelerators)
 
 (module+ internals
   (provide register-accelerator-operator!
-           register-accelerator-implementation!))
-
-;; This might have to stay, it's from common.rkt
-(define (sym-append . args)
-  (string->symbol (apply string-append (map ~a args))))
+           register-accelerator-impl!))
 
 (struct accelerator-operator (body variables itypes otypes))
 
@@ -29,6 +26,7 @@
 (define (register-accelerator-operator!
          name body variables
          [itypes (make-list (length variables) 'real)] [otype 'real])
+  (printf "registered ~a\n" name)
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
@@ -45,9 +43,9 @@
                      `((,define-name ,body (,name ,@variables))
                        (,undefine-name (,name ,@variables) ,body))))
 
-(define (register-accelerator-implementation! operator name
-                                              itypes otype
-                                              [implementation #f])
+(define (register-accelerator-impl! operator name
+                                    itypes otype
+                                    [implementation #f])
   (match-define (accelerator-operator body variables _ _) (dict-ref accelerator-operators operator))
   (register-operator-impl!
    operator name

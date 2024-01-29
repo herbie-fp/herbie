@@ -19,4 +19,4 @@
          platform-subtract platform-filter operator-set platform-operator-set
          with-terminal-cost cost-map cost-map-scale
          register-accelerator-operator!
-         register-accelerator-implementation!)
+         register-accelerator-impl!)
