@@ -272,6 +272,7 @@
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
         (define time (- (current-inexact-milliseconds) start-time))
+        (timeline-compact! 'mixsample)
         (job-result test 'success time (timeline-extract) (warning-log) result))))
   
   (define (in-engine _)
@@ -287,9 +288,7 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)
-      (on-timeout))
-
-  (timeline-compact! 'mixsample))
+      (on-timeout)))
 
 (define (dummy-table-row result status link)
   (define test (job-result-test result))
