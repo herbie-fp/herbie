@@ -141,6 +141,7 @@
   (define loc-errss
     (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define repr (context-repr (*context*)))
+  (timeline-compact! 'mixsample)
 
   ; high-error locations
   (^locs^
