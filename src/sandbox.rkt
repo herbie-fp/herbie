@@ -272,7 +272,6 @@
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
         (define time (- (current-inexact-milliseconds) start-time))
-        (timeline-compact! 'mixsample)
         (job-result test 'success time (timeline-extract) (warning-log) result))))
   
   (define (in-engine _)

@@ -148,6 +148,7 @@
           (raise-herbie-error "Cannot sample enough valid points."
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exactss)])))
+  (timeline-compact! 'mixsample)
   (timeline-compact! 'outcomes)
   (cons outcomes (cons points (flip-lists exactss))))
 
