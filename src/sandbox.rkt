@@ -287,7 +287,9 @@
   (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)
-      (on-timeout)))
+      (on-timeout))
+
+  (timeline-compact! 'mixsample))
 
 (define (dummy-table-row result status link)
   (define test (job-result-test result))
