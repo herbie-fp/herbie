@@ -57,7 +57,7 @@
           (define srcs
             (for/list ([idx (in-list (cdr instr))])
               (vector-ref vregs idx)))
-
+          
           (match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
 
           (define precision (if (*use-mixed-precision*)
@@ -65,7 +65,7 @@
                                  (unbox working-precision)
                                  (unbox extra-precision))
                                 (bf-precision)))
-          (define timeline-stop! (timeline-start! 'mixsample (~a (object-name op)) precision))
+          (define timeline-stop! (timeline-start!/unsafe 'mixsample (symbol->string (object-name op)) precision))
             
           (define output
             (parameterize ([bf-precision precision]) (apply op srcs)))
@@ -141,7 +141,6 @@
         (for/list ([root (in-list roots)])
           (vector-ref vregs root)))))
 
-
 (define (get-slack)
   (match (*sampling-iteration*)
         [1 (*ground-truth-extra-bits*)]
@@ -167,7 +166,6 @@
           (match-define (vector _ workig-prec* extra-prec* _) (car (vector-ref ivec tail-index)))
           (set-box! extra-prec* (+ (unbox extra-prec) (unbox exponents)))
           (set-box! workig-prec* (+ slack (unbox working-prec))))))))
-
 
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.

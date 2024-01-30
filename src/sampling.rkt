@@ -110,27 +110,12 @@
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
-(define (point-logger name vars)
-  (define start (current-inexact-milliseconds))
-  (define (log! status precision pt)
-    (define now (current-inexact-milliseconds))
-    (when (equal? status 'exit)
-      (warn 'ground-truth #:url "faq.html#ground-truth"
-               "could not determine a ground truth"
-               #:extra (for/list ([var vars] [val pt])
-                         (format "~a = ~a" var val))))
-    (define dt (- now start))
-    (timeline-push! 'outcomes (~a name) precision (~a status) dt 1)
-    (set! start now))
-  log!)
-
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define repr (context-repr ctx))
-  (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
-  (define logger (point-logger 'body (context-vars ctx)))
   (define outcomes (make-hash))
+  (define start (current-inexact-milliseconds))
 
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
@@ -138,8 +123,16 @@
 
       (define-values (status precision out)
         (ival-eval repr fn pt))
+
+      (when (equal? status 'exit)
+        (warn 'ground-truth #:url "faq.html#ground-truth"
+              "could not determine a ground truth"
+              #:extra (for/list ([var (context-vars ctx)] [val pt])
+                        (format "~a = ~a" var val))))
       (hash-update! outcomes status (curry + 1) 0)
-      (logger status precision pt)
+      (define now (current-inexact-milliseconds))
+      (timeline-push!/unsafe 'outcomes precision (~a status) (- now start) 1)
+      (set! start now)
 
       (cond
        [(and (list? out) (not (ormap (representation-special-value? repr) pt)))
@@ -153,6 +146,7 @@
           (raise-herbie-error "Cannot sample enough valid points."
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exactss)])))
+  (timeline-compact! 'mixsample)
   (timeline-compact! 'outcomes)
   (cons outcomes (cons points (flip-lists exactss))))
 
