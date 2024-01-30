@@ -26,7 +26,6 @@
 (define (register-accelerator-operator!
          name body variables
          [itypes (make-list (length variables) 'real)] [otype 'real])
-  (printf "register accelerator operator: ~a\n" name)
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
@@ -46,7 +45,6 @@
 (define (register-accelerator-impl! operator name
                                     itypes otype
                                     [implementation #f])
-  (printf "register accelerator implementation: ~a\n" name)
   (match-define (accelerator-operator body variables _ _) (dict-ref accelerator-operators operator))
   (register-operator-impl!
    operator name
@@ -122,3 +120,44 @@
 (register-accelerator-operator! 'hypot '(sqrt (+ (* x x) (* y y))) '(x y))
 (register-accelerator-operator! 'fma '(+ (* x y) z) '(x y z))
 (register-accelerator-operator! 'erfc '(- 1 (erf x)) '(x))
+
+; Specialized numerical functions
+(define-ruleset* special-numerical-reduce (numerics simplify)
+  #:type ([x real] [y real] [z real])
+  ;; TODO: Remove these comments entirely, keeping them for now to make it
+  ;; easier to track what's been deleted without having to tab back and forth.
+  ;;
+  ;; [expm1-def   (- (exp x) 1)              (expm1 x)]
+  ;; [log1p-def   (log (+ 1 x))              (log1p x)]
+  [log1p-expm1 (log1p (expm1 x))          x]
+  ;; [expm1-log1p (expm1 (log1p x))          x]
+  ;; [hypot-def   (sqrt (+ (* x x) (* y y))) (hypot x y)]
+  [hypot-1-def (sqrt (+ 1 (* y y)))       (hypot 1 y)]
+  ;; [fma-def     (+ (* x y) z)              (fma x y z)]
+  [fma-neg     (- (* x y) z)              (fma x y (neg z))])
+  ;; [fma-udef    (fma x y z)                (+ (* x y) z)])
+
+(define-ruleset* special-numerical-expand (numerics)
+  #:type ([x real] [y real])
+  ;; [expm1-udef    (expm1 x)      (- (exp x) 1)]
+  ;; [log1p-udef    (log1p x)      (log (+ 1 x))]
+  [log1p-expm1-u x              (log1p (expm1 x))]
+  [expm1-log1p-u x              (expm1 (log1p x))])
+  ;; [hypot-udef    (hypot x y)    (sqrt (+ (* x x) (* y y)))])
+
+(define-ruleset* erf-rules (special simplify)
+  #:type ([x real])
+  [erf-odd          (erf (neg x))        (neg (erf x))])
+  ;; [erf-erfc         (erfc x)             (- 1 (erf x))]
+  ;; [erfc-erf         (erf x)              (- 1 (erfc x))])
+
+(define-ruleset* numerics-papers (numerics)
+  #:type ([a real] [b real] [c real] [d real])
+  ;  "Further Analysis of Kahan's Algorithm for
+  ;   the Accurate Computation of 2x2 Determinants"
+  ;  Jeannerod et al., Mathematics of Computation, 2013
+  ;
+  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
+  [prod-diff    (- (* a b) (* c d))
+                (+ (fma a b (neg (* d c)))
+                   (fma (neg d) c (* d c)))])
