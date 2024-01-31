@@ -27,9 +27,8 @@
 
 (define accelerator-operators (make-hasheq))
 
-(define (register-accelerator-operator!
-         name body variables
-         [itypes (make-list (length variables) 'real)] [otype 'real])
+(define (register-accelerator-operator! name itypes otype form)
+  (match-define (list 'lambda (list variables ...) body) form)
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
@@ -48,11 +47,10 @@
 
 (define-syntax define-accelerator-operator
   (syntax-rules ()
-    [(_ name (lambda (variables ...) body))
-     (register-accelerator-operator! 'name 'body (list 'variables ...))]
     [(_ name (itypes ...) otype (lambda (variables ...) body))
-     (register-accelerator-operator! 'name 'body (list 'variables ...)
-                                     (list 'itypes ...) 'otype)]))
+     (register-accelerator-operator! 'name
+                                     (list 'itypes ...) 'otype
+                                     (list 'lambda (list 'variables ...) 'body))]))
 
 (define (register-accelerator-impl! operator name
                                     itypes otype
@@ -139,11 +137,11 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-(define-accelerator-operator expm1 (lambda (x) (- (exp x) 1)))
-(define-accelerator-operator log1p (lambda (x) (log (+ 1 x))))
-(define-accelerator-operator hypot (lambda (x y) (sqrt (+ (* x x) (* y y)))))
-(define-accelerator-operator fma (lambda (x y z) (+ (* x y) z)))
-(define-accelerator-operator erfc (lambda (x) (- 1 (erf x))))
+(define-accelerator-operator expm1 (real) real (lambda (x) (- (exp x) 1)))
+(define-accelerator-operator log1p (real) real (lambda (x) (log (+ 1 x))))
+(define-accelerator-operator hypot (real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))))
+(define-accelerator-operator fma (real real real) real (lambda (x y z) (+ (* x y) z)))
+(define-accelerator-operator erfc (real) real (lambda (x) (- 1 (erf x))))
 
 ; Specialized numerical functions
 (define-ruleset* special-numerical-reduce (numerics simplify)
