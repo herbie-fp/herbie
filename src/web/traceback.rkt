@@ -34,7 +34,7 @@
                     (summary (h2 "Specification")
                              ,dropdown
                              (a ([class "help-button float"] 
-                                 [href "/doc/latest/report.html#spec"] 
+                                 [href ,(doc-url "report.html#spec")] 
                                  [target "_blank"]) "?"))
                     ,body)))
 
