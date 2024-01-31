@@ -13,11 +13,15 @@
 (provide
  register-accelerator-operator!
  register-accelerator-impl!
+ define-accelerator-operator
+ define-accelerator-impl
  expand-accelerators)
 
 (module+ internals
   (provide register-accelerator-operator!
-           register-accelerator-impl!))
+           register-accelerator-impl!
+           define-accelerator-operator
+           define-accelerator-impl))
 
 (struct accelerator-operator (body variables itypes otypes))
 
@@ -42,6 +46,14 @@
                      `((,define-name ,body (,name ,@variables))
                        (,undefine-name (,name ,@variables) ,body))))
 
+(define-syntax define-accelerator-operator
+  (syntax-rules ()
+    [(_ name (lambda (variables ...) body))
+     (register-accelerator-operator! 'name 'body (list 'variables ...))]
+    [(_ name (itypes ...) otype (lambda (variables ...) body))
+     (register-accelerator-operator! 'name 'body (list 'variables ...)
+                                     (list 'itypes ...) 'otype)]))
+
 (define (register-accelerator-impl! operator name
                                     itypes otype
                                     [implementation #f])
@@ -56,6 +68,18 @@
            (compose first (eval-progs-real 
                            (list body)
                            (list (context variables otype itypes)))))))))
+
+(define-syntax define-accelerator-impl
+  (syntax-rules ()
+    [(_ operator name (itypes ...) otype)
+     (register-accelerator-impl! 'operator 'name
+                                 (list (get-representation 'itypes) ...)
+                                 (get-representation 'otype))]
+    [(_ operator name (itypes ...) otype implementation)
+     (register-accelerator-impl! 'operator 'name
+                                 (list (get-representation 'itypes) ...)
+                                 (get-representation 'otype)
+                                 implementation)]))
 
 (define (expand-accelerators rules expression)
   (define undefine-rules
@@ -115,11 +139,11 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-(register-accelerator-operator! 'expm1 '(- (exp x) 1) '(x))
-(register-accelerator-operator! 'log1p '(log (+ 1 x)) '(x))
-(register-accelerator-operator! 'hypot '(sqrt (+ (* x x) (* y y))) '(x y))
-(register-accelerator-operator! 'fma '(+ (* x y) z) '(x y z))
-(register-accelerator-operator! 'erfc '(- 1 (erf x)) '(x))
+(define-accelerator-operator expm1 (lambda (x) (- (exp x) 1)))
+(define-accelerator-operator log1p (lambda (x) (+ 1 (log x))))
+(define-accelerator-operator hypot (lambda (x y) (sqrt (+ (* x x) (* y y)))))
+(define-accelerator-operator fma (lambda (x y z) (+ (* x y) z)))
+(define-accelerator-operator erfc (lambda (x) (- 1 (erf x))))
 
 ; Specialized numerical functions
 (define-ruleset* special-numerical-reduce (numerics simplify)
