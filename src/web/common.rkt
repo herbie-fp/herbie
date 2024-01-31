@@ -13,7 +13,7 @@
 
 (provide render-menu render-warnings render-large render-comparison render-program
          render-bogosity render-help
-         format-percent
+         format-percent doc-url
          fpcore->string
          program->fpcore program->tex render-reproduction js-tex-include)
 
@@ -43,6 +43,10 @@
       (format "~a ~a" prop name)))
   (define top (if ident (format "FPCore ~a ~a" ident args) (format "FPCore ~a" args)))
   (pretty-format `(,top ,@props* ,expr) #:mode 'display))
+
+
+(define (doc-url page)
+  (format "https://herbie.uwplse.org/doc/~a/~a" (*herbie-version*) page))
 
 (define/contract (render-menu #:path [path "."] name links)
   (->* (string? (listof (cons/c string? string?)))
@@ -332,7 +336,7 @@
      (summary
       (h2 "Reproduce")
       (a ([class "help-button float"] 
-          [href "/doc/latest/report.html#reproduction"] 
+          [href ,(doc-url "report.html#reproduction")]
           [target "_blank"]) "?"))
      (pre ((class "shell"))
           (code
@@ -346,7 +350,7 @@
 
 (define (render-help url #:float [float? #t])
   `(a ([class ,(if float? "help-button float" "help-button")] 
-       [href ,(format "/doc/latest/~a" url)] 
+       [href ,(doc-url url)] 
        [target "_blank"]) "?"))
 
 (define js-tex-include
