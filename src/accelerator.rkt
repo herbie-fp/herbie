@@ -140,7 +140,7 @@
         #f)))
 
 (define-accelerator-operator expm1 (lambda (x) (- (exp x) 1)))
-(define-accelerator-operator log1p (lambda (x) (+ 1 (log x))))
+(define-accelerator-operator log1p (lambda (x) (log (+ 1 x))))
 (define-accelerator-operator hypot (lambda (x y) (sqrt (+ (* x x) (* y y)))))
 (define-accelerator-operator fma (lambda (x y z) (+ (* x y) z)))
 (define-accelerator-operator erfc (lambda (x) (- 1 (erf x))))
