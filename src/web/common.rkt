@@ -44,7 +44,7 @@
 
 
 (define (doc-url page)
-  (format "https://herbie.uwplse.org/doc/~a/~a" (*herbie-version*) page))
+  (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* page))
 
 (define/contract (render-menu #:path [path "."] name links)
   (->* (string? (listof (cons/c string? string?)))
