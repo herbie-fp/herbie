@@ -34,7 +34,7 @@
   (define varc (length vars))
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
-  (define start-precision (*starting-prec*))
+  (define prec-threshold (/ (*max-mpfr-prec*) 25))
   
   (if (equal? name 'ival)
       (λ args
@@ -42,7 +42,7 @@
             ;; remove all the precision values we assigned previously when a new point comes
             (when (equal? (*sampling-iteration*) 0)
                 (for ([instr (in-vector ivec)])
-                  (vector-copy! (car instr) 1 (vector (box start-precision) (box 0) (box 0)))))
+                  (vector-copy! (car instr) 1 (vector (box 0) (box 0) (box 0)))))
           (backward-pass ivec varc))
       
         (for ([arg (in-list args)] [n (in-naturals)])
@@ -59,7 +59,9 @@
                                  (unbox working-precision)
                                  (unbox extra-precision))
                                 (bf-precision)))
-          (define timeline-stop! (timeline-start!/unsafe 'mixsample (symbol->string (object-name op)) precision))
+          (define timeline-stop! (timeline-start!/unsafe 'mixsample
+                                                         (symbol->string (object-name op))
+                                                         (- precision (remainder precision prec-threshold))))
             
           (define output
             (parameterize ([bf-precision precision]) (apply op srcs)))
@@ -112,7 +114,6 @@
                                               (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
                                 [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
                                 [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
-          
               [(member op (list ival-sin ival-cos ival-tan))
                (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
                          (max 0
