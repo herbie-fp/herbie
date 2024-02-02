@@ -40,16 +40,10 @@
       (λ args
         (when (*use-mixed-precision*)
             ;; remove all the precision values we assigned previously when a new point comes
-            (if (equal? (*sampling-iteration*) 0)
+            (when (equal? (*sampling-iteration*) 0)
                 (for ([instr (in-vector ivec)])
-                  (vector-copy! (car instr) 1 (vector (box start-precision) (box 0) (box 0))))
-                  ;(match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
-                  ;(set-box! working-precision (*starting-prec*))
-                  ;(set-box! extra-precision 0)
-                  ;(set-box! exponents-checkpoint 0))
-                
-                ;; backward pass
-                (backward-pass ivec varc)))
+                  (vector-copy! (car instr) 1 (vector (box start-precision) (box 0) (box 0)))))
+          (backward-pass ivec varc))
       
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
@@ -143,7 +137,8 @@
 
 (define (get-slack)
   (match (*sampling-iteration*)
-        [1 (*ground-truth-extra-bits*)]
+        [0 (*ground-truth-extra-bits*)]
+        [1 128]
         [2 256]
         [3 512]
         [4 1024]
