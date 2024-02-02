@@ -1,9 +1,9 @@
 name: Build new Herbie release
 
-on:
-  push:
-    tags:
-    - 'v*'
+on: [push]
+#  push:
+#    tags:
+#    - 'v*'
 
 jobs:
   job2:
