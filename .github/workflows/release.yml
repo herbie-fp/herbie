@@ -6,7 +6,7 @@ on: [push]
 #    - 'v*'
 
 jobs:
-  job2:
+  build:
     name: Build
     strategy:
       matrix:     # manual matrix
