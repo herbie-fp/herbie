@@ -68,8 +68,7 @@ jobs:
           merge-multiple: true
 
       - name: Create Release
-        uses: ncipollo/release-action
-        uses: actions/create-release@v1
+        uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref }}
           name: ${{ github.ref }}
