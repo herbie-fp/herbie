@@ -23,9 +23,17 @@
     (set-box! (*timeline*) '())
     (*timeline*)))
 
+(define *timeline-active-key* #f)
+(define *timeline-active-value* #f)
+
 (define *timeline-disabled* (make-parameter true))
 
 (define (timeline-event! type)
+  (when *timeline-active-key*
+    (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
+                  (curry append *timeline-active-value*) '())
+    (set! *timeline-active-key* #f))
+  
   (unless (*timeline-disabled*)
     (define b (make-hasheq (list (cons 'type (~a type))
                                  (cons 'time (current-inexact-milliseconds)))))
@@ -33,8 +41,19 @@
 
 (define (timeline-push! key . values)
   (unless (*timeline-disabled*)
-    (define val (if (= (length values) 1) (car values) values))
-    (hash-update! (car (unbox (*timeline*))) key (curry cons val) '())))
+    (define val (if (null? (cdr values)) (car values) values))
+    (cond
+      [(eq? *timeline-active-key* key)
+       (set! *timeline-active-value* (cons val *timeline-active-value*))]
+      [(not *timeline-active-key*)
+       (set! *timeline-active-key* key)
+       (set! *timeline-active-value* (list val))]
+      [else
+       (when *timeline-active-key*
+         (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
+                       (curry append *timeline-active-value*) '()))
+       (set! *timeline-active-key* key)
+       (set! *timeline-active-value* (list val))])))
 
 (define (timeline-adjust! type key . values)
   (unless (*timeline-disabled*)
@@ -43,32 +62,45 @@
       true)
     (void)))
 
-(define *timeline-main-timer* #f)
+(define *timeline-1st-timer* #f)
+(define *timeline-2nd-timer* #f)
 (define *timeline-timers* (mutable-set))
 
 (define (timeline-start! key . values)
   (define tstart (current-inexact-milliseconds))
   (cond
-    [*timeline-main-timer* ; Slow path, more than one timer at a time
+    [(not *timeline-1st-timer*)
+     (define (end!)
+       (define tend (current-inexact-milliseconds))
+       (apply timeline-push! key (- tend tstart) values)
+       (set! *timeline-1st-timer* #f))
+     (set! *timeline-1st-timer* end!)
+     end!]
+    [(not *timeline-2nd-timer*)
+     (define (end!)
+       (define tend (current-inexact-milliseconds))
+       (apply timeline-push! key (- tend tstart) values)
+       (set! *timeline-2nd-timer* #f))
+     (set! *timeline-2nd-timer* end!)
+     end!]
+    [*timeline-1st-timer* ; Slow path, more than one timer at a time
      (define (end!)
        (define tend (current-inexact-milliseconds))
        (apply timeline-push! key (- tend tstart) values)
        (set-remove! *timeline-timers* end!))
      (set-add! *timeline-timers* end!)
-     end!]
-    [else ; Fast path, only timer
-     (define (end!)
-       (define tend (current-inexact-milliseconds))
-       (apply timeline-push! key (- tend tstart) values)
-       (set! *timeline-main-timer* #f))
-     (set! *timeline-main-timer* end!)
      end!]))
 
 (define (timeline-load! value)
   (*timeline* value))
 
 (define (timeline-extract)
-  (when *timeline-main-timer* (*timeline-main-timer*))
+  (when *timeline-1st-timer* (*timeline-1st-timer*))
+  (when *timeline-2nd-timer* (*timeline-2nd-timer*))
+  (when *timeline-active-key*
+    (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
+                  (curry append *timeline-active-value*) '())
+    (set! *timeline-active-key* #f))
   (for ([end! (set->list *timeline-timers*)]) (end!))
   (define end (hasheq 'time (current-inexact-milliseconds)))
   (reverse
