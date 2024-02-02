@@ -15,9 +15,9 @@ jobs:
 
     steps:
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.9
+        uses: Bogdanp/setup-racket@v1
         with:
-            version: "8.10"
+            version: 8.11
       - name: Cache Racket dependencies
         uses: actions/cache@v2
         with:
