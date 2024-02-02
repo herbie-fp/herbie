@@ -61,8 +61,6 @@
 
 (define (simplify-inverses expr)
   (match expr
-    [`(expm1 (log1p ,x)) x]
-    [`(log1p (expm1 ,x)) x]
     [`(tanh (atanh ,x)) x]
     [`(cosh (acosh ,x)) x]
     [`(sinh (asinh ,x)) x]
