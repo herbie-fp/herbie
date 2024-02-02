@@ -76,7 +76,7 @@
         (hash-ref repr-hash subexpr))
        exacts-val))
     
-    (for/list ([subexpr subexprs-list])
+    (for/list ([subexpr (in-list subexprs-list)])
       (define subexpr-val (exacts-ref subexpr))
       
       (match subexpr
@@ -238,26 +238,12 @@
            ;; Overflow rescue:
            [(and (bfinfinite? x)
                  (not (bf= subexpr-val x)))
-            (mark-erroneous! subexpr 'oflow-rescue)])
-         
-         ; Under/overflow rescue:
-         #;(and (or (bfzero? x)
-                  (bfinfinite? x))
-              (not (bf= subexpr-val x))
-              (mark-erroneous! subexpr))]
+            (mark-erroneous! subexpr 'oflow-rescue)])]
 
         [(list (or '/.f64 '/.f32) x-ex y-ex)
          #:when (or (list? x-ex) (list? y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
-
-         #;(eprintf "~a,~a,~a,~a,~a,~a\n"
-                  pt
-                  subexpr
-                  (bigfloat->flonum x)
-                  (bigfloat->flonum y)
-                  (/ (bigfloat->flonum x) (bigfloat->flonum y))
-                  (bigfloat->flonum subexpr-val))
          
          (cond
            ;; if the numerator underflows and the denominator:
