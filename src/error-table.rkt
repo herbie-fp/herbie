@@ -40,6 +40,7 @@
     (all-subexpressions expr (context-repr ctx)))
   (define subexprs-list (map car subexprs))
   (define spec-list (map prog->spec subexprs-list))
+  (eprintf "[spec-list] ~a" spec-list)
   
   (define ctx-list
     (for/list ([subexpr (in-list subexprs)])
@@ -62,7 +63,7 @@
     (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
-    (define (mark-erroneous! expr [expl 'filler])
+    (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
       (hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
       (hash-update! point-error-hash pt (lambda (x) (or true x)) #f))
