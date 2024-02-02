@@ -47,6 +47,8 @@
     (if (equal? name 'ival)
         (vector-filter tuning-filter ivec)
         '()))
+
+  (define prec-threshold (/ (*max-mpfr-prec*) 25))
   
   (if (equal? name 'ival)
       (λ args
@@ -66,7 +68,9 @@
           (let ([extra-prec (unbox-prec extra-precision)])
           
             (define precision (operator-precision extra-prec))
-            (define timeline-stop! (timeline-start!/unsafe 'mixsample (symbol->string (object-name op)) precision))
+            (define timeline-stop! (timeline-start!/unsafe 'mixsample
+                                                           (symbol->string (object-name op))
+                                                           (- precision (remainder precision prec-threshold))))
             (define output
               (parameterize ([bf-precision precision])
                 (apply op srcs)))
