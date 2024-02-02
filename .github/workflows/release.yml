@@ -62,7 +62,6 @@ jobs:
       - name: Download pre-built artifacts
         uses: actions/download-artifact@v4
         with:
-          path: egg-herbie
           pattern: egg-herbie-*
           merge-multiple: true
 
@@ -74,4 +73,4 @@ jobs:
           commit: ${{ github.commit }}
           draft: true
           prerelease: false
-          artifacts: egg-herbie/egg-herbie-*
+          artifacts: egg-herbie-*
