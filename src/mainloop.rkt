@@ -347,7 +347,7 @@
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) vs))
   (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
-  (define-values (pcount-hash explanations-table predicted-error)
+  (define-values (pcount-hash explanations-table predicted-error oflow-hash uflow-hash)
     (predicted-errors expr context pcontext))
   
 
@@ -366,6 +366,27 @@
                                                             repr))))
 
   (for ([(key cnt) (in-dict explanations-table)])
+    (define expr (car key))
+    (define expl (cdr key))
+
+    (when (eq? expl 'oflow-rescue)
+      (define oflow-set (hash-ref oflow-hash expr))
+      (for ([(k v) oflow-set])
+        (timeline-push! 'explanations
+                        "↳"
+                        (~a k)
+                        "overflow"
+                        v)))
+
+    (when (eq? expl 'uflow-rescue)
+      (define uflow-set (hash-ref uflow-hash expr))
+      (for ([(k v) uflow-set])
+        (timeline-push! 'explanations
+                        "↳"
+                        (~a k)
+                        "underflow"
+                        v)))
+
     (timeline-push! 'explanations
                     (~a (car (car key)))
                     (~a (car key))
@@ -377,7 +398,7 @@
   (define false-pos 0)
   (define false-neg 0)
   (for ([(pt _) (in-pcontext pcontext)]
-        [error-actual? (in-list (map (lambda (p) (> p 16))true-error))])
+        [error-actual? (in-list (map (lambda (p) (> p 16)) true-error))])
     (define error-predicted? (hash-ref predicted-error pt false))
     (cond
       [(and error-actual? error-predicted?)

@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/set math/bigfloat)
+(require racket/set math/bigfloat racket/hash)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
          "ground-truth.rkt" "syntax/sugar.rkt")
 
@@ -40,7 +40,6 @@
     (all-subexpressions expr (context-repr ctx)))
   (define subexprs-list (map car subexprs))
   (define spec-list (map prog->spec subexprs-list))
-  (eprintf "[spec-list] ~a" spec-list)
   
   (define ctx-list
     (for/list ([subexpr (in-list subexprs)])
@@ -61,6 +60,11 @@
 
   (define point-error-hash
     (make-hash))
+
+  (define uflow-hash
+    (make-hash))
+  (define oflow-hash
+    (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
     (define (mark-erroneous! expr expl)
@@ -79,6 +83,33 @@
     
     (for/list ([subexpr (in-list subexprs-list)])
       (define subexpr-val (exacts-ref subexpr))
+
+      (define (update-flow-hash flow-hash pred? . children)
+        (define child-set (foldl
+                           (lambda (a b)
+                             (hash-union a b #:combine +))
+                           (make-immutable-hash)
+                           (map (lambda (a)
+                                  (hash-ref flow-hash a (make-immutable-hash)))
+                                children)))
+        (define parent-set (hash-ref flow-hash subexpr (make-immutable-hash)))
+        (define parent+child-set
+          (hash-union parent-set child-set #:combine (lambda (_ v) v)))
+        (define new-parent-set
+          (if (pred? subexpr-val)
+              (hash-update parent+child-set subexpr
+                           (lambda (x) (+ x 1)) 0)
+              parent+child-set))
+        (hash-set! flow-hash subexpr new-parent-set))
+
+      (match subexpr
+        [(list _ x-ex y-ex)
+         (update-flow-hash oflow-hash bfinfinite? x-ex y-ex)
+         (update-flow-hash uflow-hash bfzero? x-ex y-ex)]
+        [(list _ x-ex)
+         (update-flow-hash oflow-hash bfinfinite? x-ex)
+         (update-flow-hash uflow-hash bfzero? x-ex)]
+        [_ #f])
       
       (match subexpr
         [(list (or '+.f64 '+.f32) x-ex y-ex)
@@ -208,7 +239,7 @@
         [(list (or 'sqrt.f64 'sqrt.f32) x-ex)
          #:when (list? x-ex)
          (define x (exacts-ref x-ex))
-
+         
          (cond
            ;; Underflow rescue:
            [(and (bfzero? x)
@@ -220,11 +251,8 @@
                  (not (bf= subexpr-val x)))
             (mark-erroneous! subexpr 'oflow-rescue)])
 
-         ; Under/overflow rescue:
-         #;(and (or (bfzero? x)
-                  (bfinfinite? x))
-              (not (bf= subexpr-val x))
-              (mark-erroneous! subexpr))]
+
+         ]
 
         [(list (or 'cbrt.f64 'cbrt.f32) x-ex)
          #:when (list? x-ex)
@@ -456,4 +484,4 @@
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
            [else #f])]
         [_ #f])))
-  (values error-count-hash explanations-hash point-error-hash))
+  (values error-count-hash explanations-hash point-error-hash oflow-hash uflow-hash))
