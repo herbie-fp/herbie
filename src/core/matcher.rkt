@@ -113,7 +113,7 @@
    [else
     (timeline-push! 'method "batch-egg-rewrite")
     (timeline-push! 'inputs (map ~a exprs))
-    (define e-input (make-egg-query exprs rules #:node-limit (*node-limit*)))
+    (define e-input (make-egg-query exprs rules #:context ctx #:node-limit (*node-limit*)))
     (match-define (cons variantss _) (run-egg e-input #t))
 
     (define out
