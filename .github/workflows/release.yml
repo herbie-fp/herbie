@@ -32,7 +32,7 @@ jobs:
         include:
           - os: windows-latest
             os-name: windows
-          - os: ubuntu-18.04  # glibc compatability
+          - os: ubuntu-20.04  # keep old for glibc compatability
             os-name: ubuntu
           - os: macos-latest
             os-name: macOS
