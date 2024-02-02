@@ -73,4 +73,4 @@ jobs:
           commit: ${{ github.commit }}
           draft: true
           prerelease: false
-          artifacts: egg-herbie-*
+          artifacts: "egg-herbie-*"
