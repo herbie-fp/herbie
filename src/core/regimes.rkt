@@ -236,10 +236,16 @@
         (if (equal? prev next)
             next
             (loop next)))))
-  ;; Extract the splitpoints from our data structure, and reverse it.
+
   (define build-output
     (let ([vec-out (vector-ref final (- num-points 1))])
-      (eprintf "~a\n" (cand-prev vec-out))
-      (vector (si (cand-idx vec-out)(cand-point-idx vec-out)))))
+      (cond 
+        [(cand? (cand-prev vec-out))      
+          (let ([prev (cand-prev vec-out)])
+            (eprintf "~a\n" (si (cand-idx prev) (cand-point-idx prev)))
+            (vector (si (cand-idx vec-out) (cand-point-idx vec-out)) 
+                    (si (cand-idx prev) (cand-point-idx prev))))]
+        [else (vector (si (cand-idx vec-out) (cand-point-idx vec-out)))])))
+
   build-output)
 
