@@ -1,11 +1,11 @@
 use egg::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use std::str::FromStr;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_rational::Ratio;
 use num_traits::{One, Pow, Signed, Zero};
+use std::str::FromStr;
 
 pub type Constant = num_rational::BigRational;
 pub type RecExpr = egg::RecExpr<Math>;
