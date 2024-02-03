@@ -238,6 +238,9 @@
             next
             (loop next)))))
   ;; Extract the splitpoints from our data structure, and reverse it.
-  (define out (cand-f (vector-ref final (- num-points 1))))
-  (vector out))
+  (define build-output
+    (let ([vec-out (vector-ref final (- num-points 1))])
+      (eprintf "~a\n" (cand-r vec-out))
+      (vector (cand-f vec-out))))
+  build-output)
 
