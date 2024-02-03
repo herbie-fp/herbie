@@ -202,7 +202,7 @@
       (let ([acost (- (cand-acost point-entry) min-weight)] [aest point-entry])
         (for ([prev-split-idx (in-range 0 point-idx)] 
               [prev-entry (in-vector sp-prev)]
-              #:when (can-split? (si-pidx (cand-f prev-entry))))
+              #:when (can-split? (cand-point-idx prev-entry)))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector vec-psums)])
@@ -213,11 +213,10 @@
                   (set! best cidx))))
             (when (and (< (+ (cand-acost prev-entry) bcost) acost))
               (set! acost (+ (cand-acost prev-entry) bcost))
-              (set! aest (cand acost (si best (+ point-idx 1))
-                                     (cand-r prev-entry))))))
+              (set! aest (cand acost best (+ point-idx 1) prev-entry)))))
         aest)))
 
-  (struct cand (acost f r))
+  (struct cand (acost idx point-idx prev))
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
@@ -228,7 +227,7 @@
         (for/vector #:length num-candidates
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
-              (cand cost (si cand-idx (+ point-idx 1)) (vector)))))))
+              (cand cost cand-idx (+ point-idx 1) (vector)))))))
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
@@ -240,7 +239,7 @@
   ;; Extract the splitpoints from our data structure, and reverse it.
   (define build-output
     (let ([vec-out (vector-ref final (- num-points 1))])
-      (eprintf "~a\n" (cand-r vec-out))
-      (vector (cand-f vec-out))))
+      (eprintf "~a\n" (cand-prev vec-out))
+      (vector (si (cand-idx vec-out)(cand-point-idx vec-out)))))
   build-output)
 
