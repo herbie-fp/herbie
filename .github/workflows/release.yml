@@ -29,11 +29,9 @@ jobs:
           version: 8.11
 
       - name: Install Rust compiler
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
-            default: true
-            override: true
             
       - name: build egg-herbie
         run: cargo build --release --manifest-path=egg-herbie/Cargo.toml

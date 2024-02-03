@@ -17,11 +17,9 @@ jobs:
         with:
           version: "8.11"
       - name: Install Rust compiler
-        uses: actions-rs/toolchain@v1.0.6
+        uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
-            default: true
-            override: true
             components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
