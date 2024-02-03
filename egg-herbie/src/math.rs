@@ -1,6 +1,7 @@
 use egg::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use std::str::FromStr;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_rational::Ratio;
