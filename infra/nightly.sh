@@ -31,7 +31,7 @@ fi
 RECURSE=1 LOG=1 \
   bash "$INFRA_DIR"/run.sh \
     "$BENCH_DIR" "$OUT_DIR" \
-    --disable generate:simplify
+    --disable generate:simplify \
     --profile \
     --seed "$SEED" \
     --threads "$CORES" \
