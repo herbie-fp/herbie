@@ -4,6 +4,7 @@
 (require "../errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
+         (struct-out literal)
          variable? constant-operator?
          operator-exists? operator-deprecated? impl-exists?
          operator-info impl-info 
@@ -21,6 +22,8 @@
            register-operator!
            register-conversion-generator!
            variable?))
+
+(struct literal (value repr))
 
 ;; Real operator: a pure mathematical operator specified by
 ;;  - (unique) name

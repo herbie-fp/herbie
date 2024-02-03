@@ -12,7 +12,7 @@
   (require rackunit "load-plugin.rkt")
   (load-herbie-plugins))
 
-(define expr? (or/c list? symbol? boolean? real?))
+(define expr? (or/c list? symbol? boolean? real? literal?))
 
 ;; Programs are just lambda expressions
 
@@ -29,7 +29,7 @@
 ;; Fast version does not recurse into functions applications
 (define (repr-of expr ctx)
   (match expr
-   [(? number?) (context-repr ctx)]
+   [(? literal?) (literal-repr ctx)]
    [(? variable?) (context-lookup ctx expr)]
    [(list 'if cond ift iff) (repr-of ift ctx)]
    [(list op args ...) (impl-info op 'otype)]))
@@ -67,10 +67,10 @@
      [else 1])]
    [((? symbol?) _) 1]
    [(_ (? symbol?)) -1]
-   [(_ _)
+   [((? literal?) (? literal?))
     (cond
-     [(< a b) -1]
-     [(= a b) 0]
+     [(< (literal-value a) (literal-value b)) -1]
+     [(= (literal-value a) (literal-value b)) 0]
      [else 1])]))
 
 (define (expr<? a b)
@@ -80,6 +80,7 @@
 
 (define (free-variables prog)
   (match prog
+    [(? literal?) '()]
     [(? number?) '()]
     [(? variable?) (list prog)]
     [`(,op ,args ...)

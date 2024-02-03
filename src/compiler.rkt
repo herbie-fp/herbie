@@ -104,7 +104,6 @@
       (make-hash
        (for/list ([var vars] [i (in-naturals)])
          (cons var i))))
-
     ; Counts
     (define size 0)
     (define exprc 0)
@@ -134,7 +133,7 @@
                     (map (curryr munge-ival prec)
                          args
                          (op->itypes op)))]
-          [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
+          [_ (raise-argument-error 'make-compiler "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
                    (begin0 (+ exprc varc)
@@ -146,13 +145,13 @@
       (set! size (+ 1 size))
       (define expr
         (match prog
-          [(? number?) (list (const (input->value prog type)))]
+          [(? literal?) (list (const (input->value (literal-value prog) type)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
            (list if-proc (munge-fl c cond-type) (munge-fl t type) (munge-fl f type))]
           [(list op args ...)
            (cons (op->proc op) (map munge-fl args (op->itypes op)))]
-          [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
+          [_ (raise-argument-error 'make-compiler "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
                    (begin0 (+ exprc varc) ; store in cache, update exprs, exprc

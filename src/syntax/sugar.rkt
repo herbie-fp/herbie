@@ -218,9 +218,9 @@
         [(? number?)
          (define num
            (match expr
-             [(or +inf.0 -inf.0 +nan.0) expr]
-             [(? exact?) expr]
-             [_ (inexact->exact expr)]))
+             [(or +inf.0 -inf.0 +nan.0) (literal expr (context-repr ctx))]
+             [(? exact?) (literal expr (context-repr ctx))]
+             [_ (literal (inexact->exact expr) (context-repr ctx))]))
          (values num (context-repr ctx))]
         [(? boolean?)
          (values expr (get-representation 'bool))])))
@@ -247,14 +247,14 @@
          [`(neg ,arg) `(- ,arg)]
          [expr expr])]
       [(? variable?) expr]
-      [(? number?)
-       (match expr
+      [(? literal?)
+       (match (literal-value expr)
          [-inf.0 '(- INFINITY)]
          [+inf.0 'INFINITY]
          [+nan.0 'NAN]
-         [_ (if (set-member? '(binary64 binary32) (representation-name repr))
-                (exact->inexact expr)
-                expr)])])))
+         [v (if (set-member? '(binary64 binary32) (representation-name (literal-repr expr)))
+                (exact->inexact v)
+                v)])])))
 
 ;; Translates an ImplProg to a Spec.
 (define (prog->spec expr)
@@ -270,7 +270,7 @@
      (define args* (map prog->spec args))
      `(,op ,@args*)]
     [(? variable?) expr]
-    [(? number?) expr]))
+    [(? literal?) (literal-value expr)]))
 
 ;; Translates a Spec to an FPCore.
 ;; Most of this is a copy of fpcore->prog but it's slightly different.
@@ -340,7 +340,7 @@
              [(or +inf.0 -inf.0 +nan.0) expr]
              [(? exact?) expr]
              [_ (inexact->exact expr)]))
-         (values num (context-repr ctx))]
+         (values (literal num (context-repr ctx)) (context-repr ctx))]
         [(? boolean?)
          (values expr (get-representation 'bool))])))
   expr*)

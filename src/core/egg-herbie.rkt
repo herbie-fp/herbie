@@ -45,40 +45,40 @@
        (error "Unknown term ~a" expr)])))
 
 ;; Parses a string from egg into a list of S-exprs.
-(define (egg-exprs->exprs s egraph-data)
+(define (egg-exprs->exprs s egraph-data repr)
   (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
   (for/list ([egg-expr (in-port read (open-input-string s))])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie)))
+    (egg-parsed->expr (flatten-let egg-expr) egg->herbie (representation-name repr))))
 
 ;; Parses a string from egg into a single S-expr.
-(define (egg-expr->expr s egraph-data)
-  (first (egg-exprs->exprs s egraph-data)))
+(define (egg-expr->expr s egraph-data repr)
+  (first (egg-exprs->exprs s egraph-data repr)))
 
 ;; Converts an S-expr from egg into one Herbie understands
-(define (egg-parsed->expr expr rename-dict)
-  (let loop ([expr expr])
+(define (egg-parsed->expr expr rename-dict prec)
+  (let loop ([expr expr] [prec prec])
     (match expr
       [`(Explanation ,body ...)
-       `(Explanation ,@(map loop body))]
+       `(Explanation ,@(map (curryr loop prec) body))]
       [(list 'Rewrite=> rule expr)
-       (list 'Rewrite=> rule (loop expr))]
+       (list 'Rewrite=> rule (loop expr prec))]
       [(list 'Rewrite<= rule expr)
-       (list 'Rewrite<= rule (loop expr))]
+       (list 'Rewrite<= rule (loop expr prec))]
       [(list 'if 'real cond ift iff)
-       (list 'if (loop cond) (loop ift) (loop iff))]
+       (list 'if (loop cond 'body) (loop ift prec) (loop iff prec))]
       [(list '$Var _ name)
        (hash-ref rename-dict name)]
       [(list (? repr-conv? op) 'real arg)
-       (list op (loop arg))]
+       (list op (loop arg prec))] ; ???
       [(list op prec)
        (match-define (list '$Type otype) prec)
        (list (get-parametric-constant op (get-representation otype)))]
       [(list op prec args ...)
        (match-define (list '$Type _ itypes ...) prec)
        (define op* (apply get-parametric-operator op (map get-representation itypes)))
-       (cons op* (map loop args))]
+       (cons op* (map loop args itypes))]
       [(? number?)
-       expr])))
+       (literal expr (get-representation prec))])))
 
 ;; Expands operators into `(op, sig)` so that we can
 ;; recover the exact operator implementation when extracting.
@@ -104,7 +104,7 @@
       [(list (? impl-exists? op) args ...)
        (define-values (op* prec) (expand-operator op))
        (cons op* (cons prec (map loop args)))]
-      [(? number?) expr]
+      [(? literal?) (literal-value expr)]
       [_ (string->symbol (format "?~a" expr))])))
 
 ;; Translates a Herbie expression into an expression usable by egg
@@ -122,8 +122,8 @@
       [(list op args ...)
        (define-values (op* prec) (expand-operator op))
        (cons op* (cons prec (map loop args)))]
-      [(? number?)
-       expr]
+      [(? literal?)
+       (literal-value expr)]
       [(? (curry hash-has-key? herbie->egg-dict))
        (define prec (list '$Type (representation-name (context-lookup ctx expr))))
        (define replacement (hash-ref herbie->egg-dict expr))
@@ -186,7 +186,7 @@
   (let ([egg-graph (make-egraph)])
     (for ([(in expected-out) (in-dict test-exprs)])
       (define out (~a (expr->egg-expr in egg-graph (*context*))))
-      (define computed-in (egg-expr->expr out egg-graph))
+      (define computed-in (egg-expr->expr out egg-graph (context-repr (*context*))))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
 
@@ -204,7 +204,7 @@
     (for ([expr extended-expr-list])
       (define expr* (spec->prog expr (*context*)))
       (define egg-expr (expr->egg-expr expr* egg-graph (*context*)))
-      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph) expr*))))
+      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph) expr* (context-repr (*context*))))))
 
 
 ;; Given a list of types, computes the product of all possible
@@ -378,7 +378,7 @@
           (egraph-get-variants egg-graph id expr ctx))
         (for/list ([id node-ids])
           (for/list ([iter (in-range (length iter-data))])
-            (egraph-get-simplest egg-graph id iter)))))
+            (egraph-get-simplest egg-graph id iter ctx)))))
   
   (match proof-input
     [(cons start end)
@@ -392,18 +392,18 @@
      (cons variants proof)]
     [_ (cons variants #f)]))
 
-(define (egraph-get-simplest egraph-data node-id iteration)
+(define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
-  (egg-expr->expr str egraph-data))
+  (egg-expr->expr str egraph-data (context-repr ctx)))
 
 (define (egraph-get-variants egraph-data node-id orig-expr ctx)
   (define expr-str (~a (expr->egg-expr orig-expr egraph-data ctx)))
   (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (define str (cast ptr _pointer _string/utf-8))
   (destroy_string ptr)
-  (egg-exprs->exprs str egraph-data))
+  (egg-exprs->exprs str egraph-data (context-repr ctx)))
 
 (define (egraph-is-unsound-detected egraph-data)
   (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
@@ -490,7 +490,7 @@
           (expand-proof body budget)]
          [(? symbol?)
           (list term)]
-         [(? number?)
+         [(? literal?)
           (list term)]
          [(? list?)
           (define children (map loop term))
@@ -537,7 +537,7 @@
   (destroy_string pointer)
   (cond
    [(< (string-length res) 10000)
-    (define converted (egg-exprs->exprs res egraph-data))
+    (define converted (egg-exprs->exprs res egraph-data (context-repr ctx)))
     (define expanded (expand-proof converted (box (*proof-max-length*))))
     (if (member #f expanded)
         #f
