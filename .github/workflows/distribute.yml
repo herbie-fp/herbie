@@ -19,7 +19,7 @@ jobs:
         with:
             version: 8.11
       - name: Cache Racket dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           key: ${{ runner.os }}-deps
           path: |
