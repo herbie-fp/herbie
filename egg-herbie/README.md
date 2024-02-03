@@ -1,16 +1,17 @@
-# An ffi interface to mwillsey/egg for use in herbie
+# Herbie's FFI to egraphs-good/egg
 
-[![Build Status](https://travis-ci.org/oflatt/egg-herbie.svg?branch=master)](https://travis-ci.org/oflatt/egg-herbie)
+This is a small Rust+Racket package co-developed with Herbie so that
+Herbie can bind to and use the [egg](https://egraphs-good.github.io)
+equality saturation library.
 
+The Racket side is in [`main.rkt`](main.rkt). It does only two things:
+find the `libegg_math` shared library and expose its main functions to
+Racket. It has a bit of logic for detecting architecture mismatches
+due to Rosetta Apple Silicon.
 
-## Developing
+The Rust side is implemented in standard Rust using the `egg` library.
+The `math` module contains math-specific implementation work while the
+`lib` module contains code to interface with Racket.
 
-It's written in [Rust](https://www.rust-lang.org/).
-Typically, you install Rust using [`rustup`](https://www.rust-lang.org/tools/install).
-
-Before committing/pushing, run `make` to check tests and formatting.
-
-
-To use as a racket package, run `raco pkg install` on the egg-herbie folder.
-
-We use github actions to build racket packages. When the build succeeds, it automatically deploys the build binary.
+The main Herbie repository's Github Actions build and publish versions
+of the Racket package (including pre-built Rust libraries).

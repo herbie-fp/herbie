@@ -1,7 +1,6 @@
 #![allow(clippy::missing_safety_doc)]
 
 pub mod math;
-pub mod rules;
 
 use egg::{Extractor, Id, Language, StopReason, Symbol};
 use indexmap::IndexMap;
@@ -128,7 +127,7 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
             ffi_tuples.push((&ffi_string.0, &ffi_string.1, &ffi_string.2));
         }
 
-        let rules: Vec<Rewrite> = rules::mk_rules(&ffi_tuples);
+        let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
         context.rules = rules;
 
         context.runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
