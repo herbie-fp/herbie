@@ -239,9 +239,13 @@
             (loop next)))))
 
   (define (make-list current-cand)
-    (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list)))
-        
+    (cond 
+      [(cand? (cand-prev current-cand)) 
+        (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
+               (current-cand (cand-prev current-cand)))]
+      [else (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
+      
   (define winner (vector-ref final (- num-points 1)))
-  
-  (make-list winner))
+
+  (list(si (cand-idx winner) (cand-point-idx winner))))
 
