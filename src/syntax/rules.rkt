@@ -302,10 +302,7 @@
   [sum-cubes        (+ (pow a 3) (pow b 3))
                     (* (+ (* a a) (- (* b b) (* a b))) (+ a b))]
   [difference-cubes (- (pow a 3) (pow b 3))
-                    (* (+ (* a a) (+ (* b b) (* a b))) (- a b))])
-
-(define-ruleset* difference-of-cubes-flip (polynomials)
-  #:type ([a real] [b real])
+                    (* (+ (* a a) (+ (* b b) (* a b))) (- a b))]
   [flip3-+          (+ a b)
                     (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))))]
   [flip3--          (- a b)
