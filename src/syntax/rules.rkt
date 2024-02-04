@@ -16,7 +16,9 @@
   (provide define-ruleset
            define-ruleset*
            register-ruleset!
-           *rulesets*))
+           *rulesets*
+           register-ruleset*!
+           (struct-out rule)))
 
 ;; A rule represents a "find-and-replace" pattern where `input` and `output`
 ;; are patterns, `itypes` is a mapping from variable name to type
@@ -664,38 +666,6 @@
   [tanh-acosh  (tanh (acosh x))       (/ (sqrt (- (* x x) 1)) x)]
   [tanh-atanh  (tanh (atanh x))       x])
 
-; Specialized numerical functions
-(define-ruleset* special-numerical-reduce (numerics simplify)
-  #:type ([x real] [y real] [z real])
-  [expm1-def   (- (exp x) 1)              (expm1 x)]
-  [log1p-def   (log (+ 1 x))              (log1p x)]
-  [log1p-expm1 (log1p (expm1 x))          x]
-  [expm1-log1p (expm1 (log1p x))          x]
-  [hypot-def   (sqrt (+ (* x x) (* y y))) (hypot x y)]
-  [hypot-1-def (sqrt (+ 1 (* y y)))       (hypot 1 y)]
-  [fma-def     (+ (* x y) z)              (fma x y z)]
-  [fma-neg     (- (* x y) z)              (fma x y (neg z))]
-  [fma-udef    (fma x y z)                (+ (* x y) z)])
-
-(define-ruleset* special-numerical-expand (numerics)
-  #:type ([x real] [y real])
-  [expm1-udef    (expm1 x)      (- (exp x) 1)]
-  [log1p-udef    (log1p x)      (log (+ 1 x))]
-  [log1p-expm1-u x              (log1p (expm1 x))]
-  [expm1-log1p-u x              (expm1 (log1p x))]
-  [hypot-udef    (hypot x y)    (sqrt (+ (* x x) (* y y)))])
-
-(define-ruleset* numerics-papers (numerics)
-  #:type ([a real] [b real] [c real] [d real])
-  ;  "Further Analysis of Kahan's Algorithm for
-  ;   the Accurate Computation of 2x2 Determinants"
-  ;  Jeannerod et al., Mathematics of Computation, 2013
-  ;
-  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
-  [prod-diff    (- (* a b) (* c d))
-                (+ (fma a b (neg (* d c)))
-                   (fma (neg d) c (* d c)))])
-
 (define-ruleset* compare-reduce (bools simplify fp-safe-nan)
   #:type ([x real] [y real])
   [lt-same      (<  x x)         (FALSE)]
@@ -717,9 +687,3 @@
   [if-if-or-not   (if a x (if b y x)) (if (or a (not b)) x y)]
   [if-if-and      (if a (if b x y) y) (if (and a b) x y)]
   [if-if-and-not  (if a (if b y x) y) (if (and a (not b)) x y)])
-
-(define-ruleset* erf-rules (special simplify)
-  #:type ([x real])
-  [erf-odd          (erf (neg x))        (neg (erf x))]
-  [erf-erfc         (erfc x)             (- 1 (erf x))]
-  [erfc-erf         (erf x)              (- 1 (erfc x))])
