@@ -236,9 +236,9 @@
   [difference-of-sqr--1  (+ (* a a) -1)        (* (+ a 1) (- a 1))]
   [pow-sqr               (* (pow a b) (pow a b)) (pow a (* 2 b))])
 
-(define-ruleset* sqr-pow-expand (polynomials simplify))
+(define-ruleset* sqr-pow-expand (polynomials simplify)
   #:type ([a real] [b real])
-  [sqr-pow               (pow a b)             (* (pow a (/ b 2)) (pow a (/ b 2)))]
+  [sqr-pow               (pow a b)             (* (pow a (/ b 2)) (pow a (/ b 2)))])
 
 (define-ruleset* difference-of-squares-flip (polynomials)
   #:type ([a real] [b real])
@@ -580,8 +580,8 @@
   [hang-m-tan  (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))
                (tan (/ (- a b) 2))])
 
-(define-ruleset* trig-expand (trigonometry sound)
-  #:type ([x real] [y real] [a real] [b real]
+(define-ruleset* trig-expand-sound (trigonometry sound)
+  #:type ([x real] [y real] [a real] [b real])
   [sin-sum     (sin (+ x y))             (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-sum     (cos (+ x y))             (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
   [tan-sum     (tan (+ x y))             (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
@@ -600,7 +600,7 @@
   [3-cos       (- (* 4 (pow (cos x) 3)) (* 3 (cos x)))
                (cos (* 3 x))])
 
-(define-ruleset* trig-expand-sound (trigonometry sound)
+(define-ruleset* trig-expand-sound2 (trigonometry sound)
   #:type ([x real] [y real] [a real] [b real])
   [sqr-sin-a   (* (sin x) (sin x))       (- 1/2 (* 1/2 (cos (* 2 x))))]
   [sqr-cos-a   (* (cos x) (cos x))       (+ 1/2 (* 1/2 (cos (* 2 x))))]
@@ -684,7 +684,7 @@
   [cosh-neg    (cosh (neg x))         (cosh x)]
   [cosh-0      (cosh 0)               1])
 
-(define-ruleset* ahtrig-expand (hyperbolic sound)
+(define-ruleset* ahtrig-expand-sound (hyperbolic sound)
   #:type ([x real])
   [asinh-def   (asinh x)              (log (+ x (sqrt (+ (* x x) 1))))]
   [acosh-def   (acosh x)              (log (+ x (sqrt (- (* x x) 1))))]
