@@ -456,7 +456,7 @@
   #:type ([a real])
   [pow1           a                           (pow a 1)])
 
-(define-ruleset* pow-canonicalize-sound (exponents simplify sound)
+(define-ruleset* pow-canonicalize (exponents simplify sound)
   #:type ([a real] [b real])
   [exp-to-pow      (exp (* (log a) b))        (pow a b)]
   [unpow1/2        (pow a 1/2)                (sqrt a)]
@@ -574,12 +574,13 @@
   [tan-PI      (tan (PI))              0]
   [tan-+PI     (tan (+ x (PI)))        (tan x)]
   [hang-0p-tan (/ (sin a) (+ 1 (cos a)))     (tan (/ a 2))]
-  [hang-0m-tan (/ (neg (sin a)) (+ 1 (cos a))) (tan (/ (neg a) 2))])
+  [hang-0m-tan (/ (neg (sin a)) (+ 1 (cos a))) (tan (/ (neg a) 2))]
+  [hang-p0-tan (/ (- 1 (cos a)) (sin a))     (tan (/ a 2))]
+  [hang-m0-tan (/ (- 1 (cos a)) (neg (sin a))) (tan (/ (neg a) 2))])
 
 (define-ruleset* trig-reduce (trigonometry simplify)
   #:type ([a real] [b real] [x real])
-  [hang-p0-tan (/ (- 1 (cos a)) (sin a))     (tan (/ a 2))]
-  [hang-m0-tan (/ (- 1 (cos a)) (neg (sin a))) (tan (/ (neg a) 2))]
+  [tan-+PI/2   (tan (+ x (/ (PI) 2)))  (/ -1 (tan x))]
   [hang-p-tan  (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))
                (tan (/ (+ a b) 2))]
   [hang-m-tan  (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))
