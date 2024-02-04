@@ -311,7 +311,10 @@
   [sum-cubes        (+ (pow a 3) (pow b 3))
                     (* (+ (* a a) (- (* b b) (* a b))) (+ a b))]
   [difference-cubes (- (pow a 3) (pow b 3))
-                    (* (+ (* a a) (+ (* b b) (* a b))) (- a b))]
+                    (* (+ (* a a) (+ (* b b) (* a b))) (- a b))])
+
+(define-ruleset* difference-of-cubes-flip (polynomials)
+  #:type ([a real] [b real])
   [flip3-+          (+ a b)
                     (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))))]
   [flip3--          (- a b)
@@ -453,7 +456,7 @@
   #:type ([a real])
   [pow1           a                           (pow a 1)])
 
-(define-ruleset* pow-canonicalize (exponents simplify sound)
+(define-ruleset* pow-canonicalize-sound (exponents simplify sound)
   #:type ([a real] [b real])
   [exp-to-pow      (exp (* (log a) b))        (pow a b)]
   [unpow1/2        (pow a 1/2)                (sqrt a)]
@@ -470,10 +473,7 @@
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
   [pow-flip         (/ 1 (pow a b))             (pow a (neg b))]
   [pow-neg          (pow a (neg b))             (/ 1 (pow a b))]
-  [pow-div          (/ (pow a b) (pow a c))     (pow a (- b c))])
-
-(define-ruleset* pow-specialize-sound (exponents sound)
-  #:type ([a real])
+  [pow-div          (/ (pow a b) (pow a c))     (pow a (- b c))]
   [pow1/2           (sqrt a)                    (pow a 1/2)]
   [pow2             (* a a)                     (pow a 2)]
   [pow1/3           (cbrt a)                    (pow a 1/3)]
@@ -574,7 +574,11 @@
   [tan-PI      (tan (PI))              0]
   [tan-+PI     (tan (+ x (PI)))        (tan x)]
   [hang-0p-tan (/ (sin a) (+ 1 (cos a)))     (tan (/ a 2))]
-  [hang-0m-tan (/ (neg (sin a)) (+ 1 (cos a))) (tan (/ (neg a) 2))]
+  [hang-0m-tan (/ (neg (sin a)) (+ 1 (cos a))) (tan (/ (neg a) 2))])
+
+(define-ruleset* trig-reduce (trigonometry simplify)
+  #:type ([a real] [b real] [x real])
+  [tan-+PI/2   (tan (+ x (/ (PI) 2)))  (/ -1 (tan x))]
   [hang-p0-tan (/ (- 1 (cos a)) (sin a))     (tan (/ a 2))]
   [hang-m0-tan (/ (- 1 (cos a)) (neg (sin a))) (tan (/ (neg a) 2))]
   [hang-p-tan  (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))
