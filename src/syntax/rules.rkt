@@ -578,7 +578,6 @@
 
 (define-ruleset* trig-reduce (trigonometry simplify)
   #:type ([a real] [b real] [x real])
-  [tan-+PI/2   (tan (+ x (/ (PI) 2)))  (/ -1 (tan x))]
   [hang-p0-tan (/ (- 1 (cos a)) (sin a))     (tan (/ a 2))]
   [hang-m0-tan (/ (- 1 (cos a)) (neg (sin a))) (tan (/ (neg a) 2))]
   [hang-p-tan  (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))
