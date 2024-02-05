@@ -608,13 +608,12 @@
   [diff-atan   (- (atan x) (atan y))     (atan2 (- x y) (+ 1 (* x y)))]
   [sum-atan    (+ (atan x) (atan y))     (atan2 (+ x y) (- 1 (* x y)))]
   [tan-quot    (tan x)                   (/ (sin x) (cos x))]
-  [quot-tan    (/ (sin x) (cos x))       (tan x)])
+  [quot-tan    (/ (sin x) (cos x))       (tan x)]
+  [tan-2       (tan (* 2 x))             (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))]
+  [2-tan       (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) (tan (* 2 x))])
 
 (define-ruleset* trig-expand (trigonometry)
   #:type ([x real] [y real] [a real] [b real])
-  [tan-2       (tan (* 2 x))             (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))]
-  [2-tan       (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) (tan (* 2 x))]
-
   [tan-hang-p  (tan (/ (+ a b) 2))
                (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))]
   [tan-hang-m  (tan (/ (- a b) 2))
@@ -664,11 +663,11 @@
   [sum-sinh    (+ (sinh x) (sinh y))             (* 2 (* (sinh (/ (+ x y) 2)) (cosh (/ (- x y) 2))))]
   [sum-cosh    (+ (cosh x) (cosh y))             (* 2 (* (cosh (/ (+ x y) 2)) (cosh (/ (- x y) 2))))]
   [diff-sinh   (- (sinh x) (sinh y))             (* 2 (* (cosh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))]
-  [diff-cosh   (- (cosh x) (cosh y))             (* 2 (* (sinh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))])
+  [diff-cosh   (- (cosh x) (cosh y))             (* 2 (* (sinh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))]
+  [tanh-sum    (tanh (+ x y))                    (/ (+ (tanh x) (tanh y)) (+ 1 (* (tanh x) (tanh y))))])
 
 (define-ruleset* htrig-expand (hyperbolic)
   #:type ([x real] [y real])
-  [tanh-sum    (tanh (+ x y))                    (/ (+ (tanh x) (tanh y)) (+ 1 (* (tanh x) (tanh y))))]
   [tanh-1/2*   (tanh (/ x 2))                    (/ (- (cosh x) 1) (sinh x))])
 
 (define-ruleset* htrig-expand-fp-safe (hyperbolic fp-safe sound)
@@ -698,7 +697,8 @@
   #:type ([x real])
   [acosh-2     (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x))])
 
-(define-ruleset* compare-reduce (bools simplify fp-safe-nan)
+;; Sound because it's about soundness over real numbers
+(define-ruleset* compare-reduce (bools simplify fp-safe-nan sound)
   #:type ([x real] [y real])
   [lt-same      (<  x x)         (FALSE)]
   [gt-same      (>  x x)         (FALSE)]
