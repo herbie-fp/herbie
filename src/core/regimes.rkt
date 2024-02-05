@@ -165,7 +165,7 @@
 ;; cost = The total error in the region to the left of our rightmost splitpoint
 ;; indices = The si's we are considering in this candidate.
 (struct cse (cost indices) #:transparent)
-
+(struct cand (acost idx point-idx prev) #:transparent)
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 (define (valid-splitindices? can-split? split-indices)
   (and
@@ -173,9 +173,12 @@
      (and (> pidx 0)) (list-ref can-split? pidx))
    (= (si-pidx (last split-indices)) (length can-split?))))
 
+
 (define/contract (err-lsts->split-indices err-lsts can-split)
   (->i ([e (listof list)] [cs (listof boolean?)]) 
        [result (cs) (curry valid-splitindices? cs)])
+
+  ;; TODO add internal function
   (define can-split-vec (list->vector can-split))
   (define err-lsts-vec (list->vector err-lsts))
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
@@ -217,7 +220,6 @@
               (set! aest (cand acost best (+ point-idx 1) prev-entry)))))
         aest)))
 
-  (struct cand (acost idx point-idx prev))
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
@@ -244,8 +246,7 @@
         (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
                (make-list (cand-prev current-cand)))]
       [else (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
-      
   (define winner (vector-ref final (- num-points 1)))
 
-  (make-list winner))
+  (reverse (make-list winner)))
 
