@@ -232,8 +232,8 @@
                  (bf> (bfabs x) cond-thres))
             (mark-erroneous! subexpr 'sensitivity)]
            [(and (bf> cond-no cond-thres)
-                 (bf> tot-x cond-thres 'cancellation))
-            (mark-erroneous! subexpr)]
+                 (bf> tot-x cond-thres))
+            (mark-erroneous! subexpr 'cancellation)]
            [else #f])]
         
         [(list (or 'sqrt.f64 'sqrt.f32) x-ex)
