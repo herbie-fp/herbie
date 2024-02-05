@@ -122,8 +122,8 @@
   (when (dict-has-key? prop-dict ':pre)
     (check-expression* (dict-ref prop-dict ':pre) vars error! deprecated-ops))
 
-  (when (dict-has-key? prop-dict ':herbie-target)
-    (check-expression* (dict-ref prop-dict ':herbie-target) vars error! deprecated-ops))
+  (when (dict-has-key? prop-dict ':alt)
+    (check-expression* (dict-ref prop-dict ':alt) vars error! deprecated-ops))
   
   (void))
 

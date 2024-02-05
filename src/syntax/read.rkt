@@ -148,7 +148,7 @@
   ;; inline and desugar
   (define body* (fpcore->prog body ctx))
   (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
-  (define target (fpcore->prog (dict-ref prop-dict ':herbie-target #f) ctx))
+  (define target (fpcore->prog (dict-ref prop-dict ':alt #f) ctx))
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
   (check-weird-variables arg-names)
