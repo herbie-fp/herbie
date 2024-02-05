@@ -470,7 +470,10 @@
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
   [pow-flip         (/ 1 (pow a b))             (pow a (neg b))]
   [pow-neg          (pow a (neg b))             (/ 1 (pow a b))]
-  [pow-div          (/ (pow a b) (pow a c))     (pow a (- b c))]
+  [pow-div          (/ (pow a b) (pow a c))     (pow a (- b c))])
+
+(define-ruleset* pow-specialize-sound (exponents sound)
+  #:type ([a real])
   [pow1/2           (sqrt a)                    (pow a 1/2)]
   [pow2             (* a a)                     (pow a 2)]
   [pow1/3           (cbrt a)                    (pow a 1/3)]
