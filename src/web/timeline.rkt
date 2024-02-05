@@ -318,9 +318,15 @@
                (tr (th "+") (td ,(~a true-pos)) (td ,(~a false-neg)))
                (tr (th "-") (td ,(~a false-pos)) (td ,(~a true-neg)))))
     (dt "Precision")
-    (dd ,(~a (exact->inexact (/ true-pos (+ true-pos false-pos)))))
+    (dd ,(if (= true-pos false-pos 0)
+             "0/0"
+             (~a exact->inexact (/ true-pos
+                                   (+ true-pos false-pos)))))
     (dt "Recall")
-    (dd ,(~a (exact->inexact (/ true-pos (+ true-pos false-neg)))))))
+    (dd ,(if (= true-pos false-neg 0)
+             "0/0"
+             (~a exact->inexact (/ true-pos
+                                   (+ true-pos false-neg)))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
