@@ -412,7 +412,7 @@
 (define-ruleset* exp-distribute (exponents simplify sound)
   #:type ([a real] [b real])
   [exp-sum      (exp (+ a b))        (* (exp a) (exp b))]
-  [exp-neg      (exp (neg a))          (/ 1 (exp a))]
+  [exp-neg      (exp (neg a))        (/ 1 (exp a))]
   [exp-diff     (exp (- a b))        (/ (exp a) (exp b))])
 
 (define-ruleset* exp-factor (exponents simplify sound)
@@ -527,7 +527,7 @@
   [asin-sin    (asin (sin x))         (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2))]
   [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 (PI))))])
 
-(define-ruleset* trig-inverses-simplified (trigonometry sound)
+(define-ruleset* trig-inverses-simplified (trigonometry)
   #:type ([x real])
   [atan-tan-s  (atan (tan x))         x]
   [asin-sin-s  (asin (sin x))         x]
@@ -682,7 +682,6 @@
   [asinh-def   (asinh x)              (log (+ x (sqrt (+ (* x x) 1))))]
   [acosh-def   (acosh x)              (log (+ x (sqrt (- (* x x) 1))))]
   [atanh-def   (atanh x)              (/ (log (/ (+ 1 x) (- 1 x))) 2)]
-  [asinh-2     (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x))]
   [sinh-asinh  (sinh (asinh x))       x]
   [sinh-acosh  (sinh (acosh x))       (sqrt (- (* x x) 1))]
   [sinh-atanh  (sinh (atanh x))       (/ x (sqrt (- 1 (* x x))))]
@@ -695,6 +694,7 @@
 
 (define-ruleset* ahtrig-expand (hyperbolic)
   #:type ([x real])
+  [asinh-2     (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x))]
   [acosh-2     (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x))])
 
 ;; Sound because it's about soundness over real numbers
