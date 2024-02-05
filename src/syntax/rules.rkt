@@ -17,6 +17,7 @@
            define-ruleset*
            register-ruleset!
            *rulesets*
+           *unsound-rules*
            register-ruleset*!
            (struct-out rule)))
 
@@ -112,6 +113,15 @@
         (for ([rule (in-list rules)])
           (sow rule))))))
 
+(define (*unsound-rules*)
+  (reap [sow]
+    (for ([(_ ruleset) (in-dict (*rulesets*))])
+      (match-define (list rules groups _) ruleset)
+      (when (and (ormap (curry flag-set? 'rules) groups)
+                 (not (set-member? groups 'sound))
+                 (filter rule-ops-supported? rules))
+        (for ([rule (in-list rules)])
+          (sow rule))))))
 ;;
 ;;  Rule loading
 ;;
