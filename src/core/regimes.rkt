@@ -267,10 +267,10 @@
       (define aest-cost (cand-acost (vector-ref sp-prev point-idx)))
       (define aest-best (cand-idx (vector-ref sp-prev point-idx)))
       (define aest-bidx (cand-point-idx (vector-ref sp-prev point-idx)))
-      (define aest-idx (cand-prev (vector-ref sp-prev point-idx)))
+      (define aest-prev (cand-prev (vector-ref sp-prev point-idx)))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (- (cand-acost point-entry) min-weight)] [aest point-entry])
+      (let ([acost (- aest-cost min-weight)] [aest point-entry])
         (for ([prev-split-idx (in-range 0 point-idx)] 
               #:when (can-split? (cand-point-idx (vector-ref sp-prev prev-split-idx))))
           ;; For each previous split point, we need the best candidate to fill the new regime
@@ -284,9 +284,15 @@
             (when 
               (< (+ (cand-acost (vector-ref sp-prev prev-split-idx)) bcost) acost) 
               (set! acost (+ (cand-acost (vector-ref sp-prev prev-split-idx)) bcost))
-              (set! aest (cand acost best (+ point-idx 1) (vector-ref sp-prev prev-split-idx)))
+              (set! aest (cand acost best (+ point-idx 1) 
+                               (vector-ref sp-prev prev-split-idx)))
+              (set! aest-cost acost)
+              (set! aest-best best)
+              (set! aest-bidx (+ point-idx 1))
+              (set! aest-prev (vector-ref sp-prev prev-split-idx))
               )))
-        (vector-set! vec-aest point-idx aest)))
+        (define temp-aest (cand aest-cost aest-best aest-bidx aest-prev))
+        (vector-set! vec-aest point-idx temp-aest)))
     vec-aest)
 
   ;; TODO move these to appropriate place
