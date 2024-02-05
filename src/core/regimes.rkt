@@ -259,6 +259,7 @@
     (define vec-acost (make-vector num-points))
     (define vec-idx (make-vector num-points))
     (define vec-point-idx (make-vector num-points))
+    (define vec-prev (make-vector num-points))
     (define vec-prev-idx (make-vector num-points))
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (define vec-aest (make-vector num-points))
@@ -267,6 +268,7 @@
       (define aest-best (cand-idx (vector-ref sp-prev point-idx)))
       (define aest-bidx (cand-point-idx (vector-ref sp-prev point-idx)))
       (define aest-prev (cand-prev (vector-ref sp-prev point-idx)))
+      (define aest-prev-idx point-idx)
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- aest-cost min-weight)])
@@ -287,9 +289,19 @@
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
               (set! aest-prev (vector-ref sp-prev prev-split-idx))
+              (set! aest-prev-idx prev-split-idx)
               )))
         (define temp-aest (cand aest-cost aest-best aest-bidx aest-prev))
-        (vector-set! vec-aest point-idx temp-aest)))
+        (vector-set! vec-aest point-idx temp-aest)
+
+        (vector-set! vec-acost point-idx aest-cost)
+        (vector-set! vec-idx point-idx aest-best)
+        (vector-set! vec-point-idx point-idx temp-aest)
+        (vector-set! vec-prev point-idx aest-prev)
+        ;; Still trying to understand where prev-idx points to
+        (vector-set! vec-prev-idx point-idx aest-prev-idx)
+        ))
+    (wrapper vec-acost vec-idx vec-point-idx vec-prev-idx)
     vec-aest)
 
   ;; TODO move these to appropriate place
@@ -302,7 +314,7 @@
     (define vec-acost (make-vector num-points))
     (define vec-idx (make-vector num-points))
     (define vec-point-idx (make-vector num-points))
-    (define vec-prev-idx (make-vector num-points))
+    (define vec-prev (make-vector num-points))
 
     (define vec-aest (make-vector num-points))
     (for ([point-idx (in-range num-points)])
@@ -316,9 +328,10 @@
       (vector-set! vec-acost point-idx (cand-acost cse-min))
       (vector-set! vec-idx point-idx (cand-idx cse-min))
       (vector-set! vec-point-idx point-idx (cand-point-idx cse-min))
-      (vector-set! vec-prev-idx point-idx (- point-idx 1)) ;; don't really need this
+      (vector-set! vec-prev point-idx (cand-prev cse-min)) ;; don't really need this
+
       (vector-set! vec-aest point-idx cse-min))
-    (wrapper vec-acost vec-idx vec-point-idx vec-prev-idx)
+    (wrapper vec-acost vec-idx vec-point-idx vec-prev)
     vec-aest)
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
