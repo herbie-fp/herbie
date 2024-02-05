@@ -282,10 +282,14 @@
             (when (and (< (+ (cand-acost prev-entry) bcost) acost)) 
               (set! acost (+ (cand-acost prev-entry) bcost))
               (set! aest (cand acost best (+ point-idx 1) prev-entry))
-               (vector-set! vec-acost point-idx acost)
+               (vector-set! vec-acost point-idx 
+                            ;; TODO watch out for -1 index
+                            ;; may be guarded by best being #f first
+                            (+ (vector-ref vec-acost (- point-idx 1)) bcost))
                (vector-set! vec-idx point-idx best)
-               (vector-set! vec-point-idx point-idx (+ point-idx 1))
-               (vector-set! vec-prev-idx point-idx point-idx)
+              ;; ??? Should this be set to point-idx or point-idx +1
+               (vector-set! vec-point-idx point-idx point-idx)
+               (vector-set! vec-prev-idx point-idx (- point-idx 1))
               ;; (eprintf "~a ~a ~a ~a\n" 
               ;;          (vector-ref vec-acost point-idx)
               ;;          (vector-ref vec-idx point-idx)
@@ -308,7 +312,7 @@
       (vector-set! vec-acost point-idx (cand-acost cse-min))
       (vector-set! vec-idx point-idx (cand-idx cse-min))
       (vector-set! vec-point-idx point-idx (cand-point-idx cse-min))
-      (vector-set! vec-prev-idx point-idx point-idx) ;; don't really need this
+      (vector-set! vec-prev-idx point-idx (- point-idx 1)) ;; don't really need this
       cse-min))
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
@@ -327,7 +331,6 @@
       [else (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
   (define winner (vector-ref final (- num-points 1)))
   (define output (reverse (make-list winner)))
-  ;;(eprintf "~a\n" output)
   output)
 
 
