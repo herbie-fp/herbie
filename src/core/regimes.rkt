@@ -251,6 +251,11 @@
     (partial-sums (list->vector lst)))
   (define vec-psums (vector-map make-vec-psum err-lsts-vec))
   (define can-split? (curry vector-ref can-split-vec))
+  
+  (define vec-acost (make-vector num-points))
+  (define vec-idx (make-vector num-points))
+  (define vec-point-idx (make-vector num-points))
+  (define vec-prev-idx (make-vector num-points))
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
   ;; if we only consider indices to the left of that cse's index.
@@ -274,9 +279,19 @@
                 (when (or (not best) (< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
-            (when (and (< (+ (cand-acost prev-entry) bcost) acost))
+            (when (and (< (+ (cand-acost prev-entry) bcost) acost)) 
               (set! acost (+ (cand-acost prev-entry) bcost))
-              (set! aest (cand acost best (+ point-idx 1) prev-entry)))))
+              (set! aest (cand acost best (+ point-idx 1) prev-entry))
+               (vector-set! vec-acost point-idx acost)
+               (vector-set! vec-idx point-idx best)
+               (vector-set! vec-point-idx point-idx (+ point-idx 1))
+               (vector-set! vec-prev-idx point-idx point-idx)
+              ;; (eprintf "~a ~a ~a ~a\n" 
+              ;;          (vector-ref vec-acost point-idx)
+              ;;          (vector-ref vec-idx point-idx)
+              ;;          (vector-ref vec-point-idx point-idx)
+              ;;          (vector-ref vec-prev-idx point-idx))
+              )))
         aest)))
 
   ;; We get the initial set of cse's by, at every point-index,
@@ -284,12 +299,17 @@
   ;; by using only one candidate to the left of that point.
   (define initial
     (for/vector #:length num-points ([point-idx (in-range num-points)])
-      (vector-argmin cand-acost
+      (define cse-min (vector-argmin cand-acost
         ;; Consider all the candidates we could put in this region
         (for/vector #:length num-candidates
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
-              (cand cost cand-idx (+ point-idx 1) (vector)))))))
+              (cand cost cand-idx (+ point-idx 1) (vector))))))
+      (vector-set! vec-acost point-idx (cand-acost cse-min))
+      (vector-set! vec-idx point-idx (cand-idx cse-min))
+      (vector-set! vec-point-idx point-idx (cand-point-idx cse-min))
+      (vector-set! vec-prev-idx point-idx point-idx) ;; don't really need this
+      cse-min))
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
