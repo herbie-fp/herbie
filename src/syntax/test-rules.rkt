@@ -21,12 +21,8 @@
     [acos-cos-s_binary32    . (and (<=.f32 0 x) (<=.f64 x 3.1416))]
     [atan-tan-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
     [atan-tan-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
-    [sqrt-pow1_binary64     . (>=.f64 x 0)]
-    [sqrt-pow1_binary32     . (>=.f32 x 0)]
     [pow-unpow_binary64     . (>=.f64 a 0)]
     [pow-unpow_binary32     . (>=.f32 a 0)]
-    [pow-pow_binary64       . (>=.f64 a 0)]
-    [pow-pow_binary32       . (>=.f32 a 0)]
 ))
 
 (define (check-rule-sound test-rule)
