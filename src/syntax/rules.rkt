@@ -267,10 +267,7 @@
   [+-inverses        (- a a)               0]
   [div0              (/ 0 a)               0]
   [mul0-lft          (* 0 a)               0]
-  [mul0-rgt          (* a 0)               0])
-
-(define-ruleset* id-reduce-divself (arithmetic simplify fp-safe-nan)
-  #:type ([a real])
+  [mul0-rgt          (* a 0)               0]
   [*-inverses        (/ a a)               1])
 
 (define-ruleset* id-reduce-fp-safe (arithmetic simplify fp-safe sound)
@@ -446,7 +443,7 @@
   [unpow1         (pow a 1)                  a]
   [pow-base-1     (pow 1 a)                  1])
 
-(define-ruleset* pow-reduce-fp-safe-nan (exponents simplify fp-safe-nan)
+(define-ruleset* pow-reduce-fp-safe-nan (exponents simplify fp-safe-nan sound)
   #:type ([a real])
   [unpow0         (pow a 0)                  1])
 
@@ -485,7 +482,7 @@
   [unpow-prod-up    (pow a (+ b c))             (* (pow a b) (pow a c))]
   [unpow-prod-down  (pow (* b c) a)             (* (pow b a) (pow c a))])
 
-(define-ruleset* pow-transform-fp-safe-nan (exponents simplify fp-safe-nan)
+(define-ruleset* pow-transform-fp-safe-nan (exponents simplify fp-safe-nan sound)
   #:type ([a real])
   [pow-base-0       (pow 0 a)                   0])
 
