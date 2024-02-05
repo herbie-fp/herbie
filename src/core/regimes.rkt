@@ -262,8 +262,7 @@
     (define vec-prev-idx (make-vector num-points))
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (define vec-aest (make-vector num-points))
-    (for ([point-idx (in-naturals)] 
-          [point-entry (in-vector sp-prev)])
+    (for ([point-idx (in-range 0 num-points)])
       (define aest-cost (cand-acost (vector-ref sp-prev point-idx)))
       (define aest-best (cand-idx (vector-ref sp-prev point-idx)))
       (define aest-bidx (cand-point-idx (vector-ref sp-prev point-idx)))
