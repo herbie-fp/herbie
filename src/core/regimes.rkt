@@ -165,7 +165,6 @@
 ;; cost = The total error in the region to the left of our rightmost splitpoint
 ;; indices = The si's we are considering in this candidate.
 (struct cse (cost indices) #:transparent)
-(struct cand (acost idx point-idx prev) #:transparent)
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 (define (valid-splitindices? can-split? split-indices)
   (and
@@ -265,12 +264,15 @@
     (define vec-aest (make-vector num-points))
     (for ([point-idx (in-naturals)] 
           [point-entry (in-vector sp-prev)])
+      (define aest-cost (cand-acost (vector-ref sp-prev point-idx)))
+      (define aest-best (cand-idx (vector-ref sp-prev point-idx)))
+      (define aest-bidx (cand-point-idx (vector-ref sp-prev point-idx)))
+      (define aest-idx (cand-prev (vector-ref sp-prev point-idx)))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- (cand-acost point-entry) min-weight)] [aest point-entry])
         (for ([prev-split-idx (in-range 0 point-idx)] 
-              [prev-entry (in-vector sp-prev)]
-              #:when (can-split? (cand-point-idx prev-entry)))
+              #:when (can-split? (cand-point-idx (vector-ref sp-prev prev-split-idx))))
           ;; For each previous split point, we need the best candidate to fill the new regime
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector vec-psums)])
@@ -279,13 +281,17 @@
                 (when (or (not best) (< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
-            (when (and (< (+ (cand-acost prev-entry) bcost) acost)) 
-              (set! acost (+ (cand-acost prev-entry) bcost))
-              (set! aest (cand acost best (+ point-idx 1) prev-entry))
+            (when 
+              (< (+ (cand-acost (vector-ref sp-prev prev-split-idx)) bcost) acost) 
+              (set! acost (+ (cand-acost (vector-ref sp-prev prev-split-idx)) bcost))
+              (set! aest (cand acost best (+ point-idx 1) (vector-ref sp-prev prev-split-idx)))
               )))
         (vector-set! vec-aest point-idx aest)))
     vec-aest)
 
+  ;; TODO move these to appropriate place
+  (struct cand (acost idx point-idx prev) #:transparent)
+  (struct wrapper (acost-v idx-v point-idx-v prev-idx-v))
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
@@ -309,6 +315,7 @@
       (vector-set! vec-point-idx point-idx (cand-point-idx cse-min))
       (vector-set! vec-prev-idx point-idx (- point-idx 1)) ;; don't really need this
       (vector-set! vec-aest point-idx cse-min))
+    (wrapper vec-acost vec-idx vec-point-idx vec-prev-idx)
     vec-aest)
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
