@@ -50,6 +50,7 @@
    [_ #f]))
 
 (define (make-graph result out output? fpcore? profile?)
+  ; (eprintf "hope 1\n")
   (match-define (job-result test _ time _ warnings backend) result)
   (define vars (test-vars test))
   (define repr (test-output-repr test))
@@ -81,8 +82,12 @@
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
 
+  ; (eprintf "~a\n" test)
+
   (fprintf out "<!doctype html>\n")
   (write-xexpr
+    ; (eprintf "hope 2.1\n")
+
    `(html
      (head
       (meta ([charset "utf-8"]))
@@ -94,12 +99,17 @@
       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       (script ([src "interactive.js"]))
       (script ([src "../report.js"])))
+
+    ; ((eprintf "hope 2.2\n"))
+
      (body
       ,(render-menu #:path ".."
         (~a (test-name test))
         (if output?
           (list '("Report" . "../index.html") '("Metrics" . "timeline.html"))
           (list '("Metrics" . "timeline.html"))))
+
+      ; (eprintf "hope 3\n")
 
       (div ([id "large"])
        ,(render-comparison
@@ -121,6 +131,7 @@
       ,(render-warnings warnings)
 
       ,(let-values ([(dropdown body) (render-program (test-spec test) ctx #:pre (test-pre test) #:ident identifier)])
+        ; (eprintf "reached spec\n")
          `(section
            (details ([id "specification"] [class "programs"])
                     (summary (h2 "Specification")
@@ -132,6 +143,7 @@
                     (p "Sampling outcomes in " (kbd ,(~a (representation-name repr))) " precision:")
                     ,(render-bogosity bogosity))))
       
+      ; (eprintf "hope 4\n")
       
       (figure ([id "graphs"])
         (h2 "Local Percentage Accuracy vs "
@@ -173,6 +185,7 @@
            "The line shows the best available speed-accuracy tradeoffs."))
 
       ,(let-values ([(dropdown body) (render-program (alt-expr start-alt) ctx #:ident identifier)])
+        ; (eprintf "reached start")
          `(section ([id "initial"] [class "programs"])
                    (h2 "Initial Program"
                        ": "
@@ -184,6 +197,7 @@
                    ,body))
 
       ,@(for/list ([i (in-naturals 1)] [alt end-alts] [errs end-errors] [cost end-costs])
+          ; (eprintf "reached target\n")
           (define-values (dropdown body)
             (render-program (alt-expr alt) ctx #:ident identifier #:instructions preprocessing))
           `(section ([id ,(format "alternative~a" i)] [class "programs"])

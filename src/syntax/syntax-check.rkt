@@ -41,7 +41,7 @@
       (error! stx "Invalid `if` expression with ~a arguments (expects 3)" (length args))
       (unless (null? args) (loop (last args) vars))]
      [#`(! #,props ... #,body)
-      (check-properties* props '() body deprecated-ops)
+      (check-properties* props '() error! deprecated-ops)
       (loop body vars)]
      [#`(,(? (curry set-member? '(+ * and or))) #,args ...)
       ;; Variary (minimum 0 arguments)
@@ -101,10 +101,13 @@
     (unless (string? (syntax-e name))
       (error! name "Invalid :name ~a; must be a string" name)))
 
-  (when (dict-has-key? prop-dict ':description)
-    (define desc (dict-ref prop-dict ':description))
-    (unless (string? (syntax-e desc))
-      (error! desc "Invalid :description ~a; must be a string" desc)))
+  ; TODO : not a string anymore so needs to be changed
+  ; Change to data: symbol, number, string, (data*)
+  ;(when (dict-has-key? prop-dict ':description)
+    ;(define desc (dict-ref prop-dict ':description))
+    ;(unless (string? (syntax-e desc))
+    ; (error! desc "Invalid :description ~a; must be a string" desc))
+    ;)
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))
