@@ -139,13 +139,12 @@
 (define (get-slack)
   (match (*sampling-iteration*)
     [0 (*ground-truth-extra-bits*)]
-    [1 64]
-    [2 128]
-    [3 256]
-    [4 512]
-    [5 1024]
-    [6 2048]
-    [7 4096]))
+    [1 128]
+    [2 256]
+    [3 512]
+    [4 1024]
+    [5 2048]
+    [6 4096]))
 
 ;; Function does backward-pass
 (define (backward-pass ivec varc)
