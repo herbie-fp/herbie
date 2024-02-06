@@ -140,7 +140,13 @@
            
            ; inf rescue:
            ; R(inf) + y = non inf value (inf rescue)
-           [(and (or (bfinfinite? x)
+           [(and (bfinfinite? x)
+                 (not (bfinfinite? subexpr-val)))
+            (mark-erroneous! subexpr 'oflow-left)]
+           [(and (bfinfinite? y)
+                 (not (bfinfinite? subexpr-val)))
+            (mark-erroneous! subexpr 'oflow-right)]
+           #;[(and (or (bfinfinite? x)
                      (bfinfinite? y))
                  (not (bfinfinite? subexpr-val)))
             (mark-erroneous! subexpr 'oflow-rescue)]
@@ -179,7 +185,13 @@
            ; inf rescue
            ; If x or y overflow and the other arg rescues
            ; it
-           [(and (or (bfinfinite? x)
+           [(and (bfinfinite? x)
+                 (not (bfinfinite? subexpr-val)))
+            (mark-erroneous! subexpr 'oflow-left)]
+           [(and (bfinfinite? y)
+                 (not (bfinfinite? subexpr-val)))
+            (mark-erroneous! subexpr 'oflow-right)]
+           #;[(and (or (bfinfinite? x)
                      (bfinfinite? y))
                  (not (bfinfinite? subexpr-val)))
             (mark-erroneous! subexpr 'oflow-rescue)]
@@ -249,10 +261,7 @@
            ;; Overflow rescue:
            [(and (bfinfinite? x)
                  (not (bf= subexpr-val x)))
-            (mark-erroneous! subexpr 'oflow-rescue)])
-
-
-         ]
+            (mark-erroneous! subexpr 'oflow-rescue)])]
 
         [(list (or 'cbrt.f64 'cbrt.f32) x-ex)
          #:when (list? x-ex)
@@ -508,10 +517,17 @@
      (flow-list oflow-hash den "overflow")]
     [(list 'n/u (list _ _ den))
      (flow-list uflow-hash den "underflow")]
-    [(list 'o*u (list _ num den))
-     (append (flow-list oflow-hash num "overflow")
-             (flow-list uflow-hash den "underflow"))]
-    [(list 'u*o (list _ num den))
-     (append (flow-list uflow-hash num "underflow")
-             (flow-list oflow-hash den "overflow"))]
+    [(list 'o*u (list _ left right))
+     (append (flow-list oflow-hash left "overflow")
+             (flow-list uflow-hash right "underflow"))]
+    [(list 'u*o (list _ left right))
+     (append (flow-list uflow-hash left "underflow")
+             (flow-list oflow-hash right "overflow"))]
+    [(list 'nan-rescue (list _ left right))
+     (append (flow-list oflow-hash left "overflow")
+             (flow-list oflow-hash right "overflow"))]
+    [(list 'oflow-left (list left _))
+     (flow-list oflow-hash left "overflow")]
+    [(list 'oflow-right (list _ right))
+     (flow-list oflow-hash right "overflow")]
     [_ '()]))
