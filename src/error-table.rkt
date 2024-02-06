@@ -4,7 +4,7 @@
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
          "ground-truth.rkt" "syntax/sugar.rkt")
 
-(provide actual-errors predicted-errors)
+(provide actual-errors predicted-errors make-flow-table)
 
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
@@ -485,3 +485,33 @@
            [else #f])]
         [_ #f])))
   (values error-count-hash explanations-hash point-error-hash oflow-hash uflow-hash))
+
+(define (flow-list flow-hash expr type)
+  (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])
+    (list (~a k) type v)))
+
+(define (make-flow-table oflow-hash uflow-hash expr expl)
+  (match (list expl expr)
+    [(list 'oflow-rescue _) (flow-list oflow-hash expr "overflow")]
+    [(list 'uflow-rescue _) (flow-list uflow-hash expr "underflow")]
+    [(list 'u/u (list _ num den))
+     (append (flow-list uflow-hash num "underflow")
+             (flow-list uflow-hash den "underflow"))]
+    [(list 'u/n (list _ num _))
+     (flow-list uflow-hash num "underflow")]
+    [(list 'o/o (list _ num den))
+     (append (flow-list oflow-hash num "overflow")
+             (flow-list oflow-hash den "overflow"))]
+    [(list 'o/n (list _ num _))
+      (flow-list oflow-hash num "overflow")]
+    [(list 'n/o (list _ _ den))
+     (flow-list oflow-hash den "overflow")]
+    [(list 'n/u (list _ _ den))
+     (flow-list uflow-hash den "underflow")]
+    [(list 'o*u (list _ num den))
+     (append (flow-list oflow-hash num "overflow")
+             (flow-list uflow-hash den "underflow"))]
+    [(list 'u*o (list _ num den))
+     (append (flow-list uflow-hash num "underflow")
+             (flow-list oflow-hash den "overflow"))]
+    [_ '()]))

@@ -303,12 +303,19 @@
          (summary "Click to see full explanations table")
          (table ([class "times"])
                 (thead (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count")))
-                ,@(for/list ([rec (in-list explanations)])
-                    (match-define (list op expr expl cnt) rec)
-                    `(tr (td (code ,(~a op)))
-                         (td (code ,(~a expr)))
-                         (td ,(~a expl))
-                         (td ,(~a cnt)))))))))
+                ,@(append* (for/list ([rec (in-list explanations)])
+                             (match-define (list op expr expl cnt flows) rec)
+
+                             (append (list `(tr (td (code ,(~a op)))
+                                                            (td (code ,(~a expr)))
+                                                            (td ,(~a expl))
+                                                            (td ,(~a cnt))))
+                                                 (for/list ([flow (in-list flows)])
+                                                   (match-define (list ex type v) flow)
+                                                   `(tr (td "↳")
+                                                        (td ,(~a ex))
+                                                        (td ,type)
+                                                        (td ,(~a v))))))))))))
 
 (define (render-phase-total-error total-errors)
   (match-define (list (list true-pos true-neg false-pos false-neg)) total-errors)
@@ -320,13 +327,13 @@
     (dt "Precision")
     (dd ,(if (= true-pos false-pos 0)
              "0/0"
-             (~a exact->inexact (/ true-pos
-                                   (+ true-pos false-pos)))))
+             (~a (exact->inexact (/ true-pos
+                                    (+ true-pos false-pos))))))
     (dt "Recall")
     (dd ,(if (= true-pos false-neg 0)
              "0/0"
-             (~a exact->inexact (/ true-pos
-                                   (+ true-pos false-neg)))))))
+             (~a (exact->inexact (/ true-pos
+                                    (+ true-pos false-neg))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)

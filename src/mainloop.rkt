@@ -365,33 +365,16 @@
                     (and (not (empty? upred)) (values->json (first upred)
                                                             repr))))
 
-  (for ([(key cnt) (in-dict explanations-table)])
+  (for ([(key val) (in-dict explanations-table)])
     (define expr (car key))
     (define expl (cdr key))
-
-    (when (eq? expl 'oflow-rescue)
-      (define oflow-set (hash-ref oflow-hash expr))
-      (for ([(k v) oflow-set])
-        (timeline-push! 'explanations
-                        "↳"
-                        (~a k)
-                        "overflow"
-                        v)))
-
-    (when (eq? expl 'uflow-rescue)
-      (define uflow-set (hash-ref uflow-hash expr))
-      (for ([(k v) uflow-set])
-        (timeline-push! 'explanations
-                        "↳"
-                        (~a k)
-                        "underflow"
-                        v)))
-
+    (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
     (timeline-push! 'explanations
-                    (~a (car (car key)))
-                    (~a (car key))
-                    (~a (cdr key))
-                    cnt))
+                    (~a (car expr))
+                    (~a expr)
+                    (~a expl)
+                    val
+                    flow-list))
 
   (define true-pos 0)
   (define true-neg 0)

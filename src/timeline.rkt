@@ -191,7 +191,7 @@
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
 (define-timeline branch #:unmergable)
-(define-timeline explanations [op false] [expr (const #f)] [expl false] [count +])
+(define-timeline explanations [op false] [expr (const #f)] [expl false] [count +] [flows (const #f)])
 (define-timeline total-error [true-pos +] [true-neg +] [false-pos +] [false-neg +])
 
 (define (timeline-merge . timelines)
