@@ -1,11 +1,17 @@
 SEED ?= 0
 TIMEOUT ?= 150
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+CMP_BRANCH ?= mix-histograms
 
 distance :
 	racket -y herbie.rkt report --seed $(SEED) --timeout $(TIMEOUT) ../bench/distance.fpcore ../infra/reports/distance-$(BRANCH)
 2sin2cos:
 	racket -y herbie.rkt report --seed $(SEED) --timeout $(TIMEOUT) ../bench/2sin.fpcore ../infra/reports/2sin2cos-$(BRANCH)
+2sin2cos-cmp:
+	racket -y herbie.rkt report --seed $(SEED) --timeout $(TIMEOUT) ../bench/2sin.fpcore ../infra/reports/2sin2cos-$(BRANCH)
+	git checkout $(CMP_BRANCH)
+	racket -y herbie.rkt report --seed $(SEED) --timeout $(TIMEOUT) ../bench/2sin.fpcore ../infra/reports/2sin2cos-$(CMP_BRANCH)
+	git checkout $(BRANCH)
 hamming:
 	racket -y herbie.rkt report --seed $(SEED) --timeout $(TIMEOUT) ../bench/hamming ../infra/reports/hamming-$(BRANCH)
 harley:
