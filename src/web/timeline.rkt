@@ -310,7 +310,8 @@
                                                 (td (code ,(~a expr)))
                                                 (td (b ,(~a expl)))
                                                 (td ,(~a cnt))))
-                                     (for/list ([flow (in-list flows)])
+
+                                     (for/list ([flow (in-list (or flows '()))])
                                        (match-define (list ex type v) flow)
                                        `(tr (td "↳")
                                             (td (code ,(~a ex)))
