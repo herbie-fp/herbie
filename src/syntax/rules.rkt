@@ -229,7 +229,9 @@
   [distribute-neg-in      (neg (+ a b))           (+ (neg a) (neg b))]
   [distribute-neg-out     (+ (neg a) (neg b))       (neg (+ a b))]
   [distribute-frac-neg    (/ (neg a) b)           (neg (/ a b))]
-  [distribute-neg-frac    (neg (/ a b))           (/ (neg a) b)])
+  [distribute-frac-neg2   (/ a (neg b))           (neg (/ a b))]
+  [distribute-neg-frac    (neg (/ a b))           (/ (neg a) b)]
+  [distribute-neg-frac2   (neg (/ a b))           (/ a (neg b))])
 
 (define-ruleset* cancel-sign-fp-safe (arithmetic simplify fp-safe sound)
   #:type ([a real] [b real] [c real])
