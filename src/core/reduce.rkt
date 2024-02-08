@@ -139,11 +139,11 @@
            (cons (apply * (map car terms)) (apply append (map cdr terms)))))]
     [`(/ ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cons (if (member '(0 NAN) (car terms)) 'NAN (/ (car terms))) (map negate-term (cdr terms))))]
+       (cons (if (member (car terms) '(0 NAN)) 'NAN (/ (car terms))) (map negate-term (cdr terms))))]
     [`(/ ,arg ,args ...)
      (let ([num (gather-multiplicative-terms arg)]
            [dens (map gather-multiplicative-terms args)])
-       (cons (if (or (eq? (car num) 'NAN) (ormap (compose (curry member '(0 NAN)) car) dens)) 'NAN (apply / (car num) (map car dens)))
+       (cons (if (or (eq? (car num) 'NAN) (ormap (compose (curryr member '(0 NAN)) car) dens)) 'NAN (apply / (car num) (map car dens)))
              (append (cdr num)
                      (map negate-term (append-map cdr dens)))))]
     [`(sqrt ,arg)
