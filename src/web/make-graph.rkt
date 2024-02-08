@@ -82,7 +82,7 @@
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
 
-  ; (eprintf "~a\n" test)
+  ; (eprintf "Target : ~a\n" (test-output test))
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
@@ -132,9 +132,13 @@
 
       ,(let-values ([(dropdown body) (render-program (test-spec test) ctx #:pre (test-pre test) #:ident identifier)])
         ; (eprintf "reached spec\n")
+        ; (eprintf "error? ~a \n" )
+
+        ; (eprintf "bogo? \n") (render-bogosity bogosity)
          `(section
-           (details ([id "specification"] [class "programs"])
-                    (summary (h2 "Specification")
+              (details ([id "specification"] [class "programs"])
+                    ; (summary (begin (eprintf "pls \n") (h2 "Specification"))
+                    (summary (begin (eprintf "pls \n") (h2 "Specification"))
                              ,dropdown
                              (a ([class "help-button float"] 
                                  [href ,(doc-url "report.html#spec")]
@@ -142,8 +146,6 @@
                     ,body
                     (p "Sampling outcomes in " (kbd ,(~a (representation-name repr))) " precision:")
                     ,(render-bogosity bogosity))))
-      
-      ; (eprintf "hope 4\n")
       
       (figure ([id "graphs"])
         (h2 "Local Percentage Accuracy vs "
@@ -174,18 +176,18 @@
           (div
             (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
             (table
-             (thead (tr (th "Alternative") 
+              (thead (tr (th "Alternative") 
                         (th ([class "numeric"]) "Accuracy")
                         (th ([class "numeric"]) "Speedup")))
-             (tbody))))
+            (tbody))))
           (figcaption
-           "The accuracy (vertical axis) and speed (horizontal axis) of each "
-           "alternatives. Up and to the right is better. The red square shows "
-           "the initial program, and each blue circle shows an alternative."
-           "The line shows the best available speed-accuracy tradeoffs."))
+            "The accuracy (vertical axis) and speed (horizontal axis) of each "
+            "alternatives. Up and to the right is better. The red square shows "
+            "the initial program, and each blue circle shows an alternative."
+            "The line shows the best available speed-accuracy tradeoffs."))
 
       ,(let-values ([(dropdown body) (render-program (alt-expr start-alt) ctx #:ident identifier)])
-        ; (eprintf "reached start")
+        ; (eprintf "reached start \n")
          `(section ([id "initial"] [class "programs"])
                    (h2 "Initial Program"
                        ": "
