@@ -129,22 +129,27 @@
     [(? symbol?) `(1 (1 . ,expr))]
     [`(neg ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cons (- (car terms)) (cdr terms)))]
+       (if (eq? (car terms) 'NAN)
+           '(NAN)
+           (cons (- (car terms)) (cdr terms))))]
     [`(* ,args ...)
      (let ([terms (map gather-multiplicative-terms args)])
-       (cons (apply * (map car terms)) (apply append (map cdr terms))))]
+       (if (ormap (curry eq? 'NAN) (map car terms))
+           '(NAN)
+           (cons (apply * (map car terms)) (apply append (map cdr terms)))))]
     [`(/ ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cons (if (= (car terms) 0) 'NAN (/ (car terms))) (map negate-term (cdr terms))))]
+       (cons (if (member '(0 NAN) (car terms)) 'NAN (/ (car terms))) (map negate-term (cdr terms))))]
     [`(/ ,arg ,args ...)
      (let ([num (gather-multiplicative-terms arg)]
            [dens (map gather-multiplicative-terms args)])
-       (cons (if (ormap (compose (curry = 0) car) dens) 'NAN (apply / (car num) (map car dens)))
+       (cons (if (or (eq? (car num) 'NAN) (ormap (compose (curry member '(0 NAN)) car) dens)) 'NAN (apply / (car num) (map car dens)))
              (append (cdr num)
                      (map negate-term (append-map cdr dens)))))]
     [`(sqrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-sqrt (eval-application 'sqrt (car terms)))
+       (define exact-sqrt
+         (match (car terms) ['NAN 'NAN] [x (eval-application 'sqrt x)]))
        (if exact-sqrt
            (cons exact-sqrt
                  (for/list ([term (cdr terms)])
