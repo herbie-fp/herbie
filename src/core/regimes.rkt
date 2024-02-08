@@ -264,7 +264,7 @@
       (define aest-best (cand-idx (vector-ref sp-prev point-idx)))
       (define aest-bidx (cand-point-idx (vector-ref sp-prev point-idx)))
       (define aest-prev (cand-prev (vector-ref sp-prev point-idx)))
-      (define aest-prev-idx point-idx)
+      (define aest-prev-idx (cand-prev-idx (vector-ref sp-prev point-idx)))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- aest-cost min-weight)])
@@ -287,12 +287,13 @@
               (set! aest-prev (vector-ref sp-prev prev-split-idx))
               (set! aest-prev-idx prev-split-idx)
               )))
-        (define temp-aest (cand aest-cost aest-best aest-bidx aest-prev))
+        (define temp-aest 
+          (cand aest-cost aest-best aest-bidx aest-prev-idx aest-prev))
         (vector-set! vec-aest point-idx temp-aest)))
     vec-aest)
 
   ;; TODO move these to appropriate place
-  (struct cand (acost idx point-idx prev) #:transparent)
+  (struct cand (acost idx point-idx prev-idx prev) #:transparent)
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
@@ -305,7 +306,7 @@
         (for/vector #:length num-candidates
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
-              (cand cost cand-idx (+ point-idx 1) (vector))))))
+              (cand cost cand-idx (+ point-idx 1) -1 (vector))))))
       (vector-set! vec-aest point-idx cse-min))
     vec-aest)
 
@@ -325,6 +326,16 @@
       [else (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
   (define winner (vector-ref final (- num-points 1)))
   (define output (reverse (make-list winner)))
+  ;; (eprintf "~a\n" (si? (first  output)))
+  (define vec-aest (make-vector num-points))
+  (for ([i (in-range (vector-length final))] [c final])
+      (vector-set! vec-aest i (si (cand-idx c) (cand-point-idx c))))
+  (define list-output (vector->list vec-aest))
+    (eprintf "equal?: ~a\n" (equal? (length output) (length list-output)))
+    (for ([l list-output] [r output])
+      (eprintf "~a\n" (equal? l r))
+      (eprintf "~a ~a\n" l r))
+    (eprintf "FINAL:\n~a\n\n" final)
   output)
 
 
