@@ -257,10 +257,6 @@
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint sp-prev)
     (define vec-acost (make-vector num-points))
-    (define vec-idx (make-vector num-points))
-    (define vec-point-idx (make-vector num-points))
-    (define vec-prev (make-vector num-points))
-    (define vec-prev-idx (make-vector num-points))
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (define vec-aest (make-vector num-points))
     (for ([point-idx (in-range 0 num-points)])
@@ -292,30 +288,15 @@
               (set! aest-prev-idx prev-split-idx)
               )))
         (define temp-aest (cand aest-cost aest-best aest-bidx aest-prev))
-        (vector-set! vec-aest point-idx temp-aest)
-
-        (vector-set! vec-acost point-idx aest-cost)
-        (vector-set! vec-idx point-idx aest-best)
-        (vector-set! vec-point-idx point-idx temp-aest)
-        (vector-set! vec-prev point-idx aest-prev)
-        ;; Still trying to understand where prev-idx points to
-        (vector-set! vec-prev-idx point-idx aest-prev-idx)
-        ))
-    (wrapper vec-acost vec-idx vec-point-idx vec-prev-idx)
+        (vector-set! vec-aest point-idx temp-aest)))
     vec-aest)
 
   ;; TODO move these to appropriate place
   (struct cand (acost idx point-idx prev) #:transparent)
-  (struct wrapper (acost-v idx-v point-idx-v prev-idx-v))
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
   (define (initial)
-    (define vec-acost (make-vector num-points))
-    (define vec-idx (make-vector num-points))
-    (define vec-point-idx (make-vector num-points))
-    (define vec-prev (make-vector num-points))
-
     (define vec-aest (make-vector num-points))
     (for ([point-idx (in-range num-points)])
       (define cse-min (vector-argmin cand-acost
@@ -325,13 +306,7 @@
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
               (cand cost cand-idx (+ point-idx 1) (vector))))))
-      (vector-set! vec-acost point-idx (cand-acost cse-min))
-      (vector-set! vec-idx point-idx (cand-idx cse-min))
-      (vector-set! vec-point-idx point-idx (cand-point-idx cse-min))
-      (vector-set! vec-prev point-idx (cand-prev cse-min)) ;; don't really need this
-
       (vector-set! vec-aest point-idx cse-min))
-    (wrapper vec-acost vec-idx vec-point-idx vec-prev)
     vec-aest)
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
