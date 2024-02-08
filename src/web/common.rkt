@@ -46,8 +46,7 @@
 
 
 (define (doc-url page)
-  ; (format "https://herbie.uwplse.org/doc/~a/~a" (*herbie-version*) page))
-  (format "https://herbie.uwplse.org/doc/2.0/~a" page))
+  (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* page))
 
 (define/contract (render-menu #:path [path "."] name links)
   (->* (string? (listof (cons/c string? string?)))
@@ -353,16 +352,6 @@
   `(a ([class ,(if float? "help-button float" "help-button")] 
        [href ,(doc-url url)] 
        [target "_blank"]) "?"))
-
-; (define (render-help url #:float [float? #t])
-;   (begin 
-;     (eprintf "nay \n")
-;     (eprintf "help ~a \n" (doc-url url))
-;     (eprintf "yay \n")
-;     (list 'a (list 'class (if float? "help-button float" "help-button"))
-;            (list 'href (doc-url url))
-;            (list 'target "_blank")
-;            "?")))
 
 (define js-tex-include
   '((link ([rel "stylesheet"] [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
