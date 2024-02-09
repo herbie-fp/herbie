@@ -6,6 +6,12 @@
 
 (provide actual-errors predicted-errors make-flow-table)
 
+(define (constant? expr)
+  (cond
+    [(list? expr) (andmap constant? (rest expr))]
+    [(symbol? expr) #f]
+    [else #t]))
+
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
     (flip-lists
@@ -146,10 +152,6 @@
            [(and (bfinfinite? y)
                  (not (bfinfinite? subexpr-val)))
             (mark-erroneous! subexpr 'oflow-right)]
-           #;[(and (or (bfinfinite? x)
-                     (bfinfinite? y))
-                 (not (bfinfinite? subexpr-val)))
-            (mark-erroneous! subexpr 'oflow-rescue)]
            
            ; High condition number:
            ; CN(+, x, y) = |x / x + y|
@@ -191,10 +193,6 @@
            [(and (bfinfinite? y)
                  (not (bfinfinite? subexpr-val)))
             (mark-erroneous! subexpr 'oflow-right)]
-           #;[(and (or (bfinfinite? x)
-                     (bfinfinite? y))
-                 (not (bfinfinite? subexpr-val)))
-            (mark-erroneous! subexpr 'oflow-rescue)]
 
            ; High condition number:
            ; CN(+, x, y) = |x / x - y|
@@ -203,12 +201,24 @@
             (mark-erroneous! subexpr 'cancellation)]
            [else #f])]
 
+        [(list (or 'sin.f64 'sin.f32) (list (or '+.f64 '+.f32) x-ex y-ex))
+         (define x (exacts-ref x-ex))
+         (define y (exacts-ref y-ex))
+         (define cot-x (bfcot x))
+         (define cot-y (bfcot y))
+         (define cot-x+y (bf/ (bf- (bf* cot-x cot-y) 1.bf)
+                              (bf+ cot-x cot-y)))
+         (define cond-x (bf* x cot-x+y))
+         (define cond-y (bf* y cot-x+y))
+         (when (or (bf> cond-x cond-thres)
+                   (bf> cond-y cond-thres))
+           (mark-erroneous! subexpr 'sensitivity))]
+        
         [(list (or 'sin.f64 'sin.f32) x-ex)
          #:when (list? x-ex)
          (define x (exacts-ref x-ex))
          (define cot-x (bfabs (bfcot x)))
          (define cond-no (bf* (bfabs x) cot-x))
-
          (cond
            [(and (bf> cond-no cond-thres)
                  (bf> (bfabs x) cond-thres))
@@ -416,6 +426,18 @@
            ;; no error because the answer is exactly x
            [(and (bf= y 1.bf)
                  (bf= x subexpr-val)) #f]
+
+           ;; Hallucination:
+           ;; y is large but x is exactly 1
+           [(and (= (bigfloat->flonum x) 1.0)
+                 (= (bigfloat->flonum subexpr-val) 1.0))
+            #f]
+
+           ;; Hallucination:
+           ;; y is large but x is zero
+           [(and (bfzero? x)
+                 (bfzero? subexpr-val))
+            #f]
            
            ;; Hallucination:
            ;; if x is large enough that x^y overflows, the condition number also
@@ -431,13 +453,22 @@
                  (zero? x^y)
                  (bfzero? subexpr-val)) #f]
 
+           [(and (bf< y -1.bf)
+                 (zero? x^y)
+                 (bfzero? subexpr-val)) #f]
+
+           [(and (bf< y -1.bf)
+                 (infinite? x^y)
+                 (bfinfinite? subexpr-val)) #f]
+
            [(and (or (bfzero? x)
                      (bfinfinite? x))
                  (not (bf= subexpr-val x)))
             (mark-erroneous! subexpr 'rescue)]
            
-           [(or (bf> cond-x cond-thres)
-                (bf> cond-y cond-thres))
+           [(and (or (bf> cond-x cond-thres)
+                     (bf> cond-y cond-thres))
+                 (not (constant? y-ex)))
             (mark-erroneous! subexpr 'sensitivity)]
            
            [else #f])]
