@@ -180,13 +180,16 @@
   (/ (apply + values) (length values)))
 
 (define (render-phase-mixed-sampling mixsample)
+  (define tstart (current-inexact-milliseconds))
   (define total-time (apply + (map first mixsample)))
+  (printf "total-time calculation took ~a\n" (format-time (- (current-inexact-milliseconds) tstart)))
   `((dt "Precisions")
     (dd (details
          (summary "Click to see histograms. Total time spent on operations: " ,(format-time total-time))
          ,@(map first
                 (sort
                  (for/list ([rec (in-list (group-by second mixsample))])
+                   (define tstart_ (current-inexact-milliseconds))
                    (define n (random 100000))
                    (define op (second (car rec)))
                    (set! rec (group-by
@@ -195,7 +198,8 @@
                    (define precisions (map (lambda (x) (third (first x))) rec))
                    (define times (map (lambda (x) (apply + (map first x))) rec))
                    (define time-per-op (round (apply + times)))
-               
+                   
+                   (printf "maps for ~a took ~a\n" op (format-time (- (current-inexact-milliseconds) tstart_)))
                    (list `(details
                            (summary "Operation " (code ,op)
                                     ", time spent: " ,(format-time time-per-op)
