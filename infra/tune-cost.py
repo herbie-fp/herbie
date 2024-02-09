@@ -7,9 +7,14 @@ import multiprocessing as mp
 import re
 
 nullary_ops = ['baseline']
-unary_ops = ['recip', 'rsqrt', 'neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
-binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'hypot', 'pow', 'remainder']
-ternary_ops = ['fma']
+unary_ops = ['recip', 'rsqrt', 'neg']
+binary_ops = ['+', '-', '*', '/']
+ternary_ops = []
+
+# nullary_ops = ['baseline']
+# unary_ops = ['recip', 'rsqrt', 'neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
+# binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'hypot', 'pow', 'remainder']
+# ternary_ops = ['fma']
 
 default_num_inputs = 10000
 racket_file = 'cost.rkt'
