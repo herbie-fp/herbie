@@ -142,16 +142,15 @@
      (define x* (string->symbol (string-append (symbol->string x) "_m")))
      (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
      (define e (list (get-parametric-operator 'fabs r) x))
-     (define c (context (list x*) r r))
+     (define c (context (list x) r r))
      (format "~a = ~a" x* (converter* e c))]
     [(list 'negabs x)
-     (define x-string (symbol->string x))
-     (define x* (string->symbol (string-append x-string "_m")))
-     (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
+     (define x* (string->symbol (format "~a_m" x)))
+     (define r (context-lookup ctx x))
      (define e* (list (get-parametric-operator 'fabs r) x))
-     (define x-sign (string->symbol (string-append x-string "_s")))
+     (define x-sign (string->symbol (format "~a_s" x)))
      (define e-sign (list (get-parametric-operator 'copysign r r) 1 x))
-     (define c (context (list x*) r r))
+     (define c (context (list x) r r))
      (list
       (format "~a = ~a" x* (converter* e* c))
       (format "~a = ~a" x-sign (converter* e-sign c)))]
