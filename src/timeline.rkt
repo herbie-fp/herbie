@@ -27,7 +27,7 @@
 (define *timeline-active-value* #f)
 
 (define *timeline-disabled* (make-parameter true))
-
+  
 (define (timeline-event! type)
   (when *timeline-active-key*
     (hash-update! (car (unbox (*timeline*))) *timeline-active-key*

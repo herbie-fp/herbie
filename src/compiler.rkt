@@ -49,7 +49,7 @@
         '()))
 
   (define prec-threshold (/ (*max-mpfr-prec*) 25))
-  
+
   (if (equal? name 'ival)
       (λ args
         ;; remove all the exponent values we assigned previously when a new point comes
