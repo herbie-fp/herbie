@@ -186,16 +186,14 @@
          (summary "Click to see histograms. Total time spent on operations: " ,(format-time total-time))
          ,@(map first
                 (sort
-                 (for/list ([rec (in-list (group-by second mixsample))])
+                 (for/list ([rec (in-list (group-by second mixsample))]) ; group by operator
+                   ; rec = '('(time op precision) ... '(time op precision))
                    (define n (random 100000))
                    (define op (second (car rec)))
-                   (set! rec (group-by
-                              (lambda (x) (quotient (third x) (/ (*max-mpfr-prec*) 25)))
-                              rec))
-                   (define precisions (map (lambda (x) (third (first x))) rec))
-                   (define times (map (lambda (x) (apply + (map first x))) rec))
+                   (define precisions (map third rec))
+                   (define times (map first rec))
                    (define time-per-op (round (apply + times)))
-                   
+
                    (list `(details
                            (summary "Operation " (code ,op)
                                     ", time spent: " ,(format-time time-per-op)
