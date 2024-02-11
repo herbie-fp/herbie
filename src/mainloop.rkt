@@ -349,7 +349,7 @@
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) vs))
   (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
-  (define-values (pcount-hash explanations-table predicted-error oflow-hash uflow-hash)
+  (define-values (pcount-hash explanations-table predicted-error oflow-hash uflow-hash test-hash)
     (predicted-errors expr context pcontext))
   
 
@@ -385,6 +385,10 @@
   (for ([(pt _) (in-pcontext pcontext)])
     (define error-actual? (> (hash-ref true-error-hash pt) 16))
     (define error-predicted? (hash-ref predicted-error pt false))
+    (when (and (not error-actual?) error-predicted?) 
+      (timeline-push! 'expl-debug
+                      (~a pt)
+                      (~a (hash-ref test-hash pt (list 'empty)))))
     (cond
       [(and error-actual? error-predicted?)
        (set! true-pos (+ true-pos 1))]

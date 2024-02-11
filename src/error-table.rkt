@@ -72,12 +72,16 @@
 
   (define oflow-hash
     (make-hash))
+
+  (define test-hash
+    (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
     (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
       (hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
-      (hash-update! point-error-hash pt (lambda (x) (or true x)) #f))
+      (hash-update! point-error-hash pt (lambda (x) (or true x)) #f)
+      (hash-update! test-hash pt (lambda (x) (set-add x expl)) '()))
     
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
@@ -525,7 +529,7 @@
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
            [else #f])]
         [_ #f])))
-  (values error-count-hash explanations-hash point-error-hash oflow-hash uflow-hash))
+  (values error-count-hash explanations-hash point-error-hash oflow-hash uflow-hash test-hash))
 
 (define (flow-list flow-hash expr type)
   (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])

@@ -64,6 +64,7 @@
          ,@(dict-call curr render-phase-fperrors 'fperrors)
          ,@(dict-call curr render-phase-explanations 'explanations)
          ,@(dict-call curr render-phase-total-error 'total-error)
+         ,@(dict-call curr render-phase-expl-debug 'expl-debug)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -335,6 +336,24 @@
              "0/0"
              (~a (exact->inexact (/ true-pos
                                     (+ true-pos false-neg))))))))
+
+(define (render-phase-expl-debug debugs)
+  `((dt "FPDebug")
+    (dd (details
+         (summary "Click to see full error table")
+         (table ([class "times"])
+                (thead (tr (th "pt") (th "expls"))
+                       ,@(for/list ([rec (in-list debugs)])
+                           (match-define (list pt expls) rec)
+                           `(tr (td ,(~a pt))
+                                (td ,(~a expls))
+
+
+
+                                ))))))
+    
+    ))
+
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
