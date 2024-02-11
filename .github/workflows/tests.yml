@@ -11,21 +11,19 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        racket-version: [ '8.0', '8.10' ]
+        racket-version: [ '8.0', '8.11' ]
         precision: [ 'binary32', 'binary64' ]
     steps:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.9
+        uses: Bogdanp/setup-racket@v1.11
         with:
           version: ${{ matrix.racket-version }}
       - name: Install Rust compiler
-        uses: actions-rs/toolchain@v1.0.6
+        uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
-            default: true
-            override: true
             components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
