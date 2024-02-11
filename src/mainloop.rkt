@@ -341,7 +341,9 @@
   (*pcontext* pcontext)
   (define expr (alt-expr (car simplified)))
 
-  (define true-error (errors expr pcontext context))
+  (define true-error-hash (for/hash ([(key _) (in-pcontext pcontext)]
+                                     [value (in-list (errors expr pcontext context))])
+                            (values key value)))
   
   (define repr (repr-of expr context))
   (define (values->json vs repr)
@@ -380,8 +382,8 @@
   (define true-neg 0)
   (define false-pos 0)
   (define false-neg 0)
-  (for ([(pt _) (in-pcontext pcontext)]
-        [error-actual? (in-list (map (lambda (p) (> p 16)) true-error))])
+  (for ([(pt _) (in-pcontext pcontext)])
+    (define error-actual? (> (hash-ref true-error-hash pt) 16))
     (define error-predicted? (hash-ref predicted-error pt false))
     (cond
       [(and error-actual? error-predicted?)
