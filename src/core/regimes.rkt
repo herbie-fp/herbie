@@ -288,8 +288,7 @@
               (set! aest-cost acost)
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
-              (set! aest-prev-idx (+ prev-split-idx 1))
-              )))
+              (set! aest-prev-idx (+ prev-split-idx 1)))))
         (define temp-aest 
           (cand aest-cost aest-best aest-bidx aest-prev-idx))
         (vector-set! vec-aest point-idx temp-aest)))
@@ -326,14 +325,12 @@
     (define next (cand-prev-idx current-cond))
     (cond 
       [(not(= (- next 1) num-points)) 
-        (cons 
-          (si (cand-idx current-cond) 
-              (cand-point-idx current-cond))
-        (list))]
-      [else (cons (si (cand-idx current-cond) 
-                      (cand-point-idx current-cond))  (build-list next))]))
+        (cons (si (cand-idx current-cond) (cand-point-idx current-cond))
+              (list))]
+      [else 
+       (cons (si (cand-idx current-cond) (cand-point-idx current-cond))  
+             (build-list next))]))
   (reverse (build-list (- num-points 1))))
-
 
 (define/contract (err-lsts->split-indices err-lsts can-split)
   (->i ([e (listof list)] [cs (listof boolean?)]) 
