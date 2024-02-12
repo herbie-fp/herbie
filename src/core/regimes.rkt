@@ -22,6 +22,9 @@
 ;; pidx = Point index: The index of the point to the left of which we should split.
 (struct si (cidx pidx) #:prefab)
 
+;; TODO refactor me  
+(struct cand (acost idx point-idx prev-idx prev) #:transparent)
+
 (define (pareto-regimes sorted ctx)
   (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
   (let loop ([alts sorted] [errs (hash)])
@@ -292,8 +295,6 @@
         (vector-set! vec-aest point-idx temp-aest)))
     vec-aest)
 
-  ;; TODO move these to appropriate place
-  (struct cand (acost idx point-idx prev-idx prev) #:transparent)
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
@@ -306,7 +307,7 @@
         (for/vector #:length num-candidates
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
-              (cand cost cand-idx (+ point-idx 1) -1 (vector))))))
+              (cand cost cand-idx (+ point-idx 1) num-points (vector))))))
       (vector-set! vec-aest point-idx cse-min))
     vec-aest)
 
@@ -318,27 +319,20 @@
             next
             (loop next)))))
 
-  (define (make-list current-cand)
+  ;; start at (- num-points 1)
+  ;; if num-points we are done
+  (define (build-list current-idx)
+    (define current-cond (vector-ref final current-idx))
+    (define next (cand-prev-idx current-cond))
     (cond 
-      [(cand? (cand-prev current-cand)) 
-        (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
-               (make-list (cand-prev current-cand)))]
-      [else (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
-  (define winner (vector-ref final (- num-points 1)))
-  (define output (reverse (make-list winner)))
-  (define (print-data)
-    (eprintf "WINNER: ~a\n" winner)
-    (for ([o output])
-      (define c (vector-ref final (si-cidx o)))
-      (define p (vector-ref final (- (si-pidx o) 1)))
-      (eprintf "O:~a\n" o)
-      (eprintf "C(~a):~a\n" (si-pidx o) c)
-      (eprintf "P(~a):~a\n" (- (si-pidx o) 1) p))
-      (eprintf "\n\n"))
-  (cond 
-      [(= (length output) 3) (print-data)]
-      [else (eprintf "skipped\n")])
-  output)
+      [(not(= (- next 1) num-points)) 
+        (cons 
+          (si (cand-idx current-cond) 
+              (cand-point-idx current-cond))
+        (list))]
+      [else (cons (si (cand-idx current-cond) 
+                      (cand-point-idx current-cond))  (build-list next))]))
+  (reverse (build-list (- num-points 1))))
 
 
 (define/contract (err-lsts->split-indices err-lsts can-split)
