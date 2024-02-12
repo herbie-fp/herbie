@@ -285,7 +285,7 @@
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
               (set! aest-prev (vector-ref sp-prev prev-split-idx))
-              (set! aest-prev-idx prev-split-idx)
+              (set! aest-prev-idx (+ prev-split-idx 1))
               )))
         (define temp-aest 
           (cand aest-cost aest-best aest-bidx aest-prev-idx aest-prev))
@@ -326,16 +326,18 @@
       [else (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
   (define winner (vector-ref final (- num-points 1)))
   (define output (reverse (make-list winner)))
-  ;; (eprintf "~a\n" (si? (first  output)))
-  (define vec-aest (make-vector num-points))
-  (for ([i (in-range (vector-length final))] [c final])
-      (vector-set! vec-aest i (si (cand-idx c) (cand-point-idx c))))
-  (define list-output (vector->list vec-aest))
-    (eprintf "equal?: ~a\n" (equal? (length output) (length list-output)))
-    (for ([l list-output] [r output])
-      (eprintf "~a\n" (equal? l r))
-      (eprintf "~a ~a\n" l r))
-    (eprintf "FINAL:\n~a\n\n" final)
+  (define (print-data)
+    (eprintf "WINNER: ~a\n" winner)
+    (for ([o output])
+      (define c (vector-ref final (si-cidx o)))
+      (define p (vector-ref final (- (si-pidx o) 1)))
+      (eprintf "O:~a\n" o)
+      (eprintf "C(~a):~a\n" (si-pidx o) c)
+      (eprintf "P(~a):~a\n" (- (si-pidx o) 1) p))
+      (eprintf "\n\n"))
+  (cond 
+      [(= (length output) 3) (print-data)]
+      [else (eprintf "skipped\n")])
   output)
 
 
