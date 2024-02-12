@@ -11,7 +11,6 @@
 (define (operator-precision working-prec extra-precision)
   (min (*max-mpfr-prec*)
        (+ extra-precision
-          (*ground-truth-extra-bits*)
           working-prec)))
 
 (define (true-exponent x)
@@ -35,6 +34,7 @@
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
   (define prec-threshold (/ (*max-mpfr-prec*) 25))
+  (define list-of-tuning-ops (list ival-sin ival-cos ival-tan ival-exp ival-sinh ival-cosh ival-tanh))
   
   (if (equal? name 'ival)
       (λ args
@@ -120,7 +120,7 @@
                                 [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
               #;[(equal? op ival-pow)
                (...)]
-              [(member op (list ival-sin ival-cos ival-tan ival-exp))
+              [(member op list-of-tuning-ops)
                (set-box! exponents-checkpoint
                          (max 0
                               (true-exponent (ival-lo (car srcs)))
@@ -131,14 +131,21 @@
                          (max 0
                               (- (true-exponent (ival-lo output)))
                               (- (true-exponent (ival-hi output)))))]
-              [(equal? op ival-atan)
+              [(member op (list ival-atan ival-asin ival-acos))
                ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)],
                ;   where log[x^2+1] always > 0. We will not decrease the precision, then
                ;   roughly speaking log[Гatan] = log[x] - log[atan(x)] for our case
+               ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)],
+               ;   where log[1-x^2]/2 defines an additional precision when the point is close to one
+               ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)]
+               (define xlo (ival-lo (car srcs)))
+               (define xhi (ival-hi (car srcs)))
+               (define output-exponents ((monotonic->ival true-exponent) output))
+               
                (set-box! exponents-checkpoint
                          (max 0
-                              (max (- (ival-lo x-exponents) (ival-lo output-exponents))
-                                   (- (ival-hi x-exponents) (ival-hi output-exponents)))))]))
+                              (- (true-exponent xlo) (ival-lo output-exponents))
+                              (- (true-exponent xhi) (ival-hi output-exponents))))]))
           (timeline-stop!))
 
       (for/list ([root (in-list roots)])
