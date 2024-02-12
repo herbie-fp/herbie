@@ -288,7 +288,7 @@
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
               (set! aest-prev (vector-ref sp-prev prev-split-idx))
-              (set! aest-prev-idx (+ prev-split-idx 1))
+              (set! aest-prev-idx prev-split-idx)
               )))
         (define temp-aest 
           (cand aest-cost aest-best aest-bidx aest-prev-idx aest-prev))
@@ -319,20 +319,26 @@
             next
             (loop next)))))
 
+  (define (make-list current-cand)
+      (cond 
+        [(cand? (cand-prev current-cand)) 
+          (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
+                 (make-list (cand-prev current-cand)))]
+        [else (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
+  (define winner (vector-ref final (- num-points 1)))
+  (define output (reverse (make-list winner)))
+  
   ;; start at (- num-points 1)
   ;; if num-points we are done
-  (define (build-list current-idx)
-    (define current-cond (vector-ref final current-idx))
-    (define next (cand-prev-idx current-cond))
+  (define (build-list current-cand)
     (cond 
-      [(not(= (- next 1) num-points)) 
-        (cons 
-          (si (cand-idx current-cond) 
-              (cand-point-idx current-cond))
-        (list))]
-      [else (cons (si (cand-idx current-cond) 
-                      (cand-point-idx current-cond))  (build-list next))]))
-  (reverse (build-list (- num-points 1))))
+      [(not(= (cand-prev-idx current-cand) num-points))
+        (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
+               (build-list (vector-ref final (cand-prev-idx current-cand))))]
+      [else 
+        (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
+  (define idk (reverse (build-list (vector-ref final (- num-points 1)))))
+  idk)
 
 
 (define/contract (err-lsts->split-indices err-lsts can-split)
