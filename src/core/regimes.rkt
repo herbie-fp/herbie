@@ -23,7 +23,7 @@
 (struct si (cidx pidx) #:prefab)
 
 ;; TODO refactor me  
-(struct cand (acost idx point-idx prev-idx prev) #:transparent)
+(struct cand (acost idx point-idx prev-idx) #:transparent)
 
 (define (pareto-regimes sorted ctx)
   (define err-lsts (flip-lists (batch-errors (map alt-expr sorted) (*pcontext*) ctx)))
@@ -268,7 +268,6 @@
       (define aest-cost (cand-acost (vector-ref sp-prev point-idx)))
       (define aest-best (cand-idx (vector-ref sp-prev point-idx)))
       (define aest-bidx (cand-point-idx (vector-ref sp-prev point-idx)))
-      (define aest-prev (cand-prev (vector-ref sp-prev point-idx)))
       (define aest-prev-idx (cand-prev-idx (vector-ref sp-prev point-idx)))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
@@ -289,11 +288,10 @@
               (set! aest-cost acost)
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
-              (set! aest-prev (vector-ref sp-prev prev-split-idx))
               (set! aest-prev-idx (+ prev-split-idx 1))
               )))
         (define temp-aest 
-          (cand aest-cost aest-best aest-bidx aest-prev-idx aest-prev))
+          (cand aest-cost aest-best aest-bidx aest-prev-idx))
         (vector-set! vec-aest point-idx temp-aest)))
     vec-aest)
 
@@ -309,7 +307,7 @@
         (for/vector #:length num-candidates
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
-              (cand cost cand-idx (+ point-idx 1) num-points (vector))))))
+              (cand cost cand-idx (+ point-idx 1) num-points )))))
       (vector-set! vec-aest point-idx cse-min))
     vec-aest)
 
