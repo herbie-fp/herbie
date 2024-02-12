@@ -11,6 +11,7 @@
 (define (operator-precision working-prec extra-precision)
   (min (*max-mpfr-prec*)
        (+ extra-precision
+          (*ground-truth-extra-bits*)
           working-prec)))
 
 (define (true-exponent x)
