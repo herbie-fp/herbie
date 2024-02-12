@@ -18,14 +18,16 @@
 
 (FPCore (x)
  :name "math.cube on real"
- :herbie-target (pow x 3)
+ :alt 
+ (! :description (platform libm) (pow x 3))
  (* (* x x) x))
 
 (FPCore (x.re x.im)
  :name "math.cube on complex, real part"
- :herbie-target
- (+ (* (* x.re x.re) (- x.re x.im))
-    (* (* x.re x.im) (- x.re (* 3 x.im))))
+ :alt 
+ (! :description (platform libm)
+  (+ (* (* x.re x.re) (- x.re x.im))
+    (* (* x.re x.im) (- x.re (* 3 x.im)))))
 
  (-
   (* (re_sqr x.re x.im) x.re)
@@ -33,10 +35,11 @@
 
 (FPCore (x.re x.im)
  :name "math.cube on complex, imaginary part"
- :herbie-target
- (+
-  (* (* x.re x.im) (* 2 x.re))
-  (* (* x.im (- x.re x.im)) (+ x.re x.im)))
+ :alt 
+ (! :description (platform libm)
+  (+
+   (* (* x.re x.im) (* 2 x.re))
+   (* (* x.im (- x.re x.im)) (+ x.re x.im))))
 
  (+
   (* (re_sqr x.re x.im) x.im)
@@ -120,10 +123,12 @@
 
 (FPCore (re im)
  :name "math.sqrt on complex, real part"
- :herbie-target
- (if (< re 0)
+ :alt 
+ (! :description (platform libm)
+  (if (< re 0)
    (* 0.5 (* (sqrt 2) (sqrt (/ (* im im) (- (modulus re im) re)))))
-   (* 0.5 (sqrt (* 2.0 (+ (modulus re im) re)))))
+   (* 0.5 (sqrt (* 2.0 (+ (modulus re im) re))))))
+   
  (* 0.5 (sqrt (* 2.0 (+ (modulus re im) re)))))
 
 (FPCore (re im)

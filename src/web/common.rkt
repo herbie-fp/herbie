@@ -303,7 +303,7 @@
          (format "  :herbie-expected ~a" (test-expected test)))
      (if (test-output test)
          ;; Extra newlines for clarity
-         (format "\n  :herbie-target\n  ~a\n" (prog->fpcore (test-output test) output-repr))
+         (format "\n  :alt\n  ~a\n" (prog->fpcore (test-output test) output-repr))
          #f)
      (format "  ~a)" (prog->fpcore (test-input test) output-repr))))
    "\n"))
