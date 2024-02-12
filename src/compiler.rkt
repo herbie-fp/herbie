@@ -69,7 +69,7 @@
             
           (when (*use-mixed-precision*)
             (cond
-              [(equal? op ival-add) ; x + y
+              [(equal? op ival-add)
                (define x (first srcs))
                (define y (second srcs))
                (define x-exponents ((monotonic->ival true-exponent) x))
@@ -77,6 +77,8 @@
                (define y-exponents ((monotonic->ival true-exponent) y))
                (define y-sings ((monotonic->ival bigfloat-signbit) y))
                (define output-exponents ((monotonic->ival true-exponent) output))
+
+               ; TODO: rewrite this thing and implement it as a slack
                (set! output-exponents ((monotonic->ival ; if 0.bf was detected at the output then add 300bits just in case
                                         (lambda (x) (if (equal? x -9223372036854775807) -300 x)))
                                        output-exponents))
@@ -92,13 +94,15 @@
                                 [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
                                 [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
               [(equal? op ival-sub)
-               (define x (first srcs)) ; x - y
+               (define x (first srcs))
                (define y (second srcs))
                (define x-exponents ((monotonic->ival true-exponent) x))
                (define x-sings ((monotonic->ival bigfloat-signbit) x))
                (define y-exponents ((monotonic->ival true-exponent) y))
                (define y-sings ((monotonic->ival bigfloat-signbit) y))
                (define output-exponents ((monotonic->ival true-exponent) output))
+
+               ; TODO: rewrite this thing and implement it as a slack
                (set! output-exponents ((monotonic->ival ; if 0.bf was detected at the output then add 300bits just in case
                                         (lambda (x) (if (equal? x -9223372036854775807) -300 x)))
                                        output-exponents))
@@ -114,11 +118,27 @@
                                               (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
                                 [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
                                 [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
-              [(member op (list ival-sin ival-cos ival-tan))
-               (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+              #;[(equal? op ival-pow)
+               (...)]
+              [(member op (list ival-sin ival-cos ival-tan ival-exp))
+               (set-box! exponents-checkpoint
                          (max 0
                               (true-exponent (ival-lo (car srcs)))
-                              (true-exponent (ival-hi (car srcs)))))]))
+                              (true-exponent (ival-hi (car srcs)))))]
+              [(equal? op ival-log)
+               ; log[Гlog] = log[1/logx] = -log[log(x)]
+               (set-box! exponents-checkpoint
+                         (max 0
+                              (- (true-exponent (ival-lo output)))
+                              (- (true-exponent (ival-hi output)))))]
+              [(equal? op ival-atan)
+               ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)],
+               ;   where log[x^2+1] always > 0. We will not decrease the precision, then
+               ;   roughly speaking log[Гatan] = log[x] - log[atan(x)] for our case
+               (set-box! exponents-checkpoint
+                         (max 0
+                              (max (- (ival-lo x-exponents) (ival-lo output-exponents))
+                                   (- (ival-hi x-exponents) (ival-hi output-exponents)))))]))
           (timeline-stop!))
 
       (for/list ([root (in-list roots)])
