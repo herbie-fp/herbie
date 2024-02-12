@@ -141,7 +141,6 @@
   (define loc-errss
     (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define repr (context-repr (*context*)))
-  (timeline-compact! 'mixsample)
 
   ; high-error locations
   (^locs^
@@ -163,6 +162,8 @@
           (timeline-push! 'locations (~a expr) (errors-score err) #f (~a (representation-name repr)))
           expr) 
         '()))
+  
+  (timeline-compact! 'mixsample)
 
   (void))
 
@@ -307,6 +308,7 @@
   (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
   (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
+  (timeline-compact! 'mixsample)
   (timeline-event! 'eval)
   (define-values (errss costs) (atab-eval-altns table simplified* context))
   (timeline-event! 'prune)
@@ -415,7 +417,6 @@
          [(not best) (values altn new-score '())]
          [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
          [else (values best score (cons altn rest))]))))
-
   (match-define (cons best-annotated rest-annotated)
     (cond
      [(flag-set? 'generate 'proofs)
@@ -423,7 +424,6 @@
       (add-soundiness (cons best rest) (*pcontext*) (*context*))]
      [else
       (cons best rest)]))
-
   (timeline-event! 'end)
   
   (cons best-annotated (sort rest-annotated > #:key (curryr alt-cost repr))))

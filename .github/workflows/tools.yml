@@ -13,15 +13,13 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.9
+        uses: Bogdanp/setup-racket@v1.11
         with:
-          version: "8.10"
+          version: "8.11"
       - name: Install Rust compiler
-        uses: actions-rs/toolchain@v1.0.6
+        uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
-            default: true
-            override: true
             components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"
@@ -50,15 +48,13 @@ jobs:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.9
+        uses: Bogdanp/setup-racket@v1.11
         with:
-          version: "8.10"
+          version: "8.11"
       - name: Install Rust compiler
-        uses: actions-rs/toolchain@v1.0.6
+        uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
-            default: true
-            override: true
             components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"

@@ -61,8 +61,6 @@
 
 (define (simplify-inverses expr)
   (match expr
-    [`(expm1 (log1p ,x)) x]
-    [`(log1p (expm1 ,x)) x]
     [`(tanh (atanh ,x)) x]
     [`(cosh (acosh ,x)) x]
     [`(sinh (asinh ,x)) x]
@@ -127,25 +125,31 @@
 (define (gather-multiplicative-terms expr)
   (match expr
     [(? number?) `(,expr)]
+    ['NAN `(NAN)]
     [(? symbol?) `(1 (1 . ,expr))]
     [`(neg ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cons (- (car terms)) (cdr terms)))]
+       (if (eq? (car terms) 'NAN)
+           '(NAN)
+           (cons (- (car terms)) (cdr terms))))]
     [`(* ,args ...)
      (let ([terms (map gather-multiplicative-terms args)])
-       (cons (apply * (map car terms)) (apply append (map cdr terms))))]
+       (if (ormap (curry eq? 'NAN) (map car terms))
+           '(NAN)
+           (cons (apply * (map car terms)) (apply append (map cdr terms)))))]
     [`(/ ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cons (if (= (car terms) 0) 'NAN (/ (car terms))) (map negate-term (cdr terms))))]
+       (cons (if (member (car terms) '(0 NAN)) 'NAN (/ (car terms))) (map negate-term (cdr terms))))]
     [`(/ ,arg ,args ...)
      (let ([num (gather-multiplicative-terms arg)]
            [dens (map gather-multiplicative-terms args)])
-       (cons (if (ormap (compose (curry = 0) car) dens) 'NAN (apply / (car num) (map car dens)))
+       (cons (if (or (eq? (car num) 'NAN) (ormap (compose (curryr member '(0 NAN)) car) dens)) 'NAN (apply / (car num) (map car dens)))
              (append (cdr num)
                      (map negate-term (append-map cdr dens)))))]
     [`(sqrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-sqrt (eval-application 'sqrt (car terms)))
+       (define exact-sqrt
+         (match (car terms) ['NAN 'NAN] [x (eval-application 'sqrt x)]))
        (if exact-sqrt
            (cons exact-sqrt
                  (for/list ([term (cdr terms)])
@@ -156,7 +160,8 @@
                     (cons (/ (car term) 2) (cdr term))))))]
     [`(cbrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-cbrt (eval-application 'cbrt (car terms)))
+       (define exact-cbrt
+         (match (car terms) ['NAN 'NAN] [x (eval-application 'cbrt (car terms))]))
        (if exact-cbrt
            (cons exact-cbrt
                  (for/list ([term (cdr terms)])
@@ -169,7 +174,8 @@
      '(1)]
     [`(pow ,arg ,(? real? a))
      (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-pow (eval-application 'pow (car terms) a))
+       (define exact-pow
+         (match (car terms) ['NAN 'NAN] [x (eval-application 'pow (car terms) a)]))
        (if exact-pow
            (cons exact-pow
                  (for/list ([term (cdr terms)])
