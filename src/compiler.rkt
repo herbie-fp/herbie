@@ -84,16 +84,17 @@
                                         (lambda (x) (if (equal? x -9223372036854775807) -300 x)))
                                        output-exponents))
                (set-box! exponents-checkpoint
-                         (max 0
-                              (match* ((and (not (equal? (ival-lo x-sings) (ival-lo y-sings)))
-                                            (>= 1 (abs (- (ival-lo x-exponents) (ival-lo y-exponents)))))
-                                       (and (not (equal? (ival-hi x-sings) (ival-hi y-sings)))
-                                            (>= 1 (abs (- (ival-hi x-exponents) (ival-hi y-exponents))))))
-                                [(#f #f) 0]                                                          ; no extra precision
-                                [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
-                                              (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
-                                [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
-                                [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
+                         (+ (get-slack)
+                            (max 0
+                                 (match* ((and (not (equal? (ival-lo x-sings) (ival-lo y-sings)))
+                                               (>= 1 (abs (- (ival-lo x-exponents) (ival-lo y-exponents)))))
+                                          (and (not (equal? (ival-hi x-sings) (ival-hi y-sings)))
+                                               (>= 1 (abs (- (ival-hi x-exponents) (ival-hi y-exponents))))))
+                                   [(#f #f) 0]                                                          ; no extra precision
+                                   [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
+                                                 (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
+                                   [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
+                                   [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))]))))]   ; cancellation at upper bound
               [(equal? op ival-sub)
                (define x (first srcs))
                (define y (second srcs))
@@ -109,29 +110,32 @@
                                        output-exponents))
                  
                (set-box! exponents-checkpoint
-                         (max 0
-                              (match* ((and (equal? (ival-lo x-sings) (ival-hi y-sings))
-                                            (>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents)))))
-                                       (and (equal? (ival-hi x-sings) (ival-lo y-sings))
-                                            (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents))))))
-                                [(#f #f) 0]                                                          ; no extra precision
-                                [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
-                                              (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
-                                [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
-                                [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))])))]   ; cancellation at upper bound
+                         (+ (get-slack)
+                            (max 0
+                                 (match* ((and (equal? (ival-lo x-sings) (ival-hi y-sings))
+                                               (>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents)))))
+                                          (and (equal? (ival-hi x-sings) (ival-lo y-sings))
+                                               (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents))))))
+                                   [(#f #f) 0]                                                          ; no extra precision
+                                   [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
+                                                 (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
+                                   [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
+                                   [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))]))))]   ; cancellation at upper bound
               #;[(equal? op ival-pow)
                (...)]
               [(member op list-of-tuning-ops)
                (set-box! exponents-checkpoint
-                         (max 0
-                              (true-exponent (ival-lo (car srcs)))
-                              (true-exponent (ival-hi (car srcs)))))]
+                         (+ (get-slack)
+                            (max 0
+                                 (true-exponent (ival-lo (car srcs)))
+                                 (true-exponent (ival-hi (car srcs))))))]
               [(equal? op ival-log)
                ; log[Гlog] = log[1/logx] = -log[log(x)]
                (set-box! exponents-checkpoint
-                         (max 0
-                              (- (true-exponent (ival-lo output)))
-                              (- (true-exponent (ival-hi output)))))]
+                         (+ (get-slack)
+                            (max 0
+                                 (- (true-exponent (ival-lo output)))
+                                 (- (true-exponent (ival-hi output))))))]
               [(member op (list ival-atan ival-asin ival-acos))
                ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)],
                ;   where log[x^2+1] always > 0. We will not decrease the precision, then
@@ -144,9 +148,10 @@
                (define output-exponents ((monotonic->ival true-exponent) output))
                
                (set-box! exponents-checkpoint
-                         (max 0
-                              (- (true-exponent xlo) (ival-lo output-exponents))
-                              (- (true-exponent xhi) (ival-hi output-exponents))))]))
+                         (+ (get-slack)
+                            (max 0
+                                 (- (true-exponent xlo) (ival-lo output-exponents))
+                                 (- (true-exponent xhi) (ival-hi output-exponents)))))]))
           (timeline-stop!))
 
       (for/list ([root (in-list roots)])
@@ -178,7 +183,6 @@
 (define (backward-pass ivec varc)
   (let ([root-working-prec (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1)])
     (set-box! root-working-prec (*tuning-final-output-prec*)))
-  (define slack (get-slack))
   
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) 0 -1)]) ; go over operations top-down
     (define tail-registers (rest instr))
@@ -190,7 +194,7 @@
           ; child
           (match-define (vector _ workig-prec* extra-prec* _) (car (vector-ref ivec tail-index)))
           (set-box! extra-prec* (+ (unbox extra-prec) (unbox exponents)))
-          (set-box! workig-prec* (+ slack (unbox working-prec))))))))
+          (set-box! workig-prec* (+ (*ground-truth-extra-bits*) (unbox working-prec))))))))
 
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
