@@ -23,7 +23,7 @@
 (struct si (cidx pidx) #:prefab)
 
 ;; TODO refactor me  
-(struct cand (acost idx point-idx prev-idx) #:transparent)
+(struct cand (acost idx point-idx prev-idx prev) #:transparent)
 
 (define (pareto-regimes sorted ctx)
   (define err-lsts (flip-lists (batch-errors (map alt-expr sorted) (*pcontext*) ctx)))
@@ -268,6 +268,7 @@
       (define aest-cost (cand-acost (vector-ref sp-prev point-idx)))
       (define aest-best (cand-idx (vector-ref sp-prev point-idx)))
       (define aest-bidx (cand-point-idx (vector-ref sp-prev point-idx)))
+      (define aest-prev (cand-prev (vector-ref sp-prev point-idx)))
       (define aest-prev-idx (cand-prev-idx (vector-ref sp-prev point-idx)))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
@@ -288,15 +289,11 @@
               (set! aest-cost acost)
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
-<<<<<<< HEAD
-              (set! aest-prev-idx (+ prev-split-idx 1)))))
-=======
               (set! aest-prev (vector-ref sp-prev prev-split-idx))
               (set! aest-prev-idx prev-split-idx)
               )))
->>>>>>> zane-regimes-4
         (define temp-aest 
-          (cand aest-cost aest-best aest-bidx aest-prev-idx))
+          (cand aest-cost aest-best aest-bidx aest-prev-idx aest-prev))
         (vector-set! vec-aest point-idx temp-aest)))
     vec-aest)
 
@@ -312,7 +309,7 @@
         (for/vector #:length num-candidates
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
-              (cand cost cand-idx (+ point-idx 1) num-points )))))
+              (cand cost cand-idx (+ point-idx 1) num-points (vector))))))
       (vector-set! vec-aest point-idx cse-min))
     vec-aest)
 
@@ -337,15 +334,6 @@
   ;; if num-points we are done
   (define (build-list current-cand)
     (cond 
-<<<<<<< HEAD
-      [(not(= (- next 1) num-points)) 
-        (cons (si (cand-idx current-cond) (cand-point-idx current-cond))
-              (list))]
-      [else 
-       (cons (si (cand-idx current-cond) (cand-point-idx current-cond))  
-             (build-list next))]))
-  (reverse (build-list (- num-points 1))))
-=======
       [(not(= (cand-prev-idx current-cand) num-points))
         (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
                (build-list (vector-ref final (cand-prev-idx current-cand))))]
@@ -353,7 +341,6 @@
         (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
   (define idk (reverse (build-list (vector-ref final (- num-points 1)))))
   idk)
->>>>>>> zane-regimes-4
 
 (define/contract (err-lsts->split-indices err-lsts can-split)
   (->i ([e (listof list)] [cs (listof boolean?)]) 
