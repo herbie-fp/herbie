@@ -288,7 +288,13 @@
               (set! aest-cost acost)
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
+<<<<<<< HEAD
               (set! aest-prev-idx (+ prev-split-idx 1)))))
+=======
+              (set! aest-prev (vector-ref sp-prev prev-split-idx))
+              (set! aest-prev-idx prev-split-idx)
+              )))
+>>>>>>> zane-regimes-4
         (define temp-aest 
           (cand aest-cost aest-best aest-bidx aest-prev-idx))
         (vector-set! vec-aest point-idx temp-aest)))
@@ -318,12 +324,20 @@
             next
             (loop next)))))
 
+  (define (make-list current-cand)
+      (cond 
+        [(cand? (cand-prev current-cand)) 
+          (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
+                 (make-list (cand-prev current-cand)))]
+        [else (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
+  (define winner (vector-ref final (- num-points 1)))
+  (define output (reverse (make-list winner)))
+  
   ;; start at (- num-points 1)
   ;; if num-points we are done
-  (define (build-list current-idx)
-    (define current-cond (vector-ref final current-idx))
-    (define next (cand-prev-idx current-cond))
+  (define (build-list current-cand)
     (cond 
+<<<<<<< HEAD
       [(not(= (- next 1) num-points)) 
         (cons (si (cand-idx current-cond) (cand-point-idx current-cond))
               (list))]
@@ -331,6 +345,15 @@
        (cons (si (cand-idx current-cond) (cand-point-idx current-cond))  
              (build-list next))]))
   (reverse (build-list (- num-points 1))))
+=======
+      [(not(= (cand-prev-idx current-cand) num-points))
+        (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
+               (build-list (vector-ref final (cand-prev-idx current-cand))))]
+      [else 
+        (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
+  (define idk (reverse (build-list (vector-ref final (- num-points 1)))))
+  idk)
+>>>>>>> zane-regimes-4
 
 (define/contract (err-lsts->split-indices err-lsts can-split)
   (->i ([e (listof list)] [cs (listof boolean?)]) 
