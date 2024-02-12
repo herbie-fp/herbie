@@ -4,7 +4,8 @@
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
          "../syntax/syntax.rkt")
 
-(provide batch-localize-error local-error-as-tree compute-local-errors)
+(provide batch-localize-error local-error-as-tree compute-local-errors
+         all-subexpressions)
 
 (define (all-subexpressions expr repr)
   (remove-duplicates

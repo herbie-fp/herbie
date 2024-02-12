@@ -4,7 +4,7 @@
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt"
          "../compiler.rkt")
 
-(provide pareto-regimes infer-splitpoints (struct-out option) (struct-out si))
+(provide pareto-regimes (struct-out option) (struct-out si))
 
 (module+ test
   (require rackunit "../load-plugin.rkt")
@@ -26,28 +26,31 @@
 (struct cand (acost idx point-idx prev-idx prev) #:transparent)
 
 (define (pareto-regimes sorted ctx)
-  (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
-  (let loop ([alts sorted] [errs (hash)])
+  (define err-lsts (flip-lists (batch-errors (map alt-expr sorted) (*pcontext*) ctx)))
+  (let loop ([alts sorted] [errs (hash)] [err-lsts err-lsts])
     (cond
      [(null? alts) '()]
+     ; Only return one option if not pareto mode
+     [(and (not (*pareto-mode*)) (not (equal? alts sorted)))
+      '()]
      [else
       (define-values (opt new-errs) 
-        (infer-splitpoints alts #:errs errs ctx))
+        (infer-splitpoints alts err-lsts #:errs errs ctx))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
-      (cons opt (loop (take alts high) new-errs))])))
+      (cons opt (loop (take alts high) new-errs (take err-lsts high)))])))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts #:errs [cerrs (hash)] ctx)
+(define (infer-splitpoints alts err-lsts* #:errs [cerrs (hash)] ctx)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         (exprs-to-branch-on alts ctx)
         (context-vars ctx)))
   (timeline-event! 'regimes)
   (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
-  (define err-lsts (batch-errors (map alt-expr alts) (*pcontext*) ctx))
   (define sorted-bexprs (sort branch-exprs (lambda (x y) (< (hash-ref cerrs x -1) (hash-ref cerrs y -1)))))
+  (define err-lsts (flip-lists err-lsts*))
 
   ;; invariant:
   ;; errs[bexpr] is some best option on branch expression bexpr computed on more alts than we have right now.
@@ -68,7 +71,6 @@
   (timeline-push! 'outputs
                   (for/list ([sidx (option-split-indices best)])
                     (~a (alt-expr (list-ref alts (si-cidx sidx))))))
-  (define err-lsts* (flip-lists err-lsts))
   (timeline-push! 'baseline (apply min (map errors-score err-lsts*)))
   (timeline-push! 'accuracy (errors-score (option-errors best)))
   (define repr (context-repr ctx))
