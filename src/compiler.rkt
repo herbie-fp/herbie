@@ -26,7 +26,7 @@
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
 ;; <instr> ::= '(<op-procedure> <index> ...)
-;; <op-procedure> ::= #(<operation> <extra-precision> <exponents-checkpoint>)
+;; <op-procedure> ::= #(<operation> <working-precision> <extra-precision> <exponents-checkpoint>)
 ;; ```
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
@@ -56,13 +56,14 @@
         (when (equal? (bf-precision) (*starting-prec*))
           (for ([instr (in-vector tuning-ivec)])
             (set-box! (vector-ref (car instr) 2) 0)))
-    
+
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
         (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
           (define srcs
             (for/list ([idx (in-list (cdr instr))])
               (vector-ref vregs idx)))
+          
 
           (match-define (vector op extra-precision exponents-checkpoint) (car instr))
           (let ([extra-prec (unbox-prec extra-precision)])
