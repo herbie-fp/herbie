@@ -11,7 +11,6 @@
 (define (operator-precision working-prec extra-precision)
   (min (*max-mpfr-prec*)
        (+ extra-precision
-          (*ground-truth-extra-bits*)
           working-prec)))
 
 (define (true-exponent x)
@@ -41,9 +40,9 @@
       (λ args
         (when (*use-mixed-precision*)
             ;; remove all the precision values we assigned previously when a new point comes
-            (when (equal? (*sampling-iteration*) 0)
-                (for ([instr (in-vector ivec)])
-                  (vector-copy! (car instr) 1 (vector (box 0) (box 0) (box 0)))))
+          (when (equal? (*sampling-iteration*) 0)
+            (for ([instr (in-vector ivec)])
+              (vector-copy! (car instr) 1 (vector (box 0) (box 0) (box 0)))))
           (backward-pass ivec varc))
         
         (for ([arg (in-list args)] [n (in-naturals)])
