@@ -97,7 +97,7 @@
     (for ([(_ ruleset) (in-dict (*rulesets*))])
       (match-define (list rules groups _) ruleset)
       (when (and (ormap (curry flag-set? 'rules) groups)
-                 (set-member? groups 'sound)
+                 (set-member? groups 'simplify)
                  (filter rule-ops-supported? rules))
         (for ([rule (in-list rules)])
           (sow rule))))))
