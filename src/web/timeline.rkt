@@ -1,6 +1,6 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
-(require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt")
+(require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt" "../config.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -76,6 +76,7 @@
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-compiler 'compiler)
+         ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
          ,@(dict-call curr render-phase-bogosity 'bogosity)
          )))
 
@@ -177,6 +178,36 @@
 
 (define (average . values)
   (/ (apply + values) (length values)))
+
+(define (render-phase-mixed-sampling mixsample)
+  (define total-time (apply + (map first mixsample)))
+  `((dt "Precisions")
+    (dd (details
+         (summary "Click to see histograms. Total time spent on operations: " ,(format-time total-time))
+         ,@(map first
+                (sort
+                 (for/list ([rec (in-list (group-by second mixsample))]) ; group by operator
+                   ; rec = '('(time op precision) ... '(time op precision))
+                   (define n (random 100000))
+                   (define op (second (car rec)))
+                   (define precisions (map third rec))
+                   (define times (map first rec))
+                   (define time-per-op (round (apply + times)))
+
+                   (list `(details
+                           (summary "Operation " (code ,op)
+                                    ", time spent: " ,(format-time time-per-op)
+                                    ", " ,(~a (round (* (/ time-per-op total-time) 100))) "% of total-time") 
+                           (canvas ([id ,(format "calls-~a" n)]
+                                    [title "Histogram of precisions of the used operation"]))
+                           (script "histogram2D(\""
+                                   ,(format "calls-~a" n) "\", "
+                                   ,(jsexpr->string precisions) ", "
+                                   ,(jsexpr->string times) ", "
+                                   "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})"))
+                         time-per-op))
+                 > #:key second))))))
+
 
 (define (render-phase-sampling sampling)
   (define total (round (apply + (hash-values (cadr (car sampling))))))
