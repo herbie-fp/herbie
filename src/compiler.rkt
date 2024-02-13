@@ -169,7 +169,7 @@
 
 (define (get-slack)
   (match (*sampling-iteration*)
-    [0 (*ground-truth-extra-bits*)]
+    [0 0]
     [1 128]
     [2 256]
     [3 512]
