@@ -88,7 +88,7 @@
 (define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
 (define *analyze-prec* (make-parameter 128))
-(define *ground-truth-extra-bits* (make-parameter 5))
+(define *ground-truth-extra-bits* (make-parameter 20))
 
 (define *sampling-iteration* (make-parameter 0))
 (define *use-mixed-precision* (make-parameter #f))

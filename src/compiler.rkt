@@ -65,60 +65,65 @@
           (define output
             (parameterize ([bf-precision precision]) (apply op srcs)))
           (vector-set! vregs n output)
-            
+          
           (when (*use-mixed-precision*)
             (cond
               [(equal? op ival-add)
                (define x (first srcs))
+               (define xlo (ival-lo x))
+               (define xlo-exp (true-exponent xlo))
+               (define xlo-sgn (bigfloat-signbit xlo))
+               
+               (define xhi (ival-hi x))
+               (define xhi-exp (true-exponent xhi))
+               (define xhi-sgn (bigfloat-signbit xhi))
+               
                (define y (second srcs))
-               (define x-exponents ((monotonic->ival true-exponent) x))
-               (define x-sings ((monotonic->ival bigfloat-signbit) x))
-               (define y-exponents ((monotonic->ival true-exponent) y))
-               (define y-sings ((monotonic->ival bigfloat-signbit) y))
-               (define output-exponents ((monotonic->ival true-exponent) output))
-
-               ; TODO: rewrite this thing and implement it as a slack
-               (set! output-exponents ((monotonic->ival ; if 0.bf was detected at the output then add 300bits just in case
-                                        (lambda (x) (if (equal? x -9223372036854775807) -300 x)))
-                                       output-exponents))
+               (define ylo (ival-lo y))
+               (define ylo-exp (true-exponent ylo))
+               (define ylo-sgn (bigfloat-signbit ylo))
+               
+               (define yhi (ival-lo y))
+               (define yhi-exp (true-exponent yhi))
+               (define yhi-sgn (bigfloat-signbit yhi))
+               
                (set-box! exponents-checkpoint
-                         (+ (get-slack)
-                            (max 0
-                                 (match* ((and (not (equal? (ival-lo x-sings) (ival-lo y-sings)))
-                                               (>= 1 (abs (- (ival-lo x-exponents) (ival-lo y-exponents)))))
-                                          (and (not (equal? (ival-hi x-sings) (ival-hi y-sings)))
-                                               (>= 1 (abs (- (ival-hi x-exponents) (ival-hi y-exponents))))))
-                                   [(#f #f) 0]                                                          ; no extra precision
-                                   [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
-                                                 (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
-                                   [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
-                                   [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))]))))]   ; cancellation at upper bound
+                         (max 0
+                              (match (or
+                                      (and (not (equal? xlo-sgn ylo-sgn))
+                                           (>= 1 (abs (- xlo-exp ylo-exp))))
+                                      (and (not (equal? xhi-sgn yhi-sgn))
+                                           (>= 1 (abs (- xhi-exp yhi-exp)))))
+                                [#f 0]
+                                [#t (+ (get-slack) (- xhi-exp (true-exponent (ival-lo output))))])))]
               [(equal? op ival-sub)
                (define x (first srcs))
+               (define xlo (ival-lo x))
+               (define xlo-exp (true-exponent xlo))
+               (define xlo-sgn (bigfloat-signbit xlo))
+               
+               (define xhi (ival-hi x))
+               (define xhi-exp (true-exponent xhi))
+               (define xhi-sgn (bigfloat-signbit xhi))
+               
                (define y (second srcs))
-               (define x-exponents ((monotonic->ival true-exponent) x))
-               (define x-sings ((monotonic->ival bigfloat-signbit) x))
-               (define y-exponents ((monotonic->ival true-exponent) y))
-               (define y-sings ((monotonic->ival bigfloat-signbit) y))
-               (define output-exponents ((monotonic->ival true-exponent) output))
-
-               ; TODO: rewrite this thing and implement it as a slack
-               (set! output-exponents ((monotonic->ival ; if 0.bf was detected at the output then add 300bits just in case
-                                        (lambda (x) (if (equal? x -9223372036854775807) -300 x)))
-                                       output-exponents))
+               (define ylo (ival-lo y))
+               (define ylo-exp (true-exponent ylo))
+               (define ylo-sgn (bigfloat-signbit ylo))
+               
+               (define yhi (ival-lo y))
+               (define yhi-exp (true-exponent yhi))
+               (define yhi-sgn (bigfloat-signbit yhi))
                  
                (set-box! exponents-checkpoint
-                         (+ (get-slack)
-                            (max 0
-                                 (match* ((and (equal? (ival-lo x-sings) (ival-hi y-sings))
-                                               (>= 1 (abs (- (ival-lo x-exponents) (ival-hi y-exponents)))))
-                                          (and (equal? (ival-hi x-sings) (ival-lo y-sings))
-                                               (>= 1 (abs (- (ival-hi x-exponents) (ival-lo y-exponents))))))
-                                   [(#f #f) 0]                                                          ; no extra precision
-                                   [(#t #t) (max (- (ival-lo x-exponents) (ival-lo output-exponents))
-                                                 (- (ival-hi x-exponents) (ival-hi output-exponents)))] ; cancellation at both bounds
-                                   [(#t #f) (- (ival-lo x-exponents) (ival-lo output-exponents))]       ; cancellation at lower bound
-                                   [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))]))))]   ; cancellation at upper bound
+                         (max 0
+                              (match (or
+                                      (and (equal? xlo-sgn yhi-sgn)
+                                           (>= 1 (abs (- xlo-exp yhi-exp))))
+                                      (and (equal? xhi-sgn ylo-sgn)
+                                           (>= 1 (abs (- xhi-exp ylo-exp)))))
+                                [#f 0]
+                                [#t (+ (get-slack) (- xhi-exp (true-exponent (ival-lo output))))])))]
               #;[(equal? op ival-pow)
                (...)]
               [(member op ival-trigs-exp)
@@ -169,13 +174,13 @@
 
 (define (get-slack)
   (match (*sampling-iteration*)
-    [0 0]
-    [1 128]
-    [2 256]
-    [3 512]
-    [4 1024]
-    [5 2048]
-    [6 4096]))
+    [0 128]
+    [1 256]
+    [2 512]
+    [3 1024]
+    [4 2048]
+    [5 4096]
+    [6 8192]))
 
 ;; Function does backward-pass
 (define (backward-pass ivec varc)
