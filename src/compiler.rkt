@@ -24,7 +24,7 @@
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
 ;; <instr> ::= '(<op-procedure> <index> ...)
-;; <op-procedure> ::= #(<operation> <extra-precision> <exponents-checkpoint>)
+;; <op-procedure> ::= #(<operation> <working-precision> <extra-precision> <exponents-checkpoint>)
 ;; ```
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
@@ -35,7 +35,7 @@
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
   (define prec-threshold (/ (*max-mpfr-prec*) 25))
-  (define list-of-tuning-ops (list ival-sin ival-cos ival-tan ival-exp ival-sinh ival-cosh ival-tanh))
+  (define ival-trigs-exp (list ival-sin ival-cos ival-tan ival-exp ival-sinh ival-cosh ival-tanh))
   
   (if (equal? name 'ival)
       (λ args
@@ -45,7 +45,7 @@
                 (for ([instr (in-vector ivec)])
                   (vector-copy! (car instr) 1 (vector (box 0) (box 0) (box 0)))))
           (backward-pass ivec varc))
-      
+        
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
         (for ([instr (in-vector ivec)] [n (in-naturals varc)])
@@ -54,7 +54,6 @@
               (vector-ref vregs idx)))
           
           (match-define (vector op working-precision extra-precision exponents-checkpoint) (car instr))
-
           (define precision (if (*use-mixed-precision*)
                                 (operator-precision
                                  (unbox working-precision)
@@ -123,7 +122,7 @@
                                    [(#f #t) (- (ival-hi x-exponents) (ival-hi output-exponents))]))))]   ; cancellation at upper bound
               #;[(equal? op ival-pow)
                (...)]
-              [(member op list-of-tuning-ops)
+              [(member op ival-trigs-exp)
                (set-box! exponents-checkpoint
                          (+ (get-slack)
                             (max 0
@@ -183,17 +182,20 @@
 (define (backward-pass ivec varc)
   (let ([root-working-prec (vector-ref (car (vector-ref ivec (- (vector-length ivec) 1))) 1)])
     (set-box! root-working-prec (*tuning-final-output-prec*)))
-  
+
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) 0 -1)]) ; go over operations top-down
     (define tail-registers (rest instr))
     (for ([idx (in-list tail-registers)])                         
       (let ([tail-index (- idx varc)]) ; index of the op's child within ivec
-        (when (> tail-index 0)         ; if the child is not a variable
+        (when (>= tail-index 0)         ; if the child is not a variable
           ; parent
           (match-define (vector _ working-prec extra-prec exponents) (car instr))
+          ; make sure that parent is at least ~53smth bits. Important for precondition, otherwise it is 0bits
+          (set-box! working-prec (max (*tuning-final-output-prec*) (unbox working-prec)))
           ; child
           (match-define (vector _ workig-prec* extra-prec* _) (car (vector-ref ivec tail-index)))
           (set-box! extra-prec* (+ (unbox extra-prec) (unbox exponents)))
+          
           (set-box! workig-prec* (+ (*ground-truth-extra-bits*) (unbox working-prec))))))))
 
 ;; Translates a Herbie IR into an interpretable IR.
