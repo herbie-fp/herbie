@@ -152,8 +152,8 @@
      (define e-sign (list (get-parametric-operator 'copysign r r) 1 x))
      (define c (context (list x) r r))
      (list
-      (format "~a = ~a" x* (converter* e* c))
-      (format "~a = ~a" x-sign (converter* e-sign c)))]
+      (format "~a = ~a" (format "~a\\_m" x) (converter* e* c))
+      (format "~a = ~a" (format "~a\\_s" x) (converter* e-sign c)))]
     [(list 'sort vs ...)
      (define vs (context-vars ctx))
      (define vs* (context-vars ctx*))
