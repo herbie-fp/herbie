@@ -248,7 +248,7 @@
   [difference-of-sqr--1  (+ (* a a) -1)        (* (+ a 1) (- a 1))]
   [pow-sqr               (* (pow a b) (pow a b)) (pow a (* 2 b))])
 
-(define-ruleset* sqr-pow-expand (polynomials simplify)
+(define-ruleset* sqr-pow-expand (polynomials)
   #:type ([a real] [b real])
   [sqr-pow               (pow a b)             (* (pow a (/ b 2)) (pow a (/ b 2)))])
 
@@ -501,7 +501,7 @@
   [log-E        (log (E))           1])
 
 ; Logarithms
-(define-ruleset* log-distribute (exponents simplify)
+(define-ruleset* log-distribute (exponents)
   #:type ([a real] [b real])
   [log-prod     (log (* a b))       (+ (log a) (log b))]
   [log-div      (log (/ a b))       (- (log a) (log b))]
@@ -582,7 +582,7 @@
   [hang-m-tan  (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))
                (tan (/ (- a b) 2))])
 
-(define-ruleset* trig-reduce (trigonometry simplify)
+(define-ruleset* trig-reduce (trigonometry)
   #:type ([a real] [b real] [x real])
   [tan-+PI/2   (tan (+ x (/ (PI) 2)))  (/ -1 (tan x))]
   )
