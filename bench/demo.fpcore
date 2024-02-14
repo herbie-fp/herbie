@@ -26,8 +26,9 @@
 
 (FPCore (x)
  :name "sqrt sqr"
- :herbie-target
- (if (< x 0) 2 0)
+ :alt 
+ (! :description (platform libm) (if (< x 0) 2 0))
+
  (- (/ x x) (* (/ 1 x) (sqrt (* x x)))))
 
 (FPCore (a b c)

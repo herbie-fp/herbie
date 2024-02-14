@@ -359,13 +359,13 @@
 
 (define-ruleset* squares-transform-sound (arithmetic sound)
   #:type ([x real] [y real])
-  [sqrt-pow1         (sqrt (pow x y))       (pow x (/ y 2))]
   [sqrt-pow2         (pow (sqrt x) y)       (pow x (/ y 2))]
   [sqrt-unprod       (* (sqrt x) (sqrt y))  (sqrt (* x y))]
   [sqrt-undiv        (/ (sqrt x) (sqrt y))  (sqrt (/ x y))])
 
 (define-ruleset* squares-transform (arithmetic)
   #:type ([x real] [y real])
+  [sqrt-pow1         (sqrt (pow x y))       (pow x (/ y 2))]
   [sqrt-prod         (sqrt (* x y))         (* (sqrt x) (sqrt y))]
   [sqrt-div          (sqrt (/ x y))         (/ (sqrt x) (sqrt y))]
   [add-sqr-sqrt      x                      (* (sqrt x) (sqrt x))])

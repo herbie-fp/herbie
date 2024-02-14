@@ -27,7 +27,7 @@
 (define *timeline-active-value* #f)
 
 (define *timeline-disabled* (make-parameter true))
-
+  
 (define (timeline-event! type)
   (when *timeline-active-key*
     (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
@@ -168,6 +168,7 @@
 (define-timeline time #:custom +)
 
 (define-timeline method [method])
+(define-timeline mixsample [time +] [function false] [precision false])
 (define-timeline rules [rule false] [count +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [expr false] [var false] [transform false])
