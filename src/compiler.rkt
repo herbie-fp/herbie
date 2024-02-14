@@ -128,7 +128,8 @@
                (...)]
               [(member op ival-trigs-exp)
                (define prev-exponents (unbox exponents-checkpoint))
-               (define new-exponents (max 0
+               (define new-exponents (max 0 (true-exponent (ival-hi (car srcs)))))
+               #;(define new-exponents (max 0
                                           (true-exponent (ival-lo (car srcs)))
                                           (true-exponent (ival-hi (car srcs)))))
                (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
@@ -138,7 +139,8 @@
               [(equal? op ival-log)
                ; log[Гlog] = log[1/logx] = -log[log(x)]
                (define prev-exponents (unbox exponents-checkpoint))
-               (define new-exponents (max 0
+               (define new-exponents (max 0 (- (true-exponent (ival-lo output)))))
+               #;(define new-exponents (max 0
                                           (- (true-exponent (ival-lo output)))
                                           (- (true-exponent (ival-hi output)))))
                (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
@@ -156,7 +158,8 @@
                (define xhi (ival-hi (car srcs)))
                (define output-exponents ((monotonic->ival true-exponent) output))
                (define prev-exponents (unbox exponents-checkpoint))
-               (define new-exponents (max 0
+               (define new-exponents (max 0 (- (true-exponent xhi) (ival-lo output-exponents))))
+               #;(define new-exponents (max 0
                                           (- (true-exponent xlo) (ival-lo output-exponents))
                                           (- (true-exponent xhi) (ival-hi output-exponents))))
                
