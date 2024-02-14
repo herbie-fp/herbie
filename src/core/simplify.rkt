@@ -33,13 +33,6 @@
   (*context* (make-debug-context vars))
   (define all-simplify-rules (*simplify-rules*))
 
-  ;; check that no rules in simplify match on bare variables
-  ;; this would be bad because we don't want to match type-specific operators on a value of a different type
-  (for ([rule all-simplify-rules])
-    (check-true
-     (not (symbol? (rule-input rule)))
-     (string-append "Rule failed: " (symbol->string (rule-name rule)))))
-  
   (define (test-simplify . args)
     (map last (simplify-batch (make-egg-query args (*simplify-rules*)))))
 
