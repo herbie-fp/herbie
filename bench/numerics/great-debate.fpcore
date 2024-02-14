@@ -16,10 +16,11 @@
 (FPCore (x y)
   :name "Kahan p9 Example"
   :pre (and (< 0 x 1) (< y 1))
-  :herbie-target
-  (if (< 0.5 (fabs (/ x y)) 2)
+  :alt 
+  (! :description (platform libm)
+   (if (< 0.5 (fabs (/ x y)) 2)
       (/ (* (- x y) (+ x y)) (+ (* x x) (* y y)))
-      (- 1 (/ 2 (+ 1 (* (/ x y) (/ x y))))))
+      (- 1 (/ 2 (+ 1 (* (/ x y) (/ x y)))))))
 
   (/ (* (- x y) (+ x y)) (+ (* x x) (* y y))))
 

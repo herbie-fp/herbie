@@ -34,7 +34,7 @@
                     (summary (h2 "Specification")
                              ,dropdown
                              (a ([class "help-button float"] 
-                                 [href "/doc/latest/report.html#spec"] 
+                                 [href ,(doc-url "report.html#spec")] 
                                  [target "_blank"]) "?"))
                     ,body)))
 
@@ -54,7 +54,7 @@
         [(? exn?)
          `(,@(render-reproduction test #:bug? #t)
            (section ([id "backtrace"])
-             (h1 "Backtrace")
+             (h2 "Backtrace")
              ,(render-traceback exn)))]
         [_ ""])))
    out))

@@ -1,11 +1,12 @@
 #lang racket
 
 (require (only-in xml write-xexpr xexpr?)
-         (only-in fpbench core->tex supported-by-lang?))
+         (only-in fpbench core->tex supported-by-lang?)
+         json)
 (require "../syntax/types.rkt" "../syntax/rules.rkt" "../core/bsearch.rkt" 
          "../alternative.rkt" "../common.rkt" "../float.rkt" "../points.rkt" 
-         "../programs.rkt" "common.rkt")
-(provide render-history)
+         "../programs.rkt" "../syntax/sugar.rkt" "common.rkt")
+(provide render-history render-json)
 
 (define (split-pcontext pcontext splitpoints alts ctx)
   (define preds (splitpoints->point-preds splitpoints alts ctx))
@@ -152,3 +153,105 @@
                         "\\[\\leadsto "
                         ,(core->tex step-prog #:loc (cons 2 loc) #:color "blue")
                         "\\]"))))))))
+
+
+(define (render-json altn pcontext pcontext2 ctx)
+  (define repr (context-repr ctx))
+  (define err (errors-score (errors (alt-expr altn) pcontext ctx)))
+  (define err2 (errors-score (errors (alt-expr altn) pcontext2 ctx)))
+
+  (match altn
+    [(alt prog 'start (list) _)
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
+            (type . "start")
+            (error . ,err)
+            (training-error . ,err2))]
+
+    [(alt prog `(start ,strategy) `(,prev) _)
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+            (type . "strategy") 
+            (strategy . ,(~a strategy)) 
+            (prev . ,(render-json prev pcontext pcontext2 ctx))
+            (error . ,err) 
+            (training-error . ,err2))]
+
+    [(alt prog `(regimes ,splitpoints) prevs _)
+     (define intervals
+       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
+         (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
+
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+            (type . "regimes") 
+            (conditions . ,(for/list ([entry prevs] [idx (in-naturals)]) 
+                (let ([entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals)]) (map (curryr interval->string repr) entry-ivals))))
+            (prevs . ,(for/list ([entry prevs] 
+                                 [new-pcontext (split-pcontext pcontext splitpoints prevs ctx)]
+                                 [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs ctx)])
+                        (render-json entry new-pcontext new-pcontext2 ctx))))]
+
+    [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+            (type . "taylor") 
+            (prev . ,(render-json prev pcontext pcontext2 ctx))
+            (pt . ,(~a pt))
+            (var . ,(~a var))
+            (loc . ,loc)
+            (error . ,err) 
+            (training-error . ,err2))]
+
+    [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev) _)
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+            (type . "simplify") 
+            (prev . ,(render-json prev pcontext pcontext2 ctx))
+            (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
+            (loc . ,loc)
+            (error . ,err) 
+            (training-error . ,err2))]
+
+    [(alt prog `initial-simplify `(,prev) _)
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+            (type . "initial-simplify") 
+            (prev . ,(render-json prev pcontext pcontext2 ctx))
+            (error . ,err) 
+            (training-error . ,err2))]
+
+    [(alt prog `final-simplify `(,prev) _)
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+            (type . "final-simplify") 
+            (prev . ,(render-json prev pcontext pcontext2 ctx))
+            (error . ,err) 
+            (training-error . ,err2))]
+
+    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev) _)
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+            (type . "rr") 
+            (prev . ,(render-json prev pcontext pcontext2 ctx))
+            (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
+            (rule . ,(if (rule? input) "rewrite-once" "egg-rr"))
+            (loc . ,loc)
+            (error . ,err) 
+            (training-error . ,err2))]
+
+    [(alt prog 'add-preprocessing `(,prev) preprocessing)
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
+            (type . "add-preprocessing")
+            (prev . ,(render-json prev pcontext pcontext2 ctx))
+            (error . ,err)
+            (training-error . ,err2)
+            (preprocessing . ,preprocessing))]))
+
+(define (render-proof-json proof soundiness pcontext ctx)
+      (for/list ([step proof] [sound soundiness])
+          (define-values (dir rule loc expr) (splice-proof-step step))
+          (define err (errors-score (errors expr pcontext ctx)))
+
+          `#hash(
+                  (error . ,err)
+                  (program . ,(fpcore->string (program->fpcore expr ctx)))
+                  (direction . ,(match dir ['Rewrite<= "rtl"] ['Rewrite=> "ltr"] ['Goal "goal"]))
+                  (rule . ,(~a rule))
+                  (loc . ,loc)
+                  (tag . ,(string-append (format " ↑ ~a" (first sound))
+                                              (format " ↓ ~a" (second sound))))
+                  )))
+
