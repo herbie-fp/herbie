@@ -134,9 +134,9 @@
   (*context* (context-extend (*context*) 'x repr))
 
   (let ([chngs (rewrite-once '(+.f64 x x) (*context*) #:rules (*rules*))])
-    (check-equal? (length chngs) 13 (format "rewrites ~a" chngs)))
+    (check-equal? (length chngs) 14 (format "rewrites ~a" chngs)))
 
   (let ([chngs (rewrite-once '(*.f64 x x) (*context*) #:rules (*rules*))])
-    (check-equal? (length chngs) 11 (format "rewrites ~a" chngs)))
+    (check-equal? (length chngs) 12 (format "rewrites ~a" chngs)))
 
   (void))
