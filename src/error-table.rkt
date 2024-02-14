@@ -487,18 +487,23 @@
                                     (bf- 1.bf
                                          (bf* x x)))
                                    subexpr-val))))
-         
+         (define acos-x (bfacos x))
+         #;(eprintf "~a,~a,~a,~a,"
+                  pt
+                  x
+                  (bigfloat->flonum acos-x)
+                  (bigfloat->flonum subexpr-val))
          (cond
            ; Condition number hallucinations:
            ; acos(1) == 0
-           [(= (bigfloat->flonum x) 1.0) #f]
+           [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
 
            ; acos(-1) == pi
-           [(= (bigfloat->flonum x) -1.0) #f]
+           [(and (bf= x -1.bf) (bf= subexpr-val pi.bf)) #f]
            
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)acos(x))|
-           [(bf> cond-x cond-thres)
+           [(bf> cond-x cond-thres) (eprintf "cond\n")
             (mark-erroneous! subexpr 'sensitivity)]
            
            [else #f])]
@@ -516,14 +521,8 @@
          (cond
            ; Condition Number hallucinations:
            ; asin(1) == pi/2
-           [(= (bigfloat->flonum x) 1.0) #f]
-
-           ; asin(-1) == -pi/2
-           [(= (bigfloat->flonum x) -1.0) #f]
-
-           ; asin(0) == 0
+           [(and (bf= (bfabs x) 1.bf) (bf= (bfabs subexpr-val) (bf/ pi.bf 2.bf))) #f]
            [(and (bfzero? x) (bfzero? subexpr-val)) #f]
-           
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)asin(x))|
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
