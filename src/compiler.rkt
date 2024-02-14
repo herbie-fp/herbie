@@ -127,18 +127,24 @@
               #;[(equal? op ival-pow)
                (...)]
               [(member op ival-trigs-exp)
-               (set-box! exponents-checkpoint
-                         (+ (get-slack)
-                            (max 0
-                                 (true-exponent (ival-lo (car srcs)))
-                                 (true-exponent (ival-hi (car srcs))))))]
+               (define prev-exponents (unbox exponents-checkpoint))
+               (define new-exponents (max 0
+                                          (true-exponent (ival-lo (car srcs)))
+                                          (true-exponent (ival-hi (car srcs)))))
+               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
+                                                  (+ (get-slack) new-exponents)
+                                                  new-exponents))]
+              
               [(equal? op ival-log)
                ; log[Гlog] = log[1/logx] = -log[log(x)]
-               (set-box! exponents-checkpoint
-                         (+ (get-slack)
-                            (max 0
-                                 (- (true-exponent (ival-lo output)))
-                                 (- (true-exponent (ival-hi output))))))]
+               (define prev-exponents (unbox exponents-checkpoint))
+               (define new-exponents (max 0
+                                          (- (true-exponent (ival-lo output)))
+                                          (- (true-exponent (ival-hi output)))))
+               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
+                                                  (+ (get-slack) new-exponents)
+                                                  new-exponents))]
+              
               [(member op (list ival-atan ival-asin ival-acos))
                ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)],
                ;   where log[x^2+1] always > 0. We will not decrease the precision, then
@@ -149,12 +155,14 @@
                (define xlo (ival-lo (car srcs)))
                (define xhi (ival-hi (car srcs)))
                (define output-exponents ((monotonic->ival true-exponent) output))
+               (define prev-exponents (unbox exponents-checkpoint))
+               (define new-exponents (max 0
+                                          (- (true-exponent xlo) (ival-lo output-exponents))
+                                          (- (true-exponent xhi) (ival-hi output-exponents))))
                
-               (set-box! exponents-checkpoint
-                         (+ (get-slack)
-                            (max 0
-                                 (- (true-exponent xlo) (ival-lo output-exponents))
-                                 (- (true-exponent xhi) (ival-hi output-exponents)))))]))
+               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
+                                                  (+ (get-slack) new-exponents)
+                                                  new-exponents))]))
           (timeline-stop!))
 
       (for/list ([root (in-list roots)])
@@ -174,13 +182,13 @@
 
 (define (get-slack)
   (match (*sampling-iteration*)
-    [0 128]
-    [1 256]
-    [2 512]
-    [3 1024]
-    [4 2048]
-    [5 4096]
-    [6 8192]))
+    [0 20]
+    [1 128]
+    [2 256]
+    [3 750]
+    [4 1500]
+    [5 3000]
+    [6 4096]))
 
 ;; Function does backward-pass
 (define (backward-pass ivec varc)
