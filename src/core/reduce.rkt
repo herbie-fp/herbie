@@ -87,10 +87,10 @@
     [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
-    [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_))
+    [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_) `(pow ,_ ,_))
      (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
     [`(exp (* ,c (log ,x)))
-     `(pow ,x ,c)]
+     (simplify-node* `(pow ,x ,c))]
     [else
      (simplify-inverses expr)]))
 
@@ -284,5 +284,7 @@
     [`(-1 . ,x) `(/ 1 ,x)]
     [`(1/2 . ,x) `(sqrt ,x)]
     [`(-1/2 . ,x) `(/ 1 (sqrt ,x))]
+    [`(1/3 . ,x) `(cbrt ,x)]
+    [`(-1/3 . ,x) `(/ 1 (cbrt ,x))]
     [`(,power . ,x) `(pow ,x ,power)]))
 
