@@ -19,6 +19,11 @@
        0
        exp))
 
+(define (if-0bf-increase x)
+  (if (equal? x -9223372036854775807)
+      -300
+      x))
+
 ;; Interpreter taking a narrow IR
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
@@ -95,7 +100,8 @@
                                       (and (not (equal? xhi-sgn yhi-sgn))
                                            (>= 1 (abs (- xhi-exp yhi-exp)))))
                                 [#f 0]
-                                [#t (+ (get-slack) (- xhi-exp (true-exponent (ival-lo output))))])))]
+                                [#t (+ (get-slack) (- xhi-exp
+                                                      (if-0bf-increase (true-exponent (ival-lo output)))))])))]
               [(equal? op ival-sub)
                (define x (first srcs))
                (define xlo (ival-lo x))
@@ -123,7 +129,8 @@
                                       (and (equal? xhi-sgn ylo-sgn)
                                            (>= 1 (abs (- xhi-exp ylo-exp)))))
                                 [#f 0]
-                                [#t (+ (get-slack) (- xhi-exp (true-exponent (ival-lo output))))])))]
+                                [#t (+ (get-slack) (- xhi-exp
+                                                      (if-0bf-increase (true-exponent (ival-lo output)))))])))]
               #;[(equal? op ival-pow)
                (...)]
               [(member op ival-trigs-exp)
