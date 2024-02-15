@@ -250,6 +250,11 @@
       (vector-set! vec-aest point-idx cse-min))
     vec-aest)
 
+  ;; Look into using (values ... )
+  ;; you can look up where all the time is spent in the profile
+  ;; https://github.com/racket/racket/blob/master/racket/collects/racket/private/for.rkt
+  ;; check the function in the Metrics Page
+
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
   (define final
     (let loop ([prev (initial)])
