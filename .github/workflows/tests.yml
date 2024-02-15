@@ -28,4 +28,4 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - run: racket infra/integration.rkt --precision ${{ matrix.precision }} --seed 0 bench/hamming/
+      - run: racket infra/ci.rkt --precision ${{ matrix.precision }} --seed 0 bench/hamming/
