@@ -1,6 +1,6 @@
 #lang racket
 
-; (require (only-in fpbench c-header))
+(require (only-in fpbench core->c c-header))
 (require "syntax/read.rkt"
          "syntax/types.rkt"
          "web/common.rkt"
@@ -11,6 +11,8 @@
          "web/core2mkl.rkt")
 
 (provide run-improve)
+
+(define supported '(#f "fpcore" "c" "mkl"))
 
 (define (in-table-row tr)
   (unless (table-row? tr)
@@ -27,6 +29,9 @@
   (match lang
     [(or "fpcore" #f)
      (void)]
+    ["mkl"
+     (fprintf p (mkl-header))
+     (newline p)]
     ["c"
      (fprintf p (c-header))
      (newline p)]))
@@ -37,7 +42,7 @@
      (fprintf p ";; ")
      (apply fprintf p fmt args)
      (newline p)]
-    ["c"
+    [(or "c" "mkl")
      (fprintf p "// ")
      (apply fprintf p fmt args)
      (newline p)]))
@@ -49,7 +54,7 @@
        (fprintf p ";; ")
        (fprintf p line)
        (newline p))]
-    ["c"
+    [(or "c" "mkl")
      (for ([line (string-split (render-fpcore test) "\n")])
        (fprintf p "// ")
        (fprintf p line)
@@ -59,14 +64,15 @@
   (match lang
     [(or "fpcore" #f)
      (pretty-print (unparse-result res #:expr expr) p 1)]
-    ["c"
+    [(or "c" "mkl")
      (when (table-row-output res)
        (define name (table-row-name res))
        (define vars (table-row-vars res))
        (define repr (get-representation (table-row-precision res)))
        (define ctx (context vars repr (map (const repr) vars)))
        (define core (program->fpcore expr ctx))
-       (fprintf p (core->c core name)))]))
+       (define core->x (match lang ["c" core->c] ["mkl" core->mkl]))
+       (fprintf p (core->x core name)))]))
 
 (define (print-outputs tests results p
                        #:seed [seed #f]
@@ -110,7 +116,7 @@
 (define (run-improve input output
                      #:threads [threads #f]
                      #:lang [lang #f])
-  (unless (set-member? '(#f "fpcore" "c") lang)
+  (unless (set-member? supported lang)
     (error 'run-improve "unrecognized language ~a" lang))
 
   (define seed (get-seed))
