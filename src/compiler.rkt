@@ -6,23 +6,26 @@
 
 (provide compile-specs compile-spec compile-progs compile-prog)
 
-;; Function calculates a precision for the operation
-;;    with respect to the given extra-precision (exponents from a previous run)
 (define (operator-precision working-prec extra-precision)
   (min (*max-mpfr-prec*)
        (+ extra-precision
           working-prec)))
 
+; TODO: handle 0.bf
 (define (true-exponent x)
   (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
   (if (< 1000000000 exp)               ; overflow
        0
        exp))
 
-(define (if-0bf-increase x)
+(define (if-0bf-to-slack x)
   (if (equal? x -9223372036854775807)
-      -300
+      (get-slack)
       x))
+
+(define (fixed-in-prec? iv prec)
+  (parameterize ([bf-precision prec])
+    (bf= (bf+ (ival-lo iv) 0.bf) (bf+ (ival-hi iv) 0.bf))))
 
 ;; Interpreter taking a narrow IR
 ;; ```
@@ -39,7 +42,6 @@
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
   (define prec-threshold (/ (*max-mpfr-prec*) 25))
-  (define ival-trigs-exp (list ival-sin ival-cos ival-tan ival-exp ival-sinh ival-cosh ival-tanh))
   
   (if (equal? name 'ival)
       (λ args
@@ -48,7 +50,11 @@
           (when (equal? (*sampling-iteration*) 0)
             (for ([instr (in-vector ivec)])
               (vector-copy! (car instr) 1 (vector (box 0) (box 0) (box 0)))))
-          (backward-pass ivec varc))
+          (backward-pass ivec varc)
+          #;(when (> (*sampling-iteration*) 4) 
+            (printf "Iteration: ~a\n" (*sampling-iteration*))
+            (println ivec)))
+        
         
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
@@ -74,6 +80,7 @@
           (when (*use-mixed-precision*)
             (cond
               [(equal? op ival-add)
+               ; TODO: add stop-condition
                (define x (first srcs))
                (define xlo (ival-lo x))
                (define xlo-exp (true-exponent xlo))
@@ -91,6 +98,9 @@
                (define yhi (ival-lo y))
                (define yhi-exp (true-exponent yhi))
                (define yhi-sgn (bigfloat-signbit yhi))
+
+               (define outlo-exp (if-0bf-to-slack (true-exponent (ival-lo output))))
+               (define outhi-exp (if-0bf-to-slack (true-exponent (ival-hi output))))
                
                (set-box! exponents-checkpoint
                          (max 0
@@ -99,10 +109,12 @@
                                            (>= 1 (abs (- xlo-exp ylo-exp))))
                                       (and (not (equal? xhi-sgn yhi-sgn))
                                            (>= 1 (abs (- xhi-exp yhi-exp)))))
-                                [#f 0]
-                                [#t (+ (get-slack) (- xhi-exp
-                                                      (if-0bf-increase (true-exponent (ival-lo output)))))])))]
+                                [#f (max (- (max xlo-exp ylo-exp) outlo-exp)
+                                         (- (max xhi-exp yhi-exp) outhi-exp))]
+                                [#t (+ (get-slack) (max (- xlo-exp outlo-exp)
+                                                        (- xhi-exp outhi-exp)))])))]
               [(equal? op ival-sub)
+               ; TODO: add stop-condition
                (define x (first srcs))
                (define xlo (ival-lo x))
                (define xlo-exp (true-exponent xlo))
@@ -120,7 +132,10 @@
                (define yhi (ival-lo y))
                (define yhi-exp (true-exponent yhi))
                (define yhi-sgn (bigfloat-signbit yhi))
-                 
+
+               (define outlo-exp (if-0bf-to-slack (true-exponent (ival-lo output))))
+               (define outhi-exp (if-0bf-to-slack (true-exponent (ival-hi output))))
+               
                (set-box! exponents-checkpoint
                          (max 0
                               (match (or
@@ -128,51 +143,129 @@
                                            (>= 1 (abs (- xlo-exp yhi-exp))))
                                       (and (equal? xhi-sgn ylo-sgn)
                                            (>= 1 (abs (- xhi-exp ylo-exp)))))
-                                [#f 0]
-                                [#t (+ (get-slack) (- xhi-exp
-                                                      (if-0bf-increase (true-exponent (ival-lo output)))))])))]
-              #;[(equal? op ival-pow)
-               (...)]
-              [(member op ival-trigs-exp)
+                                [#f (max (- (max xlo-exp yhi-exp) outlo-exp)
+                                         (- (max xhi-exp ylo-exp) outhi-exp))]
+                                [#t (+ (get-slack) (max (- xlo-exp outlo-exp)
+                                                        (- xhi-exp outhi-exp)))])))]
+              [(equal? op ival-pow)
+               ; log[Гpow] = max[ log(y) , log(y) + log[log(x)] ]
+               (define xlo-exp (true-exponent (ival-lo (first srcs))))
+               (define xhi-exp (true-exponent (ival-hi (first srcs))))
+
+               (define ylo-exp (true-exponent (ival-lo (second srcs))))
+               (define yhi-exp (true-exponent (ival-hi (second srcs))))
+
                (define prev-exponents (unbox exponents-checkpoint))
-               (define new-exponents (max 0 (true-exponent (ival-hi (car srcs)))))
-               #;(define new-exponents (max 0
+               (define new-exponents
+                 (if (> (max xlo-exp xhi-exp) 2) ; if x >= 4 (actually 7.3890561), then at least 1 additional bit is needed
+                     (+ (max ylo-exp yhi-exp) 30)
+                     (max ylo-exp yhi-exp)))
+               
+               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
+                                                  new-exponents
+                                                  prev-exponents))]
+              
+              [(equal? (or ival-tan ival-exp ival-tanh) op)
+               (define prev-exponents (unbox exponents-checkpoint))
+               (define new-exponents (max 0
                                           (true-exponent (ival-lo (car srcs)))
                                           (true-exponent (ival-hi (car srcs)))))
                (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
                                                   (+ (get-slack) new-exponents)
-                                                  new-exponents))]
+                                                  prev-exponents))]
               
+              [(equal? (or ival-sin ival-cos ival-sinh ival-cosh) op)
+               ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)], where log[sin(x)] <= 0
+               ;                      ^^^^^^^^^^^
+               ;                      pruning opportunity
+               (define outlo (ival-lo output))
+               (define outhi (ival-hi output))
+
+               ; TODO: handle 0.bf and 1.bf/-1.bf when extra precision is needed
+               (define out-exp
+                 (match* ((bigfloat-signbit outlo) (bigfloat-signbit outhi))
+                   [(0 0) (min ; 0.bf possibly can be included which explodes exponents
+                           (true-exponent outlo)
+                           (true-exponent outhi))]
+                   [(1 1) (min
+                           (true-exponent outlo)
+                           (true-exponent outhi))]
+                   [(_ _) (- (min ; Condition of uncertainty, 0.bf can be included
+                              (true-exponent outlo)
+                              (true-exponent outhi))
+                             (get-slack))]))
+               
+               (define prev-exponents (unbox exponents-checkpoint))
+               (define new-exponents (max 0
+                                          (- (true-exponent (ival-lo (car srcs)))
+                                             out-exp)
+                                          (- (true-exponent (ival-hi (car srcs)))
+                                             out-exp)))
+               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
+                                                  new-exponents
+                                                  prev-exponents))]
+               
               [(equal? op ival-log)
                ; log[Гlog] = log[1/logx] = -log[log(x)]
                (define prev-exponents (unbox exponents-checkpoint))
-               (define new-exponents (max 0 (- (true-exponent (ival-lo output)))))
-               #;(define new-exponents (max 0
-                                          (- (true-exponent (ival-lo output)))
-                                          (- (true-exponent (ival-hi output)))))
-               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
-                                                  (+ (get-slack) new-exponents)
-                                                  new-exponents))]
-              
-              [(member op (list ival-atan ival-asin ival-acos))
-               ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)],
-               ;   where log[x^2+1] always > 0. We will not decrease the precision, then
-               ;   roughly speaking log[Гatan] = log[x] - log[atan(x)] for our case
-               ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)],
-               ;   where log[1-x^2]/2 defines an additional precision when the point is close to one
-               ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)]
-               (define xlo (ival-lo (car srcs)))
-               (define xhi (ival-hi (car srcs)))
-               (define output-exponents ((monotonic->ival true-exponent) output))
-               (define prev-exponents (unbox exponents-checkpoint))
-               (define new-exponents (max 0 (- (true-exponent xhi) (ival-lo output-exponents))))
-               #;(define new-exponents (max 0
-                                          (- (true-exponent xlo) (ival-lo output-exponents))
-                                          (- (true-exponent xhi) (ival-hi output-exponents))))
+               (define new-exponents (max 0
+                                          (- (if-0bf-to-slack (true-exponent (ival-lo output))))
+                                          (- (if-0bf-to-slack (true-exponent (ival-hi output))))))
                
                (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
-                                                  (+ (get-slack) new-exponents)
-                                                  new-exponents))]))
+                                                  new-exponents
+                                                  prev-exponents))]
+              
+              [(equal? op (or ival-asin ival-acos))
+               ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)]
+               ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)]
+               
+               (define xlo (ival-lo (car srcs)))
+               (define xhi (ival-hi (car srcs)))
+               (define xlo-exp (true-exponent xlo))
+               (define xhi-exp (true-exponent xhi))
+
+               (define out-exp
+                 (match* ((> xlo (bf 0.9)) (> xhi (bf 0.9))) ; 0.9 seems to be a threshold by looking at graph
+                   [(#f #f)
+                    (min
+                     (true-exponent (ival-lo output))
+                     (true-exponent (ival-hi output)))]
+                   [(_ _) ; Condition of uncertainty when argument is > 0.9
+                    (- (min
+                        (true-exponent (ival-lo output))
+                        (true-exponent (ival-hi output)))
+                       (get-slack))]))
+                 
+               (define prev-exponents (unbox exponents-checkpoint))
+               (define new-exponents (max 0
+                                          (- xlo-exp out-exp)
+                                          (- xhi-exp out-exp)))
+               
+               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
+                                                  new-exponents
+                                                  prev-exponents))]
+
+              [(equal? op ival-atan)
+               ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)], where log[x^2+1] > 0
+               ;                       ^^^^^^^^^^
+               ;                       can be considered for pruning
+               
+               (define xlo-exp (true-exponent (ival-lo (car srcs))))
+               (define xhi-exp (true-exponent (ival-hi (car srcs))))
+               
+               (define prev-exponents (unbox exponents-checkpoint))
+               (define new-exponents (max 0
+                                          (- xlo-exp (true-exponent (ival-lo output)))
+                                          (- xhi-exp (true-exponent (ival-hi output)))))
+               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
+                                                  new-exponents
+                                                  prev-exponents))]))
+
+          
+          #;(when (and (*use-mixed-precision*) (bigfloat? (ival-lo output)) (> (*sampling-iteration*) 4))
+            (printf "~a fixed=~a " (symbol->string (object-name op)) (fixed-in-prec? output (- precision (*ground-truth-extra-bits*))))
+            (printf "exonents=~a for ~a\n" (unbox exponents-checkpoint) (parameterize ([bf-precision 53]) output)))
           (timeline-stop!))
 
       (for/list ([root (in-list roots)])
@@ -192,13 +285,13 @@
 
 (define (get-slack)
   (match (*sampling-iteration*)
-    [0 20]
-    [1 128]
-    [2 256]
-    [3 750]
-    [4 1500]
-    [5 3000]
-    [6 4096]))
+    [0 50]
+    [1 200]
+    [2 500]
+    [3 1000]
+    [4 2048]
+    [5 4096]
+    [6 8192]))
 
 ;; Function does backward-pass
 (define (backward-pass ivec varc)
