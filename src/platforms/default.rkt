@@ -94,9 +94,9 @@
           log1p logb rint round sin sinh sqrt tan tanh tgamma trunc
           recip rsqrt)]
         [(real real real)
-         (+ - * / atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
-        [(real real real real)
-         (fma)]))))
+         (+ - * / atan2 copysign fdim fmax fmin fmod hypot pow remainder)]))))
+        ; [(real real real real)
+        ;  (fma)]))))
 
 ; compose platforms
 

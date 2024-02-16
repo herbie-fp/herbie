@@ -1,7 +1,7 @@
 #lang racket
-(require (only-in xml write-xexpr xexpr?) 
+(require (only-in xml write-xexpr xexpr?)
          (only-in fpbench fpcore? supported-by-lang?
-                          core->c core->fortran core->java core->python
+                          core->fortran core->java core->python
                           core->julia core->matlab core->wls core->tex
                           expr->tex
                           compilers
@@ -9,7 +9,8 @@
                           *expr-cse-able?*))
 
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
-         "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt")
+         "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
+         "core2mkl.rkt")
 
 (provide render-menu render-warnings render-large render-comparison
          render-program render-bogosity render-help render-fpcore
