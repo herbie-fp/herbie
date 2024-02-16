@@ -156,7 +156,25 @@
            ['tanh "Tanh"]
            ['asinh "Asinh"]
            ['acosh "Acosh"]
-           ['atanh "Atanh"])))
+           ['atanh "Atanh"]
+           ['ceil "Ceil"]
+           ['floor "Floor"]
+           ['trunc "Trunc"]
+           ['round "Round"]
+           ['rint "Rint"]
+           ['logb "Logb"]
+           ['lgamma "LGamma"]
+           ['tgamma "TGamma"]
+           ['fabs "Abs"]
+           ['fdim "Fdim"]
+           ['fmax "Fmax"]
+           ['fmin "Fmin"]
+           ['erf "Erf"]
+           ['erfc "Erfc"]
+           ['hypot "Hypot"]
+           ['fmod "Fmod"]
+           ['copysign "CopySign"]
+           ['remainder "Remainder"])))
      (formatter prec args out)]))
 
 (define (constant->mkl x ctx)

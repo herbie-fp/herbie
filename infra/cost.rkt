@@ -4,7 +4,8 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
-         (only-in fpbench core->c))
+         (only-in fpbench core->c)
+         herbie/web/core2mkl)
 
 (load-herbie-builtins)
 
@@ -19,10 +20,12 @@
     #:args (subcommand . args)
     (match subcommand
       ["compile"
-       (match-define (list arg) args)
+       (match-define (list lang arg) args)
        (match-define (list #\" cs ... #\") (string->list (string-replace arg "\\\"" "\"")))
        (define core (read (open-input-string (apply string cs))))
-       (printf "~a" (core->c core "foo"))]
+       (case lang
+         [("c") (printf "~a" (core->c core "foo"))]
+         [("mkl") (printf "~a" (core->mkl core "foo"))])]
       ["sample"
        (match-define (list n e) args)
        (match-define (list #\" cs ... #\") (string->list (string-replace e "\\\"" "\"")))
