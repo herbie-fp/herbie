@@ -26,7 +26,7 @@
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
 ;; <instr> ::= '(<op-procedure> <index> ...)
-;; <op-procedure> ::= #(<operation> <extra-precision> <exponents-checkpoint>)
+;; <op-procedure> ::= #(<operation> <working-precision> <extra-precision> <exponents-checkpoint>)
 ;; ```
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
@@ -47,47 +47,59 @@
     (if (equal? name 'ival)
         (vector-filter tuning-filter ivec)
         '()))
-  
-  (if (equal? name 'ival)
-    (λ args
-      ;; remove all the exponent values we assigned previously when a new point comes
-      (when (equal? (bf-precision) (*starting-prec*))
-        (for ([instr (in-vector tuning-ivec)])
-          (set-box! (vector-ref (car instr) 2) 0)))
-    
-      (for ([arg (in-list args)] [n (in-naturals)])
-        (vector-set! vregs n arg))
-      (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-        (define srcs
-          (for/list ([idx (in-list (cdr instr))])
-            (vector-ref vregs idx)))
 
-        (match-define (vector op extra-precision exponents-checkpoint) (car instr))
-        (let ([extra-prec (unbox-prec extra-precision)])
-          (parameterize ([bf-precision (operator-precision extra-prec)])
-            (vector-set! vregs n (apply op srcs)))
-          (when
-              (member op (list ival-sin ival-cos ival-tan))
-            (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
-                      (+ extra-prec
-                         (max 0
-                              (true-exponent (ival-lo (car srcs)))
-                              (true-exponent (ival-hi (car srcs)))))))))
+  (define prec-threshold (/ (*max-mpfr-prec*) 25))
+
+  (if (equal? name 'ival)
+      (λ args
+        ;; remove all the exponent values we assigned previously when a new point comes
+        (when (equal? (bf-precision) (*starting-prec*))
+          (for ([instr (in-vector tuning-ivec)])
+            (set-box! (vector-ref (car instr) 2) 0)))
+
+        (for ([arg (in-list args)] [n (in-naturals)])
+          (vector-set! vregs n arg))
+        (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
+          (define srcs
+            (for/list ([idx (in-list (cdr instr))])
+              (vector-ref vregs idx)))
+          
+
+          (match-define (vector op extra-precision exponents-checkpoint) (car instr))
+          (let ([extra-prec (unbox-prec extra-precision)])
+          
+            (define precision (operator-precision extra-prec))
+            (define timeline-stop! (timeline-start!/unsafe 'mixsample
+                                                           (symbol->string (object-name op))
+                                                           (- precision (remainder precision prec-threshold))))
+            (define output
+              (parameterize ([bf-precision precision])
+                (apply op srcs)))
+            (vector-set! vregs n output)
+          
+            (when
+                (member op (list ival-sin ival-cos ival-tan))
+              (set-box! exponents-checkpoint ; Save exponents with the passed precision for the next run
+                        (+ extra-prec
+                           (max 0
+                                (true-exponent (ival-lo (car srcs)))
+                                (true-exponent (ival-hi (car srcs)))))))
+            (timeline-stop!)))
     
-      (for/list ([root (in-list roots)])
-        (vector-ref vregs root)))
+        (for/list ([root (in-list roots)])
+          (vector-ref vregs root)))
     
-    ; name == 'fl
-    (λ args
-      (for ([arg (in-list args)] [n (in-naturals)])
-        (vector-set! vregs n arg))
-      (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
-        (define srcs
-          (for/list ([idx (in-list (cdr instr))])
-            (vector-ref vregs idx)))
-        (vector-set! vregs n (apply (car instr) srcs)))
-      (for/list ([root (in-list roots)])
-        (vector-ref vregs root)))))
+      ; name == 'fl
+      (λ args
+        (for ([arg (in-list args)] [n (in-naturals)])
+          (vector-set! vregs n arg))
+        (for ([instr (in-vector ivec)] [n (in-naturals (length vars))])
+          (define srcs
+            (for/list ([idx (in-list (cdr instr))])
+              (vector-ref vregs idx)))
+          (vector-set! vregs n (apply (car instr) srcs)))
+        (for/list ([root (in-list roots)])
+          (vector-ref vregs root)))))
 
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.

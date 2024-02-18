@@ -126,9 +126,9 @@
     [`(/ ,num ,den)
      (taylor-quotient (taylor var num) (taylor var den))]
     [`(sqrt ,arg)
-     (taylor-sqrt (taylor var arg))]
+     (taylor-sqrt var (taylor var arg))]
     [`(cbrt ,arg)
-     (taylor-cbrt (taylor var arg))]
+     (taylor-cbrt var (taylor var arg))]
     [`(exp ,arg)
      (let ([arg* (normalize-series (taylor var arg))])
        (if (positive? (car arg*))
@@ -170,9 +170,12 @@
     [`(pow ,base ,(? exact-integer? power))
      (taylor-pow (normalize-series (taylor var base)) power)]
     [`(pow ,base 1/2)
-     (taylor-sqrt (taylor var base))]
+     (taylor-sqrt var (taylor var base))]
     [`(pow ,base 1/3)
-     (taylor-cbrt (taylor var base))]
+     (taylor-cbrt var (taylor var base))]
+    [`(pow ,base 2/3)
+     (define tx (taylor var base))
+     (taylor-cbrt var (taylor-mult tx tx))]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
     [`(sinh ,arg)
@@ -189,10 +192,10 @@
      (taylor-quotient x- x+)]
     [`(asinh ,x)
      (define tx (taylor var x))
-     (taylor-log var (taylor-add tx (taylor-sqrt (taylor-add (taylor-mult tx tx) (taylor-exact 1)))))]
+     (taylor-log var (taylor-add tx (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact 1)))))]
     [`(acosh ,x)
      (define tx (taylor var x))
-     (taylor-log var (taylor-add tx (taylor-sqrt (taylor-add (taylor-mult tx tx) (taylor-exact -1)))))]
+     (taylor-log var (taylor-add tx (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact -1)))))]
     [`(atanh ,x)
      (define tx (taylor var x))
      (taylor-mult (taylor-exact 1/2)
@@ -298,13 +301,21 @@
                              `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))
   (cons (- noff doff) f))
 
-(define (taylor-sqrt num)
-  (let* ([num* (normalize-series num)]
-         [offset (car num*)]
-         [offset* (if (even? offset) offset (+ offset 1))]
-         [coeffs (cdr num*)]
-         [coeffs* (if (even? offset) coeffs (λ (n) (if (= n 0) 0 (coeffs (- n 1)))))]
-         [hash (make-hash)])
+(define (modulo-series var n series)
+  (match-define (cons offset coeffs) (normalize-series series))
+  (define offset* (+ offset (modulo (- offset) n)))
+  (define (coeffs* i)
+    (match i
+      [0 (make-sum
+          (for/list ([j (in-range (modulo offset n))])
+            `(* ,(coeffs j) (pow ,var ,(+ j (modulo (- offset) n))))))]
+      [_ #:when (< i n) 0]
+      [_ (coeffs (+ (- i n) (modulo offset n)))]))
+  (cons offset* (if (= offset offset*) coeffs coeffs*)))
+
+(define (taylor-sqrt var num)
+  (match-define (cons offset* coeffs*) (modulo-series var 2 num))
+  (let* ([hash (make-hash)])
     (hash-set! hash 0 (simplify `(sqrt ,(coeffs* 0))))
     (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))))
     (letrec ([f (λ (n)
@@ -324,13 +335,9 @@
                                         (* 2 ,(f 0)))])))))])
       (cons (/ offset* 2) f))))
 
-(define (taylor-cbrt num)
-  (let* ([num* (normalize-series num)]
-         [offset (car num*)]
-         [offset* (- offset (modulo offset 3))]
-         [coeffs (cdr num*)]
-         [coeffs* (if (= (modulo offset 3) 0) coeffs (λ (n) (if (= n 0) 0 (coeffs (+ n (modulo offset 3))))))]
-         [f0 (simplify `(cbrt ,(coeffs* 0)))]
+(define (taylor-cbrt var num)
+  (match-define (cons offset* coeffs*) (modulo-series var 3 num))
+  (let* ([f0 (simplify `(cbrt ,(coeffs* 0)))]
          [hash (make-hash)])
     (hash-set! hash 0 f0)
     (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 3 (cbrt (* ,f0 ,f0))))))
@@ -509,5 +516,9 @@
     (build-list n fn))
 
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
+  (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
+  (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(cbrt (* x x))) '((cbrt (pow x 2)) 0 0 0 0 0 0))
   )
