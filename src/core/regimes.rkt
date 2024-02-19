@@ -221,9 +221,10 @@
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- aest-cost min-weight)])
-        (for ([prev-split-idx (in-range 0 point-idx)] 
-              #:when (can-split? (cand-point-idx (vector-ref sp-prev prev-split-idx))))
+        (for ([prev-split-idx (in-range 0 point-idx)])
           ;; For each previous split point, we need the best candidate to fill the new regime
+         (when 
+          (can-split? (cand-point-idx (vector-ref sp-prev prev-split-idx))) 
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector vec-psums)])
               (let ([cost (- (vector-ref psum point-idx)
@@ -239,7 +240,7 @@
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
               (set! aest-prev-idx prev-split-idx)
-              )))
+              ))))
         (define temp-aest 
           (cand aest-cost aest-best aest-bidx aest-prev-idx))
         (vector-set! vec-aest point-idx temp-aest)))
