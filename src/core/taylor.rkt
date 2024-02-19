@@ -12,20 +12,26 @@
   (define terms '())
 
   (define (next [iter 0])
-    (define coeff (simplify (coeffs i)))
+    (define coeff (simplify (replace-expression (coeffs i) var ((cdr tform) var))))
     (set! i (+ i 1))
     (match coeff
      [0
       (if (< iter iters)
           (next (+ iter 1))
-          (simplify (make-sum (reverse terms))))]
+          (simplify (make-horner ((cdr tform) var) (reverse terms))))]
      [_
-      (define term `(* ,coeff ,(make-monomial var (- i offset 1))))
-      (define term* (simplify (replace-expression term var ((cdr tform) var))))
-      (set! terms (cons term* terms))
-      (simplify (make-sum (reverse terms)))]))
+      (set! terms (cons (cons coeff (- i offset 1)) terms))
+      (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
 
   next)
+
+(define (make-horner var terms [start 0])
+  (match terms
+    ['() 0]
+    [(list (cons c n))
+     `(* ,c ,(make-monomial var (- n start)))]
+    [(list (cons c n) rest ...)
+     `(* ,(make-monomial var (- n start)) (+ ,c ,(make-horner var rest n)))]))
 
 (define (make-sum terms)
   (match terms
