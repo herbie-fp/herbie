@@ -22,9 +22,6 @@
 ;; pidx = Point index: The index of the point to the left of which we should split.
 (struct si (cidx pidx) #:prefab)
 
-;; TODO refactor me  
-(struct cand (acost idx point-idx prev-idx) #:transparent)
-
 (define (pareto-regimes sorted ctx)
   (define err-lsts (flip-lists (batch-errors (map alt-expr sorted) (*pcontext*) ctx)))
   (let loop ([alts sorted] [errs (hash)] [err-lsts err-lsts])
@@ -199,8 +196,21 @@
   ;; where each cse represents the optimal splitindices after however many passes
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
-  (define (add-splitpoint sp-prev)
-    (define vec-acost (make-vector num-points))
+  (struct soa (acost-v idx-v poidx-v pr-idx-v) #:transparent)
+  (define (add-splitpoint sp-prev-values)
+    (define v-acost (soa-acost-v sp-prev-values))
+    (define v-cidx (soa-idx-v sp-prev-values))
+    (define v-aidx (soa-poidx-v sp-prev-values))
+    (define v-pidx (soa-pr-idx-v sp-prev-values))
+    
+    (define sp-prev (make-vector num-points))
+    (for ([idx (in-range 0 num-points)])
+      (define a (vector-ref v-acost idx))
+      (define b (vector-ref v-cidx idx))
+      (define c (vector-ref v-aidx idx))
+      (define d (vector-ref v-pidx idx))
+
+      (vector-set! sp-prev idx (cand a b c d)))
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (define vec-aest (make-vector num-points))
     (for ([point-idx (in-range 0 num-points)])
@@ -221,9 +231,10 @@
                 (when (or (not best) (< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
+            (define idk (cand-acost (vector-ref sp-prev prev-split-idx)))
             (when 
-              (< (+ (cand-acost (vector-ref sp-prev prev-split-idx)) bcost) acost) 
-              (set! acost (+ (cand-acost (vector-ref sp-prev prev-split-idx)) bcost))
+              (< (+ idk bcost) acost) 
+              (set! acost (+ idk bcost))
               (set! aest-cost acost)
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
@@ -232,13 +243,30 @@
         (define temp-aest 
           (cand aest-cost aest-best aest-bidx aest-prev-idx))
         (vector-set! vec-aest point-idx temp-aest)))
-    vec-aest)
+    ;; go from cand -> soa
+    (define vec-acost (make-vector num-points))
+    (define vec-cidx (make-vector num-points))
+    (define vec-aidx (make-vector num-points))
+    (define vec-pidx (make-vector num-points))
+    (for ([idx (in-range 0 num-points)])
+      (vector-set! vec-acost idx (cand-acost (vector-ref vec-aest idx)))
+      (vector-set! vec-cidx idx (cand-idx (vector-ref vec-aest idx)))
+      (vector-set! vec-aidx idx (cand-point-idx (vector-ref vec-aest idx)))
+      (vector-set! vec-pidx idx (cand-prev-idx (vector-ref vec-aest idx))))
+  (soa vec-acost vec-cidx vec-aidx vec-pidx))
 
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
+
+;; TODO refactor me  
+(struct cand (acost idx point-idx prev-idx) #:transparent)
   (define (initial)
-    (define vec-aest (make-vector num-points))
+
+    (define vec-acost (make-vector num-points))
+    (define vec-cidx (make-vector num-points))
+    (define vec-aidx (make-vector num-points))
+    (define vec-pidx (make-vector num-points))
     (for ([point-idx (in-range num-points)])
       (define cse-min (vector-argmin cand-acost
         ;; Consider all the candidates we could put in this region
@@ -247,8 +275,11 @@
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
               (cand cost cand-idx (+ point-idx 1) num-points)))))
-      (vector-set! vec-aest point-idx cse-min))
-    vec-aest)
+      (vector-set! vec-acost point-idx (cand-acost cse-min))
+      (vector-set! vec-cidx point-idx (cand-idx cse-min))
+      (vector-set! vec-aidx point-idx (cand-point-idx cse-min))
+      (vector-set! vec-pidx point-idx (cand-prev-idx cse-min)))
+    (soa vec-acost vec-cidx vec-aidx vec-pidx))
 
   ;; Look into using (values ... )
   ;; you can look up where all the time is spent in the profile
@@ -263,14 +294,29 @@
             next
             (loop next)))))
  
+    (define v-acost (soa-acost-v final))
+    (define v-cidx (soa-idx-v final))
+    (define v-aidx (soa-poidx-v final))
+    (define v-pidx (soa-pr-idx-v final))
+    
+    (define fixed-final (make-vector num-points))
+    (for ([idx (in-range 0 num-points)])
+      (define a (vector-ref v-acost idx))
+      (define b (vector-ref v-cidx idx))
+      (define c (vector-ref v-aidx idx))
+      (define d (vector-ref v-pidx idx))
+
+  (vector-set! fixed-final idx (cand a b c d)))
+
   ;; start at (- num-points 1)
   ;; if num-points we are done
+  ;; traversing and then reversing is bad
   (define (build-list current-cand)
     (cond 
       [(not(= (cand-prev-idx current-cand) num-points))
         (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
-               (build-list (vector-ref final (cand-prev-idx current-cand))))]
+               (build-list (vector-ref fixed-final (cand-prev-idx current-cand))))]
       [else 
         (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
   
-  (reverse (build-list (vector-ref final (- num-points 1)))))
+  (reverse (build-list (vector-ref fixed-final (- num-points 1)))))
