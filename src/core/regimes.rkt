@@ -203,28 +203,26 @@
     (define v-aidx (soa-poidx-v sp-prev-values))
     (define v-pidx (soa-pr-idx-v sp-prev-values))
     
-    (define sp-prev (make-vector num-points))
-    (for ([idx (in-range 0 num-points)])
-      (define a (vector-ref v-acost idx))
-      (define b (vector-ref v-cidx idx))
-      (define c (vector-ref v-aidx idx))
-      (define d (vector-ref v-pidx idx))
+    ;; output vectors
+    (define vec-acost (make-vector num-points))
+    (define vec-cidx (make-vector num-points))
+    (define vec-aidx (make-vector num-points))
+    (define vec-pidx (make-vector num-points))
 
-      (vector-set! sp-prev idx (cand a b c d)))
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (define vec-aest (make-vector num-points))
     (for ([point-idx (in-range 0 num-points)])
-      (define aest-cost (cand-acost (vector-ref sp-prev point-idx)))
-      (define aest-best (cand-idx (vector-ref sp-prev point-idx)))
-      (define aest-bidx (cand-point-idx (vector-ref sp-prev point-idx)))
-      (define aest-prev-idx (cand-prev-idx (vector-ref sp-prev point-idx)))
+      (define aest-cost (vector-ref v-acost point-idx))
+      (define aest-best (vector-ref v-cidx point-idx))
+      (define aest-bidx (vector-ref v-aidx point-idx))
+      (define aest-prev-idx (vector-ref v-pidx point-idx))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
       (let ([acost (- aest-cost min-weight)])
         (for ([prev-split-idx (in-range 0 point-idx)])
           ;; For each previous split point, we need the best candidate to fill the new regime
          (when 
-          (can-split? (cand-point-idx (vector-ref sp-prev prev-split-idx))) 
+          (can-split? (vector-ref v-aidx prev-split-idx))
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector vec-psums)])
               (let ([cost (- (vector-ref psum point-idx)
@@ -232,28 +230,19 @@
                 (when (or (not best) (< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
-            (define idk (cand-acost (vector-ref sp-prev prev-split-idx)))
+            (define temp (+ (vector-ref v-acost prev-split-idx) bcost) )
             (when 
-              (< (+ idk bcost) acost) 
-              (set! acost (+ idk bcost))
+              (< temp acost) 
+              (set! acost temp)
               (set! aest-cost acost)
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
               (set! aest-prev-idx prev-split-idx)
               ))))
-        (define temp-aest 
-          (cand aest-cost aest-best aest-bidx aest-prev-idx))
-        (vector-set! vec-aest point-idx temp-aest)))
-    ;; go from cand -> soa
-    (define vec-acost (make-vector num-points))
-    (define vec-cidx (make-vector num-points))
-    (define vec-aidx (make-vector num-points))
-    (define vec-pidx (make-vector num-points))
-    (for ([idx (in-range 0 num-points)])
-      (vector-set! vec-acost idx (cand-acost (vector-ref vec-aest idx)))
-      (vector-set! vec-cidx idx (cand-idx (vector-ref vec-aest idx)))
-      (vector-set! vec-aidx idx (cand-point-idx (vector-ref vec-aest idx)))
-      (vector-set! vec-pidx idx (cand-prev-idx (vector-ref vec-aest idx))))
+        (vector-set! vec-acost point-idx aest-cost)
+        (vector-set! vec-cidx point-idx aest-best)
+        (vector-set! vec-aidx point-idx aest-bidx)
+        (vector-set! vec-pidx point-idx aest-prev-idx)))
   (soa vec-acost vec-cidx vec-aidx vec-pidx))
 
   ;; We get the initial set of cse's by, at every point-index,
@@ -306,8 +295,7 @@
       (define b (vector-ref v-cidx idx))
       (define c (vector-ref v-aidx idx))
       (define d (vector-ref v-pidx idx))
-
-  (vector-set! fixed-final idx (cand a b c d)))
+      (vector-set! fixed-final idx (cand a b c d)))
 
   ;; start at (- num-points 1)
   ;; if num-points we are done
