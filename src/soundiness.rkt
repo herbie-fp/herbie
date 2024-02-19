@@ -27,12 +27,8 @@
             (list num-increase num-decrease (length prev)))))
   proof-diffs)
 
-(define (canonicalize-proof prog loc pcontext ctx variants? e-input p-input)
-  (match-define 
-   (cons variants proof)
-   (run-egg e-input variants?
-            #:proof-input p-input
-            #:proof-ignore-when-unsound? #t))
+(define (canonicalize-proof prog table loc pcontext ctx variants? e-input p-input)
+  (define proof (dict-ref (hash-ref table e-input) p-input))
   (cond
    [proof
     ;; Proofs are actually on subexpressions,
@@ -46,14 +42,24 @@
    [else
     (cons #f #f)]))
 
-(define (add-soundiness-to pcontext ctx cache altn)
+(define (collect-necessary-proofs altn table)
+  (match altn
+    [(alt expr (list (or 'rr 'simplify) loc (? egraph-query? e-input) #f #f) (list prev) _)
+     (define p-input (cons (location-get loc (alt-expr prev))
+                           (location-get loc (alt-expr altn))))
+     (hash-update! table e-input (curryr set-add p-input) '())]
+    [_ (void)])
+  altn)
+  
+
+(define (add-soundiness-to pcontext ctx cache table altn)
   (match altn
 
     [(alt expr `(rr (,@loc) ,(? egraph-query? e-input) #f #f) `(,prev) _)
      (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
      (match-define (cons proof errs)
        (hash-ref! cache (cons p-input e-input)
-                  (λ () (canonicalize-proof (alt-expr altn) loc pcontext ctx #t e-input p-input))))
+                  (λ () (canonicalize-proof (alt-expr altn) table loc pcontext ctx #t e-input p-input))))
      (alt expr `(rr (,@loc) ,e-input ,proof ,errs) `(,prev) '())]
 
     [(alt expr `(rr (,@loc) ,(? rule? input) #f #f) `(,prev) _)
@@ -73,12 +79,22 @@
      (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
      (match-define (cons proof errs)
        (hash-ref! cache (cons p-input e-input)
-                  (λ () (canonicalize-proof (alt-expr altn) loc pcontext ctx #f e-input p-input))))
+                  (λ () (canonicalize-proof (alt-expr altn) table loc pcontext ctx #f e-input p-input))))
      (alt expr `(simplify (,@loc) ,e-input ,proof ,errs) `(,prev) '())]
 
     [else altn]))
 
 (define (add-soundiness alts pcontext ctx)
+  (define table (make-hasheq))
+  (for ([altn (in-list alts)])
+    (alt-map (curryr collect-necessary-proofs table) altn))
+  (define proof-table
+    (for/hash ([(e-input p-inputs) (in-hash table)])
+      (match-define (cons variants proofs)
+        (run-egg e-input #f #:proof-inputs p-inputs
+                 #:proof-ignore-when-unsound? #t))
+      (values e-input (map cons p-inputs proofs))))
+
   (define cache (make-hash))
   (for/list ([altn alts])
-    (alt-map (curry add-soundiness-to pcontext ctx cache) altn)))
+    (alt-map (curry add-soundiness-to pcontext ctx cache proof-table) altn)))
