@@ -344,15 +344,16 @@
   (*pcontext* pcontext)
   (define expr (alt-expr (car simplified)))
 
-  (define true-error-hash (for/hash ([(key _) (in-pcontext pcontext)]
-                                     [value (in-list (errors expr pcontext context))])
+  (define true-error-hash
+    (for/hash ([(key _) (in-pcontext pcontext)]
+               [value (in-list (errors expr pcontext context))])
                             (values key value)))
   
   (define repr (repr-of expr context))
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) vs))
   (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
-  (define-values (pcount-hash explanations-table predicted-error oflow-hash uflow-hash test-hash)
+  (define-values (pcount-hash explanations-table predicted-error oflow-hash uflow-hash maybe-explanations-table maybe-predicted-error)
     (predicted-errors expr context pcontext))
   
 
@@ -373,36 +374,43 @@
   (for ([(key val) (in-dict explanations-table)])
     (define expr (car key))
     (define expl (cdr key))
+    (define maybe-count (hash-ref maybe-explanations-table key 0))
     (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
     (timeline-push! 'explanations
                     (~a (car expr))
                     (~a expr)
                     (~a expl)
                     val
+                    maybe-count
                     flow-list))
 
   (define true-pos 0)
   (define true-neg 0)
+  (define maybe-pos 0)
+  (define maybe-neg 0)
   (define false-pos 0)
   (define false-neg 0)
   (for ([(pt _) (in-pcontext pcontext)])
     (define error-actual? (> (hash-ref true-error-hash pt) 16))
     (define error-predicted? (hash-ref predicted-error pt false))
-    (when (and (not error-actual?) error-predicted?) 
-      (timeline-push! 'expl-debug
-                      (~a pt)
-                      (~a (hash-ref test-hash pt (list 'empty)))))
+    (define maybe-error-predicted?
+      (hash-ref maybe-predicted-error pt false))
+    
     (cond
       [(and error-actual? error-predicted?)
        (set! true-pos (+ true-pos 1))]
       [(and error-actual? (not error-predicted?))
+       (when maybe-error-predicted?
+         (set! maybe-pos (+ maybe-pos 1)))
        (set! false-neg (+ false-neg 1))]
       [(and (not error-actual?) error-predicted?)
        (set! false-pos (+ false-pos 1))]
       [(and (not error-actual?) (not error-predicted?))
+       (unless maybe-error-predicted?
+         (set! maybe-neg (+ maybe-neg 1)))
        (set! true-neg (+ true-neg 1))]))
 
-  (timeline-push! 'total-error true-pos true-neg false-pos false-neg)
+  (timeline-push! 'total-error true-pos true-neg false-pos false-neg maybe-pos maybe-neg)
 
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))

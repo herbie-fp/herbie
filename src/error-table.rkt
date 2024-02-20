@@ -41,6 +41,7 @@
  
 (define (predicted-errors expr ctx pctx)
   (define cond-thres (bf 100))
+  (define maybe-cond-thres (bf 32))
   
   (define subexprs
     (all-subexpressions expr (context-repr ctx)))
@@ -60,28 +61,23 @@
   
   (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
-
-  (define explanations-hash
-    (make-hash))
-
-  (define point-error-hash
-    (make-hash))
-
-  (define uflow-hash
-    (make-hash))
-
-  (define oflow-hash
-    (make-hash))
-
-  (define test-hash
-    (make-hash))
+  (define explanations-hash (make-hash))
+  (define point-error-hash (make-hash))
+  (define uflow-hash (make-hash))
+  (define oflow-hash (make-hash)) 
+  (define maybe-explanations-hash (make-hash))
+  (define maybe-point-error-hash (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
     (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
       (hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
-      (hash-update! point-error-hash pt (lambda (x) (or true x)) #f)
-      (hash-update! test-hash pt (lambda (x) (set-add x expl)) '()))
+      (hash-update! point-error-hash pt (lambda (x) (or true x)) #f))
+    
+    (define (mark-maybe! expr [expl 'sensitivity])
+      (hash-update! maybe-explanations-hash
+                    (cons expr expl) (lambda (x) (+ 1 x)) 0)
+      (hash-update! maybe-point-error-hash pt (lambda (x) (or true x)) #f))
     
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
@@ -163,6 +159,11 @@
            [(or (bf> cond-x cond-thres)
                 (bf> cond-y cond-thres))
             (mark-erroneous! subexpr 'cancellation)]
+
+           ; Maybe
+           [(or (bf> cond-x maybe-cond-thres)
+                (bf> cond-y maybe-cond-thres))
+            (mark-maybe! subexpr 'cancellation)]
            [else #f])]
         
         [(list (or '-.f64 '-.f32) x-ex y-ex)
@@ -204,6 +205,11 @@
            [(or (bf> cond-x cond-thres)
                 (bf> cond-y cond-thres))
             (mark-erroneous! subexpr 'cancellation)]
+
+           ; Maybe
+           [(or (bf> cond-x maybe-cond-thres)
+                (bf> cond-y maybe-cond-thres))
+            (mark-maybe! subexpr 'cancellation)] 
            [else #f])]
 
         [(list (or 'sin.f64 'sin.f32) (list (or '+.f64 '+.f32) x-ex y-ex))
@@ -528,7 +534,7 @@
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
            [else #f])]
         [_ #f])))
-  (values error-count-hash explanations-hash point-error-hash oflow-hash uflow-hash test-hash))
+  (values error-count-hash explanations-hash point-error-hash oflow-hash uflow-hash maybe-explanations-hash maybe-point-error-hash))
 
 (define (flow-list flow-hash expr type)
   (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])

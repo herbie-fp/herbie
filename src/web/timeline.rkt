@@ -64,7 +64,6 @@
          ,@(dict-call curr render-phase-fperrors 'fperrors)
          ,@(dict-call curr render-phase-explanations 'explanations)
          ,@(dict-call curr render-phase-total-error 'total-error)
-         ,@(dict-call curr render-phase-expl-debug 'expl-debug)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -336,12 +335,13 @@
          (table ([class "times"])
                 (thead (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count")))
                 ,@(append* (for/list ([rec (in-list explanations)])
-                             (match-define (list op expr expl cnt flows) rec)
+                             (match-define (list op expr expl cnt mcnt flows) rec)
 
                              (append (list `(tr (td (code ,(~a op)))
                                                 (td (code ,(~a expr)))
                                                 (td (b ,(~a expl)))
-                                                (td ,(~a cnt))))
+                                                (td ,(~a cnt))
+                                                (td ,(~a mcnt))))
 
                                      (for/list ([flow (in-list (or flows '()))])
                                        (match-define (list ex type v) flow)
@@ -351,7 +351,7 @@
                                             (td ,(~a v))))))))))))
 
 (define (render-phase-total-error total-errors)
-  (match-define (list (list true-pos true-neg false-pos false-neg)) total-errors)
+  (match-define (list (list true-pos true-neg false-pos false-neg maybe-pos maybe-neg)) total-errors)
   `((dt "Confusion")
     (dd (table ([class "times"])
                (tr (th "") (th "Predicted +") (th "Predicted -"))
@@ -366,25 +366,27 @@
     (dd ,(if (= true-pos false-neg 0)
              "0/0"
              (~a (exact->inexact (/ true-pos
-                                    (+ true-pos false-neg))))))))
-
-(define (render-phase-expl-debug debugs)
-  `((dt "FPDebug")
-    (dd (details
-         (summary "Click to see full error table")
-         (table ([class "times"])
-                (thead (tr (th "pt") (th "expls"))
-                       ,@(for/list ([rec (in-list debugs)])
-                           (match-define (list pt expls) rec)
-                           `(tr (td ,(~a pt))
-                                (td ,(~a expls))
-
-
-
-                                ))))))
-    
+                                    (+ true-pos false-neg))))))
+    (dt "Confusion?")
+    (dd (table ([class "times"])
+               (tr (th "") (th "Predicted +") (th "Predicted -"))
+               (tr (th "+") (td ,(~a (+ true-pos maybe-pos)))
+                   (td ,(~a (- false-neg maybe-neg))))
+               (tr (th "-") (td ,(~a (- false-pos maybe-pos)))
+                   (td ,(~a (+ true-neg maybe-neg))))))
+    (dt "Precision?")
+    (dd ,(if (= true-pos false-pos 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos maybe-pos)
+                                    (+ true-pos false-pos))))))
+    (dt "Recall?")
+    (dd ,(if (= true-pos false-pos (- maybe-pos maybe-neg) 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos maybe-pos)
+                                    (+ true-pos false-pos
+                                       (- maybe-pos maybe-neg)))))
+             ))
     ))
-
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
