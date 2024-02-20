@@ -288,13 +288,12 @@
 
 (define (get-slack)
   (match (*sampling-iteration*)
-    [0 128]
-    [1 256]
-    [2 512]
-    [3 1024]
-    [4 2048]
-    [5 4096]
-    [6 8192]))
+    [0 256]
+    [1 512]
+    [2 1024]
+    [3 2048]
+    [4 4096]
+    [5 8192]))
 
 ;; Function does backward-pass
 (define (backward-pass ivec varc)
