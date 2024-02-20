@@ -16,6 +16,11 @@ distance:
 	git checkout $(BRANCH)
 hamming:
 	racket -y herbie.rkt report --seed $(SEED) --timeout $(TIMEOUT) ../bench/hamming ../infra/reports/hamming-$(BRANCH)
+hamming-cmp-main:
+	racket -y herbie.rkt report --seed $(SEED) --timeout $(TIMEOUT) ../bench/hamming ../infra/reports/hamming-$(BRANCH)
+	git checkout main
+	racket -y herbie.rkt report --seed $(SEED) --timeout $(TIMEOUT) ../bench/hamming ../infra/reports/hamming-main
+	git checkout $(BRANCH)
 harley:
 	racket -y herbie.rkt report --seed $(SEED) --timeout $(TIMEOUT) ../bench/mathematics/dirichlet-mixture-model.fpcore ../infra/reports/harley-$(BRANCH)
 shell:
