@@ -212,7 +212,7 @@
             (mark-maybe! subexpr 'cancellation)] 
            [else #f])]
 
-        [(list (or 'sin.f64 'sin.f32) (list (or '+.f64 '+.f32) x-ex y-ex))
+        #;[(list (or 'sin.f64 'sin.f32) (list (or '+.f64 '+.f32) x-ex y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
          (define cot-x (bfcot x))
@@ -237,6 +237,13 @@
            [(and (bf> cond-no cond-thres)
                  (bf> cot-x cond-thres))
             (mark-erroneous! subexpr 'cancellation)]
+
+           [(and (bf> cond-no maybe-cond-thres)
+                 (bf> (bfabs x) maybe-cond-thres))
+            (mark-maybe! subexpr 'sensitivity)]
+           [(and (bf> cond-no maybe-cond-thres)
+                 (bf> cot-x maybe-cond-thres))
+            (mark-maybe! subexpr 'cancellation)]
            [else #f])]
 
         [(list (or 'cos.f64 'cos.f32) x-ex)
@@ -252,6 +259,13 @@
            [(and (bf> cond-no cond-thres)
                  (bf> tan-x cond-thres))
             (mark-erroneous! subexpr 'cancellation)]
+
+           [(and (bf> cond-no maybe-cond-thres)
+                 (bf> (bfabs x) maybe-cond-thres))
+            (mark-maybe! subexpr 'sensitivity)]
+           [(and (bf> cond-no maybe-cond-thres)
+                 (bf> tan-x maybe-cond-thres))
+            (mark-maybe! subexpr 'cancellation)]
            [else #f])]
 
         [(list (or 'tan.f64 'tan.f32) x-ex)
@@ -267,6 +281,13 @@
            [(and (bf> cond-no cond-thres)
                  (bf> tot-x cond-thres))
             (mark-erroneous! subexpr 'cancellation)]
+
+           [(and (bf> cond-no maybe-cond-thres)
+                 (bf> (bfabs x) maybe-cond-thres))
+            (mark-maybe! subexpr 'sensitivity)]
+           [(and (bf> cond-no maybe-cond-thres)
+                 (bf> tot-x maybe-cond-thres))
+            (mark-maybe! subexpr 'cancellation)]
            [else #f])]
         
         [(list (or 'sqrt.f64 'sqrt.f32) x-ex)
@@ -393,6 +414,9 @@
            [(bf> cond-num cond-thres)
             (mark-erroneous! subexpr 'sensitivity)]
            
+           [(bf> cond-num maybe-cond-thres)
+            (mark-maybe! subexpr 'sensitivity)]
+           
            [else #f])]
         
         [(list (or 'exp.f64 'exp.f32) x-ex)
@@ -419,6 +443,9 @@
            ; CN(exp, x) = |x|
            [(bf> (bfabs x) cond-thres)
             (mark-erroneous! subexpr 'sensitivity)]
+
+           [(bf> (bfabs x) maybe-cond-thres)
+            (mark-maybe! subexpr 'sensitivity)]
            
            [else #f])]
 
@@ -482,6 +509,11 @@
                  (not (constant? y-ex)))
             (mark-erroneous! subexpr 'sensitivity)]
            
+           [(and (or (bf> cond-x maybe-cond-thres)
+                     (bf> cond-y maybe-cond-thres))
+                 (not (constant? y-ex)))
+            (mark-maybe! subexpr 'sensitivity)]
+           
            [else #f])]
         
         [(list (or 'acos.f64 'acos.f32) x-ex)
@@ -509,8 +541,11 @@
            
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)acos(x))|
-           [(bf> cond-x cond-thres) (eprintf "cond\n")
+           [(bf> cond-x cond-thres) 
             (mark-erroneous! subexpr 'sensitivity)]
+
+           [(bf> cond-x maybe-cond-thres) 
+            (mark-maybe! subexpr 'sensitivity)]
            
            [else #f])]
 
@@ -532,6 +567,9 @@
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)asin(x))|
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
+
+           [(bf> cond-x maybe-cond-thres) (mark-maybe! subexpr 'sensitivity)]
+           
            [else #f])]
         [_ #f])))
   (values error-count-hash explanations-hash point-error-hash oflow-hash uflow-hash maybe-explanations-hash maybe-point-error-hash))
