@@ -197,9 +197,9 @@
                
                (define prev-exponents (unbox exponents-checkpoint))
                (define new-exponents (max 0
-                                          (- (true-exponent (ival-lo (car srcs)))
-                                             out-exp)
-                                          (- (true-exponent (ival-hi (car srcs)))
+                                          (- (max
+                                              (true-exponent (ival-lo (car srcs)))
+                                              (true-exponent (ival-hi (car srcs))))
                                              out-exp)))
                (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
                                                   new-exponents
@@ -285,13 +285,12 @@
 
 (define (get-slack)
   (match (*sampling-iteration*)
-    [0 50]
-    [1 200]
-    [2 500]
-    [3 1000]
-    [4 2048]
-    [5 4096]
-    [6 8192]))
+    [0 256]
+    [1 512]
+    [2 1024]
+    [3 2048]
+    [4 4096]
+    [5 8192]))
 
 ;; Function does backward-pass
 (define (backward-pass ivec varc)
