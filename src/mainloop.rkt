@@ -383,39 +383,17 @@
                     val
                     maybe-count
                     flow-list))
-  
-  (define outcomes
-    (for/list ([(pt _) (in-pcontext pcontext)])
-      (define error-actual? (> (hash-ref true-error-hash pt) 16))
-      (define error-predicted? (hash-ref predicted-error pt false))
-      (define maybe-error-predicted?
-        (hash-ref maybe-predicted-error pt false))
 
-      (define prediction
-        (cond
-          [error-predicted? 'true]
-          [maybe-error-predicted? 'maybe]
-          [else 'false]))
-      (cons error-actual? prediction)))
+  (define confusion-matrix (calculate-confusion true-error-hash
+                                                predicted-error
+                                                pcontext))
+  (define maybe-confusion-matrix (calculate-confusion-maybe true-error-hash
+                                                            predicted-error
+                                                            maybe-predicted-error
+                                                            pcontext))
+  (timeline-push! 'confusion confusion-matrix)
+  (timeline-push! 'maybe-confusion maybe-confusion-matrix)
   
-  (define groups
-    (group-by identity outcomes))
-  
-  (define counts
-    (for/hash ([group (in-list groups)])
-      (values (first group) (length group))))
-  
-  (define true-pos (hash-ref counts '(#t . true) 0))
-  (define false-pos (hash-ref counts '(#f . true) 0))
-  (define true-maybe (hash-ref counts '(#t . maybe) 0))
-  (define false-maybe (hash-ref counts '(#f . maybe) 0))
-  (define true-neg (hash-ref counts '(#t . false) 0))
-  (define false-neg (hash-ref counts '(#f . true) 0))
-
-  (timeline-push! 'total-error
-                  true-pos true-maybe false-neg
-                  false-pos false-maybe true-neg)
-
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))

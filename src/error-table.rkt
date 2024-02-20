@@ -4,7 +4,8 @@
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
          "ground-truth.rkt" "syntax/sugar.rkt")
 
-(provide actual-errors predicted-errors make-flow-table)
+(provide actual-errors predicted-errors make-flow-table calculate-confusion
+         calculate-confusion-maybe)
 
 (define (constant? expr)
   (cond
@@ -610,3 +611,50 @@
     [(list 'oflow-right (list _ right))
      (flow-list oflow-hash right "overflow")]
     [_ '()]))
+
+(define (calculate-confusion actual-error predicted-error pcontext)
+  (define outcomes
+    (for/list ([(pt _) (in-pcontext pcontext)])
+      (define error-actual? (> (hash-ref actual-error pt) 16))
+      (define error-predicted? (hash-ref predicted-error pt false))
+      (cons error-actual? error-predicted?)))
+
+  (define groups (group-by identity outcomes))
+  (define counts
+    (for/hash ([group (in-list groups)])
+      (values (first group) (length group))))
+
+  (define true-pos (hash-ref counts '(#t . #t) 0))
+  (define false-pos (hash-ref counts '(#f . #t) 0))
+  (define true-neg (hash-ref counts '(#f . #f) 0))
+  (define false-neg (hash-ref counts '(#t . #f) 0))
+
+  (list true-pos false-neg
+        false-pos true-neg))
+
+(define (calculate-confusion-maybe actual-error predicted-error maybe-error pcontext)
+  (define outcomes
+    (for/list ([(pt _) (in-pcontext pcontext)])
+      (define error-actual? (> (hash-ref actual-error pt) 16))
+      (define error-predicted? (hash-ref predicted-error pt false))
+      (define maybe-error-predicted?
+        (hash-ref maybe-error pt false))
+      (cons error-actual? (cond
+                            [error-predicted? 'true]
+                            [maybe-error-predicted? 'maybe]
+                            [else 'false]))))
+
+  (define groups (group-by identity outcomes))
+  (define counts
+    (for/hash ([group (in-list groups)])
+      (values (first group) (length group))))
+  
+  (define true-pos (hash-ref counts '(#t . true) 0))
+  (define false-pos (hash-ref counts '(#f . true) 0))
+  (define false-neg (hash-ref counts '(#t . false) 0))
+  (define true-neg (hash-ref counts '(#f . false) 0))
+  (define true-maybe (hash-ref counts '(#t . maybe) 0))
+  (define false-maybe (hash-ref counts '(#f . maybe) 0))
+
+  (list true-pos true-maybe false-neg
+        false-pos false-maybe true-neg))
