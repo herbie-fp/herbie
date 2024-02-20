@@ -294,7 +294,7 @@
     [3 1024]
     [4 2048]
     [5 4096]
-    [5 8192]))
+    [6 8192]))
 
 ;; Function does backward-pass
 (define (backward-pass ivec varc)
