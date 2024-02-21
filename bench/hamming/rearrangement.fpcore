@@ -8,8 +8,9 @@
 (FPCore (x)
  :name "2sqrt (example 3.1)"
  :pre (and (> x 1) (< x 1e+308))
- :herbie-target
- (/ 1 (+ (sqrt (+ x 1)) (sqrt x)))
+ :alt 
+ (! :description (platform libm)
+  (/ 1 (+ (sqrt (+ x 1)) (sqrt x))))
 
  (- (sqrt (+ x 1)) (sqrt x)))
 
@@ -21,8 +22,9 @@
 (FPCore (x)
  :name "2isqrt (example 3.6)"
  :pre (and (> x 1) (< x 1e+308))
- :herbie-target
- (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1)))))
+ :alt 
+ (! :description (platform libm)
+  (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1))))))
 
  (- (/ 1 (sqrt x)) (/ 1 (sqrt (+ x 1)))))
 
@@ -36,8 +38,9 @@
  ; Rewrite comes from Hammings textbook on page 46. Hamming says to sample large x
  ; Half of floating point numbers are > 1 so this will sample large enough x.
  :pre (> (fabs x) 1)
- :herbie-target
- (/ 2 (* x (- (* x x) 1)))
+ :alt 
+ (! :description (platform libm)
+  (/ 2 (* x (- (* x x) 1))))
 
  (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
 
@@ -49,8 +52,9 @@
 (FPCore (x)
  :name "2cbrt (problem 3.3.4)"
  :pre (and (> x 1) (< x 1e+308))
- :herbie-target
- (/ 1 (+ (* (cbrt (+ x 1)) (cbrt (+ x 1))) (* (cbrt x) (cbrt (+ x 1))) (* (cbrt x) (cbrt x))))
+ :alt 
+ (! :description (platform libm)
+  (/ 1 (+ (* (cbrt (+ x 1)) (cbrt (+ x 1))) (* (cbrt x) (cbrt (+ x 1))) (* (cbrt x) (cbrt x)))))
  
  (- (cbrt (+ x 1)) (cbrt x)))
 
@@ -64,8 +68,9 @@
 (FPCore (N)
  :name "2log (problem 3.3.6)"
  :pre (and (> N 1) (< N 1e+40))
- :herbie-target
- (log1p (/ 1 N))
+ :alt 
+ (! :description (platform libm)
+  (log1p (/ 1 N)))
 
  (- (log (+ N 1)) (log N)))
 
@@ -80,10 +85,11 @@
 ;(FPCore (N)
 ; :name "2log (problem 3.3.6)"
 ; :pre (and (> N 1) (< N 1e+40))
-; :herbie-target
-; (if (>= N 1e+3)
+; :alt 
+; (! :description (platform libm)
+;  (if (>= N 1e+3)
 ;    (+ (/ 1 N) (/ -1 (* 2 (pow N 2))) (/ 1 (* 3 (pow N 3))) (/ -1 (* 4 (pow N 4))))
-;    (log (+ 1 (/ 1 N))))
+;    (log (+ 1 (/ 1 N)))))
 ; (- (log (+ N 1)) (log N)))
 
 
@@ -92,7 +98,8 @@
  :pre (<= (fabs x) 710)
  ; Bounded x on the extremes  by +/- 710 to avoid sampling infinite outputs
  ; Target comes from Hamming's textbook, page 46
- :herbie-target
- (* 4 (* (sinh (/ x 2)) (sinh (/ x 2))))
+ :alt 
+ (! :description (platform libm)
+  (* 4 (* (sinh (/ x 2)) (sinh (/ x 2)))))
 
  (+ (- (exp x) 2) (exp (- x))))

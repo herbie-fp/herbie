@@ -85,7 +85,7 @@
   (set-seed! seed)
 
   (command-line
-   #:program "travis.rkt"
+   #:program "ci.rkt"
    #:multi
    [("--plugin") path "Which additional Herbie plugins to use"
     (dynamic-require path #f)

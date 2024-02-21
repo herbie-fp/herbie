@@ -2,9 +2,10 @@
   :name "Rust f64::asinh"
   :spec (asinh x)
 
-  :herbie-target
-  (let* ([ax (fabs x)] [ix (/ 1 ax)])
-    (copysign (log1p (+ ax (/ ax (+ (hypot 1 ix) ix)))) x))
+  :alt 
+  (! :description (platform libm)
+   (let* ([ax (fabs x)] [ix (/ 1 ax)])
+    (copysign (log1p (+ ax (/ ax (+ (hypot 1 ix) ix)))) x)))
 
   (copysign (log (+ (fabs x) (sqrt (+ (* x x) 1)))) x))
 
@@ -13,9 +14,10 @@
   :spec (asinh x)
   :precision binary32
 
-  :herbie-target
-  (let* ([ax (fabs x)] [ix (/ 1 ax)])
-    (copysign (log1p (+ ax (/ ax (+ (hypot 1 ix) ix)))) x))
+  :alt 
+  (! :description (platform libm)
+   (let* ([ax (fabs x)] [ix (/ 1 ax)])
+    (copysign (log1p (+ ax (/ ax (+ (hypot 1 ix) ix)))) x)))
 
   (copysign (log (+ (fabs x) (sqrt (+ (* x x) 1)))) x))
 
@@ -24,8 +26,9 @@
   :spec (acosh x)
   :pre (>= x 1)
 
-  :herbie-target
-  (log (+ x (* (sqrt (- x 1)) (sqrt (+ x 1)))))
+  :alt 
+  (! :description (platform libm)
+   (log (+ x (* (sqrt (- x 1)) (sqrt (+ x 1))))))
 
   (log (+ x (sqrt (- (* x x) 1)))))
 
@@ -35,8 +38,9 @@
   :precision binary32
   :pre (>= x 1)
 
-  :herbie-target
-  (log (+ x (* (sqrt (- x 1)) (sqrt (+ x 1)))))
+  :alt 
+  (! :description (platform libm)
+   (log (+ x (* (sqrt (- x 1)) (sqrt (+ x 1))))))
 
   (log (+ x (sqrt (- (* x x) 1)))))
 

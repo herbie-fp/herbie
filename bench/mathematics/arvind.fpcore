@@ -2,18 +2,23 @@
 
 (FPCore (a b)
  :name "Exp of sum of logs"
- :herbie-target
- (* a b)
+ :alt 
+ (! :description (platform libm) (* a b))
+
  (exp (+ (log a) (log b))))
 
 (FPCore (a b)
  :name "Quotient of sum of exps"
- :herbie-target
- (/ 1 (+ 1 (exp (- b a))))
+ :alt 
+ (! :description (platform libm)
+  (/ 1 (+ 1 (exp (- b a)))))
+
  (/ (exp a) (+ (exp a) (exp b))))
 
 (FPCore (a1 a2 b1 b2)
  :name "Quotient of products"
- :herbie-target
- (* (/ a1 b1) (/ a2 b2))
+ :alt 
+ (! :description (platform libm)
+  (* (/ a1 b1) (/ a2 b2)))
+  
  (/ (* a1 a2) (* b1 b2)))

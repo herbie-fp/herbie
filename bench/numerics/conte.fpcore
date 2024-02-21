@@ -4,8 +4,10 @@
   :name "ENA, Section 1.4, Mentioned, A"
   :cite (conte-et-al-1980)
   :pre (<= -0.01 x 0.01)
-  :herbie-target
-  (/ (* (sin x) (sin x)) (+ 1 (cos x)))
+  :alt 
+  (! :description (platform libm)
+   (/ (* (sin x) (sin x)) (+ 1 (cos x))))
+
   (- 1 (cos x)))
 
 (FPCore (x)
@@ -18,8 +20,10 @@
   :name "ENA, Section 1.4, Exercise 4a"
   :cite (conte-et-al-1980)
   :pre (<= -1 x 1)
-  :herbie-target
-  (* 1/6 (* x x))
+  :alt 
+  (! :description (platform libm)
+   (* 1/6 (* x x)))
+
   (/ (- x (sin x)) (tan x)))
 
 (FPCore (x)
@@ -44,6 +48,8 @@
   :name "ENA, Section 1.4, Exercise 4d"
   :cite (conte-et-al-1980)
   :pre (and (<= 0 x 1e9) (<= -1 eps 1))
-  :herbie-target
-  (/ eps (+ x (sqrt (- (* x x) eps))))
+  :alt 
+  (! :description (platform libm)
+    (/ eps (+ x (sqrt (- (* x x) eps)))))
+    
   (- x (sqrt (- (* x x) eps))))

@@ -74,58 +74,65 @@
 (FPCore (x)
   :name "bug323 (missed optimization)"
   :pre (<= 0 x 0.5)
-  :herbie-target
-  (* 2 (asin (sqrt (/ x 2))))
+  :alt 
+  (! :description (platform libm)
+    (* 2 (asin (sqrt (/ x 2)))))
 
   (acos (- 1 x)))
 
 (FPCore (x y)
   :name "bug329 (missed optimization)"
   :pre (>= x 0)
-  :herbie-target
-  (atan2 y x)
+  :alt 
+  (! :description (platform libm)
+   (atan2 y x))
 
   (atan (/ y x)))
 
 (FPCore (x)
   :name "bug333 (missed optimization)"
   :pre (<= -1 x 1)
-  :herbie-target
-  (/ (* 2 x) (+ (sqrt (+ 1 x)) (sqrt (- 1 x))))
+  :alt 
+  (! :description (platform libm)
+   (/ (* 2 x) (+ (sqrt (+ 1 x)) (sqrt (- 1 x)))))
   
   (- (sqrt (+ 1 x)) (sqrt (- 1 x))))
 
 (FPCore (x y z)
   :name "bug366 (missed optimization)"
-  :herbie-target
-  (hypot x (hypot y z))
+  :alt 
+  (! :description (platform libm)
+   (hypot x (hypot y z)))
 
   (sqrt (+ (* x x) (+ (* y y) (* z z)))))
 
 (FPCore (a b)
   :name "bug366, discussion (missed optimization)"
-  :herbie-target
-  (let* ([fa (fabs a)] [fb (fabs b)])
-    (* (sqrt (+ fa fb)) (sqrt (- fa fb))))
+  :alt 
+  (! :description (platform libm)
+   (let* ([fa (fabs a)] [fb (fabs b)])
+     (* (sqrt (+ fa fb)) (sqrt (- fa fb)))))
 
   (sqrt (- (* a a) (* b b))))
 
 (FPCore (x)
   :name "bug500 (missed optimization)"
   :pre (< -1e3 x 1e3)
-  :herbie-target
-  (if (< (fabs x) 0.07)
+  :alt 
+  (! :description (platform libm)
+    (if (< (fabs x) 0.07)
       (- (+ (- (/ (pow x 3) 6) (/ (pow x 5) 120)) (/ (pow x 7) 5040)))
-      (- (sin x) x))
+      (- (sin x) x)))
 
   (- (sin x) x))
 
 (FPCore (x)
   :name "bug500, discussion (missed optimization)"
-  :herbie-target
-  (if (< (fabs x) .085)
+  :alt 
+  (! :description (platform libm)
+   (if (< (fabs x) .085)
       (let ([x2 (* x x)])
         (* x2 (fma (fma (fma -1/37800 x2 1/2835) x2 -1/180) x2 1/6)))
-      (log (/ (sinh x) x)))
+      (log (/ (sinh x) x))))
   
   (log (/ (sinh x) x)))

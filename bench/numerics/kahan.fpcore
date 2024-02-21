@@ -2,8 +2,10 @@
 
 (FPCore (x)
  :name "Kahan's exp quotient"
- :herbie-target
- (if (and (< x 1) (> x -1))
+ :alt 
+ (! :description (platform libm)
+  (if (and (< x 1) (> x -1))
    (/ (- (exp x) 1) (log (exp x)))
-   (/ (- (exp x) 1) x))
+   (/ (- (exp x) 1) x)))
+   
  (/ (- (exp x) 1) x))
