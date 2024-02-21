@@ -104,10 +104,12 @@
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
+    (timeline-push! 'inputs (map ~a (^queued^)))
     (define series-expansions
       (apply append
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
           (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
+    (timeline-push! 'outputs (map ~a series-expansions))
 
     ; Probably unnecessary, at least CI passes!
     (define (is-nan? x)
