@@ -94,8 +94,6 @@
                (define outlo-exp (true-exponent (ival-lo output)))
                ;(define outhi-exp (true-exponent (ival-hi output)))
 
-               
-
                ; consider only lower bound - maybe it will be more efficient
                (define new-exponents
                  (max 0
@@ -178,15 +176,15 @@
                (define ylo-exp (true-exponent (ival-lo (second srcs))))
                (define yhi-exp (true-exponent (ival-hi (second srcs))))
 
-               ;(define prev-exponents (unbox exponents-checkpoint))
+               (define prev-exponents (unbox exponents-checkpoint))
                (define new-exponents
                  (if (> (max xlo-exp xhi-exp) 2) ; if x >= 4 (actually 7.3890561), then at least 1 additional bit is needed
                      (+ (max ylo-exp yhi-exp) 30)
                      (max ylo-exp yhi-exp)))
                
-               (set-box! exponents-checkpoint new-exponents)
-               #;(set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
-                                                  new-exponents
+               ;(set-box! exponents-checkpoint new-exponents)
+               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
+                                                  (+ (get-slack) new-exponents)
                                                   prev-exponents))]
 
               [(equal? ival-exp op)
@@ -202,8 +200,8 @@
               [(equal? ival-tan op)
                ; log[Гtan] = log[x] - log[sin(x)*cos(x)]
                
-               (define outlo (true-exponent (ival-lo output)))
-               (define outhi (true-exponent (ival-hi output)))
+               (define out-lo (true-exponent (ival-lo output)))
+               (define out-hi (true-exponent (ival-hi output)))
                (define out-exp
                  (min
                   (if (positive? out-lo)
@@ -255,13 +253,12 @@
                
               [(equal? op ival-log)
                ; log[Гlog] = log[1/logx] = -log[log(x)]
-               ;(define prev-exponents (unbox exponents-checkpoint))
+               (define prev-exponents (unbox exponents-checkpoint))
                (define new-exponents (max 0
                                           (- (true-exponent (ival-lo output)))
                                           (- (true-exponent (ival-hi output)))))
-               (set-box! exponents-checkpoint new-exponents)
-               #;(set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
-                                                  new-exponents
+               (set-box! exponents-checkpoint (if (> new-exponents prev-exponents)
+                                                  (+ (get-slack) new-exponents)
                                                   prev-exponents))]
               
               [(equal? op (or ival-asin ival-acos))
