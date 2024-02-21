@@ -358,7 +358,7 @@
   (egraph-query exprs rules ctx iter-limit node-limit const-folding?))
 
 (define (run-egg input variants?
-                 #:proof-input [proof-input '()]
+                 #:proof-inputs [proof-inputs '()]
                  #:proof-ignore-when-unsound? [proof-ignore-when-unsound? #f])
   (define egg-graph (make-egraph))
   (define ctx (egraph-query-ctx input))
@@ -380,17 +380,21 @@
           (for/list ([iter (in-range (length iter-data))])
             (egraph-get-simplest egg-graph id iter ctx)))))
   
-  (match proof-input
-    [(cons start end)
-     #:when (not (and (egraph-is-unsound-detected egg-graph) proof-ignore-when-unsound?))
-     (when (not (egraph-is-equal egg-graph start end ctx))
-        (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
+  (define proofs
+    (for/list ([proof-input (in-list proof-inputs)])
+      (cond
+        [(not (and (egraph-is-unsound-detected egg-graph) proof-ignore-when-unsound?))
+         (match-define (cons start end) proof-input)
+         (unless (egraph-is-equal egg-graph start end ctx)
+           (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
 
-     (define proof (egraph-get-proof egg-graph start end ctx))
-     (when (null? proof)
-       (error (format "Failed to produce proof for ~a to ~a" start end)))
-     (cons variants proof)]
-    [_ (cons variants #f)]))
+         (define proof (egraph-get-proof egg-graph start end ctx))
+         (when (null? proof)
+           (error (format "Failed to produce proof for ~a to ~a" start end)))
+         proof]
+        [else #f])))
+
+  (cons variants proofs))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
