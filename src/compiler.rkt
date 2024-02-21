@@ -61,6 +61,8 @@
                                  (unbox working-precision)
                                  (unbox extra-precision))
                                 (bf-precision)))
+          (when (equal? precision (*max-mpfr-prec*))
+              (*sampling-iteration* (*max-sampling-iterations*)))
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          (symbol->string (object-name op))
                                                          (- precision (remainder precision prec-threshold))))
