@@ -126,7 +126,7 @@
                     (summary (h2 "Specification")
                              ,dropdown
                              (a ([class "help-button float"] 
-                                 [href "/doc/latest/report.html#spec"] 
+                                 [href ,(doc-url "report.html#spec")]
                                  [target "_blank"]) "?"))
                     ,body
                     (p "Sampling outcomes in " (kbd ,(~a (representation-name repr))) " precision:")
@@ -137,7 +137,7 @@
         (h2 "Local Percentage Accuracy vs "
             (span ([id "variables"]))
             (a ([class "help-button float"] 
-                [href "/doc/latest/report.html#graph"] 
+                [href ,(doc-url "report.html#graph")] 
                 [target "_blank"]) "?"))
         (svg)
         (div ([id "functions"]))
@@ -155,7 +155,7 @@
                 ,@(if target-cost `([data-target-cost ,(~a target-cost)]) '()))
         (h2 "Accuracy vs Speed"
             (a ([class "help-button float"] 
-                [href "/doc/latest/report.html#cost-accuracy"] 
+                [href ,(doc-url "report.html#cost-accuracy")]
                 [target "_blank"]) "?"))
         (div ([class "figure-row"])
           (svg)

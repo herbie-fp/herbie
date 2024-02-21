@@ -8,6 +8,7 @@
          "core/matcher.rkt"
          "core/simplify.rkt"
          "core/taylor.rkt"
+         "accelerator.rkt"
          "alternative.rkt"
          "common.rkt"
          "conversions.rkt"
@@ -86,7 +87,8 @@
 ;;      operator
 
 (define (taylor-expr expr var f finv)
-  (define genexpr (approximate (prog->spec expr) var #:transform (cons f finv)))
+  (define expr* (expand-accelerators (*rules*) (prog->spec expr)))
+  (define genexpr (approximate expr* var #:transform (cons f finv)))
   (λ ()
     (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
       (spec->prog (genexpr) (*context*)))))

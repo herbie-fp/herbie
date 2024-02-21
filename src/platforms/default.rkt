@@ -84,26 +84,37 @@
 (define tunable
   (with-terminal-cost ([binary64 64] [binary32 32])
     (platform-product
-      #:optional
+     #:optional
+     [([real binary64]) (cost-map-scale 64 cost-model)]
+     [([real binary32]) (cost-map-scale 32 cost-model)]
+     (operator-set
+      [(real real)
+       (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2
+        fabs floor lgamma log log10 log2 log1p logb neg rint round sin sinh
+        sqrt tan tanh tgamma trunc)]
+      [(real real real)
+       (+ - * / atan2 copysign fdim fmax fmin fmod pow remainder)]))))
+
+(define accelerator-platform
+  (with-terminal-cost ([binary64 64] [binary32 32])
+    (platform-product #:optional
       [([real binary64]) (cost-map-scale 64 cost-model)]
       [([real binary32]) (cost-map-scale 32 cost-model)]
       (operator-set
-        [(real real)
-         (neg acos acosh asin asinh atan atanh cbrt ceil cos cosh
-          erf erfc exp exp2 expm1 fabs floor lgamma log log10 log2
-          log1p logb rint round sin sinh sqrt tan tanh tgamma trunc
-          recip rsqrt)]
-        [(real real real)
-         (+ - * / atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
-        [(real real real real)
-         (fma)]))))
+       [(real real)
+        (erfc expm1 log1p recip rsqrt)]
+       [(real real real)
+        (hypot)]
+       [(real real real real)
+        (fma)]))))
 
 ; compose platforms
 
 (define default-platform
   (platform-union boolean-platform
                   non-tunable
-                  tunable))
+                  tunable
+                  accelerator-platform))
 
 ; Register all three
 

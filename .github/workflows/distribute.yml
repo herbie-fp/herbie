@@ -15,11 +15,11 @@ jobs:
 
     steps:
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.9
+        uses: Bogdanp/setup-racket@v1.11
         with:
-            version: "8.10"
+            version: 8.11
       - name: Cache Racket dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           key: ${{ runner.os }}-deps
           path: |
@@ -33,12 +33,9 @@ jobs:
             egg-herbie/target/            
             ${{ env.APPDATA }}/Racket
       - name: Install Rust compiler
-        uses: actions-rs/toolchain@v1.0.6
+        uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
-            default: true
-            override: true
-            profile: minimal
             components: rustfmt, clippy
       - uses: actions/checkout@master
       - name: "Install dependencies"

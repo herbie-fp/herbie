@@ -694,15 +694,16 @@ function buildRow(test, other) {
 function buildControls(jsonData, diffCount) {
     const showing = diffCount
     const outOf = jsonData.tests.length
-    var otherBranch = ""
-    if (otherJsonData != null) {
-        otherBranch = ` vs ${otherJsonData.branch}`
-    }
     // TODO if branches, or seeds are different
     let resultsDate = new Date(resultsJsonData.date * 1000)
     const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
     let branchName = `${resultsJsonData.branch}`
-    var displayingDiv = Element("text", {}, [`Displaying ${showing}/${outOf} benchmarks on ${branchName}${otherBranch}`])
+    var displayingDiv = Element("div", {}, [
+        `Displaying ${showing}/${outOf} benchmarks `,
+        `on `, Element("code", {}, branchName),
+        otherJsonData && [
+            ` vs `, Element("code", {}, otherJsonData.branch),
+        ]])
 
     const input = Element("input", {
         id: "compare-input", value: compareAgainstURL,

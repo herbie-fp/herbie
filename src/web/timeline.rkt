@@ -61,7 +61,7 @@
          ,@(dict-call curr render-phase-pruning 'kept)
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
-         ,@(dict-call curr render-phase-problems 'problems)
+         ,@(dict-call curr render-phase-fperrors 'fperrors)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -141,7 +141,7 @@
     (dd (table
          (tr (th "Time") (th "Left") (th "Right"))
          ,@(for/list ([rec (in-list iters)])
-             (match-define (list v1 v2 time) rec)
+             (match-define (list time v1 v2) rec)
              `(tr (td ,(format-time time))
                   (td (pre ,(format-value v1)))
                   (td (pre ,(format-value v2)))))))))
@@ -274,15 +274,26 @@
               `(tr (td ,(~a count) "×")
                    (td (code ,(~a rule) " "))))))))
 
-(define (render-phase-problems problems)
-  `((dt "Problems")
-    (dd (table ([class "times"])
-               ,@(for/list ([rec (in-list (sort problems > #:key second))])
-                   (match-define (list expr count) rec)
-                   `(tr (td ,(~a count) "×")
-                        (td ,(if expr
-                                 `(code ,expr)
-                                 "No Errors"))))))))
+(define (render-phase-fperrors fperrors)
+  `((dt "FPErrors")
+    (dd (details
+         (summary "Click to see full error table")
+         (table ([class "times"])
+                (thead (tr (th "Ground Truth") (th "Overpredictions") (th "Example") (th "Underpredictions") (th "Example") (th "Subexpression")))
+                ,@(for/list ([rec (in-list (sort fperrors > #:key second))])
+                    (match-define (list expr tcount opred oex upred uex) rec)
+                    `(tr (td ,(~a tcount))
+                         (td ,(~a opred))
+                         (td ,(if oex
+                                  (~a oex)
+                                  "-"))
+                         (td ,(~a upred))
+                         (td ,(if uex
+                                  (~a uex)
+                                  "-"))
+                         (td ,(if expr
+                                  `(code ,expr)
+                                  "No Errors")))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
@@ -312,8 +323,8 @@
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
         (table ([class "times"])
-               ,@(for/list ([rec (in-list (sort times > #:key second))] [_ (in-range 5)])
-                   (match-define (list expr time) rec)
+               ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
+                   (match-define (list time expr) rec)
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
 (define (render-phase-series n times)
@@ -324,8 +335,8 @@
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map fourth times)) ")")
         (table ([class "times"])
                (thead (tr (th "Time") (th "Variable") (th) (th "Point") (th "Expression")))
-               ,@(for/list ([rec (in-list (sort times > #:key fourth))] [_ (in-range 5)])
-                   (match-define (list expr var transform time) rec)
+               ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
+                   (match-define (list time expr var transform) rec)
                    `(tr (td ,(format-time time))
                         (td (pre ,var)) (td "@") (td ,transform) (td (pre ,expr))))))))
 
@@ -352,8 +363,8 @@
   `((dt "Results")
     (dd (table ([class "times"])
          ,@(for/list ([rec (in-list (sort outcomes > #:key fourth))])
-             (match-define (list prog precision category time count) rec)
-             `(tr (td ,(format-time time)) (td ,(~a count) "×") (td ,(~a prog))
+             (match-define (list precision category time count) rec)
+             `(tr (td ,(format-time time)) (td ,(~a count) "×")
                   (td ,(~a precision)) (td ,(~a category))))))))
 
 (define (render-phase-inputs inputs outputs)

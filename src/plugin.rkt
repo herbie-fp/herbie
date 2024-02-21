@@ -4,7 +4,8 @@
          (submod "syntax/types.rkt" internals)
          (submod "syntax/syntax.rkt" internals)
          (submod "syntax/rules.rkt" internals)
-         (submod "platform.rkt" internals))
+         (submod "platform.rkt" internals)
+         (submod "accelerator.rkt" internals))
 
 (provide define-type define-representation define-operator-impl
          define-operator define-ruleset define-ruleset*
@@ -16,4 +17,9 @@
          platform get-platform register-platform!
          platform-product platform-union platform-intersect
          platform-subtract platform-filter operator-set platform-operator-set
-         with-terminal-cost cost-map cost-map-scale)
+         with-terminal-cost cost-map cost-map-scale
+         register-accelerator-operator!
+         register-accelerator-impl!
+         define-accelerator-operator
+         define-accelerator-impl
+         )

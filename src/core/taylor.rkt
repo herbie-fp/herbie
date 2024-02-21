@@ -169,13 +169,6 @@
      (taylor-cbrt (taylor var base))]
     [`(pow ,base ,power)
      (taylor var `(exp (* ,power (log ,base))))]
-    [`(expm1 ,arg) (taylor var `(- (exp ,arg) 1))]
-    [`(log1p ,arg) (taylor var `(log (+ 1 ,arg)))]
-    [`(hypot ,a ,b)
-     (define ta (taylor var a))
-     (define tb (taylor var b))
-     (taylor-sqrt (taylor-add (taylor-mult ta ta) (taylor-mult tb tb)))]
-    [`(fma ,a ,b ,c) (taylor var `(+ (* ,a ,b) ,c))]
     [`(sinh ,arg)
      (define exparg (taylor var `(exp ,arg)))
      (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]

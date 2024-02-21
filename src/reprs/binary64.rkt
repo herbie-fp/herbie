@@ -6,7 +6,6 @@
          math/bigfloat
          fpbench
          rival)
-
 (require "runtime/utils.rkt"
          "runtime/libm.rkt")
 
@@ -53,13 +52,9 @@
 
 (define-libm-impls/binary64
   [(binary64 binary64)
-   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf erfc
-    exp exp2 expm1 fabs floor lgamma log log10 log1p log2 logb
-    rint round sin sinh sqrt tan tanh tgamma trunc)]
+   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2 fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt tan tanh tgamma trunc)]
   [(binary64 binary64 binary64)
-   (atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
-  [(binary64 binary64 binary64 binary64)
-   (fma)])
+   (atan2 copysign fdim fmax fmin fmod pow remainder)])
 
 (define-comparator-impls binary64
   [== ==.f64 =]
@@ -69,28 +64,15 @@
   [<= <=.f64 <=]
   [>= >=.f64 >=])
 
-(define-operator (recip real) real
-  [ival (λ (x) (ival-div (ival 1.bf) x))])
+(define-accelerator-impl recip recip.f64 (binary64) binary64 
+  (λ (x)
+    (parameterize ([bf-precision 12])
+      (bigfloat->flonum (bf/ 1.bf (bf x))))))
 
-(define-operator (rsqrt real) real
-  [ival (λ (x) (ival-div (ival 1.bf) (ival-sqrt x)))])
-
-(define-operator-impl (recip recip.f64 binary64) binary64
-  [fl (λ (x)
-        (parameterize ([bf-precision 12])
-          (bigfloat->flonum (bf/ 1.bf (bf x)))))])
-
-(define-operator-impl (rsqrt rsqrt.f64 binary64) binary64
-  [fl (λ (x)
-        (parameterize ([bf-precision 12])
-          (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])
-
-(define-ruleset* reciprocal (arithmetic simplify)
-  #:type ([a real])
-  [add-recip     (/ 1 a)        (recip a)]
-  [remove-recip  (recip a)      (/ 1 a)]
-  [add-rsqrt     (/ 1 (sqrt a)) (rsqrt a)]
-  [remove-rsqrt  (rsqrt a)      (/ 1 (sqrt a))])
+(define-accelerator-impl rsqrt rsqrt.f64 (binary64) binary64
+  (λ (x)
+    (parameterize ([bf-precision 12])
+      (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x)))))))
 
 (set-unknown->c!
   (λ (fallback)
@@ -108,3 +90,23 @@
   (λ (old)
     (const
       (format "#include <immintrin.h>\n~a" (old)))))
+
+(define-libm expm1.f64 (expm1 double double))
+(when expm1.f64
+  (define-accelerator-impl expm1 expm1.f64 (binary64) binary64 expm1.f64))
+
+(define-libm log1p.f64 (log1p double double))
+(when log1p.f64
+  (define-accelerator-impl log1p log1p.f64 (binary64) binary64 log1p.f64))
+
+(define-libm hypot.f64 (hypot double double double))
+(when hypot.f64
+  (define-accelerator-impl hypot hypot.f64 (binary64 binary64) binary64 hypot.f64))
+
+(define-libm fma.f64 (fma double double double double))
+(when fma.f64
+  (define-accelerator-impl fma fma.f64 (binary64 binary64 binary64) binary64 fma.f64))
+
+(define-libm erfc.f64 (erfc double double))
+(when erfc.f64
+  (define-accelerator-impl erfc erfc.f64 (binary64) binary64 erfc.f64))
