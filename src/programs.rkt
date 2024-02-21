@@ -67,11 +67,10 @@
      [else 1])]
    [((? symbol?) _) 1]
    [(_ (? symbol?)) -1]
-   [((? literal?) (? literal?))
-    (cond
-     [(< (literal-value a) (literal-value b)) -1]
-     [(= (literal-value a) (literal-value b)) 0]
-     [else 1])]))
+   ;; Need both cases because `reduce` uses plain numbers
+   [((or (? literal? (app literal-value a)) (? number? a))
+     (or (? literal? (app literal-value a)) (? number? a)))
+    (cond [(< a b) -1] [(= a b) 0] [else 1])]))
 
 (define (expr<? a b)
   (< (expr-cmp a b) 0))
