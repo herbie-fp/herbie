@@ -69,7 +69,7 @@
    [(_ (? symbol?)) -1]
    ;; Need both cases because `reduce` uses plain numbers
    [((or (? literal? (app literal-value a)) (? number? a))
-     (or (? literal? (app literal-value a)) (? number? a)))
+     (or (? literal? (app literal-value b)) (? number? b)))
     (cond [(< a b) -1] [(= a b) 0] [else 1])]))
 
 (define (expr<? a b)
