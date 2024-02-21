@@ -466,7 +466,6 @@
   #:type ([a real] [b real] [c real])
   [pow-exp          (pow (exp a) b)             (exp (* a b))]
   [pow-prod-down    (* (pow b a) (pow c a))     (pow (* b c) a)]
-  [pow-pow          (pow (pow a b) c)           (pow a (* b c))]
   [pow-prod-up      (* (pow a b) (pow a c))     (pow a (+ b c))]
   [pow-flip         (/ 1 (pow a b))             (pow a (neg b))]
   [pow-neg          (pow a (neg b))             (/ 1 (pow a b))]
@@ -483,6 +482,7 @@
   #:type ([a real] [b real] [c real])
   [pow-to-exp       (pow a b)                   (exp (* (log a) b))]
   [pow-sub          (pow a (- b c))             (/ (pow a b) (pow a c))]
+  [pow-pow          (pow (pow a b) c)           (pow a (* b c))]
   [pow-unpow        (pow a (* b c))             (pow (pow a b) c)]
   [unpow-prod-up    (pow a (+ b c))             (* (pow a b) (pow a c))]
   [unpow-prod-down  (pow (* b c) a)             (* (pow b a) (pow c a))])
