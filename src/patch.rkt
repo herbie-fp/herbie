@@ -92,8 +92,8 @@
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-      (for ([_ (in-range 4)])
       (define genexpr (approximate expr var #:transform (cons f finv)))
+      (for ([_ (in-range 6)])
         (define replace
           (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
             (spec->prog (genexpr) (*context*))))
