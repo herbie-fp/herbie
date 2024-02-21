@@ -237,13 +237,13 @@
   ;; inlining
 
   ;; Test classic quadp and quadm examples
-  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
-  (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
-  (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
+  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* a c))))
+  (define quadp `(/ (+ (- y) (discr x y z)) x))
+  (define quadm `(/ (- (- y) (discr x y z)) x))
   (check-equal? (fpcore->prog quadp ctx)
-                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
   (check-equal? (fpcore->prog quadm ctx)
-                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
 
   ;; x^5 = x^3 * x^2
   (register-function! 'sqr (list 'x) repr '(* x x))
