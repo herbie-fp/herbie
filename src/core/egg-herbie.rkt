@@ -151,12 +151,12 @@
                 (~a `(+ ($Type binary64 binary64 binary64)
                         ($Var ($Type binary64) h1)
                         ($Var ($Type binary64) h0))))
-          (cons '(-.f64 2 (+.f64 x y))
+          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y))
                 (~a '(- ($Type binary64 binary64 binary64) 2
                         (+ ($Type binary64 binary64 binary64)
                            ($Var ($Type binary64) h1)
                            ($Var ($Type binary64) h0)))))
-          (cons '(-.f64 z (+.f64 (+.f64 y 2) x))
+          (cons '(-.f64 z (+.f64 (+.f64 y #s(literal 2 binary64)) x))
                 (~a '(- ($Type binary64 binary64 binary64)
                         ($Var ($Type binary64) h2)
                         (+ ($Type binary64 binary64 binary64)
@@ -168,7 +168,7 @@
                 (~a `(* ($Type binary64 binary64 binary64)
                         ($Var ($Type binary64) h1)
                         ($Var ($Type binary64) h0))))
-          (cons '(+.f64 (*.f64 x y) 2)
+          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64))
                 (~a '(+ ($Type binary64 binary64 binary64)
                         (* ($Type binary64 binary64 binary64)
                            ($Var ($Type binary64) h1)
@@ -204,7 +204,7 @@
     (for ([expr extended-expr-list])
       (define expr* (spec->prog expr (*context*)))
       (define egg-expr (expr->egg-expr expr* egg-graph (*context*)))
-      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph) expr* (context-repr (*context*))))))
+      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph (context-repr (*context*))) expr*))))
 
 
 ;; Given a list of types, computes the product of all possible
