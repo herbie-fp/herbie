@@ -23,8 +23,8 @@
     [atan-tan-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
     [pow-unpow_binary64     . (>=.f64 a 0)]
     [pow-unpow_binary32     . (>=.f32 a 0)]
-    [pow-sqrt_binary64      . (>=.f64 x 0)]
-    [pow-sqrt_binary32      . (>=.f32 x 0)]
+    [sqrt-pow1_binary64     . (>=.f64 x 0)]
+    [sqrt-pow1_binary32     . (>=.f32 x 0)]
 ))
 
 (define (check-rule-sound test-rule)
