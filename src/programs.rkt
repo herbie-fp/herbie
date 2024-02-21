@@ -29,7 +29,7 @@
 ;; Fast version does not recurse into functions applications
 (define (repr-of expr ctx)
   (match expr
-   [(? literal?) (get-representation (literal-precision ctx))]
+   [(? literal?) (get-representation (literal-precision expr))]
    [(? variable?) (context-lookup ctx expr)]
    [(list 'if cond ift iff) (repr-of ift ctx)]
    [(list op args ...) (impl-info op 'otype)]))
