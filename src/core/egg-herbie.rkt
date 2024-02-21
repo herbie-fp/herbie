@@ -78,7 +78,7 @@
        (define op* (apply get-parametric-operator op (map get-representation itypes)))
        (cons op* (map loop args itypes))]
       [(? number?)
-       (literal expr (get-representation prec))])))
+       (literal expr prec)])))
 
 ;; Expands operators into `(op, sig)` so that we can
 ;; recover the exact operator implementation when extracting.

@@ -23,7 +23,7 @@
            register-conversion-generator!
            variable?))
 
-(struct literal (value repr) #:prefab)
+(struct literal (value precision) #:prefab)
 
 ;; Real operator: a pure mathematical operator specified by
 ;;  - (unique) name

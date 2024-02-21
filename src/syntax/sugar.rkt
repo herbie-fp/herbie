@@ -216,12 +216,13 @@
                                           (representation-name repr)))
             (values (list conv expr) repr)])]
         [(? number?)
+         (define prec (representation-name (context-repr ctx)))
          (define num
            (match expr
-             [(or +inf.0 -inf.0 +nan.0) (literal expr (context-repr ctx))]
-             [(? exact?) (literal expr (context-repr ctx))]
-             [_ (literal (inexact->exact expr) (context-repr ctx))]))
-         (values num (context-repr ctx))]
+             [(or +inf.0 -inf.0 +nan.0) expr]
+             [(? exact?) expr]
+             [_ (inexact->exact expr)]))
+         (values (literal num prec) (context-repr ctx))]
         [(? boolean?)
          (values expr (get-representation 'bool))])))
   expr*)
@@ -252,7 +253,7 @@
          [-inf.0 '(- INFINITY)]
          [+inf.0 'INFINITY]
          [+nan.0 'NAN]
-         [v (if (set-member? '(binary64 binary32) (representation-name (literal-repr expr)))
+         [v (if (set-member? '(binary64 binary32) (literal-precision expr))
                 (exact->inexact v)
                 v)])])))
 
@@ -335,12 +336,13 @@
                                           (representation-name repr)))
             (values (list conv expr) repr)])]
         [(? number?)
+         (define prec (representation-name (context-repr ctx)))
          (define num
            (match expr
              [(or +inf.0 -inf.0 +nan.0) expr]
              [(? exact?) expr]
              [_ (inexact->exact expr)]))
-         (values (literal num (context-repr ctx)) (context-repr ctx))]
+         (values (literal num prec) (context-repr ctx))]
         [(? boolean?)
          (values expr (get-representation 'bool))])))
   expr*)
