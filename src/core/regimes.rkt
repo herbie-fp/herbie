@@ -167,6 +167,7 @@
 ;; cost = The total error in the region to the left of our rightmost splitpoint
 ;; indices = The si's we are considering in this candidate.
 (struct cse (cost indices) #:transparent)
+
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 (define (valid-splitindices? can-split? split-indices)
   (and
@@ -197,11 +198,7 @@
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (struct soa (acost-v idx-v poidx-v pr-idx-v) #:transparent)
-  (define (add-splitpoint sp-prev-values)
-    (define v-acost (soa-acost-v sp-prev-values))
-    (define v-cidx (soa-idx-v sp-prev-values))
-    (define v-aidx (soa-poidx-v sp-prev-values))
-    (define v-pidx (soa-pr-idx-v sp-prev-values))
+  (define (add-splitpoint v-acost v-cidx v-aidx v-pidx)
     
     ;; output vectors
     (define vec-acost (make-vector num-points))
@@ -243,16 +240,16 @@
         (vector-set! vec-cidx point-idx aest-best)
         (vector-set! vec-aidx point-idx aest-bidx)
         (vector-set! vec-pidx point-idx aest-prev-idx)))
-  (soa vec-acost vec-cidx vec-aidx vec-pidx))
+  (values vec-acost vec-cidx vec-aidx vec-pidx))
 
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
   ;; by using only one candidate to the left of that point.
 
-;; TODO refactor me  
-(struct cand (acost idx point-idx prev-idx) #:transparent)
-  (define (initial)
+  ;; TODO delete me only used to setup data
+  (struct cand (acost idx point-idx prev-idx) #:transparent)
 
+  (define (initial)
     (define vec-acost (make-vector num-points))
     (define vec-cidx (make-vector num-points))
     (define vec-aidx (make-vector num-points))
@@ -269,32 +266,24 @@
       (vector-set! vec-cidx point-idx (cand-idx cse-min))
       (vector-set! vec-aidx point-idx (cand-point-idx cse-min))
       (vector-set! vec-pidx point-idx (cand-prev-idx cse-min)))
-    (soa vec-acost vec-cidx vec-aidx vec-pidx))
-
-  ;; Look into using (values ... )
-  ;; you can look up where all the time is spent in the profile
-  ;; https://github.com/racket/racket/blob/master/racket/collects/racket/private/for.rkt
-  ;; check the function in the Metrics Page
+    (values vec-acost vec-cidx vec-aidx vec-pidx))
 
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
-  (define final
-    (let loop ([prev (initial)])
-      (let ([next (add-splitpoint prev)])
-        (if (equal? prev next)
-            next
-            (loop next)))))
- 
-    (define v-acost (soa-acost-v final))
-    (define v-cidx (soa-idx-v final))
-    (define v-aidx (soa-poidx-v final))
-    (define v-pidx (soa-pr-idx-v final))
+  (define-values (pa pb pc pd) (initial))
+  (define-values (fa fb fc fd)
+    (let loop ([pa pa] [pb pb] [pc pc] [pd pd])
+      (define-values (na nb nc nd) (add-splitpoint pa pb pc pd))
+      (if (and (equal? na pa) (equal? nb pb) 
+               (equal? nc pc) (equal? nd pd))
+          (values na nb nc nd)
+          (loop na nb nc nd))))
     
     (define fixed-final (make-vector num-points))
     (for ([idx (in-range 0 num-points)])
-      (define a (vector-ref v-acost idx))
-      (define b (vector-ref v-cidx idx))
-      (define c (vector-ref v-aidx idx))
-      (define d (vector-ref v-pidx idx))
+      (define a (vector-ref fa idx))
+      (define b (vector-ref fb idx))
+      (define c (vector-ref fc idx))
+      (define d (vector-ref fd idx))
       (vector-set! fixed-final idx (cand a b c d)))
 
   ;; start at (- num-points 1)
