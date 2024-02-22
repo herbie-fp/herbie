@@ -20,7 +20,7 @@ name_file = 'NAME'
 target_lang = 'mkl'
 compiler = 'cc'
 c_flags = ['-std=c11', '-O3', '-march=skylake']
-ld_flags = ['-lmkl_intel_lp64', '-lmkl_intel_thread', '-liomp5', '-lmkl_core', '-lpthread', '-lm']
+ld_flags = ['-lmkl_intel_lp64', '-lmkl_sequential', '-lmkl_core', '-lpthread', '-lm']
 
 script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
@@ -100,7 +100,7 @@ def make_driver(output_dir: str, num_inputs: str, op: str, func: str, key: str, 
             print(func, file=f)
 
         for i in range(argc):
-            print(f'const __m256d x{i}[{num_inputs}] = {{', file=f)
+            print(f'const __m256d x{i}[] = {{', file=f)
             sample = sample_repr('double', num_inputs)
             print(',\n'.join(map(format_m256, chunkify(sample, 4))), file=f)
             print('};', file=f)
@@ -116,7 +116,7 @@ def make_driver(output_dir: str, num_inputs: str, op: str, func: str, key: str, 
             app_str =  f'foo({arg_str})'
 
         # print(f'for (long k = 0; k < 10; k++) {{', file=f)
-        print(f'for (long i = 0; i < {num_inputs}; i++) {{', file=f)
+        print(f'for (long i = 0; i < {num_inputs}/4; i++) {{', file=f)
         print(f'  res = {app_str};', file=f)
         print('}', file=f)
         # print('}', file=f)
