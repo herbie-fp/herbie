@@ -58,7 +58,7 @@ def compile(op: str, argc: int):
     p = subprocess.Popen(['racket', compile_path, 'compile', target_lang, f'\"{fpcore}\"'], stdout=subprocess.PIPE)
     stdout, _ = p.communicate()
     output = stdout.decode('utf-8')
-    return f'inline {output}'
+    return output
 
 def chunkify(l, n):
     for i in range(0, len(l), n):  
@@ -100,26 +100,23 @@ def make_driver(output_dir: str, num_inputs: str, op: str, func: str, key: str, 
             print(func, file=f)
 
         for i in range(argc):
-            print(f'const __m256d x{i}[] = {{', file=f)
+            print(f'const double x{i}[] = {{', file=f)
             sample = sample_repr('double', num_inputs)
-            print(',\n'.join(map(format_m256, chunkify(sample, 4))), file=f)
+            print(',\n'.join(map(double_to_c_str, sample)), file=f)
             print('};', file=f)
 
         print('int main() {', file=f)
-        print(f'volatile __m256d res;', file=f)
+        print(f'double *res = malloc({num_inputs} * sizeof(double));', file=f)
         print(f'clock_t start = clock();', file=f)
         
-        arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(argc)))
         if op == 'baseline':
-            app_str = '(__m256d) { 0.0, 0.0, 0.0, 0.0 }'
+            print(f'for (long i = 0; i < {num_inputs}; i++) {{', file=f)
+            print(f'res[i] = 0.0;', file=f)
+            print('}', file=f)
         else:
-            app_str =  f'foo({arg_str})'
-
-        # print(f'for (long k = 0; k < 10; k++) {{', file=f)
-        print(f'for (long i = 0; i < {num_inputs}/4; i++) {{', file=f)
-        print(f'  res = {app_str};', file=f)
-        print('}', file=f)
-        # print('}', file=f)
+            args = [f'{num_inputs}'] + list(map(lambda i: f'x{i}', range(argc))) + ['res']
+            arg_str = ', '.join(args)
+            print(f'foo({arg_str});', file=f)
 
         print(f'clock_t end = clock();', file=f)
         print(f'double diff = ((double) (end - start)) / CLOCKS_PER_SEC;', file=f)
@@ -203,18 +200,16 @@ def main():
         entries = [(name, cost) for name, cost in zip(names, costs)]
 
         # look for baseline
-        baseline = None
+        # baseline = None
         entries = sorted(entries, key=lambda e: str.lower(e[0]))
-        for name, cost in entries:
-            if name == 'baseline':
-                baseline = cost
-                break
+        # for name, cost in entries:
+        #     if name == 'baseline':
+        #         break
         
-        print(f'baseline: {baseline} s')
-        print('op | relative (multiple of baseline)')
+        print('op | time (us)')
         for name, cost in entries:
             if name != 'baseline':
-                print(f'[{name} {cost / baseline}]')
+                print(f'[{name} {cost * 1000.0}]')
 
 if __name__ == "__main__":
     main()
