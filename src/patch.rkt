@@ -8,6 +8,7 @@
          "core/matcher.rkt"
          "core/simplify.rkt"
          "core/taylor.rkt"
+         "config.rkt"
          "accelerator.rkt"
          "alternative.rkt"
          "common.rkt"
