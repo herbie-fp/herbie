@@ -173,7 +173,7 @@
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [expr false] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
-(define-timeline outcomes [prec false] [category false] [time +] [count +])
+(define-timeline outcomes [time +] [prec false] [category false] [count +])
 (define-timeline accuracy [accuracy])
 (define-timeline oracle [oracle])
 (define-timeline baseline [baseline])

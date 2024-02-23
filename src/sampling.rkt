@@ -132,7 +132,7 @@
 
       (hash-update! outcomes status (curry + 1) 0)
       (define now (current-inexact-milliseconds))
-      (timeline-push!/unsafe 'outcomes precision (~a status) (- now start) 1)
+      (timeline-push!/unsafe 'outcomes (- now start) precision (~a status) 1)
       (set! start now)
 
       (cond
