@@ -5,7 +5,7 @@
 
 (require "syntax/types.rkt"
          "common.rkt"
-         "compiler.rkt")
+         "compiler.rkt" "timeline.rkt")
 
 (provide eval-progs-real
          ground-truth-require-convergence 
