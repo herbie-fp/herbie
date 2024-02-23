@@ -232,6 +232,9 @@
          (define cot-x (bfabs (bfcot x)))
          (define cond-no (bf* (bfabs x) cot-x))
          (cond
+           [(and (bfinfinite? x)
+                 (not (bfnan? subexpr-val)))
+            (mark-erroneous! subexpr 'oflow-rescue)]
            [(and (bf> cond-no cond-thres)
                  (bf> (bfabs x) cond-thres))
             (mark-erroneous! subexpr 'sensitivity)]
@@ -248,6 +251,19 @@
            [else #f])]
 
         [(list (or 'cos.f64 'cos.f32) x-ex)
+         #:when (list? x-ex)
+         (define x (exacts-ref x-ex))
+         (define cond-no (bfabs (bf* x (bftan x))))
+         
+         (cond
+           [(and (bfinfinite? x)
+                 (not (bfnan? subexpr-val)))
+            (mark-erroneous! subexpr 'oflow-rescue)]
+           [(bf> cond-no cond-thres)  (mark-erroneous! subexpr 'sensitivity)]
+           [(bf> cond-no maybe-cond-thres)  (mark-maybe! subexpr 'sensitivity)]
+           [else  #f])]
+        
+        #;[(list (or 'cos.f64 'cos.f32) x-ex)
          #:when (list? x-ex)
          (define x (exacts-ref x-ex))
          (define tan-x (bfabs (bftan x)))
@@ -276,6 +292,9 @@
          (define cond-no (bf* (bfabs x) tot-x))
 
          (cond
+           [(and (bfinfinite? x)
+                 (not (bfnan? subexpr-val)))
+            (mark-erroneous! subexpr 'oflow-rescue)]
            [(and (bf> cond-no cond-thres)
                  (bf> (bfabs x) cond-thres))
             (mark-erroneous! subexpr 'sensitivity)]
