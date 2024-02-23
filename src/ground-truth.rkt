@@ -67,22 +67,26 @@
        y))))
 
 (define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
-  (let loop ([precision precision])
-    (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
-    (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
-    (define precision* (exact-floor (* precision 2)))
-    (cond
-     [err
-      (values err precision +nan.0)]
-     [(not err?)
-      (define infinite?
-      (ival-lo (is-infinite-interval repr (apply ival-or exs))))
-      (values (if infinite? 'infinite 'valid) precision exs)
-     ]
-     [(> precision* (*max-mpfr-prec*))
-      (values 'exit precision +nan.0)]
-     [else
-      (loop precision*)])))
+  (define start (current-inexact-milliseconds))
+  (define-values (status precision value)
+    (let loop ([precision precision])
+      (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
+      (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
+      (define precision* (exact-floor (* precision 2)))
+      (cond
+        [err
+         (values err precision +nan.0)]
+        [(not err?)
+         (define infinite?
+           (ival-lo (is-infinite-interval repr (apply ival-or exs))))
+         (values (if infinite? 'infinite 'valid) precision exs)]
+        [(> precision* (*max-mpfr-prec*))
+         (values 'exit precision +nan.0)]
+        [else
+         (loop precision*)])))
+  (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
+                         precision (~a status) 1)
+  (values status precision value))
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)
