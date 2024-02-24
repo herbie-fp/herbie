@@ -1,11 +1,13 @@
 from . import (
-    runner,
-    fpcore,
     c,
+    fpcore,
+    runner,
+    util
 )
 
 __all__ = [
-    'runner',
-    'fpcore',
     'c',
+    'fpcore',
+    'runner',
+    'util'
 ]

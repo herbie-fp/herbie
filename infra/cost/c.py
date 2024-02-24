@@ -1,7 +1,11 @@
 from subprocess import Popen, PIPE
+from typing import Optional
+from pathlib import Path
+import os
+import re
 
 from .runner import Runner
-from .fpcore import FPCore
+from .util import sample_repr, double_to_c_str, chunks
 
 # Support operations in standard C
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
@@ -11,43 +15,101 @@ ternary_ops = ['fma']
 # C lang
 target_lang = 'c'
 compiler = 'cc'
-c_flags = ['-std=c11', '-O3']
+c_flags = ['-O3']
 ld_flags = ['-lm']
+driver_name = 'main.c'
+
+# Regex patterns
+time_pat = re.compile('([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) ms')
+
 
 class CRunner(Runner):
     """`Runner` for standard C."""
 
-    def __init__(self, working_dir: str, herbie_path: str):
+    def __init__(
+        self,
+        working_dir: str,
+        herbie_path: str,
+        num_inputs: Optional[int] = 10000,
+        threads: int = 1
+    ):
         super().__init__(
-            name='C',
+            lang='c',
             working_dir=working_dir,
             herbie_path=herbie_path,
+            num_inputs=num_inputs,
+            threads=threads,
             unary_ops=unary_ops,
             binary_ops=binary_ops,
             ternary_ops=ternary_ops
         )
 
-    def compile(self) -> None:
-        with Popen(
-            args=['racket', str(self.herbie_path)],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
-
-            # call out to server
-            # need to do some munging of newlines
-            for core in self.cores:
-                print(f'compile c {core.core}', file=server.stdin, flush=True)
-                output = server.stdout.readline()
-                core.compiled = output.replace('\\n', '\n').strip()
-
-            # terminate the server
-            print('exit', file=server.stdin, flush=True)
-            _ = server.stdout.readline()
-        self.log(f'compiled {len(self.cores)} cores')
-
     def make_drivers(self) -> None:
-        driver_dirs = self.make_driver_dirs()
-        for core, driver_dir in zip(self.cores, driver_dirs):
-            pass
+        for core, driver_dir in zip(self.cores, self.driver_dirs):
+            driver_path = os.path.join(driver_dir, driver_name)
+            with open(driver_path, 'w') as f:
+                print('#include <immintrin.h>', file=f)
+                print('#include <math.h>', file=f)
+                print('#include <stdio.h>', file=f)
+                print('#include <stdlib.h>', file=f)
+                print('#include <time.h>', file=f)
+                print('#define TRUE 1', file=f)
+                print('#define FALSE 0', file=f)
+
+                print(f'inline {core.compiled}', file=f)
+
+                for i in range(core.argc):
+                    print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
+                    sample = sample_repr('double', self.num_inputs)
+                    print(',\n'.join(map(double_to_c_str, sample)), file=f)
+                    print('};', file=f)
+
+                print('int main() {', file=f)
+                print(f'struct timespec ts1, ts2;', file=f)
+                print(f'volatile double res;', file=f)
+                print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts1);', file=f)
+
+                arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
+                app_str =  f'foo({arg_str})'
+                print(f'for (long i = 0; i < {self.num_inputs}; i++) {{', file=f)
+                print(f'  res = {app_str};', file=f)
+                print('}', file=f)
+
+                print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts2);', file=f)
+                print(f'double diff = (1000.0 * ts2.tv_sec + 1e-6 * ts2.tv_nsec) - (1000.0 * ts1.tv_sec + 1e-6 * ts1.tv_nsec);', file=f)
+                print(f'printf("%.17g ms", diff);', file=f)
+                print('  return 0;', file=f)
+                print('}', file=f)
+
         self.log(f'created drivers')
+
+    def compile_drivers(self) -> None:
+        # chunk over threads
+        for driver_dirs in chunks(self.driver_dirs, self.threads):
+            ps = []
+            # fork subprocesses
+            for driver_dir in driver_dirs:
+                driver_path = Path(os.path.join(driver_dir, driver_name))
+                out_path = driver_path.parent.joinpath(driver_path.stem)
+                p = Popen([compiler] + c_flags + ['-o', out_path, driver_path] + ld_flags)
+                ps.append(p)
+            # join processes
+            for p in ps:
+                _, _ = p.communicate()
+        self.log(f'compiled drivers')
+
+    def run_drivers(self) -> None:
+        # run processes (sequential)
+        for driver_dir in self.driver_dirs:
+            driver_path = Path(os.path.join(driver_dir, driver_name))
+            out_path = driver_path.parent.joinpath(driver_path.stem)
+            p = Popen([out_path], stdout=PIPE)
+            stdout, _ = p.communicate()
+            output = stdout.decode('utf-8')
+            time = re.match(time_pat, output)
+            if time is None:
+                print(f'Unexpected error when running {out_path}: {output}')
+                return None
+            else:
+                self.times.append(float(time.group(1)))
+        self.log(f'run drivers')
