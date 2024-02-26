@@ -30,7 +30,8 @@ def run(
         runner.herbie_improve(path=bench_dir, threads=threads)
     else:
         runner.synthesize()
-    
+
+    runner.herbie_sample()
     runner.herbie_compile()
     runner.herbie_cost()
     runner.make_driver_dirs()

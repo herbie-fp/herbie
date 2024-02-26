@@ -5,7 +5,7 @@ import os
 import re
 
 from .runner import Runner
-from .util import sample_repr, double_to_c_str, chunks
+from .util import double_to_c_str, chunks
 
 # Support operations in standard C
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
@@ -23,10 +23,8 @@ time_unit = 'ms'
 # Regex patterns
 time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
 
-
 class CRunner(Runner):
     """`Runner` for standard C."""
-
     def __init__(
         self,
         working_dir: str,
@@ -51,6 +49,7 @@ class CRunner(Runner):
     def make_drivers(self) -> None:
         for core, driver_dir in zip(self.cores, self.driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
+            sample = self.get_sample(core)
             with open(driver_path, 'w') as f:
                 print('#include <immintrin.h>', file=f)
                 print('#include <math.h>', file=f)
@@ -62,10 +61,9 @@ class CRunner(Runner):
 
                 print(f'inline {core.compiled}', file=f)
 
-                for i in range(core.argc):
+                for i, points in enumerate(sample):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
-                    sample = sample_repr('double', self.num_inputs)
-                    print(',\n'.join(map(double_to_c_str, sample)), file=f)
+                    print(',\n'.join(map(double_to_c_str, points)), file=f)
                     print('};', file=f)
 
                 print('int main() {', file=f)

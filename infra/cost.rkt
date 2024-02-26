@@ -91,12 +91,12 @@
            [_ (error 'run-server "sample: malformed arguments ~a" args)]))
        (define test (parse-test (datum->syntax #f core)))
        (define pctx
-         (parameterize ([*reeval-pts* (string->number num-points)])
+         (parameterize ([*reeval-pts* num-points])
            (define result (run-herbie 'sample test #:seed seed))
            (job-result-backend result)))
        (printf "~a\n"
                (string-join
-                  (for ([(pt _) (in-pcontext pctx)])
+                  (for/list ([(pt _) (in-pcontext pctx)])
                     (string-join (map ~s pt) ","))
                   "|"))
        (loop)]
