@@ -24,6 +24,12 @@
                (for ([arg args] [atype atypes])
                  (loop arg atype))])))))
 
+(define (all-subexpressions-simple expr)
+  (cons expr 
+        (if (list? expr)
+            (append-map all-subexpressions-simple (cdr expr))
+            empty)))
+
 ;; Returns a list of expressions sorted by increasing local error
 (define (batch-localize-error exprs ctx)
   (define errss
@@ -40,48 +46,33 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors exprs ctx)
-  (define subexprss
-    (for/list ([expr (in-list exprs)])
-      (all-subexpressions expr (context-repr ctx))))
-  (define spec-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-      (prog->spec (car subexpr))))
-  (define ctx-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-      (struct-copy context ctx [repr (cdr subexpr)])))
+  (define all-subexprs (append-map all-subexpressions-simple exprs))
 
+  (define spec-list (map prog->spec all-subexprs))
+  (define ctx-list (map (const ctx) spec-list))
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
 
-  ; Mutable error hack, this is bad
-  (define errs
-    (make-hash
-     (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-       (cons (car subexpr) '()))))
-
+  (define errs (make-hash (map (curryr cons empty) all-subexprs)))
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
-      (make-immutable-hash (map cons (apply append subexprss) exacts)))
-    (for* ([subexprs (in-list subexprss)] [expr (in-list subexprs)])
+      (make-immutable-hash (map cons all-subexprs exacts)))
+    (for* ([expr (in-list all-subexprs)])
       (define err
-        (match (car expr)
+        (match expr
           [(? literal?) 1]
           [(? variable?) 1]
           [`(if ,c ,ift ,iff) 1]
           [(list f args ...)
            (define repr (impl-info f 'otype))
-           (define argapprox
-             (for/list ([arg (in-list args)]
-                        [repr (in-list (impl-info f 'itype))])
-               (hash-ref exacts-hash
-                         (cons arg repr))))
+           (define argapprox (map (curry hash-ref exacts-hash) args))
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference (hash-ref exacts-hash expr) approx repr)]))
-      (hash-update! errs (car expr) (curry cons err))))
+      (hash-update! errs expr (curry cons err))))
 
-  (for/list ([expr (in-list exprs)] [subexprs (in-list subexprss)])
-    (for/hash ([subexpr (in-list subexprs)])
-      (values (car subexpr) (reverse (hash-ref errs (car subexpr)))))))
+  (for/list ([expr (in-list exprs)])
+    (for/hash ([subexpr (in-list (all-subexpressions-simple expr))])
+      (values subexpr (reverse (hash-ref errs subexpr))))))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
