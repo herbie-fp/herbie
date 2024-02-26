@@ -2,6 +2,7 @@ from typing import List
 from subprocess import Popen, PIPE
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import shutil
 import re
 
@@ -11,10 +12,10 @@ fpcore_pat = re.compile('\(FPCore \(([^\(\)]*)\)')
 
 def synthesize1(op: str, argc: int) -> FPCore:
         """Creates a single FPCore for an operation with an arity."""
-        op = '-' if op == 'neg' else op
+        op_ = '-' if op == 'neg' else op
         vars = [f'x{i}' for i in range(argc)]
         arg_str = ' '.join(vars)
-        app_str = '(' + ' '.join([op] + vars) + ')'
+        app_str = '(' + ' '.join([op_] + vars) + ')'
         core = f'(FPCore ({arg_str}) :name "{op}" {app_str})'
         return FPCore(core, name=op, argc=argc)
 
@@ -166,3 +167,8 @@ class Runner(object):
 
     def plot_times(self):
         """Prints cost vs. runtime on a graph."""
+        plt.scatter(self.costs, self.times)
+        plt.title('Estimated cost vs. actual run time')
+        plt.xlabel('Estimated cost (Herbie)')
+        plt.ylabel('Run time (ms)')
+        plt.show()
