@@ -97,6 +97,9 @@
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
 
+;; How long of a Taylor series to generate; too long and we time out
+(define *taylor-order-limit* (make-parameter 4))
+
 ;; How accurate to make the binary search
 (define *binary-search-test-points* (make-parameter 16))
 (define *binary-search-accuracy* (make-parameter 48))
