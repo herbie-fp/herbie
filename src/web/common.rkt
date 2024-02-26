@@ -147,9 +147,10 @@
     [(list 'negabs x)
      (define x* (string->symbol (format "~a_m" x)))
      (define r (context-lookup ctx x))
+     (define p (representation-name r))
      (define e* (list (get-parametric-operator 'fabs r) x))
      (define x-sign (string->symbol (format "~a_s" x)))
-     (define e-sign (list (get-parametric-operator 'copysign r r) 1 x))
+     (define e-sign (list (get-parametric-operator 'copysign r r) (literal 1 p) x))
      (define c (context (list x) r r))
      (list
       (format "~a = ~a" (format "~a\\_m" x) (converter* e* c))

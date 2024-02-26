@@ -13,7 +13,7 @@
           (let loop ([expr expr] [repr repr])
             (sow (cons expr repr))
             (match expr
-              [(? number?) (void)]
+              [(? literal?) (void)]
               [(? variable?) (void)]
               [`(if ,c ,t ,f)
                (loop c (get-representation 'bool))
@@ -65,7 +65,7 @@
     (for* ([subexprs (in-list subexprss)] [expr (in-list subexprs)])
       (define err
         (match (car expr)
-          [(? number?) 1]
+          [(? literal?) 1]
           [(? variable?) 1]
           [`(if ,c ,ift ,iff) 1]
           [(list f args ...)

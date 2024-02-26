@@ -12,19 +12,19 @@
 
 ;; WARNING: These aren't treated as preconditions, they are only used for range inference
 (define *conditions*
-  `([asinh-2_binary64       . (>=.f64 x 0)]
-    [asinh-2_binary32       . (>=.f32 x 0)]
+  `([asinh-2_binary64       . (>= x 0)]
+    [asinh-2_binary32       . (>= x 0)]
     ;; These next three approximate pi so that range analysis will work
-    [asin-sin-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
-    [asin-sin-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
-    [acos-cos-s_binary64    . (and (<=.f64 0 x) (<=.f64 x 3.1416))]
-    [acos-cos-s_binary32    . (and (<=.f32 0 x) (<=.f64 x 3.1416))]
-    [atan-tan-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
-    [atan-tan-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
-    [pow-unpow_binary64     . (>=.f64 a 0)]
-    [pow-unpow_binary32     . (>=.f32 a 0)]
-    [sqrt-pow1_binary64     . (>=.f64 x 0)]
-    [sqrt-pow1_binary32     . (>=.f32 x 0)]
+    [asin-sin-s_binary64    . (<= (fabs x) 1.5708)]
+    [asin-sin-s_binary32    . (<= (fabs x) 1.5708)]
+    [acos-cos-s_binary64    . (and (<= 0 x) (<= x 3.1416))]
+    [acos-cos-s_binary32    . (and (<= 0 x) (<= x 3.1416))]
+    [atan-tan-s_binary64    . (<= (fabs x) 1.5708)]
+    [atan-tan-s_binary32    . (<= (fabs x) 1.5708)]
+    [pow-unpow_binary64     . (>= a 0)]
+    [pow-unpow_binary32     . (>= a 0)]
+    [sqrt-pow1_binary64     . (>= x 0)]
+    [sqrt-pow1_binary32     . (>= x 0)]
 ))
 
 (define (check-rule-sound test-rule)
@@ -56,7 +56,7 @@
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
       (cdr (sample-points
-            (prog->spec pre)
+            pre
             (list (prog->spec p1) (prog->spec p2))
             (list ctx ctx)))))
 

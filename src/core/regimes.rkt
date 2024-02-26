@@ -7,7 +7,7 @@
 (provide pareto-regimes (struct-out option) (struct-out si))
 
 (module+ test
-  (require rackunit "../load-plugin.rkt")
+  (require rackunit "../load-plugin.rkt" "../syntax/syntax.rkt" "../syntax/sugar.rkt")
   (load-herbie-builtins))
 
 (struct option (split-indices alts pts expr errors) #:transparent
@@ -83,9 +83,9 @@
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-of e ctx) 'real))
+   (λ (e) (equal? (representation-type (repr-of e ctx)) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
-  
+
 ;; Requires that expr is not a λ expression
 (define (critical-subexpression? expr subexpr)
   (define crit-vars (free-variables subexpr))
@@ -142,26 +142,25 @@
 
 (module+ test
   (define ctx (make-debug-context '(x)))
-  (parameterize ([*start-prog* 1]
+  (parameterize ([*start-prog* (literal 1 'binary64)]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
     (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
+    (define (test-regimes expr goal)
+      (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
+             (option-on-expr alts err-lsts (spec->prog expr ctx) ctx)
+             goal))
+
     ;; This is a basic sanity test
-    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts 'x ctx)
-           '(1 0))
+    (test-regimes 'x '(1 0))
 
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
-    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts '1 ctx)
-           '(0))
+    (test-regimes '1 '(0))
 
-    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts '(if (==.f64 x 0.5) 1 +nan.0) ctx)
-           '(1 0))))
+    (test-regimes '(if (== x 0.5) 1 NAN) '(1 0))))
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
