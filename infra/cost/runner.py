@@ -27,7 +27,9 @@ class Runner(object):
         lang: str,
         working_dir: str,
         herbie_path: str,
+        time_unit: str,
         num_inputs: int = 10_000,
+        num_runs: int = 100,
         threads: int = 1,
         unary_ops: List[str] = [],
         binary_ops: List[str] = [],
@@ -36,12 +38,14 @@ class Runner(object):
         # configuration data
         self.lang = lang
         self.num_inputs = num_inputs
+        self.num_runs = num_runs
         self.threads = threads
         self.working_dir = Path(working_dir)
         self.herbie_path = Path(herbie_path)
         self.unary_ops = unary_ops
         self.binary_ops = binary_ops
         self.ternary_ops = ternary_ops
+        self.time_unit = time_unit
         # mutable data
         self.cores: List[FPCore] = []
         self.costs: List[float] = []
@@ -170,5 +174,5 @@ class Runner(object):
         plt.scatter(self.costs, self.times)
         plt.title('Estimated cost vs. actual run time')
         plt.xlabel('Estimated cost (Herbie)')
-        plt.ylabel('Run time (ms)')
+        plt.ylabel(f'Run time ({self.time_unit})')
         plt.show()

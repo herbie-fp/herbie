@@ -18,9 +18,10 @@ compiler = 'cc'
 c_flags = ['-O3']
 ld_flags = ['-lm']
 driver_name = 'main.c'
+time_unit = 'ms'
 
 # Regex patterns
-time_pat = re.compile('([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) ms')
+time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
 
 
 class CRunner(Runner):
@@ -31,6 +32,7 @@ class CRunner(Runner):
         working_dir: str,
         herbie_path: str,
         num_inputs: Optional[int] = 10000,
+        num_runs: int = 100,
         threads: int = 1
     ):
         super().__init__(
@@ -38,10 +40,12 @@ class CRunner(Runner):
             working_dir=working_dir,
             herbie_path=herbie_path,
             num_inputs=num_inputs,
+            num_runs=num_runs,
             threads=threads,
             unary_ops=unary_ops,
             binary_ops=binary_ops,
-            ternary_ops=ternary_ops
+            ternary_ops=ternary_ops,
+            time_unit='ms'
         )
 
     def make_drivers(self) -> None:
@@ -77,7 +81,7 @@ class CRunner(Runner):
 
                 print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts2);', file=f)
                 print(f'double diff = (1000.0 * ts2.tv_sec + 1e-6 * ts2.tv_nsec) - (1000.0 * ts1.tv_sec + 1e-6 * ts1.tv_nsec);', file=f)
-                print(f'printf("%.17g ms", diff);', file=f)
+                print(f'printf("%.17g {time_unit}", diff);', file=f)
                 print('  return 0;', file=f)
                 print('}', file=f)
 
@@ -99,17 +103,19 @@ class CRunner(Runner):
         self.log(f'compiled drivers')
 
     def run_drivers(self) -> None:
-        # run processes (sequential)
-        for driver_dir in self.driver_dirs:
-            driver_path = Path(os.path.join(driver_dir, driver_name))
-            out_path = driver_path.parent.joinpath(driver_path.stem)
-            p = Popen([out_path], stdout=PIPE)
-            stdout, _ = p.communicate()
-            output = stdout.decode('utf-8')
-            time = re.match(time_pat, output)
-            if time is None:
-                print(f'Unexpected error when running {out_path}: {output}')
-                return None
-            else:
-                self.times.append(float(time.group(1)))
+        # run processes sequentially
+        times = [[] for _ in self.driver_dirs]
+        for _ in range(self.num_runs):
+            for i, driver_dir in enumerate(self.driver_dirs):
+                driver_path = Path(os.path.join(driver_dir, driver_name))
+                out_path = driver_path.parent.joinpath(driver_path.stem)
+                p = Popen([out_path], stdout=PIPE)
+                stdout, _ = p.communicate()
+                output = stdout.decode('utf-8')
+                time = re.match(time_pat, output)
+                if time is None:
+                    raise RuntimeError('Unexpected error when running {out_path}: {output}')
+                times[i].append(float(time.group(1)))
+
+        self.times = [sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')

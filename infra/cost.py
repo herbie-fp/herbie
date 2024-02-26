@@ -15,6 +15,7 @@ curr_dir = os.getcwd()
 default_num_threads = 1
 default_herbie_threads = 1
 default_num_points = 10_000
+default_num_runs = 25
 
 def run(
     runner: Runner,
@@ -48,6 +49,7 @@ def main():
     parser.add_argument('--herbie-threads', help='number of threads for Herbie [1 by default]', type=int)
     parser.add_argument('--herbie-input', help='directory or FPCore file that Herbie will run on. Required when not in `--tune` mode or `--restore mode`', type=str)
     parser.add_argument('--num-points', help='number of input points to evalaute on [10_000 by default]', type=int)
+    parser.add_argument('--num-runs', help='number of times to run drivers to obtain an average [100 by default]', type=int)
     parser.add_argument('--tune', help='cost tuning mode [OFF by default].', action='store_const', const=True, default=False)
     parser.add_argument('--restore', help='restores FPCores from the working directory', action='store_const', const=True, default=False)
     parser.add_argument('lang', help='output language to use', type=str)
@@ -64,13 +66,20 @@ def main():
     herbie_threads = args.get('herbie_threads', default_herbie_threads)
     bench_dir = args.get('herbie_input', None)
     num_points = args.get('num_points', default_num_points)
+    num_runs = args.get('num_runs', default_num_runs)
     tune = args.get('tune')
     restore = args.get('restore')
     lang = args['lang']
     output_dir = args['output_dir']
 
     if lang == 'c':
-        runner = CRunner(working_dir=output_dir, herbie_path=herbie_path, num_inputs=num_points, threads=threads)
+        runner = CRunner(
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads
+        )
     else:
         raise ValueError('Unsupported output language: {}')
 
@@ -83,7 +92,12 @@ def main():
         # FPCores are either synthetic or restored from a directory
         herbie_params = None
 
-    run(runner=runner, tune=tune, restore=restore, herbie_params=herbie_params)
+    run(
+        runner=runner,
+        tune=tune,
+        restore=restore,
+        herbie_params=herbie_params
+    )
     
 
 if __name__ == "__main__":
