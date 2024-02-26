@@ -81,6 +81,8 @@
         (define cast (get-repr-conv var-repr repr))
         (and cast (list cast expr))])]
      [(? literal?)
-      (literal (literal-value expr) (representation-name repr))]
+      (if repr
+          (literal (literal-value expr) (representation-name repr))
+          expr)]
      [_ expr])))
 
