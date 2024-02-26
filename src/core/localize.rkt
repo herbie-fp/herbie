@@ -49,7 +49,9 @@
   (define all-subexprs (append-map all-subexpressions-simple exprs))
 
   (define spec-list (map prog->spec all-subexprs))
-  (define ctx-list (map (const ctx) spec-list))
+  (define ctx-list
+    (for/list ([subexpr (in-list all-subexprs)])
+      (struct-copy context ctx [repr (repr-of subexpr ctx)])))
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
 
   (define errs (make-hash (map (curryr cons empty) all-subexprs)))
