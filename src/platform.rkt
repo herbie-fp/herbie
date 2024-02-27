@@ -228,8 +228,6 @@
       ['() impls]
       [(list impl-sig rest ...)
        (syntax-case impl-sig ()
-         [(_ _ _ _ _ ...)
-          (oops! "too many fields (expected 2 or 3)" impl-sig)]
          [((itype ... otype) (op ...) cost)
           ; multiple implementations with same type sig and cost
           (loop (for/fold ([impl-sigs rest]) ([op (syntax->list #'(op ...))])
@@ -618,6 +616,7 @@
                   (cons clause clauses))
                 costs)]
          [(op cost)
+          ; single op with cost
           (let ([op #'op])
             (unless (identifier? op)
               (oops! "expected identifier" op))
@@ -680,6 +679,18 @@
       (make-platform impls #:optional? optional?)))
   (apply platform-union pforms))
 
+(begin-for-syntax
+
+(define (platform-product/parse oops! clauses)
+  (for/list ([clause (in-list clauses)])
+    (syntax-case clause ()
+      [(((type repr) ...) cost-map)
+       #'(let ([t cost-map]) (list '((type . repr) ...) t))]
+      [(bad _) (oops! "malformed type assignment" #'bad)]
+      [_ (oops! "malformed clause" clause)])))
+
+)
+
 ;; Specialized "product" construction of a platform.
 ;; Given an operator set, instantiate a set of platform implementations
 ;; for each assignment of representations and cost model.
@@ -693,20 +704,12 @@
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'platform-product why stx sub-stx))
   (define (go clauses oset optional?)
-    (let loop ([clauses clauses] [assigns '()])
-      (cond
-        [(null? clauses)
-         (with-syntax ([assigns assigns]
-                       [oset oset]
-                       [optional? optional?])
-           #'(make-platform-product `assigns oset #:optional? optional?))]
-        [else
-         (syntax-case (car clauses) ()
-           [(((type repr) ...) cost-map)
-            (loop (cdr clauses)
-                  (cons #'(((type . repr) ...) ,cost-map) assigns))]
-           [(bad _) (oops! "malformed type assignment" #'bad)]
-           [_ (oops! "malformed clause" (car clauses))])])))
+    (with-syntax ([(clauses ...) (platform-product/parse oops! clauses)]
+                  [operator-set oset]
+                  [optional? optional?])
+      #'(make-platform-product (list clauses ...)
+                               operator-set
+                               #:optional? optional?)))
   (syntax-case stx ()
     [(_ #:optional cl ... oset) (go (syntax->list #'(cl ...)) #'oset #t)]
     [(_ cl ... oset) (go (syntax->list #'(cl ...)) #'oset #f)]
