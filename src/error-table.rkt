@@ -92,9 +92,9 @@
           (define key (cons subexpr expl))
           ;;(eprintf "~a\n" key)
           (when (hash-has-key? explanations-hash key)
-            (eprintf "[before] ~a\n" explanations-hash)
+            ;;(eprintf "[before] ~a\n" explanations-hash)
             (hash-update! explanations-hash key (lambda (x) (- x 1)))
-            (eprintf "[after] ~a\n" explanations-hash))
+            ;;(eprintf "[after] ~a\n" explanations-hash))
           (when (hash-has-key? maybe-explanations-hash key)
             (hash-update! maybe-explanations-hash key (lambda (x) (- x 1))))
           
@@ -485,7 +485,7 @@
            ; CN(log, x) = |1 / log(x)|
            [(bf> cond-num cond-thres) 
             (mark-erroneous! subexpr 'sensitivity)
-            (eprintf "[log] ~a\n" explanations-hash)]
+            ;;(eprintf "[log] ~a\n" explanations-hash)]
            
            [(bf> cond-num maybe-cond-thres)
             (mark-maybe! subexpr 'sensitivity)]
@@ -685,12 +685,12 @@
     [_ '()]))
 
 (define (calculate-confusion actual-error predicted-error pcontext)
-  (eprintf "\n\n")
+  ;;(eprintf "\n\n")
   (define outcomes
     (for/list ([(pt _) (in-pcontext pcontext)])
       (define error-actual? (> (hash-ref actual-error pt) 16))
       (define error-predicted? (hash-ref predicted-error pt false))
-      (when (and error-actual? (not error-predicted?))
+      #;(when (and error-actual? (not error-predicted?))
         (eprintf "~a\n" pt))
       (cons error-actual? error-predicted?)))
 
