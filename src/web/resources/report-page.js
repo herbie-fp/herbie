@@ -851,14 +851,17 @@ function makeFilterFunction() {
                 // Section to hide diffs that are below the provided tolerance
                 if (hideDirtyEqual) {
                     // Diff Start Accuracy
-                    if (radioState == "startAccuracy") {
+                    if (radioState == "output") {
+                        if (baseData.output != diffData.output) {
+                            returnVAlue = returnValue && false;
+                        }
                         const t = baseData.start / baseData.bits
                         const o = diffData.start / diffData.bits
                         const op = calculatePercent(o)
                         const tp = calculatePercent(t)
                         var diff = op - tp
                         if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                            returnValue = returnValue && false
+                            returnValue = returnValue && false;
                         }
                     }
                     // Diff Start Accuracy
