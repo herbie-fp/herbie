@@ -37,16 +37,21 @@
   (define varc (length vars))
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
-  (define vprecs (setup-vprecs ivec varc))
-  (define vexps (make-vector (vector-length ivec)))
-  (define prec-threshold (/ (*max-mpfr-prec*) 25))
+  (define vexps (make-vector vreg-count))
+  (define vprecs (setup-vprecs ivec varc))  ; "bare-minimum" precisions below which we will not go
+  
+  (define prec-threshold (/ (*max-mpfr-prec*) 25)) ; a parameter for sampling histogram table
   
   (if (equal? name 'ival)
       (λ args
         (when (*use-mixed-precision*)
+          (define timeline-stop! (timeline-start!/unsafe 'mixsample
+                                                         "backward-pass"
+                                                         (* (*sampling-iteration*) 1000)))
           (if (equal? (*sampling-iteration*) 0)
-              (vector-fill! vexps 0)      ; clear extra-precisions
-              (backward-pass ivec varc vregs vexps))) ; back-pass
+              (vector-fill! vexps 0)                 ; clear extra-precisions
+              (backward-pass ivec varc vregs vexps)) ; back-pass
+          (timeline-stop!))
         
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
@@ -101,18 +106,25 @@
     [4 4096]
     [5 8192]))
 
+; Function sets up vprecs vector, where all the precisions
+; are equal to (max (*tuning-final-output-prec*) (* depth (*ground-truth-extra-bits*))),
+; where depth is the depth of a node in the given computational tree (ivec)
 (define (setup-vprecs ivec varc)
   (define ivec-len (vector-length ivec))
-  (define vprecs (make-vector ivec-len))
-  (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)] [n (in-range (- ivec-len 1) -1 -1)])
-    (define current-prec (max (vector-ref vprecs n) (*tuning-final-output-prec*)))
-    (vector-set! vprecs n current-prec)
+  (define vprecs (make-vector (+ varc ivec-len)))
+  (unless (vector-empty? ivec)
+    (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)]            ; reversed over ivec
+          [n (in-range (+ varc (- ivec-len 1)) (- varc 1) -1)])    ; reversed over precisions for instrs
+      (define current-prec (max (vector-ref vprecs n) (*tuning-final-output-prec*)))
+      (vector-set! vprecs n current-prec)
     
-    (define tail-registers (rest instr))
-    (for ([idx (in-list tail-registers)])
-      (let ([tail-index (- idx varc)]) ; index of the op's child within ivec
-        (when (>= tail-index 0)
-          (vector-set! vprecs tail-index (+ current-prec (*ground-truth-extra-bits*)))))))
+      (define tail-registers (rest instr))
+      (for ([idx (in-list tail-registers)])
+        (when (>= idx varc)  ; if tail register is not a variable (we do not tune variables - they are always doubles)
+          (define idx-prec (vector-ref vprecs idx))
+          (vector-set! vprecs idx (max        ; sometimes an instruction can be in many tail registers
+                                   idx-prec   ; We wanna make sure that we do not tune a precision down
+                                   (+ current-prec (*ground-truth-extra-bits*))))))))
   vprecs)
 
 (define (backward-pass ivec varc vregs vexps)
@@ -120,11 +132,11 @@
         [n (in-range (- (vector-length vregs) 1) -1 -1)])
     (define op (car instr))
 
-    ; To be moved somewhere
+    ; To be moved somewhere 
     (define tail-registers (rest instr))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
     (define output (vector-ref vregs n))
-    (define extra-from-above (vector-ref vexps n))
+    (define exps-from-above (vector-ref vexps n))
     
     (cond
       ; TODO: add stop-condition
@@ -138,7 +150,7 @@
        (define outlo-exp (true-exponent (ival-lo output)))
        ; consider only lower bound
        (define new-exponents
-         (+ extra-from-above
+         (+ exps-from-above
             (max 0
                  (match (and (not (equal? xlo-sgn ylo-sgn))
                              (>= 1 (abs (- xlo-exp ylo-exp))))
@@ -158,7 +170,7 @@
                
        ; Consider only lower bound
        (define new-exponents
-         (+ extra-from-above
+         (+ exps-from-above
             (max 0
                  (match (and (equal? xlo-sgn yhi-sgn)
                              (>= 1 (abs (- xlo-exp yhi-exp))))
@@ -178,7 +190,7 @@
          (if (> (max xlo-exp xhi-exp) 2) ; if x >= 4 (actually 7.3890561), then at least 1 additional bit is needed
              (+ (max ylo-exp yhi-exp) 30)
              (max ylo-exp yhi-exp)))
-       (set! new-exponents (+ extra-from-above
+       (set! new-exponents (+ exps-from-above
                               (if (> new-exponents prev-exponents)
                                   (+ (get-slack) new-exponents)
                                   prev-exponents)))
@@ -189,7 +201,7 @@
        (define new-exponents (max 0
                                   (true-exponent (ival-lo (car srcs)))
                                   (true-exponent (ival-hi (car srcs)))))
-       (set! new-exponents (+ extra-from-above
+       (set! new-exponents (+ exps-from-above
                               (if (> new-exponents prev-exponents)
                                   (+ (get-slack) new-exponents)
                                   prev-exponents)))
@@ -208,7 +220,7 @@
        (define new-exponents (max 0
                                   (- (true-exponent (ival-lo (car srcs))) out-exp)
                                   (- (true-exponent (ival-hi (car srcs))) out-exp)))
-       (set! new-exponents (+ extra-from-above
+       (set! new-exponents (+ exps-from-above
                               (if (> new-exponents prev-exponents)
                                   (+ (get-slack) new-exponents)
                                   prev-exponents)))
@@ -234,11 +246,12 @@
                       (true-exponent outhi))
                      (get-slack))]))
                
-       (define new-exponents (max 0
-                                  (- (max
-                                      (true-exponent (ival-lo (car srcs)))
-                                      (true-exponent (ival-hi (car srcs))))
-                                     out-exp)))
+       (define new-exponents (+ exps-from-above
+                                (max 0
+                                     (- (max
+                                         (true-exponent (ival-lo (car srcs)))
+                                         (true-exponent (ival-hi (car srcs))))
+                                        out-exp))))
        (vector-set! vexps (first tail-registers) new-exponents)]
                
       [(equal? op ival-log)
@@ -247,7 +260,7 @@
        (define new-exponents (max 0
                                   (- (true-exponent (ival-lo output)))
                                   (- (true-exponent (ival-hi output)))))
-       (set! new-exponents (+ extra-from-above
+       (set! new-exponents (+ exps-from-above
                               (if (> new-exponents prev-exponents)
                                   (+ (get-slack) new-exponents)
                                   prev-exponents)))
@@ -274,7 +287,7 @@
                 (true-exponent (ival-hi output)))
                (get-slack))]))
                  
-       (define new-exponents (+ extra-from-above (max 0 (- xlo-exp out-exp) (- xhi-exp out-exp))))
+       (define new-exponents (+ exps-from-above (max 0 (- xlo-exp out-exp) (- xhi-exp out-exp))))
        (vector-set! vexps (first tail-registers) new-exponents)]
 
       [(equal? op ival-atan)
@@ -288,7 +301,7 @@
        (define new-exponents (max 0
                                   (- xlo-exp (true-exponent (ival-lo output)))
                                   (- xhi-exp (true-exponent (ival-hi output)))))
-       (set! new-exponents (+ extra-from-above
+       (set! new-exponents (+ exps-from-above
                               (if (> new-exponents prev-exponents)
                                   (+ (get-slack) new-exponents)
                                   prev-exponents)))
