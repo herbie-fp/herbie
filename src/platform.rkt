@@ -248,17 +248,22 @@
           ; single implementation with type sig and cost
           (let ([op #'op])
             (unless (identifier? op)
-              (oops! "expected an identifier" #'op))
-            (loop rest (cons #'(list 'op '(itype ... otype) cost) impls)))]
+              (oops! "expected an identifier" op))
+            (define impl
+              (with-syntax ([op op])
+                #'(list 'op '(itype ... otype) cost)))
+            (loop rest (cons impl impls)))]
          [((itype ... otype) op)
           ; single implementation with default cost
           (let ([op #'op])
             (unless (identifier? op)
-              (oops! "expected an identifier" #'op))
+              (oops! "expected an identifier" op))
             (unless default-cost
               (oops! "#:default-cost required for" impl-sig))
-            (with-syntax ([cost default-cost-id])
-                (loop rest (cons #'(list 'op '(itype ... otype) cost) impls))))]
+            (define impl
+              (with-syntax ([op op] [cost default-cost-id])
+                #'(list 'op '(itype ... otype) cost)))
+            (loop rest (cons impl impls)))]
          [_ (oops! "malformed implementation signature" impl-sig)])])))
             
 )
@@ -597,6 +602,31 @@
   #:name $cost-map
   #:constructor-name make-cost-map)
 
+(begin-for-syntax
+
+;; Parses cost-map clauses into a table of costs
+(define (cost-map/parse oops! clauses)
+  (let loop ([clauses clauses] [costs '()])
+    (match clauses
+      ['() costs]
+      [(list clause rest ...)
+       (syntax-case clause ()
+         [((op ...) cost)
+          ; multiple ops with same cost
+          (loop (for/fold ([clauses rest]) ([op (syntax->list #'(op ...))])
+                  (define clause (with-syntax ([op op]) #'(op cost)))
+                  (cons clause clauses))
+                costs)]
+         [(op cost)
+          (let ([op #'op])
+            (unless (identifier? op)
+              (oops! "expected identifier" op))
+            (define entry (with-syntax ([op op]) #'(cons 'op cost)))
+            (loop rest (cons entry costs)))]
+         [_ (oops! "malformed cost clause" clause)])])))
+
+)
+
 ;; Constructs a cost map.
 ;; ```
 ;; (cost-model
@@ -608,33 +638,21 @@
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'cost-map why stx sub-stx))
   (define (go clauses default-cost)
-    (let loop ([clauses clauses] [costs (hash)])
-      (cond
-        [(null? clauses)
-         (with-syntax ([costs costs] [default-cost default-cost])
-           #'(make-cost-map costs default-cost))]
-        [else
-         (syntax-case (car clauses) ()
-           [((op ...) cost)
-            ; multiple ops with same cost
-            (loop (for/fold ([clauses (cdr clauses)])
-                            ([o (syntax->list #'(op ...))])
-                    (cons (with-syntax ([o o]) #'(o cost)) clauses))
-                  costs)]
-           [(op cost)
-            ; single op with a cost
-            (loop (cdr clauses)
-                  (hash-set costs (syntax->datum #'op) (eval-syntax #'cost)))]
-           [_ (oops! "malformed clause" (car clauses))])])))
+    (define costs (cost-map/parse oops! clauses))
+    (with-syntax ([(costs ...) costs]
+                  [default-cost-id (gensym)]
+                  [default-cost default-cost])
+      #'(let ([default-cost-id default-cost])
+          (make-cost-map (for/hash ([(op cost) (in-dict (list costs ...))])
+                            (values op cost))
+                         default-cost-id))))
   (syntax-case stx ()
     [(_ #:default-cost cost cl ...)
-     (go (syntax->list #'(cl ...)) (eval-syntax #'cost))]
+     (go (syntax->list #'(cl ...)) #'cost)]
     [(_ #:default-cost)
-     (oops! "missing cost after #:default-cost")]
-    [(_ cl ...)
-     (go (syntax->list #'(cl ...)) #f)]
-    [_
-     (oops! "bad syntax")]))
+     (oops! "missing cost after `#:default-cost`")]
+    [(_ cl ...) (go (syntax->list #'(cl ...)) #f)]
+    [_ (oops! "bad syntax")]))
 
 ;; Scales all entries in a cost map by a factor.
 (define (cost-map-scale s cm)
@@ -701,8 +719,8 @@
   (syntax-rules ()
     [(_ ([reprs costs] ...) pform-expr)
      (for/fold ([pform pform-expr])
-               ([repr '(reprs ...)]
-                [cost '(costs ...)])
+               ([repr (list 'reprs ...)]
+                [cost (list costs ...)])
        (struct-copy $platform pform
          [repr-costs (hash-set (platform-repr-costs pform)
                                (get-representation repr)

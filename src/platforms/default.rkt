@@ -10,9 +10,8 @@
 
 ; universal boolean operations
 (define boolean-platform
-  (with-terminal-cost ([bool 0.027403999999999994])
+  (with-terminal-cost ([bool move-cost])
     (platform
-      #:conversions ([binary64 binary32])
       #:default-cost move-cost
       #:if-cost move-cost
       [(bool) (TRUE FALSE)]
@@ -21,10 +20,10 @@
 
 ; non-tunable operations
 (define non-tunable
-  (with-terminal-cost ([binary64 0.13701999999999998])
+  (with-terminal-cost ([binary64 fl-move-cost])
     (platform-product
       [([real binary64] [bool bool])
-       (cost-map #:default-cost 0.13701999999999998)]
+       (cost-map #:default-cost fl-move-cost)]
       (operator-set
         [(real) (PI E INFINITY NAN)]
         [(real real bool) (== != > < >= <=)]))))
@@ -82,7 +81,7 @@
 
 ; tunable operations
 (define tunable
-  (with-terminal-cost ([binary64 0.13701999999999998])
+  (with-terminal-cost ([binary64 fl-move-cost])
     (platform-product
       #:optional
       [([real binary64]) cost-model]
