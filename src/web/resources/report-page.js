@@ -224,64 +224,12 @@ var sortState = {
 
 // if the state changed return true
 function setSort(inputSelection) {
-    if (inputSelection == "test") {
-        if (sortState["test"]) {
-            return false
-        } else {
-            sortState["test"] = true
-            sortState["start"] = false
-            sortState["result"] = false
-            sortState["target"] = false
-            sortState["time"] = false
-            return true
-        }
-    } else if (inputSelection == "start") {
-        if (sortState["start"]) {
-            return false
-        } else {
-            sortState["test"] = false
-            sortState["start"] = true
-            sortState["result"] = false
-            sortState["target"] = false
-            sortState["time"] = false
-            return true
-        }
-    } else if (inputSelection == "result") {
-        if (sortState["result"]) {
-            return false
-        } else {
-            sortState["test"] = false
-            sortState["start"] = false
-            sortState["result"] = true
-            sortState["target"] = false
-            sortState["time"] = false
-            return true
-        }
-    } else if (inputSelection == "target") {
-        if (sortState["target"]) {
-            return false
-        } else {
-            sortState["test"] = false
-            sortState["start"] = false
-            sortState["result"] = false
-            sortState["target"] = true
-            sortState["time"] = false
-            return true
-        }
-    } else if (inputSelection == "time") {
-        if (sortState["time"]) {
-            return false
-        } else {
-            sortState["test"] = false
-            sortState["start"] = false
-            sortState["result"] = false
-            sortState["target"] = false
-            sortState["time"] = true
-            return true
-        }
-    } else {
-        return false
+    let alreadySet = sortState[inputSelection];
+    for (let k of Object.keys(sortState)) {
+        sortState[k] = false;
     }
+    sortState[inputSelection] = true;
+    return !alreadySet;
 }
 
 
@@ -673,7 +621,7 @@ function buildControls(jsonData, diffCount) {
         `Displaying ${showing}/${outOf} benchmarks `,
         `on `, Element("code", {}, branchName),
         otherJsonData && [
-            ` vs `, Element("code", {}, otherJsonData.branch),
+            `, compared with baseline `, Element("code", {}, otherJsonData.branch),
         ]])
 
     const input = Element("input", {
