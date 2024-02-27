@@ -148,7 +148,65 @@
   ;; inline and desugar
   (define body* (fpcore->prog body ctx))
   (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
+
   (define target (fpcore->prog (dict-ref prop-dict ':alt #f) ctx))
+  (displayln target)
+
+  ; (when (dict-has-key? prop-dict ':alt)
+  ;   ; syntax->datum on dict-ref will return the props as a list and the body expression in a list 
+  ;   (match (parse-alt (syntax->datum (dict-ref prop-dict ':alt)))
+  ;     [(list function)
+  ;       ; Perform whatever operation you need with the function
+  ;       (displayln "just function")
+  ;       (displayln function)
+  ;       ; (check-expression* function vars error! deprecated-ops)
+  ;       ]
+  ;     [(list platform-name expression)
+  ;       ; Process platform-name and expression accordingly
+  ;       (displayln "both")
+  ;       (displayln platform-name)
+  ;       (displayln expression)
+  ;       ; (check-expression* expression vars error! deprecated-ops)
+  ;       ]
+  ;     [else
+  ;      (error "Invalid :alt format")]))
+
+  ; (define (parse-alt alt-prop)
+  ; (match alt-prop
+  ;   [`(! ,props ... ,body)
+  ;     (when (odd? (length props))
+  ;        (error "Invalid properties: odd number of arguments passed"))
+
+  ;     (displayln props)
+  ;     (displayln body)
+
+  ;     (let loop ((remaining props))
+  ;       (cond
+  ;         [(null? remaining) 'done] ; Base case: stop when no more properties remain
+  ;         [else
+  ;           (let ((prop-name (car remaining))
+  ;                 (prop-value (cadr remaining)))
+
+  ;                 (match prop-name
+  ;                   [`:description
+  ;                     (displayln "reached here")
+  ;                     (list prop-value body)]
+  ;                   [else
+  ;                     (loop (cdr (cdr remaining)))]))]))
+
+
+  ;       (error "Invalid props no :description")]
+    
+  ;   [else
+  ;     (list alt-prop)]))
+
+
+  ;TODO
+  ; 1. Extract the platform string
+  ; 2. Ensure that based on the platform string, "something" needs to be done
+  ; 3. Make all alts be part of final fpcore (recursively??)
+
+
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
   (check-weird-variables arg-names)
