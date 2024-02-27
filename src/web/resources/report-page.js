@@ -378,9 +378,9 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
-                buildSortableTextElement("test", []),
+                buildSortableTextElement("name", []),
                 buildSortableTextElement("start", []),
-                buildSortableTextElement("result", [
+                buildSortableTextElement("end", [
                     Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
                 buildSortableTextElement("target", [
                     Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
@@ -393,17 +393,12 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
 }
 
 function sort(test) {
-    let compare_field = {
-        "start": "start", "result": "end",
-        "target": "target", "time": "time",
-        "test": "name",
-    }[sortState.key];
     function compareFunction(l, r) {
         let cmp;
-        if (compare_field == "name") {
+        if (sortState.key == "name") {
             cmp = l.name.localeCompare(r.name);
         } else {
-            cmp = l[compare_field] - r[compare_field];
+            cmp = l[sortState.key] - r[sortState.key];
         }
         if (sortState.dir) cmp = -cmp;
         return cmp;
