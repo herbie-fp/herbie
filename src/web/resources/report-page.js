@@ -393,24 +393,20 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
     return [header, stats, figureRow, buildControls(jsonData, rows.length), resultsTable]
 }
 
-function sort(test) {
-    function compareFunction(l, r) {
-        let cmp;
-        if (sortState.key == "name") {
-            cmp = l.name.localeCompare(r.name);
-        } else {
-            cmp = l[sortState.key] - r[sortState.key];
-        }
-        if (sortState.dir) cmp = -cmp;
-        return cmp;
+function compareTests(l, r) {
+    let cmp;
+    if (sortState.key == "name") {
+        cmp = l.name.localeCompare(r.name);
+    } else {
+        cmp = l[sortState.key] - r[sortState.key];
     }
-    test.sort(compareFunction);
-    return test;
+    if (sortState.dir) cmp = -cmp;
+    return cmp;
 }
 
 function buildTableContents(jsonData, otherJsonData, filterFunction) {
     var rows = []
-    const jsonTest = sort(jsonData.tests)
+    const jsonTest = jsonData.tests.sort(compareTests);
     for (let test of jsonTest) {
         let other = diffAgainstFields[test.name]
         if (filterFunction(test, other)) {
