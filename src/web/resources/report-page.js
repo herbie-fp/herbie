@@ -402,45 +402,30 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
 }
 
 function sort(test) {
-    function compareFunction(l, r) {
-        var result = true
-        if (sortState["test"]) {
-            if (sortDescending) {
-                result = l.name.localeCompare(r.name)
-            } else {
-                result = r.name.localeCompare(l.name)
-            }
-        } else if (sortState["start"]) {
-            if (sortDescending) {
-                result = l.start < r.start
-            } else {
-                result = l.start > r.start
-            }
+    let the_sort_idx = null;
+    for (let k of Object.keys(sortState)) {
+        if (sortState[k]) {
+            the_sort_idx = k;
+            break;
         }
-        else if (sortState["result"]) {
-            if (sortDescending) {
-                result = l.end < r.end
-            } else {
-                result = l.end > r.end
-            }
-        }
-        else if (sortState["target"]) {
-            if (sortDescending) {
-                result = l.target < r.target
-            } else {
-                result = l.target > r.target
-            }
-        }
-        else if (sortState["time"]) {
-            if (sortDescending) {
-                result = l.time < r.time
-            } else {
-                result = l.time > r.time
-            }
-        }
-        return result
     }
-    return test.sort(compareFunction)
+    let compare_field = {
+        "start": "start", "result": "end",
+        "target": "target", "time": "time",
+        "test": "name",
+    }[the_sort_idx];
+    function compareFunction(l, r) {
+        let cmp;
+        if (compare_field == "name") {
+            cmp = l.name.localeCompare(r.name);
+        } else {
+            cmp = l[compare_field] - r[compare_field];
+        }
+        if (sortDescending) cmp = -cmp;
+        return cmp;
+    }
+    test.sort(compareFunction);
+    return test;
 }
 
 function buildTableContents(jsonData, otherJsonData, filterFunction) {
