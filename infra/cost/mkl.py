@@ -7,24 +7,25 @@ import re
 from .runner import Runner
 from .util import double_to_c_str, chunks
 
-# Support operations in standard C
+# Support operations with Intel MKL
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'hypot', 'pow', 'remainder']
-ternary_ops = ['fma']
+ternary_ops = []
 
 # C lang
-target_lang = 'c'
+target_lang = 'mkl'
 compiler = 'cc'
-c_flags = ['-O3']
-ld_flags = ['-lm']
+c_flags = ['-g', '-O3', '-march=skylake']
+ld_flags = ['-lmkl_intel_lp64', '-lmkl_sequential', '-lmkl_core', '-lpthread', '-lm']
 driver_name = 'main.c'
 time_unit = 'ms'
 
 # Regex patterns
 time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
 
-class CRunner(Runner):
-    """`Runner` for standard C."""
+class MKLRunner(Runner):
+    """`Runner` for Intel MKL."""
+    
     def __init__(
         self,
         working_dir: str,
@@ -34,7 +35,7 @@ class CRunner(Runner):
         threads: int = 1
     ):
         super().__init__(
-            lang='c',
+            lang='mkl',
             working_dir=working_dir,
             herbie_path=herbie_path,
             num_inputs=num_inputs,
@@ -55,10 +56,11 @@ class CRunner(Runner):
                 print('#include <stdio.h>', file=f)
                 print('#include <stdlib.h>', file=f)
                 print('#include <time.h>', file=f)
+                print('#include <mkl.h>', file=f)
                 print('#define TRUE 1', file=f)
                 print('#define FALSE 0', file=f)
 
-                print(f'inline {core.compiled}', file=f)
+                print(core.compiled, file=f)
 
                 for i, points in enumerate(sample):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
@@ -67,14 +69,12 @@ class CRunner(Runner):
 
                 print('int main() {', file=f)
                 print(f'struct timespec ts1, ts2;', file=f)
-                print(f'volatile double res;', file=f)
+                print(f'double res[{self.num_inputs}];', file=f)
                 print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts1);', file=f)
 
-                arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
-                app_str =  f'foo({arg_str})'
-                print(f'for (long i = 0; i < {self.num_inputs}; i++) {{', file=f)
-                print(f'  res = {app_str};', file=f)
-                print('}', file=f)
+                args = [f'{self.num_inputs}'] + list(map(lambda i: f'x{i}', range(core.argc))) + ['res']
+                arg_str = ', '.join(args)
+                print(f'foo({arg_str});', file=f)
 
                 print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts2);', file=f)
                 print(f'double diff = (1000.0 * ts2.tv_sec + 1e-6 * ts2.tv_nsec) - (1000.0 * ts1.tv_sec + 1e-6 * ts1.tv_nsec);', file=f)
@@ -111,7 +111,7 @@ class CRunner(Runner):
                 output = stdout.decode('utf-8')
                 time = re.match(time_pat, output)
                 if time is None:
-                    raise RuntimeError('Unexpected error when running {out_path}: {output}')
+                    raise RuntimeError(f'Unexpected error when running {out_path}: {output}')
                 times[i].append(float(time.group(1)))
 
         self.times = [sum(ts) / len(ts) for ts in times]

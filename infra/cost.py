@@ -4,6 +4,7 @@ import argparse
 
 from cost.runner import Runner
 from cost.c import CRunner
+from cost.mkl import MKLRunner
 
 # paths
 script_path = os.path.abspath(__file__)
@@ -75,6 +76,14 @@ def main():
 
     if lang == 'c':
         runner = CRunner(
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads
+        )
+    elif lang == 'mkl':
+        runner = MKLRunner(
             working_dir=output_dir,
             herbie_path=herbie_path,
             num_inputs=num_points,

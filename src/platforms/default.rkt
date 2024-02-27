@@ -6,7 +6,7 @@
 (require "../plugin.rkt")
 
 (define move-cost 0.027403999999999994)
-(define fl-move-cost (* move-cost 0.13701999999999998))
+(define fl-move-cost (* move-cost 5))
 
 ; universal boolean operations
 (define boolean-platform

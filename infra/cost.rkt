@@ -1,12 +1,13 @@
 #lang racket
 
 (require (only-in fpbench core->c)
+         herbie/datafile
          herbie/load-plugin
          herbie/points
          herbie/sandbox
-         herbie/web/thread-pool
-         herbie/datafile
-         herbie/syntax/read)
+         herbie/syntax/read
+         herbie/web/core2mkl
+         herbie/web/thread-pool)
 
 (load-herbie-builtins)
 
@@ -59,6 +60,7 @@
        (define output
          (case lang
            [(c) (core->c core "foo")]
+           [(mkl) (core->mkl core "foo")]
            [else (error 'run-server "compile: unsupported language ~a" lang)]))
        (printf "~a\n" (string-replace output "\n" "\\n"))
        (loop)]
