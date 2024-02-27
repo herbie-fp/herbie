@@ -364,9 +364,12 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
         ])
     ])
 
-    function buildSortableTextElement(stringName, nestedArray) {
-        const nestedElements = [stringName == sortState.key ? `${toTitleCase(stringName)} ` + `${sortState.dir ? "⏶" : "⏷"}` : `${toTitleCase(stringName)} –`, nestedArray]
-        const textElement = Element("th", {}, nestedElements)
+    function buildTableHeader(stringName, help) {
+        const textElement = Element("th", {}, [
+            toTitleCase(stringName),
+            (stringName != sortState.key ? "–" : sortState.dir ?  "⏶" : "⏷"),
+            help && Element("span", { classList: "help-button", title: help }, ["?"]),
+        ]);
         textElement.addEventListener("click", (e) => {
             setSort(stringName);
             update(jsonData);
@@ -378,17 +381,15 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
-                buildSortableTextElement("name", []),
-                buildSortableTextElement("start", []),
-                buildSortableTextElement("end", [
-                    Element("span", { classList: "help-button", title: resultHelpText }, ["?"])]),
-                buildSortableTextElement("target", [
-                    Element("span", { classList: "help-button", title: targetHelpText }, ["?"])]),
-                buildSortableTextElement("time"),
-            ])
+                buildTableHeader("name"),
+                buildTableHeader("start"),
+                buildTableHeader("end", resultHelpText),
+                buildTableHeader("target", targetHelpText),
+                buildTableHeader("time"),
+            ]),
         ]),
         rows
-    ])
+    ]);
     return [header, stats, figureRow, buildControls(jsonData, rows.length), resultsTable]
 }
 
