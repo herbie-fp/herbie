@@ -5,12 +5,16 @@
 
 (require "../plugin.rkt")
 
+(define move-cost 0.027403999999999994)
+(define fl-move-cost (* move-cost 0.13701999999999998))
+
 ; universal boolean operations
 (define boolean-platform
   (with-terminal-cost ([bool 0.027403999999999994])
     (platform
-      #:default-cost 0.027403999999999994
-      #:if-cost 0.027403999999999994
+      #:conversions ([binary64 binary32])
+      #:default-cost move-cost
+      #:if-cost move-cost
       [(bool) (TRUE FALSE)]
       [(bool bool) not]
       [(bool bool bool) (and or)])))
