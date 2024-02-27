@@ -13,10 +13,10 @@
 
 (define (true-exponent x)
   (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
-  (if (< 1000000000 exp)
-      (get-slack)  ; overflow
-      (if (equal? exp -9223372036854775807)
-          (- (get-slack))  ; underflow
+  (if (equal? exp -9223372036854775807)
+      (- (get-slack))  ; 0.bf
+      (if (or (< 1000000000 exp) (equal? exp -9223372036854775805))
+          (get-slack)  ; overflow/inf.bf
           exp)))
 
 (define (fixed-in-prec? iv prec)
@@ -45,13 +45,15 @@
   (if (equal? name 'ival)
       (λ args
         (when (*use-mixed-precision*)
-          ;(printf "\nIteration:~a\n" (*sampling-iteration*))
+          #;(printf "\nIteration:~a\n" (*sampling-iteration*))
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          "backward-pass"
                                                          (* (*sampling-iteration*) 1000)))
           (if (equal? (*sampling-iteration*) 0)
               (vector-fill! vexps 0)                 ; clear extra-precisions
               (backward-pass ivec varc vregs vexps)) ; back-pass
+          #;(for ([instr (in-vector ivec)] [exp (in-vector vexps varc)])
+            (printf "op=~a; exp=~a\n" (object-name (car instr)) exp))
           (timeline-stop!))
         
         (for ([arg (in-list args)] [n (in-naturals)])
@@ -214,9 +216,9 @@
        (set! new-exponents (max 0
                                   (- (true-exponent (ival-lo (car srcs))) out-exp)
                                   (- (true-exponent (ival-hi (car srcs))) out-exp)))
-       (set! new-exponents(if (> new-exponents prev-exponents)
-                              (+ (get-slack) new-exponents)
-                              prev-exponents))]
+       (set! new-exponents (if (> new-exponents prev-exponents)
+                               (+ (get-slack) new-exponents)
+                               prev-exponents))]
               
       [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
        ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)], where log[sin(x)] <= 0
