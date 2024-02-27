@@ -1,7 +1,6 @@
 #lang racket
 
-;;; The default platform:
-;;; Optimized for Intel MKL library
+;;; Platform Intel MKL library
 
 (require "../plugin.rkt")
 
@@ -91,8 +90,6 @@
           log1p logb rint round sin sinh sqrt tan tanh tgamma trunc)]
         [(real real real)
          (+ - * / atan2 copysign fdim fmax fmin fmod hypot pow remainder)]))))
-
-; register-platform
 
 (register-platform! 'mkl
                     (platform-union boolean-platform

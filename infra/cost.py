@@ -5,6 +5,7 @@ import argparse
 from cost.runner import Runner
 from cost.c import CRunner
 from cost.mkl import MKLRunner
+from cost.arith import ArithRunner
 
 # paths
 script_path = os.path.abspath(__file__)
@@ -74,7 +75,15 @@ def main():
     lang = args['lang']
     output_dir = args['output_dir']
 
-    if lang == 'c':
+    if lang == 'arith':
+        runner = ArithRunner(
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads
+        )
+    elif lang == 'c':
         runner = CRunner(
             working_dir=output_dir,
             herbie_path=herbie_path,

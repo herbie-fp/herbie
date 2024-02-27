@@ -95,8 +95,6 @@
         [(real real real real)
          (fma)]))))
 
-; register-platform
-
 (register-platform! 'default
                     (platform-union boolean-platform
                                     non-tunable
