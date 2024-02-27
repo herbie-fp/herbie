@@ -66,24 +66,28 @@
         'unsamplable)
        y))))
 
-(define (ival-eval repr fn pt [iter 0])
-  (let loop ([iter iter])
-    (define exs (parameterize ([*use-mixed-precision* #t]
-                               [*sampling-iteration* iter]) (apply fn pt)))
+(define (ival-eval repr fn pt [iter 0] [precision (*starting-prec*)])
+  (let loop ([iter iter] [precision precision])
+    (define exs
+      (if (*use-mixed-precision*)
+          (parameterize ([*sampling-iteration* iter]) (apply fn pt))
+          (parameterize ([bf-precision precision]) (apply fn pt))))
+    
     (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
     (define iter* (+ 1 iter))
+    (define precision* (exact-floor (* precision 2)))
     (cond
      [err
-      (values err iter +nan.0)]
+      (values err (if (*use-mixed-precision*) iter precision) +nan.0)]
      [(not err?)
       (define infinite?
       (ival-lo (is-infinite-interval repr (apply ival-or exs))))
-      (values (if infinite? 'infinite 'valid) iter exs)
+      (values (if infinite? 'infinite 'valid) (if (*use-mixed-precision*) iter precision) exs)
      ]
      [(> iter* (*max-sampling-iterations*))
-      (values 'exit iter +nan.0)]
+      (values 'exit (if (*use-mixed-precision*) iter precision) +nan.0)]
      [else
-      (loop iter*)])))
+      (loop iter* precision*)])))
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)

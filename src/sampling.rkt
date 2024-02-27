@@ -122,7 +122,8 @@
       (define pt (sampler))
 
       (define-values (status precision out)
-        (ival-eval repr fn pt))
+        (parameterize ([*use-mixed-precision* #t])
+          (ival-eval repr fn pt)))
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
