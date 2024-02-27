@@ -213,27 +213,20 @@ var filterState = {
 }
 var hideShowCompareDetails = false
 
-// true = ascending, false = descending
 var sortState = {
-    "test": true,
-    "start": false,
-    "result": false,
-    "target": false,
-    "time": false
+    key: "test",
+    dir: true, // true = ascending, false = descending
 }
 
 // if the state changed return true
 function setSort(inputSelection) {
-    let alreadySet = sortState[inputSelection];
-    for (let k of Object.keys(sortState)) {
-        sortState[k] = false;
+    if (inputSelection == sortState.key) {
+        sortState.dir = !sortState.dir;
+    } else {
+        sortState.key = inputSelection;
+        sortState.dir = true;
     }
-    sortState[inputSelection] = true;
-    return !alreadySet;
 }
-
-
-var sortDescending = true
 
 // -------------------------------------------------
 // ------ Global State End ----------
@@ -372,13 +365,11 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
     ])
 
     function buildSortableTextElement(stringName, nestedArray) {
-        const nestedElements = [sortState[stringName] ? `${toTitleCase(stringName)} ` + `${sortDescending ? "⏶" : "⏷"}` : `${toTitleCase(stringName)} –`, nestedArray]
+        const nestedElements = [stringName == sortState.key ? `${toTitleCase(stringName)} ` + `${sortState.dir ? "⏶" : "⏷"}` : `${toTitleCase(stringName)} –`, nestedArray]
         const textElement = Element("th", {}, nestedElements)
         textElement.addEventListener("click", (e) => {
-            if (!setSort(stringName)) {
-                sortDescending = !sortDescending
-            }
-            update(jsonData)
+            setSort(stringName);
+            update(jsonData);
         })
         return textElement
     }
@@ -402,18 +393,11 @@ function buildBody(jsonData, otherJsonData, filterFunction) {
 }
 
 function sort(test) {
-    let the_sort_idx = null;
-    for (let k of Object.keys(sortState)) {
-        if (sortState[k]) {
-            the_sort_idx = k;
-            break;
-        }
-    }
     let compare_field = {
         "start": "start", "result": "end",
         "target": "target", "time": "time",
         "test": "name",
-    }[the_sort_idx];
+    }[sortState.key];
     function compareFunction(l, r) {
         let cmp;
         if (compare_field == "name") {
@@ -421,7 +405,7 @@ function sort(test) {
         } else {
             cmp = l[compare_field] - r[compare_field];
         }
-        if (sortDescending) cmp = -cmp;
+        if (sortState.dir) cmp = -cmp;
         return cmp;
     }
     test.sort(compareFunction);
