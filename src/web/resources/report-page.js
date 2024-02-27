@@ -174,8 +174,9 @@ var hideDirtyEqual = true
 
 // State for Forum radio buttons
 // Why no some Types :(
-var radioStatesIndex = -1
-var radioStates = [
+// null | 'output' | 'startAccuracy' | 'resultAccuracy' | 'targetAccuracy' | 'time'
+let radioState = null;
+const radioStates = [
     "output",
     "startAccuracy",
     "resultAccuracy",
@@ -303,7 +304,7 @@ function showTolerance(jsonData, show) {
     const hidingText = Element("text", {}, [" Hiding: ±"])
 
     var unitText
-    if (radioStates[radioStatesIndex] == "time") {
+    if (radioState == "time") {
         unitText = Element("text", {}, ["s"])
     } else {
         unitText = Element("text", {}, ["%"])
@@ -313,7 +314,7 @@ function showTolerance(jsonData, show) {
         e.preventDefault();
         compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
         filterTolerance = toleranceInputField.value
-        radioStatesIndex = 2
+        radioState = "resultAccuracy";
         fetchAndUpdate(jsonData)
     })
     toleranceInputField.style.display = show ? "inline" : "none"
@@ -327,47 +328,47 @@ function buildCompareForm(jsonData) {
     const formName = "compare-form"
 
     const output = Element("input", {
-        id: "compare-output", type: "radio", checked: radioStates[radioStatesIndex] == "output",
+        id: "compare-output", type: "radio", checked: radioState == "output",
         name: formName
     }, [])
     output.addEventListener("click", async (e) => {
-        radioStatesIndex = 0
+        radioState = "output"
         await fetchAndUpdate(jsonData)
     })
 
     const startAccuracy = Element("input", {
-        id: "compare-startAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "startAccuracy",
+        id: "compare-startAccuracy", type: "radio", checked: radioState == "startAccuracy",
         name: formName
     }, [])
     startAccuracy.addEventListener("click", async (e) => {
-        radioStatesIndex = 1
+        radioState = "startAccuracy"
         await fetchAndUpdate(jsonData)
     })
 
     const resultAccuracy = Element("input", {
-        id: "compare-resultAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "resultAccuracy",
+        id: "compare-resultAccuracy", type: "radio", checked: radioState == "resultAccuracy",
         name: formName
     }, [])
     resultAccuracy.addEventListener("click", async (e) => {
-        radioStatesIndex = 2
+        radioState = "resultAccuracy";
         await fetchAndUpdate(jsonData)
     })
 
     const targetAccuracy = Element("input", {
-        id: "compare-targetAccuracy", type: "radio", checked: radioStates[radioStatesIndex] == "targetAccuracy",
+        id: "compare-targetAccuracy", type: "radio", checked: radioState == "targetAccuracy",
         name: formName
     }, [])
     targetAccuracy.addEventListener("click", async (e) => {
-        radioStatesIndex = 3
+        radioState = "targetAccuracy"
         await fetchAndUpdate(jsonData)
     })
 
     const time = Element("input", {
-        id: "compare-time", type: "radio", checked: radioStates[radioStatesIndex] == "time",
+        id: "compare-time", type: "radio", checked: radioState == "time",
         name: formName
     }, [])
     time.addEventListener("click", async (e) => {
-        radioStatesIndex = 4
+        radioState = "time"
         await fetchAndUpdate(jsonData)
     })
 
@@ -637,14 +638,14 @@ function buildRow(test, other) {
             const targetAccuracy = targetAccuracyTD(test)
             const time = timeTD(test)
 
-            var tdStartAccuracy = radioStates[radioStatesIndex] == "startAccuracy" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
-            var tdResultAccuracy = radioStates[radioStatesIndex] == "resultAccuracy" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
-            var tdTargetAccuracy = radioStates[radioStatesIndex] == "targetAccuracy" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
-            const tdTime = radioStates[radioStatesIndex] == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
+            var tdStartAccuracy = radioState == "startAccuracy" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
+            var tdResultAccuracy = radioState == "resultAccuracy" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
+            var tdTargetAccuracy = radioState == "targetAccuracy" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
+            const tdTime = radioState == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
 
             var testTile = ""
             var outputEqual = true
-            if (radioStates[radioStatesIndex] == "output") {
+            if (radioState == "output") {
                 outputEqual = false
             }
             if (test.output != diffAgainstFields[test.name].output) {
@@ -662,7 +663,7 @@ function buildRow(test, other) {
                 tdTargetAccuracy = Element("td", {}, [])
             }
 
-            const radioSelected = radioStates[radioStatesIndex]
+            const radioSelected = radioState
 
             var nameTD = Element("td", {}, [test.name])
             if (testTile != "") {
@@ -711,10 +712,10 @@ function buildControls(jsonData, diffCount) {
     }, [])
 
     var showToleranceBool = false
-    if (radioStates[radioStatesIndex] == "time" ||
-        radioStates[radioStatesIndex] == "targetAccuracy" ||
-        radioStates[radioStatesIndex] == "resultAccuracy" ||
-        radioStates[radioStatesIndex] == "startAccuracy") {
+    if (radioState == "time" ||
+        radioState == "targetAccuracy" ||
+        radioState == "resultAccuracy" ||
+        radioState == "startAccuracy") {
         showToleranceBool = true
     }
 
@@ -733,7 +734,7 @@ function buildControls(jsonData, diffCount) {
     summary.addEventListener("click", async (e) => {
         if (e.target.nodeName == "SUMMARY") {
             hideShowCompareDetails = !hideShowCompareDetails
-            fetchAndUpdate(jsonData, compareAgainstURL)
+            await fetchAndUpdate(jsonData, compareAgainstURL)
         }
     })
 
@@ -880,7 +881,7 @@ function makeFilterFunction() {
                 // Section to hide diffs that are below the provided tolerance
                 if (hideDirtyEqual) {
                     // Diff Start Accuracy
-                    if (radioStatesIndex == 1) {
+                    if (radioState == "startAccuracy") {
                         const t = baseData.start / baseData.bits
                         const o = diffData.start / diffData.bits
                         const op = calculatePercent(o)
@@ -891,7 +892,7 @@ function makeFilterFunction() {
                         }
                     }
                     // Diff Start Accuracy
-                    if (radioStatesIndex == 1) {
+                    if (radioState == "startAccuracy") {
                         const t = baseData.start / baseData.bits
                         const o = diffData.start / diffData.bits
                         const op = calculatePercent(o)
@@ -903,7 +904,7 @@ function makeFilterFunction() {
                     }
 
                     // Diff Result Accuracy
-                    if (radioStatesIndex == 2) {
+                    if (radioState == "resultAccuracy") {
                         const t = baseData.end / baseData.bits
                         const o = diffData.end / diffData.bits
                         const op = calculatePercent(o)
@@ -915,7 +916,7 @@ function makeFilterFunction() {
                     }
 
                     // Diff Target Accuracy
-                    if (radioStatesIndex == 3) {
+                    if (radioState == "targetAccuracy") {
                         const t = baseData.target / baseData.bits
                         const o = diffData.target / diffData.bits
                         const op = calculatePercent(o)
@@ -927,7 +928,7 @@ function makeFilterFunction() {
                     }
 
                     // Diff Time
-                    if (radioStatesIndex == 4) {
+                    if (radioState == "time") {
                         var timeDiff = baseData.time - diffData.time
                         if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
                             returnValue = returnValue && false
