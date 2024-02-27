@@ -35,6 +35,7 @@ class MKLRunner(Runner):
         threads: int = 1
     ):
         super().__init__(
+            name='mkl',
             lang='mkl',
             working_dir=working_dir,
             herbie_path=herbie_path,

@@ -34,6 +34,7 @@ class CRunner(Runner):
         threads: int = 1
     ):
         super().__init__(
+            name='default',
             lang='c',
             working_dir=working_dir,
             herbie_path=herbie_path,

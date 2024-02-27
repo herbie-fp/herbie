@@ -27,8 +27,8 @@ def synthesize1(op: str, argc: int) -> FPCore:
     py_sample = op == 'lgamma' or op == 'tgamma'  # Rival struggles with these
     return FPCore(core, name=op, argc=argc, py_sample=py_sample)
 
-def sample1(config: Tuple[FPCore, int, str]) -> List[float]:
-    core, num_inputs, herbie_path = config
+def sample1(config: Tuple[FPCore, int, str, str]) -> List[float]:
+    core, num_inputs, herbie_path, platform = config
     if core.argc == 0:
         return []
     elif core.py_sample:
@@ -37,7 +37,7 @@ def sample1(config: Tuple[FPCore, int, str]) -> List[float]:
     else:
         # sample using Herbie
         with Popen(
-                args=['racket', str(herbie_path)],
+                args=['racket', str(herbie_path), "--platform", platform],
                 stdin=PIPE,
                 stdout=PIPE,
                 universal_newlines=True) as server:
@@ -64,6 +64,7 @@ class Runner(object):
 
     def __init__(
         self,
+        name: str,
         lang: str,
         working_dir: str,
         herbie_path: str,
@@ -76,6 +77,7 @@ class Runner(object):
         ternary_ops: List[str] = []
     ):
         # configuration data
+        self.name = name
         self.lang = lang
         self.num_inputs = num_inputs
         self.num_runs = num_runs
@@ -100,7 +102,7 @@ class Runner(object):
 
     def log(self, msg: str, *args):
         """Logging routine for this runner."""
-        print(f'[Runner:{self.lang}]:', msg, *args)
+        print(f'[Runner:{self.name}]:', msg, *args)
 
     def synthesize(self):
         """For each operator, create an FPCore and append to `self.cores`."""
@@ -117,7 +119,7 @@ class Runner(object):
         This requires the target language to be supported by the
         \"compile\" command in the Racket script."""
         with Popen(
-            args=['racket', str(self.herbie_path)],
+            args=['racket', str(self.herbie_path), "--platform", self.name],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -136,7 +138,7 @@ class Runner(object):
     def herbie_cost(self):
         """Estimates the cost of an expression using Herbie's cost model."""
         with Popen(
-            args=['racket', str(self.herbie_path)],
+            args=['racket', str(self.herbie_path), "--platform", self.name],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -156,7 +158,7 @@ class Runner(object):
         """Runs Herbie improvement on benchmarks under `path`
         appending all resulting FPCores to `self.cores`."""
         with Popen(
-            args=['racket', str(self.herbie_path)],
+            args=['racket', str(self.herbie_path), "--platform", self.name],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -202,7 +204,7 @@ class Runner(object):
         cores_by_sample = unnamed_cores + list(named_cores.values())
         
         # actually run the sample
-        config_gen = map(lambda cs: (cs[0], self.num_inputs, self.herbie_path), cores_by_sample)
+        config_gen = map(lambda cs: (cs[0], self.num_inputs, self.herbie_path, self.name), cores_by_sample)
         with mp.Pool(processes=self.threads) as pool:
             samples = pool.map(sample1, config_gen)
 

@@ -12,6 +12,7 @@
 
 ;; Builtin platforms
 (define-runtime-module-path default-platform "platforms/default.rkt")
+(define-runtime-module-path mkl-platform "platforms/mkl.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
@@ -22,6 +23,7 @@
   (dynamic-require binary32-plugin #f)
   (dynamic-require fallback-plugin #f)
   (dynamic-require default-platform #f)
+  (dynamic-require mkl-platform #f)
   ;; activate the default platform
   (*active-platform* (get-platform (*default-platform-name*)))
   (activate-platform! (*active-platform*)))

@@ -3,6 +3,7 @@
 (require (only-in fpbench core->c)
          herbie/datafile
          herbie/load-plugin
+         herbie/platform
          herbie/points
          herbie/sandbox
          herbie/syntax/read
@@ -26,14 +27,10 @@
 ;; Also in src/improve.rkt
 (define (print-output p results)
   (for ([res results] #:when res)
-    (define name (table-row-name res))
     (match (table-row-status res)
-      ["error"
-       (fprintf p ";; Error in ~a\n" name)]
-      ["crash"
-       (fprintf p "Crash in ~a\n" name)]
-      ["timeout"
-       (fprintf p "; ~a times out in ~as\n" (/ (*timeout*) 1000) name)]
+      ["error" (void)]
+      ["crash" (void)]
+      ["timeout" (void)]
       [(? string?)
        (define results
          (for/list ([i (in-naturals 1)] [entry (in-table-row res)])
@@ -115,5 +112,8 @@
     #:once-each
     [("--seed") _seed "Seed to use within Herbie"
      (set! seed (string->number _seed))]
+    [("--platform") name "Platform to use"
+     (*active-platform* (get-platform (string->symbol name)))
+     (activate-platform! (*active-platform*))]
     #:args ()
     (run-server seed)))
