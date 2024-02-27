@@ -323,54 +323,27 @@ function showTolerance(jsonData, show) {
     return [hidingText, toleranceInputField, unitText, submitButton]
 }
 
+function buildRadioLabel(jsonData, title, state, name) {
+    const output = Element("input", {
+        name: name, id: "compare-" + state, type: "radio",
+        checked: radioState == state,
+    }, []);
+    output.addEventListener("click", async (e) => {
+        radioState = state;
+        await fetchAndUpdate(jsonData);
+    })
+    return Element("label", [output, title]);
+}
+
 function buildCompareForm(jsonData) {
 
     const formName = "compare-form"
 
-    const output = Element("input", {
-        id: "compare-output", type: "radio", checked: radioState == "output",
-        name: formName
-    }, [])
-    output.addEventListener("click", async (e) => {
-        radioState = "output"
-        await fetchAndUpdate(jsonData)
-    })
-
-    const startAccuracy = Element("input", {
-        id: "compare-startAccuracy", type: "radio", checked: radioState == "startAccuracy",
-        name: formName
-    }, [])
-    startAccuracy.addEventListener("click", async (e) => {
-        radioState = "startAccuracy"
-        await fetchAndUpdate(jsonData)
-    })
-
-    const resultAccuracy = Element("input", {
-        id: "compare-resultAccuracy", type: "radio", checked: radioState == "resultAccuracy",
-        name: formName
-    }, [])
-    resultAccuracy.addEventListener("click", async (e) => {
-        radioState = "resultAccuracy";
-        await fetchAndUpdate(jsonData)
-    })
-
-    const targetAccuracy = Element("input", {
-        id: "compare-targetAccuracy", type: "radio", checked: radioState == "targetAccuracy",
-        name: formName
-    }, [])
-    targetAccuracy.addEventListener("click", async (e) => {
-        radioState = "targetAccuracy"
-        await fetchAndUpdate(jsonData)
-    })
-
-    const time = Element("input", {
-        id: "compare-time", type: "radio", checked: radioState == "time",
-        name: formName
-    }, [])
-    time.addEventListener("click", async (e) => {
-        radioState = "time"
-        await fetchAndUpdate(jsonData)
-    })
+    const output = buildRadioLabel(jsonData, "Output", "output", formName);
+    const startAccuracy = buildRadioLabel(jsonData, "Start Accuracy", "startAccuracy", formName);
+    const resultAccuracy = buildRadioLabel(jsonData, "Result Accuracy", "resultAccuracy", formName);
+    const targetAccuracy = buildRadioLabel(jsonData, "Target Accuracy", "targetAccuracy", formName);
+    const time = buildRadioLabel(jsonData, "Time", "time", formName);
 
     const showEqual = buildCheckboxLabel("show-equal", "show equal", !hideDirtyEqual)
     showEqual.addEventListener("click", (e) => {
@@ -379,11 +352,8 @@ function buildCompareForm(jsonData) {
     })
 
     const form = Element("form", {},
-        [output, "Output", startAccuracy, "Start Accuracy",
-            resultAccuracy, "Result Accuracy", targetAccuracy,
-            "Target Accuracy",
-            time, "Time", " ", showEqual])
-    return form
+        [output, startAccuracy, resultAccuracy, targetAccuracy, time, " ", showEqual]);
+    return form;
 }
 
 function buildBody(jsonData, otherJsonData, filterFunction) {
