@@ -45,7 +45,7 @@
   (if (equal? name 'ival)
       (λ args
         (when (*use-mixed-precision*)
-          #;(printf "\nIteration:~a\n" (*sampling-iteration*))
+          ;(printf "\nIteration:~a\n" (*sampling-iteration*))
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          "backward-pass"
                                                          (* (*sampling-iteration*) 1000)))
@@ -78,7 +78,7 @@
           (define output
             (parameterize ([bf-precision precision]) (apply (car instr) srcs)))
           (vector-set! vregs n output)
-          #;(when (and (*use-mixed-precision*) (bigfloat? (ival-lo output)) (> (*sampling-iteration*) 1))
+          #;(when (and (*use-mixed-precision*) (bigfloat? (ival-lo output)) (> (*sampling-iteration*) -1))
               (printf "~a fixed=~a " (symbol->string (object-name (car instr))) (fixed-in-prec? output (- precision (*ground-truth-extra-bits*))))
               (printf "prec=~a, exonents=~a for ~a\n" precision (vector-ref vexps n) (parameterize ([bf-precision 53]) (ival-add output (ival 0.bf 0.bf)))))
           (timeline-stop!))
@@ -218,7 +218,7 @@
                               (+ (get-slack) new-exponents)
                               prev-exponents))]
               
-      [(equal? (or ival-sin ival-cos ival-sinh ival-cosh) op)
+      [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
        ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)], where log[sin(x)] <= 0
        ;                      ^^^^^^^^^^^
        ;                      pruning opportunity
@@ -254,7 +254,7 @@
                                (+ (get-slack) new-exponents)
                                prev-exponents))]
               
-      [(equal? op (or ival-asin ival-acos))
+      [(member op (list ival-asin ival-acos))
        ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)]
        ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)]
        ;                       ^^^^^^^^^^^^
