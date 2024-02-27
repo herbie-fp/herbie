@@ -356,11 +356,30 @@
   (define-values (pcount-hash explanations-table predicted-error oflow-hash uflow-hash maybe-explanations-table maybe-predicted-error)
     (predicted-errors expr context pcontext))
 
-  
-  (for ([(subexpr pset) (in-dict pcount-hash)])
+  (for ([subexpr (in-list (set-union (hash-keys tcount-hash)
+                                     (hash-keys pcount-hash)))])
+    (define pset (hash-ref pcount-hash subexpr '()))
     (define tset (hash-ref tcount-hash subexpr '()))
     (define opred (set-subtract pset tset))
     (define upred (set-subtract tset pset))
+    ;;(eprintf "~a ~a ~a\n" subexpr (length opred) (length upred))
+
+    (timeline-push! 'fperrors
+                    (~a subexpr)
+                    (length tset)
+                    (length opred)
+                    (and (not (empty? opred)) (values->json (first opred)
+                                                            repr))
+                    (length upred)
+                    (and (not (empty? upred)) (values->json (first upred)
+                                                            repr))))
+  
+  #;(for ([(subexpr pset) (in-dict pcount-hash)])
+    (define tset (hash-ref tcount-hash subexpr '()))
+    (define opred (set-subtract pset tset))
+    (define upred (set-subtract tset pset))
+    ;;(eprintf "~a ~a ~a\n" subexpr (length opred) (length upred))
+
     (timeline-push! 'fperrors
                     (~a subexpr)
                     (length tset)

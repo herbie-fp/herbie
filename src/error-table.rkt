@@ -2,7 +2,7 @@
 
 (require racket/set math/bigfloat racket/hash)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
-         "ground-truth.rkt" "syntax/sugar.rkt")
+         "ground-truth.rkt" "syntax/sugar.rkt" "syntax/syntax.rkt")
 
 (provide actual-errors predicted-errors make-flow-table calculate-confusion
          calculate-confusion-maybe)
@@ -18,20 +18,21 @@
     (flip-lists
      (hash->list (car (compute-local-errors (list expr)
                                             (*context*))))))
-
+  
   (define pt-worst-subexpr
     (append* (reap [sow]
                    (for ([pt-errors (in-list pt-errorss)]
-                              [(pt _) (in-pcontext pcontext)])
+                         [(pt _) (in-pcontext pcontext)])
                      (define sub-error (map cons subexprs pt-errors))
                      (define filtered-sub-error
                        (filter (lambda (p) (> (cdr p) 16)) sub-error))
                      (define mapped-sub-error
                        (map (lambda (p) (cons (car p) pt))
                             filtered-sub-error))
-                      (unless (empty? mapped-sub-error)
-                        (sow mapped-sub-error))))))
-  
+                     (unless (empty? mapped-sub-error)
+                       (sow mapped-sub-error))))))
+
+  ;(eprintf "~a\n" pt-worst-subexpr)
   (for/hash ([group (in-list (group-by car pt-worst-subexpr))])
     (let ([key (caar group)])
       (values key (map cdr group)))))
@@ -39,13 +40,21 @@
 (define (same-sign? a b)
   (or (and (bfpositive? a) (bfpositive? b))
       (and (bfnegative? a) (bfnegative? b))))
- 
+
+(define all-explanations
+  (list 'nan-rescue 'oflow-left 'oflow-right 'cancellation
+        'oflow-rescue 'sensitivity 'cancellation
+        'uflow-rescue
+        'u/u 'u/n 'o/o 'o/n 'n/o 'n/u
+        'o*u 'u*o 'n*o 'n*u
+        'rescue))
+
 (define (predicted-errors expr ctx pctx)
   (define cond-thres (bf 100))
   (define maybe-cond-thres (bf 32))
   
   (define subexprs
-    (all-subexpressions expr (context-repr ctx)))
+    (all-subexpressions-rev expr (context-repr ctx)))
   (define subexprs-list (map car subexprs))
   (define spec-list (map prog->spec subexprs-list))
   
@@ -67,9 +76,35 @@
   (define uflow-hash (make-hash))
   (define oflow-hash (make-hash)) 
   (define maybe-explanations-hash (make-hash))
-  (define maybe-point-error-hash (make-hash))
+  (define maybe-point-error-hash (make-hash)) 
   
   (for ([(pt _) (in-pcontext pctx)])
+    (define pt-silenced? false)
+    ;;(eprintf "~a\n" pt)
+    (define (silence-subexpressions expr)
+      (unless pt-silenced?
+        (define subexprs (cons expr (for/list ([subexpr (in-list subexprs-list)]
+                                               #:when (list? subexpr)
+                                               #:break (equal? subexpr expr))
+                                      subexpr)))
+        (for* ([subexpr (in-list subexprs)]
+               [expl (in-list all-explanations)])
+          (define key (cons subexpr expl))
+          ;;(eprintf "~a\n" key)
+          (when (hash-has-key? explanations-hash key)
+            (eprintf "[before] ~a\n" explanations-hash)
+            (hash-update! explanations-hash key (lambda (x) (- x 1)))
+            (eprintf "[after] ~a\n" explanations-hash))
+          (when (hash-has-key? maybe-explanations-hash key)
+            (hash-update! maybe-explanations-hash key (lambda (x) (- x 1))))
+          
+          (when (hash-has-key? point-error-hash pt)
+            (hash-set! point-error-hash pt false))
+          
+          (when (hash-has-key? maybe-point-error-hash pt)
+            (hash-set! point-error-hash pt false))
+          )
+        (set! pt-silenced? true)))
     (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
       (hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
@@ -90,6 +125,7 @@
        exacts-val))
     
     (for/list ([subexpr (in-list subexprs-list)])
+      ;;(eprintf "[subexpr] ~a ~a\n" subexpr explanations-hash)
       (define subexpr-val (exacts-ref subexpr))
 
       (define (update-flow-hash flow-hash pred? . children)
@@ -118,7 +154,7 @@
          (update-flow-hash oflow-hash bfinfinite? x-ex)
          (update-flow-hash uflow-hash bfzero? x-ex)]
         [_ #f])
-      
+
       (match subexpr
         [(list (or '+.f64 '+.f32) x-ex y-ex)
          #:when (or (list? x-ex) (list? y-ex))
@@ -129,6 +165,14 @@
                                     subexpr-val)))
          (define cond-y (bfabs (bf/ y
                                     subexpr-val)))
+         
+         (define x.exp (+ (bigfloat-exponent x) 127)) 
+         (define y.exp (+ (bigfloat-exponent y) 127))
+         ;;(eprintf "~a, ~a, ~a, ~a\n" x.exp x y.exp y)
+         ;;(eprintf "[exp-hash] ~a ~a\n" pt explanations-hash)
+         #;(cond
+           [(> (- x.exp y.exp) 100) (silence-subexpressions y-ex)]
+           [(> (- y.exp x.exp) 100) (silence-subexpressions x-ex)]) 
          
          (cond
            ; Condition number hallucination
@@ -176,6 +220,14 @@
                                     subexpr-val)))
          (define cond-y (bfabs (bf/ y
                                     subexpr-val)))
+
+         (define x.exp (+ (bigfloat-exponent x) 127)) 
+         (define y.exp (+ (bigfloat-exponent y) 127))
+         ;;(eprintf "~a, ~a, ~a, ~a\n" x.exp x y.exp y)
+         #;(eprintf "[exp-hash] ~a ~a\n" pt explanations-hash)
+         #;(cond
+           [(> (- x.exp y.exp) 100) (silence-subexpressions y-ex)]
+           [(> (- y.exp x.exp) 100) (silence-subexpressions x-ex)]) 
          
          (cond
            ; Condition number hallucination:
@@ -431,8 +483,9 @@
 
            ; High Condition Number:
            ; CN(log, x) = |1 / log(x)|
-           [(bf> cond-num cond-thres)
-            (mark-erroneous! subexpr 'sensitivity)]
+           [(bf> cond-num cond-thres) 
+            (mark-erroneous! subexpr 'sensitivity)
+            (eprintf "[log] ~a\n" explanations-hash)]
            
            [(bf> cond-num maybe-cond-thres)
             (mark-maybe! subexpr 'sensitivity)]
@@ -632,10 +685,13 @@
     [_ '()]))
 
 (define (calculate-confusion actual-error predicted-error pcontext)
+  (eprintf "\n\n")
   (define outcomes
     (for/list ([(pt _) (in-pcontext pcontext)])
       (define error-actual? (> (hash-ref actual-error pt) 16))
       (define error-predicted? (hash-ref predicted-error pt false))
+      (when (and error-actual? (not error-predicted?))
+        (eprintf "~a\n" pt))
       (cons error-actual? error-predicted?)))
 
   (define groups (group-by identity outcomes))
