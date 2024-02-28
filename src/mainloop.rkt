@@ -343,73 +343,30 @@
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
   (define expr (alt-expr (car simplified)))
-  
-  (define true-error-hash
-    (for/hash ([(key _) (in-pcontext pcontext)]
-               [value (in-list (errors expr pcontext context))])
-      (values key value)))
 
-  (define repr (repr-of expr context))
-  (define (values->json vs repr)
-    (map (lambda (value) (value->json value repr)) vs))
-  (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
-  (define-values (pcount-hash explanations-table predicted-error oflow-hash uflow-hash maybe-explanations-table maybe-predicted-error)
+  (define-values (fperrors explanations-table confusion-matrix maybe-confusion-matrix)
     (predicted-errors expr context pcontext))
 
-  (for ([subexpr (in-list (set-union (hash-keys tcount-hash)
-                                     (hash-keys pcount-hash)))])
-    (define pset (hash-ref pcount-hash subexpr '()))
-    (define tset (hash-ref tcount-hash subexpr '()))
-    (define opred (set-subtract pset tset))
-    (define upred (set-subtract tset pset))
-    ;;(eprintf "~a ~a ~a\n" subexpr (length opred) (length upred))
-
+  (for ([fperror (in-list fperrors)])
+    (match-define (list expr truth opreds oex upreds uex) fperror)
     (timeline-push! 'fperrors
-                    (~a subexpr)
-                    (length tset)
-                    (length opred)
-                    (and (not (empty? opred)) (values->json (first opred)
-                                                            repr))
-                    (length upred)
-                    (and (not (empty? upred)) (values->json (first upred)
-                                                            repr))))
-  
-  #;(for ([(subexpr pset) (in-dict pcount-hash)])
-    (define tset (hash-ref tcount-hash subexpr '()))
-    (define opred (set-subtract pset tset))
-    (define upred (set-subtract tset pset))
-    ;;(eprintf "~a ~a ~a\n" subexpr (length opred) (length upred))
+                    expr
+                    truth
+                    opreds
+                    oex
+                    upreds
+                    uex))
 
-    (timeline-push! 'fperrors
-                    (~a subexpr)
-                    (length tset)
-                    (length opred)
-                    (and (not (empty? opred)) (values->json (first opred)
-                                                            repr))
-                    (length upred)
-                    (and (not (empty? upred)) (values->json (first upred)
-                                                            repr))))
-  
-  (for ([(key val) (in-dict explanations-table)])
-    (define expr (car key))
-    (define expl (cdr key))
-    (define maybe-count (hash-ref maybe-explanations-table key 0))
-    (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
+  (for ([explanation (in-list explanations-table)])
+    (match-define (list op expr expl val maybe-count flow-list) explanation)
     (timeline-push! 'explanations
-                    (~a (car expr))
-                    (~a expr)
-                    (~a expl)
+                    op
+                    expr
+                    expl
                     val
                     maybe-count
                     flow-list))
-
-  (define confusion-matrix (calculate-confusion true-error-hash
-                                                predicted-error
-                                                pcontext))
-  (define maybe-confusion-matrix (calculate-confusion-maybe true-error-hash
-                                                            predicted-error
-                                                            maybe-predicted-error
-                                                            pcontext))
+  
   (timeline-push! 'confusion confusion-matrix)
   (timeline-push! 'maybe-confusion maybe-confusion-matrix)
   

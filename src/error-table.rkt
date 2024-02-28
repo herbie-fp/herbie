@@ -2,7 +2,8 @@
 
 (require racket/set math/bigfloat racket/hash)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
-         "ground-truth.rkt" "syntax/sugar.rkt")
+         "ground-truth.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
+         "float.rkt")
 
 (provide actual-errors predicted-errors make-flow-table calculate-confusion
          calculate-confusion-maybe)
@@ -76,11 +77,14 @@
   (define uflow-hash (make-hash))
   (define oflow-hash (make-hash)) 
   (define maybe-explanations-hash (make-hash))
-  (define maybe-point-error-hash (make-hash)) 
+  (define maybe-point-error-hash (make-hash))
+
+  (define expls->points (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
     (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
+      (hash-update! expls->points (cons expr expl) (lambda (x) (set-add x pt)) '())
       (hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
       (hash-update! point-error-hash pt (lambda (x) (or true x)) #f))
     
@@ -562,7 +566,83 @@
            
            [else #f])]
         [_ #f])))
-  (values error-count-hash explanations-hash point-error-hash oflow-hash uflow-hash maybe-explanations-hash maybe-point-error-hash))
+
+  (define tcount-hash (actual-errors expr pctx))
+
+  (define repr (repr-of expr context))
+  (define (values->json vs repr)
+    (map (lambda (value) (value->json value repr)) vs))
+  
+  (define fperrors
+    (for/list ([subexpr (in-list (set-union (hash-keys tcount-hash)
+                                            (hash-keys error-count-hash)))])
+      (define pset (hash-ref error-count-hash subexpr '()))
+      (define tset (hash-ref tcount-hash subexpr '()))
+      (define opred (set-subtract pset tset))
+      (define upred (set-subtract tset pset))
+      
+      (list (~a subexpr)
+            (length tset)
+            (length opred)
+            (and (not (empty? opred)) (values->json (first opred)
+                                                    repr))
+            (length upred)
+            (and (not (empty? upred)) (values->json (first upred)
+                                                    repr)))))
+  
+  (define true-error-hash
+    (for/hash ([(key _) (in-pcontext pctx)]
+               [value (in-list (errors expr pctx ctx))])
+      (values key value)))
+
+  #;(define explanations-table
+    (for/list ([(key val) (in-dict explanations-hash)])
+      (define expr (car key))
+      (define expl (cdr key))
+      (define maybe-count (hash-ref maybe-explanations-hash key 0))
+      (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
+
+      (define test (length (hash-ref expls->points key)))
+
+      (unless (= val test)
+        (eprintf "error: ~a\n" key))
+
+      (list (~a (car expr))
+            (~a expr)
+            (~a expl)
+            val
+            maybe-count
+            flow-list)))
+
+  (define explanations-table
+    (for/list ([(key val) (in-dict expls->points)])
+      (define expr (car key))
+      (define expl (cdr key))
+      (define err-count (length val))
+      (define maybe-count (hash-ref maybe-explanations-hash key 0))
+      (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
+
+      (list (~a (car expr))
+            (~a expr)
+            (~a expl)
+            err-count
+            maybe-count
+            flow-list)))
+  
+  (define confusion-matrix
+    (calculate-confusion true-error-hash
+                         point-error-hash
+                         pctx))
+  (define maybe-confusion-matrix
+    (calculate-confusion-maybe true-error-hash
+                               point-error-hash
+                               maybe-point-error-hash
+                               pctx))
+
+  (values fperrors
+          explanations-table
+          confusion-matrix
+          maybe-confusion-matrix))
 
 (define (flow-list flow-hash expr type)
   (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])
