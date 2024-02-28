@@ -150,45 +150,89 @@
   (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
 
   ;TODO
-  ; 1. Extract the platform string
-  ;     1.1 If platform string exists, ensure it is part of the current supported platforms (currently only "default")
-  ;     1.2 If not, don't throw an error, just make target #f???
-  ; 2. Ensure that based on the platform string, "something" needs to be done
+  ; 1. Extract the platform string -> Done
+  ;     1.1 If platform string exists, ensure it is part of the current supported platforms (currently only "default") -> Done
+  ;     1.2 If not, don't throw an error, just make target #f??? -> Done but needs to be verified
+  ; 2. Ensure that based on the platform string, the alt target is the one in the expression -> Done
   ; 3. Go through all available alts to find target of platforms
 
+  ; (when #t
+  ;   (displayln (format "prop-dict ~a" prop-dict))
+  ;   (displayln (format "is dict ~a" (dict? prop-dict))))
+
+  (define *desired-platform* `default)
+
+  ; parsed-target works for a singular alt expression. Grabs the alt key-value and evaluates that
   (define parsed-target
-    (begin
-      (if (dict-has-key? prop-dict ':alt)
-        ; syntax->datum on dict-ref will return the props as a list and the body expression in a list 
-        (match (parse-alt (dict-ref prop-dict ':alt))
-          [(list function)
-           ; Perform whatever operation you need with the function
-           (displayln "just function")
-           (displayln function)
-           (dict-ref prop-dict ':alt #f)]
+    (if (dict-has-key? prop-dict ':alt)
+      (match (parse-alt (dict-ref prop-dict ':alt))
+        [(list function)
+          ; Perform whatever operation you need with the function
+          function]
 
-          [(list platform-name expression)
-           ; Process platform-name and expression accordingly
-           (displayln "both")
-           (displayln platform-name)
-           (displayln (format "parsed exp ~a" expression))
-           (displayln (format "alt exp ~a" (dict-ref prop-dict ':alt #f)))
+        [(list platform-name expression)
+          ; Process platform-name and expression accordingly
+          (if (verify-platform platform-name *desired-platform*)
+            expression
+            #f)]
 
-           (if (verify-platform platform-name)
-              expression
-              #f)]
+        [else
+          (error "Invalid :alt format")])
 
-          [else
-           (error "Invalid :alt format")])
+      ; else
+      #f))
 
-        ; else
-        #f)))
 
-  (define target
-    ; (fpcore->prog (dict-ref prop-dict ':alt #f) ctx))
-    (fpcore->prog parsed-target ctx))
+  ; parsed-target-loop currently goes over EVERY key-value pair and checks if the key is :alt
+  ; If it is, then it parses the valye to extract 2 things : platform-name, if it exists, & expression.
+  ; If the platform name is the desired-platform, set curr-target to the expression and break
+  (define parsed-target-loop
+    (let ([curr-target #f]) ; Default value is #f
+      (dict-for-each
+        ; Dictionary to go over all K-V pairs
+        prop-dict
 
-  ; (displayln target)
+        ; Procedure
+        (lambda (key value)
+          (cond
+            [(equal? key ':alt)
+              (begin
+                (displayln "Parsing :alt")
+                (format "key : ~a" key)
+                (format "value : ~a" value)
+
+                (match (parse-alt value)
+                  [(list expression)
+                    ; (displayln "just function")
+                    expression]
+
+                  [(list platform-name expression)
+                    ; Process platform-name and expression accordingly
+                    ; (displayln "both")
+                    ;  (displayln platform-name)
+                    ;  (displayln (format "parsed exp ~a" expression))
+                    ;  (displayln (format "alt exp ~a" (dict-ref prop-dict ':alt #f)))
+                    ; (displayln *desired-platform*)
+
+                    ; Checks if verify-platform matches with desired-platform
+                    (if (verify-platform platform-name *desired-platform*) 
+                        (begin
+                          (set! curr-target value) ; Set curr-target to be value
+                          'done)  ; Break out of the loop
+                        #f)] ; Otherwise, continue to the next key-value pair
+
+                  [else
+                    (error "Invalid :alt format")]))]
+
+              [else
+                #f]))) ; Continue to the next key-value pair    
+
+      curr-target))
+
+
+  ; Main developer target function, takes in the parsed-target based on the required platform
+  ; and converts from fpcore to prog based on ctx 
+  (define target (fpcore->prog parsed-target-loop ctx))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
@@ -231,11 +275,10 @@
       [else
         (list alt-prop)]))
 
-(define (verify-platform platform)
+(define (verify-platform platform desired-platform)
     (match platform
       [`(platform ,platform-name)
-        ; TODO : NEEDS TO BECOME A set.contains(platform-name) eventually
-        (equal? platform-name 'default)]
+        (equal? platform-name desired-platform)]
       [else
         #f]))
 

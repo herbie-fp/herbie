@@ -8,6 +8,10 @@
      :note "From hamming"
      :cite (nmse-1987)
    (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2))))
+
+  :alt 
+  (! :description (platform math)
+   (+ (* (cos x) (sin eps)) (- (* (cos eps) (sin x)) (sin x))))
  
   (- (sin (+ x eps)) (sin x)))
 
