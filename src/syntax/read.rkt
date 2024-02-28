@@ -149,63 +149,46 @@
   (define body* (fpcore->prog body ctx))
   (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
 
-  (define target (fpcore->prog (dict-ref prop-dict ':alt #f) ctx))
-  (displayln target)
-
-  ; (when (dict-has-key? prop-dict ':alt)
-  ;   ; syntax->datum on dict-ref will return the props as a list and the body expression in a list 
-  ;   (match (parse-alt (syntax->datum (dict-ref prop-dict ':alt)))
-  ;     [(list function)
-  ;       ; Perform whatever operation you need with the function
-  ;       (displayln "just function")
-  ;       (displayln function)
-  ;       ; (check-expression* function vars error! deprecated-ops)
-  ;       ]
-  ;     [(list platform-name expression)
-  ;       ; Process platform-name and expression accordingly
-  ;       (displayln "both")
-  ;       (displayln platform-name)
-  ;       (displayln expression)
-  ;       ; (check-expression* expression vars error! deprecated-ops)
-  ;       ]
-  ;     [else
-  ;      (error "Invalid :alt format")]))
-
-  ; (define (parse-alt alt-prop)
-  ; (match alt-prop
-  ;   [`(! ,props ... ,body)
-  ;     (when (odd? (length props))
-  ;        (error "Invalid properties: odd number of arguments passed"))
-
-  ;     (displayln props)
-  ;     (displayln body)
-
-  ;     (let loop ((remaining props))
-  ;       (cond
-  ;         [(null? remaining) 'done] ; Base case: stop when no more properties remain
-  ;         [else
-  ;           (let ((prop-name (car remaining))
-  ;                 (prop-value (cadr remaining)))
-
-  ;                 (match prop-name
-  ;                   [`:description
-  ;                     (displayln "reached here")
-  ;                     (list prop-value body)]
-  ;                   [else
-  ;                     (loop (cdr (cdr remaining)))]))]))
-
-
-  ;       (error "Invalid props no :description")]
-    
-  ;   [else
-  ;     (list alt-prop)]))
-
-
   ;TODO
   ; 1. Extract the platform string
+  ;     1.1 If platform string exists, ensure it is part of the current supported platforms (currently only "default")
+  ;     1.2 If not, don't throw an error, just make target #f???
   ; 2. Ensure that based on the platform string, "something" needs to be done
-  ; 3. Make all alts be part of final fpcore (recursively??)
+  ; 3. Go through all available alts to find target of platforms
 
+  (define parsed-target
+    (begin
+      (if (dict-has-key? prop-dict ':alt)
+        ; syntax->datum on dict-ref will return the props as a list and the body expression in a list 
+        (match (parse-alt (dict-ref prop-dict ':alt))
+          [(list function)
+           ; Perform whatever operation you need with the function
+           (displayln "just function")
+           (displayln function)
+           (dict-ref prop-dict ':alt #f)]
+
+          [(list platform-name expression)
+           ; Process platform-name and expression accordingly
+           (displayln "both")
+           (displayln platform-name)
+           (displayln (format "parsed exp ~a" expression))
+           (displayln (format "alt exp ~a" (dict-ref prop-dict ':alt #f)))
+
+           (if (verify-platform platform-name)
+              expression
+              #f)]
+
+          [else
+           (error "Invalid :alt format")])
+
+        ; else
+        #f)))
+
+  (define target
+    ; (fpcore->prog (dict-ref prop-dict ':alt #f) ctx))
+    (fpcore->prog parsed-target ctx))
+
+  ; (displayln target)
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
@@ -223,6 +206,38 @@
         (representation-name default-repr)
         (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
         '()))
+
+
+(define (parse-alt alt-prop)
+    (match alt-prop
+      [`(! ,props ... ,body)
+
+        (when (odd? (length props))
+           (error "Invalid properties: odd number of arguments passed"))
+
+        (let loop ((remaining props))
+          (cond
+            [(null? remaining) (error "Invalid props no :description")] ; Base case: stop when no more properties remain
+            [else
+              (let ((prop-name (car remaining))
+                    (prop-value (cadr remaining)))
+
+                    (match prop-name
+                      [`:description
+                        (list prop-value body)]
+                      [else
+                        (loop (cdr (cdr remaining)))]))]))]
+      
+      [else
+        (list alt-prop)]))
+
+(define (verify-platform platform)
+    (match platform
+      [`(platform ,platform-name)
+        ; TODO : NEEDS TO BECOME A set.contains(platform-name) eventually
+        (equal? platform-name 'default)]
+      [else
+        #f]))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
