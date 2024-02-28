@@ -80,18 +80,21 @@
   (define maybe-point-error-hash (make-hash))
 
   (define expls->points (make-hash))
+  (define maybe-expls->points (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
     (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
       (hash-update! expls->points (cons expr expl) (lambda (x) (set-add x pt)) '())
-      (hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
-      (hash-update! point-error-hash pt (lambda (x) (or true x)) #f))
+      #;(hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
+      #;(hash-update! point-error-hash pt (lambda (x) (or true x)) #f))
     
     (define (mark-maybe! expr [expl 'sensitivity])
-      (hash-update! maybe-explanations-hash
+      #;(hash-update! maybe-explanations-hash
                     (cons expr expl) (lambda (x) (+ 1 x)) 0)
-      (hash-update! maybe-point-error-hash pt (lambda (x) (or true x)) #f))
+      #;(hash-update! maybe-point-error-hash pt (lambda (x) (or true x)) #f)
+      (hash-update! maybe-expls->points
+                    (cons expr expl) (lambda (x) (set-add x pt)) '()))
     
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash
@@ -619,24 +622,35 @@
       (define expr (car key))
       (define expl (cdr key))
       (define err-count (length val))
-      (define maybe-count (hash-ref maybe-explanations-hash key 0))
+      (define maybe-count (length (hash-ref maybe-expls->points key '())))
+      ;;(define maybe-count-old (hash-ref maybe-explanations-hash key 0))
       (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
-
+      
       (list (~a (car expr))
             (~a expr)
             (~a expl)
             err-count
             maybe-count
             flow-list)))
+
+  (define (expls-to-points expls->points)
+    (define points-per-expl (hash-values expls->points))
+    (define points-err (apply set-union '() points-per-expl))
+    (for/hash ([point (in-list points-err)])
+      (values point true)))
+
+  (define predicted-total-error (expls-to-points expls->points))
+  (define maybe-predicted-total-error (expls-to-points maybe-expls->points))
   
   (define confusion-matrix
     (calculate-confusion true-error-hash
-                         point-error-hash
+                         predicted-total-error
                          pctx))
+  
   (define maybe-confusion-matrix
     (calculate-confusion-maybe true-error-hash
-                               point-error-hash
-                               maybe-point-error-hash
+                               predicted-total-error
+                               maybe-predicted-total-error
                                pctx))
 
   (values fperrors
