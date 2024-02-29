@@ -1,14 +1,11 @@
 #lang racket
 
-(require
- math/bigfloat
-
- "common.rkt"
- "compiler.rkt"
- "ground-truth.rkt"
- (submod "syntax/syntax.rkt" internals)
- (submod "syntax/rules.rkt" internals)
- "syntax/types.rkt")
+(require "common.rkt"
+         "compiler.rkt"
+         "ground-truth.rkt"
+         (submod "syntax/syntax.rkt" internals)
+         (submod "syntax/rules.rkt" internals)
+         "syntax/types.rkt")
 
 (provide
  register-accelerator-operator!
@@ -28,44 +25,50 @@
 (define accelerator-operators (make-hasheq))
 
 (define (register-accelerator-operator! name itypes otype form)
-  (match-define (list 'lambda (list variables ...) body) form)
+  (match-define (list (or 'λ 'lambda) (list variables ...) body) form)
+  (unless (= (length variables) (length itypes))
+    (error 'register-accelerator-operator!
+           "implementation does not have expected arity: ~a ~a"
+           (length variables)
+           (length itypes)))
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
-  (hash-set! accelerator-operators
-             name
-             (accelerator-operator body variables itypes otype))
+  (define accelerator (accelerator-operator body variables itypes otype))
+  (hash-set! accelerator-operators name accelerator)
   (register-operator! name
                       itypes otype
                       (list (cons 'ival (compile-spec body variables))))
   ;; TODO: Are the groups right now?
   (register-ruleset*! ruleset-name
-                     '(numerics simplify)
-                     (map cons variables itypes)
-                     `((,define-name ,body (,name ,@variables))
-                       (,undefine-name (,name ,@variables) ,body))))
+                      '(numerics simplify)
+                      (map cons variables itypes)
+                      `((,define-name ,body (,name ,@variables))
+                        (,undefine-name (,name ,@variables) ,body))))
 
 (define-syntax define-accelerator-operator
   (syntax-rules ()
-    [(_ name (itypes ...) otype (lambda (variables ...) body))
+    [(_ name (itypes ...) otype impl)
      (register-accelerator-operator! 'name
-                                     (list 'itypes ...) 'otype
-                                     (list 'lambda (list 'variables ...) 'body))]))
+                                     (list 'itypes ...)
+                                     'otype
+                                     'impl)]))
 
 (define (register-accelerator-impl! operator name
                                     itypes otype
                                     [implementation #f])
-  (match-define (accelerator-operator body variables _ _) (dict-ref accelerator-operators operator))
-  (register-operator-impl!
-   operator name
-   itypes otype
-   (list
-    (cons 'fl
-          (or 
-           implementation
-           (compose first (eval-progs-real 
-                           (list body)
-                           (list (context variables otype itypes)))))))))
+  (match-define (accelerator-operator body variables _ _)
+    (dict-ref accelerator-operators operator))
+  (define impl-fn
+    (or implementation
+        (let ([fn (eval-progs-real (list body)
+                                   (context variables otype itypes))])
+          (λ args (first (apply fn args))))))
+  (register-operator-impl! operator
+                           name
+                           itypes
+                           otype
+                           (list (cons 'fl impl-fn))))
 
 (define-syntax define-accelerator-impl
   (syntax-rules ()

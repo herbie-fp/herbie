@@ -6,6 +6,7 @@ from cost.runner import Runner
 from cost.c import CRunner
 from cost.mkl import MKLRunner
 from cost.arith import ArithRunner
+from cost.python import PythonRunner
 
 # paths
 script_path = os.path.abspath(__file__)
@@ -23,24 +24,29 @@ def run(
     runner: Runner,
     tune: bool,
     restore: bool,
+    py_sample: bool,
     herbie_params: Optional[Tuple[str, int]] = None
 ):
+    # generate phase
     if restore:
         raise NotImplementedError('unimplemented: restore from directory')
     elif herbie_params is not None:
         bench_dir, threads = herbie_params
         runner.herbie_improve(path=bench_dir, threads=threads)
+        runner.herbie_sample(py_sample=py_sample)
+        runner.herbie_pareto()
     else:
         runner.synthesize()
+        runner.herbie_sample(py_sample=py_sample)
 
-    runner.herbie_sample()
-    runner.herbie_pareto()
+    # core phase   
     runner.herbie_compile()
     runner.make_driver_dirs()
     runner.make_drivers()
     runner.compile_drivers()
     runner.run_drivers()
 
+    # report phase
     if tune:
         runner.print_times()
     else:
@@ -56,6 +62,7 @@ def main():
     parser.add_argument('--num-runs', help='number of times to run drivers to obtain an average [100 by default]', type=int)
     parser.add_argument('--tune', help='cost tuning mode [OFF by default].', action='store_const', const=True, default=False)
     parser.add_argument('--restore', help='restores FPCores from the working directory', action='store_const', const=True, default=False)
+    parser.add_argument('--py-sample', help='uses a Python based sampling method. Useful for debugging', action='store_const', const=True, default=False)
     parser.add_argument('lang', help='output language to use', type=str)
     parser.add_argument('output_dir', help='directory to emit all working files', type=str)
 
@@ -73,6 +80,7 @@ def main():
     num_runs = args.get('num_runs', default_num_runs)
     tune = args.get('tune')
     restore = args.get('restore')
+    py_sample = args.get('py_sample')
     lang = args['lang']
     output_dir = args['output_dir']
 
@@ -100,6 +108,14 @@ def main():
             num_runs=num_runs,
             threads=threads
         )
+    elif lang == 'python':
+        runner = PythonRunner(
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads
+        )
     else:
         raise ValueError('Unsupported output language: {}')
 
@@ -116,7 +132,8 @@ def main():
         runner=runner,
         tune=tune,
         restore=restore,
-        herbie_params=herbie_params
+        herbie_params=herbie_params,
+        py_sample=py_sample
     )
     
 

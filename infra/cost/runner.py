@@ -28,10 +28,10 @@ def synthesize1(op: str, argc: int) -> FPCore:
     return FPCore(core, name=op, argc=argc, py_sample=py_sample)
 
 def sample1(config: Tuple[FPCore, int, str, str]) -> List[float]:
-    core, num_inputs, herbie_path, platform = config
+    core, num_inputs, herbie_path, platform, py_sample = config
     if core.argc == 0:
         return []
-    elif core.py_sample:
+    elif core.py_sample or py_sample:
         # sample using Python
         return [sample_repr('double', num_inputs) for _ in range(core.argc)]
     else:
@@ -74,7 +74,8 @@ class Runner(object):
         threads: int = 1,
         unary_ops: List[str] = [],
         binary_ops: List[str] = [],
-        ternary_ops: List[str] = []
+        ternary_ops: List[str] = [],
+        nary_ops: List[Tuple[int, str]] = []
     ):
         # configuration data
         self.name = name
@@ -87,6 +88,7 @@ class Runner(object):
         self.unary_ops = unary_ops
         self.binary_ops = binary_ops
         self.ternary_ops = ternary_ops
+        self.nary_ops = nary_ops
         self.time_unit = time_unit
         # mutable data
         self.cores: List[FPCore] = []
@@ -113,7 +115,9 @@ class Runner(object):
         for op in self.binary_ops:
             self.cores.append(synthesize1(op, 2))
         for op in self.ternary_ops:
-             self.cores.append(synthesize1(op, 3))
+            self.cores.append(synthesize1(op, 3))
+        for n, op in self.nary_ops:
+            self.cores.append(synthesize1(op, n))
 
     def herbie_compile(self):
         """Compiles each FPCore in `self.cores` to the target language.
@@ -165,6 +169,7 @@ class Runner(object):
             # optionally extract name
             name_match = re.match(fpcore_prop_name_pat, core)
             name = None if name_match is None else name_match.group(1).strip()
+            print(core)
             self.cores.append(FPCore(core=core, name=name, argc=argc, cost=cost, err=err))
 
         self.log(f'extracted Herbie output')
@@ -202,7 +207,7 @@ class Runner(object):
         self.log(f'computed Pareto frontier')
     
 
-    def herbie_sample(self):
+    def herbie_sample(self, py_sample: bool = False):
         """Runs Herbie's sampler for each FPCore in `self.cores`."""
         # organize fpcores by sample first
         # this is using a heuristic that names are formatted a certain way!
@@ -226,7 +231,7 @@ class Runner(object):
         self.cores_by_sample = unnamed_cores + list(named_cores.values())
         
         # actually run the sample
-        config_gen = map(lambda cs: (cs[0], self.num_inputs, self.herbie_path, self.name), self.cores_by_sample)
+        config_gen = map(lambda cs: (cs[0], self.num_inputs, self.herbie_path, self.name, py_sample), self.cores_by_sample)
         with mp.Pool(processes=self.threads) as pool:
             samples = pool.map(sample1, config_gen)
 

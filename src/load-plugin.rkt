@@ -14,6 +14,7 @@
 (define-runtime-module-path arith-platform "platforms/arith.rkt")
 (define-runtime-module-path default-platform "platforms/default.rkt")
 (define-runtime-module-path mkl-platform "platforms/mkl.rkt")
+(define-runtime-module-path python-platform "platforms/python3-10.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
@@ -27,6 +28,7 @@
   (dynamic-require arith-platform #f)
   (dynamic-require default-platform #f)
   (dynamic-require mkl-platform #f)
+  (dynamic-require python-platform #f)
   ;; activate the default platform
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))

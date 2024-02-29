@@ -4,11 +4,13 @@
          herbie/common
          herbie/datafile
          herbie/load-plugin
-         herbie/points
          herbie/pareto
+         herbie/platform
+         herbie/points
          herbie/sandbox
          herbie/syntax/read
          herbie/web/core2mkl
+         herbie/web/core2python3-10
          herbie/web/thread-pool)
 
 (load-herbie-builtins)
@@ -59,6 +61,7 @@
          (case lang
            [(c) (core->c core "foo")]
            [(mkl) (core->mkl core "foo")]
+           [(python) (core->python core "foo")]
            [else (error 'run-server "compile: unsupported language ~a" lang)]))
        (printf "~a\n" (string-replace output "\n" "\\n"))
        (loop)]
@@ -124,6 +127,8 @@
     [("--seed") _seed "Seed to use within Herbie"
      (set! seed (string->number _seed))]
     [("--platform") name "Platform to use"
-     (*platform-name* (string->symbol name))]
+     (*platform-name* (string->symbol name))
+     (*active-platform* (get-platform (*platform-name*)))
+     (activate-platform! (*active-platform*))]
     #:args ()
     (run-server seed)))
