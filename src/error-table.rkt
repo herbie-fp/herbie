@@ -72,12 +72,12 @@
   
   (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
-  (define explanations-hash (make-hash))
-  (define point-error-hash (make-hash))
+  ;;(define explanations-hash (make-hash))
+  ;;(define point-error-hash (make-hash))
   (define uflow-hash (make-hash))
   (define oflow-hash (make-hash)) 
-  (define maybe-explanations-hash (make-hash))
-  (define maybe-point-error-hash (make-hash))
+  ;;(define maybe-explanations-hash (make-hash))
+  ;;(define maybe-point-error-hash (make-hash))
 
   (define expls->points (make-hash))
   (define maybe-expls->points (make-hash))
@@ -89,13 +89,11 @@
              #:when (list? subexpr)
              [expl (in-list all-explanations)])
         (define key (cons subexpr expl))
-        #;(eprintf "[loop] ~a ~a\n" key expls->points)
         (when (hash-has-key? expls->points key)
-          #;(eprintf "[before] ~a\n" expls->points)
           (hash-update! expls->points key (lambda (x) (set-remove x pt))))
-          #;(eprintf "[after] ~a\n" expls->points)
-        )
-      )
+        (when (hash-has-key? maybe-expls->points key)
+          (hash-update! maybe-expls->points
+                        key (lambda (x) (set-remove x pt))))))
     
     (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
@@ -728,6 +726,8 @@
     (for/list ([(pt _) (in-pcontext pcontext)])
       (define error-actual? (> (hash-ref actual-error pt) 16))
       (define error-predicted? (hash-ref predicted-error pt false))
+      #;(when (and error-actual? (not error-predicted?))
+        (eprintf "~a\n" pt))
       (cons error-actual? error-predicted?)))
 
   (define groups (group-by identity outcomes))
