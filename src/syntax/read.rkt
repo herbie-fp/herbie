@@ -162,32 +162,11 @@
 
   (define *desired-platform* `default)
 
-  ; parsed-target works for a singular alt expression. Grabs the alt key-value and evaluates that
-  (define parsed-target
-    (if (dict-has-key? prop-dict ':alt)
-      (match (parse-alt (dict-ref prop-dict ':alt))
-        [(list function)
-          ; Perform whatever operation you need with the function
-          function]
-
-        [(list platform-name expression)
-          ; Process platform-name and expression accordingly
-          (if (verify-platform platform-name *desired-platform*)
-            expression
-            #f)]
-
-        [else
-          (error "Invalid :alt format")])
-
-      ; else
-      #f))
-
-
   ; parsed-target-loop currently goes over EVERY key-value pair and checks if the key is :alt
   ; If it is, then it parses the valye to extract 2 things : platform-name, if it exists, & expression.
   ; If the platform name is the desired-platform, set curr-target to the expression and break
   (define parsed-target-loop
-    (let ([curr-target #f]) ; Default value is #f
+    (let ([curr-target-list `()]) ; Default value is emptty list -> correpsonds to #f
       (dict-for-each
         ; Dictionary to go over all K-V pairs
         prop-dict
@@ -196,43 +175,48 @@
         (lambda (key value)
           (cond
             [(equal? key ':alt)
-              (begin
-                (displayln "Parsing :alt")
-                (format "key : ~a" key)
-                (format "value : ~a" value)
 
-                (match (parse-alt value)
-                  [(list expression)
-                    ; (displayln "just function")
-                    expression]
+              (set! curr-target-list (cons value curr-target-list))
 
-                  [(list platform-name expression)
-                    ; Process platform-name and expression accordingly
-                    ; (displayln "both")
-                    ;  (displayln platform-name)
-                    ;  (displayln (format "parsed exp ~a" expression))
-                    ;  (displayln (format "alt exp ~a" (dict-ref prop-dict ':alt #f)))
-                    ; (displayln *desired-platform*)
+              ; Commented out for now. Change design to add all alts to target
+              ; (match (parse-alt value)
+              ;   [(list expression) expression]
 
-                    ; Checks if verify-platform matches with desired-platform
-                    (if (verify-platform platform-name *desired-platform*) 
-                        (begin
-                          (set! curr-target value) ; Set curr-target to be value
-                          'done)  ; Break out of the loop
-                        #f)] ; Otherwise, continue to the next key-value pair
+              ;   ; Checks if verify-platform matches with desired-platform
+              ;   [(list platform-name expression)
+              ;     (if (verify-platform platform-name *desired-platform*) 
+              ;       (begin
+              ;         (set! curr-target value) ; Set curr-target to be value
+              ;         'done)  ; Break out of the loop
+              ;       #f)] ; Otherwise, continue to the next key-value pair
 
-                  [else
-                    (error "Invalid :alt format")]))]
+              ;     [else
+              ;       (error "Invalid :alt format")])
+              ]
 
               [else
                 #f]))) ; Continue to the next key-value pair    
 
-      curr-target))
+      curr-target-list))
 
 
   ; Main developer target function, takes in the parsed-target based on the required platform
   ; and converts from fpcore to prog based on ctx 
-  (define target (fpcore->prog parsed-target-loop ctx))
+  (define target (fpcore->prog (dict-ref prop-dict ':precision #f) ctx))
+
+  (define target-list 
+    (if (= (length parsed-target-loop) 0)
+      #f
+      ; (map (lambda (expression) (fpcore->prog expression ctx)) parsed-target-loop)))
+      parsed-target-loop))
+
+  (define test-parsed-target-loop
+    (filter 
+      (lambda (entry) (equal? (car entry) ':alt)) ; Filter out entries with the key ':alt
+      (dict->list prop-dict)))          ; Extract the values from the filtered pairs
+
+  (displayln (format "here ~a" target-list))
+  (displayln (format "here 2 ~a" test-parsed-target-loop))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
