@@ -34,8 +34,8 @@ def run(
         runner.synthesize()
 
     runner.herbie_sample()
+    runner.herbie_pareto()
     runner.herbie_compile()
-    runner.herbie_cost()
     runner.make_driver_dirs()
     runner.make_drivers()
     runner.compile_drivers()
@@ -45,6 +45,7 @@ def run(
         runner.print_times()
     else:
         runner.plot_times()
+        runner.plot_pareto()
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner and evaluator')

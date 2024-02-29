@@ -8,7 +8,7 @@ import shutil
 import re
 
 from .fpcore import FPCore
-from .util import sample_repr
+from .util import sample_repr, chunks
 
 fpcore_pat = re.compile('\(FPCore \(([^\(\)]*)\)')
 fpcore_prop_name_pat = re.compile('^.*:name "([^\"]*)"')
@@ -50,7 +50,7 @@ def sample1(config: Tuple[FPCore, int, str, str]) -> List[float]:
                 raise RuntimeError(f'did not sample expected number of points: {len(inputs)} != {num_inputs}')
 
             print('(exit)', file=server.stdin, flush=True)
-            _ = server.stdout.readline()
+            _ = server.stdout.read()
     
             points = [[] for _ in range(core.argc)]
             for input in inputs:
@@ -90,10 +90,11 @@ class Runner(object):
         self.time_unit = time_unit
         # mutable data
         self.cores: List[FPCore] = []
-        self.costs: List[float] = []
         self.driver_dirs: List[str] = []
         self.times: List[float] = []
+        self.cores_by_sample: List[Tuple[List[FPCore], List[float]]] = []
         self.samples: List[Tuple[FPCore, List[float]]] = []
+        self.frontier: List[Tuple[float, float]] = []
 
         # if the working directory does not exist, create it
         if not self.working_dir.exists(): 
@@ -135,25 +136,6 @@ class Runner(object):
             _ = server.stdout.readline()
         self.log(f'compiled {len(self.cores)} cores')
 
-    def herbie_cost(self):
-        """Estimates the cost of an expression using Herbie's cost model."""
-        with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
-
-            # call out to server
-            for core in self.cores:
-                print(f'(cost {core.core})', file=server.stdin, flush=True)
-                output = server.stdout.readline()
-                self.costs.append(float(output))
-
-            # terminate the server
-            print('(exit)', file=server.stdin, flush=True)
-            _ = server.stdout.readline()
-        self.log(f'computed cost esimates')
-
     def herbie_improve(self, path: str, threads: int = 1):
         """Runs Herbie improvement on benchmarks under `path`
         appending all resulting FPCores to `self.cores`."""
@@ -167,18 +149,58 @@ class Runner(object):
             print(f'(improve \"{path}\" {threads}) (exit)', file=server.stdin, flush=True)
             output = server.stdout.read()
 
-        for line in output.split('\n'):
-            core = line.strip()
-            if len(core) > 0:
-                # extract argument count
-                core_match = re.match(fpcore_pat, core)
-                arg_str = core_match.group(1).strip()
-                argc = len(arg_str.split())
-                # optionally extract name
-                name_match = re.match(fpcore_prop_name_pat, core)
-                name = None if name_match is None else name_match.group(1).strip()
-                self.cores.append(FPCore(core=core, name=name, argc=argc))
+        entries = []
+        for group in chunks(output.split('\n'), 3):
+            if len(group) == 3:
+                core = group[0].strip()
+                cost = float(group[1].strip())
+                err = float(group[2].strip())
+                entries.append((core, cost, err))
+
+        for core, cost, err in entries:
+            # extract argument count
+            core_match = re.match(fpcore_pat, core)
+            arg_str = core_match.group(1).strip()
+            argc = len(arg_str.split())
+            # optionally extract name
+            name_match = re.match(fpcore_prop_name_pat, core)
+            name = None if name_match is None else name_match.group(1).strip()
+            self.cores.append(FPCore(core=core, name=name, argc=argc, cost=cost, err=err))
+
         self.log(f'extracted Herbie output')
+
+    def herbie_pareto(self):
+        """Runs Herbie's pareto frontier algorithm."""
+        with Popen(
+            args=['racket', str(self.herbie_path), "--platform", self.name],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
+
+            frontiers = []
+            for cores in self.cores_by_sample:
+                frontier = ' '.join(list(map(lambda c: f'({c.cost} {c.err})', cores)))
+                frontiers.append(f'({frontier})')
+
+            # call out to server
+            args = ' '.join(frontiers)
+            print(f'(pareto {args})', file=server.stdin, flush=True)
+            output = server.stdout.readline()
+
+            # shutdown server
+            print(f'(exit)', file=server.stdin, flush=True)
+            _ = server.stdout.read()
+
+        for line in output.split('|'):
+            datum = line.split(' ')
+            if len(datum) != 2:
+                raise RuntimeError('Pareto frontier malformed:', datum)
+
+            cost = float(datum[0])
+            err = float(datum[1])
+            self.frontier.append((cost, err))
+        self.log(f'computed Pareto frontier')
+    
 
     def herbie_sample(self):
         """Runs Herbie's sampler for each FPCore in `self.cores`."""
@@ -201,14 +223,14 @@ class Runner(object):
                         named_cores[base_name].append(core)
                     else:
                         named_cores[base_name] = [core]
-        cores_by_sample = unnamed_cores + list(named_cores.values())
+        self.cores_by_sample = unnamed_cores + list(named_cores.values())
         
         # actually run the sample
-        config_gen = map(lambda cs: (cs[0], self.num_inputs, self.herbie_path, self.name), cores_by_sample)
+        config_gen = map(lambda cs: (cs[0], self.num_inputs, self.herbie_path, self.name), self.cores_by_sample)
         with mp.Pool(processes=self.threads) as pool:
             samples = pool.map(sample1, config_gen)
 
-        for cores, sample in zip(cores_by_sample, samples):
+        for cores, sample in zip(self.cores_by_sample, samples):
             for core in cores:
                 self.samples.append((core, sample))
         self.log(f'sampled input points')
@@ -265,9 +287,24 @@ class Runner(object):
                 print(f'[{name} {time}]')
 
     def plot_times(self):
-        """Prints cost vs. runtime on a graph."""
-        plt.scatter(self.costs, self.times)
+        """Plots Herbie cost estimate vs. actual run time."""
+        costs = list(map(lambda c: c.cost, self.cores))
+        plt.scatter(costs, self.times)
         plt.title('Estimated cost vs. actual run time')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Run time ({self.time_unit})')
+        plt.show()
+
+    def plot_pareto(self):
+        """Plots Pareto frontier of cost vs. accuracy."""
+        costs = []
+        errs = []
+        for cost, err in self.frontier:
+            costs.append(cost)
+            errs.append(err)
+
+        plt.plot(costs, errs, label='Points')
+        plt.title('Esimated cost vs. cumulative average error (bits)')
+        plt.xlabel('Estimated cost (Herbie)')
+        plt.ylabel(f'Cumulative average error')
         plt.show()

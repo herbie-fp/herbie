@@ -5,6 +5,7 @@
          herbie/datafile
          herbie/load-plugin
          herbie/points
+         herbie/pareto
          herbie/sandbox
          herbie/syntax/read
          herbie/web/core2mkl
@@ -32,17 +33,17 @@
       ["crash" (void)]
       ["timeout" (void)]
       [(? string?)
-       (define results
-         (for/list ([i (in-naturals 1)] [entry (in-table-row res)])
-           (match-define (list _ _ expr) entry)
+       (for ([i (in-naturals 1)] [entry (in-table-row res)])
+         (match-define (list cost err expr) entry)
+         (define expr*
            (unparse-result
              (struct-copy table-row res
                [name (format "~a variant ~a" (table-row-name res) i)])
-             #:expr expr)))
-       (for ([result results])
-         (writeln result))])))
+             #:expr expr))
+        (writeln expr* p)
+        (writeln cost p)
+        (writeln err p))])))
 
-;; An insane contraption.
 ;; Reads commands from stdin and writes results to stdout.
 ;; All output must be on a single line and terminated by a newline.
 (define (run-server seed)
@@ -81,6 +82,16 @@
        (define tests (load-tests bench))
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
        (print-output (current-output-port) results)
+       (loop)]
+      ; pareto <frontier:list> ...
+      [(list 'pareto args ...)
+       (define combined (pareto-combine args #:convex? #t))
+       (displayln
+         (string-join
+           (for/list ([point (in-list combined)])
+             (match-define (list cost err) point)
+             (format "~a ~a" cost err))
+           "|"))
        (loop)]
       ; sample <num_points:int> <core:expr>
       [(list 'sample args ...)
