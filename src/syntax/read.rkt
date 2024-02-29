@@ -162,61 +162,70 @@
 
   (define *desired-platform* `default)
 
+  ; TODO : Commented out for now. Change design to add all alts to target
+
   ; parsed-target-loop currently goes over EVERY key-value pair and checks if the key is :alt
   ; If it is, then it parses the valye to extract 2 things : platform-name, if it exists, & expression.
   ; If the platform name is the desired-platform, set curr-target to the expression and break
-  (define parsed-target-loop
-    (let ([curr-target-list `()]) ; Default value is emptty list -> correpsonds to #f
-      (dict-for-each
-        ; Dictionary to go over all K-V pairs
-        prop-dict
+  ; (define parsed-target-loop
+  ;   (let ([curr-target-list `()]) ; Default value is emptty list -> correpsonds to #f
+  ;     (dict-for-each
+  ;       ; Dictionary to go over all K-V pairs
+  ;       prop-dict
 
-        ; Procedure
-        (lambda (key value)
-          (cond
-            [(equal? key ':alt)
+  ;       ; Procedure
+  ;       (lambda (key value)
+  ;         (cond
+  ;           [(equal? key ':alt)
 
-              (set! curr-target-list (cons value curr-target-list))
+  ;             (set! curr-target-list (cons value curr-target-list))
 
-              ; Commented out for now. Change design to add all alts to target
-              ; (match (parse-alt value)
-              ;   [(list expression) expression]
+  ;             ; (match (parse-alt value)
+  ;             ;   [(list expression) expression]
 
-              ;   ; Checks if verify-platform matches with desired-platform
-              ;   [(list platform-name expression)
-              ;     (if (verify-platform platform-name *desired-platform*) 
-              ;       (begin
-              ;         (set! curr-target value) ; Set curr-target to be value
-              ;         'done)  ; Break out of the loop
-              ;       #f)] ; Otherwise, continue to the next key-value pair
+  ;             ;   ; Checks if verify-platform matches with desired-platform
+  ;             ;   [(list platform-name expression)
+  ;             ;     (if (verify-platform platform-name *desired-platform*) 
+  ;             ;       (begin
+  ;             ;         (set! curr-target value) ; Set curr-target to be value
+  ;             ;         'done)  ; Break out of the loop
+  ;             ;       #f)] ; Otherwise, continue to the next key-value pair
 
-              ;     [else
-              ;       (error "Invalid :alt format")])
-              ]
+  ;             ;     [else
+  ;             ;       (error "Invalid :alt format")])
+  ;             ]
 
-              [else
-                #f]))) ; Continue to the next key-value pair    
+  ;             [else
+  ;               #f]))) ; Continue to the next key-value pair    
 
-      curr-target-list))
+  ;     curr-target-list))
 
 
   ; Main developer target function, takes in the parsed-target based on the required platform
   ; and converts from fpcore to prog based on ctx 
   (define target (fpcore->prog (dict-ref prop-dict ':precision #f) ctx))
 
+  (define extract-alt-values
+    (map 
+      cdr
+      (filter 
+        (lambda (entry) (equal? (car entry) ':alt)) ; Filter out entries with the key ':alt
+        (dict->list prop-dict))))         ; Extract the values from the filtered pairs
+
+
+  ; (displayln (format "here ~a" target-list))
+  ; (displayln (format "here 1.1 ~a" 
+  ;     (map (lambda (expression) (fpcore->prog expression ctx)) target-list)))
+
+  ; (displayln (format "here 2 ~a" test-parsed-target-loop))
+  ; (displayln (format "here 2.1 ~a" 
+  ;     (map (lambda (expression) (fpcore->prog expression ctx)) test-parsed-target-loop)))
+
+
   (define target-list 
-    (if (= (length parsed-target-loop) 0)
+    (if (= (length extract-alt-values) 0)
       #f
-      ; (map (lambda (expression) (fpcore->prog expression ctx)) parsed-target-loop)))
-      parsed-target-loop))
-
-  (define test-parsed-target-loop
-    (filter 
-      (lambda (entry) (equal? (car entry) ':alt)) ; Filter out entries with the key ':alt
-      (dict->list prop-dict)))          ; Extract the values from the filtered pairs
-
-  (displayln (format "here ~a" target-list))
-  (displayln (format "here 2 ~a" test-parsed-target-loop))
+      (map (lambda (expression) (fpcore->prog expression ctx)) extract-alt-values)))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
