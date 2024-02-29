@@ -83,6 +83,20 @@
   (define maybe-expls->points (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
+    (define (silence expr)
+      (define subexprs-list (map car (all-subexpressions-rev expr (context-repr ctx))))
+      (for* ([subexpr (in-list subexprs-list)]
+             #:when (list? subexpr)
+             [expl (in-list all-explanations)])
+        (define key (cons subexpr expl))
+        #;(eprintf "[loop] ~a ~a\n" key expls->points)
+        (when (hash-has-key? expls->points key)
+          #;(eprintf "[before] ~a\n" expls->points)
+          (hash-update! expls->points key (lambda (x) (set-remove x pt))))
+          #;(eprintf "[after] ~a\n" expls->points)
+        )
+      )
+    
     (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
       (hash-update! expls->points (cons expr expl) (lambda (x) (set-add x pt)) '())
@@ -146,7 +160,14 @@
                                     subexpr-val)))
          (define cond-y (bfabs (bf/ y
                                     subexpr-val)))
-        
+
+         (define x.eps (+ 127 (bigfloat-exponent x)))
+         (define y.eps (+ 127 (bigfloat-exponent y)))
+
+         (cond
+           [(> (- x.eps y.eps) 100) (silence y-ex)]
+           [(> (- y.eps x.eps) 100) (silence x-ex)])
+         
          (cond
            ; Condition number hallucination
            ; Both R(x + y) and R(x) + R(y) underflow
@@ -193,6 +214,13 @@
                                     subexpr-val)))
          (define cond-y (bfabs (bf/ y
                                     subexpr-val)))
+
+         (define x.eps (+ 127 (bigfloat-exponent x)))
+         (define y.eps (+ 127 (bigfloat-exponent y)))
+
+         (cond
+           [(> (- x.eps y.eps) 100) (silence y-ex)]
+           [(> (- y.eps x.eps) 100) (silence x-ex)])
 
          (cond
            ; Condition number hallucination:
@@ -534,14 +562,14 @@
            [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
 
            ; acos(-1) == pi
-           [(and (bf= x -1.bf) (bf= subexpr-val pi.bf)) #f]
+           [(bf= x -1.bf)  #f]
            
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)acos(x))|
            [(bf> cond-x cond-thres) 
             (mark-erroneous! subexpr 'sensitivity)]
 
-           [(bf> cond-x maybe-cond-thres) 
+           [(bf> cond-x maybe-cond-thres)  
             (mark-maybe! subexpr 'sensitivity)]
            
            [else #f])]
@@ -559,7 +587,7 @@
          (cond
            ; Condition Number hallucinations:
            ; asin(1) == pi/2
-           [(and (bf= (bfabs x) 1.bf) (bf= (bfabs subexpr-val) (bf/ pi.bf 2.bf))) #f]
+           [(bf= (bfabs x) 1.bf) #f]
            [(and (bfzero? x) (bfzero? subexpr-val)) #f]
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)asin(x))|
