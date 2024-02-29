@@ -95,9 +95,7 @@
     (define given-seed (read (open-input-string rs)))
     (when given-seed (set-seed! given-seed))]
    [("--platform") platform "Which platform to use for tests"
-    (*platform-name* (string->symbol platform))
-    (*active-platform* (get-platform (*platform-name*)))
-    (activate-platform! (*active-platform*))]
+    (*platform-name* (string->symbol platform))]
    [("--precision") prec "Which precision to use for tests"
     (*precision* (get-representation (string->symbol prec)))]
    [("--num-iters") num "The number of iterations to use for the main loop"

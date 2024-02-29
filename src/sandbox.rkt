@@ -259,6 +259,8 @@
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
       (*context* (test-context test))
+      (*active-platform* (get-platform (*platform-name*)))
+      (activate-platform! (*active-platform*))
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])

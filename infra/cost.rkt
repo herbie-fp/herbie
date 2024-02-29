@@ -1,9 +1,9 @@
 #lang racket
 
 (require (only-in fpbench core->c)
+         herbie/common
          herbie/datafile
          herbie/load-plugin
-         herbie/platform
          herbie/points
          herbie/sandbox
          herbie/syntax/read
@@ -113,7 +113,6 @@
     [("--seed") _seed "Seed to use within Herbie"
      (set! seed (string->number _seed))]
     [("--platform") name "Platform to use"
-     (*active-platform* (get-platform (string->symbol name)))
-     (activate-platform! (*active-platform*))]
+     (*platform-name* (string->symbol name))]
     #:args ()
     (run-server seed)))

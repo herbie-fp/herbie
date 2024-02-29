@@ -2,8 +2,8 @@ from typing import Optional
 
 from .c import CRunner
 
-unary_ops = ['neg']
-binary_ops = ['+', '-', '*', '/']
+unary_ops = ['neg', 'fabs', 'sqrt']
+binary_ops = ['+', '-', '*', '/', 'fmax', 'fmin']
 ternary_ops = []
 
 class ArithRunner(CRunner):
