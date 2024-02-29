@@ -163,8 +163,8 @@
          (define y.eps (+ 127 (bigfloat-exponent y)))
 
          (cond
-           [(> (- x.eps y.eps) 100) (silence y-ex)]
-           [(> (- y.eps x.eps) 100) (silence x-ex)])
+           [(> (- x.eps y.eps) 100) (void) #;(silence y-ex)]
+           [(> (- y.eps x.eps) 100) (void) #;(silence x-ex)])
          
          (cond
            ; Condition number hallucination
@@ -217,8 +217,8 @@
          (define y.eps (+ 127 (bigfloat-exponent y)))
 
          (cond
-           [(> (- x.eps y.eps) 100) (silence y-ex)]
-           [(> (- y.eps x.eps) 100) (silence x-ex)])
+           [(> (- x.eps y.eps) 100) (void) #;(silence y-ex)]
+           [(> (- y.eps x.eps) 100) (void) #;(silence x-ex)])
 
          (cond
            ; Condition number hallucination:
