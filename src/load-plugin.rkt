@@ -12,6 +12,8 @@
 
 ;; Builtin platforms
 (define-runtime-module-path default-platform "platforms/default.rkt")
+(define-runtime-module-path avx-platform "platforms/AVX.rkt")
+
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
@@ -22,6 +24,7 @@
   (dynamic-require binary32-plugin #f)
   (dynamic-require fallback-plugin #f)
   (dynamic-require default-platform #f)
+  (dynamic-require avx-platform #f)
   ;; activate the default platform
   (*active-platform* (get-platform (*default-platform-name*)))
   (activate-platform! (*active-platform*)))

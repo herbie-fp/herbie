@@ -141,6 +141,9 @@
 (define-accelerator-operator log1p (real) real (lambda (x) (log (+ 1 x))))
 (define-accelerator-operator hypot (real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))))
 (define-accelerator-operator fma (real real real) real (lambda (x y z) (+ (* x y) z)))
+(define-accelerator-operator fmsub (real real real) real (lambda (x y z) (- (* x y) z)))
+(define-accelerator-operator fnmadd (real real real) real (lambda (x y z) (+ (neg (* x y)) z)))
+(define-accelerator-operator fnmsub (real real real) real (lambda (x y z) (- (neg (* x y)) z)))
 (define-accelerator-operator erfc (real) real (lambda (x) (- 1 (erf x))))
 
 ; Specialized numerical functions
