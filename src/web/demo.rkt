@@ -305,9 +305,12 @@
            (λ (e)
              (response/error
               "Demo Error"
-              `(p "Invalid formula " (code ,formula-str) ". "
+              `(div
+                (h1 "Invalid formula")
+                (pre ,(herbie-error->string e))
+                (p
                   "Formula must be a valid program using only the supported functions. "
-                  "Please " (a ([href ,go-back]) "go back") " and try again.")))])
+                  "Please " (a ([href ,go-back]) "go back") " and try again."))))])
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (assert-program! formula)
