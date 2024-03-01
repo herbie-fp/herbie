@@ -6,11 +6,6 @@
 
 (provide compile-specs compile-spec compile-progs compile-prog)
 
-(define (operator-precision working-prec extra-precision)
-  (min (*max-mpfr-prec*)
-       (+ extra-precision
-          working-prec)))
-
 (define (true-exponent x)
   (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
   (if (equal? exp -9223372036854775807)
@@ -19,7 +14,7 @@
           (get-slack)  ; overflow/inf.bf
           exp)))
 
-(define (fixed-in-prec? iv prec)
+#;(define (fixed-in-prec? iv prec)
   (parameterize ([bf-precision prec])
     (bf= (bf+ (ival-lo iv) 0.bf) (bf+ (ival-hi iv) 0.bf))))
 
@@ -37,21 +32,20 @@
   (define varc (length vars))
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
-  (define vprecs (make-vector vreg-count))
-  (define vstart-precs (setup-vstart-precs ivec varc))  ; "bare-minimum" precisions below which we will not go
-  
-  (define prec-threshold (/ (*max-mpfr-prec*) 25)) ; a parameter for sampling histogram table
+  (define vprecs (make-vector vreg-count))             ; vector that stores working precisions
+  (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
+  (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
   
   (if (equal? name 'ival)
       (λ args
-        (when (*use-mixed-precision*)
-          (define timeline-stop! (timeline-start!/unsafe 'mixsample
-                                                         "backward-pass"
-                                                         (* (*sampling-iteration*) 1000)))
-          (if (equal? (*sampling-iteration*) 0)
-              (vector-copy! vprecs 0 vstart-precs)                   ; clear extra-precisions
-              (backward-pass ivec varc vregs vprecs vstart-precs))   ; back-pass
-          (timeline-stop!))
+        (match (*use-mixed-precision*)
+          [#t (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
+                                                             (* (*sampling-iteration*) 1000)))
+              (if (equal? (*sampling-iteration*) 0)
+                  (vector-copy! vprecs 0 vstart-precs) ; clear precisions from the last args
+                  (backward-pass ivec varc vregs vprecs vstart-precs)) ; back-pass
+              (timeline-stop!)]
+          [#f (vector-fill! vprecs (bf-precision))])
         
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
@@ -60,9 +54,7 @@
             (for/list ([idx (in-list (cdr instr))])
               (vector-ref vregs idx)))
           
-          (define precision (if (*use-mixed-precision*)
-                                (vector-ref vprecs n)
-                                (bf-precision)))
+          (define precision (vector-ref vprecs n))
           
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          (symbol->string (object-name (car instr)))
@@ -105,37 +97,38 @@
 ; where depth is the depth of a node in the given computational tree (ivec)
 (define (setup-vstart-precs ivec varc)
   (define ivec-len (vector-length ivec))
-  (define vstart-precs (make-vector (+ varc ivec-len)))
+  (define vstart-precs (make-vector (+ ivec-len varc)))
   (unless (vector-empty? ivec)
-    (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)]            ; reversed over ivec
-          [n (in-range (+ varc (- ivec-len 1)) (- varc 1) -1)])    ; reversed over precisions for instrs
+    (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)]         ; reversed over ivec
+          [n (in-range (+ varc (- ivec-len 1)) (- varc 1) -1)]) ; reversed over precisions excluding variables
       (define current-prec (max (vector-ref vstart-precs n) (*tuning-final-output-prec*)))
       (vector-set! vstart-precs n current-prec)
     
       (define tail-registers (rest instr))
       (for ([idx (in-list tail-registers)])
-        (when (>= idx varc)  ; if tail register is not a variable (we do not tune variables - they are always doubles)
+        (when (>= idx varc) ; if tail register is not a variable (we do not tune variables - they are always doubles)
           (define idx-prec (vector-ref vstart-precs idx))
-          (vector-set! vstart-precs idx (max        ; sometimes an instruction can be in many tail registers
-                                   idx-prec   ; We wanna make sure that we do not tune a precision down
-                                   (+ current-prec (*ground-truth-extra-bits*))))))))
+          (set! idx-prec (max        ; sometimes an instruction can be in many tail registers
+                          idx-prec   ; We wanna make sure that we do not tune a precision down
+                          (+ current-prec (*ground-truth-extra-bits*))))
+          (vector-set! vstart-precs idx idx-prec)))))
   vstart-precs)
 
 (define (backward-pass ivec varc vregs vprecs vstart-precs)
+  (vector-fill! vprecs 0)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
         [n (in-range (- (vector-length vregs) 1) -1 -1)])
-    (define op (car instr))
 
-    ; To be moved somewhere 
+    (define op (car instr))
     (define tail-registers (rest instr))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
     (define output (vector-ref vregs n))
-    (define exps-from-above (vector-ref vprecs n))
 
+    (define exps-from-above (vector-ref vprecs n))
     (define final-parent-precision (min (*max-mpfr-prec*) (+ exps-from-above (vector-ref vstart-precs n))))
-    (vector-set! vprecs n final-parent-precision)
     (when (equal? final-parent-precision (*max-mpfr-prec*))
       (*sampling-iteration* (*max-sampling-iterations*)))
+    (vector-set! vprecs n final-parent-precision)
 
     (define new-exponents 0)
     (cond
@@ -282,7 +275,7 @@
        (set! new-exponents (max 0
                                 (- xlo-exp (true-exponent (ival-lo output)))
                                 (- xhi-exp (true-exponent (ival-hi output)))))])
-
+    
     (define child-precision (+ exps-from-above new-exponents))
     (map (lambda (x) (vector-set! vprecs x child-precision)) tail-registers)))
 
@@ -306,44 +299,18 @@
     (define size 0)
     (define exprc 0)
     (define varc (length vars))
-    
-    ; Translates programs into an instruction sequence of ival operations
-    (define (munge-ival prog type)
 
-      (set! size (+ 1 size))
-
-      (define expr
-        (match prog
-          [(? number?) (list (const (input->value prog type)))]
-          [(? variable?) prog]
-          [`(if ,c ,t ,f)
-           (list if-proc
-                 (munge-ival c cond-type)
-                 (munge-ival t type)
-                 (munge-ival f type))]
-          [(list op args ...)
-           (cons (op->proc op)
-                 (map munge-ival
-                      args
-                      (op->itypes op)))]
-          [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
-      (hash-ref! exprhash expr
-                 (λ ()
-                   (begin0 (+ exprc varc)
-                     (set! exprc (+ 1 exprc))
-                     (set! icache (cons expr icache))))))
-
-    ; Translates programs into an instruction sequence of flonum operations
-    (define (munge-fl prog type)
+    ; Translates programs into an instruction sequence of operations
+    (define (munge prog type)
       (set! size (+ 1 size))
       (define expr
         (match prog
           [(? number?) (list (const (input->value prog type)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list if-proc (munge-fl c cond-type) (munge-fl t type) (munge-fl f type))]
+           (list if-proc (munge c cond-type) (munge t type) (munge f type))]
           [(list op args ...)
-           (cons (op->proc op) (map munge-fl args (op->itypes op)))]
+           (cons (op->proc op) (map munge args (op->itypes op)))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
@@ -351,7 +318,7 @@
                            (set! exprc (+ 1 exprc))
                            (set! icache (cons expr icache))))))
     
-    (define names (map (curryr (if (equal? name 'fl) munge-fl munge-ival) type) exprs))
+    (define names (map (curryr munge type) exprs))
     (timeline-push! 'compiler (+ varc size) (+ exprc varc))
     (define ivec (list->vector (reverse icache)))
     (define interpret (make-progs-interpreter name vars ivec names))
