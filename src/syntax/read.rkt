@@ -104,7 +104,6 @@
 (define (parse-test stx)
   (assert-program! stx)
   (define stx* (expand-core stx))
-  (expand-core stx*)
   (assert-program-typed! stx*)
   (define-values (func-name args props body)
     (match (syntax->datum stx*)
