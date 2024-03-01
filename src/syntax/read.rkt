@@ -199,20 +199,6 @@
   ;               #f]))) ; Continue to the next key-value pair    
 
   ;     curr-target-list))
-
-
-  ; Main developer target function, takes in the parsed-target based on the required platform
-  ; and converts from fpcore to prog based on ctx 
-  (define target (fpcore->prog (dict-ref prop-dict ':precision #f) ctx))
-
-  (define extract-alt-values
-    (map 
-      cdr
-      (filter 
-        (lambda (entry) (equal? (car entry) ':alt)) ; Filter out entries with the key ':alt
-        (dict->list prop-dict))))         ; Extract the values from the filtered pairs
-
-
   ; (displayln (format "here ~a" target-list))
   ; (displayln (format "here 1.1 ~a" 
   ;     (map (lambda (expression) (fpcore->prog expression ctx)) target-list)))
@@ -220,12 +206,30 @@
   ; (displayln (format "here 2 ~a" test-parsed-target-loop))
   ; (displayln (format "here 2.1 ~a" 
   ;     (map (lambda (expression) (fpcore->prog expression ctx)) test-parsed-target-loop)))
+  
 
 
-  (define target-list 
-    (if (= (length extract-alt-values) 0)
-      #f
-      (map (lambda (expression) (fpcore->prog expression ctx)) extract-alt-values)))
+  ; Main developer target function, takes in the parsed-target based on the required platform
+  ; and converts from fpcore to prog based on ctx 
+  (define target (fpcore->prog (dict-ref prop-dict ':precision #f) ctx))
+
+  (define extract-alt-values-list
+    (begin
+      (let ([alt-values
+        (filter 
+          (lambda (entry) (equal? (car entry) ':alt)) ; Filter out entries with the key ':alt
+          (dict->list prop-dict))])        ; Extract the values from the filtered pairs
+      
+        (if (= (length alt-values) 0)
+          #f
+          (map cdr alt-values)))))
+
+  ; (define target-list 
+  ;   (if (= (length extract-alt-values) 0)
+  ;     #f
+  ;     (map (lambda (expression) (fpcore->prog expression ctx)) extract-alt-values)))
+
+  (map (lambda (exp) (displayln exp)) extract-alt-values-list)
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
@@ -235,7 +239,7 @@
         func-name
         arg-names
         body*
-        target
+        extract-alt-values-list
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*

@@ -302,8 +302,10 @@
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
      (if (test-output test)
-         ;; Extra newlines for clarity
-         (format "\n  :alt\n  ~a\n" (prog->fpcore (test-output test) output-repr))
+        (begin
+          (displayln (format "reached common ~a\n" (test-output test)))
+          ;; Extra newlines for clarity
+          (format "\n  :alt\n  ~a\n" (test-output test)))
          #f)
      (format "  ~a)" (prog->fpcore (test-input test) output-repr))))
    "\n"))
