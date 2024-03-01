@@ -16,7 +16,7 @@
   (define-values (ctx* name) (ctx-random-name iff-ctx prec))
   (define type (type->vector-c prec))
   (define suffix (precision->suffix prec))
-  (printf "~a~a ~a = _mm256_blendv_~a(~a, ~a, ~a)\n"
+  (printf "~a~a ~a = _mm256_blendv_~a(~a, ~a, ~a);\n"
           indent type name suffix
           ; we need to flip iff and ift since 0 means first argument
           iff* ift* cond*)
