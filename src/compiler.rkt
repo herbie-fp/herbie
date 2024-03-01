@@ -22,7 +22,6 @@
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
 ;; <instr> ::= '(<op-procedure> <index> ...)
-;; <op-procedure> ::= #(<operation> <working-precision> <extra-precision> <exponents-checkpoint>)
 ;; ```
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
@@ -114,171 +113,6 @@
           (vector-set! vstart-precs idx idx-prec)))))
   vstart-precs)
 
-(define (backward-pass ivec varc vregs vprecs vstart-precs)
-  (vector-fill! vprecs 0)
-  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
-        [n (in-range (- (vector-length vregs) 1) -1 -1)])
-
-    (define op (car instr))
-    (define tail-registers (rest instr))
-    (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
-    (define output (vector-ref vregs n))
-
-    (define exps-from-above (vector-ref vprecs n))
-    (define final-parent-precision (min (*max-mpfr-prec*) (+ exps-from-above (vector-ref vstart-precs n))))
-    (when (equal? final-parent-precision (*max-mpfr-prec*))
-      (*sampling-iteration* (*max-sampling-iterations*)))
-    (vector-set! vprecs n final-parent-precision)
-
-    (define new-exponents 0)
-    (cond
-      ; TODO: add stop-condition
-      [(equal? op ival-add)
-       (define xlo (ival-lo (first srcs)))
-       (define xlo-exp (true-exponent xlo))
-       (define xlo-sgn (bigfloat-signbit xlo))
-       (define ylo (ival-lo (second srcs)))
-       (define ylo-exp (true-exponent ylo))
-       (define ylo-sgn (bigfloat-signbit ylo))
-       (define outlo-exp (true-exponent (ival-lo output)))
-       ; consider only lower bound
-       (set! new-exponents
-             (max 0
-                  (match (and (not (equal? xlo-sgn ylo-sgn))
-                              (>= 1 (abs (- xlo-exp ylo-exp))))
-                    [#f (- (max xlo-exp ylo-exp) outlo-exp)]
-                    [#t (+ (get-slack) (- (max xlo-exp ylo-exp) outlo-exp))])))]
-      
-      ; TODO: add stop-condition
-      [(equal? op ival-sub)
-       (define xlo (ival-lo (first srcs)))
-       (define xlo-exp (true-exponent xlo))
-       (define xlo-sgn (bigfloat-signbit xlo))
-       (define yhi (ival-lo (second srcs)))
-       (define yhi-exp (true-exponent yhi))
-       (define yhi-sgn (bigfloat-signbit yhi))
-       (define outlo-exp (true-exponent (ival-lo output)))
-               
-       ; Consider only lower bound
-       (set! new-exponents
-         (max 0
-              (match (and (equal? xlo-sgn yhi-sgn)
-                          (>= 1 (abs (- xlo-exp yhi-exp))))
-                [#f (- (max xlo-exp yhi-exp) outlo-exp)]
-                [#t (+ (get-slack) (- (max xlo-exp yhi-exp) outlo-exp))])))]
-      
-      [(equal? op ival-pow)
-       ; log[Гpow] = max[ log(y) , log(y) + log[log(x)] ]
-       (define xlo-exp (true-exponent (ival-lo (first srcs))))
-       (define xhi-exp (true-exponent (ival-hi (first srcs))))
-       (define ylo-exp (true-exponent (ival-lo (second srcs))))
-       (define yhi-exp (true-exponent (ival-hi (second srcs))))
-
-       (set! new-exponents
-             (if (> (max xlo-exp xhi-exp) 2) ; if x >= 4 (actually 7.3890561), then at least 1 additional bit is needed
-                 (+ (max ylo-exp yhi-exp) 30)
-                 (max ylo-exp yhi-exp)))]
-
-      [(equal? ival-exp op)
-       (set! new-exponents (max 0
-                                (true-exponent (ival-lo (car srcs)))
-                                (true-exponent (ival-hi (car srcs)))))]
-
-      ; TODO: tanh - it is actually a different case
-      [(equal? ival-tan op)
-       ; log[Гtan] = log[x] - log[sin(x)*cos(x)]
-       (define out-lo (true-exponent (ival-lo output)))
-       (define out-hi (true-exponent (ival-hi output)))
-       (define out-exp (min
-                        (if (positive? out-lo) (- out-lo) out-lo)
-                        (if (positive? out-hi) (- out-hi) out-hi)))
-
-       (set! new-exponents (max 0
-                                (- (true-exponent (ival-lo (car srcs))) out-exp)
-                                (- (true-exponent (ival-hi (car srcs))) out-exp)))]
-              
-      [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
-       ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)], where log[sin(x)] <= 0
-       ;                      ^^^^^^^^^^^
-       ;                      pruning opportunity
-       ; TODO: maybe log[x] also can cross zero
-       (define outlo (ival-lo output))
-       (define outhi (ival-hi output))
-
-       (define out-exp
-         (match* ((bigfloat-signbit outlo) (bigfloat-signbit outhi))
-           [(0 0) (min
-                   (true-exponent outlo)
-                   (true-exponent outhi))]
-           [(1 1) (min
-                   (true-exponent outlo)
-                   (true-exponent outhi))]
-           [(_ _) (- (min ; Condition of uncertainty, 0.bf can be included
-                      (true-exponent outlo)
-                      (true-exponent outhi))
-                     (get-slack))] ; assumes that log[cos(x)/sin(x)]'s exponent is slack bits less  (zero case)
-           ))
-               
-       (set! new-exponents (max 0
-                                (- (max
-                                    (true-exponent (ival-lo (car srcs)))
-                                    (true-exponent (ival-hi (car srcs))))
-                                   out-exp)))]
-               
-      [(equal? op ival-log)
-       ; log[Гlog] = log[1/logx] = -log[log(x)]
-       (define outlo (ival-lo output))
-       (define outhi (ival-hi output))
-       
-       (set! new-exponents
-             (match* ((bigfloat-signbit outlo) (bigfloat-signbit outhi))
-               [(0 0) ; positive
-                (- (true-exponent outlo))]
-               [(1 1) ; negative
-                (- (true-exponent outhi))]
-               [(_ _) ; output crosses 0.bf - uncertainty
-                (+ (get-slack)
-                   (max 0
-                        (- (true-exponent outlo))
-                        (- (true-exponent outhi))))]
-               ))]
-              
-      [(member op (list ival-asin ival-acos))
-       ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)] = log[x] - [log[1-x^2]/2 + log[asin(x)]]
-       ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)]
-       ;                       ^^^^^^^^^^^^
-       ;                       condition of uncertainty
-       (define xlo (ival-lo (car srcs)))
-       (define xhi (ival-hi (car srcs)))
-       (define xlo-exp (true-exponent xlo))
-       (define xhi-exp (true-exponent xhi))
-       (define out-exp
-         (match* ((>= xlo-exp 0) (>= xhi-exp 0))
-           [(#f #f)
-            (min
-             (true-exponent (ival-lo output))
-             (true-exponent (ival-hi output)))]
-           [(_ _) ; Condition of uncertainty when argument is possibly > 0.9 (actually sqrt(3)/2)
-            (+ (min
-                (true-exponent (ival-lo output))
-                (true-exponent (ival-hi output)))
-               (- (get-slack)))] ; assumes that log[1-x^2]/2 is equal to (- slack)
-           ))   
-       (set! new-exponents (max 0 (- xlo-exp out-exp) (- xhi-exp out-exp)))]
-
-      [(equal? op ival-atan)
-       ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] ~ -log[x] - log[atan(x)]
-       ;                       ^^^^^^^^^^
-       ;                       pruning
-       (define xlo-exp (- (true-exponent (ival-lo (car srcs)))))
-       (define xhi-exp (- (true-exponent (ival-hi (car srcs)))))
-       (set! new-exponents (max 0
-                                (- xlo-exp (true-exponent (ival-lo output)))
-                                (- xhi-exp (true-exponent (ival-hi output)))))])
-    
-    (define child-precision (+ exps-from-above new-exponents))
-    (map (lambda (x) (vector-set! vprecs x child-precision)) tail-registers)))
-
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
 (define (make-compiler name
@@ -367,3 +201,164 @@
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
   (compose first (compile-progs (list expr) ctx)))
+
+(define (backward-pass ivec varc vregs vprecs vstart-precs)
+  (vector-fill! vprecs 0)
+  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
+        [n (in-range (- (vector-length vregs) 1) -1 -1)])
+
+    (define op (car instr))
+    (define tail-registers (rest instr))
+    (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
+    (define output (vector-ref vregs n))
+
+    (define exps-from-above (vector-ref vprecs n))
+    (define final-parent-precision (min (*max-mpfr-prec*) (+ exps-from-above (vector-ref vstart-precs n))))
+    (when (equal? final-parent-precision (*max-mpfr-prec*))
+      (*sampling-iteration* (*max-sampling-iterations*)))
+    (vector-set! vprecs n final-parent-precision)
+
+    (define new-exponents 0)
+    (cond
+      [(equal? op ival-add)
+       (define xlo (ival-lo (first srcs)))
+       (define xlo-exp (true-exponent xlo))
+       (define xlo-sgn (bigfloat-signbit xlo))
+       (define ylo (ival-lo (second srcs)))
+       (define ylo-exp (true-exponent ylo))
+       (define ylo-sgn (bigfloat-signbit ylo))
+       (define outlo-exp (true-exponent (ival-lo output)))
+       ; consider only lower bound
+       (set! new-exponents
+             (max 0
+                  (match (and (not (equal? xlo-sgn ylo-sgn))
+                              (>= 1 (abs (- xlo-exp ylo-exp))))
+                    [#f (- (max xlo-exp ylo-exp) outlo-exp)]
+                    [#t (+ (get-slack) (- (max xlo-exp ylo-exp) outlo-exp))])))]
+      
+      [(equal? op ival-sub)
+       (define xlo (ival-lo (first srcs)))
+       (define xlo-exp (true-exponent xlo))
+       (define xlo-sgn (bigfloat-signbit xlo))
+       (define yhi (ival-lo (second srcs)))
+       (define yhi-exp (true-exponent yhi))
+       (define yhi-sgn (bigfloat-signbit yhi))
+       (define outlo-exp (true-exponent (ival-lo output)))
+               
+       ; Consider only lower bound
+       (set! new-exponents
+         (max 0
+              (match (and (equal? xlo-sgn yhi-sgn)
+                          (>= 1 (abs (- xlo-exp yhi-exp))))
+                [#f (- (max xlo-exp yhi-exp) outlo-exp)]
+                [#t (+ (get-slack) (- (max xlo-exp yhi-exp) outlo-exp))])))]
+      
+      [(equal? op ival-pow)
+       ; log[Гpow] = max[ log(y) , log(y) + log[log(x)] ]
+       (define xlo-exp (true-exponent (ival-lo (first srcs))))
+       (define xhi-exp (true-exponent (ival-hi (first srcs))))
+       (define ylo-exp (true-exponent (ival-lo (second srcs))))
+       (define yhi-exp (true-exponent (ival-hi (second srcs))))
+
+       (set! new-exponents
+             (if (> (max xlo-exp xhi-exp) 2) ; if x >= 4 (actually 7.3890561), then at least 1 additional bit is needed
+                 (+ (max ylo-exp yhi-exp) 30)
+                 (max ylo-exp yhi-exp)))]
+
+      [(equal? ival-exp op)
+       (set! new-exponents (max 0
+                                (true-exponent (ival-lo (car srcs)))
+                                (true-exponent (ival-hi (car srcs)))))]
+
+      ; TODO: tanh - it is actually a different case
+      [(equal? ival-tan op)
+       ; log[Гtan] = log[x] - log[sin(x)*cos(x)]
+       (define out-lo (true-exponent (ival-lo output)))
+       (define out-hi (true-exponent (ival-hi output)))
+       (define out-exp (min
+                        (if (positive? out-lo) (- out-lo) out-lo)
+                        (if (positive? out-hi) (- out-hi) out-hi)))
+
+       (set! new-exponents (max 0
+                                (- (true-exponent (ival-lo (car srcs))) out-exp)
+                                (- (true-exponent (ival-hi (car srcs))) out-exp)))]
+              
+      [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
+       ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)], where log[sin(x)] <= 0
+       ;                      ^^^^^^^^^^^
+       ;                      pruning opportunity
+       (define outlo (ival-lo output))
+       (define outhi (ival-hi output))
+
+       (define out-exp
+         (match* ((bigfloat-signbit outlo) (bigfloat-signbit outhi))
+           [(0 0) (min    ; positive
+                   (true-exponent outlo)
+                   (true-exponent outhi))]
+           [(1 1) (min    ; negative
+                   (true-exponent outlo)
+                   (true-exponent outhi))]
+           [(_ _) (- (min ; Condition of uncertainty, 0.bf can be included
+                      (true-exponent outlo)
+                      (true-exponent outhi))
+                     (get-slack))] ; assumes that log[cos(x)/sin(x)]'s exponent is slack bits less  (zero case)
+           ))
+               
+       (set! new-exponents (max 0 (- (max
+                                      (true-exponent (ival-lo (car srcs)))
+                                      (true-exponent (ival-hi (car srcs))))
+                                     out-exp)))]
+               
+      [(equal? op ival-log)
+       ; log[Гlog] = log[1/logx] = -log[log(x)]
+       (define outlo (ival-lo output))
+       (define outhi (ival-hi output))
+       
+       (set! new-exponents
+             (match* ((bigfloat-signbit outlo) (bigfloat-signbit outhi))
+               [(0 0) ; positive
+                (- (true-exponent outlo))]
+               [(1 1) ; negative
+                (- (true-exponent outhi))]
+               [(_ _) ; output crosses 0.bf - uncertainty
+                (+ (get-slack)
+                   (max 0
+                        (- (true-exponent outlo))
+                        (- (true-exponent outhi))))]
+               ))]
+              
+      [(member op (list ival-asin ival-acos))
+       ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)] = log[x] - [log[1-x^2]/2 + log[asin(x)]]
+       ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)]
+       ;                       ^^^^^^^^^^^^
+       ;                       condition of uncertainty
+       (define xlo (ival-lo (car srcs)))
+       (define xhi (ival-hi (car srcs)))
+       (define xlo-exp (true-exponent xlo))
+       (define xhi-exp (true-exponent xhi))
+       (define out-exp
+         (match* ((>= xlo-exp 0) (>= xhi-exp 0))
+           [(#f #f)
+            (min
+             (true-exponent (ival-lo output))
+             (true-exponent (ival-hi output)))]
+           [(_ _) ; Condition of uncertainty when argument is possibly > 0.9 (actually sqrt(3)/2)
+            (+ (min
+                (true-exponent (ival-lo output))
+                (true-exponent (ival-hi output)))
+               (- (get-slack)))] ; assumes that log[1-x^2]/2 is equal to (- slack)
+           ))   
+       (set! new-exponents (max 0 (- xlo-exp out-exp) (- xhi-exp out-exp)))]
+
+      [(equal? op ival-atan)
+       ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] ~ -log[x] - log[atan(x)]
+       ;                       ^^^^^^^^^^
+       ;                       pruning
+       (define xlo-exp (- (true-exponent (ival-lo (car srcs)))))
+       (define xhi-exp (- (true-exponent (ival-hi (car srcs)))))
+       (set! new-exponents (max 0
+                                (- xlo-exp (true-exponent (ival-lo output)))
+                                (- xhi-exp (true-exponent (ival-hi output)))))])
+    
+    (define child-precision (+ exps-from-above new-exponents))
+    (map (lambda (x) (vector-set! vprecs x child-precision)) tail-registers)))
