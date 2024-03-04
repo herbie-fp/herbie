@@ -309,7 +309,7 @@ class Runner(object):
             errs.append(err)
 
         plt.plot(costs, errs, label='Points')
-        plt.title('Esimated cost vs. cumulative average error (bits)')
+        plt.title('Estimated cost vs. cumulative average error (bits)')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Cumulative average error')
         plt.show()

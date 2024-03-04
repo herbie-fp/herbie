@@ -69,10 +69,10 @@ class PythonRunner(Runner):
                     print(',\n'.join(spoints), file=f)
                     print(']', file=f)
 
-                arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
+                arg_str = ', '.join(map(lambda i: f'x{i}[j]', range(core.argc)))
                 print('if __name__ == "__main__":', file=f)
-                print(f'\tstart = time.time_ns()', file=f)
                 print(f'\ti = 0', file=f)
+                print(f'\tstart = time.time_ns()', file=f)
                 print(f'\twhile i < {self.num_inputs}:', file=f)
                 print(f'\t\ttry:', file=f)
                 print(f'\t\t\tfor j in range(i, {self.num_inputs}):', file=f)
@@ -102,6 +102,9 @@ class PythonRunner(Runner):
                 if time is None:
                     raise RuntimeError('Unexpected error when running {out_path}: {output}')
                 times[i].append(float(time.group(1)))
-
+                print('.', end='', flush=True)
+            print('x', end='', flush=True)
+        print()
+        
         self.times = [sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')
