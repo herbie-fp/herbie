@@ -12,6 +12,7 @@
 
 ;; Builtin platforms
 (define-runtime-module-path arith-platform "platforms/arith.rkt")
+(define-runtime-module-path c-platform "platforms/libm.rkt")
 (define-runtime-module-path default-platform "platforms/default.rkt")
 (define-runtime-module-path mkl-platform "platforms/mkl.rkt")
 (define-runtime-module-path python-platform "platforms/python3-10.rkt")
@@ -26,6 +27,7 @@
   (dynamic-require fallback-plugin #f)
   ;; Load all platforms
   (dynamic-require arith-platform #f)
+  (dynamic-require c-platform #f)
   (dynamic-require default-platform #f)
   (dynamic-require mkl-platform #f)
   (dynamic-require python-platform #f)
