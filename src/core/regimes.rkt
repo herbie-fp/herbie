@@ -192,7 +192,6 @@
   (define (make-vec-psum lst) 
     (partial-sums (list->vector lst)))
   (define vec-psums (vector-map make-vec-psum err-lsts-vec))
-  (define can-split? (curry vector-ref can-split-vec))
   
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
@@ -220,7 +219,7 @@
         (for ([prev-split-idx (in-range 0 point-idx)])
           ;; For each previous split point, we need the best candidate to fill the new regime
          (when 
-          (can-split? (vector-ref v-aidx prev-split-idx))
+          (vector-ref can-split-vec (vector-ref v-aidx prev-split-idx))
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector vec-psums)])
               (let ([cost (- (vector-ref psum point-idx)
