@@ -3,6 +3,7 @@
 (require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt"
          "../compiler.rkt")
+(require math/flonum)
 
 (provide pareto-regimes (struct-out option) (struct-out si))
 
@@ -201,7 +202,7 @@
   (define (add-splitpoint v-acost v-cidx v-aidx v-pidx)
     
     ;; output vectors
-    (define vec-acost (make-vector num-points))
+    (define vec-acost (make-flvector num-points))
     (define vec-cidx (make-vector num-points))
     (define vec-aidx (make-vector num-points))
     (define vec-pidx (make-vector num-points))
@@ -209,13 +210,13 @@
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (define vec-aest (make-vector num-points))
     (for ([point-idx (in-range 0 num-points)])
-      (define aest-cost (vector-ref v-acost point-idx))
+      (define aest-cost (flvector-ref v-acost point-idx))
       (define aest-best (vector-ref v-cidx point-idx))
       (define aest-bidx (vector-ref v-aidx point-idx))
       (define aest-prev-idx (vector-ref v-pidx point-idx))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (- aest-cost min-weight)])
+      (let ([acost (- aest-cost (fl min-weight))])
         (for ([prev-split-idx (in-range 0 point-idx)])
           ;; For each previous split point, we need the best candidate to fill the new regime
          (when 
@@ -227,7 +228,7 @@
                 (when (or (not best) (< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
-            (define temp (+ (vector-ref v-acost prev-split-idx) bcost) )
+            (define temp (+ (flvector-ref v-acost prev-split-idx) bcost))
             (when 
               (< temp acost) 
               (set! acost temp)
@@ -236,7 +237,7 @@
               (set! aest-bidx (+ point-idx 1))
               (set! aest-prev-idx prev-split-idx)
               ))))
-        (vector-set! vec-acost point-idx aest-cost)
+        (flvector-set! vec-acost point-idx (fl aest-cost))
         (vector-set! vec-cidx point-idx aest-best)
         (vector-set! vec-aidx point-idx aest-bidx)
         (vector-set! vec-pidx point-idx aest-prev-idx)))
@@ -250,7 +251,7 @@
   (struct cand (acost idx point-idx prev-idx) #:transparent)
 
   (define (initial)
-    (define vec-acost (make-vector num-points))
+    (define vec-acost (make-flvector num-points))
     (define vec-cidx (make-vector num-points))
     (define vec-aidx (make-vector num-points))
     (define vec-pidx (make-vector num-points))
@@ -262,7 +263,7 @@
           ([cand-idx (range num-candidates)] [cand-psums vec-psums])
             (let ([cost (vector-ref cand-psums point-idx)])
               (cand cost cand-idx (+ point-idx 1) num-points)))))
-      (vector-set! vec-acost point-idx (cand-acost cse-min))
+      (flvector-set! vec-acost point-idx (fl (cand-acost cse-min)))
       (vector-set! vec-cidx point-idx (cand-idx cse-min))
       (vector-set! vec-aidx point-idx (cand-point-idx cse-min))
       (vector-set! vec-pidx point-idx (cand-prev-idx cse-min)))
@@ -280,7 +281,7 @@
     
     (define fixed-final (make-vector num-points))
     (for ([idx (in-range 0 num-points)])
-      (define a (vector-ref fa idx))
+      (define a (flvector-ref fa idx))
       (define b (vector-ref fb idx))
       (define c (vector-ref fc idx))
       (define d (vector-ref fd idx))
