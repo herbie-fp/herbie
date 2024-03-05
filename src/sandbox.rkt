@@ -375,7 +375,7 @@
     [_
      (error 'get-table-data "unknown result type ~a"status)]))
 
-(define (unparse-result row #:expr [expr #f])
+(define (unparse-result row #:expr [expr #f] #:description [descr #f])
   (define repr (get-representation (table-row-precision row)))
   (define expr* (or expr (table-row-output row)))
   (define top
@@ -395,6 +395,7 @@
            `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
            '())
      :name ,(table-row-name row)
+     ,@(if descr `(:description ,(~a descr)) '())
      :precision ,(table-row-precision row)
      :herbie-conversions ,(table-row-conversions row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))

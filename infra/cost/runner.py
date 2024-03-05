@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from subprocess import Popen, PIPE
 from pathlib import Path
 
@@ -12,6 +12,7 @@ from .util import sample_repr, chunks
 
 fpcore_pat = re.compile('\(FPCore \(([^\(\)]*)\)')
 fpcore_prop_name_pat = re.compile('^.*:name "([^\"]*)"')
+fpcore_prop_descr_pat = re.compile('^.*:description "([^\"]*)"')
 fpcore_name_pat = re.compile('(.*) variant (.*)')
 
 def baseline() -> FPCore:
@@ -26,6 +27,21 @@ def synthesize1(op: str, argc: int) -> FPCore:
     core = f'(FPCore ({arg_str}) :name "{op}" {app_str})'
     py_sample = op == 'lgamma' or op == 'tgamma'  # Rival struggles with these
     return FPCore(core, name=op, argc=argc, py_sample=py_sample)
+
+def parse_core(s: str) -> FPCore:
+    """Parses a string as an FPCore."""
+    core_match = re.match(fpcore_pat, s)
+    if core_match is None:
+        raise RuntimeError('Failed to parse FPCore from', s)
+    arg_str = core_match.group(1).strip()
+    argc = len(arg_str.split())
+    # optionally extract name
+    name_match = re.match(fpcore_prop_name_pat, s)
+    name = None if name_match is None else name_match.group(1).strip()
+    # optionally extract description
+    descr_match = re.match(fpcore_prop_descr_pat, s)
+    descr = None if descr_match is None else descr_match.group(1).strip()
+    return FPCore(core=s, name=name, descr=descr, argc=argc)
 
 def sample1(config: Tuple[FPCore, int, str, str]) -> List[float]:
     core, num_inputs, herbie_path, platform, py_sample = config
@@ -90,14 +106,6 @@ class Runner(object):
         self.ternary_ops = ternary_ops
         self.nary_ops = nary_ops
         self.time_unit = time_unit
-        # mutable data
-        self.cores: List[FPCore] = []
-        self.driver_dirs: List[str] = []
-        self.times: List[float] = []
-        self.cores_by_sample: List[Tuple[List[FPCore], List[float]]] = []
-        self.samples: List[Tuple[FPCore, List[float]]] = []
-        self.frontier: List[Tuple[float, float]] = []
-
         # if the working directory does not exist, create it
         if not self.working_dir.exists(): 
             self.working_dir.mkdir(parents=True)
@@ -108,19 +116,39 @@ class Runner(object):
         print(f'[Runner:{self.name}]:', msg, *args)
 
     def synthesize(self):
-        """For each operator, create an FPCore and append to `self.cores`."""
-        self.cores.append(baseline())
+        """Return an FPCore for all operators."""
+        cores = [baseline()]
         for op in self.unary_ops:
-            self.cores.append(synthesize1(op, 1))
+            cores.append(synthesize1(op, 1))
         for op in self.binary_ops:
-            self.cores.append(synthesize1(op, 2))
+            cores.append(synthesize1(op, 2))
         for op in self.ternary_ops:
-            self.cores.append(synthesize1(op, 3))
+            cores.append(synthesize1(op, 3))
         for n, op in self.nary_ops:
-            self.cores.append(synthesize1(op, n))
+            cores.append(synthesize1(op, n))
+        return cores
+    
+    def herbie_read(self, path: str) -> List[FPCore]:
+        """Reads a benchmark suite from `path` returning all FPCores found."""
+        with Popen(
+            args=['racket', str(self.herbie_path), "--platform", self.name],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
 
-    def herbie_compile(self):
-        """Compiles each FPCore in `self.cores` to the target language.
+            # call out to server
+            print(f'(read \"{path}\") (exit)', file=server.stdin, flush=True)
+            output = server.stdout.read()
+
+        cores = []
+        for line in output.split('\n'):
+            if len(line) > 0:
+                cores.append(parse_core(line.strip()))
+        return cores
+
+
+    def herbie_compile(self, cores: List[FPCore]):
+        """Compiles each FPCore in `cores` to the target language.
         This requires the target language to be supported by the
         \"compile\" command in the Racket script."""
         with Popen(
@@ -130,7 +158,7 @@ class Runner(object):
             universal_newlines=True) as server:
 
             # call out to server
-            for core in self.cores:
+            for core in cores:
                 print(f'(compile {self.lang} {core.core})', file=server.stdin, flush=True)
                 output = server.stdout.readline()
                 core.compiled = output.replace('\\n', '\n').strip()
@@ -138,44 +166,53 @@ class Runner(object):
             # terminate the server
             print('(exit)', file=server.stdin, flush=True)
             _ = server.stdout.readline()
-        self.log(f'compiled {len(self.cores)} cores')
+        self.log(f'compiled {len(cores)} cores')
 
-    def herbie_improve(self, path: str, threads: int = 1):
+    def herbie_improve(
+            self,
+            cores: List[FPCore],
+            threads: int = 1,
+            platform: Optional[str] = None
+    ):
         """Runs Herbie improvement on benchmarks under `path`
         appending all resulting FPCores to `self.cores`."""
+        if platform is None:
+            platform = self.name
+
         with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
+            args=['racket', str(self.herbie_path), "--platform", platform],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
 
             # call out to server
-            print(f'(improve \"{path}\" {threads}) (exit)', file=server.stdin, flush=True)
+            core_strs = ' '.join(map(lambda c: c.core, cores))
+            print(f'(improve ({core_strs}) {threads}) (exit)', file=server.stdin, flush=True)
             output = server.stdout.read()
 
-        entries = []
+        cores = []
         for group in chunks(output.split('\n'), 3):
             if len(group) == 3:
-                core = group[0].strip()
-                cost = float(group[1].strip())
-                err = float(group[2].strip())
-                entries.append((core, cost, err))
+                core = parse_core(group[0].strip())
+                core.cost = float(group[1].strip())
+                core.err = float(group[2].strip())
+                cores.append(core)
 
-        for core, cost, err in entries:
-            # extract argument count
-            core_match = re.match(fpcore_pat, core)
-            arg_str = core_match.group(1).strip()
-            argc = len(arg_str.split())
-            # optionally extract name
-            name_match = re.match(fpcore_prop_name_pat, core)
-            name = None if name_match is None else name_match.group(1).strip()
-            print(core)
-            self.cores.append(FPCore(core=core, name=name, argc=argc, cost=cost, err=err))
+        self.log(f'ran Herbie improve')
+        return cores
 
-        self.log(f'extracted Herbie output')
-
-    def herbie_pareto(self):
+    def herbie_pareto(self, cores: List[FPCore]) -> List[Tuple[float, float]]:
         """Runs Herbie's pareto frontier algorithm."""
+        # assuming all FPCores have names at this point
+        cores_by_group = dict()
+        for core in cores:
+            if core.name is None:
+                raise RuntimeError('FPCore does not have name', core)
+            if core.name in cores_by_group:
+                cores_by_group[core.name].append(core)
+            else:
+                cores_by_group[core.name] = [core]
+
         with Popen(
             args=['racket', str(self.herbie_path), "--platform", self.name],
             stdin=PIPE,
@@ -183,7 +220,8 @@ class Runner(object):
             universal_newlines=True) as server:
 
             frontiers = []
-            for cores in self.cores_by_sample:
+            for key in cores_by_group:
+                cores = cores_by_group[key]
                 frontier = ' '.join(list(map(lambda c: f'({c.cost} {c.err})', cores)))
                 frontiers.append(f'({frontier})')
 
@@ -196,6 +234,7 @@ class Runner(object):
             print(f'(exit)', file=server.stdin, flush=True)
             _ = server.stdout.read()
 
+        frontier = []
         for line in output.split('|'):
             datum = line.split(' ')
             if len(datum) != 2:
@@ -203,84 +242,60 @@ class Runner(object):
 
             cost = float(datum[0])
             err = float(datum[1])
-            self.frontier.append((cost, err))
+            frontier.append((cost, err))
+
         self.log(f'computed Pareto frontier')
+        return frontier
     
 
-    def herbie_sample(self, py_sample: bool = False):
+    def herbie_sample(self, cores: List[FPCore], py_sample: bool = False) -> dict:
         """Runs Herbie's sampler for each FPCore in `self.cores`."""
-        # organize fpcores by sample first
-        # this is using a heuristic that names are formatted a certain way!
-        named_cores = dict()
-        unnamed_cores = []
-        for core in self.cores:
-            if core.name is None:
-                unnamed_cores.append(core)
-            else:
-                m = re.match(fpcore_name_pat, core.name)
-                if m is None:
-                    if core.name in named_cores:
-                        raise RuntimeError(f'Duplicate FPCore name found: {core.name}')
-                    named_cores[core.name] = [core]
-                else:
-                    base_name = m.group(1)
-                    if base_name in named_cores:
-                        named_cores[base_name].append(core)
-                    else:
-                        named_cores[base_name] = [core]
-        self.cores_by_sample = unnamed_cores + list(named_cores.values())
-        
-        # actually run the sample
-        config_gen = map(lambda cs: (cs[0], self.num_inputs, self.herbie_path, self.name, py_sample), self.cores_by_sample)
+        config_gen = map(lambda c: (c, self.num_inputs, self.herbie_path, self.name, py_sample), cores)
         with mp.Pool(processes=self.threads) as pool:
-            samples = pool.map(sample1, config_gen)
+            sample_data = pool.map(sample1, config_gen)
 
-        for cores, sample in zip(self.cores_by_sample, samples):
-            for core in cores:
-                self.samples.append((core, sample))
+        samples = dict()
+        for core, data in zip(cores, sample_data):
+            samples[core.name] = data
         self.log(f'sampled input points')
+        return samples
 
-    def get_sample(self, core: FPCore) -> List[float]:
-        """Extracts a cached sample for a given FPCore."""
-        for core_, sample in self.samples:
-            if core == core_:
-                return sample
-        raise RuntimeError(f'Sample not cached for {core}')
-
-    def make_driver_dirs(self) -> List[str]:
+    def make_driver_dirs(self, cores: List[FPCore]) -> List[str]:
         """Creates the subdirectories for each driver: one subdirectory
-        per FPCore in `self.cores`. Returns the list of subdirectories.
+        per FPCore in `cores`. Returns the list of subdirectories.
         Likely a utility function for `make_drivers()`."""
-        for i, _ in enumerate(self.cores):
+        driver_dirs = []
+        for i, _ in enumerate(cores):
             subdir = self.working_dir.joinpath(Path(str(i)))
             if subdir.exists():
                 shutil.rmtree(subdir)
             subdir.mkdir()
-            self.driver_dirs.append(subdir)
+            driver_dirs.append(subdir)
         self.log(f'prepared driver subdirectories')
+        return driver_dirs
 
-    def make_drivers(self) -> None:
+    def make_drivers(self, cores: List[FPCore], driver_dirs: List[str]) -> None:
         """Creates drivers for each compiled FPCore.
         Assumes `compile()` has already been previous called.
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
 
-    def compile_drivers(self) -> None:
+    def compile_drivers(self, driver_dirs: List[str]) -> None:
         """Compiles all drivers for each compiled FPCore.
         Assumes `make_drivers()` has already been previous called.
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
 
-    def run_drivers(self) -> None:
+    def run_drivers(self, driver_dirs: List[str]) -> List[float]:
         """Runs all drivers for each compiled FPCore.
         Assumes `compile_drivers()` has already been previous called.
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
 
-    def print_times(self):
+    def print_times(self, cores: List[FPCore], times: List[float]):
         """Prints driver times in a table."""
         print('op | time (ms)')
-        table = [(core.name, time) for core, time in zip(self.cores, self.times)]
+        table = [(core.name, time) for core, time in zip(cores, times)]
         table = sorted(table, key=lambda row: str.lower(row[0]))
         # Print baseline
         for name, time in table:
@@ -291,20 +306,20 @@ class Runner(object):
             if name != 'baseline':
                 print(f'[{name} {time}]')
 
-    def plot_times(self):
+    def plot_times(self, cores: List[FPCore], times: List[float]):
         """Plots Herbie cost estimate vs. actual run time."""
-        costs = list(map(lambda c: c.cost, self.cores))
-        plt.scatter(costs, self.times)
+        costs = list(map(lambda c: c.cost, cores))
+        plt.scatter(costs, times)
         plt.title('Estimated cost vs. actual run time')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Run time ({self.time_unit})')
         plt.show()
 
-    def plot_pareto(self):
-        """Plots Pareto frontier of cost vs. accuracy."""
+    def plot_pareto(self, frontier: List[Tuple[float, float]]):
+        """Plots cost vs. accuracy Pareto frontier."""
         costs = []
         errs = []
-        for cost, err in self.frontier:
+        for cost, err in frontier:
             costs.append(cost)
             errs.append(err)
 
@@ -313,3 +328,11 @@ class Runner(object):
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Cumulative average error')
         plt.show()
+
+    def plot_pareto_comparison(self):
+        """Plots two cost vs. accuracy Pareto frontiers"""
+        costs0 = []
+        errs0 = []
+        for cost, err in self.frontier:
+            costs0.append(cost)
+            errs0.append(err)

@@ -24,6 +24,7 @@ def run(
     runner: Runner,
     tune: bool,
     restore: bool,
+    compare: bool,
     py_sample: bool,
     herbie_params: Optional[Tuple[str, int]] = None
 ):
@@ -31,27 +32,37 @@ def run(
     if restore:
         raise NotImplementedError('unimplemented: restore from directory')
     elif herbie_params is not None:
+        # Using FPCores from directory, generate implementations using Herbie
         bench_dir, threads = herbie_params
-        runner.herbie_improve(path=bench_dir, threads=threads)
-        runner.herbie_sample(py_sample=py_sample)
-        runner.herbie_pareto()
+        input_cores = runner.herbie_read(path=bench_dir)
+        cores = runner.herbie_improve(cores=input_cores, threads=threads)
+        frontier = runner.herbie_pareto(cores=cores)
     else:
-        runner.synthesize()
-        runner.herbie_sample(py_sample=py_sample)
-
-    # core phase   
-    runner.herbie_compile()
-    runner.make_driver_dirs()
-    runner.make_drivers()
-    runner.compile_drivers()
-    runner.run_drivers()
+        # Synthesize implementations
+        input_cores = runner.synthesize()
+        cores = input_cores
+        frontier = None
+        
+    # core phase
+    samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
+    runner.herbie_compile(cores=cores)
+    driver_dirs = runner.make_driver_dirs(cores=cores)
+    runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
+    runner.compile_drivers(driver_dirs=driver_dirs)
+    times = runner.run_drivers(driver_dirs=driver_dirs)
 
     # report phase
     if tune:
-        runner.print_times()
+        # tuning
+        runner.print_times(cores, times)
     else:
-        runner.plot_times()
-        runner.plot_pareto()
+        if compare:
+            # comparison against baseline
+            pass
+        else:
+            # evaluating
+            runner.plot_times(cores, times)
+            runner.plot_pareto(frontier)
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner and evaluator')
@@ -61,6 +72,7 @@ def main():
     parser.add_argument('--num-points', help='number of input points to evalaute on [10_000 by default]', type=int)
     parser.add_argument('--num-runs', help='number of times to run drivers to obtain an average [100 by default]', type=int)
     parser.add_argument('--tune', help='cost tuning mode [OFF by default].', action='store_const', const=True, default=False)
+    parser.add_argument('--compare', help='comparison against a baseline', action='store_const', const=True, default=False)
     parser.add_argument('--restore', help='restores FPCores from the working directory', action='store_const', const=True, default=False)
     parser.add_argument('--py-sample', help='uses a Python based sampling method. Useful for debugging', action='store_const', const=True, default=False)
     parser.add_argument('lang', help='output language to use', type=str)
@@ -79,6 +91,7 @@ def main():
     num_points = args.get('num_points', default_num_points)
     num_runs = args.get('num_runs', default_num_runs)
     tune = args.get('tune')
+    compare = args.get('compare')
     restore = args.get('restore')
     py_sample = args.get('py_sample')
     lang = args['lang']
@@ -117,7 +130,7 @@ def main():
             threads=threads
         )
     else:
-        raise ValueError('Unsupported output language: {}')
+        raise ValueError(f'Unsupported output language: {lang}')
 
     if not tune and not restore:
         # need to run Herbie
@@ -128,9 +141,13 @@ def main():
         # FPCores are either synthetic or restored from a directory
         herbie_params = None
 
+    if tune and compare:
+        print('WARN: comparison mode will be ignored when tuning')
+
     run(
         runner=runner,
         tune=tune,
+        compare=compare,
         restore=restore,
         herbie_params=herbie_params,
         py_sample=py_sample

@@ -1,9 +1,10 @@
 from subprocess import Popen, PIPE
-from typing import Optional
+from typing import Optional, List
 from pathlib import Path
 import os
 import re
 
+from .fpcore import FPCore
 from .runner import Runner
 from .util import double_to_c_str, chunks
 
@@ -48,10 +49,10 @@ class MKLRunner(Runner):
             time_unit='ms'
         )
 
-    def make_drivers(self) -> None:
-        for core, driver_dir in zip(self.cores, self.driver_dirs):
+    def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
+        for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
-            sample = self.get_sample(core)
+            sample = samples[core.name]
             with open(driver_path, 'w') as f:
                 print('#include <math.h>', file=f)
                 print('#include <stdio.h>', file=f)
@@ -85,9 +86,9 @@ class MKLRunner(Runner):
 
         self.log(f'created drivers')
 
-    def compile_drivers(self) -> None:
+    def compile_drivers(self, driver_dirs: List[str]) -> None:
         # chunk over threads
-        for driver_dirs in chunks(self.driver_dirs, self.threads):
+        for driver_dirs in chunks(driver_dirs, self.threads):
             ps = []
             # fork subprocesses
             for driver_dir in driver_dirs:
@@ -100,11 +101,11 @@ class MKLRunner(Runner):
                 _, _ = p.communicate()
         self.log(f'compiled drivers')
 
-    def run_drivers(self) -> None:
+    def run_drivers(self, driver_dirs: List[str]) -> List[float]:
         # run processes sequentially
-        times = [[] for _ in self.driver_dirs]
-        for _ in range(self.num_runs):
-            for i, driver_dir in enumerate(self.driver_dirs):
+        times = [[] for _ in driver_dirs]
+        for i, driver_dir in enumerate(driver_dirs):
+            for _ in range(self.num_runs):
                 driver_path = Path(os.path.join(driver_dir, driver_name))
                 out_path = driver_path.parent.joinpath(driver_path.stem)
                 p = Popen([out_path], stdout=PIPE)
@@ -115,5 +116,6 @@ class MKLRunner(Runner):
                     raise RuntimeError(f'Unexpected error when running {out_path}: {output}')
                 times[i].append(float(time.group(1)))
 
-        self.times = [sum(ts) / len(ts) for ts in times]
+        times = [sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')
+        return times

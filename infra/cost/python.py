@@ -1,9 +1,10 @@
 from subprocess import Popen, PIPE
-from typing import Optional
+from typing import Optional, List
 from pathlib import Path
 import os
 import re
 
+from .fpcore import FPCore
 from .runner import Runner
 from .util import double_to_c_str
 
@@ -47,10 +48,10 @@ class PythonRunner(Runner):
             time_unit='ms'
         )
 
-    def make_drivers(self) -> None:
-        for core, driver_dir in zip(self.cores, self.driver_dirs):
+    def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
+        for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
-            sample = self.get_sample(core)
+            sample = samples[core.name]
             with open(driver_path, 'w') as f:
                 print('import math', file=f)
                 print('import time', file=f)
@@ -86,14 +87,14 @@ class PythonRunner(Runner):
 
         self.log(f'created drivers')
     
-    def compile_drivers(self) -> None:
+    def compile_drivers(self, driver_dirs: List[str]) -> None:
         self.log(f'drivers interpreted, skipping compilations')
 
-    def run_drivers(self) -> None:
+    def run_drivers(self, driver_dirs: List[str]) -> List[float]:
         # run processes sequentially
-        times = [[] for _ in self.driver_dirs]
-        for _ in range(self.num_runs):
-            for i, driver_dir in enumerate(self.driver_dirs):
+        times = [[] for _ in driver_dirs]
+        for i, driver_dir in enumerate(driver_dirs):
+            for _ in range(self.num_runs):
                 driver_path = Path(os.path.join(driver_dir, driver_name))
                 p = Popen([target, driver_path], stdout=PIPE)
                 stdout, _ = p.communicate()
@@ -106,5 +107,6 @@ class PythonRunner(Runner):
             print('x', end='', flush=True)
         print()
         
-        self.times = [sum(ts) / len(ts) for ts in times]
+        times = [sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')
+        return times

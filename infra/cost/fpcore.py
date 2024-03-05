@@ -9,6 +9,7 @@ class FPCore(object):
         self,
         core: str,
         name: Optional[str] = None,
+        descr: Optional[str] = None,
         argc: Optional[int] = None,
         compiled: Optional[str] = None,
         cost: Optional[float] = None,
@@ -17,6 +18,7 @@ class FPCore(object):
     ):
         self.core = core
         self.name = name
+        self.descr = descr
         self.argc = argc
         self.compiled = compiled
         self.cost = cost
@@ -27,8 +29,9 @@ class FPCore(object):
         return 'FPCore(' + \
             'core=' + repr(self.core) + ', ' + \
             'name=' + repr(self.name) + ', ' + \
+            'descr=' + repr(self.descr) + ', ' + \
             'argc=' + repr(self.argc) + ', ' + \
-            'compiled=' + repr(self.compiled) + \
-            'cost=' + repr(self.cost) + \
-            'err=' + repr(self.err) + \
+            'compiled=' + repr(self.compiled) + ', ' + \
+            'cost=' + repr(self.cost) + ', ' + \
+            'err=' + repr(self.err) + ', ' + \
             'py_sample=' + repr(self.py_sample) + ')'

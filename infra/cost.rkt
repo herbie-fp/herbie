@@ -9,6 +9,7 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
+         herbie/web/common
          herbie/web/core2mkl
          herbie/web/core2python3-10
          herbie/web/thread-pool)
@@ -38,13 +39,12 @@
        (for ([i (in-naturals 1)] [entry (in-table-row res)])
          (match-define (list cost err expr) entry)
          (define expr*
-           (unparse-result
-             (struct-copy table-row res
-               [name (format "~a variant ~a" (table-row-name res) i)])
-             #:expr expr))
-        (writeln expr* p)
-        (writeln cost p)
-        (writeln err p))])))
+            (unparse-result res
+                            #:expr expr
+                            #:description (format "variant ~a" i)))
+         (writeln expr* p)
+         (writeln cost p)
+         (writeln err p))])))
 
 ;; Reads commands from stdin and writes results to stdout.
 ;; All output must be on a single line and terminated by a newline.
@@ -76,13 +76,13 @@
        (define cost (job-result-backend result))
        (printf "~a\n" cost)
        (loop)]
-      ; improve <bench:string> <threads:int>
+      ; improve <core> <threads:int>
       [(list 'improve args ...)
-       (define-values (bench threads)
+       (define-values (cores threads)
          (match args
-           [(list bench threads) (values bench threads)]
+           [(list cores threads) (values cores threads)]
            [_ (error 'run-server "improve: malformed arguments ~a" args)]))
-       (define tests (load-tests bench))
+       (define tests (map (lambda (c) (parse-test (datum->syntax #f c))) cores))
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
        (print-output (current-output-port) results)
        (loop)]
@@ -95,6 +95,15 @@
              (match-define (list cost err) point)
              (format "~a ~a" cost err))
            "|"))
+       (loop)]
+      ; read <bench:string>
+      [(list 'read args ...)
+       (define path
+         (match args
+           [(list path) path]
+           [_ (error 'run-server "read: malformed arguments ~a" args)]))
+       (for ([test (in-list (load-tests path))])
+         (printf "~a\n" (string-replace (render-fpcore test) "\n" "")))
        (loop)]
       ; sample <num_points:int> <core:expr>
       [(list 'sample args ...)
