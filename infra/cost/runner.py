@@ -146,7 +146,6 @@ class Runner(object):
                 cores.append(parse_core(line.strip()))
         return cores
 
-
     def herbie_compile(self, cores: List[FPCore]):
         """Compiles each FPCore in `cores` to the target language.
         This requires the target language to be supported by the
@@ -167,6 +166,47 @@ class Runner(object):
             print('(exit)', file=server.stdin, flush=True)
             _ = server.stdout.readline()
         self.log(f'compiled {len(cores)} cores')
+
+    def herbie_cost(self, cores: List[FPCore]) -> None:
+        """Computes the cost of each FPCore, overriding the `cost` variable of each FPCore."""
+        with Popen(
+            args=['racket', str(self.herbie_path), "--platform", self.name],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
+
+            # call out to server
+            for core in cores:
+                print(f'(cost {core.core})', file=server.stdin, flush=True)
+                output = server.stdout.readline()
+                core.cost = float(output.strip())
+
+            # terminate the server
+            print('(exit)', file=server.stdin, flush=True)
+            _ = server.stdout.readline()
+        self.log(f'recomputed cost of {len(cores)} cores')
+
+    def herbie_desugar(self, cores: List[FPCore]) -> List[FPCore]:
+        """Attempts to desugar an FPCore generated in another platform into the platform
+        represented by this `Runner`. If desugaring fails, the FPCore is removed."""
+        desugared = []
+        with Popen(
+            args=['racket', str(self.herbie_path), "--platform", self.name],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
+
+            # call out to server
+            for core in cores:
+                print(f'(desugar {core.core})', file=server.stdin, flush=True)
+                output = server.stdout.readline()
+
+            # terminate the server
+            print('(exit)', file=server.stdin, flush=True)
+            _ = server.stdout.readline()
+
+        self.log(f'desugared {len(cores)} cores')
+        return desugared
 
     def herbie_improve(
             self,
@@ -198,7 +238,7 @@ class Runner(object):
                 core.err = float(group[2].strip())
                 cores.append(core)
 
-        self.log(f'ran Herbie improve')
+        self.log(f'generated FPCores with Herbie')
         return cores
 
     def herbie_pareto(self, cores: List[FPCore]) -> List[Tuple[float, float]]:
@@ -329,10 +369,15 @@ class Runner(object):
         plt.ylabel(f'Cumulative average error')
         plt.show()
 
-    def plot_pareto_comparison(self):
+    def plot_pareto_comparison(self, *frontiers):
         """Plots two cost vs. accuracy Pareto frontiers"""
-        costs0 = []
-        errs0 = []
-        for cost, err in self.frontier:
-            costs0.append(cost)
-            errs0.append(err)
+        for name, frontier in frontiers:
+            costs = list(map(lambda p: p[0], frontier))
+            errs = list(map(lambda p: p[1], frontier))
+            plt.plot(costs, errs, label=name)
+
+        plt.title('Estimated cost vs. cumulative average error (bits)')
+        plt.xlabel('Estimated cost (Herbie)')
+        plt.ylabel(f'Cumulative average error')
+        plt.legend()
+        plt.show()

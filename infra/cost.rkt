@@ -1,8 +1,10 @@
 #lang racket
 
 (require (only-in fpbench core->c)
+         herbie/accelerator
          herbie/common
          herbie/datafile
+         herbie/errors
          herbie/load-plugin
          herbie/pareto
          herbie/platform
@@ -46,6 +48,24 @@
          (writeln cost p)
          (writeln err p))])))
 
+;; Replaces a given accelerator in an expression
+(define (remove-accelerator expr accel)
+  (define (remove expr)
+    (match expr
+      [`(if ,cond ,ift ,iff)
+       `(if ,(remove cond) ,(remove ift) ,(remove iff))]
+      [`(,(? (curry eq? accel) op) ,args ...)
+       (printf "~a\n" accel)
+       `(,op ,@(map remove args))]
+      [`(,op ,args ...)
+       `(,op ,@(map remove args))]
+      [_ expr]))
+  (match expr
+    [`(FPCore ,id (,vars ...) ,props ... ,expr)
+     `(FPCore ,id (,vars ...) ,props ... ,(remove expr))]
+    [`(FPCore (,vars ...) ,props ... ,expr)
+     `(FPCore (,vars ...) ,props ... ,(remove expr))]))
+
 ;; Reads commands from stdin and writes results to stdout.
 ;; All output must be on a single line and terminated by a newline.
 (define (run-server seed)
@@ -70,11 +90,30 @@
        (define core
          (match args
            [(list core) core]
-           [_ (error 'run-server "compile: malformed arguments ~a" args)]))
+           [_ (error 'run-server "cost: malformed arguments ~a" args)]))
        (define test (parse-test (datum->syntax #f core)))
        (define result (run-herbie 'cost test #:seed seed))
        (define cost (job-result-backend result))
        (printf "~a\n" cost)
+       (loop)]
+      ; desugar <core:expr>
+      [(list 'desugar args ...)
+       (define core
+         (match args
+           [(list core) core]
+           [_ (error 'run-server "desugar: malformed arguments ~a" args)]))
+       (define core*
+         (let loop ([core core])
+           (with-handlers ([exn:fail:user:herbie:syntax?
+                            (lambda (exn)
+                              (define locs (exn:fail:user:herbie:syntax-locations exn))
+                              (for/fold ([core core]) ([(_ msg) (in-dict locs)])
+                                (match (regexp-match #rx"No implementations of `([^\\s]*)`" msg)
+                                  [(list _ op)
+                                   (loop (remove-accelerator core (string->symbol op)))]
+                                  [#f #f])))])
+            (parse-test (datum->syntax #f core)))))
+       (printf "~a\n" core*)
        (loop)]
       ; improve <core> <threads:int>
       [(list 'improve args ...)

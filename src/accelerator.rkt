@@ -7,12 +7,12 @@
          (submod "syntax/rules.rkt" internals)
          "syntax/types.rkt")
 
-(provide
- register-accelerator-operator!
- register-accelerator-impl!
- define-accelerator-operator
- define-accelerator-impl
- expand-accelerators)
+(provide accelerator?
+         register-accelerator-operator!
+         register-accelerator-impl!
+         define-accelerator-operator
+         define-accelerator-impl
+         expand-accelerators)
 
 (module+ internals
   (provide register-accelerator-operator!
@@ -23,6 +23,9 @@
 (struct accelerator-operator (body variables itypes otypes))
 
 (define accelerator-operators (make-hasheq))
+
+(define (accelerator? x)
+  (hash-has-key? accelerator-operators x))
 
 (define (register-accelerator-operator! name itypes otype form)
   (match-define (list (or 'λ 'lambda) (list variables ...) body) form)
