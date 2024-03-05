@@ -8,7 +8,7 @@
 (provide pareto-regimes (struct-out option) (struct-out si))
 
 (module+ test
-  (require rackunit "../load-plugin.rkt")
+  (require rackunit "../load-plugin.rkt" "../syntax/syntax.rkt" "../syntax/sugar.rkt")
   (load-herbie-builtins))
 
 (struct option (split-indices alts pts expr errors) #:transparent
@@ -84,9 +84,9 @@
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter
-   (λ (e) (equal? (type-of e ctx) 'real))
+   (λ (e) (equal? (representation-type (repr-of e ctx)) 'real))
    (set-intersect start-critexprs (apply set-union alt-critexprs))))
-  
+
 ;; Requires that expr is not a λ expression
 (define (critical-subexpression? expr subexpr)
   (define crit-vars (free-variables subexpr))
@@ -143,26 +143,25 @@
 
 (module+ test
   (define ctx (make-debug-context '(x)))
-  (parameterize ([*start-prog* 1]
+  (parameterize ([*start-prog* (literal 1 'binary64)]
                  [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
     (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
+    (define (test-regimes expr goal)
+      (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
+             (option-on-expr alts err-lsts (spec->prog expr ctx) ctx)
+             goal))
+
     ;; This is a basic sanity test
-    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts 'x ctx)
-           '(1 0))
+    (test-regimes 'x '(1 0))
 
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
-    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts '1 ctx)
-           '(0))
+    (test-regimes '1 '(0))
 
-    (check (λ (x y) (equal? (map si-cidx (option-split-indices x)) y))
-           (option-on-expr alts err-lsts '(if (==.f64 x 0.5) 1 +nan.0) ctx)
-           '(1 0))))
+    (test-regimes '(if (== x 0.5) 1 NAN) '(1 0))))
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
@@ -207,38 +206,37 @@
     (define vec-pidx (make-vector num-points))
 
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
-    (define vec-aest (make-vector num-points))
-    (for ([point-idx (in-range 0 num-points)])
-      (define aest-cost (flvector-ref v-acost point-idx))
-      (define aest-best (vector-ref v-cidx point-idx))
-      (define aest-bidx (vector-ref v-aidx point-idx))
-      (define aest-prev-idx (vector-ref v-pidx point-idx))
-      ;; We take the CSE corresponding to the best choice of previous split point.
-      ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (- aest-cost min-weight)])
-        (for ([prev-split-idx (in-range 0 point-idx)])
-          ;; For each previous split point, we need the best candidate to fill the new regime
-         (when 
-          (vector-ref can-split-vec (vector-ref v-aidx prev-split-idx))
-          (let ([best #f] [bcost #f])
-            (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
-              (let ([cost (- (flvector-ref psum point-idx)
-                             (flvector-ref psum prev-split-idx))])
-                (when (or (not best) (< cost bcost))
-                  (set! bcost cost)
-                  (set! best cidx))))
-            (define temp (+ (flvector-ref v-acost prev-split-idx) bcost))
-            (when 
-              (< temp acost) 
-              (set! acost temp)
-              (set! aest-cost acost)
-              (set! aest-best best)
-              (set! aest-bidx (+ point-idx 1))
-              (set! aest-prev-idx prev-split-idx)))))
-        (flvector-set! vec-acost point-idx aest-cost)
-        (vector-set! vec-cidx point-idx aest-best)
-        (vector-set! vec-aidx point-idx aest-bidx)
-        (vector-set! vec-pidx point-idx aest-prev-idx)))
+    (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
+      (for ([point-idx (in-range 0 num-points)])
+        (define aest-cost (flvector-ref v-acost point-idx))
+        (define aest-best (vector-ref v-cidx point-idx))
+        (define aest-bidx (vector-ref v-aidx point-idx))
+        (define aest-prev-idx (vector-ref v-pidx point-idx))
+        ;; We take the CSE corresponding to the best choice of previous split point.
+        ;; The default, not making a new split-point, gets a bonus of min-weight
+        (let ([acost (- aest-cost min-weight)])
+          (for ([prev-split-idx (in-range 0 point-idx)])
+            ;; For each previous split point, we need the best candidate to fill the new regime
+           (when
+            (vector-ref can-split-vec (vector-ref v-aidx prev-split-idx))
+            (let ([best #f] [bcost #f])
+                (let ([cost (- (flvector-ref psum point-idx)
+                               (flvector-ref psum prev-split-idx))])
+                  (when (or (not best) (< cost bcost))
+                    (set! bcost cost)
+                    (set! best cidx)))
+              (define temp (+ (flvector-ref v-acost prev-split-idx) bcost))
+              (when
+                (< temp acost)
+                (set! acost temp)
+                (set! aest-cost acost)
+                (set! aest-best best)
+                (set! aest-bidx (+ point-idx 1))
+                (set! aest-prev-idx prev-split-idx)))))
+          (flvector-set! vec-acost point-idx aest-cost)
+          (vector-set! vec-cidx point-idx aest-best)
+          (vector-set! vec-aidx point-idx aest-bidx)
+          (vector-set! vec-pidx point-idx aest-prev-idx))))
   (values vec-acost vec-cidx vec-aidx vec-pidx))
 
   ;; We get the initial set of cse's by, at every point-index,

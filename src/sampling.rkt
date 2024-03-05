@@ -30,12 +30,10 @@
   (require rackunit "load-plugin.rkt")
   (load-herbie-builtins)
 
-  (define repr (get-representation 'binary64))
   (check-equal? (precondition->hyperrects
-                 (prog->spec
-                  '(and (and (<=.f64 0 a) (<=.f64 a 1))
-                        (and (<=.f64 0 b) (<=.f64 b 1))))
-                 (context '(a b) repr (list repr repr)))
+                 '(and (and (<= 0 a) (<= a 1))
+                       (and (<= 0 b) (<= b 1)))
+                 (make-debug-context '(a b)))
                 (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
 
 ;; Part 2: using subdivision search to find valid intervals
@@ -88,6 +86,7 @@
 
 (module+ test
   (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
+  (define repr (get-representation 'binary64))
   (check-true
    (andmap (curry set-member? '(0.0 1.0))
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
