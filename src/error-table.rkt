@@ -14,6 +14,7 @@
     [(symbol? expr) #f]
     [else #t]))
 
+
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
     (flip-lists
@@ -83,6 +84,9 @@
   (define maybe-expls->points (make-hash))
   
   (for ([(pt _) (in-pcontext pctx)])
+    (define exact-exprs (mutable-set))
+    (define (not-exact? expr) (not (set-member? exact-exprs expr)))
+
     (define (silence expr)
       (define subexprs-list (map car (all-subexpressions-rev expr (context-repr ctx))))
       (for* ([subexpr (in-list subexprs-list)]
@@ -121,6 +125,9 @@
       ;;(eprintf "[subexpr] ~a ~a\n" subexpr explanations-hash)
       (define subexpr-val (exacts-ref subexpr))
 
+      (unless (list? subexpr)
+        (set-add! exact-exprs subexpr))
+
       (define (update-flow-hash flow-hash pred? . children)
         (define child-set (foldl
                            (lambda (a b)
@@ -139,6 +146,8 @@
               parent+child-set))
         (hash-set! flow-hash subexpr new-parent-set))
 
+      
+      
       (match subexpr
         [(list _ x-ex y-ex)
          (update-flow-hash oflow-hash bfinfinite? x-ex y-ex)
@@ -148,9 +157,11 @@
          (update-flow-hash uflow-hash bfzero? x-ex)]
         [_ #f])
 
+      ;;(eprintf "~a ~a\n" subexpr exact-exprs)
+      
       (match subexpr
         [(list (or '+.f64 '+.f32) x-ex y-ex)
-         #:when (or (list? x-ex) (list? y-ex))
+         #:when (or (not-exact? x-ex) (not-exact? y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
          (define x+y (bigfloat->flonum (bf+ x y)))
@@ -161,10 +172,10 @@
 
          (define x.eps (+ 127 (bigfloat-exponent x)))
          (define y.eps (+ 127 (bigfloat-exponent y)))
-
+         
          (cond
-           [(> (- x.eps y.eps) 100) (void) #;(silence y-ex)]
-           [(> (- y.eps x.eps) 100) (void) #;(silence x-ex)])
+           [(> (- x.eps y.eps) 100)  (void) #;(silence y-ex)]
+           [(> (- y.eps x.eps) 100) (void)  #;(silence x-ex)])
          
          (cond
            ; Condition number hallucination
@@ -204,7 +215,7 @@
            [else #f])]
         
         [(list (or '-.f64 '-.f32) x-ex y-ex)
-         #:when (or (list? x-ex) (list? y-ex))
+         #:when (or (not-exact? x-ex) (not-exact? y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
          (define x-y (bigfloat->flonum (bf- x y)))
@@ -217,8 +228,8 @@
          (define y.eps (+ 127 (bigfloat-exponent y)))
 
          (cond
-           [(> (- x.eps y.eps) 100) (void) #;(silence y-ex)]
-           [(> (- y.eps x.eps) 100) (void) #;(silence x-ex)])
+           [(> (- x.eps y.eps) 100) (set-add exact-exprs subexpr) #;(silence y-ex)]
+           [(> (- y.eps x.eps) 100) (set-add exact-exprs subexpr) #;(silence x-ex)])
 
          (cond
            ; Condition number hallucination:
@@ -257,7 +268,7 @@
            [else #f])]
 
        [(list (or 'sin.f64 'sin.f32) x-ex)
-         #:when (list? x-ex)
+         #:when (not-exact? x-ex)
          (define x (exacts-ref x-ex))
          (define cot-x (bfabs (bfcot x)))
          (define cond-no (bf* (bfabs x) cot-x))
@@ -281,7 +292,8 @@
            [else #f])]
 
         [(list (or 'cos.f64 'cos.f32) x-ex)
-         #:when (list? x-ex)
+         #:when (not-exact? x-ex)
+         ;(eprintf "~a ~a ~a\n" x-ex exact-exprs (not-exact? x-ex))
          (define x (exacts-ref x-ex))
          (define cond-no (bfabs (bf* x (bftan x))))
          
@@ -294,7 +306,7 @@
            [else  #f])]
         
         [(list (or 'tan.f64 'tan.f32) x-ex)
-         #:when (list? x-ex)
+         #:when (not-exact? x-ex)
          (define x (exacts-ref x-ex))
          (define tot-x (bfabs (bf+ (bfcot x) (bftan x))))
          (define cond-no (bf* (bfabs x) tot-x))
@@ -319,7 +331,7 @@
            [else #f])]
         
         [(list (or 'sqrt.f64 'sqrt.f32) x-ex)
-         #:when (list? x-ex)
+         #:when (not-exact? x-ex)
          (define x (exacts-ref x-ex))
          
          (cond
@@ -334,7 +346,7 @@
             (mark-erroneous! subexpr 'oflow-rescue)])]
 
         [(list (or 'cbrt.f64 'cbrt.f32) x-ex)
-         #:when (list? x-ex)
+         #:when (not-exact? x-ex)
          (define x (exacts-ref x-ex))
 
          (cond
@@ -349,7 +361,7 @@
             (mark-erroneous! subexpr 'oflow-rescue)])]
 
         [(list (or '/.f64 '/.f32) x-ex y-ex)
-         #:when (or (list? x-ex) (list? y-ex))
+         #:when (or (not-exact? x-ex) (not-exact? y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
          
@@ -389,7 +401,7 @@
            [else #f])]
 
         [(list (or '*.f64 '*.f32) x-ex y-ex)
-         #:when (or (list? x-ex) [list? y-ex])
+         #:when (or (not-exact? x-ex) (not-exact? y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
          
@@ -421,7 +433,7 @@
            [else #f])]
         
         [(list (or 'log.f64 'log.f32) x-ex)
-         #:when (list? x-ex)
+         #:when (not-exact? x-ex)
          (define x (exacts-ref x-ex))
          (define cond-num (bfabs (bf/ 1.bf
                                       subexpr-val)))
@@ -448,7 +460,7 @@
            [else #f])]
         
         [(list (or 'exp.f64 'exp.f32) x-ex)
-         #:when (list? x-ex)
+         #:when (not-exact? x-ex)
          (define x (exacts-ref x-ex))
          (define exp-x (bigfloat->flonum (bfexp x)))
          
@@ -479,7 +491,7 @@
 
         ; FIXME need to rework from scratch
         [(list (or 'pow.f64 'pow.f32) x-ex y-ex)
-         #:when (or (list? x-ex) (list? y-ex))
+         #:when (or (not-exact? x-ex) (not-exact? y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
          (define x^y (bigfloat->flonum (bfexpt x y)))
@@ -545,7 +557,7 @@
            [else #f])]
         
         [(list (or 'acos.f64 'acos.f32) x-ex)
-         #:when (list? x-ex)
+         #:when (not-exact? x-ex)
          (define x (exacts-ref x-ex))
          (define cond-x (bfabs
                          (bf/ x
@@ -573,7 +585,7 @@
            [else #f])]
 
         [(list (or 'asin.f64 'asin.f32) x-ex)
-         #:when (list? x-ex)
+         #:when (not-exact? x-ex)
          (define x (exacts-ref x-ex))
          (define cond-x (bfabs
                          (bf/ x
@@ -594,7 +606,21 @@
            [(bf> cond-x maybe-cond-thres) (mark-maybe! subexpr 'sensitivity)]
            
            [else #f])]
-        [_ #f])))
+        [_ (match subexpr
+             [(list (or '+.f64 '+.f32 '-.f64 '-f.32) x-ex y-ex)
+              (define x (exacts-ref x-ex))
+              (define y (exacts-ref y-ex))
+
+              (define x.eps (+ 127 (bigfloat-exponent x)))
+              (define y.eps (+ 127 (bigfloat-exponent y)))
+
+              ;(eprintf "~a ~a ~a " pt x.eps y.eps)
+              (cond
+                [(> (- x.eps y.eps) 100) (set-add! exact-exprs subexpr)]
+                [(> (- y.eps x.eps) 100) (set-add! exact-exprs subexpr)])
+              ;(eprintf "~a\n" exact-exprs)
+              ]
+             [_ #f])])))
 
   (define tcount-hash (actual-errors expr pctx))
 
@@ -624,32 +650,12 @@
                [value (in-list (errors expr pctx ctx))])
       (values key value)))
 
-  #;(define explanations-table
-    (for/list ([(key val) (in-dict explanations-hash)])
-      (define expr (car key))
-      (define expl (cdr key))
-      (define maybe-count (hash-ref maybe-explanations-hash key 0))
-      (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
-
-      (define test (length (hash-ref expls->points key)))
-
-      (unless (= val test)
-        (eprintf "error: ~a\n" key))
-
-      (list (~a (car expr))
-            (~a expr)
-            (~a expl)
-            val
-            maybe-count
-            flow-list)))
-
   (define explanations-table
     (for/list ([(key val) (in-dict expls->points)])
       (define expr (car key))
       (define expl (cdr key))
       (define err-count (length val))
       (define maybe-count (length (hash-ref maybe-expls->points key '())))
-      ;;(define maybe-count-old (hash-ref maybe-explanations-hash key 0))
       (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
       
       (list (~a (car expr))
@@ -726,8 +732,8 @@
     (for/list ([(pt _) (in-pcontext pcontext)])
       (define error-actual? (> (hash-ref actual-error pt) 16))
       (define error-predicted? (hash-ref predicted-error pt false))
-      #;(when (and error-actual? (not error-predicted?))
-        (eprintf "~a\n" pt))
+      (when (and (not error-predicted?) error-actual?)
+        (eprintf "~a ~a\n" pt (map (lambda (x) (log (abs x) 2)) pt)))
       (cons error-actual? error-predicted?)))
 
   (define groups (group-by identity outcomes))
