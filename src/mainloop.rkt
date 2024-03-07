@@ -140,7 +140,7 @@
 
   (define loc-errss
      (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
-  (define loc-errss
+  (define loc-costss
      (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
 
   (define repr (context-repr (*context*)))
