@@ -67,11 +67,30 @@
   [<= <=.f64 <=]
   [>= >=.f64 >=])
 
-(define-operator (recip real) real
-  [ival (λ (x) (ival-div (ival 1.bf) x))])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-operator (rsqrt real) real
-  [ival (λ (x) (ival-div (ival 1.bf) (ival-sqrt x)))])
+(define-accelerator (recip real) real (λ (x) (/ 1 x)))
+(define-accelerator (rsqrt real) real (λ (x) (/ 1 (sqrt x))))
+      
+(define-libm expm1.f64 (expm1 double double))
+(when expm1.f64
+  (define-accelerator-impl expm1 expm1.f64 (binary64) binary64 expm1.f64))
+
+(define-libm log1p.f64 (log1p double double))
+(when log1p.f64
+  (define-accelerator-impl log1p log1p.f64 (binary64) binary64 log1p.f64))
+
+(define-libm hypot.f64 (hypot double double double))
+(when hypot.f64
+  (define-accelerator-impl hypot hypot.f64 (binary64 binary64) binary64 hypot.f64))
+
+(define-libm fma.f64 (fma double double double double))
+(when fma.f64
+  (define-accelerator-impl fma fma.f64 (binary64 binary64 binary64) binary64 fma.f64))
+
+(define-libm erfc.f64 (erfc double double))
+(when erfc.f64
+  (define-accelerator-impl erfc erfc.f64 (binary64) binary64 erfc.f64))
 
 (define-operator-impl (recip recip.f64 binary64) binary64
   [fl (λ (x)
@@ -106,22 +125,3 @@
   (λ (old)
     (const
       (format "#include <immintrin.h>\n~a" (old)))))
-(define-libm expm1.f64 (expm1 double double))
-(when expm1.f64
-  (define-accelerator-impl expm1 expm1.f64 (binary64) binary64 expm1.f64))
-
-(define-libm log1p.f64 (log1p double double))
-(when log1p.f64
-  (define-accelerator-impl log1p log1p.f64 (binary64) binary64 log1p.f64))
-
-(define-libm hypot.f64 (hypot double double double))
-(when hypot.f64
-  (define-accelerator-impl hypot hypot.f64 (binary64 binary64) binary64 hypot.f64))
-
-(define-libm fma.f64 (fma double double double double))
-(when fma.f64
-  (define-accelerator-impl fma fma.f64 (binary64 binary64 binary64) binary64 fma.f64))
-
-(define-libm erfc.f64 (erfc double double))
-(when erfc.f64
-  (define-accelerator-impl erfc erfc.f64 (binary64) binary64 erfc.f64))

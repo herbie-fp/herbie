@@ -18,8 +18,5 @@
          platform-product platform-union platform-intersect
          platform-subtract platform-filter operator-set platform-operator-set
          with-terminal-cost cost-map cost-map-scale
-         register-accelerator-operator!
-         register-accelerator-impl!
-         define-accelerator-operator
-         define-accelerator-impl
-         )
+         register-accelerator-operator! register-accelerator-impl!
+         define-accelerator define-accelerator-impl)

@@ -5,19 +5,17 @@
          "ground-truth.rkt"
          (submod "syntax/syntax.rkt" internals)
          (submod "syntax/rules.rkt" internals)
-         "syntax/types.rkt")
+         "syntax/types.rkt"
+         "core/matcher.rkt")
 
 (provide accelerator?
-         register-accelerator-operator!
-         register-accelerator-impl!
-         define-accelerator-operator
-         define-accelerator-impl
+         accelerators
          expand-accelerators)
 
 (module+ internals
   (provide register-accelerator-operator!
            register-accelerator-impl!
-           define-accelerator-operator
+           define-accelerator
            define-accelerator-impl))
 
 ;;
@@ -29,9 +27,9 @@
 ;;  `itypes`: input type of accelerator
 ;;  `otype`: output type of accelerator
 ;;  `spec`: definition as an S-expr
-;;  `apply`: procedure that matches on its definition and replaces it
-;;  `undo`: procedure that replaces an accelerator with its definition
-(struct accelerator-operator (itypes otype spec apply undo))
+;;  `lhs`: term representing the accelerator
+;;  `rhs`: term representing the definition of an accelerator
+(struct accelerator-operator (itypes otype spec lhs rhs))
 
 ;; Accelerators known to Herbie at runtime
 (define accelerator-operators (make-hasheq))
@@ -39,6 +37,10 @@
 ;; Is the operator an accelerator?
 (define (accelerator? x)
   (hash-has-key? accelerator-operators x))
+
+;; The list of accelerators as a list.
+(define (accelerators)
+  (hash-keys accelerator-operators))
 
 ;; Adds an accelerator to the table.
 (define (register-accelerator-operator! name itypes otype spec)
@@ -58,8 +60,8 @@
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
   (define ival-fn (compile-spec body vars))
-  (hash-set! accelerator-operators name
-             (accelerator-operator itypes otype spec #f #f))
+  (define info (accelerator-operator itypes otype spec `(,name ,@vars) body))
+  (hash-set! accelerator-operators name info)
   (register-operator! name itypes otype (list (cons 'ival ival-fn)))
   (register-ruleset*! ruleset-name
                       (list 'numerics 'simplify)
@@ -67,26 +69,30 @@
                       (list (list define-name body (cons name vars))
                             (list undefine-name (cons name vars) body))))
 
-(define-syntax define-accelerator-operator
+(define-syntax define-accelerator
   (syntax-rules ()
-    [(_ name (itypes ...) otype impl)
+    [(_ (name itypes ...) otype impl)
      (register-accelerator-operator! 'name
                                      (list 'itypes ...)
                                      'otype
                                      'impl)]))
 
-(define (register-accelerator-impl! operator name
-                                    itypes otype
-                                    [implementation #f])
+(define (register-accelerator-impl! accelerator
+                                    name
+                                    itypes
+                                    otype
+                                    #:impl [impl #f])
+  (unless (accelerator? accelerator)
+    (error 'register-accelerator-impl "must be an accelerator ~a" accelerator))
   (match-define (accelerator-operator _ _ spec _ _)
-    (dict-ref accelerator-operators operator))
+    (hash-ref accelerator-operators accelerator))
   (match-define (list (or 'λ 'lambda) (list vars ...) body) spec)
   (define ctx (context vars otype itypes))
   (define impl-fn
-    (or implementation
+    (or impl
         (let ([fn (eval-progs-real (list body) ctx)])
           (λ args (first (apply fn args))))))
-  (register-operator-impl! operator
+  (register-operator-impl! accelerator
                            name
                            itypes
                            otype
@@ -102,75 +108,28 @@
      (register-accelerator-impl! 'operator 'name
                                  (list (get-representation 'itypes) ...)
                                  (get-representation 'otype)
-                                 implementation)]))
+                                 #:impl implementation)]))
 
-(define (expand-accelerators expr
-                             #:accelerators [accelerators (dict-keys accelerator-operators)])
-  (void))
+(define (expand-accelerators expr #:accelerators [accelerators (accelerators)])
+  (define (expand expr)
+    (for/fold ([expr expr]) ([accel (in-list accelerators)])
+      (define info (hash-ref accelerator-operators accel))
+      (define lhs (accelerator-operator-lhs info))
+      (define rhs (accelerator-operator-rhs info))
+      (define bindings (pattern-match lhs expr))
+      (if bindings (pattern-substitute rhs bindings) expr)))
+  (let loop ([expr expr])
+    (match (expand expr)
+      [(list 'if cond iff ift) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
+      [(list op args ...) `(,op ,@(map loop args))]
+      [expr expr])))
 
-; (define (expand-accelerators rules expression)
-;   (define undefine-rules
-;     (filter
-;      (compose
-;       (curry set-member? (map (curryr sym-append '- 'undefine) (dict-keys accelerator-operators)))
-;       rule-name)
-;      rules))
-;   ;; Apply the first rule that matches top down. We do this because we can only
-;   ;; be sure we have a real match if the term does not occur in the syntactic
-;   ;; scope of any other syntactic extensions.
-;   ;;
-;   ;; See https://dl.acm.org/doi/10.1145/319838.319859
-;   (let rewrite ([expression* expression])
-;     (match (or
-;             (let ([expression** (ormap (curryr rule-apply expression*) undefine-rules)])
-;               (and expression** (car expression**)))
-;             expression*)
-;       [(list operator operands ...) (cons operator (map rewrite operands))]
-;       [_ expression*])))
 
-; ;; TODO: Temporarily copied to avoid cycles. Is there a way to avoid this?
-
-; (define (merge-bindings binding1 binding2)
-;   (and binding1
-;        binding2
-;        (let/ec quit
-;          (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
-;            (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
-
-; (define (pattern-match pattern expr)
-;   (match pattern
-;    [(? number?)
-;     (and (equal? pattern expr) '())]
-;    [(? variable?)
-;     (list (cons pattern expr))]
-;    [(list phead _ ...)
-;     (and (list? expr)
-;          (equal? (car expr) phead)
-;          (= (length expr) (length pattern))
-;          (for/fold ([bindings '()])
-;              ([pat (cdr pattern)] [subterm (cdr expr)])
-;            (merge-bindings bindings (pattern-match pat subterm))))]))
-
-; (define (pattern-substitute pattern bindings)
-;   ; pattern binding -> expr
-;   (match pattern
-;    [(? number?) pattern]
-;    [(? variable?)
-;     (dict-ref bindings pattern)]
-;    [(list phead pargs ...)
-;     (cons phead (map (curryr pattern-substitute bindings) pargs))]))
-
-; (define (rule-apply rule expr)
-;   (let ([bindings (pattern-match (rule-input rule) expr)])
-;     (if bindings
-;         (cons (pattern-substitute (rule-output rule) bindings) bindings)
-;         #f)))
-
-(define-accelerator-operator expm1 (real) real (lambda (x) (- (exp x) 1)))
-(define-accelerator-operator log1p (real) real (lambda (x) (log (+ 1 x))))
-(define-accelerator-operator hypot (real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))))
-(define-accelerator-operator fma (real real real) real (lambda (x y z) (+ (* x y) z)))
-(define-accelerator-operator erfc (real) real (lambda (x) (- 1 (erf x))))
+(define-accelerator (expm1 real) real (lambda (x) (- (exp x) 1)))
+(define-accelerator (log1p real) real (lambda (x) (log (+ 1 x))))
+(define-accelerator (hypot real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))))
+(define-accelerator (fma real real real) real (lambda (x y z) (+ (* x y) z)))
+(define-accelerator (erfc real) real (lambda (x) (- 1 (erf x))))
 
 ; Specialized numerical functions
 (define-ruleset* special-numerical-reduce (numerics simplify)

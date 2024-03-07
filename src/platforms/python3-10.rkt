@@ -7,13 +7,13 @@
 ;; --------------------------------------------------------
 ;; Operators
 
-(define-accelerator-operator sum3 (real real real) real
+(define-accelerator (sum3 real real real) real
   (λ (x y z) (+ (+ x y) z)))
 
-(define-accelerator-operator sum4 (real real real real) real
+(define-accelerator (sum4 real real real real) real
   (λ (x y z w) (+ (+ x y) (+ z w))))
 
-(define-accelerator-operator sum5 (real real real real real) real
+(define-accelerator (sum5 real real real real real) real
   (λ (x y z a b) (+ (+ (+ x y) (+ z a)) b)))
 
 (define-accelerator-impl sum3 sum3.f64 (binary64 binary64 binary64) binary64 +)
