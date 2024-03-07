@@ -272,16 +272,15 @@
 
       ; TODO: tanh - it is actually a different case
       [(equal? ival-tan op)
-       ; log[Гtan] = log[x] - log[sin(x)*cos(x)]
+       ; log[Гtan] = log[x] - log[sin(x)*cos(x)] <= log[x] + |log[tan(x)]| + 1
        (define out-lo (true-exponent (ival-lo output)))
        (define out-hi (true-exponent (ival-hi output)))
-       (define out-exp (min
-                        (if (positive? out-lo) (- out-lo) out-lo)
-                        (if (positive? out-hi) (- out-hi) out-hi)))
+       (define out-exp (+ (max (abs out-lo)
+                               (abs out-hi)) 1))
 
        (set! new-exponents (max 0
-                                (- (true-exponent (ival-lo (car srcs))) out-exp)
-                                (- (true-exponent (ival-hi (car srcs))) out-exp)))]
+                                (+ (true-exponent (ival-lo (car srcs))) out-exp)
+                                (+ (true-exponent (ival-hi (car srcs))) out-exp)))]
               
       [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
        ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)], where log[sin(x)] <= 0
