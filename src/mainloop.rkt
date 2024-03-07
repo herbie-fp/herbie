@@ -139,8 +139,12 @@
   (timeline-event! 'localize)
 
   (define loc-errss
-    (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
+     (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
+  (define loc-errss
+     (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
+
   (define repr (context-repr (*context*)))
+
 
   ; high-error locations
   (^locs^
