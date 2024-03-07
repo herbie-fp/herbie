@@ -25,6 +25,8 @@
   (match pattern
    [(? number?)
     (and (equal? pattern expr) '())]
+   [(? literal?)
+    (and (equal? pattern expr) '())]
    [(? variable?)
     (list (cons pattern expr))]
    [(list phead _ ...)
@@ -39,6 +41,7 @@
   ; pattern binding -> expr
   (match pattern
    [(? number?) pattern]
+   [(? literal?) pattern]
    [(? variable?)
     (dict-ref bindings pattern)]
    [(list phead pargs ...)

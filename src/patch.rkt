@@ -8,6 +8,7 @@
          "core/matcher.rkt"
          "core/simplify.rkt"
          "core/taylor.rkt"
+         "config.rkt"
          "accelerator.rkt"
          "alternative.rkt"
          "common.rkt"
@@ -76,7 +77,7 @@
       #;(exp ,exp-x ,log-x)
       #;(log ,log-x ,exp-x))))
 
-;; Taylor is problematic since it doesn't know what reprs are
+;; Taylor is problematic since it doesn't know what reprs are.
 ;; There are two types of errors that occur due to this inconsistency
 ;;  - reduce:
 ;;      the internal simplifier will try to desugar an subexpression
@@ -86,22 +87,17 @@
 ;;      external desugaring fails because of an unsupported/mismatched
 ;;      operator
 
-(define (taylor-expr expr var f finv)
-  (define expr* (expand-accelerators (*rules*) (prog->spec expr)))
-  (define genexpr (approximate expr* var #:transform (cons f finv)))
-  (λ ()
-    (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-      (spec->prog (genexpr) (*context*)))))
-
 (define (taylor-alt altn)
-  (define expr (alt-expr altn))
+  (define expr (expand-accelerators (*rules*) (prog->spec (alt-expr altn))))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
       (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-      (define genexpr (taylor-expr expr var f finv))
-      (for ([_ (in-range 4)])
-        (define replace (genexpr))
+      (define genexpr (approximate expr var #:transform (cons f finv)))
+      (for ([_ (in-range (*taylor-order-limit*))])
+        (define replace
+          (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+            (spec->prog (genexpr) (*context*))))
         (when replace
           (sow (alt replace `(taylor () ,name ,var) (list altn) '()))))
       (timeline-stop!))))
@@ -109,10 +105,12 @@
 (define (gen-series!)
   (when (flag-set? 'generate 'taylor)
     (timeline-event! 'series)
+    (timeline-push! 'inputs (map ~a (^queued^)))
     (define series-expansions
       (apply append
         (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
           (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
+    (timeline-push! 'outputs (map ~a series-expansions))
 
     ; Probably unnecessary, at least CI passes!
     (define (is-nan? x)
