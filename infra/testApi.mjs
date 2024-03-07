@@ -51,3 +51,4 @@ const sample3 = (await (await fetch('http://127.0.0.1:8000/api/sample', { method
 const localerror = (await (await fetch('http://127.0.0.1:8000/api/localerror', { method: 'POST', body: JSON.stringify({ formula: '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))', sample: sample2.points }) })).json())
 
 assert.equal(localerror.tree['avg-error'] > 0, true)
+assert.ok(cost)

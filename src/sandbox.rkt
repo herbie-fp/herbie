@@ -71,7 +71,9 @@
 
 ;; Given a test, computes the program cost of the input expression
 (define (get-cost test)
-  ((platform-cost-proc (*active-platform*)) (test-input test)))
+  (define cost-proc (platform-cost-proc (*active-platform*)))
+  (define output-repr (context-repr (*context*)))
+  (cost-proc (test-input test) output-repr))
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
@@ -257,6 +259,8 @@
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
       (*context* (test-context test))
+      (*active-platform* (get-platform (*platform-name*)))
+      (activate-platform! (*active-platform*))
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])

@@ -23,7 +23,7 @@
   (dynamic-require fallback-plugin #f)
   (dynamic-require default-platform #f)
   ;; activate the default platform
-  (*active-platform* (get-platform (*default-platform-name*)))
+  (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
 
 (define (load-herbie-plugins)
