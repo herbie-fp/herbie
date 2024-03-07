@@ -43,12 +43,9 @@
       (and (bfnegative? a) (bfnegative? b))))
 
 (define all-explanations
-  (list 'nan-rescue 'oflow-left 'oflow-right 'cancellation
-        'oflow-rescue 'sensitivity 'cancellation
-        'uflow-rescue
-        'u/u 'u/n 'o/o 'o/n 'n/o 'n/u
-        'o*u 'u*o 'n*o 'n*u
-        'rescue))
+  (list 'uflow-rescue
+        'u/u 'u/n 'o/o 'n/o
+        'o*u 'u*o 'n*u))
 
 (define (predicted-errors expr ctx pctx)
   (define cond-thres (bf 100))
@@ -163,8 +160,8 @@
          (define y.eps (+ 127 (bigfloat-exponent y)))
 
          (cond
-           [(> (- x.eps y.eps) 100) (void) #;(silence y-ex)]
-           [(> (- y.eps x.eps) 100) (void) #;(silence x-ex)])
+           [(> (- x.eps y.eps) 100) (silence y-ex)]
+           [(> (- y.eps x.eps) 100) (silence x-ex)])
          
          (cond
            ; Condition number hallucination
@@ -217,8 +214,8 @@
          (define y.eps (+ 127 (bigfloat-exponent y)))
 
          (cond
-           [(> (- x.eps y.eps) 100) (void) #;(silence y-ex)]
-           [(> (- y.eps x.eps) 100) (void) #;(silence x-ex)])
+           [(> (- x.eps y.eps) 100) (silence y-ex)]
+           [(> (- y.eps x.eps) 100) (silence x-ex)])
 
          (cond
            ; Condition number hallucination:
@@ -527,10 +524,13 @@
                  (infinite? x^y)
                  (bfinfinite? subexpr-val)) #f]
 
-           [(and (or (bfzero? x)
-                     (bfinfinite? x))
+           [(and (bfzero? x)
                  (not (bf= subexpr-val x)))
-            (mark-erroneous! subexpr 'rescue)]
+            (mark-erroneous! subexpr 'uflow-rescue)]
+
+           [(and (bfinfinite? x)
+                 (not (bf= subexpr-val x)))
+            (mark-erroneous! subexpr 'oflow-rescue)]
            
            [(and (or (bf> cond-x cond-thres)
                      (bf> cond-y cond-thres))
