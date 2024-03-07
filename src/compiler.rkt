@@ -273,10 +273,22 @@
       ; TODO: tanh - it is actually a different case
       [(equal? ival-tan op)
        ; log[Гtan] = log[x] - log[sin(x)*cos(x)] <= log[x] + |log[tan(x)]| + 1
-       (define out-lo (true-exponent (ival-lo output)))
-       (define out-hi (true-exponent (ival-hi output)))
-       (define out-exp (+ (max (abs out-lo)
-                               (abs out-hi)) 1))
+       ;                                                      ^^^^^^^^^^^
+       ;                                                 tan can be (-inf, +inf) or close to zero
+       (define outlo (ival-lo output))
+       (define outhi (ival-hi output))
+       
+       (define out-exp
+         (match (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+           [#t (+   ; both bounds are positive or negative
+                   (max (abs (true-exponent outlo))
+                        (abs (true-exponent outhi)))
+                   1)]
+           [#f (+   ; tan is (-inf, +inf) or around zero
+                (max (abs (true-exponent outlo))
+                     (abs (true-exponent outhi)))
+                1
+                (get-slack))]))
 
        (set! new-exponents (max 0
                                 (+ (true-exponent (ival-lo (car srcs))) out-exp)
@@ -290,17 +302,14 @@
        (define outhi (ival-hi output))
 
        (define out-exp
-         (match* ((bigfloat-signbit outlo) (bigfloat-signbit outhi))
-           [(0 0) (min    ; positive
+         (match (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+           [#t (min    ; both bounds are positive or negative
+                (true-exponent outlo)
+                (true-exponent outhi))]
+           [#f (- (min ; Condition of uncertainty, 0.bf can be included
                    (true-exponent outlo)
-                   (true-exponent outhi))]
-           [(1 1) (min    ; negative
-                   (true-exponent outlo)
-                   (true-exponent outhi))]
-           [(_ _) (- (min ; Condition of uncertainty, 0.bf can be included
-                      (true-exponent outlo)
-                      (true-exponent outhi))
-                     (get-slack))] ; assumes that log[cos(x)/sin(x)]'s exponent is slack bits less  (zero case)
+                   (true-exponent outhi))
+                  (get-slack))] ; assumes that log[cos(x)/sin(x)]'s exponent is slack bits less  (zero case)
            ))
                
        (set! new-exponents (max 0 (- (max
@@ -314,12 +323,10 @@
        (define outhi (ival-hi output))
        
        (set! new-exponents
-             (match* ((bigfloat-signbit outlo) (bigfloat-signbit outhi))
-               [(0 0) ; positive
+             (match (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+               [#t   ; both bounds are positive or negative
                 (- (true-exponent outlo))]
-               [(1 1) ; negative
-                (- (true-exponent outhi))]
-               [(_ _) ; output crosses 0.bf - uncertainty
+               [#f ; output crosses 0.bf - uncertainty
                 (+ (get-slack)
                    (max 0
                         (- (true-exponent outlo))
@@ -327,7 +334,7 @@
                ))]
               
       [(member op (list ival-asin ival-acos))
-       ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)] = log[x] - [log[1-x^2]/2 + log[asin(x)]]
+       ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)]
        ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)]
        ;                       ^^^^^^^^^^^^
        ;                       condition of uncertainty
@@ -350,9 +357,7 @@
        (set! new-exponents (max 0 (- xlo-exp out-exp) (- xhi-exp out-exp)))]
 
       [(equal? op ival-atan)
-       ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] ~ -log[x] - log[atan(x)]
-       ;                       ^^^^^^^^^^
-       ;                       pruning
+       ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -log[x] - log[atan(x)]
        (define xlo-exp (- (true-exponent (ival-lo (car srcs)))))
        (define xhi-exp (- (true-exponent (ival-hi (car srcs)))))
        (set! new-exponents (max 0
