@@ -20,34 +20,52 @@
            define-accelerator-operator
            define-accelerator-impl))
 
-(struct accelerator-operator (body variables itypes otypes))
+;;
+;;  Accelerator operators
+;;
 
+;; An accelerator operator
+;; Each operator is just a composition of existing operators
+;;  `itypes`: input type of accelerator
+;;  `otype`: output type of accelerator
+;;  `spec`: definition as an S-expr
+;;  `apply`: procedure that matches on its definition and replaces it
+;;  `undo`: procedure that replaces an accelerator with its definition
+(struct accelerator-operator (itypes otype spec apply undo))
+
+;; Accelerators known to Herbie at runtime
 (define accelerator-operators (make-hasheq))
 
+;; Is the operator an accelerator?
 (define (accelerator? x)
   (hash-has-key? accelerator-operators x))
 
-(define (register-accelerator-operator! name itypes otype form)
-  (match-define (list (or 'λ 'lambda) (list variables ...) body) form)
-  (unless (= (length variables) (length itypes))
+;; Adds an accelerator to the table.
+(define (register-accelerator-operator! name itypes otype spec)
+  (match-define (list (or 'λ 'lambda) (list vars ...) body) spec)
+  (for/fold ([ids '()]) ([var (in-list vars)])
+    (if (member var ids)
+        (error 'register-accelerator-operator!
+               "duplicate variable for ~a: ~a"
+               name var)
+        (cons var ids))) 
+  (unless (= (length vars) (length itypes))
     (error 'register-accelerator-operator!
            "implementation does not have expected arity: ~a ~a"
-           (length variables)
+           (length vars)
            (length itypes)))
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
-  (define accelerator (accelerator-operator body variables itypes otype))
-  (hash-set! accelerator-operators name accelerator)
-  (register-operator! name
-                      itypes otype
-                      (list (cons 'ival (compile-spec body variables))))
-  ;; TODO: Are the groups right now?
+  (define ival-fn (compile-spec body vars))
+  (hash-set! accelerator-operators name
+             (accelerator-operator itypes otype spec #f #f))
+  (register-operator! name itypes otype (list (cons 'ival ival-fn)))
   (register-ruleset*! ruleset-name
-                      '(numerics simplify)
-                      (map cons variables itypes)
-                      `((,define-name ,body (,name ,@variables))
-                        (,undefine-name (,name ,@variables) ,body))))
+                      (list 'numerics 'simplify)
+                      (map cons vars itypes)
+                      (list (list define-name body (cons name vars))
+                            (list undefine-name (cons name vars) body))))
 
 (define-syntax define-accelerator-operator
   (syntax-rules ()
@@ -60,12 +78,13 @@
 (define (register-accelerator-impl! operator name
                                     itypes otype
                                     [implementation #f])
-  (match-define (accelerator-operator body variables _ _)
+  (match-define (accelerator-operator _ _ spec _ _)
     (dict-ref accelerator-operators operator))
+  (match-define (list (or 'λ 'lambda) (list vars ...) body) spec)
+  (define ctx (context vars otype itypes))
   (define impl-fn
     (or implementation
-        (let ([fn (eval-progs-real (list body)
-                                   (context variables otype itypes))])
+        (let ([fn (eval-progs-real (list body) ctx)])
           (λ args (first (apply fn args))))))
   (register-operator-impl! operator
                            name
@@ -85,63 +104,67 @@
                                  (get-representation 'otype)
                                  implementation)]))
 
-(define (expand-accelerators rules expression)
-  (define undefine-rules
-    (filter
-     (compose
-      (curry set-member? (map (curryr sym-append '- 'undefine) (dict-keys accelerator-operators)))
-      rule-name)
-     rules))
-  ;; Apply the first rule that matches top down. We do this because we can only
-  ;; be sure we have a real match if the term does not occur in the syntactic
-  ;; scope of any other syntactic extensions.
-  ;;
-  ;; See https://dl.acm.org/doi/10.1145/319838.319859
-  (let rewrite ([expression* expression])
-    (match (or
-            (let ([expression** (ormap (curryr rule-apply expression*) undefine-rules)])
-              (and expression** (car expression**)))
-            expression*)
-      [(list operator operands ...) (cons operator (map rewrite operands))]
-      [_ expression*])))
+(define (expand-accelerators expr
+                             #:accelerators [accelerators (dict-keys accelerator-operators)])
+  (void))
 
-;; TODO: Temporarily copied to avoid cycles. Is there a way to avoid this?
+; (define (expand-accelerators rules expression)
+;   (define undefine-rules
+;     (filter
+;      (compose
+;       (curry set-member? (map (curryr sym-append '- 'undefine) (dict-keys accelerator-operators)))
+;       rule-name)
+;      rules))
+;   ;; Apply the first rule that matches top down. We do this because we can only
+;   ;; be sure we have a real match if the term does not occur in the syntactic
+;   ;; scope of any other syntactic extensions.
+;   ;;
+;   ;; See https://dl.acm.org/doi/10.1145/319838.319859
+;   (let rewrite ([expression* expression])
+;     (match (or
+;             (let ([expression** (ormap (curryr rule-apply expression*) undefine-rules)])
+;               (and expression** (car expression**)))
+;             expression*)
+;       [(list operator operands ...) (cons operator (map rewrite operands))]
+;       [_ expression*])))
 
-(define (merge-bindings binding1 binding2)
-  (and binding1
-       binding2
-       (let/ec quit
-         (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
-           (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
+; ;; TODO: Temporarily copied to avoid cycles. Is there a way to avoid this?
 
-(define (pattern-match pattern expr)
-  (match pattern
-   [(? number?)
-    (and (equal? pattern expr) '())]
-   [(? variable?)
-    (list (cons pattern expr))]
-   [(list phead _ ...)
-    (and (list? expr)
-         (equal? (car expr) phead)
-         (= (length expr) (length pattern))
-         (for/fold ([bindings '()])
-             ([pat (cdr pattern)] [subterm (cdr expr)])
-           (merge-bindings bindings (pattern-match pat subterm))))]))
+; (define (merge-bindings binding1 binding2)
+;   (and binding1
+;        binding2
+;        (let/ec quit
+;          (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
+;            (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
 
-(define (pattern-substitute pattern bindings)
-  ; pattern binding -> expr
-  (match pattern
-   [(? number?) pattern]
-   [(? variable?)
-    (dict-ref bindings pattern)]
-   [(list phead pargs ...)
-    (cons phead (map (curryr pattern-substitute bindings) pargs))]))
+; (define (pattern-match pattern expr)
+;   (match pattern
+;    [(? number?)
+;     (and (equal? pattern expr) '())]
+;    [(? variable?)
+;     (list (cons pattern expr))]
+;    [(list phead _ ...)
+;     (and (list? expr)
+;          (equal? (car expr) phead)
+;          (= (length expr) (length pattern))
+;          (for/fold ([bindings '()])
+;              ([pat (cdr pattern)] [subterm (cdr expr)])
+;            (merge-bindings bindings (pattern-match pat subterm))))]))
 
-(define (rule-apply rule expr)
-  (let ([bindings (pattern-match (rule-input rule) expr)])
-    (if bindings
-        (cons (pattern-substitute (rule-output rule) bindings) bindings)
-        #f)))
+; (define (pattern-substitute pattern bindings)
+;   ; pattern binding -> expr
+;   (match pattern
+;    [(? number?) pattern]
+;    [(? variable?)
+;     (dict-ref bindings pattern)]
+;    [(list phead pargs ...)
+;     (cons phead (map (curryr pattern-substitute bindings) pargs))]))
+
+; (define (rule-apply rule expr)
+;   (let ([bindings (pattern-match (rule-input rule) expr)])
+;     (if bindings
+;         (cons (pattern-substitute (rule-output rule) bindings) bindings)
+;         #f)))
 
 (define-accelerator-operator expm1 (real) real (lambda (x) (- (exp x) 1)))
 (define-accelerator-operator log1p (real) real (lambda (x) (log (+ 1 x))))
