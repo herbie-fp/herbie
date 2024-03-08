@@ -14,10 +14,6 @@
           (get-slack)  ; overflow/inf.bf
           exp)))
 
-#;(define (fixed-in-prec? iv prec)
-  (parameterize ([bf-precision prec])
-    (bf= (bf+ (ival-lo iv) 0.bf) (bf+ (ival-hi iv) 0.bf))))
-
 ;; Interpreter taking a narrow IR
 ;; ```
 ;; <prog> ::= #(<instr> ..+)
@@ -62,9 +58,6 @@
           (define output
             (parameterize ([bf-precision precision]) (apply (car instr) srcs)))
           (vector-set! vregs n output)
-          #;(when (and (*use-mixed-precision*) (bigfloat? (ival-lo output)) (> (*sampling-iteration*) -1))
-              (printf "~a fixed=~a " (symbol->string (object-name (car instr))) (fixed-in-prec? output (- precision (*ground-truth-extra-bits*))))
-              (printf "prec=~a, exonents=~a for ~a\n" precision (vector-ref vexps n) (parameterize ([bf-precision 53]) (ival-add output (ival 0.bf 0.bf)))))
           (timeline-stop!))
 
         (for/list ([root (in-list roots)])
@@ -128,7 +121,6 @@
       (make-hash
        (for/list ([var vars] [i (in-naturals)])
          (cons var i))))
-
     ; Counts
     (define size 0)
     (define exprc 0)
@@ -140,6 +132,7 @@
       (define expr
         (match prog
           [(? number?) (list (const (input->value prog type)))]
+          [(? literal?) (list (const (input->value (literal-value prog) type)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
            (list if-proc (munge c cond-type) (munge t type) (munge f type))]

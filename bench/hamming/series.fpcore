@@ -4,27 +4,29 @@
  :name "expm1 (example 3.7)"
  ; We want to sample around 0 according to Hamming. We can sample more inputs closer to zero by shrinking the range to +/- 1
  :pre (<= (fabs x) 1)
- :herbie-target
  ; Hamming suggests taylor series expansion but we have libm functions in FPCore for the default platform
- (expm1 x)
+ :alt 
+ (! :description (platform libm) (expm1 x))
 
  (- (exp x) 1))
 
 (FPCore (n)
  :name "logs (example 3.8)"
  :pre (> n 6.8e+15)
- :herbie-target
- (- (log (+ n 1)) (- (/ 1 (* 2 n)) (- (/ 1 (* 3 (* n n))) (/ 4 (pow n 3)))))
+ :alt 
+ (! :description (platform libm)
+  (- (log (+ n 1)) (- (/ 1 (* 2 n)) (- (/ 1 (* 3 (* n n))) (/ 4 (pow n 3))))))
 
  (- (* (+ n 1) (log (+ n 1))) (* n (log n)) 1))
 
 (FPCore (x)
  :name "invcot (example 3.9)"
  :pre (and (< -0.026 x) (< x 0.026))
- :herbie-target
- (if (< (fabs x) 0.026)
+ :alt 
+ (! :description (platform libm)
+  (if (< (fabs x) 0.026)
      (* (/ x 3) (+ 1 (/ (* x x) 15)))
-     (- (/ 1 x) (/ 1 (tan x))))
+     (- (/ 1 x) (/ 1 (tan x)))))
 
  (- (/ 1 x) (/ 1 (tan x))))
 
@@ -33,8 +35,9 @@
  ; We want to sample small x according to Hamming. We can sample more inputs closer to zero by shrinking the range to +/- 1
  :pre (<= (fabs x) 1)
  ; Hamming suggests using Taylor expansion but until we have platforms, we will use FPCore's access to libm functions.
- :herbie-target
- (/ (log1p (- x)) (log1p x))
+ :alt 
+ (! :description (platform libm)
+  (/ (log1p (- x)) (log1p x)))
 
  (/ (log (- 1 x)) (log (+ 1 x))))
 
@@ -49,9 +52,11 @@
  ; than the smaller between a and b but don't force one to be smaller than the other in order to test to see if Herbie can figure it out. 
  ; Bound by 710 to avoid sampling infinite values since we have an exponential.
  ; Chose a multiplicative factor of 1e-27 compared to a in order to not sample epsilon to close to 0 which eliminates the exponent.
- :herbie-target
+ 
  ; Hammings' rewrite, page 48
- (+ (/ 1 a) (/ 1 b))
+ :alt 
+ (! :description (platform libm)
+  (+ (/ 1 a) (/ 1 b)))
 
  (/
   (* eps (- (exp (* (+ a b) eps)) 1))
@@ -62,8 +67,9 @@
  ; Using previous notions of small epsilon, simply < +/- 1
  :pre (< (fabs eps) 1)
  ; Hamming suggests using Taylor expansion but FPCore has libm which is contained on the "default" platform.
- :herbie-target
- (- (log1p (- eps)) (log1p eps))
+ :alt 
+ (! :description (platform libm)
+  (- (log1p (- eps)) (log1p eps)))
 
  (log (/ (- 1 eps) (+ 1 eps))))
 

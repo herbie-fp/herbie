@@ -31,7 +31,9 @@
           ([splitpoint (cdr (reverse splitpoints))])
         (define repr (repr-of (sp-bexpr splitpoint) ctx))
         (define <=-operator (get-parametric-operator '<= repr repr))
-        `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
+        `(if (,<=-operator ,(sp-bexpr splitpoint)
+                           ,(literal (repr->real (sp-point splitpoint) repr)
+                                     (representation-name repr)))
              ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
              ,expr)))
 
