@@ -11,6 +11,7 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
+         herbie/syntax/sugar
          herbie/web/common
          herbie/web/core2mkl
          herbie/web/core2python3-10
@@ -49,22 +50,25 @@
          (writeln err p))])))
 
 ;; Replaces a given accelerator in an expression
-(define (remove-accelerator expr accel)
-  (define (remove expr)
-    (match expr
-      [`(if ,cond ,ift ,iff)
-       `(if ,(remove cond) ,(remove ift) ,(remove iff))]
-      [`(,(? (curry eq? accel) op) ,args ...)
-       (printf "~a\n" accel)
-       `(,op ,@(map remove args))]
-      [`(,op ,args ...)
-       `(,op ,@(map remove args))]
-      [_ expr]))
-  (match expr
+(define (remove-accelerators core)
+  (define op-set (platform-operator-set (*active-platform*)))
+  (define ops-in-pform (operator-set-operators op-set))
+  (define (supported? op) (set-member? ops-in-pform op))
+  (define accels (filter-not supported? (all-accelerators)))
+  (define (remove expr) (expand-accelerators expr #:accelerators accels))
+  (match core
     [`(FPCore ,id (,vars ...) ,props ... ,expr)
-     `(FPCore ,id (,vars ...) ,props ... ,(remove expr))]
+     `(FPCore ,id ,vars ,@props ,(remove expr))]
     [`(FPCore (,vars ...) ,props ... ,expr)
-     `(FPCore (,vars ...) ,props ... ,(remove expr))]))
+     `(FPCore ,vars ,@props ,(remove expr))]))
+
+;; Replaces the expression of an FPCore
+(define (replace-expr core expr)
+  (match core
+    [`(FPCore ,id (,vars ...) ,props ... ,_)
+     `(FPCore ,id ,vars ,@props ,expr)]
+    [`(FPCore (,vars ...) ,props ... ,_)
+     `(FPCore ,vars ,@props ,expr)]))
 
 ;; Reads commands from stdin and writes results to stdout.
 ;; All output must be on a single line and terminated by a newline.
@@ -92,7 +96,7 @@
            [(list core) core]
            [_ (error 'run-server "cost: malformed arguments ~a" args)]))
        (define test (parse-test (datum->syntax #f core)))
-       (define result (run-herbie 'cost test #:seed seed))
+       (define result (run-herbie 'cost test #:seed seed #:timeline-disabled? #t))
        (define cost (job-result-backend result))
        (printf "~a\n" cost)
        (loop)]
@@ -102,18 +106,48 @@
          (match args
            [(list core) core]
            [_ (error 'run-server "desugar: malformed arguments ~a" args)]))
-       (define core*
+       (define test
          (let loop ([core core])
            (with-handlers ([exn:fail:user:herbie:syntax?
                             (lambda (exn)
                               (define locs (exn:fail:user:herbie:syntax-locations exn))
                               (for/fold ([core core]) ([(_ msg) (in-dict locs)])
+                                ; this is so hacky
                                 (match (regexp-match #rx"No implementations of `([^\\s]*)`" msg)
-                                  [(list _ op)
-                                   (loop (remove-accelerator core (string->symbol op)))]
+                                  [(list _ _) (loop (remove-accelerators core))]
                                   [#f #f])))])
             (parse-test (datum->syntax #f core)))))
-       (printf "~a\n" core*)
+       (cond
+         [test
+          (define output-repr (test-output-repr test))
+          (define expr (prog->fpcore (test-input test) output-repr))
+          (writeln (replace-expr core expr))]
+         [else
+          (printf "#f\n")])
+       (loop)]
+      ; error <for-sample:expr> <core:expr> ...
+      [(list 'error args ...)
+       (define-values (input-core eval-cores)
+         (match args
+           [(list input-core eval-cores ...) (values input-core eval-cores)]
+           [_ (error 'run-server "error: malformed arguments ~a" args)]))
+       (define test (parse-test (datum->syntax #f input-core)))
+       (define pctx ; we sample from the original input core
+         (let ([result (run-herbie 'sample test
+                                   #:seed seed
+                                   #:timeline-disabled? #t)])
+           (job-result-backend result)))
+       (define test-errors
+         (for/list ([eval-core (in-list eval-cores)])
+            (define test (parse-test (datum->syntax #f eval-core)))
+           (define pt&errs ; ... and then use the sample on each core
+             (let ([result (run-herbie 'errors test
+                                       #:seed seed
+                                       #:pcontext pctx
+                                       #:timeline-disabled? #t)])
+               (job-result-backend result)))
+           (errors-score (map second pt&errs))))
+       (printf "~a\n" (string-join (map ~s test-errors) " "))
        (loop)]
       ; improve <core> <threads:int>
       [(list 'improve args ...)
@@ -153,7 +187,7 @@
        (define test (parse-test (datum->syntax #f core)))
        (define pctx
          (parameterize ([*reeval-pts* num-points])
-           (define result (run-herbie 'sample test #:seed seed))
+           (define result (run-herbie 'sample test #:seed seed #:timeline-disabled? #t))
            (job-result-backend result)))
        (printf "~a\n"
                (string-join

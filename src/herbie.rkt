@@ -55,7 +55,6 @@
 
   (define threads #f)
   (define report-note #f)
-  (define improve-lang "fpcore")
   (define timeout-set? #f)
 
   (define seed (random 1 (expt 2 31)))
@@ -179,10 +178,8 @@
     #:once-each
     [("--threads") num "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count num))]
-    [("--lang") lang "Output language: c, fpcore [default: fpcore]"
-     (set! improve-lang lang)]
     #:args (input output)
-    (run-improve input output #:threads threads #:lang improve-lang)]
+    (run-improve input output #:threads threads)]
    [report "Run Herbie on an FPCore file, producing an HTML report"
     #:once-each
     [("--note") note "Add a note for this run"

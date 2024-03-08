@@ -43,7 +43,7 @@ def run(
         samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
 
     if tune:
-        # tuning schedule        
+        # tuning cost model       
         runner.herbie_compile(cores=cores)
 
         driver_dirs = runner.make_driver_dirs(cores=cores)
@@ -59,14 +59,18 @@ def run(
 
         baseline_cores = runner.herbie_improve(cores=input_cores, threads=threads, platform='default')
         baseline_cores = runner.herbie_desugar(cores=baseline_cores)
-        runner.herbie_cost(cores=baseline_cores)
+        runner.herbie_cost(cores=baseline_cores) # recompute the cost
+        runner.herbie_error(input_cores=input_cores, cores=baseline_cores) # recompute the error
         baseline_frontier = runner.herbie_pareto(cores=baseline_cores)
+
+        # print('Platform:', cores)
+        # print('Baseline:', baseline_cores)
 
         # times = runner.run_drivers(driver_dirs=driver_dirs)
         # runner.plot_times(cores, times)
         runner.plot_pareto_comparison((runner.name, frontier), ('baseline', baseline_frontier))
     else:
-        # run
+        # run and plot results
         frontier = runner.herbie_pareto(cores=cores)
         samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
         runner.herbie_compile(cores=cores)

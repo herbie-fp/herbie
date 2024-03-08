@@ -99,9 +99,8 @@
 
   (define-values (_ test-pcontext) (partition-pcontext pcontext (*context*)))
   (define errs (errors (test-input test) test-pcontext (*context*)))
-
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
-    (list pt (format-bits (ulps->bits err)))))
+    (list pt err)))
 
 ;; Given a test and a sample of points, the ground truth of each point
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
@@ -196,7 +195,7 @@
   (define start-train-errs (errors start-expr train-pcontext ctx))
   (define start-test-errs (errors start-expr test-pcontext* ctx))
   (define start-alt-data (alt-analysis start-alt start-train-errs start-test-errs))
-
+  
   ;; optionally compute error/cost for input expression
   (define target-alt-data
     (cond

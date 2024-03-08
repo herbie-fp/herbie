@@ -199,14 +199,54 @@ class Runner(object):
             # call out to server
             for core in cores:
                 print(f'(desugar {core.core})', file=server.stdin, flush=True)
-                output = server.stdout.readline()
+                output = server.stdout.readline().strip()
+                if output == '#f':
+                    print(f'WARN: failed to desugar {core.name}')
+                else:
+                    core2 = parse_core(output)
+                    core2.descr = core.descr
+                    desugared.append(core2)
 
             # terminate the server
             print('(exit)', file=server.stdin, flush=True)
             _ = server.stdout.readline()
 
-        self.log(f'desugared {len(cores)} cores')
+        self.log(f'desugared {len(desugared)} cores')
         return desugared
+
+    def herbie_error(self, input_cores: List[FPCore], cores: List[FPCore]) -> None:
+        """Computes the error of each FPCore, overriding the `error` variable of each FPCore."""
+        # assuming all FPCores have names at this point
+        cores_by_group = dict()
+        for core in cores:
+            if core.name is None:
+                raise RuntimeError('FPCore does not have name', core)
+            if core.name in cores_by_group:
+                cores_by_group[core.name].append(core)
+            else:
+                cores_by_group[core.name] = [core]
+
+        with Popen(
+            args=['racket', str(self.herbie_path), "--platform", self.name],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
+
+            # call out to server
+            for input in input_cores:
+                cores = cores_by_group[input.name]
+                core_str = ' '.join(map(lambda c: c.core, cores))
+                print(f'(error {input.core} {core_str})', file=server.stdin, flush=True)
+                output = server.stdout.readline().strip()
+                for core, err in zip(cores, output.split(' ')):
+                    core.err = float(err)
+                print('.', end='')
+            print('')
+
+            # terminate the server
+            print('(exit)', file=server.stdin, flush=True)
+            _ = server.stdout.readline()
+        self.log(f'recomputed errors of {len(cores)} cores')
 
     def herbie_improve(
             self,
@@ -238,7 +278,7 @@ class Runner(object):
                 core.err = float(group[2].strip())
                 cores.append(core)
 
-        self.log(f'generated FPCores with Herbie')
+        self.log(f'generated {len(cores)} FPCores with Herbie')
         return cores
 
     def herbie_pareto(self, cores: List[FPCore]) -> List[Tuple[float, float]]:
