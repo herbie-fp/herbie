@@ -62,14 +62,6 @@
     [`(FPCore (,vars ...) ,props ... ,expr)
      `(FPCore ,vars ,@props ,(remove expr))]))
 
-;; Replaces the expression of an FPCore
-(define (replace-expr core expr)
-  (match core
-    [`(FPCore ,id (,vars ...) ,props ... ,_)
-     `(FPCore ,id ,vars ,@props ,expr)]
-    [`(FPCore (,vars ...) ,props ... ,_)
-     `(FPCore ,vars ,@props ,expr)]))
-
 ;; Reads commands from stdin and writes results to stdout.
 ;; All output must be on a single line and terminated by a newline.
 (define (run-server seed)
@@ -106,24 +98,13 @@
          (match args
            [(list core) core]
            [_ (error 'run-server "desugar: malformed arguments ~a" args)]))
-       (define test
-         (let loop ([core core])
-           (with-handlers ([exn:fail:user:herbie:syntax?
-                            (lambda (exn)
-                              (define locs (exn:fail:user:herbie:syntax-locations exn))
-                              (for/fold ([core core]) ([(_ msg) (in-dict locs)])
-                                ; this is so hacky
-                                (match (regexp-match #rx"No implementations of `([^\\s]*)`" msg)
-                                  [(list _ _) (loop (remove-accelerators core))]
-                                  [#f #f])))])
-            (parse-test (datum->syntax #f core)))))
-       (cond
-         [test
-          (define output-repr (test-output-repr test))
-          (define expr (prog->fpcore (test-input test) output-repr))
-          (writeln (replace-expr core expr))]
-         [else
-          (printf "#f\n")])
+       (define core* (remove-accelerators core))
+       (with-handlers ([exn:fail:user:herbie:syntax?
+                        (lambda (_)
+                          (eprintf "Failed to parse ~a\n" core)
+                          (writeln #f))])
+          (parse-test (datum->syntax #f core*))
+          (writeln core*))
        (loop)]
       ; error <for-sample:expr> <core:expr> ...
       [(list 'error args ...)

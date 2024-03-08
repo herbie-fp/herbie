@@ -107,9 +107,10 @@ class Runner(object):
         self.nary_ops = nary_ops
         self.time_unit = time_unit
         # if the working directory does not exist, create it
-        if not self.working_dir.exists(): 
-            self.working_dir.mkdir(parents=True)
-            self.log('created working directory at `' + str(self.working_dir) + '`')
+        if self.working_dir.exists():
+            shutil.rmtree(self.working_dir)
+        self.working_dir.mkdir(parents=True)
+        self.log('created working directory at `' + str(self.working_dir) + '`')
 
     def log(self, msg: str, *args):
         """Logging routine for this runner."""
@@ -234,14 +235,15 @@ class Runner(object):
 
             # call out to server
             for input in input_cores:
-                cores = cores_by_group[input.name]
-                core_str = ' '.join(map(lambda c: c.core, cores))
+                group = cores_by_group[input.name]
+                core_str = ' '.join(map(lambda c: c.core, group))
                 print(f'(error {input.core} {core_str})', file=server.stdin, flush=True)
-                output = server.stdout.readline().strip()
-                for core, err in zip(cores, output.split(' ')):
+                output = server.stdout.readline()
+                errors = output.strip().split(' ')
+                if len(errors) != len(group):
+                    raise RuntimeError('Unexpected output', output)
+                for core, err in zip(group, errors):
                     core.err = float(err)
-                print('.', end='')
-            print('')
 
             # terminate the server
             print('(exit)', file=server.stdin, flush=True)
@@ -254,8 +256,8 @@ class Runner(object):
             threads: int = 1,
             platform: Optional[str] = None
     ):
-        """Runs Herbie improvement on benchmarks under `path`
-        appending all resulting FPCores to `self.cores`."""
+        """Runs Herbie improvement on benchmarks under `path` appending
+        all resulting FPCores to `self.cores`."""
         if platform is None:
             platform = self.name
 

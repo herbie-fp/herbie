@@ -1,12 +1,13 @@
-from typing import Optional, Tuple
-import os
+from typing import Optional, Tuple, List
 import argparse
+import os
 
 from cost.runner import Runner
 from cost.c import CRunner
 from cost.mkl import MKLRunner
 from cost.arith import ArithRunner
 from cost.python import PythonRunner
+from cost.fpcore import FPCore
 
 # paths
 script_path = os.path.abspath(__file__)
@@ -19,6 +20,11 @@ default_num_threads = 1
 default_herbie_threads = 1
 default_num_points = 10_000
 default_num_runs = 25
+
+def write_fpcores(path: str, cores: List[FPCore]):
+    with open(path, 'w') as f:
+        for core in cores:
+            print(core.core, file=f)
 
 def run(
     runner: Runner,
@@ -39,8 +45,15 @@ def run(
         samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
     else:
         # Synthesize implementations
-        input_cores = runner.synthesize()
+        cores = runner.synthesize()
         samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
+        input_cores = cores
+
+    input_cores_path = runner.working_dir.joinpath('input.fpcore')
+    write_fpcores(str(input_cores_path), input_cores)
+
+    platform_cores_path = runner.working_dir.joinpath('platform.fpcore')
+    write_fpcores(str(platform_cores_path), cores)
 
     if tune:
         # tuning cost model       
@@ -63,11 +76,9 @@ def run(
         runner.herbie_error(input_cores=input_cores, cores=baseline_cores) # recompute the error
         baseline_frontier = runner.herbie_pareto(cores=baseline_cores)
 
-        # print('Platform:', cores)
-        # print('Baseline:', baseline_cores)
+        baseline_cores_path = runner.working_dir.joinpath('baseline.fpcore')
+        write_fpcores(str(baseline_cores_path), baseline_cores)
 
-        # times = runner.run_drivers(driver_dirs=driver_dirs)
-        # runner.plot_times(cores, times)
         runner.plot_pareto_comparison((runner.name, frontier), ('baseline', baseline_frontier))
     else:
         # run and plot results
