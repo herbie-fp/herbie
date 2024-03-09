@@ -199,7 +199,10 @@
   (define target-alt-data
     (cond
       [(test-output test)
-       (define target-expr (fpcore->prog (list-ref (test-output test) 0) ctx))
+       (define target-expr 
+        (if (> (length (test-output test)) 0)
+          (fpcore->prog (list-ref (test-output test) 0) ctx)
+          #f))
        (define target-train-errs (errors target-expr train-pcontext ctx))
        (define target-test-errs (errors target-expr test-pcontext* ctx))
        (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)]
