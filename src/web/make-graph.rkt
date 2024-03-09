@@ -201,21 +201,25 @@
              (ol ([class "history"])
                  ,@(render-history alt train-pctx test-pctx ctx)))))
 
-      ,(if (> (length (test-output test)) 0)
-        ;;; ONE VERY BIG TODO: THIS IS WHERE THE DEVELOPER TARGET GETS DEFINED. SO THE PLATFORM SPECIFIC
-        ;;; TARGET'S INDEX NEEDS TO BE CALLED HERE. NOT THE FIRST list-ref
 
-           (let-values ([(dropdown body) (render-program (fpcore->prog (list-ref (test-output test) 0) ctx) ctx #:ident identifier)])
-             `(section ([id "target"] [class "programs"])
-                       (h2 "Developer target"
-                           ": "
-                           (span ([class "subhead"])
-                                 (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")) " accurate, "
-                                 (data ,(~r (/ (alt-cost start-alt repr) target-cost) #:precision '(= 1)) "×") " speedup")
-                           ,dropdown
-                           ,(render-help "report.html#target"))
-                       ,body))
-           "")
-
+      ;;; ONE VERY BIG TODO: THIS IS WHERE THE DEVELOPER TARGET GETS DEFINED. SO SHOULD PLATFORM SPECIFIC
+      ;;; TARGET'S INDEX NEEDS TO BE CALLED HERE. PERSONALLY LIKE ALL OF THEM DEFINED HERE
+      ,@(for/list ([i (in-range (length (test-output test)))])
+          (let-values ([(dropdown body) (render-program (fpcore->prog (list-ref (test-output test) i) ctx) ctx #:ident identifier)])
+            `(section ([id "target"] [class "programs"])
+                      (h2 "Developer Target " ,(~a (+ i 1))
+                          ": "
+                          (span ([class "subhead"])
+                                (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")) " accurate, "
+                                (data ,(~r (/ (alt-cost start-alt repr) target-cost) #:precision '(= 1)) "×") " speedup")
+                          ,dropdown
+                          ,(render-help "report.html#target"))
+                      ,body)))
+                      ;;; SMALLER TODO: ALT DERIVATION SUPPORT?
+                      ; (details
+                      ;       (summary "Derivation")
+                      ;       (ol ([class "history"])
+                      ;           ,@(render-history alt train-pctx test-pctx ctx))))))
+    
       ,(render-reproduction test)))
     out))
