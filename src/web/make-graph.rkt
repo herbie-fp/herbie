@@ -201,8 +201,11 @@
              (ol ([class "history"])
                  ,@(render-history alt train-pctx test-pctx ctx)))))
 
-      ,(if (test-output test)
-           (let-values ([(dropdown body) (render-program (test-output test) ctx #:ident identifier)])
+      ,(if (> (length (test-output test)) 0)
+        ;;; ONE VERY BIG TODO: THIS IS WHERE THE DEVELOPER TARGET GETS DEFINED. SO THE PLATFORM SPECIFIC
+        ;;; TARGET'S INDEX NEEDS TO BE CALLED HERE. NOT THE FIRST list-ref
+
+           (let-values ([(dropdown body) (render-program (fpcore->prog (list-ref (test-output test) 0) ctx) ctx #:ident identifier)])
              `(section ([id "target"] [class "programs"])
                        (h2 "Developer target"
                            ": "

@@ -10,7 +10,7 @@
   (match* ((test-output test) (test-expected test))
     [(_ #f) #t]
     [(_ (? number? n)) (>= n output-bits)]
-    [(#f #t) (>= input-bits output-bits)]
+    [('() #t) (>= input-bits output-bits)]
     [(_ #t) (>= target-bits (- output-bits 1))]))
 
 (define (override-test-precision the-test repr)
@@ -63,9 +63,10 @@
          (pretty-print (alt-expr start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))
          (pretty-print (alt-expr end-alt) (current-output-port) 1)
-         (when (test-output test)
+         (when (> (length (test-output test) 0))
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
-           (pretty-print (test-output test) (current-output-port) 1)))
+           ;; ANOTHER BIG TODO: PLATFORM SPECIFIC TARGET
+           (pretty-print (list-ref (test-output test) 0) (current-output-port) 1)))
 
        success?]
       ['failure

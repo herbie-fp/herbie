@@ -156,11 +156,6 @@
   ; 2. Ensure that based on the platform string, the alt target is the one in the expression -> Done
   ; 3. Go through all available alts to find target of platforms
 
-  ; (when #t
-  ;   (displayln (format "prop-dict ~a" prop-dict))
-  ;   (displayln (format "is dict ~a" (dict? prop-dict))))
-
-  (define *desired-platform* `default)
 
   ; TODO : Commented out for now. Change design to add all alts to target
 
@@ -199,13 +194,6 @@
   ;               #f]))) ; Continue to the next key-value pair    
 
   ;     curr-target-list))
-  ; (displayln (format "here ~a" target-list))
-  ; (displayln (format "here 1.1 ~a" 
-  ;     (map (lambda (expression) (fpcore->prog expression ctx)) target-list)))
-
-  ; (displayln (format "here 2 ~a" test-parsed-target-loop))
-  ; (displayln (format "here 2.1 ~a" 
-  ;     (map (lambda (expression) (fpcore->prog expression ctx)) test-parsed-target-loop)))
   
 
 
@@ -219,17 +207,10 @@
         (filter 
           (lambda (entry) (equal? (car entry) ':alt)) ; Filter out entries with the key ':alt
           (dict->list prop-dict))])        ; Extract the values from the filtered pairs
-      
-        (if (= (length alt-values) 0)
-          #f
-          (map cdr alt-values)))))
 
-  ; (define target-list 
-  ;   (if (= (length extract-alt-values) 0)
-  ;     #f
-  ;     (map (lambda (expression) (fpcore->prog expression ctx)) extract-alt-values)))
+        (map cdr alt-values))))
 
-  (map (lambda (exp) (displayln exp)) extract-alt-values-list)
+  ; (map (lambda (exp) (displayln exp)) extract-alt-values-list)
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)

@@ -199,7 +199,7 @@
   (define target-alt-data
     (cond
       [(test-output test)
-       (define target-expr (test-output test))
+       (define target-expr (fpcore->prog (list-ref (test-output test) 0) ctx))
        (define target-train-errs (errors target-expr train-pcontext ctx))
        (define target-test-errs (errors target-expr test-pcontext* ctx))
        (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)]
@@ -302,9 +302,10 @@
              (representation-name repr)
              (map (curry map representation-name) (test-conversions test))
              (test-vars test)
-             (prog->fpcore (test-input test) repr) #f
+             (prog->fpcore (test-input test) repr) 
+             #f
              (prog->fpcore (test-spec test) repr)
-             (and (test-output test) (prog->fpcore (test-output test) repr))
+             (test-output test)
              #f #f #f #f #f (job-result-time result) link '()))
 
 (define (get-table-data result link)
