@@ -217,7 +217,7 @@
         (for ([prev-split-idx (in-range 0 point-idx)])
           ;; For each previous split point, we need the best candidate to fill the new regime
          (when 
-          (vector-ref can-split-vec (vector-ref v-aidx prev-split-idx))
+          (unsafe-vector-ref can-split-vec (unsafe-vector-ref v-aidx prev-split-idx))
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
               (let ([cost (unsafe-fl- (unsafe-flvector-ref psum point-idx)
