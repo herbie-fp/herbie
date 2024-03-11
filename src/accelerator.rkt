@@ -120,7 +120,7 @@
       (if bindings (pattern-substitute rhs bindings) expr)))
   (let loop ([expr expr])
     (match (expand expr)
-      [(list 'if cond iff ift) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
+      [(list 'if cond ift iff) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
       [(list op args ...) `(,op ,@(map loop args))]
       [expr expr])))
 

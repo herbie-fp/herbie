@@ -11,7 +11,6 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
-         herbie/syntax/sugar
          herbie/web/common
          herbie/web/core2mkl
          herbie/web/core2python3-10
@@ -49,12 +48,11 @@
          (writeln cost p)
          (writeln err p))])))
 
-;; Replaces a given accelerator in an expression
+;; Replaces any unsupported accelerators in an FPCore
 (define (remove-accelerators core)
   (define op-set (platform-operator-set (*active-platform*)))
   (define ops-in-pform (operator-set-operators op-set))
-  (define (supported? op) (set-member? ops-in-pform op))
-  (define accels (filter-not supported? (all-accelerators)))
+  (define accels (filter-not (curry set-member? ops-in-pform) (all-accelerators)))
   (define (remove expr) (expand-accelerators expr #:accelerators accels))
   (match core
     [`(FPCore ,id (,vars ...) ,props ... ,expr)
@@ -113,22 +111,19 @@
            [(list input-core eval-cores ...) (values input-core eval-cores)]
            [_ (error 'run-server "error: malformed arguments ~a" args)]))
        (define test (parse-test (datum->syntax #f input-core)))
-       (define pctx ; we sample from the original input core
-         (let ([result (run-herbie 'sample test
-                                   #:seed seed
-                                   #:timeline-disabled? #t)])
-           (job-result-backend result)))
-       (define test-errors
+       (define pctx ; run a no iteration improve job to get the pcontexts
+         (parameterize ([*num-iterations* 0])
+           (define result (run-herbie 'improve test
+                                      #:seed seed
+                                      #:timeline-disabled? #t))
+           (match-define (list train-pcontext test-pcontext) (improve-result-pctxs (job-result-backend result)))
+           train-pcontext))
+       (define test-errs ; evaluate errors on the eval cores
          (for/list ([eval-core (in-list eval-cores)])
-            (define test (parse-test (datum->syntax #f eval-core)))
-           (define pt&errs ; ... and then use the sample on each core
-             (let ([result (run-herbie 'errors test
-                                       #:seed seed
-                                       #:pcontext pctx
-                                       #:timeline-disabled? #t)])
-               (job-result-backend result)))
-           (errors-score (map second pt&errs))))
-       (printf "~a\n" (string-join (map ~s test-errors) " "))
+           (define test (parse-test (datum->syntax #f eval-core)))
+           (define test-errs (errors (test-input test) pctx (test-context test)))
+           (errors-score test-errs)))
+       (printf "~a\n" (string-join (map ~s test-errs) " "))
        (loop)]
       ; improve <core> <threads:int>
       [(list 'improve args ...)

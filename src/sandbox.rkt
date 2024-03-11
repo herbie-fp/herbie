@@ -109,8 +109,6 @@
 (define (get-exacts test pcontext)
   (unless pcontext
     (error 'get-exacts "cannnot run without a pcontext"))
-
-  (define repr (test-output-repr test))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
   (define fn (eval-progs-real 

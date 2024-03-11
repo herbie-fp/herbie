@@ -234,6 +234,7 @@ class Runner(object):
             universal_newlines=True) as server:
 
             # call out to server
+            i = 0
             for input in input_cores:
                 group = cores_by_group[input.name]
                 core_str = ' '.join(map(lambda c: c.core, group))
@@ -244,11 +245,12 @@ class Runner(object):
                     raise RuntimeError('Unexpected output', output)
                 for core, err in zip(group, errors):
                     core.err = float(err)
+                    i += 1
 
             # terminate the server
             print('(exit)', file=server.stdin, flush=True)
             _ = server.stdout.readline()
-        self.log(f'recomputed errors of {len(cores)} cores')
+        self.log(f'recomputed errors of {i} cores')
 
     def herbie_improve(
             self,
