@@ -4,7 +4,6 @@
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt"
          "../compiler.rkt")
 (require math/flonum)
-(require racket/unsafe/ops)
 (provide pareto-regimes (struct-out option) (struct-out si))
 
 (module+ test
@@ -207,36 +206,36 @@
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (define vec-aest (make-vector num-points))
     (for ([point-idx (in-range 0 num-points)])
-      (define aest-cost (unsafe-flvector-ref v-acost point-idx))
-      (define aest-best (unsafe-vector-ref v-cidx point-idx))
-      (define aest-bidx (unsafe-vector-ref v-aidx point-idx))
-      (define aest-prev-idx (unsafe-vector-ref v-pidx point-idx))
+      (define aest-cost (flvector-ref v-acost point-idx))
+      (define aest-best (vector-ref v-cidx point-idx))
+      (define aest-bidx (vector-ref v-aidx point-idx))
+      (define aest-prev-idx (vector-ref v-pidx point-idx))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (- aest-cost min-weight)])
+      (let ([acost (fl- aest-cost min-weight)])
         (for ([prev-split-idx (in-range 0 point-idx)])
           ;; For each previous split point, we need the best candidate to fill the new regime
          (when 
-          (unsafe-vector-ref can-split-vec (unsafe-vector-ref v-aidx prev-split-idx))
+          (vector-ref can-split-vec (vector-ref v-aidx prev-split-idx))
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
-              (let ([cost (unsafe-fl- (unsafe-flvector-ref psum point-idx)
-                             (unsafe-flvector-ref psum prev-split-idx))])
-                (when (or (not best) (unsafe-fl< cost bcost))
+              (let ([cost (fl- (flvector-ref psum point-idx)
+                             (flvector-ref psum prev-split-idx))])
+                (when (or (not best) (fl< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
-            (define temp (unsafe-fl+ (unsafe-flvector-ref v-acost prev-split-idx) bcost))
+            (define temp (fl+ (flvector-ref v-acost prev-split-idx) bcost))
             (when 
-              (unsafe-fl< temp acost)
+              (fl< temp acost)
               (set! acost temp)
               (set! aest-cost acost)
               (set! aest-best best)
               (set! aest-bidx (+ point-idx 1))
               (set! aest-prev-idx prev-split-idx)))))
-        (unsafe-flvector-set! vec-acost point-idx aest-cost)
-        (unsafe-vector-set! vec-cidx point-idx aest-best)
-        (unsafe-vector-set! vec-aidx point-idx aest-bidx)
-        (unsafe-vector-set! vec-pidx point-idx aest-prev-idx)))
+        (flvector-set! vec-acost point-idx aest-cost)
+        (vector-set! vec-cidx point-idx aest-best)
+        (vector-set! vec-aidx point-idx aest-bidx)
+        (vector-set! vec-pidx point-idx aest-prev-idx)))
   (values vec-acost vec-cidx vec-aidx vec-pidx))
 
   ;; We get the initial set of cse's by, at every point-index,
@@ -258,10 +257,10 @@
             (let ([cost (flvector-ref cand-psums point-idx)])
               (cand cost cand-idx (+ point-idx 1) num-points)))))
 
-      (unsafe-flvector-set! vec-acost point-idx (fl (cand-acost cse-min)))
-      (unsafe-vector-set! vec-cidx point-idx (cand-idx cse-min))
-      (unsafe-vector-set! vec-aidx point-idx (cand-point-idx cse-min))
-      (unsafe-vector-set! vec-pidx point-idx (cand-prev-idx cse-min)))
+      (flvector-set! vec-acost point-idx (fl (cand-acost cse-min)))
+      (vector-set! vec-cidx point-idx (cand-idx cse-min))
+      (vector-set! vec-aidx point-idx (cand-point-idx cse-min))
+      (vector-set! vec-pidx point-idx (cand-prev-idx cse-min)))
     (values vec-acost vec-cidx vec-aidx vec-pidx))
 
   ;; prefix of p is for previous
