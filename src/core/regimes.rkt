@@ -213,7 +213,7 @@
       (define aest-prev-idx (unsafe-vector-ref v-pidx point-idx))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (- aest-cost min-weight)])
+      (let ([acost (unsafe-fl- aest-cost min-weight)])
         (for ([prev-split-idx (in-range 0 point-idx)])
           ;; For each previous split point, we need the best candidate to fill the new regime
          (when 
