@@ -187,7 +187,7 @@ class Runner(object):
             _ = server.stdout.readline()
         self.log(f'recomputed cost of {len(cores)} cores')
 
-    def herbie_desugar(self, cores: List[FPCore]) -> List[FPCore]:
+    def herbie_desugar(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[FPCore]:
         """Attempts to desugar an FPCore generated in another platform into the platform
         represented by this `Runner`. If desugaring fails, the FPCore is removed."""
         desugared = []
@@ -211,6 +211,22 @@ class Runner(object):
             # terminate the server
             print('(exit)', file=server.stdin, flush=True)
             _ = server.stdout.readline()
+
+        # we need to check if we dropped any cores for a particular input core
+        # if we did, the "best" output core is just the input core
+        cores_by_group = dict()
+        for core in desugared:
+            if core.name is None:
+                raise RuntimeError('FPCore does not have name', core)
+            if core.name in cores_by_group:
+                cores_by_group[core.name].append(core)
+            else:
+                cores_by_group[core.name] = [core]
+
+        for input in input_cores:
+            if input.name not in cores_by_group:
+                print(f'WARN: no output core for {input.name}, restoring input')
+                desugared.append(input)
 
         self.log(f'desugared {len(desugared)} cores')
         return desugared
@@ -285,7 +301,7 @@ class Runner(object):
         self.log(f'generated {len(cores)} FPCores with Herbie')
         return cores
 
-    def herbie_pareto(self, cores: List[FPCore]) -> List[Tuple[float, float]]:
+    def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:
         """Runs Herbie's pareto frontier algorithm."""
         # assuming all FPCores have names at this point
         cores_by_group = dict()
@@ -304,10 +320,10 @@ class Runner(object):
             universal_newlines=True) as server:
 
             frontiers = []
-            for key in cores_by_group:
-                cores = cores_by_group[key]
-                frontier = ' '.join(list(map(lambda c: f'({c.cost} {c.err})', cores)))
-                frontiers.append(f'({frontier})')
+            for input in input_cores:
+                group = cores_by_group[input.name]
+                normed_frontier = ' '.join(list(map(lambda c: f'({c.cost / input.cost} {c.err / input.err})', group)))
+                frontiers.append(f'({normed_frontier})')
 
             # call out to server
             args = ' '.join(frontiers)
@@ -324,8 +340,8 @@ class Runner(object):
             if len(datum) != 2:
                 raise RuntimeError('Pareto frontier malformed:', datum)
 
-            cost = float(datum[0])
-            err = float(datum[1])
+            cost = float(datum[0]) / len(cores)
+            err = float(datum[1]) / len(cores)
             frontier.append((cost, err))
 
         self.log(f'computed Pareto frontier')

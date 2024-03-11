@@ -41,6 +41,9 @@ def run(
         # Using FPCores from directory, generate implementations using Herbie
         bench_dir, threads = herbie_params
         input_cores = runner.herbie_read(path=bench_dir)
+        runner.herbie_cost(cores=input_cores) # recompute the cost
+        runner.herbie_error(input_cores=input_cores, cores=input_cores)
+
         cores = runner.herbie_improve(cores=input_cores, threads=threads)
         samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
     else:
@@ -68,13 +71,13 @@ def run(
     elif baseline:
         # run and compare against baseline
         bench_dir, threads = herbie_params
-        frontier = runner.herbie_pareto(cores=cores)
+        frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
 
         baseline_cores = runner.herbie_improve(cores=input_cores, threads=threads, platform='default')
-        baseline_cores = runner.herbie_desugar(cores=baseline_cores)
+        baseline_cores = runner.herbie_desugar(input_cores=input_cores, cores=baseline_cores)
         runner.herbie_cost(cores=baseline_cores) # recompute the cost
         runner.herbie_error(input_cores=input_cores, cores=baseline_cores) # recompute the error
-        baseline_frontier = runner.herbie_pareto(cores=baseline_cores)
+        baseline_frontier = runner.herbie_pareto(input_cores=input_cores, cores=baseline_cores)
 
         baseline_cores_path = runner.working_dir.joinpath('baseline.fpcore')
         write_fpcores(str(baseline_cores_path), baseline_cores)
@@ -82,7 +85,7 @@ def run(
         runner.plot_pareto_comparison((runner.name, frontier), ('baseline', baseline_frontier))
     else:
         # run and plot results
-        frontier = runner.herbie_pareto(cores=cores)
+        frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
         samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
         runner.herbie_compile(cores=cores)
 
