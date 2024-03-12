@@ -27,11 +27,12 @@
   (define varc (length vars))
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
-  (define vprecs (make-vector vreg-count))             ; vector that stores working precisions
+  (define vprecs (make-vector (vector-length ivec)))   ; vector that stores working precisions
   (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
   (if (equal? name 'ival)
       (λ args
+        (printf "\n")
         (match (*use-mixed-precision*)
           [#t (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                              (* (*sampling-iteration*) 1000)))
@@ -43,10 +44,11 @@
         
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
-        (for ([instr (in-vector ivec)] [n (in-naturals varc)] [precision (in-vector vprecs varc)])
+        (for ([instr (in-vector ivec)] [n (in-naturals varc)] [precision (in-vector vprecs)])
           (define srcs
             (for/list ([idx (in-list (cdr instr))])
               (vector-ref vregs idx)))
+          (printf "instr=~a, prec=~a\n" instr precision)
           
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          (symbol->string (object-name (car instr)))
@@ -81,26 +83,26 @@
     [4 4096]
     [5 8192]))
 
-; Function sets up vprecs vector, where all the precisions
-; are equal to (max (*tuning-final-output-prec*) (* depth (*ground-truth-extra-bits*))),
+; Function sets up vstart-precs vector, where all the precisions
+; are equal to (+ (*tuning-final-output-prec*) (* depth (*ground-truth-extra-bits*))),
 ; where depth is the depth of a node in the given computational tree (ivec)
 (define (setup-vstart-precs ivec varc)
   (define ivec-len (vector-length ivec))
-  (define vstart-precs (make-vector (+ ivec-len varc)))
+  (define vstart-precs (make-vector ivec-len))
   (unless (vector-empty? ivec)
-    (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)]         ; reversed over ivec
-          [n (in-range (+ varc (- ivec-len 1)) (- varc 1) -1)]) ; reversed over precisions excluding variables
+    (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)] ; reversed over ivec
+          [n (in-range (- ivec-len 1) -1 -1)])          ; reversed over indices of vstart-precs
       (define current-prec (max (vector-ref vstart-precs n) (*tuning-final-output-prec*)))
       (vector-set! vstart-precs n current-prec)
     
       (define tail-registers (rest instr))
       (for ([idx (in-list tail-registers)])
-        (when (>= idx varc) ; if tail register is not a variable (we do not tune variables - they are always doubles)
-          (define idx-prec (vector-ref vstart-precs idx))
+        (when (>= idx varc)          ; if tail register is not a variable
+          (define idx-prec (vector-ref vstart-precs (- idx varc)))
           (set! idx-prec (max        ; sometimes an instruction can be in many tail registers
                           idx-prec   ; We wanna make sure that we do not tune a precision down
                           (+ current-prec (*ground-truth-extra-bits*))))
-          (vector-set! vstart-precs idx idx-prec)))))
+          (vector-set! vstart-precs (- idx varc) idx-prec)))))
   vstart-precs)
 
 ;; Translates a Herbie IR into an interpretable IR.
@@ -194,19 +196,20 @@
 
 (define (backward-pass ivec varc vregs vprecs vstart-precs)
   (vector-fill! vprecs 0)
-  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]
-        [n (in-range (- (vector-length vregs) 1) -1 -1)])
+  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
+        [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
 
-    (define op (car instr))
-    (define tail-registers (rest instr))
-    (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers))
-    (define output (vector-ref vregs n))
+    (define op (car instr)) ; current operation
+    (define tail-registers (rest instr))               
+    (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers)) ; tail of the current instr
+    (define output (vector-ref vregs n)) ; output of the current instr
 
-    (define exps-from-above (vector-ref vprecs n))
-    (define final-parent-precision (min (*max-mpfr-prec*) (+ exps-from-above (vector-ref vstart-precs n))))
+    (define exps-from-above (vector-ref vprecs (- n varc))) ; vprecs is shifted by varc elements from vregs
+    (define final-parent-precision (min (*max-mpfr-prec*)
+                                        (+ exps-from-above (vector-ref vstart-precs (- n varc)))))
     (when (equal? final-parent-precision (*max-mpfr-prec*))
       (*sampling-iteration* (*max-sampling-iterations*)))
-    (vector-set! vprecs n final-parent-precision)
+    (vector-set! vprecs (- n varc) final-parent-precision)
 
     (define new-exponents 0)
     (cond
@@ -391,4 +394,6 @@
                                 (- xhi-exp (true-exponent (ival-hi output)))))])
     
     (define child-precision (+ exps-from-above new-exponents))
-    (map (lambda (x) (vector-set! vprecs x child-precision)) tail-registers)))
+    (map (lambda (x) (when (>= x varc)  ; when tail register is not a variable
+                       (vector-set! vprecs (- x varc) child-precision)))
+         tail-registers)))
