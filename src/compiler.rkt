@@ -32,7 +32,6 @@
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
   (if (equal? name 'ival)
       (λ args
-        (printf "\n")
         (match (*use-mixed-precision*)
           [#t (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                              (* (*sampling-iteration*) 1000)))
@@ -48,7 +47,6 @@
           (define srcs
             (for/list ([idx (in-list (cdr instr))])
               (vector-ref vregs idx)))
-          (printf "instr=~a, prec=~a\n" instr precision)
           
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          (symbol->string (object-name (car instr)))
