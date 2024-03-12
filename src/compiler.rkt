@@ -10,8 +10,8 @@
   (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
   (if (equal? exp -9223372036854775807)
       (- (get-slack))  ; 0.bf
-      (if (or (< 1000000000 exp) (equal? exp -9223372036854775805))
-          (get-slack)  ; overflow/inf.bf
+      (if (or (< 1000000000 (abs exp)))
+          (get-slack)  ; overflow/inf.bf/nan.bf
           exp)))
 
 ;; Interpreter taking a narrow IR
@@ -30,7 +30,6 @@
   (define vprecs (make-vector vreg-count))             ; vector that stores working precisions
   (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
-  
   (if (equal? name 'ival)
       (λ args
         (match (*use-mixed-precision*)
@@ -214,37 +213,72 @@
     (define new-exponents 0)
     (cond
       [(equal? op ival-add)
-       (define xlo (ival-lo (first srcs)))
+       (define x (first srcs))
+       (define xlo (ival-lo x))
        (define xlo-exp (true-exponent xlo))
        (define xlo-sgn (bigfloat-signbit xlo))
-       (define ylo (ival-lo (second srcs)))
+       (define xhi (ival-hi x))
+       (define xhi-exp (true-exponent xhi))
+       (define xhi-sgn (bigfloat-signbit xhi))
+
+       (define y (second srcs))
+       (define ylo (ival-lo y))
        (define ylo-exp (true-exponent ylo))
        (define ylo-sgn (bigfloat-signbit ylo))
-       (define outlo-exp (true-exponent (ival-lo output)))
-       ; consider only lower bound
-       (set! new-exponents
-             (max 0
-                  (match (and (not (equal? xlo-sgn ylo-sgn))
-                              (>= 1 (abs (- xlo-exp ylo-exp))))
-                    [#f (- (max xlo-exp ylo-exp) outlo-exp)]
-                    [#t (+ (get-slack) (- (max xlo-exp ylo-exp) outlo-exp))])))]
-      
-      [(equal? op ival-sub)
-       (define xlo (ival-lo (first srcs)))
-       (define xlo-exp (true-exponent xlo))
-       (define xlo-sgn (bigfloat-signbit xlo))
-       (define yhi (ival-lo (second srcs)))
+       (define yhi (ival-hi y))
        (define yhi-exp (true-exponent yhi))
        (define yhi-sgn (bigfloat-signbit yhi))
+       
        (define outlo-exp (true-exponent (ival-lo output)))
-               
-       ; Consider only lower bound
+       (define outhi-exp (true-exponent (ival-hi output)))
+       
+       (set! new-exponents
+             (max 0
+                  (match (and (or (not (equal? xlo-sgn ylo-sgn))
+                                  (not (equal? xhi-sgn yhi-sgn)))
+                              (or (>= 1 (abs (- xlo-exp ylo-exp)))
+                                  (>= 1 (abs (- xhi-exp yhi-exp)))))
+                    [#f (max
+                         (- (max xlo-exp ylo-exp) outlo-exp)
+                         (- (max xhi-exp yhi-exp) outhi-exp))]
+                    [#t (+ (get-slack)
+                           (max
+                            (- (max xlo-exp ylo-exp) outlo-exp)
+                            (- (max xhi-exp yhi-exp) outhi-exp)))])))]
+      
+      [(equal? op ival-sub)
+       (define x (first srcs))
+       (define xlo (ival-lo x))
+       (define xlo-exp (true-exponent xlo))
+       (define xlo-sgn (bigfloat-signbit xlo))
+       (define xhi (ival-hi x))
+       (define xhi-exp (true-exponent xhi))
+       (define xhi-sgn (bigfloat-signbit xhi))
+
+       (define y (second srcs))
+       (define ylo (ival-lo y))
+       (define ylo-exp (true-exponent ylo))
+       (define ylo-sgn (bigfloat-signbit ylo))
+       (define yhi (ival-hi y))
+       (define yhi-exp (true-exponent yhi))
+       (define yhi-sgn (bigfloat-signbit yhi))
+       
+       (define outlo-exp (true-exponent (ival-lo output)))
+       (define outhi-exp (true-exponent (ival-hi output)))
+       
        (set! new-exponents
          (max 0
-              (match (and (equal? xlo-sgn yhi-sgn)
-                          (>= 1 (abs (- xlo-exp yhi-exp))))
-                [#f (- (max xlo-exp yhi-exp) outlo-exp)]
-                [#t (+ (get-slack) (- (max xlo-exp yhi-exp) outlo-exp))])))]
+              (match (and (or (equal? xlo-sgn yhi-sgn)
+                              (equal? xhi-sgn ylo-sgn))
+                          (or (>= 1 (abs (- xlo-exp yhi-exp)))
+                              (>= 1 (abs (- xhi-exp ylo-exp)))))
+                [#f (max
+                     (- (max xlo-exp yhi-exp) outlo-exp)
+                     (- (max xhi-exp ylo-exp) outhi-exp))]
+                [#t (+ (get-slack)
+                       (max
+                        (- (max xlo-exp yhi-exp) outlo-exp)
+                        (- (max xhi-exp ylo-exp) outhi-exp)))])))]
       
       [(equal? op ival-pow)
        ; log[Гpow] = max[ log(y) , log(y) + log[log(x)] ]
@@ -318,7 +352,8 @@
        (set! new-exponents
              (match (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
                [#t   ; both bounds are positive or negative
-                (- (true-exponent outlo))]
+                (max (- (true-exponent outlo))
+                     (- (true-exponent outhi)))]
                [#f ; output crosses 0.bf - uncertainty
                 (+ (get-slack)
                    (max 0
