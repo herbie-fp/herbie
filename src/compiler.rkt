@@ -43,12 +43,10 @@
         
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
-        (for ([instr (in-vector ivec)] [n (in-naturals varc)])
+        (for ([instr (in-vector ivec)] [n (in-naturals varc)] [precision (in-vector vprecs varc)])
           (define srcs
             (for/list ([idx (in-list (cdr instr))])
               (vector-ref vregs idx)))
-          
-          (define precision (vector-ref vprecs n))
           
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          (symbol->string (object-name (car instr)))
