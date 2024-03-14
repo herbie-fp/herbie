@@ -16,6 +16,7 @@
 (define-runtime-module-path default-platform "platforms/default.rkt")
 (define-runtime-module-path mkl-platform "platforms/mkl.rkt")
 (define-runtime-module-path python-platform "platforms/python3-10.rkt")
+(define-runtime-module-path avx-platform "platforms/avx.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
@@ -31,6 +32,7 @@
   (dynamic-require default-platform #f)
   (dynamic-require mkl-platform #f)
   (dynamic-require python-platform #f)
+  (dynamic-require avx-platform #f)
   ;; activate the default platform
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
