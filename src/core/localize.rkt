@@ -2,9 +2,9 @@
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt" "../alternative.rkt" "../platform.rkt")
 
-(provide batch-localize-error local-error-as-tree compute-local-errors
+(provide batch-localize-error batch-localize-cost local-error-as-tree compute-local-errors
          all-subexpressions)
 
 (define (all-subexpressions expr repr)
@@ -28,15 +28,45 @@
 (define (batch-localize-error exprs ctx)
   (define errss
     (if (null? exprs) empty (compute-local-errors exprs ctx)))
+  (define result
   (for/list ([expr (in-list exprs)] [errs (in-list errss)])
     (sort
      (sort
       (reap [sow]
         (for ([(expr err) (in-hash errs)])
-          (unless (andmap (curry = 1) err)
-            (sow (cons err expr)))))
+          (sow (cons err expr))))
       expr<? #:key cdr)
      > #:key (compose errors-score car))))
+     result) 
+
+
+;;Returns a list of expressions sorted by increasing local cost in the form (subexpression, cost)
+(define (batch-localize-cost exprs ctx)
+  ;;Create a list of lists of subexpressions
+  (define subexprss
+    (for/list ([expr (in-list exprs)])
+      (all-subexpressions expr (context-repr ctx))))
+  (define costs '())
+  
+  ;;Sort through each each subexpression and append a pair of expression and cost to the list costs
+  (for-each (lambda (subexprs)
+    (for-each (lambda (subexpr)
+      (define expr(car subexpr));;This subexpr is of form:(+.f64 N 1)
+      (define repr (cdr subexpr));;The repr is in the form #<representation binary64>
+      (define cost((platform-cost-proc (*active-platform*)) expr repr))
+      (set! costs (cons (cons expr cost) costs))
+      )
+    subexprs))
+  subexprss)
+  ;;Sorts the list by cost
+  (define sorted-costs 
+    (sort costs
+      (lambda (pair1 pair2)
+      (< (cdr pair1) (cdr pair2)))))
+  sorted-costs)
+
+
+
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors exprs ctx)
