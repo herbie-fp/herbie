@@ -33,10 +33,10 @@
 ;; extending, make sure this never gets too complicated to fit in your
 ;; head at once, because then global state is going to mess you up.
 
-(struct shellstate (table next-alts locs lowlocs patched) #:mutable)
+(struct shellstate (table next-alts locs locosts lowlocs patched) #:mutable)
 
 (define (empty-shellstate)
-  (shellstate #f #f #f #f #f))
+  (shellstate #f #f #f #f #f #f))
 
 (define-resetter ^shell-state^
   (λ () (empty-shellstate))
@@ -45,6 +45,9 @@
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
   (shellstate-locs (^shell-state^)))
+(define (^locosts^ [newval 'none])
+  (when (not (equal? newval 'none)) (set-shellstate-locosts! (^shell-state^) newval))
+  (shellstate-locosts (^shell-state^)))
 (define (^lowlocs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-lowlocs! (^shell-state^) newval))
   (shellstate-lowlocs (^shell-state^)))
@@ -141,10 +144,10 @@
   (define loc-errss
      (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define loc-costss
-     (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
+     (batch-localize-cost (map alt-expr (^next-alts^)) (*context*)))
 
   (define repr (context-repr (*context*)))
-
+  
 
   ; high-error locations
   (^locs^
@@ -156,6 +159,16 @@
                       (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
       expr))
 
+
+(^locosts^
+  (let ([exprs '()])
+    (for ([sublist (in-list (take loc-costss (*localize-expressions-limit*)))])
+      (define expr (car sublist))
+      (define cost (cdr sublist))
+      (set! exprs (cons expr exprs))) ; Add expr to exprs
+    exprs)) ; Return exprs
+
+ 
   ; low-error locations (Pherbie-only with multi-precision)
   (^lowlocs^
     (if (and (*pareto-mode*) (not (null? (platform-conversions (*active-platform*)))))
@@ -270,14 +283,18 @@
   (void))
 (define (finish-iter!)
   (unless (^next-alts^) (choose-alts!))
+  ;;changed here
   (unless (^locs^) (localize!))
-  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
+
+  ;;add in a parameter for locosts
+  (reconstruct! (patch-table-run (^locs^) (^locosts^)))
   (finalize-iter!)
   (void))
 
 (define (rollback-iter!)
   (^locs^ #f)
-  (^lowlocs^ #f)
+  (^locosts^ #f)
+  ;;(^lowlocs^ #f)
   (^next-alts^ #f)
   (^patched^ #f)
   (void))
@@ -296,7 +313,8 @@
 
   (choose-alts!)
   (localize!)
-  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
+  ;;Made a change here
+  (reconstruct! (patch-table-run (^locs^) (^locosts^)))
   (finalize-iter!))
   
 (define (setup-context! vars specification precondition repr)
