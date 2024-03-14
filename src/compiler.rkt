@@ -243,8 +243,8 @@
        (max 0
             (match (and (or (not (equal? xlo-sgn ylo-sgn))
                             (not (equal? xhi-sgn yhi-sgn)))
-                        (or (>= 1 (abs (- xlo-exp ylo-exp)))
-                            (>= 1 (abs (- xhi-exp yhi-exp)))))
+                        (or (>= 2 (abs (- xlo-exp ylo-exp)))
+                            (>= 2 (abs (- xhi-exp yhi-exp)))))
               [#f (max
                    (- (max xlo-exp ylo-exp) outlo-exp)
                    (- (max xhi-exp yhi-exp) outhi-exp))]
@@ -277,8 +277,8 @@
        (max 0
             (match (and (or (equal? xlo-sgn yhi-sgn)
                             (equal? xhi-sgn ylo-sgn))
-                        (or (>= 1 (abs (- xlo-exp yhi-exp)))
-                            (>= 1 (abs (- xhi-exp ylo-exp)))))
+                        (or (>= 2 (abs (- xlo-exp yhi-exp)))
+                            (>= 2 (abs (- xhi-exp ylo-exp)))))
               [#f (max
                    (- (max xlo-exp yhi-exp) outlo-exp)
                    (- (max xhi-exp ylo-exp) outhi-exp))]
