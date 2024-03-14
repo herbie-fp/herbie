@@ -198,6 +198,74 @@
                    (make-immutable-hash (hash->list costs))
                    (hash)))
 
+(begin-for-syntax
+
+;; Macro-time platform description
+(struct platform-info (optional? default-cost if-cost convs impls))
+
+;; Empty platform description
+(define (make-platform-info)
+  (platform-info #f #f #f '() '()))
+
+;; Parse conversion signatures into a list of implementation table
+(define (platform/parse-convs oops! default-cost default-cost-id conv-sigs)
+  (for/fold ([impls '()]) ([conv (in-list conv-sigs)])
+    (syntax-case conv ()
+      [(in out)
+       (let ([in #'in] [out #'out])
+         (unless default-cost
+          (oops! "`#:default-cost` required with `#:conversions`" conv))
+          (with-syntax ([default-cost-id default-cost-id] [in in] [out out])
+            (list* #'(list 'cast '(in out) default-cost-id)
+                   #'(list 'cast '(out in) default-cost-id)
+                   impls)))]
+      [_ (oops! "malformed conversion clause" conv)])))
+
+;; Parse implementation signatures into an implementation table
+(define (platform/parse-impls oops! default-cost default-cost-id impl-sigs)
+  (let loop ([impl-sigs impl-sigs] [impls '()])
+    (match impl-sigs
+      ['() impls]
+      [(list impl-sig rest ...)
+       (syntax-case impl-sig ()
+         [((itype ... otype) (op ...) cost)
+          ; multiple implementations with same type sig and cost
+          (loop (for/fold ([impl-sigs rest]) ([op (syntax->list #'(op ...))])
+                  (let ([impl-sig (with-syntax ([op op])
+                                    #'((itype ... otype) op cost))])
+                    (cons impl-sig impl-sigs)))
+                impls)]
+         [((itype ... otype) (op ...))
+          ; multiple implementations with same type sig and cost
+          (loop (for/fold ([impl-sigs rest]) ([op (syntax->list #'(op ...))])
+                  (let ([impl-sig (with-syntax ([op op])
+                                    #'((itype ... otype) op))])
+                    (cons impl-sig impl-sigs)))
+                impls)]
+         [((itype ... otype) op cost)
+          ; single implementation with type sig and cost
+          (let ([op #'op])
+            (unless (identifier? op)
+              (oops! "expected an identifier" op))
+            (define impl
+              (with-syntax ([op op])
+                #'(list 'op '(itype ... otype) cost)))
+            (loop rest (cons impl impls)))]
+         [((itype ... otype) op)
+          ; single implementation with default cost
+          (let ([op #'op])
+            (unless (identifier? op)
+              (oops! "expected an identifier" op))
+            (unless default-cost
+              (oops! "#:default-cost required for" impl-sig))
+            (define impl
+              (with-syntax ([op op] [cost default-cost-id])
+                #'(list 'op '(itype ... otype) cost)))
+            (loop rest (cons impl impls)))]
+         [_ (oops! "malformed implementation signature" impl-sig)])])))
+            
+)
+
 ;; Macro version of `make-platform`
 ;; 
 ;; Example usage:
@@ -206,6 +274,7 @@
 ;;   (platform
 ;;     #:conversions ([binary64 binary32] ...)  ; conversions
 ;;     #:default-cost 1                         ; default cost per impl
+;;     #:if-cost 1                              ; cost of an implementation
 ;;     [(bool) (TRUE FALSE)]                    ; constant (0-ary functions)
 ;;     [(bool bool) (not)]                      ; 1-ary function: bool -> bool
 ;;     [(bool bool bool) (and or)]              ; 2-ary function: bool -> bool -> bool
@@ -217,104 +286,56 @@
 (define-syntax (platform stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'platform why stx sub-stx))
-  (define (go cs es optional? default-cost if-cost)
-    ;; iterate over `cs ...` to get conversion signatures
-    (define convs-sigs
-      (let loop ([clauses cs] [convs '()])
-        (match clauses
-          [(list) convs]
-          [(list entry rest ...)
-           (syntax-case entry ()
-             [(in out)
-              (let ([in* (syntax->datum #'in)]
-                    [out* (syntax->datum #'out)])
-                (unless default-cost
-                  (oops! "#:default-cost required with #:conversions" cs))
-                (loop rest
-                      (list* (list 'cast (list in* out*) default-cost)
-                             (list 'cast (list out* in*) default-cost)
-                             convs)))]
-             [_ (oops! "malformed conversion clause" entry)])])))
-    ;; iterate over `es ...` to get implementation signatures
-    (define impl-sigs
-      (let loop ([clauses es] [impl-sigs '()])
-        (cond
-          [(null? clauses)
-           impl-sigs]
-          [else
-           (syntax-case (car clauses) ()
-             [((itype ... otype) (op ...) cost)
-              ; multiple implementations with same type sig and cost
-              (loop (for/fold ([clauses (cdr clauses)])
-                              ([o (in-list (syntax->datum #'(op ...)))])
-                      (define cl (with-syntax ([op o]) #'((itype ... otype) op cost)))
-                      (cons cl clauses))
-                    impl-sigs)]
-             [((itype ... otype) (op ...))
-              ; multiple implementations with same type sig and default cost
-              (loop (for/fold ([clauses (cdr clauses)])
-                              ([o (in-list (syntax->datum #'(op ...)))])
-                      (define cl (with-syntax ([op o]) #'((itype ... otype) op))) 
-                      (cons cl clauses))
-                    impl-sigs)]
-             [((itype ... otype) op cost)
-              ; single implementation with cost
-              (begin
-                (unless (identifier? #'op)
-                  (oops! "expected an identifier" #'op))
-                (loop (cdr clauses) (cons #'(op (itype ... otype) (unquote cost)) impl-sigs)))]
-             [((itype ... otype) op)
-              ; single implementation with default cost
-              (with-syntax ([cost default-cost])
-                (unless default-cost
-                  (oops! "#:default-cost required" (car clauses)))
-                (loop (cons #'((itype ... otype) op cost) (cdr clauses)) impl-sigs))]
-             [((_ ... _) bad)
-              (oops! "expected a list of operators" #'bad)]
-             [(bad (_ ...))
-              (oops! "expected a type signature" #'bad)]
-             [(_ _)
-              (oops! "malformed entry" (car clauses))]
-             [_
-              (oops! "expected [<signature> <ops>]" (car clauses))])])))
-    (with-syntax ([(impl-sigs ...) (append convs-sigs impl-sigs)]
-                  [optional? optional?]
-                  [if-cost if-cost])
-      #'(make-platform `(impl-sigs ...) #:optional? optional? #:if-cost if-cost)))
   (syntax-case stx ()
     [(_ cs ...)
-     (begin
-       (define default-cost #f)
-       (define if-cost #f)
-       (define optional? #f)
-       (define conv-sigs '())
-       (define impl-sigs '())
-       (let loop ([clauses #'(cs ...)])
-         (syntax-case clauses ()
-           [(#:optional rest ...)
-            (set! optional? #t)
-            (loop #'(rest ...))]
-           [(#:default-cost cost rest ...)
-            (set! default-cost (eval-syntax #'cost))
-            (loop #'(rest ...))]
-           [(#:default-cost)
-            (oops! "expected cost after keyword" clauses)]
-           [(#:if-cost cost rest ...)
-            (set! if-cost (eval-syntax #'cost))
-            (loop #'(rest ...))]
-           [(#:if-cost)
-            (oops! "expected cost after keyword" clauses)]
-           [(#:conversions (cs ...) rest ...)
-            (set! conv-sigs (append (syntax->list #'(cs ...)) conv-sigs))
-            (loop #'(rest ...))]
-           [(#:conversions)
-            (oops! "expected conversions after keyword" clauses)]
-           [(sig rest ...)
-            (set! impl-sigs (cons #'sig impl-sigs))
-            (loop #'(rest ...))]
-           [()
-            (go conv-sigs impl-sigs optional? default-cost if-cost)])))]
-    [_ (oops! "bad syntax")]))
+     (let loop ([cs #'(cs ...)] [info (make-platform-info)])
+       (syntax-case cs ()
+         [()
+          (let ([default-cost-id (gensym)] [if-cost-id (gensym)])
+            (match-define (platform-info optional? default-cost if-cost conv-sigs impl-sigs) info)
+            (define cast-impls (platform/parse-convs oops! default-cost default-cost-id conv-sigs))
+            (define impls (platform/parse-impls oops! default-cost default-cost-id impl-sigs))
+            (with-syntax ([(impl-sigs ...) (append cast-impls impls)]
+                          [default-cost-id default-cost-id]
+                          [if-cost-id if-cost-id]
+                          [default-cost default-cost]
+                          [if-cost if-cost]
+                          [optional? optional?])
+              #'(let ([default-cost-id default-cost]
+                      [if-cost-id if-cost])
+                  (make-platform (list impl-sigs ...)
+                                #:optional? optional?
+                                #:if-cost if-cost))))]
+         [(#:optional rest ...)
+          (loop #'(rest ...)
+                (struct-copy platform-info info
+                  [optional? #t]))]
+         [(#:default-cost cost rest ...)
+          (loop #'(rest ...)
+                (struct-copy platform-info info
+                  [default-cost #'cost]))]
+         [(#:default-cost)
+          (oops! "expected value after keyword `#:default-cost`" stx)]
+         [(#:if-cost cost rest ...)
+          (loop #'(rest ...)
+                (struct-copy platform-info info
+                  [if-cost #'cost]))]
+         [(#:if-cost)
+          (oops! "expected value after keyword `#:if-cost`" stx)]
+         [(#:conversions (cs ...) rest ...)
+          (loop #'(rest ...)
+                (struct-copy platform-info info
+                  [convs (append (syntax->list #'(cs ...))
+                                 (platform-info-convs info))]))]
+         [(#:conversions bad _ ...)
+          (oops! "expected a conversion list" #'bad)]
+         [(#:conversions)
+          (oops! "expected conversion list after keyword `#:conversions`" stx)]
+         [(impl-sig rest ...)
+          (loop #'(rest ...)
+                (struct-copy platform-info info
+                  [impls (cons #'impl-sig (platform-info-impls info))]))]
+         [_ (oops! "bad syntax")]))]))
 
 ;; Representation conversions in a platform.
 (define (platform-conversions pform)
@@ -579,6 +600,32 @@
   #:name $cost-map
   #:constructor-name make-cost-map)
 
+(begin-for-syntax
+
+;; Parses cost-map clauses into a table of costs
+(define (cost-map/parse oops! clauses)
+  (let loop ([clauses clauses] [costs '()])
+    (match clauses
+      ['() costs]
+      [(list clause rest ...)
+       (syntax-case clause ()
+         [((op ...) cost)
+          ; multiple ops with same cost
+          (loop (for/fold ([clauses rest]) ([op (syntax->list #'(op ...))])
+                  (define clause (with-syntax ([op op]) #'(op cost)))
+                  (cons clause clauses))
+                costs)]
+         [(op cost)
+          ; single op with cost
+          (let ([op #'op])
+            (unless (identifier? op)
+              (oops! "expected identifier" op))
+            (define entry (with-syntax ([op op]) #'(cons 'op cost)))
+            (loop rest (cons entry costs)))]
+         [_ (oops! "malformed cost clause" clause)])])))
+
+)
+
 ;; Constructs a cost map.
 ;; ```
 ;; (cost-model
@@ -590,33 +637,21 @@
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'cost-map why stx sub-stx))
   (define (go clauses default-cost)
-    (let loop ([clauses clauses] [costs (hash)])
-      (cond
-        [(null? clauses)
-         (with-syntax ([costs costs] [default-cost default-cost])
-           #'(make-cost-map costs default-cost))]
-        [else
-         (syntax-case (car clauses) ()
-           [((op ...) cost)
-            ; multiple ops with same cost
-            (loop (for/fold ([clauses (cdr clauses)])
-                            ([o (syntax->list #'(op ...))])
-                    (cons (with-syntax ([o o]) #'(o cost)) clauses))
-                  costs)]
-           [(op cost)
-            ; single op with a cost
-            (loop (cdr clauses)
-                  (hash-set costs (syntax->datum #'op) (eval-syntax #'cost)))]
-           [_ (oops! "malformed clause" (car clauses))])])))
+    (define costs (cost-map/parse oops! clauses))
+    (with-syntax ([(costs ...) costs]
+                  [default-cost-id (gensym)]
+                  [default-cost default-cost])
+      #'(let ([default-cost-id default-cost])
+          (make-cost-map (for/hash ([(op cost) (in-dict (list costs ...))])
+                            (values op cost))
+                         default-cost-id))))
   (syntax-case stx ()
     [(_ #:default-cost cost cl ...)
-     (go (syntax->list #'(cl ...)) (eval-syntax #'cost))]
+     (go (syntax->list #'(cl ...)) #'cost)]
     [(_ #:default-cost)
-     (oops! "missing cost after #:default-cost")]
-    [(_ cl ...)
-     (go (syntax->list #'(cl ...)) #f)]
-    [_
-     (oops! "bad syntax")]))
+     (oops! "missing cost after `#:default-cost`")]
+    [(_ cl ...) (go (syntax->list #'(cl ...)) #f)]
+    [_ (oops! "bad syntax")]))
 
 ;; Scales all entries in a cost map by a factor.
 (define (cost-map-scale s cm)
@@ -644,6 +679,18 @@
       (make-platform impls #:optional? optional?)))
   (apply platform-union pforms))
 
+(begin-for-syntax
+
+(define (platform-product/parse oops! clauses)
+  (for/list ([clause (in-list clauses)])
+    (syntax-case clause ()
+      [(((type repr) ...) cost-map)
+       #'(let ([t cost-map]) (list '((type . repr) ...) t))]
+      [(bad _) (oops! "malformed type assignment" #'bad)]
+      [_ (oops! "malformed clause" clause)])))
+
+)
+
 ;; Specialized "product" construction of a platform.
 ;; Given an operator set, instantiate a set of platform implementations
 ;; for each assignment of representations and cost model.
@@ -657,20 +704,12 @@
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'platform-product why stx sub-stx))
   (define (go clauses oset optional?)
-    (let loop ([clauses clauses] [assigns '()])
-      (cond
-        [(null? clauses)
-         (with-syntax ([assigns assigns]
-                       [oset oset]
-                       [optional? optional?])
-           #'(make-platform-product `assigns oset #:optional? optional?))]
-        [else
-         (syntax-case (car clauses) ()
-           [(((type repr) ...) cost-map)
-            (loop (cdr clauses)
-                  (cons #'(((type . repr) ...) ,cost-map) assigns))]
-           [(bad _) (oops! "malformed type assignment" #'bad)]
-           [_ (oops! "malformed clause" (car clauses))])])))
+    (with-syntax ([(clauses ...) (platform-product/parse oops! clauses)]
+                  [operator-set oset]
+                  [optional? optional?])
+      #'(make-platform-product (list clauses ...)
+                               operator-set
+                               #:optional? optional?)))
   (syntax-case stx ()
     [(_ #:optional cl ... oset) (go (syntax->list #'(cl ...)) #'oset #t)]
     [(_ cl ... oset) (go (syntax->list #'(cl ...)) #'oset #f)]
@@ -683,8 +722,8 @@
   (syntax-rules ()
     [(_ ([reprs costs] ...) pform-expr)
      (for/fold ([pform pform-expr])
-               ([repr '(reprs ...)]
-                [cost '(costs ...)])
+               ([repr (list 'reprs ...)]
+                [cost (list costs ...)])
        (struct-copy $platform pform
          [repr-costs (hash-set (platform-repr-costs pform)
                                (get-representation repr)
