@@ -343,26 +343,33 @@
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
   (define expr (alt-expr (car simplified)))
-  (define repr (repr-of expr context))
-  (define (values->json vs repr)
-    (map (lambda (value) (value->json value repr)) vs))
-  (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
-  (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
 
-  (for ([(subexpr pset) (in-dict pcount-hash)])
-    (define tset (hash-ref tcount-hash subexpr '()))
-    (define opred (set-subtract pset tset))
-    (define upred (set-subtract tset pset))
+  (define-values (fperrors explanations-table confusion-matrix maybe-confusion-matrix)
+    (predicted-errors expr context pcontext))
+
+  (for ([fperror (in-list fperrors)])
+    (match-define (list expr truth opreds oex upreds uex) fperror)
     (timeline-push! 'fperrors
-                    (~a subexpr)
-                    (length tset)
-                    (length opred)
-                    (and (not (empty? opred)) (values->json (first opred)
-                                                            repr))
-                    (length upred)
-                    (and (not (empty? upred)) (values->json (first upred)
-                                                            repr))))
+                    expr
+                    truth
+                    opreds
+                    oex
+                    upreds
+                    uex))
 
+  (for ([explanation (in-list explanations-table)])
+    (match-define (list op expr expl val maybe-count flow-list) explanation)
+    (timeline-push! 'explanations
+                    op
+                    expr
+                    expl
+                    val
+                    maybe-count
+                    flow-list))
+  
+  (timeline-push! 'confusion confusion-matrix)
+  (timeline-push! 'maybe-confusion maybe-confusion-matrix)
+  
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))
