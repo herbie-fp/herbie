@@ -84,7 +84,7 @@
       (ival-lo (is-infinite-interval repr (apply ival-or exs))))
       (values (if infinite? 'infinite 'valid) (if (*use-mixed-precision*) iter precision) exs)
      ]
-     [(> iter* (*max-sampling-iterations*))
+     [(or (> iter* (*max-sampling-iterations*)) (> precision* (*max-mpfr-prec*))) 
       (values 'exit (if (*use-mixed-precision*) iter precision) +nan.0)]
      [else
       (loop iter* precision*)])))
