@@ -92,9 +92,7 @@
   `((dt "Algorithm")
     (dd (table ([class "times"])
                ,@(for/list ([alg (group-by identity algorithm)])
-                   `(tr
-                     (td ,(~a (length alg)) "×")
-                     (td ,(~a (car alg)))))))))
+                   `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
 
 (define (render-phase-bogosity bogosity)
   (match-define (list domain-info) bogosity)
@@ -210,6 +208,7 @@
                          time-per-op))
                  > #:key second))))))
 
+
 (define (render-phase-sampling sampling)
   (define total (round (apply + (hash-values (cadr (car sampling))))))
   (define fields
@@ -305,7 +304,6 @@
               (match-define (list rule count) rec)
               `(tr (td ,(~a count) "×")
                    (td (code ,(~a rule) " "))))))))
-       
 
 (define (render-phase-fperrors fperrors)
   `((dt "FPErrors")
@@ -396,12 +394,6 @@
   `((dt "Results")
     (dd (table ([class "times"])
          ,@(for/list ([rec (in-list (sort outcomes > #:key fourth))])
-             #;(match-define (list prog precision category time count) rec)
-             #;`(tr (td ,(format-time time))
-                  (td ,(~a count) "×")
-                  (td ,(~a prog))
-                  (td ,(~a precision))
-                  (td ,(~a category)))
              (match-define (list precision category time count) rec)
              `(tr (td ,(format-time time)) (td ,(~a count) "×")
                   (td ,(~a precision)) (td ,(~a category))))))))
