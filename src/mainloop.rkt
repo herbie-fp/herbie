@@ -287,14 +287,14 @@
   (unless (^locs^) (localize!))
 
   ;;add in a parameter for locosts
-  (reconstruct! (patch-table-run (^locs^) (^locosts^)))
+  (reconstruct! (patch-table-run (^locs^) (lowlocs)))
   (finalize-iter!)
   (void))
 
 (define (rollback-iter!)
   (^locs^ #f)
-  (^locosts^ #f)
-  ;;(^lowlocs^ #f)
+  ;;(^locosts^ #f)
+  (^lowlocs^ #f)
   (^next-alts^ #f)
   (^patched^ #f)
   (void))
@@ -314,7 +314,7 @@
   (choose-alts!)
   (localize!)
   ;;Made a change here
-  (reconstruct! (patch-table-run (^locs^) (^locosts^)))
+  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!))
   
 (define (setup-context! vars specification precondition repr)
