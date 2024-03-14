@@ -4,7 +4,6 @@
          "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt"
          "../compiler.rkt")
 (require math/flonum)
-
 (provide pareto-regimes (struct-out option) (struct-out si))
 
 (module+ test
@@ -178,8 +177,7 @@
 
 (define/contract (err-lsts->split-indices err-lsts can-split)
   (->i ([e (listof list)] [cs (listof boolean?)]) 
-       [result (cs) (curry valid-splitindices? cs)])
-  ;; TODO add internal function
+        [result (cs) (curry valid-splitindices? cs)])
   (define can-split-vec (list->vector can-split))
   (define err-lsts-vec (list->vector err-lsts))
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
@@ -214,21 +212,21 @@
       (define aest-prev-idx (vector-ref v-pidx point-idx))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (- aest-cost min-weight)])
+      (let ([acost (fl- aest-cost min-weight)])
         (for ([prev-split-idx (in-range 0 point-idx)])
           ;; For each previous split point, we need the best candidate to fill the new regime
          (when 
           (vector-ref can-split-vec (vector-ref v-aidx prev-split-idx))
           (let ([best #f] [bcost #f])
             (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
-              (let ([cost (- (flvector-ref psum point-idx)
+              (let ([cost (fl- (flvector-ref psum point-idx)
                              (flvector-ref psum prev-split-idx))])
-                (when (or (not best) (< cost bcost))
+                (when (or (not best) (fl< cost bcost))
                   (set! bcost cost)
                   (set! best cidx))))
-            (define temp (+ (flvector-ref v-acost prev-split-idx) bcost))
+            (define temp (fl+ (flvector-ref v-acost prev-split-idx) bcost))
             (when 
-              (< temp acost) 
+              (fl< temp acost)
               (set! acost temp)
               (set! aest-cost acost)
               (set! aest-best best)
@@ -250,6 +248,7 @@
     (define vec-pidx (make-vector num-points))
     (for ([point-idx (in-range num-points)])
       ;; TODO this is kinda sloppy using #cand for only vector construction
+      ;; Also slow because lots of allocations but only runs once
       (define cse-min (vector-argmin cand-acost
         ;; Consider all the candidates we could put in this region
         ;; by sorting candidates
@@ -257,6 +256,7 @@
           ([cand-idx (range num-candidates)] [cand-psums flvec-psums])
             (let ([cost (flvector-ref cand-psums point-idx)])
               (cand cost cand-idx (+ point-idx 1) num-points)))))
+
       (flvector-set! vec-acost point-idx (fl (cand-acost cse-min)))
       (vector-set! vec-cidx point-idx (cand-idx cse-min))
       (vector-set! vec-aidx point-idx (cand-point-idx cse-min))
