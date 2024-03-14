@@ -287,7 +287,7 @@
   (unless (^locs^) (localize!))
 
   ;;add in a parameter for locosts
-  (reconstruct! (patch-table-run (^locs^) (lowlocs)))
+  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!)
   (void))
 
