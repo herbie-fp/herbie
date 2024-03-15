@@ -58,7 +58,6 @@
 ; of the error using this rewrite.
 (FPCore (x)
  :name "tanhf (example 3.4)"
- :pre (and (<= (- INFINITY) x) (<= x INFINITY))
  :alt 
  (! :description (platform libm)
   (tan (/ x 2)))

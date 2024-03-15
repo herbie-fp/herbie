@@ -185,10 +185,10 @@
   [ival ival-e])
 
 (define-operator (INFINITY) real
-  [ival (λ () (ival +inf.bf))])
+  [ival (λ () (ival (bfprev +inf.bf) +inf.bf))])
 
 (define-operator (NAN) real
-  [ival (λ () (ival +nan.bf))])
+  [ival (λ () ival-illegal)])
 
 (define-operator (TRUE) bool
   [ival (const (ival-bool true))])
