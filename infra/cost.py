@@ -4,6 +4,7 @@ import os
 
 from cost.runner import Runner
 from cost.c import CRunner
+from cost.math import MathRunner
 from cost.mkl import MKLRunner
 from cost.arith import ArithRunner
 from cost.python import PythonRunner
@@ -141,6 +142,14 @@ def main():
         )
     elif lang == 'c':
         runner = CRunner(
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads
+        )
+    elif lang == 'math':
+        runner = MathRunner(
             working_dir=output_dir,
             herbie_path=herbie_path,
             num_inputs=num_points,
