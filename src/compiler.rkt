@@ -204,7 +204,9 @@
 
     (define exps-from-above (vector-ref vprecs (- n varc))) ; vprecs is shifted by varc elements from vregs
     (define final-parent-precision (min (*max-mpfr-prec*)
-                                        (+ exps-from-above (vector-ref vstart-precs (- n varc)))))
+                                        (+ exps-from-above
+                                           (additional-precision op output srcs)
+                                           (vector-ref vstart-precs (- n varc)))))
     (when (equal? final-parent-precision (*max-mpfr-prec*))
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs (- n varc) final-parent-precision)
@@ -216,6 +218,42 @@
                        (vector-set! vprecs (- x varc) child-precision)))
          tail-registers)))
 
+; A possible solution
+(define (additional-precision op output srcs)
+  (cond
+      [(equal? op ival-add)
+       (define x (first srcs))
+       (define xlo (ival-lo x))
+       (define xlo-exp (true-exponent xlo))
+       (define xlo-sgn (bigfloat-signbit xlo))
+
+       (define y (second srcs))
+       (define ylo (ival-lo y))
+       (define ylo-exp (true-exponent ylo))
+       (define ylo-sgn (bigfloat-signbit ylo))
+       
+       (define outlo-exp (true-exponent (ival-lo output)))
+
+       (if (>= 1 (abs (- (max ylo-exp xlo-exp) outlo-exp)))
+           (+ (abs ylo-exp) (abs xlo-exp))
+           0)]
+      [(equal? op ival-sub)
+       (define x (first srcs))
+       (define xlo (ival-lo x))
+       (define xlo-exp (true-exponent xlo))
+       (define xlo-sgn (bigfloat-signbit xlo))
+
+       (define y (second srcs))
+       (define yhi (ival-hi y))
+       (define yhi-exp (true-exponent yhi))
+       (define yhi-sgn (bigfloat-signbit yhi))
+       
+       (define outlo-exp (true-exponent (ival-lo output)))
+
+       (if (>= 1 (abs (- (max yhi-exp xlo-exp) outlo-exp)))
+           (+ (abs yhi-exp) (abs xlo-exp))
+           0)]
+      [else 0]))
 
 (define (get-exponent op output srcs)
   (cond
