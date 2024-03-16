@@ -98,7 +98,7 @@
 (define *localize-expressions-limit* (make-parameter 4))
 
 ;; How long of a Taylor series to generate; too long and we time out
-(define *taylor-order-limit* (make-parameter 6))
+(define *taylor-order-limit* (make-parameter 4))
 
 ;; How accurate to make the binary search
 (define *binary-search-test-points* (make-parameter 16))
