@@ -163,8 +163,6 @@
           expr) 
         '()))
   
-  (timeline-compact! 'mixsample)
-
   (void))
 
 ;; Returns the locations of `subexpr` within `expr`
@@ -308,7 +306,6 @@
   (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
   (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
-  (timeline-compact! 'mixsample)
   (timeline-event! 'eval)
   (define-values (errss costs) (atab-eval-altns table simplified* context))
   (timeline-event! 'prune)

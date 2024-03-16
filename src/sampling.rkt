@@ -143,12 +143,9 @@
             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
        [else
         (when (>= skipped (*max-skipped-points*))
-          (timeline-compact! 'outcomes)
           (raise-herbie-error "Cannot sample enough valid points."
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exactss)])))
-  (timeline-compact! 'mixsample)
-  (timeline-compact! 'outcomes)
   (cons outcomes (cons points (flip-lists exactss))))
 
 
@@ -166,7 +163,6 @@
     (parameterize ([ground-truth-require-convergence #f])
       ;; TODO: Should make-sampler allow multiple contexts?
       (make-sampler (first ctxs) pre fn)))
-  (timeline-compact! 'mixsample)
   (timeline-event! 'sample)
   ;; TODO: should batch-prepare-points allow multiple contexts?
   (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler))

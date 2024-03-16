@@ -10,7 +10,7 @@
   (timeline-push! (symbol? jsexpr? ... . -> . void?))
   (timeline-adjust! (symbol? symbol? jsexpr? ... . -> . void?))
   (timeline-start! (symbol? jsexpr? ... . -> . (-> void?))))
- timeline-load! timeline-extract timeline-compact!
+ timeline-load! timeline-extract
  timeline-merge timeline-relink *timeline-disabled*)
 (module+ debug (provide *timeline*))
 
@@ -27,11 +27,15 @@
 (define *timeline-active-value* #f)
 
 (define *timeline-disabled* (make-parameter true))
+
+(define always-compact '(mixsample outcomes))
   
 (define (timeline-event! type)
   (when *timeline-active-key*
     (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
                   (curry append *timeline-active-value*) '())
+    (for ([key (in-list always-compact)])
+      (timeline-compact! key))
     (set! *timeline-active-key* #f))
   
   (unless (*timeline-disabled*)
