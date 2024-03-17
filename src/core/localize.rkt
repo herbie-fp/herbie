@@ -2,7 +2,7 @@
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt" "../timeline.rkt")
 
 (provide batch-localize-error local-error-as-tree compute-local-errors
          all-subexpressions)
@@ -78,6 +78,8 @@
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference (hash-ref exacts-hash expr) approx repr)]))
       (hash-update! errs (car expr) (curry cons err))))
+  (timeline-compact! 'outcomes)
+  (timeline-compact! 'mixsample)
 
   (for/list ([expr (in-list exprs)] [subexprs (in-list subexprss)])
     (for/hash ([subexpr (in-list subexprs)])
