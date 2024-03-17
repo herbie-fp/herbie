@@ -189,6 +189,7 @@
   (define min-weight (fl num-points))
 
   ;; Vector version of psums, idk how to inline make-vec-psum yet
+  ;; maybe this? [flvector-sums](https://docs.racket-lang.org/math/flonum.html#%28def._%28%28lib._math%2Fflonum..rkt%29._flvector-sums%29%29)
   (define (make-vec-psum lst) 
    (vector->flvector (partial-sums (list->vector lst))))
   (define flvec-psums (vector-map make-vec-psum err-lsts-vec))
@@ -247,25 +248,29 @@
 
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
-  ;; by using only one candidate to the left of that point.
+  ;; by using only one candidate to the left of that point. 
   (define (initial)
     (define vec-acost (make-flvector num-points))
     (define vec-cidx (make-vector num-points))
     (define vec-aidx (make-vector num-points))
     (define vec-pidx (make-vector num-points))
+    (define vec-temp (make-flvector num-candidates))
     (for ([point-idx (in-range num-points)])
-      (define cse-min (vector-argmin cand-acost
-        ;; Consider all the candidates we could put in this region
-        ;; by sorting candidates
-        (for/vector #:length num-candidates
-          ([cand-idx (range num-candidates)] [cand-psums flvec-psums])
-            (let ([cost (flvector-ref cand-psums point-idx)])
-              (cand cost cand-idx (+ point-idx 1) num-points)))))
-
-      (flvector-set! vec-acost point-idx (fl (cand-acost cse-min)))
-      (vector-set! vec-cidx point-idx (cand-idx cse-min))
-      (vector-set! vec-aidx point-idx (cand-point-idx cse-min))
-      (vector-set! vec-pidx point-idx (cand-prev-idx cse-min)))
+      ;; record the cost from each candidate
+      (for ([cand-idx (range num-candidates)])
+       (flvector-set! vec-temp cand-idx 
+        (flvector-ref (vector-ref flvec-psums cand-idx) point-idx)))
+      ;; Find the min, no built in function to find smallest fl in vector
+      (define min (flvector-ref vec-temp 0))
+      (define min-idx 0)
+      (for ([val vec-temp] [idx (range num-candidates)])
+        (cond [(< val min) 
+               (set! min-idx idx)
+               (set! min val)]))
+      (flvector-set! vec-acost point-idx (fl min))
+      (vector-set! vec-cidx point-idx min-idx)
+      (vector-set! vec-aidx point-idx (+ point-idx 1))
+      (vector-set! vec-pidx point-idx num-points))
     (values vec-acost vec-cidx vec-aidx vec-pidx))
 
   ;; prefix of p is for previous
@@ -277,7 +282,6 @@
   ;; d for previous index
   ;; This is where the high level bulk of the algorithm is applied
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
-
   ;; (for ([idx (in-range 0 (vector-length flvec-psums))])
   ;;   (eprintf "\n[~a](\n~a\n)\n" idx (vector-ref flvec-psums idx)))
   ;; (eprintf "\n[ ~a ]\n" can-split-vec)
