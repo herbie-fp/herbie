@@ -60,8 +60,6 @@
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt))))
     
     (define exacts (apply subexprs-fn pt))
-    (timeline-compact! 'outcomes)
-    (timeline-compact! 'mixsamples)
 
     (define exacts-hash
       (make-immutable-hash (map cons subexprs-list exacts)))
