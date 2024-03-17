@@ -185,13 +185,11 @@
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (define num-candidates (vector-length err-lsts-vec))
   ;; (eprintf "\nnum-candidates: ~a" num-candidates)
-  (define num-points (length (vector-ref err-lsts-vec 0)))
+  (define num-points (vector-length can-split-vec))
   (define min-weight (fl num-points))
 
-  ;; Vector version of psums, idk how to inline make-vec-psum yet
-  ;; maybe this? [flvector-sums](https://docs.racket-lang.org/math/flonum.html#%28def._%28%28lib._math%2Fflonum..rkt%29._flvector-sums%29%29)
   (define (make-vec-psum lst) 
-   (vector->flvector (partial-sums (list->vector lst))))
+   (flvector-sums (list->flvector lst)))
   (define flvec-psums (vector-map make-vec-psum err-lsts-vec))
   
   ;; Our intermediary data is a list of cse's,
