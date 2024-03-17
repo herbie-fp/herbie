@@ -180,11 +180,9 @@
         [result (cs) (curry valid-splitindices? cs)])
   (define can-split-vec (list->vector can-split))
   (define err-lsts-vec (list->vector err-lsts))
-  ;; (eprintf "\nSTART:\nerr-lsts-vec:{~a}" err-lsts-vec)
   ;; We have num-candidates candidates, each of whom has error lists of length num-points.
   ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
   (define num-candidates (vector-length err-lsts-vec))
-  ;; (eprintf "\nnum-candidates: ~a" num-candidates)
   (define num-points (vector-length can-split-vec))
   (define min-weight (fl num-points))
 
@@ -198,12 +196,6 @@
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint v-alt-cost v-cidx v-pidx)
     
-    ;; (eprintf "split:\n")
-    ;; (eprintf "cost: ~a\n" v-alt-cost)
-    ;; (eprintf "cidx: ~a\n" v-cidx)
-    ;; (eprintf "alt index: ~a\n" v-alt-idx)
-    ;; (eprintf "point index: ~a\n" v-pidx)
-    ;; (eprintf "\n")
     ;; output vectors
     (define vec-alt-cost (make-flvector num-points))
     (define vec-cidx (make-vector num-points))
@@ -242,7 +234,7 @@
 
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
-  ;; by using only one candidate to the left of that point. 
+  ;; by using only one candidate to the left of that point.
   (define (initial)
     (define vec-acost (make-flvector num-points))
     (define vec-cidx (make-vector num-points))
@@ -251,13 +243,13 @@
     (for ([point-idx (in-range num-points)])
       ;; record the cost from each candidate
       (for ([cand-idx (range num-candidates)])
-       (flvector-set! vec-temp cand-idx 
+       (flvector-set! vec-temp cand-idx
         (flvector-ref (vector-ref flvec-psums cand-idx) point-idx)))
       ;; Find the min, no built in function to find smallest fl in vector
       (define min (flvector-ref vec-temp 0))
       (define min-idx 0)
       (for ([val vec-temp] [idx (range num-candidates)])
-        (cond [(< val min) 
+        (cond [(< val min)
                (set! min-idx idx)
                (set! min val)]))
       (flvector-set! vec-acost point-idx (fl min))
@@ -274,14 +266,10 @@
   ;; d for previous index
   ;; This is where the high level bulk of the algorithm is applied
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
-  ;; (for ([idx (in-range 0 (vector-length flvec-psums))])
-  ;;   (eprintf "\n[~a](\n~a\n)\n" idx (vector-ref flvec-psums idx)))
-  ;; (eprintf "\n[ ~a ]\n" can-split-vec)
-  ;; (eprintf "INITIAL\n")
   (define-values (pa pb pd) (initial))
   (define-values (fa fb fd)
     ; short circuit if there is no other alts to consider
-    (if (> num-candidates 1)  
+    (if (> num-candidates 1)
       (let loop ([pa pa] [pb pb] [pd pd])
       (define-values (na nb nd) (add-splitpoint pa pb pd))
       (if (equal? nb pb) ;; only need to compare candidate index
@@ -289,13 +277,6 @@
           (loop na nb nd)))
     (values pa pb pd)))
     
-    ;; (eprintf "\n")
-    ;; (eprintf "cost: ~a\n" fa)
-    ;; (eprintf "cidx: ~a\n" fb)
-    ;; (eprintf "alt index: ~a\n" fc)
-    ;; (eprintf "point index: ~a\n" fd)
-    ;; (eprintf "\n")
-    ;; (eprintf "ENDEND\n\n")
     ;; From here down is messy code translating from 4 vectors back to
     ;; the original list of split points
     (define fixed-final (make-vector num-points))
@@ -317,6 +298,4 @@
                (build-list (vector-ref fixed-final (cand-prev-idx current-cand))))]
       [else 
         (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
-  (define out (reverse (build-list (vector-ref fixed-final (- num-points 1)))))
-  ;; (eprintf "OUT:\n~a\n" out)
-  out)
+  (reverse (build-list (vector-ref fixed-final (- num-points 1)))))
