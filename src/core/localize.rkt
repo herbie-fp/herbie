@@ -78,8 +78,6 @@
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference (hash-ref exacts-hash expr) approx repr)]))
       (hash-update! errs (car expr) (curry cons err))))
-  (timeline-compact! 'outcomes)
-  (timeline-compact! 'mixsample)
 
   (for/list ([expr (in-list exprs)] [subexprs (in-list subexprss)])
     (for/hash ([subexpr (in-list subexprs)])

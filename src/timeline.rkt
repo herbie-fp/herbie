@@ -34,11 +34,12 @@
   (when *timeline-active-key*
     (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
                   (curry append *timeline-active-value*) '())
-    (for ([key (in-list always-compact)])
-      (timeline-compact! key))
     (set! *timeline-active-key* #f))
   
   (unless (*timeline-disabled*)
+    (for ([key (in-list always-compact)]
+          #:when (hash-has-key? (car (unbox (*timeline*))) key))
+      (timeline-compact! key))
     (define b (make-hasheq (list (cons 'type (~a type))
                                  (cons 'time (current-inexact-milliseconds)))))
     (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
