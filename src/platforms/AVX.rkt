@@ -22,7 +22,7 @@
     [(fmsub fnmadd fnmsub fma) 4]
     [(* + -) 4]
     [(fmax fmin) 4]
-    [(fabs 8)] ;cost for _mm256_set1_ps plus _mm256_andnot_ps
+    [fabs 8] ;cost for _mm256_set1_ps plus _mm256_andnot_ps
     [floor 8]
     [neg 11] ;cost for _mm_sub_ps(_mm_set1_ps(0.0), v);
     [sqrt 12]
