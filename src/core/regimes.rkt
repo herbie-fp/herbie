@@ -262,20 +262,19 @@
   ;; prefix of f is for final result vectors
   ;; a for acost vectors
   ;; b for candidate index
-  ;; c for alt index
-  ;; d for previous index
+  ;; c for previous index
   ;; This is where the high level bulk of the algorithm is applied
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
-  (define-values (pa pb pd) (initial))
-  (define-values (fa fb fd)
+  (define-values (pa pb pc) (initial))
+  (define-values (fa fb fc)
     ; short circuit if there is no other alts to consider
     (if (> num-candidates 1)
-      (let loop ([pa pa] [pb pb] [pd pd])
-      (define-values (na nb nd) (add-splitpoint pa pb pd))
+      (let loop ([pa pa] [pb pb] [pc pc])
+      (define-values (na nb nc) (add-splitpoint pa pb pc))
       (if (equal? nb pb) ;; only need to compare candidate index
-          (values na nb nd)
-          (loop na nb nd)))
-    (values pa pb pd)))
+          (values na nb nc)
+          (loop na nb nc)))
+    (values pa pb pc)))
     
     ;; From here down is messy code translating from 4 vectors back to
     ;; the original list of split points
@@ -284,9 +283,8 @@
     (for ([idx (in-range 0 num-points)])
       (define a (flvector-ref fa idx))
       (define b (vector-ref fb idx))
-      (define c (vector-ref fp idx))
-      (define d (vector-ref fd idx))
-      (vector-set! fixed-final idx (cand a b c d)))
+      (define c (vector-ref fd idx))
+      (vector-set! fixed-final idx (cand a b (+ 1 idx) c)))
 
   ;; start at (- num-points 1)
   ;; if num-points we are done
