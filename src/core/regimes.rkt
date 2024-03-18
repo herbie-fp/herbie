@@ -195,34 +195,37 @@
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint v-alt-cost v-cidx v-pidx)
-    
+    ;; (eprintf "before:v-alt-cost ~a\n" v-alt-cost)
+    ;; (eprintf "before:v-cidx ~a\n" v-cidx)
+    ;; (eprintf "before:v-pidx ~a\n" v-pidx)
+    ;; (eprintf "\n")
     ;; output vectors
     (define vec-alt-cost (make-flvector num-points))
     (define vec-cidx (make-vector num-points))
     (define vec-pidx (make-vector num-points))
 
-    ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (for ([point-idx (in-range 0 num-points)])
       (define a-cost (flvector-ref v-alt-cost point-idx))
       (define a-best (vector-ref v-cidx point-idx))
       (define a-prev-idx (vector-ref v-pidx point-idx))
       ;; We take the CSE corresponding to the best choice of previous split point.
       ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (fl- a-cost min-weight)])
+      ;; weight towards not adding a split-point
+      (let ([acost (fl- a-cost min-weight)])         
         (for ([prev-split-idx (in-range 0 point-idx)])
           ;; For each previous split point, we need the best candidate to fill the new regime
          (when 
           (vector-ref can-split-vec (+ prev-split-idx 1))
           (let ([best #f] [bcost #f])
-            (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
-              (let ([cost (fl- (flvector-ref psum point-idx)
-                             (flvector-ref psum prev-split-idx))])
-                (when (or (not best) (fl< cost bcost))
-                  (set! bcost cost)
-                  (set! best cidx))))
+           (for ([cidx (in-range 0 num-candidates)])
+            (let ([cost 
+             (fl- (flvector-ref (vector-ref flvec-psums cidx) point-idx)
+             (flvector-ref (vector-ref flvec-psums cidx) prev-split-idx))])
+              (when (or (not best) (fl< cost bcost))
+               (set! bcost cost)
+               (set! best cidx))))
             (define temp (fl+ (flvector-ref v-alt-cost prev-split-idx) bcost))
-            (when 
-              (fl< temp acost)
+            (when (fl< temp acost)
               (set! acost temp)
               (set! a-cost acost)
               (set! a-best best)
@@ -230,6 +233,10 @@
         (flvector-set! vec-alt-cost point-idx a-cost)
         (vector-set! vec-cidx point-idx a-best)
         (vector-set! vec-pidx point-idx a-prev-idx)))
+    ;; (eprintf "after:vec-alt-cost ~a\n" vec-alt-cost)
+    ;; (eprintf "after:vec-cidx ~a\n" vec-cidx)
+    ;; (eprintf "after:vec-pidx ~a\n" vec-pidx)
+    ;; (eprintf "\n")
   (values vec-alt-cost vec-cidx vec-pidx))
 
   ;; We get the initial set of cse's by, at every point-index,
@@ -255,7 +262,17 @@
       (flvector-set! vec-acost point-idx (fl min))
       (vector-set! vec-cidx point-idx min-idx)
       (vector-set! vec-pidx point-idx num-points))
-    (values vec-acost vec-cidx vec-pidx))
+
+    ;; (eprintf "init:vec-acost ~a\n" vec-acost)
+    ;; (eprintf "init:vec-cidx ~a\n" vec-cidx)
+    ;; (eprintf "init:vec-pidx ~a\n" vec-pidx)
+    ;; (eprintf "\n")
+   (values vec-acost vec-cidx vec-pidx))
+
+  ;; (for ([idx (in-range 0 (vector-length flvec-psums))])
+  ;;   (eprintf "\n[~a](\n~a\n)\n" idx (vector-ref flvec-psums idx)))
+  ;; (eprintf "\n[ ~a ]\n" can-split-vec)
+  ;; (eprintf "INITIAL\n")
 
   ;; prefix of p is for previous
   ;; prefix of n is for next
@@ -283,7 +300,7 @@
     (for ([idx (in-range 0 num-points)])
       (define a (flvector-ref fa idx))
       (define b (vector-ref fb idx))
-      (define c (vector-ref fd idx))
+      (define c (vector-ref fc idx))
       (vector-set! fixed-final idx (cand a b (+ 1 idx) c)))
 
   ;; start at (- num-points 1)
@@ -296,4 +313,9 @@
                (build-list (vector-ref fixed-final (cand-prev-idx current-cand))))]
       [else 
         (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
-  (reverse (build-list (vector-ref fixed-final (- num-points 1)))))
+  ;; (eprintf "final: ~a\n" (vector-ref fixed-final (- num-points 1)))
+  (define out (reverse (build-list (vector-ref fixed-final (- num-points 1)))))
+  ;; (eprintf "out: ~a\n" out)
+  ;;   (eprintf "\n")
+  ;;   (eprintf "\n")
+    out)
