@@ -91,7 +91,7 @@
   (define ctx (context vars otype itypes))
   (define impl-fn
     (or impl
-        (let ([fn (eval-progs-real (list body) ctx)])
+        (let ([fn (eval-progs-real (list body) (list ctx))])
           (λ args (first (apply fn args))))))
   (register-operator-impl! op
                            name
