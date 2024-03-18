@@ -189,7 +189,15 @@
   (define (make-vec-psum lst) 
    (flvector-sums (list->flvector lst)))
   (define flvec-psums (vector-map make-vec-psum err-lsts-vec))
-  
+  ;; Flatten psums vector
+  (define all-psums (make-flvector (* num-points num-candidates))) 
+  (define o 0)
+  (for ([psum (in-vector flvec-psums)]) 
+    (for ([p (in-range (flvector-length psum))])
+      (flvector-set! all-psums o (flvector-ref psum p))
+      (set! o (+ o 1))))
+  ;; (eprintf "~a\n" all-psums)
+
   ;; Our intermediary data is a list of cse's,
   ;; where each cse represents the optimal splitindices after however many passes
   ;; if we only consider indices to the left of that cse's index.
@@ -218,9 +226,10 @@
           (vector-ref can-split-vec (+ prev-split-idx 1))
           (let ([best #f] [bcost #f])
            (for ([cidx (in-range 0 num-candidates)])
-            (let ([cost 
-             (fl- (flvector-ref (vector-ref flvec-psums cidx) point-idx)
-             (flvector-ref (vector-ref flvec-psums cidx) prev-split-idx))])
+             (define a (flvector-ref all-psums (+ point-idx (* cidx num-points))))
+             (define b (flvector-ref all-psums (+ prev-split-idx (* cidx num-points))))
+            (let ([cost (fl- a b)])
+              ;; (flvector-ref (vector-ref flvec-psums cidx) point-idx)
               (when (or (not best) (fl< cost bcost))
                (set! bcost cost)
                (set! best cidx))))
