@@ -90,6 +90,10 @@
 (when erfc.f64
   (define-accelerator-impl erfc erfc.f64 (binary64) binary64 erfc.f64))
 
+(define-accelerator-impl fmsub fmsub.f64 (binary64 binary64 binary64) binary64)
+(define-accelerator-impl fnmadd fnmadd.f64 (binary64 binary64 binary64) binary64)
+(define-accelerator-impl fnmsub fnmsub.f64 (binary64 binary64 binary64) binary64)
+
 (define-operator-impl (recip recip.f64 binary64) binary64
   [fl (λ (x)
         (parameterize ([bf-precision 12])
