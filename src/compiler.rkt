@@ -37,7 +37,7 @@
                                                              (* (*sampling-iteration*) 1000)))
               (if (equal? (*sampling-iteration*) 0)
                   (vector-copy! vprecs 0 vstart-precs) ; clear precisions from the last args
-                  (backward-pass ivec varc vregs vprecs vstart-precs (second roots))) ; back-pass
+                  (backward-pass ivec varc vregs vprecs vstart-precs (last roots))) ; back-pass
               (timeline-stop!)]
           [#f (vector-fill! vprecs (bf-precision))])
         
@@ -213,7 +213,6 @@
     (define exps-from-above (vector-ref vprecs (- n varc))) ; vprecs is shifted by varc elements from vregs
     (define final-parent-precision (min (*max-mpfr-prec*)
                                         (+ exps-from-above
-                                           (additional-precision op output (vector-ref vstart-precs (- n varc)))
                                            (vector-ref vstart-precs (- n varc)))))
     (when (equal? final-parent-precision (*max-mpfr-prec*))
       (*sampling-iteration* (*max-sampling-iterations*)))
@@ -225,18 +224,6 @@
     (map (lambda (x) (when (>= x varc)  ; when tail register is not a variable
                        (vector-set! vprecs (- x varc) child-precision)))
          tail-registers)))
-
-; tooo slow
-(define (additional-precision op output precision-to-be-fixed-in)
-  (define lo (ival-lo output))
-  (define hi (ival-hi output))
-
-  (if (and (bigfloat? lo) (bigfloat? hi)
-           (equal? (parameterize ([bf-precision (- precision-to-be-fixed-in (*ground-truth-extra-bits*))])
-                     (bigfloats-between lo hi))
-                   1))
-           (get-slack)
-           0))
 
 (define (get-exponent op output srcs)
   (cond
