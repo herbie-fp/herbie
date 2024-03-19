@@ -37,7 +37,7 @@
                                                              (* (*sampling-iteration*) 1000)))
               (if (equal? (*sampling-iteration*) 0)
                   (vector-copy! vprecs 0 vstart-precs) ; clear precisions from the last args
-                  (backward-pass ivec varc vregs vprecs vstart-precs)) ; back-pass
+                  (backward-pass ivec varc vregs vprecs vstart-precs (second roots))) ; back-pass
               (timeline-stop!)]
           [#f (vector-fill! vprecs (bf-precision))])
         
@@ -192,8 +192,16 @@
 (define (compile-prog expr ctx)
   (compose first (compile-progs (list expr) ctx)))
 
-(define (backward-pass ivec varc vregs vprecs vstart-precs)
+(define (backward-pass ivec varc vregs vprecs vstart-precs root-reg)
   (vector-fill! vprecs 0)
+
+  (define result (vector-ref vregs root-reg))
+  (when
+      (equal? 1
+              (parameterize ([bf-precision 53])
+                (bigfloats-between (ival-lo result) (ival-hi result))))
+    (vector-set! vprecs (- (vector-length vprecs) 1) (get-slack)))
+  
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
 
@@ -218,6 +226,7 @@
                        (vector-set! vprecs (- x varc) child-precision)))
          tail-registers)))
 
+; tooo slow
 (define (additional-precision op output precision-to-be-fixed-in)
   (define lo (ival-lo output))
   (define hi (ival-hi output))
@@ -257,9 +266,10 @@
                             (not (equal? xhi-sgn yhi-sgn)))
                         (or (>= 2 (abs (- xlo-exp ylo-exp)))
                             (>= 2 (abs (- xhi-exp yhi-exp)))))
-              [#f (max
-                   (- (max xlo-exp ylo-exp) outlo-exp)
-                   (- (max xhi-exp yhi-exp) outhi-exp))]
+              [#f (+ 1
+                     (max
+                      (- (max xlo-exp ylo-exp) outlo-exp)
+                      (- (max xhi-exp yhi-exp) outhi-exp)))]
               [#t (+ (get-slack)
                      (max
                       (- (max xlo-exp ylo-exp) outlo-exp)
@@ -291,9 +301,10 @@
                             (equal? xhi-sgn ylo-sgn))
                         (or (>= 2 (abs (- xlo-exp yhi-exp)))
                             (>= 2 (abs (- xhi-exp ylo-exp)))))
-              [#f (max
-                   (- (max xlo-exp yhi-exp) outlo-exp)
-                   (- (max xhi-exp ylo-exp) outhi-exp))]
+              [#f (+ 1
+                     (max
+                      (- (max xlo-exp yhi-exp) outlo-exp)
+                      (- (max xhi-exp ylo-exp) outhi-exp)))]
               [#t (+ (get-slack)
                      (max
                       (- (max xlo-exp yhi-exp) outlo-exp)
