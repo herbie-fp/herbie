@@ -122,29 +122,25 @@
     (define varc (length vars))
     
     ; Translates programs into an instruction sequence of ival operations
-    (define (munge-ival prog type [prec 0])
+    (define (munge-ival prog [prec 0])
       (set! size (+ 1 size))
 
       (define expr
         (match prog
-          [(? number?) (list (vector (const (input->value prog type)) (box 0) (box 0)))]
+          [(? number?) (list (vector (const (input->value prog 'real)) (box 0) (box 0)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
            (list (vector if-proc prec prec)
-                 (munge-ival c cond-type prec)
-                 (munge-ival t type prec)
-                 (munge-ival f type prec))]
+                 (munge-ival c prec)
+                 (munge-ival t prec)
+                 (munge-ival f prec))]
           [(list (and (or 'sin 'cos 'tan) op) args ...)
            (let ([exponent (box 0)])
              (cons (vector (op->proc op) prec exponent)
-                   (map (curryr munge-ival exponent)
-                        args
-                        (op->itypes op))))]
+                   (map (curryr munge-ival exponent) args)))]
           [(list op args ...)
            (cons (vector (op->proc op) prec prec)
-                    (map (curryr munge-ival prec)
-                         args
-                         (op->itypes op)))]
+                 (map (curryr munge-ival prec) args))]
           [_ (raise-argument-error 'make-compiler "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
@@ -153,16 +149,15 @@
                      (set! icache (cons expr icache))))))
 
     ; Translates programs into an instruction sequence of flonum operations
-    (define (munge-fl prog type)
+    (define (munge-fl prog)
       (set! size (+ 1 size))
       (define expr
         (match prog
-          [(? literal?) (list (const (input->value (literal-value prog) type)))]
+          [(literal value precision) 
+           (list (const (input->value value (get-representation precision))))]
           [(? variable?) prog]
-          [`(if ,c ,t ,f)
-           (list if-proc (munge-fl c cond-type) (munge-fl t type) (munge-fl f type))]
-          [(list op args ...)
-           (cons (op->proc op) (map munge-fl args (op->itypes op)))]
+          [`(if ,c ,t ,f) (list if-proc (munge-fl c) (munge-fl t) (munge-fl f))]
+          [(list op args ...) (cons (op->proc op) (map munge-fl args))]
           [_ (raise-argument-error 'make-compiler "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
@@ -170,11 +165,10 @@
                      (set! exprc (+ 1 exprc))
                      (set! icache (cons expr icache))))))
 
-    (define names (map (curryr (if (equal? name 'fl) munge-fl munge-ival) type) exprs))
-    (timeline-push! 'compiler (+ varc size) (+ exprc varc))
+    (define names (map (if (equal? name 'fl) munge-fl munge-ival) exprs))
+    (timeline-push! 'compiler (+ varc size) (+ varc exprc))
     (define ivec (list->vector (reverse icache)))
-    (define interpret (make-progs-interpreter name vars ivec names))
-    (procedure-rename interpret (sym-append 'eval-prog '- name))))
+    (make-progs-interpreter name vars ivec names)))
 
 ;; Compiles a program of operators into a procedure
 ;; that evaluates the program on a single input of intervals
