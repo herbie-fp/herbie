@@ -352,7 +352,7 @@
     (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
         (table ([class "times"])
                ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
                    (match-define (list time expr) rec)
@@ -363,7 +363,7 @@
     (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map fourth times)) ")")
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
         (table ([class "times"])
                (thead (tr (th "Time") (th "Variable") (th) (th "Point") (th "Expression")))
                ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
@@ -394,7 +394,7 @@
   `((dt "Results")
     (dd (table ([class "times"])
          ,@(for/list ([rec (in-list (sort outcomes > #:key fourth))])
-             (match-define (list precision category time count) rec)
+             (match-define (list time precision category count) rec)
              `(tr (td ,(format-time time)) (td ,(~a count) "×")
                   (td ,(~a precision)) (td ,(~a category))))))))
 
