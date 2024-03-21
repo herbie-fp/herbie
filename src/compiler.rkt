@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat rival)
+(require math/bigfloat math/flonum rival)
 (require "syntax/syntax.rkt" "syntax/types.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
@@ -197,9 +197,9 @@
 
   (define result (vector-ref vregs root-reg))
   (when
-      (equal? 1
-              (parameterize ([bf-precision 53])
-                (bigfloats-between (ival-lo result) (ival-hi result))))
+      (equal? 1 (flonums-between
+                 (bigfloat->flonum (ival-lo result))
+                 (bigfloat->flonum (ival-hi result))))
     (vector-set! vprecs (- (vector-length vprecs) 1) (get-slack)))
   
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
@@ -405,4 +405,30 @@
        (max 0
             (- xlo-exp (true-exponent (ival-lo output)))
             (- xhi-exp (true-exponent (ival-hi output))))]
+      
+      [(equal? op ival-fmod)
+       ; x mod y = x - y*q, where q is a coef
+       ; log[Гmod] ~ log[ max(x, y*x/y) / mod(x,y)] = log[x] - log[mod(x,y)]
+       ;                            ^   ^
+       ;                     conditions of uncertainty
+       (define x (first srcs))
+       (define xlo-exp (true-exponent (ival-lo x)))
+       (define xhi-exp (true-exponent (ival-hi x)))
+       
+       (define y (second srcs))
+       (define ylo (ival-lo y))
+       (define yhi (ival-hi y))
+
+       (define outlo (ival-lo output))
+       (define outlo-exp (true-exponent outlo))
+       (define outhi (ival-hi output))
+       (define outhi-exp (true-exponent outhi))
+       
+       (match (and (xor (bigfloat-signbit ylo) (bigfloat-signbit yhi))
+                   (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi)))
+         [#t (max (- xlo-exp outlo-exp -1)     ; y and out don't cross 0
+                  (- xhi-exp outhi-exp -1))]
+         [#f (+ (max (- xlo-exp outlo-exp -1)  ; y or output crosses 0
+                     (- xhi-exp outhi-exp -1))
+                (get-slack))])]
       [else 0]))
