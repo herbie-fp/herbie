@@ -114,20 +114,24 @@
       (for/list ([i (in-range 1 (- (*pareto-pick-limit*) 1))])
         (list-ref altns** (- (* i div-size) 1))))]))
 
-(define (choose-alts!)
+(define (timeline-push-table! picked-alts)
   (define fresh-alts (atab-not-done-alts (^table^)))
-  (define alts (choose-mult-alts fresh-alts))
-  (unless (*pareto-mode*) (set! alts (take alts 1)))
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts
                     (~a (alt-expr alt))
                     (cond
-                     [(set-member? alts alt) "next"]
-                     [(set-member? fresh-alts alt) "fresh"]
-                     [else "done"])
+                      [(set-member? picked-alts alt) "next"]
+                      [(set-member? fresh-alts alt) "fresh"]
+                      [else "done"])
                     (score-alt alt)
-                    (~a (representation-name repr))))
+                    (~a (representation-name repr)))))
+
+(define (choose-alts!)
+  (define fresh-alts (atab-not-done-alts (^table^)))
+  (define alts (choose-mult-alts fresh-alts))
+  (unless (*pareto-mode*) (set! alts (take alts 1)))
+  (timeline-push-table! alts)
   (^next-alts^ alts)
   (^table^ (atab-set-picked (^table^) alts))
   (void))
@@ -339,12 +343,19 @@
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
+  (explain! simplified)
+  (initialize-alt-table! simplified context pcontext)
+  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
+    (run-iter!))
+  (extract!))
+
+(define (explain! simplified)
   (define expr (alt-expr (car simplified)))
-  (define repr (repr-of expr context))
+  (define repr (repr-of expr (*context*)))
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) vs))
-  (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
-  (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
+  (define tcount-hash (actual-errors (alt-expr (car simplified)) (*pcontext*)))
+  (define pcount-hash (predicted-errors (alt-expr (car simplified)) (*context*) (*pcontext*)))
 
   (for ([(subexpr pset) (in-dict pcount-hash)])
     (define tset (hash-ref tcount-hash subexpr '()))
@@ -358,69 +369,63 @@
                                                             repr))
                     (length upred)
                     (and (not (empty? upred)) (values->json (first upred)
-                                                            repr))))
-
-  (initialize-alt-table! simplified context pcontext)
-  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
-    (run-iter!))
-  (extract!))
+                                                            repr)))))
 
 (define (extract!)
+  (timeline-push-table! '())
+
+  (define all-alts (atab-all-alts (^table^)))
+  (define joined-alts (make-regime! all-alts))
+  (define cleaned-alts (final-simplify! joined-alts))
+  (define annotated-alts (add-soundness! cleaned-alts))
+  
+  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
+  (sort-alts annotated-alts))
+
+(define (make-regime! alts)
   (define ctx (*context*))
   (define repr (context-repr ctx))
-  (define all-alts (atab-all-alts (^table^)))
-  (*all-alts* (atab-active-alts (^table^)))
-  
-  (define ndone-alts (atab-not-done-alts (^table^)))
-  (for ([alt (atab-active-alts (^table^))])
-    (timeline-push! 'alts (~a (alt-expr alt))
-                    (if (set-member? ndone-alts alt) "fresh" "done")
-                    (score-alt alt) (~a (representation-name repr))))
-  (define joined-alts
-    (cond
-     [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
-           (equal? (representation-type repr) 'real)
-           (not (null? (context-vars ctx))))
-      (define opts (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))
-      (for/list ([opt (in-list opts)])
-        (combine-alts opt ctx))]
-     [else
-      (list (argmin score-alt all-alts))]))
-  (define cleaned-alts
-    (cond
-      [(flag-set? 'generate 'simplify)
-       (timeline-event! 'simplify)
 
-       (define input-progs (map alt-expr joined-alts))
-       (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
-       (define simplified (simplify-batch egg-query))
+  (cond
+    [(and (flag-set? 'reduce 'regimes) (> (length alts) 1)
+          (equal? (representation-type repr) 'real)
+          (not (null? (context-vars ctx))))
+     (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) ctx))
+     (for/list ([opt (in-list opts)])
+       (combine-alts opt ctx))]
+    [else
+     (list (argmin score-alt alts))]))
 
-       (for/list ([altn joined-alts] [progs simplified])
-         (alt (last progs) 'final-simplify (list altn) (alt-preprocessing altn)))]
-      [else
-       joined-alts]))
-        
-  (define alts-deduplicated
-    (remove-duplicates cleaned-alts alt-equal?))
+(define (final-simplify! alts)
+  (cond
+    [(flag-set? 'generate 'simplify)
+     (timeline-event! 'simplify)
 
-  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
+     (define input-progs (map alt-expr alts))
+     (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
+     (define simplified (map last (simplify-batch egg-query)))
+
+     (remove-duplicates
+      (for/list ([altn (in-list alts)] [prog (in-list simplified)])
+        (if (equal? (alt-expr altn) prog)
+            altn
+            (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
+      alt-equal?)]
+    [else
+     alts]))
+
+(define (add-soundness! alts)
+  (cond
+    [(flag-set? 'generate 'proofs)
+     (timeline-event! 'soundness)
+     (add-soundiness alts (*pcontext*) (*context*))]
+    [else
+     alts]))
+
+(define (sort-alts alts)
+  (define repr (context-repr (*context*)))
   ;; find the best, sort the rest by cost
-  (define errss (map (λ (x) (errors (alt-expr x) (*pcontext*) (*context*))) alts-deduplicated))
-  (define-values (best end-score rest)
-    (for/fold ([best #f] [score #f] [rest #f])
-              ([altn (in-list alts-deduplicated)] [errs (in-list errss)])
-      (let ([new-score (errors-score errs)])
-        (cond
-         [(not best) (values altn new-score '())]
-         [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
-         [else (values best score (cons altn rest))]))))
-  (match-define (cons best-annotated rest-annotated)
-    (cond
-     [(flag-set? 'generate 'proofs)
-      (timeline-event! 'soundness)
-      (add-soundiness (cons best rest) (*pcontext*) (*context*))]
-     [else
-      (cons best rest)]))
-  (timeline-event! 'end)
-  
-  (cons best-annotated (sort rest-annotated > #:key (curryr alt-cost repr))))
+  (define errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*)))
+  (define best 
+    (car (argmin (compose errors-score cdr) (map cons alts (flip-lists errss)))))
+  (cons best (sort (set-remove alts best) > #:key (curryr alt-cost repr))))

@@ -275,6 +275,7 @@
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
+        (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
         (job-result test 'success time (timeline-extract) (warning-log) result))))
   
