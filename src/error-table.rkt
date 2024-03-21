@@ -3,7 +3,7 @@
 (require racket/set math/bigfloat racket/hash)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
          "ground-truth.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
-         "float.rkt")
+         "float.rkt" "config.rkt")
 
 (provide actual-errors predicted-errors make-flow-table calculate-confusion
          calculate-confusion-maybe)
@@ -64,8 +64,9 @@
     (make-immutable-hash (map cons
                               subexprs-list
                               (map context-repr ctx-list))))
-  
-  (define subexprs-fn (eval-progs-real spec-list ctx-list))
+
+  (define subexprs-fn (parameterize ([*max-mpfr-prec* (*starting-prec*)])
+                        (eval-progs-real spec-list ctx-list))) 
   
   (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))

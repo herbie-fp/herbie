@@ -71,7 +71,7 @@
             (define precision (operator-precision extra-prec))
             (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                            (symbol->string (object-name op))
-                                                           (- precision (remainder precision prec-threshold))))
+                                                           (- precision (remainder precision (exact-floor prec-threshold)))))
             (define output
               (parameterize ([bf-precision precision])
                 (apply op srcs)))
