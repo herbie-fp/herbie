@@ -426,7 +426,7 @@
            ; Condition number hallucination:
            ; Condition number is high when x = 1,
            ; but x is exactly 1, so there is no error
-           [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
+           ;;[(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
            
            ; overflow rescue:
            [(bfinfinite? x) (mark-erroneous! subexpr 'oflow-rescue)]
@@ -487,18 +487,18 @@
            ;; Hallucination:
            ;; x has a large exponent and y is 1. The ylogx is large but there is
            ;; no error because the answer is exactly x
-           [(and (bf= y 1.bf)
+           #;[(and (bf= y 1.bf)
                  (bf= x subexpr-val)) #f]
 
            ;; Hallucination:
            ;; y is large but x is exactly 1
-           [(and (= (bigfloat->flonum x) 1.0)
+           #;[(and (= (bigfloat->flonum x) 1.0)
                  (= (bigfloat->flonum subexpr-val) 1.0))
             #f]
 
            ;; Hallucination:
            ;; y is large but x is zero
-           [(and (bfzero? x)
+           #;[(and (bfzero? x)
                  (bfzero? subexpr-val))
             #f]
            
@@ -557,10 +557,10 @@
          (cond
            ; Condition number hallucinations:
            ; acos(1) == 0
-           [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
+           #;[(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
 
            ; acos(-1) == pi
-           [(bf= x -1.bf)  #f]
+           #;[(bf= x -1.bf)  #f]
            
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)acos(x))|
@@ -585,8 +585,8 @@
          (cond
            ; Condition Number hallucinations:
            ; asin(1) == pi/2
-           [(bf= (bfabs x) 1.bf) #f]
-           [(and (bfzero? x) (bfzero? subexpr-val)) #f]
+           #;[(bf= (bfabs x) 1.bf) #f]
+           #;[(and (bfzero? x) (bfzero? subexpr-val)) #f]
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)asin(x))|
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
