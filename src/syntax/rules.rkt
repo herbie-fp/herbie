@@ -284,6 +284,10 @@
   [/-rgt-identity    (/ a 1)               a]
   [mul-1-neg         (* -1 a)              (neg a)])
 
+(define-ruleset* id-expand (arithmetic simplify sound fp-safe)
+  #:type ([a real])
+  [add0              a                     (+ a 0)])
+
 (define-ruleset* nan-transform-fp-safe (arithmetic simplify fp-safe sound)
   #:type ([a real] [b real])
   [sub-neg           (- a b)               (+ a (neg b))]
