@@ -201,7 +201,7 @@
                  (bigfloat->flonum (ival-lo result))
                  (bigfloat->flonum (ival-hi result))))
     (vector-set! vprecs (- (vector-length vprecs) 1) (get-slack)))
-  
+  (when (equal? 5 (*sampling-iteration*)) (printf "\n\n"))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
 
@@ -220,10 +220,18 @@
 
     (define new-exponents (get-exponent op output srcs))
     
+    (when (equal? 5 (*sampling-iteration*))
+      (printf "reg=~a, op=~a, input was=~a, output=~a, precision=~a, exponent=~a, tail-ops=~a\n"
+              n (symbol->string (object-name (car instr))) srcs output final-parent-precision new-exponents tail-registers))
+    
     (define child-precision (+ exps-from-above new-exponents))
     (map (lambda (x) (when (>= x varc)  ; when tail register is not a variable
-                       (vector-set! vprecs (- x varc) child-precision)))
+                       (vector-set! vprecs (- x varc)
+                                    (max ; check whether this op already has a precision that is higher
+                                     (vector-ref vprecs (- x varc))
+                                     child-precision))))
          tail-registers)))
+
 
 (define (get-exponent op output srcs)
   (cond
@@ -245,14 +253,13 @@
        (define yhi-exp (true-exponent yhi))
        (define yhi-sgn (bigfloat-signbit yhi))
        
-       (define outlo-exp (true-exponent (ival-lo output)))
-       (define outhi-exp (true-exponent (ival-hi output)))
+       (define outlo (ival-lo output))
+       (define outlo-exp (true-exponent outlo))
+       (define outhi (ival-hi output))
+       (define outhi-exp (true-exponent outhi))
        
        (max 0
-            (match (and (or (not (equal? xlo-sgn ylo-sgn))
-                            (not (equal? xhi-sgn yhi-sgn)))
-                        (or (>= 2 (abs (- xlo-exp ylo-exp)))
-                            (>= 2 (abs (- xhi-exp yhi-exp)))))
+            (match (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
               [#f (+ 1
                      (max
                       (- (max xlo-exp ylo-exp) outlo-exp)
@@ -279,15 +286,14 @@
        (define yhi (ival-hi y))
        (define yhi-exp (true-exponent yhi))
        (define yhi-sgn (bigfloat-signbit yhi))
-       
-       (define outlo-exp (true-exponent (ival-lo output)))
-       (define outhi-exp (true-exponent (ival-hi output)))
-       
+
+       (define outlo (ival-lo output))
+       (define outlo-exp (true-exponent outlo))
+       (define outhi (ival-hi output))
+       (define outhi-exp (true-exponent outhi))
+
        (max 0
-            (match (and (or (equal? xlo-sgn yhi-sgn)
-                            (equal? xhi-sgn ylo-sgn))
-                        (or (>= 2 (abs (- xlo-exp yhi-exp)))
-                            (>= 2 (abs (- xhi-exp ylo-exp)))))
+            (match (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
               [#f (+ 1
                      (max
                       (- (max xlo-exp yhi-exp) outlo-exp)
