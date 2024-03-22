@@ -4,6 +4,7 @@ import os
 
 from cost.runner import Runner
 from cost.c import CRunner
+from cost.math import MathRunner
 from cost.mkl import MKLRunner
 from cost.avx import AVXRunner
 from cost.arith import ArithRunner
@@ -31,7 +32,7 @@ def run(
     runner: Runner,
     tune: bool,
     restore: bool,
-    baseline: bool,
+    baseline: Optional[str],
     py_sample: bool,
     herbie_params: Optional[Tuple[str, int]] = None
 ):
@@ -69,12 +70,12 @@ def run(
 
         times = runner.run_drivers(driver_dirs=driver_dirs)
         runner.print_times(cores, times)
-    elif baseline:
+    elif baseline is not None:
         # run and compare against baseline
         bench_dir, threads = herbie_params
         frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
 
-        baseline_cores = runner.herbie_improve(cores=input_cores, threads=threads, platform='default')
+        baseline_cores = runner.herbie_improve(cores=input_cores, threads=threads, platform=baseline)
         baseline_cores = runner.herbie_desugar(input_cores=input_cores, cores=baseline_cores)
         runner.herbie_cost(cores=baseline_cores) # recompute the cost
         runner.herbie_error(input_cores=input_cores, cores=baseline_cores) # recompute the error
@@ -83,7 +84,7 @@ def run(
         baseline_cores_path = runner.working_dir.joinpath('baseline.fpcore')
         write_fpcores(str(baseline_cores_path), baseline_cores)
 
-        runner.plot_pareto_comparison((runner.name, frontier), ('baseline', baseline_frontier))
+        runner.plot_pareto_comparison((runner.name, frontier), (f'{baseline} (baseline)', baseline_frontier))
     else:
         # run and plot results
         frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
@@ -107,7 +108,7 @@ def main():
     parser.add_argument('--num-points', help='number of input points to evalaute on [10_000 by default]', type=int)
     parser.add_argument('--num-runs', help='number of times to run drivers to obtain an average [100 by default]', type=int)
     parser.add_argument('--tune', help='cost tuning mode [OFF by default].', action='store_const', const=True, default=False)
-    parser.add_argument('--baseline', help='comparison against a baseline', action='store_const', const=True, default=False)
+    parser.add_argument('--baseline', help='platform to perform a baseline comparison', type=str)
     parser.add_argument('--restore', help='restores FPCores from the working directory', action='store_const', const=True, default=False)
     parser.add_argument('--py-sample', help='uses a Python based sampling method. Useful for debugging', action='store_const', const=True, default=False)
     parser.add_argument('lang', help='output language to use', type=str)
@@ -126,7 +127,7 @@ def main():
     num_points = args.get('num_points', default_num_points)
     num_runs = args.get('num_runs', default_num_runs)
     tune = args.get('tune')
-    baseline = args.get('baseline')
+    baseline = args.get('baseline', None)
     restore = args.get('restore')
     py_sample = args.get('py_sample')
     lang = args['lang']
@@ -142,6 +143,14 @@ def main():
         )
     elif lang == 'c':
         runner = CRunner(
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads
+        )
+    elif lang == 'math':
+        runner = MathRunner(
             working_dir=output_dir,
             herbie_path=herbie_path,
             num_inputs=num_points,

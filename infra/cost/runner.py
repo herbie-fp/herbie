@@ -322,8 +322,10 @@ class Runner(object):
             frontiers = []
             for input in input_cores:
                 group = cores_by_group[input.name]
-                normed_frontier = ' '.join(list(map(lambda c: f'({c.cost / input.cost} {c.err / input.err})', group)))
-                frontiers.append(f'({normed_frontier})')
+                # normed_frontier = ' '.join(list(map(lambda c: f'({c.cost / input.cost} {c.err / input.err})', group)))
+                # frontiers.append(f'({normed_frontier})')
+                frontier = ' '.join(list(map(lambda c: f'({c.cost} {c.err})', group)))
+                frontiers.append(f'({frontier})')
 
             # call out to server
             args = ' '.join(frontiers)
@@ -340,8 +342,9 @@ class Runner(object):
             if len(datum) != 2:
                 raise RuntimeError('Pareto frontier malformed:', datum)
 
-            cost = float(datum[0]) / len(cores)
-            err = float(datum[1]) / len(cores)
+            # cost = float(datum[0]) / len(cores)
+            # err = float(datum[1]) / len(cores)
+            cost, err = float(datum[0]), float(datum[1])
             frontier.append((cost, err))
 
         self.log(f'computed Pareto frontier')

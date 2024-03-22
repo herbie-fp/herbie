@@ -153,8 +153,9 @@
          (match args
            [(list path) path]
            [_ (error 'run-server "read: malformed arguments ~a" args)]))
-       (for ([test (in-list (load-tests path))])
-         (printf "~a\n" (string-replace (render-fpcore test) "\n" "")))
+       (for ([t (in-list (load-tests path))])
+         (define t* (struct-copy test t [output #f])) ; strip any `:alt` annotation
+         (printf "~a\n" (string-replace (render-fpcore t*) "\n" "")))
        (loop)]
       ; sample <num_points:int> <core:expr>
       [(list 'sample args ...)
