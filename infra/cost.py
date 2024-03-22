@@ -6,6 +6,7 @@ from cost.runner import Runner
 from cost.c import CRunner
 from cost.math import MathRunner
 from cost.mkl import MKLRunner
+from cost.avx import AVXRunner
 from cost.arith import ArithRunner
 from cost.python import PythonRunner
 from cost.fpcore import FPCore
@@ -166,6 +167,14 @@ def main():
         )
     elif lang == 'python':
         runner = PythonRunner(
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads
+        )
+    elif lang == 'avx':
+        runner = AVXRunner(
             working_dir=output_dir,
             herbie_path=herbie_path,
             num_inputs=num_points,
