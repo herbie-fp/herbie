@@ -201,7 +201,7 @@
                  (bigfloat->flonum (ival-lo result))
                  (bigfloat->flonum (ival-hi result))))
     (vector-set! vprecs (- (vector-length vprecs) 1) (get-slack)))
-  (when (equal? 5 (*sampling-iteration*)) (printf "\n\n"))
+  #;(when (equal? 5 (*sampling-iteration*)) (printf "\n\n"))
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
 
@@ -220,7 +220,7 @@
 
     (define new-exponents (get-exponent op output srcs))
     
-    (when (equal? 5 (*sampling-iteration*))
+    #;(when (equal? 5 (*sampling-iteration*))
       (printf "reg=~a, op=~a, input was=~a, output=~a, precision=~a, exponent=~a, tail-ops=~a\n"
               n (symbol->string (object-name (car instr))) srcs output final-parent-precision new-exponents tail-registers))
     
