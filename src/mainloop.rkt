@@ -1,29 +1,11 @@
 #lang racket
 
-(require "syntax/rules.rkt"
-         "syntax/sugar.rkt"
-         "syntax/syntax.rkt"
-         "syntax/types.rkt"
-         "core/alt-table.rkt"
-         "core/bsearch.rkt"
-         "core/egg-herbie.rkt"
-         "core/localize.rkt"
-         "core/regimes.rkt"
-         "core/simplify.rkt"
-         "alternative.rkt"
-         "common.rkt"
-         "conversions.rkt"
-         "error-table.rkt"    
-         "patch.rkt"
-         "platform.rkt"
-         "points.rkt"
-         "preprocess.rkt"
-         "programs.rkt"     
-         "timeline.rkt"
-         "sampling.rkt"
-         "soundiness.rkt"
-         "float.rkt")
-
+(require
+ "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
+ "core/alt-table.rkt" "core/bsearch.rkt" "core/egg-herbie.rkt" "core/localize.rkt"
+ "core/regimes.rkt" "core/simplify.rkt" "alternative.rkt" "common.rkt" "float.rkt"
+ "conversions.rkt" "error-table.rkt" "patch.rkt" "platform.rkt" "points.rkt"
+ "preprocess.rkt" "programs.rkt" "timeline.rkt" "sampling.rkt" "soundiness.rkt")
 (provide (all-defined-out))
 
 ;; I'm going to use some global state here to make the shell more
@@ -34,13 +16,7 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate (table next-alts locs lowlocs patched) #:mutable)
-
-(define (empty-shellstate)
-  (shellstate #f #f #f #f #f))
-
-(define-resetter ^shell-state^
-  (λ () (empty-shellstate))
-  (λ () (empty-shellstate)))
+(define-resetter ^shell-state^ (λ () (shellstate #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -58,20 +34,64 @@
   (when (not (equal? newval 'none)) (set-shellstate-patched! (^shell-state^) newval))
   (shellstate-patched (^shell-state^)))
 
-;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
-(define (starting-alts altn ctx)
-  (define starting-exprs
-    (reap [sow]
-      (for ([conv (platform-conversions (*active-platform*))])
-        (match-define (list itype) (impl-info conv 'itype))
-        (when (equal? itype (context-repr ctx))
-          (define otype (impl-info conv 'otype))
-          (define expr* (list (get-rewrite-operator otype) (alt-expr altn)))
-          (define body* (apply-repr-change-expr expr* ctx))
-          (when body* (sow body*))))))
-  (map make-alt starting-exprs))
+;; These high-level functions give the high-level workflow of Herbie:
+;; - First, set up a context by sampling input points
+;; - Then, do some initial steps: preprocessing, explain, and initialize the alt table
+;; - Then, in a loop, choose some alts, localize, run the patch table, and finalize
+;; - Then do regimes, final simplify, add soundiness, and remove preprocessing
 
-;; Information
+(define (setup-context! vars specification precondition repr)
+  (*context* (context vars repr (map (const repr) vars)))
+  (define sample (sample-points precondition (list specification) (list (*context*))))
+  (match-define (cons domain pts+exs) sample)
+  (cons domain (apply mk-pcontext pts+exs)))
+
+(define (run-improve! initial specification context pcontext)
+  (timeline-event! 'preprocess)
+  (define-values (simplified preprocessing)
+    (find-preprocessing initial specification context))
+  (timeline-push! 'symmetry (map ~a preprocessing))
+  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
+  (match-define (and alternatives (cons (alt best _ _ _) _))
+    (mutate! simplified context pcontext* (*num-iterations*)))
+  (timeline-event! 'preprocess)
+  (define final-alts
+    (for/list ([altern alternatives])
+      (alt-add-preprocessing altern (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
+  (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing))) 
+
+(define (mutate! simplified context pcontext iterations)
+  (*pcontext* pcontext)
+  (explain! simplified)
+  (initialize-alt-table! simplified context pcontext)
+  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
+    (run-iter!))
+  (extract!))
+
+(define (run-iter!)
+  (when (^next-alts^)
+    (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
+                      "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
+
+  (choose-alts!)
+  (localize!)
+  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
+  (finalize-iter!))
+
+(define (extract!)
+  (timeline-push-alts! '())
+
+  (define all-alts (atab-all-alts (^table^)))
+  (define joined-alts (make-regime! all-alts))
+  (define cleaned-alts (final-simplify! joined-alts))
+  (define annotated-alts (add-soundness! cleaned-alts))
+  
+  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
+  (sort-alts annotated-alts))
+
+;; The next few functions are for interactive use in a REPL, usually for debugging
+;; In Emacs, you can install racket-mode and then use C-c C-k to start that REPL
+
 (define (list-alts)
   (printf "Key: [.] = done, [>] = chosen\n")
   (let ([ndone-alts (atab-not-done-alts (^table^))])
@@ -85,7 +105,6 @@
        (alt-expr alt))))
   (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
 
-;; Begin iteration
 (define (choose-alt! n)
   (unless (< n (length (atab-active-alts (^table^))))
     (raise-user-error 'choose-alt! "Couldn't select the ~ath alt of ~a (not enough alts)"
@@ -94,6 +113,46 @@
   (^next-alts^ (list picked))
   (^table^ (atab-set-picked (^table^) (^next-alts^)))
   (void))
+
+(define (inject-candidate! expr)
+  (define new-alts (list (make-alt expr)))
+  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
+  (^table^ (atab-add-altns (^table^) new-alts errss costs))
+  (void))
+
+(define (rollback-improve!)
+  (rollback-iter!)
+  (reset!)
+  (^table^ #f)
+  (void))
+
+(define (run-improve vars prog iters
+                     #:precondition [precondition #f]
+                     #:preprocess [preprocess empty]
+                     #:precision [precision 'binary64]
+                     #:specification [specification #f])
+  (rollback-improve!)
+  (define repr (get-representation precision))
+
+  (define original-points (setup-context! vars (prog->spec (or specification prog)) (prog->spec precondition) repr))
+  (run-improve! iters prog specification preprocess original-points repr))
+
+;; The rest of the file is various helper / glue functions used by
+;; Herbie. These often wrap other Herbie components, but add logging
+;; and timeline data.
+
+;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
+(define (starting-alts altn ctx)
+  (define starting-exprs
+    (reap [sow]
+      (for ([conv (platform-conversions (*active-platform*))])
+        (match-define (list itype) (impl-info conv 'itype))
+        (when (equal? itype (context-repr ctx))
+          (define otype (impl-info conv 'otype))
+          (define expr* (list (get-rewrite-operator otype) (alt-expr altn)))
+          (define body* (apply-repr-change-expr expr* ctx))
+          (when body* (sow body*))))))
+  (map make-alt starting-exprs))
 
 (define (score-alt alt)
   (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
@@ -114,7 +173,7 @@
       (for/list ([i (in-range 1 (- (*pareto-pick-limit*) 1))])
         (list-ref altns** (- (* i div-size) 1))))]))
 
-(define (timeline-push-table! picked-alts)
+(define (timeline-push-alts! picked-alts)
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))])
@@ -131,7 +190,7 @@
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define alts (choose-mult-alts fresh-alts))
   (unless (*pareto-mode*) (set! alts (take alts 1)))
-  (timeline-push-table! alts)
+  (timeline-push-alts! alts)
   (^next-alts^ alts)
   (^table^ (atab-set-picked (^table^) alts))
   (void))
@@ -263,11 +322,6 @@
   (rollback-iter!)
   (void))
 
-(define (inject-candidate! expr)
-  (define new-alts (list (make-alt expr)))
-  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
-  (^table^ (atab-add-altns (^table^) new-alts errss costs))
-  (void))
 (define (finish-iter!)
   (unless (^next-alts^) (choose-alts!))
   (unless (^locs^) (localize!))
@@ -282,29 +336,6 @@
   (^patched^ #f)
   (void))
 
-(define (rollback-improve!)
-  (rollback-iter!)
-  (reset!)
-  (^table^ #f)
-  (void))
-
-;; Run a complete iteration
-(define (run-iter!)
-  (when (^next-alts^)
-    (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
-                      "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
-
-  (choose-alts!)
-  (localize!)
-  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
-  (finalize-iter!))
-  
-(define (setup-context! vars specification precondition repr)
-  (*context* (context vars repr (map (const repr) vars)))
-  (define sample (sample-points precondition (list specification) (list (*context*))))
-  (match-define (cons domain pts+exs) sample)
-  (cons domain (apply mk-pcontext pts+exs)))
-
 (define (initialize-alt-table! alternatives context pcontext)
   (match-define (cons initial simplified) alternatives)
   (*start-prog* (alt-expr initial))
@@ -315,41 +346,8 @@
   (timeline-event! 'prune)
   (^table^ (atab-add-altns table simplified* errss costs)))
 
-;; This is only here for interactive use; normal runs use run-improve!
-(define (run-improve vars prog iters
-                     #:precondition [precondition #f]
-                     #:preprocess [preprocess empty]
-                     #:precision [precision 'binary64]
-                     #:specification [specification #f])
-  (rollback-improve!)
-  (define repr (get-representation precision))
-
-  (define original-points (setup-context! vars (prog->spec (or specification prog)) (prog->spec precondition) repr))
-  (run-improve! iters prog specification preprocess original-points repr))
-
-(define (run-improve! initial specification context pcontext)
-  (timeline-event! 'preprocess)
-  (define-values (simplified preprocessing)
-    (find-preprocessing initial specification context))
-  (timeline-push! 'symmetry (map ~a preprocessing))
-  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (match-define (and alternatives (cons (alt best _ _ _) _))
-    (mutate! simplified context pcontext* (*num-iterations*)))
-  (timeline-event! 'preprocess)
-  (define final-alts
-    (for/list ([altern alternatives])
-      (alt-add-preprocessing altern (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
-  (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing))) 
-
-(define (mutate! simplified context pcontext iterations)
-  (*pcontext* pcontext)
-  (explain! simplified)
-  (initialize-alt-table! simplified context pcontext)
-  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
-    (run-iter!))
-  (extract!))
-
 (define (explain! simplified)
+  (timeline-event! 'explain)
   (define expr (alt-expr (car simplified)))
   (define repr (repr-of expr (*context*)))
   (define (values->json vs repr)
@@ -370,17 +368,6 @@
                     (length upred)
                     (and (not (empty? upred)) (values->json (first upred)
                                                             repr)))))
-
-(define (extract!)
-  (timeline-push-table! '())
-
-  (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! all-alts))
-  (define cleaned-alts (final-simplify! joined-alts))
-  (define annotated-alts (add-soundness! cleaned-alts))
-  
-  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  (sort-alts annotated-alts))
 
 (define (make-regime! alts)
   (define ctx (*context*))
