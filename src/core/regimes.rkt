@@ -216,11 +216,15 @@
       (define a-best (vector-ref v-cidx point-idx))
       (define a-prev-idx (vector-ref v-pidx point-idx))
 
+      (define vec-diffs (make-vector point-idx))
+      (for ([prev-split-idx (in-range 0 point-idx)])
+        (define f (flvector-ref all-psums (+ point-idx (* 0 num-points))))
+        (define g (flvector-ref all-psums (+ prev-split-idx (* 0 num-points))))
+        (vector-set! vec-diffs prev-split-idx (fl- f g)))
+
       (let ([acost (fl- a-cost min-weight)])         
         (for ([prev-split-idx (in-range 0 point-idx)])
-         (define f (flvector-ref all-psums (+ point-idx (* 0 num-points))))
-         (define g (flvector-ref all-psums (+ prev-split-idx (* 0 num-points))))
-         (let ([best 0] [bcost (fl- f g)])
+         (let ([best 0] [bcost (vector-ref vec-diffs prev-split-idx)])
           (for ([cidx (in-range 0 num-candidates)])
            (when (vector-ref can-split-vec (+ prev-split-idx 1))
             (define a (flvector-ref all-psums (+ point-idx (* cidx num-points))))
