@@ -259,7 +259,10 @@
        (define outhi-exp (true-exponent outhi))
        
        (max 0
-            (match (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+            (match (and (or (not (equal? xlo-sgn ylo-sgn))
+                            (not (equal? xhi-sgn yhi-sgn)))
+                        (or (>= 2 (abs (- xlo-exp ylo-exp)))
+                            (>= 2 (abs (- xhi-exp yhi-exp)))))
               [#f (+ 1
                      (max
                       (- (max xlo-exp ylo-exp) outlo-exp)
@@ -293,7 +296,10 @@
        (define outhi-exp (true-exponent outhi))
 
        (max 0
-            (match (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+            (match (and (or (equal? xlo-sgn yhi-sgn)
+                            (equal? xhi-sgn ylo-sgn))
+                        (or (>= 2 (abs (- xlo-exp yhi-exp)))
+                            (>= 2 (abs (- xhi-exp ylo-exp)))))
               [#f (+ 1
                      (max
                       (- (max xlo-exp yhi-exp) outlo-exp)
