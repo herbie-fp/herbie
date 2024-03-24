@@ -215,11 +215,11 @@
       (define a-cost (flvector-ref v-alt-cost point-idx))
       (define a-best (vector-ref v-cidx point-idx))
       (define a-prev-idx (vector-ref v-pidx point-idx))
+
       (let ([acost (fl- a-cost min-weight)])         
         (for ([prev-split-idx (in-range 0 point-idx)])
-         (when 
-          (vector-ref can-split-vec (+ prev-split-idx 1))
-          (let ([best #f] [bcost #f])
+         (let ([best #f] [bcost #f])
+          (when (vector-ref can-split-vec (+ prev-split-idx 1))
            (for ([cidx (in-range 0 num-candidates)])
              (define a (flvector-ref all-psums (+ point-idx (* cidx num-points))))
              (define b (flvector-ref all-psums (+ prev-split-idx (* cidx num-points))))
