@@ -36,7 +36,7 @@
   (ordinal->float32 (+ (float32->ordinal x) n)))
 
 (define (bigfloat->float32 x)
-  (define loprec (parameterize ([bf-precision 24]) (bf+ 0.bf x)))
+  (define loprec (parameterize ([bf-precision 24]) (bfcopy x)))
   (define y (->float32 (bigfloat->flonum loprec)))
   (define x2 (bf y))
   (match (bf-rounding-mode)

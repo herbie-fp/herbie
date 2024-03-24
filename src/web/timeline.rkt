@@ -195,9 +195,9 @@
                    (define time-per-op (round (apply + times)))
 
                    (list `(details
-                           (summary "Operation " (code ,op)
-                                    ", time spent: " ,(format-time time-per-op)
-                                    ", " ,(~a (round (* (/ time-per-op total-time) 100))) "% of total-time") 
+                           (summary (code ,op) ": "
+                                    ,(format-time time-per-op) " ("
+                                    ,(format-percent time-per-op total-time) " of total)") 
                            (canvas ([id ,(format "calls-~a" n)]
                                     [title "Histogram of precisions of the used operation"]))
                            (script "histogram2D(\""
