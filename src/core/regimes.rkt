@@ -189,63 +189,82 @@
   (define (make-vec-psum lst) 
    (flvector-sums (list->flvector lst)))
   (define flvec-psums (vector-map make-vec-psum err-lsts-vec))
-  
-  ;; Our intermediary data is a list of cse's,
-  ;; where each cse represents the optimal splitindices after however many passes
-  ;; if we only consider indices to the left of that cse's index.
-  ;; Given one of these lists, this function tries to add another splitindices to each cse.
+  ;; Flatten psums vector
+  (define all-psums (make-flvector (* num-points num-candidates))) 
+  (define o 0)
+  (for ([psum (in-vector flvec-psums)]) 
+    (for ([p (in-range (flvector-length psum))])
+      (flvector-set! all-psums o (flvector-ref psum p))
+      (set! o (+ o 1))))
+
+  ;; Flips the psums data so that it is sorted in order of points
+  ;; first row of points 0,1,c, then second up to n
+  (define transposed-psums (make-flvector (* num-points num-candidates))) 
+  (for ([i (* num-points num-candidates)]) 
+    (define p (quotient i num-candidates)) ;; point
+    (define c (remainder i num-candidates)) ;; candidate 
+    (define err (flvector-ref (vector-ref flvec-psums c) p))
+    (flvector-set! transposed-psums i err))
+
   (define (add-splitpoint v-alt-cost v-cidx v-pidx)
-    
-    ;; output vectors
     (define vec-alt-cost (make-flvector num-points))
     (define vec-cidx (make-vector num-points))
     (define vec-pidx (make-vector num-points))
 
-    ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (for ([point-idx (in-range 0 num-points)])
       (define a-cost (flvector-ref v-alt-cost point-idx))
       (define a-best (vector-ref v-cidx point-idx))
       (define a-prev-idx (vector-ref v-pidx point-idx))
-      ;; We take the CSE corresponding to the best choice of previous split point.
-      ;; The default, not making a new split-point, gets a bonus of min-weight
-      (let ([acost (fl- a-cost min-weight)])
+
+     (define vec-diffs (make-vector (+ point-idx 1)))
+      ;; base case for when point-idx is 0
+      ;; This is to prevent a crash of an empty vector
+      (define f (flvector-ref all-psums (+ point-idx (* 0 num-points))))
+      (define g (flvector-ref all-psums (+ 0 (* 0 num-points))))
+      (vector-set! vec-diffs 0 (fl- f g))
+
+      ;; Populate vector with `cost` or there difference in cost
+     (for ([prev-split-idx (in-range 0 point-idx)])
+      (define f (flvector-ref all-psums (+ point-idx (* 0 num-points))))
+      (define g (flvector-ref all-psums (+ prev-split-idx (* 0 num-points))))
+      (vector-set! vec-diffs prev-split-idx (fl- f g)))
+
+      (let ([acost (fl- a-cost min-weight)] 
+            [b-alt-cost (vector-ref vec-diffs 0)]
+            [b-alt-idx 0] [p-idx 0])
+        (define temp (fl+ (flvector-ref v-alt-cost p-idx) b-alt-cost))
         (for ([prev-split-idx (in-range 0 point-idx)])
-          ;; For each previous split point, we need the best candidate to fill the new regime
-         (when 
-          (vector-ref can-split-vec (+ prev-split-idx 1))
-          (let ([best #f] [bcost #f])
-            (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
-              (let ([cost (fl- (flvector-ref psum point-idx)
-                             (flvector-ref psum prev-split-idx))])
-                (when (or (not best) (fl< cost bcost))
-                  (set! bcost cost)
-                  (set! best cidx))))
-            (define temp (fl+ (flvector-ref v-alt-cost prev-split-idx) bcost))
-            (when 
-              (fl< temp acost)
-              (set! acost temp)
-              (set! a-cost acost)
-              (set! a-best best)
-              (set! a-prev-idx prev-split-idx)))))
+         (for ([cidx (in-range 0 num-candidates)])
+          (when (vector-ref can-split-vec (+ prev-split-idx 1))
+           (define a (flvector-ref all-psums (+ point-idx (* cidx num-points))))
+           (define b (flvector-ref all-psums (+ prev-split-idx (* cidx num-points))))
+           (let ([cost (fl- a b)])
+            (when (fl< cost b-alt-cost)
+            (set! b-alt-cost cost)
+            (set! b-alt-idx cidx)
+            (set! p-idx prev-split-idx)
+            (set! temp (fl+ (flvector-ref v-alt-cost p-idx) b-alt-cost))))))
+
+          (when (and (vector-ref can-split-vec (+ p-idx 1)) (fl< temp acost))
+           (set! acost temp)
+           (set! a-cost acost)
+           (set! a-best b-alt-idx)
+           (set! a-prev-idx p-idx))))
         (flvector-set! vec-alt-cost point-idx a-cost)
         (vector-set! vec-cidx point-idx a-best)
-        (vector-set! vec-pidx point-idx a-prev-idx)))
+        (vector-set! vec-pidx point-idx a-prev-idx))
   (values vec-alt-cost vec-cidx vec-pidx))
 
-  ;; We get the initial set of cse's by, at every point-index,
-  ;; accumulating the candidates that are the best we can do
-  ;; by using only one candidate to the left of that point.
   (define (initial)
     (define vec-acost (make-flvector num-points))
     (define vec-cidx (make-vector num-points))
     (define vec-pidx (make-vector num-points))
     (define vec-temp (make-flvector num-candidates))
     (for ([point-idx (in-range num-points)])
-      ;; record the cost from each candidate
       (for ([cand-idx (range num-candidates)])
        (flvector-set! vec-temp cand-idx
         (flvector-ref (vector-ref flvec-psums cand-idx) point-idx)))
-      ;; Find the min, no built in function to find smallest fl in vector
+      ;; find alt with smallest cost for each point
       (define min (flvector-ref vec-temp 0))
       (define min-idx 0)
       (for ([val vec-temp] [idx (range num-candidates)])
@@ -255,47 +274,43 @@
       (flvector-set! vec-acost point-idx (fl min))
       (vector-set! vec-cidx point-idx min-idx)
       (vector-set! vec-pidx point-idx num-points))
-    (values vec-acost vec-cidx vec-pidx))
+   (values vec-acost vec-cidx vec-pidx))
 
   ;; prefix of p is for previous
   ;; prefix of n is for next
   ;; prefix of f is for final result vectors
   ;; a for acost vectors
   ;; b for candidate index
-  ;; c for alt index
-  ;; d for previous index
+  ;; c for previous index
   ;; This is where the high level bulk of the algorithm is applied
   ;; We get the final splitpoints by applying add-splitpoints as many times as we want
-  (define-values (pa pb pd) (initial))
-  (define-values (fa fb fd)
+  (define-values (pa pb pc) (initial))
+  (define-values (fa fb fc)
     ; short circuit if there is no other alts to consider
     (if (> num-candidates 1)
-      (let loop ([pa pa] [pb pb] [pd pd])
-      (define-values (na nb nd) (add-splitpoint pa pb pd))
+      (let loop ([pa pa] [pb pb] [pc pc])
+      (define-values (na nb nc) (add-splitpoint pa pb pc))
       (if (equal? nb pb) ;; only need to compare candidate index
-          (values na nb nd)
-          (loop na nb nd)))
-    (values pa pb pd)))
+          (values na nb nc)
+          (loop na nb nc)))
+    (values pa pb pc)))
     
     ;; From here down is messy code translating from 4 vectors back to
     ;; the original list of split points
     (define fixed-final (make-vector num-points))
-    (define fp (list->vector (range 1 (+ num-points 1))))
     (for ([idx (in-range 0 num-points)])
       (define a (flvector-ref fa idx))
       (define b (vector-ref fb idx))
-      (define c (vector-ref fp idx))
-      (define d (vector-ref fd idx))
-      (vector-set! fixed-final idx (cand a b c d)))
-
-  ;; start at (- num-points 1)
-  ;; if num-points we are done
-  ;; traversing and then reversing is bad
-  (define (build-list current-cand)
+      (define c (vector-ref fc idx))
+      (vector-set! fixed-final idx (cand a b (+ 1 idx) c)))
+  
+  (define (build-outlist current-cand)
     (cond 
       [(not(= (cand-prev-idx current-cand) num-points))
         (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
-               (build-list (vector-ref fixed-final (cand-prev-idx current-cand))))]
+        (build-outlist (vector-ref fixed-final (cand-prev-idx current-cand))))]
       [else 
         (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
-  (reverse (build-list (vector-ref fixed-final (- num-points 1)))))
+  ;; traversing and then reversing is bad
+  (define out (reverse (build-outlist (vector-ref fixed-final (- num-points 1)))))
+    out)
