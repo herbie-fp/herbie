@@ -215,16 +215,23 @@
       (define a-cost (flvector-ref v-alt-cost point-idx))
       (define a-best (vector-ref v-cidx point-idx))
       (define a-prev-idx (vector-ref v-pidx point-idx))
-      
-     (define vec-diffs (make-vector point-idx))
+
+     (define vec-diffs (make-vector (+ point-idx 1)))
+      ;; base case for when point-idx is 0
+      ;; This is to prevent a crash of an empty vector
+      (define f (flvector-ref all-psums (+ point-idx (* 0 num-points))))
+      (define g (flvector-ref all-psums (+ 0 (* 0 num-points))))
+      (vector-set! vec-diffs 0 (fl- f g))
+
+      ;; Populate vector with `cost` or there difference in cost
      (for ([prev-split-idx (in-range 0 point-idx)])
       (define f (flvector-ref all-psums (+ point-idx (* 0 num-points))))
       (define g (flvector-ref all-psums (+ prev-split-idx (* 0 num-points))))
       (vector-set! vec-diffs prev-split-idx (fl- f g)))
 
       (let ([acost (fl- a-cost min-weight)])         
+       (let ([best 0] [bcost (vector-ref vec-diffs 0)])
         (for ([prev-split-idx (in-range 0 point-idx)])
-         (let ([best 0] [bcost (vector-ref vec-diffs prev-split-idx)])
           (when (vector-ref can-split-vec (+ prev-split-idx 1))
            (for ([cidx (in-range 0 num-candidates)])
              (define a (flvector-ref all-psums (+ point-idx (* cidx num-points))))
