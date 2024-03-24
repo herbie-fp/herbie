@@ -31,6 +31,7 @@ fi
 RECURSE=1 LOG=1 \
   bash "$INFRA_DIR"/run.sh \
     "$BENCH_DIR" "$OUT_DIR" \
+    --num-enodes 12000 \
     --disable generate:simplify \
     --profile \
     --seed "$SEED" \
