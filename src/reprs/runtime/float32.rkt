@@ -10,12 +10,14 @@
          fl32+ fl32- fl32* fl32/)
 
 (module hairy racket/base
-  (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t))
+  (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))
+  (require ffi/unsafe)
   (provide bigfloat->float32)
-  (define mpfr-get-f
-    (get-mpfr-fun 'mpfr_get_f (_fun _mpfr-pointer _rnd_t -> _float)))
+  (define mpfr-get-flt
+    (get-mpfr-fun 'mpfr_get_flt (_fun _mpfr-pointer _rnd_t -> _float)))
   (define (bigfloat->float32 x)
-    (mpfr-get-f x (bf-rounding-mode))))
+    (mpfr-get-flt x (bf-rounding-mode))))
+(require (submod "." hairy))
 
 (module+ test (require rackunit))
 
