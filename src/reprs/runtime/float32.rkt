@@ -9,6 +9,14 @@
          float32->ordinal ordinal->float32
          fl32+ fl32- fl32* fl32/)
 
+(module hairy racket/base
+  (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t))
+  (provide bigfloat->float32)
+  (define mpfr-get-f
+    (get-mpfr-fun 'mpfr_get_f (_fun _mpfr-pointer _rnd_t -> _float)))
+  (define (bigfloat->float32 x)
+    (mpfr-get-f x (bf-rounding-mode))))
+
 (module+ test (require rackunit))
 
 (define float32? flonum?)
@@ -34,18 +42,6 @@
 
 (define (float32-step x n)
   (ordinal->float32 (+ (float32->ordinal x) n)))
-
-(define (bigfloat->float32 x)
-  (define loprec (parameterize ([bf-precision 24]) (bfcopy x)))
-  (define y (->float32 (bigfloat->flonum loprec)))
-  (define x2 (bf y))
-  (match (bf-rounding-mode)
-   ['nearest y]
-   ['up     (if (bf< x2 x) (float32-step y 1) y)]
-   ['down   (if (bf> x2 x) (float32-step y -1) y)]
-   ['zero   (if (bf< x 0.bf)
-                (if (bf< x2 x) (float32-step y 1) y)
-                (if (bf> x2 x) (float32-step y -1) y))]))
 
 (define fl32+ (compose ->float32 +))
 (define fl32- (compose ->float32 -))
