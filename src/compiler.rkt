@@ -164,7 +164,11 @@
 
   (define compile
     (make-compiler 'ival
-                   #:input->value (lambda (prog _) (ival (bf prog)))
+                   #:input->value
+                   (lambda (prog _)
+                     (define lo (parameterize ([bf-rounding-mode 'down]) (bf prog)))
+                     (define hi (parameterize ([bf-rounding-mode 'up]) (bf prog)))
+                     (ival lo hi))
                    #:op->procedure (lambda (op) (operator-info (real-op op) 'ival))
                    #:op->itypes (lambda (op) (operator-info (real-op op) 'itype))
                    #:if-procedure ival-if
@@ -227,7 +231,6 @@
                                      (vector-ref vprecs (- x varc))
                                      child-precision))))
          tail-registers)))
-
 
 (define (get-exponent op output srcs)
   (cond
