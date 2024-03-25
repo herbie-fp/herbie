@@ -201,7 +201,7 @@
                  (bigfloat->flonum (ival-lo result))
                  (bigfloat->flonum (ival-hi result))))
     (vector-set! vprecs (- (vector-length vprecs) 1) (get-slack)))
-  #;(when (equal? 5 (*sampling-iteration*)) (printf "\n\n"))
+  
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
 
@@ -219,10 +219,6 @@
     (vector-set! vprecs (- n varc) final-parent-precision)
 
     (define new-exponents (get-exponent op output srcs))
-    
-    #;(when (equal? 5 (*sampling-iteration*))
-      (printf "reg=~a, op=~a, input was=~a, output=~a, precision=~a, exponent=~a, tail-ops=~a\n"
-              n (symbol->string (object-name (car instr))) srcs output final-parent-precision new-exponents tail-registers))
     
     (define child-precision (+ exps-from-above new-exponents))
     (map (lambda (x) (when (>= x varc)  ; when tail register is not a variable
@@ -316,7 +312,7 @@
        (define ylo-exp (true-exponent (ival-lo (second srcs))))
        (define yhi-exp (true-exponent (ival-hi (second srcs))))
 
-       (if (> (max xlo-exp xhi-exp) 2) ; if x >= 4 (actually 7.3890561), then at least 1 additional bit is needed
+       (if (> (max xlo-exp xhi-exp) 2) ; if x-exp > 2 (actually 2.718), then at least 1 additional bit is needed
            (+ (max ylo-exp yhi-exp) 30)
            (max ylo-exp yhi-exp))]
 
