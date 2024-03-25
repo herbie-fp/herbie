@@ -718,3 +718,24 @@
          (apply + (impl->cost pform impl) (map loop args itypes))]
         [_
          (repr->cost pform repr)]))))
+
+
+(define (target-in-platform? expr)
+    (match alt-prop
+      [`(! ,props ... ,body)
+
+        (let loop ((remaining props))
+          (cond
+            [(null? remaining) (error "Invalid props no :description")] ; Base case: stop when no more properties remain
+            [else
+              (let ((prop-name (car remaining))
+                    (prop-value (cadr remaining)))
+
+                    (match prop-name
+                      [`:description
+                        (list prop-value body)]
+                      [else
+                        (loop (cdr (cdr remaining)))]))]))]
+      
+      [else
+        (list alt-prop)]))

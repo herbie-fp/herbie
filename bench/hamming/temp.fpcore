@@ -12,6 +12,10 @@
   :alt 
   (! :description (platform math)
    (+ (* (cos x) (sin eps)) (- (* (cos eps) (sin x)) (sin x))))
+
+  ;:alt 
+  ;(! :description (platform foo)
+  ; (foo x))
  
   (- (sin (+ x eps)) (sin x)))
 

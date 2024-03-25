@@ -56,10 +56,11 @@
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
   (define identifier (test-identifier test))
-  (match-define (improve-result preprocessing pctxs start target end bogosity) backend)
+  (match-define (improve-result preprocessing pctxs start targets end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define start-cost (alt-cost start-alt repr))
+  (define target #f) ;; TODO
   (define target-alt (and target (alt-analysis-alt target)))
   (define target-error (and target (alt-analysis-test-errors target)))
   (define target-cost (and target (alt-cost target-alt repr)))

@@ -203,6 +203,8 @@
         (if (> (length (test-output test)) 0)
           (fpcore->prog (list-ref (test-output test) 0) ctx)
           #f))
+      
+      ;; IF IN PLATFROM, EVALUATE ERRORS ELSE PUT #F IN FIELDS
        (define target-train-errs (errors target-expr train-pcontext ctx))
        (define target-test-errs (errors target-expr test-pcontext* ctx))
        (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)]

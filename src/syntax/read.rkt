@@ -199,7 +199,7 @@
 
   ; Main developer target function, takes in the parsed-target based on the required platform
   ; and converts from fpcore to prog based on ctx 
-  (define target (fpcore->prog (dict-ref prop-dict ':precision #f) ctx))
+  ; (define target (fpcore->prog (dict-ref prop-dict ':precision #f) ctx))
 
   (define extract-alt-values-list
     (begin
@@ -228,30 +228,6 @@
         (representation-name default-repr)
         (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
         '()))
-
-
-(define (parse-alt alt-prop)
-    (match alt-prop
-      [`(! ,props ... ,body)
-
-        (when (odd? (length props))
-           (error "Invalid properties: odd number of arguments passed"))
-
-        (let loop ((remaining props))
-          (cond
-            [(null? remaining) (error "Invalid props no :description")] ; Base case: stop when no more properties remain
-            [else
-              (let ((prop-name (car remaining))
-                    (prop-value (cadr remaining)))
-
-                    (match prop-name
-                      [`:description
-                        (list prop-value body)]
-                      [else
-                        (loop (cdr (cdr remaining)))]))]))]
-      
-      [else
-        (list alt-prop)]))
 
 (define (verify-platform platform desired-platform)
     (match platform
