@@ -2,7 +2,7 @@
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt" "../timeline.rkt")
 
 (provide batch-localize-error local-error-as-tree compute-local-errors
          all-subexpressions)

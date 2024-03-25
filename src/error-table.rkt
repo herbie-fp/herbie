@@ -2,7 +2,7 @@
 
 (require racket/set math/bigfloat)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
-         "ground-truth.rkt" "syntax/sugar.rkt")
+         "ground-truth.rkt" "syntax/sugar.rkt" "timeline.rkt")
 
 (provide actual-errors predicted-errors)
 
@@ -60,6 +60,7 @@
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt))))
     
     (define exacts (apply subexprs-fn pt))
+
     (define exacts-hash
       (make-immutable-hash (map cons subexprs-list exacts)))
     (define (exacts-ref subexpr)

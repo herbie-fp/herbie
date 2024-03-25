@@ -54,7 +54,7 @@
          (for ([arg (in-list args)] [i (in-naturals 1)])
            (loop arg (cons i loc)))]
         [_ (void)]))
-    (k 'Goal #f #f step)))
+    (k 'Goal #f '() step)))
 
 ;; HTML renderer for derivations
 (define/contract (render-history altn pcontext pcontext2 ctx)

@@ -115,7 +115,6 @@
   (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
   (define outcomes (make-hash))
-  (define start (current-inexact-milliseconds))
 
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
@@ -123,6 +122,7 @@
 
       (define-values (status precision out)
         (ival-eval repr fn pt #:precision starting-precision))
+      (hash-update! outcomes status (curry + 1) 0)
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
@@ -130,10 +130,6 @@
               #:extra (for/list ([var (context-vars ctx)] [val pt])
                         (format "~a = ~a" var val))))
 
-      (hash-update! outcomes status (curry + 1) 0)
-      (define now (current-inexact-milliseconds))
-      (timeline-push!/unsafe 'outcomes precision (~a status) (- now start) 1)
-      (set! start now)
 
       (cond
        [(and (list? out) (not (ormap (representation-special-value? repr) pt)))
@@ -143,12 +139,9 @@
             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
        [else
         (when (>= skipped (*max-skipped-points*))
-          (timeline-compact! 'outcomes)
           (raise-herbie-error "Cannot sample enough valid points."
                               #:url "faq.html#sample-valid-points"))
         (loop sampled (+ 1 skipped) points exactss)])))
-  (timeline-compact! 'mixsample)
-  (timeline-compact! 'outcomes)
   (cons outcomes (cons points (flip-lists exactss))))
 
 
@@ -166,7 +159,6 @@
     (parameterize ([ground-truth-require-convergence #f])
       ;; TODO: Should make-sampler allow multiple contexts?
       (make-sampler (first ctxs) pre fn)))
-  (timeline-compact! 'mixsample)
   (timeline-event! 'sample)
   ;; TODO: should batch-prepare-points allow multiple contexts?
   (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler))
