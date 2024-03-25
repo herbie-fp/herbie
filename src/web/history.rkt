@@ -240,9 +240,6 @@
             (training-error . ,err2)
             (preprocessing . ,(map (curry map symbol->string) preprocessing)))]))
 
-;; preprocessing is a list of lists and the inner lists start with a symbol,
-;; which is illegal for converting to json.
-
 (define (render-proof-json proof soundiness pcontext ctx)
       (for/list ([step proof] [sound soundiness])
           (define-values (dir rule loc expr) (splice-proof-step step))
