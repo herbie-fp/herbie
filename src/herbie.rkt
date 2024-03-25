@@ -82,7 +82,6 @@
       "The platform to use during improvement"
       "[Default: default]"
     )
-    ; first try looking for a matching file
     (*platform-name* (string->symbol platform))
     (*active-platform* (get-platform (*platform-name*)))
     (activate-platform! (*active-platform*))]
