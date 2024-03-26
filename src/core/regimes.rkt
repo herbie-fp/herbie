@@ -232,7 +232,7 @@
       (let ([acost (fl- a-cost min-weight)] 
             [b-alt-cost (vector-ref vec-diffs 0)]
             [b-alt-idx 0] [p-idx 0])
-        (define temp (fl+ (flvector-ref v-alt-cost p-idx) b-alt-cost))
+        (define split-cost (fl+ (flvector-ref v-alt-cost p-idx) b-alt-cost))
         (for ([prev-split-idx (in-range 0 point-idx)])
          (for ([cidx (in-range 0 num-candidates)])
           (when (vector-ref can-split-vec (+ prev-split-idx 1))
@@ -243,10 +243,10 @@
             (set! b-alt-cost cost)
             (set! b-alt-idx cidx)
             (set! p-idx prev-split-idx)
-            (set! temp (fl+ (flvector-ref v-alt-cost p-idx) b-alt-cost))))))
+            (set! split-cost (fl+ (flvector-ref v-alt-cost p-idx) b-alt-cost))))))
 
-          (when (and (vector-ref can-split-vec (+ p-idx 1)) (fl< temp acost))
-           (set! acost temp)
+          (when (and (vector-ref can-split-vec (+ p-idx 1)) (fl< split-cost acost))
+           (set! acost split-cost)
            (set! a-cost acost)
            (set! a-best b-alt-idx)
            (set! a-prev-idx p-idx))))
