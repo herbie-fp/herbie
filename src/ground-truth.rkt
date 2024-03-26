@@ -44,7 +44,7 @@
 (define (make-search-func pre specs ctxs)
   (define fns (compile-specs (cons pre specs) (context-vars (car ctxs))))
   ; inputs can either be intervals or representation values
-  (λ inputs
+  (define (compiled-spec . inputs)
     (define inputs*
       (for/list ([input (in-list inputs)]
                  [repr (context-var-reprs (car ctxs))])
@@ -64,7 +64,8 @@
             (is-samplable-interval repr y)
             (ival (ival-hi (is-samplable-interval repr y))))
         'unsamplable)
-       y))))
+       y)))
+  compiled-spec)
 
 (define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
   (define start (current-inexact-milliseconds))
