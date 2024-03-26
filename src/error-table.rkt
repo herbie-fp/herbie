@@ -33,7 +33,6 @@
                      (unless (empty? mapped-sub-error)
                        (sow mapped-sub-error))))))
 
-  ;(eprintf "~a\n" pt-worst-subexpr)
   (for/hash ([group (in-list (group-by car pt-worst-subexpr))])
     (let ([key (caar group)])
       (values key (map cdr group)))))
@@ -70,12 +69,8 @@
   
   (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
-  ;;(define explanations-hash (make-hash))
-  ;;(define point-error-hash (make-hash))
   (define uflow-hash (make-hash))
   (define oflow-hash (make-hash)) 
-  ;;(define maybe-explanations-hash (make-hash))
-  ;;(define maybe-point-error-hash (make-hash))
 
   (define expls->points (make-hash))
   (define maybe-expls->points (make-hash))
@@ -95,14 +90,9 @@
     
     (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
-      (hash-update! expls->points (cons expr expl) (lambda (x) (set-add x pt)) '())
-      #;(hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
-      #;(hash-update! point-error-hash pt (lambda (x) (or true x)) #f))
+      (hash-update! expls->points (cons expr expl) (lambda (x) (set-add x pt)) '()))
     
     (define (mark-maybe! expr [expl 'sensitivity])
-      #;(hash-update! maybe-explanations-hash
-                    (cons expr expl) (lambda (x) (+ 1 x)) 0)
-      #;(hash-update! maybe-point-error-hash pt (lambda (x) (or true x)) #f)
       (hash-update! maybe-expls->points
                     (cons expr expl) (lambda (x) (set-add x pt)) '()))
     
@@ -116,7 +106,6 @@
        exacts-val))
     
     (for/list ([subexpr (in-list subexprs-list)])
-      ;;(eprintf "[subexpr] ~a ~a\n" subexpr explanations-hash)
       (define subexpr-val (exacts-ref subexpr))
 
       (define (update-flow-hash flow-hash pred? . children)
@@ -131,7 +120,8 @@
         (define parent+child-set
           (hash-union parent-set child-set #:combine (lambda (_ v) v)))
         (define new-parent-set
-          (if (pred? subexpr-val)
+          (if (and (bigfloat? subexpr-val)
+                   (pred? subexpr-val))
               (hash-update parent+child-set subexpr
                            (lambda (x) (+ x 1)) 0)
               parent+child-set))
@@ -160,6 +150,9 @@
          (define x.eps (+ 127 (bigfloat-exponent x)))
          (define y.eps (+ 127 (bigfloat-exponent y)))
 
+         (eprintf "~a,~a,~a\n"
+                  pt x y)
+         
          (cond
            [(> (- x.eps y.eps) 100) (silence y-ex)]
            [(> (- y.eps x.eps) 100) (silence x-ex)])
@@ -427,7 +420,7 @@
            ; Condition number hallucination:
            ; Condition number is high when x = 1,
            ; but x is exactly 1, so there is no error
-           [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
+           ; [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
            
            ; overflow rescue:
            [(bfinfinite? x) (mark-erroneous! subexpr 'oflow-rescue)]
@@ -488,14 +481,14 @@
            ;; Hallucination:
            ;; x has a large exponent and y is 1. The ylogx is large but there is
            ;; no error because the answer is exactly x
-           [(and (bf= y 1.bf)
-                 (bf= x subexpr-val)) #f]
+           ;; [(and (bf= y 1.bf)
+                 ;; (bf= x subexpr-val)) #f]
 
            ;; Hallucination:
            ;; y is large but x is exactly 1
-           [(and (= (bigfloat->flonum x) 1.0)
-                 (= (bigfloat->flonum subexpr-val) 1.0))
-            #f]
+           ;; [(and (= (bigfloat->flonum x) 1.0)
+                 ;; (= (bigfloat->flonum subexpr-val) 1.0))
+            ;; #f]
 
            ;; Hallucination:
            ;; y is large but x is zero
@@ -558,10 +551,10 @@
          (cond
            ; Condition number hallucinations:
            ; acos(1) == 0
-           [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
+           ;; [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
 
            ; acos(-1) == pi
-           [(bf= x -1.bf)  #f]
+           ;; [(bf= x -1.bf)  #f]
            
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)acos(x))|
@@ -586,8 +579,8 @@
          (cond
            ; Condition Number hallucinations:
            ; asin(1) == pi/2
-           [(bf= (bfabs x) 1.bf) #f]
-           [(and (bfzero? x) (bfzero? subexpr-val)) #f]
+           ;; [(bf= (bfabs x) 1.bf) #f]
+           ;; [(and (bfzero? x) (bfzero? subexpr-val)) #f]
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)asin(x))|
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
@@ -727,7 +720,7 @@
     (for/list ([(pt _) (in-pcontext pcontext)])
       (define error-actual? (> (hash-ref actual-error pt) 16))
       (define error-predicted? (hash-ref predicted-error pt false))
-      #;(when (and error-actual? (not error-predicted?))
+      (when (and error-predicted? (not error-actual?))
         (eprintf "~a\n" pt))
       (cons error-actual? error-predicted?)))
 
