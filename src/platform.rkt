@@ -760,9 +760,9 @@
 
 
 (define (target-in-platform? expr)
-    (match alt-prop
+    (displayln (format ";-: ~a" expr))
+    (match expr
       [`(! ,props ... ,body)
-
         (let loop ((remaining props))
           (cond
             [(null? remaining) (error "Invalid props no :description")] ; Base case: stop when no more properties remain
@@ -777,4 +777,4 @@
                         (loop (cdr (cdr remaining)))]))]))]
       
       [else
-        (list alt-prop)]))
+        '()]))
