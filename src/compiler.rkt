@@ -44,17 +44,13 @@
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
         (for ([instr (in-vector ivec)] [n (in-naturals varc)] [precision (in-vector vprecs)])
-          (define srcs
-            (for/list ([idx (in-list (cdr instr))])
-              (vector-ref vregs idx)))
-          
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          (symbol->string (object-name (car instr)))
                                                          (- precision (remainder precision prec-threshold))))
-            
-          (define output
-            (parameterize ([bf-precision precision]) (apply (car instr) srcs)))
-          (vector-set! vregs n output)
+          (define srcs
+            (for/list ([idx (in-list (cdr instr))])
+              (vector-ref vregs idx)))
+          (vector-set! vregs n (parameterize ([bf-precision precision]) (apply (car instr) srcs)))
           (timeline-stop!))
 
         (for/list ([root (in-list roots)])
@@ -110,7 +106,7 @@
                        #:op->procedure op->proc
                        #:op->itypes op->itypes
                        #:if-procedure if-proc
-                       #:cond-type cond-type)  
+                       #:cond-type cond-type)
   (lambda (exprs vars type)
     ;; Instruction cache
     (define icache '())
