@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat math/flonum rival)
+(require math/bigfloat math/flonum rival racket/unsafe/ops)
 (require "syntax/syntax.rkt" "syntax/types.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
@@ -30,6 +30,9 @@
   (define vprecs (make-vector (vector-length ivec)))   ; vector that stores working precisions
   (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
+
+  (define avec (make-vector (- (apply max 1 (vector->list (vector-map vector-length ivec))) 1)))
+
   (if (equal? name 'ival)
       (λ args
         (match (*use-mixed-precision*)
@@ -37,40 +40,48 @@
                                                              (* (*sampling-iteration*) 1000)))
               (if (equal? (*sampling-iteration*) 0)
                   (vector-copy! vprecs 0 vstart-precs) ; clear precisions from the last args
-                  (backward-pass ivec varc vregs vprecs vstart-precs (last roots))) ; back-pass
+                  (backward-pass ivec varc vregs vprecs vstart-precs (vector-ref roots (- (vector-length roots) 1)))) ; back-pass
               (timeline-stop!)]
           [#f (vector-fill! vprecs (bf-precision))])
         
         (for ([arg (in-list args)] [n (in-naturals)])
-          (vector-set! vregs n arg))
+          (unsafe-vector-set! vregs n arg))
         (for ([instr (in-vector ivec)] [n (in-naturals varc)] [precision (in-vector vprecs)])
-          (define srcs
-            (for/list ([idx (in-list (cdr instr))])
-              (vector-ref vregs idx)))
+          (define op (unsafe-vector-ref instr 0))
+          (for ([idx (in-vector instr 1)] [i (in-naturals)])
+            (unsafe-vector-set! avec i (unsafe-vector-ref vregs idx)))
           
-          (define timeline-stop! (timeline-start!/unsafe 'mixsample
-                                                         (symbol->string (object-name (car instr)))
-                                                         (- precision (remainder precision prec-threshold))))
+          (define timeline-stop!
+            (timeline-start!/unsafe
+             'mixsample (symbol->string (object-name op))
+             (- precision (remainder precision prec-threshold))))
             
-          (define output
-            (parameterize ([bf-precision precision]) (apply (car instr) srcs)))
-          (vector-set! vregs n output)
+          (define res
+            (parameterize ([bf-precision precision])
+              (call-with-values
+               (lambda () (vector->values avec 0 (- (unsafe-vector-length instr) 1)))
+               op)))
+          (unsafe-vector-set! vregs n res)
           (timeline-stop!))
 
-        (for/list ([root (in-list roots)])
-          (vector-ref vregs root)))
+        (for/list ([root (in-vector roots)])
+          (unsafe-vector-ref vregs root)))
    
       ; name is 'fl
       (λ args
         (for ([arg (in-list args)] [n (in-naturals)])
-          (vector-set! vregs n arg))
+          (unsafe-vector-set! vregs n arg))
         (for ([instr (in-vector ivec)] [n (in-naturals varc)])
-          (define srcs
-            (for/list ([idx (in-list (cdr instr))])
-              (vector-ref vregs idx)))
-          (vector-set! vregs n (apply (car instr) srcs)))
-        (for/list ([root (in-list roots)])
-          (vector-ref vregs root)))))
+          (define op (unsafe-vector-ref instr 0))
+          (for ([idx (in-vector instr 1)] [i (in-naturals)])
+            (unsafe-vector-set! avec i (unsafe-vector-ref vregs idx)))
+          (define res
+            (call-with-values ; call-with-values avoids allocating a list for apply
+             (lambda () (vector->values avec 0 (- (unsafe-vector-length instr) 1)))
+             op))
+          (unsafe-vector-set! vregs n res))
+        (for/list ([root (in-vector roots)])
+          (unsafe-vector-ref vregs root)))))
 
 (define (get-slack)
   (match (*sampling-iteration*)
@@ -93,8 +104,7 @@
       (define current-prec (max (vector-ref vstart-precs n) (*tuning-final-output-prec*)))
       (vector-set! vstart-precs n current-prec)
     
-      (define tail-registers (rest instr))
-      (for ([idx (in-list tail-registers)])
+      (for ([idx (in-vector instr 1)])
         (when (>= idx varc)          ; if tail register is not a variable
           (define idx-prec (vector-ref vstart-precs (- idx varc)))
           (set! idx-prec (max        ; sometimes an instruction can be in many tail registers
@@ -128,13 +138,13 @@
       (set! size (+ 1 size))
       (define expr
         (match prog
-          [(? number?) (list (const (input->value prog type)))]
-          [(? literal?) (list (const (input->value (literal-value prog) type)))]
+          [(? number?) (vector (const (input->value prog type)))]
+          [(? literal?) (vector (const (input->value (literal-value prog) type)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list if-proc (munge c cond-type) (munge t type) (munge f type))]
+           (vector if-proc (munge c cond-type) (munge t type) (munge f type))]
           [(list op args ...)
-           (cons (op->proc op) (map munge args (op->itypes op)))]
+           (list->vector (cons (op->proc op) (map munge args (op->itypes op))))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
@@ -142,7 +152,7 @@
                            (set! exprc (+ 1 exprc))
                            (set! icache (cons expr icache))))))
     
-    (define names (map (curryr munge type) exprs))
+    (define names (list->vector (map (curryr munge type) exprs)))
     (timeline-push! 'compiler (+ varc size) (+ exprc varc))
     (define ivec (list->vector (reverse icache)))
     (define interpret (make-progs-interpreter name vars ivec names))
@@ -209,9 +219,11 @@
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
 
-    (define op (car instr)) ; current operation
-    (define tail-registers (rest instr))
-    (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers)) ; tail of the current instr
+    (define op (vector-ref instr 0)) ; current operation
+    (define srcs
+      (for/list ([idx (in-vector instr 1)])
+        (vector-ref vregs idx)))
+
     (define output (vector-ref vregs n)) ; output of the current instr
 
     (define exps-from-above (vector-ref vprecs (- n varc))) ; vprecs is shifted by varc elements from vregs
@@ -225,12 +237,12 @@
     (define new-exponents (get-exponent op output srcs))
     
     (define child-precision (+ exps-from-above new-exponents))
-    (map (lambda (x) (when (>= x varc)  ; when tail register is not a variable
-                       (vector-set! vprecs (- x varc)
-                                    (max ; check whether this op already has a precision that is higher
-                                     (vector-ref vprecs (- x varc))
-                                     child-precision))))
-         tail-registers)))
+    (for ([idx (in-vector instr 1)]
+          #:when (>= idx varc))
+      (define idx* (- idx varc))
+      (define cur-prec (vector-ref vprecs idx*))
+      (define new-prec (max cur-prec child-precision))
+      (vector-set! vprecs idx* new-prec))))
 
 (define (get-exponent op output srcs)
   (cond
