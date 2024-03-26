@@ -391,10 +391,10 @@
        (max 0 (- xlo-exp out-exp) (- xhi-exp out-exp))] ; main formula
 
       [(equal? op ival-atan)
-       ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -log[x] - log[atan(x)]
-       (define xlo-exp (- (log2-approx (ival-lo (car srcs)))))
-       (define xhi-exp (- (log2-approx (ival-hi (car srcs)))))
-       (max 0
+       ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -|log[x]| - log[atan(x)] <= 0
+       (define xlo-exp (- (abs (log2-approx (ival-lo (car srcs))))))
+       (define xhi-exp (- (abs (log2-approx (ival-hi (car srcs))))))
+       (max 0 ; never greater than 0...
             (- xlo-exp (log2-approx (ival-lo output)))
             (- xhi-exp (log2-approx (ival-hi output))))]
       
