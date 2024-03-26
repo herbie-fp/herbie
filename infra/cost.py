@@ -2,13 +2,14 @@ from typing import Optional, Tuple, List
 import argparse
 import os
 
-from cost.runner import Runner
-from cost.c import CRunner
-from cost.math import MathRunner
-from cost.mkl import MKLRunner
-from cost.arith import ArithRunner
-from cost.python import PythonRunner
-from cost.fpcore import FPCore
+from platforms.fpcore import FPCore
+from platforms.runner import Runner
+
+from platforms.arith import ArithRunner
+from platforms.c import CRunner
+from platforms.math import MathRunner
+from platforms.mkl import MKLRunner
+from platforms.python import PythonRunner
 
 # paths
 script_path = os.path.abspath(__file__)

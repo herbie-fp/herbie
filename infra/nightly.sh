@@ -22,19 +22,23 @@ BENCH_DIR="$INFRA_DIR"/../bench
 # check arguments
 if [ -z "$1" ]; then
   echo "Usage: $0 <output_dir>"
+  exit 1
 else
   OUT_DIR="$1"; shift
   FLAGS="$@"
 fi
 
+# run platforms eval
+bash "$INFRA_DIR"/cost.sh "$OUT_DIR"
+
 # run
-RECURSE=1 LOG=1 \
-  bash "$INFRA_DIR"/run.sh \
-    "$BENCH_DIR" "$OUT_DIR" \
-    --profile \
-    --seed "$SEED" \
-    --threads "$CORES" \
-    $FLAGS
+# RECURSE=1 LOG=1 \
+#   bash "$INFRA_DIR"/run.sh \
+#     "$BENCH_DIR" "$OUT_DIR" \
+#     --profile \
+#     --seed "$SEED" \
+#     --threads "$CORES" \
+#     $FLAGS
 
 # upload
 bash $INFRA_DIR/publish.sh upload "$OUT_DIR"

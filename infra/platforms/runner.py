@@ -412,11 +412,12 @@ class Runner(object):
     def plot_times(self, cores: List[FPCore], times: List[float]):
         """Plots Herbie cost estimate vs. actual run time."""
         costs = list(map(lambda c: c.cost, cores))
+        path = self.working_dir.joinpath('time.png')
         plt.scatter(costs, times)
         plt.title('Estimated cost vs. actual run time')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Run time ({self.time_unit})')
-        plt.show()
+        plt.savefig(f'{str(path)}')
 
     def plot_pareto(self, frontier: List[Tuple[float, float]]):
         """Plots cost vs. accuracy Pareto frontier."""
@@ -426,11 +427,12 @@ class Runner(object):
             costs.append(cost)
             errs.append(err)
 
+        path = self.working_dir.joinpath('pareto.png')
         plt.plot(costs, errs, label='Points')
         plt.title('Estimated cost vs. cumulative average error (bits)')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Cumulative average error')
-        plt.show()
+        plt.savefig(f'{str(path)}')
 
     def plot_pareto_comparison(self, *frontiers):
         """Plots two cost vs. accuracy Pareto frontiers"""
@@ -439,8 +441,9 @@ class Runner(object):
             errs = list(map(lambda p: p[1], frontier))
             plt.plot(costs, errs, label=name)
 
+        path = self.working_dir.joinpath('baseline.png')
         plt.title('Estimated cost vs. cumulative average error (bits)')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Cumulative average error')
         plt.legend()
-        plt.show()
+        plt.savefig(f'{str(path)}')
