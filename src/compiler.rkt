@@ -6,13 +6,13 @@
 
 (provide compile-specs compile-spec compile-progs compile-prog)
 
-(define (true-exponent x)
+(define (log2-approx x)
   (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
   (if (equal? exp -9223372036854775807)
       (- (get-slack))  ; 0.bf
       (if (or (< 1000000000 (abs exp)))
           (get-slack)  ; overflow/inf.bf/nan.bf
-          exp)))
+          (+ exp 1)))) ; +1 because mantissa is not considered 
 
 ;; Interpreter taking a narrow IR
 ;; ```
@@ -235,26 +235,26 @@
        ;                               possible cancellation
        (define x (first srcs))
        (define xlo (ival-lo x))
-       (define xlo-exp (true-exponent xlo))
+       (define xlo-exp (log2-approx xlo))
        (define xlo-sgn (bigfloat-signbit xlo))
        (define xhi (ival-hi x))
-       (define xhi-exp (true-exponent xhi))
+       (define xhi-exp (log2-approx xhi))
        (define xhi-sgn (bigfloat-signbit xhi))
 
        (define y (second srcs))
        (define ylo (ival-lo y))
-       (define ylo-exp (true-exponent ylo))
+       (define ylo-exp (log2-approx ylo))
        (define ylo-sgn (bigfloat-signbit ylo))
        (define yhi (ival-hi y))
-       (define yhi-exp (true-exponent yhi))
+       (define yhi-exp (log2-approx yhi))
        (define yhi-sgn (bigfloat-signbit yhi))
        
        (define outlo (ival-lo output))
-       (define outlo-exp (true-exponent outlo))
+       (define outlo-exp (log2-approx outlo))
        (define outhi (ival-hi output))
-       (define outhi-exp (true-exponent outhi))
+       (define outhi-exp (log2-approx outhi))
        
-       (max 0 (+ 1 ; division of logarithms doesn't consider mantissa - which can be +1 to the result
+       (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
                  (max
                   (- (max xlo-exp ylo-exp) outlo-exp)
                   (- (max xhi-exp yhi-exp) outhi-exp))
@@ -271,26 +271,26 @@
        ;                               possible cancellation
        (define x (first srcs))
        (define xlo (ival-lo x))
-       (define xlo-exp (true-exponent xlo))
+       (define xlo-exp (log2-approx xlo))
        (define xlo-sgn (bigfloat-signbit xlo))
        (define xhi (ival-hi x))
-       (define xhi-exp (true-exponent xhi))
+       (define xhi-exp (log2-approx xhi))
        (define xhi-sgn (bigfloat-signbit xhi))
 
        (define y (second srcs))
        (define ylo (ival-lo y))
-       (define ylo-exp (true-exponent ylo))
+       (define ylo-exp (log2-approx ylo))
        (define ylo-sgn (bigfloat-signbit ylo))
        (define yhi (ival-hi y))
-       (define yhi-exp (true-exponent yhi))
+       (define yhi-exp (log2-approx yhi))
        (define yhi-sgn (bigfloat-signbit yhi))
 
        (define outlo (ival-lo output))
-       (define outlo-exp (true-exponent outlo))
+       (define outlo-exp (log2-approx outlo))
        (define outhi (ival-hi output))
-       (define outhi-exp (true-exponent outhi))
+       (define outhi-exp (log2-approx outhi))
 
-       (max 0 (+ 1 ; division of logarithms doesn't consider mantissa - which can be +1 to the result
+       (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
                  (max
                   (- (max xlo-exp yhi-exp) outlo-exp)
                   (- (max xhi-exp ylo-exp) outhi-exp))
@@ -304,10 +304,10 @@
       [(equal? op ival-pow)
        ; log[Гpow] = max[ log(y) , log(y) + log[log(x)] ]
        ;                                    ^^^^^^^^^^^ less than 30
-       (define xlo-exp (true-exponent (ival-lo (first srcs))))
-       (define xhi-exp (true-exponent (ival-hi (first srcs))))
-       (define ylo-exp (true-exponent (ival-lo (second srcs))))
-       (define yhi-exp (true-exponent (ival-hi (second srcs))))
+       (define xlo-exp (log2-approx (ival-lo (first srcs))))
+       (define xhi-exp (log2-approx (ival-hi (first srcs))))
+       (define ylo-exp (log2-approx (ival-lo (second srcs))))
+       (define yhi-exp (log2-approx (ival-hi (second srcs))))
 
        (max 0 (+ (max ylo-exp yhi-exp)
                  (if (> (max xlo-exp xhi-exp) 2) ; if x-exp > 2 (actually 2.718),
@@ -316,8 +316,8 @@
 
       [(equal? ival-exp op)
        (max 0
-            (true-exponent (ival-lo (car srcs)))
-            (true-exponent (ival-hi (car srcs))))]
+            (log2-approx (ival-lo (car srcs)))
+            (log2-approx (ival-hi (car srcs))))]
 
       [(equal? ival-tan op)
        ; log[Гtan] = log[x] - log[sin(x)*cos(x)] <= log[x] + |log[tan(x)]| + 1
@@ -327,15 +327,15 @@
        (define outhi (ival-hi output))
        
        (define out-exp
-         (+ 1 (max (abs (true-exponent outlo))
-                   (abs (true-exponent outhi)))
+         (+ 1 (max (abs (log2-approx outlo))
+                   (abs (log2-approx outhi)))
          (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
              0                            ; both bounds are positive or negative
              (get-slack))))               ; tan is (-inf, +inf) or around zero
 
        (max 0
-            (+ (true-exponent (ival-lo (car srcs))) out-exp)
-            (+ (true-exponent (ival-hi (car srcs))) out-exp))]
+            (+ (log2-approx (ival-lo (car srcs))) out-exp)
+            (+ (log2-approx (ival-hi (car srcs))) out-exp))]
               
       [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
        ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)] <= log[x] - log[cos(x)]
@@ -346,16 +346,17 @@
        (define outhi (ival-hi output))
 
        (define out-exp
-         (+ (min (true-exponent outlo)
-                 (true-exponent outhi))
+         (+ (min (log2-approx outlo)
+                 (log2-approx outhi))
             (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
                 0                         ; both bounds are positive or negative
                 (- (get-slack)))))        ; Condition of uncertainty,
                                           ; slack is negated because it is to be subtracted below
-       (max 0 (- (max
-                  (true-exponent (ival-lo (car srcs)))
-                  (true-exponent (ival-hi (car srcs))))
-                 out-exp))]
+       (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
+                 (- (max
+                     (log2-approx (ival-lo (car srcs)))
+                     (log2-approx (ival-hi (car srcs))))
+                    out-exp)))]
                
       [(equal? op ival-log)
        ; log[Гlog] = log[1/logx] = -log[log(x)]
@@ -364,8 +365,8 @@
        (define outhi (ival-hi output))
        
        (max 0
-            (+ (max (- (true-exponent outlo))  ; main formula
-                    (- (true-exponent outhi)))
+            (+ (max (- (log2-approx outlo))  ; main formula
+                    (- (log2-approx outhi)))
                (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
                    0                           ; both bounds are positive or negative
                    (get-slack))))]             ; output crosses 0.bf - uncertainty
@@ -378,12 +379,12 @@
        ;                       condition of uncertainty
        (define xlo (ival-lo (car srcs)))
        (define xhi (ival-hi (car srcs)))
-       (define xlo-exp (true-exponent xlo))
-       (define xhi-exp (true-exponent xhi))
+       (define xlo-exp (log2-approx xlo))
+       (define xhi-exp (log2-approx xhi))
        (define out-exp
          (+ (min                                   ; log[acos(x)|asin(x)] part
-             (true-exponent (ival-lo output))      
-             (true-exponent (ival-hi output)))
+             (log2-approx (ival-lo output))      
+             (log2-approx (ival-hi output)))
             (if (or (>= xlo-exp 0) (>= xhi-exp 0)) ; Condition of uncertainty when argument > sqrt(3)/2
                 (- (get-slack))                    ; assumes that log[1-x^2]/2 is equal to (- slack)
                 0)))
@@ -391,29 +392,29 @@
 
       [(equal? op ival-atan)
        ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -log[x] - log[atan(x)]
-       (define xlo-exp (- (true-exponent (ival-lo (car srcs)))))
-       (define xhi-exp (- (true-exponent (ival-hi (car srcs)))))
+       (define xlo-exp (- (log2-approx (ival-lo (car srcs)))))
+       (define xhi-exp (- (log2-approx (ival-hi (car srcs)))))
        (max 0
-            (- xlo-exp (true-exponent (ival-lo output)))
-            (- xhi-exp (true-exponent (ival-hi output))))]
+            (- xlo-exp (log2-approx (ival-lo output)))
+            (- xhi-exp (log2-approx (ival-hi output))))]
       
       [(equal? op ival-fmod)
        ; x mod y = x - y*q, where q is a coef
-       ; log[Гmod] ~ log[ max(x, y*x/y) / mod(x,y)] = log[x] - log[mod(x,y)]
+       ; log[Гmod] ~ log[ max(x, y*x/y) / mod(x,y)] ~ log[x] - log[mod(x,y)]
        ;                            ^   ^
        ;                     conditions of uncertainty
        (define x (first srcs))
-       (define xlo-exp (true-exponent (ival-lo x)))
-       (define xhi-exp (true-exponent (ival-hi x)))
+       (define xlo-exp (log2-approx (ival-lo x)))
+       (define xhi-exp (log2-approx (ival-hi x)))
        
        (define y (second srcs))
        (define ylo (ival-lo y))
        (define yhi (ival-hi y))
 
        (define outlo (ival-lo output))
-       (define outlo-exp (true-exponent outlo))
+       (define outlo-exp (log2-approx outlo))
        (define outhi (ival-hi output))
-       (define outhi-exp (true-exponent outhi))
+       (define outhi-exp (log2-approx outhi))
        
        (+ (max (+ (- xlo-exp outlo-exp) 1)
                (+ (- xhi-exp outhi-exp) 1))
