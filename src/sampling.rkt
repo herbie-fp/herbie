@@ -112,7 +112,6 @@
 (define (batch-prepare-points fn ctx sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define repr (context-repr ctx))
-  (define starting-precision (*starting-prec*))
   (define <-bf (representation-bf->repr repr))
   (define outcomes (make-hash))
 
@@ -121,7 +120,8 @@
       (define pt (sampler))
 
       (define-values (status precision out)
-        (ival-eval repr fn pt #:precision starting-precision))
+        (parameterize ([*use-mixed-precision* #t])
+          (ival-eval repr fn pt)))
       (hash-update! outcomes status (curry + 1) 0)
 
       (when (equal? status 'exit)
@@ -129,7 +129,6 @@
               "could not determine a ground truth"
               #:extra (for/list ([var (context-vars ctx)] [val pt])
                         (format "~a = ~a" var val))))
-
 
       (cond
        [(and (list? out) (not (ormap (representation-special-value? repr) pt)))
