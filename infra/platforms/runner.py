@@ -83,25 +83,23 @@ def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], Li
                 universal_newlines=True) as server:
             
             print(f'(sample {num_inputs} {core.core})', file=server.stdin, flush=True)
-            output = server.stdout.readline()
-            inputs = output.split('|')
-            if len(inputs) != num_inputs:
-                print('(exit)', file=server.stdin, flush=True)
-                raise RuntimeError(f'did not sample expected number of points: {len(inputs)} != {num_inputs}')
+            output = server.stdout.readline().strip()
 
             print('(exit)', file=server.stdin, flush=True)
             _ = server.stdout.read()
-    
-            points = [[] for _ in range(core.argc)]
+            if output == '#f':
+                return None
+
             gts = []
-            for input in inputs:
+            points = [[] for _ in range(core.argc)]
+            for input in output.split('|'):
                 parts = input.split(',')
                 if len(parts) != 2:
                     raise RuntimeError(f'malformed point {input}')
                 
                 for i, val in enumerate(parts[0].split(' ')):
                     points[i].append(racket_to_py(val.strip()))
-                gts.append(racket_to_py(parts[1]))
+                gts.append(racket_to_py(parts[1].strip()))
 
             return (points, gts)
 
@@ -314,6 +312,12 @@ class Runner(object):
         if platform is None:
             platform = self.name
 
+        core_dict = dict()
+        for core in cores:
+            if core.name in core_dict:
+                raise RuntimeError(f'Duplicate key {core.name}')
+            core_dict[core.name] = core
+
         with Popen(
             args=['racket', str(self.herbie_path), "--platform", platform],
             stdin=PIPE,
@@ -326,13 +330,13 @@ class Runner(object):
             output = server.stdout.read()
 
         gen_cores = []
-        for core, group in zip(cores, chunks(output.split('\n'), 3)):
+        for group in chunks(output.split('\n'), 3):
             if len(group) == 3:
                 gen_core = parse_core(group[0].strip())
                 gen_core.cost = float(group[1].strip())
                 gen_core.err = float(group[2].strip())
-                gen_core.key = core.key
-                gen_cores.append(core)
+                gen_core.key = core_dict[core.name].key
+                gen_cores.append(gen_core)
 
         self.log(f'generated {len(gen_cores)} FPCores with Herbie')
         return gen_cores
@@ -421,7 +425,10 @@ class Runner(object):
             if sample is None:
                 samples[i] = gen_samples[0]
                 gen_samples = gen_samples[1:]
-                self.cache.write_core(core, samples[i])
+                if samples[i] is not None:
+                    self.cache.write_core(core, samples[i])
+                else:
+                    self.log(f'could not sample {core.name}')
 
         return samples
 

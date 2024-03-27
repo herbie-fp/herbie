@@ -246,9 +246,7 @@
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (timeline-load! timeline)
       (timeline-compact! 'outcomes)
-      (match command 
-        ['improve (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
-        [_ (error 'run-herbie "command ~a timed out" command)])))
+      (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)))
 
   (define (compute-result test)
     (parameterize ([*timeline-disabled* timeline-disabled?]

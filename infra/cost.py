@@ -30,6 +30,16 @@ def write_fpcores(path: str, cores: List[FPCore]):
         for core in cores:
             print(core.core, file=f)
 
+# TODO: what should we do with unsamplable FPCores
+def prune_unsamplable(samples, cores):
+    samples2 = []
+    cores2 = []
+    for sample, core in zip(samples, cores):
+        if sample is not None:
+            samples2.append(sample)
+            cores2.append(core)
+    return samples2, cores2
+
 def run(
     runner: Runner,
     tune: bool,
@@ -48,7 +58,9 @@ def run(
         # read and sample input cores
         input_cores = runner.herbie_read(path=bench_dir)
         samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
+        samples, input_cores = prune_unsamplable(samples, input_cores)
 
+        # analyze and improve
         runner.herbie_cost(cores=input_cores)
         runner.herbie_error(cores=input_cores)
         cores = runner.herbie_improve(cores=input_cores, threads=threads)

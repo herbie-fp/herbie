@@ -4,6 +4,7 @@ from typing import Optional
 import re
 
 fpcore_pat = re.compile('\(FPCore \(([^\(\)]*)\)')
+named_fpcore_pat = re.compile('\(FPCore [^\s]+ \(([^\(\)]*)\)')
 fpcore_prop_name_pat = re.compile('^.*:name "([^\"]*)"')
 fpcore_prop_descr_pat = re.compile('^.*:description "([^\"]*)"')
 
@@ -48,7 +49,10 @@ def parse_core(s: str) -> FPCore:
     """Parses a string as an FPCore."""
     core_match = re.match(fpcore_pat, s)
     if core_match is None:
-        raise RuntimeError('Failed to parse FPCore from', s)
+        core_match = re.match(named_fpcore_pat, s)
+        if core_match is None:
+            raise RuntimeError('Failed to parse FPCore from', s)
+        
     arg_str = core_match.group(1).strip()
     argc = len(arg_str.split())
     # optionally extract name
