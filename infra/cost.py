@@ -1,9 +1,11 @@
 from typing import Optional, Tuple, List
+from pathlib import Path
 import argparse
 import os
 
 from platforms.fpcore import FPCore
 from platforms.runner import Runner
+from platforms.cache import Cache
 
 from platforms.arith import ArithRunner
 from platforms.c import CRunner
@@ -52,6 +54,9 @@ def run(
         # Synthesize implementations
         cores = runner.synthesize()
         samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
+        # write to cache
+        # for core, sample in zip(cores, samples):
+        #     cache.write_synth_core(core, sample)
         input_cores = cores
 
     input_cores_path = runner.working_dir.joinpath('input.fpcore')

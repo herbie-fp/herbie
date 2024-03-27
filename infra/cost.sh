@@ -28,5 +28,4 @@ echo "Running platforms evaluation"
 python3 $INFRA_DIR/platforms-eval.py \
   "$OUTDIR/platforms" $HERBIE_THREADS $THREADS \
   "c $BENCH_DIR/hamming 2500 default" \
-  "c $BENCH_DIR/physics 2500 default" \
-  "python $BENCH_DIR/physics 2500 c" \
+  "c $BENCH_DIR/physics 2500 default"

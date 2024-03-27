@@ -168,8 +168,10 @@
            (job-result-backend result)))
        (printf "~a\n"
                (string-join
-                  (for/list ([(pt _) (in-pcontext pctx)])
-                    (string-join (map ~s pt) ","))
+                  (for/list ([(pt gt) (in-pcontext pctx)])
+                    (string-append
+                      (string-join (map ~s pt) " ")
+                      (format ",~s" gt)))
                   "|"))
        (loop)]
       ; exit

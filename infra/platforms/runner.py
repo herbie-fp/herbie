@@ -5,48 +5,40 @@ from pathlib import Path
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 import shutil
-import re
+import math
 
-from .fpcore import FPCore
+from .cache import Cache, sanitize_name
+from .fpcore import FPCore, parse_core
 from .util import sample_repr, chunks
 
-fpcore_pat = re.compile('\(FPCore \(([^\(\)]*)\)')
-fpcore_prop_name_pat = re.compile('^.*:name "([^\"]*)"')
-fpcore_prop_descr_pat = re.compile('^.*:description "([^\"]*)"')
-fpcore_name_pat = re.compile('(.*) variant (.*)')
-
 def baseline() -> FPCore:
-    return FPCore(core='(FPCore () :name "baseline" 0)', name='baseline', argc=0)
+    return FPCore(core='(FPCore () :name "baseline" 0)', key='synth:baseline', name='baseline', argc=0)
 
 def synthesize1(op: str, argc: int) -> FPCore:
     """Creates a single FPCore for an operation with an arity."""
     op_ = '-' if op == 'neg' else op
+    key = sanitize_name(f'synth:{op}')
     vars = [f'x{i}' for i in range(argc)]
     arg_str = ' '.join(vars)
     app_str = '(' + ' '.join([op_] + vars) + ')'
     core = f'(FPCore ({arg_str}) :name "{op}" {app_str})'
     py_sample = op == 'lgamma' or op == 'tgamma'  # Rival struggles with these
-    return FPCore(core, name=op, argc=argc, py_sample=py_sample)
+    return FPCore(core, key=key, name=op, argc=argc, py_sample=py_sample)
 
-def parse_core(s: str) -> FPCore:
-    """Parses a string as an FPCore."""
-    core_match = re.match(fpcore_pat, s)
-    if core_match is None:
-        raise RuntimeError('Failed to parse FPCore from', s)
-    arg_str = core_match.group(1).strip()
-    argc = len(arg_str.split())
-    # optionally extract name
-    name_match = re.match(fpcore_prop_name_pat, s)
-    name = None if name_match is None else name_match.group(1).strip()
-    # optionally extract description
-    descr_match = re.match(fpcore_prop_descr_pat, s)
-    descr = None if descr_match is None else descr_match.group(1).strip()
-    return FPCore(core=s, name=name, descr=descr, argc=argc)
+def racket_to_py(s: str):
+    if s == '+inf.0':
+        return math.inf
+    elif s == '-inf.0':
+        return -math.inf
+    elif s == '+nan.0':
+        return math.nan
+    else:
+        return float(s)
 
-def sample1(config: Tuple[FPCore, int, str, str]) -> List[float]:
+def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], List[float]]:
     core, num_inputs, herbie_path, platform, py_sample = config
     if core.argc == 0:
-        return []
+        return tuple([], [])
     elif core.py_sample or py_sample:
         # sample using Python
         return [sample_repr('double', num_inputs) for _ in range(core.argc)]
@@ -69,10 +61,17 @@ def sample1(config: Tuple[FPCore, int, str, str]) -> List[float]:
             _ = server.stdout.read()
     
             points = [[] for _ in range(core.argc)]
+            gts = []
             for input in inputs:
-                for i, val in enumerate(input.split(',')):
-                    points[i].append(float(val.strip()))
-            return points
+                parts = input.split(',')
+                if len(parts) != 2:
+                    raise RuntimeError(f'malformed point {input}')
+                
+                for i, val in enumerate(parts[0].split(' ')):
+                    points[i].append(racket_to_py(val.strip()))
+                gts.append(racket_to_py(parts[1]))
+
+            return (points, gts)
 
 
 class Runner(object):
@@ -106,10 +105,13 @@ class Runner(object):
         self.ternary_ops = ternary_ops
         self.nary_ops = nary_ops
         self.time_unit = time_unit
+        # mutable data
+        self.cache = Cache(working_dir)
+        self.cache.restore()
+        self.log(f'restored {len(self.cache.cores)} core from cache')
         # if the working directory does not exist, create it
-        if self.working_dir.exists():
-            shutil.rmtree(self.working_dir)
-        self.working_dir.mkdir(parents=True)
+        if not self.working_dir.exists():
+            self.working_dir.mkdir(parents=True)
         self.log('created working directory at `' + str(self.working_dir) + '`')
 
     def log(self, msg: str, *args):
@@ -349,18 +351,44 @@ class Runner(object):
 
         self.log(f'computed Pareto frontier')
         return frontier
-    
 
-    def herbie_sample(self, cores: List[FPCore], py_sample: bool = False) -> dict:
+    def herbie_sample(self, cores: List[FPCore], py_sample: bool = False) -> List[List[List[float]]]:
         """Runs Herbie's sampler for each FPCore in `self.cores`."""
-        config_gen = map(lambda c: (c, self.num_inputs, self.herbie_path, self.name, py_sample), cores)
-        with mp.Pool(processes=self.threads) as pool:
-            sample_data = pool.map(sample1, config_gen)
+        # check cache first
+        samples = []
+        num_cached = 0
+        for core in cores:
+            maybe_cached = self.cache.get_core(core.key)
+            if maybe_cached is None:
+                samples.append(None)
+            else:
+                _, sample = maybe_cached
+                if len(sample) == 0:
+                    samples.append(None)
+                elif len(sample[0]) == self.num_inputs:
+                    samples.append(sample)
+                    num_cached += 1
+                else:
+                    print(len(sample), len(sample[0]))
+                    samples.append(None)
 
-        samples = dict()
-        for core, data in zip(cores, sample_data):
-            samples[core.name] = data
-        self.log(f'sampled input points')
+        # run sampling for un-cached ones
+        configs = []
+        for sample, core in zip(samples, cores):
+            if sample is None:
+                configs.append((core, self.num_inputs, self.herbie_path, self.name, py_sample))
+        with mp.Pool(processes=self.threads) as pool:
+            gen_samples = pool.map(sample1, configs)
+
+        self.log(f'sampled {len(gen_samples)} cores ({num_cached} cached)')
+    
+        # update `samples`
+        for i, (core, sample) in enumerate(zip(cores, samples)):
+            if sample is None:
+                samples[i] = gen_samples[0]
+                gen_samples = gen_samples[1:]
+                self.cache.write_core(core, samples[i])
+
         return samples
 
     def make_driver_dirs(self, cores: List[FPCore]) -> List[str]:
