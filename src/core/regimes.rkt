@@ -216,23 +216,24 @@
       (define a-best (vector-ref v-cidx point-idx))
       (define a-prev-idx (vector-ref v-pidx point-idx))
 
-     (define vec-diffs (make-vector (+ point-idx 1)))
+      (define vec-diffs (make-vector (+ point-idx 1)))
       ;; base case for when point-idx is 0
       ;; This is to prevent a crash of an empty vector
       (define f (flvector-ref all-psums (+ point-idx (* 0 num-points))))
       (define g (flvector-ref all-psums (+ 0 (* 0 num-points))))
       (vector-set! vec-diffs 0 (fl- f g))
-
       ;; Populate vector with `cost` or there difference in cost
      (for ([prev-split-idx (in-range 0 point-idx)])
       (define f (flvector-ref all-psums (+ point-idx (* 0 num-points))))
       (define g (flvector-ref all-psums (+ prev-split-idx (* 0 num-points))))
       (vector-set! vec-diffs prev-split-idx (fl- f g)))
 
+     (define temps-vec (make-flvector num-points (fl -1)))
+     (flvector-set! temps-vec 0 (fl+ (flvector-ref v-alt-cost 0) (vector-ref vec-diffs 0)))
+
       (let ([acost (fl- a-cost min-weight)] 
             [b-alt-cost (vector-ref vec-diffs 0)]
-            [b-alt-idx 0] [p-idx 0])
-        (define temp (fl+ (flvector-ref v-alt-cost p-idx) b-alt-cost))
+            [b-alt-idx 0])
         (for ([prev-split-idx (in-range 0 point-idx)])
          (for ([cidx (in-range 0 num-candidates)])
           (when (vector-ref can-split-vec (+ prev-split-idx 1))
@@ -242,14 +243,16 @@
             (when (fl< cost b-alt-cost)
             (set! b-alt-cost cost)
             (set! b-alt-idx cidx)
-            (set! p-idx prev-split-idx)
-            (set! temp (fl+ (flvector-ref v-alt-cost p-idx) b-alt-cost))))))
+            (flvector-set! temps-vec prev-split-idx 
+              (fl+ (flvector-ref v-alt-cost prev-split-idx) b-alt-cost))))))
 
-          (when (and (vector-ref can-split-vec (+ p-idx 1)) (fl< temp acost))
-           (set! acost temp)
+        (for ([prev-split-idx (in-range 0 point-idx)])
+          (when (not (= (flvector-ref temps-vec prev-split-idx) -1))
+          (when (and (vector-ref can-split-vec (+ prev-split-idx 1)) (fl< (flvector-ref temps-vec prev-split-idx) acost))
+           (set! acost (flvector-ref temps-vec prev-split-idx))
            (set! a-cost acost)
            (set! a-best b-alt-idx)
-           (set! a-prev-idx p-idx))))
+           (set! a-prev-idx prev-split-idx))))))
         (flvector-set! vec-alt-cost point-idx a-cost)
         (vector-set! vec-cidx point-idx a-best)
         (vector-set! vec-pidx point-idx a-prev-idx))
