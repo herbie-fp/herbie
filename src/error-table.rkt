@@ -150,9 +150,6 @@
          (define x.eps (+ 127 (bigfloat-exponent x)))
          (define y.eps (+ 127 (bigfloat-exponent y)))
 
-         (eprintf "~a,~a,~a\n"
-                  pt x y)
-         
          (cond
            [(> (- x.eps y.eps) 100) (silence y-ex)]
            [(> (- y.eps x.eps) 100) (silence x-ex)])
@@ -720,7 +717,7 @@
     (for/list ([(pt _) (in-pcontext pcontext)])
       (define error-actual? (> (hash-ref actual-error pt) 16))
       (define error-predicted? (hash-ref predicted-error pt false))
-      (when (and error-predicted? (not error-actual?))
+      #;(when (and error-predicted? (not error-actual?))
         (eprintf "~a\n" pt))
       (cons error-actual? error-predicted?)))
 
