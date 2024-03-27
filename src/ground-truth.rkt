@@ -44,7 +44,7 @@
 (define (make-search-func pre specs ctxs)
   (define fns (compile-specs (cons pre specs) (context-vars (car ctxs))))
   ; inputs can either be intervals or representation values
-  (λ inputs
+  (define (compiled-spec . inputs)
     (define inputs*
       (for/list ([input (in-list inputs)]
                  [repr (context-var-reprs (car ctxs))])
@@ -64,26 +64,31 @@
             (is-samplable-interval repr y)
             (ival (ival-hi (is-samplable-interval repr y))))
         'unsamplable)
-       y))))
+       y)))
+  compiled-spec)
 
-(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
+(define (ival-eval repr fn pt [iter 0] [precision (*starting-prec*)])
   (define start (current-inexact-milliseconds))
   (define-values (status final-prec value)
-    (let loop ([precision precision])
-      (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
+    (let loop ([iter iter] [precision precision])
+      (define exs
+        (if (*use-mixed-precision*)
+            (parameterize ([*sampling-iteration* iter]) (apply fn pt))
+            (parameterize ([bf-precision precision]) (apply fn pt))))
       (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
+      (define iter* (+ 1 iter))
       (define precision* (exact-floor (* precision 2)))
       (cond
         [err
-         (values err precision +nan.0)]
+         (values err (if (*use-mixed-precision*) iter precision) +nan.0)]
         [(not err?)
          (define infinite?
            (ival-lo (is-infinite-interval repr (apply ival-or exs))))
-         (values (if infinite? 'infinite 'valid) precision exs)]
-        [(> precision* (*max-mpfr-prec*))
-         (values 'exit precision +nan.0)]
+         (values (if infinite? 'infinite 'valid) (if (*use-mixed-precision*) iter precision) exs)]
+        [(if (*use-mixed-precision*) (> iter* (*max-sampling-iterations*)) (> precision* (*max-mpfr-prec*)))
+         (values 'exit (if (*use-mixed-precision*) iter precision) +nan.0)]
         [else
-         (loop precision*)])))
+         (loop iter* precision*)])))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          final-prec (~a status) 1)
   (values status precision value))
