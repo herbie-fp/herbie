@@ -109,9 +109,8 @@
                        #:input->value input->value
                        #:op->procedure op->proc
                        #:op->itypes op->itypes
-                       #:if-procedure if-proc
-                       #:cond-type cond-type)
-  (lambda (exprs vars type)
+                       #:if-procedure if-proc)
+  (lambda (exprs vars)
     ;; Instruction cache
     (define icache '())
     (define exprhash
@@ -126,7 +125,6 @@
     ; Translates programs into an instruction sequence of operations
     (define (munge prog)
       (set! size (+ 1 size))
-      (define type (if (equal? type 'real) (type-of prog) (repr-of prog)))
       (define expr
         (match prog
           [(? number?)
@@ -173,9 +171,8 @@
                      (ival lo hi))
                    #:op->procedure (lambda (op) (operator-info (real-op op) 'ival))
                    #:op->itypes (lambda (op) (operator-info (real-op op) 'itype))
-                   #:if-procedure ival-if
-                   #:cond-type 'bool))
-  (compile specs vars 'real))
+                   #:if-procedure ival-if))
+  (compile specs vars))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
@@ -186,9 +183,8 @@
                    #:input->value real->repr
                    #:op->procedure (lambda (op) (impl-info op 'fl))
                    #:op->itypes (lambda (op) (impl-info op 'itype))
-                   #:if-procedure (λ (c ift iff) (if c ift iff))
-                   #:cond-type (get-representation 'bool)))
-  (compile exprs (context-vars ctx) (context-repr ctx)))
+                   #:if-procedure (λ (c ift iff) (if c ift iff))))
+  (compile exprs (context-vars ctx)))
 
 ;; Like `compile-specs`, but for a single spec.
 (define (compile-spec spec vars)
