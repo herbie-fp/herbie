@@ -109,9 +109,8 @@
                        #:input->value input->value
                        #:op->procedure op->proc
                        #:op->itypes op->itypes
-                       #:if-procedure if-proc
-                       #:cond-type cond-type)
-  (lambda (exprs vars type)
+                       #:if-procedure if-proc)
+  (lambda (exprs vars)
     ;; Instruction cache
     (define icache '())
     (define exprhash
@@ -124,17 +123,19 @@
     (define varc (length vars))
 
     ; Translates programs into an instruction sequence of operations
-    (define (munge prog type)
+    (define (munge prog)
       (set! size (+ 1 size))
       (define expr
         (match prog
-          [(? number?) (list (const (input->value prog type)))]
-          [(? literal?) (list (const (input->value (literal-value prog) type)))]
+          [(? number?)
+           (list (const (input->value prog 'real)))]
+          [(literal value (app get-representation repr))
+           (list (const (input->value value repr)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list if-proc (munge c cond-type) (munge t type) (munge f type))]
+           (list if-proc (munge c) (munge t) (munge f))]
           [(list op args ...)
-           (cons (op->proc op) (map munge args (op->itypes op)))]
+           (cons (op->proc op) (map munge args))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
@@ -142,11 +143,10 @@
                            (set! exprc (+ 1 exprc))
                            (set! icache (cons expr icache))))))
     
-    (define names (map (curryr munge type) exprs))
+    (define names (map munge exprs))
     (timeline-push! 'compiler (+ varc size) (+ exprc varc))
     (define ivec (list->vector (reverse icache)))
-    (define interpret (make-progs-interpreter name vars ivec names))
-    (procedure-rename interpret (sym-append 'eval-prog '- name))))
+    (make-progs-interpreter name vars ivec names)))
 
 ;; Compiles a program of operators into a procedure
 ;; that evaluates the program on a single input of intervals
@@ -171,9 +171,8 @@
                      (ival lo hi))
                    #:op->procedure (lambda (op) (operator-info (real-op op) 'ival))
                    #:op->itypes (lambda (op) (operator-info (real-op op) 'itype))
-                   #:if-procedure ival-if
-                   #:cond-type 'bool))
-  (compile specs vars 'real))
+                   #:if-procedure ival-if))
+  (compile specs vars))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
@@ -184,9 +183,8 @@
                    #:input->value real->repr
                    #:op->procedure (lambda (op) (impl-info op 'fl))
                    #:op->itypes (lambda (op) (impl-info op 'itype))
-                   #:if-procedure (λ (c ift iff) (if c ift iff))
-                   #:cond-type (get-representation 'bool)))
-  (compile exprs (context-vars ctx) (context-repr ctx)))
+                   #:if-procedure (λ (c ift iff) (if c ift iff))))
+  (compile exprs (context-vars ctx)))
 
 ;; Like `compile-specs`, but for a single spec.
 (define (compile-spec spec vars)
