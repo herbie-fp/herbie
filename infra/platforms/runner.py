@@ -14,17 +14,6 @@ from .util import sample_repr, chunks
 def baseline() -> FPCore:
     return FPCore(core='(FPCore () :name "baseline" 0)', key='synth:baseline', name='baseline', argc=0)
 
-def synthesize1(op: str, argc: int) -> FPCore:
-    """Creates a single FPCore for an operation with an arity."""
-    op_ = '-' if op == 'neg' else op
-    key = sanitize_name(f'synth:{op}')
-    vars = [f'x{i}' for i in range(argc)]
-    arg_str = ' '.join(vars)
-    app_str = '(' + ' '.join([op_] + vars) + ')'
-    core = f'(FPCore ({arg_str}) :name "{op}" {app_str})'
-    py_sample = op == 'lgamma' or op == 'tgamma'  # Rival struggles with these
-    return FPCore(core, key=key, name=op, argc=argc, py_sample=py_sample)
-
 def racket_to_py(s: str):
     if s == '+inf.0':
         return math.inf
@@ -34,14 +23,57 @@ def racket_to_py(s: str):
         return math.nan
     else:
         return float(s)
+    
+def py_to_racket(v: float):
+    if math.isnan(v):
+        return '+nan.0'
+    elif math.isinf(v):
+        if v < 0:
+            return '-inf.0'
+        else:
+            return '+inf.0'
+    else:
+        return str(v)
+    
+def sample_to_pcontext(sample):
+    points, gts = sample
+    input_strs = []
+    for i, gt in enumerate(gts):
+        pt = []
+        for j, _ in enumerate(points):
+            pt.append(points[j][i])
+        pt_str = ' '.join(map(lambda v: py_to_racket(v), pt))
+        input_strs.append(f'(({pt_str}) {py_to_racket(gt)})')
+    input_str = ' '.join(input_strs)
+    return f'({input_str})'
+
+def error1(config: Tuple[FPCore, List, str, str]):
+    core, sample, herbie_path, platform = config
+    with Popen(
+            args=['racket', str(herbie_path), "--platform", platform],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
+        
+        pcontext = sample_to_pcontext(sample)
+        print(f'(error {core.core} {pcontext})', file=server.stdin, flush=True)
+        output = server.stdout.readline()
+
+        print('(exit)', file=server.stdin, flush=True)
+        _ = server.stdout.read()
+
+    return float(output)
+
 
 def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], List[float]]:
     core, num_inputs, herbie_path, platform, py_sample = config
     if core.argc == 0:
-        return tuple([], [])
+        return ([], [])
     elif core.py_sample or py_sample:
         # sample using Python
-        return [sample_repr('double', num_inputs) for _ in range(core.argc)]
+        inputs = [sample_repr('double', num_inputs) for _ in range(core.argc)]
+        gts = [None for _ in range(num_inputs)]
+        return (inputs, gts)
     else:
         # sample using Herbie
         with Popen(
@@ -73,6 +105,16 @@ def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], Li
 
             return (points, gts)
 
+def synthesize1(op: str, argc: int) -> FPCore:
+    """Creates a single FPCore for an operation with an arity."""
+    op_ = '-' if op == 'neg' else op
+    key = sanitize_name(f'synth:{op}')
+    vars = [f'x{i}' for i in range(argc)]
+    arg_str = ' '.join(vars)
+    app_str = '(' + ' '.join([op_] + vars) + ')'
+    core = f'(FPCore ({arg_str}) :name "{op}" {app_str})'
+    py_sample = op == 'lgamma' or op == 'tgamma'  # Rival struggles with these
+    return FPCore(core, key=key, name=op, argc=argc, py_sample=py_sample)
 
 class Runner(object):
     """Representing a runner for a given platform"""
@@ -108,7 +150,7 @@ class Runner(object):
         # mutable data
         self.cache = Cache(working_dir)
         self.cache.restore()
-        self.log(f'restored {len(self.cache.cores)} core from cache')
+        self.log(f'restored {len(self.cache.cores)} cores from cache')
         # if the working directory does not exist, create it
         if not self.working_dir.exists():
             self.working_dir.mkdir(parents=True)
@@ -133,21 +175,33 @@ class Runner(object):
     
     def herbie_read(self, path: str) -> List[FPCore]:
         """Reads a benchmark suite from `path` returning all FPCores found."""
-        with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
+        path = Path(path)
+        if not path.exists():
+            raise RuntimeError(f'Path does not exist {path}')
+        
+        if path.is_file():
+            with Popen(
+                args=['racket', str(self.herbie_path), "--platform", self.name],
+                stdin=PIPE,
+                stdout=PIPE,
+                universal_newlines=True) as server:
 
-            # call out to server
-            print(f'(read \"{path}\") (exit)', file=server.stdin, flush=True)
-            output = server.stdout.read()
+                # call out to server
+                print(f'(read \"{path}\") (exit)', file=server.stdin, flush=True)
+                output = server.stdout.read()
 
-        cores = []
-        for line in output.split('\n'):
-            if len(line) > 0:
-                cores.append(parse_core(line.strip()))
-        return cores
+            cores = []
+            for i, line in enumerate(output.split('\n')):
+                if len(line) > 0:
+                    core = parse_core(line.strip())
+                    core.key = sanitize_name(f'file:{str(path)}:{i}')
+                    cores.append(core)
+            return cores
+        else:
+            cores = []
+            for subdir in path.iterdir():
+                cores += self.herbie_read(str(subdir))
+            return cores
 
     def herbie_compile(self, cores: List[FPCore]):
         """Compiles each FPCore in `cores` to the target language.
@@ -233,42 +287,21 @@ class Runner(object):
         self.log(f'desugared {len(desugared)} cores')
         return desugared
 
-    def herbie_error(self, input_cores: List[FPCore], cores: List[FPCore]) -> None:
+    def herbie_error(self, cores: List[FPCore]) -> None:
         """Computes the error of each FPCore, overriding the `error` variable of each FPCore."""
         # assuming all FPCores have names at this point
-        cores_by_group = dict()
+        configs = []
         for core in cores:
-            if core.name is None:
-                raise RuntimeError('FPCore does not have name', core)
-            if core.name in cores_by_group:
-                cores_by_group[core.name].append(core)
-            else:
-                cores_by_group[core.name] = [core]
+            _, sample = self.cache.get_core(core.key)
+            configs.append((core, sample, self.herbie_path, self.name))
 
-        with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
+        with mp.Pool(processes=self.threads) as pool:
+            errors = pool.map(error1, configs)
 
-            # call out to server
-            i = 0
-            for input in input_cores:
-                group = cores_by_group[input.name]
-                core_str = ' '.join(map(lambda c: c.core, group))
-                print(f'(error {input.core} {core_str})', file=server.stdin, flush=True)
-                output = server.stdout.readline()
-                errors = output.strip().split(' ')
-                if len(errors) != len(group):
-                    raise RuntimeError('Unexpected output', output)
-                for core, err in zip(group, errors):
-                    core.err = float(err)
-                    i += 1
+        for core, error in zip(cores, errors):
+            core.err = error
 
-            # terminate the server
-            print('(exit)', file=server.stdin, flush=True)
-            _ = server.stdout.readline()
-        self.log(f'recomputed errors of {i} cores')
+        self.log(f'recomputed errors of {len(cores)} cores')
 
     def herbie_improve(
             self,
@@ -292,16 +325,17 @@ class Runner(object):
             print(f'(improve ({core_strs}) {threads}) (exit)', file=server.stdin, flush=True)
             output = server.stdout.read()
 
-        cores = []
-        for group in chunks(output.split('\n'), 3):
+        gen_cores = []
+        for core, group in zip(cores, chunks(output.split('\n'), 3)):
             if len(group) == 3:
-                core = parse_core(group[0].strip())
-                core.cost = float(group[1].strip())
-                core.err = float(group[2].strip())
-                cores.append(core)
+                gen_core = parse_core(group[0].strip())
+                gen_core.cost = float(group[1].strip())
+                gen_core.err = float(group[2].strip())
+                gen_core.key = core.key
+                gen_cores.append(core)
 
-        self.log(f'generated {len(cores)} FPCores with Herbie')
-        return cores
+        self.log(f'generated {len(gen_cores)} FPCores with Herbie')
+        return gen_cores
 
     def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:
         """Runs Herbie's pareto frontier algorithm."""
@@ -363,13 +397,13 @@ class Runner(object):
                 samples.append(None)
             else:
                 _, sample = maybe_cached
-                if len(sample) == 0:
+                input_points, _ = sample
+                if len(input_points) == 0:
                     samples.append(None)
-                elif len(sample[0]) == self.num_inputs:
+                elif len(input_points[0]) == self.num_inputs:
                     samples.append(sample)
                     num_cached += 1
                 else:
-                    print(len(sample), len(sample[0]))
                     samples.append(None)
 
         # run sampling for un-cached ones
@@ -377,9 +411,9 @@ class Runner(object):
         for sample, core in zip(samples, cores):
             if sample is None:
                 configs.append((core, self.num_inputs, self.herbie_path, self.name, py_sample))
+
         with mp.Pool(processes=self.threads) as pool:
             gen_samples = pool.map(sample1, configs)
-
         self.log(f'sampled {len(gen_samples)} cores ({num_cached} cached)')
     
         # update `samples`

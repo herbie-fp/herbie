@@ -51,14 +51,15 @@ class PythonRunner(Runner):
     def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
         for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
-            sample = samples[core.name]
+            _, sample = self.cache.get_core(core.key)
+            input_points, _ = sample
             with open(driver_path, 'w') as f:
                 print('import math', file=f)
                 print('import time', file=f)
                 print(f'{core.compiled}', file=f)
 
                 spoints = []
-                for i, points in enumerate(sample):
+                for i, points in enumerate(input_points):
                     for pt in points:
                         s = double_to_c_str(pt)
                         if s == 'NAN':

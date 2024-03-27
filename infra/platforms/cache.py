@@ -28,7 +28,7 @@ from .fpcore import FPCore, parse_core
 # ...
 
 def sanitize_name(name: str):
-    return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '_slash_')
+    return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '_:_')
 
 class Cache(object):
     def __init__(self, path: str):
@@ -59,14 +59,14 @@ class Cache(object):
                         print(f'Failed to parse FPCore at {fpcore_path}')
 
     def get_core(self, name: str) -> Optional[Tuple]:
-        return self.cores.get(sanitize_name(name), None)
+        return self.cores.get(name, None)
     
     def write_core(self, core: FPCore, sample):
         if core.key is None:
             raise RuntimeError(f'Cannot write FPCore without key: {core}')
 
-        synth_path = self.path.joinpath('input')
-        core_dir = synth_path.joinpath(core.key)
+        input_path = self.path.joinpath('input')
+        core_dir = input_path.joinpath(core.key)
         if not core_dir.exists():
             core_dir.mkdir(parents=True)
 
@@ -77,3 +77,5 @@ class Cache(object):
         sample_path = core_dir.joinpath('sample')
         with open(sample_path, 'wb') as f:
             pickle.dump(sample, f)
+
+        self.cores[core.key] = (core, sample)

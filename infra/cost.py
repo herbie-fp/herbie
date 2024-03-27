@@ -44,19 +44,18 @@ def run(
     elif herbie_params is not None:
         # Using FPCores from directory, generate implementations using Herbie
         bench_dir, threads = herbie_params
+        bench_dir = os.path.join(curr_dir, bench_dir)
+        # read and sample input cores
         input_cores = runner.herbie_read(path=bench_dir)
-        runner.herbie_cost(cores=input_cores) # recompute the cost
-        runner.herbie_error(input_cores=input_cores, cores=input_cores)
-
-        cores = runner.herbie_improve(cores=input_cores, threads=threads)
         samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
+
+        runner.herbie_cost(cores=input_cores)
+        runner.herbie_error(cores=input_cores)
+        cores = runner.herbie_improve(cores=input_cores, threads=threads)
     else:
         # Synthesize implementations
         cores = runner.synthesize()
         samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
-        # write to cache
-        # for core, sample in zip(cores, samples):
-        #     cache.write_synth_core(core, sample)
         input_cores = cores
 
     input_cores_path = runner.working_dir.joinpath('input.fpcore')

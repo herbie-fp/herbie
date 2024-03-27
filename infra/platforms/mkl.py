@@ -52,7 +52,8 @@ class MKLRunner(Runner):
     def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
         for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
-            sample = samples[core.name]
+            _, sample = self.cache.get_core(core.key)
+            input_points, _ = sample
             with open(driver_path, 'w') as f:
                 print('#include <math.h>', file=f)
                 print('#include <stdio.h>', file=f)
@@ -64,7 +65,7 @@ class MKLRunner(Runner):
 
                 print(core.compiled, file=f)
 
-                for i, points in enumerate(sample):
+                for i, points in enumerate(input_points):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
                     print(',\n'.join(map(double_to_c_str, points)), file=f)
                     print('};', file=f)

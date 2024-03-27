@@ -48,6 +48,12 @@
          (writeln cost p)
          (writeln err p))])))
 
+;; Converts a Python-ized pcontext into a Racket pcontext
+(define (python->pcontext pts&exs)
+  (define pts (map first pts&exs))
+  (define exs (map second pts&exs))
+  (mk-pcontext pts exs))
+
 ;; Replaces any unsupported accelerators in an FPCore
 (define (remove-accelerators core)
   (define op-set (platform-operator-set (*active-platform*)))
@@ -104,26 +110,16 @@
           (parse-test (datum->syntax #f core*))
           (writeln core*))
        (loop)]
-      ; error <for-sample:expr> <core:expr> ...
+      ; error <core> <points>
       [(list 'error args ...)
-       (define-values (input-core eval-cores)
+       (define-values (core points)
          (match args
-           [(list input-core eval-cores ...) (values input-core eval-cores)]
+           [(list core points) (values core points)]
            [_ (error 'run-server "error: malformed arguments ~a" args)]))
-       (define test (parse-test (datum->syntax #f input-core)))
-       (define pctx ; run a no iteration improve job to get the pcontexts
-         (parameterize ([*num-iterations* 0])
-           (define result (run-herbie 'improve test
-                                      #:seed seed
-                                      #:timeline-disabled? #t))
-           (match-define (list train-pcontext test-pcontext) (improve-result-pctxs (job-result-backend result)))
-           train-pcontext))
-       (define test-errs ; evaluate errors on the eval cores
-         (for/list ([eval-core (in-list eval-cores)])
-           (define test (parse-test (datum->syntax #f eval-core)))
-           (define test-errs (errors (test-input test) pctx (test-context test)))
-           (errors-score test-errs)))
-       (printf "~a\n" (string-join (map ~s test-errs) " "))
+       (define test (parse-test (datum->syntax #f core)))
+       (define pctx (python->pcontext points))
+       (define result (run-herbie 'errors test #:pcontext pctx #:seed seed #:timeline-disabled? #t))
+       (printf "~a\n" (errors-score (map second (job-result-backend result))))
        (loop)]
       ; improve <core> <threads:int>
       [(list 'improve args ...)
