@@ -201,17 +201,20 @@
   (define target-alt-data
     (cond
       [(test-output test)
-       (define target-expr 
-        (if (> (length (test-output test)) 0)
-          (fpcore->prog (list-ref (test-output test) 0) ctx)
-          #f))
-      
-      ;; IF IN PLATFROM, EVALUATE ERRORS ELSE PUT #F IN FIELDS
-       (define target-train-errs (errors target-expr train-pcontext ctx))
-       (define target-test-errs (errors target-expr test-pcontext* ctx))
-       (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)]
-      [else
-       #f]))
+        (define target-train-errs-list '())
+        (define target-test-errs-list '())
+
+        ;; IF IN PLATFROM, EVALUATE ERRORS ELSE PUT #F IN FIELDS
+        (for/list ([expr (test-output test)])
+            (if (target-in-platform? expr)
+              (let* ([target-expr (fpcore->prog expr ctx)]
+                    [target-train-errs (errors target-expr train-pcontext ctx)]
+                    [target-test-errs (errors target-expr test-pcontext* ctx)])
+                (alt-analysis (make-alt target-expr) target-train-errs target-test-errs))
+                
+              #f))]
+
+      [else #f]))
 
   ;; compute error/cost for output expression
   (define end-exprs (map alt-expr end-alts))

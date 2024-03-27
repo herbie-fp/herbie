@@ -10,7 +10,7 @@
          (submod "syntax/syntax.rkt" internals))
 
 (provide
-  platform get-platform *active-platform* activate-platform!
+  platform get-platform *active-platform* activate-platform! target-in-platform?
   ;; Platform API
   (contract-out
     ;; Operator sets
@@ -760,7 +760,6 @@
 
 
 (define (target-in-platform? expr)
-    (displayln (format ";-: ~a" expr))
     (match expr
       [`(! ,props ... ,body)
         (let loop ((remaining props))
@@ -772,9 +771,10 @@
 
                     (match prop-name
                       [`:description
-                        (list prop-value body)]
-                      [else
-                        (loop (cdr (cdr remaining)))]))]))]
-      
-      [else
-        '()]))
+                        (match prop-value
+                          [`(platform ,platform-name)
+                            (equal? platform-name (*platform-name*))]
+                          [else #f])]
+
+                      [else (loop (cdr (cdr remaining)))]))]))]
+      [else #f]))

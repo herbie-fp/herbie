@@ -60,10 +60,15 @@
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define start-cost (alt-cost start-alt repr))
-  (define target #f) ;; TODO
-  (define target-alt (and target (alt-analysis-alt target)))
-  (define target-error (and target (alt-analysis-test-errors target)))
-  (define target-cost (and target (alt-cost target-alt repr)))
+
+  (define target-alt-list (filter identity targets))
+
+  (define list-target-error
+      (map (lambda (target) (alt-analysis-test-errors target)) target-alt-list))
+
+  (define list-target-cost
+      (map (lambda (target) (alt-cost (alt-analysis-alt target) repr)) target-alt-list))
+
   (define-values (end-alts end-errors end-costs)
     (for/lists (l1 l2 l3) ([analysis end])
       (match-define (alt-analysis alt _ test-errs) analysis)
@@ -154,7 +159,11 @@
 
       (section ([id "cost-accuracy"] [class "section"]
                 [data-benchmark-name ,(~a (test-name test))]
-                ,@(if target-cost `([data-target-cost ,(~a target-cost)]) '()))
+                ; ,@(if target-cost `([data-target-cost ,(~a target-cost)]) '()))
+
+                ,@(for/list ([target-cost list-target-cost])
+                    `[data-target-cost ,(~a target-cost)]))
+
         (h2 "Accuracy vs Speed"
             (a ([class "help-button float"] 
                 [href ,(doc-url "report.html#cost-accuracy")]
@@ -205,8 +214,12 @@
 
       ;;; ONE VERY BIG TODO: THIS IS WHERE THE DEVELOPER TARGET GETS DEFINED. SO SHOULD PLATFORM SPECIFIC
       ;;; TARGET'S INDEX NEEDS TO BE CALLED HERE. PERSONALLY LIKE ALL OF THEM DEFINED HERE
-      ,@(for/list ([i (in-range (length (test-output test)))])
-          (let-values ([(dropdown body) (render-program (fpcore->prog (list-ref (test-output test) i) ctx) ctx #:ident identifier)])
+      ; ,@(for/list ([i (in-range (length (test-output test)))])
+      ,@(for/list ([i (in-naturals 1)] [target target-alt-list] [target-error list-target-error] [target-cost list-target-cost])
+          (displayln (format "alt-expr ~a" (alt-expr (alt-analysis-alt target))))
+          ; (let-values ([(dropdown body) (render-program (fpcore->prog (alt-expr (alt-analysis-alt target)) ctx) ctx #:ident identifier)])
+          (let-values ([(dropdown body) (render-program (alt-expr (alt-analysis-alt target)) ctx #:ident identifier)])
+          ; (let-values ([(dropdown body) (render-program (prog->fpcore (alt-expr (alt-analysis-alt target)) repr) ctx #:ident identifier)])
             `(section ([id "target"] [class "programs"])
                       (h2 "Developer Target " ,(~a (+ i 1))
                           ": "
