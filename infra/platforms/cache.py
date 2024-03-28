@@ -1,9 +1,11 @@
-from typing import List, Optional, Tuple
+from typing import List, Dict, Optional, Tuple
 from pathlib import Path
-from io import TextIOWrapper
 import pickle
 
 from .fpcore import FPCore, parse_core
+
+SampleType = List[List[float]]
+CacheType = Dict[str, Tuple[FPCore, SampleType]]
 
 # File system
 #
@@ -32,15 +34,18 @@ def sanitize_name(name: str):
 
 class Cache(object):
     def __init__(self, path: str):
-        self.path = Path(path)
-        self.cores = dict()
+        self.path: Path = Path(path)
+        self.input_cores: CacheType = dict()
+        self.platform_cores: Dict[str, Dict[str, List[FPCore]]] = dict()
 
     def __repr__(self) -> str:
         return 'Cache(' + \
             'path=' + repr(self.path) + ', ' + \
-            'cores=' + repr(len(self.cores)) + ')'
+            'input_cores=' + repr(len(self.input_cores)) + ', ' + \
+            'platform_cores=' + repr(len(self.platform_cores)) + ')'
 
     def restore(self) -> None:
+        # restore input cores
         input_path = self.path.joinpath('input')
         if input_path.exists():
             for core_dir in input_path.iterdir():
@@ -54,14 +59,27 @@ class Cache(object):
                             fpcore.key = key
                         with open(sample_path, 'rb') as f:
                             sample = pickle.load(f)
-                        self.cores[key] = (fpcore, sample)
+                        self.input_cores[key] = (fpcore, sample)
                     except RuntimeError:
                         print(f'Failed to parse FPCore at {fpcore_path}')
-
-    def get_core(self, name: str) -> Optional[Tuple]:
-        return self.cores.get(name, None)
+        # restore platform cores
+        platforms_path = self.path.joinpath('platform')
+        if platforms_path.exists():
+            for platform_path in platforms_path.iterdir():
+                in_platform = dict()
+                platform = platform_path.name
+                for cores_path in platform_path.iterdir():
+                    cores = []
+                    key = cores_path.name
+                    for core_path in cores_path.iterdir():
+                        with open(core_path, 'r') as f:
+                            fpcore = parse_core(f.read())
+                            fpcore.key = key
+                            cores.append(fpcore)
+                    in_platform[key] = cores
+                self.platform_cores[platform] = in_platform
     
-    def write_core(self, core: FPCore, sample):
+    def write_core(self, core: FPCore, sample: SampleType):
         if core.key is None:
             raise RuntimeError(f'Cannot write FPCore without key: {core}')
 
@@ -78,6 +96,45 @@ class Cache(object):
         with open(sample_path, 'wb') as f:
             pickle.dump(sample, f)
 
-        if core.key in self.cores:
+        if core.key in self.input_cores:
             raise RuntimeError(f'Duplicate key: {core.key}')
-        self.cores[core.key] = (core, sample)
+        self.input_cores[core.key] = (core, sample)
+
+    def write_platform_core(self, name: str, key: str, cores: List[FPCore]):
+        platform_path = self.path.joinpath('platform', name)
+        core_dir = platform_path.joinpath(key)
+        if not core_dir.exists():
+            core_dir.mkdir(parents=True)
+
+        for i, core in enumerate(cores):
+            core_path = core_dir.joinpath(f'{i}.fpcore')
+            with open(core_path, 'w') as f:
+                f.write(core.core)
+
+        in_platform = self.platform_cores.get(name, None)
+        if in_platform is None:
+            in_platform = dict()
+            in_platform[key] = cores
+            self.platform_cores[name] = in_platform
+        else:
+            in_platform[key] = cores
+
+    def get_core(self, name: str):
+        return self.input_cores.get(name, None)
+
+    def get_platform_core(self, platform: str, key: str):
+        in_platform = self.platform_cores.get(platform, None)
+        if in_platform is None:
+            return None
+        return in_platform.get(key)
+
+    def num_cores(self):
+        return len(self.input_cores)
+    
+    def num_platform_cores(self):
+        num = 0
+        for key in self.platform_cores:
+            in_platform = self.platform_cores[key]
+            for key in in_platform:
+                num += len(in_platform[key])
+        return num

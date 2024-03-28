@@ -147,12 +147,14 @@ class Runner(object):
         self.time_unit = time_unit
         # mutable data
         self.cache = Cache(working_dir)
-        self.cache.restore()
-        self.log(f'restored {len(self.cache.cores)} cores from cache')
         # if the working directory does not exist, create it
         if not self.working_dir.exists():
             self.working_dir.mkdir(parents=True)
         self.log('created working directory at `' + str(self.working_dir) + '`')
+        # restore cache
+        self.cache.restore()
+        self.log(f'restored {self.cache.num_cores()} input cores from cache')
+        self.log(f'restored {self.cache.num_platform_cores()} platform cores from cache')
 
     def log(self, msg: str, *args):
         """Logging routine for this runner."""
@@ -260,6 +262,7 @@ class Runner(object):
                 else:
                     core2 = parse_core(output)
                     core2.descr = core.descr
+                    core2.key = core.key
                     desugared.append(core2)
 
             # terminate the server
@@ -268,18 +271,18 @@ class Runner(object):
 
         # we need to check if we dropped any cores for a particular input core
         # if we did, the "best" output core is just the input core
-        cores_by_group = dict()
+        cores_by_key = dict()
         for core in desugared:
             if core.name is None:
                 raise RuntimeError('FPCore does not have name', core)
-            if core.name in cores_by_group:
-                cores_by_group[core.name].append(core)
+            if core.key in cores_by_key:
+                cores_by_key[core.key].append(core)
             else:
-                cores_by_group[core.name] = [core]
+                cores_by_key[core.key] = [core]
 
         for input in input_cores:
-            if input.name not in cores_by_group:
-                print(f'WARN: no output core for {input.name}, restoring input')
+            if input.key not in cores_by_key:
+                print(f'WARN: no output core for {input.key}, restoring input')
                 desugared.append(input)
 
         self.log(f'desugared {len(desugared)} cores')
@@ -302,43 +305,63 @@ class Runner(object):
         self.log(f'recomputed errors of {len(cores)} cores')
 
     def herbie_improve(
-            self,
-            cores: List[FPCore],
-            threads: int = 1,
-            platform: Optional[str] = None
+        self,
+        cores: List[FPCore],
+        threads: int = 1,
+        platform: Optional[str] = None
     ):
         """Runs Herbie improvement on benchmarks under `path` appending
         all resulting FPCores to `self.cores`."""
         if platform is None:
             platform = self.name
 
-        core_dict = dict()
+        # TODO: embed key in the FPCore so it can be recovered
+        uncached = []
+        num_cached = 0
+        key_dict = dict()
+        gen_dict = dict()
         for core in cores:
-            if core.name in core_dict:
+            if core.name in gen_dict:
                 raise RuntimeError(f'Duplicate key {core.name}')
-            core_dict[core.name] = core
+            key_dict[core.name] = core.key
 
-        with Popen(
-            args=['racket', str(self.herbie_path), "--platform", platform],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
+            maybe_cached = self.cache.get_platform_core(platform, core.key)
+            if maybe_cached is None:
+                uncached.append(core)
+                gen_dict[core.key] = []
+            else:
+                num_cached += len(maybe_cached)
+                gen_dict[core.key] = maybe_cached  
 
-            # call out to server
-            core_strs = ' '.join(map(lambda c: c.core, cores))
-            print(f'(improve ({core_strs}) {threads}) (exit)', file=server.stdin, flush=True)
-            output = server.stdout.read()
+        num_improved = 0
+        if len(uncached) > 0:
+            with Popen(
+                args=['racket', str(self.herbie_path), "--platform", platform],
+                stdin=PIPE,
+                stdout=PIPE,
+                universal_newlines=True) as server:
+
+                # call out to server
+                core_strs = ' '.join(map(lambda c: c.core, uncached))
+                print(f'(improve ({core_strs}) {threads}) (exit)', file=server.stdin, flush=True)
+                output = server.stdout.read()
+        
+            for group in chunks(output.split('\n'), 3):
+                if len(group) == 3:
+                    core = parse_core(group[0].strip())
+                    core.cost = float(group[1].strip())
+                    core.err = float(group[2].strip())
+                    core.key = key_dict[core.name]
+                    gen_dict[core.key].append(core)
+                    num_improved += 1
 
         gen_cores = []
-        for group in chunks(output.split('\n'), 3):
-            if len(group) == 3:
-                gen_core = parse_core(group[0].strip())
-                gen_core.cost = float(group[1].strip())
-                gen_core.err = float(group[2].strip())
-                gen_core.key = core_dict[gen_core.name].key
-                gen_cores.append(gen_core)
+        for key in gen_dict:
+            cores = gen_dict[key]
+            self.cache.write_platform_core(platform, key, cores)
+            gen_cores += cores
 
-        self.log(f'generated {len(gen_cores)} FPCores with Herbie')
+        self.log(f'generated {num_improved} FPCores with Herbie ({num_cached} cached)')
         return gen_cores
 
     def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:

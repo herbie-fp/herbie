@@ -46,6 +46,8 @@ def check_samples(samples: List[List[List[float]]], cores: List[FPCore]):
         input_points, _ = sample
         if len(input_points) != core.argc:
             raise RuntimeError(f'Sample does not have expected arity: {len(input_points)} != {core.argc} for {core}')
+        if core.key is None:
+            raise RuntimeError(f'Core does not have sample: {core}')
 
 def run(
     runner: Runner,
@@ -76,6 +78,10 @@ def run(
         cores = runner.herbie_improve(cores=input_cores, threads=threads)
         samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
         check_samples(samples, cores) # sanity check!
+
+        # analyze output cores
+        runner.herbie_cost(cores=cores)
+        runner.herbie_error(cores=cores)
     else:
         # Synthesize implementations
         cores = runner.synthesize()
