@@ -61,10 +61,10 @@
 ; Adds an improvement to the patch table
 ; If `improve` is not provided, a key is added
 ; with no improvements
-(define (add-patch! expr [improve #f])
+(define (add-patch! expr improvements])
   (when (*use-improve-cache*)
     (hash-update! (patchtable-table (*patch-table*)) expr
-                  (if improve (curry cons improve) identity) (list))))
+                  (if improve (curry cons improvements) identity) (list))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -219,6 +219,8 @@
     (^final^ (simplify (^final^))))
   (void))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (define (patch-table-clear!)
   (^queued^ '())
   (^queuedlow^ '())
@@ -226,27 +228,11 @@
   (^series^ #f)
   (^final^ #f))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (define (patch-table-has-expr? expr)
   (hash-has-key? (patchtable-table (*patch-table*)) expr))
 
-(define (patch-table-add! expr down?)
-  (when (patch-table-has-expr? expr)
-    (raise-user-error 'patch-table-add!
-      "attempting to add previously patched expression: ~a"
-      expr))
-  (define altn* (alt expr `(patch) '() '()))
-  (if down?
-      (^queuedlow^ (cons altn* (^queuedlow^)))
-      (^queued^ (cons altn* (^queued^))))
-  (void))
-
 (define (patch-table-get expr)
   (hash-ref (patchtable-table (*patch-table*)) expr))
-
-(define (patch-table-runnable?)
-  (or (not (null? (^queued^))) (not (null? (^queuedlow^)))))
 
 (define (patch-table-run locs lowlocs)
   (define-values (cached queued)
