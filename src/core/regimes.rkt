@@ -229,33 +229,39 @@
       (vector-set! vec-diffs prev-split-idx (fl- f g)))
 
      (define temps-vec (make-flvector num-points (fl -1)))
-     (flvector-set! temps-vec 0 (fl+ (flvector-ref v-alt-cost 0) (vector-ref vec-diffs 0)))
+     (flvector-set! temps-vec 0
+      (fl+ (flvector-ref v-alt-cost 0) (vector-ref vec-diffs 0)))
 
-      (let ([acost (fl- a-cost min-weight)] 
-            [b-alt-cost (vector-ref vec-diffs 0)]
-            [b-alt-idx 0])
-        (for ([prev-split-idx (in-range 0 point-idx)])
-         (for ([cidx (in-range 0 num-candidates)])
-          (when (vector-ref can-split-vec (+ prev-split-idx 1))
-           (define a (flvector-ref all-psums (+ point-idx (* cidx num-points))))
-           (define b (flvector-ref all-psums (+ prev-split-idx (* cidx num-points))))
-           (let ([cost (fl- a b)])
-            (when (fl< cost b-alt-cost)
-            (set! b-alt-cost cost)
-            (set! b-alt-idx cidx)
-            (flvector-set! temps-vec prev-split-idx 
-              (fl+ (flvector-ref v-alt-cost prev-split-idx) b-alt-cost))))))
+     (define acost (fl- a-cost min-weight))
+     (define b-alt-idx-vec (make-vector num-points -1))
+     (vector-set! b-alt-idx-vec 0 0) ;; set first idx to 0
+     (define b-alt-cost (vector-ref vec-diffs 0)) ;; get 1st cost
 
-        (for ([prev-split-idx (in-range 0 point-idx)])
-          (when (not (= (flvector-ref temps-vec prev-split-idx) -1))
-          (when (and (vector-ref can-split-vec (+ prev-split-idx 1)) (fl< (flvector-ref temps-vec prev-split-idx) acost))
-           (set! acost (flvector-ref temps-vec prev-split-idx))
-           (set! a-cost acost)
-           (set! a-best b-alt-idx)
-           (set! a-prev-idx prev-split-idx))))))
-        (flvector-set! vec-alt-cost point-idx a-cost)
-        (vector-set! vec-cidx point-idx a-best)
-        (vector-set! vec-pidx point-idx a-prev-idx))
+      (for ([prev-split-idx (in-range 0 point-idx)])
+       (for ([cidx (in-range 0 num-candidates)])
+        (when (vector-ref can-split-vec (+ prev-split-idx 1))
+         (define a (flvector-ref all-psums (+ point-idx (* cidx num-points))))
+         (define b (flvector-ref all-psums (+ prev-split-idx (* cidx num-points))))
+         (let ([cost (fl- a b)])
+          (when (fl< cost b-alt-cost)
+          (set! b-alt-cost cost)
+          (vector-set! b-alt-idx-vec prev-split-idx cidx)
+          (flvector-set! temps-vec prev-split-idx
+            (fl+ (flvector-ref v-alt-cost prev-split-idx) cost))))))
+
+      (for ([prev-split-idx (in-range 0 point-idx)])
+        ;; filter out default values
+        (when (not (= (flvector-ref temps-vec prev-split-idx) -1))
+        ;; Can we split and is this cost better then our current best?
+        (when (and (vector-ref can-split-vec (+ prev-split-idx 1))
+                   (fl< (flvector-ref temps-vec prev-split-idx) acost))
+         (set! acost (flvector-ref temps-vec prev-split-idx))
+         (set! a-cost acost)
+         (set! a-best (vector-ref b-alt-idx-vec prev-split-idx))
+         (set! a-prev-idx prev-split-idx)))))
+      (flvector-set! vec-alt-cost point-idx a-cost)
+      (vector-set! vec-cidx point-idx a-best)
+      (vector-set! vec-pidx point-idx a-prev-idx))
   (values vec-alt-cost vec-cidx vec-pidx))
 
   (define (initial)
