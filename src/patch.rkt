@@ -61,10 +61,10 @@
 ; Adds an improvement to the patch table
 ; If `improve` is not provided, a key is added
 ; with no improvements
-(define (add-patch! expr improvements])
+(define (add-patch! expr improvements)
   (when (*use-improve-cache*)
     (hash-update! (patchtable-table (*patch-table*)) expr
-                  (if improve (curry cons improvements) identity) (list))))
+                  (curry cons improvements) (list))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -124,12 +124,11 @@
 (define (merge-changelists . lsts)
   (map (curry apply append) (flip-lists lsts)))
 
-(define (gen-rewrites queued queuedlow)
+(define (gen-repr-change queued queuedlow)
   (timeline-event! 'rewrite)
   (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) queued))
 
   ;; partition the rules
-  (define normal-rules (*rules*))
   (define reprchange-rules (platform-reprchange-rules (*active-platform*)))
 
   ;; get subexprs and locations
@@ -138,14 +137,11 @@
 
   ;; rewrite high-error locations
   (define changelists
-    (merge-changelists
-     (rewrite-expressions real-exprs (*context*) #:rules normal-rules)
-     (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t)))
+    (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t))
 
   ;; rewrite low-error locations (only precision changes allowed)
   (define changelists-low-locs
-    (rewrite-expressions lowexprs (*context*)
-                         #:rules reprchange-rules #:once? #t))
+    (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
 
   (define comb-changelists (append changelists changelists-low-locs))
   (define altns (append real-alts queuedlow))
@@ -160,6 +156,31 @@
                 ; apply-repr-change-expr is partial
                 ; we need to pass '() here so it can get overwritten on patch-fix
                 (sow (alt body* (list 'rr '() input #f #f) (list altn) '())))))))
+
+  (timeline-push! 'count (length queued) (length rewritten))
+  rewritten)
+
+(define (gen-rewrites queued queuedlow)
+  (timeline-event! 'rewrite)
+  (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) queued))
+
+  ;; partition the rules
+  (define normal-rules (*rules*))
+
+  ;; get subexprs and locations
+  (define real-exprs (map alt-expr real-alts))
+  (define lowexprs (map alt-expr queuedlow))
+
+  ;; rewrite high-error locations
+  (define changelists
+    (rewrite-expressions real-exprs (*context*) #:rules normal-rules))
+
+  (define rewritten
+    (reap [sow]
+          (for ([changelists changelists] [altn real-alts])
+            (for ([cl changelists])
+              (match-define (list subexp input) cl)
+              (sow (alt subexp (list 'rr '() input #f #f) (list altn) '()))))))
 
   (timeline-push! 'count (length queued) (length rewritten))
   rewritten)
