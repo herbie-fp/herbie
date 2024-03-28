@@ -335,7 +335,7 @@ class Runner(object):
                 gen_core = parse_core(group[0].strip())
                 gen_core.cost = float(group[1].strip())
                 gen_core.err = float(group[2].strip())
-                gen_core.key = core_dict[core.name].key
+                gen_core.key = core_dict[gen_core.name].key
                 gen_cores.append(gen_core)
 
         self.log(f'generated {len(gen_cores)} FPCores with Herbie')
@@ -343,15 +343,13 @@ class Runner(object):
 
     def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:
         """Runs Herbie's pareto frontier algorithm."""
-        # assuming all FPCores have names at this point
+        # group FPCore by key
         cores_by_group = dict()
         for core in cores:
-            if core.name is None:
-                raise RuntimeError('FPCore does not have name', core)
-            if core.name in cores_by_group:
-                cores_by_group[core.name].append(core)
+            if core.key in cores_by_group:
+                cores_by_group[core.key].append(core)
             else:
-                cores_by_group[core.name] = [core]
+                cores_by_group[core.key] = [core]
 
         with Popen(
             args=['racket', str(self.herbie_path), "--platform", self.name],
@@ -360,10 +358,8 @@ class Runner(object):
             universal_newlines=True) as server:
 
             frontiers = []
-            for input in input_cores:
-                group = cores_by_group[input.name]
-                # normed_frontier = ' '.join(list(map(lambda c: f'({c.cost / input.cost} {c.err / input.err})', group)))
-                # frontiers.append(f'({normed_frontier})')
+            for key in cores_by_group:
+                group = cores_by_group[key]
                 frontier = ' '.join(list(map(lambda c: f'({c.cost} {c.err})', group)))
                 frontiers.append(f'({frontier})')
 
@@ -381,9 +377,6 @@ class Runner(object):
             datum = line.split(' ')
             if len(datum) != 2:
                 raise RuntimeError('Pareto frontier malformed:', datum)
-
-            # cost = float(datum[0]) / len(cores)
-            # err = float(datum[1]) / len(cores)
             cost, err = float(datum[0]), float(datum[1])
             frontier.append((cost, err))
 

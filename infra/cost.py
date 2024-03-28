@@ -31,14 +31,21 @@ def write_fpcores(path: str, cores: List[FPCore]):
             print(core.core, file=f)
 
 # TODO: what should we do with unsamplable FPCores
-def prune_unsamplable(samples, cores):
-    samples2 = []
-    cores2 = []
+def prune_unsamplable(samples: List[List[List[float]]], cores: List[FPCore]):
+    samples2: List[List[List[float]]] = []
+    cores2: List[FPCore] = []
     for sample, core in zip(samples, cores):
         if sample is not None:
             samples2.append(sample)
             cores2.append(core)
     return samples2, cores2
+
+# Sanity check that samples match the FPCores
+def check_samples(samples: List[List[List[float]]], cores: List[FPCore]):
+    for sample, core in zip(samples, cores):
+        input_points, _ = sample
+        if len(input_points) != core.argc:
+            raise RuntimeError(f'Sample does not have expected arity: {len(input_points)} != {core.argc} for {core}')
 
 def run(
     runner: Runner,
@@ -59,11 +66,16 @@ def run(
         input_cores = runner.herbie_read(path=bench_dir)
         samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
         samples, input_cores = prune_unsamplable(samples, input_cores)
+        check_samples(samples, input_cores) # sanity check!
 
-        # analyze and improve
+        # analyze input cores
         runner.herbie_cost(cores=input_cores)
         runner.herbie_error(cores=input_cores)
+
+        # run Herbie improve and get associated sampled points
         cores = runner.herbie_improve(cores=input_cores, threads=threads)
+        samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
+        check_samples(samples, cores) # sanity check!
     else:
         # Synthesize implementations
         cores = runner.synthesize()
@@ -94,7 +106,7 @@ def run(
         baseline_cores = runner.herbie_improve(cores=input_cores, threads=threads, platform=baseline)
         baseline_cores = runner.herbie_desugar(input_cores=input_cores, cores=baseline_cores)
         runner.herbie_cost(cores=baseline_cores) # recompute the cost
-        runner.herbie_error(input_cores=input_cores, cores=baseline_cores) # recompute the error
+        runner.herbie_error(cores=baseline_cores) # recompute the error
         baseline_frontier = runner.herbie_pareto(input_cores=input_cores, cores=baseline_cores)
 
         baseline_cores_path = runner.working_dir.joinpath('baseline.fpcore')
@@ -104,7 +116,6 @@ def run(
     else:
         # run and plot results
         frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
-        samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
         runner.herbie_compile(cores=cores)
 
         driver_dirs = runner.make_driver_dirs(cores=cores)

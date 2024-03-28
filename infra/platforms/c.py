@@ -51,6 +51,7 @@ class CRunner(Runner):
     def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
         for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
+            # pull sample from cache
             _, sample = self.cache.get_core(core.key)
             input_points, _ = sample
             with open(driver_path, 'w') as f:

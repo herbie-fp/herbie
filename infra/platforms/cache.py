@@ -78,4 +78,6 @@ class Cache(object):
         with open(sample_path, 'wb') as f:
             pickle.dump(sample, f)
 
+        if core.key in self.cores:
+            raise RuntimeError(f'Duplicate key: {core.key}')
         self.cores[core.key] = (core, sample)
