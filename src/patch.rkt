@@ -102,28 +102,21 @@
           (sow (alt replace `(taylor () ,name ,var) (list altn) '()))))
       (timeline-stop!))))
 
+(define (gen-series queued)
+  (timeline-event! 'series)
+  (timeline-push! 'inputs (map ~a queued))
+  (define series-expansions
+    (apply append
+           (for/list ([altn (in-list queued)] [n (in-naturals 1)])
+             (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
+  (timeline-push! 'outputs (map ~a series-expansions))
+  (timeline-push! 'count (length queued) (length series-expansions))
+  series-expansions)
+
 (define (gen-series!)
+  (^series^ '())
   (when (flag-set? 'generate 'taylor)
-    (timeline-event! 'series)
-    (timeline-push! 'inputs (map ~a (^queued^)))
-    (define series-expansions
-      (apply append
-        (for/list ([altn (in-list (^queued^))] [n (in-naturals 1)])
-          (filter-not (curry alt-equal? altn) (taylor-alt altn)))))
-    (timeline-push! 'outputs (map ~a series-expansions))
-
-    ; Probably unnecessary, at least CI passes!
-    (define (is-nan? x)
-      (and (impl-exists? x) (equal? (impl->operator x) 'NAN)))
-
-    (define series-expansions*
-      (filter-not
-        (λ (x) (expr-contains? (alt-expr x) is-nan?))
-        series-expansions))
-
-    ; TODO: accuracy stats for timeline
-    (timeline-push! 'count (length (^queued^)) (length series-expansions*))
-    (^series^ series-expansions*))
+    (^series^ (gen-series (^queued^))))
   (void))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -131,54 +124,76 @@
 (define (merge-changelists . lsts)
   (map (curry apply append) (flip-lists lsts)))
 
+(define (gen-rewrites queued queuedlow)
+  (timeline-event! 'rewrite)
+  (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) queued))
+
+  ;; partition the rules
+  (define normal-rules (*rules*))
+  (define reprchange-rules (platform-reprchange-rules (*active-platform*)))
+
+  ;; get subexprs and locations
+  (define real-exprs (map alt-expr real-alts))
+  (define lowexprs (map alt-expr queuedlow))
+
+  ;; rewrite high-error locations
+  (define changelists
+    (merge-changelists
+     (rewrite-expressions real-exprs (*context*) #:rules normal-rules)
+     (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t)))
+
+  ;; rewrite low-error locations (only precision changes allowed)
+  (define changelists-low-locs
+    (rewrite-expressions lowexprs (*context*)
+                         #:rules reprchange-rules #:once? #t))
+
+  (define comb-changelists (append changelists changelists-low-locs))
+  (define altns (append real-alts queuedlow))
+
+  (define rewritten
+    (reap [sow]
+          (for ([changelists comb-changelists] [altn altns])
+            (for ([cl changelists])
+              (match-define (list subexp input) cl)
+              (define body* (apply-repr-change-expr subexp (*context*)))
+              (when body*
+                ; apply-repr-change-expr is partial
+                ; we need to pass '() here so it can get overwritten on patch-fix
+                (sow (alt body* (list 'rr '() input #f #f) (list altn) '())))))))
+
+  (timeline-push! 'count (length queued) (length rewritten))
+  rewritten)
+
 (define (gen-rewrites!)
   (when (and (null? (^queued^)) (null? (^queuedlow^)))
     (raise-user-error 'gen-rewrites! "No expressions queued in patch table. Run `patch-table-add!`"))
-
   (^rewrites^ '())
   (when (flag-set? 'generate 'rr)
-    (timeline-event! 'rewrite)
-    (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) (^queued^)))
-
-    ;; partition the rules
-    (define normal-rules (*rules*))
-    (define reprchange-rules (platform-reprchange-rules (*active-platform*)))
-
-    ;; get subexprs and locations
-    (define real-exprs (map alt-expr real-alts))
-    (define lowexprs (map alt-expr (^queuedlow^)))
-
-    ;; rewrite high-error locations
-    (define changelists
-      (merge-changelists
-        (rewrite-expressions real-exprs (*context*) #:rules normal-rules)
-        (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t)))
-
-    ;; rewrite low-error locations (only precision changes allowed)
-    (define changelists-low-locs
-      (rewrite-expressions lowexprs (*context*)
-                           #:rules reprchange-rules #:once? #t))
-
-    (define comb-changelists (append changelists changelists-low-locs))
-    (define altns (append real-alts (^queuedlow^)))
-    
-    (define rewritten
-      (reap [sow]
-        (for ([changelists comb-changelists] [altn altns])
-          (for ([cl changelists])
-            (match-define (list subexp input) cl)
-            (define body* (apply-repr-change-expr subexp (*context*)))
-            (when body*
-              ; apply-repr-change-expr is partial
-              ; we need to pass '() here so it can get overwritten on patch-fix
-              (sow (alt body* (list 'rr '() input #f #f) (list altn) '())))))))
-
-    (timeline-push! 'count (length (^queued^)) (length rewritten))
-    ; TODO: accuracy stats for timeline
-    (^rewrites^ rewritten))
+    (^rewrites^ (gen-rewrites (^queued^) (^queuedlow^))))
   (void))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (simplify children)
+  (timeline-event! 'simplify)
+  (define to-simplify (map alt-expr children))
+
+  (define egg-query (make-egg-query to-simplify (*simplify-rules*)))
+  (define simplification-options (simplify-batch egg-query))
+
+  (define simplified
+    (remove-duplicates
+     (for/list ([child (in-list children)]
+                [input (in-list to-simplify)]
+                [outputs (in-list simplification-options)]
+                #:when true [output outputs])
+       (if (equal? input output)
+           child
+           (alt output `(simplify () ,egg-query #f #f) (list child) '())))
+       alt-equal?))
+
+  (timeline-push! 'count (length children) (length simplified))
+  simplified)
 
 (define (get-starting-expr altn)
   (match (alt-event altn)
@@ -188,28 +203,10 @@
 (define (simplify!)
   (unless (or (^series^) (^rewrites^))
     (raise-user-error 'simplify! "No candidates generated. Run (gen-series!) or (gen-rewrites!)"))
-
   ; load final in case simplify is disabled
   (^final^ (append (or (^series^) '()) (or (^rewrites^) '())))
   (when (flag-set? 'generate 'simplify)
-    (timeline-event! 'simplify)
-    (define children (^final^))
-
-    (define to-simplify (map alt-expr children))
-
-    (define egg-query (make-egg-query to-simplify (*simplify-rules*)))
-    (define simplification-options (simplify-batch egg-query))
-
-    (define simplified
-      (remove-duplicates
-       (for/list ([child (in-list children)] [input (in-list to-simplify)]
-                  [outputs (in-list simplification-options)]
-                  #:when true
-                  [output outputs])
-         (if (equal? input output)
-             child
-             (alt output `(simplify () ,egg-query #f #f) (list child) '())))
-       alt-equal?))
+    (define simplified (simplify (^final^)))
 
     ; dedup for cache
     (unless (and (null? (^queued^)) (null? (^queuedlow^)))  ; don't run for simplify-only
@@ -219,8 +216,7 @@
           (when (set-member? cachable expr0)
             (add-patch! (get-starting-expr altn) altn)))))
     
-    (timeline-push! 'count (length children) (length simplified))
-    (^final^ simplified))
+    (^final^ (simplify (^final^))))
   (void))
 
 (define (patch-table-clear!)
@@ -253,14 +249,15 @@
   (or (not (null? (^queued^))) (not (null? (^queuedlow^)))))
 
 (define (patch-table-run locs lowlocs)
-  (define cached
+  (define-values (cached queued)
     (for/fold ([qed '()] [ced '()]
-              #:result (begin0 (reverse ced) (^queued^ (reverse qed))))
+              #:result (values (reverse ced) (reverse qed)))
               ([expr (in-list locs)])
       (if (patch-table-has-expr? expr)
           (values qed (cons expr ced))
           (let ([altn* (alt expr `(patch) '() '())])
             (values (cons altn* qed) ced)))))
+  (^queued^ queued)
   (^queuedlow^
     (for/list ([expr (in-list lowlocs)])
       (alt expr `(patch) '() '())))
