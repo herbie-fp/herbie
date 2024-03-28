@@ -232,7 +232,6 @@
      (flvector-set! temps-vec 0
       (fl+ (flvector-ref v-alt-cost 0) (vector-ref vec-diffs 0)))
 
-     (define acost (fl- a-cost min-weight))
      (define b-alt-idx-vec (make-vector num-points -1))
      (vector-set! b-alt-idx-vec 0 0) ;; set first idx to 0
      (define b-alt-cost (vector-ref vec-diffs 0)) ;; get 1st cost
@@ -247,8 +246,9 @@
           (set! b-alt-cost cost)
           (vector-set! b-alt-idx-vec prev-split-idx cidx)
           (flvector-set! temps-vec prev-split-idx
-            (fl+ (flvector-ref v-alt-cost prev-split-idx) cost))))))
+            (fl+ (flvector-ref v-alt-cost prev-split-idx) cost)))))))
 
+      (define acost (fl- a-cost min-weight))
       (for ([prev-split-idx (in-range 0 point-idx)])
         ;; filter out default values
         (when (not (= (flvector-ref temps-vec prev-split-idx) -1))
@@ -258,7 +258,7 @@
          (set! acost (flvector-ref temps-vec prev-split-idx))
          (set! a-cost acost)
          (set! a-best (vector-ref b-alt-idx-vec prev-split-idx))
-         (set! a-prev-idx prev-split-idx)))))
+         (set! a-prev-idx prev-split-idx))))
       (flvector-set! vec-alt-cost point-idx a-cost)
       (vector-set! vec-cidx point-idx a-best)
       (vector-set! vec-pidx point-idx a-prev-idx))
