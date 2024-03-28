@@ -42,7 +42,7 @@
   (for ([pt (in-list pts)] [v1 (in-list exs)])
     (with-check-info* (map make-check-info fv pt)
       (λ ()
-        (define-values (status prec v2) (ival-eval repr fn pt))
+        (define-values (status v2) (ival-eval repr fn pt))
         (with-check-info (['lhs v1] ['rhs v2] ['status status])
           (when (and (real? v2) (nan? v2) (not (set-member? '(exit unsamplable) status)))
             (fail "Right hand side returns NaN")))))))
