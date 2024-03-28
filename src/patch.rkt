@@ -121,35 +121,26 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (merge-changelists . lsts)
-  (map (curry apply append) (flip-lists lsts)))
-
 (define (gen-repr-change queued queuedlow)
   (timeline-event! 'rewrite)
-  (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) queued))
+  (define all-alts (append queued queuedlow))
+  (define alts
+    (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real))
+            alts))
 
-  ;; partition the rules
   (define reprchange-rules (platform-reprchange-rules (*active-platform*)))
 
   ;; get subexprs and locations
-  (define real-exprs (map alt-expr real-alts))
-  (define lowexprs (map alt-expr queuedlow))
+  (define exprs (map alt-expr alts))
 
   ;; rewrite high-error locations
   (define changelists
-    (rewrite-expressions real-exprs (*context*) #:rules reprchange-rules #:once? #t))
-
-  ;; rewrite low-error locations (only precision changes allowed)
-  (define changelists-low-locs
-    (rewrite-expressions lowexprs (*context*) #:rules reprchange-rules #:once? #t))
-
-  (define comb-changelists (append changelists changelists-low-locs))
-  (define altns (append real-alts queuedlow))
+    (rewrite-expressions exprs (*context*) #:rules reprchange-rules #:once? #t))
 
   (define rewritten
     (reap [sow]
-          (for ([changelists comb-changelists] [altn altns])
-            (for ([cl changelists])
+          (for ([changelist changelists] [altn alts])
+            (for ([cl changelist])
               (match-define (list subexp input) cl)
               (define body* (apply-repr-change-expr subexp (*context*)))
               (when body*
@@ -162,27 +153,20 @@
 
 (define (gen-rewrites queued queuedlow)
   (timeline-event! 'rewrite)
-  (define real-alts (filter (λ (a) (equal? (type-of (alt-expr a) (*context*)) 'real)) queued))
+  (define alts (append queued queuedlow))
 
-  ;; partition the rules
-  (define normal-rules (*rules*))
-
-  ;; get subexprs and locations
-  (define real-exprs (map alt-expr real-alts))
-  (define lowexprs (map alt-expr queuedlow))
-
-  ;; rewrite high-error locations
   (define changelists
-    (rewrite-expressions real-exprs (*context*) #:rules normal-rules))
+    (rewrite-expressions (map alt-expr alts) (*context*) #:rules (*rules*)))
 
   (define rewritten
-    (reap [sow]
-          (for ([changelists changelists] [altn real-alts])
-            (for ([cl changelists])
-              (match-define (list subexp input) cl)
-              (sow (alt subexp (list 'rr '() input #f #f) (list altn) '()))))))
+    (for/list ([changelist (in-list changelists)]
+               [altn (in-list alts)]
+               #:when true
+               [cl (in-list changelists)])
+      (match-define (list subexp input) cl)
+      (sow (alt subexp (list 'rr '() input #f #f) (list altn) '()))))
 
-  (timeline-push! 'count (length queued) (length rewritten))
+  (timeline-push! 'count (length alts) (length rewritten))
   rewritten)
 
 (define (gen-rewrites!)
