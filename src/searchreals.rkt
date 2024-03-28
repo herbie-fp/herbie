@@ -92,7 +92,8 @@
         (timeline-push! 'sampling n (make-sampling-table ctx true false other))
 
         (define n* (remainder n (length (first rects))))
-        (if (or (>= n depth) (empty? (search-space-other space)))
+        (if (or (>= n depth) (empty? (search-space-other space))
+                (>= (length other) (expt 2 depth)))
             (cons
              (append (search-space-true space) (search-space-other space))
              (make-sampling-table ctx true false other))
