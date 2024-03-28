@@ -190,22 +190,25 @@
 
 ;; Like `compile-specs`, but for a single spec.
 (define (compile-spec spec vars)
-  (vector-ref (compile-specs (list spec) vars) 0))
+  (define core (compile-specs (list spec) vars))
+  (define (<compiled-spec> . xs) (vector-ref (apply core xs) 0))
+  <compiled-spec>)
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
-  (vector-ref (compile-progs (list expr) ctx) 0))
+  (define core (compile-progs (list expr) ctx))
+  (define (<compiled-prog> . xs) (vector-ref (apply core xs) 0))
+  <compiled-prog>)
 
-(define (backward-pass ivec varc vregs vprecs vstart-precs root-regs)
+(define (backward-pass ivec varc vregs vprecs vstart-precs root-reg)
   (vector-fill! vprecs 0)
 
-  (for ([root-reg (in-vector root-regs)])
   (define result (vector-ref vregs root-reg))
   (when
       (equal? 1 (flonums-between
                  (bigfloat->flonum (ival-lo result))
                  (bigfloat->flonum (ival-hi result))))
-    (vector-set! vprecs (- root-reg varc) (get-slack))))
+    (vector-set! vprecs (- root-reg varc) (get-slack)))
   
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
