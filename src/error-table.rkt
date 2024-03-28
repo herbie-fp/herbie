@@ -635,7 +635,8 @@
             flow-list)))
 
   (define explanations-table
-    (for/list ([(key val) (in-dict expls->points)])
+    (for/list ([(key val) (in-dict expls->points)]
+               #:unless (zero? (length val)))
       (define expr (car key))
       (define expl (cdr key))
       (define err-count (length val))
