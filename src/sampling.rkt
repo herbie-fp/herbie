@@ -120,7 +120,6 @@
       (define-values (status exs)
         (parameterize ([*use-mixed-precision* #t])
           (ival-eval fn ctxs pt)))
-      (hash-update! outcomes status (curry + 1) 0)
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
@@ -128,9 +127,16 @@
               #:extra (for/list ([var (context-vars (first ctxs))] [val pt])
                         (format "~a = ~a" var val))))
 
+      (when (equal? status 'valid)
+        (for ([ex (in-list exs)])
+          (when (and (flonum? ex) (infinite? ex))
+            (set! status 'infinite))))
+
+      (hash-update! outcomes status (curry + 1) 0)
+
       (define is-bad?
-        (for/or ([input (in-list pt)] [ctx (in-list ctxs)])
-          ((representation-special-value? (context-repr ctx)) input)))
+        (for/or ([input (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
+          ((representation-special-value? repr) input)))
 
       (cond
        [(and (list? exs) (not is-bad?))

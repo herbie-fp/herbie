@@ -83,19 +83,10 @@
       (define precision* (exact-floor (* precision 2)))
       (cond
         [err
-         (values err (if (*use-mixed-precision*) iter precision)
-          #f)]
+         (values err (if (*use-mixed-precision*) iter precision) #f)]
         [(not err?)
-         (define any-inf? #f)
-         (define out
-           (for/list ([ex exs] [<-bf <-bfs])
-             (define fl (<-bf (ival-lo ex)))
-             (when (and (eq? <-bf bigfloat->flonum) (infinite? fl))
-               (set! any-inf? #t))
-             fl))
-         (values (if any-inf? 'infinite 'valid)
-                 (if (*use-mixed-precision*) iter precision)
-                 out)]
+         (values 'valid (if (*use-mixed-precision*) iter precision)
+                 (for/list ([ex exs] [<-bf <-bfs]) (<-bf (ival-lo ex))))]
         [(if (*use-mixed-precision*)
              (> iter* (*max-sampling-iterations*))
              (> precision* (*max-mpfr-prec*)))
