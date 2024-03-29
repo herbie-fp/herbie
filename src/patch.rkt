@@ -139,14 +139,15 @@
 
   (define rewritten
     (reap [sow]
-          (for ([changelist changelists] [altn alts])
-            (for ([cl changelist])
-              (match-define (list subexp input) cl)
-              (define body* (apply-repr-change-expr subexp (*context*)))
-              (when body*
-                ; apply-repr-change-expr is partial
-                ; we need to pass '() here so it can get overwritten on patch-fix
-                (sow (alt body* (list 'rr '() input #f #f) (list altn) '())))))))
+          (for ([changelist (in-list changelists)] [altn (in-list alts)]
+                #:when true
+                [cl (in-list changelist)])
+            (match-define (list subexp input) cl)
+            (define body* (apply-repr-change-expr subexp (*context*)))
+            (when body*
+              ; apply-repr-change-expr is partial
+              ; we need to pass '() here so it can get overwritten on patch-fix
+              (sow (alt body* (list 'rr '() input #f #f) (list altn) '()))))))
 
   (timeline-push! 'count (length queued) (length rewritten))
   rewritten)
@@ -159,12 +160,11 @@
     (rewrite-expressions (map alt-expr alts) (*context*) #:rules (*rules*)))
 
   (define rewritten
-    (for/list ([changelist (in-list changelists)]
-               [altn (in-list alts)]
+    (for/list ([changelist (in-list changelists)] [altn (in-list alts)]
                #:when true
-               [cl (in-list changelists)])
+               [cl (in-list changelist)])
       (match-define (list subexp input) cl)
-      (sow (alt subexp (list 'rr '() input #f #f) (list altn) '()))))
+      (alt subexp (list 'rr '() input #f #f) (list altn) '())))
 
   (timeline-push! 'count (length alts) (length rewritten))
   rewritten)
