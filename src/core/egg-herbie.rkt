@@ -70,6 +70,8 @@
        (hash-ref rename-dict name)]
       [(list (? repr-conv? op) 'real arg)
        (list op (loop arg prec))] ; ???
+      [(list op 'real args ...) ; TODO what the heack
+       (cons op (map (curryr loop 'real) args))]
       [(list op prec)
        (match-define (list '$Type otype) prec)
        (list (get-parametric-constant op (get-representation otype)))]
@@ -77,8 +79,7 @@
        (match-define (list '$Type _ itypes ...) prec)
        (define op* (apply get-parametric-operator op (map get-representation itypes)))
        (cons op* (map loop args itypes))]
-      [(? number?)
-       (literal expr prec)])))
+      [(? number?) (literal expr prec)])))
 
 ;; Expands operators into `(op, sig)` so that we can
 ;; recover the exact operator implementation when extracting.
@@ -101,10 +102,13 @@
        (list 'if 'real (loop cond) (loop ift) (loop iff))]
       [(list (? repr-conv? op) arg)
        (list op 'real (loop arg))]
+      [(list (? operator-exists? op) args ...)
+       (list* op 'real (map loop args))]
       [(list (? impl-exists? op) args ...)
        (define-values (op* prec) (expand-operator op))
        (cons op* (cons prec (map loop args)))]
       [(? literal?) (literal-value expr)]
+      [(? number?) expr] ; TODO: we should have gotten a literal here
       [_ (string->symbol (format "?~a" expr))])))
 
 ;; Translates a Herbie expression into an expression usable by egg
@@ -124,6 +128,7 @@
        (cons op* (cons prec (map loop args)))]
       [(? literal?)
        (literal-value expr)]
+      [(? number?) expr] ; TODO: literals
       [(? (curry hash-has-key? herbie->egg-dict))
        (define prec (list '$Type (representation-name (context-lookup ctx expr))))
        (define replacement (hash-ref herbie->egg-dict expr))
@@ -240,107 +245,121 @@
   (define repr-name (representation-name repr))
   (string->symbol (string-replace* (~a repr-name) replace-table)))
 
-;; Translates a rewrite rule into potentially many rules.
-;; If the rule is over types, the rule is duplicated for every
-;; valid assignment of representations.
-(define (rule->impl-rules r)
-  (match-define (rule name input output itypes otype) r)
-  (define active-reprs (platform-reprs (*active-platform*)))
-  (define supported? (curry set-member? active-reprs))
-  (cond
-    [(andmap representation? (cons otype (map cdr itypes)))
-     ; rule over representation: just return the rule
-     ; make sure to validate that the operators are supported
-     (if (and (andmap supported? (reprs-in-expr input))
-              (andmap supported? (reprs-in-expr output)))
-         (list r)
-         (list))]
-    [else
-     ; rule over types: must instanstiate over all possible
-     ; assignments of representations keeping in mind that
-     ; some operator implementations may not exist
-     (define types (remove-duplicates (cons otype (map cdr itypes))))
-     (reap [sow]
-       (for ([type-ctx (in-list (type-combinations types))])
-         ;; Strange corner case:
-         ;; Rules containing comparators cause desugaring to misbehave.
-         ;; The reported output type is bool but then desugaring
-         ;; thinks there will be a cast somewhere
-         (define otype* (dict-ref type-ctx otype))
-         (define sugar-otype
-           (if (equal? otype 'bool)
-               (dict-ref type-ctx 'real (get-representation 'bool))
-               otype*))
 
-         (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
-         (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
-         (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
-           ;; The easier way to tell if every operator is supported
-           ;; in a given representation is to just try to desguar
-           ;; the expression and catch any errors.
-           (define name* (sym-append name '_ (repr->symbol sugar-otype)))
-           (define input* (spec->prog input sugar-ctx))
-           (define output* (spec->prog output sugar-ctx))
-           (when (and (andmap supported? (reprs-in-expr input*))
-                      (andmap supported? (reprs-in-expr output*)))
-             (sow (rule name* input* output* itypes* otype*))))))]))
+;; Translates a Herbie rule into an egg rule
+(define (rule->egg-rule ru)
+  (struct-copy rule ru
+     [input (expr->egg-pattern (rule-input ru))]
+     [output (expr->egg-pattern (rule-output ru))]))
 
-;; Like `rule->impl-rule` except rules are consumable by egg.
-;; Special pass to handle expansive rules `?x => f(?x)`
-(define (rule->egg-rules r)
-  (match-define (rule name input output _ _) r)
-  (cond
-    [(variable? input)
-     ; expansive rule: `?x => f(?x)`
-     ; special care needs to be taken here
-     (when (variable? output)
-       (error 'rule->egg-rules "rewriting variable to variable ~a" r))
-     ; for each real operator `app` instantiate a rule of
-     ; the form: `(app e ...) => f((app e ...))`
-     (define op-rules
-       (for/fold ([rules '()]) ([op (all-operators)] #:unless (eq? op 'cast))
-         (define itypes (operator-info op 'itype))
-         (define otype (operator-info op 'otype))
-         (define vars (build-list (length itypes) (λ (i) (string->symbol (format "$T~a" i)))))
+(define (rule->egg-rules rule)
+  (list (rule->egg-rule rule)))
+
+(define (rule->impl-rules rule)
+  (list (rule->egg-rule rule)))
+
+
+; ;; Translates a rewrite rule into potentially many rules.
+; ;; If the rule is over types, the rule is duplicated for every
+; ;; valid assignment of representations.
+; (define (rule->impl-rules r)
+;   (match-define (rule name input output itypes otype) r)
+;   (define active-reprs (platform-reprs (*active-platform*)))
+;   (define supported? (curry set-member? active-reprs))
+;   (cond
+;     [(andmap representation? (cons otype (map cdr itypes)))
+;      ; rule over representation: just return the rule
+;      ; make sure to validate that the operators are supported
+;      (if (and (andmap supported? (reprs-in-expr input))
+;               (andmap supported? (reprs-in-expr output)))
+;          (list r)
+;          (list))]
+;     [else
+;      ; rule over types: must instanstiate over all possible
+;      ; assignments of representations keeping in mind that
+;      ; some operator implementations may not exist
+;      (define types (remove-duplicates (cons otype (map cdr itypes))))
+;      (reap [sow]
+;        (for ([type-ctx (in-list (type-combinations types))])
+;          ;; Strange corner case:
+;          ;; Rules containing comparators cause desugaring to misbehave.
+;          ;; The reported output type is bool but then desugaring
+;          ;; thinks there will be a cast somewhere
+;          (define otype* (dict-ref type-ctx otype))
+;          (define sugar-otype
+;            (if (equal? otype 'bool)
+;                (dict-ref type-ctx 'real (get-representation 'bool))
+;                otype*))
+
+;          (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
+;          (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
+;          (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
+;            ;; The easier way to tell if every operator is supported
+;            ;; in a given representation is to just try to desguar
+;            ;; the expression and catch any errors.
+;            (define name* (sym-append name '_ (repr->symbol sugar-otype)))
+;            (define input* (spec->prog input sugar-ctx))
+;            (define output* (spec->prog output sugar-ctx))
+;            (when (and (andmap supported? (reprs-in-expr input*))
+;                       (andmap supported? (reprs-in-expr output*)))
+;              (sow (rule name* input* output* itypes* otype*))))))]))
+
+; ;; Like `rule->impl-rule` except rules are consumable by egg.
+; ;; Special pass to handle expansive rules `?x => f(?x)`
+; (define (rule->egg-rules r)
+;   (match-define (rule name input output _ _) r)
+;   (cond
+;     [(variable? input)
+;      ; expansive rule: `?x => f(?x)`
+;      ; special care needs to be taken here
+;      (when (variable? output)
+;        (error 'rule->egg-rules "rewriting variable to variable ~a" r))
+;      ; for each real operator `app` instantiate a rule of
+;      ; the form: `(app e ...) => f((app e ...))`
+;      (define op-rules
+;        (for/fold ([rules '()]) ([op (all-operators)] #:unless (eq? op 'cast))
+;          (define itypes (operator-info op 'itype))
+;          (define otype (operator-info op 'otype))
+;          (define vars (build-list (length itypes) (λ (i) (string->symbol (format "$T~a" i)))))
  
-         (define name* (sym-append name '- op))
-         (define input* (cons op vars))
-         (define output* (replace-expression output input input*))
-         (define itypes* (map cons vars itypes))
+;          (define name* (sym-append name '- op))
+;          (define input* (cons op vars))
+;          (define output* (replace-expression output input input*))
+;          (define itypes* (map cons vars itypes))
 
-         (append (rule->egg-rules (rule name* input* output* itypes* otype)) rules)))
-     ; for each implementation matching the output type/representation,
-     ; make a rule for a variable under the same implementation
-     (define var-rules
-       (for/list ([impl-rule (rule->impl-rules r)])
-         ; replace the LHS with a variable node
-         (match-define (rule name input output itypes otype)
-           (struct-copy rule impl-rule
-                        [input (expr->egg-pattern (rule-input impl-rule))]
-                        [output (expr->egg-pattern (rule-output impl-rule))]))
-         (define repr (dict-ref itypes (rule-input impl-rule)))
-         (define prec (list '$Type (representation-name repr)))
-         (define input* (list '$Var prec input))
-         (define output* (replace-expression output input input*))
-         (rule name input* output* itypes otype)))
-     ; both over ops and over a variable
-     (append op-rules var-rules)]
-    [else
-     ;; all other rules should be replicated across representations
-     ;; and then translated into a format usable by egg
-     (for/list ([impl-rule (rule->impl-rules r)])
-       (struct-copy rule impl-rule
-                    [input (expr->egg-pattern (rule-input impl-rule))]
-                    [output (expr->egg-pattern (rule-output impl-rule))]))]))
+;          (append (rule->egg-rules (rule name* input* output* itypes* otype)) rules)))
+;      ; for each implementation matching the output type/representation,
+;      ; make a rule for a variable under the same implementation
+;      (define var-rules
+;        (for/list ([impl-rule (rule->impl-rules r)])
+;          ; replace the LHS with a variable node
+;          (match-define (rule name input output itypes otype)
+;            (struct-copy rule impl-rule
+;                         [input (expr->egg-pattern (rule-input impl-rule))]
+;                         [output (expr->egg-pattern (rule-output impl-rule))]))
+;          (define repr (dict-ref itypes (rule-input impl-rule)))
+;          (define prec (list '$Type (representation-name repr)))
+;          (define input* (list '$Var prec input))
+;          (define output* (replace-expression output input input*))
+;          (rule name input* output* itypes otype)))
+;      ; both over ops and over a variable
+;      (append op-rules var-rules)]
+;     [else
+;      ;; all other rules should be replicated across representations
+;      ;; and then translated into a format usable by egg
+;      (for/list ([impl-rule (rule->impl-rules r)])
+;        (struct-copy rule impl-rule
+;                     [input (expr->egg-pattern (rule-input impl-rule))]
+;                     [output (expr->egg-pattern (rule-output impl-rule))]))]))
     
 
-(module+ test
-  ;; Make sure all built-in rules are valid in
-  ;; some configuration of representations
-  (for ([rule (in-list (*rules*))])
-    (test-case (~a (rule-name rule))
-               (check-true (> (length (rule->egg-rules rule)) 0))))
-)
+; (module+ test
+;   ;; Make sure all built-in rules are valid in
+;   ;; some configuration of representations
+;   (for ([rule (in-list (*rules*))])
+;     (test-case (~a (rule-name rule))
+;                (check-true (> (length (rule->egg-rules rule)) 0))))
+; )
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg
 ;; the second hash is the reverse of the first
@@ -616,6 +635,7 @@
                    (define orig-name (rule-name rule))
                    (for/list ([egg-rule (in-list (rule->egg-rules rule))])
                      (define name (rule-name egg-rule))
+                    ; (printf "~a => ~a\n" (rule-input egg-rule) (rule-output egg-rule))
                      (hash-set! (*canon-names*) name orig-name)
                      (cons egg-rule (make-ffi-rule egg-rule))))))
     (append (reverse egg&ffi) rules*)))
