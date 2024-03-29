@@ -76,7 +76,7 @@
          (printf "\nOutput (~a bits):\n" (errors-score end-error))
          (pretty-print (alt-expr end-alt) (current-output-port) 1)
          ;; ALL OF THEM IN THE PLATFORM
-         (when (> (length (test-output test) 0))
+         (when target-error
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
            ;; ANOTHER BIG TODO: PLATFORM SPECIFIC TARGET
            (pretty-print (list-ref (test-output test) 0) (current-output-port) 1)))
