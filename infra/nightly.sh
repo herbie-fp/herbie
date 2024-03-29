@@ -28,9 +28,6 @@ else
   FLAGS="$@"
 fi
 
-# run platforms eval
-bash "$INFRA_DIR"/platforms-eval.sh "$OUT_DIR"
-
 # run
 RECURSE=1 LOG=1 \
   bash "$INFRA_DIR"/run.sh \
@@ -39,6 +36,9 @@ RECURSE=1 LOG=1 \
     --seed "$SEED" \
     --threads "$CORES" \
     $FLAGS
+
+# run platforms eval
+bash "$INFRA_DIR"/platforms-eval.sh "$OUT_DIR"
 
 # upload
 bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
