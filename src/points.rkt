@@ -78,7 +78,7 @@
   (define fn (compile-progs exprs ctx))
   (for/list ([(point exact) (in-pcontext pcontext)])
     (with-handlers ([exn:fail? (batch-errors-handler exprs point)])
-      (for/list ([out (in-list (apply fn point))])
+      (for/list ([out (in-vector (apply fn point))])
         (point-error out exact (context-repr ctx))))))
 
 ;; Herbie <=> JSON conversion for pcontext

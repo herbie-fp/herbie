@@ -24,6 +24,8 @@
 ;; as well as the indices of the roots to extract.
 ;; name ::= 'fl or 'ival
 (define (make-progs-interpreter name vars ivec roots)
+  (define rootvec (list->vector roots))
+  (define rootlen (vector-length rootvec))
   (define varc (length vars))
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
@@ -57,7 +59,7 @@
           (vector-set! vregs n output)
           (timeline-stop!))
 
-        (for/list ([root (in-list roots)])
+        (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))
    
       ; name is 'fl
@@ -69,7 +71,7 @@
             (for/list ([idx (in-list (cdr instr))])
               (vector-ref vregs idx)))
           (vector-set! vregs n (apply (car instr) srcs)))
-        (for/list ([root (in-list roots)])
+        (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))))
 
 (define (get-slack)
@@ -188,11 +190,15 @@
 
 ;; Like `compile-specs`, but for a single spec.
 (define (compile-spec spec vars)
-  (compose first (compile-specs (list spec) vars)))
+  (define core (compile-specs (list spec) vars))
+  (define (<compiled-spec> . xs) (vector-ref (apply core xs) 0))
+  <compiled-spec>)
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
-  (compose first (compile-progs (list expr) ctx)))
+  (define core (compile-progs (list expr) ctx))
+  (define (<compiled-prog> . xs) (vector-ref (apply core xs) 0))
+  <compiled-prog>)
 
 (define (backward-pass ivec varc vregs vprecs vstart-precs root-reg)
   (vector-fill! vprecs 0)
@@ -202,7 +208,7 @@
       (equal? 1 (flonums-between
                  (bigfloat->flonum (ival-lo result))
                  (bigfloat->flonum (ival-hi result))))
-    (vector-set! vprecs (- (vector-length vprecs) 1) (get-slack)))
+    (vector-set! vprecs (- root-reg varc) (get-slack)))
   
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
