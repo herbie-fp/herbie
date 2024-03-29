@@ -41,10 +41,21 @@
     (match status
       ['success
        (match-define 
-        (improve-result preprocess pctxs start target end bogosity) backend)
+        (improve-result preprocess pctxs start targets end bogosity) backend)
        (match-define (alt-analysis start-alt _ start-error) start)
        (match-define (alt-analysis end-alt _ end-error) (first end))
-       (define target-error (and target (alt-analysis-test-errors target)))
+      ;  (define target-error (and target (alt-analysis-test-errors target)))
+
+      ; Get a list of all targets in the platform 
+      (define target-alt-list (filter identity targets))
+
+      ;; Pick lowest target from all target
+      (define target-error
+        (cond
+          [(empty? target-alt-list) #f] ; If the list is empty, return false
+          [else
+            ; TODO : RIGHT NOW TAKING FIRST, NEED TO FIX TO BEST-ERROR
+            (alt-analysis-test-errors (first target-alt-list))]))
 
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
