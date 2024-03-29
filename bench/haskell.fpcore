@@ -16,14 +16,14 @@
 (FPCore (x y z t)
  :name "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, D"
  :alt 
- (! :description (platform libm) (- x (+ (* x (/ y t)) (* (- z) (/ y t)))))
+ (! :description (platform default) (- x (+ (* x (/ y t)) (* (- z) (/ y t)))))
 
  (+ x (/ (* y (- z x)) t)))
 
 (FPCore  (x y z t a)
  :name "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, E"
  :alt 
- (! :description (platform libm) 
+ (! :description (platform default) 
   (if (< y -1.0761266216389975e-10)
    (+ x (/ 1 (/ (/ a (- z t)) y)))
     (if (< y 2.894426862792089e-49)
@@ -35,7 +35,7 @@
 (FPCore  (x y z t a)
  :name "Optimisation.CirclePacking:place from circle-packing-0.1.0.4, F"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y -1.0761266216389975e-10)
     (- x (/ 1 (/ (/ a (- z t)) y)))
     (if (< y 2.894426862792089e-49)
@@ -59,7 +59,7 @@
 (FPCore  (x y z t a b c i j)
  :name "Data.Colour.Matrix:determinant from colour-2.3.3, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< x -1.469694296777705e-64)
    (+
     (-
@@ -80,7 +80,7 @@
 (FPCore  (x y z t a)
  :name "Data.Colour.Matrix:inverse from colour-2.3.3, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -2.468684968699548e+170)
    (- (* (/ y a) x) (* (/ t a) z))
    (if (< z 6.309831121978371e-71)
@@ -99,28 +99,28 @@
 (FPCore  (x y z t a)
  :name "Data.Colour.RGB:hslsv from colour-2.3.3, B"
  :alt 
- (! :description (platform libm) (+ (/ 60.0 (/ (- z t) (- x y))) (* a 120.0)))
+ (! :description (platform default) (+ (/ 60.0 (/ (- z t) (- x y))) (* a 120.0)))
 
  (+ (/ (* 60.0 (- x y)) (- z t)) (* a 120.0)))
 
 (FPCore  (x y)
  :name "Data.Colour.RGB:hslsv from colour-2.3.3, C"
  :alt 
- (! :description (platform libm) (- (/ x (- 2.0 (+ x y))) (/ y (- 2.0 (+ x y)))))
+ (! :description (platform default) (- (/ x (- 2.0 (+ x y))) (/ y (- 2.0 (+ x y)))))
 
  (/ (- x y) (- 2.0 (+ x y))))
 
 (FPCore  (x y)
  :name "Data.Colour.RGB:hslsv from colour-2.3.3, D"
  :alt 
- (! :description (platform libm) (- (/ x (+ x y)) (/ y (+ x y))))
+ (! :description (platform default) (- (/ x (+ x y)) (/ y (+ x y))))
 
  (/ (- x y) (+ x y)))
 
 (FPCore  (x y)
  :name "Data.Colour.RGB:hslsv from colour-2.3.3, E"
  :alt 
- (! :description (platform libm) (- 1 (/ y x)))
+ (! :description (platform default) (- 1 (/ y x)))
 
  (/ (- x y) x))
 
@@ -131,7 +131,7 @@
 (FPCore  (x y)
  :name "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3, B"
  :alt 
- (! :description (platform libm) (+ x (* x y)))
+ (! :description (platform default) (+ x (* x y)))
 
  (* x (+ y 1.0)))
 
@@ -146,7 +146,7 @@
 (FPCore  (x y z)
  :name "Data.Colour.RGBSpace.HSL:hsl from colour-2.3.3, E"
  :alt 
- (! :description (platform libm) (- x (* (* 6.0 z) (- x y))))
+ (! :description (platform default) (- x (* (* 6.0 z) (- x y))))
 
  (+ x (* (* (- y x) 6.0) z)))
 
@@ -169,7 +169,7 @@
 (FPCore  (x y z)
  :name "Data.Colour.RGBSpace.HSV:hsv from colour-2.3.3, J"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< (* x (- 1.0 (* (- 1.0 y) z))) -1.618195973607049e+50)
    (+ x (* (- 1.0 y) (* (- z) x)))
    (if (< (* x (- 1.0 (* (- 1.0 y) z))) 3.892237649663903e+134)
@@ -205,7 +205,7 @@
 (FPCore  (x y)
  :name "Data.Colour.CIE:cieLAB from colour-2.3.3, A"
  :alt 
- (! :description (platform libm) (* y (- (* x 3.0) 0.41379310344827586)))
+ (! :description (platform default) (* y (- (* x 3.0) 0.41379310344827586)))
 
  (* (* (- x (/ 16.0 116.0)) 3.0) y))
 
@@ -224,7 +224,7 @@
 (FPCore  (x y z t a)
  :name "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -32113435955957344.0)
    (- (/ x (- t (* a z))) (/ y (- (/ t z) a)))
    (if (< z 3.5139522372978296e-86)
@@ -236,7 +236,7 @@
 (FPCore  (x y z t)
  :name "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< x -1.618195973607049e+50)
    (/ 1 (- (/ y x) (* (/ z x) t)))
    (if (< x 2.1378306434876444e+131)
@@ -248,7 +248,7 @@
 (FPCore  (x y z)
  :name "Diagrams.Solve.Tridiagonal:solveTriDiagonal from diagrams-solve-0.1, C"
  :alt 
- (! :description (platform libm) 
+ (! :description (platform default) 
   (/ (+ x (* y z)) (/ (+ x (* y z)) (- x (* y z)))))
 
  (- x (* y z)))
@@ -256,7 +256,7 @@
 (FPCore  (x y z)
  :name "Diagrams.Solve.Tridiagonal:solveCyclicTriDiagonal from diagrams-solve-0.1, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -4.262230790519429e-138)
    (/ (* x y) z)
    (if (< z 1.7042130660650472e-164) (/ x (/ z y)) (* (/ x z) y))))
@@ -266,7 +266,7 @@
 (FPCore  (x y z t a b)
  :name "Diagrams.Solve.Tridiagonal:solveCyclicTriDiagonal from diagrams-solve-0.1, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< t -1.3659085366310088e-271)
    (* 1 (* (+ x (* (/ y t) z)) (/ 1 (+ (+ a 1.0) (* (/ y t) b)))))
    (if (< t 3.036967103737246e-130)
@@ -290,7 +290,7 @@
 (FPCore  (x y z t a b)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y 7.590524218811189e-161)
    (+ (- (* x 2.0) (* (* (* y 9.0) z) t)) (* a (* 27.0 b)))
    (+ (- (* x 2.0) (* 9.0 (* y (* t z)))) (* (* a 27.0) b))))
@@ -300,21 +300,21 @@
 (FPCore  (x y z)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, B"
  :alt 
- (! :description (platform libm) (- (* x (* 3.0 y)) z))
+ (! :description (platform default) (- (* x (* 3.0 y)) z))
 
  (- (* (* x 3.0) y) z))
 
 (FPCore  (x y)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, C"
  :alt 
- (! :description (platform libm) (/ (/ x y) 3.0))
+ (! :description (platform default) (/ (/ x y) 3.0))
 
  (/ x (* y 3.0)))
 
 (FPCore  (x y z t)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, D"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ (acos (* (/ (/ x 27.0) (* y z)) (/ (sqrt t) (/ 2.0 3.0)))) 3.0))
 
  (* (/ 1.0 3.0) (acos (* (/ (* 3.0 (/ x (* y 27.0))) (* z 2.0)) (sqrt t)))))
@@ -322,7 +322,7 @@
 (FPCore  (x y z t a b c i j k)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, E"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< t -1.6210815397541398e-69)
    (-
     (- (* (* 18.0 t) (* (* x y) z)) (* (+ (* a t) (* i x)) 4.0))
@@ -347,14 +347,14 @@
 (FPCore  (x y)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, G"
  :alt 
- (! :description (platform libm) (/ (+ x y) 2.0))
+ (! :description (platform default) (/ (+ x y) 2.0))
 
  (* (/ 1.0 2.0) (+ x y)))
 
 (FPCore  (x y z t)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, H"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (- x (/ y (* z 3.0))) (/ (/ t (* z 3.0)) y)))
 
  (+ (- x (/ y (* z 3.0))) (/ t (* (* z 3.0) y))))
@@ -362,7 +362,7 @@
 (FPCore  (x y z t a)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, I"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< a -2.090464557976709e+86)
    (- (* 0.5 (/ (* y x) a)) (* 4.5 (/ t (/ a z))))
    (if (< a 2.144030707833976e+99)
@@ -374,7 +374,7 @@
 (FPCore  (x y z t a b c)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, J"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (<
       (/ (+ (- (* (* x 9.0) y) (* (* (* z 4.0) t) a)) b) (* z c))
       -1.100156740804105e-171)
@@ -404,7 +404,7 @@
 (FPCore  (x y z t a b)
  :name "Diagrams.Solve.Polynomial:cubForm  from diagrams-solve-0.1, K"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -1.3793337487235141e+129)
    (-
     (* (* 2.0 (sqrt x)) (cos (- (/ 1 y) (/ (/ 0.3333333333333333 z) t))))
@@ -424,7 +424,7 @@
 (FPCore  (x y z t)
  :name "Diagrams.Solve.Polynomial:quartForm  from diagrams-solve-0.1, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (+ (/ x 8.0) t) (* (/ z 2.0) y)))
 
  (+ (- (* (/ 1.0 8.0) x) (/ (* y z) 2.0)) t))
@@ -452,7 +452,7 @@
 (FPCore  (x y)
  :name "Numeric.Interval.Internal:bisect from intervals-0.7.1, A"
  :alt 
- (! :description (platform libm) (* 0.5 (+ x y)))
+ (! :description (platform default) (* 0.5 (+ x y)))
 
  (+ x (/ (- y x) 2.0)))
 
@@ -485,7 +485,7 @@
 (FPCore  (x)
  :name "Main:bigenough3 from C"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ 1.0 (+ (sqrt (+ x 1.0)) (sqrt x))))
 
  (- (sqrt (+ x 1.0)) (sqrt x)))
@@ -493,7 +493,7 @@
 (FPCore  (x y z)
  :name "Linear.Quaternion:$c/ from linear-1.19.1.3, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (* (* 3 z) z) (* y x)))
 
  (+ (+ (+ (* x y) (* z z)) (* z z)) (* z z)))
@@ -501,28 +501,28 @@
 (FPCore  (x y z)
  :name "Linear.Quaternion:$c/ from linear-1.19.1.3, B"
  :alt 
- (! :description (platform libm) (* (- x z) y))
+ (! :description (platform default) (* (- x z) y))
 
  (+ (- (- (* x y) (* y z)) (* y y)) (* y y)))
 
 (FPCore  (x y z)
  :name "Linear.Quaternion:$c/ from linear-1.19.1.3, C"
  :alt 
- (! :description (platform libm) (* (- x z) y))
+ (! :description (platform default) (* (- x z) y))
 
  (- (- (+ (* x y) (* y y)) (* y z)) (* y y)))
 
 (FPCore  (x y z)
  :name "Linear.Quaternion:$c/ from linear-1.19.1.3, D"
  :alt 
- (! :description (platform libm) (* (- x z) y))
+ (! :description (platform default) (* (- x z) y))
 
  (- (+ (- (* x y) (* y y)) (* y y)) (* y z)))
 
 (FPCore  (x y)
  :name "Linear.Quaternion:$c/ from linear-1.19.1.3, E"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (* x x) (* y (+ y (+ y y)))))
 
  (+ (+ (+ (* x x) (* y y)) (* y y)) (* y y)))
@@ -534,7 +534,7 @@
 (FPCore  (x y z)
  :name "Linear.Quaternion:$ctanh from linear-1.19.1.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -4.2173720203427147e-29)
    (/ (* x (/ 1 (/ y (sin y)))) z)
    (if (< z 4.446702369113811e+64)
@@ -546,7 +546,7 @@
 (FPCore  (x y)
  :name "Linear.Quaternion:$ccosh from linear-1.19.1.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* (sin x) (/ (sinh y) x)))
 
  (/ (* (sin x) (sinh y)) x))
@@ -554,7 +554,7 @@
 (FPCore  (x y)
  :name "Linear.Quaternion:$csinh from linear-1.19.1.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ (* (cosh x) (sin y)) y))
 
  (* (cosh x) (/ (sin y) y)))
@@ -562,7 +562,7 @@
 (FPCore  (x y z)
  :name "Linear.Quaternion:$ctan from linear-1.19.1.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y -4.618902267687042e-52)
    (* (/ (/ y z) x) (cosh x))
    (if (< y 1.038530535935153e-39)
@@ -582,7 +582,7 @@
 (FPCore  (x y)
  :name "Linear.Quaternion:$clog from linear-1.19.1.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< x -1.5097698010472593e+153)
    (- (+ (* 1/2 (/ y x)) x))
    (if (< x 5.582399551122541e+57) (sqrt (+ (* x x) y)) (+ (* 1/2 (/ y x)) x))))
@@ -596,7 +596,7 @@
 (FPCore  (x y z t a b c i j k y0 y1 y2 y3 y4 y5)
  :name "Linear.Matrix:det44 from linear-1.19.1.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y4 -7.206256231996481e+60)
    (-
     (-
@@ -703,7 +703,7 @@
 (FPCore  (x y z t a b c i j)
  :name "Linear.Matrix:det33 from linear-1.19.1.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< t -8.120978919195912e-33)
    (-
     (* x (- (* z y) (* a t)))
@@ -730,7 +730,7 @@
 (FPCore  (x y)
  :name "Linear.Matrix:fromQuaternion from linear-1.19.1.3, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* (* x 2.0) (- x y)))
 
  (* 2.0 (- (* x x) (* x y))))
@@ -738,7 +738,7 @@
 (FPCore  (x y)
  :name "Linear.Matrix:fromQuaternion from linear-1.19.1.3, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* (* x 2.0) (+ x y)))
 
  (* 2.0 (+ (* x x) (* x y))))
@@ -746,7 +746,7 @@
 (FPCore  (x y z t)
  :name "Linear.Projection:inverseInfinitePerspective from linear-1.19.1.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< t -9.231879582886777e-80)
    (* (* y t) (- x z))
    (if (< t 2.543067051564877e+83) (* y (* t (- x z))) (* (* y (- x z)) t))))
@@ -756,7 +756,7 @@
 (FPCore  (x y z t)
  :name "Linear.Projection:infinitePerspective from linear-1.19.1.3, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< (/ (* x 2.0) (- (* y z) (* t z))) -2.559141628295061e-13)
    (* (/ x (* (- y t) z)) 2.0)
    (if (< (/ (* x 2.0) (- (* y z) (* t z))) 1.045027827330126e-269)
@@ -768,7 +768,7 @@
 (FPCore  (x y)
  :name "Linear.Projection:inversePerspective from linear-1.19.1.3, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (/ 0.5 y) (/ 0.5 x)))
 
  (/ (- x y) (* (* x 2.0) y)))
@@ -776,7 +776,7 @@
 (FPCore  (x y)
  :name "Linear.Projection:inversePerspective from linear-1.19.1.3, C"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (/ 0.5 x) (/ 0.5 y)))
 
  (/ (+ x y) (* (* x 2.0) y)))
@@ -784,7 +784,7 @@
 (FPCore  (x y)
  :name "Linear.Projection:perspective from linear-1.19.1.3, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ 1 (- (/ x (+ x y)) (/ y (+ x y)))))
 
  (/ (+ x y) (- x y)))
@@ -792,7 +792,7 @@
 (FPCore  (x y)
  :name "Linear.Projection:perspective from linear-1.19.1.3, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< x -1.7210442634149447e+81)
    (* (/ (* 2.0 x) (- x y)) y)
    (if (< x 8.364504563556443e+16)
@@ -804,14 +804,14 @@
 (FPCore  (x y)
  :name "Physics.ForceLayout:coulombForce from force-layout-0.4.0.2"
  :alt 
- (! :description (platform libm) (/ (/ x y) y))
+ (! :description (platform default) (/ (/ x y) y))
 
  (/ x (* y y)))
 
 (FPCore  (x y)
  :name "Codec.Picture.Types:toneMapping from JuicyPixels-3.2.6.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* (/ x 1) (/ (+ (/ x y) 1.0) (+ x 1.0))))
 
  (/ (* x (+ (/ x y) 1.0)) (+ x 1.0)))
@@ -819,7 +819,7 @@
 (FPCore  (x y z t a b)
  :name "Codec.Picture.Jpg.FastDct:referenceDct from JuicyPixels-3.2.6.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* x (cos (* (/ b 16.0) (/ t (+ (- 1.0 (* a 2.0)) (pow (* a 2.0) 2)))))))
 
  (*
@@ -833,7 +833,7 @@
 (FPCore  (x y z t)
  :name "Main:z from "
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+
    (+
     (+
@@ -851,7 +851,7 @@
 (FPCore  (x y z t a b c i)
  :name "Diagrams.ThreeD.Shapes:frustum from diagrams-lib-1.3.0.3, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* 2.0 (- (+ (* x y) (* z t)) (* (+ a (* b c)) (* c i)))))
 
  (* 2.0 (- (+ (* x y) (* z t)) (* (* (+ a (* b c)) c) i))))
@@ -875,14 +875,14 @@
 (FPCore  (x y z)
  :name "Diagrams.Color.HSV:lerp  from diagrams-contrib-1.3.0.5"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- y (* x (- y z))))
  (+ (* (- 1.0 x) y) (* x z)))
 
 (FPCore  (x y z)
  :name "Diagrams.TwoD.Segment.Bernstein:evaluateBernstein from diagrams-lib-1.3.0.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< x -2.71483106713436e-162)
    (- (* (+ 1 y) (/ x z)) x)
    (if (< x 3.874108816439546e-197)
@@ -894,14 +894,14 @@
 (FPCore  (x y)
  :name "Diagrams.Segment:$catParam from diagrams-lib-1.3.0.3, A"
  :alt 
- (! :description (platform libm) (* (* x 3.0) (* x y)))
+ (! :description (platform default) (* (* x 3.0) (* x y)))
 
  (* (* (* x 3.0) x) y))
 
 (FPCore  (x y)
  :name "Diagrams.Segment:$catParam from diagrams-lib-1.3.0.3, B"
  :alt 
- (! :description (platform libm) (* (* x (* 3.0 y)) y))
+ (! :description (platform default) (* (* x (* 3.0 y)) y))
 
  (* (* (* x 3.0) y) y))
 
@@ -912,7 +912,7 @@
 (FPCore  (x)
  :name "Diagrams.Tangent:$catParam from diagrams-lib-1.3.0.3, D"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ 3.0 (- (* (* 9.0 x) x) (* 12.0 x))))
 
  (* 3.0 (+ (- (* (* x 3.0) x) (* x 4.0)) 1.0)))
@@ -920,7 +920,7 @@
 (FPCore  (x)
  :name "Diagrams.Tangent:$catParam from diagrams-lib-1.3.0.3, E"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (* 6.0 x) (* 9.0 (* x x))))
 
  (* (* 3.0 (- 2.0 (* x 3.0))) x))
@@ -932,7 +932,7 @@
 (FPCore  (x y z t)
  :name "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ (+ x (- (/ y (- t (/ x z))) (/ x (- (* t z) x)))) (+ x 1.0)))
 
  (/ (+ x (/ (- (* y z) x) (- (* t z) x))) (+ x 1.0)))
@@ -940,7 +940,7 @@
 (FPCore  (x y)
  :name "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y -3693.8482788297247)
    (- (/ x (* y y)) (- (/ x y) x))
    (if (< y 6799310503.41891)
@@ -956,7 +956,7 @@
 (FPCore  (x y)
  :name "Diagrams.Trail:splitAtParam  from diagrams-lib-1.3.0.3, D"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y -3693.8482788297247)
    (- (/ 1.0 y) (- (/ x y) x))
    (if (< y 6799310503.41891)
@@ -968,7 +968,7 @@
 (FPCore  (x y)
  :name "Diagrams.TwoD.Arc:bezierFromSweepQ1 from diagrams-lib-1.3.0.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* (/ (- 1.0 x) y) (/ (- 3.0 x) 3.0)))
 
  (/ (* (- 1.0 x) (- 3.0 x)) (* y 3.0)))
@@ -976,7 +976,7 @@
 (FPCore  (x y)
  :name "Diagrams.TwoD.Arc:arcBetween from diagrams-lib-1.3.0.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (<
       (/ (- (* x x) (* (* y 4.0) y)) (+ (* x x) (* (* y 4.0) y)))
       0.9743233849626781)
@@ -996,7 +996,7 @@
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Chart.Axis.Types:invLinMap from Chart-1.5.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -1.2536131056095036e+188)
    (- t (* (/ y z) (- t x)))
    (if (< z 4.446702369113811e+64)
@@ -1007,7 +1007,7 @@
 (FPCore  (x y z)
  :name "Diagrams.TwoD.Segment:bezierClip from diagrams-lib-1.3.0.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- z (* (- z x) y)))
 
  (+ (* x y) (* z (- 1.0 y))))
@@ -1015,7 +1015,7 @@
 (FPCore  (x y)
  :name "Data.Octree.Internal:octantDistance  from Octree-0.5.4.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< x -1.1236950826599826e+145)
    (- x)
    (if (< x 1.116557621183362e+93) (sqrt (+ (* x x) (* y y))) x)))
@@ -1045,7 +1045,7 @@
 (FPCore  (x y)
  :name "Diagrams.TwoD.Layout.CirclePacking:approxRadius from diagrams-contrib-1.3.0.5"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y -1.2303690911306994e+114)
    1.0
    (if (< y -9.102852406811914e-222)
@@ -1059,7 +1059,7 @@
 (FPCore  (x y z)
  :name "Diagrams.TwoD.Apollonian:descartes from diagrams-contrib-1.3.0.5"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z 7.636950090573675e+176)
    (* 2.0 (sqrt (+ (* (+ x y) z) (* x y))))
    (*
@@ -1077,7 +1077,7 @@
 (FPCore  (x y z)
  :name "Diagrams.TwoD.Apollonian:initialConfig from diagrams-contrib-1.3.0.5, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (* y 0.5) (* (* (/ 0.5 y) (+ z x)) (- z x))))
 
  (/ (- (+ (* x x) (* y y)) (* z z)) (* y 2.0)))
@@ -1085,7 +1085,7 @@
 (FPCore  (x y z)
  :name "Diagrams.TwoD.Apollonian:initialConfig from diagrams-contrib-1.3.0.5, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y 2.5816096488251695e-278)
    (- (* x y))
    (* x (* (sqrt (+ y z)) (sqrt (- y z))))))
@@ -1095,7 +1095,7 @@
 (FPCore  (x y z)
  :name "Diagrams.Backend.Rasterific:rasterificRadialGradient from diagrams-rasterific-1.3.1.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (+ y (/ x z)) (/ y (/ z x))))
 
  (/ (+ x (* y (- z x))) z))
@@ -1103,7 +1103,7 @@
 (FPCore  (x y z t)
  :name "Data.HashTable.ST.Basic:computeOverhead from hashtables-1.2.0.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (/ (+ (/ 2.0 z) 2.0) t) (- 2.0 (/ x y))))
 
  (+ (/ x y) (/ (+ 2.0 (* (* z 2.0) (- 1.0 t))) (* t z))))
@@ -1127,7 +1127,7 @@
 (FPCore  (x y z t)
  :name "System.Random.MWC.Distributions:truncatedExp from mwc-random-0.13.3.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -2.8874623088207947e+119)
    (-
     (- x (/ (/ (- 0.5) (* y t)) (* z z)))
@@ -1139,7 +1139,7 @@
 (FPCore  (x y z)
  :name "System.Random.MWC.Distributions:gamma from mwc-random-0.13.3.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (+ y (* 0.5 x)) (* y (- z (log z)))))
  (+ (* x 0.5) (* y (+ (- 1.0 z) (log z)))))
 
@@ -1158,7 +1158,7 @@
 (FPCore  (x y z t a b)
  :name "Graphics.Rasterific.CubicBezier:cachedBezierAt from Rasterific-0.6.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -1.1820553527347888e+19)
    (+ (* z (+ (* b a) y)) (+ x (* t a)))
    (if (< z 4.7589743188364287e-122)
@@ -1174,7 +1174,7 @@
 (FPCore  (x y z)
  :name "Graphics.Rasterific.Shading:$sgradientColorAt from Rasterific-0.6.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (/ x (- z y)) (/ y (- z y))))
 
  (/ (- x y) (- z y)))
@@ -1186,7 +1186,7 @@
 (FPCore  (x y z t)
  :name "Graphics.Rasterific.Shading:$sradialGradientWithFocusShader from Rasterific-0.6.1, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (* x x) (* 4.0 (* y (- (* z z) t)))))
 
  (- (* x x) (* (* y 4.0) (- (* z z) t))))
@@ -1194,7 +1194,7 @@
 (FPCore  (x y)
  :name "Data.Number.Erf:$dmerfcx from erf-2.0.0.0"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* x (pow (exp y) y)))
 
  (* x (exp (* y y))))
@@ -1202,7 +1202,7 @@
 (FPCore  (x y z t)
  :name "Data.Number.Erf:$cinvnormcdf from erf-2.0.0.0, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* (* (- (* x 0.5) y) (sqrt (* z 2.0))) (pow (exp 1) (/ (* t t) 2.0))))
 
  (* (* (- (* x 0.5) y) (sqrt (* z 2.0))) (exp (/ (* t t) 2.0))))
@@ -1214,7 +1214,7 @@
 (FPCore  (x y z t)
  :name "Numeric.AD.Rank1.Halley:findZero from ad-4.2.4"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- x (/ 1 (- (/ z y) (/ (/ t 2.0) z)))))
 
  (- x (/ (* (* y 2.0) z) (- (* (* z 2.0) z) (* y t)))))
@@ -1222,7 +1222,7 @@
 (FPCore  (x y z)
  :name "Crypto.Random.Test:calculate from crypto-random-0.0.9"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ x (* y (/ y z))))
 
  (+ x (/ (* y y) z)))
@@ -1230,7 +1230,7 @@
 (FPCore  (x)
  :name "Numeric.Log:$cexpm1 from log-domain-0.10.2.1, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* (* 2.0 x) x))
 
  (* (* x 2.0) x))
@@ -1242,7 +1242,7 @@
 (FPCore  (x y)
  :name "Numeric.Log:$clog1p from log-domain-0.10.2.1, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (* y y) (+ (* 2.0 x) (* x x))))
 
  (+ (+ (* x 2.0) (* x x)) (* y y)))
@@ -1254,7 +1254,7 @@
 (FPCore  (x)
  :name "Data.Approximate.Numerics:blog from approximate-0.2.2.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ 6.0 (/ (+ (+ x 1.0) (* 4.0 (sqrt x))) (- x 1.0))))
 
  (/ (* 6.0 (- x 1.0)) (+ (+ x 1.0) (* 4.0 (sqrt x)))))
@@ -1262,7 +1262,7 @@
 (FPCore  (x)
  :name "Graphics.Rasterific.Svg.PathConverter:segmentToBezier from rasterific-svg-0.2.3.1, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ (/ (* 8.0 (sin (* x 0.5))) 3.0) (/ (sin x) (sin (* x 0.5)))))
 
  (/ (* (* (/ 8.0 3.0) (sin (* x 0.5))) (sin (* x 0.5))) (sin x)))
@@ -1278,7 +1278,7 @@
 (FPCore  (x y z t)
  :name "Graphics.Rasterific.Svg.PathConverter:arcToSegments from rasterific-svg-0.2.3.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (pow (/ x y) 2) (pow (/ z t) 2)))
 
  (+ (/ (* x x) (* y y)) (/ (* z z) (* t t))))
@@ -1286,14 +1286,14 @@
 (FPCore  (x)
  :name "Development.Shake.Profile:generateTrace from shake-0.15.5"
  :alt 
- (! :description (platform libm) 0)
+ (! :description (platform default) 0)
 
  (* 1000000.0 (- x x)))
 
 (FPCore  (x y z t a b)
  :name "Development.Shake.Progress:decay from shake-0.15.5"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (/ (+ (* z t) (* y x)) (+ y (* z (- b y)))) (/ a (+ (- b y) (/ y z)))))
 
  (/ (+ (* x y) (* z (- t a))) (+ y (* z (- b y)))))
@@ -1301,7 +1301,7 @@
 (FPCore  (x y)
  :name "Development.Shake.Progress:message from shake-0.15.5"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* (/ x 1) (/ 100.0 (+ x y))))
 
  (/ (* x 100.0) (+ x y)))
@@ -1313,7 +1313,7 @@
 (FPCore  (x y z t)
  :name "Numeric.Histogram:binBounds from Chart-1.5.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< x -9.025511195533005e-135)
    (- x (* (/ z t) (- x y)))
    (if (< x 4.275032163700715e-250)
@@ -1329,7 +1329,7 @@
 (FPCore  (x y)
  :name "Graphics.Rendering.Chart.Axis.Types:hBufferRect from Chart-1.5.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (* 1.5 x) (* 0.5 y)))
 
  (+ x (/ (- x y) 2.0)))
@@ -1337,7 +1337,7 @@
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Chart.Axis.Types:linMap from Chart-1.5.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< a -1.6153062845442575e-142)
    (+ x (* (/ (- y x) 1) (/ (- z t) (- a t))))
    (if (< a 3.774403170083174e-182)
@@ -1349,7 +1349,7 @@
 (FPCore  (x y)
  :name "Graphics.Rendering.Chart.Plot.Vectors:renderPlotVectors from Chart-1.5.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (* y x) (- y 1.0)))
 
  (+ x (* (- 1.0 x) (- 1.0 y))))
@@ -1361,7 +1361,7 @@
 (FPCore  (x y z t)
  :name "Graphics.Rendering.Chart.Plot.AreaSpots:renderAreaSpots4D from Chart-1.5.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ x (/ (- t z) (- y z))))
 
  (/ (* x (- y z)) (- t z)))
@@ -1369,14 +1369,14 @@
 (FPCore  (x y)
  :name "Graphics.Rendering.Chart.Plot.Pie:renderPie from Chart-1.5.3"
  :alt 
- (! :description (platform libm) (- y 0))
+ (! :description (platform default) (- y 0))
  
  (- (+ x y) x))
 
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Chart.SparkLine:renderSparkLine from Chart-1.5.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- x (* (/ (- y z) (+ (- t z) 1.0)) a)))
 
  (- x (/ (- y z) (/ (+ (- t z) 1.0) a))))
@@ -1384,7 +1384,7 @@
 (FPCore  (x y z)
  :name "Graphics.Rendering.Chart.Backend.Diagrams:calcFontMetrics from Chart-diagrams-1.5.1, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y -3.7429310762689856e+171)
    (* (/ (+ y x) (- y)) z)
    (if (< y 3.5534662456086734e+168)
@@ -1396,7 +1396,7 @@
 (FPCore  (x y z t)
  :name "Graphics.Rendering.Chart.Backend.Diagrams:calcFontMetrics from Chart-diagrams-1.5.1, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< (/ (* (/ y z) t) t) -1.20672205123045e+245)
    (/ y (/ z x))
    (if (< (/ (* (/ y z) t) t) -5.907522236933906e-275)
@@ -1416,7 +1416,7 @@
 (FPCore  (x y z t a b)
  :name "AI.Clustering.Hierarchical.Internal:ward from clustering-0.2.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (<
       (/ (- (+ (* (+ x y) z) (* (+ t y) a)) (* y b)) (+ (+ x t) y))
       -3.5813117084150564e+153)
@@ -1432,7 +1432,7 @@
 (FPCore  (x y z)
  :name "Numeric.SpecFunctions:invErfc from math-functions-0.1.5.2, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ x (/ 1 (- (* (/ 1.1283791670955126 y) (exp z)) x))))
 
  (+ x (/ y (- (* 1.1283791670955126 (exp z)) (* x y)))))
@@ -1450,7 +1450,7 @@
 (FPCore  (x y z)
  :name "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -8120153.652456675)
    (-
     (* (+ (/ 0.07512208616047561 z) 0.0692910599291889) y)
@@ -1482,7 +1482,7 @@
 (FPCore  (x y z)
  :name "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, C"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< x -3.326128725870005e+62)
    (- (+ (/ y (* x x)) (* 4.16438922228 x)) 110.1139242984811)
    (if (< x 9.429991714554673e+55)
@@ -1520,7 +1520,7 @@
 (FPCore  (x y z t a b)
  :name "Numeric.SpecFunctions:logGamma from math-functions-0.1.5.2, D"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -6.499344996252632e+53)
    (+
     x
@@ -1558,14 +1558,14 @@
 (FPCore  (x)
  :name "Numeric.SpecFunctions:$slogFactorial from math-functions-0.1.5.2, A"
  :alt 
- (! :description (platform libm) (/ (/ 1.0 x) x))
+ (! :description (platform default) (/ (/ 1.0 x) x))
 
  (/ 1.0 (* x x)))
 
 (FPCore  (x y z)
  :name "Numeric.SpecFunctions:$slogFactorial from math-functions-0.1.5.2, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+
    (+ (+ (* (- x 0.5) (log x)) (- 0.91893853320467 x)) (/ 0.083333333333333 x))
    (* (/ z x) (- (* z (+ y 0.0007936500793651)) 0.0027777777777778))))
@@ -1581,7 +1581,7 @@
 (FPCore  (x y z t a)
  :name "Numeric.SpecFunctions:logGammaL from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (log (+ x y)) (+ (- (log z) t) (* (- a 0.5) (log t)))))
  (+ (- (+ (log (+ x y)) (log z)) t) (* (- a 0.5) (log t))))
 
@@ -1601,7 +1601,7 @@
 (FPCore  (x y z t a b)
  :name "Numeric.SpecFunctions:logBeta from math-functions-0.1.5.2, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (+ (+ x y) (/ (* (- 1 (pow (log t) 2)) z) (+ 1 (log t)))) (* (- a 0.5) b)))
  (+ (- (+ (+ x y) z) (* z (log t))) (* (- a 0.5) b)))
 
@@ -1612,14 +1612,14 @@
 (FPCore  (x y z)
  :name "Numeric.SpecFunctions:choose from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm) (/ x (/ z (+ y z))))
+ (! :description (platform default) (/ x (/ z (+ y z))))
 
  (/ (* x (+ y z)) z))
 
 (FPCore  (x y z)
  :name "Numeric.SpecFunctions:stirlingError from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (- (+ y x) z) (* (+ y 0.5) (log y))))
 
  (- (+ (- x (* (+ y 0.5) (log y))) y) z))
@@ -1631,7 +1631,7 @@
 (FPCore  (x y)
  :name "Numeric.SpecFunctions:incompleteGamma from math-functions-0.1.5.2, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* 3.0 (+ (* y (sqrt x)) (* (- (/ 1.0 (* x 9.0)) 1.0) (sqrt x)))))
 
  (* (* 3.0 (sqrt x)) (- (+ y (/ 1.0 (* x 9.0))) 1.0)))
@@ -1643,7 +1643,7 @@
 (FPCore  (x y)
  :name "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y -81284752.61947241)
    (- 1.0 (log (- (/ x (* y y)) (- (/ 1.0 y) (/ x y)))))
    (if (< y 3.0094271212461764e+25)
@@ -1659,7 +1659,7 @@
 (FPCore  (x y)
  :name "Numeric.SpecFunctions:invIncompleteGamma from math-functions-0.1.5.2, D"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (- 1.0 (/ (/ 1.0 x) 9.0)) (/ y (* 3.0 (sqrt x)))))
 
  (- (- 1.0 (/ 1.0 (* x 9.0))) (/ y (* 3.0 (sqrt x)))))
@@ -1667,7 +1667,7 @@
 (FPCore  (x y)
  :name "Numeric.SpecFunctions:incompleteBetaApprox from math-functions-0.1.5.2, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ (/ (/ x (+ (+ y 1) x)) (+ y x)) (/ 1 (/ y (+ y x)))))
 
  (/ (* x y) (* (* (+ x y) (+ x y)) (+ (+ x y) 1.0))))
@@ -1679,7 +1679,7 @@
 (FPCore  (x y z t a b)
  :name "Numeric.SpecFunctions:incompleteBetaWorker from math-functions-0.1.5.2, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< t -0.8845848504127471)
    (/ (* x (/ (pow a (- t 1.0)) y)) (- (+ b 1) (* y (log z))))
    (if (< t 852031.2288374073)
@@ -1691,7 +1691,7 @@
 (FPCore  (x y z t)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (-
   (*
    (- z)
@@ -1703,7 +1703,7 @@
 (FPCore  (x y z t)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, C"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< (* x (- (/ y z) (/ t (- 1.0 z)))) -7.623226303312042e-196)
    (* x (- (/ y z) (* t (/ 1 (- 1.0 z)))))
    (if (< (* x (- (/ y z) (/ t (- 1.0 z)))) 1.4133944927702302e-211)
@@ -1723,7 +1723,7 @@
 (FPCore  (x y)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, F"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y -3.7311844206647956e+94)
    (/ (exp (/ -1 y)) x)
    (if (< y 2.817959242728288e+37)
@@ -1737,7 +1737,7 @@
 (FPCore  (x y z)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, G"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< (/ y (+ z y)) 7.1154157597908e-315)
    (+ x (/ (exp (/ -1 z)) y))
    (+ x (/ (exp (log (pow (/ y (+ y z)) y))) y))))
@@ -1751,7 +1751,7 @@
 (FPCore  (x y z t a b c)
  :name "Numeric.SpecFunctions:invIncompleteBetaWorker from math-functions-0.1.5.2, I"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< t -2.118326644891581e-50)
    (/
     x
@@ -1801,7 +1801,7 @@
 (FPCore  (x y z)
  :name "Numeric.SpecFunctions.Extra:bd0 from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y 7.595077799083773e-308)
    (- (* x (log (/ x y))) z)
    (- (* x (- (log x) (log y))) z)))
@@ -1817,7 +1817,7 @@
 (FPCore  (x y z t a)
  :name "Statistics.Math.RootFinding:ridders from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -3.1921305903852764e+46)
    (- (* y x))
    (if (< z 5.976268120920894e+90)
@@ -1829,7 +1829,7 @@
 (FPCore  (x y z)
  :name "Statistics.Distribution.Poisson.Internal:probability from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (exp (+ (- x z) (* (log y) y))))
 
  (exp (- (+ x (* y (log y))) z)))
@@ -1841,7 +1841,7 @@
 (FPCore  (x)
  :name "Statistics.Correlation.Kendall:numOfTiesBy from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm) (- (* x x) x))
+ (! :description (platform default) (- (* x x) x))
 
  (* x (- x 1.0)))
 
@@ -1856,7 +1856,7 @@
 (FPCore  (x y)
  :name "Statistics.Sample:$skurtosis from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (/ (/ x y) y) 3.0))
 
  (- (/ x (* y y)) 3.0))
@@ -1868,7 +1868,7 @@
 (FPCore  (x y z)
  :name "Statistics.Distribution.Beta:$cvariance from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z 249.6182814532307)
    (/ (* y (/ x z)) (+ z (* z z)))
    (/ (* (/ (/ y z) (+ 1 z)) x) z)))
@@ -1890,7 +1890,7 @@
 (FPCore  (x y z)
  :name "Statistics.Distribution.CauchyLorentz:$cdensity from math-functions-0.1.5.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< (* y (+ 1.0 (* z z))) -inf.0)
    (/ (/ 1.0 y) (* (+ 1.0 (* z z)) x))
    (if (< (* y (+ 1.0 (* z z))) 8.680743250567252e+305)
@@ -1902,7 +1902,7 @@
 (FPCore  (x y)
  :name "Examples.Basics.BasicTests:f3 from sbv-4.4"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (* x x) (+ (* y y) (* 2 (* y x)))))
 
  (* (+ x y) (+ x y)))
@@ -1918,7 +1918,7 @@
 (FPCore  (x y)
  :name "Examples.Basics.ProofTests:f4 from sbv-4.4"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (* x x) (+ (* y y) (* (* x y) 2.0))))
 
  (+ (+ (* x x) (* (* x 2.0) y)) (* y y)))
@@ -1934,7 +1934,7 @@
 (FPCore  (x y)
  :name "Data.Random.Distribution.Normal:normalTail from random-fu-0.2.6.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (+ y y) (* x x)))
 
  (+ (+ (* x x) y) y))
@@ -1946,7 +1946,7 @@
 (FPCore  (x y)
  :name "Data.Random.Distribution.T:$ccdf from random-fu-0.2.6.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (* 1/2 (/ x y)) 1/2))
 
  (/ (+ x y) (+ y y)))
@@ -1958,7 +1958,7 @@
 (FPCore  (x y z t)
  :name "Data.Random.Distribution.Triangular:triangularCDF from random-fu-0.2.6.2, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< (/ x (* (- y z) (- t z))) 0.0)
    (/ (/ x (- y z)) (- t z))
    (* x (/ 1 (* (- y z) (- t z))))))
@@ -1976,7 +1976,7 @@
 (FPCore  (x)
  :name "ReportTypes:explainFloat from gipeda-0.1.2.1"
  :alt 
- (! :description (platform libm) 0)
+ (! :description (platform default) 0)
 
  (* 100.0 (/ (- x x) x)))
 
@@ -1999,7 +1999,7 @@
 (FPCore  (x y z t)
  :name "Numeric.Signal.Multichannel:$cget from hsignal-0.2.7.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z 2.759456554562692e-282)
    (+ (* (/ x y) (- z t)) t)
    (if (< z 2.326994450874436e-110)
@@ -2011,7 +2011,7 @@
 (FPCore  (x y z t)
  :name "Numeric.Signal.Multichannel:$cput from hsignal-0.2.7.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ t (/ (- z y) (- x y))))
 
  (* (/ (- x y) (- z y)) t))
@@ -2023,7 +2023,7 @@
 (FPCore  (x y)
  :name "Data.HyperLogLog.Type:size from hyperloglog-0.3.4, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* x (log (- 1.0 (/ y x)))))
 
  (* (* x 1.0) (log (- 1.0 (/ y x)))))
@@ -2031,7 +2031,7 @@
 (FPCore  (x y)
  :name "Data.HyperLogLog.Type:size from hyperloglog-0.3.4, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y 1.2973149052617803e-303)
    (* x (log (/ x y)))
    (/ x (/ 1 (- (log x) (log y))))))
@@ -2041,7 +2041,7 @@
 (FPCore  (x y z)
  :name "Diagrams.Backend.Cairo.Internal:setTexture from diagrams-cairo-1.3.0.3"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -2.060202331921739e+104)
    (- x (/ (* z x) y))
    (if (< z 1.6939766013828526e+213) (/ x (/ y (- y z))) (* (- y z) (/ x y)))))
@@ -2055,7 +2055,7 @@
 (FPCore  (x y)
  :name "Numeric.Integration.TanhSinh:everywhere from integration-0.2.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ x (* (* x y) y)))
 
  (* x (+ 1.0 (* y y))))
@@ -2063,7 +2063,7 @@
 (FPCore  (x y z t)
  :name "Data.Metrics.Snapshot:quantile from metrics-0.3.0.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ x (+ (* t (- y z)) (* (- x) (- y z)))))
 
  (+ x (* (- y z) (- t x))))
@@ -2071,7 +2071,7 @@
 (FPCore  (x y)
  :name "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendOutside from plot-0.2.3.4, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ y (* 2 x)))
 
  (+ (+ x y) x))
@@ -2087,7 +2087,7 @@
 (FPCore  (x y z)
  :name "Graphics.Rendering.Plot.Render.Plot.Legend:renderLegendOutside from plot-0.2.3.4, C"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ (* (+ x 5.0) z) (* x y)))
 
  (+ (* x (+ y z)) (* z 5.0)))
@@ -2095,7 +2095,7 @@
 (FPCore  (x y z t)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:tickPosition from plot-0.2.3.4"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< (* (- y x) (/ z t)) -1013646692435.8867)
    (+ x (/ (- y x) (/ t z)))
    (if (< (* (- y x) (/ z t)) -0.0)
@@ -2107,7 +2107,7 @@
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisLine from plot-0.2.3.4, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ x (/ y (/ (- z a) (- z t)))))
 
  (+ x (* y (/ (- z t) (- z a)))))
@@ -2115,7 +2115,7 @@
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisLine from plot-0.2.3.4, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< y -8.508084860551241e-17)
    (+ x (* y (/ (- z t) (- a t))))
    (if (< y 2.894426862792089e-49)
@@ -2127,7 +2127,7 @@
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTick from plot-0.2.3.4, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< t -1.0682974490174067e-39)
    (+ x (* (/ (- y z) (- a z)) t))
    (if (< t 3.9110949887586375e-141)
@@ -2139,7 +2139,7 @@
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTick from plot-0.2.3.4, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< (- (+ x y) (/ (* (- z t) y) (- a t))) -1.3664970889390727e-07)
    (- (+ y x) (* (* (- z t) (/ 1 (- a t))) y))
    (if (< (- (+ x y) (/ (* (- z t) y) (- a t))) 1.4754293444577233e-239)
@@ -2151,7 +2151,7 @@
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTicks from plot-0.2.3.4, A"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ x (/ y (/ (- z a) (- z t)))))
 
  (+ x (/ (* y (- z t)) (- z a))))
@@ -2159,7 +2159,7 @@
 (FPCore  (x y z t a)
  :name "Graphics.Rendering.Plot.Render.Plot.Axis:renderAxisTicks from plot-0.2.3.4, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ x (/ y (/ (- a t) (- z t)))))
 
  (+ x (/ (* y (- z t)) (- a t))))
@@ -2167,7 +2167,7 @@
 (FPCore  (x y z)
  :name "Data.Array.Repa.Algorithms.Pixel:doubleRmsOfRGB8 from repa-algorithms-3.4.0.1"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -6.396479394109776e+136)
    (/ (- z) (sqrt 3.0))
    (if (< z 7.320293694404182e+117)
@@ -2183,7 +2183,7 @@
 (FPCore  (x y z)
  :name "Data.Array.Repa.Algorithms.ColorRamp:rampColorHotToCold from repa-algorithms-3.4.0.1, B"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (- (* 4.0 (/ x z)) (+ 2.0 (* 4.0 (/ y z)))))
 
  (/ (* 4.0 (- (- x y) (* z 0.5))) z))
@@ -2195,7 +2195,7 @@
 (FPCore  (x)
  :name "Data.Spline.Key:interpolateKeys from smoothie-0.4.0.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* x (* x (- 3.0 (* x 2.0)))))
 
  (* (* x x) (- 3.0 (* x 2.0))))
@@ -2203,7 +2203,7 @@
 (FPCore  (x y z)
  :name "FRP.Yampa.Vector3:vector3Rho from Yampa-0.10.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (if (< z -6.396479394109776e+136)
    (- z)
    (if (< z 7.320293694404182e+117) (sqrt (+ (+ (* z z) (* x x)) (* y y))) z)))
@@ -2213,7 +2213,7 @@
 (FPCore  (x y z t)
  :name "SynthBasics:moogVCF from YampaSynth-0.2"
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (+ x (* y (* z (- (tanh (/ t y)) (tanh (/ x y)))))))
   
  (+ x (* (* y z) (- (tanh (/ t y)) (tanh (/ x y))))))

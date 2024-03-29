@@ -9,7 +9,7 @@
  :name "2sqrt (example 3.1)"
  :pre (and (> x 1) (< x 1e+308))
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ 1 (+ (sqrt (+ x 1)) (sqrt x))))
 
  (- (sqrt (+ x 1)) (sqrt x)))
@@ -23,7 +23,7 @@
  :name "2isqrt (example 3.6)"
  :pre (and (> x 1) (< x 1e+308))
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ 1 (+ (* (+ x 1) (sqrt x)) (* x (sqrt (+ x 1))))))
 
  (- (/ 1 (sqrt x)) (/ 1 (sqrt (+ x 1)))))
@@ -39,7 +39,7 @@
  ; Half of floating point numbers are > 1 so this will sample large enough x.
  :pre (> (fabs x) 1)
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ 2 (* x (- (* x x) 1))))
 
  (+ (- (/ 1 (+ x 1)) (/ 2 x)) (/ 1 (- x 1))))
@@ -53,12 +53,12 @@
  :name "2cbrt (problem 3.3.4)"
  :pre (and (> x 1) (< x 1e+308))
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (/ 1 (+ (* (cbrt (+ x 1)) (cbrt (+ x 1))) (* (cbrt x) (cbrt (+ x 1))) (* (cbrt x) (cbrt x)))))
  
  (- (cbrt (+ x 1)) (cbrt x)))
 
-; This is a slightly unique rewrite because it involves the use of the libm function log1p 
+; This is a slightly unique rewrite because it involves the use of the default function log1p 
 ; as Hamming gave this as an exercise with no real hint on how to approach this.
 ; For the precondition we want large values of N as described by Hamming. Hence, we chose the range for reasonable
 ; values for which this could be queried and have relevant sampling and still being described as a large enough N.
@@ -69,7 +69,7 @@
  :name "2log (problem 3.3.6)"
  :pre (and (> N 1) (< N 1e+40))
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (log1p (/ 1 N)))
 
  (- (log (+ N 1)) (log N)))
@@ -86,7 +86,7 @@
 ; :name "2log (problem 3.3.6)"
 ; :pre (and (> N 1) (< N 1e+40))
 ; :alt 
-; (! :description (platform libm)
+; (! :description (platform default)
 ;  (if (>= N 1e+3)
 ;    (+ (/ 1 N) (/ -1 (* 2 (pow N 2))) (/ 1 (* 3 (pow N 3))) (/ -1 (* 4 (pow N 4))))
 ;    (log (+ 1 (/ 1 N)))))
@@ -99,7 +99,7 @@
  ; Bounded x on the extremes  by +/- 710 to avoid sampling infinite outputs
  ; Target comes from Hamming's textbook, page 46
  :alt 
- (! :description (platform libm)
+ (! :description (platform default)
   (* 4 (* (sinh (/ x 2)) (sinh (/ x 2)))))
 
  (+ (- (exp x) 2) (exp (- x))))

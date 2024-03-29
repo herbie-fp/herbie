@@ -1,4 +1,5 @@
 ; -*- mode: scheme -*-
+
 (FPCore (x eps)
   :name "2sin (example 3.3)"
   :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
@@ -13,10 +14,8 @@
   (! :description (platform default)
    (+ (* (cos x) (sin eps)) (- (* (cos eps) (sin x)) (sin x))))
 
-  ;:alt 
-  ;(! :description (platform foo)
-  ; (foo x))
+  :alt 
+  (! :description (platform foo)
+   (cos x))
  
   (- (sin (+ x eps)) (sin x)))
-
-; :alt (! :description (platform math) (+ (* (cos x) (sin eps)) (- (* (cos eps) (sin x)) (sin x))))

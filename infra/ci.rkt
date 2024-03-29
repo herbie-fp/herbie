@@ -7,6 +7,9 @@
 (define *precision* (make-parameter #f))
 
 (define (test-successful? test input-bits target-bits output-bits)
+  ; (displayln (format "output ~a" (test-output test)))
+  ; (displayln (format "expected ~a" (test-expected test)))
+  ; (displayln (format "target-bits ~a" target-bits))
   (match* ((test-output test) (test-expected test))
     [(_ #f) #t]
     [(_ (? number? n)) (>= n output-bits)]
@@ -64,11 +67,10 @@
                (test-name test))
 
        (define success?
-        (and target-error
-            (test-successful? test
-                              (errors-score start-error)
-                              (errors-score target-error)
-                              (errors-score end-error))))
+          (test-successful? test
+                            (errors-score start-error)
+                            (if target-error (errors-score target-error) #f)
+                            (errors-score end-error)))
 
        (when (not success?)
          (printf "\nInput (~a bits):\n" (errors-score start-error))
