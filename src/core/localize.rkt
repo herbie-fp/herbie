@@ -2,10 +2,10 @@
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt" "../alternative.rkt" "../platform.rkt")
+         "../syntax/syntax.rkt" "../alternative.rkt" "../platform.rkt" "simplify.rkt" "egg-herbie.rkt" "../syntax/rules.rkt")
 
 (provide batch-localize-error batch-localize-cost local-error-as-tree compute-local-errors
-         all-subexpressions)
+         all-subexpressions )
 
 (define (all-subexpressions expr repr)
   (remove-duplicates
@@ -46,24 +46,66 @@
   (define subexprss
     (for/list ([expr (in-list exprs)])
       (all-subexpressions expr (context-repr ctx))))
+
   (define costs '())
-  
+  (define globalRepr "")
   ;;Sort through each each subexpression and append a pair of expression and cost to the list costs
   (for-each (lambda (subexprs)
     (for-each (lambda (subexpr)
       (define expr(car subexpr));;This subexpr is of form:(+.f64 N 1)
       (define repr (cdr subexpr));;The repr is in the form #<representation binary64>
+      (set! globalRepr repr)
       (define cost((platform-cost-proc (*active-platform*)) expr repr))
       (set! costs (cons (cons expr cost) costs))
       )
     subexprs))
   subexprss)
-  ;;Sorts the list by cost
-  (define sorted-costs 
-    (sort costs
-      (lambda (pair1 pair2)
-      (< (cdr pair1) (cdr pair2)))))
-  sorted-costs)
+
+  (define simplified-exprs  (simplify-batch (make-egg-query (reverse (map car costs)) (*simplify-rules*))))
+
+(define simple-costs '())
+(for-each (lambda (simple-subexpr)
+  (if (= (length simple-subexpr) 2)
+    (let ((cost ((platform-cost-proc (*active-platform*)) (cadr simple-subexpr) globalRepr)))
+      ;(displayln "Test1")
+      ;(displayln (cadr simple-subexpr))
+      (set! simple-costs (cons (cons (cadr simple-subexpr) cost) simple-costs)))
+    (let ((cost ((platform-cost-proc (*active-platform*)) (car simple-subexpr) globalRepr)))
+      ;;(displayln "Test2")
+      ;;(displayln (car simple-subexpr))
+      (set! simple-costs (cons (cons (car simple-subexpr) cost) simple-costs)))))
+        simplified-exprs)
+
+  (define cost-opportunity '())
+  (for-each 
+    (lambda (costs-pair simple-costs-pair)
+      (define diff (- (cdr costs-pair) (cdr simple-costs-pair)))
+      (if (> diff 5)
+      (displayExpr (car costs-pair) (car simple-costs-pair) diff)
+        ;;(set! cost-opportunity (cons (cons (car costs-pair) diff ) cost-opportunity))
+        (display ""))
+      )
+    costs simple-costs)
+
+  (define sorted-cost-opportunity
+    (sort cost-opportunity
+      (lambda (a b) (> (cdr a) (cdr b)))))
+
+
+  (define cost-error (append sorted-cost-opportunity (batch-localize-error exprs ctx)))
+
+  sorted-cost-opportunity)
+
+(define (displayExpr before after diff)
+  (displayln "Before")
+  (displayln before)
+  (displayln "after")
+  (displayln after)
+  (displayln "diff")
+  (displayln diff)
+  (displayln "____"))
+
+
 
 
 
