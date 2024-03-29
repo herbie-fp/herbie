@@ -142,11 +142,11 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-(define-accelerator-operator expm1 (real) real (lambda (x) (- (exp x) 1)) ival-expm1)
-(define-accelerator-operator log1p (real) real (lambda (x) (log (+ 1 x))) ival-log1p)
+(define-accelerator-operator expm1 (real) real (lambda (x) x) ival-expm1)
+(define-accelerator-operator log1p (real) real (lambda (x) x) ival-log1p)
 (define-accelerator-operator hypot (real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))) ival-hypot)
 (define-accelerator-operator fma (real real real) real (lambda (x y z) (+ (* x y) z)) ival-fma)
-(define-accelerator-operator erfc (real) real (lambda (x) (- 1 (erf x))) ival-erfc)
+(define-accelerator-operator erfc (real) real (lambda (x) x) ival-erfc)
 
 ; Specialized numerical functions
 (define-ruleset* special-numerical-reduce (numerics simplify)
