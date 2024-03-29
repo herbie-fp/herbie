@@ -490,9 +490,9 @@
      (define outlo-exp (log2-approx outlo))
      (define outhi (ival-hi output))
      (define outhi-exp (log2-approx outhi))
-
+     
      (+ (- (+ (max xlo-exp xhi-exp) 1)                   ; main formula: log[x] - log[log1p] + 1
-           (min (outlo-exp outhi-exp)))
+           (min outlo-exp outhi-exp))
         (if (or (equal? (bigfloat-signbit xlo) 1)        ; slack part
                 (equal? (bigfloat-signbit xhi) 1))       ; if x in negative
             (get-slack)
