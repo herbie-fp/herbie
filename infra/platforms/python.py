@@ -25,27 +25,16 @@ time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time
 class PythonRunner(Runner):
     """`Runner` for Python 3.10"""
     
-    def __init__(
-        self,
-        working_dir: str,
-        herbie_path: str,
-        num_inputs: Optional[int] = 10000,
-        num_runs: int = 100,
-        threads: int = 1
-    ):
+    def __init__(self, **kwargs):
         super().__init__(
             name='python',
             lang='python',
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            num_inputs=num_inputs,
-            num_runs=num_runs,
-            threads=threads,
             unary_ops=unary_ops,
             binary_ops=binary_ops,
             ternary_ops=ternary_ops,
             nary_ops=nary_ops,
-            time_unit='ms'
+            time_unit='ms',
+            **kwargs
         )
 
     def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:

@@ -21,7 +21,8 @@ class FPCore(object):
         compiled: Optional[str] = None,
         cost: Optional[float] = None,
         err: Optional[float] = None,
-        py_sample: bool = False
+        py_sample: bool = False,
+        override: bool = False
     ):
         self.core = core
         self.key = key
@@ -32,6 +33,7 @@ class FPCore(object):
         self.cost = cost
         self.err = err
         self.py_sample = py_sample
+        self.override = override
     
     def __repr__(self) -> str:
         return 'FPCore(' + \
@@ -43,7 +45,8 @@ class FPCore(object):
             'compiled=' + repr(self.compiled) + ', ' + \
             'cost=' + repr(self.cost) + ', ' + \
             'err=' + repr(self.err) + ', ' + \
-            'py_sample=' + repr(self.py_sample) + ')'
+            'py_sample=' + repr(self.py_sample) + ', ' + \
+            'override=' + repr(self.override) + ')'
 
 def parse_core(s: str) -> FPCore:
     """Parses a string as an FPCore."""

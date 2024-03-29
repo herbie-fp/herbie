@@ -5,7 +5,6 @@ import os
 
 from platforms.fpcore import FPCore
 from platforms.runner import Runner
-from platforms.cache import Cache
 
 from platforms.arith import ArithRunner
 from platforms.c import CRunner
@@ -24,11 +23,6 @@ default_num_threads = 1
 default_herbie_threads = 1
 default_num_points = 10_000
 default_num_runs = 25
-
-def write_fpcores(path: str, cores: List[FPCore]):
-    with open(path, 'w') as f:
-        for core in cores:
-            print(core.core, file=f)
 
 # TODO: what should we do with unsamplable FPCores
 def prune_unsamplable(samples: List[List[List[float]]], cores: List[FPCore]):
@@ -52,15 +46,12 @@ def check_samples(samples: List[List[List[float]]], cores: List[FPCore]):
 def run(
     runner: Runner,
     tune: bool,
-    restore: bool,
     baseline: Optional[str],
     py_sample: bool,
     herbie_params: Optional[Tuple[str, int]] = None
 ):
-    # generate phase
-    if restore:
-        raise NotImplementedError('unimplemented: restore from directory')
-    elif herbie_params is not None:
+    # generate and analyze phase
+    if herbie_params is not None:
         # Using FPCores from directory, generate implementations using Herbie
         bench_dir, threads = herbie_params
         bench_dir = os.path.join(curr_dir, bench_dir)
@@ -88,12 +79,7 @@ def run(
         samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
         input_cores = cores
 
-    input_cores_path = runner.working_dir.joinpath('input.fpcore')
-    write_fpcores(str(input_cores_path), input_cores)
-
-    platform_cores_path = runner.working_dir.joinpath('platform.fpcore')
-    write_fpcores(str(platform_cores_path), cores)
-
+    # plot phase
     if tune:
         # tuning cost model       
         runner.herbie_compile(cores=cores)
@@ -111,13 +97,11 @@ def run(
 
         baseline_cores = runner.herbie_improve(cores=input_cores, threads=threads, platform=baseline)
         baseline_cores = runner.herbie_desugar(input_cores=input_cores, cores=baseline_cores)
+
         runner.herbie_cost(cores=baseline_cores) # recompute the cost
         runner.herbie_error(cores=baseline_cores) # recompute the error
+
         baseline_frontier = runner.herbie_pareto(input_cores=input_cores, cores=baseline_cores)
-
-        baseline_cores_path = runner.working_dir.joinpath('baseline.fpcore')
-        write_fpcores(str(baseline_cores_path), baseline_cores)
-
         runner.plot_pareto_comparison((runner.name, frontier), (f'{baseline} (baseline)', baseline_frontier))
     else:
         # run and plot results
@@ -142,8 +126,8 @@ def main():
     parser.add_argument('--num-runs', help='number of times to run drivers to obtain an average [100 by default]', type=int)
     parser.add_argument('--tune', help='cost tuning mode [OFF by default].', action='store_const', const=True, default=False)
     parser.add_argument('--baseline', help='platform to perform a baseline comparison', type=str)
-    parser.add_argument('--restore', help='restores FPCores from the working directory', action='store_const', const=True, default=False)
     parser.add_argument('--py-sample', help='uses a Python based sampling method. Useful for debugging', action='store_const', const=True, default=False)
+    parser.add_argument('--key', help='unique identifier under which to place plots and other output', type=str)
     parser.add_argument('lang', help='output language to use', type=str)
     parser.add_argument('output_dir', help='directory to emit all working files', type=str)
 
@@ -161,10 +145,10 @@ def main():
     num_runs = args.get('num_runs', default_num_runs)
     tune = args.get('tune')
     baseline = args.get('baseline', None)
-    restore = args.get('restore')
     py_sample = args.get('py_sample')
+    key = args.get('key', None)
     lang = args['lang']
-    output_dir = args['output_dir']
+    output_dir = os.path.join(curr_dir, args['output_dir'])
 
     if lang == 'arith':
         runner = ArithRunner(
@@ -172,7 +156,8 @@ def main():
             herbie_path=herbie_path,
             num_inputs=num_points,
             num_runs=num_runs,
-            threads=threads
+            threads=threads,
+            key=key
         )
     elif lang == 'c':
         runner = CRunner(
@@ -180,7 +165,8 @@ def main():
             herbie_path=herbie_path,
             num_inputs=num_points,
             num_runs=num_runs,
-            threads=threads
+            threads=threads,
+            key=key
         )
     elif lang == 'math':
         runner = MathRunner(
@@ -188,7 +174,8 @@ def main():
             herbie_path=herbie_path,
             num_inputs=num_points,
             num_runs=num_runs,
-            threads=threads
+            threads=threads,
+            key=key
         )
     elif lang == 'mkl':
         runner = MKLRunner(
@@ -196,7 +183,8 @@ def main():
             herbie_path=herbie_path,
             num_inputs=num_points,
             num_runs=num_runs,
-            threads=threads
+            threads=threads,
+            key=key
         )
     elif lang == 'python':
         runner = PythonRunner(
@@ -204,19 +192,20 @@ def main():
             herbie_path=herbie_path,
             num_inputs=num_points,
             num_runs=num_runs,
-            threads=threads
+            threads=threads,
+            key=key
         )
     else:
         raise ValueError(f'Unsupported output language: {lang}')
 
-    if not tune and not restore:
-        # need to run Herbie
+    if tune:
+        # FPCores are synthetic
+        herbie_params = None
+    else:
+        # need to actually run Herbie
         if bench_dir is None:
             raise ValueError('Need an directory to run Herbie on, try `--herbie_input`')
         herbie_params = (bench_dir, herbie_threads)
-    else:
-        # FPCores are either synthetic or restored from a directory
-        herbie_params = None
 
     if tune and baseline:
         print('WARN: baseline mode will be ignored when tuning')
@@ -225,7 +214,6 @@ def main():
         runner=runner,
         tune=tune,
         baseline=baseline,
-        restore=restore,
         herbie_params=herbie_params,
         py_sample=py_sample
     )

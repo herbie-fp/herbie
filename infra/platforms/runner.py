@@ -5,35 +5,13 @@ from pathlib import Path
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 import shutil
-import math
 
 from .cache import Cache, sanitize_name
 from .fpcore import FPCore, parse_core
-from .util import sample_repr, chunks
+from .util import sample_repr, chunks, py_to_racket, racket_to_py
 
 def baseline() -> FPCore:
-    return FPCore(core='(FPCore () :name "baseline" 0)', key='synth:baseline', name='baseline', argc=0)
-
-def racket_to_py(s: str):
-    if s == '+inf.0':
-        return math.inf
-    elif s == '-inf.0':
-        return -math.inf
-    elif s == '+nan.0':
-        return math.nan
-    else:
-        return float(s)
-    
-def py_to_racket(v: float):
-    if math.isnan(v):
-        return '+nan.0'
-    elif math.isinf(v):
-        if v < 0:
-            return '-inf.0'
-        else:
-            return '+inf.0'
-    else:
-        return str(v)
+    return FPCore(core='(FPCore () :name "baseline" 0)', key='synth:baseline', name='baseline', argc=0, override=True)
     
 def sample_to_pcontext(sample):
     points, gts = sample
@@ -63,7 +41,6 @@ def error1(config: Tuple[FPCore, List, str, str]):
         _ = server.stdout.read()
 
     return float(output)
-
 
 def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], List[float]]:
     core, num_inputs, herbie_path, platform, py_sample = config
@@ -130,7 +107,8 @@ class Runner(object):
         unary_ops: List[str] = [],
         binary_ops: List[str] = [],
         ternary_ops: List[str] = [],
-        nary_ops: List[Tuple[int, str]] = []
+        nary_ops: List[Tuple[int, str]] = [],
+        key: Optional[str] = None
     ):
         # configuration data
         self.name = name
@@ -145,11 +123,19 @@ class Runner(object):
         self.ternary_ops = ternary_ops
         self.nary_ops = nary_ops
         self.time_unit = time_unit
+
+        self.driver_dir = self.working_dir.joinpath('drivers', self.name)
+        self.graphs_dir = self.working_dir.joinpath('graphs', self.name)
+        if key is not None:
+            self.graphs_dir = self.graphs_dir.joinpath(key)
+
         # mutable data
-        self.cache = Cache(working_dir)
-        # if the working directory does not exist, create it
-        if not self.working_dir.exists():
-            self.working_dir.mkdir(parents=True)
+        self.cache = Cache(str(self.working_dir.joinpath('cache')))
+        # if the working directories do not exist, create them
+        if not self.driver_dir.exists():
+            self.driver_dir.mkdir(parents=True)
+        if not self.graphs_dir.exists():
+            self.graphs_dir.mkdir(parents=True)
         self.log('created working directory at `' + str(self.working_dir) + '`')
         # restore cache
         self.cache.restore()
@@ -452,9 +438,10 @@ class Runner(object):
         """Creates the subdirectories for each driver: one subdirectory
         per FPCore in `cores`. Returns the list of subdirectories.
         Likely a utility function for `make_drivers()`."""
+        # Nest the drivers properly
         driver_dirs = []
         for i, _ in enumerate(cores):
-            subdir = self.working_dir.joinpath(Path(str(i)))
+            subdir = self.driver_dir.joinpath(Path(str(i)))
             if subdir.exists():
                 shutil.rmtree(subdir)
             subdir.mkdir()
@@ -497,38 +484,44 @@ class Runner(object):
     def plot_times(self, cores: List[FPCore], times: List[float]):
         """Plots Herbie cost estimate vs. actual run time."""
         costs = list(map(lambda c: c.cost, cores))
-        path = self.working_dir.joinpath('time.png')
         plt.scatter(costs, times)
         plt.title('Estimated cost vs. actual run time')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Run time ({self.time_unit})')
+
+        path = self.graphs_dir.joinpath('time.png')
         plt.savefig(f'{str(path)}')
+        plt.close()
 
     def plot_pareto(self, frontier: List[Tuple[float, float]]):
         """Plots cost vs. accuracy Pareto frontier."""
-        costs = []
-        errs = []
-        for cost, err in frontier:
-            costs.append(cost)
-            errs.append(err)
+        costs = list(map(lambda pt: pt[0], frontier))
+        errs = list(map(lambda pt: pt[1], frontier))
 
-        path = self.working_dir.joinpath('pareto.png')
         plt.plot(costs, errs, label='Points')
         plt.title('Estimated cost vs. cumulative average error (bits)')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Cumulative average error')
+
+        path = self.graphs_dir.joinpath('pareto.png')
         plt.savefig(f'{str(path)}')
+        plt.close()
 
     def plot_pareto_comparison(self, *frontiers):
         """Plots two cost vs. accuracy Pareto frontiers"""
+        names = []
         for name, frontier in frontiers:
             costs = list(map(lambda p: p[0], frontier))
             errs = list(map(lambda p: p[1], frontier))
             plt.plot(costs, errs, label=name)
+            names.append(name)
 
-        path = self.working_dir.joinpath('baseline.png')
         plt.title('Estimated cost vs. cumulative average error (bits)')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Cumulative average error')
         plt.legend()
+
+        name_str = '_'.join(names)
+        path = self.graphs_dir.joinpath(f'compare_{name_str}.png')
         plt.savefig(f'{str(path)}')
+        plt.close()

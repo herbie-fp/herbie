@@ -27,5 +27,9 @@ fi
 echo "Running platforms evaluation"
 python3 $INFRA_DIR/platforms-eval.py \
   "$OUTDIR/platforms" $HERBIE_THREADS $THREADS \
-  "c $BENCH_DIR/hamming 2500 default" \
-  "c $BENCH_DIR/physics 2500 default"
+  "hamming_c c $BENCH_DIR/hamming 10000 default" \
+  "physics_c c $BENCH_DIR/physics 10000 default python"
+
+# clean up cache and build files
+rm -rf "$OUTDIR/platforms/cache"
+rm -rf "$OUTDIR/platforms/drivers"

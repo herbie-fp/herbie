@@ -8,40 +8,44 @@ script_dir, _ = os.path.split(script_path)
 runner_path = os.path.join(script_dir, 'cost.py')
 
 def run_config(output_dir: str, num_herbie_threads: int, num_threads: int, config):
-    platform: str = config[0]
-    bench_dir: str = config[1]
-    num_points: int = config[2]
-    baselines: List[str] = config[3]
+    name: str = config[0]
+    platform: str = config[1]
+    bench_dir: str = config[2]
+    num_points: int = config[3]
+    baselines: List[str] = config[4]
 
     # tune
-    tune_path = os.path.join(output_dir, platform, 'tune')
     subprocess.run([
         'python3', runner_path,
-         '--threads', str(num_threads), '--num-points', str(num_points),
-         '--tune', 
-         platform, tune_path
+         '--threads', str(num_threads),
+         '--num-points', str(num_points),
+         '--key', name,
+         '--tune',
+         platform, output_dir
     ])
 
     # cost
-    cost_path = os.path.join(output_dir, platform, 'cost')
     subprocess.run([
         'python3', runner_path, 
-        '--threads', str(num_threads), '--num-points', str(num_points),
+        '--threads', str(num_threads),
+        '--num-points', str(num_points),
+        '--key', name,
         '--herbie-threads', str(num_herbie_threads), 
         '--herbie-input', bench_dir,
-        platform, cost_path
+        platform, output_dir
     ])
 
     # baselines
     for baseline in baselines:
-        cost_path = os.path.join(output_dir, platform, 'baseline', baseline)
         subprocess.run([
             'python3', runner_path, 
-            '--threads', str(num_threads), '--num-points', str(num_points),
+            '--threads', str(num_threads),
+            '--num-points', str(num_points),
+            '--key', name,
             '--herbie-threads', str(num_herbie_threads), 
             '--herbie-input', bench_dir,
             '--baseline', baseline,
-            platform, cost_path
+             platform, output_dir
         ])
 
 def main():
@@ -61,14 +65,15 @@ def main():
     configs = []
     for config_str in config_strs:
         atoms = config_str.strip().split(' ')
-        if len(atoms) < 3:
+        if len(atoms) < 4:
             raise RuntimeError(f'Malformed config: {config_str}')
         
-        platform = atoms[0]
-        bench = atoms[1]
-        num_points = atoms[2]
-        baselines = atoms[3:]
-        configs.append((platform, bench, num_points, baselines))
+        name = atoms[0]
+        platform = atoms[1]
+        bench = atoms[2]
+        num_points = atoms[3]
+        baselines = atoms[4:]
+        configs.append((name, platform, bench, num_points, baselines))
 
     for config in configs:
         run_config(output_dir, num_herbie_threads, num_threads, config)

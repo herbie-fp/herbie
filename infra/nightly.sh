@@ -29,16 +29,16 @@ else
 fi
 
 # run platforms eval
-bash "$INFRA_DIR"/cost.sh "$OUT_DIR"
+bash "$INFRA_DIR"/platforms-eval.sh "$OUT_DIR"
 
 # run
-# RECURSE=1 LOG=1 \
-#   bash "$INFRA_DIR"/run.sh \
-#     "$BENCH_DIR" "$OUT_DIR" \
-#     --profile \
-#     --seed "$SEED" \
-#     --threads "$CORES" \
-#     $FLAGS
+RECURSE=1 LOG=1 \
+  bash "$INFRA_DIR"/run.sh \
+    "$BENCH_DIR" "$OUT_DIR" \
+    --profile \
+    --seed "$SEED" \
+    --threads "$CORES" \
+    $FLAGS
 
 # upload
 bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
