@@ -95,9 +95,9 @@
 
 (define (run-lowering altns)
   (define exprs (map alt-expr altns))
-  
-  (list))
-  
+  (for/list ([expr (in-list exprs)] [altn (in-list altns)])
+    (define expr* (spec->prog expr (*context*)))
+    (alt expr* (list 'lower) (list altn) '())))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -108,12 +108,11 @@
   (define exprs (append hi-err-exprs lo-err-exprs)) ; who cares any more
   (define uncached
     (for/list ([expr (in-list exprs)] #:unless (patch-table-has-expr? expr))
-      (alt (prog->spec expr) '(patch) '() '())))
+      (alt (prog->spec expr) (list 'patch expr) '() '())))
   ;; Core
   (define approximations (run-taylor uncached))
   (define rewritten (run-rr uncached))
   (define new-specs (append approximations rewritten))
-  (define progs (run-lowering new-specs))
-  (printf "~a\n" progs)
-
-  (list))
+  (define altns (run-lowering new-specs))
+  ;; Uncaching
+  altns)

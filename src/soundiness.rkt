@@ -85,16 +85,17 @@
     [else altn]))
 
 (define (add-soundiness alts pcontext ctx)
-  (define table (make-hasheq))
-  (for ([altn (in-list alts)])
-    (alt-map (curryr collect-necessary-proofs table) altn))
-  (define proof-table
-    (for/hash ([(e-input p-inputs) (in-hash table)])
-      (match-define (cons variants proofs)
-        (run-egg e-input #f #:proof-inputs p-inputs
-                 #:proof-ignore-when-unsound? #t))
-      (values e-input (map cons p-inputs proofs))))
+  alts)
+  ; (define table (make-hasheq))
+  ; (for ([altn (in-list alts)])
+  ;   (alt-map (curryr collect-necessary-proofs table) altn))
+  ; (define proof-table
+  ;   (for/hash ([(e-input p-inputs) (in-hash table)])
+  ;     (match-define (cons variants proofs)
+  ;       (run-egg e-input #f #:proof-inputs p-inputs
+  ;                #:proof-ignore-when-unsound? #t))
+  ;     (values e-input (map cons p-inputs proofs))))
 
-  (define cache (make-hash))
-  (for/list ([altn alts])
-    (alt-map (curry add-soundiness-to pcontext ctx cache proof-table) altn)))
+  ; (define cache (make-hash))
+  ; (for/list ([altn alts])
+  ;   (alt-map (curry add-soundiness-to pcontext ctx cache proof-table) altn)))

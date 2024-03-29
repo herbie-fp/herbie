@@ -249,7 +249,7 @@
   ;; extracts the base expression of a patch
   (define (get-starting-expr altn)
     (match (alt-event altn)
-     ['(patch) (alt-expr altn)]
+     [(list 'patch expr) expr]
      [_
       (if (null? (alt-prevs altn))
           #f
@@ -259,32 +259,36 @@
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
       (match-define (alt _ event prevs _) altn)
-      (cond
-       [(equal? event '(patch)) orig]
-       [else
-        (define event*
-          ;; The 2 at the start of locs is left over from when we
-          ;; differentiated between "programs" with a λ term and
-          ;; "expressions" without
-          (match event
-           [(list 'taylor '() name var)
-            (list 'taylor loc0 name var)]
-           [(list 'rr '() input proof soundiness)
-            (list 'rr loc0 input proof soundiness)]
-           [(list 'simplify '() input proof soundiness)
-            (list 'simplify loc0 input proof soundiness)]))
-        (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
-        (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
+      (match event
+        [(list 'patch _) orig]
+        [_
+         (define event*
+           ;; The 2 at the start of locs is left over from when we
+           ;; differentiated between "programs" with a λ term and
+           ;; "expressions" without
+           (match event
+            [(list 'taylor '() name var)
+             (list 'taylor loc0 name var)]
+            [(list 'rr '() input proof soundiness)
+             (list 'rr loc0 input proof soundiness)]
+            [(list 'lower)
+             (list 'lower)]
+            [(list 'simplify '() input proof soundiness)
+             (list 'simplify loc0 input proof soundiness)]))
+         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
+         (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
   
   (^patched^
-   (reap [sow]
-     (for ([altn (in-list alts)]) ;; does not have preproc
-       (define expr0 (get-starting-expr altn))
-       (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
-           (for* ([alt0 (in-list (^next-alts^))]
-                 [loc (in-list (get-locations (alt-expr alt0) expr0))])
-             (sow (reconstruct-alt altn loc alt0)))
-           (sow altn)))))
+    (reap [sow]
+      (for ([altn (in-list alts)]) ;; does not have preproc
+        (match (get-starting-expr altn)
+          [#f
+           ; altn is a full alt (probably iter 0 simplify)
+           (sow altn)]
+          [expr0
+           (for ([full-altn (in-list (^next-alts^))])
+             (for ([loc (in-list (get-locations (alt-expr full-altn) expr0))])
+               (sow (reconstruct-alt altn loc full-altn))))]))))
 
   (void))
 
@@ -342,11 +346,14 @@
   (match-define (cons initial simplified) alternatives)
   (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
-  (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
-  (timeline-event! 'eval)
-  (define-values (errss costs) (atab-eval-altns table simplified* context))
-  (timeline-event! 'prune)
-  (^table^ (atab-add-altns table simplified* errss costs)))
+  (^table^ table))
+
+  ; TODO: initial simplify
+  ; (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
+  ; (timeline-event! 'eval)
+  ; (define-values (errss costs) (atab-eval-altns table simplified* context))
+  ; (timeline-event! 'prune)
+  ; (^table^ (atab-add-altns table simplified* errss costs)))
 
 (define (explain! simplified)
   (timeline-event! 'explain)
