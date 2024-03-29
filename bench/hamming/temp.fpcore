@@ -10,7 +10,7 @@
    (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2))))
 
   :alt 
-  (! :description (platform math)
+  (! :description (platform default)
    (+ (* (cos x) (sin eps)) (- (* (cos eps) (sin x)) (sin x))))
 
   ;:alt 

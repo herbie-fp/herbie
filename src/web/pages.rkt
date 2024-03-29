@@ -64,10 +64,31 @@
 
 (define (make-points-json result out repr)
   (match-define (job-result test _ _ _ _ 
-                 (improve-result _ pctxs start target end _) ) result)
+                 (improve-result _ pctxs start targets end _) ) result)
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
-  (define target-errors (and target (alt-analysis-test-errors target)))
+
+  ; (define target-errors (and target (alt-analysis-test-errors target)))
+
+  ; Get a list of all targets in the platform 
+  (define target-alt-list (filter identity targets))
+
+  ;; Pick lowest target from all target
+  (define target-errors 
+    (cond
+      [(empty? target-alt-list) #f] ; If the list is empty, return false
+      [else
+        (alt-analysis-test-errors (first target-alt-list))]))
+
+        ; TODO : RIGHT NOW TAKING FIRST, NEED TO FIX TO BEST-ERROR
+        ; (define lowest-error (alt-analysis-test-errors (first target-alt-list)))
+        ; (for ([curr-target target-alt-list])
+        ;   (define error (alt-analysis-test-errors curr-target))
+        ;   (when (< error lowest-error)
+        ;     (set! lowest-error error)))
+
+        ; lowest-error]))
+
   (define end-errors (map alt-analysis-test-errors end))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
 

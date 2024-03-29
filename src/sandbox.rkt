@@ -325,7 +325,7 @@
   (match-define (job-result test status time _ _ backend) result)
   (match status
     ['success
-     (match-define (improve-result _ _ start target end _) backend)
+     (match-define (improve-result _ _ start targets end _) backend)
      (define expr-cost (platform-cost-proc (*active-platform*)))
      (define repr (test-output-repr test))
     
@@ -335,6 +335,24 @@
      (define start-train-score (errors-score start-train-errs))
      (define start-test-score (errors-score start-test-errs))
      (define start-cost (expr-cost start-expr repr))
+
+     ; Get a list of all targets in the platform 
+     (define target-alt-list (filter identity targets))
+
+     ;; TODO : FROM ALL THE TARGETS, PICK A SINGLE BEST TARGET (BASED ON LOWEST COST???)
+     (define target 
+      (cond
+        [(empty? target-alt-list) #f] ; If the list is empty, return false
+        [else
+          (define best-target (first target-alt-list))
+          (define lowest-cost (alt-cost (alt-analysis-alt best-target) repr))
+          (for ([curr-target target-alt-list])
+            (define cost (alt-cost (alt-analysis-alt curr-target) repr))
+            (when (< cost lowest-cost)
+              (set! best-target target)
+              (set! lowest-cost cost)))
+
+          best-target]))
 
      ; target analysis for comparison
      (define target-score (and target (errors-score (alt-analysis-test-errors target))))

@@ -64,10 +64,12 @@
   (define target-alt-list (filter identity targets))
 
   (define list-target-error
-      (map (lambda (target) (alt-analysis-test-errors target)) target-alt-list))
+    (for/list ([target target-alt-list])
+      (alt-analysis-test-errors target)))
 
   (define list-target-cost
-      (map (lambda (target) (alt-cost (alt-analysis-alt target) repr)) target-alt-list))
+    (for/list ([target target-alt-list])
+      (alt-cost (alt-analysis-alt target) repr)))
 
   (define-values (end-alts end-errors end-costs)
     (for/lists (l1 l2 l3) ([analysis end])
@@ -216,7 +218,7 @@
       ;;; TARGET'S INDEX NEEDS TO BE CALLED HERE. PERSONALLY LIKE ALL OF THEM DEFINED HERE
       ; ,@(for/list ([i (in-range (length (test-output test)))])
       ,@(for/list ([i (in-naturals 1)] [target target-alt-list] [target-error list-target-error] [target-cost list-target-cost])
-          (displayln (format "alt-expr ~a" (alt-expr (alt-analysis-alt target))))
+          ; (displayln (format "alt-expr ~a" (alt-expr (alt-analysis-alt target))))
           ; (let-values ([(dropdown body) (render-program (fpcore->prog (alt-expr (alt-analysis-alt target)) ctx) ctx #:ident identifier)])
           (let-values ([(dropdown body) (render-program (alt-expr (alt-analysis-alt target)) ctx #:ident identifier)])
           ; (let-values ([(dropdown body) (render-program (prog->fpcore (alt-expr (alt-analysis-alt target)) repr) ctx #:ident identifier)])
