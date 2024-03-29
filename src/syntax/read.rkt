@@ -147,59 +147,10 @@
   ;; inline and desugar
   (define body* (fpcore->prog body ctx))
   (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
-
-  ;TODO
-  ; 1. Extract the platform string -> Done
-  ;     1.1 If platform string exists, ensure it is part of the current supported platforms (currently only "default") -> Done
-  ;     1.2 If not, don't throw an error, just make target #f??? -> Done but needs to be verified
-  ; 2. Ensure that based on the platform string, the alt target is the one in the expression -> Done
-  ; 3. Go through all available alts to find target of platforms
-
-
-  ; TODO : Commented out for now. Change design to add all alts to target
-
-  ; parsed-target-loop currently goes over EVERY key-value pair and checks if the key is :alt
-  ; If it is, then it parses the valye to extract 2 things : platform-name, if it exists, & expression.
-  ; If the platform name is the desired-platform, set curr-target to the expression and break
-  ; (define parsed-target-loop
-  ;   (let ([curr-target-list `()]) ; Default value is emptty list -> correpsonds to #f
-  ;     (dict-for-each
-  ;       ; Dictionary to go over all K-V pairs
-  ;       prop-dict
-
-  ;       ; Procedure
-  ;       (lambda (key value)
-  ;         (cond
-  ;           [(equal? key ':alt)
-
-  ;             (set! curr-target-list (cons value curr-target-list))
-
-  ;             ; (match (parse-alt value)
-  ;             ;   [(list expression) expression]
-
-  ;             ;   ; Checks if verify-platform matches with desired-platform
-  ;             ;   [(list platform-name expression)
-  ;             ;     (if (verify-platform platform-name *desired-platform*) 
-  ;             ;       (begin
-  ;             ;         (set! curr-target value) ; Set curr-target to be value
-  ;             ;         'done)  ; Break out of the loop
-  ;             ;       #f)] ; Otherwise, continue to the next key-value pair
-
-  ;             ;     [else
-  ;             ;       (error "Invalid :alt format")])
-  ;             ]
-
-  ;             [else
-  ;               #f]))) ; Continue to the next key-value pair    
-
-  ;     curr-target-list))
   
 
-
-  ; Main developer target function, takes in the parsed-target based on the required platform
-  ; and converts from fpcore to prog based on ctx 
-  ; (define target (fpcore->prog (dict-ref prop-dict ':precision #f) ctx))
-
+  ; Goes over every key-value pair in the dictionary, filter out the keys with :alt.
+  ; If so, map all these values to extract all the relevant metadata
   (define extract-alt-values-list
     (begin
       (let ([alt-values
@@ -208,8 +159,6 @@
           (dict->list prop-dict))])        ; Extract the values from the filtered pairs
 
         (map cdr alt-values))))
-
-  ; (map (lambda (exp) (displayln exp)) extract-alt-values-list)
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)

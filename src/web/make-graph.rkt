@@ -161,7 +161,7 @@
 
       (section ([id "cost-accuracy"] [class "section"]
                 [data-benchmark-name ,(~a (test-name test))]
-                ; ,@(if target-cost `([data-target-cost ,(~a target-cost)]) '()))
+                ; TODO: Doesn't show all data points
 
                 ,@(for/list ([target-cost list-target-cost])
                     `[data-target-cost ,(~a target-cost)]))
@@ -214,16 +214,10 @@
                  ,@(render-history alt train-pctx test-pctx ctx)))))
 
 
-      ;;; ONE VERY BIG TODO: THIS IS WHERE THE DEVELOPER TARGET GETS DEFINED. SO SHOULD PLATFORM SPECIFIC
-      ;;; TARGET'S INDEX NEEDS TO BE CALLED HERE. PERSONALLY LIKE ALL OF THEM DEFINED HERE
-      ; ,@(for/list ([i (in-range (length (test-output test)))])
       ,@(for/list ([i (in-naturals 1)] [target target-alt-list] [target-error list-target-error] [target-cost list-target-cost])
-          ; (displayln (format "alt-expr ~a" (alt-expr (alt-analysis-alt target))))
-          ; (let-values ([(dropdown body) (render-program (fpcore->prog (alt-expr (alt-analysis-alt target)) ctx) ctx #:ident identifier)])
           (let-values ([(dropdown body) (render-program (alt-expr (alt-analysis-alt target)) ctx #:ident identifier)])
-          ; (let-values ([(dropdown body) (render-program (prog->fpcore (alt-expr (alt-analysis-alt target)) repr) ctx #:ident identifier)])
             `(section ([id "target"] [class "programs"])
-                      (h2 "Developer Target " ,(~a (+ i 1))
+                      (h2 "Developer Target " ,(~a i)
                           ": "
                           (span ([class "subhead"])
                                 (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")) " accurate, "
@@ -231,11 +225,6 @@
                           ,dropdown
                           ,(render-help "report.html#target"))
                       ,body)))
-                      ;;; SMALLER TODO: ALT DERIVATION SUPPORT?
-                      ; (details
-                      ;       (summary "Derivation")
-                      ;       (ol ([class "history"])
-                      ;           ,@(render-history alt train-pctx test-pctx ctx))))))
     
       ,(render-reproduction test)))
     out))

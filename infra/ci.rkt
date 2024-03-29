@@ -7,9 +7,6 @@
 (define *precision* (make-parameter #f))
 
 (define (test-successful? test input-bits target-bits output-bits)
-  ; (displayln (format "output ~a" (test-output test)))
-  ; (displayln (format "expected ~a" (test-expected test)))
-  ; (displayln (format "target-bits ~a" target-bits))
   (match* ((test-output test) (test-expected test))
     [(_ #f) #t]
     [(_ (? number? n)) (>= n output-bits)]
@@ -47,7 +44,6 @@
         (improve-result preprocess pctxs start targets end bogosity) backend)
        (match-define (alt-analysis start-alt _ start-error) start)
        (match-define (alt-analysis end-alt _ end-error) (first end))
-      ;  (define target-error (and target (alt-analysis-test-errors target)))
 
       ; Get a list of all targets in the platform 
       (define target-alt-list (filter identity targets))
@@ -77,10 +73,10 @@
          (pretty-print (alt-expr start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))
          (pretty-print (alt-expr end-alt) (current-output-port) 1)
-         ;; ALL OF THEM IN THE PLATFORM
+         
          (when target-error
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
-           ;; ANOTHER BIG TODO: PLATFORM SPECIFIC TARGET
+           ;; TODO: RIGHT NOW TAKING FIRST
            (pretty-print (list-ref (test-output test) 0) (current-output-port) 1)))
 
        success?]

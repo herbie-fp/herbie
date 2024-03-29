@@ -339,7 +339,7 @@
      ; Get a list of all targets in the platform 
      (define target-alt-list (filter identity targets))
 
-     ;; TODO : FROM ALL THE TARGETS, PICK A SINGLE BEST TARGET (BASED ON LOWEST COST???)
+     ;; From all the targets, pick the lowest cost target
      (define target 
       (cond
         [(empty? target-alt-list) #f] ; If the list is empty, return false

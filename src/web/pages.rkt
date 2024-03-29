@@ -68,8 +68,6 @@
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
 
-  ; (define target-errors (and target (alt-analysis-test-errors target)))
-
   ; Get a list of all targets in the platform 
   (define target-alt-list (filter identity targets))
 
