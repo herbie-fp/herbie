@@ -360,18 +360,21 @@
                    (log2-approx (ival-hi (car srcs))))
                   out-exp)))]
                
-    [(equal? op ival-log)
-     ; log[Гlog] = log[1/logx] = -log[log(x)]
-     ;                  ^ a possible uncertainty
+    [(member op (list ival-log ival-log2 ival-log10))
+     ; log[Гlog]   = log[1/logx] = -log[log(x)]
+     ; log[Гlog2]  = log[1/(log2(x) * ln(2))] <= -log[log2(x)] + 1    < main formula
+     ; log[Гlog10] = log[1/(log10(x) * ln(10))] <= -log[log10(x)] - 1
+     ;                    ^ a possible uncertainty
      (define outlo (ival-lo output))
      (define outhi (ival-hi output))
        
      (max 0
-          (+ (max (- (log2-approx outlo))  ; main formula
-                  (- (log2-approx outhi)))
+          (+ 1 (max (- (log2-approx outlo))  ; main formula
+                    (- (log2-approx outhi)))
              (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
                  0                           ; both bounds are positive or negative
                  (get-slack))))]             ; output crosses 0.bf - uncertainty
+
           
               
     [(member op (list ival-asin ival-acos))
@@ -518,6 +521,6 @@
           (+ 2 (- xmax-exp (min outlo-exp outhi-exp))))]
 
     ; TODO
-    [(equal? op ival-erfc)
+    [(member op (list ival-erfc ival-lgamma ival-tgamma))
      (get-slack)]
     [else 0]))
