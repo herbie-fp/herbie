@@ -64,10 +64,11 @@
                (test-name test))
 
        (define success?
-         (test-successful? test
-                           (errors-score start-error)
-                           (and target-error (errors-score target-error))
-                           (errors-score end-error)))
+        (and target-error
+            (test-successful? test
+                              (errors-score start-error)
+                              (errors-score target-error)
+                              (errors-score end-error))))
 
        (when (not success?)
          (printf "\nInput (~a bits):\n" (errors-score start-error))
