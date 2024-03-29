@@ -40,3 +40,5 @@
       '("syntax/test-rules.rkt" ; These take too long, package server gives us 60s
         "sampling.rkt") ; These require the benchmarks
       '()))
+
+(define license 'MIT)

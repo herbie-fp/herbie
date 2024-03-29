@@ -2,7 +2,7 @@
 
 (require racket/set math/bigfloat)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
-         "ground-truth.rkt" "syntax/sugar.rkt" "timeline.rkt")
+         "ground-truth.rkt" "syntax/sugar.rkt" "timeline.rkt" "programs.rkt")
 
 (provide actual-errors predicted-errors)
 
@@ -36,24 +36,17 @@
 (define (predicted-errors expr ctx pctx)
   (define cond-thres (bf 100))
   
-  (define subexprs
-    (all-subexpressions expr (context-repr ctx)))
-  (define subexprs-list (map car subexprs))
-  (define spec-list (map prog->spec subexprs-list))
+  (define subexprs (all-subexpressions expr))
+  (define spec-list (map prog->spec subexprs))
  
   (define ctx-list
     (for/list ([subexpr (in-list subexprs)])
-      (struct-copy context ctx [repr (cdr subexpr)])))
+      (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
-  (define repr-hash
-    (make-immutable-hash (map cons
-                              subexprs-list
-                              (map context-repr ctx-list))))
- 
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
  
   (define error-count-hash
-    (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
+    (make-hash (map (lambda (x) (cons x '())) subexprs)))
   
   (for ([(pt _) (in-pcontext pctx)])
     (define (mark-erroneous! expr)
@@ -62,14 +55,13 @@
     (define exacts (apply subexprs-fn pt))
 
     (define exacts-hash
-      (make-immutable-hash (map cons subexprs-list exacts)))
+      (make-immutable-hash (map cons subexprs exacts)))
     (define (exacts-ref subexpr)
       (define exacts-val (hash-ref exacts-hash subexpr))
-       ((representation-repr->bf
-                              (hash-ref repr-hash subexpr))
-                             exacts-val))
+       ((representation-repr->bf (repr-of subexpr ctx))
+        exacts-val))
  
-    (for/list ([subexpr subexprs-list])
+    (for/list ([subexpr subexprs])
       (define subexpr-val (exacts-ref subexpr))
       
       (match subexpr

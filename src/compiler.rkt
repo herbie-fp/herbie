@@ -24,6 +24,8 @@
 ;; as well as the indices of the roots to extract.
 ;; name ::= 'fl or 'ival
 (define (make-progs-interpreter name vars ivec roots)
+  (define rootvec (list->vector roots))
+  (define rootlen (vector-length rootvec))
   (define varc (length vars))
   (define vreg-count (+ varc (vector-length ivec)))
   (define vregs (make-vector vreg-count))
@@ -53,7 +55,7 @@
           (vector-set! vregs n (parameterize ([bf-precision precision]) (apply (car instr) srcs)))
           (timeline-stop!))
 
-        (for/list ([root (in-list roots)])
+        (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))
    
       ; name is 'fl
@@ -65,7 +67,7 @@
             (for/list ([idx (in-list (cdr instr))])
               (vector-ref vregs idx)))
           (vector-set! vregs n (apply (car instr) srcs)))
-        (for/list ([root (in-list roots)])
+        (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))))
 
 (define (get-slack)
@@ -105,9 +107,8 @@
                        #:input->value input->value
                        #:op->procedure op->proc
                        #:op->itypes op->itypes
-                       #:if-procedure if-proc
-                       #:cond-type cond-type)
-  (lambda (exprs vars type)
+                       #:if-procedure if-proc)
+  (lambda (exprs vars)
     ;; Instruction cache
     (define icache '())
     (define exprhash
@@ -120,17 +121,19 @@
     (define varc (length vars))
 
     ; Translates programs into an instruction sequence of operations
-    (define (munge prog type)
+    (define (munge prog)
       (set! size (+ 1 size))
       (define expr
         (match prog
-          [(? number?) (list (const (input->value prog type)))]
-          [(? literal?) (list (const (input->value (literal-value prog) type)))]
+          [(? number?)
+           (list (const (input->value prog 'real)))]
+          [(literal value (app get-representation repr))
+           (list (const (input->value value repr)))]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list if-proc (munge c cond-type) (munge t type) (munge f type))]
+           (list if-proc (munge c) (munge t) (munge f))]
           [(list op args ...)
-           (cons (op->proc op) (map munge args (op->itypes op)))]
+           (cons (op->proc op) (map munge args))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
       (hash-ref! exprhash expr
                  (λ ()
@@ -138,11 +141,10 @@
                            (set! exprc (+ 1 exprc))
                            (set! icache (cons expr icache))))))
     
-    (define names (map (curryr munge type) exprs))
+    (define names (map munge exprs))
     (timeline-push! 'compiler (+ varc size) (+ exprc varc))
     (define ivec (list->vector (reverse icache)))
-    (define interpret (make-progs-interpreter name vars ivec names))
-    (procedure-rename interpret (sym-append 'eval-prog '- name))))
+    (make-progs-interpreter name vars ivec names)))
 
 ;; Compiles a program of operators into a procedure
 ;; that evaluates the program on a single input of intervals
@@ -167,9 +169,8 @@
                      (ival lo hi))
                    #:op->procedure (lambda (op) (operator-info (real-op op) 'ival))
                    #:op->itypes (lambda (op) (operator-info (real-op op) 'itype))
-                   #:if-procedure ival-if
-                   #:cond-type 'bool))
-  (compile specs vars 'real))
+                   #:if-procedure ival-if))
+  (compile specs vars))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
@@ -180,17 +181,20 @@
                    #:input->value real->repr
                    #:op->procedure (lambda (op) (impl-info op 'fl))
                    #:op->itypes (lambda (op) (impl-info op 'itype))
-                   #:if-procedure (λ (c ift iff) (if c ift iff))
-                   #:cond-type (get-representation 'bool)))
-  (compile exprs (context-vars ctx) (context-repr ctx)))
+                   #:if-procedure (λ (c ift iff) (if c ift iff))))
+  (compile exprs (context-vars ctx)))
 
 ;; Like `compile-specs`, but for a single spec.
 (define (compile-spec spec vars)
-  (compose first (compile-specs (list spec) vars)))
+  (define core (compile-specs (list spec) vars))
+  (define (<compiled-spec> . xs) (vector-ref (apply core xs) 0))
+  <compiled-spec>)
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
-  (compose first (compile-progs (list expr) ctx)))
+  (define core (compile-progs (list expr) ctx))
+  (define (<compiled-prog> . xs) (vector-ref (apply core xs) 0))
+  <compiled-prog>)
 
 (define (backward-pass ivec varc vregs vprecs vstart-precs root-reg)
   (vector-fill! vprecs 0)
@@ -200,7 +204,7 @@
       (equal? 1 (flonums-between
                  (bigfloat->flonum (ival-lo result))
                  (bigfloat->flonum (ival-hi result))))
-    (vector-set! vprecs (- (vector-length vprecs) 1) (get-slack)))
+    (vector-set! vprecs (- root-reg varc) (get-slack)))
   
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs

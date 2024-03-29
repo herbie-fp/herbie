@@ -49,8 +49,9 @@
       (for/list ([input (in-list inputs)]
                  [repr (context-var-reprs (car ctxs))])
         (if (ival? input) input (ival ((representation-repr->bf repr) input)))))
-    (match-define (list ival-pre ival-bodies ...) (apply fns inputs*))
-    (for/list ([y ival-bodies] [ctx ctxs])
+    (define outvec (apply fns inputs*))
+    (define ival-pre (vector-ref outvec 0))
+    (for/list ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
       (define repr (context-repr ctx))
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
