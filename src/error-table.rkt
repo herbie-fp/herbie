@@ -8,6 +8,14 @@
 (provide actual-errors predicted-errors make-flow-table calculate-confusion
          calculate-confusion-maybe)
 
+(define (take-n n lst)
+  (match lst
+    ['() '()]
+    [(cons x xs)
+     (if (= n 0)
+         '()
+         (cons x (take-n (- n 1) xs)))]))
+
 (define (constant? expr)
   (cond
     [(list? expr) (andmap constant? (rest expr))]
@@ -651,9 +659,18 @@
             maybe-count
             flow-list)))
 
+  (define sorted-explanations-table
+    (take-n 3 (sort explanations-table > #:key fourth)))
+
   (define (expls-to-points expls->points)
+    (define expls-points-list (hash->list expls->points))
+    (define sorted-list (sort expls-points-list >
+                              #:key (lambda (x) (length (rest x)))))
     (define points-per-expl (hash-values expls->points))
-    (define points-err (apply set-union '() points-per-expl))
+    (define points-per-expl-test (map rest sorted-list))
+    (define top-3 (take-n 3 points-per-expl-test))
+    ;;(eprintf "[og] ~a\n[new] ~a\n" points-per-expl top-3)
+    (define points-err (apply set-union '() top-3))
     (for/hash ([point (in-list points-err)])
       (values point true)))
 
@@ -672,7 +689,7 @@
                                pctx))
 
   (values fperrors
-          explanations-table
+          sorted-explanations-table
           confusion-matrix
           maybe-confusion-matrix))
 
