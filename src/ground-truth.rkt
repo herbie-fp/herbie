@@ -99,7 +99,7 @@
   (define repr (context-repr (car ctxs)))
   (define fn (make-search-func '(TRUE) progs ctxs))
   (define (f . pt)
-    (define-values (result prec exs) (ival-eval repr fn pt))
+    (define-values (result prec exs) (parameterize ([*use-mixed-precision* #t]) (ival-eval repr fn pt)))
     (match exs
       [(? list?)
       (for/list ([ex exs] [ctx* ctxs])
