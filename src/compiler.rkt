@@ -67,10 +67,23 @@
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
         (for ([instr (in-vector ivec)] [n (in-naturals varc)])
-          (define srcs
-            (for/list ([idx (in-list (cdr instr))])
-              (vector-ref vregs idx)))
-          (vector-set! vregs n (apply (car instr) srcs)))
+          (define out
+            (match instr
+              [(list op) (op)]
+              [(list op a)
+               (op (vector-ref vregs a))]
+              [(list op a b)
+               (op (vector-ref vregs a) (vector-ref vregs b))]
+              [(list op a b c)
+               (op (vector-ref vregs a)
+                   (vector-ref vregs b)
+                   (vector-ref vregs c))]
+              [(list op args ...)
+               (apply op
+                      (for/list ([idx (in-list args)])
+                        (vector-ref vregs idx)))]))
+          (vector-set! vregs n out))
+
         (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))))
 
