@@ -3,9 +3,10 @@
 (require
  "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
  "core/alt-table.rkt" "core/bsearch.rkt" "core/egg-herbie.rkt" "core/localize.rkt"
- "core/regimes.rkt" "core/simplify.rkt" "alternative.rkt" "common.rkt" "float.rkt"
- "conversions.rkt" "error-table.rkt" "patch.rkt" "platform.rkt" "points.rkt"
- "preprocess.rkt" "programs.rkt" "timeline.rkt" "sampling.rkt" "soundiness.rkt")
+ "core/regimes.rkt" "core/simplify.rkt" "accelerator.rkt" "alternative.rkt"
+ "common.rkt" "float.rkt" "conversions.rkt" "error-table.rkt" "patch.rkt"
+ "platform.rkt" "points.rkt" "preprocess.rkt" "programs.rkt" "timeline.rkt"
+ "sampling.rkt" "soundiness.rkt")
 (provide (all-defined-out))
 
 ;; I'm going to use some global state here to make the shell more
@@ -203,8 +204,7 @@
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
 
-  (define loc-errss
-    (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
+  (define loc-errss (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define repr (context-repr (*context*)))
 
   ; high-error locations
@@ -213,9 +213,12 @@
                #:when true
                [(err expr) (in-dict loc-errs)]
                [i (in-range (*localize-expressions-limit*))])
-      (timeline-push! 'locations (~a expr) (errors-score err)
-                      (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
-      expr))
+      (timeline-push! 'locations 
+                      (~a expr)
+                      (errors-score err)
+                      (not (patch-table-has-expr? expr))
+                      (~a (representation-name repr)))
+      (expand-accelerators (*rules*) (prog->spec expr))))
 
   ; low-error locations (Pherbie-only with multi-precision)
   (^lowlocs^
@@ -224,8 +227,12 @@
                    #:when true
                    [(err expr) (in-dict (reverse loc-errs))]
                    [i (in-range (*localize-expressions-limit*))])
-          (timeline-push! 'locations (~a expr) (errors-score err) #f (~a (representation-name repr)))
-          expr) 
+          (timeline-push! 'locations
+                          (~a expr)
+                          (errors-score err)
+                          #f
+                          (~a (representation-name repr)))
+          (expand-accelerators (*rules*) (prog->spec expr)))
         '()))
   
   (void))
@@ -247,13 +254,11 @@
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; extracts the base expression of a patch
-  (define (get-starting-expr altn)
-    (match (alt-event altn)
-     [(list 'patch expr) expr]
-     [_
-      (if (null? (alt-prevs altn))
-          #f
-          (get-starting-expr (first (alt-prevs altn))))]))
+  (define (get-starting-spec altn)
+    (match* ((alt-event altn) (alt-prevs altn))
+      [(`(patch ,spec) _) spec]
+      [(_ (list prev)) (get-starting-spec prev)]
+      [(_ _) (error 'get-starting-spec "unexpected: ~a" altn)]))
 
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
@@ -263,32 +268,29 @@
         [(list 'patch _) orig]
         [_
          (define event*
-           ;; The 2 at the start of locs is left over from when we
-           ;; differentiated between "programs" with a λ term and
-           ;; "expressions" without
            (match event
-            [(list 'taylor '() name var)
-             (list 'taylor loc0 name var)]
-            [(list 'rr '() input proof soundiness)
-             (list 'rr loc0 input proof soundiness)]
-            [(list 'lower)
-             (list 'lower)]
-            [(list 'simplify '() input proof soundiness)
-             (list 'simplify loc0 input proof soundiness)]))
+             [(list 'lower)
+              (list 'lower)]
+             [(list 'taylor name var)
+              (list 'taylor loc0 name var)]
+             [(list 'rr input proof soundiness)
+              (list 'rr loc0 input proof soundiness)]
+             [(list 'simplify input proof soundiness)
+              (list 'simplify loc0 input proof soundiness)]))
          (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
   
   (^patched^
     (reap [sow]
       (for ([altn (in-list alts)]) ;; does not have preproc
-        (match (get-starting-expr altn)
-          [#f
-           ; altn is a full alt (probably iter 0 simplify)
-           (sow altn)]
-          [expr0
-           (for ([full-altn (in-list (^next-alts^))])
-             (for ([loc (in-list (get-locations (alt-expr full-altn) expr0))])
-               (sow (reconstruct-alt altn loc full-altn))))]))))
+        (define spec0 (get-starting-spec altn))
+        (if spec0
+            (for ([full-altn (in-list (^next-alts^))])
+              (define spec (prog->spec (alt-expr full-altn)))
+              (for ([loc (in-list (get-locations spec spec0))])
+                (sow (reconstruct-alt altn loc full-altn))))
+            ; altn is a full alt (probably iter 0 simplify)
+            (sow altn)))))
 
   (void))
 

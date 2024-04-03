@@ -1,21 +1,20 @@
 #lang racket
 
-(require
- math/bigfloat
+(require "common.rkt"
+         "compiler.rkt"
+         "ground-truth.rkt"
+         "core/matcher.rkt"
+         "syntax/types.rkt"
+         (submod "syntax/syntax.rkt" internals)
+         (submod "syntax/rules.rkt" internals))
 
- "common.rkt"
- "compiler.rkt"
- "ground-truth.rkt"
- (submod "syntax/syntax.rkt" internals)
- (submod "syntax/rules.rkt" internals)
- "syntax/types.rkt")
-
-(provide
- register-accelerator-operator!
- register-accelerator-impl!
- define-accelerator-operator
- define-accelerator-impl
- expand-accelerators)
+(provide accelerator?
+         accelerator-info
+         register-accelerator-operator!
+         register-accelerator-impl!
+         define-accelerator-operator
+         define-accelerator-impl
+         expand-accelerators)
 
 (module+ internals
   (provide register-accelerator-operator!
@@ -23,39 +22,54 @@
            define-accelerator-operator
            define-accelerator-impl))
 
-(struct accelerator-operator (body variables itypes otypes))
+(struct accelerator-operator (body vars itypes otype))
 
 (define accelerator-operators (make-hasheq))
 
+(define (accelerator? op)
+  (hash-has-key? accelerator-operators op))
+
+(define/contract (accelerator-info op field)
+  (-> symbol? (or/c 'itype 'otype 'body 'vars) any/c)
+  (unless (hash-has-key? accelerator-operators op)
+    (error 'accelerator-info "Unknown accelerator ~a" op))
+  (define accessor
+    (match field
+      ['itype accelerator-operator-itypes]
+      ['otype accelerator-operator-otype]
+      ['body accelerator-operator-body]
+      ['vars accelerator-operator-vars]))
+  (accessor (hash-ref accelerator-operators op)))
+
 (define (register-accelerator-operator! name itypes otype form)
-  (match-define (list 'lambda (list variables ...) body) form)
+  (match-define (list 'lambda (list vars ...) body) form)
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
   (hash-set! accelerator-operators
              name
-             (accelerator-operator body variables itypes otype))
+             (accelerator-operator body vars itypes otype))
   (register-operator! name
                       itypes otype
-                      (list (cons 'ival (compile-spec body variables))))
+                      (list (cons 'ival (compile-spec body vars))))
   ;; TODO: Are the groups right now?
   (register-ruleset*! ruleset-name
                      '(numerics simplify)
-                     (map cons variables itypes)
-                     `((,define-name ,body (,name ,@variables))
-                       (,undefine-name (,name ,@variables) ,body))))
+                     (map cons vars itypes)
+                     `((,define-name ,body (,name ,@vars))
+                       (,undefine-name (,name ,@vars) ,body))))
 
 (define-syntax define-accelerator-operator
   (syntax-rules ()
-    [(_ name (itypes ...) otype (lambda (variables ...) body))
+    [(_ name (itypes ...) otype (lambda (vars ...) body))
      (register-accelerator-operator! 'name
                                      (list 'itypes ...) 'otype
-                                     (list 'lambda (list 'variables ...) 'body))]))
+                                     (list 'lambda (list 'vars ...) 'body))]))
 
 (define (register-accelerator-impl! operator name
                                     itypes otype
                                     [implementation #f])
-  (match-define (accelerator-operator body variables _ _) (dict-ref accelerator-operators operator))
+  (match-define (accelerator-operator body vars _ _) (dict-ref accelerator-operators operator))
   (register-operator-impl!
    operator name
    itypes otype
@@ -65,7 +79,7 @@
            implementation
            (compose first (eval-progs-real 
                            (list body)
-                           (list (context variables otype itypes)))))))))
+                           (list (context vars otype itypes)))))))))
 
 (define-syntax define-accelerator-impl
   (syntax-rules ()
@@ -98,44 +112,6 @@
             expression*)
       [(list operator operands ...) (cons operator (map rewrite operands))]
       [_ expression*])))
-
-;; TODO: Temporarily copied to avoid cycles. Is there a way to avoid this?
-
-(define (merge-bindings binding1 binding2)
-  (and binding1
-       binding2
-       (let/ec quit
-         (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
-           (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
-
-(define (pattern-match pattern expr)
-  (match pattern
-   [(? number?)
-    (and (equal? pattern expr) '())]
-   [(? variable?)
-    (list (cons pattern expr))]
-   [(list phead _ ...)
-    (and (list? expr)
-         (equal? (car expr) phead)
-         (= (length expr) (length pattern))
-         (for/fold ([bindings '()])
-             ([pat (cdr pattern)] [subterm (cdr expr)])
-           (merge-bindings bindings (pattern-match pat subterm))))]))
-
-(define (pattern-substitute pattern bindings)
-  ; pattern binding -> expr
-  (match pattern
-   [(? number?) pattern]
-   [(? variable?)
-    (dict-ref bindings pattern)]
-   [(list phead pargs ...)
-    (cons phead (map (curryr pattern-substitute bindings) pargs))]))
-
-(define (rule-apply rule expr)
-  (let ([bindings (pattern-match (rule-input rule) expr)])
-    (if bindings
-        (cons (pattern-substitute (rule-output rule) bindings) bindings)
-        #f)))
 
 (define-accelerator-operator expm1 (real) real (lambda (x) (- (exp x) 1)))
 (define-accelerator-operator log1p (real) real (lambda (x) (log (+ 1 x))))
