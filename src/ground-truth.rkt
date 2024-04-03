@@ -68,8 +68,11 @@
        y)))
   compiled-spec)
 
-(define (ival-eval repr fn pt [iter 0] [precision (*starting-prec*)])
+(define (ival-eval fn ctxs pt [iter 0] [precision (*starting-prec*)])
   (define start (current-inexact-milliseconds))
+  (define <-bfs
+    (for/list ([ctx (in-list ctxs)])
+      (representation-bf->repr (context-repr ctx))))
   (define-values (status final-prec value)
     (let loop ([iter iter] [precision precision])
       (define exs
@@ -81,31 +84,31 @@
       (define precision* (exact-floor (* precision 2)))
       (cond
         [err
-         (values err (if (*use-mixed-precision*) iter precision) +nan.0)]
+         (values err (if (*use-mixed-precision*) iter precision) #f)]
         [(not err?)
-         (define infinite?
-           (ival-lo (is-infinite-interval repr (apply ival-or exs))))
-         (values (if infinite? 'infinite 'valid) (if (*use-mixed-precision*) iter precision) exs)]
-        [(if (*use-mixed-precision*) (> iter* (*max-sampling-iterations*)) (> precision* (*max-mpfr-prec*)))
-         (values 'exit (if (*use-mixed-precision*) iter precision) +nan.0)]
+         (values 'valid (if (*use-mixed-precision*) iter precision)
+                 (for/list ([ex exs] [<-bf <-bfs]) (<-bf (ival-lo ex))))]
+        [(if (*use-mixed-precision*)
+             (> iter* (*max-sampling-iterations*))
+             (> precision* (*max-mpfr-prec*)))
+         (values 'exit (if (*use-mixed-precision*) iter precision) #f)]
         [else
          (loop iter* precision*)])))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          final-prec (~a status) 1)
-  (values status precision value))
+  (values status value))
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)
   (define repr (context-repr (car ctxs)))
   (define fn (make-search-func '(TRUE) progs ctxs))
-  (define (f . pt)
-    (define-values (result prec exs) (parameterize ([*use-mixed-precision* #t]) (ival-eval repr fn pt)))
+  (define (<eval-prog-real> . pt)
+    (define-values (result exs) (parameterize ([*use-mixed-precision* #t]) (ival-eval fn ctxs pt)))
     (match exs
       [(? list?)
-      (for/list ([ex exs] [ctx* ctxs])
-        ((representation-bf->repr (context-repr ctx*)) (ival-lo ex)))]
-      [(? nan?)
-      (for/list ([ctx* ctxs])
-        ((representation-bf->repr (context-repr ctx*)) +nan.bf))]))
-  (procedure-rename f '<eval-prog-real>))
+       exs]
+      [#f
+       (for/list ([ctx* ctxs])
+         ((representation-bf->repr (context-repr ctx*)) +nan.bf))]))
+  <eval-prog-real>)
 

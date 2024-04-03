@@ -49,12 +49,10 @@
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          (symbol->string (object-name (car instr)))
                                                          (- precision (remainder precision prec-threshold))))
-          (define srcs
-            (for/list ([idx (in-list (cdr instr))])
-              (vector-ref vregs idx)))
-          (vector-set! vregs n (parameterize ([bf-precision precision]) (apply (car instr) srcs)))
+          (parameterize ([bf-precision precision])
+            (vector-set! vregs n (apply-instruction instr vregs)))
           (timeline-stop!))
-
+        
         (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))
    
@@ -63,12 +61,29 @@
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
         (for ([instr (in-vector ivec)] [n (in-naturals varc)])
-          (define srcs
-            (for/list ([idx (in-list (cdr instr))])
-              (vector-ref vregs idx)))
-          (vector-set! vregs n (apply (car instr) srcs)))
+          (vector-set! vregs n (apply-instruction instr vregs)))
         (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))))
+
+(define (apply-instruction instr regs)
+  ;; By special-casing the 0-3 instruction case,
+  ;; we avoid any allocation in the common case.
+  ;; We could add more cases if we want wider instructions.
+  ;; At some extreme, vector->values plus call-with-values
+  ;; becomes the fastest option.
+  (match instr
+    [(list op) (op)]
+    [(list op a)
+     (op (vector-ref regs a))]
+    [(list op a b)
+     (op (vector-ref regs a)
+         (vector-ref regs b))]
+    [(list op a b c)
+     (op (vector-ref regs a)
+         (vector-ref regs b)
+         (vector-ref regs c))]
+    [(list op args ...)
+     (apply op (map (curryr vector-ref regs) args))]))
 
 (define (get-slack)
   (match (*sampling-iteration*)
