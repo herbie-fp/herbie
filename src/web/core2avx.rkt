@@ -101,10 +101,10 @@
         (match-lambda [(list a b) (format "_mm256_cmp_~a(~a, ~a, ~a)" suffix a b immediate)])
         comparisons))
      (format assign out (operator-nary->binary "and" suffix arguments*))]
-    ['and (format assign (operator-nary->binary "and" suffix arguments))]
-    ['or (format assign (operator-nary->binary "or" suffix arguments))]
+    ['and (format assign out (operator-nary->binary "and" suffix arguments))]
+    ['or (format assign out (operator-nary->binary "or" suffix arguments))]
     ['not
-     (format "~a = ((~a) _mm256_xor_si256((__m256i) ~a, _mm256_set1_epi64x(-1LL)))" out type (first arguments))]
+     (format "~a = ((~a) _mm256_xor_~a((__m256i) ~a, _mm256_set1_~a(-1LL)))" out type suffix (first arguments) suffix)]
     ['round
      (format "_mm256_round_~a(~a, ~a)"
              suffix
@@ -113,8 +113,6 @@
     ['fabs
      (format "_mm256_andnot_~a(_mm256_set1_~a(-0.0), ~a)" suffix suffix (first arguments))]
     [_ 
-     ;; - abs?
-     ;; - What is fdim? 
      (define name
        (match operator
          ['+ "add"]
@@ -153,7 +151,7 @@
 
 (define (operator-nary->binary name suffix arguments)
   (for/fold ([l (car arguments)]) ([r (cdr arguments)])
-    (format "_mm256_~a_~a(~a, ~a)" suffix l r)))
+    (format "_mm256_~a_~a(~a, ~a)" name suffix l r)))
 
 (define/match (c-type->suffix type)
   [("int64_t") ""]

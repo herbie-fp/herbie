@@ -1,35 +1,11 @@
 #lang racket
 
-;;; AVX platform:
-;;; Costs based on AVX Skylake instructions
-
 (require "../plugin.rkt")
 
 (define move-cost 1)
 (define single-move-cost (* move-cost 1))
 (define double-move-cost (* move-cost 1))
 
-(define single-cost-model
-  (cost-map
-    [/ 11]))
-
-(define double-cost-model
-  (cost-map
-    [/ 14]))
-
-(define both-cost-model
-  (cost-map
-    [(fmsub fnmadd fnmsub fma) 4]
-    [(* + -) 4]
-    [(fabs fmax fmin) 1]
-    [floor 8]
-    [neg 4]
-    [sqrt 12]
-    [(ceil round) 8]  
-    [(== != > < >= <=) 4]
-    [(PI E INFINITY NAN) 7])) ;cost for _mm256_broadcast_pd 
-
-; boolean operations
 (define boolean-platform
   (with-terminal-cost ([bool move-cost])
     (platform
@@ -39,48 +15,51 @@
       [(bool bool) not]
       [(bool bool bool) (and or)])))
 
-; single-precision
-(define single-precision
-  (with-terminal-cost ([binary32 single-move-cost])
+(define non-tunable
+  (with-terminal-cost ([binary64 move-cost])
     (platform-product
-    #:optional
-      [([real binary32])  single-cost-model]
-      (operator-set
-        [(real real real)
-         (/)]))))
-
-; double-precision
-(define double-precision
-  (with-terminal-cost ([binary64 double-move-cost])
-    (platform-product
-       #:optional
-      [([real binary64]) double-cost-model]
-      (operator-set
-        [(real real real)
-         (/)]))))
-
-; same costs for both 
-(define same-costs
-  (with-terminal-cost ([binary64 double-move-cost] [bool move-cost] [binary32 single-move-cost])
-    (platform-product
-      #:optional
-      [([real binary64] [bool bool] [real binary32]) both-cost-model]
+      [([real binary64] [bool bool])
+       (cost-map #:default-cost move-cost)]
       (operator-set
         [(real) (PI E INFINITY NAN)]
-        [(real real)
-         (neg floor sqrt round ceil fabs)]
-         [(real real bool) (== != > < >= <=)]
-        [(real real real)
-         (+ - * fmax fmin)]
-        [(real real real real)
-         (fma fmsub fnmadd fnmsub)]))))
+        [(real real bool) (== != > < >= <=)]))))
 
+(define cost-model
+  (cost-map
+   [* 0.3279999999999999]
+   [+ 0.27288]
+   [- 0.27643999999999996]
+   ;; Hmmm
+   [/ 0.32364000000000004]
+   [ceil 0.13964000000000001]
+   [fabs 0.13316]
+   [floor 0.1336]
+   [fma 0.4119599999999999]
+   [fmax 0.24779999999999994]
+   [fmin 0.27904]
+   [fmsub 0.4052]
+   [fnmadd 0.40891999999999984]
+   [fnmsub 0.37879999999999997]
+   [neg 0.16715999999999995]
+   [round 0.14036]
+   [sqrt 0.18604000000000007]))
+
+(define tunable
+  (with-terminal-cost ([binary64 move-cost])
+    (platform-product
+     #:optional
+     [([real binary64]) cost-model]
+     (operator-set
+      [(real real)
+       (neg floor sqrt round ceil fabs)]
+      [(real real real)
+       (+ - * / fmax fmin)]
+      [(real real real real)
+       (fma fmsub fnmadd fnmsub)]))))
 
 (register-platform! 'avx
-                    (platform-union single-precision
-                                    double-precision
-                                    boolean-platform
-                                    same-costs))
+                    (platform-union boolean-platform
+                                    non-tunable
+                                    tunable))
 
-;; Do not run this file during testing
 (module test racket/base)

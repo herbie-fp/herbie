@@ -1,6 +1,8 @@
+from pathlib import Path
 from subprocess import Popen, PIPE
 from typing import Optional, List
-from pathlib import Path
+import matplotlib.pyplot as plt
+import json
 import os
 import re
 
@@ -115,3 +117,21 @@ class AVXRunner(Runner):
         times = [sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')
         return times
+
+
+    def plot_times(self, cores: List[FPCore], times: List[float]):
+        """Plots Herbie cost estimate vs. actual run time."""
+        path = self.working_dir.joinpath("report.json")
+        with open("report.json", "w") as report_file:
+            data = [{"name": core.name,
+                     "descr": core.descr,
+                     "estimated_cost": core.cost,
+                     "actual_time": time}
+                    for core, time in zip(cores, times)]
+            json.dump(data, report_file)
+        costs = list(map(lambda c: c.cost, cores))
+        plt.scatter(costs, times)
+        plt.title('Estimated cost vs. actual run time')
+        plt.xlabel('Estimated cost (Herbie)')
+        plt.ylabel(f'Run time ({self.time_unit})')
+        plt.show()
