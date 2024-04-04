@@ -28,7 +28,9 @@
     [platform-subtract (-> platform? platform? ... platform?)]
     [platform-operator-set (-> platform? operator-set?)]
     ; Cost model
-    [platform-cost-proc (-> platform? procedure?)]))
+    [platform-cost-proc (-> platform? procedure?)]
+    [platform-impl-cost (-> platform? representation? number?)]
+    [platform-repr-cost (-> platform? representation? number?)]))
 
 (module+ internals
   (provide platform get-platform register-platform!
@@ -730,18 +732,18 @@
                                cost)]))]))
 
 ; Implementation cost in a platform.
-(define (impl->cost pform impl)
+(define (platform-impl-cost pform impl)
   (hash-ref (platform-impl-costs pform)
             impl
             (lambda ()
-              (error 'impl->cost "no cost for impl '~a" impl))))
+              (error 'platform-impl-cost "no cost for impl '~a" impl))))
 
 ; Representation (terminal) cost in a platform.
-(define (repr->cost pform repr)
+(define (platform-repr-cost pform repr)
   (hash-ref (platform-repr-costs pform)
             repr
             (lambda ()
-              (error 'repr->cost "no cost for repr ~a" repr))))
+              (error 'platform-repr-cost "no cost for repr ~a" repr))))
 
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc pform)
@@ -749,11 +751,11 @@
     (let loop ([expr expr] [repr repr])
       (match expr
         [(list 'if cond ift iff)
-         (+ (impl->cost pform 'if)
+         (+ (platform-impl-cost pform 'if)
             (loop cond (get-representation 'bool))
             (max (loop ift repr) (loop iff repr)))]
         [(list impl args ...)
          (define itypes (impl-info impl 'itype))
-         (apply + (impl->cost pform impl) (map loop args itypes))]
+         (apply + (platform-impl-cost pform impl) (map loop args itypes))]
         [_
-         (repr->cost pform repr)]))))
+         (platform-repr-cost pform repr)]))))

@@ -8,8 +8,16 @@
          "../syntax/types.rkt" "../common.rkt" "../errors.rkt"
          "../programs.rkt" "../timeline.rkt" "../platform.rkt")
 
-(provide (struct-out egraph-query) make-egg-query run-egg
-         rule->impl-rules get-canon-rule-name remove-rewrites)
+(provide (struct-out egraph-query)
+         (struct-out regraph)
+         default-egg-extractor
+         default-egg-cost-proc
+         platform-egg-cost-proc
+         make-egg-query
+         run-egg
+         rule->impl-rules
+         get-canon-rule-name
+         remove-rewrites)
 
 (module+ test
   (require rackunit)
@@ -672,7 +680,7 @@
   (regraph canon eclasses))
 
 ;; Default extraction algorithm (taken directly from egg)
-(define (default-extraction-proc cost-proc regraph)
+(define (default-egg-extractor cost-proc regraph)
   (define eclasses (regraph-eclasses regraph))
   (define n (vector-length eclasses))
   (define costs (make-vector n #f))
@@ -681,7 +689,7 @@
   (define (unsafe-get-cost id)
     (car (vector-ref costs id)))
 
-  ; Computes the current cost of a node if its children
+  ; Computes the current cost of a node if its children have a cost
   (define (node-cost node)
     (match node
       [(cons _ child-ids)
@@ -737,11 +745,61 @@
 
 
 ;; The default per-node cost function
-(define (default-cost-proc regraph node rec)
+(define (default-egg-cost-proc regraph node rec)
   (match node
     [(list 'pow _ b e) (+ 1 (rec b) (rec e))]
     [(list _ _ args ...) (apply + 1 (map rec args))]
     [_ 1]))
+
+;; Tries to recover a representation name
+;; TODO: should we try to do this when we deserialize the egraph??
+;;       but if so what do we do when we get something unexpected?
+(define (get-egg-prec regraph prec-id)
+  (define eclasses (regraph-eclasses regraph))
+  (match (vector-ref eclasses prec-id)
+    [(list name) name]
+    [_ #f]))
+
+;; Tries to recover a precision annotation.
+;; TODO: should we try to do this when we deserialize the egraph??
+;;       but if so what do we do when we get something unexpected?
+(define (get-egg-type regraph ty-id)
+  (define eclasses (regraph-eclasses regraph))
+  (match (vector-ref eclasses ty-id)
+    [(list (list '$Type otype-id itype-ids ...))
+     ; Expecting exactly this form
+     (define ty-sig
+       (for/list ([id (in-list (cons otype-id itype-ids))])
+         (get-egg-prec regraph id)))
+     (and (andmap identity ty-sig) ty-sig)]
+    [_ #f]))
+
+;; Per-node cost function according to the platform
+(define (platform-egg-cost-proc regraph node rec)
+  (match node
+    [(? number?) 0] ; numbers are free I guess
+    [(? symbol?) 0] ; precision stuff sometimes goes through here
+    [(list '$Type _ _) 0] ; type annotation
+    [(list '$Var prec-id _) ; variable
+     (match (get-egg-prec regraph prec-id)
+       [#f +inf.0]
+       [prec (platform-repr-cost
+               (*active-platform*)
+               (get-representation prec))])]
+    [(list op ty-id args ...) ; operator
+     (match (get-egg-type regraph ty-id)
+       [#f +inf.0]
+       [ty-sig
+        (match-define (cons otype itypes) ty-sig)
+        (apply
+          +
+          (platform-impl-cost
+            (*active-platform*)
+            (if (null? itypes)
+                (get-parametric-constant op (get-representation otype))
+                (apply get-parametric-operator op (map get-representation itypes))))
+          (map rec args))])]
+    [(list _ ...) +inf.0])) ; malformed operator
 
 ;; Extracts the best expression according to the extractor
 (define (regraph-extract-best egraph-data regraph ctx extract id)
@@ -776,15 +834,17 @@
 
 ;; Herbie's version of an egg runner
 ;; Defines parameters for running rewrite rules with egg
-(struct egraph-query (exprs rules ctx iter-limit node-limit const-folding?) #:transparent)
+(struct egraph-query (exprs rules ctx iter-limit node-limit extractor cost-proc const-folding?) #:transparent)
 
 (define (make-egg-query exprs
                         rules
                         #:context [ctx (*context*)]
                         #:iter-limit [iter-limit #f]
                         #:node-limit [node-limit (*node-limit*)]
+                        #:extractor [extractor default-egg-extractor]
+                        #:cost-proc [cost-proc default-egg-cost-proc]
                         #:const-folding? [const-folding? #t])
-  (egraph-query exprs rules ctx iter-limit node-limit const-folding?))
+  (egraph-query exprs rules ctx iter-limit node-limit extractor cost-proc const-folding?))
 
 (define (run-egg input
                  variants?
@@ -808,19 +868,23 @@
   (define racket-egraph
     (let ([serial-egraph (egraph-serialize egg-graph)])
       (make-regraph (read (open-input-string serial-egraph)))))
-  ;; Extract the expressions using iteration data
-  (define extract (default-extraction-proc default-cost-proc racket-egraph))
+  ;; Compute eclass/enode cost in the graph
+  (define extractor (egraph-query-extractor input))
+  (define cost-proc (egraph-query-cost-proc input))
+  (define extract-expr (extractor cost-proc racket-egraph))
+  ;; Extract the expressions
   (define variants
     (cond
-      [(egraph-is-unsound-detected egg-graph) '()]
+      [(egraph-is-unsound-detected egg-graph)
+       (map (lambda (_) (list)) node-ids)]
       [variants?
        (for/list ([id node-ids])
          (define id* (egraph-find egg-graph id))
-         (regraph-extract-variants egg-graph racket-egraph ctx extract id*))]
+         (regraph-extract-variants egg-graph racket-egraph ctx extract-expr id*))]
       [else
        (for/list ([id node-ids])
          (define id* (egraph-find egg-graph id))
-         (list (regraph-extract-best egg-graph racket-egraph ctx extract id*)))]))
+         (list (regraph-extract-best egg-graph racket-egraph ctx extract-expr id*)))]))
   ;; Extract the proof based on a pair (start, end) expressions.
   (define proofs
     (for/list ([proof-input (in-list proof-inputs)])
