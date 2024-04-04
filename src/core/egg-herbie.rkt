@@ -649,7 +649,7 @@
 ;; - eclasses: vector of enodes
 ;; - canon: map from egraph id to vector index
 ;; - has-leaf?: map from vector index to if the eclass contains a leaf
-(struct regraph (eclasses canon has-leaf?))
+(struct regraph (eclasses canon has-leaf? constants))
 
 ;; Constructs a Racket egraph from an S-expr representation of an egraph.
 (define (make-regraph egraph)
@@ -670,6 +670,7 @@
     (if canon-id canon-id (new-eclass id)))
   ; iterate through eclasses
   (define has-leaf? (make-vector n #f))
+  (define constants (make-vector n #f))
   (for ([eclass egraph])
     (match-define (list egg-id egg-nodes ...) eclass)
     (define id (resolve-id egg-id))
@@ -684,10 +685,11 @@
                       egg-node]
                      [(? number?)
                       (vector-set! has-leaf? id #t)
+                      (vector-set! constants id egg-node)
                       egg-node]
                      [_ (error 'make-regraph "malformed enode: ~a" egg-node)]))))
   ; construct with wrapper
-  (regraph eclasses canon has-leaf?))
+  (regraph eclasses canon has-leaf? constants))
 
 ;; Computes the parent relation of each eclass.
 (define (regraph-parents regraph)
@@ -780,51 +782,82 @@
               [(cons op ids) (cons op (map loop ids))]
               [expr expr])))))
 
+;; Is fractional with odd denominator.
+(define (fraction-with-odd-denominator? frac)
+  (and (rational? frac)
+       (let ([denom (denominator frac)])
+         (and (> denom 1) (odd? denom)))))
 
 ;; The default per-node cost function
 (define (default-egg-cost-proc regraph cache node rec)
+  (define constants (regraph-constants regraph))
   (match node
-    [(list 'pow _ b e) (+ 1 (rec b) (rec e))]
+    [(list 'pow _ b e)
+     (define n (vector-ref constants e))
+     (if (and n (fraction-with-odd-denominator? n))
+         +inf.0
+         (+ 1 (rec b) (rec e)))]
     [(list _ _ args ...) (apply + 1 (map rec args))]
     [_ 1]))
 
 ;; Tries to recover a representation name
 ;; TODO: should we try to do this when we deserialize the egraph??
 ;;       but if so what do we do when we get something unexpected?
-(define (get-egg-prec regraph prec-id)
+(define (get-egg-prec regraph cache prec-id)
   (define eclasses (regraph-eclasses regraph))
-  (match (vector-ref eclasses prec-id)
-    [(list name) name]
-    [_ #f]))
+  (hash-ref (unbox cache)
+            prec-id
+            (lambda ()
+              (match (vector-ref eclasses prec-id)
+                [(list name) name]
+                [_ #f]))))
 
 ;; Tries to recover a precision annotation.
 ;; TODO: should we try to do this when we deserialize the egraph??
 ;;       but if so what do we do when we get something unexpected?
-(define (get-egg-type regraph ty-id)
+(define (get-egg-type regraph cache ty-id)
   (define eclasses (regraph-eclasses regraph))
-  (match (vector-ref eclasses ty-id)
-    [(list (list '$Type otype-id itype-ids ...))
-     ; Expecting exactly this form
-     (define ty-sig
-       (for/list ([id (in-list (cons otype-id itype-ids))])
-         (get-egg-prec regraph id)))
-     (and (andmap identity ty-sig) ty-sig)]
-    [_ #f]))
+  (hash-ref (unbox cache)
+            ty-id
+            (lambda ()
+              (match (vector-ref eclasses ty-id)
+                [(list (list '$Type otype-id itype-ids ...))
+                 ; Expecting exactly this form
+                 (define ty-sig
+                   (for/list ([id (in-list (cons otype-id itype-ids))])
+                     (get-egg-prec regraph cache id)))
+                 (and (andmap identity ty-sig) ty-sig)]
+                [_ #f]))))
 
 ;; Per-node cost function according to the platform
 (define (platform-egg-cost-proc regraph cache node rec)
+  (define constants (regraph-constants regraph))
+  (unless (unbox cache) (set-box! cache (make-hash)))
   (match node
     [(? number?) 0] ; numbers are free I guess
     [(? symbol?) 0] ; precision stuff sometimes goes through here
     [(list '$Type _ _) 0] ; type annotation
     [(list '$Var prec-id _) ; variable
-     (match (get-egg-prec regraph prec-id)
+     (match (get-egg-prec regraph cache prec-id)
        [#f +inf.0]
        [prec (platform-repr-cost
                (*active-platform*)
                (get-representation prec))])]
+    [(list 'pow ty-id b e) ; pow operator
+     (define n (vector-ref constants e))
+     (if (and n (fraction-with-odd-denominator? n))
+         +inf.0
+         (match (get-egg-type regraph cache ty-id)
+           [#f +inf.0]
+           [ty-sig
+            (match-define (cons _ itypes) ty-sig)
+            (+ (platform-impl-cost
+                 (*active-platform*)
+                 (apply get-representation 'pow (map get-representation itypes)))
+               (rec b)
+               (rec e))]))]
     [(list op ty-id args ...) ; operator
-     (match (get-egg-type regraph ty-id)
+     (match (get-egg-type regraph cache ty-id)
        [#f +inf.0]
        [ty-sig
         (match-define (cons otype itypes) ty-sig)
@@ -856,7 +889,10 @@
   (for/list ([enode (vector-ref eclasses (hash-ref canon id))])
     (define egg-expr
       (match enode
-        [(list op ids ...) (cons op (map (lambda (id) (cdr (extract id))) ids))]
+        [(list op ids ...)
+         (cons op (for/list ([id (in-list ids)])
+                    (match-define (cons _ expr) (extract id))
+                    expr))]
         [_ enode]))
     (egg-parsed->expr (flatten-let egg-expr)
                       egg->herbie
