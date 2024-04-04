@@ -227,13 +227,24 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_find(
+    ptr: *mut Context,
+    id: usize
+) -> u32 {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let node_id = Id::from(id);
+    let canon_id = context.runner.egraph.find(node_id);
+    usize::from(canon_id) as u32
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_serialize(
     ptr: *mut Context,
 ) -> *const c_char {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = ManuallyDrop::new(Box::from_raw(ptr));
     // Iterate through the eclasses and print each eclass
-    let mut s = String::new();
+    let mut s = String::from("(");
     for c in context.runner.egraph.classes() {
         s.push_str(&format!("({}", c.id));
         for node in &c.nodes {
@@ -246,6 +257,7 @@ pub unsafe extern "C" fn egraph_serialize(
     
         s.push_str(")");
     }
+    s.push_str(")");
 
     let c_string = ManuallyDrop::new(CString::new(s).unwrap());
     c_string.as_ptr()

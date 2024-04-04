@@ -7,7 +7,7 @@
 (provide egraph_create egraph_destroy egraph_add_expr
          egraph_run egraph_run_with_iter_limit
          egraph_get_stop_reason
-         egraph_serialize
+         egraph_serialize egraph_find
          egraph_get_simplest egraph_get_variants
          _EGraphIter destroy_egraphiters egraph_get_cost
          egraph_is_unsound_detected egraph_get_times_applied
@@ -124,7 +124,10 @@
 (define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))
 
 ;; egraph -> string
-(define-eggmath egraph_serialize (_fun _egraph-pointer -> _pointer))
+(define-eggmath egraph_serialize (_fun _egraph-pointer -> _string))
+
+;; egraph -> id -> id
+(define-eggmath egraph_find (_fun _egraph-pointer _uint -> _uint)) 
 
 ;; node number -> s-expr string
 (define-eggmath egraph_get_simplest (_fun _egraph-pointer
