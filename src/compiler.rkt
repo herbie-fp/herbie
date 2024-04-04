@@ -213,11 +213,11 @@
 
 (define (backward-pass ivec varc vregs vprecs vstart-precs roots)
   (vector-fill! vprecs 0)
-  (for ([root-reg (in-vector roots)])
+  (for ([root-reg (in-vector roots)])  ; adding slack in case rounding boundary
     (when (and
-           (<= 0 (- root-reg varc))
-           (not (equal? (vector-ref ivec (- root-reg varc)) const))
-           (bigfloat? (ival-lo (vector-ref vregs root-reg))))
+           (<= 0 (- root-reg varc))                                 ; when root is not a variable
+           (not (equal? (vector-ref ivec (- root-reg varc)) const)) ; when root is not a const
+           (bigfloat? (ival-lo (vector-ref vregs root-reg))))       ; when root is a real op
       (define result (vector-ref vregs root-reg))
       (when
           (equal? 1 (flonums-between
@@ -225,22 +225,22 @@
                      (bigfloat->flonum (ival-hi result))))
         (vector-set! vprecs (- root-reg varc) (get-slack)))))
   
-  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
-        [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
+  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
+        [n (in-range (- (vector-length vregs) 1) -1 -1)])           ; reversed over indices of vregs
 
-    (define op (car instr)) ; current operation
+    (define op (car instr))                                         ; current operation
     (define tail-registers (rest instr))
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers)) ; tail of the current instr
-    (define output (vector-ref vregs n)) ; output of the current instr
+    (define output (vector-ref vregs n))                            ; output of the current instr
     
-    (define exps-from-above (vector-ref vprecs (- n varc))) ; vprecs is shifted by varc elements from vregs
+    (define exps-from-above (vector-ref vprecs (- n varc)))         ; vprecs is shifted by varc elements from vregs
     (define new-exponents (get-exponent op output srcs))
 
     (define final-parent-precision (min (*max-mpfr-prec*)
                                         (+ exps-from-above
                                            (vector-ref vstart-precs (- n varc)))))
 
-    ; This case is weird. Basically if we have cancellation inside fma - then multiplication in fma should be in higher precision
+    ; This case is weird. if we have a cancellation in fma -> ival-mult in fma should be in higher precision
     (when (equal? op ival-fma)
       (set! final-parent-precision (+ final-parent-precision new-exponents)))
     
@@ -249,7 +249,7 @@
     (vector-set! vprecs (- n varc) final-parent-precision)
     
     (define child-exponents (+ exps-from-above new-exponents))
-    (for-each (lambda (x) (when (>= x varc)  ; when tail register is not a variable
+    (for-each (lambda (x) (when (>= x varc)   ; when tail register is not a variable
                             (vector-set! vprecs (- x varc)
                                          (max ; check whether this op already has a precision that is higher
                                           (vector-ref vprecs (- x varc))
@@ -493,8 +493,8 @@
     [(equal? op ival-hypot)
      ; hypot = sqrt(x^2+y^2)
      ; log[Гhypot] = log[ (2 * max(x,y) / hypot(x,y))^2 ] = 2 * (1 + log[max(x,y)] - log[hypot]) + 1
-     ;                              ^ 
-     ;                              a possible division by zero, catched by log2-approx's slack
+     ;                                  ^ 
+     ;                                  a possible division by zero, catched by log2-approx's slack
      (define x (first srcs))
      (define xlo-exp (log2-approx (ival-lo x)))
      (define xhi-exp (log2-approx (ival-hi x)))
