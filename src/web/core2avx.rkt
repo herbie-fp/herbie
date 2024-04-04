@@ -5,8 +5,6 @@
 
 (provide core->avx)
 
-;; TODO: There are a bunch of different ways to initialize vector constants. See https://www.agner.org/optimize/optimizing_assembly.pdf.
-
 (define (visit-if/avx vtor cond ift iff #:ctx ctx)
   (define indent (ctx-lookup-extra ctx 'indent))
   (define prec (ctx-lookup-prop ctx ':precision))
@@ -66,7 +64,6 @@
   [visit-number visit-number/avx]
   [visit-constant visit-constant/avx])
 
-;; TODO: Remove or import
 (define (binary80->string x)
   (parameterize ([gfl-exponent 15] [gfl-bits 80])
     (let ([s (gfl->string (gfl x))])
@@ -205,7 +202,6 @@
      ['toZero       "FE_TOWARDZERO"]
      [_             (error 'round-mode->avx (format "Unsupported rounding mode ~a" mode))])))
 
-;; TODO: Change name
 (define (round-mode->avx* mode)
   (match mode
     ;; TODO: Is this right?
