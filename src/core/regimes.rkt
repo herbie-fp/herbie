@@ -195,12 +195,6 @@
   ;; if we only consider indices to the left of that cse's index.
   ;; Given one of these lists, this function tries to add another splitindices to each cse.
   (define (add-splitpoint v-alt-cost v-cidx v-pidx)
-    
-    ;; output vectors
-    (define vec-alt-cost (make-flvector num-points))
-    (define vec-cidx (make-vector num-points))
-    (define vec-pidx (make-vector num-points))
-
     ;; If there's not enough room to add another splitpoint, just pass the sp-prev along.
     (for ([point-idx (in-range 0 num-points)])
       (define a-cost (flvector-ref v-alt-cost point-idx))
@@ -227,10 +221,10 @@
               (set! a-cost acost)
               (set! a-best best)
               (set! a-prev-idx prev-split-idx)))))
-        (flvector-set! vec-alt-cost point-idx a-cost)
-        (vector-set! vec-cidx point-idx a-best)
-        (vector-set! vec-pidx point-idx a-prev-idx)))
-  (values vec-alt-cost vec-cidx vec-pidx))
+        (flvector-set! v-alt-cost point-idx a-cost)
+        (vector-set! v-cidx point-idx a-best)
+        (vector-set! v-pidx point-idx a-prev-idx)))
+  (values v-alt-cost v-cidx v-pidx))
 
   ;; We get the initial set of cse's by, at every point-index,
   ;; accumulating the candidates that are the best we can do
