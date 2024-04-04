@@ -12,7 +12,7 @@
       (- (get-slack))  ; 0.bf
       (if (or (< 1000000000 (abs exp)))
           (get-slack)  ; overflow/inf.bf/nan.bf
-          (+ exp 1)))) ; +1 because mantissa is not considered 
+          (+ exp 1)))) ; +1 because mantissa is not considered
 
 ;; Interpreter taking a narrow IR
 ;; ```
@@ -39,7 +39,7 @@
                                                              (* (*sampling-iteration*) 1000)))
               (if (equal? (*sampling-iteration*) 0)
                   (vector-copy! vprecs 0 vstart-precs) ; clear precisions from the last args
-                  (backward-pass ivec varc vregs vprecs vstart-precs (last roots))) ; back-pass
+                  (backward-pass ivec varc vregs vprecs vstart-precs rootvec)) ; back-pass
               (timeline-stop!)]
           [#f (vector-fill! vprecs (bf-precision))])
         
@@ -211,15 +211,19 @@
   (define (<compiled-prog> . xs) (vector-ref (apply core xs) 0))
   <compiled-prog>)
 
-(define (backward-pass ivec varc vregs vprecs vstart-precs root-reg)
+(define (backward-pass ivec varc vregs vprecs vstart-precs roots)
   (vector-fill! vprecs 0)
-
-  (define result (vector-ref vregs root-reg))
-  (when
-      (equal? 1 (flonums-between
-                 (bigfloat->flonum (ival-lo result))
-                 (bigfloat->flonum (ival-hi result))))
-    (vector-set! vprecs (- root-reg varc) (get-slack)))
+  (for ([root-reg (in-vector roots)])
+    (when (and
+           (<= 0 (- root-reg varc))
+           (not (equal? (vector-ref ivec (- root-reg varc)) const))
+           (bigfloat? (ival-lo (vector-ref vregs root-reg))))
+      (define result (vector-ref vregs root-reg))
+      (when
+          (equal? 1 (flonums-between
+                     (bigfloat->flonum (ival-lo result))
+                     (bigfloat->flonum (ival-hi result))))
+        (vector-set! vprecs (- root-reg varc) (get-slack)))))
   
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)] ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])         ; reversed over indices of vregs
@@ -230,21 +234,26 @@
     (define output (vector-ref vregs n)) ; output of the current instr
     
     (define exps-from-above (vector-ref vprecs (- n varc))) ; vprecs is shifted by varc elements from vregs
+    (define new-exponents (get-exponent op output srcs))
+
     (define final-parent-precision (min (*max-mpfr-prec*)
                                         (+ exps-from-above
                                            (vector-ref vstart-precs (- n varc)))))
+
+    ; This case is weird. Basically if we have cancellation inside fma - then multiplication in fma should be in higher precision
+    (when (equal? op ival-fma)
+      (set! final-parent-precision (+ final-parent-precision new-exponents)))
     
     (when (equal? final-parent-precision (*max-mpfr-prec*))
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs (- n varc) final-parent-precision)
-
-    (define new-exponents (get-exponent op output srcs))
-    (define child-precision (+ exps-from-above new-exponents))
+    
+    (define child-exponents (+ exps-from-above new-exponents))
     (for-each (lambda (x) (when (>= x varc)  ; when tail register is not a variable
                             (vector-set! vprecs (- x varc)
                                          (max ; check whether this op already has a precision that is higher
                                           (vector-ref vprecs (- x varc))
-                                          child-precision))))
+                                          child-exponents))))
               tail-registers)))
 
 (define (get-exponent op output srcs)
@@ -451,8 +460,8 @@
                  (get-slack))))]   ; y or output crosses 0
     [(equal? op ival-fma)
      ; log[Гfma] = log[ max(x*y, -z) / fma(x,y,z)] ~ max(log[x] + log[y], log[z]) - log[fma(x,y,z)] + 1
-     ;                                                                              ^^^^^^^^^^^^^^^
-     ;                                                                            possible uncertainty
+     ;                               ^^^^^^^^^^^^
+     ;                               possible uncertainty
      (define x (first srcs))
      (define xlo-exp (log2-approx (ival-lo x)))
      (define xhi-exp (log2-approx (ival-hi x)))
@@ -478,8 +487,8 @@
      (max 0
           (- condition-lhs (min outlo-exp outhi-exp)
              (if (xor (bigfloat-signbit outhi) (bigfloat-signbit outlo)) ; cancellation when output crosses 0
-                 (- (get-slack))
-                 0)))]
+                 0
+                 (- (get-slack)))))]
     
     [(equal? op ival-hypot)
      ; hypot = sqrt(x^2+y^2)
