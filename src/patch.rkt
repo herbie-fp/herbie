@@ -197,7 +197,7 @@
 
     (define to-simplify (map alt-expr children))
 
-    (define egg-query (make-egg-query to-simplify (*simplify-rules*) #:cost-proc platform-egg-cost-proc))
+    (define egg-query (make-egg-query to-simplify (*simplify-rules*) #:cost-proc default-egg-cost-proc))
     (define simplification-options (simplify-batch egg-query))
 
     (define simplified

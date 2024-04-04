@@ -645,8 +645,11 @@
 ;; platform-aware extraction and possibly ground-truth evaluation.
 ;; This is regraph reborn!
 
-;; Racket egraph
-(struct regraph (canon eclasses))
+;; Immutable egraph
+;; - eclasses: vector of enodes
+;; - canon: map from egraph id to vector index
+;; - has-leaf?: map from vector index to if the eclass contains a leaf
+(struct regraph (eclasses canon has-leaf?))
 
 ;; Constructs a Racket egraph from an S-expr representation of an egraph.
 (define (make-regraph egraph)
@@ -666,6 +669,7 @@
     (define canon-id (hash-ref canon id #f))
     (if canon-id canon-id (new-eclass id)))
   ; iterate through eclasses
+  (define has-leaf? (make-vector n #f))
   (for ([eclass egraph])
     (match-define (list egg-id egg-nodes ...) eclass)
     (define id (resolve-id egg-id))
@@ -673,63 +677,96 @@
                  (for/vector #:length (length egg-nodes)
                             ([egg-node (in-list egg-nodes)])
                    (match egg-node
-                     [(list op child-ids ...) (cons op (map resolve-id child-ids))]
-                     [(? symbol?) egg-node]
-                     [(? number?) egg-node]))))
+                     [(list op child-ids ...)
+                      (cons op (map resolve-id child-ids))]
+                     [(? symbol?)
+                      (vector-set! has-leaf? id #t)
+                      egg-node]
+                     [(? number?)
+                      (vector-set! has-leaf? id #t)
+                      egg-node]
+                     [_ (error 'make-regraph "malformed enode: ~a" egg-node)]))))
   ; construct with wrapper
-  (regraph canon eclasses))
+  (regraph eclasses canon has-leaf?))
 
-;; Default extraction algorithm (taken directly from egg)
+;; Computes the parent relation of each eclass.
+(define (regraph-parents regraph)
+  (define eclasses (regraph-eclasses regraph))
+  (define n (vector-length eclasses))
+  (define parents (make-vector n '()))
+
+  ; build parent map
+  (for ([i (in-range n)])
+    (define eclass (vector-ref eclasses i))
+    (for ([j (in-range (vector-length eclass))])
+      (define node (vector-ref eclass j))
+      (when (pair? node)
+        (for ([id (in-list (cdr node))])
+          (vector-set! parents id (cons i (vector-ref parents id)))))))
+
+  ; convert to vectors
+  (for ([i (in-range n)])
+    (vector-set! parents i (list->vector (vector-ref parents i))))
+  parents)
+
+;; Default extraction algorithm
+;; Implements the extraction function found in egg with some improvements
 (define (default-egg-extractor cost-proc regraph)
   (define eclasses (regraph-eclasses regraph))
   (define n (vector-length eclasses))
-  (define costs (make-vector n #f))
 
-  ; Unsafe call to get cost
-  (define (unsafe-get-cost id)
+  ; mapping id to (cost, best node)
+  (define costs (make-vector n #f))
+  (define cache (box #f))
+
+  ; Checks if eclass has a cost
+  (define (eclass-has-cost? id)
+    (vector-ref costs id))
+
+  ; Unsafe lookup of eclass cost
+  (define (unsafe-eclass-cost id)
     (car (vector-ref costs id)))
 
   ; Computes the current cost of a node if its children have a cost
   (define (node-cost node)
     (match node
       [(cons _ child-ids)
-       (and (andmap (curry vector-ref costs) child-ids)
-            (cost-proc regraph node unsafe-get-cost))]
+       (and (andmap eclass-has-cost? child-ids)
+            (cost-proc regraph cache node unsafe-eclass-cost))]
       [_
-       (cost-proc regraph node unsafe-get-cost)]))
+       (cost-proc regraph cache node unsafe-eclass-cost)]))
+
+  ; Used for combining enode cost
+  (define (min-or-#f costs)
+    (and (not (null? costs)) (argmin car costs)))
 
   ; Computes eclass cost
   (define (eclass-cost eclass)
-    (define costs
-      (filter identity
-        (for/list ([i (in-range (vector-length eclass))])
+    (min-or-#f
+      (reap [sow]
+        (for ([i (in-range (vector-length eclass))])
           (define node (vector-ref eclass i))
           (define cost (node-cost node))
-          (and cost (cons cost node)))))
-    (if (null? costs)
-        #f
-        (argmin car costs)))
+          (when cost (sow (cons cost node)))))))
 
   ; Computes costs for all eclasses
+  ; Use parent relation to maintain a dirty set
+  (define parents (regraph-parents regraph))
+  (define dirty?-vec (vector-copy (regraph-has-leaf? regraph)))
   (let build-costs ()
-    ; make a pass on all eclasses
-    (define changed?
-      (for/fold ([changed? #f]) ([i (in-range n)])
-        (define prev-cost (vector-ref costs i))
-        (define cost (eclass-cost (vector-ref eclasses i)))
-        (cond
-          [(not prev-cost)
-            (vector-set! costs i cost)
-            #t]
-          [(< (car cost) (car prev-cost))
-            (vector-set! costs i cost)
-            #t]
-          [else
-            changed?])))
-    ; loop if we computed a new cost somewhere
-    (when changed? (build-costs)))
+    (for ([i (in-range n)] #:when (vector-ref dirty?-vec i))
+      (vector-set! dirty?-vec i #f)
+      (define prev-cost (vector-ref costs i))
+      (define cost (eclass-cost (vector-ref eclasses i)))
+      (when (or (not prev-cost) (< (car cost) (car prev-cost)))
+        (vector-set! costs i cost)
+        (for ([j (in-vector (vector-ref parents i))])
+          (vector-set! dirty?-vec j #t))))
+    (when (for/or ([i (in-range n)])
+            (vector-ref dirty?-vec i))
+      (build-costs)))
 
-  ; Just some sanity checking
+  ; Just some sanity checkingi
   (unless (andmap identity (vector->list costs))
     (error 'default-extraction-proc "did not compute cost for all eclasses"))
       
@@ -745,7 +782,7 @@
 
 
 ;; The default per-node cost function
-(define (default-egg-cost-proc regraph node rec)
+(define (default-egg-cost-proc regraph cache node rec)
   (match node
     [(list 'pow _ b e) (+ 1 (rec b) (rec e))]
     [(list _ _ args ...) (apply + 1 (map rec args))]
@@ -775,7 +812,7 @@
     [_ #f]))
 
 ;; Per-node cost function according to the platform
-(define (platform-egg-cost-proc regraph node rec)
+(define (platform-egg-cost-proc regraph cache node rec)
   (match node
     [(? number?) 0] ; numbers are free I guess
     [(? symbol?) 0] ; precision stuff sometimes goes through here
