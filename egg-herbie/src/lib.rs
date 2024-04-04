@@ -227,6 +227,31 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_serialize(
+    ptr: *mut Context,
+) -> *const c_char {
+    // Safety: `ptr` was box allocated by `egraph_create`
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    // Iterate through the eclasses and print each eclass
+    let mut s = String::new();
+    for c in context.runner.egraph.classes() {
+        s.push_str(&format!("({}", c.id));
+        for node in &c.nodes {
+            s.push_str(&format!("({}", node));
+            for c in node.children() {
+                s.push_str(&format!(" {}", c));
+            }
+            s.push_str(")");
+        }
+    
+        s.push_str(")");
+    }
+
+    let c_string = ManuallyDrop::new(CString::new(s).unwrap());
+    c_string.as_ptr()
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_get_simplest(
     ptr: *mut Context,
     node_id: u32,

@@ -412,6 +412,12 @@
 (define (egraph-is-unsound-detected egraph-data)
   (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
 
+(define (egraph-serialize egraph-data)
+  (define ptr (egraph_serialize (egraph-data-egraph-pointer egraph-data)))
+  (define str (cast ptr _pointer _string/utf-8))
+  (destroy_string ptr)
+  str)
+
 (define (egraph-get-cost egraph-data node-id iteration)
   (egraph_get_cost (egraph-data-egraph-pointer egraph-data) node-id iteration))
 
@@ -638,6 +644,10 @@
       (loop (rest iter) (+ counter 1) new-time)))
   (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
 
+  ;; print egraph
+  (define serial-egraph (egraph-serialize egg-graph))
+  (define racket-egraph (read-regraph (open-input-string serial-egraph)))
+
   ;; get rule statistics
   (define rule-apps (make-hash))
   (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
@@ -648,3 +658,39 @@
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
   iteration-data)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Racket egraph
+
+(struct regraph (eclasses))
+
+(define (read-regraph p)
+  (define canonical (make-hash))
+  (define eclasses (make-hash))
+
+  (define (new-eclass id)
+    (define n (hash-count eclasses))
+    (hash-set! eclasses n '())
+    (hash-set! canonical id n)
+    n)
+
+  (for ([eclass (in-port read p)])
+    (match-define (list egg-id egg-nodes ...) eclass)
+    (define id (new-eclass egg-id))
+    (for ([egg-node (in-list egg-nodes)])
+      (match-define (list op child-ids ...) egg-node)
+      (define canon-ids
+        (for/list ([id (in-list child-ids)])
+          (match (hash-ref canonical id #f)
+            [#f (new-eclass id)]
+            [id id])))
+      (hash-update! eclasses id
+                    (lambda (enodes)
+                      (cons (cons op canon-ids) enodes)))))
+
+  (regraph
+    (for/vector #:length (hash-count eclasses)
+                ([id (in-naturals)])
+      (list->vector (hash-ref eclasses id)))))
+
+
