@@ -673,7 +673,6 @@
 
 ;; Default extraction algorithm (taken directly from egg)
 (define (default-extraction-proc cost-proc regraph)
-  (define canon (regraph-canon regraph))
   (define eclasses (regraph-eclasses regraph))
   (define n (vector-length eclasses))
   (define costs (make-vector n #f))
@@ -725,18 +724,17 @@
   ; Just some sanity checking
   (unless (andmap identity (vector->list costs))
     (error 'default-extraction-proc "did not compute cost for all eclasses"))
-
-  ; Reconstructs the best expression for a given eclass
-  (define (reconstruct id)
-    (match (cdr (vector-ref costs id))
-      [(cons op ids) (cons op (map reconstruct ids))]
-      [expr expr]))
       
-  ; The actual procedure
+  ; The actual extraction procedure
+  ; Lookup the cost and reconstruct the best expression
   (lambda (id)
-    (define id* (hash-ref canon id))
-    (match-define (cons cost _) (vector-ref costs id*))
-    (cons cost (reconstruct id*))))
+    (match-define (cons cost _) (vector-ref costs id))
+    (cons cost
+          (let loop ([id id])
+            (match (cdr (vector-ref costs id))
+              [(cons op ids) (cons op (map loop ids))]
+              [expr expr])))))
+
 
 ;; The default per-node cost function
 (define (default-cost-proc regraph node rec)
@@ -746,11 +744,28 @@
     [_ 1]))
 
 ;; Extracts the best expression according to the extractor
-(define (regraph-extract-best egraph-data ctx extract id)
+(define (regraph-extract-best egraph-data regraph ctx extract id)
   (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (define canon (regraph-canon regraph))
   (define repr (context-repr ctx))
-  (match-define (cons _ egg-expr) (extract id))
+  (match-define (cons _ egg-expr) (extract (hash-ref canon id)))
   (egg-parsed->expr (flatten-let egg-expr) egg->herbie (representation-name repr)))
+
+;; Extracts multiple expressions according to the extractor
+(define (regraph-extract-variants egraph-data regraph ctx extract id)
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (define canon (regraph-canon regraph))
+  (define repr (context-repr ctx))
+  ; for each eclass, iterate through the enodes and extract the best child
+  (define eclasses (regraph-eclasses regraph))
+  (for/list ([enode (vector-ref eclasses (hash-ref canon id))])
+    (define egg-expr
+      (match enode
+        [(list op ids ...) (cons op (map (lambda (id) (cdr (extract id))) ids))]
+        [_ enode]))
+    (egg-parsed->expr (flatten-let egg-expr)
+                      egg->herbie
+                      (representation-name repr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
@@ -796,14 +811,16 @@
   ;; Extract the expressions using iteration data
   (define extract (default-extraction-proc default-cost-proc racket-egraph))
   (define variants
-    (if variants?
-        (for/list ([id node-ids] [expr (egraph-query-exprs input)])
-          (egraph-get-variants egg-graph id expr ctx))
-        (if (egraph-is-unsound-detected egg-graph)
-            (list)
-            (for/list ([id node-ids])
-              (define id* (egraph-find egg-graph id))
-              (list (regraph-extract-best egg-graph ctx extract id*))))))
+    (cond
+      [(egraph-is-unsound-detected egg-graph) '()]
+      [variants?
+       (for/list ([id node-ids])
+         (define id* (egraph-find egg-graph id))
+         (regraph-extract-variants egg-graph racket-egraph ctx extract id*))]
+      [else
+       (for/list ([id node-ids])
+         (define id* (egraph-find egg-graph id))
+         (list (regraph-extract-best egg-graph racket-egraph ctx extract id*)))]))
   ;; Extract the proof based on a pair (start, end) expressions.
   (define proofs
     (for/list ([proof-input (in-list proof-inputs)])
