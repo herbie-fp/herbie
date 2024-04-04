@@ -248,11 +248,15 @@ pub unsafe extern "C" fn egraph_serialize(
     for c in context.runner.egraph.classes() {
         s.push_str(&format!("({}", c.id));
         for node in &c.nodes {
-            s.push_str(&format!("({}", node));
-            for c in node.children() {
-                s.push_str(&format!(" {}", c));
+            if matches!(node, Math::Symbol(_) | Math::Constant(_)) {
+                s.push_str(&format!(" {}", node));
+            } else {
+                s.push_str(&format!("({}", node));
+                for c in node.children() {
+                    s.push_str(&format!(" {}", c));
+                }
+                s.push_str(")");
             }
-            s.push_str(")");
         }
     
         s.push_str(")");

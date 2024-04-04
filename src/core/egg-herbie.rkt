@@ -664,8 +664,10 @@
     (vector-set! eclasses id
                  (for/vector #:length (length egg-nodes)
                             ([egg-node (in-list egg-nodes)])
-                   (match-define (list op child-ids ...) egg-node)
-                   (cons op (map resolve-id child-ids)))))
+                   (match egg-node
+                     [(list op child-ids ...) (cons op (map resolve-id child-ids))]
+                     [(? symbol?) egg-node]
+                     [(? number?) egg-node]))))
   ; construct with wrapper
   (regraph canon eclasses))
 
@@ -676,12 +678,18 @@
   (define n (vector-length eclasses))
   (define costs (make-vector n #f))
 
+  ; Unsafe call to get cost
+  (define (unsafe-get-cost id)
+    (car (vector-ref costs id)))
+
   ; Computes the current cost of a node if its children
   (define (node-cost node)
-    (match-define (cons _ child-ids) node)
-    (and (andmap (curry vector-ref costs) child-ids)
-         (let ([get-cost (lambda (i) (car (vector-ref costs i)))])
-           (cost-proc regraph node get-cost))))
+    (match node
+      [(cons _ child-ids)
+       (and (andmap (curry vector-ref costs) child-ids)
+            (cost-proc regraph node unsafe-get-cost))]
+      [_
+       (cost-proc regraph node unsafe-get-cost)]))
 
   ; Computes eclass cost
   (define (eclass-cost eclass)
@@ -714,22 +722,23 @@
     ; loop if we computed a new cost somewhere
     (when changed? (build-costs)))
 
-  (printf "~a\n" costs)
-
   ; Just some sanity checking
   (unless (andmap identity (vector->list costs))
     (error 'default-extraction-proc "did not compute cost for all eclasses"))
 
   ; Reconstructs the best expression for a given eclass
   (define (reconstruct id)
-    (define node (cdr (vector-ref costs id)))
-    (cons (car node) (map reconstruct (cdr node))))
-
+    (match (cdr (vector-ref costs id))
+      [(cons op ids) (cons op (map reconstruct ids))]
+      [expr expr]))
+      
   ; The actual procedure
   (lambda (id)
     (define id* (hash-ref canon id))
-    (cons (car (vector-ref costs id*)) (reconstruct id*))))
+    (match-define (cons cost _) (vector-ref costs id*))
+    (cons cost (reconstruct id*))))
 
+;; The default per-node cost function
 (define (default-cost-proc regraph node rec)
   (match node
     [(list 'pow _ b e) (+ 1 (rec b) (rec e))]
@@ -737,8 +746,11 @@
     [_ 1]))
 
 ;; Extracts the best expression according to the extractor
-(define (regraph-extract-best extract id)
-  (extract id))
+(define (regraph-extract-best egraph-data ctx extract id)
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (define repr (context-repr ctx))
+  (match-define (cons _ egg-expr) (extract id))
+  (egg-parsed->expr (flatten-let egg-expr) egg->herbie (representation-name repr)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
@@ -771,30 +783,27 @@
     (for/list ([expr (egraph-query-exprs input)])
       (egraph-add-expr egg-graph expr ctx)))
   ;; Run egg and extract iteration data
-  (define iter-data
-    (egraph-run-rules egg-graph
-                      (egraph-query-node-limit input)
-                      (egraph-query-rules input)
-                      node-ids
-                      (egraph-query-const-folding? input)
-                      #:limit (egraph-query-iter-limit input)))
-  ;; Serial egraph
+  (egraph-run-rules egg-graph
+                    (egraph-query-node-limit input)
+                    (egraph-query-rules input)
+                    node-ids
+                    (egraph-query-const-folding? input)
+                    #:limit (egraph-query-iter-limit input))
+  ;; Read egraph via serialization
   (define racket-egraph
     (let ([serial-egraph (egraph-serialize egg-graph)])
       (make-regraph (read (open-input-string serial-egraph)))))
-  (define extract (default-extraction-proc default-cost-proc racket-egraph))
-  (for ([id node-ids] [expr (egraph-query-exprs input)])
-    (let ([id (egraph-find egg-graph id)])
-      (match-define (cons _ best) (regraph-extract-best extract id))
-      (printf "~a ~a: ~a\n" id expr best)))
   ;; Extract the expressions using iteration data
+  (define extract (default-extraction-proc default-cost-proc racket-egraph))
   (define variants
     (if variants?
         (for/list ([id node-ids] [expr (egraph-query-exprs input)])
           (egraph-get-variants egg-graph id expr ctx))
-        (for/list ([id node-ids])
-          (for/list ([iter (in-range (length iter-data))])
-            (egraph-get-simplest egg-graph id iter ctx)))))
+        (if (egraph-is-unsound-detected egg-graph)
+            (list)
+            (for/list ([id node-ids])
+              (define id* (egraph-find egg-graph id))
+              (list (regraph-extract-best egg-graph ctx extract id*))))))
   ;; Extract the proof based on a pair (start, end) expressions.
   (define proofs
     (for/list ([proof-input (in-list proof-inputs)])
