@@ -15,7 +15,7 @@ binary_ops = ['+', '-', '*', '/', 'fmax', 'fmin']
 ternary_ops = ['fma', 'fmsub', 'fnmadd', 'fnmsub']
 
 compiler = 'cc'
-c_flags = ['-g', '-O3', '-mavx', '-mfma']
+c_flags = ['-g', '-O3', '-mavx', '-mfma', '-ffp-contract=off']
 # TODO: What does this do?
 ld_flags = ['-lm']
 driver_name = 'main.c'
