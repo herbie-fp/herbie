@@ -376,7 +376,7 @@
                             false-pos false-maybe true-neg)) confusion-matrix)
   `((dt "Confusion?")
     (dd (table ([class "times"])
-               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th "Predicted -"))
+               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th  "Predicted -"))
                (tr (th "+") (td ,(~a true-pos)) (td ,(~a true-maybe)) (td ,(~a false-neg)))
                (tr (th "-") (td ,(~a false-pos)) (td ,(~a false-maybe)) (td ,(~a true-neg)))))
     (dt "Precision?")
@@ -392,13 +392,24 @@
                                     (+ true-pos true-maybe false-neg))))))))
 
 (define (render-phase-total-confusion confusion-matrix)
-  (match-define (list (list true-pos false-neg
-                            false-pos true-neg)) confusion-matrix)
+  (match-define (list (list true-pos true-maybe false-neg
+                            false-pos false-maybe true-neg)) confusion-matrix)
   `((dt "Total Confusion?")
     (dd (table ([class "times"])
-               (tr (th "") (th "Predicted +") (th "Predicted -"))
-               (tr (th "+") (td ,(~a true-pos)) (td ,(~a false-neg)))
-               (tr (th "-") (td ,(~a false-pos)) (td ,(~a true-neg))))) ))
+               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th  "Predicted -"))
+               (tr (th "+") (td ,(~a true-pos)) (td ,(~a true-maybe)) (td ,(~a false-neg)))
+               (tr (th "-") (td ,(~a false-pos)) (td ,(~a false-maybe)) (td ,(~a true-neg)))))
+    (dt "Precision?")
+    (dd ,(if (= true-pos true-maybe false-pos false-maybe 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe)
+                                    (+ true-pos true-maybe
+                                       false-pos false-maybe))))))
+    (dt "Recall?")
+    (dd ,(if (= true-pos true-maybe false-neg 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe)
+                                    (+ true-pos true-maybe false-neg))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
