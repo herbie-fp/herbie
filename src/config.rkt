@@ -91,7 +91,6 @@
 (define *ground-truth-extra-bits* (make-parameter 20))
 
 (define *sampling-iteration* (make-parameter 0))
-(define *use-mixed-precision* (make-parameter #f))
 (define *tuning-final-output-prec* (make-parameter 73)) ; precision of the final output when tuning
 (define *max-sampling-iterations* (make-parameter 5))
 

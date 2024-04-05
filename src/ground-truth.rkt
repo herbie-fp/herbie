@@ -68,32 +68,27 @@
        y)))
   compiled-spec)
 
-(define (ival-eval fn ctxs pt [iter 0] [precision (*starting-prec*)])
+(define (ival-eval fn ctxs pt [iter 0])
   (define start (current-inexact-milliseconds))
   (define <-bfs
     (for/list ([ctx (in-list ctxs)])
       (representation-bf->repr (context-repr ctx))))
   (define-values (status final-prec value)
-    (let loop ([iter iter] [precision precision])
+    (let loop ([iter iter])
       (define exs
-        (if (*use-mixed-precision*)
-            (parameterize ([*sampling-iteration* iter]) (apply fn pt))
-            (parameterize ([bf-precision precision]) (apply fn pt))))
+        (parameterize ([*sampling-iteration* iter]) (apply fn pt)))
       (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
       (define iter* (+ 1 iter))
-      (define precision* (exact-floor (* precision 2)))
       (cond
         [err
-         (values err (if (*use-mixed-precision*) iter precision) #f)]
+         (values err iter #f)]
         [(not err?)
-         (values 'valid (if (*use-mixed-precision*) iter precision)
+         (values 'valid iter
                  (for/list ([ex exs] [<-bf <-bfs]) (<-bf (ival-lo ex))))]
-        [(if (*use-mixed-precision*)
-             (> iter* (*max-sampling-iterations*))
-             (> precision* (*max-mpfr-prec*)))
-         (values 'exit (if (*use-mixed-precision*) iter precision) #f)]
+        [(> iter* (*max-sampling-iterations*))
+         (values 'exit iter #f)]
         [else
-         (loop iter* precision*)])))
+         (loop iter*)])))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          final-prec (~a status) 1)
   (values status value))
@@ -103,7 +98,7 @@
   (define repr (context-repr (car ctxs)))
   (define fn (make-search-func '(TRUE) progs ctxs))
   (define (<eval-prog-real> . pt)
-    (define-values (result exs) (parameterize ([*use-mixed-precision* #t]) (ival-eval fn ctxs pt)))
+    (define-values (result exs) (ival-eval fn ctxs pt))
     (match exs
       [(? list?)
        exs]
