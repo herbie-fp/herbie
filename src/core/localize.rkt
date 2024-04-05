@@ -47,67 +47,38 @@
     (for/list ([expr (in-list exprs)])
       (all-subexpressions expr (context-repr ctx))))
 
-  (define costs '())
-  (define globalRepr "")
-  ;;Sort through each each subexpression and append a pair of expression and cost to the list costs
-  (for-each (lambda (subexprs)
-    (for-each (lambda (subexpr)
-      (define expr(car subexpr));;This subexpr is of form:(+.f64 N 1)
-      (define repr (cdr subexpr));;The repr is in the form #<representation binary64>
-      (set! globalRepr repr)
-      (define cost((platform-cost-proc (*active-platform*)) expr repr))
-      (set! costs (cons (cons expr cost) costs))
-      )
-    subexprs))
-  subexprss)
+  ;Define a function to the get the cost of a expr with a repr
+  (define expr->cost  (platform-cost-proc (*active-platform*))); 
 
-  (define simplified-exprs  (simplify-batch (make-egg-query (reverse (map car costs)) (*simplify-rules*))))
+  ;Create a list of (expr, cost, repr)
+  (define old-expr-cost-pair
+    (apply append
+     (map (lambda (listOfPairs)
+        (map (lambda (subexpr)        
+          (define expr (car subexpr))    
+          (define repr (cdr subexpr))         
+          (define cost (expr->cost expr repr))
+          (list expr cost repr)) 
+            listOfPairs))
+          subexprss)        
+   ))
 
-(define simple-costs '())
-(for-each (lambda (simple-subexpr)
-  (if (= (length simple-subexpr) 2)
-    (let ((cost ((platform-cost-proc (*active-platform*)) (cadr simple-subexpr) globalRepr)))
-      ;(displayln "Test1")
-      ;(displayln (cadr simple-subexpr))
-      (set! simple-costs (cons (cons (cadr simple-subexpr) cost) simple-costs)))
-    (let ((cost ((platform-cost-proc (*active-platform*)) (car simple-subexpr) globalRepr)))
-      ;;(displayln "Test2")
-      ;;(displayln (car simple-subexpr))
-      (set! simple-costs (cons (cons (car simple-subexpr) cost) simple-costs)))))
-        simplified-exprs)
+  ;create list of simplified expression
+  (define simplified-exprs  (simplify-batch (make-egg-query (map car old-expr-cost-pair) (*simplify-rules*))))
+  ;old=(expr cost repr)
+  ;new=(expr,expr,expr...)
 
-  (define cost-opportunity '())
-  (for-each 
-    (lambda (costs-pair simple-costs-pair)
-      (define diff (- (cdr costs-pair) (cdr simple-costs-pair)))
-      (if (> diff 5)
-      (displayExpr (car costs-pair) (car simple-costs-pair) diff)
-        ;;(set! cost-opportunity (cons (cons (car costs-pair) diff ) cost-opportunity))
-        (display ""))
-      )
-    costs simple-costs)
-
-  (define sorted-cost-opportunity
-    (sort cost-opportunity
-      (lambda (a b) (> (cdr a) (cdr b)))))
-
-
-  (define cost-error (append sorted-cost-opportunity (batch-localize-error exprs ctx)))
-
-  sorted-cost-opportunity)
-
-(define (displayExpr before after diff)
-  (displayln "Before")
-  (displayln before)
-  (displayln "after")
-  (displayln after)
-  (displayln "diff")
-  (displayln diff)
-  (displayln "____"))
-
-
-
-
+  ;Take the old list and the simplified lists and for each item in each takes the old cost subtracts the new cost and then returns a pair of the old-expr and the diff between them.
+  (define result
+  (sort
+    (for/list ([old old-expr-cost-pair]
+             [new-exprs simplified-exprs])
+      (match-define (list old-expr cost repr) old)
+      (define  diff (- cost (expr->cost (last new-exprs) repr)))
+      (cons old-expr diff))
+    >  
+    #:key cdr))
+   result)
 
 
 ; Compute local error or each sampled point at each node in `prog`.

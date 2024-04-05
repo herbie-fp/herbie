@@ -142,10 +142,11 @@
      (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define loc-costss
      (batch-localize-cost (map alt-expr (^next-alts^)) (*context*)))
+
   ;;(cost-opportunity (map alt-expr (^next-alts^)) (*context*))
   (define repr (context-repr (*context*)))
   
-
+  ;;take
   ; high-error locations
   (^locs^
     (for/list ([loc-errs (in-list loc-errss)]
