@@ -34,18 +34,15 @@
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
   (if (equal? name 'ival)
       (λ args
-        (match (*use-mixed-precision*)
-          [#t (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
-                                                             (* (*sampling-iteration*) 1000)))
-              (if (equal? (*sampling-iteration*) 0)
-                  (vector-copy! vprecs 0 vstart-precs) ; clear precisions from the last args
-                  (backward-pass ivec varc vregs vprecs vstart-precs rootvec)) ; back-pass
-              (timeline-stop!)]
-          [#f (vector-fill! vprecs (bf-precision))])
+        (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
+                                                       (* (*sampling-iteration*) 1000)))
+        (when (not (zero? (*sampling-iteration*)))                  
+          (backward-pass ivec varc vregs vprecs vstart-precs rootvec)) ; back-pass
+        (timeline-stop!)
         
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
-        (for ([instr (in-vector ivec)] [n (in-naturals varc)] [precision (in-vector vprecs)])
+        (for ([instr (in-vector ivec)] [n (in-naturals varc)] [precision (in-vector (if (zero? (*sampling-iteration*)) vstart-precs vprecs))])
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          (symbol->string (object-name (car instr)))
                                                          (- precision (remainder precision prec-threshold))))
