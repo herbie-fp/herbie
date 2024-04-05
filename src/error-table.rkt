@@ -670,11 +670,28 @@
                                predicted-total-error
                                maybe-predicted-total-error
                                pctx))
+ (define has-any-error?
+    (for/or ([(pt _) (in-pcontext pctx)])
+      (> (hash-ref true-error-hash pt) 16)))
+  (define predicted-any-error?
+    (for/or ([(pt _) (in-pcontext pctx)])
+      (hash-ref predicted-total-error pt false)))
+
+  (define total-confusion-matrix
+    (list
+     (if (and has-any-error? predicted-any-error?) 1 0)
+     (if (and has-any-error? (not predicted-any-error?)) 1 0)
+     (if (and (not has-any-error?) predicted-any-error?) 1 0)
+     (if (and (not has-any-error?) (not predicted-any-error?)) 1 0)
+         )
+     
+     )
 
   (values fperrors
           explanations-table
           confusion-matrix
-          maybe-confusion-matrix))
+          maybe-confusion-matrix
+          total-confusion-matrix))
 
 (define (flow-list flow-hash expr type)
   (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])
