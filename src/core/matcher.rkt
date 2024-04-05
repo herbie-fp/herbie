@@ -3,6 +3,7 @@
 (require "../syntax/syntax.rkt"
          "../syntax/rules.rkt"
          "../common.rkt"
+         "../points.rkt"
          "../programs.rkt"
          "../timeline.rkt"
          "egg-herbie.rkt")

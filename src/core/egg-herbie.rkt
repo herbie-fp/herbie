@@ -4,15 +4,26 @@
         (only-in ffi/unsafe
           malloc memcpy free cast ptr-set! ptr-add
           _byte _pointer _string/utf-8))
-(require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
-         "../syntax/types.rkt" "../common.rkt" "../errors.rkt"
-         "../programs.rkt" "../timeline.rkt" "../platform.rkt")
+
+(require "../syntax/rules.rkt"
+         "../syntax/sugar.rkt"
+         "../syntax/syntax.rkt"
+         "../syntax/types.rkt"
+         "../common.rkt"
+         "../errors.rkt"
+         "../float.rkt"
+         "../ground-truth.rkt"
+         "../platform.rkt"
+         "../points.rkt"
+         "../programs.rkt"
+         "../timeline.rkt" )
 
 (provide (struct-out egraph-query)
          (struct-out regraph)
          default-egg-extractor
          default-egg-cost-proc
          platform-egg-cost-proc
+         local-error-egg-cost-proc
          make-egg-query
          run-egg
          rule->impl-rules
@@ -649,14 +660,15 @@
 ;; - eclasses: vector of enodes
 ;; - canon: map from egraph id to vector index
 ;; - has-leaf?: map from vector index to if the eclass contains a leaf
-(struct regraph (eclasses canon has-leaf? constants))
+;; - constants: map from vector index to if the eclass contains a constant
+;; - egg->herbie: data to translate egg IR to herbie IR
+;; - node->id: mapping node to eclass id (using eq?)
+(struct regraph (eclasses canon has-leaf? constants egg->herbie node->id))
 
 ;; Constructs a Racket egraph from an S-expr representation of an egraph.
-(define (make-regraph egraph)
-  (define n (length egraph))
-  (define canon (make-hash))
-  (define eclasses (make-vector n '()))
+(define (make-regraph egraph egg->herbie)
   ; reserve the next eclass
+  (define canon (make-hash))
   (define new-eclass
     (let ([counter 0])
       (lambda (id)
@@ -669,14 +681,18 @@
     (define canon-id (hash-ref canon id #f))
     (if canon-id canon-id (new-eclass id)))
   ; iterate through eclasses
+  (define n (length egraph))
+  (define eclasses (make-vector n '()))
   (define has-leaf? (make-vector n #f))
   (define constants (make-vector n #f))
+  (define node->id (make-hasheq))
   (for ([eclass egraph])
     (match-define (list egg-id egg-nodes ...) eclass)
     (define id (resolve-id egg-id))
     (vector-set! eclasses id
                  (for/vector #:length (length egg-nodes)
                             ([egg-node (in-list egg-nodes)])
+                   (hash-set! node->id egg-node id)
                    (match egg-node
                      [(list op child-ids ...)
                       (cons op (map resolve-id child-ids))]
@@ -689,7 +705,7 @@
                       egg-node]
                      [_ (error 'make-regraph "malformed enode: ~a" egg-node)]))))
   ; construct with wrapper
-  (regraph eclasses canon has-leaf? constants))
+  (regraph eclasses canon has-leaf? constants egg->herbie node->id))
 
 ;; Computes the parent relation of each eclass.
 (define (regraph-parents regraph)
@@ -836,7 +852,7 @@
   (match node
     [(? number?) 0] ; numbers are free I guess
     [(? symbol?) 0] ; precision stuff sometimes goes through here
-    [(list '$Type _ _) 0] ; type annotation
+    [(list '$Type _ ...) 0] ; type annotation
     [(list '$Var prec-id _) ; variable
      (match (get-egg-prec regraph cache prec-id)
        [#f +inf.0]
@@ -871,17 +887,87 @@
           (map rec args))])]
     [(list _ ...) +inf.0])) ; malformed operator
 
+;; Computes the ground truth of every expression eclass.
+(define (regraph-compute-ground-truth! regraph ctx pcontext cache)
+  (define eclasses (regraph-eclasses regraph))
+  (define n (vector-length eclasses))
+
+  (define egg->herbie (regraph-egg->herbie regraph))
+  (define extract-id (default-egg-extractor default-egg-cost-proc regraph))
+  (define repr-name (representation-name (context-repr ctx)))
+  (define num-points (min (*local-error-egg-num-points*) (pcontext-length pcontext)))
+
+  ;; Extract a representative from each expression eclass
+  (define id&exprs
+    (reap [sow]
+      (for ([id (in-range n)])
+        (match-define (cons _ expr) (extract-id id))
+        (match expr
+          [(? symbol?) (void)] ; precision name
+          [(list '$Type _ ...) (void)] ; type annotation
+          [egg-expr
+           (define expr* (egg-parsed->expr (flatten-let egg-expr) egg->herbie repr-name))
+           (sow (cons id expr*))]))))
+
+  ;; Build ground-truth interpreter
+  (define fn
+    (let ([exprs (map cdr id&exprs)])
+      (eval-progs-real
+        (map prog->spec exprs)
+        (for/list ([expr (in-list exprs)])
+          (struct-copy context ctx
+            [repr (repr-of expr ctx)])))))
+
+  ;; Compute exacts
+  (define exacts
+    (for/vector #:length n ([_ (in-range n)])
+      (make-vector num-points #f)))
+  (for ([(pt _) (in-pcontext (*pcontext*))] [i (in-range num-points)])
+    (for ([(id _) (in-dict id&exprs)] [exact (in-list (apply fn pt))])
+      (vector-set! (vector-ref exacts id) i exact)))
+
+  ;; Set cache
+  (set-box! cache (cons exacts (make-hasheq))))
+
+;; Per-node cost function by local error
+(define ((local-error-egg-cost-proc context pcontext) regraph cache node rec)
+  (unless (unbox cache)
+    (regraph-compute-ground-truth! regraph context pcontext cache))
+  (match-define (cons exacts node->error) (unbox cache))
+  (define node->id (regraph-node->id regraph))
+  (match node
+    [(? number?) 0] ; numerical constant
+    [(? symbol?) 0] ; precision annotation
+    [(list '$Type _ ...) 0] ; type annotation
+    [(list '$Var _ _) 0] ; variable
+    [(list op ty-id arg-ids ...)
+     (hash-ref! node->error
+                node
+                (lambda ()
+                  (define ty-sig (get-egg-type regraph (box (make-hash)) ty-id))
+                  (match ty-sig
+                    [#f +inf.0]
+                    [ty-sig
+                     (match-define (cons otype itypes) ty-sig)
+                     (define impl
+                       (if (null? itypes)
+                           (get-parametric-constant op (get-representation otype))
+                           (apply get-parametric-operator op (map get-representation itypes))))
+                     (define exact (vector-ref exacts (hash-ref node->id node)))
+                     (define approx (apply (impl-info impl 'fl) (map (curry vector-ref exacts) arg-ids)))
+                     (ulps->bits (ulp-difference approx exact (impl-info impl 'otype)))])))]))
+
 ;; Extracts the best expression according to the extractor
-(define (regraph-extract-best egraph-data regraph ctx extract id)
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+(define (regraph-extract-best regraph ctx extract id)
+  (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
   (define repr (context-repr ctx))
   (match-define (cons _ egg-expr) (extract (hash-ref canon id)))
   (egg-parsed->expr (flatten-let egg-expr) egg->herbie (representation-name repr)))
 
 ;; Extracts multiple expressions according to the extractor
-(define (regraph-extract-variants egraph-data regraph ctx extract id)
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+(define (regraph-extract-variants regraph ctx extract id)
+  (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
   (define repr (context-repr ctx))
   ; for each eclass, iterate through the enodes and extract the best child
@@ -940,11 +1026,12 @@
   ;; Read egraph via serialization
   (define racket-egraph
     (let ([serial-egraph (egraph-serialize egg-graph)])
-      (make-regraph (read (open-input-string serial-egraph)))))
+      (make-regraph (read (open-input-string serial-egraph))
+                    (egraph-data-egg->herbie-dict egg-graph))))
   ;; Compute eclass/enode cost in the graph
   (define extractor (egraph-query-extractor input))
   (define cost-proc (egraph-query-cost-proc input))
-  (define extract-expr (extractor cost-proc racket-egraph))
+  (define extract-id (extractor cost-proc racket-egraph))
   ;; Extract the expressions
   (define variants
     (cond
@@ -953,11 +1040,11 @@
       [variants?
        (for/list ([id node-ids])
          (define id* (egraph-find egg-graph id))
-         (regraph-extract-variants egg-graph racket-egraph ctx extract-expr id*))]
+         (regraph-extract-variants racket-egraph ctx extract-id id*))]
       [else
        (for/list ([id node-ids])
          (define id* (egraph-find egg-graph id))
-         (list (regraph-extract-best egg-graph racket-egraph ctx extract-expr id*)))]))
+         (list (regraph-extract-best racket-egraph ctx extract-id id*)))]))
   ;; Extract the proof based on a pair (start, end) expressions.
   (define proofs
     (for/list ([proof-input (in-list proof-inputs)])
