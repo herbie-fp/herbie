@@ -670,22 +670,24 @@
                                predicted-total-error
                                maybe-predicted-total-error
                                pctx))
- (define has-any-error?
+  (define has-any-error?
     (for/or ([(pt _) (in-pcontext pctx)])
       (> (hash-ref true-error-hash pt) 16)))
   (define predicted-any-error?
     (for/or ([(pt _) (in-pcontext pctx)])
       (hash-ref predicted-total-error pt false)))
-
+  (define maybe-any-error?
+    (for/or ([(pt _) (in-pcontext pctx)])
+      (hash-ref maybe-predicted-total-error pt false)))
+  
   (define total-confusion-matrix
     (list
      (if (and has-any-error? predicted-any-error?) 1 0)
-     (if (and has-any-error? (not predicted-any-error?)) 1 0)
+     (if (and has-any-error? (not predicted-any-error?) maybe-any-error?) 1 0)
+     (if (and has-any-error? (not predicted-any-error?) (not maybe-any-error?)) 1 0)
      (if (and (not has-any-error?) predicted-any-error?) 1 0)
-     (if (and (not has-any-error?) (not predicted-any-error?)) 1 0)
-         )
-     
-     )
+     (if (and (not has-any-error?) (not predicted-any-error?) maybe-any-error?) 1 0)
+     (if (and (not has-any-error?) (not predicted-any-error?) (not maybe-any-error?)) 1 0)))
 
   (values fperrors
           explanations-table
