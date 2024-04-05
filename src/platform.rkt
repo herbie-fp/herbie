@@ -29,7 +29,7 @@
     [platform-operator-set (-> platform? operator-set?)]
     ; Cost model
     [platform-cost-proc (-> platform? procedure?)]
-    [platform-impl-cost (-> platform? representation? number?)]
+    [platform-impl-cost (-> platform? any/c number?)]
     [platform-repr-cost (-> platform? representation? number?)]))
 
 (module+ internals

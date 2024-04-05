@@ -120,7 +120,7 @@
     (define e-input
       (make-egg-query exprs rules
                       #:context ctx
-                      #:cost-proc default-egg-cost-proc
+                      #:cost-proc platform-egg-cost-proc
                       #:node-limit (*node-limit*)))
     (match-define (cons variantss _) (run-egg e-input #t))
 

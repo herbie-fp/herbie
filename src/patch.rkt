@@ -220,7 +220,7 @@
             (add-patch! (get-starting-expr altn) altn)))))
     
     (timeline-push! 'count (length children) (length simplified))
-    (^final^ simplified))
+    (^final^ (append children simplified)))
   (void))
 
 (define (patch-table-clear!)
