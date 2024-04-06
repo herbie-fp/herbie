@@ -134,6 +134,10 @@
 (define-accelerator (fnmadd real real real) real (lambda (x y z) (+ (neg (* x y)) z)))
 (define-accelerator (fnmsub real real real) real (lambda (x y z) (- (neg (* x y)) z)))
 
+(define-accelerator (fmsub real real real) real (lambda (x y z) (- (* x y) z)))
+(define-accelerator (fnmadd real real real) real (lambda (x y z) (+ (neg (* x y)) z)))
+(define-accelerator (fnmsub real real real) real (lambda (x y z) (- (neg (* x y)) z)))
+
 ; Specialized numerical functions
 (define-ruleset* special-numerical-reduce (numerics simplify)
   #:type ([x real] [y real] [z real])

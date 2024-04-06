@@ -17,8 +17,7 @@
 (define-runtime-module-path math-platform "platforms/math.rkt")
 (define-runtime-module-path mkl-platform "platforms/mkl.rkt")
 (define-runtime-module-path python-platform "platforms/python3-10.rkt")
-(define-runtime-module-path avx-platform "platforms/AVX.rkt")
-
+(define-runtime-module-path avx-platform "platforms/avx.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
