@@ -757,6 +757,22 @@
     (vector-set! parents i (list->vector (vector-ref parents i))))
   parents)
 
+;; Extraction reconstruction
+(define (egg-extractor-proc costs)
+  (define cache (make-hasheq)) ; numbers are eq? only up to a certain point
+  (define (extract-expr id)
+    (hash-ref! cache id
+               (lambda ()
+                 (match (cdr (vector-ref costs id))
+                   [(? number? n) n]  ; number
+                   [(? symbol? s) s]  ; typename or variable name
+                   [(cons '$Type types) (cons '$Type types)] ; type
+                   [(cons op ids) (cons op (map extract-expr ids))]  ; operator
+                   [e (error 'default-extraction-proc "could not reconstruct ~a" e)]))))
+  (lambda (id)
+    (cons (cdr (vector-ref costs id))
+          (extract-expr id))))
+
 ;; Default extraction algorithm
 ;; Implements the extraction function found in egg with some improvements
 (define (default-egg-extractor cost-proc regraph)
@@ -786,7 +802,7 @@
     (when type ; any type eclass has cost 0
       (vector-set! costs id (cons 0 type))
       (for ([parent (in-vector (vector-ref parents id))])
-        ; important: need to update the dirty set of non-type eclasses
+        ; important: need to update the dirty set with non-type eclasses
         (unless (vector-ref types parent)
           (vector-set! dirty?-vec parent #t)))))
 
@@ -794,12 +810,11 @@
   ; Cost function has access to a mutable value through `cache`
   (define cache (box #f))
   (define (node-cost node)
-    (match node
-      [(cons _ child-ids)
-       (and (andmap eclass-has-cost? child-ids)
-            (cost-proc regraph cache node unsafe-eclass-cost))]
-      [_
-       (cost-proc regraph cache node unsafe-eclass-cost)]))
+    (if (pair? node)
+        (let ([child-ids (cdr node)]) ; (op child ...)
+          (and (andmap eclass-has-cost? child-ids)
+               (cost-proc regraph cache node unsafe-eclass-cost)))
+        (cost-proc regraph cache node unsafe-eclass-cost)))
 
   ; Computes eclass cost
   (define (eclass-cost eclass)
@@ -828,19 +843,9 @@
     (error 'default-extraction-proc
            "did not compute cost for all eclasses: ~a"
            costs))
-      
-  ; The actual extraction procedure
-  ; Lookup the cost and reconstruct the best expression
-  (lambda (id)
-    (match-define (cons cost _) (vector-ref costs id))
-    (cons cost
-          (let loop ([id id])
-            (match (cdr (vector-ref costs id))
-              [(? number? n) n]  ; number
-              [(? symbol? s) s]  ; symbol?
-              [(cons '$Type types) (cons '$Type types)] ; type
-              [(cons op ids) (cons op (map loop ids))]  ; operator
-              [e (error 'default-extraction-proc "could not reconstruct ~a" e)])))))
+  
+  ; construct the actual exraction procedure
+  (egg-extractor-proc costs))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -861,8 +866,8 @@
     [(list _ _ args ...) (apply + 1 (map rec args))]
     [_ 1]))
 
-;; Compute node cost for `platform-egg-cost-proc`.
-(define (platform-egg-node-cost regraph node rec)
+;; Per-node cost function according to the platform
+(define (platform-egg-cost-proc regraph cache node rec)
   (define constants (regraph-constants regraph))
   (define types (regraph-types regraph))
   (match node
@@ -874,26 +879,25 @@
         (platform-repr-cost
           (*active-platform*)
           (get-representation prec))]
-       [type (error 'platform-egg-cost-proc "unknown type ~a" type)])]
+       [_ +inf.0])] ; malformed (maybe unsound?)
     [(list 'if _ cond ift iff) ; if expression
      (+ (platform-impl-cost (*active-platform*) 'if)
         (rec cond)
         (rec ift)
         (rec iff))]
     [(list 'pow ty-id b e) ; pow operator
-     (match (vector-ref constants e)
-       [#f +inf.0]
-       [(? fraction-with-odd-denominator?) +inf.0]
-       [_
-        (match (vector-ref types ty-id)
-          [#f +inf.0]
-          [ty-sig
-           (match-define (list '$Type _ itypes ...) ty-sig)
-           (+ (platform-impl-cost
-                (*active-platform*)
-                (apply get-parametric-operator 'pow (map get-representation itypes)))
-              (rec b)
-              (rec e))])])]
+     (define n (vector-ref constants e))
+     (if (and n (fraction-with-odd-denominator? n))
+         +inf.0
+         (match (vector-ref types ty-id)
+           [#f +inf.0]
+           [(list '$Type _ itypes ...)
+            (+ (platform-impl-cost
+                 (*active-platform*)
+                 (apply get-parametric-operator 'pow (map get-representation itypes)))
+               (rec b)
+               (rec e))]
+           [_ +inf.0]))]  ; malformed (maybe unsound?)       
     [(list op ty-id args ...) ; operator
      (match (vector-ref types ty-id)
        [#f +inf.0]
@@ -906,15 +910,8 @@
                 (get-parametric-constant op (get-representation otype))
                 (apply get-parametric-operator op (map get-representation itypes))))
           (map rec args))]
-      [_ +inf.0])] ; unexpected
+      [_ +inf.0])]  ; malformed (maybe unsound?)
     [(list _ ...) +inf.0])) ; malformed operator
-
-;; Per-node cost function according to the platform
-(define (platform-egg-cost-proc regraph cache node rec)
-  (unless (unbox cache) (set-box! cache (make-hasheq)))
-  (hash-ref! (unbox cache)
-             node
-             (lambda () (platform-egg-node-cost regraph node rec))))
 
 ;; Computes the ground truth of every expression eclass.
 (define (regraph-compute-ground-truth! regraph ctx pcontext cache)
