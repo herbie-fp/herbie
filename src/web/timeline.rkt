@@ -65,6 +65,7 @@
          ,@(dict-call curr render-phase-explanations 'explanations)
          ,@(dict-call curr render-phase-confusion 'confusion)
          ,@(dict-call curr render-phase-maybe-confusion 'maybe-confusion)
+         ,@(dict-call curr render-phase-freqs 'freqs)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -389,6 +390,22 @@
              "0/0"
              (~a (exact->inexact (/ (+ true-pos true-maybe)
                                     (+ true-pos true-maybe false-neg))))))))
+
+(define (render-phase-freqs freqs)
+  `((dt "Freqs")
+    (dd "test" (table ([class "times"])
+               (tr (th "number") (th "freq"))
+               ,@(for/list ([freq (in-list (sort freqs < #:key first))])
+                   (match-define (list key val) freq)
+                   `(tr (td ,(~a key) (td ,(~a val)))
+                        ))
+               
+               ))
+
+    )
+
+
+  )
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
