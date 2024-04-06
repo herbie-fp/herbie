@@ -695,17 +695,19 @@
     (vector-set! eclasses id
                  (for/vector #:length (length egg-nodes)
                             ([egg-node (in-list egg-nodes)])
-                   (hash-set! node->id egg-node id)
                    (match egg-node
                      [(? number?) ; number
+                      (hash-set! node->id egg-node id)
                       (vector-set! has-leaf? id #t)
                       (vector-set! constants id egg-node)
                       egg-node]
                      [(? symbol?) ; egg IR typename
+                      (hash-set! node->id egg-node id)
                       (vector-set! type? id 'typename)
                       egg-node]
                      [(list op child-ids ...)
                       (define egg-node* (cons op (map resolve-id child-ids)))
+                      (hash-set! node->id egg-node* id)
                       (match op
                         ['$Type (vector-set! type? id 'type)] ; egg IR type signature
                         ['$Var (vector-set! has-leaf? id #t)] ; variable
@@ -762,12 +764,8 @@
   (define types (regraph-types regraph))
   (define n (vector-length eclasses))
 
-  ; mapping id to (cost, best node)
+  ; costs: mapping id to (cost, best node)
   (define costs (make-vector n #f))
-  (for ([i (in-range n)])
-    (define type (vector-ref types i))
-    (when type ; any type eclass has cost 0
-      (vector-set! costs i (cons 0 type))))
 
   ; Checks if eclass has a cost
   (define (eclass-has-cost? id)
@@ -776,6 +774,21 @@
   ; Unsafe lookup of eclass cost
   (define (unsafe-eclass-cost id)
     (car (vector-ref costs id)))
+
+  ; maintain a dirty set of eclasses that need costs recomputed
+  ; if an eclass cost is updated, all parents are dirty
+  (define parents (regraph-parents regraph))
+  (define dirty?-vec (vector-copy (regraph-has-leaf? regraph)))
+
+  ; set the cost of all type eclasses to 0
+  (for ([id (in-range n)])
+    (define type (vector-ref types id))
+    (when type ; any type eclass has cost 0
+      (vector-set! costs id (cons 0 type))
+      (for ([parent (in-vector (vector-ref parents id))])
+        ; important: need to update the dirty set of non-type eclasses
+        (unless (vector-ref types parent)
+          (vector-set! dirty?-vec parent #t)))))
 
   ; Computes the current cost of a node if its children have a cost
   ; Cost function has access to a mutable value through `cache`
@@ -788,13 +801,9 @@
       [_
        (cost-proc regraph cache node unsafe-eclass-cost)]))
 
-  ; Used for combining enode cost
-  (define (min-or-#f costs)
-    (and (not (null? costs)) (argmin car costs)))
-
   ; Computes eclass cost
   (define (eclass-cost eclass)
-    (min-or-#f
+    (argmin/#f car
       (reap [sow]
         (for ([i (in-range (vector-length eclass))])
           (define node (vector-ref eclass i))
@@ -802,9 +811,6 @@
           (when cost (sow (cons cost node)))))))
 
   ; Computes costs for all eclasses
-  ; Use parent relation to maintain a dirty set
-  (define parents (regraph-parents regraph))
-  (define dirty?-vec (vector-copy (regraph-has-leaf? regraph)))
   (let build-costs ()
     (for ([i (in-range n)] #:when (vector-ref dirty?-vec i))
       (vector-set! dirty?-vec i #f)
@@ -814,13 +820,11 @@
         (vector-set! costs i cost)
         (for ([j (in-vector (vector-ref parents i))])
           (vector-set! dirty?-vec j #t))))
-    (when (for/or ([i (in-range n)])
-            (vector-ref dirty?-vec i))
+    (when (for/or ([dirty? (in-vector dirty?-vec)]) dirty?)
       (build-costs)))
 
-  ; Just some sanity checkingi
-  (unless (for/and ([i (in-range n)])
-            (vector-ref costs i))
+  ; invariant: all eclasses have an associated cost!
+  (unless (for/and ([cost (in-vector costs)]) cost)
     (error 'default-extraction-proc
            "did not compute cost for all eclasses: ~a"
            costs))
@@ -848,62 +852,64 @@
 (define (default-egg-cost-proc regraph cache node rec)
   (define constants (regraph-constants regraph))
   (match node
-    [(list 'pow _ b e)
-     (define n (vector-ref constants e))
-     (if (and n (fraction-with-odd-denominator? n))
-         +inf.0
-         (+ 1 (rec b) (rec e)))]
+    [(list '$Var _ _) 1] ; variable
+    [(list 'pow _ b e) ; special case for fractional pow
+     (match (vector-ref constants e)
+       [#f +inf.0]
+       [(? fraction-with-odd-denominator?) +inf.0]
+       [_ (+ 1 (rec b) (rec e))])]
     [(list _ _ args ...) (apply + 1 (map rec args))]
     [_ 1]))
+
+;; Compute node cost for `platform-egg-cost-proc`.
+(define (platform-egg-node-cost regraph node rec)
+  (define constants (regraph-constants regraph))
+  (define types (regraph-types regraph))
+  (match node
+    [(? number?) 0] ; numbers are free I guess
+    [(list '$Var ty-id _) ; variable
+     (match (vector-ref types ty-id)
+       [#f +inf.0]
+       [(list '$Type prec)
+        (platform-repr-cost
+          (*active-platform*)
+          (get-representation prec))]
+       [type (error 'platform-egg-cost-proc "unknown type ~a" type)])]
+    [(list 'pow ty-id b e) ; pow operator
+     (match (vector-ref constants e)
+       [#f +inf.0]
+       [(? fraction-with-odd-denominator?) +inf.0]
+       [_
+        (match (vector-ref types ty-id)
+          [#f +inf.0]
+          [ty-sig
+           (match-define (list '$Type _ itypes ...) ty-sig)
+           (+ (platform-impl-cost
+                (*active-platform*)
+                (apply get-parametric-operator 'pow (map get-representation itypes)))
+              (rec b)
+              (rec e))])])]
+    [(list op ty-id args ...) ; operator
+     (match (vector-ref types ty-id)
+       [#f +inf.0]
+       [(list '$Type otype itypes ...)
+        (apply
+          +
+          (platform-impl-cost
+            (*active-platform*)
+            (if (null? itypes)
+                (get-parametric-constant op (get-representation otype))
+                (apply get-parametric-operator op (map get-representation itypes))))
+          (map rec args))]
+      [_ +inf.0])] ; unexpected
+    [(list _ ...) +inf.0])) ; malformed operator
 
 ;; Per-node cost function according to the platform
 (define (platform-egg-cost-proc regraph cache node rec)
   (unless (unbox cache) (set-box! cache (make-hasheq)))
-  (define constants (regraph-constants regraph))
-  (define types (regraph-types regraph))
-  (hash-ref!
-    (unbox cache)
-    node
-    (lambda ()
-      (match node
-        [(? number?) 0] ; numbers are free I guess
-        [(? symbol?) 0] ; precision stuff sometimes goes through here
-        [(list '$Type _ ...) 0] ; type annotation
-        [(list '$Var ty-id _) ; variable
-         (match (vector-ref types ty-id)
-           [#f +inf.0]
-           [(list '$Type prec)
-            (platform-repr-cost
-              (*active-platform*)
-              (get-representation prec))]
-           [type (error 'platform-egg-cost-proc "unknown type ~a" type)])]
-        [(list 'pow ty-id b e) ; pow operator
-         (define n (vector-ref constants e))
-         (if (and n (fraction-with-odd-denominator? n))
-             +inf.0
-             (match (vector-ref types ty-id)
-               [#f +inf.0]
-               [ty-sig
-                (match-define (list '$Type _ itypes ...) ty-sig)
-                (+ (platform-impl-cost
-                     (*active-platform*)
-                     (apply get-parametric-operator 'pow (map get-representation itypes)))
-                   (rec b)
-                   (rec e))]))]
-        [(list op ty-id args ...) ; operator
-         (match (vector-ref types ty-id)
-           [#f +inf.0]
-           [ty-sig
-            (match-define (list '$Type otype itypes ...) ty-sig)
-            (apply
-              +
-              (platform-impl-cost
-                (*active-platform*)
-                (if (null? itypes)
-                    (get-parametric-constant op (get-representation otype))
-                    (apply get-parametric-operator op (map get-representation itypes))))
-              (map rec args))])]
-        [(list _ ...) +inf.0])))) ; malformed operator
+  (hash-ref! (unbox cache)
+             node
+             (lambda () (platform-egg-node-cost regraph node rec))))
 
 ;; Computes the ground truth of every expression eclass.
 (define (regraph-compute-ground-truth! regraph ctx pcontext cache)
@@ -955,9 +961,7 @@
   (define node->id (regraph-node->id regraph))
   (define types (regraph-types regraph))
   (match node
-    [(? number?) 0] ; numerical constant
-    [(? symbol?) 0] ; precision annotation
-    [(list '$Type _ ...) 0] ; type annotation
+    [(? number?) 0] ; numbers are free I guess
     [(list '$Var _ _) 0] ; variable
     [(list op ty-id arg-ids ...)
      (hash-ref! node->error
