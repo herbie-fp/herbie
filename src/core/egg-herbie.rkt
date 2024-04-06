@@ -875,6 +875,11 @@
           (*active-platform*)
           (get-representation prec))]
        [type (error 'platform-egg-cost-proc "unknown type ~a" type)])]
+    [(list 'if _ cond ift iff) ; if expression
+     (+ (platform-impl-cost (*active-platform*) 'if)
+        (rec cond)
+        (rec ift)
+        (rec iff))]
     [(list 'pow ty-id b e) ; pow operator
      (match (vector-ref constants e)
        [#f +inf.0]
