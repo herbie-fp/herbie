@@ -14,6 +14,7 @@
          herbie/web/common
          herbie/web/core2mkl
          herbie/web/core2python3-10
+         herbie/web/core2avx
          herbie/web/thread-pool)
 
 (load-herbie-builtins)
@@ -80,6 +81,7 @@
        (define output
          (case lang
            [(c) (core->c core "foo")]
+           [(avx) (core->avx core "foo")]
            [(mkl) (core->mkl core "foo")]
            [(python) (core->python core "foo")]
            [else (error 'run-server "compile: unsupported language ~a" lang)]))

@@ -7,6 +7,7 @@ from platforms.fpcore import FPCore
 from platforms.runner import Runner
 
 from platforms.arith import ArithRunner
+from platforms.avx import AVXRunner
 from platforms.c import CRunner
 from platforms.math import MathRunner
 from platforms.mkl import MKLRunner
@@ -194,6 +195,14 @@ def main():
             num_runs=num_runs,
             threads=threads,
             key=key
+        )
+    elif lang == 'avx':
+        runner = AVXRunner(
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads
         )
     else:
         raise ValueError(f'Unsupported output language: {lang}')
