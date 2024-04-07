@@ -121,6 +121,9 @@ class Cache(object):
 
     def get_core(self, name: str):
         return self.input_cores.get(name, None)
+    
+    def clear_core(self, key: str):
+        del self.input_cores[key]
 
     def get_platform_core(self, platform: str, key: str):
         in_platform = self.platform_cores.get(platform, None)

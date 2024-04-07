@@ -405,12 +405,16 @@ class Runner(object):
                 _, sample = maybe_cached
                 input_points, _ = sample
                 if len(input_points) == 0:
+                    # no inputs
                     samples.append(None)
                 elif len(input_points[0]) == self.num_inputs:
+                    # cached copy has desired number of points
                     samples.append(sample)
                     num_cached += 1
                 else:
+                    # cached copy does not have desired number of points
                     samples.append(None)
+                    self.cache.clear_core(core.key)
 
         # run sampling for un-cached ones
         configs = []

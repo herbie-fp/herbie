@@ -59,7 +59,7 @@
   (with-terminal-cost ([binary32 move-cost])
     (platform-product
      #:optional
-     [([real binary32]) single-cost-model]
+     [([real binary32]) cost-model-single]
      (operator-set
       [(real real real)
        (/)]))))
@@ -68,7 +68,7 @@
   (with-terminal-cost ([binary64 move-cost])
     (platform-product
      #:optional
-     [([real binary64]) double-cost-model]
+     [([real binary64]) cost-model-double]
      (operator-set
       [(real real real)
        (/)]))))

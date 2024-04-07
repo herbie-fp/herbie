@@ -24,34 +24,23 @@ time_unit = 'ms'
 time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
 
 class AVXRunner(Runner):
-    def __init__(
-        self,
-        working_dir: str,
-        herbie_path: str,
-        num_inputs: Optional[int] = 10000,
-        num_runs: int = 100,
-        threads: int = 1
-    ):
+    def __init__(self, **kwargs):
         super().__init__(
             name='avx',
             lang='avx',
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            # TODO: Does that work?
-            # Need four times as many inputs since each element is a 4 element vector
-            num_inputs=num_inputs*4,
-            num_runs=num_runs,
-            threads=threads,
             unary_ops=unary_ops,
             binary_ops=binary_ops,
             ternary_ops=ternary_ops,
-            time_unit=time_unit
+            time_unit='ms',
+            **kwargs,
         )
 
     def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
         for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
-            sample = samples[core.name]
+            # pull sample from cache
+            _, sample = self.cache.get_core(core.key)
+            input_points, _ = sample
             with open(driver_path, 'w') as f:
                 print('#include <immintrin.h>', file=f)
                 print('#include <stdio.h>', file=f)
@@ -59,7 +48,7 @@ class AVXRunner(Runner):
 
                 print(core.compiled, file=f)
 
-                for i, points in enumerate(sample):
+                for i, points in enumerate(input_points):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
                     print(',\n'.join(map(double_to_c_str, points)), file=f)
                     print('};', file=f)
@@ -117,21 +106,3 @@ class AVXRunner(Runner):
         times = [sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')
         return times
-
-
-    def plot_times(self, cores: List[FPCore], times: List[float]):
-        """Plots Herbie cost estimate vs. actual run time."""
-        path = self.working_dir.joinpath("report.json")
-        with open("report.json", "w") as report_file:
-            data = [{"name": core.name,
-                     "descr": core.descr,
-                     "estimated_cost": core.cost,
-                     "actual_time": time}
-                    for core, time in zip(cores, times)]
-            json.dump(data, report_file)
-        costs = list(map(lambda c: c.cost, cores))
-        plt.scatter(costs, times)
-        plt.title('Estimated cost vs. actual run time')
-        plt.xlabel('Estimated cost (Herbie)')
-        plt.ylabel(f'Run time ({self.time_unit})')
-        plt.show()
