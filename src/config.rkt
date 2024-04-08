@@ -85,7 +85,6 @@
 (define *max-bsearch-bits* (make-parameter 48))
 
 ;; Maximum MPFR precision allowed during exact evaluation
-(define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
 (define *analyze-prec* (make-parameter 128))
 (define *ground-truth-extra-bits* (make-parameter 20))

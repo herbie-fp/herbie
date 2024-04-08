@@ -212,8 +212,7 @@
   (vector-fill! vprecs 0)
   (for ([root-reg (in-vector roots)])  ; adding slack in case rounding boundary
     (when (and
-           (<= 0 (- root-reg varc))                                 ; when root is not a variable
-           (not (equal? (vector-ref ivec (- root-reg varc)) const)) ; when root is not a const
+           (<= varc root-reg)                                       ; when root is not a variable
            (bigfloat? (ival-lo (vector-ref vregs root-reg))))       ; when root is a real op
       (define result (vector-ref vregs root-reg))
       (when
@@ -246,12 +245,12 @@
     (vector-set! vprecs (- n varc) final-parent-precision)
     
     (define child-exponents (+ exps-from-above new-exponents))
-    (for-each (lambda (x) (when (>= x varc)   ; when tail register is not a variable
-                            (vector-set! vprecs (- x varc)
-                                         (max ; check whether this op already has a precision that is higher
-                                          (vector-ref vprecs (- x varc))
-                                          child-exponents))))
-              tail-registers)))
+    (for ([x (in-list tail-registers)])
+      (when (>= x varc)   ; when tail register is not a variable
+        (vector-set! vprecs (- x varc)
+                     (max ; check whether this op already has a precision that is higher
+                      (vector-ref vprecs (- x varc))
+                      child-exponents))))))
 
 (define (get-exponent op output srcs)
   (cond
