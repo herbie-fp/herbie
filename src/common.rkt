@@ -6,8 +6,7 @@
 
 (provide reap
          flip-lists drop-at find-duplicates partial-sums
-         argmin/#f argmins argmaxs
-         set-disjoint? subsequence? list-set* disjoint-set
+         argmins argmaxs set-disjoint? subsequence? list-set* disjoint-set
          disjoint-set-find! disjoint-set-union! get-seed set-seed!
          quasisyntax dict sym-append string-replace*
          format-time format-bits format-accuracy format-cost web-resource
@@ -33,9 +32,6 @@
     flsingle))
 
 ;; Utility list functions
-
-(define (argmin/#f proc lst)
-  (and (pair? lst) (argmin proc lst)))
 
 (define (argmins f lst)
   (let loop ([lst lst] [best-score #f] [best-elts '()])

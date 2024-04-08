@@ -743,35 +743,45 @@
   (define n (vector-length eclasses))
   (define parents (make-vector n '()))
 
-  ; build parent map
-  (for ([i (in-range n)])
-    (define eclass (vector-ref eclasses i))
-    (for ([j (in-range (vector-length eclass))])
-      (define node (vector-ref eclass j))
-      (when (pair? node)
-        (for ([id (in-list (cdr node))])
-          (vector-set! parents id (cons i (vector-ref parents id)))))))
+  ; updates `parents` based on the eclass `id`
+  (define (build-parents id)
+    (define eclass (vector-ref eclasses id))
+    (for ([node (in-vector eclass)])
+      (when (pair? node) ; only care about nodes with children
+        (for ([child-id (in-list (cdr node))])
+          (vector-set! parents
+                       child-id
+                       (cons id (vector-ref parents child-id)))))))
 
-  ; convert to vectors
-  (for ([i (in-range n)])
-    (vector-set! parents i (list->vector (vector-ref parents i))))
-  parents)
+  ; compute parent-child relation
+  ; (ensure the result uses only vectors)
+  (for ([id (in-range n)]) (build-parents id))
+  (vector-map list->vector parents))
 
-;; Extraction reconstruction
-(define (egg-extractor-proc costs)
-  (define cache (make-hasheq)) ; numbers are eq? only up to a certain point
-  (define (extract-expr id)
-    (hash-ref! cache id
-               (lambda ()
-                 (match (cdr (vector-ref costs id))
-                   [(? number? n) n]  ; number
-                   [(? symbol? s) s]  ; typename or variable name
-                   [(cons '$Type types) (cons '$Type types)] ; type
-                   [(cons op ids) (cons op (map extract-expr ids))]  ; operator
-                   [e (error 'default-extraction-proc "could not reconstruct ~a" e)]))))
-  (lambda (id)
-    (cons (cdr (vector-ref costs id))
-          (extract-expr id))))
+;; Creates an extraction procedure based on (eclass cost, cheapest node)
+(define (egg-extractor-proc cost-vec)
+  (define n (vector-length cost-vec))
+  (define costs (vector-map car cost-vec))
+  (define nodes (make-vector n #f))
+  
+  ; reconstructs the best expression at a node
+  (define (build-expr id)
+    (define node (vector-ref nodes id)) ; check if it is cached
+    (cond
+      [node node]
+      [else
+       (define node 
+         (match (cdr (vector-ref cost-vec id))
+           [(? number? n) n] ; number
+           [(? symbol? s) s] ; typename or variable name
+           [(cons '$Type types) (cons '$Type types)] ; type
+           [(cons op ids) (cons op (map build-expr ids))] ; operator
+           [e (error 'default-extraction-proc "could not reconstruct ~a" e)]))
+       (vector-set! nodes id node)
+       node]))
+
+  ; the actual procedure
+  (lambda (id) (cons (vector-ref costs id) (build-expr id))))
 
 ;; Default extraction algorithm
 ;; Implements the extraction function found in egg with some improvements
@@ -816,25 +826,27 @@
                (cost-proc regraph cache node unsafe-eclass-cost)))
         (cost-proc regraph cache node unsafe-eclass-cost)))
 
-  ; Computes eclass cost
-  (define (eclass-cost eclass)
-    (argmin/#f car
-      (reap [sow]
-        (for ([i (in-range (vector-length eclass))])
-          (define node (vector-ref eclass i))
-          (define cost (node-cost node))
-          (when cost (sow (cons cost node)))))))
+  ; Computes eclass cost returning (cost, node) or #f
+  (define (eclass-cost id)
+    (define eclass (vector-ref eclasses id))
+    (for/fold ([best #f]) ([node (in-vector eclass)])
+      (define cost (node-cost node))
+      (cond [(not cost) best]
+            [(not best) (cons cost node)]
+            [(< cost (car best)) (cons cost node)]
+            [else best])))
 
   ; Computes costs for all eclasses
   (let build-costs ()
-    (for ([i (in-range n)] #:when (vector-ref dirty?-vec i))
-      (vector-set! dirty?-vec i #f)
-      (define prev-cost (vector-ref costs i))
-      (define cost (eclass-cost (vector-ref eclasses i)))
-      (when (and cost (or (not prev-cost) (< (car cost) (car prev-cost))))
-        (vector-set! costs i cost)
-        (for ([j (in-vector (vector-ref parents i))])
-          (vector-set! dirty?-vec j #t))))
+    (for ([id (in-range n)] #:when (vector-ref dirty?-vec id))
+      (vector-set! dirty?-vec id #f)
+      (define cost (eclass-cost id))
+      (when cost ; computed a cost
+        (define prev-cost (vector-ref costs id))
+        (when (or (not prev-cost) (< (car cost) (car prev-cost))) ; cost is better
+          (vector-set! costs id cost)
+          (for ([j (in-vector (vector-ref parents id))])
+            (vector-set! dirty?-vec j #t)))))
     (when (for/or ([dirty? (in-vector dirty?-vec)]) dirty?)
       (build-costs)))
 
@@ -844,7 +856,7 @@
            "did not compute cost for all eclasses: ~a"
            costs))
   
-  ; construct the actual exraction procedure
+  ; construct the actual extraction procedure
   (egg-extractor-proc costs))
 
 ;; Is fractional with odd denominator.
@@ -859,10 +871,10 @@
   (match node
     [(list '$Var _ _) 1] ; variable
     [(list 'pow _ b e) ; special case for fractional pow
-     (match (vector-ref constants e)
-       [#f +inf.0]
-       [(? fraction-with-odd-denominator?) +inf.0]
-       [_ (+ 1 (rec b) (rec e))])]
+     (define n (vector-ref constants e))
+     (if (and n (fraction-with-odd-denominator? n))
+         +inf.0
+         (+ 1 (rec b) (rec e)))]
     [(list _ _ args ...) (apply + 1 (map rec args))]
     [_ 1]))
 
@@ -874,7 +886,6 @@
     [(? number?) 0] ; numbers are free I guess
     [(list '$Var ty-id _) ; variable
      (match (vector-ref types ty-id)
-       [#f +inf.0]
        [(list '$Type prec)
         (platform-repr-cost
           (*active-platform*)
@@ -890,7 +901,6 @@
      (if (and n (fraction-with-odd-denominator? n))
          +inf.0
          (match (vector-ref types ty-id)
-           [#f +inf.0]
            [(list '$Type _ itypes ...)
             (+ (platform-impl-cost
                  (*active-platform*)
@@ -900,7 +910,6 @@
            [_ +inf.0]))]  ; malformed (maybe unsound?)       
     [(list op ty-id args ...) ; operator
      (match (vector-ref types ty-id)
-       [#f +inf.0]
        [(list '$Type otype itypes ...)
         (apply
           +
