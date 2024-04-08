@@ -117,9 +117,7 @@
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
 
-      (define-values (status exs)
-        (parameterize ([*use-mixed-precision* #t])
-          (ival-eval fn ctxs pt)))
+      (define-values (status exs) (ival-eval fn ctxs pt))
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
