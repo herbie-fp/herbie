@@ -52,34 +52,26 @@
   altn)
   
 
-(define (add-soundiness-to pcontext ctx cache table altn)
+(define (add-soundiness-to pcontext ctx table altn)
   (match altn
 
     [(alt expr `(rr (,@loc) ,(? egraph-query? e-input) #f #f) `(,prev) _)
      (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
      (match-define (cons proof errs)
-       (hash-ref! cache (cons p-input e-input)
-                  (λ () (canonicalize-proof (alt-expr altn) table loc pcontext ctx #t e-input p-input))))
+       (canonicalize-proof (alt-expr altn) table loc pcontext ctx #t e-input p-input))
      (alt expr `(rr (,@loc) ,e-input ,proof ,errs) `(,prev) '())]
 
     [(alt expr `(rr (,@loc) ,(? rule? input) #f #f) `(,prev) _)
-     (match-define (cons proof errs)
-       (hash-ref! cache (cons input expr)
-                  (λ ()
-                    (define proof
-                      (list (alt-expr prev)
-                            (list 'Rewrite=> (rule-name input) (alt-expr altn))))
-                    (define errs
-                      (get-proof-errors proof pcontext ctx))
-                    (cons proof errs))))
+     (define proof
+       (list (alt-expr prev) (list 'Rewrite=> (rule-name input) (alt-expr altn))))
+     (define errs (get-proof-errors proof pcontext ctx))
      (alt expr `(rr (,@loc) ,input ,proof ,errs) `(,prev) '())]
 
     ;; This is alt coming from simplify
     [(alt expr `(simplify (,@loc) ,(? egraph-query? e-input) #f #f) `(,prev) _)
      (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
      (match-define (cons proof errs)
-       (hash-ref! cache (cons p-input e-input)
-                  (λ () (canonicalize-proof (alt-expr altn) table loc pcontext ctx #f e-input p-input))))
+       (canonicalize-proof (alt-expr altn) table loc pcontext ctx #f e-input p-input))
      (alt expr `(simplify (,@loc) ,e-input ,proof ,errs) `(,prev) '())]
 
     [else altn]))
@@ -95,6 +87,5 @@
                  #:proof-ignore-when-unsound? #t))
       (values e-input (map cons p-inputs proofs))))
 
-  (define cache (make-hash))
   (for/list ([altn alts])
-    (alt-map (curry add-soundiness-to pcontext ctx cache proof-table) altn)))
+    (alt-map (curry add-soundiness-to pcontext ctx proof-table) altn)))
