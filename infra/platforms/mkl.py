@@ -27,32 +27,22 @@ time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time
 class MKLRunner(Runner):
     """`Runner` for Intel MKL."""
     
-    def __init__(
-        self,
-        working_dir: str,
-        herbie_path: str,
-        num_inputs: Optional[int] = 10000,
-        num_runs: int = 100,
-        threads: int = 1
-    ):
+    def __init__(self, **kwargs):
         super().__init__(
             name='mkl',
             lang='mkl',
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            num_inputs=num_inputs,
-            num_runs=num_runs,
-            threads=threads,
             unary_ops=unary_ops,
             binary_ops=binary_ops,
             ternary_ops=ternary_ops,
-            time_unit='ms'
+            time_unit='ms',
+            **kwargs
         )
 
     def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
         for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
-            sample = samples[core.name]
+            _, sample = self.cache.get_core(core.key)
+            input_points, _ = sample
             with open(driver_path, 'w') as f:
                 print('#include <math.h>', file=f)
                 print('#include <stdio.h>', file=f)
@@ -64,7 +54,7 @@ class MKLRunner(Runner):
 
                 print(core.compiled, file=f)
 
-                for i, points in enumerate(sample):
+                for i, points in enumerate(input_points):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
                     print(',\n'.join(map(double_to_c_str, points)), file=f)
                     print('};', file=f)

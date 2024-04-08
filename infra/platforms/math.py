@@ -1,8 +1,6 @@
-from pathlib import Path
 from subprocess import Popen, PIPE
 from typing import Optional, List
-import matplotlib.pyplot as plt
-import json
+from pathlib import Path
 import os
 import re
 
@@ -10,69 +8,63 @@ from .fpcore import FPCore
 from .runner import Runner
 from .util import double_to_c_str, chunks
 
-unary_ops = ['neg', 'floor', 'sqrt', 'round', 'ceil', 'fabs']
-binary_ops = ['+', '-', '*', '/', 'fmax', 'fmin']
-ternary_ops = ['fma', 'fmsub', 'fnmadd', 'fnmsub']
+# Support operations in standard C
+unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
+binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fdim', 'fmax', 'fmin', 'fmod', 'pow', 'remainder']
+ternary_ops = []
 
+# C lang
+target_lang = 'c'
 compiler = 'cc'
-c_flags = ['-g', '-O3', '-mavx', '-mfma', '-ffp-contract=off']
-# TODO: What does this do?
+c_flags = ['-O3', '-ffp-contract=off']
 ld_flags = ['-lm']
 driver_name = 'main.c'
 time_unit = 'ms'
 
+# Regex patterns
 time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
 
-class AVXRunner(Runner):
-    def __init__(
-        self,
-        working_dir: str,
-        herbie_path: str,
-        num_inputs: Optional[int] = 10000,
-        num_runs: int = 100,
-        threads: int = 1
-    ):
+class MathRunner(Runner):
+    """`Runner` for C without special numeric functions."""
+    def __init__(self, **kwargs):
         super().__init__(
-            name='avx',
-            lang='avx',
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            # TODO: Does that work?
-            # Need four times as many inputs since each element is a 4 element vector
-            num_inputs=num_inputs*4,
-            num_runs=num_runs,
-            threads=threads,
+            name='math',
+            lang='c',
             unary_ops=unary_ops,
             binary_ops=binary_ops,
             ternary_ops=ternary_ops,
-            time_unit=time_unit
+            time_unit='ms',
+            **kwargs
         )
 
     def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
         for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
-            sample = samples[core.name]
+            _, sample = self.cache.get_core(core.key)
+            input_points, _ = sample
             with open(driver_path, 'w') as f:
-                print('#include <immintrin.h>', file=f)
+                print('#include <math.h>', file=f)
                 print('#include <stdio.h>', file=f)
+                print('#include <stdlib.h>', file=f)
                 print('#include <time.h>', file=f)
+                print('#define TRUE 1', file=f)
+                print('#define FALSE 0', file=f)
 
-                print(core.compiled, file=f)
+                print(f'inline {core.compiled}', file=f)
 
-                for i, points in enumerate(sample):
+                for i, points in enumerate(input_points):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
                     print(',\n'.join(map(double_to_c_str, points)), file=f)
                     print('};', file=f)
 
                 print('int main() {', file=f)
                 print(f'struct timespec ts1, ts2;', file=f)
-                print(f'volatile __m256d res;', file=f)
+                print(f'volatile double res;', file=f)
                 print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts1);', file=f)
 
-                arg_str = ', '.join(map(lambda i: f'_mm256_load_pd(&x{i}[i])', range(core.argc)))
-                # arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
+                arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
                 app_str =  f'foo({arg_str})'
-                print(f'for (long i = 0; i < {self.num_inputs}; i += 4) {{', file=f)
+                print(f'for (long i = 0; i < {self.num_inputs}; i++) {{', file=f)
                 print(f'  res = {app_str};', file=f)
                 print('}', file=f)
 
@@ -85,6 +77,7 @@ class AVXRunner(Runner):
         self.log(f'created drivers')
 
     def compile_drivers(self, driver_dirs: List[str]) -> None:
+        # chunk over threads
         for driver_dirs in chunks(driver_dirs, self.threads):
             ps = []
             # fork subprocesses
@@ -96,7 +89,6 @@ class AVXRunner(Runner):
             # join processes
             for p in ps:
                 _, _ = p.communicate()
-
         self.log(f'compiled drivers')
 
     def run_drivers(self, driver_dirs: List[str]) -> List[float]:
@@ -117,21 +109,3 @@ class AVXRunner(Runner):
         times = [sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')
         return times
-
-
-    def plot_times(self, cores: List[FPCore], times: List[float]):
-        """Plots Herbie cost estimate vs. actual run time."""
-        path = self.working_dir.joinpath("report.json")
-        with open("report.json", "w") as report_file:
-            data = [{"name": core.name,
-                     "descr": core.descr,
-                     "estimated_cost": core.cost,
-                     "actual_time": time}
-                    for core, time in zip(cores, times)]
-            json.dump(data, report_file)
-        costs = list(map(lambda c: c.cost, cores))
-        plt.scatter(costs, times)
-        plt.title('Estimated cost vs. actual run time')
-        plt.xlabel('Estimated cost (Herbie)')
-        plt.ylabel(f'Run time ({self.time_unit})')
-        plt.show()
