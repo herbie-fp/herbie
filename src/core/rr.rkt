@@ -64,7 +64,11 @@
    [else
     (timeline-push! 'method "batch-egg-rewrite")
     (timeline-push! 'inputs (map ~a exprs))
-    (define e-input (make-egg-query exprs rules #:context ctx #:node-limit (*node-limit*)))
+    (define e-input
+      (make-egg-query exprs rules
+                      #:context ctx
+                      #:node-limit (*node-limit*)
+                      #:cost-proc platform-egg-cost-proc))
     (match-define (cons variantss _) (run-egg e-input #t))
 
     (define out

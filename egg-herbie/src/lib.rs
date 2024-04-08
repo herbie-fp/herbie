@@ -227,6 +227,42 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_find(ptr: *mut Context, id: usize) -> u32 {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let node_id = Id::from(id);
+    let canon_id = context.runner.egraph.find(node_id);
+    usize::from(canon_id) as u32
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
+    // Safety: `ptr` was box allocated by `egraph_create`
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    // Iterate through the eclasses and print each eclass
+    let mut s = String::from("(");
+    for c in context.runner.egraph.classes() {
+        s.push_str(&format!("({}", c.id));
+        for node in &c.nodes {
+            if matches!(node, Math::Symbol(_) | Math::Constant(_)) {
+                s.push_str(&format!(" {}", node));
+            } else {
+                s.push_str(&format!("({}", node));
+                for c in node.children() {
+                    s.push_str(&format!(" {}", c));
+                }
+                s.push(')');
+            }
+        }
+
+        s.push(')');
+    }
+    s.push(')');
+
+    let c_string = ManuallyDrop::new(CString::new(s).unwrap());
+    c_string.as_ptr()
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_get_simplest(
     ptr: *mut Context,
     node_id: u32,
