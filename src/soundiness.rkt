@@ -89,7 +89,7 @@
   (for ([altn (in-list alts)])
     (alt-map (curryr collect-necessary-proofs table) altn))
   (define proof-table
-    (for/hash ([(e-input p-inputs) (in-hash table)])
+    (for/hasheq ([(e-input p-inputs) (in-hash table)])
       (match-define (cons variants proofs)
         (run-egg e-input #f #:proof-inputs p-inputs
                  #:proof-ignore-when-unsound? #t))
