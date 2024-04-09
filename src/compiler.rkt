@@ -237,7 +237,7 @@
   ; Repeating part calculation
 
   ; Copying new precisions into vprecs
-  (vector-copy! vprecs 0 new-vprecs) 
+  (vector-copy! vprecs 0 vprecs-new) 
   )
 
 ; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
