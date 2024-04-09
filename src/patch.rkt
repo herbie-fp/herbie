@@ -92,7 +92,7 @@
   (define impls (list->set (platform-impls (*active-platform*))))
   ; direct lowering: each operator has a set of implementations
   (define rules
-    (for/list ([op (in-list (all-operators))] #:when (eq? op '+)
+    (for/list ([op (in-list (all-operators))] #:unless (accelerator? op)
                [impl (in-list (operator-all-impls op))] #:when (set-member? impls impl))
       (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
       (rule (sym-append op '-lowering- impl)
@@ -158,8 +158,10 @@
   (define changelistss
     (rewrite-expressions
       real-exprs
-      `((,(*real-rules*) ((node . ,(*node-limit*))))
-        (,(*lowering-rules*) ((iteration . 1) (scheduler . simple))))
+      `((run ,(*real-rules*) ((node . ,(*node-limit*))))
+        (run ,(*lowering-rules*) ((iteration . 1) (scheduler . simple)))
+        (convert)
+        (prune-spec))
       (*context*)))
 
   ; apply changelists
@@ -171,6 +173,7 @@
           (match-define (list subexpr input) cl)
           (set! num-rewritten (add1 num-rewritten))
           (when (impl-in-platform? subexpr (*active-platform*))
+            (printf "~a\n" subexpr)
             (sow (alt subexpr (list 'rr input #f #f) (list altn) '())))))))
 
   (printf "valid ~a/~a\n" (length rewritten) num-rewritten)
