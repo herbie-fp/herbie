@@ -13,10 +13,8 @@
          "programs.rkt"
          "timeline.rkt")
 
-(provide
-  (contract-out
-   [patch-table-has-expr? (-> expr? boolean?)]
-   [patch-table-run (-> (listof expr?) (listof expr?) (listof alt?))]))
+(provide patch-table-has-expr?
+         patch-table-run)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -133,18 +131,9 @@
         [(? symbol?) (void)]))
     (return #t)))
 
-(define (run-rr altns)
+(define (run-rr altns reprs)
   (timeline-event! 'rewrite)
   (define exprs (map alt-expr altns))
-  (define real-exprs
-    (reap [sow]
-      (for ([expr (in-list exprs)])
-        (match expr
-          [(list 'if _ _ _) (sow expr)]
-          [(list op _ ...)
-           (when (eq? (operator-info op 'otype) 'real)
-             (sow expr))]
-          [_ (sow expr)]))))
 
   ; generate real rules is not cached
   (unless (*real-rules*)
@@ -154,15 +143,14 @@
   (unless (*lowering-rules*)
     (gen-lowering-rules!))
 
-  ; rewrite using a 2-phase schedule
+  ; egg schedule (2-phases for real rewrites and implementation selection)
+  (define schedule
+    `((run ,(*real-rules*) ((node . ,(*node-limit*))))
+      (run ,(*lowering-rules*) ((iteration . 1) (scheduler . simple)))
+      (convert)
+      (prune-spec)))
   (define changelistss
-    (rewrite-expressions
-      real-exprs
-      `((run ,(*real-rules*) ((node . ,(*node-limit*))))
-        (run ,(*lowering-rules*) ((iteration . 1) (scheduler . simple)))
-        (convert)
-        (prune-spec))
-      (*context*)))
+    (rewrite-expressions exprs reprs schedule (*context*)))
 
   ; apply changelists
   (define num-rewritten 0)
@@ -173,7 +161,6 @@
           (match-define (list subexpr input) cl)
           (set! num-rewritten (add1 num-rewritten))
           (when (impl-in-platform? subexpr (*active-platform*))
-            (printf "~a\n" subexpr)
             (sow (alt subexpr (list 'rr input #f #f) (list altn) '())))))))
 
   (printf "valid ~a/~a\n" (length rewritten) num-rewritten)
@@ -186,13 +173,21 @@
 (define (patch-table-has-expr? expr)
   (hash-has-key? (*patch-table*) expr))
 
-(define (patch-table-run hi-err-specs lo-err-specs)
-  (define specs (append hi-err-specs lo-err-specs)) ; who cares any more
-  (define uncached
-    (for/list ([spec (in-list specs)] #:unless (patch-table-has-expr? spec))
-      (alt spec (list 'patch spec) '() '())))
-  ;; Core
-  (define approximation (run-taylor uncached))
-  (define altns (run-rr (append uncached approximation)))
+(define (patch-table-run locs)
+  ; Starting alternatives
+  (define start-altns
+    (for/list ([(spec repr) (in-dict locs)])
+      (alt spec (list 'patch spec repr) '() '())))
+  ; Core
+  ; (define approximation (run-taylor uncached))
+  (define reprs (map cdr locs))
+  (define altns (run-rr start-altns reprs))
+
+  ; (define uncached
+  ;   (for/list ([spec (in-list specs)] #:unless (patch-table-has-expr? spec))
+  ;     (alt spec (list 'patch spec) '() '())))
+  ; ;; Core
+  ; (define approximation (run-taylor uncached))
+  ; (define altns (run-rr (append uncached approximation)))
   ;; Uncaching
   altns)

@@ -540,8 +540,39 @@
       [(list 'convert) (void)]
       [_ (oops! "unknown instruction `~a`" instr)])))
 
+;; Runs rules over the egraph with the given egg parameters.
+;; Invariant: the returned egraph is never unsound
+(define (egraph-run-rules egg-graph0 egg-rules params const-folding?)  
+  (define node-limit (dict-ref params 'node #f))
+  (define iter-limit (dict-ref params 'iteration #f))
+  (define scheduler (dict-ref params 'scheduler 'backoff))
 
-(define (egraph-run-schedule exprs ctx schedule const-folding?)
+  ;; run the rules
+  (let loop ([iter-limit iter-limit])
+    (define ffi-rules (map cdr egg-rules))
+    (define egg-graph (egraph-copy egg-graph0))
+    (define iteration-data
+      (egraph-run egg-graph
+                  ffi-rules
+                  node-limit
+                  iter-limit
+                  scheduler
+                  const-folding?))
+
+    (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
+    (cond
+      [(egraph-is-unsound-detected egg-graph)
+       ; unsoundness means run again with less iterations
+       (define num-iters (length iteration-data))
+       (define iter-limit* (sub1 num-iters))
+       (if (<= iter-limit* 0)
+           (values egg-graph0 (list))
+           (loop iter-limit*))]
+      [else
+       (values egg-graph iteration-data)])))
+
+
+(define (egraph-run-schedule exprs reprs ctx schedule const-folding?)
   (define (oops! command why)
     (error 'egraph-run-schedule "~a: ~a" command why))
 
@@ -562,39 +593,27 @@
          (unless egg-graph
            (oops! 'run "requires a Rust egraph (was this run after a `convert` instruction?)"))
 
-         ;; expand rules (may possibly be cached)
+         ; run rules in the egraph
          (define egg-rules (expand-rules rules))
-         (define node-limit (dict-ref params 'node #f))
-         (define iter-limit (dict-ref params 'iteration #f))
-         (define scheduler (dict-ref params 'scheduler 'backoff))
-     
-         ;; run the rules
-         (define ffi-rules (map cdr egg-rules))
-         (define iteration-data
-           (egraph-run egg-graph
-                       ffi-rules
-                       node-limit
-                       iter-limit
-                       scheduler
-                       const-folding?))
-     
+         (define-values (egg-graph* iteration-data)
+          (egraph-run-rules egg-graph egg-rules params const-folding?))
+ 
          ; get cost statistics
          (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
            (define cnt (iteration-data-num-nodes iter))
-           (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph node-id i)) node-ids)))
+           (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph* node-id i)) node-ids)))
            (define new-time (+ time (iteration-data-time iter)))
            (timeline-push! 'egraph i cnt cost new-time)
            new-time)
-     
+       
          ;; get rule statistics
          (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
-           (define count (egraph-get-times-applied egg-graph ffi-rule))
+           (define count (egraph-get-times-applied egg-graph* ffi-rule))
            (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
            (hash-update! rule-apps canon-name (curry + count) count))
-     
-         (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
-         (set! last-egraph egg-graph)
-         (values (egraph-copy egg-graph) regraph)]
+
+         (set! last-egraph egg-graph*)
+         (values egg-graph* regraph)]
         [(list 'convert)
          (unless egg-graph
            (oops! 'convert "requires a Rust egraph (was this run after a `convert` instruction?)"))
@@ -703,6 +722,8 @@
       ['type (vector-set! types id (extract-egg-type id))]
       [type (error 'sexpr->regraph "unexpected type eclass type ~a" type)]))
   ; collect with wrapper
+  ; (for ([id (in-range n)])
+  ;   (printf "~a: ~a\n" id (vector-ref eclasses id)))
   (regraph eclasses canon has-leaf? constants types node->id egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation of
@@ -973,7 +994,7 @@
   (define types (regraph-types re))
   (define n (vector-length eclasses))
 
-  (define (prune)
+  (define eclasses*
     (for/vector #:length n ([id (in-range n)])
       (define eclass (vector-ref eclasses id))
       (cond
@@ -990,7 +1011,12 @@
                   (unless (eq? (vector-ref types ty-id) 'real) ; real operator
                     (sow node))]))))])))
 
-  (struct-copy regraph re [eclasses (prune)]))
+  ; invariant: all eclasses need at least one enode
+  (when (for/or ([eclass (in-vector eclasses*)])
+          (vector-empty? eclass))
+    (error 'regraph-prune-specs "invariant violated: eclass contains no enodes"))
+
+  (struct-copy regraph re [eclasses eclasses*]))
 
 ;; Extracts the best expression according to the extractor
 (define (regraph-extract-best regraph ctx extract id)
@@ -1028,16 +1054,17 @@
 
 ;; Herbie's version of an egg runner
 ;; Defines parameters for running rewrite rules with egg
-(struct egraph-query (exprs schedule ctx extractor cost-proc const-folding?) #:transparent)
+(struct egraph-query (exprs reprs schedule ctx extractor cost-proc const-folding?) #:transparent)
 
 (define (make-egg-query exprs
+                        reprs
                         schedule
                         #:context [ctx (*context*)]
                         #:extractor [extractor default-egg-extractor]
                         #:cost-proc [cost-proc default-egg-cost-proc]
                         #:const-folding? [const-folding? #t])
   (verify-schedule! schedule)
-  (egraph-query exprs schedule ctx extractor cost-proc const-folding?))
+  (egraph-query exprs reprs schedule ctx extractor cost-proc const-folding?))
 
 (define (run-egg input
                  variants?
@@ -1047,6 +1074,7 @@
   (define ctx (egraph-query-ctx input))
   (define-values (node-ids egg-graph regraph)
     (egraph-run-schedule (egraph-query-exprs input)
+                         (egraph-query-reprs input)
                          ctx
                          (egraph-query-schedule input)
                          (egraph-query-const-folding? input)))
@@ -1056,31 +1084,22 @@
   (define extract-id (extractor cost-proc regraph))
   ;; Extract the expressions
   (define variants
-    (cond
-      [(egraph-is-unsound-detected egg-graph)
-       (map (lambda (_) (list)) node-ids)]
-      [variants?
-       (for/list ([id node-ids])
-         (define id* (egraph-find egg-graph id))
-         (regraph-extract-variants regraph ctx extract-id id*))]
-      [else
-       (for/list ([id node-ids])
-         (define id* (egraph-find egg-graph id))
-         (list (regraph-extract-best regraph ctx extract-id id*)))]))
+    (if variants?
+        (for/list ([id node-ids])
+          (regraph-extract-variants regraph ctx extract-id id))
+        (for/list ([id node-ids])
+          (list (regraph-extract-best regraph ctx extract-id id)))))
   ;; Extract the proof based on a pair (start, end) expressions.
   (define proofs
     (for/list ([proof-input (in-list proof-inputs)])
-      (cond
-        [(not (and (egraph-is-unsound-detected egg-graph) proof-ignore-when-unsound?))
-         (match-define (cons start end) proof-input)
-         (unless (egraph-is-equal egg-graph start end ctx)
-           (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
+      (match-define (cons start end) proof-input)
+      (unless (egraph-is-equal egg-graph start end ctx)
+        (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
 
-         (define proof (egraph-get-proof egg-graph start end ctx))
-         (when (null? proof)
-           (error (format "Failed to produce proof for ~a to ~a" start end)))
-         proof]
-        [else #f])))
+      (define proof (egraph-get-proof egg-graph start end ctx))
+      (when (null? proof)
+        (error (format "Failed to produce proof for ~a to ~a" start end)))
+      proof))
   ;; Return extracted expressions and the proof
   (cons variants proofs))
 

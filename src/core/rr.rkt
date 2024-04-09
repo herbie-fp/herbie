@@ -41,17 +41,13 @@
 ;;
 ;;  Egg recursive rewriter
 ;;
-;; Fallback system
-;;  batch-egg-rewrite - batched call to egg
-;;  egg-rewrite - call to egg on an expression (skipped if batch-egg-rewrite called with 1 expr)
-;;  egg-rewrite-iter-limit - call to egg on an expression with an iter limit (last resort)
-;;
-;;  Recursive rewrite chooser
-(define (rewrite-expressions exprs schedule ctx)
+
+(define (rewrite-expressions exprs reprs schedule ctx)
   (timeline-push! 'method "batch-egg-rewrite")
   (timeline-push! 'inputs (map ~a exprs))
   (define e-input
     (make-egg-query exprs
+                    reprs
                     schedule
                     #:context ctx
                     #:cost-proc platform-egg-cost-proc))

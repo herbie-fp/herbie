@@ -16,17 +16,14 @@
 ;; extending, make sure this never gets too complicated to fit in your
 ;; head at once, because then global state is going to mess you up.
 
-(struct shellstate (table next-alts locs lowlocs patched) #:mutable)
+(struct shellstate (table next-alts locs patched) #:mutable)
 (define-resetter ^shell-state^
-  (λ () (shellstate #f #f #f #f #f))
-  (λ () (shellstate #f #f #f #f #f)))
+  (λ () (shellstate #f #f #f #f))
+  (λ () (shellstate #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
   (shellstate-locs (^shell-state^)))
-(define (^lowlocs^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-lowlocs! (^shell-state^) newval))
-  (shellstate-lowlocs (^shell-state^)))
 (define (^table^ [newval 'none])
   (when (not (equal? newval 'none))  (set-shellstate-table! (^shell-state^) newval))
   (shellstate-table (^shell-state^)))
@@ -78,7 +75,7 @@
 
   (choose-alts!)
   (localize!)
-  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
+  (reconstruct! (patch-table-run (^locs^)))
   (finalize-iter!))
 
 (define (extract!)
@@ -218,22 +215,7 @@
                       (errors-score err)
                       (not (patch-table-has-expr? expr))
                       (~a (representation-name repr)))
-      (expand-accelerators (*rules*) (prog->spec expr))))
-
-  ; low-error locations (Pherbie-only with multi-precision)
-  (^lowlocs^
-    (if (and (*pareto-mode*) (not (null? (platform-conversions (*active-platform*)))))
-        (for/list ([loc-errs (in-list loc-errss)]
-                   #:when true
-                   [(err expr) (in-dict (reverse loc-errs))]
-                   [i (in-range (*localize-expressions-limit*))])
-          (timeline-push! 'locations
-                          (~a expr)
-                          (errors-score err)
-                          #f
-                          (~a (representation-name repr)))
-          (expand-accelerators (*rules*) (prog->spec expr)))
-        '()))
+      (cons (expand-accelerators (*rules*) (prog->spec expr)) repr)))
   
   (void))
 
@@ -256,7 +238,7 @@
   ;; extracts the base expression of a patch
   (define (get-starting-spec altn)
     (match* ((alt-event altn) (alt-prevs altn))
-      [(`(patch ,spec) _) spec]
+      [((list 'patch spec _) _) spec]
       [(_ (list prev)) (get-starting-spec prev)]
       [(_ _) (error 'get-starting-spec "unexpected: ~a" altn)]))
 
@@ -265,7 +247,7 @@
     (let loop ([altn altn])
       (match-define (alt _ event prevs _) altn)
       (match event
-        [(list 'patch _) orig]
+        [(list 'patch _ _) orig]
         [_
          (define event*
            (match event
@@ -333,13 +315,12 @@
 (define (finish-iter!)
   (unless (^next-alts^) (choose-alts!))
   (unless (^locs^) (localize!))
-  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
+  (reconstruct! (patch-table-run (^locs^)))
   (finalize-iter!)
   (void))
 
 (define (rollback-iter!)
   (^locs^ #f)
-  (^lowlocs^ #f)
   (^next-alts^ #f)
   (^patched^ #f)
   (void))
