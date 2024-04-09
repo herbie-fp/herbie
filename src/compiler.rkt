@@ -235,11 +235,14 @@
   (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
   
   ; Repeating part calculation
+
+  ; Copying new precisions into vprecs
+  (vector-copy! vprecs 0 new-vprecs) 
   )
 
 ; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
 ; Roughly speaking:
-;   vprecs-new[i] = max( *max-mpfr-prec* min( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
+;   vprecs-new[i] = min( *max-mpfr-prec* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
 ;   exponents-from-above = get-exponent(parent)
 (define (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
