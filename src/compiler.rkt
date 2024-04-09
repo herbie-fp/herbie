@@ -352,12 +352,9 @@
                (max
                 (- (max xlo-exp ylo-exp) outlo-exp)
                 (- (max xhi-exp yhi-exp) outhi-exp))
-               (if (and (or (not (equal? xlo-sgn ylo-sgn)) ; slack part
-                            (not (equal? xhi-sgn yhi-sgn)))
-                        (or (>= 2 (abs (- xlo-exp ylo-exp)))
-                            (>= 2 (abs (- xhi-exp yhi-exp)))))
-                   (get-slack)
-                   0)))]
+               (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
+                   0
+                   (get-slack))))]
       
     [(equal? op ival-sub)
      ; log[Г-] = max(log[x], log[y]) - log[x - y]
@@ -388,12 +385,9 @@
                (max
                 (- (max xlo-exp yhi-exp) outlo-exp)
                 (- (max xhi-exp ylo-exp) outhi-exp))
-               (if (and (or (equal? xlo-sgn yhi-sgn) ; slack part
-                            (equal? xhi-sgn ylo-sgn))
-                        (or (>= 2 (abs (- xlo-exp yhi-exp)))
-                            (>= 2 (abs (- xhi-exp ylo-exp)))))
-                   (get-slack)
-                   0)))]
+               (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
+                   0
+                   (get-slack))))]
       
     [(equal? op ival-pow)
      ; log[Гpow] = max[ log(y) , log(y) + log[log(x)] ]
@@ -423,7 +417,7 @@
      (define out-exp
        (+ 1 (max (abs (log2-approx outlo))
                  (abs (log2-approx outhi)))
-          (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+          (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
               0                            ; both bounds are positive or negative
               (get-slack))))               ; tan is (-inf, +inf) or around zero
 
@@ -442,7 +436,7 @@
      (define out-exp
        (+ (min (log2-approx outlo)
                (log2-approx outhi))
-          (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+          (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
               0                         ; both bounds are positive or negative
               (- (get-slack)))))        ; Condition of uncertainty,
      ; slack is negated because it is to be subtracted below
@@ -463,7 +457,7 @@
      (max 0
           (+ 1 (max (- (log2-approx outlo))  ; main formula
                     (- (log2-approx outhi)))
-             (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
+             (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
                  0                           ; both bounds are positive or negative
                  (get-slack))))]             ; output crosses 0.bf - uncertainty
 
@@ -517,8 +511,8 @@
           (+ (max (+ (- xlo-exp outlo-exp) 1)
                   (+ (- xhi-exp outhi-exp) 1))
        
-             (if (and (xor (bigfloat-signbit ylo) (bigfloat-signbit yhi))
-                      (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi)))
+             (if (and (equal? (bigfloat-signbit ylo) (bigfloat-signbit yhi))
+                      (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)))
                  0                ; y and out don't cross 0
                  (get-slack))))]   ; y or output crosses 0
     [(equal? op ival-fma)
@@ -549,7 +543,7 @@
                                    zhi-exp)))
      (max 0
           (- condition-lhs (min outlo-exp outhi-exp)
-             (if (xor (bigfloat-signbit outhi) (bigfloat-signbit outlo)) ; cancellation when output crosses 0
+             (if (equal? (bigfloat-signbit outhi) (bigfloat-signbit outlo)) ; cancellation when output crosses 0
                  0
                  (- (get-slack)))))]
     
