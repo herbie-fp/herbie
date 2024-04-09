@@ -40,8 +40,9 @@
       (λ args
         (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                        (* (*sampling-iteration*) 1000)))
-        (when (not (zero? (*sampling-iteration*)))
-          (backward-pass ivec varc vregs vprecs vstart-precs rootvec vrepeats)) ; back-pass
+        (if (zero? (*sampling-iteration*))
+            (vector-fill! vrepeats #f)
+            (backward-pass ivec varc vregs vprecs vstart-precs rootvec vrepeats)) ; back-pass
         (timeline-stop!)
         
         (for ([arg (in-list args)] [n (in-naturals)])
@@ -242,7 +243,7 @@
   (define (recursive-repeat-check reg)
     (define idx (- reg varc))
     (define flag #t)
-    (when (<= 0 idx)  ; if ivec[reg] is a variable - return #t, we do not change precision of a variable
+    (when (<= 0 idx)  ; if ivec[reg] is a variable - return #t, precision of a variable is always 53
       (define tail-regs (rest (vector-ref ivec idx)))
       (set! flag
             (if (empty? tail-regs)
