@@ -1,13 +1,14 @@
 #lang racket
 
 (require math/bigfloat math/flonum rival)
+(require (only-in math/private/bigfloat/mpfr mpfr-exp))
 (require "syntax/syntax.rkt" "syntax/types.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
 (provide compile-specs compile-spec compile-progs compile-prog)
 
 (define (log2-approx x)
-  (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
+  (define exp (mpfr-exp x))
   (if (equal? exp -9223372036854775807)
       (- (get-slack))  ; 0.bf
       (if (or (< 1000000000 (abs exp)))
@@ -39,7 +40,7 @@
       (λ args
         (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                        (* (*sampling-iteration*) 1000)))
-        (when (not (zero? (*sampling-iteration*)))                  
+        (when (not (zero? (*sampling-iteration*)))
           (backward-pass ivec varc vregs vprecs vstart-precs rootvec vrepeats)) ; back-pass
         (timeline-stop!)
         
@@ -220,7 +221,7 @@
 (define (backward-pass ivec varc vregs vprecs vstart-precs rootvec vrepeats)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Adding slack in case of rounding boundary
-  (for ([root-reg (in-vector rootvec)])                            
+  (for ([root-reg (in-vector rootvec)])
     (when (and
            (<= varc root-reg)                                       ; when root is not a variable
            (bigfloat? (ival-lo (vector-ref vregs root-reg))))       ; when root is a real op
@@ -233,12 +234,51 @@
 
   ; Exponents calculation
   (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
-  
-  ; Repeating part calculation
+
+  ; Repeating precisions check
+  ; Assigns #t for a node if it has the same precision and children have #t flag as well
+  ; Assigns #f for a node if it doesn't have the same precision or at least one child has #f
+  (define first-iter (equal? 1 (*sampling-iteration*)))
+  (define (recursive-repeat-check reg)
+    (define idx (- reg varc))
+    (define flag #t)
+    (when (<= 0 idx)  ; if ivec[reg] is a variable - return #t, we do not change precision of a variable
+      (define tail-regs (rest (vector-ref ivec idx)))
+      (set! flag
+            (if (empty? tail-regs)
+                (equal? (vector-ref vprecs-new idx)
+                        (if first-iter (vector-ref vstart-precs idx) (vector-ref vprecs idx)))
+                (and
+                 (equal? (vector-ref vprecs-new idx)
+                         (if first-iter (vector-ref vstart-precs idx) (vector-ref vprecs idx)))
+                 (andmap identity (map recursive-repeat-check tail-regs)))))
+      (vector-set! vrepeats idx flag))
+    flag)
+    
+  (for ([root-reg (in-vector rootvec)])
+    (when (and
+           (<= varc root-reg)                                       ; when root is not a variable
+           (bigfloat? (ival-lo (vector-ref vregs root-reg))))
+      (recursive-repeat-check root-reg)))
+
+  #;(define (double-fixed? x)
+    (fl= (bigfloat->flonum (ival-lo x)) (bigfloat->flonum (ival-hi x))))
+  #;(when (<= 4 (*sampling-iteration*))
+    (printf "iter ~a\n" (*sampling-iteration*))
+    (for ([prec (in-vector (if (equal? 1 (*sampling-iteration*)) vstart-precs vprecs))]
+          [prec-new (in-vector vprecs-new)]
+          [instr (in-vector ivec)]
+          [repeat (in-vector vrepeats)]
+          [n (in-naturals)])
+      (when (bigfloat? (ival-lo (vector-ref vregs (+ n varc))))
+        (if (vector-member (+ n varc) rootvec)
+            (printf "ROOT (~a) ~a: ~a, ~a/~a - ~a\n" (double-fixed? (vector-ref vregs (+ n varc)))
+                    (+ n varc) instr prec prec-new repeat)
+            (printf "~a: ~a, ~a/~a - ~a\n" (+ n varc) instr prec prec-new repeat))))
+    (printf "\n"))
 
   ; Copying new precisions into vprecs
-  (vector-copy! vprecs 0 vprecs-new) 
-  )
+  (vector-copy! vprecs 0 vprecs-new))
 
 ; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
 ; Roughly speaking:
@@ -302,7 +342,7 @@
      (define yhi (ival-hi y))
      (define yhi-exp (log2-approx yhi))
      (define yhi-sgn (bigfloat-signbit yhi))
-       
+     
      (define outlo (ival-lo output))
      (define outlo-exp (log2-approx outlo))
      (define outhi (ival-hi output))
