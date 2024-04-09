@@ -70,18 +70,36 @@
 (define (make-egraph)
   (egraph-data (egraph_create) (make-hash) (make-hash)))
 
+; Creates a new runner using an existing egraph.
+; Useful for multi-phased rule application
+(define (egraph-copy eg-data)
+  (struct-copy egraph-data eg-data
+    [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
+
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr ctx)
   (define egg-expr (~a (expr->egg-expr expr eg-data ctx)))
   (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
 
 ;; runs rules on an egraph (optional iteration limit)
-(define (egraph-run egraph-data node-limit ffi-rules const-folding? [iter-limit #f])
-  (define egraph-ptr (egraph-data-egraph-pointer egraph-data))
+(define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
+  (define u32_max 4294967295) ; since we can't send option types
+  (define node_limit (if node-limit node-limit u32_max))
+  (define iter_limit (if iter-limit iter-limit u32_max))
+  (define simple_scheduler?
+    (match scheduler
+      ['backoff #f]
+      ['simple #t]
+      [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
+
+
   (define-values (iterations length ptr)
-    (if iter-limit
-        (egraph_run_with_iter_limit egraph-ptr ffi-rules iter-limit node-limit const-folding?)
-        (egraph_run egraph-ptr ffi-rules node-limit const-folding?)))
+    (egraph_run (egraph-data-egraph-pointer egraph-data)
+                ffi-rules
+                iter_limit
+                node_limit
+                simple_scheduler?
+                const-folding?))
   (define iteration-data (convert-iteration-data iterations length))
   (destroy_egraphiters ptr)
   iteration-data)
@@ -218,6 +236,8 @@
        (list 'if 'real (loop cond) (loop ift) (loop iff))]
       [(list (? repr-conv? op) arg)
        (list op 'real (loop arg))]
+      [(list (? operator-exists? op) args ...)
+       (cons op (cons 'real (map loop args)))]
       [(list op args ...)
        (define-values (op* prec) (expand-operator op))
        (cons op* (cons prec (map loop args)))]
@@ -265,6 +285,8 @@
        (hash-ref rename-dict name)]
       [(list (? repr-conv? op) 'real arg)
        (list op (loop arg prec))] ; ???
+      [(list op 'real args ...) ; TODO what the heack
+       (cons op (map (curryr loop 'real) args))]
       [(list op prec)
        (match-define (list '$Type otype) prec)
        (list (get-parametric-constant op (get-representation otype)))]
@@ -442,43 +464,9 @@
 ;; Rule expansion
 ;;
 ;; Rules in the egraph must be over representations.
-;; We need to instatiate rules over types at particular representations
+;; We need to instantiate rules over types at particular representations
 ;; and translate them into egg's expression/pattern format.
 ;; This is the most annoying and bug-filled part of this library by far!
-
-;; Given a list of types, computes the product of all possible
-;; representation assignments where each element
-;; is a dictionary mapping type to representation
-(define (type-combinations types [reprs (platform-reprs (*active-platform*))])
-  (reap [sow]
-    (let loop ([types types] [assigns '()])
-      (match types
-        [(list) (sow assigns)]
-        [(list type rest ...)
-         (for ([repr (in-list reprs)]
-               #:when (equal? (representation-type repr) type))
-           (loop rest (cons (cons type repr) assigns)))]))))
-
-(define (reprs-in-expr expr)
-  (define reprs (mutable-set))
-  (let loop ([expr expr])
-    (match expr
-     [(list 'if cond ift iff)
-      (loop cond) (loop ift) (loop iff)]
-     [(list op args ...)
-      (set-add! reprs (impl-info op 'otype))
-      (for ([itype (impl-info op 'itype)])
-        (set-add! reprs itype))
-      (for-each loop args)]
-     [_ (void)]))
-  (set->list reprs))
-
-;; Representation name sanitizer (also in <herbie>/platform.rkt)
-(define (repr->symbol repr)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
-  (define repr-name (representation-name repr))
-  (string->symbol (string-replace* (~a repr-name) replace-table)))
-
 
 ;; Translates a Herbie rule into an egg rule
 (define (rule->egg-rule ru)
@@ -487,118 +475,12 @@
      [output (expr->egg-pattern (rule-output ru))]))
 
 (define (rule->egg-rules rule)
-  (list (rule->egg-rule rule)))
+  (define input (rule-input rule))
+  (if (symbol? input)
+      (list)  ; TODO: expansive rules
+      (list (rule->egg-rule rule))))
 
-(define (rule->impl-rules rule)
-  (list (rule->egg-rule rule)))
-
-
-; ;; Translates a rewrite rule into potentially many rules.
-; ;; If the rule is over types, the rule is duplicated for every
-; ;; valid assignment of representations.
-; (define (rule->impl-rules r)
-;   (match-define (rule name input output itypes otype) r)
-;   (define active-reprs (platform-reprs (*active-platform*)))
-;   (define supported? (curry set-member? active-reprs))
-;   (cond
-;     [(andmap representation? (cons otype (map cdr itypes)))
-;      ; rule over representation: just return the rule
-;      ; make sure to validate that the operators are supported
-;      (if (and (andmap supported? (reprs-in-expr input))
-;               (andmap supported? (reprs-in-expr output)))
-;          (list r)
-;          (list))]
-;     [else
-;      ; rule over types: must instanstiate over all possible
-;      ; assignments of representations keeping in mind that
-;      ; some operator implementations may not exist
-;      (define types (remove-duplicates (cons otype (map cdr itypes))))
-;      (reap [sow]
-;        (for ([type-ctx (in-list (type-combinations types))])
-;          ;; Strange corner case:
-;          ;; Rules containing comparators cause desugaring to misbehave.
-;          ;; The reported output type is bool but then desugaring
-;          ;; thinks there will be a cast somewhere
-;          (define otype* (dict-ref type-ctx otype))
-;          (define sugar-otype
-;            (if (equal? otype 'bool)
-;                (dict-ref type-ctx 'real (get-representation 'bool))
-;                otype*))
-
-;          (define itypes* (map (λ (p) (cons (car p) (dict-ref type-ctx (cdr p)))) itypes))
-;          (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
-;          (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
-;            ;; The easier way to tell if every operator is supported
-;            ;; in a given representation is to just try to desguar
-;            ;; the expression and catch any errors.
-;            (define name* (sym-append name '_ (repr->symbol sugar-otype)))
-;            (define input* (spec->prog input sugar-ctx))
-;            (define output* (spec->prog output sugar-ctx))
-;            (when (and (andmap supported? (reprs-in-expr input*))
-;                       (andmap supported? (reprs-in-expr output*)))
-;              (sow (rule name* input* output* itypes* otype*))))))]))
-
-; ;; Like `rule->impl-rule` except rules are consumable by egg.
-; ;; Special pass to handle expansive rules `?x => f(?x)`
-; (define (rule->egg-rules r)
-;   (match-define (rule name input output _ _) r)
-;   (cond
-;     [(variable? input)
-;      ; expansive rule: `?x => f(?x)`
-;      ; special care needs to be taken here
-;      (when (variable? output)
-;        (error 'rule->egg-rules "rewriting variable to variable ~a" r))
-;      ; for each real operator `app` instantiate a rule of
-;      ; the form: `(app e ...) => f((app e ...))`
-;      (define op-rules
-;        (for/fold ([rules '()]) ([op (all-operators)] #:unless (eq? op 'cast))
-;          (define itypes (operator-info op 'itype))
-;          (define otype (operator-info op 'otype))
-;          (define vars (build-list (length itypes) (λ (i) (string->symbol (format "$T~a" i)))))
- 
-;          (define name* (sym-append name '- op))
-;          (define input* (cons op vars))
-;          (define output* (replace-expression output input input*))
-;          (define itypes* (map cons vars itypes))
-
-;          (append (rule->egg-rules (rule name* input* output* itypes* otype)) rules)))
-;      ; for each implementation matching the output type/representation,
-;      ; make a rule for a variable under the same implementation
-;      (define var-rules
-;        (for/list ([impl-rule (rule->impl-rules r)])
-;          ; replace the LHS with a variable node
-;          (match-define (rule name input output itypes otype)
-;            (struct-copy rule impl-rule
-;                         [input (expr->egg-pattern (rule-input impl-rule))]
-;                         [output (expr->egg-pattern (rule-output impl-rule))]))
-;          (define repr (dict-ref itypes (rule-input impl-rule)))
-;          (define prec (list '$Type (representation-name repr)))
-;          (define input* (list '$Var prec input))
-;          (define output* (replace-expression output input input*))
-;          (rule name input* output* itypes otype)))
-;      ; both over ops and over a variable
-;      (append op-rules var-rules)]
-;     [else
-;      ;; all other rules should be replicated across representations
-;      ;; and then translated into a format usable by egg
-;      (for/list ([impl-rule (rule->impl-rules r)])
-;        (struct-copy rule impl-rule
-;                     [input (expr->egg-pattern (rule-input impl-rule))]
-;                     [output (expr->egg-pattern (rule-output impl-rule))]))]))
-    
-;; Cache mapping (rule, platform) -> (listof expanded-rule)
-;; where expanded-rule is (pairof egg-rule ffi-rule)))
-;; Rule expansion takes a significant amount of time, so we cache
-;; Assumes the set of rules, representations, and operator implementations
-;; are fixed throughout the improvement loop; rules are added and never
-;; removed or mutated
-(define-resetter *ffi-rules*
-  (λ () (make-hash))
-  (λ () (make-hash))
-  (λ (cache)
-    (for ([(_ entry) (in-hash cache)])
-      (define ffi-rules (map cdr entry))
-      (for-each free-ffi-rule ffi-rules))))
+(define rule->impl-rules rule->egg-rules)
 
 ;; Cache mapping name to its canonical rule name
 ;; See `*egg-rules*` for details
@@ -615,49 +497,61 @@
 ;; (see `rule->egg-rules` for details); checks the cache in case we used
 ; them previously
 (define (expand-rules rules)
-  (define pform (*active-platform*))
   (for/fold ([rules* '()] #:result (reverse rules*))
             ([rule (in-list rules)])
-    (define egg&ffi
-      (hash-ref! (*ffi-rules*) ; cache
-                 (cons rule (platform-name pform)) ; key
-                 (λ () ; generate
-                   (define orig-name (rule-name rule))
-                   (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                     (define name (rule-name egg-rule))
-                    ; (printf "~a => ~a\n" (rule-input egg-rule) (rule-output egg-rule))
-                     (hash-set! (*canon-names*) name orig-name)
-                     (cons egg-rule (make-ffi-rule egg-rule))))))
+   (define orig-name (rule-name rule))
+   (define egg&ffi
+     (for/list ([egg-rule (in-list (rule->egg-rules rule))])
+       (define name (rule-name egg-rule))
+       (hash-set! (*canon-names*) name orig-name)
+       (printf "~a: ~a => ~a\n" name (rule-input egg-rule) (rule-output egg-rule))
+       (cons egg-rule (make-ffi-rule egg-rule))))
     (append (reverse egg&ffi) rules*)))
 
-(define (egraph-run-rules egg-graph node-limit rules node-ids const-folding? #:limit [iter-limit #f])
-  ;; expand rules (may possibly be cached)
-  (define egg-rules (expand-rules rules))
-
-  ;; run the rules
-  (define ffi-rules (map cdr egg-rules))
-  (define iteration-data (egraph-run egg-graph node-limit ffi-rules const-folding? iter-limit))
-
-  ;; get cost statistics
-  (let loop ([iter iteration-data] [counter 0] [time 0])
-    (unless (null? iter)
-      (define cnt (iteration-data-num-nodes (first iter)))
-      (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph node-id counter)) node-ids)))
-      (define new-time (+ time (iteration-data-time (first iter))))
-      (timeline-push! 'egraph counter cnt cost new-time)
-      (loop (rest iter) (+ counter 1) new-time)))
-  (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
-
-  ;; get rule statistics
+(define (egraph-run-rules egg-graph0 node-ids schedule const-folding?)
   (define rule-apps (make-hash))
-  (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
-    (define count (egraph-get-times-applied egg-graph ffi-rule))
-    (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
-    (hash-update! rule-apps canon-name (curry + count) count))
+  (define last-egraph egg-graph0)
+  (for/fold ([egg-graph egg-graph0]) ([instr (in-list schedule)])
+    (match-define (list rules params) instr)
+  
+    ;; expand rules (may possibly be cached)
+    (define egg-rules (expand-rules rules))
+    (define node-limit (dict-ref params 'node #f))
+    (define iter-limit (dict-ref params 'iteration #f))
+    (define scheduler (dict-ref params 'scheduler 'backoff))
+
+    ;; run the rules
+    (define ffi-rules (map cdr egg-rules))
+    (define iteration-data
+      (egraph-run egg-graph
+                  ffi-rules
+                  node-limit
+                  iter-limit
+                  scheduler
+                  const-folding?))
+
+    ; get cost statistics
+    (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
+      (define cnt (iteration-data-num-nodes iter))
+      (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph node-id i)) node-ids)))
+      (define new-time (+ time (iteration-data-time iter)))
+      (timeline-push! 'egraph i cnt cost new-time)
+      new-time)
+
+    ;; get rule statistics
+    (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
+      (define count (egraph-get-times-applied egg-graph ffi-rule))
+      (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
+      (printf "~a: ~a\n" canon-name count)
+      (hash-update! rule-apps canon-name (curry + count) count))
+
+    (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
+    (set! last-egraph egg-graph)
+    (egraph-copy egg-graph))
 
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0) (timeline-push! 'rules (~a name) count)))
-  iteration-data)
+  last-egraph)
 
 (module+ test
   ;; Make sure all built-in rules are valid in
@@ -753,6 +647,8 @@
       ['typename (vector-set! types id (extract-egg-typename id))]
       ['type (vector-set! types id (extract-egg-type id))]
       [type (error 'make-regraph "unexpected type eclass type ~a" type)]))
+  (for ([id (in-range n)])
+    (printf "~a: ~a\n" id (vector-ref eclasses id)))
   ; construct with wrapper
   (regraph eclasses canon has-leaf? constants types node->id egg->herbie))
 
@@ -920,6 +816,7 @@
      (if (and n (fraction-with-odd-denominator? n))
          +inf.0
          (match (vector-ref types ty-id)
+           ['real +inf.0] ; real operator so ban it
            [(list '$Type _ itypes ...)
             (+ (platform-impl-cost
                  (*active-platform*)
@@ -929,6 +826,7 @@
            [_ +inf.0]))]  ; malformed (maybe unsound?)       
     [(list op ty-id args ...) ; operator
      (match (vector-ref types ty-id)
+       ['real +inf.0] ; real operator so ban it
        [(list '$Type otype itypes ...)
         (apply
           +
@@ -1045,36 +943,56 @@
 
 ;; Herbie's version of an egg runner
 ;; Defines parameters for running rewrite rules with egg
-(struct egraph-query (exprs rules ctx iter-limit node-limit extractor cost-proc const-folding?) #:transparent)
+(struct egraph-query (exprs schedule ctx extractor cost-proc const-folding?) #:transparent)
+
+(define (verify-schedule! schedule)
+  (define (oops! fmt . args)
+    (apply error 'verify-schedule! fmt args))
+  (unless (and (not (null? schedule)) (list? schedule))
+    (oops! "expected a non-empty list" schedule))
+  (for ([instr (in-list schedule)])
+    (match instr
+      [(list rules limits)
+       (unless (and (list? rules) (andmap rule? rules))
+         (oops! "in instruction `~a`, expected list of rules at `~a`" instr rules))
+       (unless (and (not (null? limits)) (list? limits))
+         (oops! "in instruction `~a`, expected non-empty list of parameters at `~a`" instr limits))
+       (for ([limit (in-list limits)])
+         (match limit
+           [(cons 'node (? number?)) (void)]
+           [(cons 'iteration (? number?)) (void)]
+           [(cons 'scheduler name)
+            (unless (set-member? '(simple backoff) name)
+              (oops! "in instruction `~a`, unknown scheduler `~a`" instr name))]
+           [_
+            (oops! "in instruction `~a`, malformed parameter `~a`" instr limit)]))]
+      [_ (oops! "malformed instruction `~a`" instr)])))
 
 (define (make-egg-query exprs
-                        rules
+                        schedule
                         #:context [ctx (*context*)]
-                        #:iter-limit [iter-limit #f]
-                        #:node-limit [node-limit (*node-limit*)]
                         #:extractor [extractor default-egg-extractor]
                         #:cost-proc [cost-proc default-egg-cost-proc]
                         #:const-folding? [const-folding? #t])
-  (egraph-query exprs rules ctx iter-limit node-limit extractor cost-proc const-folding?))
+  (egraph-query exprs schedule ctx extractor cost-proc const-folding?))
 
 (define (run-egg input
                  variants?
                  #:proof-inputs [proof-inputs '()]
                  #:proof-ignore-when-unsound? [proof-ignore-when-unsound? #f])
-  ;; Create the egraph (and runner)
-  (define egg-graph (make-egraph))
-  ;; Insert expressions
   (define ctx (egraph-query-ctx input))
+  ;; Insert expressions
+  (define egg-graph0 (make-egraph))
   (define node-ids
     (for/list ([expr (egraph-query-exprs input)])
-      (egraph-add-expr egg-graph expr ctx)))
+      (egraph-add-expr egg-graph0 expr ctx)))
   ;; Run egg and extract iteration data
-  (egraph-run-rules egg-graph
-                    (egraph-query-node-limit input)
-                    (egraph-query-rules input)
-                    node-ids
-                    (egraph-query-const-folding? input)
-                    #:limit (egraph-query-iter-limit input))
+  (verify-schedule! (egraph-query-schedule input))
+  (define egg-graph
+    (egraph-run-rules egg-graph0
+                      node-ids
+                      (egraph-query-schedule input)
+                      (egraph-query-const-folding? input)))
   ;; Read egraph via serialization
   (define racket-egraph
     (let ([serial-egraph (egraph-serialize egg-graph)])

@@ -62,15 +62,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Rules from spec to spec
 (define-resetter *real-rules*
   (λ () #f)
   (λ () #f))
-
-(define (remove-literals expr)
-  (match expr
-    [(list op args ...) (cons op (map remove-literals args))]
-    [(? literal?) (literal-value expr)]
-    [_ expr]))
 
 ;; Spec contains no accelerators
 (define (spec-has-accelerator? spec)
@@ -79,48 +74,16 @@
     [(list _ args ...) (ormap spec-has-accelerator? args)]
     [_ #f]))
 
-(define (run-rr altns)
-  (timeline-event! 'rewrite)
-  (define exprs (map alt-expr altns))
-  (define real-exprs
-    (reap [sow]
-      (for ([expr (in-list exprs)])
-        (match expr
-          [(list 'if _ _ _) (sow expr)]
-          [(list op _ ...)
-           (when (eq? (operator-info op 'otype) 'real)
-             (sow expr))]
-          [_ (sow expr)]))))
+(define (gen-real-rules!)
+  (*real-rules*
+    (filter-not
+      (lambda (rule)
+        (or (representation? (rule-otype rule))
+            (spec-has-accelerator? (rule-input rule))
+            (spec-has-accelerator? (rule-output rule))))
+      (*rules*))))
 
-  ; generate real rules is not cached
-  (unless (*real-rules*)
-    (*real-rules*
-      (filter-not
-        (lambda (rule)
-          (or (representation? (rule-otype rule))
-              (spec-has-accelerator? (rule-input rule))
-              (spec-has-accelerator? (rule-output rule))))
-        (*rules*))))
-
-  ; rewrite using real rules
-  (define changelistss
-    (rewrite-expressions real-exprs
-                         (*context*)
-                         #:rules (*real-rules*)))
-
-  ; apply changelists
-  (define rewritten
-    (reap [sow]
-      (for ([changelists changelistss] [altn altns])
-        (for ([cl changelists])
-          (match-define (list subexpr input) cl)
-          (sow (alt (remove-literals subexpr) (list 'rr input #f #f) (list altn) '()))))))
-
-  (timeline-push! 'count (length altns) (length rewritten))
-  rewritten)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Lowering ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+;; Rules from spec to impl
 (define-resetter *lowering-rules*
   (λ () #f)
   (λ () #f))
@@ -129,9 +92,9 @@
   (define impls (list->set (platform-impls (*active-platform*))))
   ; direct lowering: each operator has a set of implementations
   (define rules
-    (for/list ([op (in-list (all-operators))] #:unless (accelerator? op)
+    (for/list ([op (in-list (all-operators))] #:when (eq? op '+)
                [impl (in-list (operator-all-impls op))] #:when (set-member? impls impl))
-      (define vars (map (lambda _ (gensym)) (operator-info op 'itype)))
+      (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
       (rule (sym-append op '-lowering- impl)
             (cons op vars)
             (cons impl vars)
@@ -148,69 +111,72 @@
             (cons impl (accelerator-info op 'vars))
             #f
             #f)))
-  ; set cache
+  ; put them together
   (*lowering-rules* (append rules accelerator-rules)))
 
-(define (merge-bindings bind1 bind2)
-  (for/fold ([bind bind1]) ([(k v) (in-dict bind2)])
-    (dict-update bind k
-                 (λ (x)
-                   (unless (eq? x v)
-                     (error 'merge-bindings
-                            "pattern variable has conflicting representations: ~a => ~a ~a"
-                            k x v))
-                   v)
-                 v)))
+(define (impl-in-platform? prog pform)
+  (define impls (platform-impls pform))
+  (let/ec return
+    (let loop ([prog prog])
+      (match prog
+        [(list 'if cond ift iff)
+         (loop cond)
+         (loop ift)
+         (loop iff)]
+        [(list (? operator-exists?) _ ...)
+         (return #f)]
+        [(list impl args ...)
+         (unless (set-member? impls impl)
+           (return #f))
+         (for-each loop args)]
+        [(? literal?) (void)]
+        [(? symbol?) (void)]))
+    (return #t)))
 
-;; Computes a map from pattern variable to representation
-(define (pattern-reprs pattern repr)
-  (let loop ([pattern pattern])
-    (match pattern
-      [(? number?) '()]
-      [(? symbol? pvar) (list (cons pvar repr))]
-      [(list 'if cond ift iff)
-       (merge-bindings
-         (pattern-reprs cond (get-representation 'bool))
-         (merge-bindings (loop ift) (loop iff)))]
-      [(list op args ...)
-       (for/fold ([binds '()])
-                 ([arg (in-list args)]
-                  [itype (in-list (impl-info op 'itype))])
-         (merge-bindings binds (pattern-reprs arg itype)))])))
+(define (run-rr altns)
+  (timeline-event! 'rewrite)
+  (define exprs (map alt-expr altns))
+  (define real-exprs
+    (reap [sow]
+      (for ([expr (in-list exprs)])
+        (match expr
+          [(list 'if _ _ _) (sow expr)]
+          [(list op _ ...)
+           (when (eq? (operator-info op 'otype) 'real)
+             (sow expr))]
+          [_ (sow expr)]))))
 
-(define (lower-spec spec rules context)
-  (let loop ([spec spec] [repr (context-repr context)])
-    (match spec
-      [(? symbol?) (list spec)]
-      [(? number?) (list (literal spec (representation-name repr)))]
-      [(list 'if cond ift iff)
-       (for*/list ([cond (loop cond (get-representation 'bool))]
-                   [ift (loop ift repr)]
-                   [iff (loop iff repr)])
-         (list 'if cond ift iff))]
-      [(list _ _ ...)
-       (reap [sow]
-         (for ([rule (in-list rules)])
-           (define-values (lhs rhs) (values (rule-input rule) (rule-output rule)))
-           (define bindings (pattern-match lhs spec))
-           (when (and bindings (eq? (impl-info (car rhs) 'otype) repr))
-             (define vars (map car bindings))
-             (define types (pattern-reprs rhs repr))
-             (define arg-choices (map loop (map cdr bindings) (map (curry dict-ref types) vars)))
-             (for ([args (in-list (apply cartesian-product arg-choices))])
-               (sow (pattern-substitute rhs (map cons vars args)))))))])))
+  ; generate real rules is not cached
+  (unless (*real-rules*)
+    (gen-real-rules!))
 
-
-(define (run-lowering altns)
   ; generate lowering rules if not cached
   (unless (*lowering-rules*)
     (gen-lowering-rules!))
-  ; run lowering algorithm
-  (define specs (map alt-expr altns))
-  (for/list ([spec (in-list specs)]
-             [altn (in-list altns)] #:when #t
-             [expr (lower-spec spec (*lowering-rules*) (*context*))])
-    (alt expr (list 'lower) (list altn) '())))
+
+  ; rewrite using a 2-phase schedule
+  (define changelistss
+    (rewrite-expressions
+      real-exprs
+      `((,(*real-rules*) ((node . ,(*node-limit*))))
+        (,(*lowering-rules*) ((iteration . 1) (scheduler . simple))))
+      (*context*)))
+
+  ; apply changelists
+  (define num-rewritten 0)
+  (define rewritten
+    (reap [sow]
+      (for ([changelists changelistss] [altn altns])
+        (for ([cl changelists])
+          (match-define (list subexpr input) cl)
+          (set! num-rewritten (add1 num-rewritten))
+          (when (impl-in-platform? subexpr (*active-platform*))
+            (sow (alt subexpr (list 'rr input #f #f) (list altn) '())))))))
+
+  (printf "valid ~a/~a\n" (length rewritten) num-rewritten)
+
+  (timeline-push! 'count (length altns) (length rewritten))
+  rewritten)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -223,9 +189,7 @@
     (for/list ([spec (in-list specs)] #:unless (patch-table-has-expr? spec))
       (alt spec (list 'patch spec) '() '())))
   ;; Core
-  (define approximations (run-taylor uncached))
-  (define rewritten (run-rr uncached))
-  (define new-specs (append approximations rewritten))
-  (define altns (run-lowering new-specs))
+  (define approximation (run-taylor uncached))
+  (define altns (run-rr (append uncached approximation)))
   ;; Uncaching
   altns)

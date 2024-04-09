@@ -47,37 +47,24 @@
 ;;  egg-rewrite-iter-limit - call to egg on an expression with an iter limit (last resort)
 ;;
 ;;  Recursive rewrite chooser
-(define (rewrite-expressions exprs
-                             ctx
-                             #:rules rules
-                             #:depths [depths (make-list (length exprs) 1)]
-                             #:once? [once? #f])
-  ; choose correct rr driver
-  (cond
-   [(or (null? exprs) (null? rules)) (make-list (length exprs) '())]
-   [(or once? (not (flag-set? 'generate 'rr)))
-    (timeline-push! 'method "rewrite-once")
-    (for/list ([expr exprs] [n (in-naturals 1)])
-      (define timeline-stop! (timeline-start! 'times (~a expr)))
-      (begin0 (rewrite-once expr ctx #:rules rules)
-        (timeline-stop!)))]
-   [else
-    (timeline-push! 'method "batch-egg-rewrite")
-    (timeline-push! 'inputs (map ~a exprs))
-    (define e-input
-      (make-egg-query exprs rules
-                      #:context ctx
-                      #:node-limit (*node-limit*)
-                      #:cost-proc platform-egg-cost-proc))
-    (match-define (cons variantss _) (run-egg e-input #t))
+(define (rewrite-expressions exprs schedule ctx)
+  (timeline-push! 'method "batch-egg-rewrite")
+  (timeline-push! 'inputs (map ~a exprs))
+  (define e-input
+    (make-egg-query exprs
+                    schedule
+                    #:context ctx
+                    #:cost-proc platform-egg-cost-proc))
+  (match-define (cons variantss _) (run-egg e-input #t))
 
-    (define out
-      (for/list ([variants variantss])
-        (for/list ([variant (remove-duplicates variants)])
-            (list variant e-input))))
+  (define out
+    (for/list ([variants variantss])
+      (for/list ([variant (remove-duplicates variants)])
+          (list variant e-input))))
 
-    (timeline-push! 'outputs (map ~a (apply append variantss)))
-    out]))
+  (timeline-push! 'outputs (map ~a (apply append variantss)))
+  out)
+  
 
 (module+ test
   (require rackunit)

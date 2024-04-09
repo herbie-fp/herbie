@@ -8,7 +8,7 @@
 (provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing initial specification context)
+(define (find-preprocessing* initial specification context)
   ;; f(x) = f(-x)
   (define even-identities
     (reap [sow]
@@ -99,6 +99,11 @@
        (list (make-alt-preprocessing initial (append abs-instructions negabs-instructions sort-instructions))))
    ;; Absolute value should happen before sorting
    (append abs-instructions negabs-instructions sort-instructions)))
+
+; TODO: restore preprocessing
+(define (find-preprocessing initial specification context)
+  (values (list (make-alt-preprocessing initial (list)))
+          (list)))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))

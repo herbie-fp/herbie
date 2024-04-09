@@ -2,7 +2,7 @@
 
 pub mod math;
 
-use egg::{Extractor, Id, Language, StopReason, Symbol};
+use egg::{BackoffScheduler, Extractor, Id, Language, SimpleScheduler, StopReason, Symbol};
 use indexmap::IndexMap;
 use libc::c_void;
 use math::*;
@@ -84,6 +84,25 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
     id
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
+    // Safety: `ptr` was box allocated by `egraph_create`
+    let context = Box::from_raw(ptr);
+    let mut runner = Runner::new(Default::default())
+        .with_explanations_enabled()
+        .with_egraph(context.runner.egraph.clone());
+    runner.roots = context.runner.roots.clone();
+    runner.egraph.rebuild();
+
+    mem::forget(context);
+
+    Box::into_raw(Box::new(Context {
+        iteration: 0,
+        rules: vec![],
+        runner,
+    }))
+}
+
 unsafe fn ptr_to_string(ptr: *const c_char) -> String {
     let bytes = CStr::from_ptr(ptr).to_bytes();
     String::from_utf8(bytes.to_vec()).unwrap()
@@ -100,7 +119,7 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_run_with_iter_limit(
+pub unsafe extern "C" fn egraph_run(
     ptr: *mut Context,
     rules_array_ptr: *const *mut FFIRule,
     rules_array_length: u32,
@@ -108,6 +127,7 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
     iterations_ptr: *mut *mut c_void,
     iter_limit: u32,
     node_limit: u32,
+    simple_scheduler: bool,
     is_constant_folding_enabled: bool,
 ) -> *const EGraphIter {
     // Safety: `ptr` was box allocated by `egraph_create`
@@ -131,6 +151,12 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
         context.rules = rules;
 
         context.runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
+        context.runner = if simple_scheduler {
+            context.runner.with_scheduler(SimpleScheduler)
+        } else {
+            context.runner.with_scheduler(BackoffScheduler::default())
+        };
+        
         context.runner = context
             .runner
             .with_node_limit(node_limit as usize)
@@ -166,28 +192,6 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
     mem::forget(context);
 
     iterations_data
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn egraph_run(
-    ptr: *mut Context,
-    rules_array_ptr: *const *mut FFIRule,
-    rules_array_length: u32,
-    iterations_length: *mut u32,
-    iterations_ptr: *mut *mut c_void,
-    node_limit: u32,
-    is_constant_folding_enabled: bool,
-) -> *const EGraphIter {
-    egraph_run_with_iter_limit(
-        ptr,
-        rules_array_ptr,
-        rules_array_length,
-        iterations_length,
-        iterations_ptr,
-        u32::MAX,
-        node_limit,
-        is_constant_folding_enabled,
-    )
 }
 
 #[no_mangle]

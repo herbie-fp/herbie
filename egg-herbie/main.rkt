@@ -5,7 +5,7 @@
          racket/runtime-path)
 
 (provide egraph_create egraph_destroy egraph_add_expr
-         egraph_run egraph_run_with_iter_limit
+         egraph_run egraph_copy
          egraph_get_stop_reason
          egraph_serialize egraph_find
          egraph_get_simplest egraph_get_variants
@@ -97,7 +97,7 @@
 
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _bool))
 
-(define-eggmath egraph_run_with_iter_limit
+(define-eggmath egraph_run
   (_fun _egraph-pointer                           ;; egraph
         (ffi-rules : (_list i _FFIRule-pointer))  ;; ffi rules
         (_uint = (length ffi-rules))              ;; number of rules
@@ -105,20 +105,13 @@
         (iterations-ptr : (_ptr o _pointer))      ;; pointer to array allocation, caller frees
         _uint                                     ;; iter limit
         _uint                                     ;; node limit
+        _bool                                     ;; simple scheduler?
         _bool                                     ;; constant folding enabled?
         -> (iterations : _EGraphIter-pointer)
         -> (values iterations iterations-length iterations-ptr)))
 
-(define-eggmath egraph_run
-  (_fun _egraph-pointer                           ;; egraph
-        (ffi-rules : (_list i _FFIRule-pointer))  ;; ffi rules
-        (_uint = (length ffi-rules))              ;; number of rules
-        (iterations-length : (_ptr o _uint))      ;; pointer to size of resulting array
-        (iterations-ptr : (_ptr o _pointer))      ;; pointer to array allocation, caller frees
-        _uint                                     ;; node limit
-        _bool                                     ;; constant folding enabled?
-        -> (iterations : _EGraphIter-pointer)
-        -> (values iterations iterations-length iterations-ptr)))
+;; creates a fresh runner from an existing egraph
+(define-eggmath egraph_copy (_fun _egraph-pointer -> _egraph-pointer))
 
 ;; gets the stop reason as an integer
 (define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))
