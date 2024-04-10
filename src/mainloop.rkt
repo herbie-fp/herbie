@@ -142,7 +142,7 @@
      (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define loc-costss
      (batch-localize-cost (map alt-expr (^next-alts^)) (*context*)))
-
+  (displayln loc-costss)
   ;;(cost-opportunity (map alt-expr (^next-alts^)) (*context*))
   (define repr (context-repr (*context*)))
   

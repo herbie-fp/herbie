@@ -43,42 +43,21 @@
 ;;Returns a list of expressions sorted by increasing local cost in the form (subexpression, cost)
 (define (batch-localize-cost exprs ctx)
   ;;Create a list of lists of subexpressions
-  (define subexprss
-    (for/list ([expr (in-list exprs)])
-      (all-subexpressions expr (context-repr ctx))))
+  (define expr->cost  (platform-cost-proc (*active-platform*)))
+  (for/list ([expr (in-list exprs)])
+    (define subexprs (all-subexpressions expr (context-repr ctx)))
+    (define simple-subexprs (simplify-batch (make-egg-query (map car subexprs) (*simplify-rules*))))
+    (cons
+      (sort 
+        (for/list ([subexpr (in-list subexprs)]
+                  [simple-subexpr (in-list simple-subexprs)])
+                  (cons (car subexpr) 
+                        (- (expr->cost (car subexpr) (cdr subexpr)) (expr->cost (last simple-subexpr) (cdr subexpr)))))
+      > #:key cdr)  
+    expr))
+  )
+      
 
-  ;Define a function to the get the cost of a expr with a repr
-  (define expr->cost  (platform-cost-proc (*active-platform*))); 
-
-  ;Create a list of (expr, cost, repr)
-  (define old-expr-cost-pair
-    (apply append
-     (map (lambda (listOfPairs)
-        (map (lambda (subexpr)        
-          (define expr (car subexpr))    
-          (define repr (cdr subexpr))         
-          (define cost (expr->cost expr repr))
-          (list expr cost repr)) 
-            listOfPairs))
-          subexprss)        
-   ))
-
-  ;create list of simplified expression
-  (define simplified-exprs  (simplify-batch (make-egg-query (map car old-expr-cost-pair) (*simplify-rules*))))
-  ;old=(expr cost repr)
-  ;new=(expr,expr,expr...)
-
-  ;Take the old list and the simplified lists and for each item in each takes the old cost subtracts the new cost and then returns a pair of the old-expr and the diff between them.
-  (define result
-  (sort
-    (for/list ([old old-expr-cost-pair]
-             [new-exprs simplified-exprs])
-      (match-define (list old-expr cost repr) old)
-      (define  diff (- cost (expr->cost (last new-exprs) repr)))
-      (cons old-expr diff))
-    >  
-    #:key cdr))
-   result)
 
 
 ; Compute local error or each sampled point at each node in `prog`.
