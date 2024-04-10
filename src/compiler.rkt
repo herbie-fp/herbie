@@ -1,6 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum rival)
+;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
 (require (only-in math/private/bigfloat/mpfr mpfr-exp))
 (require "syntax/syntax.rkt" "syntax/types.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
