@@ -31,7 +31,7 @@
   (define varc (length vars))
   (define vreg-count (+ varc iveclen))
   (define vregs (make-vector vreg-count))
-  (define vrepeats (make-vector iveclen #f))           ; flags whether an op should be evaluated (not repeats)
+  (define vrepeats (make-vector iveclen #f))           ; flags whether an op should be evaluated
   (define vprecs (make-vector iveclen))                ; vector that stores working precisions
   (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
   
@@ -217,11 +217,10 @@
   <compiled-prog>)
 
 ; Function writes into vprecs new precisions that are propogated using condition number logic
-; Also function writes into vrepeats whether a reevaluation is needed for an instruction,
-;   in other words, whether precision for an operation increased (#f) or not (#t)
+;   and into vrepeats whether a reevaluation is needed for an instruction
 (define (backward-pass ivec varc vregs vprecs vstart-precs rootvec vrepeats)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
-  ; Adding slack in case of rounding boundary
+  ; Step 1. Adding slack in case of a rounding boundary issue
   (for ([root-reg (in-vector rootvec)])
     (when (and
            (<= varc root-reg)                                       ; when root is not a variable
@@ -232,13 +231,13 @@
                      (bigfloat->flonum (ival-lo result))
                      (bigfloat->flonum (ival-hi result))))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
-
-  ; Exponents calculation
+  
+  ; Step 2. Exponents calculation
   (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
-
-  ; Repeating precisions check
-  ; Assigns #t for a node if it has the same precision and children have #t flag as well
-  ; Assigns #f for a node if it doesn't have the same precision or at least one child has #f
+  
+  ; Step 3. Repeating precisions check
+  ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
+  ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
   (define first-iter (equal? 1 (*sampling-iteration*)))
   (define (recursive-repeat-check reg)
     (define idx (- reg varc))
@@ -261,24 +260,8 @@
            (<= varc root-reg)                                       ; when root is not a variable
            (bigfloat? (ival-lo (vector-ref vregs root-reg))))
       (recursive-repeat-check root-reg)))
-
-  #;(define (double-fixed? x)
-    (fl= (bigfloat->flonum (ival-lo x)) (bigfloat->flonum (ival-hi x))))
-  #;(when (<= 4 (*sampling-iteration*))
-    (printf "iter ~a\n" (*sampling-iteration*))
-    (for ([prec (in-vector (if (equal? 1 (*sampling-iteration*)) vstart-precs vprecs))]
-          [prec-new (in-vector vprecs-new)]
-          [instr (in-vector ivec)]
-          [repeat (in-vector vrepeats)]
-          [n (in-naturals)])
-      (when (bigfloat? (ival-lo (vector-ref vregs (+ n varc))))
-        (if (vector-member (+ n varc) rootvec)
-            (printf "ROOT (~a) ~a: ~a, ~a/~a - ~a\n" (double-fixed? (vector-ref vregs (+ n varc)))
-                    (+ n varc) instr prec prec-new repeat)
-            (printf "~a: ~a, ~a/~a - ~a\n" (+ n varc) instr prec prec-new repeat))))
-    (printf "\n"))
-
-  ; Copying new precisions into vprecs
+  
+  ; Step 4. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new))
 
 ; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
