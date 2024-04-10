@@ -2,6 +2,7 @@
 
 (require
  math/bigfloat
+ rival
 
  "common.rkt"
  "compiler.rkt"
@@ -27,7 +28,7 @@
 
 (define accelerator-operators (make-hasheq))
 
-(define (register-accelerator-operator! name itypes otype form)
+(define (register-accelerator-operator! name itypes otype form [ival-impl #f])
   (match-define (list 'lambda (list variables ...) body) form)
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
@@ -37,7 +38,7 @@
              (accelerator-operator body variables itypes otype))
   (register-operator! name
                       itypes otype
-                      (list (cons 'ival (compile-spec body variables))))
+                      (list (cons 'ival (if ival-impl ival-impl (compile-spec body variables)))))
   ;; TODO: Are the groups right now?
   (register-ruleset*! ruleset-name
                      '(numerics simplify)
@@ -50,7 +51,11 @@
     [(_ name (itypes ...) otype (lambda (variables ...) body))
      (register-accelerator-operator! 'name
                                      (list 'itypes ...) 'otype
-                                     (list 'lambda (list 'variables ...) 'body))]))
+                                     (list 'lambda (list 'variables ...) 'body))]
+    [(_ name (itypes ...) otype (lambda (variables ...) body) ival-impl)
+     (register-accelerator-operator! 'name
+                                     (list 'itypes ...) 'otype
+                                     (list 'lambda (list 'variables ...) 'body) ival-impl)]))
 
 (define (register-accelerator-impl! operator name
                                     itypes otype
@@ -137,11 +142,11 @@
         (cons (pattern-substitute (rule-output rule) bindings) bindings)
         #f)))
 
-(define-accelerator-operator expm1 (real) real (lambda (x) (- (exp x) 1)))
-(define-accelerator-operator log1p (real) real (lambda (x) (log (+ 1 x))))
-(define-accelerator-operator hypot (real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))))
-(define-accelerator-operator fma (real real real) real (lambda (x y z) (+ (* x y) z)))
-(define-accelerator-operator erfc (real) real (lambda (x) (- 1 (erf x))))
+(define-accelerator-operator expm1 (real) real (lambda (x) (- (exp x) 1)) ival-expm1)
+(define-accelerator-operator log1p (real) real (lambda (x) (log (+ 1 x))) ival-log1p)
+(define-accelerator-operator hypot (real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))) ival-hypot)
+(define-accelerator-operator fma (real real real) real (lambda (x y z) (+ (* x y) z)) ival-fma)
+(define-accelerator-operator erfc (real) real (lambda (x) (- 1 (erf x))) ival-erfc)
 
 ; Specialized numerical functions
 (define-ruleset* special-numerical-reduce (numerics simplify)
