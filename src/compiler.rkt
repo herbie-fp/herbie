@@ -42,7 +42,7 @@
                                                        (* (*sampling-iteration*) 1000)))
         (if (zero? (*sampling-iteration*))
             (vector-fill! vrepeats #f)
-            (backward-pass ivec varc vregs vprecs vstart-precs rootvec vrepeats)) ; back-pass
+            (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)) ; back-pass
         (timeline-stop!)
         
         (for ([arg (in-list args)] [n (in-naturals)])
@@ -218,10 +218,10 @@
 
 ; Function writes into vprecs new precisions that are propogated using condition number logic
 ;   and into vrepeats whether a reevaluation is needed for an instruction
-(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec vrepeats)
+(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
-  (for ([root-reg (in-vector rootvec)])
+  (for/vector #:length rootlen ([root-reg (in-vector rootvec)])
     (when (and
            (<= varc root-reg)                                       ; when root is not a variable
            (bigfloat? (ival-lo (vector-ref vregs root-reg))))       ; when root is a real op
@@ -255,7 +255,7 @@
       (vector-set! vrepeats idx flag))
     flag)
     
-  (for ([root-reg (in-vector rootvec)])
+  (for/vector #:length rootlen ([root-reg (in-vector rootvec)])
     (when (and
            (<= varc root-reg)                                       ; when root is not a variable
            (bigfloat? (ival-lo (vector-ref vregs root-reg))))
@@ -288,7 +288,7 @@
     (when (equal? op ival-fma)
       (set! final-parent-precision (+ final-parent-precision new-exponents)))
     
-    (when (equal? final-parent-precision (*max-mpfr-prec*))
+    (when (equal? final-parent-precision (*max-mpfr-prec*))         ; Early stopping
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs-new (- n varc) final-parent-precision)
     
