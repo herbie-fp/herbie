@@ -49,14 +49,14 @@
           (vector-set! vregs n arg))
         (for ([instr (in-vector ivec)] [n (in-naturals varc)]
                                        [precision (in-vector (if (zero? (*sampling-iteration*)) vstart-precs vprecs))]
-                                       [repeat (in-vector vrepeats)])
-          (when (not repeat)
-            (define timeline-stop! (timeline-start!/unsafe 'mixsample
-                                                           (symbol->string (object-name (car instr)))
-                                                           (- precision (remainder precision prec-threshold))))
-            (parameterize ([bf-precision precision])
-              (vector-set! vregs n (apply-instruction instr vregs)))
-            (timeline-stop!)))
+                                       [repeat (in-vector vrepeats)]
+                                       #:unless repeat)
+          (define timeline-stop! (timeline-start!/unsafe 'mixsample
+                                                         (symbol->string (object-name (car instr)))
+                                                         (- precision (remainder precision prec-threshold))))
+          (parameterize ([bf-precision precision])
+            (vector-set! vregs n (apply-instruction instr vregs)))
+          (timeline-stop!))
         
         (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))
