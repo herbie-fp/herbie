@@ -40,9 +40,10 @@
       (λ args
         (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                        (* (*sampling-iteration*) 1000)))
-        (if (zero? (*sampling-iteration*))
-            (vector-fill! vrepeats #f)
-            (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)) ; back-pass
+        (match (zero? (*sampling-iteration*))
+              [#t (vector-fill! vrepeats #f)
+                  (update-vstart-precs vprecs vstart-precs)]
+              [#f (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)]) ; back-pass
         (timeline-stop!)
         
         (for ([arg (in-list args)] [n (in-naturals)])
@@ -120,6 +121,14 @@
                           (+ current-prec (*ground-truth-extra-bits*))))
           (vector-set! vstart-precs (- idx varc) idx-prec)))))
   vstart-precs)
+
+(define (update-vstart-precs vprecs vstart-precs)
+  #;(vector-map! + vstart-precs
+               (vector-map (curry (lambda (x y) (exact-round (* x y))) (*sampling-learning-rate*))
+                           (vector-map (curry max 0)
+                                       (vector-map - vprecs vstart-precs))))
+  (vector-map! (lambda (x y) (+ (exact-floor (* (max 0 (- y x)) (*sampling-learning-rate*))) x))
+                 vstart-precs vprecs))
 
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
