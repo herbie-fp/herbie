@@ -461,10 +461,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Rule expansion
 ;;
-;; Rules in the egraph must be over representations.
-;; We need to instantiate rules over types at particular representations
-;; and translate them into egg's expression/pattern format.
-;; This is the most annoying and bug-filled part of this library by far!
+;; Expansive rules are the only problematic rules.
+;; We only support expansive rules where the LHS is a spec.
 
 ;; Translates a Herbie rule into an egg rule
 (define (rule->egg-rule ru)
@@ -472,13 +470,28 @@
      [input (expr->egg-pattern (rule-input ru))]
      [output (expr->egg-pattern (rule-output ru))]))
 
-(define (rule->egg-rules rule)
-  (define input (rule-input rule))
-  (if (symbol? input)
-      (list)  ; TODO: expansive rules
-      (list (rule->egg-rule rule))))
+(define (rule->egg-rules ru)
+  (define input (rule-input ru))
+  (cond
+    [(symbol? input)
+     ; expansive rules
+     (define itype (dict-ref (rule-itypes ru) input))
+     (unless (type-name? itype)
+       (error 'rule->egg-rules "expansive rules over impls is unsound ~a" input))
+     (for/list ([op (all-operators)] #:when (eq? (operator-info op 'otype) itype))
+       (define itypes (operator-info op 'itype))
+       (define vars (map (lambda (_) (gensym)) itypes))
+       (rule (sym-append (rule-name ru) '-expand- op)
+             (cons op vars)
+             (replace-expression (rule-output ru) input (cons op vars))
+             (map cons vars itypes)
+             (rule-otype ru)))]
+    [else
+     ; non-expansive rule
+     (list (rule->egg-rule ru))]))
 
-(define rule->impl-rules rule->egg-rules)
+(define (rule->impl-rules rule)
+  (error 'rule->impl-rules "unimplemented"))
 
 ;; Cache mapping name to its canonical rule name
 ;; See `*egg-rules*` for details
@@ -673,8 +686,14 @@
 ;;  - unary procedure to get the eclass of an id
 ;;
 
+(define (cost-merger best cost node)
+    (cond [(not cost) best]
+          [(not best) (cons cost node)]
+          [(< cost (car best)) (cons cost node)]
+          [else best]))
+
 ;; The untyped extraction algorithm.
-(define (untyped-egg-extractor cost-proc regraph)
+(define ((untyped-egg-extractor cost-proc) regraph)
   (define eclasses (regraph-eclasses regraph))
   (define has-leaf? (regraph-has-leaf? regraph))
   (define types (regraph-types regraph))
@@ -721,10 +740,7 @@
     (define new-cost
       (for/fold ([best #f]) ([node (in-vector eclass)])
         (define cost (node-cost node))
-        (cond [(not cost) best]
-              [(not best) (cons cost node)]
-              [(< cost (car best)) (cons cost node)]
-              [else best])))
+        (cost-merger best cost node)))
     (cond
       [(not new-cost) #f]
       [(or (not prev-cost) (< (car new-cost) (car prev-cost)))
@@ -881,19 +897,12 @@
 
   (when (for/or ([eclass (in-vector eclasses*)]) (vector-empty? eclass))
     (error 'regraph-prune-specs "invariant violated: eclass contains no enodes"))
-  
   ; the pruned regraph
   (struct-copy regraph egraph [eclasses eclasses*]))
 
 
-(define (cost-merger best cost node)
-    (cond [(not cost) best]
-          [(not best) (cons cost node)]
-          [(< cost (car best)) (cons cost node)]
-          [else best]))
-
 ;; The typed extraction algorithm.
-(define (typed-egg-extractor cost-proc regraph)
+(define ((typed-egg-extractor cost-proc) regraph)
   ; first: prune unwanted nodes that will make the analysis crash
   (set! regraph (regraph-prune-types regraph))
 
@@ -1106,74 +1115,6 @@
       [_ +inf.0])] ; real or malformed
     [(list _ ...) +inf.0])) ; malformed operator
 
-; ;; Computes the ground truth of every expression eclass.
-; (define (regraph-compute-ground-truth! regraph ctx pcontext cache)
-;   (define eclasses (regraph-eclasses regraph))
-;   (define n (vector-length eclasses))
-
-;   (define egg->herbie (regraph-egg->herbie regraph))
-;   (define extract-id (untyped-egg-extractor default-egg-cost-proc regraph))
-;   (define repr-name (representation-name (context-repr ctx)))
-;   (define num-points (min (*local-error-egg-num-points*) (pcontext-length pcontext)))
-
-;   ;; Extract a representative from each expression eclass
-;   (define id&exprs
-;     (reap [sow]
-;       (for ([id (in-range n)])
-;         (match-define (cons _ expr) (extract-id id))
-;         (match expr
-;           [(? symbol?) (void)] ; precision name
-;           [(list '$Type _ ...) (void)] ; type annotation
-;           [egg-expr
-;            (define expr* (egg-parsed->expr (flatten-let egg-expr) egg->herbie repr-name))
-;            (sow (cons id expr*))]))))
-
-;   ;; Build ground-truth interpreter
-;   (define fn
-;     (let ([exprs (map cdr id&exprs)])
-;       (eval-progs-real
-;         (map prog->spec exprs)
-;         (for/list ([expr (in-list exprs)])
-;           (struct-copy context ctx
-;             [repr (repr-of expr ctx)])))))
-
-;   ;; Compute exacts
-;   (define exacts
-;     (for/vector #:length n ([_ (in-range n)])
-;       (make-vector num-points #f)))
-;   (for ([(pt _) (in-pcontext (*pcontext*))] [i (in-range num-points)])
-;     (for ([(id _) (in-dict id&exprs)] [exact (in-list (apply fn pt))])
-;       (vector-set! (vector-ref exacts id) i exact)))
-
-;   ;; Set cache
-;   (set-box! cache (cons exacts (make-hasheq))))
-
-; ;; Per-node cost function by local error
-; (define ((local-error-egg-cost-proc context pcontext) regraph cache node rec)
-;   (unless (unbox cache)
-;     (regraph-compute-ground-truth! regraph context pcontext cache))
-;   (match-define (cons exacts node->error) (unbox cache))
-;   (define node->id (regraph-node->id regraph))
-;   (define types (regraph-types regraph))
-;   (match node
-;     [(? number?) 0] ; numbers are free I guess
-;     [(list '$Var _ _) 0] ; variable
-;     [(list op ty-id arg-ids ...)
-;      (hash-ref! node->error
-;                 node
-;                 (lambda ()
-;                   (match (vector-ref types ty-id)
-;                     [#f +inf.0]
-;                     [ty-sig
-;                      (match-define (list '$Type otype itypes ...) ty-sig)
-;                      (define impl
-;                        (if (null? itypes)
-;                            (get-parametric-constant op (get-representation otype))
-;                            (apply get-parametric-operator op (map get-representation itypes))))
-;                      (define exact (vector-ref exacts (hash-ref node->id node)))
-;                      (define approx (apply (impl-info impl 'fl) (map (curry vector-ref exacts) arg-ids)))
-;                      (ulps->bits (ulp-difference approx exact (impl-info impl 'otype)))])))]))
-
 ;; Prunes any real operator nodes from a regraph.
 (define (regraph-prune-specs re)
   (define eclasses (regraph-eclasses re))
@@ -1282,10 +1223,11 @@
 
 ;; Runs rules over the egraph with the given egg parameters.
 ;; Invariant: the returned egraph is never unsound
-(define (egraph-run-rules egg-graph0 egg-rules params const-folding?)  
+(define (egraph-run-rules egg-graph0 egg-rules params)  
   (define node-limit (dict-ref params 'node #f))
   (define iter-limit (dict-ref params 'iteration #f))
   (define scheduler (dict-ref params 'scheduler 'backoff))
+  (define const-folding? (dict-ref params 'const-fold? #t))
 
   ;; run the rules
   (let loop ([iter-limit iter-limit])
@@ -1310,7 +1252,7 @@
       [else
        (values egg-graph iteration-data)])))
 
-(define (egraph-run-schedule exprs reprs ctx schedule const-folding?)
+(define (egraph-run-schedule exprs schedule ctx)
   (define (oops! command why)
     (error 'egraph-run-schedule "~a: ~a" command why))
 
@@ -1332,8 +1274,7 @@
 
          ; run rules in the egraph
          (define egg-rules (expand-rules rules))
-         (define-values (egg-graph* iteration-data)
-          (egraph-run-rules egg-graph egg-rules params const-folding?))
+         (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
  
          ; get cost statistics
          (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
@@ -1382,17 +1323,20 @@
 
 ;; Herbie's version of an egg runner
 ;; Defines parameters for running rewrite rules with egg
-(struct egraph-query (exprs reprs schedule ctx extractor cost-proc const-folding?) #:transparent)
+(struct egraph-query (exprs reprs schedule ctx extractor) #:transparent)
 
 (define (make-egg-query exprs
                         reprs
                         schedule
                         #:context [ctx (*context*)]
-                        #:extractor [extractor untyped-egg-extractor]
-                        #:cost-proc [cost-proc default-untyped-egg-cost-proc]
-                        #:const-folding? [const-folding? #t])
+                        #:extractor [extractor #f])
   (verify-schedule! schedule)
-  (egraph-query exprs reprs schedule ctx extractor cost-proc const-folding?))
+  (define default-extractor (untyped-egg-extractor default-untyped-egg-cost-proc))
+  (egraph-query exprs
+                reprs
+                schedule
+                ctx
+                (or extractor default-extractor)))
 
 (define (run-egg input
                  variants?
@@ -1402,14 +1346,11 @@
   (define ctx (egraph-query-ctx input))
   (define-values (node-ids egg-graph regraph)
     (egraph-run-schedule (egraph-query-exprs input)
-                         (egraph-query-reprs input)
-                         ctx
                          (egraph-query-schedule input)
-                         (egraph-query-const-folding? input)))
+                         ctx))
   ;; Compute eclass/enode cost in the graph
   (define extractor (egraph-query-extractor input))
-  (define cost-proc (egraph-query-cost-proc input))
-  (define extract-id (extractor cost-proc regraph))
+  (define extract-id (extractor regraph))
   (define reprs (egraph-query-reprs input))
   ;; Extract the expressions
   (define extract-proc

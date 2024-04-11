@@ -3,8 +3,10 @@
 (require "syntax/rules.rkt"
          "syntax/syntax.rkt"
          "syntax/types.rkt"
+         "core/egg-herbie.rkt"
          "core/matcher.rkt"
          "core/rr.rkt"
+         "core/simplify.rkt"
          "core/taylor.rkt"
          "accelerator.rkt"
          "alternative.rkt"
@@ -46,24 +48,19 @@
         (sow (alt (genexpr) `(taylor ,name ,var) (list altn) '())))
       (timeline-stop!))))
 
-(define (run-taylor altns)
+(define (run-taylor altns reprs)
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a altns))
   (define approximations
     (reap [sow]
-      (for ([altn (in-list altns)])
+      (for ([altn (in-list altns)] [repr (in-list reprs)])
         (for ([approximation (taylor-alt altn)])
-          (sow approximation)))))
-  (timeline-push! 'outputs (map ~a approximations))
+          (sow (cons approximation repr))))))
+  (timeline-push! 'outputs (map (lambda (e&r) (~a (car e&r))) approximations))
   (timeline-push! 'count (length altns) (length approximations))
   approximations)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Rules from spec to spec
-(define-resetter *real-rules*
-  (λ () #f)
-  (λ () #f))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Rules ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Spec contains no accelerators
 (define (spec-has-accelerator? spec)
@@ -72,14 +69,13 @@
     [(list _ args ...) (ormap spec-has-accelerator? args)]
     [_ #f]))
 
-(define (gen-real-rules!)
-  (*real-rules*
-    (filter-not
-      (lambda (rule)
-        (or (representation? (rule-otype rule))
-            (spec-has-accelerator? (rule-input rule))
-            (spec-has-accelerator? (rule-output rule))))
-      (*rules*))))
+(define (real-rules rules)
+  (filter-not
+    (lambda (rule)
+      (or (representation? (rule-otype rule))
+          (spec-has-accelerator? (rule-input rule))
+          (spec-has-accelerator? (rule-output rule))))
+    rules))
 
 ;; Rules from spec to impl
 (define-resetter *lowering-rules*
@@ -92,31 +88,39 @@
   (define rules
     (for/list ([op (in-list (all-operators))] #:unless (accelerator? op)
                [impl (in-list (operator-all-impls op))] #:when (set-member? impls impl))
-      (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
+      (define itypes (operator-info op 'itype))
+      (define otype (operator-info op 'otype))
+      (define vars (map (lambda (_) (gensym)) itypes))
       (rule (sym-append op '-lowering- impl)
             (cons op vars)
             (cons impl vars)
-            #f
-            #f)))
+            (map cons vars itypes)
+            otype)))
   ; accelerator lowering
   (define accelerator-rules
-    (for/list ([op (in-list (all-operators))]
-               #:when (accelerator? op)
-               [impl (in-list (operator-all-impls op))]
-               #:when (set-member? impls impl))
+    (for/list ([op (in-list (all-operators))] #:when (accelerator? op)
+               [impl (in-list (operator-all-impls op))] #:when (set-member? impls impl))
+      (define itypes (accelerator-info op 'itype))
+      (define otype (accelerator-info op 'otype))
+      (define vars (accelerator-info op 'vars))
       (rule (sym-append 'accelerator-lowering- impl)
             (accelerator-info op 'body)
             (cons impl (accelerator-info op 'vars))
-            #f
-            #f)))
+            (map cons vars itypes)
+            otype)))
   ; put them together
   (*lowering-rules* (append rules accelerator-rules)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (impl-well-typed? prog repr)
   (define impls (list->set (platform-impls (*active-platform*))))
   (let/ec return
     (let loop ([prog prog] [repr repr])
       (match prog
+        [(? number?) (return #f)]
+        [(? symbol?) (void)]
+        [(? literal?) (void)]
         [(list 'if cond ift iff)
          (loop cond (get-representation 'bool))
          (loop ift repr)
@@ -128,18 +132,16 @@
            (return #f))
          (unless (eq? (impl-info impl 'otype) repr)
            (return #f))
-         (for-each loop args (impl-info impl 'itype))]
-        [(? literal?) (void)]
-        [(? symbol?) (void)]))
+         (for-each loop args (impl-info impl 'itype))]))
     (return #t)))
 
-(define (run-rr altns reprs)
+(define (run-rr altns&reprs)
   (timeline-event! 'rewrite)
-  (define specs (map alt-expr altns))
+  (define altns (map car altns&reprs))
+  (define reprs (map cdr altns&reprs))
 
-  ; generate real rules is not cached
-  (unless (*real-rules*)
-    (gen-real-rules!))
+  ; generate real rules
+  (define rules (real-rules (*rules*)))
 
   ; generate lowering rules if not cached
   (unless (*lowering-rules*)
@@ -147,29 +149,69 @@
 
   ; egg schedule (2-phases for real rewrites and implementation selection)
   (define schedule
-    `((run ,(*real-rules*) ((node . ,(*node-limit*))))
+    `((run ,rules ((node . ,(*node-limit*))))
       (run ,(*lowering-rules*) ((iteration . 1) (scheduler . simple)))
       (convert)
       (prune-spec)))
   
   ; run egg
+  (define specs (map alt-expr altns))
   (define changelistss (rewrite-expressions specs reprs schedule (*context*)))
 
   ; apply changelists
-  (define num-rewritten 0)
   (define rewritten
     (reap [sow]
       (for ([changelists changelistss] [altn altns] [repr reprs])
         (for ([cl changelists])
           (match-define (list subexpr input) cl)
-          (set! num-rewritten (add1 num-rewritten))
           (when (impl-well-typed? subexpr repr)
             (sow (alt subexpr (list 'rr input #f #f) (list altn) '())))))))
 
-  (printf "valid ~a/~a\n" (length rewritten) num-rewritten)
-
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (run-simplify altns&reprs)
+  (timeline-event! 'simplify)
+  (define altns (map car altns&reprs))
+  (define reprs (map cdr altns&reprs))
+
+  ; generate real rules
+  (define rules (real-rules (*simplify-rules*)))
+
+  ; generate lowering rules if not cached
+  (unless (*lowering-rules*)
+    (gen-lowering-rules!))
+
+  ; egg schedule (2-phases for real rewrites and implementation selection)
+  (define schedule
+    `((run ,rules ((node . ,(*node-limit*))))
+      (run ,(*lowering-rules*) ((iteration . 1) (scheduler . simple)))
+      (convert)
+      (prune-spec)))
+
+  ; egg runner
+  (define specs (map alt-expr altns))
+  (define egg-query
+    (make-egg-query specs
+                    reprs
+                    schedule
+                    #:extractor (typed-egg-extractor platform-egg-cost-proc)))
+  
+  ; convert to altns
+  (define simplification-options (simplify-batch egg-query))
+  (define simplified
+    (reap [sow]
+      (for ([altn (in-list altns)] [repr (in-list reprs)]
+            [outputs (in-list simplification-options)] #:when #t
+            [output (in-list outputs)])
+        (when (impl-well-typed? output repr)
+          (sow (alt output `(simplify ,egg-query #f #f) (list altn) '()))))))
+  
+  (timeline-push! 'count (length altns) (length simplified))
+  simplified)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -178,19 +220,15 @@
 
 (define (patch-table-run locs)
   ; Starting alternatives
+  (define reprs (map cdr locs))
   (define start-altns
     (for/list ([(spec repr) (in-dict locs)])
       (alt spec (list 'patch spec repr) '() '())))
   ; Core
-  ; (define approximation (run-taylor uncached))
-  (define reprs (map cdr locs))
-  (define altns (run-rr start-altns reprs))
-
-  ; (define uncached
-  ;   (for/list ([spec (in-list specs)] #:unless (patch-table-has-expr? spec))
-  ;     (alt spec (list 'patch spec) '() '())))
-  ; ;; Core
-  ; (define approximation (run-taylor uncached))
-  ; (define altns (run-rr (append uncached approximation)))
+  (define approximations (run-taylor start-altns reprs))
+  (define altns
+    (append
+      (run-rr (map cons start-altns reprs))
+      (run-simplify approximations)))
   ;; Uncaching
   altns)
