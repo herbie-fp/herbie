@@ -1,13 +1,15 @@
 #lang racket
 
 (require math/bigfloat math/flonum rival)
+;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
+(require (only-in math/private/bigfloat/mpfr mpfr-exp))
 (require "syntax/syntax.rkt" "syntax/types.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
 (provide compile-specs compile-spec compile-progs compile-prog)
 
 (define (log2-approx x)
-  (define exp (+ (bigfloat-exponent x) (bigfloat-precision x)))
+  (define exp (mpfr-exp x))
   (if (equal? exp -9223372036854775807)
       (- (get-slack))  ; 0.bf
       (if (or (< 1000000000 (abs exp)))
@@ -26,23 +28,30 @@
 (define (make-progs-interpreter name vars ivec roots)
   (define rootvec (list->vector roots))
   (define rootlen (vector-length rootvec))
+  (define iveclen (vector-length ivec))
   (define varc (length vars))
-  (define vreg-count (+ varc (vector-length ivec)))
+  (define vreg-count (+ varc iveclen))
   (define vregs (make-vector vreg-count))
-  (define vprecs (make-vector (vector-length ivec)))   ; vector that stores working precisions
+  (define vrepeats (make-vector iveclen #f))           ; flags whether an op should be evaluated
+  (define vprecs (make-vector iveclen))                ; vector that stores working precisions
   (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
+  
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
   (if (equal? name 'ival)
       (λ args
         (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                        (* (*sampling-iteration*) 1000)))
-        (when (not (zero? (*sampling-iteration*)))                  
-          (backward-pass ivec varc vregs vprecs vstart-precs rootvec)) ; back-pass
+        (if (zero? (*sampling-iteration*))
+            (vector-fill! vrepeats #f)
+            (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)) ; back-pass
         (timeline-stop!)
         
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
-        (for ([instr (in-vector ivec)] [n (in-naturals varc)] [precision (in-vector (if (zero? (*sampling-iteration*)) vstart-precs vprecs))])
+        (for ([instr (in-vector ivec)] [n (in-naturals varc)]
+                                       [precision (in-vector (if (zero? (*sampling-iteration*)) vstart-precs vprecs))]
+                                       [repeat (in-vector vrepeats)]
+                                       #:unless repeat)
           (define timeline-stop! (timeline-start!/unsafe 'mixsample
                                                          (symbol->string (object-name (car instr)))
                                                          (- precision (remainder precision prec-threshold))))
@@ -92,7 +101,7 @@
     [5 8192]))
 
 ; Function sets up vstart-precs vector, where all the precisions
-; are equal to (+ (*tuning-final-output-prec*) (* depth (*ground-truth-extra-bits*))),
+; are equal to (+ (*base-tuning-precision*) (* depth (*ground-truth-extra-bits*))),
 ; where depth is the depth of a node in the given computational tree (ivec)
 (define (setup-vstart-precs ivec varc)
   (define ivec-len (vector-length ivec))
@@ -100,7 +109,7 @@
   (unless (vector-empty? ivec)
     (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)] ; reversed over ivec
           [n (in-range (- ivec-len 1) -1 -1)])          ; reversed over indices of vstart-precs
-      (define current-prec (max (vector-ref vstart-precs n) (*tuning-final-output-prec*)))
+      (define current-prec (max (vector-ref vstart-precs n) (*base-tuning-precision*)))
       (vector-set! vstart-precs n current-prec)
     
       (define tail-registers (rest instr))
@@ -208,9 +217,12 @@
   (define (<compiled-prog> . xs) (vector-ref (apply core xs) 0))
   <compiled-prog>)
 
-(define (backward-pass ivec varc vregs vprecs vstart-precs roots)
-  (vector-fill! vprecs 0)
-  (for ([root-reg (in-vector roots)])  ; adding slack in case rounding boundary
+; Function writes into vprecs new precisions that are propogated using condition number logic
+;   and into vrepeats whether a reevaluation is needed for an instruction
+(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
+  (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
+  ; Step 1. Adding slack in case of a rounding boundary issue
+  (for/vector #:length rootlen ([root-reg (in-vector rootvec)])
     (when (and
            (<= varc root-reg)                                       ; when root is not a variable
            (bigfloat? (ival-lo (vector-ref vregs root-reg))))       ; when root is a real op
@@ -219,8 +231,34 @@
           (equal? 1 (flonums-between
                      (bigfloat->flonum (ival-lo result))
                      (bigfloat->flonum (ival-hi result))))
-        (vector-set! vprecs (- root-reg varc) (get-slack)))))
+        (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
   
+  ; Step 2. Exponents calculation
+  (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
+  
+  ; Step 3. Repeating precisions check
+  ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
+  ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
+  (for ([instr (in-vector ivec)]
+        [prec-old (in-vector (if (equal? 1 (*sampling-iteration*)) vstart-precs vprecs))]
+        [prec-new (in-vector vprecs-new)]
+        [n (in-naturals)])
+    (if (and (equal? prec-new prec-old)
+             (andmap identity (map (lambda (x) (if (>= x varc)
+                                                   (vector-ref vrepeats (- x varc))
+                                                   #t))
+                                   (rest instr))))
+        (vector-set! vrepeats n #t)
+        (vector-set! vrepeats n #f)))
+  
+  ; Step 4. Copying new precisions into vprecs
+  (vector-copy! vprecs 0 vprecs-new))
+
+; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
+; Roughly speaking:
+;   vprecs-new[i] = min( *max-mpfr-prec* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
+;   exponents-from-above = get-exponent(parent)
+(define (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])           ; reversed over indices of vregs
 
@@ -229,7 +267,7 @@
     (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers)) ; tail of the current instr
     (define output (vector-ref vregs n))                            ; output of the current instr
     
-    (define exps-from-above (vector-ref vprecs (- n varc)))         ; vprecs is shifted by varc elements from vregs
+    (define exps-from-above (vector-ref vprecs-new (- n varc)))     ; vprecs-new is shifted by varc elements from vregs
     (define new-exponents (get-exponent op output srcs))
 
     (define final-parent-precision (min (*max-mpfr-prec*)
@@ -240,18 +278,21 @@
     (when (equal? op ival-fma)
       (set! final-parent-precision (+ final-parent-precision new-exponents)))
     
-    (when (equal? final-parent-precision (*max-mpfr-prec*))
+    (when (equal? final-parent-precision (*max-mpfr-prec*))         ; Early stopping
       (*sampling-iteration* (*max-sampling-iterations*)))
-    (vector-set! vprecs (- n varc) final-parent-precision)
+    (vector-set! vprecs-new (- n varc) final-parent-precision)
     
     (define child-exponents (+ exps-from-above new-exponents))
     (for ([x (in-list tail-registers)])
       (when (>= x varc)   ; when tail register is not a variable
-        (vector-set! vprecs (- x varc)
+        (vector-set! vprecs-new (- x varc)
                      (max ; check whether this op already has a precision that is higher
-                      (vector-ref vprecs (- x varc))
+                      (vector-ref vprecs-new (- x varc))
                       child-exponents))))))
 
+; Function calculates an exponent for a certain output and input using condition formulas,
+;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
+;   that the output will be fixed in its precision when evaluating again
 (define (get-exponent op output srcs)
   (cond
     [(member op (list ival-mult ival-div ival-sqrt ival-cbrt))
@@ -275,7 +316,7 @@
      (define yhi (ival-hi y))
      (define yhi-exp (log2-approx yhi))
      (define yhi-sgn (bigfloat-signbit yhi))
-       
+     
      (define outlo (ival-lo output))
      (define outlo-exp (log2-approx outlo))
      (define outhi (ival-hi output))
@@ -285,12 +326,9 @@
                (max
                 (- (max xlo-exp ylo-exp) outlo-exp)
                 (- (max xhi-exp yhi-exp) outhi-exp))
-               (if (and (or (not (equal? xlo-sgn ylo-sgn)) ; slack part
-                            (not (equal? xhi-sgn yhi-sgn)))
-                        (or (>= 2 (abs (- xlo-exp ylo-exp)))
-                            (>= 2 (abs (- xhi-exp yhi-exp)))))
-                   (get-slack)
-                   0)))]
+               (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
+                   0
+                   (get-slack))))]
       
     [(equal? op ival-sub)
      ; log[Г-] = max(log[x], log[y]) - log[x - y]
@@ -321,12 +359,9 @@
                (max
                 (- (max xlo-exp yhi-exp) outlo-exp)
                 (- (max xhi-exp ylo-exp) outhi-exp))
-               (if (and (or (equal? xlo-sgn yhi-sgn) ; slack part
-                            (equal? xhi-sgn ylo-sgn))
-                        (or (>= 2 (abs (- xlo-exp yhi-exp)))
-                            (>= 2 (abs (- xhi-exp ylo-exp)))))
-                   (get-slack)
-                   0)))]
+               (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
+                   0
+                   (get-slack))))]
       
     [(equal? op ival-pow)
      ; log[Гpow] = max[ log(y) , log(y) + log[log(x)] ]
@@ -356,7 +391,7 @@
      (define out-exp
        (+ 1 (max (abs (log2-approx outlo))
                  (abs (log2-approx outhi)))
-          (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+          (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
               0                            ; both bounds are positive or negative
               (get-slack))))               ; tan is (-inf, +inf) or around zero
 
@@ -375,7 +410,7 @@
      (define out-exp
        (+ (min (log2-approx outlo)
                (log2-approx outhi))
-          (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+          (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
               0                         ; both bounds are positive or negative
               (- (get-slack)))))        ; Condition of uncertainty,
      ; slack is negated because it is to be subtracted below
@@ -396,7 +431,7 @@
      (max 0
           (+ 1 (max (- (log2-approx outlo))  ; main formula
                     (- (log2-approx outhi)))
-             (if (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
+             (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
                  0                           ; both bounds are positive or negative
                  (get-slack))))]             ; output crosses 0.bf - uncertainty
 
@@ -450,8 +485,8 @@
           (+ (max (+ (- xlo-exp outlo-exp) 1)
                   (+ (- xhi-exp outhi-exp) 1))
        
-             (if (and (xor (bigfloat-signbit ylo) (bigfloat-signbit yhi))
-                      (xor (bigfloat-signbit outlo) (bigfloat-signbit outhi)))
+             (if (and (equal? (bigfloat-signbit ylo) (bigfloat-signbit yhi))
+                      (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)))
                  0                ; y and out don't cross 0
                  (get-slack))))]   ; y or output crosses 0
     [(equal? op ival-fma)
@@ -482,7 +517,7 @@
                                    zhi-exp)))
      (max 0
           (- condition-lhs (min outlo-exp outhi-exp)
-             (if (xor (bigfloat-signbit outhi) (bigfloat-signbit outlo)) ; cancellation when output crosses 0
+             (if (equal? (bigfloat-signbit outhi) (bigfloat-signbit outlo)) ; cancellation when output crosses 0
                  0
                  (- (get-slack)))))]
     
