@@ -113,7 +113,7 @@
   (*lowering-rules* (append rules accelerator-rules)))
 
 (define (impl-in-platform? prog pform)
-  (define impls (platform-impls pform))
+  (define impls (list->set (platform-impls pform)))
   (let/ec return
     (let loop ([prog prog])
       (match prog
@@ -133,7 +133,7 @@
 
 (define (run-rr altns reprs)
   (timeline-event! 'rewrite)
-  (define exprs (map alt-expr altns))
+  (define specs (map alt-expr altns))
 
   ; generate real rules is not cached
   (unless (*real-rules*)
@@ -149,8 +149,9 @@
       (run ,(*lowering-rules*) ((iteration . 1) (scheduler . simple)))
       (convert)
       (prune-spec)))
-  (define changelistss
-    (rewrite-expressions exprs reprs schedule (*context*)))
+  
+  ; run egg
+  (define changelistss (rewrite-expressions specs reprs schedule (*context*)))
 
   ; apply changelists
   (define num-rewritten 0)
