@@ -1,6 +1,7 @@
 #lang racket
 
 (require math/bigfloat math/flonum rival)
+;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
 (require (only-in math/private/bigfloat/mpfr mpfr-exp))
 (require "syntax/syntax.rkt" "syntax/types.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
@@ -247,28 +248,17 @@
   ; Step 3. Repeating precisions check
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
-  (define first-iter (equal? 1 (*sampling-iteration*)))
-  (define (recursive-repeat-check reg)
-    (define idx (- reg varc))
-    (define flag #t)
-    (when (<= 0 idx)  ; if ivec[reg] is a variable - return #t, precision of a variable is always 53
-      (define tail-regs (rest (vector-ref ivec idx)))
-      (set! flag
-            (if (empty? tail-regs)
-                (equal? (vector-ref vprecs-new idx)
-                        (if first-iter (vector-ref vstart-precs idx) (vector-ref vprecs idx)))
-                (and
-                 (equal? (vector-ref vprecs-new idx)
-                         (if first-iter (vector-ref vstart-precs idx) (vector-ref vprecs idx)))
-                 (andmap identity (map recursive-repeat-check tail-regs)))))
-      (vector-set! vrepeats idx flag))
-    flag)
-    
-  (for/vector #:length rootlen ([root-reg (in-vector rootvec)])
-    (when (and
-           (<= varc root-reg)                                       ; when root is not a variable
-           (bigfloat? (ival-lo (vector-ref vregs root-reg))))
-      (recursive-repeat-check root-reg)))
+  (for ([instr (in-vector ivec)]
+        [prec-old (in-vector (if (equal? 1 (*sampling-iteration*)) vstart-precs vprecs))]
+        [prec-new (in-vector vprecs-new)]
+        [n (in-naturals)])
+    (if (and (equal? prec-new prec-old)
+             (andmap identity (map (lambda (x) (if (>= x varc)
+                                                   (vector-ref vrepeats (- x varc))
+                                                   #t))
+                                   (rest instr))))
+        (vector-set! vrepeats n #t)
+        (vector-set! vrepeats n #f)))
   
   ; Step 4. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new))
