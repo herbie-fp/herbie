@@ -526,12 +526,10 @@
 ;; - has-leaf?: map from vector index to if the eclass contains a leaf
 ;; - constants: map from vector index to if the eclass contains a constant
 ;; - types: map from vector index to a egg IR type or #f
-;; - node->id: mapping node to eclass id (using eq? for comparison)
 ;; - egg->herbie: data to translate egg IR to herbie IR
-(struct regraph (eclasses canon has-leaf? constants types node->id egg->herbie))
+(struct regraph (eclasses canon has-leaf? constants types egg->herbie))
 
-;; Constructs a Racket egraph from an S-expr representation
-;; returning (eclasses, canon, has-leaf?, constants, types, node->id)
+;; Constructs a Racket egraph from an S-expr representation.
 (define (sexpr->regraph egraph egg->herbie)
   ; reserve the next eclass
   (define canon (make-hash))
@@ -550,7 +548,6 @@
   (define has-leaf? (make-vector n #f))
   (define constants (make-vector n #f))
   (define type? (make-vector n #f))
-  (define node->id (make-hasheq))
   (for ([eclass egraph])
     (match-define (list egg-id egg-nodes ...) eclass)
     (define id (resolve-id egg-id))
@@ -559,18 +556,15 @@
                   ([egg-node (in-list egg-nodes)])
         (match egg-node
           [(? number?) ; number
-           (hash-set! node->id egg-node id)
            (vector-set! has-leaf? id #t)
            (vector-set! constants id egg-node)
            egg-node]
           [(? symbol?) ; egg IR typename or variable ID
-           (hash-set! node->id egg-node id)
            (vector-set! type? id 'typename)
            (vector-set! has-leaf? id #t)
            egg-node]
           [(list op child-ids ...)
            (define egg-node* (cons op (map resolve-id child-ids)))
-           (hash-set! node->id egg-node* id)
            (match op
              ['$Type (vector-set! type? id 'type)] ; egg IR type signature
              ['$Var (vector-set! has-leaf? id #t)] ; variable
@@ -599,9 +593,7 @@
       ['type (vector-set! types id (extract-egg-type id))]
       [type (error 'sexpr->regraph "unexpected type eclass type ~a" type)]))
   ; collect with wrapper
-  ; (for ([id (in-range n)])
-  ;   (printf "~a: ~a\n" id (vector-ref eclasses id)))
-  (regraph eclasses canon has-leaf? constants types node->id egg->herbie))
+  (regraph eclasses canon has-leaf? constants types egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
@@ -748,24 +740,16 @@
                      #:dirty?-vec dirty?-vec))
 
   ; reconstructs the best expression at a node
-  (define best-nodes (make-vector n #f))
   (define (build-expr id)
-    (define node (vector-ref best-nodes id)) ; check if it is cached
-    (cond
-      [node node]
-      [else
-       (define node 
-         (match (cdr (vector-ref costs id))
-           [(? number? n) n] ; number
-           [(? symbol? s) s] ; typename or variable name
-           [(cons '$Type types) (cons '$Type types)] ; type
-           [(cons op ids) (cons op (map build-expr ids))] ; operator
-           [e (error 'default-extraction-proc "could not reconstruct ~a" e)]))
-       (vector-set! best-nodes id node)
-       node]))
+    (match (cdr (vector-ref costs id))
+      [(? number? n) n] ; number
+      [(? symbol? s) s] ; typename or variable name
+      [(cons '$Type types) (cons '$Type types)] ; type
+      [(cons op ids) (cons op (map build-expr ids))] ; operator
+      [e (error 'default-extraction-proc "could not reconstruct ~a" e)]))
   
   ; the actual extraction procedure
-  (lambda (id)
+  (lambda (id _)
     (define cost (car (vector-ref costs id)))
     (cons cost (build-expr id))))
 
@@ -919,9 +903,6 @@
   (define types (regraph-types regraph))
   (define n (vector-length eclasses))
 
-  (for ([id (in-range n)])
-    (printf "~a: ~a\n" id (vector-ref eclasses id)))
-
   ; costs: mapping eclass id to either:
   ; - a map from type to (cost, node) pair
   ; - (cost, node) pair 
@@ -946,6 +927,19 @@
            (define cost* (hash-ref cost #t))  ; (cost . node) or #f
            (and cost* (car cost*))]
           [else failure]))
+
+  ; Unsafe lookup of best eclass node
+  (define (unsafe-best-node id type)
+    (define cost (vector-ref costs id))
+    (cond
+      [(pair? cost) (cdr cost)] ; (cost . node)
+      [(hash-has-key? cost type) 
+       (define cost* (hash-ref cost type)) ; (cost . node) or #f
+       (and cost* (cdr cost*))]
+      [(hash-has-key? cost #t) ; type `#t` is always a valid choice
+       (define cost* (hash-ref cost #t))  ; (cost . node) or #f
+       (and cost* (cdr cost*))]
+      [else (error 'unsafe-best-cost "unclear what to extract: ~a" id)]))
 
   ; Dirty vector
   (define dirty?-vec (vector-copy has-leaf?))
@@ -995,13 +989,9 @@
     (define node-types (vector-ref eclass-types id))
     (define prev-costs (vector-ref costs id))
     (define new-costs (hash-copy prev-costs))
-    (printf "eclass-cost: ~a ~a ~a\n" id node-types (vector-ref parents id))
     ; iterate over the nodes
     (for ([node (in-vector eclass)] [type (in-vector node-types)])
       (define new-cost (node-cost node type))
-      (printf " node-cost: ~a [~a] => ~a ~a\n"
-              node type new-cost
-              (and (pair? node) (map (curry vector-ref costs) (cdr node))))
       (cond
         [(not new-cost) (void)]
         [(eq? type #t) ; node is untyped (constant) => merge with all types
@@ -1021,7 +1011,6 @@
                        type
                        (lambda (prev) (cost-merger prev new-cost node)))]))
     ; merge the new version
-    (printf " ~a ~a\n" prev-costs new-costs)
     (define updated?
       (for/or ([type (in-list (hash-keys prev-costs))])
         (define prev-cost (hash-ref prev-costs type))
@@ -1041,15 +1030,33 @@
                      #:analysis costs
                      #:dirty?-vec dirty?-vec))
 
+  ; invariant: all eclasses have a cost for all types
   (unless (for/and ([cost (in-vector costs)])
             (cond [(pair? cost) #t]
                   [(hash? cost) (andmap identity (hash-values cost))]
                   [else #f]))
-    (error 'typed-egg-extractor
-           "costs not computed for all eclasses ~a "
-           costs))
-  
-  (error 'typed-egg-extractor "unimplemented: ~a" costs))
+    (error 'typed-egg-extractor "costs not computed for all eclasses ~a" costs))
+
+  ; rebuilds the extracted procedure
+  (define (build-expr id type)
+    (match (unsafe-best-node id type)
+      [(? number? n) n] ; number
+      [(? symbol? s) s] ; typename or variable name
+      [(list '$Var ty-id name-id)
+       (define ty (build-expr ty-id #f))
+       (define name (build-expr name-id #f))
+       (list '$Var ty name)]
+      [(list '$Type types ...) (cons '$Type types)] ; type
+      [(list op ty-id ids ...)
+       (define ty (build-expr ty-id type))
+       (match-define (list '$Type _ itypes ...) ty)
+       (list* op ty (map build-expr ids itypes))] ; operator
+      [e (error 'default-extraction-proc "could not reconstruct ~a" e)]))
+
+  ; the actual extraction procedure
+  (lambda (id type)
+    (cons (unsafe-eclass-cost id type +inf.0)
+          (build-expr id type))))
 
 ;; Per-node cost function according to the platform
 ;; `rec` takes an id, type, and failure value
@@ -1199,32 +1206,52 @@
   (struct-copy regraph re [eclasses eclasses*]))
 
 
-;; Extracts the best expression according to the extractor
-(define (regraph-extract-best regraph ctx extract id)
+;; Extracts the best expression according to the extractor.
+;; Result is a single element list.
+(define (regraph-extract-best regraph ctx extract id repr)
+  ; extract expr
+  (define id* (hash-ref (regraph-canon regraph) id))
+  (match-define (cons _ egg-expr) (extract id* (representation-name repr)))
+  ; translate egg IR to Herbie IR
   (define egg->herbie (regraph-egg->herbie regraph))
-  (define canon (regraph-canon regraph))
-  (define repr (context-repr ctx))
-  (match-define (cons _ egg-expr) (extract (hash-ref canon id)))
-  (egg-parsed->expr (flatten-let egg-expr) egg->herbie (representation-name repr)))
+  (define repr-name (representation-name (context-repr ctx)))
+  (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie repr-name)))
 
 ;; Extracts multiple expressions according to the extractor
-(define (regraph-extract-variants regraph ctx extract id)
-  (define egg->herbie (regraph-egg->herbie regraph))
-  (define canon (regraph-canon regraph))
-  (define repr (context-repr ctx))
-  ; for each eclass, iterate through the enodes and extract the best child
+(define (regraph-extract-variants regraph ctx extract id repr)
+  ; extract expressions
   (define eclasses (regraph-eclasses regraph))
-  (for/list ([enode (vector-ref eclasses (hash-ref canon id))])
-    (define egg-expr
-      (match enode
-        [(list op ids ...)
-         (cons op (for/list ([id (in-list ids)])
-                    (match-define (cons _ expr) (extract id))
-                    expr))]
-        [_ enode]))
-    (egg-parsed->expr (flatten-let egg-expr)
-                      egg->herbie
-                      (representation-name repr))))
+  (define id* (hash-ref (regraph-canon regraph) id))
+  (define egg-exprs
+    (reap [sow]
+      (for ([enode (vector-ref eclasses id*)])
+        (match enode
+          [(? number?) (sow enode)]
+          [(list '$Var ty-id name-id)
+           (match-define (cons _ ty) (extract ty-id #f))
+           (match-define (cons _ name) (extract name-id #f))
+           (sow (list '$Var ty name))]
+          [(list 'if _ cond ift iff)
+           (error 'regraph-extract-variants "unimplemented ~a" enode)]
+          [(list op ty-id ids ...)
+           (match-define (cons _ ty) (extract ty-id #f))
+           (define-values (otype itypes)
+             (match ty
+               [(list '$Type otype itypes ...) (values otype itypes)]
+               ['real (values 'real (make-list (length ids) 'real))]))
+           (when (equal? otype (representation-name repr))
+             (sow
+               (list* op
+                      ty
+                      (for/list ([id (in-list ids)] [itype (in-list itypes)])
+                        (define expr* (extract id itype))
+                        (match-define (cons _ expr) expr*)
+                        expr))))]))))
+  ; translate egg IR to Herbie IR
+  (define egg->herbie (regraph-egg->herbie regraph))
+  (define repr-name (representation-name (context-repr ctx)))
+  (for/list ([egg-expr (in-list egg-exprs)])
+    (egg-parsed->expr (flatten-let egg-expr) egg->herbie repr-name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler
@@ -1383,13 +1410,15 @@
   (define extractor (egraph-query-extractor input))
   (define cost-proc (egraph-query-cost-proc input))
   (define extract-id (extractor cost-proc regraph))
+  (define reprs (egraph-query-reprs input))
   ;; Extract the expressions
-  (define variants
+  (define extract-proc
     (if variants?
-        (for/list ([id node-ids])
-          (regraph-extract-variants regraph ctx extract-id id))
-        (for/list ([id node-ids])
-          (list (regraph-extract-best regraph ctx extract-id id)))))
+        regraph-extract-variants
+        regraph-extract-best))
+  (define rewritten
+    (for/list ([id node-ids] [repr (in-list reprs)])
+      (extract-proc regraph ctx extract-id id repr)))
   ;; Extract the proof based on a pair (start, end) expressions.
   (define proofs
     (for/list ([proof-input (in-list proof-inputs)])
@@ -1402,6 +1431,6 @@
         (error (format "Failed to produce proof for ~a to ~a" start end)))
       proof))
   ;; Return extracted expressions and the proof
-  (cons variants proofs))
+  (cons rewritten proofs))
 
 

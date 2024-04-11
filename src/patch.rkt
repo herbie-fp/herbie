@@ -112,21 +112,23 @@
   ; put them together
   (*lowering-rules* (append rules accelerator-rules)))
 
-(define (impl-in-platform? prog pform)
-  (define impls (list->set (platform-impls pform)))
+(define (impl-well-typed? prog repr)
+  (define impls (list->set (platform-impls (*active-platform*))))
   (let/ec return
-    (let loop ([prog prog])
+    (let loop ([prog prog] [repr repr])
       (match prog
         [(list 'if cond ift iff)
-         (loop cond)
-         (loop ift)
-         (loop iff)]
+         (loop cond (get-representation 'bool))
+         (loop ift repr)
+         (loop iff repr)]
         [(list (? operator-exists?) _ ...)
          (return #f)]
         [(list impl args ...)
          (unless (set-member? impls impl)
            (return #f))
-         (for-each loop args)]
+         (unless (eq? (impl-info impl 'otype) repr)
+           (return #f))
+         (for-each loop args (impl-info impl 'itype))]
         [(? literal?) (void)]
         [(? symbol?) (void)]))
     (return #t)))
@@ -157,11 +159,11 @@
   (define num-rewritten 0)
   (define rewritten
     (reap [sow]
-      (for ([changelists changelistss] [altn altns])
+      (for ([changelists changelistss] [altn altns] [repr reprs])
         (for ([cl changelists])
           (match-define (list subexpr input) cl)
           (set! num-rewritten (add1 num-rewritten))
-          (when (impl-in-platform? subexpr (*active-platform*))
+          (when (impl-well-typed? subexpr repr)
             (sow (alt subexpr (list 'rr input #f #f) (list altn) '())))))))
 
   (printf "valid ~a/~a\n" (length rewritten) num-rewritten)
