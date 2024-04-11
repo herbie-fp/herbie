@@ -152,13 +152,10 @@
   ; Goes over every key-value pair in the dictionary, filter out the keys with :alt.
   ; If so, map all these values to extract all the relevant metadata
   (define extract-alt-values-list
-    (begin
-      (let ([alt-values
-        (filter 
-          (lambda (entry) (equal? (car entry) ':alt)) ; Filter out entries with the key ':alt
-          (dict->list prop-dict))])        ; Extract the values from the filtered pairs
-
-        (map cdr alt-values))))
+    ; Filter out entries with the key ':alt, and extract the values from the filtered pairs
+    (for/list ([(k v) (in-dict prop-dict)]
+               #:when (equal? k ':alt))
+      v))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
@@ -176,13 +173,6 @@
         (representation-name default-repr)
         (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
         '()))
-
-(define (verify-platform platform desired-platform)
-    (match platform
-      [`(platform ,platform-name)
-        (equal? platform-name desired-platform)]
-      [else
-        #f]))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that

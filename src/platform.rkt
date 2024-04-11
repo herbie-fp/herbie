@@ -758,10 +758,15 @@
         [_
          (repr->cost pform repr)]))))
 
-
 (define (target-in-platform? expr)
     (match expr
       [`(! ,props ... ,body)
+
+        ; (let ((description (assoc ':description (list->dict props))))
+        ;   (and description 
+        ;     (equal? (cdr description) `(platform , (*platform-name*)))))
+
+
         (let loop ((remaining props))
           (cond
             [(null? remaining) (error "Invalid props no :description")] ; Base case: stop when no more properties remain
@@ -776,5 +781,18 @@
                             (equal? platform-name (*platform-name*))]
                           [else #f])]
 
-                      [else (loop (cdr (cdr remaining)))]))]))]
+                      [else (loop (cdr (cdr remaining)))]))]))
+      ]
+
       [else #f]))
+
+(define (list->dict lst)
+  (define (dict-helper lst acc)
+    (if (null? lst)
+        acc
+        (let ((prop-name (car lst))
+              (prop-value (cadr lst)))
+          (dict-helper (cdr lst) (cons (cons prop-name prop-value) acc)))))
+  (dict-helper lst '()))
+
+        

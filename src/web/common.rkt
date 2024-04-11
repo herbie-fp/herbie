@@ -301,7 +301,7 @@
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
-     (if (> (length (test-output test)) 0)
+     (if (not (null? (test-output test)))
         ;; Extra newlines for clarity. Also joined formatted expressions with newlines
         (format "\n~a"
           (string-join

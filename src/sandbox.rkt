@@ -204,15 +204,12 @@
         (define target-train-errs-list '())
         (define target-test-errs-list '())
 
-        ;; IF IN PLATFROM, EVALUATE ERRORS ELSE PUT #F IN FIELDS
-        (for/list ([expr (test-output test)])
-            (if (target-in-platform? expr)
-              (let* ([target-expr (fpcore->prog expr ctx)]
-                    [target-train-errs (errors target-expr train-pcontext ctx)]
-                    [target-test-errs (errors target-expr test-pcontext* ctx)])
-                (alt-analysis (make-alt target-expr) target-train-errs target-test-errs))
-                
-              #f))]
+        ;; When in platform, evaluate error
+        (for/list ([expr (in-list (test-output test))] #:when (target-in-platform? expr))
+          (let* ([target-expr (fpcore->prog expr ctx)]
+                [target-train-errs (errors target-expr train-pcontext ctx)]
+                [target-test-errs (errors target-expr test-pcontext* ctx)])
+            (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)))]
 
       [else #f]))
 
@@ -339,20 +336,15 @@
      ; Get a list of all targets in the platform 
      (define target-alt-list (filter identity targets))
 
+     (displayln (map (lambda (target) (alt-cost (alt-analysis-alt target) repr)) target-alt-list))
+
      ;; From all the targets, pick the lowest cost target
      (define target 
       (cond
         [(empty? target-alt-list) #f] ; If the list is empty, return false
         [else
-          (define best-target (first target-alt-list))
-          (define lowest-cost (alt-cost (alt-analysis-alt best-target) repr))
-          (for ([curr-target target-alt-list])
-            (define cost (alt-cost (alt-analysis-alt curr-target) repr))
-            (when (< cost lowest-cost)
-              (set! best-target target)
-              (set! lowest-cost cost)))
-
-          best-target]))
+          (argmin (lambda (target) (get-cost (alt-cost (alt-analysis-alt target) repr))) 
+                                    target-alt-list)]))
 
      ; target analysis for comparison
      (define target-score (and target (errors-score (alt-analysis-test-errors target))))

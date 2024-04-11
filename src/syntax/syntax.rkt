@@ -243,8 +243,7 @@
 ;; Panics if the operator is not found.
 (define (impl->operator name)
   (unless (hash-has-key? operator-impls name)
-    ; (raise-herbie-missing-error "Unknown operator implementation ~a" name))
-    (error "Unknown operator implementation ~a" name))
+    (raise-herbie-missing-error "Unknown operator implementation ~a" name))
   (define impl (hash-ref operator-impls name))
   (operator-name (operator-impl-op impl)))
 
@@ -252,8 +251,7 @@
 ;; Panics if the operator is not found.
 (define (activate-operator-impl! name)
   (unless (hash-has-key? operator-impls name)
-    ; (raise-herbie-missing-error "Unknown operator implementation ~a" name))
-    (error "Unknown operator implementation ~a" name))
+    (raise-herbie-missing-error "Unknown operator implementation ~a" name))
   (set-add! active-operator-impls name))
 
 ;; Clears the table of active implementations.
