@@ -282,104 +282,68 @@
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs-new (- n varc) final-parent-precision)
     
-    (define child-exponents (+ exps-from-above new-exponents))
-    (for ([x (in-list tail-registers)])
-      (when (>= x varc)   ; when tail register is not a variable
-        (vector-set! vprecs-new (- x varc)
-                     (max ; check whether this op already has a precision that is higher
-                      (vector-ref vprecs-new (- x varc))
-                      child-exponents))))))
+    ;(define child-exponents (+ exps-from-above new-exponents))
+    (for ([x (in-list tail-registers)]
+          [new-exp (in-vector new-exponents)])
+    (when (>= x varc)   ; when tail register is not a variable
+      (vector-set! vprecs-new (- x varc)
+                   (max ; check whether this op already has a precision that is higher
+                    (vector-ref vprecs-new (- x varc))
+                    (+ exps-from-above new-exp)))))))
 
-; Function calculates an exponent for a certain output and input using condition formulas,
+; Function calculates an exponent per input for a certain output and inputs using condition formulas,
 ;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
 ;   that the output will be fixed in its precision when evaluating again
 (define (get-exponent op output srcs)
   (cond
     [(member op (list ival-mult ival-div ival-sqrt ival-cbrt))
-     1]
-    [(equal? op ival-add)
-     ; log[Г+] = max(log[x], log[y]) - log[x + y]
-     ;                               ^^^^^^^^^^^^
-     ;                               possible cancellation
+     ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
+     ; log[Гsqrt] = 0.5
+     ; log[Гcbrt] = 0.3
+     (make-vector (length srcs) 1)]
+    
+    [(member op (list ival-add ival-sub))
+     ; log[Г+]'x = log[x] - log[x + y]
+     ; log[Г+]'y = log[y] - log[x + y]
+     ; log[Г-]'x = log[x] - log[x - y]
+     ; log[Г-]'y = log[y] - log[x - y]
+     ;                    ^^^^^^^^^^^^
+     ;                    possible cancellation
      (define x (first srcs))
-     (define xlo (ival-lo x))
-     (define xlo-exp (log2-approx xlo))
-     (define xlo-sgn (bigfloat-signbit xlo))
-     (define xhi (ival-hi x))
-     (define xhi-exp (log2-approx xhi))
-     (define xhi-sgn (bigfloat-signbit xhi))
-
+     (define x-exp (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
      (define y (second srcs))
-     (define ylo (ival-lo y))
-     (define ylo-exp (log2-approx ylo))
-     (define ylo-sgn (bigfloat-signbit ylo))
-     (define yhi (ival-hi y))
-     (define yhi-exp (log2-approx yhi))
-     (define yhi-sgn (bigfloat-signbit yhi))
-     
+     (define y-exp (max (log2-approx (ival-hi y)) (log2-approx (ival-lo y))))
      (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
      (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
+     (define out-exp (min (log2-approx outhi) (log2-approx outlo)))
+
+     (define slack (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+                       0
+                       (get-slack)))
        
-     (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
-               (max
-                (- (max xlo-exp ylo-exp) outlo-exp)
-                (- (max xhi-exp yhi-exp) outhi-exp))
-               (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
-                   0
-                   (get-slack))))]
-      
-    [(equal? op ival-sub)
-     ; log[Г-] = max(log[x], log[y]) - log[x - y]
-     ;                               ^^^^^^^^^^^^
-     ;                               possible cancellation
-     (define x (first srcs))
-     (define xlo (ival-lo x))
-     (define xlo-exp (log2-approx xlo))
-     (define xlo-sgn (bigfloat-signbit xlo))
-     (define xhi (ival-hi x))
-     (define xhi-exp (log2-approx xhi))
-     (define xhi-sgn (bigfloat-signbit xhi))
-
-     (define y (second srcs))
-     (define ylo (ival-lo y))
-     (define ylo-exp (log2-approx ylo))
-     (define ylo-sgn (bigfloat-signbit ylo))
-     (define yhi (ival-hi y))
-     (define yhi-exp (log2-approx yhi))
-     (define yhi-sgn (bigfloat-signbit yhi))
-
-     (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
-     (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
-
-     (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
-               (max
-                (- (max xlo-exp yhi-exp) outlo-exp)
-                (- (max xhi-exp ylo-exp) outhi-exp))
-               (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
-                   0
-                   (get-slack))))]
+     (vector (max 0 (+ 1 (- x-exp out-exp) slack))  ; +1 because of mantissa approximation in log sub
+             (max 0 (+ 1 (- y-exp out-exp) slack)))]
       
     [(equal? op ival-pow)
-     ; log[Гpow] = max[ log(y) , log(y) + log[log(x)] ]
-     ;                                    ^^^^^^^^^^^ less than 30
-     (define xlo-exp (log2-approx (ival-lo (first srcs))))
-     (define xhi-exp (log2-approx (ival-hi (first srcs))))
-     (define ylo-exp (log2-approx (ival-lo (second srcs))))
-     (define yhi-exp (log2-approx (ival-hi (second srcs))))
+     ; log[Гpow]'x = log[y] 
+     ; log[Гpow]'y = log[y] + log[log(x)]
+     ;                        ^^^^^^^^^^^ always less than 30
+     (define x (first srcs))
+     (define x-exp (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
+     (define y (second srcs))
+     (define y-exp (max (log2-approx (ival-hi y)) (log2-approx (ival-lo y))))
 
-     (max 0 (+ (max ylo-exp yhi-exp)
-               (if (> (max xlo-exp xhi-exp) 2) ; if x-exp > 2 (actually 2.718),
-                   30                          ;    then at least 1 additional bit is needed
-                   0)))]
+     (define slack (if (> x-exp 2) ; if x-exp > 2 (actually 2.718),
+                       30          ;    then at least 1 additional bit is needed
+                       0))
+     
+     (vector (max 0 y-exp)
+             (max 0 (+ y-exp slack)))]
 
     [(equal? ival-exp op)
-     (max 0
-          (log2-approx (ival-lo (car srcs)))
-          (log2-approx (ival-hi (car srcs))))]
+     (vector (max 0
+                  (log2-approx (ival-lo (car srcs)))
+                  (log2-approx (ival-hi (car srcs)))))]
 
     [(equal? ival-tan op)
      ; log[Гtan] = log[x] - log[sin(x)*cos(x)] <= log[x] + |log[tan(x)]| + 1
@@ -395,9 +359,9 @@
               0                            ; both bounds are positive or negative
               (get-slack))))               ; tan is (-inf, +inf) or around zero
 
-     (max 0
-          (+ (log2-approx (ival-lo (car srcs))) out-exp)
-          (+ (log2-approx (ival-hi (car srcs))) out-exp))]
+     (vector (max 0
+                  (+ (log2-approx (ival-lo (car srcs))) out-exp)
+                  (+ (log2-approx (ival-hi (car srcs))) out-exp)))]
               
     [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
      ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)] <= log[x] - log[cos(x)]
@@ -412,13 +376,13 @@
                (log2-approx outhi))
           (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
               0                         ; both bounds are positive or negative
-              (- (get-slack)))))        ; Condition of uncertainty,
-     ; slack is negated because it is to be subtracted below
-     (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
-               (- (max
-                   (log2-approx (ival-lo (car srcs)))
-                   (log2-approx (ival-hi (car srcs))))
-                  out-exp)))]
+              (- (get-slack)))))        ; Condition of uncertainty
+     
+     (vector (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
+                       (- (max
+                           (log2-approx (ival-lo (car srcs)))
+                           (log2-approx (ival-hi (car srcs))))
+                          out-exp))))]
                
     [(member op (list ival-log ival-log2 ival-log10))
      ; log[Гlog]   = log[1/logx] = -log[log(x)]
@@ -428,14 +392,12 @@
      (define outlo (ival-lo output))
      (define outhi (ival-hi output))
        
-     (max 0
-          (+ 1 (max (- (log2-approx outlo))  ; main formula
-                    (- (log2-approx outhi)))
-             (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
-                 0                           ; both bounds are positive or negative
-                 (get-slack))))]             ; output crosses 0.bf - uncertainty
-
-          
+     (vector (max 0
+                  (+ 1 (max (- (log2-approx outlo))  ; main formula
+                            (- (log2-approx outhi)))
+                     (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
+                         0                           ; both bounds are positive or negative
+                         (get-slack)))))]             ; output crosses 0.bf - uncertainty
               
     [(member op (list ival-asin ival-acos))
      ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)]
@@ -453,42 +415,41 @@
           (if (or (>= xlo-exp 0) (>= xhi-exp 0)) ; Condition of uncertainty when argument > sqrt(3)/2
               (- (get-slack))                    ; assumes that log[1-x^2]/2 is equal to (- slack)
               0)))
-     (max 0 (- xlo-exp out-exp) (- xhi-exp out-exp))] ; main formula
+     (vector (max 0 (- xlo-exp out-exp) (- xhi-exp out-exp)))] ; main formula
 
     [(equal? op ival-atan)
      ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -|log[x]| - log[atan(x)] <= 0
      (define xlo-exp (- (abs (log2-approx (ival-lo (car srcs))))))
      (define xhi-exp (- (abs (log2-approx (ival-hi (car srcs))))))
-     (max 0 ; never greater than 0...
-          (- xlo-exp (log2-approx (ival-lo output)))
-          (- xhi-exp (log2-approx (ival-hi output))))]
+     (vector (max 0 ; never greater than 0...
+                  (- xlo-exp (log2-approx (ival-lo output)))
+                  (- xhi-exp (log2-approx (ival-hi output)))))]
       
     [(member op (list ival-fmod ival-remainder))
-     ; x mod y = x - y*q, where q is a coef
-     ; log[Гmod] ~ log[ max(x, y*x/y) / mod(x,y)] ~ log[x] - log[mod(x,y)] + 1
-     ;                            ^   ^
-     ;                     conditions of uncertainty
+     ; x mod y = x - y*q, where q is rnd_down(x/y)
+     ; log[Гmod]'x ~ log[x]                 - log[mod(x,y)]
+     ; log[Гmod]'y ~ log[y * rnd_down(x/y)] - log[mod(x,y)] <= log[x] - log[mod(x,y)] + y-slack
+     ;                                 ^    ^
+     ;                                 conditions of uncertainty
      (define x (first srcs))
-     (define xlo-exp (log2-approx (ival-lo x)))
-     (define xhi-exp (log2-approx (ival-hi x)))
-       
+     (define x-exp (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
      (define y (second srcs))
      (define ylo (ival-lo y))
      (define yhi (ival-hi y))
-
      (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
      (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
-       
-     (max 0
-          (+ (max (+ (- xlo-exp outlo-exp) 1)
-                  (+ (- xhi-exp outhi-exp) 1))
-       
-             (if (and (equal? (bigfloat-signbit ylo) (bigfloat-signbit yhi))
-                      (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)))
-                 0                ; y and out don't cross 0
-                 (get-slack))))]   ; y or output crosses 0
+     (define out-exp (min (log2-approx outlo) (log2-approx outhi)))
+
+     (define x-slack (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+                         0                
+                         (get-slack))) ; output crosses 0
+     (define y-slack (if (equal? (bigfloat-signbit ylo) (bigfloat-signbit yhi))
+                         x-slack                
+                         (+ x-slack (get-slack)))) ; y crosses zero
+
+     (vector (max 0 (+ (- x-exp out-exp) x-slack))
+             (max 0 (+ (- x-exp out-exp) y-slack)))]
+    
     [(equal? op ival-fma)
      ; log[Гfma] = log[ max(x*y, -z) / fma(x,y,z)] ~ max(log[x] + log[y], log[z]) - log[fma(x,y,z)] + 1
      ;                               ^^^^^^^^^^^^
@@ -515,11 +476,11 @@
                                    (+ xhi-exp yhi-exp)
                                    zlo-exp
                                    zhi-exp)))
-     (max 0
-          (- condition-lhs (min outlo-exp outhi-exp)
-             (if (equal? (bigfloat-signbit outhi) (bigfloat-signbit outlo)) ; cancellation when output crosses 0
-                 0
-                 (- (get-slack)))))]
+     (make-vector 3 (max 0
+                         (- condition-lhs (min outlo-exp outhi-exp)
+                            (if (equal? (bigfloat-signbit outhi) (bigfloat-signbit outlo)) ; cancellation when output crosses 0
+                                0
+                                (- (get-slack))))))]
     
     [(equal? op ival-hypot)
      ; hypot = sqrt(x^2+y^2)
@@ -537,10 +498,10 @@
      (define outlo-exp (log2-approx (ival-lo output)))
      (define outhi-exp (log2-approx (ival-hi output)))
      
-     (max 0
-          (+ 1 (* 2 (- ; division in condition number - +1 to the result
-                     (+ (max xlo-exp ylo-exp xhi-exp yhi-exp) 1)
-                     (min outlo-exp outhi-exp)))))]
+     (make-vector 2 (max 0
+                         (+ 1 (* 2 (- ; division in condition number - +1 to the result
+                                    (+ (max xlo-exp ylo-exp xhi-exp yhi-exp) 1)
+                                    (min outlo-exp outhi-exp))))))]
     
     ; Currently log1p has a very poor approximation
     [(equal? op ival-log1p)
@@ -558,49 +519,38 @@
      (define outhi (ival-hi output))
      (define outhi-exp (log2-approx outhi))
      
-     (max 0
+     (vector (max 0
           (+ (- (+ (max xlo-exp xhi-exp) 1)                   ; main formula: log[x] - log[log1p] + 1
                 (min outlo-exp outhi-exp))
              (if (or (equal? (bigfloat-signbit xlo) 1)        ; slack part
                      (equal? (bigfloat-signbit xhi) 1))       ; if x in negative
                  (get-slack)
-                 0)))]
+                 0))))]
     
     ; Currently expm1 has a very poor solution for negative values
     [(equal? op ival-expm1)
      ; log[Гexpm1] = log[x * e^x / expm1] <= max(1+log[x], 1+log[x/expm1] +1)
      ;                                                                    ^^ division accounting
      (define x (first srcs))
-     (define xlo (ival-lo x))
-     (define xlo-exp (log2-approx xlo))
-     (define xhi (ival-hi x))
-     (define xhi-exp (log2-approx xhi))
-     (define xmax-exp (max xlo-exp xhi-exp))
+     (define x-exp (max (log2-approx (ival-lo x)) (log2-approx (ival-hi x))))
+     (define out-exp (min (log2-approx (ival-lo output)) (log2-approx (ival-hi output))))
 
-     (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
-     (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
-
-     (max 0
-          (+ 1 xmax-exp)
-          (+ 2 (- xmax-exp (min outlo-exp outhi-exp))))]
+     (vector (max 0
+                  (+ 1 x-exp)
+                  (+ 2 (- x-exp out-exp))))]
 
     [(equal? op ival-atan2)
-     ; log[Гatan2] = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*max[logx, logy] - log[atan2]
+     ; log[Гatan2]'x = log[Гatan2]'y = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*max[logx, logy] - log[atan2]
      (define x (first srcs))
      (define x-exp (max (log2-approx (ival-hi x))
                         (log2-approx (ival-lo x))))
-     
      (define y (second srcs))
      (define y-exp (max (log2-approx (ival-hi y))
                         (log2-approx (ival-lo y))))
-     
      (define out-exp (min (log2-approx (ival-lo output))
                           (log2-approx (ival-hi output))))
 
-     (max 0
-          (- (+ x-exp y-exp) (* 2 (max x-exp y-exp)) out-exp))]
+     (make-vector 2 (max 0 (- (+ x-exp y-exp) (* 2 (max x-exp y-exp)) out-exp)))]
 
     ; Currently has a poor implementation
     [(equal? op ival-tanh)
@@ -610,8 +560,8 @@
                         (log2-approx (ival-lo x))))
      (define out-exp (max (log2-approx (ival-lo output))
                           (log2-approx (ival-hi output))))
-     (max 0
-          (+ (- x-exp) out-exp))]
+     (vector (max 0
+                  (+ (- x-exp) out-exp)))]
     
     [(equal? op ival-atanh)
      ; log[Гarctanh] = log[x / ((1-x^2) * atanh)] = 1 if x < 0.5, otherwise slack
@@ -621,11 +571,11 @@
      (define x-exp (max (log2-approx (ival-hi x))
                         (log2-approx (ival-lo x))))
 
-     (if (>= x-exp 0)
-         (get-slack)
-         1)]
+     (vector (if (>= x-exp 0)
+                 (get-slack)
+                 1))]
     
     ; TODO
     [(member op (list ival-erfc ival-erf ival-lgamma ival-tgamma))
-     (get-slack)]
-    [else 0]))
+     (vector (get-slack))]
+    [else (make-vector (length srcs) 0)]))
