@@ -37,14 +37,18 @@
   (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
   
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
+  (define iter-count 0)
   (if (equal? name 'ival)
       (λ args
         (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                        (* (*sampling-iteration*) 1000)))
         (match (zero? (*sampling-iteration*))
-              [#t (vector-fill! vrepeats #f)
-                  (update-vstart-precs vprecs vstart-precs)]
-              [#f (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)]) ; back-pass
+          [#t (vector-fill! vrepeats #f)
+              (when (and (> iter-count 0) (< iter-count (*max-sampling-iterations*)))
+                (update-vstart-precs vprecs vstart-precs))
+              (set! iter-count 0)]
+          [#f (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
+              (set! iter-count (*sampling-iteration*))]) ; back-pass
         (timeline-stop!)
         
         (for ([arg (in-list args)] [n (in-naturals)])
@@ -101,9 +105,9 @@
     [4 4096]
     [5 8192]))
 
-; Function sets up vstart-precs vector, where all the precisions
-; are equal to (+ (*base-tuning-precision*) (* depth (*ground-truth-extra-bits*))),
-; where depth is the depth of a node in the given computational tree (ivec)
+;; Function sets up vstart-precs vector, where all the precisions
+;; are equal to (+ (*base-tuning-precision*) (* depth (*ground-truth-extra-bits*))),
+;; where depth is the depth of a node in the given computational tree (ivec)
 (define (setup-vstart-precs ivec varc)
   (define ivec-len (vector-length ivec))
   (define vstart-precs (make-vector ivec-len))
@@ -124,10 +128,6 @@
   vstart-precs)
 
 (define (update-vstart-precs vprecs vstart-precs)
-  #;(vector-map! + vstart-precs
-               (vector-map (curry (lambda (x y) (exact-round (* x y))) (*sampling-learning-rate*))
-                           (vector-map (curry max 0)
-                                       (vector-map - vprecs vstart-precs))))
   (vector-map! (lambda (x y) (+ (exact-floor (* (max 0 (- y x)) (*sampling-learning-rate*))) x))
                  vstart-precs vprecs))
 
@@ -226,8 +226,8 @@
   (define (<compiled-prog> . xs) (vector-ref (apply core xs) 0))
   <compiled-prog>)
 
-; Function writes into vprecs new precisions that are propogated using condition number logic
-;   and into vrepeats whether a reevaluation is needed for an instruction
+;; Function writes into vprecs new precisions that are propogated using condition number logic
+;;   and into vrepeats whether a reevaluation is needed for an instruction
 (define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
@@ -263,10 +263,11 @@
   ; Step 4. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new))
 
-; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
-; Roughly speaking:
-;   vprecs-new[i] = min( *max-mpfr-prec* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
-;   exponents-from-above = get-exponent(parent)
+;; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
+;; If any precision exceeds *max-mpfr-prec* - *sampling-iteration* changes to be *max-sampling-iterations* (last iteration)
+;; Roughly speaking:
+;;   vprecs-new[i] = min( *max-mpfr-prec* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
+;;   exponents-from-above = get-exponent(parent)
 (define (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])           ; reversed over indices of vregs
@@ -299,9 +300,9 @@
                       (vector-ref vprecs-new (- x varc))
                       child-exponents))))))
 
-; Function calculates an exponent for a certain output and input using condition formulas,
-;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
-;   that the output will be fixed in its precision when evaluating again
+;; Function calculates an exponent for a certain output and input using condition formulas,
+;;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
+;;   that the output will be fixed in its precision when evaluating again
 (define (get-exponent op output srcs)
   (cond
     [(member op (list ival-mult ival-div ival-sqrt ival-cbrt))
