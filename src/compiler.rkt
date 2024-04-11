@@ -276,7 +276,7 @@
 
     ; This case is weird. if we have a cancellation in fma -> ival-mult in fma should be in higher precision
     (when (equal? op ival-fma)
-      (set! final-parent-precision (+ final-parent-precision new-exponents)))
+      (set! final-parent-precision (+ final-parent-precision (vector-ref new-exponents 0))))
     
     (when (equal? final-parent-precision (*max-mpfr-prec*))         ; Early stopping
       (*sampling-iteration* (*max-sampling-iterations*)))
