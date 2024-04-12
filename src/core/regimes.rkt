@@ -231,8 +231,8 @@
           ;; For each previous split point, we need the best candidate to fill the new regime
         (define best #f)
         (define bcost #f)
-         (when (vector-ref can-split-vec (+ prev-split-idx 1))
-            (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
+          (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
+             (when (vector-ref can-split-vec (+ prev-split-idx 1))
               (let ([cost (fl- (flvector-ref psum point-idx)
                              (flvector-ref psum prev-split-idx))])
               (when test
@@ -243,7 +243,9 @@
                   (when test (eprintf "SET: bcost[~a] was: ~a\n" cost bcost))
                   (set! bcost cost)
                   (when test (eprintf "SET: best[~a] was: ~a\n" cidx best))
-                  (set! best cidx))))
+                  (set! best cidx)))))
+
+          (when (vector-ref can-split-vec (+ prev-split-idx 1))
             (define t (fl+ (flvector-ref v-alt-cost prev-split-idx) bcost))
             (when test
             (eprintf "[temp ~a, acost: ~a] [prev: ~a bcost: ~a]\n" t acost (flvector-ref v-alt-cost prev-split-idx) bcost))
