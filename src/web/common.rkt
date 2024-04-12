@@ -306,7 +306,7 @@
         (format "\n~a"
           (string-join
             (map
-              (lambda (exp) (format "  :alt\n  ~a\n" exp))
+              (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
               (test-output test))
             "\n"))
          #f)

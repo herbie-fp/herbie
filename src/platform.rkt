@@ -10,7 +10,8 @@
          (submod "syntax/syntax.rkt" internals))
 
 (provide
-  platform get-platform *active-platform* activate-platform! target-in-platform?
+  platform get-platform *active-platform* activate-platform!
+  extract-platform-name list->dict
   ;; Platform API
   (contract-out
     ;; Operator sets
@@ -758,32 +759,15 @@
         [_
          (repr->cost pform repr)]))))
 
-(define (target-in-platform? expr)
-    (match expr
+(define (extract-platform-name value)
+  (match value
       [`(! ,props ... ,body)
-
-        ; (let ((description (assoc ':description (list->dict props))))
-        ;   (and description 
-        ;     (equal? (cdr description) `(platform , (*platform-name*)))))
-
-
-        (let loop ((remaining props))
-          (cond
-            [(null? remaining) (error "Invalid props no :description")] ; Base case: stop when no more properties remain
-            [else
-              (let ((prop-name (car remaining))
-                    (prop-value (cadr remaining)))
-
-                    (match prop-name
-                      [`:description
-                        (match prop-value
-                          [`(platform ,platform-name)
-                            (equal? platform-name (*platform-name*))]
-                          [else #f])]
-
-                      [else (loop (cdr (cdr remaining)))]))]))
-      ]
-
+        (let* ((prop-dict (list->dict props))
+               (contains-desc? (assoc ':description prop-dict)))
+          (and contains-desc?
+            (match (cdr contains-desc?)
+              [`(platform ,plat-name) plat-name]
+              [else #f])))]
       [else #f]))
 
 (define (list->dict lst)
@@ -792,7 +776,6 @@
         acc
         (let ((prop-name (car lst))
               (prop-value (cadr lst)))
-          (dict-helper (cdr lst) (cons (cons prop-name prop-value) acc)))))
+            (dict-helper (cddr lst) (cons (cons prop-name prop-value) acc)))))
   (dict-helper lst '()))
 
-        

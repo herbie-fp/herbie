@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../conversions.rkt" "../errors.rkt"
-         "../programs.rkt" "types.rkt" "syntax.rkt"
+         "../programs.rkt" "types.rkt" "syntax.rkt" "../platform.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
@@ -151,11 +151,28 @@
 
   ; Goes over every key-value pair in the dictionary, filter out the keys with :alt.
   ; If so, map all these values to extract all the relevant metadata
-  (define extract-alt-values-list
+  ; (define extract-alt-values-list
     ; Filter out entries with the key ':alt, and extract the values from the filtered pairs
-    (for/list ([(k v) (in-dict prop-dict)]
-               #:when (equal? k ':alt))
-      v))
+    ; (for/list ([(k v) (in-dict prop-dict)]
+              ;  #:when (equal? k ':alt))
+      ; v))
+
+(define targets
+  (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
+    (define plat-name (extract-platform-name val))  ; could do this! name is symbol or #f
+
+    (cond
+      ; check if name matches
+      [(equal? plat-name (*platform-name*)) (cons val #t)]
+      
+      [else
+        ; try to lower
+        (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
+          ; WHAT TO DO HERE (define expr (spec->prog val (*context*)))
+          ; (cons val #t)
+          (cons val #f) ;TEMP
+        
+          )])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
@@ -165,7 +182,7 @@
         func-name
         arg-names
         body*
-        extract-alt-values-list
+        targets
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*

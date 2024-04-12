@@ -203,10 +203,12 @@
       [(test-output test)
         (define target-train-errs-list '())
         (define target-test-errs-list '())
+        (displayln "reached here")
 
         ;; When in platform, evaluate error
-        (for/list ([expr (in-list (test-output test))] #:when (target-in-platform? expr))
-          (let* ([target-expr (fpcore->prog expr ctx)]
+        (for/list ([expr (in-list (test-output test))] #:when (cdr expr))
+          (displayln "reached here 2")
+          (let* ([target-expr (fpcore->prog (car expr) ctx)]
                 [target-train-errs (errors target-expr train-pcontext ctx)]
                 [target-test-errs (errors target-expr test-pcontext* ctx)])
             (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)))]
