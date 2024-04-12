@@ -158,11 +158,9 @@
 
 
       (section ([id "cost-accuracy"] [class "section"]
-                [data-benchmark-name ,(~a (test-name test))]
-                ; TODO: Doesn't show all data points
+                [data-benchmark-name ,(~a (test-name test))])
 
-                ,@(for/list ([target-cost list-target-cost])
-                    `[data-target-cost ,(~a target-cost)]))
+                ; TODO : Show all Developer Target Accuracy 
 
         (h2 "Accuracy vs Speed"
             (a ([class "help-button float"] 

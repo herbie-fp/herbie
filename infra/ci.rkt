@@ -50,8 +50,8 @@
         (cond
           [(empty? targets) #f] ; If the list is empty, return false
           [else
-            ; TODO : RIGHT NOW TAKING FIRST, NEED TO FIX TO BEST-ERROR
-            (alt-analysis-test-errors (first targets))]))
+            (alt-analysis-test-errors 
+              (argmin (lambda (target) (errors-score (alt-analysis-test-errors target))) targets))]))
 
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
