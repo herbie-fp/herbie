@@ -2,7 +2,7 @@
 
 (require math/bigfloat math/flonum rival)
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
-(require (only-in math/private/bigfloat/mpfr mpfr-exp))
+(require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 (require "syntax/syntax.rkt" "syntax/types.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
@@ -291,7 +291,6 @@
                     (vector-ref vprecs-new (- x varc))
                     (+ exps-from-above new-exp)))))))
 
-
 (define (ival-max-log2-approx x)
   (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
 (define (ival-min-log2-approx x)
@@ -324,7 +323,7 @@
      (define y-exp (ival-max-log2-approx y))
      (define out-exp (min (log2-approx outhi) (log2-approx outlo)))
 
-     (define slack (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+     (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                        0
                        (get-slack)))
        
@@ -367,7 +366,7 @@
      (define out-exp-abs (max (abs (log2-approx outlo))
                               (abs (log2-approx outhi))))
      
-     (define slack (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+     (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                        0
                        (get-slack)))                  ; tan is (-inf, +inf) or around zero
      
@@ -386,7 +385,7 @@
      (define out-exp (min (log2-approx outlo)
                           (log2-approx outhi)))
      
-     (define slack (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+     (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                        0
                        (get-slack)))                  ; Condition of uncertainty
      
@@ -402,7 +401,7 @@
      (define out-exp (max (log2-approx outlo)
                               (log2-approx outhi)))
      
-     (define slack (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+     (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                        0
                        (get-slack)))                  ; output crosses 0.bf - uncertainty
      
@@ -449,11 +448,11 @@
      (define x-exp (ival-max-log2-approx x))
      (define out-exp (min (log2-approx outlo) (log2-approx outhi)))
 
-     (define x-slack (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
+     (define x-slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                          0                
                          (get-slack)))                ; output crosses 0
      
-     (define y-slack (if (equal? (bigfloat-signbit ylo) (bigfloat-signbit yhi))
+     (define y-slack (if (equal? (mpfr-sign ylo) (mpfr-sign yhi))
                          x-slack                
                          (+ x-slack (get-slack))))    ; y crosses zero
 
@@ -476,7 +475,7 @@
      (define outhi (ival-hi output))
      (define out-exp (min (log2-approx outlo) (log2-approx outhi)))
      
-     (define slack (if (equal? (bigfloat-signbit outhi) (bigfloat-signbit outlo))
+     (define slack (if (equal? (mpfr-sign outhi) (mpfr-sign outlo))
                                 0
                                 (get-slack)))         ; cancellation when output crosses 0
        
@@ -510,8 +509,8 @@
      (define x-exp (ival-max-log2-approx x))
      (define out-exp (ival-min-log2-approx output))
 
-     (define slack (if (or (equal? (bigfloat-signbit xlo) 1)
-                           (equal? (bigfloat-signbit xhi) 1))
+     (define slack (if (or (equal? (mpfr-sign xlo) -1)
+                           (equal? (mpfr-sign xhi) -1))
                        (get-slack)                    ; if x in negative
                        0))
      
