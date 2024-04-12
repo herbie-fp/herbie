@@ -177,7 +177,7 @@
   ; so greedily compute the set ahead of time
   (define repr-convs (operator-all-impls 'cast))
   (define (real-op op)
-    (if (member op repr-convs)
+    (if (memv op repr-convs)
         (impl->operator op)
         op))
 
@@ -302,13 +302,13 @@
 ;   that the output will be fixed in its precision when evaluating again
 (define (get-exponent op output srcs)
   (cond
-    [(member op (list ival-mult ival-div ival-sqrt ival-cbrt))
+    [(memv op (list ival-mult ival-div ival-sqrt ival-cbrt))
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
      ; log[Гsqrt] = 0.5
      ; log[Гcbrt] = 0.3
      (make-list (length srcs) 1)]
     
-    [(member op (list ival-add ival-sub))
+    [(memv op (list ival-add ival-sub))
      ; log[Г+]'x = log[x] - log[x + y] + 1 (1 for mantissa approximation when dividing)
      ; log[Г+]'y = log[y] - log[x + y] + 1
      ; log[Г-]'x = log[x] - log[x - y] + 1
@@ -373,7 +373,7 @@
      
      (list (max 0 (+ x-exp out-exp-abs 1 slack)))]
               
-    [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
+    [(memv op (list ival-sin ival-cos ival-sinh ival-cosh))
      ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)] <= log[x] - log[cos(x)] + 1
      ; log[Гsin] = log[x] + log[cos(x)] - log[sin(x)] <= log[x] - log[sin(x)] + 1
      ;                                                          ^^^^^^^^^^^^^
@@ -392,7 +392,7 @@
      
      (list (max 0 (+ (- x-exp out-exp) 1 slack)))]
                
-    [(member op (list ival-log ival-log2 ival-log10))
+    [(memv op (list ival-log ival-log2 ival-log10))
      ; log[Гlog]   = log[1/logx] = -log[log(x)]
      ; log[Гlog2]  = log[1/(log2(x) * ln(2))] <= -log[log2(x)] + 1    < main formula
      ; log[Гlog10] = log[1/(log10(x) * ln(10))] <= -log[log10(x)] - 1
@@ -408,7 +408,7 @@
      
      (list (max 0 (+ (- out-exp) 1 slack)))]
               
-    [(member op (list ival-asin ival-acos))
+    [(memv op (list ival-asin ival-acos))
      ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)] + 1
      ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)] + 1
      ;                       ^^^^^^^^^^^^
@@ -433,7 +433,7 @@
      
      (list (max 0 (- (- x-exp-abs) out-exp)))]
       
-    [(member op (list ival-fmod ival-remainder))
+    [(memv op (list ival-fmod ival-remainder))
      ; x mod y = x - y*q, where q is rnd_down(x/y)
      ; log[Гmod]'x ~ log[x]                 - log[mod(x,y)] + 1
      ; log[Гmod]'y ~ log[y * rnd_down(x/y)] - log[mod(x,y)] + 1 <= log[x] - log[mod(x,y)] + 1
@@ -559,6 +559,6 @@
                1))]
     
     ; TODO
-    [(member op (list ival-erfc ival-erf ival-lgamma ival-tgamma))
+    [(memv op (list ival-erfc ival-erf ival-lgamma ival-tgamma))
      (list (get-slack))]
     [else (make-list (length srcs) 0)]))
