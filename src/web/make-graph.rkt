@@ -212,7 +212,7 @@
                  ,@(render-history alt train-pctx test-pctx ctx)))))
 
 
-      ,@(for/list ([i (in-naturals 1)] [target targets] [target-error list-target-error] [target-cost list-target-cost])
+      ,@(for/list ([i (in-naturals 1)] [target (in-list targets)] [target-error (in-list list-target-error)] [target-cost (in-list list-target-cost)])
           (let-values ([(dropdown body) (render-program (alt-expr (alt-analysis-alt target)) ctx #:ident identifier)])
             `(section ([id ,(format "target~a" i)] [class "programs"])
                       (h2 "Developer Target " ,(~a i)

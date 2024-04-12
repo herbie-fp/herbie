@@ -76,17 +76,9 @@
     (cond
       [(empty? targets) #f] ; If the list is empty, return false
       [else
-        ; Lowest error
-        (define error (alt-analysis-test-errors (first targets)))
-        ; Score for lowest-error
-        (define actual-error (errors-score error))
-
-        (for ([curr-target targets])
-          (define curr-error (alt-analysis-test-errors curr-target))
-          (when (< (errors-score curr-error) actual-error)
-            (set! error curr-error)))
-
-        error]))
+        ; Smallest error target
+        (alt-analysis-test-errors 
+          (argmin (lambda (target) (errors-score (alt-analysis-test-errors target))) targets))]))
 
   (define end-errors (map alt-analysis-test-errors end))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
@@ -106,7 +98,6 @@
   (define bits (representation-total-bits repr))
   (define start-error (map ulps->bits-tenths start-errors))
   (define target-error (and target-errors (map ulps->bits-tenths target-errors)))
-  ; (define target-error target-errors)
   (define end-error (map ulps->bits-tenths (car end-errors)))
 
   (define ticks 

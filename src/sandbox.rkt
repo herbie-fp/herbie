@@ -338,7 +338,6 @@
       (cond
         [(empty? targets) #f] ; If the list is empty, return false
         [else
-          ; currently using alt-cost as get-cost is buggy
           (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)]))
 
      ; target analysis for comparison

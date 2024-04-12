@@ -160,7 +160,7 @@
         [else
           (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
             ; Testing if error thrown
-            (spec->prog val (*context*))
+            (spec->prog val ctx)
             (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
