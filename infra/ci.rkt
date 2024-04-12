@@ -76,7 +76,7 @@
          
          (when target-error
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
-           ;; TODO: RIGHT NOW TAKING FIRST
+           ;; internal tool so okay
            (pretty-print (list-ref (test-output test) 0) (current-output-port) 1)))
 
        success?]

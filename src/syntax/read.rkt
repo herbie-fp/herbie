@@ -157,22 +157,21 @@
               ;  #:when (equal? k ':alt))
       ; v))
 
-(define targets
-  (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
-    (define plat-name (extract-platform-name val))  ; could do this! name is symbol or #f
+  (define targets
+    (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
+      (define plat-name (extract-platform-name val))  ; plat-name is symbol or #f
+      (displayln (format "context : ~a" (*context*)))
 
-    (cond
-      ; check if name matches
-      [(equal? plat-name (*platform-name*)) (cons val #t)]
-      
-      [else
+      (cond
+        ; If plat-name extracted, check if name matches
+        [plat-name (cons val (equal? plat-name (*platform-name*)))]
+
         ; try to lower
-        (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
-          ; WHAT TO DO HERE (define expr (spec->prog val (*context*)))
-          ; (cons val #t)
-          (cons val #f) ;TEMP
-        
-          )])))
+        [else
+          (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
+            ; Testing if error thrown
+            (spec->prog val (*context*))
+            (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)

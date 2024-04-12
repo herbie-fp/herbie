@@ -203,11 +203,9 @@
       [(test-output test)
         (define target-train-errs-list '())
         (define target-test-errs-list '())
-        (displayln "reached here")
 
         ;; When in platform, evaluate error
         (for/list ([expr (in-list (test-output test))] #:when (cdr expr))
-          (displayln "reached here 2")
           (let* ([target-expr (fpcore->prog (car expr) ctx)]
                 [target-train-errs (errors target-expr train-pcontext ctx)]
                 [target-test-errs (errors target-expr test-pcontext* ctx)])
@@ -335,18 +333,13 @@
      (define start-test-score (errors-score start-test-errs))
      (define start-cost (expr-cost start-expr repr))
 
-     ; Get a list of all targets in the platform 
-     (define target-alt-list (filter identity targets))
-
-     (displayln (map (lambda (target) (alt-cost (alt-analysis-alt target) repr)) target-alt-list))
-
      ;; From all the targets, pick the lowest cost target
-     (define target 
+     (define target
       (cond
-        [(empty? target-alt-list) #f] ; If the list is empty, return false
+        [(empty? targets) #f] ; If the list is empty, return false
         [else
-          (argmin (lambda (target) (get-cost (alt-cost (alt-analysis-alt target) repr))) 
-                                    target-alt-list)]))
+          ; currently using alt-cost as get-cost is buggy
+          (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)]))
 
      ; target analysis for comparison
      (define target-score (and target (errors-score (alt-analysis-test-errors target))))
