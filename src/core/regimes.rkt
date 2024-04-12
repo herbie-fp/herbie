@@ -189,7 +189,7 @@
    (flvector-sums (list->flvector lst)))
   (define flvec-psums (vector-map make-vec-psum err-lsts-vec)) 
 
-  (define test (and 
+  (define test (and #f 
     (= num-candidates 2) ))
     ;; /(fl= (fl 63.999295387023416) (flvector-ref (vector-ref flvec-psums 0) 0))
     ;; (fl= (fl 57.458771367809156) (flvector-ref (vector-ref flvec-psums 0) 1))))
@@ -228,9 +228,9 @@
           (when test 
           (eprintf "\nprev-loop(~a)[acost: ~a]\n" prev-split-idx acost))
           ;; For each previous split point, we need the best candidate to fill the new regime
-         (when 
-          (vector-ref can-split-vec (+ prev-split-idx 1))
-          (let ([best #f] [bcost #f])
+        (define best #f)
+        (define bcost #f)
+         (when (vector-ref can-split-vec (+ prev-split-idx 1))
             (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
               (let ([cost (fl- (flvector-ref psum point-idx)
                              (flvector-ref psum prev-split-idx))])
@@ -238,27 +238,22 @@
                 (eprintf "\ncidx(~a) cost[~a] ~a - ~a\n" cidx cost (flvector-ref psum point-idx) (flvector-ref psum prev-split-idx))
                 (eprintf "point[~a] prev[~a] best[~a] bcost[~a]\n" 
                          point-idx prev-split-idx best bcost))
-                (when (or (not best) (fl< cost bcost))
-                  
-              (when test
-                  (eprintf "SET: bcost[~a] was: ~a\n" cost bcost))
+                (when (or (not best) (fl< cost bcost))   
+                  (when test (eprintf "SET: bcost[~a] was: ~a\n" cost bcost))
                   (set! bcost cost)
-              (when test
-                  (eprintf "SET: best[~a] was: ~a\n" cidx best))
+                  (when test (eprintf "SET: best[~a] was: ~a\n" cidx best))
                   (set! best cidx))))
-            (define temp (fl+ (flvector-ref v-alt-cost prev-split-idx) bcost))
+            (define t (fl+ (flvector-ref v-alt-cost prev-split-idx) bcost))
             (when test
-            (eprintf "[temp ~a, acost: ~a] [prev: ~a bcost: ~a]\n" temp acost (flvector-ref v-alt-cost prev-split-idx) bcost))
-            (when 
-              (fl< temp acost)
-              
+            (eprintf "[temp ~a, acost: ~a] [prev: ~a bcost: ~a]\n" t acost (flvector-ref v-alt-cost prev-split-idx) bcost))
+            (when (fl< t acost)
             (when test
-              (eprintf "acost(set): old:~a new:~a\n" acost temp))
+              (eprintf "acost(set): old:~a new:~a\n" acost t))
               ;; give benefit to new best alt
-              (set! acost (fl- temp min-weight)) 
+              (set! acost (fl- t min-weight)) 
               (set! a-cost acost)
               (set! a-best best)
-              (set! a-prev-idx prev-split-idx)))))
+              (set! a-prev-idx prev-split-idx))))
         (flvector-set! vec-alt-cost point-idx a-cost)
         (vector-set! vec-cidx point-idx a-best)
         (vector-set! vec-pidx point-idx a-prev-idx)))
