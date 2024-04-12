@@ -185,9 +185,10 @@
   (define num-candidates (vector-length err-lsts-vec))
   (define num-points (vector-length can-split-vec))
   (define min-weight (fl num-points))
+
   (define (make-vec-psum lst) 
    (flvector-sums (list->flvector lst)))
-  (define flvec-psums (vector-map make-vec-psum err-lsts-vec)) 
+  (define flvec-psums (vector-map make-vec-psum err-lsts-vec))
 
   (define test (and #f 
     (= num-candidates 2) ))
