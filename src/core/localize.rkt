@@ -39,7 +39,7 @@
      
 
 
-;;Returns a list of lists of subexpresions and their cost different sorted by increasing local cost in the form (subexpression, cost)
+;;Returns a list of lists of subexpresions and their cost different sorted by increasing local cost in the form (diff, expr)
 (define (batch-localize-cost exprs ctx)
   ;;Creates a function to get the cost of a expr
   (define expr->cost  (platform-cost-proc (*active-platform*)))
@@ -50,9 +50,9 @@
       (sort 
         (for/list ([subexpr (in-list subexprs)]
                   [simple-subexpr (in-list simple-subexprs)])
-                  (cons (car subexpr) 
-                        (- (expr->cost (car subexpr) (cdr subexpr)) (expr->cost (last simple-subexpr) (cdr subexpr)))))
-      > #:key cdr)  
+                  (cons (- (expr->cost (car subexpr) (cdr subexpr)) (expr->cost (last simple-subexpr) (cdr subexpr)))
+                        (car subexpr) ))
+      > #:key car)  
     )
   )
       

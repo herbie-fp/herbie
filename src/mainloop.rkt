@@ -160,7 +160,7 @@
                   #:when true
                   [pair (in-list locs-costs)]
                   [i (in-range (*localize-expressions-limit*))])
-          (car pair)))))
+                  (car pair)))))
 
 
   (^lowlocs^
