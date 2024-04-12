@@ -249,13 +249,13 @@
        (flvector-set! vec-temp cand-idx
         (flvector-ref (vector-ref flvec-psums cand-idx) point-idx)))
       ;; Find the min, no built in function to find smallest fl in vector
-      (define min (flvector-ref vec-temp 0))
+      (define min-v (flvector-ref vec-temp 0))
       (define min-idx 0)
       (for ([val vec-temp] [idx (range num-candidates)])
-        (cond [(< val min)
+        (cond [(< val min-v)
                (set! min-idx idx)
-               (set! min val)]))
-      (flvector-set! vec-acost point-idx (fl min))
+               (set! min-v val)]))
+      (flvector-set! vec-acost point-idx (fl min-v))
       (vector-set! vec-cidx point-idx min-idx)
       (vector-set! vec-pidx point-idx num-points))
     (values vec-acost vec-cidx vec-pidx))
@@ -272,18 +272,12 @@
   
   (define-values (pa pb pd) (initial))
   (define-values (fa fb fd)
-    ; short circuit if there is no other alts to consider
     (let loop ([pa pa] [pb pb] [pd pd])
     (define-values (na nb nd) (add-splitpoint pa pb pd))
-    (if (equal? nb pb) ;; only need to compare candidate index
+    (if (equal? na pa)
         (values na nb nd)
         (loop na nb nd))))
 
-  (when test
-    (eprintf "END\n") 
-    (eprintf "cost: ~a\n" pa)
-    (eprintf "alt: ~a\n" pb)
-    (eprintf "prev: ~a\n" pd))
     ;; From here down is messy code translating from 4 vectors back to
     ;; the original list of split points
     (define fixed-final (make-vector num-points))
