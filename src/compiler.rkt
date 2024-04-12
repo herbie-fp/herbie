@@ -300,14 +300,14 @@
 ;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
 ;   that the output will be fixed in its precision when evaluating again
 (define (get-exponent op output srcs)
-  (cond
-    [(memv op (list ival-mult ival-div ival-sqrt ival-cbrt))
+  (case/equal op
+    [(ival-mult ival-div ival-sqrt ival-cbrt)
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
      ; log[Гsqrt] = 0.5
      ; log[Гcbrt] = 0.3
      (make-list (length srcs) 1)]
     
-    [(memv op (list ival-add ival-sub))
+    [(ival-add ival-sub)
      ; log[Г+]'x = log[x] - log[x + y] + 1 (1 for mantissa approximation when dividing)
      ; log[Г+]'y = log[y] - log[x + y] + 1
      ; log[Г-]'x = log[x] - log[x - y] + 1
@@ -330,7 +330,7 @@
      (list (max 0 (+ (- x-exp out-exp) 1 slack))      ; exponent per x
            (max 0 (+ (- y-exp out-exp) 1 slack)))]    ; exponent per y 
       
-    [(equal? op ival-pow)
+    [(ival-pow)
      ; log[Гpow]'x = log[y] 
      ; log[Гpow]'y = log[y] + log[log(x)]
      ;                        ^^^^^^^^^^^
@@ -348,13 +348,13 @@
      (list (max 0 y-exp)                              ; exponent per x
            (max 0 (+ y-exp slack)))]                  ; exponent per y
 
-    [(equal? ival-exp op)
+    [(ival-exp)
      ; log[Гexp] = log[x]
      (define x (car srcs))
      (define x-exp (ival-max-log2-approx x))
      (list (max 0 x-exp))]
 
-    [(equal? ival-tan op)
+    [(ival-tan)
      ; log[Гtan] = log[x] - log[sin(x)*cos(x)] <= log[x] + |log[tan(x)]| + 1
      ;                                                      ^^^^^^^^^^^
      ;                                                      possible uncertainty
@@ -372,7 +372,7 @@
      
      (list (max 0 (+ x-exp out-exp-abs 1 slack)))]
               
-    [(memv op (list ival-sin ival-cos ival-sinh ival-cosh))
+    [(ival-sin ival-cos ival-sinh ival-cosh)
      ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)] <= log[x] - log[cos(x)] + 1
      ; log[Гsin] = log[x] + log[cos(x)] - log[sin(x)] <= log[x] - log[sin(x)] + 1
      ;                                                          ^^^^^^^^^^^^^
@@ -391,7 +391,7 @@
      
      (list (max 0 (+ (- x-exp out-exp) 1 slack)))]
                
-    [(memv op (list ival-log ival-log2 ival-log10))
+    [(ival-log ival-log2 ival-log10)
      ; log[Гlog]   = log[1/logx] = -log[log(x)]
      ; log[Гlog2]  = log[1/(log2(x) * ln(2))] <= -log[log2(x)] + 1    < main formula
      ; log[Гlog10] = log[1/(log10(x) * ln(10))] <= -log[log10(x)] - 1
@@ -407,7 +407,7 @@
      
      (list (max 0 (+ (- out-exp) 1 slack)))]
               
-    [(memv op (list ival-asin ival-acos))
+    [(ival-asin ival-acos)
      ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)] + 1
      ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)] + 1
      ;                       ^^^^^^^^^^^^
@@ -422,7 +422,7 @@
      
      (list (max 0 (+ (- x-exp out-exp) 1 slack)))]
 
-    [(equal? op ival-atan)
+    [(ival-atan)
      ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -|log[x]| - log[atan(x)] <= 0
      (define x (first srcs))
      
@@ -432,7 +432,7 @@
      
      (list (max 0 (- (- x-exp-abs) out-exp)))]
       
-    [(memv op (list ival-fmod ival-remainder))
+    [(ival-fmod ival-remainder)
      ; x mod y = x - y*q, where q is rnd_down(x/y)
      ; log[Гmod]'x ~ log[x]                 - log[mod(x,y)] + 1
      ; log[Гmod]'y ~ log[y * rnd_down(x/y)] - log[mod(x,y)] + 1 <= log[x] - log[mod(x,y)] + 1
@@ -459,7 +459,7 @@
      (list (max 0 (+ (- x-exp out-exp) 1 x-slack))    ; exponent per x
            (max 0 (+ (- x-exp out-exp) 1 y-slack)))]  ; exponent per y
     
-    [(equal? op ival-fma)
+    [(ival-fma)
      ; log[Гfma] = log[ max(x*y, -z) / fma(x,y,z)] ~ max(log[x] + log[y], log[z]) - log[fma(x,y,z)] + 1
      ;                               ^^^^^^^^^^^^
      ;                               possible uncertainty
@@ -483,7 +483,7 @@
                           z-exp))
      (make-list 3 (max 0 (+ (- lhs-exp out-exp) 1 slack)))]
     
-    [(equal? op ival-hypot)
+    [(ival-hypot)
      ; hypot = sqrt(x^2+y^2)
      ; log[Гhypot] = log[ (2 * max(x,y) / hypot(x,y))^2 ] = 2 * (1 + log[max(x,y)] - log[hypot]) + 1
      ;                                  ^
@@ -498,7 +498,7 @@
      (make-list 2 (max 0 (+ (* 2 (- (+ 1 (max x-exp y-exp)) out-exp)) 1)))]
     
     ; Currently log1p has a very poor approximation
-    [(equal? op ival-log1p)
+    [(ival-log1p)
      ; log[Гlog1p] = log[x] - log[1+x] - log[log1p] + 1
      ;                      ^^^^^^^^^^
      ;                      treated like a slack if x < 0
@@ -517,7 +517,7 @@
      (list (max 0 (+ (- x-exp out-exp) 1 slack)))]
     
     ; Currently expm1 has a very poor solution for negative values
-    [(equal? op ival-expm1)
+    [(ival-expm1)
      ; log[Гexpm1] = log[x * e^x / expm1] <= max(1+log[x], 1+log[x/expm1] +1)
      ;                                                                    ^^ division accounting
      (define x (first srcs))
@@ -526,7 +526,7 @@
      
      (list (max 0 (+ 1 x-exp) (+ 2 (- x-exp out-exp))))]
 
-    [(equal? op ival-atan2)
+    [(ival-atan2)
      ; log[Гatan2]'x = log[Гatan2]'y = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*max[logx, logy] - log[atan2]
      (define x (first srcs))
      (define y (second srcs))
@@ -538,7 +538,7 @@
      (make-list 2 (max 0 (- (+ x-exp y-exp) (* 2 (max x-exp y-exp)) out-exp)))]
 
     ; Currently has a poor implementation
-    [(equal? op ival-tanh)
+    [(ival-tanh)
      ; log[Гtanh] = log[x / (sinh(x) * cosh(x))] <= -log[x] + log[tanh]. Never greater than 0
      (define x (first srcs))
      (define x-exp (ival-min-log2-approx x))
@@ -546,7 +546,7 @@
      
      (list (max 0 (+ (- x-exp) out-exp)))]
     
-    [(equal? op ival-atanh)
+    [(ival-atanh)
      ; log[Гarctanh] = log[x / ((1-x^2) * atanh)] = 1 if x < 0.5, otherwise slack
      ;                          ^^^^^^^
      ;                          a possible uncertainty
@@ -558,6 +558,6 @@
                1))]
     
     ; TODO
-    [(memv op (list ival-erfc ival-erf ival-lgamma ival-tgamma))
+    [(ival-erfc ival-erf ival-lgamma ival-tgamma)
      (list (get-slack))]
     [else (make-list (length srcs) 0)]))
