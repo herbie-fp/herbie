@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/case math/bigfloat math/flonum rival)
+(require math/bigfloat math/flonum rival)
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
 (require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 (require "syntax/syntax.rkt" "syntax/types.rkt"
@@ -300,7 +300,7 @@
 ;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
 ;   that the output will be fixed in its precision when evaluating again
 (define (get-exponent op output srcs)
-  (case/equal op
+  (case (object-name  op)
     [(ival-mult ival-div ival-sqrt ival-cbrt)
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
      ; log[Гsqrt] = 0.5
