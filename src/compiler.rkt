@@ -296,13 +296,13 @@
 ;   that the output will be fixed in its precision when evaluating again
 (define (get-exponent op output srcs)
   (cond
-    [(member op (list ival-mult ival-div ival-sqrt ival-cbrt))
+    [(memq op (list ival-mult ival-div ival-sqrt ival-cbrt))
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
      ; log[Гsqrt] = 0.5
      ; log[Гcbrt] = 0.3
      (make-vector (length srcs) 1)]
     
-    [(member op (list ival-add ival-sub))
+    [(memq op (list ival-add ival-sub))
      ; log[Г+]'x = log[x] - log[x + y]
      ; log[Г+]'y = log[y] - log[x + y]
      ; log[Г-]'x = log[x] - log[x - y]
@@ -363,7 +363,7 @@
                   (+ (log2-approx (ival-lo (car srcs))) out-exp)
                   (+ (log2-approx (ival-hi (car srcs))) out-exp)))]
               
-    [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
+    [(memq op (list ival-sin ival-cos ival-sinh ival-cosh))
      ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)] <= log[x] - log[cos(x)]
      ; log[Гsin] = log[x] + log[cos(x)] - log[sin(x)] <= log[x] - log[sin(x)]
      ;                      ^^^^^^^^^^^                         ^^^^^^^^^^^^^
@@ -384,7 +384,7 @@
                            (log2-approx (ival-hi (car srcs))))
                           out-exp))))]
                
-    [(member op (list ival-log ival-log2 ival-log10))
+    [(memq op (list ival-log ival-log2 ival-log10))
      ; log[Гlog]   = log[1/logx] = -log[log(x)]
      ; log[Гlog2]  = log[1/(log2(x) * ln(2))] <= -log[log2(x)] + 1    < main formula
      ; log[Гlog10] = log[1/(log10(x) * ln(10))] <= -log[log10(x)] - 1
@@ -399,7 +399,7 @@
                          0                           ; both bounds are positive or negative
                          (get-slack)))))]             ; output crosses 0.bf - uncertainty
               
-    [(member op (list ival-asin ival-acos))
+    [(memq op (list ival-asin ival-acos))
      ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)]
      ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)]
      ;                       ^^^^^^^^^^^^
@@ -425,7 +425,7 @@
                   (- xlo-exp (log2-approx (ival-lo output)))
                   (- xhi-exp (log2-approx (ival-hi output)))))]
       
-    [(member op (list ival-fmod ival-remainder))
+    [(memq op (list ival-fmod ival-remainder))
      ; x mod y = x - y*q, where q is rnd_down(x/y)
      ; log[Гmod]'x ~ log[x]                 - log[mod(x,y)]
      ; log[Гmod]'y ~ log[y * rnd_down(x/y)] - log[mod(x,y)] <= log[x] - log[mod(x,y)] + y-slack
@@ -576,6 +576,6 @@
                  1))]
     
     ; TODO
-    [(member op (list ival-erfc ival-erf ival-lgamma ival-tgamma))
+    [(memq op (list ival-erfc ival-erf ival-lgamma ival-tgamma))
      (vector (get-slack))]
     [else (make-vector (length srcs) 0)]))
