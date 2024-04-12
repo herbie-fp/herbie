@@ -218,8 +218,16 @@
        (when (vector-ref can-split-vec (+ prev-split-idx 1))
         (define t (fl+ (flvector-ref v-alt-cost prev-split-idx)
                        (vector-ref bcost prev-split-idx)))
-        ;; give benefit to previous best alt
-        (when (fl< t (fl- a-cost min-weight))
+        (define set-cond
+          ;; give benefit to previous best alt
+          (cond [(fl< t (fl- a-cost min-weight)) #t]
+                [(and (fl= t (fl- a-cost min-weight))
+                      (> a-best (vector-ref best prev-split-idx))) #t]
+                [(and (fl= t (fl- a-cost min-weight))
+                      (= a-best (vector-ref best prev-split-idx))
+                      (< a-prev-idx prev-split-idx)) #t]
+                [else #f]))
+        (when set-cond
          (set! a-cost t)
          (set! a-best (vector-ref best prev-split-idx))
          (set! a-prev-idx prev-split-idx))))
@@ -250,7 +258,7 @@
                (set! min-v val)]))
       (flvector-set! vec-acost point-idx (fl min-v))
       (vector-set! vec-cidx point-idx min-idx)
-      (vector-set! vec-pidx point-idx num-points))
+      (vector-set! vec-pidx point-idx -1))
     (values vec-acost vec-cidx vec-pidx))
 
   ;; prefix of p is for previous
@@ -280,6 +288,8 @@
       (define b (vector-ref fb idx))
       (define c (vector-ref fp idx))
       (define d (vector-ref fd idx))
+      (when (= d -1)
+        (set! d num-points))
       (vector-set! fixed-final idx (cand a b c d)))
 
   ;; start at (- num-points 1)
