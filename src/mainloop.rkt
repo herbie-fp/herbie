@@ -143,23 +143,24 @@
   (define loc-costss
      (batch-localize-cost (map alt-expr (^next-alts^)) (*context*)))
     (define repr (context-repr (*context*)))
-  
+
   ; high-error locations
-  (define locs-err
-    (for/list ([loc-errs (in-list loc-errss)]
-               #:when true
-               [(err expr) (in-dict loc-errs)]
-               [i (in-range (*localize-expressions-limit*))])
-      (timeline-push! 'locations (~a expr) (errors-score err)
-                      (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
-      expr))
-
-  (displayln locs-err)
-  
-
-
-
-  (^locs^ locs-err)
+  (^locs^
+    (remove-duplicates 
+      (append 
+        (for/list ([loc-errs (in-list loc-errss)]
+                  #:when true
+                  [(err expr) (in-dict loc-errs)]
+                  [i (in-range (*localize-expressions-limit*))])
+                  (timeline-push! 'locations (~a expr) (errors-score err)
+                          (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
+          expr)
+          
+        (for/list ([locs-costs (in-list loc-costss)]
+                  #:when true
+                  [pair (in-list locs-costs)]
+                  [i (in-range (*localize-expressions-limit*))])
+          (car pair)))))
 
 
   (^lowlocs^
