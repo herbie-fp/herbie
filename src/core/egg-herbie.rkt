@@ -179,79 +179,40 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eggIR
 ;;
-;; Expressions use a slightly different encoding than in Racket.
-;; The IR is similar to Herbie's various Racket IRs.
-;;
-;; <expr> ::= (<op> <sig> <expr> ...)
-;;        ::= ($Var <prec> <ident>)
-;;        ::= <number>
+;; eggIR is an S-expr language nearly identical to Herbie's various IRs
+;; consisting of two variants:
+;;  - patterns: all variables are prefixed by '?'
+;;  - expressions: all variables are normalized into `h<n>` where <n> is an integer
 ;; 
-;; <sig> ::= ($Type <prec> <prec> ...)
-;;         | real
-;;
-;; The main difference is the use of type signatures to differentiate
-;; operator implementations for different representations.
 
-;; Expands operators into `(op, sig)` so that we can
-;; recover the exact operator implementation when extracting.
-;; The ugly solution is to make `sig` = `($Type otype itypes ...)`.
-(define (expand-operator op-or-impl)
-  (cond
-    [(impl-exists? op-or-impl)
-     (define op (impl->operator op-or-impl))
-     (define itypes (map representation-name (impl-info op-or-impl 'itype)))
-     (define otype (representation-name (impl-info op-or-impl 'otype)))
-     (values op (cons '$Type (cons otype itypes)))]
-    [else
-     (values op-or-impl 'real)]))
-
-;; Translates a Herbie rule LHS or RHS into a pattern usable by egg
+;; Translates a Herbie rule LHS or RHS into a pattern usable by egg.
+;; Rules can be over specs or impls.
 (define (expr->egg-pattern expr)
   (let loop ([expr expr])
     (match expr
-      [(list 'if cond ift iff)
-       (list 'if 'real (loop cond) (loop ift) (loop iff))]
-      [(list (? repr-conv? op) arg)
-       (list op 'real (loop arg))]
-      [(list (? operator-exists? op) args ...)
-       (list* op 'real (map loop args))]
-      [(list (? impl-exists? op) args ...)
-       (define-values (op* prec) (expand-operator op))
-       (cons op* (cons prec (map loop args)))]
+      [(? number?) expr]
       [(? literal?) (literal-value expr)]
-      [(? number?) expr] ; TODO: we should have gotten a literal here
-      [_ (string->symbol (format "?~a" expr))])))
+      [(? symbol?) (string->symbol (format "?~a" expr))]
+      [(list op args ...) (cons op (map loop args))])))
 
-;; Translates a Herbie expression into an expression usable by egg
-;; Returns the string representing the expression and updates
-;; the translation dictionary
+;; Translates a Herbie expression into an expression usable by egg.
+;; Updates translation dictionary upon encountering variables.
+;; Result is the expression.
 (define (expr->egg-expr expr egg-data ctx)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
   (let loop ([expr expr])
     (match expr
-      [(list 'if cond ift iff)
-       (list 'if 'real (loop cond) (loop ift) (loop iff))]
-      [(list (? repr-conv? op) arg)
-       (list op 'real (loop arg))]
-      [(list (? operator-exists? op) args ...)
-       (cons op (cons 'real (map loop args)))]
-      [(list op args ...)
-       (define-values (op* prec) (expand-operator op))
-       (cons op* (cons prec (map loop args)))]
-      [(? literal?)
-       (literal-value expr)]
-      [(? number?) expr] ; TODO: literals
+      [(? number?) expr]
+      [(? literal?) (literal-value expr)]
       [(? (curry hash-has-key? herbie->egg-dict))
-       (define prec (list '$Type (representation-name (context-lookup ctx expr))))
-       (define replacement (hash-ref herbie->egg-dict expr))
-       (list '$Var prec replacement)]
-      [_
-       (define prec (list '$Type (representation-name (context-lookup ctx expr))))
+       (hash-ref herbie->egg-dict expr)]
+      [(? symbol?)
        (define replacement (string->symbol (format "h~a" (hash-count herbie->egg-dict))))
        (hash-set! herbie->egg-dict expr replacement)
-       (hash-set! egg->herbie-dict replacement expr)
-       (list '$Var prec replacement)])))
+       (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
+       replacement]
+      [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
   (let loop ([expr expr] [env (hash)])
@@ -268,42 +229,25 @@
        (error "Unknown term ~a" expr)])))
 
 ;; Converts an S-expr from egg into one Herbie understands
-(define (egg-parsed->expr expr rename-dict prec)
-  (let loop ([expr expr] [prec prec])
+(define (egg-parsed->expr expr rename-dict)
+  (let loop ([expr expr])
     (match expr
-      [`(Explanation ,body ...)
-       `(Explanation ,@(map (curryr loop prec) body))]
-      [(list 'Rewrite=> rule expr)
-       (list 'Rewrite=> rule (loop expr prec))]
-      [(list 'Rewrite<= rule expr)
-       (list 'Rewrite<= rule (loop expr prec))]
-      [(list 'if 'real cond ift iff)
-       (list 'if (loop cond 'body) (loop ift prec) (loop iff prec))]
-      [(list '$Var _ name)
-       (hash-ref rename-dict name)]
-      [(list (? repr-conv? op) 'real arg)
-       (list op (loop arg prec))] ; ???
-      [(list op 'real args ...) ; TODO what the heack
-       (cons op (map (curryr loop 'real) args))]
-      [(list op prec)
-       (match-define (list '$Type otype) prec)
-       (list (get-parametric-constant op (get-representation otype)))]
-      [(list op prec args ...)
-       (match-define (list '$Type _ itypes ...) prec)
-       (define op* (apply get-parametric-operator op (map get-representation itypes)))
-       (cons op* (map loop args itypes))]
-      [(? number?)
-       (literal expr prec)])))
+      [(? number?) (literal expr)]
+      [(? symbol?) (car (hash-ref rename-dict expr))]
+      [`(Explanation ,body ...) `(Explanation ,@(map loop body))]
+      [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr))]
+      [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr))]
+      [(list op args ...) (cons op (map loop args))])))
 
 ;; Parses a string from egg into a list of S-exprs.
-(define (egg-exprs->exprs s egraph-data repr)
+(define (egg-exprs->exprs s egraph-data)
   (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
   (for/list ([egg-expr (in-port read (open-input-string s))])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie (representation-name repr))))
+    (egg-parsed->expr (flatten-let egg-expr) egg->herbie)))
 
 ;; Parses a string from egg into a single S-expr.
-(define (egg-expr->expr s egraph-data repr)
-  (first (egg-exprs->exprs s egraph-data repr)))
+(define (egg-expr->expr s egraph-data)
+  (first (egg-exprs->exprs s egraph-data)))
 
 (module+ test
   (define repr (get-representation 'binary64))
@@ -538,9 +482,8 @@
 ;; - canon: map from egraph id to vector index
 ;; - has-leaf?: map from vector index to if the eclass contains a leaf
 ;; - constants: map from vector index to if the eclass contains a constant
-;; - types: map from vector index to a egg IR type or #f
 ;; - egg->herbie: data to translate egg IR to herbie IR
-(struct regraph (eclasses canon has-leaf? constants types egg->herbie))
+(struct regraph (eclasses canon has-leaf? constants egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation.
 (define (sexpr->regraph egraph egg->herbie)
@@ -560,7 +503,6 @@
   (define eclasses (make-vector n '()))
   (define has-leaf? (make-vector n #f))
   (define constants (make-vector n #f))
-  (define type? (make-vector n #f))
   (for ([eclass egraph])
     (match-define (list egg-id egg-nodes ...) eclass)
     (define id (resolve-id egg-id))
@@ -572,17 +514,11 @@
            (vector-set! has-leaf? id #t)
            (vector-set! constants id egg-node)
            egg-node]
-          [(? symbol?) ; egg IR typename or variable ID
-           (vector-set! type? id 'typename)
+          [(? symbol?) ; variable
            (vector-set! has-leaf? id #t)
            egg-node]
           [(list op child-ids ...)
-           (define egg-node* (cons op (map resolve-id child-ids)))
-           (match op
-             ['$Type (vector-set! type? id 'type)] ; egg IR type signature
-             ['$Var (vector-set! has-leaf? id #t)] ; variable
-             [_ (void)])
-           egg-node*]
+           (cons op (map resolve-id child-ids))]
           [_ (error 'sexpr->regraph "malformed enode: ~a" egg-node)])))
     (vector-set! eclasses id node))
   ; extract egg IR typenames or #f
@@ -597,16 +533,8 @@
       (match node
         [(list '$Type ids ...) (cons '$Type (map extract-egg-typename ids))]
         [_ #f])))
-  ; extract egg IR types
-  (define types (make-vector n #f))
-  (for ([id (in-range n)])
-    (match (vector-ref type? id)
-      [#f (void)]
-      ['typename (vector-set! types id (extract-egg-typename id))]
-      ['type (vector-set! types id (extract-egg-type id))]
-      [type (error 'sexpr->regraph "unexpected type eclass type ~a" type)]))
   ; collect with wrapper
-  (regraph eclasses canon has-leaf? constants types egg->herbie))
+  (regraph eclasses canon has-leaf? constants egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
@@ -695,8 +623,6 @@
 ;; The untyped extraction algorithm.
 (define ((untyped-egg-extractor cost-proc) regraph)
   (define eclasses (regraph-eclasses regraph))
-  (define has-leaf? (regraph-has-leaf? regraph))
-  (define types (regraph-types regraph))
   (define n (vector-length eclasses))
 
   ; costs: mapping id to (cost, best node)
@@ -709,19 +635,6 @@
   ; Unsafe lookup of eclass cost
   (define (unsafe-eclass-cost id)
     (car (vector-ref costs id)))
-
-  ; Precompute the cost for some eclasses and mark certain dirty eclasses
-  ; Setting cost of all type eclasses to 0.
-  (define dirty?-vec (vector-copy has-leaf?))
-  (define parents (regraph-parents regraph))
-  (for ([id (in-range n)])
-    (define type (vector-ref types id))
-    (when type ; any type eclass has cost 0
-      (vector-set! costs id (cons 0 type))
-      (vector-set! dirty?-vec id #f)
-      (for ([parent (in-vector (vector-ref parents id))])
-        (unless (vector-ref types parent) ; set non-type parents as dirty
-          (vector-set! dirty?-vec parent #t)))))
 
   ; Computes the current cost of a node if its children have a cost
   ; Cost function has access to a mutable value through `cache`
@@ -752,8 +665,7 @@
   (set! costs
     (regraph-analyze regraph
                      eclass-set-cost!
-                     #:analysis costs
-                     #:dirty?-vec dirty?-vec))
+                     #:analysis costs))
 
   ; reconstructs the best expression at a node
   (define (build-expr id)
@@ -807,46 +719,36 @@
 ;;       - a default failure value
 
 ;; Computes the type signature of every eclass.
-;; The result is a vector of vectors (one for each node) of the form
-;;  - <name> : constant or variable type
-;;  - (<name> <name> ...) : a function type
-;; where <name> is one of:
-;;  - #t: type of numbers
-;;  - (or <name> ..+): union of types
-;;  - 'real: real type
-;;  - 'type: type of egg IR type nodes
-;;  - <id>: representation
+;; The result is a vector of vectors (one for each node) of types.
+;; Types are represented as one of the following:
+;;  - #t: top type (type of numbers)
+;;  - (or <type> ..+) union of types
+;;  - <representation>: representation type
+;;  - <type-name>: type name
+;;
 (define (regraph-node-types regraph)
-  (define types (regraph-types regraph))
+  (define egg->herbie (regraph-egg->herbie regraph))
 
   (define (eclass-set-types! analysis eclass id)
     (cond
       [(vector-ref analysis id) #f]
-      [(vector-ref types id)
-       (vector-set! analysis id (make-vector (vector-length eclass) 'type))
-       #t]
       [else
        (define node-types
          (for/list ([node (in-vector eclass)])
            (match node
              [(? number?) #t]
-             [(list '$Var ty-id _)
-              (match (vector-ref types ty-id)
-                ['real 'real]
-                [(list '$Type type) type])]
+             [(? symbol?) (cdr (hash-ref egg->herbie node))]
              [(list 'if _ _ ift iff)
               (define ift-types (vector-ref analysis ift))
               (define iff-types (vector-ref analysis iff))
               (error 'regraph-node-types "unimplemented: ~a" node)]
-             [(list _ ty-id args ...)
-              (match (vector-ref types ty-id)
-                ['real (cons 'real (make-list (length args) 'real))]
-                [(list '$Type otype itypes ...) (cons otype itypes)])])))
-      (cond
-        [(andmap identity node-types)
-         (vector-set! analysis id (list->vector node-types))
-         #t]
-        [else #f])]))   
+             [(list (? impl-exists? op) _ ...) (impl-info op 'otype)]
+             [(list op _ ...) (operator-info op 'otype)])))
+       (cond
+         [(andmap identity node-types)
+          (vector-set! analysis id (list->vector node-types))
+          #t]
+         [else #f])]))
 
   (regraph-analyze regraph eclass-set-types!))
 
@@ -855,7 +757,7 @@
 ;;  - an eclass with a variable can only have the same type as that variable.
 (define (regraph-prune-types egraph)
   (define eclasses (regraph-eclasses egraph))
-  (define types (regraph-types egraph))
+  (define egg->herbie (regraph-egg->herbie egraph))
   (define n (vector-length eclasses))
 
   ;; invariant: every eclass has at most one variable
@@ -877,12 +779,8 @@
       (define eclass (vector-ref eclasses id))
       (define node-types (vector-ref eclass-types id))
       (define ty
-        (for/or ([node (in-vector eclass)])
-          (match node
-            [(list '$Var ty-id _)
-             (match-define (list '$Type ty) (vector-ref types ty-id))
-             ty]
-            [_ #f])))
+        (for/or ([node (in-vector eclass)] #:when (symbol? node))
+          (cdr (hash-ref egg->herbie node))))
       ; eliminate nodes not matching the type
       (if ty
           (list->vector
@@ -894,7 +792,7 @@
                 [(and (pair? type) (eq? (car type) ty)) (cons node nodes*)]
                 [else nodes*])))
           eclass)))
-
+  
   (when (for/or ([eclass (in-vector eclasses*)]) (vector-empty? eclass))
     (error 'regraph-prune-specs "invariant violated: eclass contains no enodes"))
   ; the pruned regraph
@@ -909,7 +807,6 @@
   ; some important regraph fields
   (define eclasses (regraph-eclasses regraph))
   (define has-leaf? (regraph-has-leaf? regraph))
-  (define types (regraph-types regraph))
   (define n (vector-length eclasses))
 
   ; costs: mapping eclass id to either:
@@ -948,23 +845,9 @@
       [(hash-has-key? cost #t) ; type `#t` is always a valid choice
        (define cost* (hash-ref cost #t))  ; (cost . node) or #f
        (and cost* (cdr cost*))]
-      [else (error 'unsafe-best-cost "unclear what to extract: ~a" id)]))
+      [else (error 'unsafe-best-node "unclear what to extract: ~a ~a ~a" id type cost)]))
 
-  ; Dirty vector
-  (define dirty?-vec (vector-copy has-leaf?))
-  (define parents (regraph-parents regraph))
-
-  ; Precompute costs of type eclasses (all have cost 0)
-  (for ([id (in-range n)])
-    (define type (vector-ref types id))
-    (when type ; any type eclass has cost 0
-      (vector-set! costs id (cons 0 type))
-      (vector-set! dirty?-vec id #f)
-      (for ([parent (in-vector (vector-ref parents id))])
-        (unless (vector-ref types parent) ; set non-type parents as dirty
-          (vector-set! dirty?-vec parent #t)))))
-
-  ; Create tables for all other nodes
+  ; Create tables for nodes based on node types.
   ; Need to be careful since `regraph-analyze` will think the analysis
   ; is done even if we exit prematurely
   (define eclass-types (regraph-node-types regraph))
@@ -980,15 +863,15 @@
   ; Computes the current cost of a node if its children have a cost
   ; Cost function has access to a mutable value through `cache`
   (define cache (box #f))
-  (define (node-cost node type)
+  (define (node-cost node)
     (and (match node
            [(? number?) #t]
-           [(list '$Var _ _) #t]
-           [(list 'if _ cond ift iff)
-            (error 'node-cost "unimplemented `~a`" node)]
-           [(list _ _ args ...)
-            (match-define (list _ itypes ...) type)
-            (andmap eclass-has-cost? args itypes)])
+           [(? symbol?) #t]
+           [(list 'if _ cond ift iff) (error 'node-cost "unimplemented `~a`" node)]
+           [(list (? impl-exists? op) args ...)
+            (andmap eclass-has-cost? args (impl-info op 'itype))]
+           [(list op args ...)
+            (andmap eclass-has-cost? args (operator-info op 'itype))])
          (cost-proc regraph cache node unsafe-eclass-cost)))
 
   ; Updates the cost of the current eclass.
@@ -1000,12 +883,13 @@
     (define new-costs (hash-copy prev-costs))
     ; iterate over the nodes
     (for ([node (in-vector eclass)] [type (in-vector node-types)])
-      (define new-cost (node-cost node type))
+      (define new-cost (node-cost node))
       (cond
         [(not new-cost) (void)]
         [(eq? type #t) ; node is untyped (constant) => merge with all types
          (for ([(type prev) (in-hash new-costs)])
-           (hash-set! new-costs type
+           (hash-set! new-costs
+                      type
                       (cost-merger prev new-cost node)))
          (hash-update! new-costs
                        #t
@@ -1036,8 +920,7 @@
   (set! costs
     (regraph-analyze regraph
                      eclass-set-cost!
-                     #:analysis costs
-                     #:dirty?-vec dirty?-vec))
+                     #:analysis costs))
 
   ; invariant: all eclasses have a cost for all types
   (unless (for/and ([cost (in-vector costs)])
@@ -1050,16 +933,11 @@
   (define (build-expr id type)
     (match (unsafe-best-node id type)
       [(? number? n) n] ; number
-      [(? symbol? s) s] ; typename or variable name
-      [(list '$Var ty-id name-id)
-       (define ty (build-expr ty-id #f))
-       (define name (build-expr name-id #f))
-       (list '$Var ty name)]
-      [(list '$Type types ...) (cons '$Type types)] ; type
-      [(list op ty-id ids ...)
-       (define ty (build-expr ty-id type))
-       (match-define (list '$Type _ itypes ...) ty)
-       (list* op ty (map build-expr ids itypes))] ; operator
+      [(? symbol? s) s] ; variable
+      [(list (? impl-exists? impl) ids ...)
+       (cons impl (map build-expr ids (impl-info impl 'itype)))]
+      [(list (? operator-exists? op) ids ...)
+       (cons op (map build-expr ids (operator-info op 'itype)))]
       [e (error 'default-extraction-proc "could not reconstruct ~a" e)]))
 
   ; the actual extraction procedure
@@ -1067,79 +945,60 @@
     (cons (unsafe-eclass-cost id type +inf.0)
           (build-expr id type))))
 
+; [(list 'pow b e) ; pow operator
+    ;  (define n (vector-ref constants e))
+    ;  (if (and n (fraction-with-odd-denominator? n))
+    ;      +inf.0
+    ;      (match (vector-ref types ty-id)
+    ;        [(list '$Type _ b-ty e-ty)
+    ;         (define impl
+    ;           (get-parametric-operator 'pow
+    ;                                    (get-representation b-ty)
+    ;                                    (get-representation e-ty)))
+    ;         (+ (platform-impl-cost (*active-platform*) impl)
+    ;            (rec b b-ty +inf.0)
+    ;            (rec e e-ty +inf.0))]
+    ;        [_ +inf.0]))] ; real or malformed
+
 ;; Per-node cost function according to the platform
 ;; `rec` takes an id, type, and failure value
 (define (platform-egg-cost-proc regraph cache node rec)
-  (define constants (regraph-constants regraph))
-  (define types (regraph-types regraph))
+  (define egg->herbie (regraph-egg->herbie regraph))
   (match node
     [(? number?) 0] ; numbers are free I guess
-    [(list '$Var ty-id _) ; variable
-     (match (vector-ref types ty-id)
-       [(list '$Type prec)
-        (platform-repr-cost
-          (*active-platform*)
-          (get-representation prec))]
-       [_ +inf.0])] ; real or malformed
+    [(? symbol?)
+     (define repr (cdr (hash-ref egg->herbie node)))
+     (platform-repr-cost (*active-platform*) repr)]
     [(list 'if _ cond ift iff) ; if expression
      (error 'platform-egg-cost-proc "unimplemented: ~a" node)]
-    [(list 'pow ty-id b e) ; pow operator
-     (define n (vector-ref constants e))
-     (if (and n (fraction-with-odd-denominator? n))
-         +inf.0
-         (match (vector-ref types ty-id)
-           [(list '$Type _ b-ty e-ty)
-            (define impl
-              (get-parametric-operator 'pow
-                                       (get-representation b-ty)
-                                       (get-representation e-ty)))
-            (+ (platform-impl-cost (*active-platform*) impl)
-               (rec b b-ty +inf.0)
-               (rec e e-ty +inf.0))]
-           [_ +inf.0]))] ; real or malformed
-    [(list op ty-id) ; constant
-     (match (vector-ref types ty-id)
-       [(list '$Type otype)
-        (define impl (get-parametric-constant op (get-representation otype)))
-        (platform-impl-cost (*active-platform*) impl)]
-       [_ +inf.0])] ; real or malformed
-    [(list op ty-id args ...) ; operator
-     (match (vector-ref types ty-id)
-       [(list '$Type _ itypes ...)
-        (define impl (apply get-parametric-operator op (map get-representation itypes)))
-        (apply
-          +
-          (platform-impl-cost (*active-platform*) impl)
-          (for/list ([arg (in-list args)] [itype (in-list itypes)])
-            (rec arg itype +inf.0)))]
-      [_ +inf.0])] ; real or malformed
-    [(list _ ...) +inf.0])) ; malformed operator
+    [(list (? impl-exists? impl) args ...) ; impls
+     (define itypes (impl-info impl 'itype))
+     (apply +
+            (platform-impl-cost (*active-platform*) impl)
+            (for/list ([arg (in-list args)] [itype (in-list itypes)])
+                (rec arg itype +inf.0)))]
+    [(list _ ...) +inf.0])) ; specs
 
 ;; Prunes any real operator nodes from a regraph.
 (define (regraph-prune-specs re)
   (define eclasses (regraph-eclasses re))
-  (define types (regraph-types re))
   (define n (vector-length eclasses))
 
   (define eclasses*
     (for/vector #:length n ([id (in-range n)])
       (define eclass (vector-ref eclasses id))
-      (cond
-        [(vector-ref types id) eclass]
-        [else
-         (define eclass*
-           (reap [sow]
-             (for ([node (in-vector eclass)])
-               (match node
-                 [(? number?) (sow node)] ; number
-                 [(list 'Var _ _) (sow node)] ; variable
-                 [(list 'if _ ...) (sow node)] ; if expression
-                 [(list _ ty-id _ ...)  ; operator
-                  (unless (eq? (vector-ref types ty-id) 'real) ; real operator
-                    (sow node))]))))
-         (if (null? eclass*)
-             (vector (first eclass))
-             (list->vector eclass*))])))
+      (define eclass*
+        (reap [sow]
+          (for ([node (in-vector eclass)])
+            (match node
+              [(? number?) (sow node)] ; number
+              [(? symbol?) (sow node)] ; variable
+              [(list 'if _ ...) (sow node)] ; `if` expression
+              [(list (? impl-exists?) _ ...) (sow node)] ; impl
+              [(list _ ...) (void)]))))
+      (if (null? eclass*)
+          (vector (first eclass))
+          (list->vector eclass*))))
 
   ; invariant: all eclasses need at least one enode
   (when (for/or ([eclass (in-vector eclasses*)]) (vector-empty? eclass))
@@ -1155,11 +1014,10 @@
   (match-define (cons _ egg-expr) (extract id* (representation-name repr)))
   ; translate egg IR to Herbie IR
   (define egg->herbie (regraph-egg->herbie regraph))
-  (define repr-name (representation-name (context-repr ctx)))
-  (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie repr-name)))
+  (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie)))
 
 ;; Extracts multiple expressions according to the extractor
-(define (regraph-extract-variants regraph ctx extract id repr)
+(define (regraph-extract-variants regraph ctx extract id type)
   ; extract expressions
   (define eclasses (regraph-eclasses regraph))
   (define id* (hash-ref (regraph-canon regraph) id))
@@ -1168,31 +1026,27 @@
       (for ([enode (vector-ref eclasses id*)])
         (match enode
           [(? number?) (sow enode)]
-          [(list '$Var ty-id name-id)
-           (match-define (cons _ ty) (extract ty-id #f))
-           (match-define (cons _ name) (extract name-id #f))
-           (sow (list '$Var ty name))]
+          [(? symbol?) (sow enode)]
           [(list 'if _ cond ift iff)
            (error 'regraph-extract-variants "unimplemented ~a" enode)]
-          [(list op ty-id ids ...)
-           (match-define (cons _ ty) (extract ty-id #f))
-           (define-values (otype itypes)
-             (match ty
-               [(list '$Type otype itypes ...) (values otype itypes)]
-               ['real (values 'real (make-list (length ids) 'real))]))
-           (when (equal? otype (representation-name repr))
+          [(list (? impl-exists? impl) ids ...)
+           (when (equal? (impl-info impl 'otype) type)
              (sow
-               (list* op
-                      ty
-                      (for/list ([id (in-list ids)] [itype (in-list itypes)])
-                        (define expr* (extract id itype))
-                        (match-define (cons _ expr) expr*)
-                        expr))))]))))
+               (cons impl
+                 (for/list ([id (in-list ids)] [itype (in-list (impl-info impl 'itype))])
+                   (match-define (cons _ expr) (extract id itype))
+                   expr))))]
+          [(list (? operator-exists? op) ids ...)
+           (when (equal? (operator-info op 'otype) type)
+             (sow
+               (cons op
+                 (for/list ([id (in-list ids)] [itype (in-list (operator-info op 'itype))])
+                   (match-define (cons _ expr) (extract id itype))
+                   expr))))]))))
   ; translate egg IR to Herbie IR
   (define egg->herbie (regraph-egg->herbie regraph))
-  (define repr-name (representation-name (context-repr ctx)))
   (for/list ([egg-expr (in-list egg-exprs)])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie repr-name)))
+    (egg-parsed->expr (flatten-let egg-expr) egg->herbie)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler
