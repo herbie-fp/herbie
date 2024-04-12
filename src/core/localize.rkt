@@ -28,33 +28,32 @@
 (define (batch-localize-error exprs ctx)
   (define errss
     (if (null? exprs) empty (compute-local-errors exprs ctx)))
-  (define result
+
   (for/list ([expr (in-list exprs)] [errs (in-list errss)])
     (sort
      (sort
-      (reap [sow]
-        (for ([(expr err) (in-hash errs)])
-          (sow (cons err expr))))
+      (for/list ([(expr err) (in-hash errs)])
+                (cons err expr))
       expr<? #:key cdr)
      > #:key (compose errors-score car))))
-     result) 
+     
 
 
-;;Returns a list of expressions sorted by increasing local cost in the form (subexpression, cost)
+;;Returns a list of lists of subexpresions and their cost different sorted by increasing local cost in the form (subexpression, cost)
 (define (batch-localize-cost exprs ctx)
-  ;;Create a list of lists of subexpressions
+  ;;Creates a function to get the cost of a expr
   (define expr->cost  (platform-cost-proc (*active-platform*)))
+  ;;For each expression takes the subexpressions and a the simplified version of those subexpression then for each subexpression it computes the difference between the two and return a sorted list of pairs of (subexpr and diff).
   (for/list ([expr (in-list exprs)])
     (define subexprs (all-subexpressions expr (context-repr ctx)))
     (define simple-subexprs (simplify-batch (make-egg-query (map car subexprs) (*simplify-rules*))))
-    (cons
       (sort 
         (for/list ([subexpr (in-list subexprs)]
                   [simple-subexpr (in-list simple-subexprs)])
                   (cons (car subexpr) 
                         (- (expr->cost (car subexpr) (cdr subexpr)) (expr->cost (last simple-subexpr) (cdr subexpr)))))
       > #:key cdr)  
-    expr))
+    )
   )
       
 

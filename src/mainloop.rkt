@@ -142,13 +142,10 @@
      (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define loc-costss
      (batch-localize-cost (map alt-expr (^next-alts^)) (*context*)))
-  (displayln loc-costss)
-  ;;(cost-opportunity (map alt-expr (^next-alts^)) (*context*))
-  (define repr (context-repr (*context*)))
+    (define repr (context-repr (*context*)))
   
-  ;;take
   ; high-error locations
-  (^locs^
+  (define locs-err
     (for/list ([loc-errs (in-list loc-errss)]
                #:when true
                [(err expr) (in-dict loc-errs)]
@@ -157,18 +154,16 @@
                       (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
       expr))
 
-;;Delete
-(^lowlocs^
-  (let ([exprs '()])
-    (for ([sublist (in-list (take loc-costss (length loc-costss)))])
-      (define expr (car sublist))
-      (define cost (cdr sublist))
-      (set! exprs (cons expr exprs))) ; Add expr to exprs
-    exprs)) ; Return exprs
+  (displayln locs-err)
+  
 
 
 
+  (^locs^ locs-err)
 
+
+  (^lowlocs^
+  '())
   (void))
 
 
@@ -274,10 +269,7 @@
   (void))
 (define (finish-iter!)
   (unless (^next-alts^) (choose-alts!))
-  ;;changed here
   (unless (^locs^) (localize!))
-
-  ;;add in a parameter for locosts
   (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!)
   (void))
@@ -303,7 +295,6 @@
 
   (choose-alts!)
   (localize!)
-  ;;Made a change here
   (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
   (finalize-iter!))
   
