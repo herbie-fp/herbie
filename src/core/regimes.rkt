@@ -208,6 +208,7 @@
      (define a-prev-idx (vector-ref v-pidx point-idx))
      ;; We take the CSE corresponding to the best choice of previous split point.
      ;; The default, not making a new split-point, gets a bonus of min-weight
+     (let ([acost (fl- a-cost min-weight)])
       (define best (make-vector point-idx #f))
       (define bcost (make-vector point-idx #f))
       (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
@@ -224,14 +225,15 @@
        (when (vector-ref can-split-vec (+ prev-split-idx 1))
         (define t (fl+ (flvector-ref v-alt-cost prev-split-idx)
                        (vector-ref bcost prev-split-idx)))
-        (when (fl< t (fl- (flvector-ref v-alt-cost point-idx) min-weight))
+        (when (fl< t acost)
+         (set! acost t)
          ;; give benefit to new best alt
-         (set! a-cost (fl- t min-weight))
+         (set! a-cost (fl- acost min-weight))
          (set! a-best (vector-ref best prev-split-idx))
          (set! a-prev-idx prev-split-idx))))
        (flvector-set! vec-alt-cost point-idx a-cost)
        (vector-set! vec-cidx point-idx a-best)
-       (vector-set! vec-pidx point-idx a-prev-idx))
+       (vector-set! vec-pidx point-idx a-prev-idx)))
   (values vec-alt-cost vec-cidx vec-pidx))
 
   ;; We get the initial set of cse's by, at every point-index,
