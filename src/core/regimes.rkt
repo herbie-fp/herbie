@@ -261,23 +261,7 @@
       (vector-set! vec-pidx point-idx -1))
     (values vec-acost vec-cidx vec-pidx))
 
-  ;; prefix of p is for previous
-  ;; prefix of n is for next
-  ;; prefix of f is for final result vectors
-  ;; a for acost vectors
-  ;; b for candidate index
-  ;; c for alt index
-  ;; d for previous index
-  ;; This is where the high level bulk of the algorithm is applied
-  ;; We get the final splitpoints by applying add-splitpoints as many times as we want
-  
-  (define-values (pa pb pd) (initial))
-  (define-values (fa fb fd)
-    (let loop ([pa pa] [pb pb] [pd pd])
-    (define-values (na nb nd) (add-splitpoint pa pb pd))
-    (if (equal? na pa)
-        (values na nb nd)
-        (loop na nb nd))))
+  (define-values (fa fb fd) (add-splitpoint (initial)))
 
     ;; From here down is messy code translating from 4 vectors back to
     ;; the original list of split points
