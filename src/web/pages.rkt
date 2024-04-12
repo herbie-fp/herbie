@@ -62,36 +62,34 @@
   (when (string? js-text)
     (display js-text out)))
 
+(define (ulps->bits-tenths x)
+  (string->number (real->decimal-string (ulps->bits x) 1)))
+
 (define (make-points-json result out repr)
   (match-define (job-result test _ _ _ _ 
                  (improve-result _ pctxs start targets end _) ) result)
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
 
-  ; Get a list of all targets in the platform 
-  (define target-alt-list (filter identity targets))
-
-  ;; Pick lowest target from all target
+  ;; Pick lowest error from all targets
   (define target-errors 
     (cond
-      [(empty? target-alt-list) #f] ; If the list is empty, return false
+      [(empty? targets) #f] ; If the list is empty, return false
       [else
-        (alt-analysis-test-errors (first target-alt-list))]))
+        ; Lowest error
+        (define error (alt-analysis-test-errors (first targets)))
+        ; Score for lowest-error
+        (define actual-error (errors-score error))
 
-        ; TODO : RIGHT NOW TAKING FIRST, NEED TO FIX TO BEST-ERROR
-        ; (define lowest-error (alt-analysis-test-errors (first target-alt-list)))
-        ; (for ([curr-target target-alt-list])
-        ;   (define error (alt-analysis-test-errors curr-target))
-        ;   (when (< error lowest-error)
-        ;     (set! lowest-error error)))
+        (for ([curr-target targets])
+          (define curr-error (alt-analysis-test-errors curr-target))
+          (when (< (errors-score curr-error) actual-error)
+            (set! error curr-error)))
 
-        ; lowest-error]))
+        error]))
 
   (define end-errors (map alt-analysis-test-errors end))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
-
-  (define (ulps->bits-tenths x)
-    (string->number (real->decimal-string (ulps->bits x) 1)))
 
   ; Immediately convert points to reals to handle posits
   (define points 
@@ -108,6 +106,7 @@
   (define bits (representation-total-bits repr))
   (define start-error (map ulps->bits-tenths start-errors))
   (define target-error (and target-errors (map ulps->bits-tenths target-errors)))
+  ; (define target-error target-errors)
   (define end-error (map ulps->bits-tenths (car end-errors)))
 
   (define ticks 

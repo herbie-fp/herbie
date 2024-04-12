@@ -147,20 +147,10 @@
   ;; inline and desugar
   (define body* (fpcore->prog body ctx))
   (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
-  
-
-  ; Goes over every key-value pair in the dictionary, filter out the keys with :alt.
-  ; If so, map all these values to extract all the relevant metadata
-  ; (define extract-alt-values-list
-    ; Filter out entries with the key ':alt, and extract the values from the filtered pairs
-    ; (for/list ([(k v) (in-dict prop-dict)]
-              ;  #:when (equal? k ':alt))
-      ; v))
 
   (define targets
     (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
       (define plat-name (extract-platform-name val))  ; plat-name is symbol or #f
-      (displayln (format "context : ~a" (*context*)))
 
       (cond
         ; If plat-name extracted, check if name matches

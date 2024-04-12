@@ -61,14 +61,12 @@
   (match-define (alt-analysis start-alt _ start-error) start)
   (define start-cost (alt-cost start-alt repr))
 
-  (define target-alt-list (filter identity targets))
-
   (define list-target-error
-    (for/list ([target target-alt-list])
+    (for/list ([target targets])
       (alt-analysis-test-errors target)))
 
   (define list-target-cost
-    (for/list ([target target-alt-list])
+    (for/list ([target targets])
       (alt-cost (alt-analysis-alt target) repr)))
 
   (define-values (end-alts end-errors end-costs)
@@ -214,9 +212,9 @@
                  ,@(render-history alt train-pctx test-pctx ctx)))))
 
 
-      ,@(for/list ([i (in-naturals 1)] [target target-alt-list] [target-error list-target-error] [target-cost list-target-cost])
+      ,@(for/list ([i (in-naturals 1)] [target targets] [target-error list-target-error] [target-cost list-target-cost])
           (let-values ([(dropdown body) (render-program (alt-expr (alt-analysis-alt target)) ctx #:ident identifier)])
-            `(section ([id "target"] [class "programs"])
+            `(section ([id ,(format "target~a" i)] [class "programs"])
                       (h2 "Developer Target " ,(~a i)
                           ": "
                           (span ([class "subhead"])
