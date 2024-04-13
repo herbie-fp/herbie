@@ -175,97 +175,131 @@
      (and (> pidx 0)) (list-ref can-split? pidx))
    (= (si-pidx (last split-indices)) (length can-split?))))
 
+;; This is the core main loop of the regimes algorithm.
+;; Takes in a list of alts in the form of there error at a given point
+;; as well as a list of split indices to determine when it's ok to split
+;; for another alt.
+;; Returns a list of split indices saying which alt to use for which
+;; range of points. Starting at 1 going up to num-points.
+;; Alts are indexed 0 and points are index 1.
 (define/contract (err-lsts->split-indices err-lsts can-split)
   (->i ([e (listof list)] [cs (listof boolean?)]) 
         [result (cs) (curry valid-splitindices? cs)])
+  ;; Coverts the list to vector form for faster processing
   (define can-split-vec (list->vector can-split))
-  (define err-lsts-vec (list->vector err-lsts))
-  ;; We have num-candidates candidates, each of whom has error lists of length num-points.
-  ;; We keep track of the partial sums of the error lists so that we can easily find the cost of regions.
-  (define num-candidates (vector-length err-lsts-vec))
-  (define num-points (vector-length can-split-vec))
-  (define min-weight (fl num-points))
-
+  ;; Converting list of list to list of flvectors
+  ;; flvectors are used to remove pointer chasing
   (define (make-vec-psum lst) 
    (flvector-sums (list->flvector lst)))
-  (define flvec-psums (vector-map make-vec-psum err-lsts-vec))
+  (define flvec-psums (vector-map make-vec-psum (list->vector err-lsts)))
 
-  (define vec-temp (make-flvector num-candidates))
+  ;; Set up data needed for algorithm
+  (define number-of-alts (vector-length flvec-psums))
+  (define number-of-points (vector-length can-split-vec))
+  ;; min-weight is used as penalty to favor not adding split points
+  (define min-weight (fl number-of-points))
+  
+  ;; These 3 vectors are will contain the output data and be used for
+  ;; determining which alt is best for a given point
+  (define result-error-sums (make-flvector number-of-points))
+  (define result-alt-idxs (make-vector number-of-points))
+  (define result-prev-idxs (make-vector number-of-points))
 
-  (define vec-acost (make-flvector num-points))
-  (define vec-cidx (make-vector num-points))
-  (define vec-pidx (make-vector num-points))
-  (for ([point-idx (in-range num-points)])
-    ;; record the cost from each candidate
-    (for ([cand-idx (range num-candidates)])
-     (flvector-set! vec-temp cand-idx
-      (flvector-ref (vector-ref flvec-psums cand-idx) point-idx)))
+  ;; Temporary vector used to find the alt with least error for each point
+  (define vec-temp (make-flvector number-of-alts))
+  ;; TODO invert loops to match core algorithm data priority
+  (for ([point-idx (in-range number-of-points)])
+    ;; record the error for each candidate
+    (for ([alt-idx (range number-of-alts)])
+     (flvector-set! vec-temp alt-idx
+      (flvector-ref (vector-ref flvec-psums alt-idx) point-idx)))
     ;; Find the min, no built in function to find smallest fl in vector
     (define min-v (flvector-ref vec-temp 0))
     (define min-idx 0)
-    (for ([val vec-temp] [idx (range num-candidates)])
+    (for ([val vec-temp] [idx (range number-of-alts)])
       (cond [(< val min-v)
              (set! min-idx idx)
              (set! min-v val)]))
-    (flvector-set! vec-acost point-idx (fl min-v))
-    (vector-set! vec-cidx point-idx min-idx)
-    (vector-set! vec-pidx point-idx -1))
+    (flvector-set! result-error-sums point-idx (fl min-v))
+    (vector-set! result-alt-idxs point-idx min-idx)
+    (vector-set! result-prev-idxs point-idx -1))
+  
+  ;; Vectors are now filled with starting data. Beginning main loop of the
+  ;; regimes algorithm.
+ 
+  ;; Vectors used to determine if our current alt is better than out running
+  ;; best alt.
+  (define best-alt-idx (make-vector number-of-points))
+  (define best-alt-cost (make-vector number-of-points))
 
-  (for ([point-idx (in-range 0 num-points)])
-   (define a-cost (flvector-ref vec-acost point-idx))
-   (define a-best (vector-ref vec-cidx point-idx))
-   (define a-prev-idx (vector-ref vec-pidx point-idx))
-   (define best (make-vector point-idx #f))
-   (define bcost (make-vector point-idx #f))
-   (for ([cidx (in-naturals)] [psum (in-vector flvec-psums)])
+  (for ([point-idx (in-range 0 number-of-points)])
+   ;; Set and fill temporary vectors with starting data
+   ;; #f for best index and positive infinite for best cost
+   (vector-fill! best-alt-idx #f)
+   (vector-fill! best-alt-cost +inf.f)
+
+   ;; For each alt loop over its vector of errors
+   (for ([alt-idx (in-naturals)] [alt-error-sums (in-vector flvec-psums)])
+    ;; Loop over the points up to our current point
     (for ([prev-split-idx (in-range 0 point-idx)])
+     ;; Check if we can add a split point
      (when (vector-ref can-split-vec (+ prev-split-idx 1))
-      (let ([cost (fl- (flvector-ref psum point-idx)
-                       (flvector-ref psum prev-split-idx))])
-       (when (or (not (vector-ref best prev-split-idx))
-                 (fl< cost (vector-ref bcost prev-split-idx)))
-        (vector-set! bcost prev-split-idx cost)
-        (vector-set! best prev-split-idx cidx))))))
+      ;; compute the difference between the current error-sum and previous
+      (let ([current-error (fl- (flvector-ref alt-error-sums point-idx)
+                       (flvector-ref alt-error-sums prev-split-idx))])
+       ;; if we have not set the best alt yet or
+       ;; the current alt-error-sum is less then previous
+       (when (or (not (vector-ref best-alt-idx prev-split-idx))
+                 (fl< current-error (vector-ref best-alt-cost prev-split-idx)))
+        ;; update best cost and best index
+        (vector-set! best-alt-cost prev-split-idx current-error)
+        (vector-set! best-alt-idx prev-split-idx alt-idx))))))
 
+   ;; Save current values for the current point we are working on.
+   (define current-alt-error (flvector-ref result-error-sums point-idx))
+   (define current-alt-idx (vector-ref result-alt-idxs point-idx))
+   (define current-prev-idx (vector-ref result-prev-idxs point-idx))
+   ;; We have now have the index of the best alt and it's error up to our 
+   ;; current point-idx.
+   ;; Now we compare against our current best saved in the 3 vectors above
    (for ([prev-split-idx (in-range 0 point-idx)])
     (when (vector-ref can-split-vec (+ prev-split-idx 1))
-     (define t (fl+ (flvector-ref vec-acost prev-split-idx)
-                    (vector-ref bcost prev-split-idx)))
+     ;; Re compute the error sum for a potential better alt
+     (define alt-error-sum (fl+ (flvector-ref result-error-sums prev-split-idx)
+                    (vector-ref best-alt-cost prev-split-idx)))
+     ;; pre-compute values for tie breaking
+     (define adjusted-cost (fl- current-alt-error min-weight))
+     (define current-best-alt-idx (vector-ref best-alt-idx prev-split-idx))
+     ;; Check if the new alt-error-sum is better then the current
      (define set-cond
       ;; give benefit to previous best alt
-      (cond [(fl< t (fl- a-cost min-weight)) #t]
-            [(and (fl= t (fl- a-cost min-weight))
-                  (> a-best (vector-ref best prev-split-idx))) #t]
-            [(and (fl= t (fl- a-cost min-weight))
-                  (= a-best (vector-ref best prev-split-idx))
-                  (< a-prev-idx prev-split-idx)) #t]
+      (cond [(fl< alt-error-sum adjusted-cost) #t]
+            ;; Tie breaker if error are the same favor first alt
+            [(and (fl= alt-error-sum adjusted-cost)
+                  (> current-alt-idx current-best-alt-idx)) #t]
+            ;; Tie breaker for if error and alt is the same
+            [(and (fl= alt-error-sum adjusted-cost)
+                  (= current-alt-idx current-best-alt-idx)
+                  (< current-prev-idx prev-split-idx)) #t]
             [else #f]))
       (when set-cond
-       (set! a-cost t)
-       (set! a-best (vector-ref best prev-split-idx))
-       (set! a-prev-idx prev-split-idx))))
-   (flvector-set! vec-acost point-idx a-cost)
-   (vector-set! vec-cidx point-idx a-best)
-   (vector-set! vec-pidx point-idx a-prev-idx))
+       (set! current-alt-error alt-error-sum)
+       (set! current-alt-idx (vector-ref best-alt-idx prev-split-idx))
+       (set! current-prev-idx prev-split-idx))))
+   (flvector-set! result-error-sums point-idx current-alt-error)
+   (vector-set! result-alt-idxs point-idx current-alt-idx)
+   (vector-set! result-prev-idxs point-idx current-prev-idx))
 
-  ;; From here down is messy code translating from 4 vectors back to
-  ;; the original list of split points
-  (define fixed-final (make-vector num-points))
-  (define fp (list->vector (range 1 (+ num-points 1))))
-  (for ([idx (in-range 0 num-points)])
-   (define a (flvector-ref vec-acost idx))
-   (define b (vector-ref vec-cidx idx))
-   (define c (vector-ref fp idx))
-   (define d (vector-ref vec-pidx idx))
-   (when (= d -1)
-    (set! d num-points))
-   (vector-set! fixed-final idx (cand a b c d)))
-
-  (define (build-list current-cand)
-    (cond 
-      [(not(= (cand-prev-idx current-cand) num-points))
-        (cons (si (cand-idx current-cand) (cand-point-idx current-cand))
-               (build-list (vector-ref fixed-final (cand-prev-idx current-cand))))]
-      [else 
-        (cons (si (cand-idx current-cand) (cand-point-idx current-cand)) (list))]))
-  (reverse (build-list (vector-ref fixed-final (- num-points 1)))))
+  ;; Loop over results vectors in reverse and build the output split index list
+  (define next number-of-points)
+  (define split-idexs #f)
+  (for ([idx (range number-of-points 0 -1)])
+     (define i (- idx 1))
+     (define alt-idx (vector-ref result-alt-idxs i))
+     (define split-idx (vector-ref result-prev-idxs i))
+    (when (= idx next)
+      (set! next (+ split-idx 1))
+      (cond [(false? split-idexs)
+             (set! split-idexs (cons (si alt-idx number-of-points) '()))]
+            [else (set! split-idexs (cons (si alt-idx idx) split-idexs))])))
+ split-idexs)
