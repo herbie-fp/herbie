@@ -1,6 +1,6 @@
 #lang racket
 (require json (only-in xml write-xexpr xexpr?) racket/date)
-(require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt")
+(require "../common.rkt" "../datafile.rkt" "common.rkt" "../syntax/types.rkt" "../float.rkt" "../config.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
@@ -76,6 +76,7 @@
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-compiler 'compiler)
+         ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
          ,@(dict-call curr render-phase-bogosity 'bogosity)
          )))
 
@@ -177,6 +178,36 @@
 
 (define (average . values)
   (/ (apply + values) (length values)))
+
+(define (render-phase-mixed-sampling mixsample)
+  (define total-time (apply + (map first mixsample)))
+  `((dt "Precisions")
+    (dd (details
+         (summary "Click to see histograms. Total time spent on operations: " ,(format-time total-time))
+         ,@(map first
+                (sort
+                 (for/list ([rec (in-list (group-by second mixsample))]) ; group by operator
+                   ; rec = '('(time op precision) ... '(time op precision))
+                   (define n (random 100000))
+                   (define op (second (car rec)))
+                   (define precisions (map third rec))
+                   (define times (map first rec))
+                   (define time-per-op (round (apply + times)))
+
+                   (list `(details
+                           (summary (code ,op) ": "
+                                    ,(format-time time-per-op) " ("
+                                    ,(format-percent time-per-op total-time) " of total)") 
+                           (canvas ([id ,(format "calls-~a" n)]
+                                    [title "Histogram of precisions of the used operation"]))
+                           (script "histogram2D(\""
+                                   ,(format "calls-~a" n) "\", "
+                                   ,(jsexpr->string precisions) ", "
+                                   ,(jsexpr->string times) ", "
+                                   "{\"max\" : " ,(~a (*max-mpfr-prec*)) "})"))
+                         time-per-op))
+                 > #:key second))))))
+
 
 (define (render-phase-sampling sampling)
   (define total (round (apply + (hash-values (cadr (car sampling))))))
@@ -321,7 +352,7 @@
     (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
         (table ([class "times"])
                ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
                    (match-define (list time expr) rec)
@@ -332,7 +363,7 @@
     (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map fourth times)) ")")
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
         (table ([class "times"])
                (thead (tr (th "Time") (th "Variable") (th) (th "Point") (th "Expression")))
                ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
@@ -363,7 +394,7 @@
   `((dt "Results")
     (dd (table ([class "times"])
          ,@(for/list ([rec (in-list (sort outcomes > #:key fourth))])
-             (match-define (list precision category time count) rec)
+             (match-define (list time precision category count) rec)
              `(tr (td ,(format-time time)) (td ,(~a count) "×")
                   (td ,(~a precision)) (td ,(~a category))))))))
 

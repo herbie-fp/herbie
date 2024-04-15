@@ -31,7 +31,9 @@
           ([splitpoint (cdr (reverse splitpoints))])
         (define repr (repr-of (sp-bexpr splitpoint) ctx))
         (define <=-operator (get-parametric-operator '<= repr repr))
-        `(if (,<=-operator ,(sp-bexpr splitpoint) ,(repr->real (sp-point splitpoint) repr))
+        `(if (,<=-operator ,(sp-bexpr splitpoint)
+                           ,(literal (repr->real (sp-point splitpoint) repr)
+                                     (representation-name repr)))
              ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
              ,expr)))
 
@@ -82,7 +84,7 @@
 (define (prepend-argument fn val pcontext ctx)
   (define pts (for/list ([(pt ex) (in-pcontext pcontext)]) pt))
   (define (new-sampler) (cons val (random-ref pts)))
-  (apply mk-pcontext (cdr (batch-prepare-points fn ctx new-sampler))))
+  (apply mk-pcontext (cdr (batch-prepare-points fn (list ctx) new-sampler))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the

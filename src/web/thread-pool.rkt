@@ -29,10 +29,11 @@
     (set-seed! seed)
     (define error? #f)
     (for ([page (all-pages result)])
-      (with-handlers ([exn:fail? (λ (e) ((page-error-handler result page) e) (set! error? #t))])
-        (call-with-output-file (build-path rdir page)
-          #:exists 'replace
-          (λ (out) (make-page page out result #t profile?)))))
+      (call-with-output-file (build-path rdir page)
+        #:exists 'replace
+        (λ (out)
+          (with-handlers ([exn:fail? (λ (e) ((page-error-handler result page out) e) (set! error? #t))])
+            (make-page page out result #t profile?)))))
 
     (define out (get-table-data result dirname))
     (if error? (struct-copy table-row out [status "crash"]) out)]

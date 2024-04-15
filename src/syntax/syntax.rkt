@@ -4,6 +4,7 @@
 (require "../errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
+         (struct-out literal)
          variable? constant-operator?
          operator-exists? operator-deprecated? impl-exists?
          operator-info impl-info 
@@ -21,6 +22,8 @@
            register-operator!
            register-conversion-generator!
            variable?))
+
+(struct literal (value precision) #:prefab)
 
 ;; Real operator: a pure mathematical operator specified by
 ;;  - (unique) name
@@ -182,10 +185,10 @@
   [ival ival-e])
 
 (define-operator (INFINITY) real
-  [ival (λ () (ival +inf.bf))])
+  [ival (λ () (ival (bfprev +inf.bf) +inf.bf))])
 
 (define-operator (NAN) real
-  [ival (λ () (ival +nan.bf))])
+  [ival (λ () ival-illegal)])
 
 (define-operator (TRUE) bool
   [ival (const (ival-bool true))])

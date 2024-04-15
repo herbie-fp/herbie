@@ -10,7 +10,7 @@
   (timeline-push! (symbol? jsexpr? ... . -> . void?))
   (timeline-adjust! (symbol? symbol? jsexpr? ... . -> . void?))
   (timeline-start! (symbol? jsexpr? ... . -> . (-> void?))))
- timeline-load! timeline-extract timeline-compact!
+ timeline-load! timeline-extract
  timeline-merge timeline-relink *timeline-disabled*)
 (module+ debug (provide *timeline*))
 
@@ -28,6 +28,8 @@
 
 (define *timeline-disabled* (make-parameter true))
 
+(define always-compact '(mixsample outcomes))
+  
 (define (timeline-event! type)
   (when *timeline-active-key*
     (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
@@ -35,6 +37,10 @@
     (set! *timeline-active-key* #f))
   
   (unless (*timeline-disabled*)
+    (when (pair? (unbox (*timeline*)))
+      (for ([key (in-list always-compact)]
+            #:when (hash-has-key? (car (unbox (*timeline*))) key))
+        (timeline-compact! key)))
     (define b (make-hasheq (list (cons 'type (~a type))
                                  (cons 'time (current-inexact-milliseconds)))))
     (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
@@ -168,11 +174,12 @@
 (define-timeline time #:custom +)
 
 (define-timeline method [method])
+(define-timeline mixsample [time +] [function false] [precision false])
 (define-timeline rules [rule false] [count +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [expr false] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
-(define-timeline outcomes [prec false] [category false] [time +] [count +])
+(define-timeline outcomes [time +] [prec false] [category false] [count +])
 (define-timeline accuracy [accuracy])
 (define-timeline oracle [oracle])
 (define-timeline baseline [baseline])

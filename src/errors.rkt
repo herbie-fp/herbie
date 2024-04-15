@@ -52,19 +52,19 @@
                               (or (syntax-column stx) (syntax-position stx))))
 
 (define (herbie-error->string err)
-  (with-output-to-string
-    (λ ()
+  (call-with-output-string
+    (λ (p)
       (match err
         [(exn:fail:user:herbie:syntax message marks url locations)
-         (eprintf "~a\n" message)
+         (fprintf p "~a\n" message)
          (for ([(stx message) (in-dict locations)])
-           (eprintf "  ~a\n" (format (syntax->error-format-string stx) message)))
+           (fprintf p "  ~a\n" (format (syntax->error-format-string stx) message)))
          (when url
-           (eprintf "See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url))]
+           (fprintf p "See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url))]
         [(exn:fail:user:herbie message marks url)
-         (eprintf "~a\n" message)
+         (fprintf p "~a\n" message)
          (when url
-           (eprintf "See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url))]))))
+           (fprintf p "See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url))]))))
 
 (define old-error-display-handler (error-display-handler))
 (error-display-handler
