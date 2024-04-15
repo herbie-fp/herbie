@@ -152,15 +152,17 @@
                   #:when true
                   [(err expr) (in-dict loc-errs)]
                   [i (in-range (*localize-expressions-limit*))])
-                  (timeline-push! 'locations (~a expr) (errors-score err)
+                  (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
                           (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
           expr)
-          
-        (for/list ([locs-costs (in-list loc-costss)]
+        ;;Timeline will push duplicates
+        (for/list ([loc-costs (in-list loc-costss)]
                   #:when true
-                  [pair (in-list locs-costs)]
+                  [(cost-diff expr) (in-dict loc-costs)]
                   [i (in-range (*localize-expressions-limit*))])
-                  (car pair)))))
+                  (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
+                          (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
+          expr))))
 
 
   (^lowlocs^
