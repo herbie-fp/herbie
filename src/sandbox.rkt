@@ -71,7 +71,9 @@
 
 ;; Given a test, computes the program cost of the input expression
 (define (get-cost test)
-  ((platform-cost-proc (*active-platform*)) (test-input test)))
+  (define cost-proc (platform-cost-proc (*active-platform*)))
+  (define output-repr (context-repr (*context*)))
+  (cost-proc (test-input test) output-repr))
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
@@ -246,7 +248,7 @@
   (define (on-timeout)
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (timeline-load! timeline)
-      (timeline-compact! 'outcomes)
+      (timeline-event! 'end)
       (match command 
         ['improve (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
@@ -257,6 +259,8 @@
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
       (*context* (test-context test))
+      (*active-platform* (get-platform (*platform-name*)))
+      (activate-platform! (*active-platform*))
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
@@ -271,6 +275,7 @@
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
+        (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
         (job-result test 'success time (timeline-extract) (warning-log) result))))
   
@@ -279,6 +284,7 @@
         (profile-thunk
          (λ () (compute-result test))
          #:order 'total
+         #:delay 0.001
          #:render (λ (p order) (write-json (profile->json p) profile?)))
         (compute-result test)))
 
@@ -392,5 +398,5 @@
      :herbie-conversions ,(table-row-conversions row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
-     ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
+     ,@(if (table-row-target-prog row) `(:alt ,(table-row-target-prog row)) '())
      ,(table-row-output row)))

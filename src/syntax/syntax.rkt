@@ -4,6 +4,7 @@
 (require "../errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
+         (struct-out literal)
          variable? constant-operator?
          operator-exists? operator-deprecated? impl-exists?
          operator-info impl-info 
@@ -19,7 +20,10 @@
            register-operator-impl!
            define-operator
            register-operator!
-           register-conversion-generator!))
+           register-conversion-generator!
+           variable?))
+
+(struct literal (value precision) #:prefab)
 
 ;; Real operator: a pure mathematical operator specified by
 ;;  - (unique) name
@@ -112,16 +116,13 @@
   [cos ival-cos]
   [cosh ival-cosh]
   [erf ival-erf]
-  [erfc ival-erfc]
   [exp ival-exp]
   [exp2 ival-exp2]
-  [expm1 ival-expm1]
   [fabs ival-fabs]
   [floor ival-floor]
   [lgamma ival-lgamma]
   [log ival-log]
   [log10 ival-log10]
-  [log1p ival-log1p]
   [log2 ival-log2]
   [logb ival-logb]
   [rint ival-rint]
@@ -145,12 +146,8 @@
   [fmax ival-fmax]
   [fmin ival-fmin]
   [fmod ival-fmod]
-  [hypot ival-hypot]
   [pow ival-pow]
   [remainder ival-remainder])
-
-(define-operator (fma real real real) real
- [ival ival-fma])
 
 (define-operator (== real real) bool
   [ival ival-==])
@@ -188,10 +185,10 @@
   [ival ival-e])
 
 (define-operator (INFINITY) real
-  [ival (λ () (ival +inf.bf))])
+  [ival (λ () (ival (bfprev +inf.bf) +inf.bf))])
 
 (define-operator (NAN) real
-  [ival (λ () (ival +nan.bf))])
+  [ival (λ () ival-illegal)])
 
 (define-operator (TRUE) bool
   [ival (const (ival-bool true))])

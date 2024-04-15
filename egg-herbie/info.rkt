@@ -11,3 +11,5 @@
   '("rackunit-lib"))
 
 (define deps '(("base" #:version "8.0")))
+
+(define license 'MIT)

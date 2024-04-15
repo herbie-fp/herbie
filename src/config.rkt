@@ -85,9 +85,13 @@
 (define *max-bsearch-bits* (make-parameter 48))
 
 ;; Maximum MPFR precision allowed during exact evaluation
-(define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
+(define *analyze-prec* (make-parameter 128))
 (define *ground-truth-extra-bits* (make-parameter 20))
+
+(define *sampling-iteration* (make-parameter 0))
+(define *base-tuning-precision* (make-parameter 73))
+(define *max-sampling-iterations* (make-parameter 5))
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
@@ -96,6 +100,9 @@
 
 ;; In localization, the maximum number of locations returned
 (define *localize-expressions-limit* (make-parameter 4))
+
+;; How long of a Taylor series to generate; too long and we time out
+(define *taylor-order-limit* (make-parameter 4))
 
 ;; How accurate to make the binary search
 (define *binary-search-test-points* (make-parameter 16))
@@ -108,10 +115,13 @@
 ;; In mainloop, cache improvements between iterations
 (define *use-improve-cache* (make-parameter #t))
 
+;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
-(define *default-platform-name* (make-parameter 'default))
 
-(define *platform-name* (make-parameter (*default-platform-name*)))
+;; The platform that Herbie will evaluate with.
+(define *platform-name* (make-parameter 'default))
+
+;; Plugins loaded locally rather than through Racket.
 (define *loose-plugins* (make-parameter '()))
 
 ;;; About Herbie:

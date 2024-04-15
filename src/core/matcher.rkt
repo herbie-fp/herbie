@@ -31,6 +31,8 @@
   (match pattern
    [(? number?)
     (and (equal? pattern expr) '())]
+   [(? literal?)
+    (and (equal? pattern expr) '())]
    [(? variable?)
     (list (cons pattern expr))]
    [(list phead _ ...)
@@ -45,6 +47,7 @@
   ; pattern binding -> expr
   (match pattern
    [(? number?) pattern]
+   [(? literal?) pattern]
    [(? variable?)
     (dict-ref bindings pattern)]
    [(list phead pargs ...)
@@ -113,7 +116,7 @@
    [else
     (timeline-push! 'method "batch-egg-rewrite")
     (timeline-push! 'inputs (map ~a exprs))
-    (define e-input (make-egg-query exprs rules #:node-limit (*node-limit*)))
+    (define e-input (make-egg-query exprs rules #:context ctx #:node-limit (*node-limit*)))
     (match-define (cons variantss _) (run-egg e-input #t))
 
     (define out
@@ -128,10 +131,7 @@
   (require rackunit)
   (require "../syntax/types.rkt" "../load-plugin.rkt")
   (load-herbie-builtins)
-
-  (define repr (get-representation 'binary64))
-  (*context* (make-debug-context '()))
-  (*context* (context-extend (*context*) 'x repr))
+  (*context* (make-debug-context '(x)))
 
   (let ([chngs (rewrite-once '(+.f64 x x) (*context*) #:rules (*rules*))])
     (check-equal? (length chngs) 13 (format "rewrites ~a" chngs)))

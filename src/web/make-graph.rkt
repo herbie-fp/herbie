@@ -83,6 +83,7 @@
 
   (fprintf out "<!doctype html>\n")
   (write-xexpr
+
    `(html
      (head
       (meta ([charset "utf-8"]))
@@ -94,6 +95,7 @@
       (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
       (script ([src "interactive.js"]))
       (script ([src "../report.js"])))
+
      (body
       ,(render-menu #:path ".."
         (~a (test-name test))
@@ -122,22 +124,21 @@
 
       ,(let-values ([(dropdown body) (render-program (test-spec test) ctx #:pre (test-pre test) #:ident identifier)])
          `(section
-           (details ([id "specification"] [class "programs"])
+              (details ([id "specification"] [class "programs"])
                     (summary (h2 "Specification")
                              ,dropdown
                              (a ([class "help-button float"] 
-                                 [href "/doc/latest/report.html#spec"] 
+                                 [href ,(doc-url "report.html#spec")]
                                  [target "_blank"]) "?"))
                     ,body
                     (p "Sampling outcomes in " (kbd ,(~a (representation-name repr))) " precision:")
                     ,(render-bogosity bogosity))))
       
-      
       (figure ([id "graphs"])
         (h2 "Local Percentage Accuracy vs "
             (span ([id "variables"]))
             (a ([class "help-button float"] 
-                [href "/doc/latest/report.html#graph"] 
+                [href ,(doc-url "report.html#graph")] 
                 [target "_blank"]) "?"))
         (svg)
         (div ([id "functions"]))
@@ -155,22 +156,22 @@
                 ,@(if target-cost `([data-target-cost ,(~a target-cost)]) '()))
         (h2 "Accuracy vs Speed"
             (a ([class "help-button float"] 
-                [href "/doc/latest/report.html#cost-accuracy"] 
+                [href ,(doc-url "report.html#cost-accuracy")]
                 [target "_blank"]) "?"))
         (div ([class "figure-row"])
           (svg)
           (div
             (p "Herbie found "  ,(~a (length end-alts)) " alternatives:")
             (table
-             (thead (tr (th "Alternative") 
+              (thead (tr (th "Alternative") 
                         (th ([class "numeric"]) "Accuracy")
                         (th ([class "numeric"]) "Speedup")))
-             (tbody))))
+            (tbody))))
           (figcaption
-           "The accuracy (vertical axis) and speed (horizontal axis) of each "
-           "alternatives. Up and to the right is better. The red square shows "
-           "the initial program, and each blue circle shows an alternative."
-           "The line shows the best available speed-accuracy tradeoffs."))
+            "The accuracy (vertical axis) and speed (horizontal axis) of each "
+            "alternatives. Up and to the right is better. The red square shows "
+            "the initial program, and each blue circle shows an alternative."
+            "The line shows the best available speed-accuracy tradeoffs."))
 
       ,(let-values ([(dropdown body) (render-program (alt-expr start-alt) ctx #:ident identifier)])
          `(section ([id "initial"] [class "programs"])

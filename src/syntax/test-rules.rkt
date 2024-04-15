@@ -4,7 +4,7 @@
 (require "../common.rkt" "../compiler.rkt" "../float.rkt"
          "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
-         "sugar.rkt" "../core/egg-herbie.rkt")
+         "sugar.rkt" "../core/egg-herbie.rkt" "../ground-truth.rkt")
 
 (load-herbie-builtins)
 
@@ -12,22 +12,40 @@
 
 ;; WARNING: These aren't treated as preconditions, they are only used for range inference
 (define *conditions*
-  `([asinh-2_binary64       . (>=.f64 x 0)]
-    [asinh-2_binary32       . (>=.f32 x 0)]
+  `([asinh-2_binary64       . (>= x 0)]
+    [asinh-2_binary32       . (>= x 0)]
     ;; These next three approximate pi so that range analysis will work
-    [asin-sin-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
-    [asin-sin-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
-    [acos-cos-s_binary64    . (and (<=.f64 0 x) (<=.f64 x 3.1416))]
-    [acos-cos-s_binary32    . (and (<=.f32 0 x) (<=.f64 x 3.1416))]
-    [atan-tan-s_binary64    . (<=.f64 (fabs.f64 x) 1.5708)]
-    [atan-tan-s_binary32    . (<=.f32 (fabs.f32 x) 1.5708)]
-    [sqrt-pow1_binary64     . (>=.f64 x 0)]
-    [sqrt-pow1_binary32     . (>=.f32 x 0)]
-    [pow-unpow_binary64     . (>=.f64 a 0)]
-    [pow-unpow_binary32     . (>=.f32 a 0)]
-    [pow-pow_binary64       . (>=.f64 a 0)]
-    [pow-pow_binary32       . (>=.f32 a 0)]
+    [asin-sin-s_binary64    . (<= (fabs x) 1.5708)]
+    [asin-sin-s_binary32    . (<= (fabs x) 1.5708)]
+    [acos-cos-s_binary64    . (and (<= 0 x) (<= x 3.1416))]
+    [acos-cos-s_binary32    . (and (<= 0 x) (<= x 3.1416))]
+    [atan-tan-s_binary64    . (<= (fabs x) 1.5708)]
+    [atan-tan-s_binary32    . (<= (fabs x) 1.5708)]
+    [pow-unpow_binary64     . (>= a 0)]
+    [pow-unpow_binary32     . (>= a 0)]
+    [sqrt-pow1_binary64     . (>= x 0)]
+    [sqrt-pow1_binary32     . (>= x 0)]
 ))
+
+(define (check-rule-sound test-rule)
+  (match-define (rule name p1 p2 itypes repr) test-rule)
+  (define fv (dict-keys itypes))
+  (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
+
+  (match-define (list pts exs)
+    (parameterize ([*num-points* (num-test-points)]
+                   [*max-find-range-depth* 0])
+      (cdr (sample-points '(TRUE) (list (prog->spec p1)) (list ctx)))))
+
+  (define fn (make-search-func '(TRUE) (list (prog->spec p2)) (list ctx)))
+
+  (for ([pt (in-list pts)] [v1 (in-list exs)])
+    (with-check-info* (map make-check-info fv pt)
+      (λ ()
+        (define-values (status v2) (ival-eval fn (list ctx) pt))
+        (with-check-info (['lhs v1] ['rhs v2] ['status status])
+          (when (and (real? v2) (nan? v2) (not (set-member? '(exit unsamplable) status)))
+            (fail "Right hand side returns NaN")))))))
 
 (define (check-rule-correct test-rule)
   (match-define (rule name p1 p2 itypes repr) test-rule)
@@ -38,7 +56,7 @@
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
       (cdr (sample-points
-            (prog->spec pre)
+            pre
             (list (prog->spec p1) (prog->spec p2))
             (list ctx ctx)))))
 
@@ -76,7 +94,9 @@
      (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
      (for ([rule* (rule->impl-rules rule)])
       (check-rule-correct rule*)
-      (when (set-member? (*fp-safe-simplify-rules*) rule*)
+      (unless (set-member? (*unsound-rules*) rule)
+        (check-rule-sound rule*))
+      (when (set-member? (*fp-safe-simplify-rules*) rule)
         (check-rule-fp-safe rule*))))))
 
 (module+ test
@@ -91,6 +111,13 @@
   (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
          [test-rule* (rule->impl-rules test-rule)]
-         #:when (set-member? (*fp-safe-simplify-rules*) test-rule*))
+         #:unless (set-member? (*unsound-rules*) test-rule))
+    (test-case (~a (rule-name test-rule*))
+      (check-rule-sound test-rule*)))
+
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
+         [test-rule (first test-ruleset)]
+         [test-rule* (rule->impl-rules test-rule)]
+         #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
     (test-case (~a (rule-name test-rule*))
       (check-rule-fp-safe test-rule*))))

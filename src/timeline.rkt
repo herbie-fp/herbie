@@ -10,7 +10,7 @@
   (timeline-push! (symbol? jsexpr? ... . -> . void?))
   (timeline-adjust! (symbol? symbol? jsexpr? ... . -> . void?))
   (timeline-start! (symbol? jsexpr? ... . -> . (-> void?))))
- timeline-load! timeline-extract timeline-compact!
+ timeline-load! timeline-extract
  timeline-merge timeline-relink *timeline-disabled*)
 (module+ debug (provide *timeline*))
 
@@ -23,18 +23,43 @@
     (set-box! (*timeline*) '())
     (*timeline*)))
 
+(define *timeline-active-key* #f)
+(define *timeline-active-value* #f)
+
 (define *timeline-disabled* (make-parameter true))
 
+(define always-compact '(mixsample outcomes))
+  
 (define (timeline-event! type)
+  (when *timeline-active-key*
+    (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
+                  (curry append *timeline-active-value*) '())
+    (set! *timeline-active-key* #f))
+  
   (unless (*timeline-disabled*)
+    (when (pair? (unbox (*timeline*)))
+      (for ([key (in-list always-compact)]
+            #:when (hash-has-key? (car (unbox (*timeline*))) key))
+        (timeline-compact! key)))
     (define b (make-hasheq (list (cons 'type (~a type))
                                  (cons 'time (current-inexact-milliseconds)))))
     (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
 
 (define (timeline-push! key . values)
   (unless (*timeline-disabled*)
-    (define val (if (= (length values) 1) (car values) values))
-    (hash-update! (car (unbox (*timeline*))) key (curry cons val) '())))
+    (define val (if (null? (cdr values)) (car values) values))
+    (cond
+      [(eq? *timeline-active-key* key)
+       (set! *timeline-active-value* (cons val *timeline-active-value*))]
+      [(not *timeline-active-key*)
+       (set! *timeline-active-key* key)
+       (set! *timeline-active-value* (list val))]
+      [else
+       (when *timeline-active-key*
+         (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
+                       (curry append *timeline-active-value*) '()))
+       (set! *timeline-active-key* key)
+       (set! *timeline-active-value* (list val))])))
 
 (define (timeline-adjust! type key . values)
   (unless (*timeline-disabled*)
@@ -43,32 +68,45 @@
       true)
     (void)))
 
-(define *timeline-main-timer* #f)
+(define *timeline-1st-timer* #f)
+(define *timeline-2nd-timer* #f)
 (define *timeline-timers* (mutable-set))
 
 (define (timeline-start! key . values)
   (define tstart (current-inexact-milliseconds))
   (cond
-    [*timeline-main-timer* ; Slow path, more than one timer at a time
+    [(not *timeline-1st-timer*)
+     (define (end!)
+       (define tend (current-inexact-milliseconds))
+       (apply timeline-push! key (- tend tstart) values)
+       (set! *timeline-1st-timer* #f))
+     (set! *timeline-1st-timer* end!)
+     end!]
+    [(not *timeline-2nd-timer*)
+     (define (end!)
+       (define tend (current-inexact-milliseconds))
+       (apply timeline-push! key (- tend tstart) values)
+       (set! *timeline-2nd-timer* #f))
+     (set! *timeline-2nd-timer* end!)
+     end!]
+    [*timeline-1st-timer* ; Slow path, more than one timer at a time
      (define (end!)
        (define tend (current-inexact-milliseconds))
        (apply timeline-push! key (- tend tstart) values)
        (set-remove! *timeline-timers* end!))
      (set-add! *timeline-timers* end!)
-     end!]
-    [else ; Fast path, only timer
-     (define (end!)
-       (define tend (current-inexact-milliseconds))
-       (apply timeline-push! key (- tend tstart) values)
-       (set! *timeline-main-timer* #f))
-     (set! *timeline-main-timer* end!)
      end!]))
 
 (define (timeline-load! value)
   (*timeline* value))
 
 (define (timeline-extract)
-  (when *timeline-main-timer* (*timeline-main-timer*))
+  (when *timeline-1st-timer* (*timeline-1st-timer*))
+  (when *timeline-2nd-timer* (*timeline-2nd-timer*))
+  (when *timeline-active-key*
+    (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
+                  (curry append *timeline-active-value*) '())
+    (set! *timeline-active-key* #f))
   (for ([end! (set->list *timeline-timers*)]) (end!))
   (define end (hasheq 'time (current-inexact-milliseconds)))
   (reverse
@@ -136,11 +174,12 @@
 (define-timeline time #:custom +)
 
 (define-timeline method [method])
+(define-timeline mixsample [time +] [function false] [precision false])
 (define-timeline rules [rule false] [count +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [expr false] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
-(define-timeline outcomes [prec false] [category false] [time +] [count +])
+(define-timeline outcomes [time +] [prec false] [category false] [count +])
 (define-timeline accuracy [accuracy])
 (define-timeline oracle [oracle])
 (define-timeline baseline [baseline])

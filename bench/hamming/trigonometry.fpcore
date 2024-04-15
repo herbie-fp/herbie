@@ -17,8 +17,9 @@
 (FPCore (x eps)
   :name "2sin (example 3.3)"
   :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
-  :herbie-target
-  (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2)))
+  :alt 
+  (! :description (platform libm)
+   (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2))))
  
   (- (sin (+ x eps)) (sin x)))
 
@@ -30,8 +31,9 @@
 (FPCore (x eps)
  :name "2cos (problem 3.3.5)"
  :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
- :herbie-target
- (* -2 (sin (+ x (/ eps 2))) (sin (/ eps 2)))
+ :alt 
+ (! :description (platform libm)
+  (* -2 (sin (+ x (/ eps 2))) (sin (/ eps 2))))
 
  (- (cos (+ x eps)) (cos x)))
 
@@ -44,8 +46,9 @@
 (FPCore (x eps)
  :name "2tan (problem 3.3.2)"
  :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
- :herbie-target
- (/ (sin eps) (* (cos x) (cos (+ x eps))))
+ :alt 
+ (! :description (platform libm)
+  (/ (sin eps) (* (cos x) (cos (+ x eps)))))
 
  (- (tan (+ x eps)) (tan x)))
 
@@ -55,9 +58,9 @@
 ; of the error using this rewrite.
 (FPCore (x)
  :name "tanhf (example 3.4)"
- :pre (and (<= (- INFINITY) x) (<= x INFINITY))
- :herbie-target
- (tan (/ x 2))
+ :alt 
+ (! :description (platform libm)
+  (tan (/ x 2)))
 
  (/ (- 1 (cos x)) (sin x)))
 
@@ -68,8 +71,9 @@
 (FPCore (N)
  :name "2atan (example 3.5)"
  :pre (and (> N 1) (< N 1e+100))
- :herbie-target
- (atan (/ 1 (+ 1 (* N (+ N 1)))))
+ :alt 
+ (! :description (platform libm)
+  (atan (/ 1 (+ 1 (* N (+ N 1))))))
 
  (- (atan (+ N 1)) (atan N)))
 
@@ -85,7 +89,8 @@
 (FPCore (eps)
  :name "sintan (problem 3.4.5)"
  :pre (and (<= -0.4 eps) (<= eps 0.4))
- :herbie-target
- (+ -0.5 (/ (* 9 (* eps eps)) 40) (/ (* -27 (* eps eps eps eps)) 2800) (/ (* 27 (* eps eps eps eps eps eps)) 112000))
+ :alt 
+ (! :description (platform libm)
+  (+ -0.5 (/ (* 9 (* eps eps)) 40) (/ (* -27 (* eps eps eps eps)) 2800) (/ (* 27 (* eps eps eps eps eps eps)) 112000)))
  
  (/ (- eps (sin eps)) (- eps (tan eps))))
