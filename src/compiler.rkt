@@ -244,7 +244,7 @@
         [prec-new (in-vector vprecs-new)]
         [n (in-naturals)])
     (if (and (equal? prec-new prec-old)
-             (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc)))
+             (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
                      (rest instr)))
         (vector-set! vrepeats n #t)
         (vector-set! vrepeats n #f)))
@@ -398,8 +398,7 @@
      
      (define outlo (ival-lo output))
      (define outhi (ival-hi output))
-     (define out-exp (max (- (log2-approx outlo))     ; -log[log10(x)]
-                          (- (log2-approx outhi))))
+     (define out-exp (- (ival-min-log2-approx output))) ; -log[log10(x)]
      
      (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                        0
