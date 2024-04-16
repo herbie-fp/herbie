@@ -17,7 +17,7 @@
  (! :description (platform libm)
   (- (log (+ n 1)) (- (/ 1 (* 2 n)) (- (/ 1 (* 3 (* n n))) (/ 4 (pow n 3))))))
 
- (- (* (+ n 1) (log (+ n 1))) (* n (log n)) 1))
+ (- (- (* (+ n 1) (log (+ n 1))) (* n (log n))) 1))
 
 (FPCore (x)
  :name "invcot (example 3.9)"
