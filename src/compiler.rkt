@@ -367,8 +367,8 @@
      (define slack (if (and
                         (not (equal? (mpfr-sign outlo) (mpfr-sign outhi)))
                         (>= x-exp 2))                 ; x >= 1.bf [log2-approx(1.bf) = 2], ideally x > pi.bf
-                       (get-slack)
-                       0))                            ; tan is (-inf, +inf) or around zero (but x != 0)
+                       (get-slack)                    ; tan is (-inf, +inf) or around zero (but x != 0)
+                       0))                            
      
      (list (max 0 (+ x-exp out-exp-abs 1 slack)))]
               
@@ -384,9 +384,11 @@
      (define x-exp (ival-max-log2-approx x))
      (define out-exp (ival-min-log2-approx output))
      
-     (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
-                       0
-                       (get-slack)))                  ; Condition of uncertainty
+     (define slack (if (and
+                        (not (equal? (mpfr-sign outlo) (mpfr-sign outhi)))
+                        (>= x-exp 2))                 ; if x >= 1 [log2-approx(1.bf) = 2], when x=0 - no slack needed
+                       (get-slack)                    ; Condition of uncertainty
+                       0))                            
      
      (list (max 0 (+ (- x-exp out-exp) 1 slack)))]
                
