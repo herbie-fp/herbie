@@ -35,7 +35,7 @@
   (define vrepeats (make-vector iveclen #f))           ; flags whether an op should be evaluated
   (define vprecs (make-vector iveclen))                ; vector that stores working precisions
   (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
-  
+
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
   (if (equal? name 'ival)
       (λ args
@@ -364,9 +364,11 @@
      (define out-exp-abs (max (abs (log2-approx outlo))
                               (abs (log2-approx outhi))))
      
-     (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
-                       0
-                       (get-slack)))                  ; tan is (-inf, +inf) or around zero
+     (define slack (if (and
+                        (not (equal? (mpfr-sign outlo) (mpfr-sign outhi)))
+                        (>= x-exp 2))                 ; x >= 1.bf [log2-approx(1.bf) = 2], ideally x > pi.bf
+                       (get-slack)
+                       0))                            ; tan is (-inf, +inf) or around zero (but x != 0)
      
      (list (max 0 (+ x-exp out-exp-abs 1 slack)))]
               
