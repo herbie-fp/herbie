@@ -101,7 +101,7 @@
     [5 8192]))
 
 ; Function sets up vstart-precs vector, where all the precisions
-; are equal to (+ (*base-tuning-precision*) (* depth (*ground-truth-extra-bits*))),
+; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
 ; where depth is the depth of a node in the given computational tree (ivec)
 (define (setup-vstart-precs ivec varc)
   (define ivec-len (vector-length ivec))
@@ -118,7 +118,7 @@
           (define idx-prec (vector-ref vstart-precs (- idx varc)))
           (set! idx-prec (max        ; sometimes an instruction can be in many tail registers
                           idx-prec   ; We wanna make sure that we do not tune a precision down
-                          (+ current-prec (*ground-truth-extra-bits*))))
+                          (+ current-prec (*ampl-tuning-bits*))))
           (vector-set! vstart-precs (- idx varc) idx-prec)))))
   vstart-precs)
 
