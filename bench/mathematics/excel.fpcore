@@ -2,7 +2,7 @@
   :name "(- (/ x0 (- 1 x1)) x0)"
   :pre (or (and (== x0 1.855) (== x1 0.000209)) (and (== x0 2.985) (== x1 0.0186)))
   :alt 
-  (! :description (platform default) 
+  (! :herbie-platform default 
     (/ (* x0 x1) (- 1 x1)))
     
   (- (/ x0 (- 1 x1)) x0))

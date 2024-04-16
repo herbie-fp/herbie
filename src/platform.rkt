@@ -763,11 +763,8 @@
   (match value
       [`(! ,props ... ,body)
         (let* ((prop-dict (list->dict props))
-               (contains-desc? (assoc ':description prop-dict)))
-          (and contains-desc?
-            (match (cdr contains-desc?)
-              [`(platform ,plat-name) plat-name]
-              [else #f])))]
+               (contains-herbie-plat? (assoc ':herbie-platform prop-dict)))
+          (and contains-herbie-plat? (cdr contains-herbie-plat?)))]
       [else #f]))
 
 (define (list->dict lst)

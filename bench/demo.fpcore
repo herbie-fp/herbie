@@ -27,7 +27,7 @@
 (FPCore (x)
  :name "sqrt sqr"
  :alt 
- (! :description (platform default) (if (< x 0) 2 0))
+ (! :herbie-platform default (if (< x 0) 2 0))
 
  (- (/ x x) (* (/ 1 x) (sqrt (* x x)))))
 

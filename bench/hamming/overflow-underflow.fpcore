@@ -6,7 +6,7 @@
  ; Hamming version (1/1 - e^-x) was not accurate. Dealt with overflow/underflow but not cancellation.
  ; Used expm1 from libm to deal with cancellation.
  :alt 
- (! :description (platform default)
+ (! :herbie-platform default
   (/ (- 1) (expm1 (- x))))
 
  (/ (exp x) (- (exp x) 1)))

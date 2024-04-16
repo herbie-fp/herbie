@@ -5,7 +5,7 @@
  :herbie-expected 10
  ; From Racket Math Lib implementation
  :alt 
- (! :description (platform default)
+ (! :herbie-platform default
   (let ([sqtD
    (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
     (if (== (copysign a c) a)
@@ -22,7 +22,7 @@
  :herbie-expected 10
  ; From Racket Math Lib implementation
  :alt 
- (! :description (platform default)
+ (! :herbie-platform default
   (let ([sqtD
    (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
     (if (== (copysign a c) a)
@@ -39,7 +39,7 @@
  :herbie-expected 10
  ; From Racket Math Lib implementation
  :alt 
- (! :description (platform default)
+ (! :herbie-platform default
   (let ([sqtD
    (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
     (if (== (copysign a c) a)
@@ -56,7 +56,7 @@
  :herbie-expected 10
  ; From Racket Math Lib implementation
  :alt 
- (! :description (platform default) 
+ (! :herbie-platform default 
   (let ([sqtD
    (let ([x (* (sqrt (fabs a)) (sqrt (fabs c)))])
     (if (== (copysign a c) a)

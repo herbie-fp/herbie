@@ -7,6 +7,6 @@
  ; Hamming suggests using Taylor expansion for ax small
  ; We use expm1 as it specifically avoids cancellation for ax small
  :alt 
- (! :description (platform default) (expm1 (* a x)))
+ (! :herbie-platform default (expm1 (* a x)))
 
  (- (exp (* a x)) 1))

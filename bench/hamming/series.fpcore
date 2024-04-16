@@ -6,7 +6,7 @@
  :pre (<= (fabs x) 1)
  ; Hamming suggests taylor series expansion but we have libm functions in FPCore for the default platform
  :alt 
- (! :description (platform default) (expm1 x))
+ (! :herbie-platform default (expm1 x))
 
  (- (exp x) 1))
 
@@ -14,7 +14,7 @@
  :name "logs (example 3.8)"
  :pre (> n 6.8e+15)
  :alt 
- (! :description (platform default)
+ (! :herbie-platform default
   (- (log (+ n 1)) (- (/ 1 (* 2 n)) (- (/ 1 (* 3 (* n n))) (/ 4 (pow n 3))))))
 
  (- (* (+ n 1) (log (+ n 1))) (* n (log n)) 1))
@@ -23,7 +23,7 @@
  :name "invcot (example 3.9)"
  :pre (and (< -0.026 x) (< x 0.026))
  :alt 
- (! :description (platform default)
+ (! :herbie-platform default
   (if (< (fabs x) 0.026)
      (* (/ x 3) (+ 1 (/ (* x x) 15)))
      (- (/ 1 x) (/ 1 (tan x)))))
@@ -36,7 +36,7 @@
  :pre (<= (fabs x) 1)
  ; Hamming suggests using Taylor expansion but until we have platforms, we will use FPCore's access to default functions.
  :alt 
- (! :description (platform default)
+ (! :herbie-platform default
   (/ (log1p (- x)) (log1p x)))
 
  (/ (log (- 1 x)) (log (+ 1 x))))
@@ -55,7 +55,7 @@
  
  ; Hammings' rewrite, page 48
  :alt 
- (! :description (platform default)
+ (! :herbie-platform default
   (+ (/ 1 a) (/ 1 b)))
 
  (/
@@ -68,7 +68,7 @@
  :pre (< (fabs eps) 1)
  ; Hamming suggests using Taylor expansion but FPCore has libm which is contained on the "default" platform.
  :alt 
- (! :description (platform default)
+ (! :herbie-platform default
   (- (log1p (- eps)) (log1p eps)))
 
  (log (/ (- 1 eps) (+ 1 eps))))
