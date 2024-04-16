@@ -44,15 +44,17 @@
   (define expr->cost  (platform-cost-proc (*active-platform*)))
   ;;For each expression takes the subexpressions and a the simplified version of those subexpression then for each subexpression it computes the difference between the two and return a sorted list of pairs of (subexpr and diff).
   (for/list ([expr (in-list exprs)])
-    (define subexprs (all-subexpressions expr (context-repr ctx)))
-    (define simple-subexprs (simplify-batch (make-egg-query (map car subexprs) (*simplify-rules*))))
+    (define subexprs (all-subexpressions expr))
+    (define simple-subexprs (simplify-batch (make-egg-query subexprs (*simplify-rules*))))
       (sort 
         (for/list ([subexpr (in-list subexprs)]
                   [simple-subexpr (in-list simple-subexprs)])
-                  (cons (- (expr->cost (car subexpr) (cdr subexpr)) (expr->cost (last simple-subexpr) (cdr subexpr)))
-                        (car subexpr) ))
+                  (cons (- (expr->cost subexpr (context-repr ctx)) (expr->cost (last simple-subexpr) (context-repr ctx)))
+                         subexpr)
+                  )
       > #:key car)  
     )
+    
   )
       
 

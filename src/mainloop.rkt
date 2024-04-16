@@ -202,12 +202,12 @@
   (unless (^next-alts^)
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
-
+  (define repr (context-repr (*context*)))
   (define loc-errss
      (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define loc-costss
      (batch-localize-cost (map alt-expr (^next-alts^)) (*context*)))
-    (define repr (context-repr (*context*)))
+  
 
   ; high-error locations
   (^locs^
@@ -225,10 +225,10 @@
                   #:when true
                   [(cost-diff expr) (in-dict loc-costs)]
                   [i (in-range (*localize-expressions-limit*))])
+                  
                   (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
                           (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
           expr))))
-
 
   (^lowlocs^
   '())
