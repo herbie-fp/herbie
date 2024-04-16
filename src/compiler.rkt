@@ -319,7 +319,7 @@
      
      (define x-exp (ival-max-log2-approx x))
      (define y-exp (ival-max-log2-approx y))
-     (define out-exp (min (log2-approx outhi) (log2-approx outlo)))
+     (define out-exp (ival-min-log2-approx output))
 
      (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                        0
@@ -381,9 +381,8 @@
      (define outlo (ival-lo output))
      (define outhi (ival-hi output))
 
-     (define x-exp (ival-max-log2-approx x))          ; log[x]
-     (define out-exp (min (log2-approx outlo)         ; log[cos(x)] or log[sin(x)]
-                          (log2-approx outhi)))
+     (define x-exp (ival-max-log2-approx x))
+     (define out-exp (ival-min-log2-approx output))
      
      (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                        0
@@ -447,7 +446,7 @@
      (define outhi (ival-hi output))
      
      (define x-exp (ival-max-log2-approx x))
-     (define out-exp (min (log2-approx outlo) (log2-approx outhi)))
+     (define out-exp (ival-min-log2-approx output))
 
      (define x-slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                          0                
@@ -467,14 +466,13 @@
      (define x (first srcs))
      (define y (second srcs))
      (define z (third srcs))
+     (define outlo (ival-lo output))
+     (define outhi (ival-hi output))
      
      (define x-exp (ival-max-log2-approx x))
      (define y-exp (ival-max-log2-approx y))
      (define z-exp (ival-max-log2-approx z))
-     
-     (define outlo (ival-lo output))
-     (define outhi (ival-hi output))
-     (define out-exp (min (log2-approx outlo) (log2-approx outhi)))
+     (define out-exp (ival-min-log2-approx output))
      
      (define slack (if (equal? (mpfr-sign outhi) (mpfr-sign outlo))
                                 0
