@@ -3,18 +3,15 @@
 (require egg-herbie
         (only-in ffi/unsafe
           malloc memcpy free cast ptr-set! ptr-add
-          _byte _pointer _string/utf-8))
+          _byte _pointer _string/utf-8
+          register-finalizer))
 
 (require "../syntax/rules.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../common.rkt"
-         "../errors.rkt"
-         "../float.rkt"
-         "../ground-truth.rkt"
          "../platform.rkt"
-         "../points.rkt"
          "../programs.rkt"
          "../timeline.rkt" )
 
@@ -54,7 +51,9 @@
   (define name (make-raw-string (~a (rule-name rule))))
   (define lhs (make-raw-string (~a (rule-input rule))))
   (define rhs (make-raw-string (~a (rule-output rule))))
-  (make-FFIRule name lhs rhs))
+  (define p (make-FFIRule name lhs rhs))
+  (register-finalizer p free-ffi-rule)
+  p)
 
 (define (free-ffi-rule rule)
   (free (FFIRule-name rule))
@@ -208,7 +207,7 @@
       [(? (curry hash-has-key? herbie->egg-dict))
        (hash-ref herbie->egg-dict expr)]
       [(? symbol?)
-       (define replacement (string->symbol (format "h~a" (hash-count herbie->egg-dict))))
+       (define replacement (string->symbol (format "$h~a" (hash-count herbie->egg-dict))))
        (hash-set! herbie->egg-dict expr replacement)
        (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
        replacement]
@@ -229,25 +228,28 @@
        (error "Unknown term ~a" expr)])))
 
 ;; Converts an S-expr from egg into one Herbie understands
-(define (egg-parsed->expr expr rename-dict)
-  (let loop ([expr expr])
+(define (egg-parsed->expr expr rename-dict type)
+  (let loop ([expr expr] [type type])
     (match expr
-      [(? number?) (literal expr)]
+      [(? number?) (if (representation? type)
+                       (literal expr (representation-name type))
+                       expr)]
       [(? symbol?) (car (hash-ref rename-dict expr))]
-      [`(Explanation ,body ...) `(Explanation ,@(map loop body))]
-      [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr))]
-      [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr))]
-      [(list op args ...) (cons op (map loop args))])))
+      [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
+      [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
+      [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
+      [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+      [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
 ;; Parses a string from egg into a list of S-exprs.
-(define (egg-exprs->exprs s egraph-data)
+(define (egg-exprs->exprs s egraph-data type)
   (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
   (for/list ([egg-expr (in-port read (open-input-string s))])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie)))
+    (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
 
 ;; Parses a string from egg into a single S-expr.
-(define (egg-expr->expr s egraph-data)
-  (first (egg-exprs->exprs s egraph-data)))
+(define (egg-expr->expr s egraph-data type)
+  (first (egg-exprs->exprs s egraph-data type)))
 
 (module+ test
   (define repr (get-representation 'binary64))
@@ -437,6 +439,11 @@
 (define (rule->impl-rules rule)
   (error 'rule->impl-rules "unimplemented"))
 
+;; egg rule cache
+(define-resetter *egg-rule-cache*
+  (λ () (make-hash))
+  (λ () (make-hash)))
+
 ;; Cache mapping name to its canonical rule name
 ;; See `*egg-rules*` for details
 (define-resetter *canon-names*
@@ -448,19 +455,20 @@
 (define (get-canon-rule-name name [failure #f])
   (hash-ref (*canon-names*) name failure))
 
-;; expand the rules first due to some bad but currently necessary reasons
-;; (see `rule->egg-rules` for details); checks the cache in case we used
-; them previously
+;; Expand and convert the rules for egg.
+;; Uses a cache to only expand each rule once.
 (define (expand-rules rules)
-  (for/fold ([rules* '()] #:result (reverse rules*))
-            ([rule (in-list rules)])
-   (define orig-name (rule-name rule))
-   (define egg&ffi
-     (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-       (define name (rule-name egg-rule))
-       (hash-set! (*canon-names*) name orig-name)
-       (cons egg-rule (make-ffi-rule egg-rule))))
-    (append (reverse egg&ffi) rules*)))
+  (reap [sow]
+    (for ([rule (in-list rules)])
+      (define egg&ffi-rules
+        (hash-ref! (*egg-rule-cache*)
+                    (cons (*active-platform*) rule)
+                    (lambda ()
+                      (for/list ([egg-rule (in-list (rule->egg-rules rule))])
+                        (define name (rule-name egg-rule))
+                        (hash-set! (*canon-names*) name (rule-name rule))
+                        (cons egg-rule (make-ffi-rule egg-rule))))))
+      (for-each sow egg&ffi-rules))))
 
 (module+ test
   ;; Make sure all built-in rules are valid in
@@ -514,25 +522,16 @@
            (vector-set! has-leaf? id #t)
            (vector-set! constants id egg-node)
            egg-node]
-          [(? symbol?) ; variable
+          [(? symbol?) ; variable or constant
            (vector-set! has-leaf? id #t)
-           egg-node]
+           (if (hash-has-key? egg->herbie egg-node)
+               egg-node             ; variable
+               (list egg-node))]    ; constant
           [(list op child-ids ...)
            (cons op (map resolve-id child-ids))]
           [_ (error 'sexpr->regraph "malformed enode: ~a" egg-node)])))
     (vector-set! eclasses id node))
-  ; extract egg IR typenames or #f
-  (define (extract-egg-typename id)
-    (define eclass (vector-ref eclasses id))
-    (for/or ([node (in-vector eclass)])
-      (and (symbol? node) node)))
-  ; extract egg IR type signatures or #f
-  (define (extract-egg-type id)
-    (define eclass (vector-ref eclasses id))
-    (for/or ([node (in-vector eclass)])
-      (match node
-        [(list '$Type ids ...) (cons '$Type (map extract-egg-typename ids))]
-        [_ #f])))
+
   ; collect with wrapper
   (regraph eclasses canon has-leaf? constants egg->herbie))
 
@@ -675,7 +674,7 @@
       [(cons '$Type types) (cons '$Type types)] ; type
       [(cons op ids) (cons op (map build-expr ids))] ; operator
       [e (error 'default-extraction-proc "could not reconstruct ~a" e)]))
-  
+
   ; the actual extraction procedure
   (lambda (id _)
     (define cost (car (vector-ref costs id)))
@@ -691,14 +690,14 @@
 (define (default-untyped-egg-cost-proc regraph cache node rec)
   (define constants (regraph-constants regraph))
   (match node
-    [(list '$Var _ _) 1] ; variable
+    [(? number?) 1]
+    [(? symbol?) 1]
     [(list 'pow _ b e) ; special case for fractional pow
      (define n (vector-ref constants e))
      (if (and n (fraction-with-odd-denominator? n))
          +inf.0
          (+ 1 (rec b) (rec e)))]
-    [(list _ _ args ...) (apply + 1 (map rec args))]
-    [_ 1]))
+    [(list _ args ...) (apply + 1 (map rec args))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Regraph typed extraction
@@ -806,7 +805,6 @@
 
   ; some important regraph fields
   (define eclasses (regraph-eclasses regraph))
-  (define has-leaf? (regraph-has-leaf? regraph))
   (define n (vector-length eclasses))
 
   ; costs: mapping eclass id to either:
@@ -1008,13 +1006,13 @@
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
-(define (regraph-extract-best regraph ctx extract id repr)
+(define (regraph-extract-best regraph ctx extract id type)
   ; extract expr
   (define id* (hash-ref (regraph-canon regraph) id))
-  (match-define (cons _ egg-expr) (extract id* (representation-name repr)))
+  (match-define (cons _ egg-expr) (extract id* type))
   ; translate egg IR to Herbie IR
   (define egg->herbie (regraph-egg->herbie regraph))
-  (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie)))
+  (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
 
 ;; Extracts multiple expressions according to the extractor
 (define (regraph-extract-variants regraph ctx extract id type)
@@ -1046,7 +1044,7 @@
   ; translate egg IR to Herbie IR
   (define egg->herbie (regraph-egg->herbie regraph))
   (for/list ([egg-expr (in-list egg-exprs)])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie)))
+    (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler
@@ -1169,6 +1167,12 @@
   (values node-ids* egg-graph (or regraph (make-regraph egg-graph))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Rule filtering
+;;
+;; Generally, we want to call egg with specific rulesets.
+;; This section defines common filters that we use.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
 ;;
 ;; Most calls to egg should be done through this interface.
@@ -1192,10 +1196,7 @@
                 ctx
                 (or extractor default-extractor)))
 
-(define (run-egg input
-                 variants?
-                 #:proof-inputs [proof-inputs '()]
-                 #:proof-ignore-when-unsound? [proof-ignore-when-unsound? #f])
+(define (run-egg input variants? #:proof-inputs [proof-inputs '()])
   ;; Run egg and extract iteration data
   (define ctx (egraph-query-ctx input))
   (define-values (node-ids egg-graph regraph)
