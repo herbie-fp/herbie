@@ -230,13 +230,13 @@
   ;; Vectors used to determine if our current alt is better than out running
   ;; best alt.
   (define best-alt-idx (make-vector number-of-points))
-  (define best-alt-cost (make-vector number-of-points))
+  (define best-alt-cost (make-flvector number-of-points))
 
   (for ([point-idx (in-range 0 number-of-points)])
    ;; Set and fill temporary vectors with starting data
    ;; #f for best index and positive infinite for best cost
    (vector-fill! best-alt-idx #f)
-   (vector-fill! best-alt-cost +inf.f)
+   (set! best-alt-cost (make-flvector number-of-points +inf.0))
 
    ;; For each alt loop over its vector of errors
    (for ([alt-idx (in-naturals)] [alt-error-sums (in-vector flvec-psums)])
@@ -250,9 +250,9 @@
        ;; if we have not set the best alt yet or
        ;; the current alt-error-sum is less then previous
        (when (or (not (vector-ref best-alt-idx prev-split-idx))
-                 (fl< current-error (vector-ref best-alt-cost prev-split-idx)))
+                 (fl< current-error (flvector-ref best-alt-cost prev-split-idx)))
         ;; update best cost and best index
-        (vector-set! best-alt-cost prev-split-idx current-error)
+        (flvector-set! best-alt-cost prev-split-idx current-error)
         (vector-set! best-alt-idx prev-split-idx alt-idx))))))
 
    ;; Save current values for the current point we are working on.
@@ -266,7 +266,7 @@
     (when (vector-ref can-split-vec (+ prev-split-idx 1))
      ;; Re compute the error sum for a potential better alt
      (define alt-error-sum (fl+ (flvector-ref result-error-sums prev-split-idx)
-                    (vector-ref best-alt-cost prev-split-idx) min-weight))
+                    (flvector-ref best-alt-cost prev-split-idx) min-weight))
      ;; pre-compute values for tie breaking
      (define current-best-alt-idx (vector-ref best-alt-idx prev-split-idx))
      ;; Check if the new alt-error-sum is better then the current
