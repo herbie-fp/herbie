@@ -34,7 +34,8 @@
   (define vregs (make-vector vreg-count))
   (define vrepeats (make-vector iveclen #f))           ; flags whether an op should be evaluated
   (define vprecs (make-vector iveclen))                ; vector that stores working precisions
-  (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
+  (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode that are to be adjusted
+  (define vbase-precs (setup-vstart-precs ivec varc))  ; base precisions for the tuning mode
   
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
   (define iter-count 0)
@@ -43,9 +44,15 @@
         (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                        (* (*sampling-iteration*) 1000)))
         (match (zero? (*sampling-iteration*))
-          [#t (vector-fill! vrepeats #f)
-              (when (and (> iter-count 0) (< iter-count (*max-sampling-iterations*)))
-                (update-vstart-precs vprecs vstart-precs))
+          [#t (when (> iter-count 0)
+                ; Get converged precision with slack=0
+                (parameterize ([*sampling-iteration* -1]) (backward-pass ivec varc vregs vprecs vbase-precs rootvec rootlen vrepeats))
+                ;(println vstart-precs)
+                (update-vstart-precs vstart-precs vprecs)
+                ;(println vstart-precs)
+                #;(printf "\n"))
+              
+              (vector-fill! vrepeats #f)
               (set! iter-count 0)]
           [#f (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
               (set! iter-count (*sampling-iteration*))]) ; back-pass
@@ -98,6 +105,7 @@
 
 (define (get-slack)
   (match (*sampling-iteration*)
+    [-1 0]
     [0 256]
     [1 512]
     [2 1024]
@@ -127,8 +135,8 @@
           (vector-set! vstart-precs (- idx varc) idx-prec)))))
   vstart-precs)
 
-(define (update-vstart-precs vprecs vstart-precs)
-  (vector-map! (lambda (x y) (+ (exact-floor (* (max 0 (- y x)) (*sampling-learning-rate*))) x))
+(define (update-vstart-precs vstart-precs vprecs)
+  (vector-map! (lambda (x y) (+ (exact-ceiling (* (- y x) (*sampling-learning-rate*))) x))
                  vstart-precs vprecs))
 
 ;; Translates a Herbie IR into an interpretable IR.

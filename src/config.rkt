@@ -89,7 +89,7 @@
 (define *analyze-prec* (make-parameter 128))
 (define *ground-truth-extra-bits* (make-parameter 20))
 
-(define *sampling-learning-rate* (make-parameter 0.001))
+(define *sampling-learning-rate* (make-parameter 0.1))
 (define *sampling-iteration* (make-parameter 0))
 (define *base-tuning-precision* (make-parameter 73))
 (define *max-sampling-iterations* (make-parameter 5))
