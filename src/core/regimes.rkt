@@ -222,7 +222,7 @@
              (set! min-v val)]))
     (flvector-set! result-error-sums point-idx (fl min-v))
     (vector-set! result-alt-idxs point-idx min-idx)
-    (vector-set! result-prev-idxs point-idx -1))
+    (vector-set! result-prev-idxs point-idx number-of-points))
   
   ;; Vectors are now filled with starting data. Beginning main loop of the
   ;; regimes algorithm.
@@ -280,7 +280,7 @@
             ;; Tie breaker for if error and alt is the same
             [(and (fl= alt-error-sum adjusted-cost)
                   (= current-alt-idx current-best-alt-idx)
-                  (< current-prev-idx prev-split-idx)) #t]
+                  (> current-prev-idx prev-split-idx)) #t]
             [else #f]))
       (when set-cond
        (set! current-alt-error alt-error-sum)
