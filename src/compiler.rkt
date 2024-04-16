@@ -177,7 +177,7 @@
   ; so greedily compute the set ahead of time
   (define repr-convs (operator-all-impls 'cast))
   (define (real-op op)
-    (if (memv op repr-convs)
+    (if (member op repr-convs)
         (impl->operator op)
         op))
 
@@ -381,8 +381,8 @@
      (define outlo (ival-lo output))
      (define outhi (ival-hi output))
 
-     (define x-exp (ival-max-log2-approx x))
-     (define out-exp (min (log2-approx outlo)
+     (define x-exp (ival-max-log2-approx x))          ; log[x]
+     (define out-exp (min (log2-approx outlo)         ; log[cos(x)] or log[sin(x)]
                           (log2-approx outhi)))
      
      (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
@@ -395,17 +395,18 @@
      ; log[Гlog]   = log[1/logx] = -log[log(x)]
      ; log[Гlog2]  = log[1/(log2(x) * ln(2))] <= -log[log2(x)] + 1    < main formula
      ; log[Гlog10] = log[1/(log10(x) * ln(10))] <= -log[log10(x)] - 1
+     ; log[Гlog10] < log[Гlog] < log[Гlog2]
      
      (define outlo (ival-lo output))
      (define outhi (ival-hi output))
-     (define out-exp (max (log2-approx outlo)
-                              (log2-approx outhi)))
+     (define out-exp (max (- (log2-approx outlo))     ; -log[log10(x)]
+                          (- (log2-approx outhi))))
      
      (define slack (if (equal? (mpfr-sign outlo) (mpfr-sign outhi))
                        0
-                       (get-slack)))                  ; output crosses 0.bf - uncertainty
+                       (get-slack)))                  ; output crosses 0 - uncertainty
      
-     (list (max 0 (+ (- out-exp) 1 slack)))]
+     (list (max 0 (+ out-exp 1 slack)))]
               
     [(ival-asin ival-acos)
      ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)] + 1
