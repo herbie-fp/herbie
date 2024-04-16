@@ -244,10 +244,10 @@
         [prec-new (in-vector vprecs-new)]
         [n (in-naturals)])
     (if (and (equal? prec-new prec-old)
-             (andmap identity (map (lambda (x) (if (>= x varc)
-                                                   (vector-ref vrepeats (- x varc))
-                                                   #t))
-                                   (rest instr))))
+             (andmap (lambda (x) (if (>= x varc)
+                                     (vector-ref vrepeats (- x varc))
+                                     #t))
+                     (rest instr)))
         (vector-set! vrepeats n #t)
         (vector-set! vrepeats n #f)))
   
