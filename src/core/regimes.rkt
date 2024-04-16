@@ -216,7 +216,7 @@
     ;; Find the min, no built in function to find smallest fl in vector
     (define min-v (flvector-ref vec-temp 0))
     (define min-idx 0)
-    (for ([val vec-temp] [idx (range number-of-alts)])
+    (for ([val (in-flvector vec-temp)] [idx (in-range number-of-alts)])
       (cond [(< val min-v)
              (set! min-idx idx)
              (set! min-v val)]))
@@ -292,7 +292,7 @@
   ;; Loop over results vectors in reverse and build the output split index list
   (define next number-of-points)
   (define split-idexs #f)
-  (for ([idx (range number-of-points 0 -1)])
+  (for ([idx (in-range number-of-points 0 -1)])
      (define i (- idx 1))
      (define alt-idx (vector-ref result-alt-idxs i))
      (define split-idx (vector-ref result-prev-idxs i))
