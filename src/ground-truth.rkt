@@ -49,7 +49,7 @@
       (for/list ([input (in-list inputs)]
                  [repr (context-var-reprs (car ctxs))])
         (if (ival? input) input (ival ((representation-repr->bf repr) input)))))
-    (define outvec (apply fns inputs*))
+    (define outvec (parameterize ([*sampling-iteration* 0]) (apply fns inputs*)))
     (define ival-pre (vector-ref outvec 0))
     (for/list ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
       (define repr (context-repr ctx))
