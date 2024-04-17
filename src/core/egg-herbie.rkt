@@ -10,6 +10,7 @@
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
+         "../accelerator.rkt"
          "../common.rkt"
          "../platform.rkt"
          "../programs.rkt"
@@ -25,7 +26,9 @@
          run-egg
          rule->impl-rules
          get-canon-rule-name
-         remove-rewrites)
+         remove-rewrites
+         real-rules
+         platform-lowering-rules)
 
 (module+ test
   (require rackunit)
@@ -1171,6 +1174,54 @@
 ;;
 ;; Generally, we want to call egg with specific rulesets.
 ;; This section defines common filters that we use.
+
+;; Spec contains no accelerators
+(define (spec-has-accelerator? spec)
+  (match spec
+    [(list (? accelerator?) _ ...) #t]
+    [(list _ args ...) (ormap spec-has-accelerator? args)]
+    [_ #f]))
+
+(define (real-rules rules)
+  (filter-not
+    (lambda (rule)
+      (or (representation? (rule-otype rule))
+          (spec-has-accelerator? (rule-input rule))
+          (spec-has-accelerator? (rule-output rule))))
+    rules))
+
+;; Rules from spec to impl
+;; These are fixed for a a particular platform
+(define-resetter *lowering-rules*
+  (λ () (make-hash))
+  (λ () (make-hash)))
+
+(define (platform-lowering-rules)
+  (define impls (platform-impls (*active-platform*)))
+  (for/list ([impl (in-list impls)])
+    (hash-ref! (*lowering-rules*)
+               (cons impl (*active-platform*))
+               (lambda ()
+                 (define op (impl->operator impl))
+                 (define itypes (operator-info op 'itype))
+                 (define otype (operator-info op 'otype))
+                 (cond
+                   [(accelerator? op)
+                    ; accelerator lowering
+                    (define vars (accelerator-info op 'vars))
+                    (rule (sym-append 'accelerator-lowering- impl)
+                          (accelerator-info op 'body)
+                          (cons impl (accelerator-info op 'vars))
+                          (map cons vars itypes)
+                          otype)]
+                   [else
+                    ; direct lowering
+                    (define vars (map (lambda (_) (gensym)) itypes))
+                    (rule (sym-append op '-lowering- impl)
+                          (cons op vars)
+                          (cons impl vars)
+                          (map cons vars itypes)
+                          otype)])))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API

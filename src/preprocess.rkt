@@ -42,29 +42,38 @@
       (replace-vars `((,a . ,b) (,b . ,a)) spec)))
 
 ;; Initial simplify
-; (define (initial-simplify init)
-;   (define specs (list (prog->spec init)))
-;   (define rules (real-rules (*simplify-rules*)))
+(define (initial-simplify init ctx)
+  (define rules (real-rules (*simplify-rules*)))
+  (define lowering-rules (platform-lowering-rules))
 
-;   ; egg schedule (2-phases for real rewrites and implementation selection)
-;   (define schedule
-;     `((run ,rules ((node . ,(*node-limit*))))
-;       (run ,(*lowering-rules*) ((iteration . 1) (scheduler . simple)))
-;       (convert)
-;       (prune-spec)))
-  
-;   (void))
+  ; egg schedule (2-phases for real rewrites and implementation selection)
+  (define schedule
+    `((run ,rules ((node . ,(*node-limit*))))
+      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))
+      (convert)
+      (prune-spec)))
+
+  ; egg query
+  (define egg-query
+    (make-egg-query (list (prog->spec init))
+                    (list (context-repr ctx))
+                    schedule
+                    #:extractor (typed-egg-extractor platform-egg-cost-proc)))
+
+  ; run egg (ignore initial expression)
+  (rest (first (simplify-batch egg-query))))
+
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing init spec ctx)
   (define spec* (prog->spec spec))
 
-  ;; the identities
+  ;; identities
   (define even-identities (make-even-identities spec* ctx))
   (define odd-identities (make-odd-identities spec* ctx))
   (define swap-identities (make-swap-identities spec* ctx))
 
-  ;; the expressions
+  ;; expressions
   (define exprs
     (cons spec*
           (append even-identities
@@ -112,104 +121,19 @@
   
   (define instrs (append abs-instrs negabs-instrs sort-instrs))
   (define start-alts
-    (if (flag-set? 'setup 'simplify)
-        (list (make-alt-preprocessing init instrs)) ; TODO: initial simplify
-        (list (make-alt-preprocessing init instrs))))
+    (cond
+      [(flag-set? 'setup 'simplify)
+       (define start-alt (make-alt init))
+       (remove-duplicates
+         (map
+          (lambda (alt) (alt-add-preprocessing alt instrs))
+          (cons start-alt
+            (for/list ([init* (in-list (initial-simplify init ctx))])
+                (alt init* `(simplify () ,egg-query #f #f) (list start-alt) '())))))]
+      [else
+       (list (make-alt-preprocessing init instrs))]))
   
   (values start-alts instrs))
-
-; 
-; (define (find-preprocessing* initial specification context)
-;   ;; f(x) = f(-x)
-;   (define even-identities
-;     (reap [sow]
-;       (for ([variable (in-list (context-vars context))]
-;             [representation (in-list (context-var-reprs context))])
-;         (with-handlers ([exn:fail:user:herbie? void])
-;           (define negate (get-parametric-operator 'neg representation))
-;           ; Check if representation has an fabs operator
-;           (define fabs (get-parametric-operator 'fabs representation))
-;           (sow (replace-vars (list (cons variable (list negate variable))) specification))))))
-;   ;; f(x) = -f(-x)
-;   (define odd-identities
-;     (with-handlers ([exn:fail:user:herbie? (const empty)])
-;       (define negate (get-parametric-operator 'neg (context-repr context)))
-;       ; Check if representation has an fabs operator
-;       (define fabs (get-parametric-operator 'fabs (context-repr context)))
-;       (map (lambda (expression) (list negate expression)) even-identities)))
-;   ;; f(a, b) = f(b, a)
-;   (define pairs (combinations (context-vars context) 2))
-;   (define swap-identities
-;     (for/list ([pair (in-list pairs)])
-;       (match-define (list a b) pair)
-;       (replace-vars (list (cons a b) (cons b a)) specification)))
-;   (define query
-;     (make-egg-query
-;      (list*
-;       initial
-;       specification
-;       (append even-identities odd-identities swap-identities))
-;      (*simplify-rules*)))
-;   ;; TODO: This is clearly bad and should be changed to something more general.
-;   (define (split-others others)
-;     (define-values (evens others*) (split-at others (length even-identities)))
-;     (define-values (odds swaps) (split-at others* (length odd-identities)))
-;     (values evens odds swaps))
-;   (match-define
-;     (cons
-;      ;; The first element of the list returned by `simplify-batch` will be a list
-;      ;; containing progressively simpler versions of `initial` at each iteration
-;      ;; of the e-graph, the first of which will always be the unsimplified
-;      ;; `initial` from iteration 0, which we want to exclude here to avoid adding
-;      ;; it twice to the alt-table.
-;      (app rest initials)
-;      (app (curry map last)
-;           (cons
-;            specification*
-;            (app split-others evens odds swaps))))
-;     (simplify-batch query))
-;   (define alternative (make-alt initial))
-;   (define simplified
-;     (cons
-;      ;; We excluded the first element of `initials` above so that we can add it
-;      ;; here manually, but without a self-referential history.
-;      alternative
-;      (remove-duplicates
-;       (for/list ([expression (in-list initials)])
-;         (alt
-;          expression
-;          (list 'simplify null query #f #f)
-;          (list alternative)
-;          '()))
-;       alt-equal?)))
-;   (define components
-;     (connected-components
-;      (context-vars context)
-;      (filter-map
-;       (lambda (pair swap) (and (equal? specification* swap) pair))
-;       pairs
-;       swaps)))
-;   (define abs-instructions
-;     (for/list ([variable (in-list (context-vars context))]
-;                [even (in-list evens)]
-;                #:when (equal? specification* even))
-;       (list 'abs variable)))
-;   (define negabs-instructions
-;     (for/list ([variable (in-list (context-vars context))]
-;                [odd (in-list odds)]
-;                #:when (equal? specification* odd))
-;       (list 'negabs variable)))
-;   (define sort-instructions
-;     (for/list ([component (in-list components)]
-;                #:when (> (length component) 1))
-;       (cons 'sort component)))
-;   (values
-;    (if (flag-set? 'setup 'simplify)
-;        (for/list ([alt simplified])
-;         (alt-add-preprocessing alt (append abs-instructions negabs-instructions sort-instructions)))
-;        (list (make-alt-preprocessing initial (append abs-instructions negabs-instructions sort-instructions))))
-;    ;; Absolute value should happen before sorting
-;    (append abs-instructions negabs-instructions sort-instructions)))
 
 
 (define (connected-components variables swaps)

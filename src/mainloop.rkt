@@ -329,14 +329,11 @@
   (match-define (cons initial simplified) alternatives)
   (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
-  (^table^ table))
-
-  ; TODO: initial simplify
-  ; (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
-  ; (timeline-event! 'eval)
-  ; (define-values (errss costs) (atab-eval-altns table simplified* context))
-  ; (timeline-event! 'prune)
-  ; (^table^ (atab-add-altns table simplified* errss costs)))
+  (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
+  (timeline-event! 'eval)
+  (define-values (errss costs) (atab-eval-altns table simplified* context))
+  (timeline-event! 'prune)
+  (^table^ (atab-add-altns table simplified* errss costs)))
 
 (define (explain! simplified)
   (timeline-event! 'explain)
@@ -376,7 +373,7 @@
      (list (argmin score-alt alts))]))
 
 
-; TODO: restore final simplify
+ ; TODO: restore final simplify
 (define (final-simplify! alts)
   alts)
   ; (cond

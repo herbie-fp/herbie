@@ -60,57 +60,6 @@
   (timeline-push! 'count (length altns) (length approximations))
   approximations)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Rules ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Spec contains no accelerators
-(define (spec-has-accelerator? spec)
-  (match spec
-    [(list (? accelerator?) _ ...) #t]
-    [(list _ args ...) (ormap spec-has-accelerator? args)]
-    [_ #f]))
-
-(define (real-rules rules)
-  (filter-not
-    (lambda (rule)
-      (or (representation? (rule-otype rule))
-          (spec-has-accelerator? (rule-input rule))
-          (spec-has-accelerator? (rule-output rule))))
-    rules))
-
-;; Rules from spec to impl
-(define-resetter *lowering-rules*
-  (λ () #f)
-  (λ () #f))
-
-(define (gen-lowering-rules!)
-  (define impls (list->set (platform-impls (*active-platform*))))
-  ; direct lowering: each operator has a set of implementations
-  (define rules
-    (for/list ([op (in-list (all-operators))] #:unless (accelerator? op)
-               [impl (in-list (operator-all-impls op))] #:when (set-member? impls impl))
-      (define itypes (operator-info op 'itype))
-      (define otype (operator-info op 'otype))
-      (define vars (map (lambda (_) (gensym)) itypes))
-      (rule (sym-append op '-lowering- impl)
-            (cons op vars)
-            (cons impl vars)
-            (map cons vars itypes)
-            otype)))
-  ; accelerator lowering
-  (define accelerator-rules
-    (for/list ([op (in-list (all-operators))] #:when (accelerator? op)
-               [impl (in-list (operator-all-impls op))] #:when (set-member? impls impl))
-      (define itypes (accelerator-info op 'itype))
-      (define otype (accelerator-info op 'otype))
-      (define vars (accelerator-info op 'vars))
-      (rule (sym-append 'accelerator-lowering- impl)
-            (accelerator-info op 'body)
-            (cons impl (accelerator-info op 'vars))
-            (map cons vars itypes)
-            otype)))
-  ; put them together
-  (*lowering-rules* (append rules accelerator-rules)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (impl-well-typed? prog repr)
@@ -140,17 +89,14 @@
   (define altns (map car altns&reprs))
   (define reprs (map cdr altns&reprs))
 
-  ; generate real rules
+  ; generate required rules
   (define rules (real-rules (*rules*)))
-
-  ; generate lowering rules if not cached
-  (unless (*lowering-rules*)
-    (gen-lowering-rules!))
+  (define lowering-rules (platform-lowering-rules))
 
   ; egg schedule (2-phases for real rewrites and implementation selection)
   (define schedule
     `((run ,rules ((node . ,(*node-limit*))))
-      (run ,(*lowering-rules*) ((iteration . 1) (scheduler . simple)))
+      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))
       (convert)
       (prune-spec)))
   
@@ -179,15 +125,12 @@
 
   ; generate real rules
   (define rules (real-rules (*simplify-rules*)))
-
-  ; generate lowering rules if not cached
-  (unless (*lowering-rules*)
-    (gen-lowering-rules!))
+  (define lowering-rules (platform-lowering-rules))
 
   ; egg schedule (2-phases for real rewrites and implementation selection)
   (define schedule
     `((run ,rules ((node . ,(*node-limit*))))
-      (run ,(*lowering-rules*) ((iteration . 1) (scheduler . simple)))
+      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))
       (convert)
       (prune-spec)))
 
