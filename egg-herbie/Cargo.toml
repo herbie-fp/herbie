@@ -5,8 +5,7 @@ authors = [ "Oliver Flatt <oflatt@gmail.com>", "Max Willsey <me@mwillsey.com>" ]
 edition = "2021"
 
 [dependencies]
-egg = "0.9.5"
-# egg = { git="https://github.com/egraphs-good/egg", rev="f7e9fd6cb87136d48f5275c8f60d98173ffc170a" }
+egg = { git = "https://github.com/bksaiki/egg.git", branch = "fix-proofs" }
 
 log = "0.4"
 indexmap = "1"
