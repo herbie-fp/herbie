@@ -556,7 +556,14 @@
      (list (if (>= x-exp 0)
                (get-slack)
                1))]
-    
+    [(ival-acosh)
+     ; log[Гacosh] = log[x / (sqrt(x-1) * sqrt(x+1) * acosh)] <= -log[acosh] + slack
+     (define out-exp (ival-min-log2-approx output))
+     (define slack (if (< out-exp 2)                 ; when acosh(x) < 1
+                       (get-slack)
+                       0))
+
+     (list (max 0 (+ (- out-exp) slack)))]
     ; TODO
     [(ival-erfc ival-erf ival-lgamma ival-tgamma)
      (list (get-slack))]
