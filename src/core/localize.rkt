@@ -31,7 +31,8 @@
   (for/list ([expr (in-list exprs)] [errs (in-list errss)])
     (sort
      (sort
-      (for/list ([(expr err) (in-hash errs)])
+      (for/list ([(expr err) (in-hash errs)]
+                 #:when (list? expr))
                 (cons err expr))
       expr<? #:key cdr)
      > #:key (compose errors-score car))))
@@ -46,15 +47,16 @@
   (for/list ([expr (in-list exprs)])
     (define subexprs (all-subexpressions expr))
     (define simple-subexprs (simplify-batch (make-egg-query subexprs (*simplify-rules*))))
+
       (sort 
         (for/list ([subexpr (in-list subexprs)]
-                  [simple-subexpr (in-list simple-subexprs)])
+                  [simple-subexpr (in-list simple-subexprs)]
+                  #:when (list? subexpr))
                   (cons (- (expr->cost subexpr (context-repr ctx)) (expr->cost (last simple-subexpr) (context-repr ctx)))
                          subexpr)
                   )
       > #:key car)  
     )
-    
   )
       
 
