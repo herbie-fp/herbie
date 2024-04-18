@@ -86,7 +86,6 @@
 
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *max-mpfr-prec* (make-parameter 10000))
-;(define *analyze-prec* (make-parameter 128))
 (define *ampl-tuning-bits* (make-parameter 20))
 (define *sampling-iteration* (make-parameter 0))
 (define *base-tuning-precision* (make-parameter 73))
