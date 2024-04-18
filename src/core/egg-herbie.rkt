@@ -521,8 +521,8 @@
   (define eclasses (make-vector n '()))
   (define has-leaf? (make-vector n #f))
   (define constants (make-vector n #f))
-  (for ([eclass egraph])
-    (match-define (list egg-id egg-nodes ...) eclass)
+  (for ([eclass (in-list egraph)])
+    (match-define (cons egg-id egg-nodes) eclass)
     (define id (resolve-id egg-id))
     (define node
       (for/vector #:length (length egg-nodes)

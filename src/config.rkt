@@ -126,9 +126,6 @@
 ;; Plugins loaded locally rather than through Racket.
 (define *loose-plugins* (make-parameter '()))
 
-;; Number of points to use for local error egg extraction
-(define *local-error-egg-num-points* (make-parameter 8))
-
 ;;; About Herbie:
 
 (define (run-command cmd)

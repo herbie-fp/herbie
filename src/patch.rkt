@@ -1,6 +1,7 @@
 #lang racket
 
 (require "syntax/rules.rkt"
+         "syntax/sugar.rkt"
          "syntax/syntax.rkt"
          "syntax/types.rkt"
          "core/egg-herbie.rkt"
@@ -165,8 +166,9 @@
   ; Starting alternatives
   (define reprs (map cdr locs))
   (define start-altns
-    (for/list ([(spec repr) (in-dict locs)])
-      (alt spec (list 'patch spec repr) '() '())))
+    (for/list ([(expr repr) (in-dict locs)])
+      (define spec (expand-accelerators (*rules*) (prog->spec expr)))
+      (alt spec (list 'patch expr repr) '() '())))
   ; Core
   (define approximations (run-taylor start-altns reprs))
   (define altns

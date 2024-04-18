@@ -2,27 +2,10 @@
 
 (require "core/egg-herbie.rkt" "core/simplify.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/sugar.rkt"
-         "syntax/types.rkt" "accelerator.rkt" "alternative.rkt"
-         "common.rkt" "errors.rkt" "programs.rkt" "points.rkt"
-         "timeline.rkt" "float.rkt")
+         "syntax/types.rkt" "alternative.rkt" "common.rkt" "programs.rkt"
+         "points.rkt" "timeline.rkt" "float.rkt")
 
 (provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
-
-;; Spec contains no accelerators
-(define (spec-has-accelerator? spec)
-  (match spec
-    [(list (? accelerator?) _ ...) #t]
-    [(list _ args ...) (ormap spec-has-accelerator? args)]
-    [_ #f]))
-
-;; Filter rules to extract all rules over spec.
-(define (real-rules rules)
-  (filter-not
-    (lambda (rule)
-      (or (representation? (rule-otype rule))
-          (spec-has-accelerator? (rule-input rule))
-          (spec-has-accelerator? (rule-output rule))))
-    rules))
 
 ;; The even identities: f(x) = f(-x)
 (define (make-even-identities spec ctx)
@@ -60,8 +43,16 @@
                     schedule
                     #:extractor (typed-egg-extractor platform-egg-cost-proc)))
 
-  ; run egg (ignore initial expression)
-  (rest (first (simplify-batch egg-query))))
+  ; run egg 
+  (match-define (list simplified) (simplify-batch egg-query))
+
+  ; alternatives
+  (define start-alt (make-alt init))
+  (cons start-alt
+        (remove-duplicates
+          (for/list ([expr (rest simplified)])
+            (alt expr `(simplify () ,egg-query #f #f) (list start-alt) '()))
+          alt-equal?)))
 
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
@@ -100,7 +91,7 @@
       (context-vars ctx)
       (for/list ([pair (in-list pairs)]
                  [swap (in-list swaps)]
-                 #:when (equal? spec* swap))
+                 #:when (equal? spec** swap))
         pair)))
 
   ; instructions (TODO: `equal?` should be an egraph query)
@@ -121,17 +112,10 @@
   
   (define instrs (append abs-instrs negabs-instrs sort-instrs))
   (define start-alts
-    (cond
-      [(flag-set? 'setup 'simplify)
-       (define start-alt (make-alt init))
-       (remove-duplicates
-         (map
-          (lambda (alt) (alt-add-preprocessing alt instrs))
-          (cons start-alt
-            (for/list ([init* (in-list (initial-simplify init ctx))])
-                (alt init* `(simplify () ,egg-query #f #f) (list start-alt) '())))))]
-      [else
-       (list (make-alt-preprocessing init instrs))]))
+    (if (flag-set? 'setup 'simplify)
+        (for/list ([altn (initial-simplify init ctx)])
+          (alt-add-preprocessing altn instrs))
+        (list (make-alt-preprocessing init instrs))))
   
   (values start-alts instrs))
 

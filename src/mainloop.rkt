@@ -201,8 +201,8 @@
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
 
-  (define loc-errss (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define ctx (*context*))
+  (define loc-errss (batch-localize-error (map alt-expr (^next-alts^)) ctx))
 
   ; high-error locations
   (^locs^
@@ -211,38 +211,34 @@
                [_ (in-range (*localize-expressions-limit*))]
                #:unless (eq? (type-of expr ctx) 'bool))
                ; type restriction is to avoid crashes in typed extraction
-      (define spec (expand-accelerators (*rules*) (prog->spec expr)))
       (define repr (repr-of expr (*context*)))
       (timeline-push! 'locations 
                       (~a expr)
                       (errors-score err)
                       (not (patch-table-has-expr? expr))
                       (~a (representation-name repr)))
-      (cons spec repr)))
+      (cons expr repr)))
   
   (void))
 
 ;; Returns the locations of `subexpr` within `expr`
 (define (get-locations expr subexpr)
-  (let loop ([expr expr] [loc '()])
-    (match expr
-      [(== subexpr)
-       (list (reverse loc))]
-      [(list op args ...)
-       (apply
-        append
-        (for/list ([arg (in-list args)] [i (in-naturals 1)])
-          (loop arg (cons i loc))))]
-      [_
-       (list)])))
+  (reap [sow]
+    (let loop ([expr expr] [loc '()])
+      (match expr
+        [(== subexpr) (sow (reverse loc))]
+        [(list _ args ...)
+         (for ([arg (in-list args)] [i (in-naturals 1)])
+           (loop arg (cons i loc)))]
+        [_ (void)]))))
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; extracts the base expression of a patch
-  (define (get-starting-spec altn)
+  (define (get-starting-expr altn)
     (match* ((alt-event altn) (alt-prevs altn))
-      [((list 'patch spec _) _) spec]
-      [(_ (list prev)) (get-starting-spec prev)]
+      [((list 'patch expr _) _) expr]
+      [(_ (list prev)) (get-starting-expr prev)]
       [(_ _) (error 'get-starting-spec "unexpected: ~a" altn)]))
 
   ;; takes a patch and converts it to a full alt
@@ -254,8 +250,6 @@
         [_
          (define event*
            (match event
-             [(list 'lower)
-              (list 'lower)]
              [(list 'taylor name var)
               (list 'taylor loc0 name var)]
              [(list 'rr input proof soundiness)
@@ -264,15 +258,15 @@
               (list 'simplify loc0 input proof soundiness)]))
          (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
-  
+
   (^patched^
     (reap [sow]
       (for ([altn (in-list alts)]) ;; does not have preproc
-        (define spec0 (get-starting-spec altn))
-        (if spec0
+        (define start-expr (get-starting-expr altn))
+        (if start-expr
             (for ([full-altn (in-list (^next-alts^))])
-              (define spec (prog->spec (alt-expr full-altn)))
-              (for ([loc (in-list (get-locations spec spec0))])
+              (define expr (alt-expr full-altn))
+              (for ([loc (in-list (get-locations expr start-expr))])
                 (sow (reconstruct-alt altn loc full-altn))))
             ; altn is a full alt (probably iter 0 simplify)
             (sow altn)))))
@@ -376,35 +370,25 @@
      (list (argmin score-alt alts))]))
 
 
- ; TODO: restore final simplify
+; TODO: restore final simplify
 (define (final-simplify! alts)
-  (cond
-    [(flag-set? 'generate 'simplify)
-     (timeline-event! 'simplify)
+  alts)
+  ; (cond
+  ;   [(flag-set? 'generate 'simplify)
+  ;    (timeline-event! 'simplify)
 
-     (define exprs (map alt-expr alts))
-     (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
-     (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
+  ;    (define input-progs (map alt-expr alts))
+  ;    (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
+  ;    (define simplified (map last (simplify-batch egg-query)))
 
-     ; egg runner
-     (define egg-query
-       (make-egg-query exprs
-                       reprs
-                       `((run ,rules ((node . ,(*node-limit*))))
-                         (convert))
-                       #:extractor (typed-egg-extractor platform-egg-cost-proc)))
-     
-     ; run egg
-     (define simplified (map last (simplify-batch egg-query)))
-
-     ; de-duplication
-     (remove-duplicates
-        (for/list ([altn (in-list alts)] [prog (in-list simplified)])
-          (if (equal? (alt-expr altn) prog)
-              altn
-              (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
-        alt-equal?)]
-    [else alts]))
+  ;    (remove-duplicates
+  ;     (for/list ([altn (in-list alts)] [prog (in-list simplified)])
+  ;       (if (equal? (alt-expr altn) prog)
+  ;           altn
+  ;           (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
+  ;     alt-equal?)]
+  ;   [else
+  ;    alts]))
 
 (define (add-soundness! alts)
   (cond
