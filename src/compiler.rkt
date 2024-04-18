@@ -45,13 +45,10 @@
                                                        (* (*sampling-iteration*) 1000)))
         (match (zero? (*sampling-iteration*))
           [#t (when (> iter-count 0)
-                ; Get converged precision with slack=0
-                (parameterize ([*sampling-iteration* -1]) (backward-pass ivec varc vregs vprecs vbase-precs rootvec rootlen vrepeats))
-                ;(println vstart-precs)
-                (update-vstart-precs vstart-precs vprecs)
-                ;(println vstart-precs)
-                #;(printf "\n"))
-              
+                ; Get converged precision with slack = 0
+                (parameterize ([*sampling-iteration* -1])
+                  (backward-pass ivec varc vregs vprecs vbase-precs rootvec rootlen vrepeats))
+                (update-vstart-precs vstart-precs vprecs))
               (vector-fill! vrepeats #f)
               (set! iter-count 0)]
           [#f (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
