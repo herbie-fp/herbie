@@ -23,6 +23,7 @@
    [(? number?) 'real]
    [(? variable?) (representation-type (context-lookup ctx expr))]
    [(list 'if cond ift iff) (type-of ift ctx)]
+   [(? literal?) 'real]
    [(list op args ...) (representation-type (impl-info op 'otype))]))
 
 ;; Returns repr name

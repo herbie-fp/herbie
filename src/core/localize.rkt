@@ -2,10 +2,11 @@
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt" "../timeline.rkt")
+         "../syntax/syntax.rkt" "../alternative.rkt" "../platform.rkt" 
+         "simplify.rkt" "egg-herbie.rkt" "../syntax/rules.rkt")
 
-(provide batch-localize-error local-error-as-tree compute-local-errors
-         all-subexpressions)
+(provide batch-localize-error batch-localize-cost local-error-as-tree compute-local-errors
+         all-subexpressions )
 
 (define (all-subexpressions expr)
   (remove-duplicates
@@ -26,15 +27,40 @@
 (define (batch-localize-error exprs ctx)
   (define errss
     (if (null? exprs) empty (compute-local-errors exprs ctx)))
+
   (for/list ([expr (in-list exprs)] [errs (in-list errss)])
     (sort
      (sort
-      (reap [sow]
-        (for ([(expr err) (in-hash errs)])
-          (unless (andmap (curry = 1) err)
-            (sow (cons err expr)))))
+      (for/list ([(expr err) (in-hash errs)]
+                 #:when (list? expr))
+                (cons err expr))
       expr<? #:key cdr)
      > #:key (compose errors-score car))))
+     
+
+
+;;Returns a list of lists of subexpresions and their cost different sorted by increasing local cost in the form (diff, expr)
+(define (batch-localize-cost exprs ctx)
+  ;;Creates a function to get the cost of a expr
+  (define expr->cost  (platform-cost-proc (*active-platform*)))
+  ;;For each expression takes the subexpressions and a the simplified version of those subexpression then for each subexpression it computes the difference between the two and return a sorted list of pairs of (subexpr and diff).
+  (for/list ([expr (in-list exprs)])
+    (define subexprs (all-subexpressions expr))
+    (define simple-subexprs (simplify-batch (make-egg-query subexprs (*simplify-rules*))))
+
+      (sort 
+        (for/list ([subexpr (in-list subexprs)]
+                  [simple-subexpr (in-list simple-subexprs)]
+                  #:when (list? subexpr))
+                  (cons (- (expr->cost subexpr (context-repr ctx)) (expr->cost (last simple-subexpr) (context-repr ctx)))
+                         subexpr)
+                  )
+      > #:key car)  
+    )
+  )
+      
+
+
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors exprs ctx)
