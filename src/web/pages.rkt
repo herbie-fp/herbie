@@ -15,11 +15,14 @@
   (define success-pages '("interactive.js" "points.json"))
   (append default-pages (if good? success-pages empty)))
 
-(define ((page-error-handler result page) e)
+(define ((page-error-handler result page out) e)
   (define test (job-result-test result))
-  ((error-display-handler)
-   (format "Error generating `~a` for \"~a\":\n~a\n" page (test-name test) (exn-message e))
-   e))
+  (eprintf "Error generating `~a` for \"~a\":\n  ~a\n"
+           page (test-name test) (exn-message e))
+  (parameterize ([current-error-port out])
+    (display "<!doctype html><pre>" out)
+    ((error-display-handler) (exn-message e) e)
+    (display "</pre>" out)))
 
 (define (make-page page out result output? profile?)
   (define test (job-result-test result))

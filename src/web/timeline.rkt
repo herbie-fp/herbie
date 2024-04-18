@@ -113,14 +113,18 @@
                                
 (define (render-phase-locations locations)
   `((dt "Localize:")
-    (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
+    (dd (p "Found " ,(~a (length locations)) " expressions of interest:")
         (table ([class "times"])
-          (thead (tr (th "New") (th "Accuracy") (th "Program")))
+          (thead (tr (th "New") (th "Metric") (th "Score") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
-              (match-define (list expr err new? repr-name) rec)
+              (match-define (list expr metric score new? repr-name) rec)
               (define repr (get-representation (read (open-input-string repr-name))))
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-accuracy err (representation-total-bits repr) #:unit "%") "")
+                  (td ,(~a metric))
+                  
+                  (td ,(if (equal? metric "accuracy")
+                            (format-accuracy score (representation-total-bits repr) #:unit "%")
+                            (~a score)))
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
