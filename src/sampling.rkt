@@ -109,30 +109,35 @@
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
-(define (batch-prepare-points fn ctx sampler)
+(define (batch-prepare-points fn ctxs sampler)
   ;; If we're using the bf fallback, start at the max precision
-  (define repr (context-repr ctx))
-  (define <-bf (representation-bf->repr repr))
   (define outcomes (make-hash))
 
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
 
-      (define-values (status precision out)
-        (parameterize ([*use-mixed-precision* #t])
-          (ival-eval repr fn pt)))
-      (hash-update! outcomes status (curry + 1) 0)
+      (define-values (status exs) (ival-eval fn ctxs pt))
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
               "could not determine a ground truth"
-              #:extra (for/list ([var (context-vars ctx)] [val pt])
+              #:extra (for/list ([var (context-vars (first ctxs))] [val pt])
                         (format "~a = ~a" var val))))
 
+      (when (equal? status 'valid)
+        (for ([ex (in-list exs)])
+          (when (and (flonum? ex) (infinite? ex))
+            (set! status 'infinite))))
+
+      (hash-update! outcomes status (curry + 1) 0)
+
+      (define is-bad?
+        (for/or ([input (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
+          ((representation-special-value? repr) input)))
+
       (cond
-       [(and (list? out) (not (ormap (representation-special-value? repr) pt)))
-        (define exs (map (compose <-bf ival-lo) out))
+       [(and (list? exs) (not is-bad?))
         (if (>= (+ 1 sampled) (*num-points*))
             (values (cons pt points) (cons exs exactss))
             (loop (+ 1 sampled) 0 (cons pt points) (cons exs exactss)))]
@@ -159,8 +164,7 @@
       ;; TODO: Should make-sampler allow multiple contexts?
       (make-sampler (first ctxs) pre fn)))
   (timeline-event! 'sample)
-  ;; TODO: should batch-prepare-points allow multiple contexts?
-  (match-define (cons table2 results) (batch-prepare-points fn (first ctxs) sampler))
+  (match-define (cons table2 results) (batch-prepare-points fn ctxs sampler))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
    (warn 'inf-points #:url "faq.html#inf-points"

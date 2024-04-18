@@ -41,17 +41,15 @@
       ['vars accelerator-operator-vars]))
   (accessor (hash-ref accelerator-operators op)))
 
-(define (register-accelerator-operator! name itypes otype form)
+(define (register-accelerator-operator! name itypes otype form [ival-impl #f])
   (match-define (list 'lambda (list vars ...) body) form)
   (define ruleset-name (sym-append name '- 'accelerator))
   (define define-name (sym-append name '- 'define))
   (define undefine-name (sym-append name '- 'undefine))
-  (hash-set! accelerator-operators
-             name
-             (accelerator-operator body vars itypes otype))
-  (register-operator! name
-                      itypes otype
-                      (list (cons 'ival (compile-spec body vars))))
+  (define info (accelerator-operator body vars itypes otype))
+  (define impl-fn (if ival-impl ival-impl (compile-spec body vars)))
+  (hash-set! accelerator-operators name info)
+  (register-operator! name itypes otype (list (cons 'ival impl-fn)))
   ;; TODO: Are the groups right now?
   (register-ruleset*! ruleset-name
                      '(numerics simplify)
@@ -61,10 +59,14 @@
 
 (define-syntax define-accelerator-operator
   (syntax-rules ()
-    [(_ name (itypes ...) otype (lambda (vars ...) body))
+    [(_ name (itypes ...) otype (lambda (variables ...) body))
      (register-accelerator-operator! 'name
                                      (list 'itypes ...) 'otype
-                                     (list 'lambda (list 'vars ...) 'body))]))
+                                     (list 'lambda (list 'variables ...) 'body))]
+    [(_ name (itypes ...) otype (lambda (variables ...) body) ival-impl)
+     (register-accelerator-operator! 'name
+                                     (list 'itypes ...) 'otype
+                                     (list 'lambda (list 'variables ...) 'body) ival-impl)]))
 
 (define (register-accelerator-impl! operator name
                                     itypes otype

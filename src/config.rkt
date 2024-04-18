@@ -85,14 +85,12 @@
 (define *max-bsearch-bits* (make-parameter 48))
 
 ;; Maximum MPFR precision allowed during exact evaluation
-(define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
 (define *analyze-prec* (make-parameter 128))
 (define *ground-truth-extra-bits* (make-parameter 20))
 
 (define *sampling-iteration* (make-parameter 0))
-(define *use-mixed-precision* (make-parameter #f))
-(define *tuning-final-output-prec* (make-parameter 73)) ; precision of the final output when tuning
+(define *base-tuning-precision* (make-parameter 73))
 (define *max-sampling-iterations* (make-parameter 5))
 
 ;; The maximum size of an egraph
