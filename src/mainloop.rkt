@@ -202,20 +202,23 @@
   (timeline-event! 'localize)
 
   (define loc-errss (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
-  (define repr (context-repr (*context*)))
+  (define ctx (*context*))
 
   ; high-error locations
   (^locs^
-    (for/list ([loc-errs (in-list loc-errss)]
-               #:when true
+    (for/list ([loc-errs (in-list loc-errss)] #:when #t
                [(err expr) (in-dict loc-errs)]
-               [i (in-range (*localize-expressions-limit*))])
+               [_ (in-range (*localize-expressions-limit*))]
+               #:unless (eq? (type-of expr ctx) 'bool))
+               ; type restriction is to avoid crashes in typed extraction
+      (define spec (expand-accelerators (*rules*) (prog->spec expr)))
+      (define repr (repr-of expr (*context*)))
       (timeline-push! 'locations 
                       (~a expr)
                       (errors-score err)
                       (not (patch-table-has-expr? expr))
                       (~a (representation-name repr)))
-      (cons (expand-accelerators (*rules*) (prog->spec expr)) repr)))
+      (cons spec repr)))
   
   (void))
 
@@ -379,13 +382,13 @@
     [(flag-set? 'generate 'simplify)
      (timeline-event! 'simplify)
 
-     (define progs (map alt-expr alts))
-     (define reprs (map (lambda (_) (context-repr (*context*))) progs))
+     (define exprs (map alt-expr alts))
+     (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
      (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
 
      ; egg runner
      (define egg-query
-       (make-egg-query progs
+       (make-egg-query exprs
                        reprs
                        `((run ,rules ((node . ,(*node-limit*))))
                          (convert))

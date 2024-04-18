@@ -1062,7 +1062,7 @@
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
-(define (regraph-extract-best regraph ctx extract id type)
+(define (regraph-extract-best regraph extract id type)
   ; extract expr
   (define id* (hash-ref (regraph-canon regraph) id))
   (match-define (cons _ egg-expr) (extract id* type))
@@ -1071,7 +1071,7 @@
   (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
 
 ;; Extracts multiple expressions according to the extractor
-(define (regraph-extract-variants regraph ctx extract id type)
+(define (regraph-extract-variants regraph extract id type)
   ; extract expressions
   (define eclasses (regraph-eclasses regraph))
   (define id* (hash-ref (regraph-canon regraph) id))
@@ -1391,7 +1391,7 @@
         regraph-extract-best))
   (define rewritten
     (for/list ([id node-ids] [repr (in-list reprs)])
-      (extract-proc regraph ctx extract-id id repr)))
+      (extract-proc regraph extract-id id repr)))
   ;; Extract the proof based on a pair (start, end) expressions.
   (define proofs
     (for/list ([proof-input (in-list proof-inputs)])
