@@ -1,6 +1,6 @@
 """FPCore utilities"""
 
-from typing import Optional
+from typing import Optional, Dict
 import re
 
 fpcore_pat = re.compile('\(FPCore \(([^\(\)]*)\)')
@@ -47,6 +47,17 @@ class FPCore(object):
             'err=' + repr(self.err) + ', ' + \
             'py_sample=' + repr(self.py_sample) + ', ' + \
             'override=' + repr(self.override) + ')'
+
+    def to_json(self) -> Dict:
+        return {
+            'key': self.key,
+            'name': self.name,
+            'descr': self.descr,
+            'argc': self.argc,
+            'core': self.core,
+            'cost': self.cost,
+            'err': self.err,
+        }
 
 def parse_core(s: str) -> FPCore:
     """Parses a string as an FPCore."""

@@ -114,6 +114,8 @@ def run(
         runner.compile_drivers(driver_dirs=driver_dirs)
 
         times = runner.run_drivers(driver_dirs=driver_dirs)
+        runner.write_report(input_cores, cores, driver_dirs, times, frontier)
+        runner.write_samples(input_cores, cores, samples)
         runner.plot_times(cores, times)
         runner.plot_pareto(frontier)
         
