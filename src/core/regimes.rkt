@@ -201,29 +201,19 @@
   
   ;; These 3 vectors are will contain the output data and be used for
   ;; determining which alt is best for a given point
-  (define result-error-sums (make-flvector number-of-points))
-  (define result-alt-idxs (make-vector number-of-points))
-  (define result-prev-idxs (make-vector number-of-points))
+  (define result-error-sums (make-flvector number-of-points +inf.0))
+  (define result-alt-idxs (make-vector number-of-points 0))
+  (define result-prev-idxs (make-vector number-of-points number-of-points))
 
-  ;; Temporary vector used to find the alt with least error for each point
-  (define vec-temp (make-flvector number-of-alts))
   ;; TODO invert loops to match core algorithm data priority
   (for ([point-idx (in-range number-of-points)])
     ;; record the error for each candidate
     (for ([alt-idx (range number-of-alts)])
-     (flvector-set! vec-temp alt-idx
-      (flvector-ref (vector-ref flvec-psums alt-idx) point-idx)))
-    ;; Find the min, no built in function to find smallest fl in vector
-    (define min-v (flvector-ref vec-temp 0))
-    (define min-idx 0)
-    (for ([val (in-flvector vec-temp)] [idx (in-range number-of-alts)])
-      (cond [(< val min-v)
-             (set! min-idx idx)
-             (set! min-v val)]))
-    (flvector-set! result-error-sums point-idx (fl min-v))
-    (vector-set! result-alt-idxs point-idx min-idx)
-    (vector-set! result-prev-idxs point-idx number-of-points))
-  
+     (define val (flvector-ref (vector-ref flvec-psums alt-idx) point-idx))
+     (when (< val (flvector-ref result-error-sums point-idx))
+      (flvector-set! result-error-sums point-idx val)
+      (vector-set! result-alt-idxs point-idx alt-idx))))
+
   ;; Vectors are now filled with starting data. Beginning main loop of the
   ;; regimes algorithm.
  
