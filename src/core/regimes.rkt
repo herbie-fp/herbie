@@ -232,7 +232,9 @@
    (for ([alt-idx (in-naturals)] [alt-error-sums (in-vector flvec-psums)])
     ;; Loop over the points up to our current point
     (for ([prev-split-idx (in-range 0 point-idx)]
-          [prev-alt-error-sum (in-flvector alt-error-sums)] )
+          [prev-alt-error-sum (in-flvector alt-error-sums)]
+          [best-alt-idx (in-vector best-alt-idxs)]
+          [best-alt-cost (in-flvector best-alt-costs)])
      ;; Check if we can add a split point
      (when (vector-ref can-split-vec (+ prev-split-idx 1))
       ;; compute the difference between the current error-sum and previous
@@ -240,8 +242,7 @@
                                 prev-alt-error-sum)])
        ;; if we have not set the best alt yet or
        ;; the current alt-error-sum is less then previous
-       (when (or (not (vector-ref best-alt-idxs prev-split-idx))
-                 (fl< current-error (flvector-ref best-alt-costs prev-split-idx)))
+       (when (or (not best-alt-idx) (fl< current-error best-alt-cost))
         ;; update best cost and best index
         (flvector-set! best-alt-costs prev-split-idx current-error)
         (vector-set! best-alt-idxs prev-split-idx alt-idx))))))
