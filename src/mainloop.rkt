@@ -202,7 +202,7 @@
   (timeline-event! 'localize)
 
 
-  (define ctx (context-repr (*context*)))
+  (define ctx (*context*))
   (define loc-errss (batch-localize-error (map alt-expr (^next-alts^)) ctx))
   (define loc-costss (batch-localize-cost (map alt-expr (^next-alts^)) ctx))
 

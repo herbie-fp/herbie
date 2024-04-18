@@ -2,8 +2,8 @@
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt" "../alternative.rkt" "../platform.rkt" 
-         "simplify.rkt" "egg-herbie.rkt" "../syntax/rules.rkt")
+         "../syntax/syntax.rkt" "../alternative.rkt" "../accelerator.rkt"
+         "../platform.rkt" "simplify.rkt" "egg-herbie.rkt" "../syntax/rules.rkt")
 
 (provide batch-localize-error batch-localize-cost local-error-as-tree compute-local-errors)
 
@@ -22,29 +22,57 @@
      > #:key (compose errors-score car))))
 
 
-;;Returns a list of lists of subexpresions and their cost different sorted by increasing local cost in the form (diff, expr)
+;; Returns a list of lists of subexpresions and their cost different sorted by increasing
+;; local cost in the form (diff, expr)
 (define (batch-localize-cost exprs ctx)
+  (define subexprss
+    (for/list ([expr (in-list exprs)])
+      (all-subexpressions expr)))
 
-  ;;Creates a function to get the cost of a expr
-  (define expr->cost  (platform-cost-proc (*active-platform*)))
-  ;;For each expression takes the subexpressions and a the simplified version of those subexpression then for each subexpression it computes the difference between the two and return a sorted list of pairs of (subexpr and diff).
-  (for/list ([expr (in-list exprs)])
-    (define subexprs (all-subexpressions expr))
-    (define simple-subexprs (simplify-batch (make-egg-query subexprs (*simplify-rules*))))
+  ;; Simplify all unique subexpressions and extract the simplest expression
+  (define unique (remove-duplicates (apply append subexprss)))
 
-      (sort 
-        (for/list ([subexpr (in-list subexprs)]
-                  [simple-subexpr (in-list simple-subexprs)]
-                  #:when (list? subexpr))
-                  (cons (- (expr->cost subexpr (context-repr ctx)) (expr->cost (last simple-subexpr) (context-repr ctx)))
-                         subexpr)
-                  )
-      > #:key car)  
-    )
-  )
-      
+  ; inputs to egg
+  (define specs (map (lambda (e) (expand-accelerators (*rules*) (prog->spec e))) unique))
+  (define reprs (map (lambda (prog) (repr-of prog ctx)) unique))
+  (define rules (real-rules (*simplify-rules*)))
+  (define lowering-rules (platform-lowering-rules))
 
+  ; egg schedule (2-phases for real rewrites and implementation selection)
+  (define schedule
+    `((run ,rules ((node . ,(*node-limit*))))
+      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))
+      (convert)
+      (prune-spec)))
 
+  ; egg runner
+  (define egg-query
+    (make-egg-query specs
+                    reprs
+                    schedule
+                    #:extractor (typed-egg-extractor platform-egg-cost-proc)))
+
+  ; map input to simplest
+  (define simplified (simplify-batch egg-query))
+  (define expr->simplest
+    (for/hash ([expr (in-list unique)] [exprs (in-list simplified)])
+      (values expr (last exprs))))
+
+  ;; For each expression takes the subexpressions and a the simplified version of those
+  ;; subexpression then for each subexpression it computes the difference between the two
+  ;; and return a sorted list of pairs of (subexpr and diff).
+  (define expr->cost (platform-cost-proc (*active-platform*)))
+  (for/list ([subexprs (in-list subexprss)])
+    (define simplests (map (curry hash-ref expr->simplest) subexprs))
+    (sort 
+      (for/list ([subexpr (in-list subexprs)]
+                 [simplest (in-list simplests)]
+                 #:when (list? subexpr))
+        (define init-cost (expr->cost subexpr (repr-of subexpr ctx)))
+        (define best-cost (expr->cost simplest (repr-of subexpr ctx)))
+        (define cost-diff (- init-cost best-cost))
+        (cons cost-diff subexpr))
+      > #:key car)))
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors exprs ctx)
