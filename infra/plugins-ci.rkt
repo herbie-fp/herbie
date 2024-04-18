@@ -31,9 +31,9 @@
       (platform
         #:default-cost 1
         ; these conversions fail due to bugs in resugaring/desugaring
-        ; #:conversions ([posit8 quire8]
-        ;                [posit16 quire16]
-        ;                [posit32 quire32])
+        #:conversions ([posit8 quire8]
+                       [posit16 quire16]
+                       [posit32 quire32])
         [(quire8 posit8 posit8 quire8) (fdp fdm)]
         [(quire16 posit16 posit16 quire16) (fdp fdm)]
         [(quire32 posit32 posit32 quire32) (fdp fdm)]))))
