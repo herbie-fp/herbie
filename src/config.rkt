@@ -92,7 +92,7 @@
 (define *sampling-learning-rate* (make-parameter 0.1))
 (define *sampling-iteration* (make-parameter 0))
 (define *base-tuning-precision* (make-parameter 73))
-(define *max-sampling-iterations* (make-parameter 5))
+(define *max-sampling-iterations* (make-parameter 3))
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
