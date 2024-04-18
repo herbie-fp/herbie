@@ -4,23 +4,7 @@
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
          "../syntax/syntax.rkt" "../timeline.rkt")
 
-(provide batch-localize-error local-error-as-tree compute-local-errors
-         all-subexpressions)
-
-(define (all-subexpressions expr)
-  (remove-duplicates
-    (reap [sow]
-          (let loop ([expr expr])
-            (sow expr)
-            (match expr
-              [(? literal?) (void)]
-              [(? variable?) (void)]
-              [`(if ,c ,t ,f)
-               (loop c)
-               (loop t)
-               (loop f)]
-              [(list op args ...)
-               (for ([arg args]) (loop arg))])))))
+(provide batch-localize-error local-error-as-tree compute-local-errors)
 
 ;; Returns a list of expressions sorted by increasing local error
 (define (batch-localize-error exprs ctx)
