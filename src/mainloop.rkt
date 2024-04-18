@@ -283,7 +283,13 @@
        (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
            (for* ([alt0 (in-list (^next-alts^))]
                  [loc (in-list (get-locations (alt-expr alt0) expr0))])
-             (sow (reconstruct-alt altn loc alt0)))
+             (define alt* (reconstruct-alt altn loc alt0))
+             ;; In rare cases, simplify or rr are unsound and produce
+             ;; type-invalid expressions. This is bad but we don't
+             ;; really have a better idea for now than just filtering
+             ;; them out.
+             (when (expr-valid? (alt-expr alt*) (*context*) (context-repr (*context*)))
+               (sow alt*)))
            (sow altn)))))
 
   (void))

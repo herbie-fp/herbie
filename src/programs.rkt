@@ -3,7 +3,7 @@
 (require "syntax/syntax.rkt" "syntax/types.rkt")
 
 (provide expr? expr-contains? expr<?
-         type-of repr-of
+         type-of repr-of expr-valid?
          location-do location-get
          eval-application
          free-variables replace-expression replace-vars)
@@ -33,6 +33,21 @@
    [(? variable?) (context-lookup ctx expr)]
    [(list 'if cond ift iff) (repr-of ift ctx)]
    [(list op args ...) (impl-info op 'otype)]))
+
+;; Checks if an expression has a given type in a given context
+(define (expr-valid? expr ctx [repr (context-repr ctx)])
+  (match expr
+    [(? symbol?) (equal? (context-lookup ctx expr) repr)]
+    [(literal val prec) (equal? (get-representation prec) repr)]
+    [`(if ,c ,ift ,iff)
+     (and
+      (expr-valid? c ctx (get-representation 'bool))
+      (expr-valid? ift ctx repr)
+      (expr-valid? iff ctx repr))]
+    [`(,op ,args ...)
+     (and (equal? (impl-info op 'otype) repr)
+          (andmap (lambda (arg itype) (expr-valid? arg ctx itype))
+                  args (impl-info op 'itype)))]))
 
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
