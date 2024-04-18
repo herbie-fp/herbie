@@ -417,7 +417,7 @@
      (define x-exp (ival-max-log2-approx x))
      (define out-exp (ival-min-log2-approx output))
      
-     (define slack (if (>= x-exp 0)                   ; Condition of uncertainty when argument > sqrt(3)/2
+     (define slack (if (>= x-exp 1)                   ; Condition of uncertainty when argument > sqrt(3)/2
                        (get-slack)                    ; assumes that log[1-x^2]/2 is equal to slack
                        0))
      
@@ -553,7 +553,7 @@
      (define x (first srcs))
      (define x-exp (ival-max-log2-approx x))
 
-     (list (if (>= x-exp 0)
+     (list (if (>= x-exp 1)
                (get-slack)
                1))]
     [(ival-acosh)
