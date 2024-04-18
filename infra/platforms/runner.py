@@ -525,7 +525,7 @@ class Runner(object):
             }
             for input_core in input_cores
         ]
-        path = self.report_dir.joinpath('time.png')
+        path = self.report_dir.joinpath('sample.json')
         with open(path, 'w') as _file:
             json.dump(data, _file)
 
