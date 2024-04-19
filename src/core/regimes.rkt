@@ -222,7 +222,10 @@
   (define best-alt-idxs (make-vector number-of-points))
   (define best-alt-costs (make-flvector number-of-points))
 
-  (for ([point-idx (in-range 0 number-of-points)])
+  (for ([point-idx (in-range 0 number-of-points)]
+        [current-alt-error (in-flvector result-error-sums)]
+        [current-alt-idx (in-vector result-alt-idxs)]
+        [current-prev-idx (in-vector result-prev-idxs)])
    ;; Set and fill temporary vectors with starting data
    ;; #f for best index and positive infinite for best cost
    (vector-fill! best-alt-idxs #f)
@@ -247,11 +250,6 @@
         ;; update best cost and best index
         (flvector-set! best-alt-costs prev-split-idx current-error)
         (vector-set! best-alt-idxs prev-split-idx alt-idx)))))
-
-   ;; Save current values for the current point we are working on.
-   (define current-alt-error (flvector-ref result-error-sums point-idx))
-   (define current-alt-idx (vector-ref result-alt-idxs point-idx))
-   (define current-prev-idx (vector-ref result-prev-idxs point-idx))
    ;; We have now have the index of the best alt and it's error up to our 
    ;; current point-idx.
    ;; Now we compare against our current best saved in the 3 vectors above
